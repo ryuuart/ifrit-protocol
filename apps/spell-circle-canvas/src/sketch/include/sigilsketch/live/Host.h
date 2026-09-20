@@ -104,6 +104,11 @@ class Host {
     std::filesystem::path sketchesDirectory;
     /** The compiler line the build captured, beside the executable. */
     std::filesystem::path flagsFile;
+    /** THE COMMAND THAT COMPILES AND LINKS A GUEST, as a prefix rather
+     *  than one path: its words each become an argument, so a launcher
+     *  in front of a compiler or an interpreter in front of a script is
+     *  spelled here with the spaces in it. A word holding a space of its
+     *  own is written quoted. */
     std::string compiler = "clang++";
     /** Pin anything a sketch measured about its own execution, so a
      *  capture can be diffed. */

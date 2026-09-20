@@ -611,6 +611,44 @@ std::string stubCompiler(const std::filesystem::path& script) {
   return false;
 }
 
+/** Bumps @p path past now, so the next poll sees an edit. */
+void touch(const std::filesystem::path& path, int seconds) {
+  std::filesystem::last_write_time(
+      path, std::filesystem::file_time_type::clock::now() +
+                std::chrono::seconds(seconds));
+}
+
+TEST(SketchHostBuildDirectory, CompilesThroughACompilerOfSeveralWords) {
+  // The compiler option is a COMMAND PREFIX: a launcher in front of a
+  // compiler, or an interpreter in front of a script, is spelled with
+  // spaces in it, and each word must reach the shell as an argument of
+  // its own. Quoted whole, the prefix names one file that is not there,
+  // and the build fails before the compiler is reached at all.
+  const Watched file("sigil_sketch_host_prefix_compiler");
+  Host::Options opts = options(file.path);
+  opts.compiler = stubCompiler(file.dir.path / "compiler.sh");
+
+  Host host(std::move(opts), fonts());
+  ASSERT_TRUE(host.live());
+  touch(file.path, 1);
+  ASSERT_TRUE(buildOnce(host)) << "the build never finished";
+
+  // One unit compiled and linked: the object the compile names and the
+  // library the link names both stand. Nothing is dlopened — the stub
+  // writes empty files — so the adopt after this fails and the host
+  // keeps the session it opened with.
+  int objects = 0;
+  int libraries = 0;
+  std::error_code ec;
+  for (auto it = std::filesystem::directory_iterator(host.buildDirectory(), ec);
+       !ec && it != std::filesystem::directory_iterator(); it.increment(ec)) {
+    if (it->path().extension() == ".o") ++objects;
+    if (it->path().extension() == ".dylib") ++libraries;
+  }
+  EXPECT_EQ(objects, 1) << "the compile never ran: " << host.errorLog();
+  EXPECT_EQ(libraries, 1) << "the link never ran: " << host.errorLog();
+}
+
 TEST(SketchHostBuildDirectory, TwoHostsInOneProcessNeverLinkOverEachOther) {
   // Every host in a process links into ONE directory, and the window
   // keeps three sketches resident, each with a host of its own. A build
@@ -637,9 +675,7 @@ TEST(SketchHostBuildDirectory, TwoHostsInOneProcessNeverLinkOverEachOther) {
   for (int build = 1; build <= 2; ++build) {
     // One edit, seen by both: the same source at the same generation is
     // the collision this is about.
-    std::filesystem::last_write_time(
-        file.path, std::filesystem::file_time_type::clock::now() +
-                       std::chrono::seconds(build));
+    touch(file.path, build);
     ASSERT_TRUE(buildOnce(square)) << "the square's build never finished";
     ASSERT_TRUE(buildOnce(wide)) << "the wide sketch's build never finished";
   }

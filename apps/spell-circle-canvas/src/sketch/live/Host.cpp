@@ -90,6 +90,50 @@ std::string shellArgument(std::string_view value) {
   return result + "'";
 }
 
+/** THE COMPILER IS A COMMAND PREFIX, not one path: a launcher in front
+ *  of a compiler, or an interpreter in front of a script, is spelled
+ *  with spaces in it. Quoting the whole prefix would hand the shell one
+ *  word and nothing on disk is named by it, so the prefix is split into
+ *  words here and each word is quoted on its own.
+ *
+ *  A word that must itself hold a space is written quoted, exactly as it
+ *  would be on a command line: a single- or double-quoted run is taken
+ *  literally and joins the word around it, and a path holding an
+ *  apostrophe is therefore written in double quotes. Those quotes go no
+ *  further than this split — every word reaching the shell is quoted
+ *  afresh, apostrophes and all. */
+std::string shellCommand(std::string_view prefix) {
+  std::string command;
+  std::string word;
+  bool started = false;
+  char quote = '\0';
+  auto endWord = [&] {
+    if (!started) return;
+    if (!command.empty()) command += ' ';
+    command += shellArgument(word);
+    word.clear();
+    started = false;
+  };
+  for (char ch : prefix) {
+    if (quote != '\0') {
+      if (ch == quote)
+        quote = '\0';
+      else
+        word += ch;
+    } else if (ch == '\'' || ch == '"') {
+      quote = ch;
+      started = true;
+    } else if (std::isspace(static_cast<unsigned char>(ch))) {
+      endWord();
+    } else {
+      word += ch;
+      started = true;
+    }
+  }
+  endWord();
+  return command;
+}
+
 // Preprocessing asks the compiler itself to resolve every include and macro.
 // A content key therefore covers angle includes, conditional includes, flags,
 // and the native image this guest resolves its framework symbols from.
@@ -102,7 +146,7 @@ BuildInputs cacheInputs(const Host::Options& options,
                         const std::vector<std::filesystem::path>& sources) {
   if (options.hostStamp == std::filesystem::file_time_type{}) return {};
   std::string version;
-  if (run(shellArgument(options.compiler) + " --version", version) != 0)
+  if (run(shellCommand(options.compiler) + " --version", version) != 0)
     return {};
   Dl_info image{};
   dladdr(reinterpret_cast<const void*>(&hostBinaryTime), &image);
@@ -119,7 +163,7 @@ BuildInputs cacheInputs(const Host::Options& options,
   std::string linked = identity;
   for (const auto& unit : sources) {
     std::string preprocessed;
-    if (run(shellArgument(options.compiler) + " @" +
+    if (run(shellCommand(options.compiler) + " @" +
                 shellArgument(options.flagsFile.string()) +
                 " -fvisibility=hidden -fvisibility-inlines-hidden -E " +
                 shellArgument(unit.string()),
@@ -172,7 +216,7 @@ std::string compileLine(const Host::Options& options,
                         const std::filesystem::path& source,
                         const std::filesystem::path& object) {
   std::ostringstream cmd;
-  cmd << shellArgument(options.compiler) << " @"
+  cmd << shellCommand(options.compiler) << " @"
       << shellArgument(options.flagsFile.string())
       << " -fvisibility=hidden -fvisibility-inlines-hidden -c -o "
       << shellArgument(object.string()) << ' '
@@ -187,7 +231,7 @@ std::string linkLine(const Host::Options& options,
                      const std::vector<std::filesystem::path>& objects,
                      const std::filesystem::path& out) {
   std::ostringstream cmd;
-  cmd << shellArgument(options.compiler)
+  cmd << shellCommand(options.compiler)
 #ifdef __APPLE__
       << " -shared -undefined dynamic_lookup -Wl,-dead_strip"
 #else
