@@ -806,11 +806,10 @@ out of the host.
 
 ## Build and test
 
-```sh
-cmake --build build --config Release --target sketch_test
-ctest --test-dir build -C Release -R '^SketchKit' \
-      --output-on-failure
-```
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under. The
+kit has no binary of its own: its cases are part of `sketch_test`,
+under the `SketchKit` suites, and none of them carries a label.
 
 `kit/test/` asserts the claim a migrated sketch's plate rests on:
 that the theme is a comparable value a scope binds and shadows, and that
