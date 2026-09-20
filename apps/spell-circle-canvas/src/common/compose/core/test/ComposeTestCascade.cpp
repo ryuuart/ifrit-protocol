@@ -202,12 +202,14 @@ TEST(ComposeCascade, AnOriginInEmsFollowsTheFontItIsMeasuredIn) {
   // a font that changes above the node moves it with nothing else said.
   Host host;
   const auto page = [](float size) {
-    return box().font({.size = size}).children({box()
-                                                    .absolute()
-                                                    .rect(SkRect::MakeWH(100, 20))
-                                                    .fill(red())
-                                                    .transformOrigin(2_em, pct(0))
-                                                    .scaleX(0.04f)});
+    return box()
+        .font({.size = size})
+        .children({box()
+                       .absolute()
+                       .rect(SkRect::MakeWH(100, 20))
+                       .fill(red())
+                       .transformOrigin(2_em, pct(0))
+                       .scaleX(0.04f)});
   };
   host.composer.render(page(10));
   host.frame();

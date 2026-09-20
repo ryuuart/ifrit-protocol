@@ -31,9 +31,8 @@ SkM44 Composer::Impl::depthMatrixOf(Instance& inst, const NodeTransform& tf,
                                                   pn.depthData->perspective);
       if (distance > 0) {
         const SkRect frame = instanceRect(*parent);
-        const Pivot viewer =
-            pivotOf(*parent, pn.depthData->perspectiveOriginX,
-                    pn.depthData->perspectiveOriginY, nullptr);
+        const Pivot viewer = pivotOf(*parent, pn.depthData->perspectiveOriginX,
+                                     pn.depthData->perspectiveOriginY, nullptr);
         m = perspectiveMatrix(distance,
                               viewer.at(frame.width(), frame.height())) *
             m;

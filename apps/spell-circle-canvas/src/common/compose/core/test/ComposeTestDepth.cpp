@@ -550,20 +550,20 @@ TEST(ComposeDepth, TheViewerStandsWhereThePerspectiveOriginIsWritten) {
   // it draws at half its size, drawn in toward the point the viewer stands
   // over. That point is written as `transformOrigin` writes a pivot: a
   // percentage of the declaring node's box, or a length in it.
-  const auto drawnUnder = [](std::optional<std::pair<Dimension, Dimension>>
-                                 viewer) {
-    auto host = std::make_unique<Host>(200, 200);
-    Element view = box().perspective(400);
-    if (viewer) view.perspectiveOrigin(viewer->first, viewer->second);
-    host->composer.render(
-        view.children({box()
-                           .absolute()
-                           .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-                           .fill(red())
-                           .translateZ(-400)}));
-    host->frame();
-    return host;
-  };
+  const auto drawnUnder =
+      [](std::optional<std::pair<Dimension, Dimension>> viewer) {
+        auto host = std::make_unique<Host>(200, 200);
+        Element view = box().perspective(400);
+        if (viewer) view.perspectiveOrigin(viewer->first, viewer->second);
+        host->composer.render(
+            view.children({box()
+                               .absolute()
+                               .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                               .fill(red())
+                               .translateZ(-400)}));
+        host->frame();
+        return host;
+      };
   const auto centred = drawnUnder(std::nullopt);
   EXPECT_EQ(centred->pixel(100, 100), SK_ColorRED);
   EXPECT_NE(centred->pixel(40, 40), SK_ColorRED);

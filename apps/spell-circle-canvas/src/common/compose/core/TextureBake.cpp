@@ -240,8 +240,7 @@ bool paintTextureBake(PaintPass& pass) {
               ? pass.parentCanvasM
               : SkMatrix::Concat(impl.recordingReplay, pass.parentCanvasM);
       destTotal.preTranslate(rect.left(), rect.top());
-      destTotal.preConcat(
-          destTf.matrix({0, 0}, rect.width(), rect.height()));
+      destTotal.preConcat(destTf.matrix({0, 0}, rect.width(), rect.height()));
     }
   }
   // maxScaleOf, NOT the matrix diagonal: a quarter-turned node's diagonal
