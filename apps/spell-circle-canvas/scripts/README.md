@@ -90,15 +90,16 @@ translation unit; `FLOORS` are the five minima the visible case asserts,
 which catch an extractor that stopped matching rather than an ordinary
 edit.
 
-The generator itself is `src/test/docs/api_doc_probes.py`, and its
+The generator itself is `src/test/docs/api_doc_probes.py` over the
+`docprobes` package beside it, a module per subject, and its
 `--self-test` — one ctest entry, `api_doc_probes_self_test`, for the
-whole tree — runs its own in-script fixtures: a real name must probe, an
-unreal one must fail the run, an operator spelling must be exempted and
-reported, a header listing's bare names must be checked against the
-header they are listed under, and a Skia static-factory member must take
-the class-scope probe path. It is the only check that notices the
-EXTRACTOR narrowing, since a generator that silently probes less still
-emits a translation unit that compiles green.
+whole tree — runs the fixtures in `docprobes/selftest.py`: a real name
+must probe, an unreal one must fail the run, an operator spelling must
+be exempted and reported, a header listing's bare names must be checked
+against the header they are listed under, and a Skia static-factory
+member must take the class-scope probe path. It is the only check that
+notices the EXTRACTOR narrowing, since a generator that silently probes
+less still emits a translation unit that compiles green.
 
 The reference generator keeps fixtures of the same shape and for the
 same reason, under `scripts/sigil/reference/test/` as one ctest entry,

@@ -511,6 +511,12 @@ function(sigil_doc_probes library)
     find_package(GTest CONFIG REQUIRED)
   endif()
   set(script ${SIGIL_TEST_SUPPORT_DIR}/docs/api_doc_probes.py)
+  # The generator is a package beside the script, so every module of it is
+  # a dependency of every probe TU: a narrowed extractor that nothing
+  # re-ran would go unnoticed, which is the one failure the guard exists
+  # to prevent.
+  file(GLOB generator CONFIGURE_DEPENDS
+       ${SIGIL_TEST_SUPPORT_DIR}/docs/docprobes/*.py)
   string(SUBSTRING ${library} 0 1 head)
   string(TOUPPER ${head} head)
   string(SUBSTRING ${library} 1 -1 rest)
@@ -565,7 +571,7 @@ function(sigil_doc_probes library)
   add_custom_command(
     OUTPUT ${generated}
     COMMAND ${Python3_EXECUTABLE} ${script} ${args} --out ${generated}
-    DEPENDS ${ARG_READMES} ${script} ${scanned}
+    DEPENDS ${ARG_READMES} ${script} ${generator} ${scanned}
     COMMENT "Extracting the ${library} docs' names into compile probes"
     VERBATIM)
 
