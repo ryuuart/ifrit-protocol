@@ -49,6 +49,7 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
+#include <memory>
 #include <ranges>
 #include <string>
 #include <utility>
@@ -78,10 +79,11 @@ const SkColor4f kRule{0.78f, 0.30f, 0.20f, 0.28f};
 const SkColor4f kMark{0.78f, 0.30f, 0.20f, 1};
 
 /// The one hyphenator on the sheet: the justified panel asks for it, and
-/// a table borrowed by a layout has to outlive it.
-const sigil::weave::kit::PatternHyphenator& hyphenator() {
-  static const sigil::weave::kit::PatternHyphenator table(
-      "en", sigil::weave::kit::englishHyphenationPatterns());
+/// every layout it reaches keeps a share of it.
+std::shared_ptr<const sigil::weave::Hyphenator> hyphenator() {
+  static const std::shared_ptr<const sigil::weave::Hyphenator> table =
+      std::make_shared<const sigil::weave::kit::PatternHyphenator>(
+          "en", sigil::weave::kit::englishHyphenationPatterns());
   return table;
 }
 
@@ -332,7 +334,7 @@ struct ParagraphSheet {
                                    .justification = spec,
                                    .hyphenation =
                                        weave::HyphenationOptions{
-                                           .patterns = &s::hyphenator()},
+                                           .patterns = s::hyphenator()},
                                    .lineBreak =
                                        weave::LineBreakStrategy::kKnuthPlass}))
           .styleSheet(s::callClasses())
