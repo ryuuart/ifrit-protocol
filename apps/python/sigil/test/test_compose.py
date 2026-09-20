@@ -164,6 +164,31 @@ class Scene:
             ):
                 getattr(raw.box(), method)("sideways")
 
+    def test_every_spelling_of_no_fill_clears_a_standing_one(self):
+        # Three ways to write "no fill", over a fill that is already set.
+        # A conversion that only APPLIES its value leaves the red standing
+        # for two of them, and the three spellings quietly disagree.
+        def render(empty):
+            return self.render(
+                f"""from sigil.compose import Fill, box
+from sigil.material import skia as materials
+from sigil.sketch import sketch
+
+
+@sketch(size=(8, 8), background="#0000ff")
+class Scene:
+    def setup(self, ctx):
+        ctx.render(box().width(8).height(8).fill("#ff0000").fill({empty}))
+""",
+                at=0,
+            )
+
+        for empty in ("None", "Fill.none()", "materials.Paint()"):
+            with self.subTest(empty=empty):
+                self.assertEqual(render(empty)[:4], b"\x00\x00\xff\xff")
+        # …and a fill that is not empty still reaches the node.
+        self.assertEqual(render('"#00ff00"')[:4], b"\x00\xff\x00\xff")
+
     def test_rules_merge_native_partials_without_resetting_other_fields(self):
         sheet = weave.StyleSheet(
             [

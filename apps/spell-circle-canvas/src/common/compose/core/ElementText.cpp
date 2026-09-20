@@ -60,7 +60,12 @@ Element& Element::textStroke(float width, SurfacePaint paint) {
   auto& t = m_node->textData.ensure();
   t.hasTextStroke = width > 0.0f;
   t.textStrokeWidth = width;
-  t.textStrokeFill = paint.collapsedFill();
+  // The outline is one comparable Fill on the node, so a plain fill and
+  // a static paint collapse onto it. A live or geometry-dependent paint
+  // has no single colour to give a slot that is measured without a
+  // frame, and the glyphs are outlined in the ink in force rather than
+  // in the black an empty fill would leave them.
+  t.textStrokeFill = paint.collapsedFill().value_or(Fill::currentInk());
   return *this;
 }
 

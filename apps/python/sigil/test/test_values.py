@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sigil import compose, image, material, skia, weave
+from sigil import compose, image, material, motion, skia, weave
 from sigil.geometry import mesh
 from sigil.material import field
 from sigil.material import skia as material_skia
@@ -103,7 +103,8 @@ class Colors(unittest.TestCase):
 
     def test_one_colour_class_reads_every_spelling(self):
         self.assertEqual(
-            material.Color("#6e99bb"), material.Color(0x6E / 255, 0x99 / 255, 0xBB / 255)
+            material.Color("#6e99bb"),
+            material.Color(0x6E / 255, 0x99 / 255, 0xBB / 255),
         )
         read = compose.Fill.color((0.25, 0.5, 0.75)).colorValue
         self.assertIsInstance(read, material.Color)
@@ -115,14 +116,61 @@ class Colors(unittest.TestCase):
 
     def test_a_flat_mark_refuses_what_it_cannot_hold(self):
         recipe = material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31"))
-        with self.assertRaises(TypeError):
+        unit = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
+        # The messages are the refusal: falling back to the generic colour
+        # error would say a colour is a string or a sequence, which tells
+        # an author nothing about where the value they wrote does belong.
+        with self.assertRaisesRegex(TypeError, "A material is not a flat fill"):
             compose.Fill(recipe)
-        with self.assertRaises(TypeError):
-            compose.Fill(Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")]))
+        with self.assertRaisesRegex(TypeError, "geometry-dependent paint"):
+            compose.Fill(unit)
+        # A glyph outline is one such flat mark, and the node's own fill
+        # is not, so the same value is refused at one and taken at the other.
+        with self.assertRaisesRegex(TypeError, "geometry-dependent paint"):
+            compose.box().textStroke(1, unit)
         # The same values are a surface paint, which is what the message
         # sends the author to.
         self.assertFalse(compose.SurfacePaint(recipe).none())
         self.assertIsInstance(compose.box().fill(recipe), compose.Element)
+        self.assertIsInstance(compose.box().textFill(unit), compose.Element)
+
+    def test_a_glyph_paint_refuses_what_it_cannot_store(self):
+        ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
+        # A glyph paint is one paint resolved without the tree, so the
+        # spellings that read the tree say so rather than quietly dropping
+        # the ramp already set.
+        for reference in (compose.Fill.currentInk(), compose.var("accent")):
+            with self.assertRaisesRegex(TypeError, "clear one with None"):
+                compose.box().textFill(ramp).textFill(reference)
+        self.assertIsInstance(
+            compose.box().textFill(ramp).textFill(None), compose.Element
+        )
+
+    def test_a_uniform_is_written_the_same_way_on_a_paint_and_an_effect(self):
+        source = skia.RuntimeEffect.MakeForShader(
+            "uniform float4 tint; half4 main(float2 p) { return half4(tint); }"
+        )
+        # A colour uniform, written as the colour class and as a CSS
+        # string, is the same uniform on either seam.
+        self.assertEqual(
+            Paint.sksl(source).uniform("tint", "#ff0000"),
+            Paint.sksl(source).uniform("tint", material.Color("#ff0000")),
+        )
+        self.assertEqual(
+            material_skia.Effect.shader(source).uniform("tint", "#ff0000"),
+            material_skia.Effect.shader(source).uniform(
+                "tint", material.Color("#ff0000")
+            ),
+        )
+        # …and so is a live scalar, which is what makes either animate.
+        moving = skia.RuntimeEffect.MakeForShader(
+            "uniform float amount; half4 main(float2 p) { return half4(amount); }"
+        )
+        output = motion.Output(0.0)
+        self.assertTrue(Paint.sksl(moving).uniform("amount", output).isAnimated())
+        self.assertTrue(
+            material_skia.Effect.shader(moving).uniform("amount", output).isAnimated()
+        )
 
 
 if __name__ == "__main__":

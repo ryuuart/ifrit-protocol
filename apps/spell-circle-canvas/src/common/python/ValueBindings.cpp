@@ -56,8 +56,17 @@ mskia::Paint& uniform(mskia::Paint& paint, const std::string& name,
                       py::handle value) {
   if (py::isinstance<py::int_>(value) || py::isinstance<py::float_>(value))
     return paint.uniform(name, py::cast<float>(value));
-  if (py::isinstance<material::Color>(value))
+  // A colour is four floats, written as the colour class or as a CSS
+  // string, and a live scalar is what makes an sksl paint animate — the
+  // same two readings an effect's uniform takes, so one uniform is
+  // written the same way whichever of the two seams it is set on.
+  if (py::isinstance<material::Color>(value) || py::isinstance<py::str>(value))
     return paint.uniform(name, color(value));
+  if (py::isinstance<motion::Animatable<float>>(value) ||
+      py::isinstance<motion::Transitioned<float>>(value) ||
+      py::isinstance<choreograph::Output<float>>(value) ||
+      py::isinstance<motion::Bound>(value))
+    return paint.uniform(name, motionAnimatable(value));
   const auto values = py::cast<std::vector<float>>(value);
   if (values.size() == 2)
     return paint.uniform(name, std::array<float, 2>{values[0], values[1]});
@@ -587,8 +596,9 @@ void bindValues(py::module_& module) {
           [](mskia::Effect& self, const std::string& name,
              py::object value) -> mskia::Effect& {
             // A colour is four floats here as it is on a paint's
-            // uniform, so one effect and one paint take a colour uniform
-            // written the same way.
+            // uniform — the colour class or a CSS string — so one
+            // effect and one paint take a colour uniform written the
+            // same way, as they do a live scalar and an array.
             if (py::isinstance<material::Color>(value) ||
                 py::isinstance<py::str>(value)) {
               const SkColor4f tint = color(value);

@@ -214,7 +214,10 @@ erased(element, "at centerAt transformOriginPx", "_t.PointLike")
 erased(element, "rect region", "_t.RectLike")
 erased(element, "shape", "_t.ShapeLike")
 erased(element, "background foreground overlay stroke", "_t.DecorationLike")
-erased(element, "textFill textStroke", "_t.SurfacePaintLike")
+erased(element, "textFill", "_t.SurfacePaintLike")
+# The glyph OUTLINE is one comparable Fill on the node, measured with no
+# frame in hand, so it takes the flat-mark set and not the surface one.
+erased(element, "textStroke", "_t.FillLike")
 erased(element, "echo", "_t.PointLike", "_t.ColorLike")
 erased(element, "var", "_t.DimensionLike | _t.ColorLike")
 # Three arities, each with its own names, and each name usable as a keyword.
@@ -317,11 +320,7 @@ for method in ("background", "fill", "stroke", "color"):
 # Material recipes keep value uniforms distinct from animated effects.
 erased("_sigil.material.skia.Effect", "glow", "_t.ColorLike")
 PARAMETERS["_sigil.material.skia.Effect.blur"] = {"sigmaMap": "Paint"}
-erased(
-    "_sigil.material.skia.Effect",
-    "uniform",
-    "_t.ScalarLike | collections.abc.Sequence[_t.FloatLike]",
-)
+erased("_sigil.material.skia.Effect", "uniform", "_t.UniformValue")
 paint = "_sigil.material.skia.Paint"
 erased(paint, "solid", "_t.ColorLike")
 erased(paint, "uniform", "_t.UniformValue")

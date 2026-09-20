@@ -115,7 +115,12 @@ DrawCallback: TypeAlias = Callable[[draw.Pen], None]
 ScalarFunction: TypeAlias = Callable[[float], float]
 EaseLike: TypeAlias = motion.Easing | motion.Curve | ScalarFunction | None
 GradientStops: TypeAlias = Iterable[tuple[FloatLike, ColorLike]]
-UniformValue: TypeAlias = int | float | material.Color | Sequence[FloatLike]
+UniformValue: TypeAlias = ScalarLike | material.Color | str | Sequence[FloatLike]
+"""A NAMED UNIFORM on an SkSL paint or effect. A number, a live scalar
+that makes the value re-read every frame, a colour written as the colour
+class or a CSS string, or a flat array matched against the declared
+uniform's total float count. A paint and an effect take the same set, so
+one uniform is written the same way on either seam."""
 CellValue: TypeAlias = None | bool | int | float | str | data.Instant
 CellInput: TypeAlias = CellValue | data.Flag
 JsonValue: TypeAlias = (

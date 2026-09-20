@@ -10,6 +10,7 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
 #include <sigildraw/Draw.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilshaders/Draw.h>
 
 #include <cmath>
@@ -376,6 +377,21 @@ TEST(Pen, AMaterialIsAFill) {
   paper.end();
   EXPECT_GT(SkColorGetR(paper.pixel(2, 50)), 200u);
   EXPECT_GT(SkColorGetB(paper.pixel(97, 50)), 200u);
+}
+
+TEST(Pen, AMaterialIsAGroundAsWellAsAFill) {
+  // The three ground verbs take the same set: a recipe instance reaches
+  // background() exactly as it reaches fill() and stroke(), so a sketch
+  // that grounds itself in a material spells no conversion.
+  using sigil::material::kit::SurfaceParameters;
+  Paper paper;
+  paper.begin();
+  paper.pen.background(sigil::material::kit::unlit(SurfaceParameters{
+      .baseColor = sigil::material::Color{0.0f, 1.0f, 0.0f, 1.0f}}));
+  paper.end();
+  EXPECT_EQ(SkColorGetG(paper.pixel(5, 5)), 255u);
+  EXPECT_EQ(SkColorGetR(paper.pixel(5, 5)), 0u);
+  EXPECT_EQ(SkColorGetG(paper.pixel(90, 90)), 255u);
 }
 
 TEST(Pen, AMaterialFitsTheCanvasUnlessTheFillSaysTheShape) {

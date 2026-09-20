@@ -57,6 +57,13 @@ assert_type(compose.Fill(None), compose.Fill)
 assert compose.Fill(None) == compose.Fill.none()
 # A static paint collapses onto the one comparable fill a flat mark holds.
 assert compose.Fill(solid) == compose.Fill.color("#b34a2f")
+# The glyph OUTLINE is one such fill on the node, so it is written with
+# the flat-mark set rather than the surface one.
+assert_type(compose.box().textStroke(1, "#6e99bb"), compose.Element)
+assert_type(compose.box().textStroke(1, compose.Fill.currentInk()), compose.Element)
+assert_type(compose.box().textStroke(1, accent), compose.Element)
+assert_type(compose.box().textStroke(1, solid), compose.Element)
+assert_type(compose.box().textStroke(1, None), compose.Element)
 
 # ---------------------------------------------------------------------------
 # SurfacePaintLike — anything that can colour a surface, at Element.fill
@@ -88,7 +95,6 @@ assert_type(compose.box().fill(tinting), compose.Element)
 assert_type(compose.SurfacePaint(recipe), compose.SurfacePaint)
 assert_type(compose.stroke(1, recipe), compose.PathFormat)
 assert_type(compose.box().textFill(recipe), compose.Element)
-assert_type(compose.box().textStroke(1, ramp), compose.Element)
 assert_type(compose.kit.dot((0, 0), 2, recipe), compose.Element)
 assert_type(compose.kit.line(fill=recipe), compose.Element)
 assert_type(compose.kit.ladder(count=2, pitch=8, fill=ramp), compose.Element)

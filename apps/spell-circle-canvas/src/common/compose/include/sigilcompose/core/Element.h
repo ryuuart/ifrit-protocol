@@ -1307,11 +1307,19 @@ class Element {
    *  wordmark can also be a staggered entrance.
    *
    *  Takes everything the node's own fill takes — a colour, a Fill, a
-   *  paint, a material — because both dress the same surface. The two
-   *  spellings a glyph paint cannot hold are the cascade's references
-   *  and a live fill binding: a reference reads the ink in force, which
-   *  is what the glyphs are already painted in, so it leaves them on the
-   *  style's own foreground rather than blanking them. */
+   *  paint, a material — because both dress the same surface. An EMPTY
+   *  paint clears the override and the glyphs go back to the style's own
+   *  foreground.
+   *
+   *  The three spellings the slot cannot store are the cascade's two
+   *  references — the ink in force and a custom property — and a live
+   *  fill binding, because a glyph paint is resolved without the tree
+   *  and without a binding's identity. Each of them LEAVES A STANDING
+   *  OVERRIDE ALONE rather than blanking it: the glyphs are already
+   *  painted in the ink in force where no override reaches, so there is
+   *  nothing a reference could add, and silently clearing a ramp
+   *  somebody set would repaint the letters in a colour nobody named.
+   *  Clear it with an empty paint. */
   Element& textFill(SurfacePaint paint);
 
   /** Strokes the GLYPHS, under the fill — engraved display type, an
@@ -1325,8 +1333,12 @@ class Element {
    *  which it joins rather than replaces, and with `fx()`, which carries
    *  every pass along as the glyph moves.
    *
-   *  The stroke is one comparable Fill on the node, so a static paint
-   *  collapses onto it and a live one strokes with nothing. */
+   *  The outline is one comparable Fill on the node, so a plain fill and
+   *  a static paint collapse onto it — a gradient authored in absolute
+   *  coordinates keeps its shader. A live or geometry-dependent paint
+   *  has no single colour to give a slot measured without a frame, and
+   *  the glyphs are outlined in the ink in force; give such a paint to
+   *  `textFill()`, which resolves against the frame. */
   Element& textStroke(float width, SurfacePaint paint);
   /** Text leaves only: lay the run out along a PATH instead of a line.
    *  See TextPath. Single-line runs; the node's own box still sizes the

@@ -624,6 +624,60 @@ TEST(ComposeText, TextStrokeComposesWithTextFill) {
   EXPECT_GT(ramp, 100);   // …and the ramp still fills the bodies
 }
 
+TEST(ComposeText, AGlyphOutlineTakesTheInkWhenAPaintHasNoOneColour) {
+  // The outline is ONE comparable Fill on the node, measured with no
+  // frame in hand, so a unit-square ramp has no single colour to give
+  // it. What it must not do is fall through to the opaque black an
+  // empty fill leaves behind: the letters are outlined in the ink in
+  // force instead, which is the colour the node was already set in.
+  Host host(320, 160);
+  host.composer.render(
+      box()
+          .padding(20)
+          .ink({0, 1, 0, 1})
+          .children({text(u8"HH", whiteStyle(96))
+                         .textStroke(8.0f, material::skia::Paint::linearUnit(
+                                               {0, 0}, {0, 1},
+                                               {{0.0f, {1, 0, 0, 1}},
+                                                {1.0f, {0, 0, 1, 1}}}))}));
+  host.frame();
+  int green = 0;
+  for (int y = 0; y < 160; ++y)
+    for (int x = 0; x < 320; ++x) {
+      const SkColor c = host.pixel(x, y);
+      green += SkColorGetG(c) > 180 && SkColorGetR(c) < 90;
+    }
+  EXPECT_GT(green, 200) << "the outline painted something other than the ink";
+}
+
+TEST(ComposeText, AGlyphPaintTheSlotCannotStoreLeavesTheOneItHas) {
+  // A reference is not a paint: it reads the ink in force where it
+  // lands, and a glyph paint is stored as one paint resolved without the
+  // tree. Writing one over a ramp must therefore leave the ramp alone —
+  // blanking it would repaint the letters in a colour nobody named,
+  // while an EMPTY paint is how the override is meant to be cleared.
+  const auto ramp = material::skia::Paint::linearUnit(
+      {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+  auto rampedPixels = [&](SurfacePaint after) {
+    Host host(320, 160);
+    host.composer.render(box().padding(20).children(
+        {text(u8"HH", whiteStyle(96)).textFill(ramp).textFill(after)}));
+    host.frame();
+    int inked = 0;
+    for (int y = 0; y < 160; ++y)
+      for (int x = 0; x < 320; ++x) {
+        const SkColor c = host.pixel(x, y);
+        inked += (SkColorGetR(c) > 150 || SkColorGetB(c) > 150) &&
+                 SkColorGetG(c) < 90;
+      }
+    return inked;
+  };
+  EXPECT_GT(rampedPixels(Fill::currentInk()), 100);
+  EXPECT_GT(rampedPixels(Fill::var("accent")), 100);
+  // …and the glyphs go back to the style's own white when it is cleared.
+  EXPECT_EQ(rampedPixels(Fill::none()), 0);
+}
+
 TEST(ComposeDebug, CoverageOverAnArbitraryRegionAndComponentCounting) {
   // An annulus, a sector, a plate — anything whose outline is not a box
   // cannot be tested against its bounds without counting the parts

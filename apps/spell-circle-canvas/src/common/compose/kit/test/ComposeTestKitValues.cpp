@@ -1269,6 +1269,43 @@ TEST(KitLine, APairIsOneNodeAsDeepAsBothItsRails) {
   EXPECT_EQ(host.pixel(50, 6), SK_ColorBLACK);
 }
 
+TEST(KitLine, ARuleIsASurfaceAndAPairedOneRulesInTheInkItCannotCollapse) {
+  // An UNPAIRED rule is a node's own fill, so it takes the whole surface
+  // set: a gradient rules it as it grounds a well.
+  Host gradient(120, 40);
+  gradient.composer.render(box().width(120).height(40).column().children(
+      {kit::line({.length = Dimension(100),
+                  .thickness = 8,
+                  .fill = material::skia::Paint::linear(
+                      {0, 0}, {100, 0},
+                      {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})})}));
+  gradient.frame();
+  EXPECT_GT(SkColorGetR(gradient.pixel(2, 4)), 200u);
+  EXPECT_GT(SkColorGetB(gradient.pixel(97, 4)), 200u);
+
+  // A PAIRED rule is two strokes, and a stroke stores one comparable
+  // fill: a unit-square ramp has no colour to give one measured without
+  // a frame. The pair rules in the ink in force rather than in the
+  // opaque black an empty fill leaves behind.
+  Host paired(120, 60);
+  paired.composer.render(
+      box()
+          .width(120)
+          .height(60)
+          .column()
+          .ink({0, 1, 0, 1})
+          .children(
+              {kit::line({.length = Dimension(100),
+                          .thickness = 4,
+                          .fill = material::skia::Paint::linearUnit(
+                              {0, 0}, {1, 0},
+                              {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}),
+                          .pair = {{.thickness = 2, .gap = 6}}})}));
+  paired.frame();
+  EXPECT_EQ(paired.pixel(50, 1), SK_ColorGREEN);
+  EXPECT_EQ(paired.pixel(50, 11), SK_ColorGREEN);
+}
+
 TEST(KitLine, TakesAStatedFillOverTheInk) {
   Host host(60, 40);
   host.composer.render(

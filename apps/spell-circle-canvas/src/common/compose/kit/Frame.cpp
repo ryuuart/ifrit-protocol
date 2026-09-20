@@ -42,9 +42,11 @@ Element line(const Line& mark) {
   // under a rule that runs across, and after one that runs down.
   const float off = across + second.gap + second.thickness * 0.5f;
   // A rail stores one comparable Fill, so a paint on a paired rule rides
-  // the rails collapsed: a static gradient keeps its shader, a live one
-  // has no colour to give a rail that is measured without a frame.
-  const Fill railInk = ink.collapsedFill();
+  // the rails collapsed: a static gradient keeps its shader, and a live
+  // or geometry-dependent one has no colour to give a rail that is
+  // measured without a frame, so the pair rules in the ink in force
+  // rather than in the black an empty fill would leave it.
+  const Fill railInk = ink.collapsedFill().value_or(Fill::currentInk());
   return std::move(
       rule.fill(Fill::none())
           .shape(keyedShape(std::tuple{column, across},
@@ -61,8 +63,9 @@ Element line(const Line& mark) {
                   {.across = 0.0f, .width = mark.thickness, .fill = railInk},
                   {.across = column ? off : -off,
                    .width = second.thickness,
-                   .fill = second.fill.none() ? railInk
-                                              : second.fill.collapsedFill(),
+                   .fill = second.fill.none()
+                               ? railInk
+                               : second.fill.collapsedFill().value_or(railInk),
                    .dash = second.dash}}}));
 }
 

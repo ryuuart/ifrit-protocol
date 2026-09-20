@@ -215,12 +215,18 @@ stub generator; these tools are not runtime dependencies.
 
 Native declarations are checked in so an editor can read them without a
 native build. After changing bindings, regenerate against the rebuilt
-extension using an interpreter with the `typing` group installed. From
-`apps/python`, with that matching interpreter in `.venv`:
+extension using an interpreter that has the `typing` group installed AND
+NO SIGIL PACKAGE OF ITS OWN: an installed copy, an editable one above
+all, is found ahead of `PYTHONPATH`, so an interpreter that has one
+would describe a binding that is not the one just built. The generator
+refuses that interpreter rather than writing the wrong declarations. The
+build tree configures one with nothing else in it. From `apps/python`:
 
 ```sh
-PYTHONPATH=../spell-circle-canvas/build/python .venv/bin/python sigil/typing/generate.py
-PYTHONPATH=../spell-circle-canvas/build/python .venv/bin/python sigil/typing/generate.py --check
+PYTHONPATH=../spell-circle-canvas/build/python \
+  ../spell-circle-canvas/build/typing-tools/bin/python sigil/typing/generate.py
+PYTHONPATH=../spell-circle-canvas/build/python \
+  ../spell-circle-canvas/build/typing-tools/bin/python sigil/typing/generate.py --check
 ```
 
 Generation uses the compiled binding signatures plus explicit refinements

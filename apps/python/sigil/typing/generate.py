@@ -12,6 +12,7 @@ import ast
 import difflib
 import importlib.metadata
 import keyword
+import os
 import pathlib
 import re
 import subprocess
@@ -40,10 +41,40 @@ def sanitize(text: str) -> str:
     return text
 
 
+def extension_under_pythonpath() -> None:
+    """Refuse an extension PYTHONPATH did not name.
+
+    The stubs describe whichever `_sigil` this interpreter imports, and an
+    installed package — an editable one especially — is found ahead of
+    PYTHONPATH. An interpreter that has one therefore writes declarations
+    for a binding that is not the one in the build tree, quietly, and a
+    class the current bindings no longer register comes back.
+    """
+    import _sigil
+
+    roots = [
+        pathlib.Path(entry).resolve()
+        for entry in os.environ.get("PYTHONPATH", "").split(os.pathsep)
+        if entry
+    ]
+    if not roots:
+        return
+    found = pathlib.Path(_sigil.__file__).resolve()
+    if any(found.is_relative_to(root) for root in roots):
+        return
+    named = ", ".join(str(root) for root in roots)
+    raise RuntimeError(
+        f"PYTHONPATH names {named}, but _sigil was imported from {found}. "
+        "An installed copy shadows the built one. Run this with an "
+        "interpreter that has no sigil package installed."
+    )
+
+
 def generate(destination: pathlib.Path) -> dict[str, str]:
     version = importlib.metadata.version("pybind11-stubgen")
     if version != "2.5.5":
         raise RuntimeError(f"Use pybind11-stubgen 2.5.5, found {version}")
+    extension_under_pythonpath()
     subprocess.run(
         [
             sys.executable,

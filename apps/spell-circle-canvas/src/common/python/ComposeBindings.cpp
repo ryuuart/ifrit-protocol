@@ -122,7 +122,8 @@ compose::Fill fill(py::handle value) {
     if (paint.isAnimated() || paint.geometryDependent())
       throw py::type_error(
           "A live or geometry-dependent paint is not a flat fill. Give it to "
-          "a verb that takes a surface paint, such as Element.fill.");
+          "a verb that resolves against the frame it paints at, such as "
+          "Element.fill or Element.textFill.");
     return compose::toFill(paint);
   }
   if (py::isinstance<material::Material>(value))
@@ -543,10 +544,13 @@ void bindCompose(py::module_& module) {
           [](Element& self, py::object value) -> Element& {
             // One conversion for every surface-colouring parameter, so a
             // material reaches the node's fill exactly as it reaches a
-            // stroke's or a kit ground's. Empty is stated rather than
-            // applied, because applying nothing leaves a fill standing.
-            if (value.is_none()) return self.fill(compose::Fill::none());
-            return surfacePaint(value).apply(self);
+            // stroke's or a kit ground's. Empty is STATED rather than
+            // applied, because applying nothing leaves a standing fill
+            // where it is — and all three spellings of nothing, None, an
+            // empty Fill and an empty paint, must clear the same way.
+            const compose::SurfacePaint paint = surfacePaint(value);
+            if (paint.none()) return self.fill(compose::Fill::none());
+            return paint.apply(self);
           },
           py::arg("value"), fluent)
       .def(
@@ -808,13 +812,30 @@ void bindCompose(py::module_& module) {
       .def(
           "textFill",
           [](Element& self, py::object value) -> Element& {
-            return self.textFill(surfacePaint(value));
+            // A glyph paint is stored as one paint and resolved without
+            // the tree, so the spellings it cannot store say so here
+            // rather than leaving a standing override untouched and the
+            // author guessing why.
+            const compose::SurfacePaint paint = surfacePaint(value);
+            if (!paint.none() && !paint.collapsedPaint())
+              throw py::type_error(
+                  "A glyph paint is stored as one paint and resolved without "
+                  "the tree, so the ink in force, a custom property and a "
+                  "bound fill have no paint to give it. The glyphs already "
+                  "take the ink in force where no glyph paint reaches; clear "
+                  "one with None.");
+            return self.textFill(paint);
           },
           py::arg("paint"), fluent)
       .def(
           "textStroke",
           [](Element& self, float width, py::object value) -> Element& {
-            return self.textStroke(width, surfacePaint(value));
+            // The outline is one comparable Fill on the node, so the
+            // flat-mark reading is the widest set it can honour: a
+            // static paint collapses onto it and a live or
+            // geometry-dependent one raises, naming the verb that does
+            // resolve against the frame.
+            return self.textStroke(width, fill(value));
           },
           py::arg("width"), py::arg("paint"), fluent);
   for (const auto& [name, setter] : std::initializer_list<std::pair<

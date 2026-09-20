@@ -13,6 +13,7 @@
 #include <include/core/SkShader.h>
 #include <sigilcompose/core/Paint.h>
 
+#include <optional>
 #include <utility>
 
 #include "ComposeInternal.h"
@@ -44,13 +45,14 @@ Fill SurfacePaint::resolve(const PaintContext& context) const {
   return resolveFill(std::get<material::skia::Paint>(m_value), context);
 }
 
-Fill SurfacePaint::collapsedFill() const {
+std::optional<Fill> SurfacePaint::collapsedFill() const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
     const Fill* plain = fill->plain();
-    return plain ? *plain : Fill::none();
+    if (!plain) return std::nullopt;
+    return *plain;
   }
   const auto& paint = std::get<material::skia::Paint>(m_value);
-  if (paint.isAnimated() || paint.geometryDependent()) return Fill::none();
+  if (paint.isAnimated() || paint.geometryDependent()) return std::nullopt;
   return toFill(paint);
 }
 
@@ -102,7 +104,17 @@ Fill resolveFill(const material::skia::Paint& paint, const PaintContext& ctx) {
 }
 
 Element& Element::textFill(SurfacePaint paint) {
-  m_node->textData.ensure().metricFill = paint.collapsedPaint();
+  detail::TextData& text = m_node->textData.ensure();
+  // An empty paint CLEARS the override, because that is what asking for
+  // no glyph paint means. A fill the slot cannot store — the ink in
+  // force, a custom property, a bound fill — leaves whatever paint the
+  // glyphs already carry: blanking it would repaint them in a colour
+  // nobody named, and the reference the caller wrote is the colour they
+  // are painted in without an override anyway.
+  if (paint.none())
+    text.metricFill.reset();
+  else if (std::optional<material::skia::Paint> stored = paint.collapsedPaint())
+    text.metricFill = std::move(stored);
   return *this;
 }
 

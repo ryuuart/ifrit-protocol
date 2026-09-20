@@ -621,3 +621,76 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
   host.composer.render(tree());
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
+
+// ---------------------------------------------------------------------------
+// SurfacePaint's two collapses — what a slot that stores ONE value keeps
+// when it is handed the whole union.
+
+TEST(ComposeMaterial, ACollapsedFillAnswersNothingRatherThanAnEmptyFill) {
+  using material::skia::Paint;
+  const std::vector<material::skia::Stop> ramp{{0.0f, {1, 0, 0, 1}},
+                                               {1.0f, {0, 0, 1, 1}}};
+  // What a Fill slot can hold: a plain fill, references and all, and a
+  // paint that is one colour or one shader whatever frame it lands in.
+  EXPECT_EQ(SurfacePaint{green()}.collapsedFill(), green());
+  EXPECT_EQ(SurfacePaint{Fill::currentInk()}.collapsedFill(),
+            Fill::currentInk());
+  EXPECT_EQ(SurfacePaint{Fill::var("accent")}.collapsedFill(),
+            Fill::var("accent"));
+  EXPECT_EQ(SurfacePaint{Fill::none()}.collapsedFill(), Fill::none());
+  EXPECT_EQ(SurfacePaint{Paint::solid({0, 1, 0, 1})}.collapsedFill(), green());
+  EXPECT_EQ(
+      SurfacePaint{Paint::linear({0, 0}, {10, 0}, ramp)}.collapsedFill()->kind,
+      Fill::Kind::Shader);
+
+  // And what it cannot: the two tiers whose colour is the frame's. They
+  // answer NOTHING, never `Fill::none()` — an empty fill is a colour of
+  // its own at every painter that reads one, and answering it would
+  // paint a rule or a glyph outline black where a gradient was asked
+  // for. The caller says what it paints instead.
+  EXPECT_FALSE(
+      SurfacePaint{Paint::linearUnit({0, 0}, {1, 0}, ramp)}.collapsedFill());
+  auto live = std::make_shared<choreograph::Output<Fill>>(green());
+  EXPECT_FALSE(SurfacePaint{motion::Animatable<Fill>{live}}.collapsedFill());
+}
+
+TEST(ComposeMaterial, ACollapsedPaintSeparatesNothingFromWhatItCannotStore) {
+  using material::skia::Paint;
+  // A paint slot resolves without the tree and without a binding's
+  // identity, so a colour and a paint pass…
+  EXPECT_TRUE(SurfacePaint{green()}.collapsedPaint()->isSolid());
+  EXPECT_EQ(SurfacePaint{Paint::solid({0, 1, 0, 1})}.collapsedPaint(),
+            Paint::solid({0, 1, 0, 1}));
+  // …while both of the cascade's references and a bound fill do not.
+  EXPECT_FALSE(SurfacePaint{Fill::currentInk()}.collapsedPaint());
+  EXPECT_FALSE(SurfacePaint{Fill::var("accent")}.collapsedPaint());
+  auto live = std::make_shared<choreograph::Output<Fill>>(green());
+  EXPECT_FALSE(SurfacePaint{motion::Animatable<Fill>{live}}.collapsedPaint());
+  // An empty paint is the one spelling that MEANS nothing, and `none()`
+  // is what tells a caller which of the two it was handed.
+  EXPECT_FALSE(SurfacePaint{Fill::none()}.collapsedPaint());
+  EXPECT_TRUE(SurfacePaint{Fill::none()}.none());
+  EXPECT_FALSE(SurfacePaint{Fill::currentInk()}.none());
+}
+
+TEST(ComposeMaterial, AnEmptySurfacePaintLeavesAFillAndAnEmptyFillClearsIt) {
+  // A component prop that was never given is an empty SurfacePaint, and
+  // it leaves the element's own fill standing: that is what lets a
+  // caller state a default and a component override it. Saying NO FILL
+  // is a different sentence, spelled with the fill itself — so a
+  // conversion that only ever APPLIES cannot carry both, and the verb
+  // that takes "nothing" from an author has to state the empty one.
+  Host standing(40, 40);
+  standing.composer.render(box().children(
+      {box().width(40).height(40).absolute().left(0).top(0).fill(red()).fill(
+          SurfacePaint{})}));
+  standing.frame();
+  EXPECT_EQ(standing.pixel(20, 20), SK_ColorRED);
+
+  Host cleared(40, 40);
+  cleared.composer.render(box().children(
+      {box().width(40).height(40).absolute().left(0).top(0).fill(red()).fill(
+          Fill::none())}));
+  cleared.frame();
+  EXPECT_EQ(cleared.pixel(20, 20), SK_ColorBLACK);
+}

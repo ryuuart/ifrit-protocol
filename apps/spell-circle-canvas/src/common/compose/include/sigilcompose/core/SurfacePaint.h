@@ -36,16 +36,22 @@ class SurfacePaint {
    *  transitions are applied by Element; decorations read their target. */
   [[nodiscard]] Fill resolve(const PaintContext& context) const;
   /** The one comparable Fill a slot that stores a Fill can hold, with no
-   *  frame to resolve against: a plain fill answers itself, a static
-   *  paint collapses through `toFill`, and a live or geometry-dependent
-   *  one answers `Fill::none()` because the colour it would answer is
-   *  the frame's and the slot has no frame. */
-  [[nodiscard]] Fill collapsedFill() const;
+   *  frame to resolve against: a plain fill answers itself — references
+   *  and all, since a Fill slot resolves those where it paints — and a
+   *  static paint collapses through `toFill`. A live or geometry-dependent
+   *  paint, and a bound fill, answer NOTHING rather than `Fill::none()`:
+   *  the colour they would give is the frame's, the slot has no frame,
+   *  and an empty fill is a colour of its own at every painter that
+   *  reads one. A caller that must store a fill says in its own words
+   *  what it paints when nothing comes back. */
+  [[nodiscard]] std::optional<Fill> collapsedFill() const;
   /** The one paint a slot that stores a paint can hold: a paint answers
    *  itself, a plain colour becomes a solid and a plain shader a shader
    *  leaf. A fill that reads the tree — the ink in force, a custom
    *  property — and a live fill binding answer nothing, because a paint
-   *  slot resolves without the tree and without the binding's identity. */
+   *  slot resolves without the tree and without the binding's identity;
+   *  so does an empty paint, which is the one spelling that means the
+   *  slot should hold nothing. `none()` separates the two. */
   [[nodiscard]] std::optional<material::skia::Paint> collapsedPaint() const;
   [[nodiscard]] bool isAnimated() const;
   bool operator==(const SurfacePaint&) const = default;

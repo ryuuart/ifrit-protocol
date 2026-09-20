@@ -45,7 +45,10 @@ sigil_test(draw_test
           test/DrawTextTest.cpp test/PenInheritTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_DRAW_SHADER_DIR="${_shaders}"
-  LIBRARIES SigilDraw SigilWeavePorts)
+  # The material kit is a recipe instance the ground verbs take, which
+  # the library itself needs no part of: the pen holds the paint value
+  # and never a recipe of its own.
+  LIBRARIES SigilDraw SigilWeavePorts SigilMaterialKit)
 sigil_test(draw_test
   SUITES PenMachineFace
   LABELS fonts)

@@ -171,8 +171,14 @@ struct Line {
   bool column = false;
   /** Empty (default) is `Fill::currentInk()`, so a line under a
    *  recoloured ancestor is recoloured with it. A rule is a surface like
-   *  any other ground here, so a gradient or a material rules it; a
-   *  paired rule collapses its rails onto one comparable fill each. */
+   *  any other ground here, so a gradient or a material rules it.
+   *
+   *  A PAIRED rule is the one narrowing: its rails are strokes, each
+   *  storing one comparable fill, so a static paint collapses onto them
+   *  and a live or geometry-dependent one — a unit-square ramp, a
+   *  material reading the clock — has no colour to give a rail measured
+   *  without a frame, and the pair rules in the ink in force. An
+   *  unpaired rule is a node's own fill and takes the whole set. */
   SurfacePaint fill;
   /** Held off at BOTH ends, px — the separator that stops short of the
    *  edges it runs between. */
@@ -191,7 +197,8 @@ struct Line {
     /** Between the two rails, px, on the side the pair reads from — the
      *  side a masthead's hairline stands on is under the heavy rule. */
     float gap = 4.0f;
-    /** Empty (default) is the first rail's own. */
+    /** Empty (default) is the first rail's own, and so is a paint this
+     *  rail cannot collapse to one comparable fill. */
     SurfacePaint fill;
     /** Dash on/off intervals, px; empty is solid. */
     std::vector<SkScalar> dash;

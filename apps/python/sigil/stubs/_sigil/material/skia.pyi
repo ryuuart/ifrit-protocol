@@ -172,7 +172,7 @@ class Effect:
     def then(self, effect: Effect) -> Effect:
         ...
 
-    def uniform(self, name: str, value: _t.ScalarLike | collections.abc.Sequence[_t.FloatLike]) -> Effect:
+    def uniform(self, name: str, value: _t.UniformValue) -> Effect:
         ...
 
     def usesWorldSpace(self) -> bool:

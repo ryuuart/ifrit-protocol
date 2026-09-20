@@ -106,9 +106,20 @@ parameter takes the widest its slot can honour: a colour through `color`, a
 flat mark through `fill`, and anything that colours a surface through
 `surfacePaint`. `fill` collapses a static paint onto the one comparable Fill
 a flat mark holds and refuses a live or geometry-dependent one, naming the
-verb that takes it. A recipe instance converts to a paint wherever Python
-takes a paint; the native constructor stays spelled, because a C++ overload
-set holding both would be ambiguous.
+verb that takes it — which is why `Element.textStroke`, whose outline is one
+such Fill, is declared as a flat mark while `Element.textFill` is declared as
+a surface. A recipe instance converts to a paint wherever Python takes a
+paint; the native constructor stays spelled, because a C++ overload set
+holding both would be ambiguous.
+
+A slot that can hold only part of the union it is declared with says so when
+it is given the rest, rather than painting something nobody asked for.
+`Element.textFill` stores one paint resolved without the tree, so the ink in
+force, a custom property and a bound fill raise there and `None` is how an
+override is cleared; every other surface verb takes the whole set. A paired
+`kit.line` is the one place a value is narrowed silently, and the narrowing
+is the rails', not the verb's: each rail stores one comparable fill, so a
+paint that needs a frame rules the pair in the ink in force.
 
 These headers let another native adapter use the same conversions and wrapper
 types. A checked hub accepts host-provided access and feed-retention functions;

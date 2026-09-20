@@ -989,7 +989,7 @@ class Element:
     def textFill(self, paint: _t.SurfacePaintLike) -> Element:
         ...
 
-    def textStroke(self, width: typing.SupportsFloat, paint: _t.SurfacePaintLike) -> Element:
+    def textStroke(self, width: typing.SupportsFloat, paint: _t.FillLike) -> Element:
         ...
 
     def thread(self, key: str) -> Element:
