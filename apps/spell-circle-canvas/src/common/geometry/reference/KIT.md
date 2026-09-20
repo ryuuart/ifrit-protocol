@@ -77,8 +77,8 @@ beneath, in `sigil::geometry::shapes`.
   a width, and an outline that is not one of these reaches a sweep
   through the sweep's own `pop::profile::fromPath()`.
 - **`kit/Divisions.h`** — a figure's divisions as ONE multi-contour path:
-  `ticks()` walks a division count around a `Frame` (with a longer mark
-  every N), `arcs()` walks the same count as CLOSED segments of the ring
+  `ticks()` walks a division count around a `PolarFrame` (with a longer
+  mark every N), `arcs()` walks the same count as CLOSED segments of the ring
   itself, `chords()` walks a polygon's sides. One path rather than N
   drawn things, because a divider ladder is static geometry with one
   style — the exception is per-mark animation, which needs its own

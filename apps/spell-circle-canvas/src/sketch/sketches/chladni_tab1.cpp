@@ -187,7 +187,7 @@ constexpr float kRuleGap = 11 * kScale;
 // run clockwise, which is how every one of Chladni's twelve figures gives
 // the bearing of its Linien. `kUnit` has radius 1, so `at()` takes a
 // FRACTION of the disc and `about(c).px()` takes canvas px.
-constexpr path::Frame kUnit{.centre = {0, 0},
+constexpr path::PolarFrame kUnit{.centre = {0, 0},
                             .radius = 1.0f,
                             .zero = path::Zero::North,
                             .sense = path::Sense::CW};

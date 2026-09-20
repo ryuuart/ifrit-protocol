@@ -5,7 +5,7 @@
 # a ring or in a grid, the path operators, the two comparable seams a mark is
 # deviated and widened through (Shaper and Profile) with the band those
 # rails cut, where a set of paths cross, the two coordinate systems a
-# figure is measured in (the polar Frame and the unit-map Grid), the
+# figure is measured in (PolarFrame and the unit-map Grid), the
 # conic measured from its focus, and the sphere laid onto a plane with the
 # rotation that turns it first. Skia, glm and the standard-library
 # mixers under SigilCoreCompute — no mesh, no import, no

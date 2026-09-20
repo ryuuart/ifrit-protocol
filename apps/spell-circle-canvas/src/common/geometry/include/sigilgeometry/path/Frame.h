@@ -3,20 +3,20 @@
 /** @file
  * @ingroup geometry-path
  *
- * A figure's own coordinate system, as a value: the polar `Frame`, the
- * unit-map `Grid`, and the centred rect both are read through.
+ * A figure's own coordinate system, as a value: the polar `PolarFrame`,
+ * the unit-map `Grid`, and the centred rect both are read through.
  *
- * ## Frame
+ * ## PolarFrame
  *
- * A `Frame` converts `(angle, radius)` — numbers measured off a reference
- * drawing — into a point, an SkRect, or an arc-length fraction, in the
- * angle convention that drawing uses.
+ * A `PolarFrame` converts `(angle, radius)` — numbers measured off a
+ * reference drawing — into a point, an SkRect, or an arc-length
+ * fraction, in the angle convention that drawing uses.
  *
  * **The convention is the reason this is a value and not a function.**
  * Engraved and statistical plates commonly measure clockwise from twelve
  * o'clock; Skia measures from due east. Written as a bare `polar()`
  * helper, that difference is a sign flip and a -90 that every call site
- * repeats and every reader has to reverse-engineer. Written as a `Frame`,
+ * repeats and every reader has to reverse-engineer. Written as a `PolarFrame`,
  * it is one field set once, and every conversion below respects it.
  *
  * It decides nothing — the caller supplies the angle and the radius — so
@@ -33,7 +33,7 @@
  *
  * That is a library convention — where `shapes::circle()`'s contour begins
  * — leaking into a caller's arithmetic, at every site that places a label
- * on a ring. `Frame::fraction()` and `Frame::skiaDeg()` are that
+ * on a ring. `PolarFrame::fraction()` and `PolarFrame::skiaDeg()` are that
  * arithmetic written once, with the convention carried in the value rather
  * than in a comment beside each copy.
  */
@@ -88,11 +88,11 @@ enum class Sense { CW, CCW };
  *  site, and the convention flags are exactly the fields a caller wants to
  *  name.
  *
- *      const Frame fig{.centre = {kRR, kRR}, .radius = kR};  // North/CW
+ *      const PolarFrame fig{.centre = {kRR, kRR}, .radius = kR};  // North/CW
  *      g.children({disc(fig.at(126.0f, 0.72f), 6.0f).fill(ink)});
  *
  *  Trivially copyable; holds no Element and no node state. */
-struct Frame {
+struct PolarFrame {
   SkPoint centre{0, 0};
   /** The px radius that `normalizedRadius = 1` maps to. Authoring the rest of a
    *  figure in normalised radius is what lets the whole plate be rescaled
@@ -107,7 +107,7 @@ struct Frame {
    *  every call site. */
   float originDeg = 0.0f;
 
-  bool operator==(const Frame&) const = default;
+  bool operator==(const PolarFrame&) const = default;
 
   /** @name Angles
    *  This frame's degrees converted to and from the screen angle Skia
@@ -157,7 +157,7 @@ struct Frame {
    *  **Only exact on a circle.** A circle's arc length is proportional to
    *  its angle; an ellipse's is not, so on a non-square box the result
    *  drifts from the true arc-length fraction. Keep ring inscriptions on a
-   *  square box (`disc`, `Frame::box()`). */
+   *  square box (`disc`, `PolarFrame::box()`). */
   float fraction(float deg,
                  SkPathDirection baseline = SkPathDirection::kCW) const {
     const float screen =
@@ -227,17 +227,17 @@ struct Frame {
    *  conventions — the inner limb, the cell band, the hub. Saves the
    *  four-field restatement, which is where a convention gets silently
    *  dropped. */
-  constexpr Frame scaled(float k) const {
+  constexpr PolarFrame scaled(float k) const {
     return {centre, radius * k, zero, sense, originDeg};
   }
   /** The same frame about a different centre — a satellite figure that
    *  inherits the plate's angle convention. */
-  constexpr Frame about(SkPoint c) const {
+  constexpr PolarFrame about(SkPoint c) const {
     return {c, radius, zero, sense, originDeg};
   }
   /** The same frame with its zero turned by @p deg IN THIS FRAME'S SENSE.
    *  Composes: `f.turned(4.5f).turned(-4.5f) == f`. */
-  constexpr Frame turned(float deg) const {
+  constexpr PolarFrame turned(float deg) const {
     return {centre, radius, zero, sense,
             originDeg + (sense == Sense::CW ? deg : -deg)};
   }

@@ -444,7 +444,7 @@ in no header.
   arc length can express. A non-finite width pinches the band to the
   spine rather than deleting the whole mark.
 - **`path/Frame.h`** — the two coordinate systems a figure is measured in.
-  `Frame` converts `(angle, radius)` into a point, a rect or an
+  `PolarFrame` converts `(angle, radius)` into a point, a rect or an
   arc-length fraction IN THE DRAWING'S OWN CONVENTION: `Zero::North` or
   `East`, `Sense::CW` or `CCW`, plus an origin offset. That is the reason
   it is a value — written as a bare `polar()` helper the difference is a

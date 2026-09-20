@@ -7,7 +7,7 @@
  * in, and the one line every plate draws.
  *
  * The coordinate systems themselves are SigilGeometry's
- * (`geometry::path::Frame`, the polar one; `geometry::path::Grid`, the
+ * (`geometry::path::PolarFrame`, the polar one; `geometry::path::Grid`, the
  * unit map). What is here is the ways a NODE is placed by them — a disc
  * about a centre, a pinned box at absolute coordinates, the disc a
  * frame's own radius names, and the two circles that disc is drawn as,
@@ -90,7 +90,7 @@ inline Element at(Element e, float x, float y, Dimension w, Dimension h) {
  *  frame's radius.
  *
  *  IT TAKES A FRAME THAT ALREADY EXISTS, and the constraint is what
- *  makes that true rather than a matter of style. A `Frame` begins with
+ *  makes that true rather than a matter of style. A `PolarFrame` begins with
  *  a point and a radius, so `disc({x, y}, r)` initialises one just as
  *  readily as it initialises the SkPoint the centre overload wants, and
  *  a plain overload pair leaves that call ambiguous — which is a
@@ -98,9 +98,10 @@ inline Element at(Element e, float x, float y, Dimension w, Dimension h) {
  *  the way every other Skia point is written. Deduction cannot see
  *  through a braced list, so this overload drops out of the set there
  *  and the pair means the point it reads as. Spell a frame LITERAL as
- *  `geometry::path::Frame{…}`. */
+ *  `geometry::path::PolarFrame{…}`. */
 template <class FrameLike>
-  requires std::same_as<std::remove_cvref_t<FrameLike>, geometry::path::Frame>
+  requires std::same_as<std::remove_cvref_t<FrameLike>,
+                        geometry::path::PolarFrame>
 inline Element disc(const FrameLike& frame, float rNorm = 1.0f) {
   return disc(frame.centre, rNorm * frame.radius);
 }

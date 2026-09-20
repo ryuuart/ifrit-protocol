@@ -337,13 +337,13 @@ struct Thorn {
 // increasing the way the plate's own longitudes do). Every other radius on
 // this instrument is a projection and stays hand-written — rOfDec() is the
 // artefact, not a coordinate system.
-const path::Frame kEcliptic{
+const path::PolarFrame kEcliptic{
     .centre = {0, kEclCy}, .radius = kEclR, .zero = path::Zero::East};
-const path::Frame kRing{
+const path::PolarFrame kRing{
     .centre = {0, 0}, .radius = kRingSk, .zero = path::Zero::East};
 /** The same convention read as ARC LENGTH: where a plate angle falls along
  *  `shapes::circle()`, which is the number ring typography rides on. */
-const path::Frame kPlateAngles{.zero = path::Zero::East};
+const path::PolarFrame kPlateAngles{.zero = path::Zero::East};
 
 inline SkPoint eclPoint(float angDeg) { return kEcliptic.at(angDeg); }
 inline SkPoint ringPoint(float angDeg) { return kRing.at(angDeg); }

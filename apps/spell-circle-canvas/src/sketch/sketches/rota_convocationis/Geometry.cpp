@@ -303,7 +303,7 @@ auto RotaConvocationis::bakeGeometry() -> void {
   // stations stepped by three is three squares, stepped by four is four
   // triangles, and the library returns exactly gcd(sides, step) closed
   // rings rather than treating the non-coprime case as an error.
-  const sigil::geometry::path::Frame frame{.centre = kEye, .radius = kR};
+  const sigil::geometry::path::PolarFrame frame{.centre = kEye, .radius = kR};
   const SkPath star = shapes::chords(
       frame, {.sides = kStations, .step = 3, .radius = rStar, .closed = true});
   const SkPath inner = shapes::chords(

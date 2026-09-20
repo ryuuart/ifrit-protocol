@@ -80,7 +80,7 @@ TEST(FrameOnAShape, FractionAgreesWithTheCircleContourTheShelfBuilds) {
   // rather than silently rotating every label on a ring.
   const SkSize size{200, 200};
   const SkPath circle = shapes::circle()(size);
-  const path::Frame f{.centre = {100, 100}, .radius = 100};
+  const path::PolarFrame f{.centre = {100, 100}, .radius = 100};
   for (float th : {0.0f, 45.0f, 90.0f, 137.0f, 180.0f, 300.0f})
     EXPECT_TRUE(near(atFraction(circle, f.fraction(th)), f.at(th, 1.0f), 0.25f))
         << "th=" << th;
@@ -102,10 +102,10 @@ TEST(FrameOnAShape, TheBaselinesDirectionIsNotTheFramesSense) {
   // Every combination of frame sense and baseline direction must land on
   // the same point the frame names.
   for (path::Sense sense : {path::Sense::CW, path::Sense::CCW}) {
-    const path::Frame f{.centre = {100, 100},
-                        .radius = 100,
-                        .zero = path::Zero::North,
-                        .sense = sense};
+    const path::PolarFrame f{.centre = {100, 100},
+                             .radius = 100,
+                             .zero = path::Zero::North,
+                             .sense = sense};
     for (auto dir : {SkPathDirection::kCW, SkPathDirection::kCCW}) {
       const SkPath& path = dir == SkPathDirection::kCW ? cw : ccw;
       for (float th : {0.0f, 60.0f, 210.0f})
@@ -126,7 +126,7 @@ TEST(FrameOnAShape, TheBoxIsWhereACircleInscribesItselfOnTheFrame) {
   // The circle inscribed in `box(k)` passes through `at(θ, k)`, which is
   // what makes a rect from the frame and a silhouette in that rect name
   // the same geometry.
-  const path::Frame f{.centre = {50, 60}, .radius = 20};
+  const path::PolarFrame f{.centre = {50, 60}, .radius = 20};
   const SkRect b = f.box(0.5f);
   const SkPath c = shapes::circle()(SkSize{b.width(), b.height()});
   SkPoint p = atFraction(c, f.fraction(0.0f));
@@ -138,7 +138,7 @@ TEST(FrameOnAShape, TheBoxIsWhereACircleInscribesItselfOnTheFrame) {
 // ticks — a division ladder as ONE path with N contours.
 
 TEST(Divisions, ATickLadderEmitsOneContourPerDivisionOnTheFrame) {
-  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   const SkPath p = shapes::ticks(f, {.divisions = 12, .mark = {0.9f, 1.0f}});
   const Contours c = walk(p);
   EXPECT_EQ(c.pieces.size(), 12u);
@@ -149,7 +149,7 @@ TEST(Divisions, ATickLadderEmitsOneContourPerDivisionOnTheFrame) {
   EXPECT_TRUE(near(start, f.at(0, 1.0f), 1e-3f));
   // Every mark stands inside the frame's own box, and fewer divisions is
   // less path.
-  const path::Frame boxed{.centre = {100, 100}, .radius = 100};
+  const path::PolarFrame boxed{.centre = {100, 100}, .radius = 100};
   const SkPath twelve = shapes::ticks(boxed, {.divisions = 12});
   EXPECT_TRUE(boxed.box().contains(twelve.getBounds()));
   EXPECT_LT(shapes::ticks(boxed, {.divisions = 6}).countPoints(),
@@ -157,7 +157,7 @@ TEST(Divisions, ATickLadderEmitsOneContourPerDivisionOnTheFrame) {
 }
 
 TEST(Divisions, LongEveryLengthensEveryNthMark) {
-  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   const SkPath p = shapes::ticks(f, {.divisions = 72,
                                      .mark = {0.96f, 1.0f},
                                      .longEvery = 6,
@@ -177,7 +177,7 @@ TEST(Divisions, ClassifyReachesLengthClassesTheLongShortPairCannot) {
   // A three-way length pattern cannot be expressed by the long/short pair,
   // which is the whole reason `classify` exists: it hands each mark's
   // index to the caller and takes back that mark's span.
-  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   const SkPath p = shapes::ticks(
       f, {.divisions = 9,
           .mark = {0.5f, 1.0f},
@@ -195,7 +195,7 @@ TEST(Divisions, ClassifyReachesLengthClassesTheLongShortPairCannot) {
 }
 
 TEST(Divisions, ClosedAddsTheEndMarkAndSweepScopesTheLadder) {
-  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   const shapes::Ticks quarter{
       .divisions = 9, .from = 0, .sweep = 90, .closed = true};
   const Contours c = walk(shapes::ticks(f, quarter));
@@ -219,7 +219,7 @@ TEST(Divisions, TheOutlineFormTakesHalfTheShorterSideOfANonSquareBox) {
 }
 
 TEST(Divisions, ZeroLengthMarksAreSkippedRatherThanEmittedEmpty) {
-  const path::Frame f{.centre = {0, 0}, .radius = 10};
+  const path::PolarFrame f{.centre = {0, 0}, .radius = 10};
   EXPECT_TRUE(
       shapes::ticks(f, {.divisions = 6, .mark = {1.0f, 1.0f}}).isEmpty());
 }
@@ -243,7 +243,7 @@ TEST(Divisions, SideKsMidpointIsAtExactlyKPlusHalfOverN) {
   // in order as ONE arc-length coordinate, so a run laid around a heptagon
   // is a single run with each side occupying a known 1/n of it. Measured
   // against the path chords() built, not against the formula it used.
-  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   for (int n : {5, 7, 12}) {
     const SkPath p = shapes::chords(f, {.sides = n, .radius = 1.0f});
     const Contours c = walk(p);
@@ -268,7 +268,7 @@ TEST(Divisions, APolygonIsOneContourAndHasNoPerSideCoordinate) {
 }
 
 TEST(Divisions, AChordInsetShortensBothEndsAndDropsDegenerateSides) {
-  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   const Contours plain = walk(shapes::chords(f, {.sides = 7}));
   const Contours inset = walk(shapes::chords(f, {.sides = 7, .inset = 6.0f}));
   ASSERT_EQ(inset.pieces.size(), 7u);
@@ -278,7 +278,7 @@ TEST(Divisions, AChordInsetShortensBothEndsAndDropsDegenerateSides) {
 }
 
 TEST(Divisions, StepMakesStarPolygonsAndTheCommonFactorDecidesTheRingCount) {
-  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   // {7/2}: coprime, so one closed traversal of all seven vertices.
   EXPECT_EQ(walk(shapes::chords(f, {.sides = 7, .step = 2, .closed = true}))
                 .pieces.size(),
@@ -294,7 +294,7 @@ TEST(Divisions, StepMakesStarPolygonsAndTheCommonFactorDecidesTheRingCount) {
 }
 
 TEST(Divisions, AChordFanIsAComparableSilhouette) {
-  const path::Frame f{.centre = {100, 100}, .radius = 100};
+  const path::PolarFrame f{.centre = {100, 100}, .radius = 100};
   EXPECT_FALSE(shapes::chords(f, {.sides = 7}).isEmpty());
   EXPECT_TRUE(shapes::chords(shapes::Chords{.sides = 7}) ==
               shapes::chords(shapes::Chords{.sides = 7}));
@@ -305,7 +305,7 @@ TEST(Divisions, AChordFanIsAComparableSilhouette) {
 }  // namespace
 
 TEST(Divisions, AMarkWidthTurnsTheLadderIntoClosedNodes) {
-  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   const shapes::Ticks node{
       .divisions = 12, .mark = {0.9f, 1.0f}, .markPx = 4.0f};
   const SkPath p = shapes::ticks(f, node);
@@ -334,7 +334,7 @@ TEST(Divisions, AMarkWidthTurnsTheLadderIntoClosedNodes) {
 }
 
 TEST(Divisions, ArcSegmentsFollowTheRingWhereANodeStandsAcrossIt) {
-  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   const shapes::Arcs ring{
       .divisions = 8, .mark = {0.8f, 1.0f}, .spanDeg = 30.0f};
   const SkPath p = shapes::arcs(f, ring);

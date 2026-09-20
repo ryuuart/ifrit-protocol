@@ -85,7 +85,7 @@ void pen(draw::Pen& p, SkColor4f colour, float width) {
 /** The dial every frame cell is read against: the r = 1 circle and a
  *  hub, so a reading in normalised radius has something to be normal
  *  to. */
-void dial(draw::Pen& p, const path::Frame& frame) {
+void dial(draw::Pen& p, const path::PolarFrame& frame) {
   pen(p, kFaint, 1.0f);
   p.circle(frame.centre.fX, frame.centre.fY, frame.radius * 2.0f);
   p.noStroke();
@@ -95,7 +95,7 @@ void dial(draw::Pen& p, const path::Frame& frame) {
 
 /** A reading at (deg, rNorm): a spoke out to it, a disc on it, and the
  *  unit direction the frame says runs outward there. */
-void reading(draw::Pen& p, const path::Frame& frame, float deg,
+void reading(draw::Pen& p, const path::PolarFrame& frame, float deg,
              SkColor4f colour) {
   const SkPoint at = frame.at(deg, 0.78f);
   const SkPoint out = frame.at(deg, 0.90f);
@@ -109,7 +109,7 @@ void reading(draw::Pen& p, const path::Frame& frame, float deg,
 }
 
 /** The rim's twelve ticks, from 0.90 of the radius out to the rim. */
-void ticks(draw::Pen& p, const path::Frame& frame) {
+void ticks(draw::Pen& p, const path::PolarFrame& frame) {
   pen(p, kFaint, 1.0f);
   for (float d = 0; d < 360; d += 30)
     p.line(frame.at(d, 0.90f).fX, frame.at(d, 0.90f).fY, frame.at(d, 1.0f).fX,
@@ -169,7 +169,7 @@ struct FrameGrid {
                             "Zero points north; angles increase clockwise. "
                             "Both readings use 0° and 126°.",
                             [](draw::Pen& p) {
-                              const path::Frame frame{.centre = middle(),
+                              const path::PolarFrame frame{.centre = middle(),
                                                       .radius = kRadius};
                               dial(p, frame);
                               ticks(p, frame);
@@ -181,7 +181,7 @@ struct FrameGrid {
                             "The same readings with zero pointing east and "
                             "angles increasing counterclockwise.",
                             [](draw::Pen& p) {
-                              const path::Frame frame{
+                              const path::PolarFrame frame{
                                   .centre = middle(),
                                   .radius = kRadius,
                                   .zero = path::Zero::East,
@@ -195,14 +195,14 @@ struct FrameGrid {
                             "Scale, rotate and relocate a frame while "
                             "retaining its angle convention.",
                             [](draw::Pen& p) {
-                              const path::Frame frame{.centre = middle(),
+                              const path::PolarFrame frame{.centre = middle(),
                                                       .radius = kRadius};
                               dial(p, frame);
-                              const path::Frame inner = frame.scaled(0.62f);
+                              const path::PolarFrame inner = frame.scaled(0.62f);
                               dial(p, inner);
                               reading(p, inner, 126, kFigure);
                               reading(p, frame.turned(15), 126, kWarm);
-                              const path::Frame satellite =
+                              const path::PolarFrame satellite =
                                   frame.scaled(0.3f).about(frame.at(30, 0.66f));
                               dial(p, satellite);
                               reading(p, satellite, 126, kCool);

@@ -7,8 +7,8 @@
  *
  * Three generators, one idea: emit N marks into a single `SkPathBuilder`
  * rather than N drawn things. `ticks()` walks a division count around a
- * `Frame`; `arcs()` walks the same count as CLOSED segments of the ring
- * itself; `chords()` walks a polygon's sides.
+ * `PolarFrame`; `arcs()` walks the same count as CLOSED segments of the
+ * ring itself; `chords()` walks a polygon's sides.
  *
  * ## Why one path and not N of them
  *
@@ -63,14 +63,14 @@ struct Span {
  *
  *  Every angle is in the FRAME's units — `.from = 0` on a North/CW frame
  *  is 12 o'clock, on an East/CW frame it is 3 o'clock. That is the whole
- *  reason a `Frame` exists: it carries where zero is and which way the
+ *  reason a `PolarFrame` exists: it carries where zero is and which way the
  *  angles run, so a ladder need not restate either. */
 struct Ticks {
   /** How many marks. With `sweep = 360` and `closed = false` this is the
    *  division count and mark N would coincide with mark 0, so it is not
    *  emitted. */
   int divisions = 60;
-  /** Frame degrees of the first mark. */
+  /** The frame's degrees of the first mark. */
   float from = 0.0f;
   /** Total span in frame degrees. 360 is a full ring. */
   float sweep = 360.0f;
@@ -131,7 +131,7 @@ struct Ticks {
 
 /** The ladder as a path in the FRAME's parent space (absolute coordinates:
  *  `frame.centre` is where it says it is). */
-inline SkPath ticks(const path::Frame& frame, const Ticks& t) {
+inline SkPath ticks(const path::PolarFrame& frame, const Ticks& t) {
   SkPathBuilder b;
   const int n = std::max(0, t.divisions);
   if (n == 0) return b.detach();
@@ -173,18 +173,18 @@ inline SkPath ticks(const path::Frame& frame, const Ticks& t) {
  *
  *  Half the shorter side, not half the width, so a ladder on a non-square
  *  box stays a circle instead of silently becoming an ellipse whose
- *  `Frame::fraction()` no longer matches. Give it a square box
- *  (`Frame::box()`, `kit::disc`) and the question does not arise.
+ *  `PolarFrame::fraction()` no longer matches. Give it a square box
+ *  (`PolarFrame::box()`, `kit::disc`) and the question does not arise.
  *
  *  Comparable, so the node prunes — unless the Ticks carries a `classify`
  *  callable, which equality cannot see and which therefore makes the whole
  *  value compare unequal to everything. */
 struct TicksShape {
   Ticks t;
-  path::Frame conventions;
+  path::PolarFrame conventions;
   bool operator==(const TicksShape&) const = default;
   SkPath path(SkSize size) const {
-    path::Frame f = conventions;
+    path::PolarFrame f = conventions;
     f.centre = {size.width() * 0.5f, size.height() * 0.5f};
     f.radius = std::min(size.width(), size.height()) * 0.5f;
     return ticks(f, t);
@@ -195,7 +195,7 @@ struct TicksShape {
 /** The tick marks @p t describes, as a shape value that takes its
  *  centre and radius from the box it is asked for; @p conventions
  *  supplies only the angle zero and sense. */
-inline TicksShape ticks(const Ticks& t, path::Frame conventions = {}) {
+inline TicksShape ticks(const Ticks& t, path::PolarFrame conventions = {}) {
   return TicksShape{t, conventions};
 }
 
@@ -224,7 +224,7 @@ struct Arcs {
    *  sweep and `closed = false`, segment N would coincide with segment 0
    *  and is not emitted. */
   int divisions = 12;
-  /** Frame degrees of the first segment's CENTRE. */
+  /** The frame's degrees of the first segment's CENTRE. */
   float from = 0.0f;
   /** Total span in frame degrees the divisions are dealt over. */
   float sweep = 360.0f;
@@ -243,7 +243,7 @@ struct Arcs {
 };
 
 /** The segments as a path in the FRAME's parent space. */
-inline SkPath arcs(const path::Frame& frame, const Arcs& a) {
+inline SkPath arcs(const path::PolarFrame& frame, const Arcs& a) {
   SkPathBuilder b;
   const int n = std::max(0, a.divisions);
   if (n == 0 || a.spanDeg == 0.0f || a.mark.inner == a.mark.outer)
@@ -273,10 +273,10 @@ inline SkPath arcs(const path::Frame& frame, const Arcs& a) {
  *  ignored. Fully comparable, since `Arcs` has no callable member. */
 struct ArcsShape {
   Arcs a;
-  path::Frame conventions;
+  path::PolarFrame conventions;
   bool operator==(const ArcsShape&) const = default;
   SkPath path(SkSize size) const {
-    path::Frame f = conventions;
+    path::PolarFrame f = conventions;
     f.centre = {size.width() * 0.5f, size.height() * 0.5f};
     f.radius = std::min(size.width(), size.height()) * 0.5f;
     return arcs(f, a);
@@ -287,7 +287,7 @@ struct ArcsShape {
 /** The ring segments @p a describes, as a shape value that takes its
  *  centre and radius from the box it is asked for; @p conventions
  *  supplies only the angle zero and sense. */
-inline ArcsShape arcs(const Arcs& a, path::Frame conventions = {}) {
+inline ArcsShape arcs(const Arcs& a, path::PolarFrame conventions = {}) {
   return ArcsShape{a, conventions};
 }
 
@@ -325,7 +325,7 @@ struct Chords {
   int step = 1;
   /** rNorm of the vertices. */
   float radius = 1.0f;
-  /** Frame degrees of vertex 0. */
+  /** The frame's degrees of vertex 0. */
   float from = 0.0f;
   /** px trimmed off each end of every chord. */
   float inset = 0.0f;
@@ -339,7 +339,7 @@ struct Chords {
 
 /** The chords @p c describes, drawn on @p frame: one open contour per
  *  side, or joined into closed contours when @p c asks. */
-inline SkPath chords(const path::Frame& frame, const Chords& c) {
+inline SkPath chords(const path::PolarFrame& frame, const Chords& c) {
   SkPathBuilder b;
   const int n = std::max(2, c.sides);
   const int step = std::max(1, c.step);
@@ -389,10 +389,10 @@ inline SkPath chords(const path::Frame& frame, const Chords& c) {
  *  prunes. */
 struct ChordsShape {
   Chords c;
-  path::Frame conventions;
+  path::PolarFrame conventions;
   bool operator==(const ChordsShape&) const = default;
   SkPath path(SkSize size) const {
-    path::Frame f = conventions;
+    path::PolarFrame f = conventions;
     f.centre = {size.width() * 0.5f, size.height() * 0.5f};
     f.radius = std::min(size.width(), size.height()) * 0.5f;
     return chords(f, c);
@@ -403,7 +403,7 @@ struct ChordsShape {
 /** The same chords as a shape value that takes its centre and radius
  *  from the box it is asked for; @p conventions supplies only the angle
  *  zero and sense. */
-inline ChordsShape chords(const Chords& c, path::Frame conventions = {}) {
+inline ChordsShape chords(const Chords& c, path::PolarFrame conventions = {}) {
   return ChordsShape{c, conventions};
 }
 

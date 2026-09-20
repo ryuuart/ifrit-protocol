@@ -231,7 +231,7 @@ constexpr float kDeg = 3.14159265358979f / 180.0f;
 // bearings run clockwise, because the 1858 coxcomb starts its year at the
 // top and reads round to the right. `radius` is 1 so px radii can be passed
 // straight to `px()`; every wheel makes its own frame with `about()`.
-constexpr path::Frame kPlate{.centre = {0, 0},
+constexpr path::PolarFrame kPlate{.centre = {0, 0},
                              .radius = 1.0f,
                              .zero = path::Zero::North,
                              .sense = path::Sense::CW};
@@ -272,7 +272,7 @@ inline shapes::TicksShape spokeBaseline(float bearing, float inner,
 /** A square box of radius @p r centred on @p c, in the parent's space —
  *  the frame every shapes::sector / shapes::arc wedge is inscribed in. */
 Element discBox(SkPoint c, float r) {
-  return box().rect(path::Frame{.centre = c, .radius = r}.box());
+  return box().rect(path::PolarFrame{.centre = c, .radius = r}.box());
 }
 
 /** A straight spoke from the box centre out to radiusFraction. One tick of

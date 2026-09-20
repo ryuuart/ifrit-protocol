@@ -207,7 +207,7 @@ auto ChaucerAstrolabe::backPanel() -> Element {
   // The light pass SKIPS every fifth mark (a degenerate span), because the
   // two weights share a colour at 0.6 alpha: drawn over each other the
   // fifths would composite to 0.84 and print darker than the plate.
-  const path::Frame limb{.centre = c, .radius = r, .zero = path::Zero::East};
+  const path::PolarFrame limb{.centre = c, .radius = r, .zero = path::Zero::East};
   const auto ladder = [&](const shapes::Ticks& spec, float width) {
     face.children({pathFigure(shapes::ticks(limb, spec), 2)
                        .fill(Fill::none())

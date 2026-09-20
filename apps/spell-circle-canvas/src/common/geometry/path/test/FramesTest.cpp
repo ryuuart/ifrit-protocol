@@ -1,5 +1,5 @@
 /** @file
- * The two coordinate systems a figure is measured in — the polar Frame
+ * The two coordinate systems a figure is measured in — the polar frame
  * and the unit-map Grid — and the centred rect both are read through.
  */
 
@@ -27,13 +27,13 @@ namespace {
 }
 
 // ---------------------------------------------------------------------------
-// Frame — the figure-local polar coordinate system.
+// PolarFrame — the figure-local polar coordinate system.
 
 TEST(Frame, TheDefaultConventionIsTwelveOClockAndClockwise) {
-  // What Frame promises without being told: 0° at 12 o'clock, increasing
+  // What PolarFrame promises without being told: 0° at 12 o'clock, increasing
   // clockwise, radius normalized. P() below is that spelled by hand, which
   // is what a figure would otherwise write inline at every call site.
-  const Frame f{.centre = {100, 100}, .radius = 50};
+  const PolarFrame f{.centre = {100, 100}, .radius = 50};
   const auto P = [](float thDeg, float rNorm) {
     const float a = thDeg * 0.01745329252f;
     return SkPoint{100 + rNorm * 50 * std::sin(a),
@@ -52,33 +52,33 @@ TEST(Frame, TheDefaultConventionIsTwelveOClockAndClockwise) {
 }
 
 TEST(Frame, EastAndCounterClockwiseAreTheOtherConventions) {
-  const Frame east{.centre = {0, 0}, .radius = 1, .zero = Zero::East};
+  const PolarFrame east{.centre = {0, 0}, .radius = 1, .zero = Zero::East};
   EXPECT_TRUE(near(east.at(0, 1), {1, 0}, 1e-5f));
   EXPECT_TRUE(near(east.at(90, 1), {0, 1}, 1e-5f));  // screen-clockwise
 
-  const Frame ccw{
+  const PolarFrame ccw{
       .centre = {0, 0}, .radius = 1, .zero = Zero::East, .sense = Sense::CCW};
   EXPECT_TRUE(near(ccw.at(90, 1), {0, -1}, 1e-5f));
 }
 
 TEST(Frame, TheConventionIsCarriedByTheValueAndNotByTheCallSite) {
-  const Frame skiaLike{.centre = {100, 100},
-                       .radius = 50,
-                       .zero = Zero::East,
-                       .sense = Sense::CW};
-  const Frame plate{.centre = {100, 100},
-                    .radius = 50,
-                    .zero = Zero::North,
-                    .sense = Sense::CW};
+  const PolarFrame skiaLike{.centre = {100, 100},
+                            .radius = 50,
+                            .zero = Zero::East,
+                            .sense = Sense::CW};
+  const PolarFrame plate{.centre = {100, 100},
+                         .radius = 50,
+                         .zero = Zero::North,
+                         .sense = Sense::CW};
   // 0 degrees is due east in one and twelve o'clock in the other, and
   // that is the whole reason this is a value.
   EXPECT_FLOAT_EQ(skiaLike.skiaDeg(0), 0.0f);
   EXPECT_FLOAT_EQ(plate.skiaDeg(0), -90.0f);
   // A counter-clockwise plate turns the other way from the same zero.
-  const Frame widdershins{.centre = {100, 100},
-                          .radius = 50,
-                          .zero = Zero::North,
-                          .sense = Sense::CCW};
+  const PolarFrame widdershins{.centre = {100, 100},
+                               .radius = 50,
+                               .zero = Zero::North,
+                               .sense = Sense::CCW};
   EXPECT_FLOAT_EQ(widdershins.skiaDeg(90), -180.0f);
   EXPECT_FLOAT_EQ(plate.skiaDeg(90), 0.0f);
 }
@@ -89,7 +89,7 @@ TEST(Frame, DegOfInvertsFractionThroughAnyOrigin) {
   // a turn, since a fraction has no memory of which lap it was on — for a
   // scan rotated off the frame's own zero as well as one on it.
   for (float originDeg : {0.0f, -3.2f, 41.0f}) {
-    const Frame f{.centre = {0, 0}, .radius = 1, .originDeg = originDeg};
+    const PolarFrame f{.centre = {0, 0}, .radius = 1, .originDeg = originDeg};
     for (float th : {5.0f, 37.5f, 120.0f, 180.0f, 359.0f}) {
       const float back = f.degOf(f.fraction(th));
       EXPECT_NEAR(std::fmod(back - th + 720.0f, 360.0f), 0.0f, 1e-2f)
@@ -99,12 +99,12 @@ TEST(Frame, DegOfInvertsFractionThroughAnyOrigin) {
 }
 
 TEST(Frame, DerivedFramesKeepEveryConventionTheyCameFrom) {
-  const Frame f{.centre = {10, 20},
-                .radius = 80,
-                .zero = Zero::North,
-                .sense = Sense::CCW,
-                .originDeg = 4.5f};
-  const Frame inner = f.scaled(0.5f);
+  const PolarFrame f{.centre = {10, 20},
+                     .radius = 80,
+                     .zero = Zero::North,
+                     .sense = Sense::CCW,
+                     .originDeg = 4.5f};
+  const PolarFrame inner = f.scaled(0.5f);
   EXPECT_FLOAT_EQ(inner.radius, 40.0f);
   EXPECT_EQ(inner.zero, f.zero);
   EXPECT_EQ(inner.sense, f.sense);
@@ -120,9 +120,9 @@ TEST(Frame, DerivedFramesKeepEveryConventionTheyCameFrom) {
 }
 
 TEST(Frame, BoxIsTheSquareASilhouetteInscribesItselfIn) {
-  const Frame f{.centre = {10, 20}, .radius = 80};
+  const PolarFrame f{.centre = {10, 20}, .radius = 80};
   EXPECT_EQ(f.box(0.5f), SkRect::MakeXYWH(10 - 40, 20 - 40, 80, 80));
-  const Frame off{.centre = {50, 60}, .radius = 20};
+  const PolarFrame off{.centre = {50, 60}, .radius = 20};
   const SkRect b = off.box(0.5f);
   EXPECT_FLOAT_EQ(b.width(), 20);
   EXPECT_FLOAT_EQ(b.height(), 20);
@@ -131,7 +131,7 @@ TEST(Frame, BoxIsTheSquareASilhouetteInscribesItselfIn) {
 }
 
 TEST(Frame, PolarPointsLandWhereTheirDegreesSay) {
-  const Frame f{
+  const PolarFrame f{
       .centre = {0, 0}, .radius = 100, .zero = Zero::North, .sense = Sense::CW};
   const SkPoint north = f.at(0, 1.0f);
   EXPECT_NEAR(north.fX, 0.0f, 1e-3f);

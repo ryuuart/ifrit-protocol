@@ -688,7 +688,7 @@ point-sampled coverage scan out of a paint loop.
 
 **Kit — `kit/Kit.h`.** A tier above the library that adds no kernel state
 and no new equality: `kit::disc` (a node about a centre, at a radius or
-at a `geometry::path::Frame`'s — a braced pair is the centre, and a
+at a `geometry::path::PolarFrame`'s — a braced pair is the centre, and a
 frame is spelled as one) with `kit::ring` and `kit::dot` beside it, the
 stroked circle and the filled one, since a box of radius r about a point
 is not yet a circle and the three verbs that make it one are ceremony
