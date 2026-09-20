@@ -168,7 +168,10 @@ title. Treat the return value as the branch, not as a diagnostic.
 `WindowChrome::keepRendering` on the GUI thread when frame publication must
 continue behind another window. It enables Qt graphics and scene-graph
 persistence. On macOS it also keeps an activity token until application exit
-and opts that native window into rendering while covered. Offscreen windows
+and opts that native window into rendering while covered — through one
+override on the window CLASS, with the window itself marked rather than
+reclassified, because the system's own window chrome observes these
+windows and observation reclassifies them too. Offscreen windows
 never enter the Cocoa path. This does not change window ordering or make a
 minimized window visible.
 
@@ -233,6 +236,11 @@ with `qt_add_qml_module(URI Ifrit.Qt VERSION 1.0)`. The `qt_qml_test` target
 checks keyboard activation, font-result navigation, search clearing, disabled
 choices and model updates that must not emit user-edit signals. There are no
 assets.
+
+`qt_test` is the module's one C++ test binary, on Apple alone: its
+subject is the native window dressing, and its cases want a window
+server, so they carry the `cocoa` label and skip where there is no
+session behind them.
 
 QML types provided: the `Theme` singleton, `Panel`, `PanelHeading`, `SectionHeading`,
 `FactRow`, `StatusIndicator`, `Notice`, `IconButton`, `SegmentedControl`,

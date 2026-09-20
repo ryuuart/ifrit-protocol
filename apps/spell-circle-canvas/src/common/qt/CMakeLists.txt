@@ -50,6 +50,18 @@ else()
   target_sources(IfritQt PRIVATE WindowChromeStub.cpp)
 endif()
 
+# This module's one test binary. Its subject is the native window
+# dressing, which exists on Apple alone and wants a window server: the
+# cases stand up a QGuiApplication on first ask rather than in main(),
+# so listing them needs nothing, and each skips where there is no
+# session behind it.
+if(APPLE)
+  sigil_test(qt_test
+    SOURCES test/BackgroundRenderingTest.mm
+    LIBRARIES IfritQt Qt6::Quick ${appkit}
+    SUITES BackgroundRendering LABELS cocoa)
+endif()
+
 target_link_libraries(IfritQt
   PUBLIC
     Qt6::Quick
