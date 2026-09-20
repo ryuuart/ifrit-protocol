@@ -109,20 +109,20 @@ class Resources:
         hub = ctx.assets.hub()
         uri = ctx.local("hello.txt")
         text = hub.text(uri)
-        blob = hub.fetch(uri)
+        stored = hub.fetch(uri)
         info = hub.probe(uri)
         names = hub.select(ctx.local("*.txt"))
         missing = ctx.assets.image(ctx.local("missing.png"))
-        builtins._sigil_runtime = (ctx.assets, hub, text, blob, info, names, missing)
+        builtins._sigil_runtime = (ctx.assets, hub, text, stored, info, names, missing)
         assert hub.text(ctx.local("absent.txt")) is None
         ctx.render(box())
 """,
             files={"hello.txt": "resource value"},
         )
-        assets, hub, text, blob, info, names, image = builtins._sigil_runtime
+        assets, hub, text, stored, info, names, image = builtins._sigil_runtime
         self.assertEqual(text, "resource value")
-        self.assertEqual(blob, b"resource value")
-        self.assertEqual(info.byteSize, len(blob))
+        self.assertEqual(stored, b"resource value")
+        self.assertEqual(info.byteSize, len(stored))
         self.assertEqual(len(names), 1)
         self.assertGreater(image.width(), 0)
         with self.assertRaisesRegex(RuntimeError, "closed session"):
