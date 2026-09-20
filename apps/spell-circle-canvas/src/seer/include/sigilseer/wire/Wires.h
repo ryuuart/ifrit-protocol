@@ -2,18 +2,10 @@
 
 /** @file
  * EVERY WIRE AT ONCE: the door each feed is opened through, the feeds
- * that are open, and what each of them is doing right now.
- *
- * A wire is one URI a message arrives on or leaves by. Opening one adds
- * it to a list that keeps the order it was opened in, so a reader looks
- * down the same column from one frame to the next. A URI nothing can
- * open is still a wire: the feed exists and carries the sentence that
- * says why, which is what a reader has to see to correct it.
- *
- * Nothing here has a thread or a clock of its own. `dispatch()` moves
- * every replayed recording to the caller's seconds and `tick()` reads
- * the wires and writes down what they are doing, both of them driven by
- * whatever loop the host runs.
+ * that are open, and what each of them is doing right now. A wire is
+ * one URI a message arrives on or leaves by, and a URI nothing can open
+ * is still a wire. Nothing here has a thread or a clock of its own:
+ * both `dispatch()` and `tick()` are driven by the host's loop.
  */
 
 #include <sigildata/decode/Schema.h>
@@ -74,17 +66,12 @@ struct Vitals {
   std::string lastFrom;
 };
 
-/** THE WIRES BEING WATCHED, and the one hub they are opened on.
- *
- *  Every transport this build carries is registered on that hub when
- *  this is made, so a udp:// URI opens a socket without the caller
- *  naming a transport. A URI that resolves onto a file is played back
- *  from it instead, which is what `mountRecording()` arranges.
- *
- *  One schema stands over all of them, or none does. It is the wires'
- *  and not one wire's because a reader who was handed a schema was
- *  handed it for the messages, and the same messages cross whichever
- *  wire the sender happened to open. */
+/** THE WIRES BEING WATCHED, and the one hub they are opened on: every
+ *  transport this build carries is registered on it, so a `udp://` URI
+ *  opens a socket without the caller naming a transport. One schema
+ *  stands over all of them, or none does, because a reader handed a
+ *  schema was handed it for the messages and the same messages cross
+ *  whichever wire the sender happened to open. */
 class Wires {
  public:
   Wires();

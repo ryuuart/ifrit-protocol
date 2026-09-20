@@ -1,15 +1,10 @@
 #pragma once
 
 /** @file
- * WRITING A WIRE DOWN, AND PLAYING IT BACK.
- *
- * Recording appends every arrival from the moment it starts to a file;
- * what came before is not in the file, because the feed handed those
- * messages out already. Replaying is the same URI opened onto that file
- * instead of onto a socket, so everything downstream — the list, the
- * log, the readings — is looking at the same kind of wire it was looking
- * at live, and the messages arrive as time is moved forward rather than
- * all at once.
+ * WRITING A WIRE DOWN, AND PLAYING IT BACK: recording appends every
+ * arrival from the moment it starts, and replaying is the same URI
+ * opened onto that file instead of onto a socket, so everything
+ * downstream is looking at the same kind of wire it looked at live.
  */
 
 #include <sigilio/hub/Feed.h>
