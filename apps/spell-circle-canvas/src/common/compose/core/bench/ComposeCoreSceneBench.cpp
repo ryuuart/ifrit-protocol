@@ -173,7 +173,7 @@ Element grade(float radius, float alpha) {
         return SkPath::Oval(SkRect::MakeWH(s.fWidth, s.fHeight));
       })
       .fill(Fill::color({1.0f, 0.72f, 0.31f, alpha}))
-      .blend(SkBlendMode::kPlus);
+      .blendMode(SkBlendMode::kPlus);
 }
 
 /** One lit element: four grades over the same disc, held as one bake and
@@ -188,7 +188,7 @@ Element emissiveStack(int index, Cache mode) {
       .width(400)
       .height(400)
       .cache(mode)
-      .blend(SkBlendMode::kPlus)
+      .blendMode(SkBlendMode::kPlus)
       .opacity(0.55f + 0.04f * (float)(index % 8))
       .children({grade(radius, 0.085f), grade(radius * 0.72f, 0.16f),
                  grade(radius * 0.5f, 0.42f), grade(radius * 0.3f, 0.96f)});

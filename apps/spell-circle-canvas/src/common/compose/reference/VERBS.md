@@ -133,7 +133,7 @@ What happens to the node's painted result.
 |---|---|
 | [`filter`](pages/verbs/filter.md) | Post-process the node's own rendered layer. |
 | [`backdropFilter`](pages/verbs/backdropFilter.md) | Filter what is already painted beneath the node before it paints. |
-| [`blend`](pages/verbs/blend.md) | How the node's paint meets what is under it. |
+| [`blendMode`](pages/verbs/blendMode.md) | How the node's paint meets what is under it. |
 | [`opacity`](pages/verbs/opacity.md) | Fade the node and everything under it as one group. |
 
 ## Transform
@@ -284,7 +284,7 @@ spelling is the feature's.
 - `core/verbs/Decoration.h` — the decoration slots `stroke`,
   `background`, `overlay`, `foreground`, `style`, `echo`, and what they
   dress: `boundary`, `threshold`.
-- `core/verbs/Effects.h` — `filter`, `backdropFilter`, `blend`, `opacity`,
+- `core/verbs/Effects.h` — `filter`, `backdropFilter`, `blendMode`, `opacity`,
   `appear`.
 - `core/verbs/Transform.h` — the transform lanes `translateX`,
   `translateY`, `travel`, `rotate`, `scale`, `scaleX`, `scaleY`,

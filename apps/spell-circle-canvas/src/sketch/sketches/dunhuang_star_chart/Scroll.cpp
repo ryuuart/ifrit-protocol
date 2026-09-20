@@ -65,7 +65,7 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
                .cover()
                .fill(paperGrain)
                .opacity(0.20f)
-               .blend(SkBlendMode::kSoftLight)
+               .blendMode(SkBlendMode::kSoftLight)
                .cache(Cache::Texture),
            box()
                .cover()

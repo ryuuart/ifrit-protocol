@@ -27,7 +27,7 @@ auto KspMapView::describe(sketch::SketchContext& ctx) -> Element {
           .filter(
               Effect::brightPass(0.68f, 0.30f)
                   .then(Effect::filter(SkImageFilters::Blur(4, 4, nullptr))))
-          .blend(SkBlendMode::kPlus)
+          .blendMode(SkBlendMode::kPlus)
           .opacity(0.34f);
 
   return stack()

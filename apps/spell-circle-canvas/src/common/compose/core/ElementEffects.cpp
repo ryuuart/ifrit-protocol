@@ -19,7 +19,7 @@ Derived& EffectVerbs<Derived>::appear(motion::Transition how) {
 }
 
 template <class Derived>
-Derived& EffectVerbs<Derived>::blend(SkBlendMode mode) {
+Derived& EffectVerbs<Derived>::blendMode(SkBlendMode mode) {
   declarations()->paint.blendMode = mode;
   return self();
 }

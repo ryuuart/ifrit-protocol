@@ -409,7 +409,7 @@ struct VertigoTitles {
          box()
              .key("stain")
              .inset(0)
-             .blend(SkBlendMode::kColor)
+             .blendMode(SkBlendMode::kColor)
              .fill(animate(from(Fill::color(hexColor(0x3A2A1C)))
                                .to(Fill::color(hexColor(0xC81E2C))),
                            ramp(700, 500, ch::easeInQuad)))});
@@ -536,7 +536,7 @@ struct VertigoTitles {
          box()
              .inset(0)
              .fill(filmGrain)
-             .blend(SkBlendMode::kOverlay)
+             .blendMode(SkBlendMode::kOverlay)
              .opacity(0.42f),
          // the bezel is its OWN node: trim() on the panel would reveal the
          // iris fill along with the keyline.
@@ -725,7 +725,7 @@ struct VertigoTitles {
          box()
              .inset(0)
              .fill(paperGrain)
-             .blend(SkBlendMode::kOverlay)
+             .blendMode(SkBlendMode::kOverlay)
              .opacity(0.16f)
              .cache(Cache::Texture)});
     return root;

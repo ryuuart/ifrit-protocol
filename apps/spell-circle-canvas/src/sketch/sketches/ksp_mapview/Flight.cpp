@@ -634,7 +634,7 @@ auto KspMapView::crewPlate() -> Element {
               .fill(Paint::linearUnit({0, 0}, {1, 1},
                                       {{0.0f, hexColor(0xFFFFFF, 0.42f)},
                                        {1.0f, hexColor(0xFFFFFF, 0.0f)}}))
-              .blend(SkBlendMode::kPlus),
+              .blendMode(SkBlendMode::kPlus),
           58, 44, 40, 34),
        // suit shoulders
        at(box().borderRadius({26}).fill(Paint::linearUnit(

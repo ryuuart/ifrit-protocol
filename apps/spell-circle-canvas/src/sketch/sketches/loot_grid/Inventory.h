@@ -351,7 +351,7 @@ inline Element panel(float w, float h) {
                      .inset(0)
                      .fill(Paint::recipe(field::noise(0.06f, 4, 7.0f)))
                      .opacity(0.16f)
-                     .blend(SkBlendMode::kOverlay)})
+                     .blendMode(SkBlendMode::kOverlay)})
       .foreground(styles::BevelEmboss{
           2.5f,
           4.0f,

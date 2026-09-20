@@ -71,7 +71,7 @@ auto TwoAdvancedV4::describe() -> Element {
                                         {0.65f, hexColor(0x3D060D)},
                                         {0.80f, hexColor(0x250002)},
                                         {1.00f, kBgBot}}))
-        .children({box().inset(0).fill(grain).opacity(0.07f).blend(
+        .children({box().inset(0).fill(grain).opacity(0.07f).blendMode(
             SkBlendMode::kOverlay)});
   }
   return page.children(

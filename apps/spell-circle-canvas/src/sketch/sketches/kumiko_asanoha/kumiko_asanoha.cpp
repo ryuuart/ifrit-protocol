@@ -312,7 +312,7 @@ struct KumikoAsanoha {
                  .rect(kRegOuter)
                  .clip(true)
                  .opacity(&glow)
-                 .blend(SkBlendMode::kPlus)
+                 .blendMode(SkBlendMode::kPlus)
                  .fill(Paint::radial(
                      {kRegOuter.width() * 0.5f, kRegOuter.height() * 0.5f}, 360,
                      {{0.00f, hexColor(0xFFF2D2, 0.13f)},

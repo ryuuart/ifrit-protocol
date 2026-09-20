@@ -1,30 +1,30 @@
 ---
 kind: verb
 library: SigilCompose
-name: blend
-qualified: sigil::compose::Element::blend
+name: blendMode
+qualified: sigil::compose::Element::blendMode
 header: sigilcompose/core/verbs/Effects.h
 group: Effects
-python: sigil.compose.Element.blend
+python: sigil.compose.Element.blendMode
 status: stable
-example: blend_verb
+example: blendMode_verb
 ---
 
-# blend
+# blendMode
 
 How the node's paint meets what is already on the canvas. Source-over
 unless it says otherwise, which is the ordinary "draw it on top".
 
-<!-- example: blend_verb -->
+<!-- example: blendMode_verb -->
 
 ## Syntax
 
 ```cpp
-Element& blend(SkBlendMode mode);
+Element& blendMode(SkBlendMode mode);
 ```
 
 ```python
-def blend(self, mode: skia.BlendMode) -> Element: ...
+def blendMode(self, mode: skia.BlendMode) -> Element: ...
 ```
 
 ## Parameters
@@ -51,9 +51,9 @@ every ancestor, the automatic bake.
 
 ## Examples
 
-- `reference/examples/blend_verb.cpp` — one disc over one bed in four
+- `reference/examples/blendMode_verb.cpp` — one disc over one bed in four
   modes.
-- `reference/examples/blend_verb.py` — the same picture in Python.
+- `reference/examples/blendMode_verb.py` — the same picture in Python.
 
 ## See also
 

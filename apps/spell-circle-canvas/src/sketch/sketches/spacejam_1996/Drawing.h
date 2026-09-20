@@ -341,7 +341,7 @@ inline Element starTile() {
                                                      {0.74f, {1, 1, 1, 0.0f}},
                                                      {0.89f, {1, 1, 1, 0.030f}},
                                                      {1.0f, {1, 1, 1, 0.0f}}}))
-                       .blend(SkBlendMode::kPlus)});
+                       .blendMode(SkBlendMode::kPlus)});
 
   int bright = 0;
   for (const Star& s : kStarField) {
@@ -362,7 +362,7 @@ inline Element starTile() {
                                                      {0.44f, {L, L, L, 0.26f}},
                                                      {0.70f, {L, L, L, 0.055f}},
                                                      {1.0f, {L, L, L, 0.0f}}}))
-                       .blend(SkBlendMode::kPlus)});
+                       .blendMode(SkBlendMode::kPlus)});
 
     // Spikes: thin tapered lobes, and on this tile they are the dominant
     // visual, not the glows. Four read as axial (+) crosses and two as
@@ -377,7 +377,7 @@ inline Element starTile() {
       Element sp = kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, len)
                        .shape(shapes::star(pts, 0.035f, waist))
                        .fill(Fill::color({1, 1, 1, 0.38f + 0.42f * L}))
-                       .blend(SkBlendMode::kPlus);
+                       .blendMode(SkBlendMode::kPlus);
       if (diagSpike(s.x, s.y)) sp.rotate(45);
       tile.children({std::move(sp)});
     }

@@ -174,7 +174,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
                           {0.62f, mskia::withAlpha(kTealBar, 0.10f)},
                           {1.00f, mskia::withAlpha(kTealBar, 0.34f)}})),
                      0, horizon - 132, w, 132)
-                      .blend(SkBlendMode::kPlus)});
+                      .blendMode(SkBlendMode::kPlus)});
 
   // THE portal: one SDF circle. Its box must RESERVE sdf::pad() for the
   // glow — sdf::minBoxFor() is the only honest way to size it, since
@@ -195,7 +195,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   if (!still) pm.uniform("uGlowR", &portalGlow);  // ±8 % sine, period 4 s
   Element portal = at(box().fill(pm), cx - pbox * 0.5f,
                       horizon - 108 - pbox * 0.5f, pbox, pbox)
-                       .blend(SkBlendMode::kPlus);
+                       .blendMode(SkBlendMode::kPlus);
   if (!still)
     // the one deliberately bouncy beat: the power core kicking on.
     // motion::ease::outBack() takes its overshoot as a parameter and converts
@@ -226,7 +226,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
                         .inset(0)
                         .fill(waterStreaks)
                         .opacity(0.55f)
-                        .blend(SkBlendMode::kPlus)});
+                        .blendMode(SkBlendMode::kPlus)});
   water.children(
       {box()
            .left(cx - 190)
@@ -242,7 +242,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            // along the 90° axis (straight down), 14 across it
            .filter(mskia::Effect::directionalBlur(26, 90, 14))
            .opacity(0.78f)
-           .blend(SkBlendMode::kPlus),
+           .blendMode(SkBlendMode::kPlus),
        // the specular COLUMN — the vertical smear of a light in water, and
        // the single cue that reads "reflection" from across the room
        box()
@@ -258,7 +258,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            // soften the column's sides: sigma 10 along the 0° axis
            // (horizontal), only 3 down its length
            .filter(mskia::Effect::directionalBlur(10, 0, 3))
-           .blend(SkBlendMode::kPlus)});
+           .blendMode(SkBlendMode::kPlus)});
   scene.children(
       {water,
        // THE horizon hairline. A hard, bright edge where the water starts
@@ -280,7 +280,7 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
        heroScene(w, h, true)
            .filter(mskia::Effect::filter(SkImageFilters::Blur(22, 22, nullptr)))
            .opacity(0.34f)
-           .blend(SkBlendMode::kPlus)
+           .blendMode(SkBlendMode::kPlus)
            .cache(Cache::Texture)
            .bakeScale(0.5f),
        box().inset(0).fill(

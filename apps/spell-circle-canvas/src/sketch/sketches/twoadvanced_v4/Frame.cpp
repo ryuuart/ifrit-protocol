@@ -536,7 +536,7 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
            .fill(SkColor4f{1, 1, 1, 1})
            .opacity(animate(motion::through(
                {{1330ms, 0.0f}, {1390ms, 0.7f}, {1460ms, 0.0f}})))
-           .blend(SkBlendMode::kPlus)});
+           .blendMode(SkBlendMode::kPlus)});
   o.opacity(animate(motion::through({{1440ms, 1.0f}, {1480ms, 0.0f}})));
   return o;
 }

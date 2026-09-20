@@ -105,7 +105,7 @@ auto RotaConvocationis::emissive(const std::string& key, const Glow& g,
         .hitTestable(false)
         .shape(heldPath(r.local))
         .fill(Fill::color({ink.fR, ink.fG, ink.fB, alpha}))
-        .blend(SkBlendMode::kPlus);
+        .blendMode(SkBlendMode::kPlus);
   };
   return box()
       .key(key)
@@ -113,7 +113,7 @@ auto RotaConvocationis::emissive(const std::string& key, const Glow& g,
       .rect(groupBox)
       .hitTestable(false)
       .cache(Cache::Texture)
-      .blend(SkBlendMode::kPlus)
+      .blendMode(SkBlendMode::kPlus)
       .opacity(gain)
       .children({inside(key + "-bloom", g.bloom, kBloom, 0.085f),
                  inside(key + "-mid", g.mid, kBloom, 0.16f),

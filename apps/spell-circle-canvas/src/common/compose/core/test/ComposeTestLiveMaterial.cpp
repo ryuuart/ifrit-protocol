@@ -190,7 +190,7 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
 
 TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
   // The leaf fast path routes blend onto the fill paint, so a
-  // live-material leaf with .blend(kPlus) must composite additively.
+  // live-material leaf with .blendMode(kPlus) must composite additively.
   choreograph::Output<float> k{1.0f};  // red
   Host host;
   host.composer.render(
@@ -208,7 +208,7 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
                          .absolute()
                          .fill(material::skia::Paint::sksl(ukEffect())
                                    .uniform("uK", &k))
-                         .blend(SkBlendMode::kPlus)}));
+                         .blendMode(SkBlendMode::kPlus)}));
   host.frame();
   const SkColor c = host.pixel(20, 20);  // red + green = yellow
   EXPECT_GT(SkColorGetR(c), 200u);

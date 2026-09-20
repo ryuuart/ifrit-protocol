@@ -23,7 +23,7 @@ auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {
     root.children(
         {at(0, 0, kW, kH)
              .fill(paperGrain)
-             .blend(SkBlendMode::kMultiply)
+             .blendMode(SkBlendMode::kMultiply)
              .opacity(0.085f)
              .cache(Cache::Texture)});  // 1800x1200 of generated material
   root.children(

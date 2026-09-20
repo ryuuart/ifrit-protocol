@@ -530,7 +530,7 @@ struct NightingaleCoxcomb {
         {stack()
              .inset(0)
              .fill(Fill::color(kPaper))
-             .children({box().inset(0).fill(paperMat).opacity(0.17f).blend(
+             .children({box().inset(0).fill(paperMat).opacity(0.17f).blendMode(
                  SkBlendMode::kSoftLight)})
              .children({box().inset(0).fill(foxing.material())})
              .children({box().inset(0).fill(radialGradient(

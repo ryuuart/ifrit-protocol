@@ -346,17 +346,17 @@ struct BlackWatch {
     // them, takes a Decoration, and none of the decoration primitives means
     // "flood the outline with this Material through this blend mode". A raw
     // PaintProgram would do it, but a node carrying one never prunes, whereas
-    // a sibling element with .blend() does. Both grain layers carry
+    // a sibling element with .blendMode() does. Both grain layers carry
     // Cache::Texture, because a static SkSL Material caches its SHADER and not
     // its PIXELS — without the bake, this full-canvas fractal is re-evaluated
     // per pixel per frame, and it is by far the most expensive thing here.
     panel.children({at(0, 0, kClothW, kClothH)
                         .fill(gridMat)
-                        .blend(SkBlendMode::kMultiply)
+                        .blendMode(SkBlendMode::kMultiply)
                         .opacity(0.9f),
                     at(0, 0, kClothW, kClothH)
                         .fill(yarnGrain)
-                        .blend(SkBlendMode::kOverlay)
+                        .blendMode(SkBlendMode::kOverlay)
                         .cache(Cache::Texture)
                         .opacity(0.14f)});
 
@@ -637,7 +637,7 @@ struct BlackWatch {
                                          PathFormat::Align::Outer))
                       .children({at(0, 0, sw, sh)
                                      .fill(gridMat)
-                                     .blend(SkBlendMode::kMultiply)
+                                     .blendMode(SkBlendMode::kMultiply)
                                      .opacity(0.85f)}),
                   centred(page["labels"][(size_t)i], x, y0 + sh + 6, sw)
                       .styleClass("name")
@@ -665,7 +665,7 @@ struct BlackWatch {
                  stroke(1.5f, Fill::color(kRed), PathFormat::Align::Outer))
              .children({at(0, 0, sw, sh)
                             .fill(gridMat)
-                            .blend(SkBlendMode::kMultiply)
+                            .blendMode(SkBlendMode::kMultiply)
                             .opacity(0.85f)}),
          centred(page["honest"], ax, y0 + sh + 6, sw)
              .styleClass("name")

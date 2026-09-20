@@ -388,7 +388,7 @@ struct GerstnerGrid {
              .inset(0)
              .fill(mskia::Paint::recipe(field::noise(0.9f, 3, 5.0f)))
              .opacity(0.05f)
-             .blend(SkBlendMode::kMultiply)
+             .blendMode(SkBlendMode::kMultiply)
              .cache(Cache::Texture),
          gridPlate(), columns(), headline(), arithmetic(),
          // THE READING INDEX: one hairline sweeping the baseline grid, the

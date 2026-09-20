@@ -135,7 +135,7 @@ struct Thaumonomicon {
     e.children({box()
                     .inset(0)
                     .opacity(0.42f)
-                    .blend(SkBlendMode::kOverlay)
+                    .blendMode(SkBlendMode::kOverlay)
                     .fill(Paint::recipe(field::grain(0.06f, 5, 3.0f)))});
     return e;
   }
@@ -147,7 +147,7 @@ struct Thaumonomicon {
         .top(g(-22))
         .width(w)
         .height(h)
-        .blend(SkBlendMode::kScreen)
+        .blendMode(SkBlendMode::kScreen)
         .opacity(0.34f)
         .fill(Paint::blend({{Paint::recipe(field::grain(0.0075f, 4, 11.0f)),
                              SkBlendMode::kSrc},

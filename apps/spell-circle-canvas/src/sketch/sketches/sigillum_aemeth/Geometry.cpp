@@ -70,7 +70,7 @@ auto SigillumAemeth::waxGround() -> Element {
                                   {{0.0f, hexColor(0xfff6dd, 0.34f)},
                                    {0.55f, hexColor(0xffeec6, 0.14f)},
                                    {1.0f, hexColor(0x000000, 0.0f)}}))
-           .blend(SkBlendMode::kScreen)
+           .blendMode(SkBlendMode::kScreen)
            .key("shew"),
        kit::ring(hub, 0.335f * kR,
                  stroke(2.0f, Fill::color(hexColor(0x7d5f2c, 0.20f))))

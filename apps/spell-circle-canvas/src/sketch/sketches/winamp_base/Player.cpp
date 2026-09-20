@@ -100,7 +100,7 @@ auto WinampBase::mainWindow() -> Element {
                          }),
                     at(box(), 0, 0, 8, 6)
                         .fill(hexColor(0xCFE4FF, 0.55f))
-                        .blend(SkBlendMode::kPlus)
+                        .blendMode(SkBlendMode::kPlus)
                         .translateY(motion::bind(&glint).target(-n(6), n(43)))
                         .opacity(motion::bind(&glint)
                                      .offset(-0.5f)
@@ -267,7 +267,7 @@ auto WinampBase::transportRow() -> Element {
            // the six keys with NO easing, entirely as mount keyframes
            at(box(), 0, 0, 8, 18)
                .fill(hexColor(0xE8F4FF, 0.55f))
-               .blend(SkBlendMode::kPlus)
+               .blendMode(SkBlendMode::kPlus)
                .translateX(
                    animate(motion::through({{600ms, n(10)}, {750ms, n(162)}}),
                            &ch::easeNone))

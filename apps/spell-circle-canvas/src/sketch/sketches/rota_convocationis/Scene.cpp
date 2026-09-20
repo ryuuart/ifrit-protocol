@@ -79,7 +79,7 @@ auto RotaConvocationis::wheel() -> Element {
                                         {{0.0f, hexColor(0xFFD98A, 0.55f)},
                                          {0.42f, hexColor(0xE79A32, 0.30f)},
                                          {1.0f, hexColor(0xC96F1E, 0.0f)}}))
-           .blend(SkBlendMode::kScreen)
+           .blendMode(SkBlendMode::kScreen)
            .opacity(&floodA),
        // THE RAYS, thrown past the figure at ignition — the reading that
        // makes an ignition a whole-frame event and not a brighter drawing.
@@ -89,7 +89,7 @@ auto RotaConvocationis::wheel() -> Element {
        layer("rays", -170)
            .fill(mskia::Paint::recipe(sigil::material::Material(raysRecipe()))
                      .uniform("uInk", kHalo))
-           .blend(SkBlendMode::kPlus)
+           .blendMode(SkBlendMode::kPlus)
            .opacity(&raysA),
        each(kRuled,
             [this](const Ruled& r) {

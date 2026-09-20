@@ -114,7 +114,7 @@ static void BM_Draw_BlendField_Blobs(benchmark::State& state) {
              .height(60)
              .shape(geometry::shapes::blob((uint32_t)(i + 1), 0.3f, 6))
              .fill(Fill::color({0.4f, 0.2f, 0.4f, 0.5f}))
-             .blend(SkBlendMode::kPlus)});
+             .blendMode(SkBlendMode::kPlus)});
   host.composer.render(box().children({scatter}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();

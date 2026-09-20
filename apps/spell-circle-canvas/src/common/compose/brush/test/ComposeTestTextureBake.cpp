@@ -121,7 +121,7 @@ TEST(ComposeCache, ATextureBakeCompositesThroughItsOwnLayer) {
                     .top(133)
                     .rotate(rotate ? -90.0f : 0.0f)
                     .opacity(0.5f)
-                    .blend(SkBlendMode::kScreen);
+                    .blendMode(SkBlendMode::kScreen);
     if (cached) p.cache(Cache::Texture);
     return box().cache(Cache::None).children({std::move(p)});
   };

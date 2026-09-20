@@ -253,7 +253,7 @@ struct AstralTome {
     grp.children({box()
                       .rect(SkRect::MakeXYWH((side - cr) * 0.5f,
                                              (side - cr) * 0.5f, cr, cr))
-                      .blend(SkBlendMode::kPlus)
+                      .blendMode(SkBlendMode::kPlus)
                       .shape(shapes::circle())
                       .fill(Fill::color({0.92f, 0.94f, 1.0f, 0.52f}))});
     return grp;

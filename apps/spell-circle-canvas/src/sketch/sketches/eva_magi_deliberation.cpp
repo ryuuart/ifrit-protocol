@@ -133,7 +133,7 @@ struct EvaMagiDeliberation {
         .children(
             {text(numeral)
                  .ink({0, 0, 0, 1})
-                 .blend(SkBlendMode::kDstOut)
+                 .blendMode(SkBlendMode::kDstOut)
                  .font(fit(evangelion::groteskBold(), numeral, 88.0f,
                            side - 48.0f))
                  .centerAt({side * 0.5f, side * layout.numberSlotY(number)}),

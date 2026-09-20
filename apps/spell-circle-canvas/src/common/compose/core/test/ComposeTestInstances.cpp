@@ -75,7 +75,7 @@ TEST(ComposeInstances, LiveModeReadsThePoolEveryFrame) {
 
 TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
   // Nothing in the chain from instances() to drawSpriteAtlas carried a
-  // blend mode, so every pool composited kSrcOver. Element::blend() looks
+  // blend mode, so every pool composited kSrcOver. Element::blendMode() looks
   // like the fix and is not: it flattens the field into a layer and
   // composites it ONCE, so overlapping sprites never accumulate — which
   // is the entire colour model of an additive particle system: the colour

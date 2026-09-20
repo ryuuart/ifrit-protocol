@@ -366,7 +366,7 @@ struct PenrosePaving {
              // re-evaluating once a frame to get the same pixels back.
              box()
                  .inset(0)
-                 .blend(SkBlendMode::kMultiply)
+                 .blendMode(SkBlendMode::kMultiply)
                  .opacity(0.42f)
                  .cache(Cache::Texture)
                  .fill(Paint::blend(
@@ -383,7 +383,7 @@ struct PenrosePaving {
              // canvas.
              box()
                  .inset(0)
-                 .blend(SkBlendMode::kMultiply)
+                 .blendMode(SkBlendMode::kMultiply)
                  .cache(Cache::Texture)
                  .fill(radialGradient({470, 280}, 1280,
                                       {hexColor(0xFAFAF8), hexColor(0xE6E6E4),
@@ -394,7 +394,7 @@ struct PenrosePaving {
              // same reason as the pass above
              box()
                  .inset(0)
-                 .blend(SkBlendMode::kPlus)
+                 .blendMode(SkBlendMode::kPlus)
                  .opacity(0.5f)
                  .cache(Cache::Texture)
                  .fill(radialGradient(
@@ -407,7 +407,7 @@ struct PenrosePaving {
              // catching the sky rather than as flat fill
              box()
                  .inset(0)
-                 .blend(SkBlendMode::kScreen)
+                 .blendMode(SkBlendMode::kScreen)
                  .opacity(&sheen)
                  .fill(linearGradient(
                      {180, 0}, {1500, 1200},

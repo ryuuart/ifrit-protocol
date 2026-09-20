@@ -572,7 +572,7 @@ auto Minard1869::napoleonPanel() -> Element {
            {advanceZones(), box()
                                 .inset(0)
                                 .fill(tintSpeckle.material())
-                                .blend(SkBlendMode::kMultiply)
+                                .blendMode(SkBlendMode::kMultiply)
                                 .opacity(0.06f)
                                 .cache(Cache::Texture)
                                 .key("tintwander")})});

@@ -30,8 +30,9 @@ class EffectVerbs {
    *  as an unstated opacity does. */
   Derived& appear(motion::Transition how);
   /** HOW THE NODE'S PAINT COMBINES with what is already beneath it —
-   *  any Skia blend mode. `SkBlendMode::kSrcOver` when unstated. */
-  Derived& blend(SkBlendMode mode);
+   *  CSS `mix-blend-mode`, over any Skia blend mode.
+   *  `SkBlendMode::kSrcOver` when unstated. */
+  Derived& blendMode(SkBlendMode mode);
   /** POST-PROCESSES THIS NODE'S RENDERED LAYER, its subtree included —
    *  CSS `filter`. None when unstated. Baked once under
    *  `Cache::Texture`. */

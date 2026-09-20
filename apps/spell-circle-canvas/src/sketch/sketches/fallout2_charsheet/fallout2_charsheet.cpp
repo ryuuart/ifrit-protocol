@@ -22,13 +22,13 @@ auto Fallout2CharSheet::describe() -> Element {
   screen.children({box()
                        .inset(0)
                        .fill(plateTooth)
-                       .blend(SkBlendMode::kOverlay)
+                       .blendMode(SkBlendMode::kOverlay)
                        .opacity(0.30f)
                        .cache(Cache::Texture),
                    box()
                        .inset(0)
                        .fill(rustMat)
-                       .blend(SkBlendMode::kSoftLight)
+                       .blendMode(SkBlendMode::kSoftLight)
                        .opacity(0.55f)
                        .cache(Cache::Texture),
                    chrome()});
@@ -47,13 +47,13 @@ auto Fallout2CharSheet::describe() -> Element {
     sp.children({box()
                      .inset(0)
                      .fill(plateTooth)
-                     .blend(SkBlendMode::kOverlay)
+                     .blendMode(SkBlendMode::kOverlay)
                      .opacity(0.34f)
                      .cache(Cache::Texture),
                  box()
                      .inset(0)
                      .fill(rustMat)
-                     .blend(SkBlendMode::kSoftLight)
+                     .blendMode(SkBlendMode::kSoftLight)
                      .opacity(0.70f)
                      .cache(Cache::Texture)});
     sp.foreground(fo::stamp(1.6f, 2.0f, hexColor(0xB09868, 0.55f),
@@ -82,7 +82,7 @@ auto Fallout2CharSheet::describe() -> Element {
                    box()
                        .inset(0)
                        .fill(canvasGrain)
-                       .blend(SkBlendMode::kOverlay)
+                       .blendMode(SkBlendMode::kOverlay)
                        .opacity(0.04f)
                        .cache(Cache::Texture)});
   // ---- the plate caption. NOT part of the artefact: the screen above is

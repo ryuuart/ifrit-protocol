@@ -1,6 +1,6 @@
-"""blend — how a node's paint meets what is already on the canvas.
+"""blendMode — how a node's paint meets what is already on the canvas.
 
-The Python twin of blend_verb.cpp. A reference example: it is rendered
+The Python twin of blendMode_verb.cpp. A reference example: it is rendered
 with ``sigil render`` and belongs to no sketch registry.
 """
 
@@ -24,7 +24,7 @@ def cell(caption: str, mode: skia.BlendMode) -> compose.Element:
                 .height(84)
                 .borderRadius(42)
                 .fill(DISC)
-                .blend(mode)
+                .blendMode(mode)
                 .left(compose.pct(30))
                 .top(18),
             )
@@ -43,7 +43,7 @@ def cell(caption: str, mode: skia.BlendMode) -> compose.Element:
 
 
 @sketch(size=(640, 250), background=GROUND, capture_at=0)
-class BlendVerb:
+class BlendModeVerb:
     def setup(self, ctx: SketchContext) -> None:
         ctx.render(self.describe())
 

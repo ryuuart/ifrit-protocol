@@ -189,7 +189,7 @@ struct Ds2Bench {
              .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
              .fill(grain)
              .opacity(0.07f)
-             .blend(SkBlendMode::kOverlay)
+             .blendMode(SkBlendMode::kOverlay)
              .cache(Cache::Texture)
              .zIndex(2),
          box()
@@ -695,7 +695,7 @@ struct Ds2Bench {
                                  {{0.0f, mskia::withAlpha(kCyan, 0.0f)},
                                   {0.5f, mskia::withAlpha(kCyan, 0.05f)},
                                   {1.0f, mskia::withAlpha(kCyan, 0.0f)}}))
-             .blend(SkBlendMode::kPlus)
+             .blendMode(SkBlendMode::kPlus)
              .cache(Cache::None)
              .zIndex(9),
          box()

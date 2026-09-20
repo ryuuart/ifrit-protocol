@@ -390,7 +390,7 @@ struct PersonaMenu {
                                 .inset(0)
                                 .fill(Paint::recipe(field::noise(0.006f, 4)))
                                 .opacity(0.20f)
-                                .blend(SkBlendMode::kSoftLight),
+                                .blendMode(SkBlendMode::kSoftLight),
                             box().inset(0).fill(Paint::solid(nn::kTintVeil))})})
         // The sea: one dual-layer 6Hz shader, its own texture plane --
         // baked at HALF raster scale and linear-upscaled at the blit.
@@ -718,7 +718,7 @@ struct PersonaMenu {
                        .centerAt({450, 306})
                        .rotate(90)
                        .zIndex(1)
-                       .blend(SkBlendMode::kScreen)
+                       .blendMode(SkBlendMode::kScreen)
                        .opacity(animate(motion::from(0.0f).to(0.85f), {500ms}))
                        // 220px digits render as glyph PATHS (over the atlas
                        // cutoff); bake them once, the rotation rides outside

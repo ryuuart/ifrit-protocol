@@ -169,7 +169,7 @@ struct EvaMagiDefense {
                         .gap(-6)
                         .rotate(-s.rotation)
                         .ink({0, 0, 0, 1})
-                        .blend(SkBlendMode::kDstOut)
+                        .blendMode(SkBlendMode::kDstOut)
                         .children({text(u8"MAGI").font(type(36, 0.86f)),
                                    text(s.name).font(type(50, 0.95f))})});
     return plate;

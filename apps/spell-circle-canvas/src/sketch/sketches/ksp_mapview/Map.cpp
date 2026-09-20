@@ -121,7 +121,7 @@ auto KspMapView::planet() -> Element {
                     .fill(Paint::radialUnit({0.30f, 0.24f}, 0.42f,
                                             {{0.0f, hexColor(0xBFE4F5, 0.13f)},
                                              {1.0f, hexColor(0xBFE4F5, 0.0f)}}))
-                    .blend(SkBlendMode::kPlus)})});
+                    .blendMode(SkBlendMode::kPlus)})});
 
   // Fresnel limb: one SDF pass, border + exponential glow.
   const sdf::Style rim{.fill = {0, 0, 0, 0},

@@ -1,5 +1,5 @@
 /** @file
- * blend — how a node's paint meets what is already on the canvas.
+ * blendMode — how a node's paint meets what is already on the canvas.
  *
  * A reference example. It stands outside the sketch registry, so it is
  * photographed with `--frame` and never enters the plate sweep.
@@ -39,7 +39,7 @@ Element cell(const char* caption, SkBlendMode mode) {
                                                         .height(84)
                                                         .borderRadius({42})
                                                         .fill(kDisc)
-                                                        .blend(mode)
+                                                        .blendMode(mode)
                                                         .left(pct(30))
                                                         .top(18)}),
            text(caption).font({.size = 12, .color = kAsh})});
@@ -47,7 +47,7 @@ Element cell(const char* caption, SkBlendMode mode) {
 
 }  // namespace
 
-struct BlendVerb {
+struct BlendModeVerb {
   void setup(sketch::SketchContext& ctx) {
     ctx.canvas({.size = kCanvas, .background = kGround, .captureSeconds = 0});
     ctx.composer.render(describe());
@@ -63,5 +63,5 @@ struct BlendVerb {
   }
 };
 
-SIGIL_SKETCH(BlendVerb, "Reference · Compose",
+SIGIL_SKETCH(BlendModeVerb, "Reference · Compose",
              "one disc over one bed in four blend modes")

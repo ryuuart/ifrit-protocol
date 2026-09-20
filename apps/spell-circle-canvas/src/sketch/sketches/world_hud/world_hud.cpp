@@ -181,7 +181,7 @@ struct WorldHud {
                             .fill(Paint::solid({wh::kCritHp.fR, wh::kCritHp.fG,
                                                 wh::kCritHp.fB, 0.55f}))
                             .opacity(&lowPulse)
-                            .blend(SkBlendMode::kPlus),
+                            .blendMode(SkBlendMode::kPlus),
                         text("640 / 1030")
                             .font(wh::line(11, 0.8f))
                             .at({wh::kHealthW * 0.5f - 30, 5})}),
@@ -325,7 +325,7 @@ struct WorldHud {
                                        .fill(Paint::recipe(field::noise(
                                            b.frequency, b.octaves, b.gain)))
                                        .opacity(b.opacity)
-                                       .blend(b.blend);
+                                       .blendMode(b.blend);
                                  }),
                             box().inset(0).fill(
                                 Paint::radial({d * 0.5f, d * 0.5f}, d * 0.55f,

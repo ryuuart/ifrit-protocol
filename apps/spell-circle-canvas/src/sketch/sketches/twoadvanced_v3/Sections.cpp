@@ -113,7 +113,7 @@ Element TwoAdvancedV3::transitionArt(int fromSec, int toSec, int step) {
   const float x = kStageW * f;
   out.children(
       {at(box().fill(mskia::withAlpha(kSteelHi, 0.85f)), x - 5, 0, 10, kArtH)
-           .blend(SkBlendMode::kScreen)
+           .blendMode(SkBlendMode::kScreen)
            .opacity(0.28f + 0.5f * std::sin(f * 3.14159f))});
   return out;
 }

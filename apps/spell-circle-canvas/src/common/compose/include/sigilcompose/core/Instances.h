@@ -372,7 +372,7 @@ std::optional<size_t> pick(const Pool& pool, const CellSheet& atlas,
  *  element cannot carry layout properties of its own, because in Mode::Data it
  *  is produced inside a memo.
  *
- *  @p blend is PER SPRITE, and the distinction matters: `Element::blend()`
+ *  @p blend is PER SPRITE, and the distinction matters: `Element::blendMode()`
  *  on this leaf would flatten the whole field into one layer and composite
  *  that once, so overlapping sprites could never accumulate. Additive
  *  particle work depends on the accumulation — brightness there IS the

@@ -200,7 +200,7 @@ struct Flourish {
         .inset(kFrameInset)
         .borderRadius({22})
         .foreground(glow)
-        .blend(SkBlendMode::kPlus)
+        .blendMode(SkBlendMode::kPlus)
         .cache(Cache::None);
   }
 
@@ -337,7 +337,7 @@ struct Flourish {
       if (bloom)
         t.filter(sigil::material::skia::Effect::filter(
                      SkImageFilters::Blur(6, 6, nullptr)))
-            .blend(SkBlendMode::kPlus);
+            .blendMode(SkBlendMode::kPlus);
       else
         t.translateY(&titleDrop);
       return kit::centred()
@@ -512,7 +512,7 @@ struct Flourish {
         .inset(0)
         .zIndex(6)
         .cache(Cache::None)
-        .blend(SkBlendMode::kPlus);
+        .blendMode(SkBlendMode::kPlus);
   }
 
   Element shimmer() const {
@@ -535,7 +535,7 @@ struct Flourish {
         .inset(kFrameInset)
         .zIndex(5)
         .cache(Cache::None)
-        .blend(SkBlendMode::kPlus);
+        .blendMode(SkBlendMode::kPlus);
   }
 
   // ---- assembly -----------------------------------------------------------

@@ -174,7 +174,7 @@ struct LainNavi {
     // S0 — the photographic plate, and the ONLY node in the stack that does
     // not add. It is the BOTTOM: the #060719 ground is folded into its shader
     // and it composites kSrcOver, which is what keeps it off the every-frame
-    // saveLayer that Cache::Texture plus .blend() would force.
+    // saveLayer that Cache::Texture plus .blendMode() would force.
     root.children({box()
                        .inset(0)
                        .fill(mskia::Paint::sksl(plateEffect()))
@@ -210,7 +210,7 @@ struct LainNavi {
                             {0.55f, mskia::scale(kPanel, 0.86f)},
                             {0.86f, mskia::scale(kPanel, 0.30f)},
                             {1.0f, mskia::scale(kPanel, 0.0f)}}))
-                       .blend(SkBlendMode::kPlus)
+                       .blendMode(SkBlendMode::kPlus)
                        .cache(Cache::Texture)
                        .key("panel")});
 
@@ -221,8 +221,8 @@ struct LainNavi {
     // Enormously blurred: on the plate it is barely above the pedestal.
     //
     // THE ONE COMPOSITING TRAP IN THE FILE. A node whose DECORATION paints
-    // kPlus must ALSO carry `.blend(kPlus)` if it is Texture-cached: the bake
-    // happens onto transparent black, where kPlus is a no-op and the pass
+    // kPlus must ALSO carry `.blendMode(kPlus)` if it is Texture-cached: the
+    // bake happens onto transparent black, where kPlus is a no-op and the pass
     // lands correctly, but the BLIT then composites kSrcOver and paints the
     // dark blurred stroke straight over the plate. Drop the node-level blend
     // and the eyelids come back as two black lozenges. Blending has to hit
@@ -248,7 +248,7 @@ struct LainNavi {
              .rect(SkRect::MakeXYWH(kBodyL, kBodyT, kBodyR - kBodyL,
                                     kBodyB - kBodyT))
              .fill(pedestal())
-             .blend(SkBlendMode::kPlus)
+             .blendMode(SkBlendMode::kPlus)
              .cache(Cache::Texture)
              .key("body"),
          box()
@@ -273,7 +273,7 @@ struct LainNavi {
                                         0,
                                         SkBlendMode::kPlus,
                                         true}}})
-             .blend(SkBlendMode::kPlus)
+             .blendMode(SkBlendMode::kPlus)
              .cache(Cache::Texture)
              .key("eye"),
          box()
@@ -295,7 +295,7 @@ struct LainNavi {
                                     kBarTopB - kBarTopT))
              .shape(barOutline(kShearTop))
              .fill(barBevel(kBarTopHi, kBarTopLo, 0.72f))
-             .blend(SkBlendMode::kPlus)
+             .blendMode(SkBlendMode::kPlus)
              .cache(Cache::Texture)
              .key("barTop"),
          box()
@@ -303,7 +303,7 @@ struct LainNavi {
                                     kBarBotB - kBarBotT))
              .shape(barOutline(kShearBot))
              .fill(barBevel(kBarBotHi, kBarBotLo, 1.02f))
-             .blend(SkBlendMode::kPlus)
+             .blendMode(SkBlendMode::kPlus)
              .cache(Cache::Texture)
              .key("barBot"),
          box()
@@ -354,7 +354,7 @@ struct LainNavi {
                              {0.30f, mskia::scale(kMagenta, b[3])},
                              {0.68f, mskia::scale(kMagenta, b[3] * 0.8f)},
                              {1.0f, mskia::scale(kMagenta, 0.0f)}}))
-                        .blend(SkBlendMode::kPlus)
+                        .blendMode(SkBlendMode::kPlus)
                         .cache(Cache::Texture)});
       root.children({std::move(g)});
     }

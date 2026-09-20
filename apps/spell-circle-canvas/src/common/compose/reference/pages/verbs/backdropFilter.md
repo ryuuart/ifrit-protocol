@@ -57,5 +57,5 @@ the node's box: a blur samples what lies under the box and stops there.
 ## See also
 
 [`filter`](filter.md) for filtering the node itself,
-[`blend`](blend.md) for how its paint MEETS what is beneath,
+[`blendMode`](blendMode.md) for how its paint MEETS what is beneath,
 [`opacity`](opacity.md), and `cache`.

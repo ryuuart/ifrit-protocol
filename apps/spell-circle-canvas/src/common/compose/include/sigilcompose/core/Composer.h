@@ -615,7 +615,7 @@ class Composer {
    *  the machine was.
    *
    *  The refusals that look most like missed wins are the honest ones. A
-   *  leaf at `opacity(0.13).blend(kSoftLight)` — the paper-grain idiom,
+   *  leaf at `opacity(0.13).blendMode(kSoftLight)` — the paper-grain idiom,
    *  and often the most expensive node in a tree — cannot be promoted:
    *  compositing a bake applies the alpha to an already-rounded 8-bit
    *  colour, while the direct draw applies it to the shader's float

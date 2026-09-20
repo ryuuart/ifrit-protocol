@@ -111,7 +111,7 @@ Element splitPlane(bool clipped, SkBlendMode childBlend) {
                       .width(50)
                       .height(50)
                       .fill(Fill::color({1.0f, 0.35f, 0.1f, 0.85f}))
-                      .blend(childBlend)
+                      .blendMode(childBlend)
                       .translateX(motion::bind(&splitSweep()).scale(130.0f))});
   return profiledUnder(std::move(plane));
 }

@@ -152,7 +152,7 @@ struct CrtBloom {
                                  .zIndex(1)
                                  .filter(mskia::Effect::directionalBlur(
                                      kSigma, 0.0f, kSigma))
-                                 .blend(SkBlendMode::kPlus)
+                                 .blendMode(SkBlendMode::kPlus)
                                  .cache(Cache::Texture),
                              headline(kCore).zIndex(2)}));
 

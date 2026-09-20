@@ -99,7 +99,7 @@ Element blendingScene(SkBlendMode mode) {
                 .width(90)
                 .height(90)
                 .fill(Fill::color({0.9f, 0.5f, 0.2f, 1}))
-                .blend(mode)})}));
+                .blendMode(mode)})}));
 }
 
 }  // namespace

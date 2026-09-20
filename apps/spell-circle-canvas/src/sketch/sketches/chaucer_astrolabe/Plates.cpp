@@ -318,7 +318,7 @@ auto ChaucerAstrolabe::limb() -> Element {
                             {1.0f, hexColor(0x4f360e, 0.14f)}}))
            .key("sheen")
            .cache(Cache::Texture)
-           .blend(SkBlendMode::kSoftLight)
+           .blendMode(SkBlendMode::kSoftLight)
            .appear(ramp(tMater * 1000 + 200, 700)),
        // brass is TOOLED, and the tool marks are fine concentric turning —
        // 120 stroked circles, which a picture would REPLAY by re-stroking
@@ -334,7 +334,7 @@ auto ChaucerAstrolabe::limb() -> Element {
        dot(SkPoint{kCx, kCy}, kMaterR, brassGrain)
            .key("brassgrain")
            .cache(Cache::Texture)
-           .blend(SkBlendMode::kOverlay)
+           .blendMode(SkBlendMode::kOverlay)
            .opacity(
                animate(from(0.0f).to(0.30f), ramp(tMater * 1000 + 300, 600)))});
 
@@ -422,7 +422,7 @@ auto ChaucerAstrolabe::limb() -> Element {
                                     {{0.0f, hexColor(0xfff3cf, 0.85f)},
                                      {1.0f, hexColor(0xfff3cf, 0.0f)}}))
                     .key("hlg" + std::to_string(n))
-                    .blend(SkBlendMode::kPlus)
+                    .blendMode(SkBlendMode::kPlus)
                     .opacity(&letterGlow[n - 1])});
   }
 
@@ -514,7 +514,7 @@ auto ChaucerAstrolabe::sunMark() -> Element {
                                {{0.0f, up ? hexColor(0xfff3cf, 0.60f)
                                           : hexColor(0x8fb0d0, 0.30f)},
                                 {1.0f, hexColor(0xfff3cf, 0.0f)}}))
-               .blend(SkBlendMode::kPlus),
+               .blendMode(SkBlendMode::kPlus),
            kit::disc(p, 15.0f)
                .shape(shapes::star(12, 0.40f, 0.16f))
                .fill(Fill::color(up ? hexColor(0xfff6dc, 1.0f)

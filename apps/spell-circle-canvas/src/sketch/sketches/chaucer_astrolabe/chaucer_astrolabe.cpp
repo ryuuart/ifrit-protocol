@@ -30,7 +30,7 @@ auto ChaucerAstrolabe::describe(sketch::SketchContext&) -> Element {
                .cache(Cache::Texture)
                .fill(vellumGrain)
                .opacity(0.13f)
-               .blend(SkBlendMode::kSoftLight),
+               .blendMode(SkBlendMode::kSoftLight),
            // the case: the object sits in a vitrine, not on the page
            kit::at(56, 140, 1132, 1258)
                .key("case")

@@ -539,7 +539,7 @@ TEST(ComposeCache, GroupRefusesWhatItsMemoCannotSee) {
 
   // A NON-SRCOVER BLEND below the root: inside the bake it resolves against
   // transparent black instead of against the ground.
-  EXPECT_FALSE(groupBakesWith(plainExtra().blend(SkBlendMode::kMultiply)))
+  EXPECT_FALSE(groupBakesWith(plainExtra().blendMode(SkBlendMode::kMultiply)))
       << "a group baked over a kMultiply child, which resolves against "
          "transparent black inside a bake";
 

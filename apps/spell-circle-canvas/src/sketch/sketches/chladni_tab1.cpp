@@ -716,7 +716,7 @@ struct ChladniTab1 {
         {stack()
              .inset(0)
              .fill(Fill::color(kPaper))
-             .children({box().inset(0).fill(paperMat).opacity(0.16f).blend(
+             .children({box().inset(0).fill(paperMat).opacity(0.16f).blendMode(
                             SkBlendMode::kSoftLight),
                         box().inset(0).fill(foxing.material()),
                         kit::at(box().fill(foxingLL.material()), 0, kH * 0.50f,

@@ -1031,7 +1031,7 @@ void bindComposeInstancing(py::module_& root) {
       "The single-draw stamping leaf. It FILLS ITS PARENT, so wrap it in a "
       "sized or positioned box and the pool's positions are that box's "
       "local pixels. `blend` is per sprite, which is what lets "
-      "overlapping sprites accumulate; `Element.blend` on the leaf would "
+      "overlapping sprites accumulate; `Element.blendMode` on the leaf would "
       "flatten the whole field into one layer first. The element keeps the "
       "sheet and the pool it names.");
   module.def(

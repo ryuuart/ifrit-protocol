@@ -232,7 +232,8 @@ TEST(ComposeDepth, AGroupingPropertyFlattensTheSpaceItStandsOn) {
   });
   // Additive, so the flattened pair is still readable: a blend that took
   // the faces to black would say nothing about which one is on top.
-  flattened("a blend mode", [](Element& e) { e.blend(SkBlendMode::kPlus); });
+  flattened("a blend mode",
+            [](Element& e) { e.blendMode(SkBlendMode::kPlus); });
   flattened("a coverage boundary",
             [](Element& e) { e.boundary(Boundary::Coverage); });
   flattened("Cache::Texture", [](Element& e) { e.cache(Cache::Texture); });

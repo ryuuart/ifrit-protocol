@@ -105,7 +105,7 @@ Element GenesisFire::dipper() {
                          {0.22f, sol ? hexColor(0xFFF4D8, 0.9f)
                                      : hexColor(0xD9E4FF, 0.85f)},
                          {1.0f, {1, 1, 1, 0}}}))
-                    .blend(SkBlendMode::kPlus)
+                    .blendMode(SkBlendMode::kPlus)
                     .appear({.duration = 500ms, .delay = 1200ms})});
     g.children({text(kStars[i].name)
                     .font({.size = 7.0f, .track = 1.1f})
@@ -164,7 +164,7 @@ Element GenesisFire::regolith() {
                                        {{0.0f, hexColor(0xFF8A3A, 0.62f)},
                                         {0.38f, hexColor(0xC24E14, 0.24f)},
                                         {1.0f, hexColor(0xFF8A3A, 0.0f)}}))
-               .blend(SkBlendMode::kPlus)
+               .blendMode(SkBlendMode::kPlus)
                .translateX(bind(&loopU).scale(1680.0f).offset(-80.0f))
                .translateY(limbY(444.0f) + 26.0f)
                .opacity(bind(&loopU).map([](float v) {
@@ -184,7 +184,7 @@ Element GenesisFire::shockwave() {
                                           {{0.0f, {1, 1, 1, 0.95f}},
                                            {0.25f, hexColor(0xFFE7B0, 0.6f)},
                                            {1.0f, hexColor(0xFF7A20, 0.0f)}}))
-                  .blend(SkBlendMode::kPlus)
+                  .blendMode(SkBlendMode::kPlus)
                   .opacity(bind(&loopU).map([](float v) {
                     const float t = v * 10.0f;
                     if (t < 0.06f) return t / 0.06f;
@@ -197,7 +197,7 @@ Element GenesisFire::shockwave() {
   g.children({kit::disc(impact, 520)
                   .shape(shapes::circle())
                   .stroke(stroke(2.0f, Fill::color(hexColor(0xFFB070, 0.85f))))
-                  .blend(SkBlendMode::kPlus)
+                  .blendMode(SkBlendMode::kPlus)
                   .scale(bind(&loopU)
                              .map([](float v) {
                                return choreograph::easeOutCubic(

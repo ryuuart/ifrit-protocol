@@ -806,7 +806,7 @@ struct DaemonConsole {
                        .fill(Pattern(scanlines)
                                  .offset(std::nullopt, &scanCreep)
                                  .material())
-                       .blend(SkBlendMode::kScreen)})
+                       .blendMode(SkBlendMode::kScreen)})
         // …and the refresh band, baked once and slid down the panel. Its
         // rest position puts the tent's centre 90 px above the top edge,
         // so the sweep enters from above and leaves below the foot.
@@ -818,7 +818,7 @@ struct DaemonConsole {
                        .fill(dc::refreshBand())
                        .translateY(&refreshSweep)
                        .cache(Cache::Texture)
-                       .blend(SkBlendMode::kScreen)});
+                       .blendMode(SkBlendMode::kScreen)});
   }
 };
 

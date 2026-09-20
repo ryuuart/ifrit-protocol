@@ -482,7 +482,7 @@ struct Cosmati {
                                          {{0.0f, {1, 0.96f, 0.88f, 0.0f}},
                                           {0.5f, {1, 0.96f, 0.88f, 0.13f}},
                                           {1.0f, {1, 0.96f, 0.88f, 0.0f}}}))
-                     .blend(SkBlendMode::kPlus)
+                     .blendMode(SkBlendMode::kPlus)
                      .zIndex(9),
                  -260, -40, 210.0f, cs::kFieldSide + 80)});
     root.children({std::move(floorPlate)});

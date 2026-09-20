@@ -160,7 +160,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/background.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/bakeScale.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/balanceChain.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/blend.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/blendMode.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/block.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/boundary.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/gridCells.md

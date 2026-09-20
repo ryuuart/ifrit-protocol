@@ -67,5 +67,5 @@ this verb for a fade the node does at some other moment.
 ## See also
 
 `appear` for the mount entrance, `transition` for the node's default
-easing, [`blend`](blend.md), [`filter`](filter.md), and `mask` for a
+easing, [`blendMode`](blendMode.md), [`filter`](filter.md), and `mask` for a
 reveal that is a shape rather than a level.

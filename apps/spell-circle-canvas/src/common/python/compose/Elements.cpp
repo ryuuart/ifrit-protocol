@@ -712,7 +712,7 @@ void bindCompose(py::module_& module) {
       .def("backdropFilter", &Element::backdropFilter, py::arg("effect"),
            fluent)
       .def("appear", &Element::appear, py::arg("entrance"), fluent)
-      .def("blend", &Element::blend, py::arg("mode"), fluent)
+      .def("blendMode", &Element::blendMode, py::arg("mode"), fluent)
       .def("travel", &Element::travel, py::arg("path"), fluent)
       .def("zIndex", &Element::zIndex, py::arg("index"), fluent)
       .def("preserve3d", &Element::preserve3d, py::arg("preserve") = true,

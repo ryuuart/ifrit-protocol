@@ -57,5 +57,5 @@ in the layer; filtering THAT is [`backdropFilter`](backdropFilter.md).
 
 ## See also
 
-[`backdropFilter`](backdropFilter.md), [`blend`](blend.md),
+[`backdropFilter`](backdropFilter.md), [`blendMode`](blendMode.md),
 [`opacity`](opacity.md), and `cache` for how the layer is held.

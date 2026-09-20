@@ -163,7 +163,7 @@ TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
                        .borderRadius({28.0f})
                        .hitTestable(false)
                        .fill(green())
-                       .blend(SkBlendMode::kPlus);
+                       .blendMode(SkBlendMode::kPlus);
     if (bound)
       leaf.opacity(bound);
     else
@@ -332,7 +332,7 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
              .inset(20, 20, 100, 100)
              .absolute()
              .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
-             .blend(SkBlendMode::kPlus)
+             .blendMode(SkBlendMode::kPlus)
              .cache(texture ? Cache::Texture : Cache::Picture)}));
     for (int i = 0; i < 3; ++i)
       host.frame();  // settle: bake once, then replay/blit
@@ -360,7 +360,7 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
                                       .inset(20, 20, 100, 100)
                                       .absolute()
                                       .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
-                                      .blend(SkBlendMode::kPlus)
+                                      .blendMode(SkBlendMode::kPlus)
                                       .cache(Cache::Texture)}));
   for (int i = 0; i < 3; ++i) host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 250u);  // 1.0 + 0.2 clamps

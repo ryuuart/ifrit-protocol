@@ -779,7 +779,7 @@ inline Element warpSwirl(const ch::Output<float>* spin, int strength) {
                                   {{0.0f, hexColor(0xC060FF, a)},
                                    {0.45f, hexColor(0x7A0BA8, a * 0.8f)},
                                    {1.0f, hexColor(0x2A0038, 0)}}))
-          .blend(SkBlendMode::kPlus)
+          .blendMode(SkBlendMode::kPlus)
           .rotate(bind(spin).scale(360.0f));
   return e;
 }

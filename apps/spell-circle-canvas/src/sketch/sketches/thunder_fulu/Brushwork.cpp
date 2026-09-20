@@ -196,7 +196,7 @@ auto ThunderFulu::ironWash() -> Element {
       .shape(shapes::chamfered(17.0f))
       .fill(ironGrain)
       .opacity(0.085f)
-      .blend(SkBlendMode::kSoftLight)
+      .blendMode(SkBlendMode::kSoftLight)
       .cache(Cache::Texture)
       .key("wash");
 }

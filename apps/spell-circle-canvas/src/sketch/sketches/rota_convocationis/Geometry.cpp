@@ -55,7 +55,7 @@ auto RotaConvocationis::stella() -> Element {
                       .shape(heldPath(step))
                       .fill(Fill::none())
                       .stroke(stroke(1.6f, Fill::color(kCore)))
-                      .blend(SkBlendMode::kPlus)
+                      .blendMode(SkBlendMode::kPlus)
                       .opacity(motion::bind(&morphStep)
                                    .window((float)i - 1.0f, (float)i + 1.0f)
                                    .pingPong());
@@ -132,7 +132,7 @@ auto RotaConvocationis::sigillum(int k) -> Element {
        layer(id + "-lit", kSealR - side * 0.5f)
            .cache(Cache::Texture)
            .fill(mskia::Paint::recipe(sdf::material(sdf::circle(), lit)))
-           .blend(SkBlendMode::kPlus)
+           .blendMode(SkBlendMode::kPlus)
            .opacity(&litSeal[k]),
        // the rules, struck as sweeps
        layer(id + "-rule-out")
@@ -220,7 +220,7 @@ auto RotaConvocationis::emblemDisc() -> Element {
       .key("emblem-disc")
       .hitTestable(false)
       .fill(mskia::Paint::recipe(sdf::material(sdf::circle(), emblem)))
-      .blend(SkBlendMode::kPlus)
+      .blendMode(SkBlendMode::kPlus)
       .opacity(&litHub);
 }
 
