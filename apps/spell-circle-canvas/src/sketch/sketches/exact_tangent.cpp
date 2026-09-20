@@ -29,6 +29,7 @@
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
+namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -164,7 +165,7 @@ Element tangentDetail(weave::FontContext& fonts) {
                           (210 - overview.height() * scale) / 2};
   return box().column().gap(10).children(
       {box().width(kCell).height(210).children(
-           {image(pixels, Fit::Stretch)
+           {image(pixels, mskia::Fit::Stretch)
                 .region(overview)
                 .width(overview.width() * scale)
                 .height(overview.height() * scale)
@@ -176,7 +177,7 @@ Element tangentDetail(weave::FontContext& fonts) {
                     crop.width() * scale, crop.height() * scale))
                 .foreground(decorations::border(1, Fill::color(marker)))}),
        document::label("EDGE DETAIL \u00b7 8\u00d7 RASTER").padding(10, 0),
-       image(pixels, Fit::Stretch)
+       image(pixels, mskia::Fit::Stretch)
            .region(crop)
            .sampling(SkSamplingOptions(SkFilterMode::kNearest))
            .width(kCrop.width() * kMagnification)

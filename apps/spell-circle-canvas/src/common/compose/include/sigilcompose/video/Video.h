@@ -11,6 +11,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
+#include <sigilmaterial/skia/Paint.h>  // material::skia::Fit — how a frame meets its box
 #include <sigilvideo/decode/Decode.h>
 #include <sigilvideo/decode/Playback.h>
 
@@ -22,15 +23,6 @@
 #include "sigilcompose/Compose.h"
 
 namespace sigil::compose {
-
-/** HOW A FRAME IS FITTED into the leaf's box when the two do not share
- *  an aspect ratio — CSS's `object-fit`, with the three names that mean
- *  something for a rectangular frame. */
-enum class VideoFit {
-  Stretch,  ///< fill the box, distorting the frame to do it
-  Contain,  ///< fit the whole frame inside the box, letterboxing it
-  Cover,    ///< fill the box with the frame, cropping what overflows
-};
 
 /** WHAT A `video()` LEAF IS TOLD ABOUT ITS CLIP — where in the clip to
  *  start, how fast to run, whether to wrap round, how to fit the frame,
@@ -49,7 +41,12 @@ struct VideoOptions {
   double startSeconds = 0.0;  ///< where in the clip time zero sits
   double playbackRate = 1.0;  ///< clip seconds per scene second
   bool loop = true;           ///< wrap past the end rather than stop on it
-  VideoFit fit = VideoFit::Stretch;  ///< how a frame fills the box
+  /// How the frame meets the box when the two do not share an aspect
+  /// ratio, in SigilMaterial's words for that question: `Stretch`
+  /// distorts the frame to fill, `Contain` letterboxes the whole of it,
+  /// `Cover` crops what overflows, and `Native` draws the frame at its
+  /// own pixels from the box's corner.
+  material::skia::Fit fit = material::skia::Fit::Stretch;
   /// How a frame is filtered into the box; linear unless stated.
   SkSamplingOptions sampling = SkSamplingOptions(SkFilterMode::kLinear);
   float opacity = 1.0f;                       ///< 0 clear to 1 solid
@@ -82,7 +79,9 @@ inline void paintVideoFrame(SkCanvas& canvas,
   SkRect destination = SkRect::MakeSize(size);
   const float sourceAspect = image.width() / image.height();
   const float destinationAspect = destination.width() / destination.height();
-  if (options.fit == VideoFit::Cover) {
+  if (options.fit == material::skia::Fit::Native) {
+    destination = image;
+  } else if (options.fit == material::skia::Fit::Cover) {
     if (sourceAspect > destinationAspect) {
       const float width = image.height() * destinationAspect;
       source = SkRect::MakeXYWH((image.width() - width) * 0.5f, 0.0f, width,
@@ -92,7 +91,7 @@ inline void paintVideoFrame(SkCanvas& canvas,
       source = SkRect::MakeXYWH(0.0f, (image.height() - height) * 0.5f,
                                 image.width(), height);
     }
-  } else if (options.fit == VideoFit::Contain) {
+  } else if (options.fit == material::skia::Fit::Contain) {
     if (sourceAspect > destinationAspect) {
       const float height = destination.width() / sourceAspect;
       destination =

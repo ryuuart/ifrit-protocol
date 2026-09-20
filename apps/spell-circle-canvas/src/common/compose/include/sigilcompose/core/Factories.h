@@ -15,6 +15,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilmaterial/skia/Paint.h>  // material::skia::Fit — how a picture meets its box
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/style/Style.h>
@@ -190,32 +191,26 @@ Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
  *  nothing. */
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
 
-/** HOW A PICTURE MEETS THE BOX IT IS GIVEN, CSS's own three. */
-enum class Fit : std::uint8_t {
-  /** Both axes independently — the picture's proportions are the box's,
-   *  which is what an image leaf sized to its parent does. */
-  Stretch,
-  /** As large as fits with the picture's own proportions kept, so the
-   *  slack goes to the long axis and never to the figure. */
-  Contain,
-  /** Large enough to leave no slack, so the overflow is cropped by
-   *  whatever clips it. */
-  Cover,
-};
-
 /** A PLATE WEARING A PICTURE THAT IS ALREADY RENDERED: a bake taken on an
  *  intermediate surface, a frame decoded out of a file, a texture a
  *  device handed back.
  *
- *      well({.width = kCell, .height = kCell}, image(frame, Fit::Cover))
+ *      well({.width = kCell, .height = kCell},
+ *           image(frame, material::skia::Fit::Cover))
  *
  *  It is the `ImageAsset` leaf with the wrap written once and the FIT
  *  said where the picture is, so a cell showing a bake states no matrix
- *  of its own. THE LEAF TAKES THE BOX IT STANDS IN under every fit, and
- *  under `Contain` and `Cover` the node itself carries the picture's
- *  proportions, so what is painted is the whole of the node. A null
- *  picture is an empty box. */
-[[nodiscard]] Element image(sk_sp<SkImage> picture, Fit fit = Fit::Contain);
+ *  of its own. The fit is the one SigilMaterial states for a source
+ *  meeting a box: `Stretch` takes both axes independently, `Contain`
+ *  keeps the proportions and leaves the slack, `Cover` keeps them and
+ *  crops what overflows, and `Native` asks nothing — the leaf stands at
+ *  the picture's own pixels. THE LEAF TAKES THE BOX IT STANDS IN under
+ *  the first three, and under `Contain` and `Cover` the node itself
+ *  carries the picture's proportions, so what is painted is the whole of
+ *  the node. A null picture is an empty box. */
+[[nodiscard]] Element image(
+    sk_sp<SkImage> picture,
+    material::skia::Fit fit = material::skia::Fit::Contain);
 /** A box whose content is one paint program (≡ box().background(p)).
  *
  *  TWO COSTS AN AUTHOR MUST KNOW. First, it is cached like any static

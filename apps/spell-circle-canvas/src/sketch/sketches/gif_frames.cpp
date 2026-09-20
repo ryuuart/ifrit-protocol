@@ -61,7 +61,7 @@ Element frameFigure(const sk_sp<SkImage>& frame, float w, float h,
        .height = h + 16,
        .ground = Fill::color(kCellGround),
        .content = sketch::kit::Well::Content{}},
-      sigil::compose::image(frame, Fit::Contain)
+      sigil::compose::image(frame, mskia::Fit::Contain)
           .width(w)
           .height(h)
           .sampling(SkSamplingOptions(SkFilterMode::kNearest)));

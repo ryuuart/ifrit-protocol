@@ -85,8 +85,8 @@ struct Table {
    *  wants, which is a table whose markup states none: as wide as what is
    *  in it and no wider. Neither changes what happens when the room is too
    *  small — the columns fall toward what they need either way. */
-  enum class Fit : uint8_t { Fill, Shrink };
-  Fit fit = Fit::Fill;
+  enum class ColumnSizing : uint8_t { Fill, Shrink };
+  ColumnSizing fit = ColumnSizing::Fill;
 
   /** This scheme reads `LayoutInput::childMinSizes`: the narrowest a
    *  column's content can be set is the floor it is solved from, and no
@@ -228,7 +228,7 @@ struct Table {
       // What the table is wider than its content, shared out in
       // proportion — the step that leaves every column on a fraction. A
       // shrink-to-fit table declines the share and stops at its content.
-      if (fit == Fit::Fill && wanted > 0)
+      if (fit == ColumnSizing::Fill && wanted > 0)
         for (int c = 0; c < cols; ++c)
           if (!stated[(size_t)c])
             grid.columnWidths[(size_t)c] +=

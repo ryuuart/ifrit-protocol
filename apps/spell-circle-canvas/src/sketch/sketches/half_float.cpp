@@ -31,6 +31,7 @@
 namespace sketch = sigil::sketch;
 namespace img = sigil::image;
 namespace skia = sigil::skia;
+namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -196,7 +197,7 @@ struct HalfFloat {
             0xff000000u | (channel(2) << 16) | (channel(1) << 8) | channel(0);
       }
     bitmap.setImmutable();
-    return image(bitmap.asImage(), Fit::Stretch)
+    return image(bitmap.asImage(), mskia::Fit::Stretch)
         .width(kCell - 20)
         .height(kCell - 20);
   }

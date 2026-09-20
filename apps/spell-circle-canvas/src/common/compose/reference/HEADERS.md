@@ -80,7 +80,8 @@ sound model; nothing below them changes kernel semantics.
   which `absolute` and `inset` said between them at 74 sites.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image` (an `image::ImageAsset`, or a
-  raw `SkImage` with a `Fit` — `Stretch`, `Contain` or `Cover` — which is
+  raw `SkImage` with a `material::skia::Fit` — `Stretch`, `Contain`,
+  `Cover` or `Native` — which is
   the wrap written once and the fit said as LAYOUT rather than as a
   matrix the caller builds, so the node itself carries the picture's
   proportions), `picture` (a recorded
@@ -362,8 +363,8 @@ alone then divide what is left of that room by the auto rule above, and a
 percentage the content will not fit into is widened by the content
 exactly as a stated pixel width is.
 `layouts::Table::fit` is what the table does with room it does not need:
-`layouts::Table::Fit::Fill` shares the surplus, which is a table whose markup
-states a width, and `layouts::Table::Fit::Shrink` stops at the content, which is
+`layouts::Table::ColumnSizing::Fill` shares the surplus, which is a table whose markup
+states a width, and `layouts::Table::ColumnSizing::Shrink` stops at the content, which is
 shrink-to-fit — a table whose markup states none.
 
 Rows take the first of those steps and deliberately not the second: the
@@ -592,8 +593,8 @@ from the encoded frame, samples presentation time from the composer's motion
 clock, and disables picture caching while the clip's own decoded-frame cache
 stays active. On a Graphite canvas the leaf passes its recorder to the video
 device executor, so a native YUV frame remains on the GPU through composition;
-the compose kernel links no codec. `VideoFit::Cover`, `VideoFit::Contain` and
-`VideoFit::Stretch` state how the decoded frame meets its box. The leaf's
+the compose kernel links no codec. `material::skia::Fit` states how the decoded frame meets its box, under
+the same four names every other source meets one by. The leaf's
 `VideoOptions` also carries opacity and blend mode into its single image draw,
 so an additive black-backed effect does not need a grouping layer.
 `video(clip, playback)` is the many-video form: share one playback scheduler

@@ -23,11 +23,13 @@ of a file, a texture a device handed back.
 
 ```cpp
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
-Element image(sk_sp<SkImage> picture, Fit fit = Fit::Contain);
+Element image(sk_sp<SkImage> picture,
+              material::skia::Fit fit = material::skia::Fit::Contain);
 ```
 
 ```python
-def image(image: skia.Image, fit: Fit = Fit.Contain) -> Element: ...
+def image(image: skia.Image,
+          fit: material.skia.Fit = material.skia.Fit.Contain) -> Element: ...
 ```
 
 ## Parameters
@@ -36,7 +38,7 @@ def image(image: skia.Image, fit: Fit = Fit.Contain) -> Element: ...
 |---|---|---|
 | `asset` | A decoded image with its own identity. | SigilImage's asset vocabulary, through the sketch's assets |
 | `picture` | A picture already rendered. | A snapshot, a decode, a device texture |
-| `fit` | How the picture meets the box it is given. | [`Fit`](../../ELEMENTS.md#the-kernel): `Stretch`, `Contain`, `Cover` |
+| `fit` | How the picture meets the box it is given. | [`material::skia::Fit`](../../ELEMENTS.md#the-kernel): `Stretch`, `Contain`, `Cover`, `Native` |
 
 ## Description
 

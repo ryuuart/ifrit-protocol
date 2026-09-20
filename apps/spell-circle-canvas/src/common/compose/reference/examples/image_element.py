@@ -65,9 +65,9 @@ class ImageElement:
         # does not.
         return (
             compose.box(
-                cell("Fit.Contain", compose.image(picture, compose.Fit.Contain)),
-                cell("Fit.Cover", compose.image(picture, compose.Fit.Cover)),
-                cell("Fit.Stretch", compose.image(picture, compose.Fit.Stretch)),
+                cell("Fit.Contain", compose.image(picture, material.skia.Fit.Contain)),
+                cell("Fit.Cover", compose.image(picture, material.skia.Fit.Cover)),
+                cell("Fit.Stretch", compose.image(picture, material.skia.Fit.Stretch)),
             )
             .row()
             .gap(16)

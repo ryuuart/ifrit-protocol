@@ -111,7 +111,7 @@ gm::camera::Camera lens() {
  *  well itself, so nothing here places a picture inside a plate. */
 sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
                                  const char* note, sk_sp<SkImage> baked) {
-  Element picture = image(std::move(baked), Fit::Stretch);
+  Element picture = image(std::move(baked), material::skia::Fit::Stretch);
   return {.title = caseTitle,
           .control = call,
           .figure = sketch::kit::well({.width = kCell, .height = kPicture},

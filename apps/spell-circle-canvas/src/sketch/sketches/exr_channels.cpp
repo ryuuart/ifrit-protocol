@@ -107,7 +107,7 @@ Element plane(const sk_sp<SkImage>& picture, float width = 237) {
        .height = 200,
        .ground = Fill::color(kCellGround),
        .content = sketch::kit::Well::Content{}},
-      sigil::compose::image(picture, Fit::Contain).width(180).height(180));
+      sigil::compose::image(picture, mskia::Fit::Contain).width(180).height(180));
 }
 
 }  // namespace

@@ -224,13 +224,13 @@ TEST(ComposeTable, AShrinkToFitTableStopsAtWhatIsInIt) {
   // width in its markup and the one without.
   const std::vector<SkSize> sizes{{30, 20}, {60, 20}, {90, 20}};
   const std::vector<CellSpan> spans{claims(0, 0), claims(1, 0), claims(2, 0)};
-  const Table shrink{.fit = Table::Fit::Shrink};
+  const Table shrink{.fit = Table::ColumnSizing::Shrink};
   const Table::Grid tight = shrink.solve(given({300, 100}, sizes, spans));
   EXPECT_NEAR(tight.columnWidths[0], 30, 0.01f);
   EXPECT_NEAR(tight.columnWidths[2], 90, 0.01f);
   EXPECT_NEAR(tight.columnX[2], 90, 0.01f) << "packed at the start";
 
-  const Table fill{.fit = Table::Fit::Fill};
+  const Table fill{.fit = Table::ColumnSizing::Fill};
   const Table::Grid spread = fill.solve(given({300, 100}, sizes, spans));
   EXPECT_NEAR(spread.columnWidths[0], 50, 0.01f);
   EXPECT_NEAR(spread.columnWidths[2], 150, 0.01f);

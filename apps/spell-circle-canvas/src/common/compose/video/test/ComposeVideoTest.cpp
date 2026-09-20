@@ -14,6 +14,10 @@
 
 using namespace sigil::compose;
 
+// The fit a frame meets its box under is SigilMaterial's, spelled at its
+// own origin.
+namespace material = sigil::material;
+
 namespace {
 
 using sigil::test::fonts;
@@ -132,7 +136,7 @@ TEST(ComposeVideo, LeafCompositesItsSingleDrawWithoutAGroupingNode) {
   composer.setSize({64, 64});
   composer.render(box()
                       .fill(Fill::color({0, 0, 1, 1}))
-                      .children({video(clip, {.fit = VideoFit::Cover,
+                      .children({video(clip, {.fit = material::skia::Fit::Cover,
                                               .opacity = 0.5f,
                                               .blend = SkBlendMode::kPlus})}));
 
