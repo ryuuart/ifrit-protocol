@@ -124,11 +124,10 @@ library contains no application target or window implementation.
 
 ## Build and tests
 
-```sh
-cmake --build build --config Release --target SigilIOPublish io_test Seer
-ctest --test-dir build -C Release -R '^Publish' --output-on-failure
-```
-
-Factory refusals belong to `io_test`. Seer's texture capture tests cover row
-and channel order and late subscription to a static publication. Device cases
-require Metal; byte and URI consumers do not inherit that requirement.
+[docs/overview/testing.md](../../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under. This
+feature has no test binary of its own. The factory refusals belong to
+`io_test`, and the texture capture — row and channel order, and late
+subscription to a static publication — is covered by Seer's own cases,
+which need Metal and carry the `gpu` label for it. A byte or URI
+consumer does not inherit that requirement.
