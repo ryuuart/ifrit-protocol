@@ -27,6 +27,12 @@ sk_sp<SkData> encodeWithSkia(const SkPixmap& pixels, Format format,
 
 #ifdef SIGILIMAGE_HAS_OIIO_ENCODE
 
+/** Whether OpenImageIO carries an EXR writer that can write to memory.
+ *  A roster without the plugin is the second way EXR encoding can be
+ *  absent, and unlike the compiled-in check it is only visible once the
+ *  library is running. */
+bool canEncodeExrWithOiio();
+
 /** Scanline EXR written to memory, half float per channel for F16
  *  pixels and full float otherwise. Null when the pixels cannot be read
  *  as float or OIIO has no EXR writer. */

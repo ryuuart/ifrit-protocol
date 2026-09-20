@@ -33,6 +33,17 @@ SkColorType readbackType(Format format) {
 
 }  // namespace
 
+bool canEncode(Format format) {
+  // Skia's three encoders are linked with Skia itself; only EXR stands
+  // behind a backend that a build can be without.
+  if (format != Format::Exr) return true;
+#ifdef SIGILIMAGE_HAS_OIIO_ENCODE
+  return backend::canEncodeExrWithOiio();
+#else
+  return false;
+#endif
+}
+
 sk_sp<SkData> encodeImage(const SkPixmap& pixels, Format format,
                           const EncodeOptions& options) {
   if (!pixels.addr() || pixels.width() <= 0 || pixels.height() <= 0)

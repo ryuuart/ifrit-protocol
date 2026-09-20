@@ -23,7 +23,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilImageAsset`  | `asset/ImageAsset.h`, `asset/Embedded.h` | `ImageProbe`, `Frame` and `ImageAsset` — the decoded document and the Skia codec path; `embeddedPngs()` — the last-resort signature scan that recovers whole images, and the names beside them, from a container with no parser here; Skia only |
 | `SigilImageDecode` | `decode/Decode.h`, `decode/ChannelData.h` | `DecodeOptions`, `decodeImage()`, `probeImage()` and `decodeChannels()` — the routing surface, carrying the optional backends — and `ChannelData`, the raw channel planes |
-| `SigilImageEncode` | `encode/Encode.h` | `Format`, `EncodeOptions`, `encodeImage()` — the routing surface the other way, over a pixmap, an image or named channel planes — and `formatForPath()`/`extensionFor()` |
+| `SigilImageEncode` | `encode/Encode.h` | `Format`, `EncodeOptions`, `encodeImage()` — the routing surface the other way, over a pixmap, an image or named channel planes — `canEncode()`, which formats this build writes, and `formatForPath()`/`extensionFor()` |
 | `SigilImageField`  | `field/DistanceField.h` | `Mask` and `coverageMask()` — an alpha thresholded into coverage — and `DistanceField` and `distanceField()`, the exact Euclidean distance from every pixel to the nearest covered one |
 
 `SigilImage` is the umbrella target over all four. `SigilImageEncode`
@@ -203,6 +203,20 @@ Consumers cannot test for backend availability at compile time — an
 unsupported format simply fails to decode, and fails to encode the same
 way, answering null rather than throwing or writing a broken file.
 
+On the way out, `sigil::image::canEncode()` answers at run time instead,
+per `Format`: Skia's three are always there, and EXR is true only where
+the OpenImageIO backend is compiled in AND its roster carries an EXR
+writer that writes to memory — two independent absences, the second of
+which no define can see. It exists because null from `encodeImage()`
+means both "nothing here writes that" and "an encoder that is here
+refused those pixels", and a caller that wants to say which cannot
+otherwise tell. There is no matching question on the way in: decoding
+sniffs rather than being told a format, and no backend here enumerates
+the formats it recognises, so an answer would be a hand-kept list that
+could go stale against the codecs actually linked. A caller asking
+whether this build reads a format hands `decodeImage()` or
+`probeImage()` the bytes and reads the answer.
+
 **WebP at quality 100 is a different codec from WebP at 99.** The format
 holds a lossy and a lossless encoder in one container, and the quality
 number means visual fidelity to the first and compression effort to the
@@ -294,6 +308,10 @@ The optional decode backends are a build-time fact, so a case that wants
 one is compiled whatever this build has and skips naming the backend it
 wanted rather than vanishing from the run: the decode suites carry the
 `svg` and `oiio` labels for the SVG document cases and the DDS cube map.
+The encode cases take no such define: they ask `canEncode()` and branch
+on it, so the EXR cases assert the round trip where there is a writer and
+the null where there is none, and one case pins that answer against what
+an encode actually does.
 
 The field suite needs no fixture at all, because a distance has a closed
 form: `CoverageMask` pins which alpha counts as ink at each end of the

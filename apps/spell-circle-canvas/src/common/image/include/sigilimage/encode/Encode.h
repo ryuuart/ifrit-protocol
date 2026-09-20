@@ -42,6 +42,15 @@ enum class Format {
   Exr,
 };
 
+/** Whether this build can write @p format at all. Skia's encoders are
+ *  always here, so PNG, JPEG and WebP always answer true; EXR needs the
+ *  OpenImageIO backend both compiled in and carrying an EXR writer, and a
+ *  build can lack either. It separates the two reasons encodeImage()
+ *  answers null — nothing here writes that format, and an encoder that
+ *  IS here refuses those pixels — which a caller holding only the null
+ *  cannot tell apart. */
+bool canEncode(Format format);
+
 /** Options for encodes that support them. */
 struct EncodeOptions {
   /** 0..100, honoured by the lossy formats. For JPEG it is the

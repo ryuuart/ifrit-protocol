@@ -25,10 +25,12 @@ endif()
 # that what came back out is what went in.
 # The library-wide test directory is already on the include path, so the
 # round trip is judged by the same pixel comparison a decode is.
+# No backend define reaches the cases: canEncode() is the library's own
+# answer to which formats this build writes, and a test told by the build
+# instead would be checking the build rather than the library.
 sigil_test(image_test
   SOURCES test/EncodeTest.cpp
-  LIBRARIES SigilImageEncode SigilImageDecode
-  DEFINITIONS $<$<BOOL:${OpenImageIO_FOUND}>:SIGILIMAGE_HAS_OIIO_ENCODE>)
+  LIBRARIES SigilImageEncode SigilImageDecode)
 
 # A generated bitmap through each format per megapixel.
 sigil_bench(image_bench

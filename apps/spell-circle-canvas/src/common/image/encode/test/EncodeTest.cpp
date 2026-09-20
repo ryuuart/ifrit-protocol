@@ -133,10 +133,28 @@ TEST(Encode, TheImageOverloadReadsBackAndEncodes) {
   EXPECT_EQ(back->getColor(2, 2), SK_ColorRED);
 }
 
+TEST(Encode, TheBuildSaysWhichFormatsItWrites) {
+  // The three Skia encoders come with Skia, so a build without them is
+  // not a build this library can be part of.
+  EXPECT_TRUE(canEncode(Format::Png));
+  EXPECT_TRUE(canEncode(Format::Jpeg));
+  EXPECT_TRUE(canEncode(Format::Webp));
+  // AND THE ANSWER IS THE ONE THE ENCODE GIVES. That is the whole claim:
+  // a caller may branch on it instead of encoding something to find out.
+  const SkBitmap src = floatFixture();
+  EXPECT_EQ(canEncode(Format::Exr),
+            encodeImage(src.pixmap(), Format::Exr) != nullptr);
+}
+
 TEST(Encode, ExrCarriesValuesAboveOne) {
   const SkBitmap src = floatFixture();
   const sk_sp<SkData> bytes = encodeImage(src.pixmap(), Format::Exr);
-#ifdef SIGILIMAGE_HAS_OIIO_ENCODE
+  if (!canEncode(Format::Exr)) {
+    // The degrade rule: without the backend the format simply fails to
+    // encode, the same way it fails to decode.
+    EXPECT_FALSE(bytes);
+    return;
+  }
   ASSERT_TRUE(bytes);
   auto channels = decodeChannels(static_cast<const std::byte*>(bytes->data()),
                                  bytes->size(), "round.exr");
@@ -146,11 +164,6 @@ TEST(Encode, ExrCarriesValuesAboveOne) {
   ASSERT_GE(r, 0);
   // Half float, so the tolerance is the format's step near 4, not ours.
   EXPECT_NEAR(channels->at(0, 0, r), 4.0f, 0.01f);
-#else
-  // The degrade rule: without the backend the format simply fails to
-  // encode, the same way it fails to decode.
-  EXPECT_FALSE(bytes);
-#endif
 }
 
 TEST(Encode, NamedChannelsGoOutAsLayersAndComeBackByName) {
@@ -178,7 +191,10 @@ TEST(Encode, NamedChannelsGoOutAsLayersAndComeBackByName) {
     }
 
   const sk_sp<SkData> bytes = encodeImage(channels, Format::Exr);
-#ifdef SIGILIMAGE_HAS_OIIO_ENCODE
+  if (!canEncode(Format::Exr)) {
+    EXPECT_FALSE(bytes);
+    return;
+  }
   ASSERT_TRUE(bytes);
   const auto back = decodeChannels(static_cast<const std::byte*>(bytes->data()),
                                    bytes->size(), "layers.exr");
@@ -215,9 +231,6 @@ TEST(Encode, NamedChannelsGoOutAsLayersAndComeBackByName) {
   EXPECT_NEAR(pixel[0], 0.25f, 0.001f);
   // A layer the file does not carry is nothing, not a black picture.
   EXPECT_FALSE(back->makeImage("specular"));
-#else
-  EXPECT_FALSE(bytes);
-#endif
 }
 
 TEST(Encode, OnlyExrHoldsNamedChannels) {

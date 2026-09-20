@@ -44,6 +44,19 @@ int channelNamed(const ChannelData& channels, const char* name) {
 
 }  // namespace
 
+bool canEncodeExrWithOiio() {
+  // Asked once: the plugin roster is fixed for the run. Asked the way an
+  // encode asks — for a writer over a memory sink — because a writer
+  // that cannot write to memory is a writer this library cannot use.
+  static const bool present = [] {
+    std::vector<unsigned char> discarded;
+    OIIO::Filesystem::IOVecOutput sink(discarded);
+    auto output = exrWriter(sink);
+    return output && output->supports("ioproxy");
+  }();
+  return present;
+}
+
 sk_sp<SkData> encodeExrWithOiio(const SkPixmap& pixels) {
   const int w = pixels.width(), h = pixels.height();
   if (w <= 0 || h <= 0) return nullptr;
