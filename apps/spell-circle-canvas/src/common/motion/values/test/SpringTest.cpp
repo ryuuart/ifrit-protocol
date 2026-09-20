@@ -158,3 +158,28 @@ TEST(Spring, MovingIsAskedOfTheDistanceAndTheRateTogether) {
   const Spring landed = run({.value = 60.0f}, 0.0f, 3.0f, 1.0f / 120.0f, p);
   EXPECT_FALSE(springMoving(landed, 0.0f));
 }
+
+TEST(Spring, TwoSpringsCompareByWhatTheyHold) {
+  // A held spring is part of the description of the thing it moves, so
+  // an owner asking whether anything changed compares the state rather
+  // than stepping it again to see. Both numbers count: a value on its
+  // target carrying speed is not the same state as one at rest there.
+  EXPECT_EQ(Spring{}, (Spring{.value = 0.0f, .velocity = 0.0f}));
+  EXPECT_EQ((Spring{.value = 3.0f, .velocity = -2.0f}),
+            (Spring{.value = 3.0f, .velocity = -2.0f}));
+  EXPECT_NE((Spring{.value = 3.0f}), (Spring{.value = 3.0f, .velocity = 0.1f}));
+  EXPECT_NE((Spring{.value = 3.0f}), (Spring{.value = 3.5f}));
+
+  // The parameters likewise, so a pair of settings can be told apart
+  // without reading their fields one at a time.
+  EXPECT_EQ(SpringParameters{},
+            (SpringParameters{.periodSeconds = 0.4f, .damping = 0.5f}));
+  EXPECT_NE((SpringParameters{.periodSeconds = 0.4f, .damping = 0.5f}),
+            (SpringParameters{.periodSeconds = 0.4f, .damping = 0.55f}));
+  EXPECT_NE((SpringParameters{.periodSeconds = 0.4f, .damping = 0.5f}),
+            (SpringParameters{.periodSeconds = 0.41f, .damping = 0.5f}));
+
+  // A step of no time answers the state it was handed, and now says so.
+  const Spring moving{.value = 7.0f, .velocity = 3.0f};
+  EXPECT_EQ(spring(moving, 0.0f, 0.0f, {.periodSeconds = 0.3f}), moving);
+}

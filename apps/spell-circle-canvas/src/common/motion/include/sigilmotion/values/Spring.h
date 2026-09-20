@@ -28,6 +28,8 @@ namespace sigil::motion {
 struct SpringParameters {
   float periodSeconds = 0.4f;
   float damping = 0.5f;
+
+  bool operator==(const SpringParameters&) const = default;
 };
 
 /** WHERE a spring is: the value it holds and the velocity it holds it
@@ -41,6 +43,8 @@ struct SpringParameters {
 struct Spring {
   float value = 0.0f;
   float velocity = 0.0f;
+
+  bool operator==(const Spring&) const = default;
 };
 
 /** Advance a spring `dt` seconds towards `target`.
@@ -62,12 +66,12 @@ struct Spring {
  *  "instant". A non-positive `dt` answers the spring unchanged. A
  *  negative damping is read as 0. */
 inline Spring spring(Spring from, float target, float dt,
-                     SpringParameters p = {}) {
+                     SpringParameters parameters = {}) {
   if (!(dt > 0.0f)) return from;
-  if (!(p.periodSeconds > 0.0f)) return {target, 0.0f};
+  if (!(parameters.periodSeconds > 0.0f)) return {target, 0.0f};
 
-  const float omega = 6.2831853071795864769f / p.periodSeconds;
-  const float zeta = p.damping > 0.0f ? p.damping : 0.0f;
+  const float omega = 6.2831853071795864769f / parameters.periodSeconds;
+  const float zeta = parameters.damping > 0.0f ? parameters.damping : 0.0f;
 
   // Solve about the target: x is the displacement, which decays to 0.
   const float x = from.value - target;
@@ -118,8 +122,10 @@ inline Spring spring(Spring from, float target, float dt,
  *
  *  This is the *running* question, asked of a spring: it says the
  *  machinery is done, not that the value has provably held still. */
-inline bool springMoving(const Spring& s, float target, float slack = 0.5f) {
-  return std::abs(s.value - target) > slack || std::abs(s.velocity) > slack;
+inline bool springMoving(const Spring& state, float target,
+                         float slack = 0.5f) {
+  return std::abs(state.value - target) > slack ||
+         std::abs(state.velocity) > slack;
 }
 
 }  // namespace sigil::motion

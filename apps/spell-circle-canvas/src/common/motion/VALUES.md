@@ -161,6 +161,12 @@ than a fact, and it is stated once as a distance and a rate together: a
 value sitting on its target at speed is passing through it, not resting
 on it.
 
+The state and the settings both compare field for field. A held spring
+is part of the description of the thing it moves, and an owner asking
+whether that description changed compares it rather than stepping it
+again to see — which also tells a value on its target at speed from one
+at rest there, the distinction the whole pair of numbers exists for.
+
 ## Lanes: where a host's motions live
 
 A retained host holds one `AnimatedFloat` per animatable it lets move,
