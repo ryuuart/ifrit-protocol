@@ -759,7 +759,7 @@ class Theme:
         ...
 
     @typing.overload
-    def font(self, register: Register) -> _sigil.weave.Type:
+    def font(self, line: Register) -> _sigil.weave.Type:
         ...
 
     @typing.overload

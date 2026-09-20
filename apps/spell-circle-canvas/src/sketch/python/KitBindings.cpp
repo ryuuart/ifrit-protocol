@@ -135,7 +135,7 @@ void bindTheme(py::module_& module) {
       .def("font",
            py::overload_cast<const sketchKit::Register&>(
                &sketchKit::Theme::font, py::const_),
-           py::arg("register"))
+           py::arg("line"))
       .def(
           "font",
           [](const sketchKit::Theme& value, const sketchKit::Register& line,

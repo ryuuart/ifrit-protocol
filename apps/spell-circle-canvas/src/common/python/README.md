@@ -148,7 +148,11 @@ Palettes provide Python indexing and iteration beside the native clamped `at`.
 Optional paint-layer materials copy native values across the Python boundary.
 
 Owned database connections expose writes; cached and byte-backed database
-views reject explicit execute and insert calls. Resource leases retain an owned
+views reject every writing statement, through query as well as through
+execute and insert, and the file a cached view reads is opened for reading
+only. Registering the data decoders on a hub registers the database decoder
+with them, so an owned hub loads a store as a session hub does.
+Resource leases retain an owned
 hub or check a borrowed host before access. Closing a lease releases residency and
 makes subsequent access fail; context-manager exit performs that close even
 when the body raises. Lease methods check their creating thread so closing a

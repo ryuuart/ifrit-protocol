@@ -41,6 +41,54 @@ class Compose(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "Unknown Type field"):
             weave.Type(szie=10)
 
+    def test_edge_dimensions_take_their_names_at_every_arity(self):
+        for element in (
+            box().padding(all=12),
+            box().margin(horizontal=12, vertical=6),
+            box().margin(left=1, top=2, right=3, bottom=4),
+        ):
+            self.assertIsInstance(element, raw.Element)
+        # One, two and four dimensions are the whole vocabulary.
+        with self.assertRaises(TypeError):
+            box().padding(1, 2, 3)
+        self.render("""import builtins
+from sigil.compose import box, row
+from sigil.sketch import sketch
+
+
+def bar(key, element):
+    return element.key(key).children([box().width(10).height(10)])
+
+
+@sketch(size=(200, 60), capture_at=0)
+class Edges:
+    def setup(self, ctx):
+        ctx.render(
+            row(
+                bar("named", box().padding(left=3, top=5, right=7, bottom=9)),
+                bar("placed", box().padding(3, 5, 7, 9)),
+                bar("pair", box().margin(horizontal=4, vertical=2)),
+                bar("both", box().margin(4, 2)),
+            )
+        )
+
+    def update(self, elapsed, ctx):
+        if elapsed > 1 / 60:
+            builtins._sigil_compose_contract = [
+                ctx.composer.bounds(key)
+                for key in ("named", "placed", "pair", "both")
+            ]
+""")
+        named, placed, pair, both = builtins._sigil_compose_contract
+        self.assertEqual(
+            (named.width(), named.height()), (placed.width(), placed.height())
+        )
+        self.assertEqual((pair.width(), pair.height()), (both.width(), both.height()))
+        # The left and right dimensions reach the measured width: 3 + 10 + 7.
+        self.assertEqual(named.width(), 20)
+        # A margin stands outside the box, so the pair keeps the child's width.
+        self.assertEqual(pair.width(), 10)
+
     def test_animatable_fields_roundtrip_without_losing_live_output(self):
         source = Output(0.25)
         path = raw.MotionPath(skia.Path.Circle(0, 0, 40), t=source)

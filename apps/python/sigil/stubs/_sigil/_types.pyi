@@ -1,5 +1,5 @@
 from collections.abc import Buffer, Callable, Iterable, Sequence
-from typing import Literal, SupportsFloat, SupportsIndex, TypeAlias
+from typing import Literal, Protocol, SupportsFloat, SupportsIndex, TypeAlias
 
 from _sigil import compose, data, draw, material, motion, skia, weave
 
@@ -31,6 +31,7 @@ __all__ = [
     "ScalarLike",
     "ShapeFunction",
     "ShapeLike",
+    "SilhouetteLike",
     "SizeLike",
     "SurfacePaintLike",
     "TickCallback",
@@ -78,6 +79,16 @@ JustifyLike: TypeAlias = (
 )
 ShapeFunction: TypeAlias = Callable[[float, float], skia.Path]
 ShapeLike: TypeAlias = compose.Shape | skia.Path | ShapeFunction
+
+class SilhouetteLike(Protocol):
+    """Anything that answers a path over a size: the pen calls
+    ``path((width, height))`` and draws what comes back. The size is the
+    pair the pen passes, not a wider size input, because a protocol's
+    parameter is contravariant and a wider one would reject an author's
+    own two-float signature."""
+
+    def path(self, size: tuple[float, float]) -> skia.Path: ...
+
 DecorationLike: TypeAlias = compose.Decoration | compose.PathFormat | compose.Shadow
 PointBatch: TypeAlias = Buffer | Iterable[PointLike]
 DrawCallback: TypeAlias = Callable[[draw.Pen], None]

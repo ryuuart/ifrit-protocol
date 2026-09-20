@@ -822,15 +822,15 @@ class Element:
         ...
 
     @typing.overload
-    def margin(self, all: _t.DimensionLike, /) -> Element:
+    def margin(self, all: _t.DimensionLike) -> Element:
         ...
 
     @typing.overload
-    def margin(self, horizontal: _t.DimensionLike, vertical: _t.DimensionLike, /) -> Element:
+    def margin(self, horizontal: _t.DimensionLike, vertical: _t.DimensionLike) -> Element:
         ...
 
     @typing.overload
-    def margin(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike, /) -> Element:
+    def margin(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike) -> Element:
         ...
 
     def maxHeight(self, value: _t.DimensionLike) -> Element:
@@ -861,15 +861,15 @@ class Element:
         ...
 
     @typing.overload
-    def padding(self, all: _t.DimensionLike, /) -> Element:
+    def padding(self, all: _t.DimensionLike) -> Element:
         ...
 
     @typing.overload
-    def padding(self, horizontal: _t.DimensionLike, vertical: _t.DimensionLike, /) -> Element:
+    def padding(self, horizontal: _t.DimensionLike, vertical: _t.DimensionLike) -> Element:
         ...
 
     @typing.overload
-    def padding(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike, /) -> Element:
+    def padding(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike) -> Element:
         ...
 
     @typing.overload

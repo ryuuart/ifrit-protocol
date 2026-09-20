@@ -46,10 +46,8 @@ checking shared types, mixed construction, typing and lifecycle contracts.
 
 The wheel includes type declarations for the direct bindings and authoring
 helpers, with a `py.typed` marker for editors. Builders return native
-`Element` values; material factories return native paints or materials. Supported input
-forms use unions and overloads, except `Pen.fill` and `Pen.stroke` over a paint
-with `CANVAS` or `SHAPE` or over a `Material`, `Pen.background` over a paint and
-`Pen.shape` over a silhouette, which run but fail strict checking. Fluent
+`Element` values; material factories return native paints or materials.
+Supported input forms use unions and overloads. Fluent
 methods retain their native signatures,
 and memo builders preserve the type of their model. Decorating a sketch retains
 its class type.
@@ -310,7 +308,9 @@ environment. The standalone wheel keeps NumPy in its optional `studies` extra.
 A sketch with optional installed modules can declare a literal tuple such
 as `REQUIRES = ("numpy",)`. The browser keeps the entry visible and marks
 it unavailable when a module cannot be found. Headless selections skip
-unavailable entries. This declaration checks availability; it does not
+unavailable entries, and `sigil render` names a declared module this
+interpreter does not have and exits nonzero rather than starting the host.
+This declaration checks availability; it does not
 install packages or choose an environment.
 
 The application's normal build setup includes Python support. From
@@ -1226,8 +1226,10 @@ tint = ramp(0.5)
 
 `Database.open()` and `memory()` return owned writable connections. Databases
 loaded through a sketch's `ctx.assets` hub or `fromBytes()` expose query views
-that reject explicit `execute()` and `insert()` calls; `registerDecoders` adds
-only the table and JSON decoders to a standalone hub. Failures raise an
+that reject every writing statement, through `query()` as well as through
+`execute()` and `insert()`, and a cached file is opened for reading only;
+`registerDecoders` puts the table, JSON and database decoders on a standalone
+hub, which then loads what a session hub loads. Failures raise an
 exception; table/query results are independent copies. Protocol encoders accept
 native Json values or ordinary Python dictionaries, tuples and lists and return
 bytes; invalid packets decode to `None`. A `Schema` owns the binary schema it

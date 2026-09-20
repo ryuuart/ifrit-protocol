@@ -350,6 +350,10 @@ class Pen:
         ...
 
     @typing.overload
+    def background(self, paint: _sigil.material.skia.Paint, /) -> None:
+        ...
+
+    @typing.overload
     def background(self, gray: _t.FloatLike, alpha: _t.FloatLike=..., /) -> None:
         ...
 
@@ -450,7 +454,15 @@ class Pen:
         ...
 
     @typing.overload
-    def fill(self, value: _t.ColorLike | _sigil.material.skia.Paint, /) -> None:
+    def fill(self, value: _t.ColorLike, /) -> None:
+        ...
+
+    @typing.overload
+    def fill(self, paint: _sigil.material.skia.Paint, fit: Constant=..., /) -> None:
+        ...
+
+    @typing.overload
+    def fill(self, material: _sigil.material.Material, /) -> None:
         ...
 
     @typing.overload
@@ -626,7 +638,7 @@ class Pen:
         ...
 
     @typing.overload
-    def shape(self, silhouette: _sigil.skia.Path, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
+    def shape(self, silhouette: _t.SilhouetteLike, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
     def shearX(self, angle: typing.SupportsFloat) -> None:
@@ -651,7 +663,15 @@ class Pen:
         ...
 
     @typing.overload
-    def stroke(self, value: _t.ColorLike | _sigil.material.skia.Paint, /) -> None:
+    def stroke(self, value: _t.ColorLike, /) -> None:
+        ...
+
+    @typing.overload
+    def stroke(self, paint: _sigil.material.skia.Paint, fit: Constant=..., /) -> None:
+        ...
+
+    @typing.overload
+    def stroke(self, material: _sigil.material.Material, /) -> None:
         ...
 
     @typing.overload

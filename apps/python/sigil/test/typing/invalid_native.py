@@ -1,6 +1,6 @@
 """Each marked line must produce its specified strict diagnostic."""
 
-from sigil.native import compose, data, draw, io, material, motion, weave
+from sigil.native import compose, data, draw, io, material, motion, skia, weave
 
 compose.box().width({"pixels": 20})  # error: reportArgumentType
 compose.box().opacity("opaque")  # error: reportArgumentType
@@ -21,5 +21,7 @@ io.FeedPolicy(capacity="unbounded")  # error: reportArgumentType
 
 def invalid(pen: draw.Pen) -> None:
     pen.line("left", "right")  # error: reportArgumentType
+    # A silhouette answers a path over a size; a path answers nothing.
+    pen.shape(skia.Path(), 0, 0, 10, 10)  # error: reportArgumentType
     canvas = pen.canvas()
     canvas.drawPoints(draw.PointMode.Lines, [], "paint")  # error: reportArgumentType

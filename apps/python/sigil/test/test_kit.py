@@ -6,6 +6,7 @@ import threading
 import unittest
 from pathlib import Path
 
+from sigil import weave
 from sigil.compose import Element, box, text
 from sigil.compose import kit as neutral
 from sigil.compose.layouts import Grid, fr, px
@@ -47,6 +48,17 @@ class Kit(unittest.TestCase):
                     snapshot.spacing.cellGap += 1
                     self.assertEqual(kit.theme(), custom)
                 self.assertEqual(kit.theme(), ambient)
+
+    def test_theme_font_and_style_name_the_same_register_across_overloads(self):
+        look = kit.house_theme()
+        plain = look.font(line=look.type.title)
+        self.assertIsInstance(plain, weave.Type)
+        self.assertEqual(plain, look.font(look.type.title))
+        inked = look.font(line=look.type.title, ink="#ffffff")
+        self.assertIsInstance(inked, weave.Type)
+        self.assertEqual(inked, look.font(look.type.title, "#ffffff"))
+        styled = look.style(line=look.type.title, ink="#ffffff")
+        self.assertIsInstance(styled, weave.TextStyle)
 
     def test_nested_providers_restore_the_original_theme_on_exception(self):
         original = kit.theme()

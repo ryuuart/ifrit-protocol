@@ -9,7 +9,7 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from sigil import data
+from sigil import data, io
 from sigil.native import data as native
 from sigil.sketch import render_file
 
@@ -86,6 +86,10 @@ class Data(unittest.TestCase):
         self.assertEqual(
             [(group.key, group.rows) for group in groups],
             [("west", [0, 2]), ("east", [1])],
+        )
+        # One column name, named the way every neighbouring method names it.
+        self.assertEqual(
+            [group.key for group in table.group(name="region")], ["west", "east"]
         )
         self.assertEqual(table.take(groups[0].rows).size(), 2)
         selected = table.select(["date", "open"])
@@ -186,6 +190,79 @@ class Data(unittest.TestCase):
                 2,
             )
         self.assertEqual(table.size(), 2)
+
+    def test_a_read_only_database_view_refuses_writes_through_query(self):
+        self.addCleanup(lambda: builtins.__dict__.pop("_sigil_read_only", None))
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            with sqlite3.connect(root / "field.sqlite") as store:
+                store.execute("CREATE TABLE totals (count REAL)")
+                store.execute("INSERT INTO totals VALUES (2)")
+            byte_backed = data.Database.fromBytes((root / "field.sqlite").read_bytes())
+            with self.assertRaisesRegex(RuntimeError, "read-only"):
+                byte_backed.query("DELETE FROM totals")
+            with self.assertRaisesRegex(RuntimeError, "read-only"):
+                byte_backed.query("SELECT 1; DELETE FROM totals")
+            self.assertEqual(
+                byte_backed.query("SELECT count FROM totals").cell("count", 0), 2
+            )
+            entry = root / "scene.py"
+            entry.write_text(
+                textwrap.dedent("""import builtins
+from sigil.compose import box
+from sigil.sketch import sketch
+
+
+@sketch(size=(24, 24), capture_at=0)
+class Cached:
+    def setup(self, ctx):
+        builtins._sigil_read_only = ctx.assets.database(ctx.local("field.sqlite"))
+        ctx.render(box().width(24).height(24).fill("#45827b"))
+""")
+            )
+            render_file(entry, root / "frame.png", at=0)
+            cached = builtins._sigil_read_only
+            with self.assertRaisesRegex(RuntimeError, "read-only"):
+                cached.query("DELETE FROM totals")
+            with self.assertRaisesRegex(RuntimeError, "read-only"):
+                cached.execute("DELETE FROM totals")
+            self.assertEqual(
+                cached.query("SELECT count FROM totals").cell("count", 0), 2
+            )
+            with sqlite3.connect(root / "field.sqlite") as store:
+                self.assertEqual(
+                    store.execute("SELECT count(*) FROM totals").fetchone()[0], 1
+                )
+
+    def test_an_owned_hub_loads_a_database_once_its_decoders_are_registered(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            with sqlite3.connect(root / "field.sqlite") as store:
+                store.execute("CREATE TABLE totals (count REAL)")
+                store.execute("INSERT INTO totals VALUES (2)")
+            hub = io.Hub()
+            hub.mount("res://", root)
+            self.assertIsNone(hub.load(data.Database, "res://field.sqlite"))
+            data.registerDecoders(hub)
+            database = hub.load(data.Database, "res://field.sqlite")
+            self.assertIsNotNone(database)
+            self.assertEqual(
+                database.query("SELECT count FROM totals").cell("count", 0), 2
+            )
+            with self.assertRaisesRegex(RuntimeError, "read-only"):
+                database.query("DELETE FROM totals")
+
+    def test_flags_compare_equal_and_instants_order_chronologically(self):
+        self.assertEqual(data.Flag(True), data.Flag(True))
+        self.assertNotEqual(data.Flag(True), data.Flag(False))
+        self.assertLess(data.Flag(False), data.Flag(True))
+        first = data.decodeInstant("2026-09-01")
+        second = data.decodeInstant("2026-09-02T06:30:00")
+        self.assertIsNotNone(first)
+        self.assertIsNotNone(second)
+        self.assertLess(first, second)
+        self.assertGreaterEqual(second, first)
+        self.assertEqual(sorted([second, first]), [first, second])
 
     def test_asset_json_tables_and_queries_outlive_the_session(self):
         self.addCleanup(lambda: builtins.__dict__.pop("_sigil_data", None))

@@ -209,12 +209,28 @@ class Engine:
         ...
 
 class Flag:
+    __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
     set: bool
 
     def __bool__(self) -> bool:
         ...
 
+    def __eq__(self, other: builtins.object) -> bool:
+        ...
+
+    def __ge__(self, other: Flag) -> bool:
+        ...
+
+    def __gt__(self, other: Flag) -> bool:
+        ...
+
     def __init__(self, set: bool=False) -> None:
+        ...
+
+    def __le__(self, other: Flag) -> bool:
+        ...
+
+    def __lt__(self, other: Flag) -> bool:
         ...
 
 class Group:
@@ -236,7 +252,19 @@ class Instant:
     def __float__(self) -> float:
         ...
 
+    def __ge__(self, other: Instant) -> bool:
+        ...
+
+    def __gt__(self, other: Instant) -> bool:
+        ...
+
     def __init__(self, seconds: typing.SupportsFloat=0) -> None:
+        ...
+
+    def __le__(self, other: Instant) -> bool:
+        ...
+
+    def __lt__(self, other: Instant) -> bool:
         ...
 
     @property
@@ -681,7 +709,7 @@ class Table:
     def filter(self, predicate: collections.abc.Callable[[int], bool]) -> Table:
         ...
 
-    def group(self, names: str) -> list[Group]:
+    def group(self, name: str) -> list[Group]:
         ...
 
     def has(self, name: str) -> bool:

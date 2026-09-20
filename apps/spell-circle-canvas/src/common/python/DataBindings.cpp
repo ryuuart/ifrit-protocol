@@ -270,6 +270,10 @@ void bindData(py::module_& root) {
         auto& hub = value.get();
         const py::gil_scoped_release release;
         data::registerDecoders(hub);
+        // One Python module stands over every feature of this library, so
+        // the call that puts its decoders on a hub puts the database
+        // decoder there too: an owned hub loads what a session hub loads.
+        hub.registerDecoder<data::Database>(data::DatabaseDecoder{});
       },
       py::arg("hub"));
   py::enum_<data::Json::Kind>(module, "JsonKind")
@@ -350,17 +354,48 @@ void bindData(py::module_& root) {
       [](py::handle value) { return data::tableFromJson(json(value)); },
       py::arg("value"));
 
+  // Both cell values order natively, so both order here: a column hands
+  // them to Python code that sorts and compares them like any other value.
+  // Each comparison is an explicit lambda with a named input, because the
+  // operator shorthand leaves the input unnamed in the declarations.
   py::class_<data::Instant>(module, "Instant")
       .def(py::init<double>(), py::arg("seconds") = 0)
       .def_readwrite("seconds", &data::Instant::seconds)
       .def("__float__", [](data::Instant value) { return value.seconds; })
       .def(
           "__eq__", [](data::Instant a, data::Instant b) { return a == b; },
-          py::arg("other"));
+          py::arg("other"))
+      .def(
+          "__lt__", [](data::Instant a, data::Instant b) { return a < b; },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__le__", [](data::Instant a, data::Instant b) { return a <= b; },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__gt__", [](data::Instant a, data::Instant b) { return a > b; },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__ge__", [](data::Instant a, data::Instant b) { return a >= b; },
+          py::arg("other"), py::is_operator());
   py::class_<data::Flag>(module, "Flag")
       .def(py::init<bool>(), py::arg("set") = false)
       .def_readwrite("set", &data::Flag::set)
-      .def("__bool__", [](data::Flag value) { return value.set; });
+      .def("__bool__", [](data::Flag value) { return value.set; })
+      .def(
+          "__eq__", [](data::Flag a, data::Flag b) { return a == b; },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__lt__", [](data::Flag a, data::Flag b) { return a < b; },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__le__", [](data::Flag a, data::Flag b) { return a <= b; },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__gt__", [](data::Flag a, data::Flag b) { return a > b; },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__ge__", [](data::Flag a, data::Flag b) { return a >= b; },
+          py::arg("other"), py::is_operator());
   py::enum_<data::ColumnType>(module, "ColumnType")
       .value("Number", data::ColumnType::Number)
       .value("Text", data::ColumnType::Text)
@@ -502,7 +537,7 @@ void bindData(py::module_& root) {
           py::arg("name"), py::arg("value"), py::arg("type") = py::none())
       .def("sort", &data::Table::sort, py::arg("name"),
            py::arg("order") = data::Order::Ascending)
-      .def("group", &data::Table::group, py::arg("names"))
+      .def("group", &data::Table::group, py::arg("name"))
       .def(
           "__eq__",
           [](const data::Table& a, const data::Table& b) { return a == b; },
@@ -647,6 +682,15 @@ void bindData(py::module_& root) {
           "query",
           [](const DatabaseView& view, std::string_view sql) {
             std::string why;
+            // A view that refuses writes refuses them through every
+            // method, so a writing statement is named before it is run
+            // and raises what execute() and insert() raise.
+            if (!view.writer) {
+              const auto writes = view.owner->writes(sql, &why);
+              if (!writes) throw std::runtime_error(why);
+              if (*writes)
+                throw std::runtime_error("This database view is read-only.");
+            }
             auto table = view.owner->query(sql, &why);
             if (!table) throw std::runtime_error(why);
             return std::move(*table);

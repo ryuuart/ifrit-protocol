@@ -29,6 +29,9 @@ def describe(model: Model) -> compose.Element:
 
 tree = compose.memo(Model(3), describe).width("100%").padding(12, 16)
 assert_type(tree, compose.Element)
+assert_type(
+    tree.padding(all=8).margin(left=1, top=2, right=3, bottom=4), compose.Element
+)
 assert_type(tree.alignItems("auto").justify("space_between"), compose.Element)
 assert_type(
     tree.alignItems(compose.Align.Auto).justify(compose.Justify.End), compose.Element
@@ -80,6 +83,18 @@ def paint(pen: draw.Pen) -> None:
     pen.fill(ink)
     pen.stroke(32, 64, 96, 255)
     pen.line((0, 0), (20, 30))
+    pen.fill("#f1bb7b")
+    pen.fill(ink, draw.CANVAS)
+    pen.stroke(ink, draw.SHAPE)
+    pen.background(ink)
+    pen.fill(material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31")))
+
+    class Squircle:
+        def path(self, size: tuple[float, float]) -> skia.Path:
+            return skia.Path.Rect((0, 0, size[0], size[1]))
+
+    pen.shape(Squircle(), 0, 0, 40, 40)
+    pen.shape(skia.Path.Rect((0, 0, 10, 10)))
     brush = draw.brush.pencil("#555")
     brush.customTip = lambda p, dab: p.circle(dab.position, 2)
     draw.brush.paint(pen, brush, [draw.brush.Sample((0, 0)), ((20, 10), 0.6)])

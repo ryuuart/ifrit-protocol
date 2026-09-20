@@ -208,16 +208,17 @@ erased(element, "background foreground overlay stroke", "_t.DecorationLike")
 erased(element, "textStroke", "_t.ColorLike")
 erased(element, "echo", "_t.PointLike", "_t.ColorLike")
 erased(element, "var", "_t.DimensionLike | _t.ColorLike")
+# Three arities, each with its own names, and each name usable as a keyword.
 for edge in ("padding", "margin"):
     signatures(
         element,
         edge,
         f"""@typing.overload
-def {edge}(self, all: _t.DimensionLike, /) -> Element: ...
+def {edge}(self, all: _t.DimensionLike) -> Element: ...
 @typing.overload
-def {edge}(self, horizontal: _t.DimensionLike, vertical: _t.DimensionLike, /) -> Element: ...
+def {edge}(self, horizontal: _t.DimensionLike, vertical: _t.DimensionLike) -> Element: ...
 @typing.overload
-def {edge}(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike, /) -> Element: ...
+def {edge}(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike) -> Element: ...
 """,
     )
 erased("_sigil.compose.Composer", "hitTest", "_t.PointLike")
@@ -267,22 +268,38 @@ erased("_sigil.draw.Pen", "circle point", "_t.PointLike")
 erased("_sigil.draw.Pen", "line", "_t.PointLike", "_t.PointLike")
 erased("_sigil.draw.Pen", "element", "_t.RectLike")
 erased("_sigil.draw.Pen", "inherit", "_t.ColorLike")
-erased("_sigil.draw.Pen", "shape", "_sigil.skia.Path")
+# A silhouette is whatever answers a path over a size; geometry's own
+# generators are not bound, so in Python the author writes the object.
+PARAMETERS["_sigil.draw.Pen.shape"] = {"silhouette": "_t.SilhouetteLike"}
 PARAMETERS["_sigil.draw.Pen.clip"] = {"shape": "_t.DrawCallback"}
 PARAMETERS["_sigil.draw.Pen.image"] = {"image": "Graphics"}
+# Every form the binding dispatches on, in the order it tests them: a
+# paint with or without the fit it is measured in, a material, then the
+# colour forms. All positional-only, because the binding takes no keyword.
 for method in ("background", "fill", "stroke", "color"):
     result = "_sigil.skia.Color" if method == "color" else "None"
-    paint = " | _sigil.material.skia.Paint" if method in ("fill", "stroke") else ""
+    declarations = [f"def {method}(self, value: _t.ColorLike, /) -> {result}: ..."]
+    if method in ("fill", "stroke"):
+        declarations.append(
+            f"def {method}(self, paint: _sigil.material.skia.Paint, fit: Constant = ..., /) -> {result}: ..."
+        )
+        declarations.append(
+            f"def {method}(self, material: _sigil.material.Material, /) -> {result}: ..."
+        )
+    elif method == "background":
+        declarations.append(
+            f"def {method}(self, paint: _sigil.material.skia.Paint, /) -> {result}: ..."
+        )
+    declarations.append(
+        f"def {method}(self, gray: _t.FloatLike, alpha: _t.FloatLike = ..., /) -> {result}: ..."
+    )
+    declarations.append(
+        f"def {method}(self, red: _t.FloatLike, green: _t.FloatLike, blue: _t.FloatLike, alpha: _t.FloatLike = ..., /) -> {result}: ..."
+    )
     signatures(
         "_sigil.draw.Pen",
         method,
-        f"""@typing.overload
-def {method}(self, value: _t.ColorLike{paint}, /) -> {result}: ...
-@typing.overload
-def {method}(self, gray: _t.FloatLike, alpha: _t.FloatLike = ..., /) -> {result}: ...
-@typing.overload
-def {method}(self, red: _t.FloatLike, green: _t.FloatLike, blue: _t.FloatLike, alpha: _t.FloatLike = ..., /) -> {result}: ...
-""",
+        "".join(f"@typing.overload\n{line}\n" for line in declarations),
     )
 
 # Material recipes keep value uniforms distinct from animated effects.

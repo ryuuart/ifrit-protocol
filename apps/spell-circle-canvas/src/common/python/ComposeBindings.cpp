@@ -822,28 +822,37 @@ void bindCompose(py::module_& module) {
           return (self.*setter)(motionAnimatable(value));
         },
         py::arg("value"), fluent);
+  // One, two and four dimensions are three arities, so each is its own
+  // overload with its own named inputs: a keyword call reads the same as
+  // `inset` next door, and pybind names the three forms when none matches.
   for (const char* name : {"padding", "margin"}) {
+    const bool padding = std::string_view{name} == "padding";
     element.def(
         name,
-        [name](Element& self, py::args values) -> Element& {
-          std::vector<Dimension> dimensions;
-          for (const auto& value : values)
-            dimensions.push_back(dimension(value));
-          const bool padding = std::string_view{name} == "padding";
-          if (dimensions.size() == 1)
-            return padding ? self.padding(dimensions[0])
-                           : self.margin(dimensions[0]);
-          if (dimensions.size() == 2)
-            return padding ? self.padding(dimensions[0], dimensions[1])
-                           : self.margin(dimensions[0], dimensions[1]);
-          if (dimensions.size() == 4)
-            return padding ? self.padding(dimensions[0], dimensions[1],
-                                          dimensions[2], dimensions[3])
-                           : self.margin(dimensions[0], dimensions[1],
-                                         dimensions[2], dimensions[3]);
-          throw py::type_error(
-              "padding and margin accept one, two, or four dimensions.");
+        [padding](Element& self, py::object all) -> Element& {
+          return padding ? self.padding(dimension(all))
+                         : self.margin(dimension(all));
         },
+        py::arg("all"), fluent);
+    element.def(
+        name,
+        [padding](Element& self, py::object horizontal,
+                  py::object vertical) -> Element& {
+          return padding
+                     ? self.padding(dimension(horizontal), dimension(vertical))
+                     : self.margin(dimension(horizontal), dimension(vertical));
+        },
+        py::arg("horizontal"), py::arg("vertical"), fluent);
+    element.def(
+        name,
+        [padding](Element& self, py::object left, py::object top,
+                  py::object right, py::object bottom) -> Element& {
+          return padding ? self.padding(dimension(left), dimension(top),
+                                        dimension(right), dimension(bottom))
+                         : self.margin(dimension(left), dimension(top),
+                                       dimension(right), dimension(bottom));
+        },
+        py::arg("left"), py::arg("top"), py::arg("right"), py::arg("bottom"),
         fluent);
   }
   element.def(
