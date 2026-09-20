@@ -1,4 +1,4 @@
-"""Conversion seams of meshes, cameras and the headless mesh renderer.
+"""Conversion seams of meshes and the headless mesh renderer.
 
 GLM's binding caster reports only 'tuple', so dimensionality is explicit.
 """
@@ -30,13 +30,5 @@ def register(table: Table) -> None:
             MESH + ".Mesh." + name,
             value=f"collections.abc.Sequence[_t.Vec{dimension}Like]",
         )
-    table.parameters(MESH + ".camera.Camera.project", point="_t.Vec3Like")
-    table.parameters(
-        MESH + ".camera.faceCamera",
-        eye="_t.Vec3Like",
-        at="_t.Vec3Like",
-        up="_t.Vec3Like",
-    )
-    table.parameters(MESH + ".camera.place", position="_t.Vec3Like")
     table.parameters(MESH + ".render.Light.__init__", direction="_t.Vec3Like")
     table.erased(MESH + ".render", "drawImagePanel drawMesh", "_sigil.draw.Pen")

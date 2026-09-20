@@ -53,45 +53,7 @@ void bindGeometry(py::module_& root) {
               py::arg("origin") = SkPoint{0, 0}, py::arg("columnSpan") = 1,
               py::arg("rowSpan") = 1);
   auto meshes = geometry.def_submodule("mesh");
-  auto cameras = meshes.def_submodule("camera");
   auto renderer = meshes.def_submodule("render");
-  py::class_<glm::mat4>(cameras, "Matrix")
-      .def(py::init([] { return glm::mat4(1); }))
-      .def(
-          "__matmul__",
-          [](const glm::mat4& a, const glm::mat4& b) { return a * b; },
-          py::is_operator(), py::arg("other"));
-  py::class_<camera::Camera>(cameras, "Camera")
-      .def(py::init<>())
-      .def_readwrite("eye", &camera::Camera::eye)
-      .def_readwrite("target", &camera::Camera::target)
-      .def_readwrite("up", &camera::Camera::up)
-      .def_readwrite("fovYDeg", &camera::Camera::fovYDeg)
-      .def_readwrite("zNear", &camera::Camera::zNear)
-      .def_readwrite("zFar", &camera::Camera::zFar)
-      .def(
-          "project",
-          [](const camera::Camera& camera, glm::vec3 p,
-             std::array<float, 2> viewport) {
-            return camera.project(p, {viewport[0], viewport[1]});
-          },
-          py::arg("point"), py::arg("viewport"));
-  py::class_<camera::Orbit>(cameras, "Orbit")
-      .def(py::init([](float yaw, float pitch, float distance) {
-             return camera::Orbit{yaw, pitch, distance};
-           }),
-           py::arg("yawDeg") = 0, py::arg("pitchDeg") = 0,
-           py::arg("distance") = 480)
-      .def_readwrite("yawDeg", &camera::Orbit::yawDeg)
-      .def_readwrite("pitchDeg", &camera::Orbit::pitchDeg)
-      .def_readwrite("distance", &camera::Orbit::distance);
-  cameras.def("orbitOf", &camera::orbitOf, py::arg("camera"))
-      .def("cameraAt", &camera::cameraAt, py::arg("pivot"), py::arg("orbit"));
-  cameras.def("place", &camera::place, py::arg("position") = glm::vec3(0),
-              py::arg("yawDeg") = 0, py::arg("pitchDeg") = 0,
-              py::arg("rollDeg") = 0, py::arg("scale") = 1);
-  cameras.def("faceCamera", &camera::faceCamera, py::arg("eye"), py::arg("at"),
-              py::arg("up") = glm::vec3(0, 1, 0));
   py::class_<mesh::Mesh>(meshes, "Mesh")
       .def(py::init<>())
       .def("copy", [](const mesh::Mesh& mesh) { return mesh; })
