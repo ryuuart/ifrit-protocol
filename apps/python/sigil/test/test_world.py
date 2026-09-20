@@ -163,6 +163,25 @@ class World(unittest.TestCase):
         self.assertIsNotNone(owned_camera)
         self.assertGreater(owned_lights[0].intensity, 0)
 
+    def test_surface_colours_round_trip_through_the_space_they_are_typed_in(self):
+        parameters = surfaces.SurfaceParameters()
+        parameters.baseColor = "#804000"
+        parameters.emissive = (0.5, 0.25, 0.125, 1.0)
+        # The parameter holds light and a colour is the encoded number,
+        # so a colour comes back out in the space it went in, close
+        # enough that typing it into the next surface says the same
+        # thing.
+        typed = (0x80 / 255, 0x40 / 255, 0.0)
+        for channel, expected in zip(parameters.baseColor, typed):
+            self.assertAlmostEqual(channel, expected, places=4)
+        for channel, expected in zip(parameters.emissive, (0.5, 0.25, 0.125)):
+            self.assertAlmostEqual(channel, expected, places=4)
+        # And a colour a builder was handed is the same colour on the
+        # way back.
+        metal = surfaces.SurfaceParameters.metal("#804000", 0.3)
+        for written, built in zip(parameters.baseColor, metal.baseColor):
+            self.assertAlmostEqual(written, built, places=4)
+
     def test_scene_rejects_wrong_thread_and_invalid_sizes_or_steps(self):
         scene = world.Scene()
         errors: list[Exception] = []
