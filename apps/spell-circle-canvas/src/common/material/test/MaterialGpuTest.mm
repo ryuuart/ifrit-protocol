@@ -49,7 +49,9 @@
 
 #include <gtest/gtest.h>
 
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace sigil::material;
@@ -70,18 +72,26 @@ class ErrorSink final : public skgpu::ShaderErrorHandler {
     // The errors quote the generated line they are about, which is what
     // names the parameter the body collided with; the whole shader beside
     // them would bury it.
+    //
+    // Graphite creates its pipelines on an executor, so the stages of one
+    // scene can fail at the same moment on several threads. Without the
+    // lock two reports append into one string at once and the sweep reads
+    // a verdict out of whatever survived.
+    const std::lock_guard<std::mutex> lock(m_mutex);
     m_errors += errors ? errors : "";
     m_errors += "\n";
   }
 
   /** The reports since the last call, and forget them. */
   std::string drain() {
+    const std::lock_guard<std::mutex> lock(m_mutex);
     std::string out = std::move(m_errors);
     m_errors.clear();
     return out;
   }
 
  private:
+  std::mutex m_mutex;
   std::string m_errors;
 };
 
@@ -232,6 +242,44 @@ TEST(MaterialGpu, EveryRecipeCompilesOnTheDevice) {
     ADD_FAILURE() << name << " did not compile on the device:\n" << reported;
     break;
   }
+}
+
+// THE COLLECTOR, which the two cases either side of it are read
+// through. A pipeline is created on Graphite's executor, so a scene
+// whose stages fail together reports on several threads at the same
+// moment; a collector that appends without a lock tears one report
+// across another and the sweep's verdict is then read out of whatever
+// survived. Each thread here writes one character of its own, so a line
+// carrying two characters, or a line of the wrong length, is a report
+// that did not arrive whole.
+TEST(MaterialGpu, TheErrorSinkCollectsWholeReportsFromEveryThreadAtOnce) {
+  constexpr int kThreads = 8;
+  constexpr int kReportsEach = 64;
+  constexpr size_t kReportLength = 200;
+  sink().drain();
+  std::vector<std::thread> threads;
+  for (int t = 0; t < kThreads; ++t)
+    threads.emplace_back([t] {
+      const std::string report(kReportLength, (char)('a' + t));
+      for (int i = 0; i < kReportsEach; ++i)
+        sink().compileError("shader", report.c_str(), false);
+    });
+  for (std::thread& thread : threads) thread.join();
+
+  const std::string collected = sink().drain();
+  int lines = 0;
+  for (size_t at = 0; at < collected.size();) {
+    const size_t end = collected.find('\n', at);
+    ASSERT_NE(end, std::string::npos) << "a report arrived without its end";
+    const std::string line = collected.substr(at, end - at);
+    ASSERT_FALSE(line.empty()) << "a report arrived empty";
+    EXPECT_EQ(line.size(), kReportLength);
+    EXPECT_EQ(line.find_first_not_of(line[0]), std::string::npos)
+        << "two reports were written over each other";
+    ++lines;
+    at = end + 1;
+  }
+  EXPECT_EQ(lines, kThreads * kReportsEach) << "reports were lost";
 }
 
 // THE CONTROL. Graphite inlines a runtime effect's body into its
