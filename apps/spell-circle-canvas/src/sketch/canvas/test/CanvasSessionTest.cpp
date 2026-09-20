@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkShader.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -15,7 +16,11 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
 #include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/kit/TextPaint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/paint/Paint.h>
+#include <sigilweave/style/PaintLayer.h>
+#include <sigilweave/style/Type.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/frame/Frame.h>
 
@@ -568,6 +573,118 @@ TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
   // The store outlives nothing here: the feed is let go before the
   // session that opened it and the hub it was opened on.
   Listening::sky.reset();
+}
+
+// ── The material a text pass carries ─────────────────────────────────────
+
+/** THE BODY THE TEXT MATERIAL SEAM IS READ FROM: one word set in white
+ *  over a flat black card, with one overlay pass also in white, and a
+ *  switch deciding whether that pass carries a material. Every pixel of
+ *  the unshaded plate is a grey, so a pixel whose channels differ is the
+ *  material and nothing else. */
+constexpr int kShadedWidth = 200;
+constexpr int kShadedHeight = 80;
+
+struct Shaded {
+  static inline bool carriesMaterial = true;
+  void setup(SketchContext& ctx) {
+    ctx.canvas(kShadedWidth, kShadedHeight);
+    sigil::weave::PaintLayer pass(SK_ColorWHITE);
+    if (carriesMaterial)
+      pass.material = std::make_shared<const sigil::material::Material>(
+          sigil::material::kit::meshGradient(
+              SkRect::MakeWH(kShadedWidth, kShadedHeight), 0.0f));
+    sigil::weave::Type type;
+    type.face = sigil::test::instrument::sans();
+    type.size = 56.0f;
+    type.color = SkColor4f{1, 1, 1, 1};
+    type.overlays = std::vector<sigil::weave::PaintLayer>{pass};
+    Element word = text(u8"AB");
+    word.font(type);
+    ctx.composer.render(box()
+                            .width(kShadedWidth)
+                            .height(kShadedHeight)
+                            .fill(Fill::color(SkColor4f{0, 0, 0, 1}))
+                            .children({std::move(word)}));
+  }
+};
+
+/** The plate one frame of the `Shaded` body leaves, with or without the
+ *  material on its overlay pass. */
+SkBitmap shadedPlate(bool carriesMaterial) {
+  Shaded::carriesMaterial = carriesMaterial;
+  const std::unique_ptr<Session> session =
+      kindOf<Shaded>()->open(fonts(), assets());
+  const sk_sp<SkSurface> surface = SkSurfaces::Raster(
+      SkImageInfo::MakeN32Premul(kShadedWidth, kShadedHeight));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  session->frame(*surface->getCanvas(), 1.0 / 60.0);
+  return sigil::sketch::test::plateOf(*surface);
+}
+
+/** How many pixels of @p plate are not a grey — the reading that tells a
+ *  shaded pass from one drawn in its own white. */
+int colouredPixels(const SkBitmap& plate) {
+  int found = 0;
+  for (int y = 0; y < plate.height(); ++y)
+    for (int x = 0; x < plate.width(); ++x) {
+      const SkColor pixel = plate.getColor(x, y);
+      if (SkColorGetR(pixel) != SkColorGetG(pixel) ||
+          SkColorGetG(pixel) != SkColorGetB(pixel))
+        ++found;
+    }
+  return found;
+}
+
+/** The resolver is process-wide, so a case that installs one puts it back
+ *  however it leaves. */
+class InstalledResolver {
+ public:
+  explicit InstalledResolver(sigil::weave::paint::MaterialResolver resolver) {
+    sigil::weave::paint::setMaterialResolver(std::move(resolver));
+  }
+  InstalledResolver(const InstalledResolver&) = delete;
+  InstalledResolver& operator=(const InstalledResolver&) = delete;
+  ~InstalledResolver() { sigil::weave::paint::setMaterialResolver({}); }
+};
+
+TEST(CanvasDoors, ShadesATextPassesMaterialWithoutAHostInstallingAResolver) {
+  // A material on a text pass is shaded by the runtime the sketch drew
+  // through: nothing in this binary is a host and nothing here installed
+  // a resolver, and the two plates still differ.
+  const SkBitmap bare = shadedPlate(false);
+  const SkBitmap shaded = shadedPlate(true);
+  ASSERT_FALSE(bare.drawsNothing());
+  ASSERT_FALSE(shaded.drawsNothing());
+  EXPECT_FALSE(samePicture(bare, shaded));
+  EXPECT_EQ(colouredPixels(bare), 0)
+      << "a white pass over white text inks nothing but greys";
+  EXPECT_GT(colouredPixels(shaded), 0)
+      << "the pass drew its plain paint, so the material never shaded";
+}
+
+TEST(CanvasDoors, LeavesAResolverAHostInstalledStanding) {
+  // A flat, unmistakable colour nothing else in this file draws.
+  constexpr SkColor kHostInk = 0xFF00FF00;
+  const InstalledResolver installed(
+      [](const sigil::material::Material&, const SkRect&) {
+        return SkShaders::Color(kHostInk);
+      });
+  const SkBitmap shaded = shadedPlate(true);
+  ASSERT_FALSE(shaded.drawsNothing());
+  int hostInked = 0;
+  for (int y = 0; y < shaded.height(); ++y)
+    for (int x = 0; x < shaded.width(); ++x)
+      if (shaded.getColor(x, y) == kHostInk) ++hostInked;
+  EXPECT_GT(hostInked, 0) << "the runtime's default replaced the host's";
+}
+
+TEST(CanvasDoors, AMaterialPassNeedsNoHostToShade) {
+  // The seam's own claim: opening a canvas session is what closes it.
+  const std::unique_ptr<Session> session =
+      kindOf<Bare>()->open(fonts(), assets());
+  ASSERT_NE(session, nullptr);
+  EXPECT_TRUE(sigil::weave::paint::hasMaterialResolver());
 }
 
 }  // namespace

@@ -1053,7 +1053,10 @@ registry for video export.
 The thumbnail worker is the existing `ThumbnailQueue`; the catalog
 marshals its results onto the GUI thread. Captures and device readback
 remain on the render thread, sharing the context that owns the live
-session's images.
+session's images. What follows a readback does not: `Host::still` hands
+back the pixels and `ThumbnailWriter` encodes and writes them on a
+worker of its own, one still in flight, so a frame that photographs a
+sketch for the store pays the readback and nothing after it.
 
 The library and canvas occupy two resizable panels. Search, grouping, view
 mode and sorting live together in the library; the canvas has explicit Fit
@@ -1179,9 +1182,13 @@ again this run.
 **The refresh, on opening.** Once a sketch is presented, its session is
 photographed once — as it reaches the moment it declared, or after a
 second of its own clock when it declares none — and that frame is written
-into the store under the sketch's current key. A run measuring frames
-(`--window-bench`) is out of that: the photograph is taken on the render
-thread and inside a frame, which is the one thing a stretch whose whole
+into the store under the sketch's current key. The encode and the write
+are not in that frame — only the repaint and the readback are, because
+only they need the thread the frames are drawn on; the pixels go to a
+worker beside it and the row is told once the file has landed. A run
+measuring frames (`--window-bench`) is out of the refresh entirely: the
+photograph's repaint and readback are still taken on the render thread
+and inside a frame, which is the one thing a stretch whose whole
 subject is how long a frame takes cannot have in it. So the stills
 refresh as you browse, they are the frames you were looking at, and nothing renders
 in the background to keep them current. A sketch with no thumbnail yet
@@ -1615,6 +1622,14 @@ monitor and PNG capture workflow.
   `sketch::usePainterRuntime` for the mesh draws a canvas sketch takes,
   and `sketch::useDevice` for the device itself, which a call that
   imports a foreign texture names and no runtime can stand in for.
+* **The canvas runtime installs the text material resolver.** A text
+  pass carrying a material shades through a resolver SigilWeave's paint
+  feature holds and does not supply, because that feature links no
+  renderer, and an unresolved pass draws its plain paint instead. Unlike
+  a device runtime this needs nothing the machine may lack, so it is the
+  runtime's own rather than the application's: the first canvas session
+  a process opens installs SigilMaterial's Skia backend over the pass's
+  bounds, and a host that installed its own resolver first keeps it.
 * **The force-load list is every archive the host links.** A sketch
   dylib resolves the framework out of the host, so a symbol the host
   does not contain stops the load. The list is walked from two roots —

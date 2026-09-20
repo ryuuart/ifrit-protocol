@@ -53,9 +53,9 @@ using MaterialResolver = std::function<sk_sp<SkShader>(
     const sigil::material::Material& material, const SkRect& bounds)>;
 
 /** Registers the resolver every PaintLayer::material is shaded through.
- *  The paint feature links no renderer, so a program that shades passes
- *  with materials installs one — the shaders feature installs SigilMaterial's
- *  Skia backend. Replaces any earlier resolver; an empty function clears. */
+ *  The paint feature links no renderer, so the host that draws installs
+ *  one — SigilMaterial's Skia backend, over the bounds of what the pass
+ *  covers. Replaces any earlier resolver; an empty function clears. */
 void setMaterialResolver(MaterialResolver resolver);
 
 /** Whether a resolver is registered. */

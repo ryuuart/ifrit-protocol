@@ -6,15 +6,18 @@
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Crash.h>
+#include <sigilweave/paint/Paint.h>
 
 #include <array>
 #include <cstdio>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -33,6 +36,35 @@ geometry::mesh::render::Runtime& processPainter() {
   static geometry::mesh::render::Runtime painter =
       geometry::mesh::render::Runtime::cpu();
   return painter;
+}
+
+/** THE PROCESS'S TEXT MATERIAL RESOLVER, for the same reason the painter
+ *  above starts as the CPU executor. A text pass carrying a material is
+ *  shaded through a resolver the paint feature holds and does not supply,
+ *  because that feature links no renderer; with none installed the pass
+ *  draws its plain paint, which reads as a bug in the sketch rather than
+ *  as a seam nobody closed. The canvas runtime closes it with
+ *  SigilMaterial's Skia backend, over the bounds of what the pass covers.
+ *
+ *  It is a DEFAULT and never an override: a host that shades somewhere
+ *  else installs its own resolver and this leaves it standing, at
+ *  whatever point it was installed. Sessions open on worker threads — a
+ *  thumbnail, a still drawn beside a presenting window — and the slot is
+ *  a plain function with no synchronisation of its own, so the ask and
+ *  the install are one step here.
+ *
+ *  There is no clock here on purpose: a text paint carries its time in
+ *  the parameters its material was built with, so a moving pass is a new
+ *  material rather than a new frame. */
+void installTextMaterialResolver() {
+  static std::mutex installing;
+  const std::lock_guard held(installing);
+  if (weave::paint::hasMaterialResolver()) return;
+  weave::paint::setMaterialResolver(
+      [](const material::Material& shading, const SkRect& bounds) {
+        return material::skia::shader(
+            shading, {.resolution = {bounds.width(), bounds.height()}});
+      });
 }
 
 /** The painter the calling thread is drawing a session through, or null
@@ -79,6 +111,9 @@ class CanvasSession final : public Session {
         m_painter(painter ? painter : geometry::mesh::render::Runtime::cpu()),
         m_key(key),
         m_deterministic(deterministic) {
+    // Before the body describes anything: a material on a text pass shades
+    // in every session this runtime opens, whoever opened it.
+    installTextMaterialResolver();
     // Setup declares too, so the painter is the session's from the first
     // line of the body onward.
     const PainterScope on(m_painter);
