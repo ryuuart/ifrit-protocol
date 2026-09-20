@@ -1,12 +1,11 @@
-#include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/Extend.h>
 #include <sigilpython/geometry/Casters.h>
 #include <sigilpython/geometry/Registration.h>
 #include <sigilpython/skia/Values.h>
@@ -20,8 +19,7 @@ namespace camera = mesh::camera;
 namespace render = mesh::render;
 
 void bindGeometry(py::module_& root) {
-  auto geometry = root.def_submodule("geometry");
-  auto arrange = geometry.def_submodule("arrange");
+  auto arrange = submodule(root, "geometry.arrange");
   py::enum_<geometry::arrange::Turn>(arrange, "Turn")
       .value("Open", geometry::arrange::Turn::Open)
       .value("Closed", geometry::arrange::Turn::Closed);
@@ -52,89 +50,7 @@ void bindGeometry(py::module_& root) {
               py::arg("module"), py::arg("gap") = SkSize{0, 0},
               py::arg("origin") = SkPoint{0, 0}, py::arg("columnSpan") = 1,
               py::arg("rowSpan") = 1);
-  auto meshes = geometry.def_submodule("mesh");
-  auto renderer = meshes.def_submodule("render");
-  py::class_<mesh::Mesh>(meshes, "Mesh")
-      .def(py::init<>())
-      .def("copy", [](const mesh::Mesh& mesh) { return mesh; })
-      .def_readwrite("positions", &mesh::Mesh::positions)
-      .def_readwrite("normals", &mesh::Mesh::normals)
-      .def_readwrite("uvs", &mesh::Mesh::uvs)
-      .def_readwrite("colors", &mesh::Mesh::colors)
-      .def_readwrite("indices", &mesh::Mesh::indices)
-      .def("vertexCount", &mesh::Mesh::vertexCount)
-      .def("triangleCount", &mesh::Mesh::triangleCount)
-      .def("append", &mesh::Mesh::append, py::arg("mesh"))
-      .def("transform", &mesh::Mesh::transform, py::arg("matrix"))
-      .def("computeNormals", &mesh::Mesh::computeNormals)
-      .def("bounds", [](const mesh::Mesh& mesh) {
-        glm::vec3 lo, hi;
-        mesh.bounds(&lo, &hi);
-        return py::make_tuple(lo, hi);
-      });
-  meshes.def(
-      "grid",
-      [](int nu, int nv, py::function function) {
-        if (nu < 2 || nv < 2 || static_cast<int64_t>(nu) * nv > 4000000)
-          throw py::value_error(
-              "A mesh grid needs at least two stations per axis and at most "
-              "four million vertices.");
-        return mesh::grid(nu, nv,
-                          core::Callable<glm::vec3(float, float)>{
-                              [function](float u, float v) {
-                                return function(u, v).cast<glm::vec3>();
-                              }});
-      },
-      py::arg("nu"), py::arg("nv"), py::arg("surface"));
-  meshes.def("quad", &mesh::quad, py::arg("width"), py::arg("height"));
-  py::class_<mesh::BoxOptions>(meshes, "BoxOptions")
-      .def(py::init<>())
-      .def_readwrite("front", &mesh::BoxOptions::front)
-      .def_readwrite("back", &mesh::BoxOptions::back)
-      .def_readwrite("left", &mesh::BoxOptions::left)
-      .def_readwrite("right", &mesh::BoxOptions::right)
-      .def_readwrite("top", &mesh::BoxOptions::top)
-      .def_readwrite("bottom", &mesh::BoxOptions::bottom)
-      .def_readwrite("tint", &mesh::BoxOptions::tint)
-      .def_readwrite("sideShade", &mesh::BoxOptions::sideShade);
-  meshes.def("box", &mesh::box, py::arg("lo"), py::arg("hi"),
-             py::arg("options") = mesh::BoxOptions{});
-  py::enum_<mesh::Platonic>(meshes, "Platonic")
-      .value("Tetrahedron", mesh::Platonic::Tetrahedron)
-      .value("Cube", mesh::Platonic::Cube)
-      .value("Octahedron", mesh::Platonic::Octahedron)
-      .value("Dodecahedron", mesh::Platonic::Dodecahedron)
-      .value("Icosahedron", mesh::Platonic::Icosahedron);
-  meshes.def(
-      "platonic",
-      [](mesh::Platonic solid, float radius, bool shared) {
-        return mesh::platonic(
-            solid, {.circumradius = radius, .sharedVertices = shared});
-      },
-      py::arg("solid"), py::arg("radius") = 1,
-      py::arg("sharedVertices") = false);
-  meshes.def("torus", &mesh::torus, py::arg("radius"), py::arg("tube"),
-             py::arg("nu") = 64, py::arg("nv") = 32);
-  meshes.def("superellipsoid", &mesh::superellipsoid, py::arg("radii"),
-             py::arg("exponent"), py::arg("nu") = 48, py::arg("nv") = 32);
-  meshes.def("cylinderPanel", &mesh::cylinderPanel, py::arg("width"),
-             py::arg("height"), py::arg("radius"), py::arg("nu") = 32,
-             py::arg("nv") = 8);
-  meshes.def(
-      "extrude",
-      [](const SkPath& path, float depth, float tolerance) {
-        return mesh::extrude(path, {.depth = depth, .tolerance = tolerance});
-      },
-      py::arg("path"), py::arg("depth") = 24, py::arg("tolerance") = 0.25f);
-  meshes.def(
-      "revolve",
-      [](const std::vector<glm::vec2>& profile, int segments, float sweep,
-         bool close) {
-        return mesh::revolve(
-            profile, {.segments = segments, .sweepDeg = sweep, .close = close});
-      },
-      py::arg("profile"), py::arg("segments") = 48, py::arg("sweepDeg") = 360,
-      py::arg("close") = true);
+  auto renderer = submodule(root, "geometry.mesh.render");
   py::class_<render::Light>(renderer, "Light")
       .def(py::init([](glm::vec3 direction, SkColor4f color, float intensity) {
              return render::Light{direction, color, intensity};
