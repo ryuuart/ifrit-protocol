@@ -3,7 +3,8 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Constants.h>
+#include <sigildraw/Math.h>
 #include <sigildraw/brush/Engine.h>
 #include <sigildraw/brush/Plot.h>
 #include <sigildraw/brush/Position.h>

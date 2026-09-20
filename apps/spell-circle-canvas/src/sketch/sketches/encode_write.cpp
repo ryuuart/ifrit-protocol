@@ -13,7 +13,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>

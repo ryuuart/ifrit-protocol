@@ -3,7 +3,6 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Engine.h>
 #include <sigildraw/brush/Mass.h>
 #include <sigildraw/brush/Polygon.h>

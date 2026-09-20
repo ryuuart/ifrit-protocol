@@ -19,7 +19,8 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Noise.h>
+#include <sigildraw/Pen.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 

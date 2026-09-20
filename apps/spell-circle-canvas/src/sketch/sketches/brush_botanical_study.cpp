@@ -12,7 +12,8 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Constants.h>
+#include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilsketch/canvas/Sketch.h>

@@ -16,7 +16,8 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Constants.h>
+#include <sigildraw/Pen.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>

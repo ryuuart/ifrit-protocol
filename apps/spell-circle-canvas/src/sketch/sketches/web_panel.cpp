@@ -45,7 +45,7 @@
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcompose/web/Web.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebImage.h>

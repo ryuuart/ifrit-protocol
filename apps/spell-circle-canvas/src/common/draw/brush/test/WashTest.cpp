@@ -3,7 +3,6 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Wash.h>
 
 #include <vector>

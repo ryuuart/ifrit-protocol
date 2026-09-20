@@ -1,8 +1,6 @@
-#pragma once
-
-/** @file
- * SigilDraw, whole: the pen and everything it is spelled with.
- */
+// The documentation groups whose members are spread over several of this
+// library's headers, declared where no header has to include another to
+// reach them.
 
 /** @defgroup draw-pen The pen
  *  An immediate-mode canvas carrying p5's verbs with p5's names,
@@ -20,11 +18,3 @@
  *  store keyed by the call site that painted it, so a retained runtime
  *  can be handed a pen and still find its own state next frame
  *  (Retained.h). */
-
-#include <sigildraw/Color.h>
-#include <sigildraw/Constants.h>
-#include <sigildraw/Graphics.h>
-#include <sigildraw/Math.h>
-#include <sigildraw/Noise.h>
-#include <sigildraw/Pen.h>
-#include <sigildraw/Retained.h>

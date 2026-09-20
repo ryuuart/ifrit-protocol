@@ -7,8 +7,8 @@ imperative way beside it, and the two open onto each other.
 
 Namespace `sigil::draw`, with the `SigilDraw` pen and the `SigilDrawBrush`
 procedural tools over it under `sigil::draw::brush`. Every public header
-is under `include/sigildraw/`; `<sigildraw/Draw.h>` is the pen's umbrella
-and `<sigildraw/brush/Brush.h>` is the brush library's.
+is under `include/sigildraw/`, and `<sigildraw/brush/Brush.h>` gathers
+the brush feature's.
 
 ## A p5 sketch, pasted in
 
@@ -38,7 +38,7 @@ function draw() {
 ```cpp
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 namespace sketch = sigil::sketch;
@@ -96,7 +96,8 @@ style holds, as it does in p5, and the transform starts over at whatever
 the canvas carried when the frame began.
 
 ```cpp
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
+#include <sigildraw/PenTypes.h>
 
 using namespace sigil::draw;
 
@@ -407,7 +408,6 @@ initial type.
 ```
 src/common/draw/
   include/sigildraw/
-    Draw.h        the umbrella
     Pen.h         the pen
     PenTypes.h    Frame, ClipOptions, and the Retainable concept
     Constants.h   p5's words and angles
@@ -417,7 +417,7 @@ src/common/draw/
     Graphics.h    the offscreen buffer, p5's createGraphics
     Math.h        the pure calculations
     brush/
-      Brush.h     the brush library's umbrella
+      Brush.h     the feature's headers at once
       Tool.h      Tool, Tip, Rotation, the stock tools, prepareStroke, spacingOf
       Shape.h     Shape and ImageMask, the shape source
       Grain.h     Grain and GrainSpace, the grain source

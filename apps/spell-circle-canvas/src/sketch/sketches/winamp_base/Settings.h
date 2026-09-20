@@ -20,7 +20,6 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
-#include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/field/Field.h>

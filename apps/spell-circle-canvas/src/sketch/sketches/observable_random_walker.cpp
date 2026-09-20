@@ -7,7 +7,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>

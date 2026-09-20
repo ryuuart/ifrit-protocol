@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
-#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Deposit.h>
 
 #include <array>

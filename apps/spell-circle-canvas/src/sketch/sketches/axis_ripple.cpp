@@ -82,7 +82,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>

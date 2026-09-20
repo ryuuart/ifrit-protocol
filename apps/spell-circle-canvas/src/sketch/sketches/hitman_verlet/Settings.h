@@ -12,7 +12,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/decode/Json.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>

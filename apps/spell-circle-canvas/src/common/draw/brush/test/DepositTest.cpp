@@ -7,7 +7,8 @@
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Constants.h>
+#include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Sampler.h>
 

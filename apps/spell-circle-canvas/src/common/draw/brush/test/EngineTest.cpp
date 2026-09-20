@@ -4,7 +4,8 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Constants.h>
+#include <sigildraw/Pen.h>
 #include <sigildraw/brush/Engine.h>
 
 #include <array>

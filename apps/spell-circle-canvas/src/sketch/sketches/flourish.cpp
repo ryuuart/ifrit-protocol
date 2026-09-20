@@ -33,7 +33,7 @@
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Routers.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/skia/Effect.h>

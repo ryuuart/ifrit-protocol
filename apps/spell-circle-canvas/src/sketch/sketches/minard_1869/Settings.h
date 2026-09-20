@@ -25,7 +25,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/decode/Json.h>
 #include <sigildata/table/Table.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Profile.h>

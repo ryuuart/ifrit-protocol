@@ -6,7 +6,11 @@
 
 #include <gtest/gtest.h>
 #include <sigilcore/compute/Angle.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Constants.h>
+#include <sigildraw/Math.h>
+#include <sigildraw/Noise.h>
+#include <sigildraw/Pen.h>
+#include <sigildraw/Retained.h>
 
 #include <cmath>
 #include <vector>

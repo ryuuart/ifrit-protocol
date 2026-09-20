@@ -9,7 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
 
 #include <array>

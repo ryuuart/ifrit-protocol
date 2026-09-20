@@ -7,7 +7,8 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkSurface.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
+#include <sigildraw/PenTypes.h>
 #include <sigildraw/brush/Brush.h>
 
 #include <algorithm>

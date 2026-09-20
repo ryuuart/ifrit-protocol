@@ -14,7 +14,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/draw/Draw.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilimage/decode/Decode.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/plate/Story.h>

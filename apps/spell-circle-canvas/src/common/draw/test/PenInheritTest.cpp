@@ -5,7 +5,8 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkColor.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
+#include <sigildraw/PenTypes.h>
 #include <sigilweave/style/Type.h>
 
 #include "support/Paper.h"

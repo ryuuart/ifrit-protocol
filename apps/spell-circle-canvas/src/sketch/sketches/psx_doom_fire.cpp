@@ -48,7 +48,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilmotion/schedule/Cascade.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Time.h>

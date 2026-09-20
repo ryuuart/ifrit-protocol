@@ -16,7 +16,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Chance.h>
 #include <sigildata/decode/Json.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/field/Field.h>

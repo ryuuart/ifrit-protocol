@@ -9,7 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilshaders/Draw.h>
 

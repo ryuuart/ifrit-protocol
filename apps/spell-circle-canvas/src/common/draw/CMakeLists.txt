@@ -11,7 +11,8 @@
 # a pen or the compose tree that may host one — both stand above this
 # library and reach down to it.
 sigil_library_root(SigilDraw
-  BRIEF "An immediate-mode canvas with p5's verbs, over Skia, material paints and shaped text")
+  BRIEF "An immediate-mode canvas with p5's verbs, over Skia, material paints and shaped text"
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
 
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 
@@ -27,7 +28,7 @@ sigil_library(SigilDraw
   SOURCES Color.cpp Graphics.cpp Noise.cpp Pen.cpp PenClip.cpp
           PenImage.cpp PenInternal.cpp PenInternal.h PenShapes.cpp
           PenTransform.cpp Text.cpp
-  HEADERS Color.h Constants.h Draw.h Graphics.h Math.h Noise.h Pen.h
+  HEADERS Color.h Constants.h Graphics.h Math.h Noise.h Pen.h
           PenTypes.h Retained.h
   PUBLIC SigilMaterialSkia SigilCoreCompute SigilGeometryKit
          SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint

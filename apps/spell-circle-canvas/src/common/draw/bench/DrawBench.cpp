@@ -6,7 +6,8 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
+#include <sigildraw/PenTypes.h>
 
 #include "Fonts.h"
 

@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Dynamics.h>
 

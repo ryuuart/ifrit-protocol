@@ -32,7 +32,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Contour.h>

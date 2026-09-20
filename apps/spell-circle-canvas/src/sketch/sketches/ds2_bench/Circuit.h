@@ -17,7 +17,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigildraw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
