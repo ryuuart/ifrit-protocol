@@ -224,20 +224,24 @@ SkBitmap throughScreen(const field::CrtParameters& parameters,
 }
 
 /** A black field of @p side pixels with one bright vertical band @p wide
- *  pixels across, centred — the thin bright line a tube's light is
- *  judged by. */
-sk_sp<SkImage> brightBand(int side, int wide) {
+ *  pixels across whose left edge is at @p at — the thin bright line a
+ *  tube's light is judged by. */
+sk_sp<SkImage> bandAt(int side, int at, int wide) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(side, side));
   bitmap.eraseColor(SK_ColorBLACK);
   SkCanvas canvas(bitmap);
   SkPaint paint;
   paint.setColor(SK_ColorGREEN);
-  canvas.drawRect(
-      SkRect::MakeXYWH((float)(side - wide) / 2, 0, (float)wide, (float)side),
-      paint);
+  canvas.drawRect(SkRect::MakeXYWH((float)at, 0, (float)wide, (float)side),
+                  paint);
   bitmap.setImmutable();
   return bitmap.asImage();
+}
+
+/** The same band, centred. */
+sk_sp<SkImage> brightBand(int side, int wide) {
+  return bandAt(side, (side - wide) / 2, wide);
 }
 
 }  // namespace
@@ -297,15 +301,47 @@ TEST(Field, TheScreensLightReachesWellBeyondTheLineThatMadeIt) {
   // A fixed tap count is what caps how far a gather may reach before it
   // starts leaving copies of what it spread; a Gaussian has no such cap.
   // So light from a thin bright band stands far outside it and thins the
-  // whole way — no secondary copy anywhere along the run.
+  // whole way.
   const sk_sp<SkImage> band = brightBand(64, 4);
   const field::CrtParameters p{
       .uBounds = {0, 0, 64, 64}, .uBloomRadius = 12, .uBloom = 1.6f};
   const SkBitmap lit = throughScreen(p, band, 64);
-  const int near = SkColorGetG(lit.getColor(44, 32));
-  const int middle = SkColorGetG(lit.getColor(50, 32));
-  const int far = SkColorGetG(lit.getColor(58, 32));
-  EXPECT_GT(near, middle);
-  EXPECT_GT(middle, far);
-  EXPECT_GT(far, 0);
+  // EVERY STEP of the run from the band's edge to the picture's, because
+  // a copy of the band out there is a RISE and three points read wide
+  // apart step straight over one.
+  int previous = 256;
+  for (int x = 34; x < 64; ++x) {
+    const int green = SkColorGetG(lit.getColor(x, 32));
+    EXPECT_LE(green, previous) << "x " << x;
+    previous = green;
+  }
+  // And it is light that reaches, not light that stops: far out it
+  // stands above nothing, and well below what it was beside the band.
+  EXPECT_GT(SkColorGetG(lit.getColor(56, 32)), 0);
+  EXPECT_LT(SkColorGetG(lit.getColor(56, 32)),
+            SkColorGetG(lit.getColor(36, 32)));
+}
+
+TEST(Field, TheTubesLightIsDrawnFromTheWholeLayerAndLandsOnlyInsideIt) {
+  // The blur the executor fills the bloom slot with is taken over the
+  // LAYER, not over the tube, so a bright thing standing outside the
+  // bounds lights the glass near that edge the way a lamp beside a
+  // monitor does. Where the light LANDS is the tube's rectangle and
+  // nothing else.
+  const sk_sp<SkImage> outside = bandAt(64, 8, 4);
+  const field::CrtParameters p{.uBounds = {24, 0, 16, 64},
+                               .uBloomRadius = 8,
+                               .uBloom = 1.6f};
+  const SkBitmap lit = throughScreen(p, outside, 64);
+  // Nothing at all outside the rectangle — not the band that was drawn
+  // there, and not the light it gives off.
+  EXPECT_EQ(SkColorGetA(lit.getColor(10, 32)), 0u);
+  EXPECT_EQ(SkColorGetA(lit.getColor(20, 32)), 0u);
+  EXPECT_EQ(SkColorGetA(lit.getColor(44, 32)), 0u);
+  // The tube itself was handed black — the band is outside its bounds,
+  // so `content` reads nothing there — and is lit all the same, from
+  // the near edge towards the far one.
+  EXPECT_GT(SkColorGetG(lit.getColor(25, 32)), 0);
+  EXPECT_GT(SkColorGetG(lit.getColor(25, 32)),
+            SkColorGetG(lit.getColor(38, 32)));
 }

@@ -853,9 +853,13 @@ The tube's light is a SECOND slot, `bloom`, declared as one an executor
 fills from the same layer blurred at `uBloomRadius` — a Gaussian sigma
 in local pixels — and read once at the warped coordinate. So the bloom
 is spread flat and sampled through the curvature, its cost follows its
-own radius, and how far it reaches is not capped by a tap count. An
-ordinary fill has no layer and therefore no executor: bind a source to
-`bloom` as well, or the compiler refuses the material by name.
+own radius, and how far it reaches is not capped by a tap count. The
+blur is taken over the whole layer, so a bright thing drawn outside the
+bounds lights the glass near that edge; where the light lands is gated
+by the bounds exactly as the picture is. An ordinary fill has no layer
+and therefore no executor: the body spells the slot at every strength,
+so bind a source to `bloom` as well whatever `uBloom` is, or the
+compiler refuses the material by name.
 
 `kit::crt` in `<sigilmaterial/kit/Crt.h>` supplies a restrained colour CRT
 preset. The material stays renderer-independent; fill its `content` and

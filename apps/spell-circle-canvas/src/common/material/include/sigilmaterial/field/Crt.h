@@ -30,9 +30,15 @@ struct CrtParameters {
 /** SkSL screen treatment. Bind the picture to the content slot, or let
  * a layer effect provide it. The bloom is a second slot an EXECUTOR
  * fills from the same layer blurred at `uBloomRadius`, read once at the
- * warped coordinate; run as an ordinary fill there is no executor, so
- * bind a source to `bloom` as well. Burn-in requires history and is not
- * part of this stateless recipe. */
+ * warped coordinate. The blur is taken over the whole layer, so
+ * something bright outside the bounds lights the glass near that edge,
+ * though the light itself lands only inside them.
+ *
+ * The body spells that slot whatever `uBloom` is, so a fill — which has
+ * no layer and no executor — must bind a source to `bloom` as well, at
+ * every strength including none; unbound, the material is refused
+ * rather than shaded with an empty child. Burn-in requires history and
+ * is not part of this stateless recipe. */
 Material crt(const CrtParameters& parameters);
 const std::shared_ptr<const Recipe>& crtRecipe();
 /** Maximum source displacement for an image-filter executor. */

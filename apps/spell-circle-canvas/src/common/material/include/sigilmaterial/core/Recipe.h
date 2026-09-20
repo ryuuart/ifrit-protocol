@@ -88,7 +88,10 @@ class Recipe {
    *  layer and no executor, still has a source there.
    *
    *  The amount is read once, when the executor builds: a recipe over a
-   *  layer is a snapshot, so a bound amount does not re-filter. */
+   *  layer is a snapshot, so a bound amount does not re-filter. A field
+   *  the parameters do not declare as one float is reported here and
+   *  the filter then runs at zero, which for a blur is the layer
+   *  itself — a slot that looks filled and is not. */
   Recipe& slot(std::string slot, LayerFilter filter, std::string amountField);
   /** Declares that the body reads @p input; its uniform is generated and
    *  its value uploaded each resolve. */

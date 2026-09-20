@@ -12,6 +12,7 @@
 #include <include/core/SkTypes.h>  // SkDebugf — the slot diagnostics
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/core/Program.h>  // reportOnce
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 
@@ -86,7 +87,18 @@ Effect Effect::recipe(const Material& material, float sampleRadius) {
   std::vector<std::string_view> leave{"content"};
   std::vector<const LayerSlot*> derived;
   for (const LayerSlot& slot : material.recipe().layerSlots()) {
-    if (slot.name == "content") continue;
+    if (slot.name == "content") {
+      // THE LAYER IS ALREADY THE LAYER. `content` is the name this
+      // executor fills with the layer untouched, so a filter declared
+      // on it has nothing left to act on; a body that wants the layer
+      // filtered asks for it under a second name.
+      reportOnce("layerslot.layer:" + material.recipe().name(),
+                 "recipe \"" + material.recipe().name() +
+                     "\" declares \"content\" as a slot an executor fills "
+                     "from the layer, and that slot IS the layer: the "
+                     "filter is ignored, so declare a second slot for it");
+      continue;
+    }
     // An author who filled it wins: their source is bound by the
     // builder as any other slot's is.
     if (material.slot(slot.name) || material.leaf(slot.name)) continue;

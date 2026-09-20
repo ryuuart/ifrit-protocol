@@ -612,13 +612,20 @@ TEST(SkiaEffect, AnEmittedLightLeavesTheSharpLayerAtDeviceResolution) {
   // light made of a program over COORDINATES, transparent though it is,
   // has the whole graph — the kept layer with it — evaluated in the
   // layer's own coordinates and resampled up, which moves the thin
-  // antialiased diagonal it was supposed to keep.
-  auto [nothing, error] = SkRuntimeEffect::MakeForShader(
-      SkString("half4 main(float2 p) { return half4(0); }"));
-  ASSERT_NE(nothing, nullptr) << error.c_str();
+  // antialiased diagonal it was supposed to keep. The light is the same
+  // light as above, dimmed to nothing by the same colour matrix; only
+  // the pass in front of it is a program over coordinates rather than
+  // over a colour.
+  auto [passThrough, error] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader content;\n"
+               "half4 main(float2 p) { return content.eval(p); }"));
+  ASSERT_NE(passThrough, nullptr) << error.c_str();
+  // A program whose child the filter factory will not bind builds no
+  // node at all, and a graph with no node in it is no control.
+  ASSERT_NE(skia::Effect::shader(passThrough).imageFilter(), nullptr);
   const std::vector<uint8_t> overShader = scaledThrough(
       skia::Effect()
-          .emit(skia::Effect::shader(nothing))
+          .emit(skia::Effect::shader(passThrough).then(dimming(0)))
           .resolvedImageFilter(nullptr),
       2);
   ASSERT_EQ(plain.size(), overShader.size());

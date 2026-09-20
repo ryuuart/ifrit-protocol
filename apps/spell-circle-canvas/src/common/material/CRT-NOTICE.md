@@ -10,5 +10,6 @@ rasterization from cool-retro-term by Filippo Scognamiglio and contributors:
 
 The adaptation uses SkSL child shaders, explicit local bounds and time,
 a bloom taken from a second child the executor fills with the layer
-blurred, black outside the curved screen, and procedural noise. It preserves input colour rather than applying a terminal
-palette. It does not implement frame reflections or temporal burn-in.
+blurred, black outside the curved screen, and procedural noise. It
+preserves input colour rather than applying a terminal palette. It does
+not implement frame reflections or temporal burn-in.

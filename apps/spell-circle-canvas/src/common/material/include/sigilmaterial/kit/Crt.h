@@ -9,8 +9,8 @@ namespace sigil::material::kit {
  * lines, vignette and fine grain. Bounds use the content's coordinates.
  * The returned material leaves two slots open: `content`, the picture or
  * layer, and `bloom`, which a layer effect fills from that same layer
- * blurred and a fill must be given itself. Explicit seconds animate
- * grain reproducibly; zero holds a still. */
+ * blurred and a fill must be given itself whatever the bloom's strength.
+ * Explicit seconds animate grain reproducibly; zero holds a still. */
 Material crt(const SkRect& bounds, float seconds = 0);
 
 }  // namespace sigil::material::kit

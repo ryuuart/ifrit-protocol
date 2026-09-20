@@ -5,6 +5,8 @@
 
 #include "sigilmaterial/core/Recipe.h"
 
+#include "sigilmaterial/core/Program.h"  // reportOnce
+
 namespace sigil::material {
 
 namespace {
@@ -85,6 +87,20 @@ Recipe& Recipe::slot(std::string slot) {
 Recipe& Recipe::slot(std::string name, LayerFilter filter,
                      std::string amountField) {
   this->slot(name);
+  // THE AMOUNT IS A PARAMETER OF THIS RECIPE. A name the parameters do
+  // not carry as one float reads as zero at the executor, which makes a
+  // Gaussian of zero — the layer unfiltered — so the slot silently
+  // becomes a second copy of the picture and nothing points at the
+  // declaration that asked for it.
+  const Field* amount = m_parameters.find(amountField);
+  if (!amount || amount->floats != 1)
+    reportOnce("layerslot.amount:" + m_name + ":" + name,
+               "recipe \"" + m_name + "\" slot \"" + name +
+                   "\" is filled from the layer through a filter whose "
+                   "amount is field \"" +
+                   amountField +
+                   "\", which the parameters do not declare as one float; "
+                   "the filter runs at zero");
   for (LayerSlot& declared : m_layerSlots)
     if (declared.name == name) {
       declared.filter = filter;

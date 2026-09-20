@@ -340,10 +340,12 @@ class Effect {
               SkBlendMode mode = SkBlendMode::kScreen) const;
 
   const sk_sp<SkImageFilter>& imageFilter() const { return m_filter; }
-  /** The colour filter, when the effect is one — set only by
-   *  `filter(sk_sp<SkColorFilter>)` and by the lowered `recipe()`. A
-   *  consumer that composites a layer sets it on the layer's paint
-   *  beside `imageFilter()`; the two are never both present. */
+  /** The colour filter, when the effect is one — set by
+   *  `filter(sk_sp<SkColorFilter>)`, by the lowered `recipe()`, and by
+   *  the colour-program lane the per-pixel stages ride: `brightPass()`,
+   *  `deepen()` and `whiten()`. A consumer that composites a layer sets
+   *  it on the layer's paint beside `imageFilter()`; the two are never
+   *  both present. */
   const sk_sp<SkColorFilter>& colorFilter() const { return m_colorFilter; }
   /** The filter with any bound uniforms resolved NOW — what the paint
    *  phase applies. Identical to imageFilter() for a static effect.

@@ -127,6 +127,7 @@ TEST(Recipe, NoParametersIsARecipeOverSlotsAndFrameInputsAlone) {
 TEST(Recipe, ASlotAnExecutorFillsIsDeclaredLikeAnyOtherAndItsAmountIsRead) {
   struct Blurred {
     float uRadius;
+    float uWideRadius;
   };
   auto r = std::make_shared<const Recipe>(
       Recipe::of<Blurred>("layered")
@@ -138,8 +139,8 @@ TEST(Recipe, ASlotAnExecutorFillsIsDeclaredLikeAnyOtherAndItsAmountIsRead) {
   // Declared to the target exactly as any other slot is: what differs
   // is who fills it, which the generated head cannot say and need not.
   EXPECT_EQ(r->declarations(Target::SkSL),
-            "uniform float uRadius;\nuniform shader content;\nuniform shader "
-            "bloom;\n");
+            "uniform float uRadius;\nuniform float uWideRadius;\nuniform "
+            "shader content;\nuniform shader bloom;\n");
   ASSERT_EQ(r->slots().size(), 2u);
   ASSERT_EQ(r->layerSlots().size(), 1u);
   EXPECT_EQ(r->layerSlots()[0].name, "bloom");
@@ -155,9 +156,10 @@ TEST(Recipe, ASlotAnExecutorFillsIsDeclaredLikeAnyOtherAndItsAmountIsRead) {
   auto other = std::make_shared<const Recipe>(
       Recipe::of<Blurred>("layered")
           .slot("content")
-          .slot("bloom", LayerFilter::Blurred, "uOther")
+          .slot("bloom", LayerFilter::Blurred, "uWideRadius")
           .body(Target::SkSL,
                 "half4 main(float2 p) { return content.eval(p) + "
                 "bloom.eval(p); }"));
   EXPECT_FALSE(*r == *other);
+  EXPECT_TRUE(other->readsField("uWideRadius"));
 }
