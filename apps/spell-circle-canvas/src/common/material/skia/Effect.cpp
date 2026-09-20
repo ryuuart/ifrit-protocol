@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -84,7 +85,18 @@ Effect Effect::recipe(const Material& material, float sampleRadius) {
   // The builder leaves them all and the filter graph beneath supplies
   // one named input each, so a body needing a blurred copy of its input
   // reads one tap of it rather than gathering the blur per pixel.
-  std::vector<std::string_view> leave{"content"};
+  // A RECIPE THAT NEVER NAMES THE LAYER IS NOT HANDED IT. `content` is
+  // the name a body reads the layer itself under, and a recipe whose
+  // subject is a FILTER of the layer — a light spread out of it — has
+  // no use for it. The factory refuses an input bound to a child the
+  // program does not declare, so offering one where it is not read
+  // would leave no filter at all.
+  const std::span<const std::string> declaredSlots = material.recipe().slots();
+  const bool readsTheLayer =
+      material.recipe().samples(Target::SkSL, "content") &&
+      std::ranges::find(declaredSlots, "content") != declaredSlots.end();
+  std::vector<std::string_view> leave;
+  if (readsTheLayer) leave.push_back("content");
   std::vector<const LayerSlot*> derived;
   for (const LayerSlot& slot : material.recipe().layerSlots()) {
     if (slot.name == "content") {
@@ -113,14 +125,24 @@ Effect Effect::recipe(const Material& material, float sampleRadius) {
   // made: the backend registers its compiler on that call and memoises
   // what it sampled, so reading a field first would look the program up
   // before there was one to find and report a recipe that compiles.
-  std::vector<sk_sp<SkImageFilter>> inputs{nullptr};
+  std::vector<sk_sp<SkImageFilter>> inputs;
+  if (readsTheLayer) inputs.emplace_back(nullptr);
   for (const LayerSlot* slot : derived)
     inputs.push_back(layerFilterFor(material, *slot));
   const float reach = std::max(0.0f, sampleRadius);
+  // NOTHING LEFT IS NOTHING TO BIND THE LAYER TO, so there is no filter
+  // OF the layer to make. The factory reads no name as "the one child
+  // this program has", and that child is then bound to the layer: a
+  // body whose only child is a source its author chose would have the
+  // layer stood in for it, which is a different picture rather than
+  // none.
+  if (leave.empty()) return {};
+  // One name is the single-child door, which says the child is read at
+  // the coordinate the filter was asked for.
   Effect effect =
       leave.size() == 1
-          ? filter(SkImageFilters::RuntimeShader(*built, reach, "content",
-                                                 nullptr))
+          ? filter(SkImageFilters::RuntimeShader(*built, reach, leave[0],
+                                                 inputs[0]))
           : filter(SkImageFilters::RuntimeShader(*built, reach, leave.data(),
                                                  inputs.data(),
                                                  (int)leave.size()));

@@ -418,6 +418,25 @@ TEST(Field, TheBloomSourceAloneIsTheLayerBlurredInsideTheTube) {
   EXPECT_GT(SkColorGetG(kept.getColor(30, 32)), 0);
 }
 
+TEST(Field, AnAuthorsOwnLightIsNotStoodInForByTheLayer) {
+  // The light's one slot filled by the AUTHOR, over a layer: the
+  // executor has nothing left to fill, and a body that reads no image
+  // of the layer is not a filter of the layer at all. The factory
+  // reads no name as "the one child this program has" and binds the
+  // layer to it, so the author's source would be replaced rather than
+  // read — which is why there is no filter here instead.
+  const field::CrtBloomParameters light{.uBounds = {0, 0, 64, 64},
+                                        .uBloomRadius = 6};
+  Material filled = field::crtBloom(light);
+  filled.slot("bloom", Texture::of(brightBand(64, 4)));
+  EXPECT_EQ(skia::Effect::recipe(filled, 0.0f).resolvedImageFilter(nullptr),
+            nullptr);
+  // Left to the executor, the same light IS a filter of the layer.
+  EXPECT_NE(skia::Effect::recipe(field::crtBloom(light), 0.0f)
+                .resolvedImageFilter(nullptr),
+            nullptr);
+}
+
 TEST(Field, TheGlassAloneIsTheIdentityUntilItIsCurvedOrLit) {
   // The barrel over any surface: with nothing to bend, light or darken,
   // what comes out of the glass is what went into it, pixel for pixel.
