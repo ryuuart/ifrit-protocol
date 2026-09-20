@@ -282,7 +282,13 @@ ctest --test-dir build -C Release --output-on-failure
 `CMakeUserPresets.json`. It is one of ten verbs over the build's
 administration; `scripts/README.md` is the canon for all of them.
 
-The test suite covers the libraries and the receiver layers:
+How a library under this one is built, tested and measured — its one
+test binary and its one benchmark binary, ctest's per-case discovery,
+what a case may pin, what a label promises and where the shared
+fixtures are — is written once, in
+[docs/overview/testing.md](docs/overview/testing.md).
+
+The product's own test suite covers the receiver layers:
 
 - `spellcircle_document_test` checks accepted scene state, malformed
   input, deduplication, clearing, and receive-time arrival rates.
@@ -297,13 +303,11 @@ The test suite covers the libraries and the receiver layers:
 App presentation also needs a live run with incoming scenes.
 
 Use a Release build for any performance work. Several library
-benchmarks and sketches are deliberately stressful and Debug
-timings say nothing useful. The benchmarks are not tests: `cmake --build
-build --config Release --target benches` builds every `*_bench` binary,
-and `scripts/sigil.py bench` runs them one at a time on a quiet machine
-and judges each benchmark's median real time against the committed
-`bench/baseline_<config>.json` (`--rebase` writes it, `--benches` picks a
-subset; `mise run bench` wraps both steps).
+benchmarks and sketches are deliberately stressful and Debug timings
+say nothing useful. The benchmarks are not tests: the `benches` target
+builds every `*_bench` binary and `scripts/sigil.py bench` (`mise run
+bench`) runs them one at a time on a quiet machine against the
+committed baseline.
 
 ### Changing the wire format
 
