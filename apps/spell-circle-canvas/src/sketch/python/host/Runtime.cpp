@@ -4,7 +4,6 @@
 #include <pybind11/stl/filesystem.h>
 #include <sigildata/decode/Json.h>
 #include <sigildata/table/Table.h>
-#include <sigilmotion/bind/Bound.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/data/Convert.h>
 #include <sigilpython/io/Hub.h>
@@ -17,7 +16,6 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
-#include <cmath>
 #include <memory>
 #include <mutex>
 #include <span>
@@ -37,7 +35,6 @@ using detail::AssetsView;
 using detail::ComposerView;
 using detail::Context;
 using detail::State;
-using detail::TickerView;
 
 namespace {
 
@@ -149,73 +146,6 @@ struct Generation {
     body.reset();
   }
 };
-
-int callbackArity(const py::function& fn, int maximum) {
-  return py::module_::import("sigil._callbacks")
-      .attr("arity")(fn, maximum)
-      .cast<int>();
-}
-
-bool continueTick(py::object result) {
-  return result.is_none() || result.cast<bool>();
-}
-
-void addTick(const TickerView& view, py::function fn) {
-  const auto state = view.state();
-  const int arity = callbackArity(fn, 2);
-  const sigil::python::CallbackScope scope(state->callbacks);
-  auto retained = sigil::python::retainCallback(std::move(fn));
-  state->ticker->add([retained, arity](double dt, double elapsed) {
-    const py::gil_scoped_acquire lock;
-    const sigil::python::CallbackBoundary themes;
-    try {
-      auto callback = retained->get();
-      if (arity == 0) return continueTick(callback());
-      if (arity == 1) return continueTick(callback(dt));
-      return continueTick(callback(dt, elapsed));
-    } catch (const py::error_already_set& error) {
-      throw std::runtime_error(error.what());
-    }
-  });
-}
-
-void addFixedTick(const TickerView& view, double hz, py::function fn,
-                  int maxCatchUp,
-                  std::shared_ptr<choreograph::Output<float>> alpha,
-                  std::shared_ptr<motion::Ticker::FixedStatus> status) {
-  if (!std::isfinite(hz) || hz <= 0 || maxCatchUp <= 0)
-    throw py::value_error(
-        "Fixed-step rate and catch-up limit must be positive");
-  callbackArity(fn, 0);
-  const auto state = view.state();
-  const sigil::python::CallbackScope scope(state->callbacks);
-  auto retained = sigil::python::retainCallback(std::move(fn));
-  state->ticker->addFixed(
-      hz,
-      [retained] {
-        const py::gil_scoped_acquire lock;
-        const sigil::python::CallbackBoundary themes;
-        try {
-          return continueTick(retained->get()());
-        } catch (const py::error_already_set& error) {
-          throw std::runtime_error(error.what());
-        }
-      },
-      maxCatchUp, alpha.get(), status.get());
-  if (alpha) state->tickerOwners.push_back(std::move(alpha));
-  if (status) state->tickerOwners.push_back(std::move(status));
-}
-
-bool deriveTick(const TickerView& view,
-                std::shared_ptr<choreograph::Output<float>> destination,
-                const motion::Bound& chain) {
-  if (!destination) throw py::type_error("A derived output must be an Output");
-  const auto state = view.state();
-  if (!state->ticker->derive(destination.get(), chain)) return false;
-  state->tickerOwners.push_back(std::move(destination));
-  if (chain.owner()) state->tickerOwners.push_back(chain.owner());
-  return true;
-}
 
 class Body final : public CanvasBody {
  public:
@@ -532,7 +462,6 @@ void stageContext(py::handle value, const kit::Stage& stage) {
 
 void bindRuntime(py::module_& module) {
   auto composition = module.attr("compose").cast<py::module_>();
-  auto clocks = module.attr("motion").cast<py::module_>();
   auto sketches = module.def_submodule("sketch");
   py::class_<ComposerView>(composition, "Composer")
       .def(
@@ -580,16 +509,6 @@ void bindRuntime(py::module_& module) {
            [](const ComposerView& v) { v.state()->composer->purgeCaches(); })
       .def("stats",
            [](const ComposerView& v) { return v.state()->composer->stats(); });
-  py::class_<TickerView>(clocks, "Ticker")
-      .def("add", &addTick, py::arg("function"))
-      .def("addFixed", &addFixedTick, py::arg("hz"), py::arg("function"),
-           py::arg("maxCatchUp") = 8, py::arg("alphaOut") = nullptr,
-           py::arg("statusOut") = nullptr)
-      .def("derive", &deriveTick, py::arg("destination"), py::arg("chain"))
-      .def("active",
-           [](const TickerView& v) { return v.state()->ticker->active(); })
-      .def("elapsed",
-           [](const TickerView& v) { return v.state()->ticker->elapsed(); });
   py::class_<AssetsView>(sketches, "Assets")
       .def(
           "image",

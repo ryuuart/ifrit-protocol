@@ -312,7 +312,12 @@ class Scene:
                         builtins._motion_fixed_ticks.append(1)
                     assert ctx.ticker.addFixed(10, fixed, alphaOut=builtins._motion_alpha,
                                                statusOut=builtins._motion_status) is None
-                    assert not hasattr(ctx.ticker, "tick")
+                    try:
+                        ctx.ticker.tick(0.1)
+                    except RuntimeError as refusal:
+                        assert "host steps the ticker it lends" in str(refusal)
+                    else:
+                        raise AssertionError("a session ticker stepped itself")
         """,
             at=0.25,
         )

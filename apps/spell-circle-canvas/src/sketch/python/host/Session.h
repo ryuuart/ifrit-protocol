@@ -108,10 +108,6 @@ class ComposerView : public Context {
  public:
   using Context::Context;
 };
-class TickerView : public Context {
- public:
-  using Context::Context;
-};
 class AssetsView : public Context {
  public:
   using Context::Context;

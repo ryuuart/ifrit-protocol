@@ -7,6 +7,7 @@
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Kit.h>
+#include <sigilpython/motion/Convert.h>
 #include <sigilsketch/canvas/Guest.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Assets.h>
@@ -33,7 +34,6 @@ namespace py = pybind11;
 using detail::AssetsView;
 using detail::ComposerView;
 using detail::Context;
-using detail::TickerView;
 
 namespace {
 using sigil::python::kit::field;
@@ -116,8 +116,24 @@ void bindContext(py::module_& module) {
       .def_property_readonly(
           "composer",
           [](const Context& ctx) { return ComposerView(ctx.state()); })
+      // The session's own ticker, handed over as the one Ticker class
+      // Python has: the host owns the stepping, so the handle borrows
+      // rather than owns, and what a ticker call is given — an output,
+      // a status, a callable — is held by the session rather than by
+      // the wrapper a body happened to keep.
       .def_property_readonly(
-          "ticker", [](const Context& ctx) { return TickerView(ctx.state()); })
+          "ticker",
+          [](const Context& ctx) {
+            const auto state = ctx.state();
+            return sigil::python::TickerHandle(
+                [view = Context(state)]() -> motion::Ticker& {
+                  return *view.state()->ticker;
+                },
+                [view = Context(state)](std::shared_ptr<const void> owner) {
+                  view.state()->tickerOwners.push_back(std::move(owner));
+                },
+                &state->callbacks);
+          })
       .def_property_readonly(
           "assets", [](const Context& ctx) { return AssetsView(ctx.state()); })
       .def(
