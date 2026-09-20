@@ -7,6 +7,8 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
 #include <sigilsketch/canvas/Guest.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -48,6 +50,22 @@ TEST(SketchGuest, WithNothingPublishingThereIsNoPictureToWear) {
   // Asking again is what reconnects, so asking twice must answer the
   // same rather than stand on what the first ask left behind.
   EXPECT_EQ(guest.frame(nullptr), nullptr);
+  EXPECT_FALSE(guest.publishing());
+}
+
+TEST(SketchGuest, TheCanvasBeingDrawnOnCarriesTheRecorderToAskWith) {
+  // What a paint program holds is the canvas, so asking it is the same
+  // ask: a raster canvas carries no recorder and the answer is the null
+  // one the recorder overload gives.
+  GuestContext host(false);
+  sigil::sketch::Guest guest(host.context(), "a publication nobody offers");
+
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(8, 8));
+  SkCanvas canvas(bitmap);
+  EXPECT_EQ(canvas.recorder(), nullptr);
+  EXPECT_EQ(guest.frame(canvas), nullptr);
+  EXPECT_EQ(guest.frame(canvas), guest.frame(canvas.recorder()));
   EXPECT_FALSE(guest.publishing());
 }
 

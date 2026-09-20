@@ -4,6 +4,7 @@
  * a texture a body is dressed with.
  */
 
+#include <include/core/SkCanvas.h>
 #include <sigilio/publish/Subscription.h>
 #include <sigilsketch/canvas/Guest.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -56,6 +57,13 @@ sk_sp<SkImage> Guest::frame(skgpu::graphite::Recorder* recorder) {
   // colour space: nothing converts on the way across, so none is stated.
   m_picture = skia::wrapImage(*recorder, texture);
   return m_picture;
+}
+
+sk_sp<SkImage> Guest::frame(SkCanvas& canvas) {
+  // The recorder a drawing is being recorded on is the canvas's own, so
+  // a caller inside a paint program has it already and does not have to
+  // name Graphite to say so.
+  return frame(canvas.recorder());
 }
 
 material::Texture Guest::texture() {

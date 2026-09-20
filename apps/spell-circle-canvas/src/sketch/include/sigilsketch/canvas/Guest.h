@@ -18,6 +18,8 @@
 #include <string>
 #include <string_view>
 
+class SkCanvas;
+
 namespace skgpu::graphite {
 class Recorder;
 }  // namespace skgpu::graphite
@@ -88,6 +90,15 @@ class Guest {
    *  after this guest was made, or came back after its publisher
    *  stopped. */
   sk_sp<SkImage> frame(skgpu::graphite::Recorder* recorder);
+
+  /** THE NEWEST PUBLISHED FRAME as an image @p canvas can draw — the
+   *  answer above, taken off the canvas the drawing is landing on
+   *  instead of off a recorder the caller went and found. It is the
+   *  same call: a canvas rasterising on the CPU carries no recorder and
+   *  answers null, one wrap is made per frame that arrived, and asking
+   *  every frame is what opens onto a publication that appeared after
+   *  this guest was made. */
+  sk_sp<SkImage> frame(SkCanvas& canvas);
 
   /** THE NEWEST PUBLISHED FRAME as a texture a material slot takes —
    *  the picture on a BODY, where `frame()` is the picture on a canvas.
