@@ -6,21 +6,23 @@
 #include <sigilmaterial/color/Harmony.h>
 #include <sigilmaterial/color/Ramp.h>
 #include <sigilmaterial/core/Backface.h>
-#include <sigilmaterial/field/Field.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/material/Convert.h>
 #include <sigilpython/material/Registration.h>
-#include <sigilpython/skia/Values.h>
 
 namespace sigil::python {
 namespace py = pybind11;
 namespace {
-material::Color ink(py::handle value) { return material::Color(color(value)); }
-std::vector<material::Color> inks(py::iterable values) {
+std::vector<material::Color> materialColors(py::iterable values) {
   std::vector<material::Color> result;
-  for (auto value : values) result.push_back(ink(value));
+  for (auto value : values) result.push_back(materialColor(value));
   return result;
 }
 }  // namespace
+
+material::Color materialColor(py::handle value) {
+  return material::Color(color(value));
+}
 
 void bindColor(py::module_& root) {
   using material::Color;
@@ -28,7 +30,7 @@ void bindColor(py::module_& root) {
   py::class_<Color>(module, "Color")
       .def(py::init<float, float, float, float>(), py::arg("red") = 0,
            py::arg("green") = 0, py::arg("blue") = 0, py::arg("alpha") = 1)
-      .def(py::init([](py::handle value) { return ink(value); }),
+      .def(py::init([](py::handle value) { return materialColor(value); }),
            py::arg("value"))
       .def_readwrite("r", &Color::r)
       .def_readwrite("g", &Color::g)
@@ -96,21 +98,25 @@ void bindMaterial(py::module_& root) {
       .def_readwrite("fraction", &RampBracket::fraction);
   py::class_<RampStop>(module, "RampStop")
       .def(py::init([](float position, py::handle value) {
-             return RampStop{position, ink(value)};
+             return RampStop{position, materialColor(value)};
            }),
            py::arg("pos"), py::arg("color"))
       .def_readwrite("pos", &RampStop::pos)
       .def_property(
           "color", [](const RampStop& stop) { return stop.color; },
-          [](RampStop& stop, py::handle value) { stop.color = ink(value); })
+          [](RampStop& stop, py::handle value) {
+            stop.color = materialColor(value);
+          })
       .def(py::self == py::self);
   py::class_<Palette>(module, "Palette")
-      .def(py::init([](py::iterable values) { return Palette{inks(values)}; }),
+      .def(py::init([](py::iterable values) {
+             return Palette{materialColors(values)};
+           }),
            py::arg("entries") = py::tuple())
       .def_property(
           "entries", [](const Palette& value) { return value.entries; },
           [](Palette& value, py::iterable entries) {
-            value.entries = inks(entries);
+            value.entries = materialColors(entries);
           })
       .def("size", &Palette::size)
       .def("__len__", &Palette::size)
@@ -183,24 +189,29 @@ void bindMaterial(py::module_& root) {
       .def(
           "at",
           [](const Dither& d, py::handle c, int x, int y) {
-            return d.at(ink(c), x, y);
+            return d.at(materialColor(c), x, y);
           },
           py::arg("color"), py::arg("x"), py::arg("y"));
   module.def("rgb", &rgb, py::arg("hex"), py::arg("alpha") = 1.0f);
   module.def("hsv", &hsv, py::arg("hueDegrees"), py::arg("saturation"),
              py::arg("value"), py::arg("alpha") = 1.0f);
   module.def(
-      "toOklab", [](py::handle value) { return material::toOklab(ink(value)); },
+      "toOklab",
+      [](py::handle value) { return material::toOklab(materialColor(value)); },
       py::arg("color"));
   module.def(
-      "toOklch", [](py::handle value) { return material::toOklch(ink(value)); },
+      "toOklch",
+      [](py::handle value) { return material::toOklch(materialColor(value)); },
       py::arg("color"));
   module.def(
-      "toLab", [](py::handle value) { return material::toLab(ink(value)); },
+      "toLab",
+      [](py::handle value) { return material::toLab(materialColor(value)); },
       py::arg("color"));
   module.def(
       "luminance",
-      [](py::handle value) { return material::luminance(ink(value)); },
+      [](py::handle value) {
+        return material::luminance(materialColor(value));
+      },
       py::arg("color"));
   module.def("fromOklab", &material::fromOklab, py::arg("lab"));
   module.def("fromOklch", &material::fromOklch, py::arg("lch"));
@@ -209,50 +220,62 @@ void bindMaterial(py::module_& root) {
   module.def("oklabOf", &material::oklabOf, py::arg("lch"));
   module.def("oklchOf", &material::oklchOf, py::arg("lab"));
   module.def("fitToSrgb", &material::fitToSrgb, py::arg("lch"));
-  module.def("srgbToLinear", &material::srgbToLinear, py::arg("channel"));
-  module.def("linearToSrgb", &material::linearToSrgb, py::arg("channel"));
+  module.def("srgbToLinear",
+             py::overload_cast<float>(&material::srgbToLinear),
+             py::arg("channel"));
+  module.def("linearToSrgb",
+             py::overload_cast<float>(&material::linearToSrgb),
+             py::arg("channel"));
   module.def(
       "mixLinear",
       [](py::handle a, py::handle b, float t) {
-        return material::mixLinear(ink(a), ink(b), t);
+        return material::mixLinear(materialColor(a), materialColor(b), t);
       },
       py::arg("a"), py::arg("b"), py::arg("t"));
   module.def(
       "lerpOklab",
       [](py::handle a, py::handle b, float t) {
-        return material::lerpOklab(ink(a), ink(b), t);
+        return material::lerpOklab(materialColor(a), materialColor(b), t);
       },
       py::arg("a"), py::arg("b"), py::arg("t"));
   module.def("inSrgbGamut", &inSrgbGamut, py::arg("lab"),
              py::arg("slack") = 1e-4f);
   module.def(
-      "withAlpha", [](py::handle c, float a) { return withAlpha(ink(c), a); },
+      "withAlpha",
+      [](py::handle c, float a) { return withAlpha(materialColor(c), a); },
       py::arg("color"), py::arg("alpha"));
   module.def(
       "scale",
-      [](py::handle c, float k, float a) { return scale(ink(c), k, a); },
+      [](py::handle c, float k, float a) {
+        return scale(materialColor(c), k, a);
+      },
       py::arg("color"), py::arg("factor"), py::arg("alpha") = -1.0f);
   module.def(
-      "lighten", [](py::handle c, float k) { return lighten(ink(c), k); },
+      "lighten",
+      [](py::handle c, float k) { return lighten(materialColor(c), k); },
       py::arg("color"), py::arg("amount"));
   module.def(
       "mixToward",
       [](py::handle c, py::handle target, float t, float a) {
-        return mixToward(ink(c), ink(target), t, a);
+        return mixToward(materialColor(c), materialColor(target), t, a);
       },
       py::arg("color"), py::arg("target"), py::arg("t"), py::arg("alpha"));
   module.def(
       "deltaE",
-      [](py::handle a, py::handle b) { return deltaE(ink(a), ink(b)); },
+      [](py::handle a, py::handle b) {
+        return deltaE(materialColor(a), materialColor(b));
+      },
       py::arg("a"), py::arg("b"));
   module.def(
       "rotateHue",
-      [](py::handle c, float degrees) { return rotateHue(ink(c), degrees); },
+      [](py::handle c, float degrees) {
+        return rotateHue(materialColor(c), degrees);
+      },
       py::arg("color"), py::arg("degrees"));
   module.def(
       "harmony",
       [](py::handle c, Scheme scheme, float spread) {
-        return harmony(ink(c), scheme, spread);
+        return harmony(materialColor(c), scheme, spread);
       },
       py::arg("color"), py::arg("scheme"), py::arg("spreadDegrees") = 30.0f);
   module.def("palette", py::overload_cast<const Ramp&, int>(&material::palette),
@@ -260,14 +283,16 @@ void bindMaterial(py::module_& root) {
   module.def(
       "palette",
       [](py::iterable pixels, const PaletteOptions& options) {
-        return material::palette(inks(pixels), options);
+        return material::palette(materialColors(pixels), options);
       },
       py::arg("pixels"), py::arg("options") = PaletteOptions{});
   module.def("ramp", &material::ramp, py::arg("palette"),
              py::arg("space") = RampSpace::Oklab);
   module.def(
       "closestEntry",
-      [](const Palette& p, py::handle c) { return closestEntry(p, ink(c)); },
+      [](const Palette& p, py::handle c) {
+        return closestEntry(p, materialColor(c));
+      },
       py::arg("palette"), py::arg("color"));
   module.def(
       "sampleRamp",
@@ -283,41 +308,5 @@ void bindMaterial(py::module_& root) {
         return rampBracket(stops, t);
       },
       py::arg("stops"), py::arg("t"));
-  auto field = module.attr("field").cast<py::module_>();
-  field.def("ripple", &field::ripple, py::arg("amplitudePx"),
-            py::arg("wavelengthPx"), py::arg("phase") = 0.0f,
-            py::arg("vertical") = false);
-  field.def(
-      "halftoneRamp",
-      [](float spacing, float rMin, float rMax, py::handle c, float angle,
-         float from, float to) {
-        return field::halftoneRamp(spacing, rMin, rMax, ink(c), angle, from,
-                                   to);
-      },
-      py::arg("spacing"), py::arg("rMin"), py::arg("rMax"), py::arg("color"),
-      py::arg("angleDeg") = 0.0f, py::arg("rampFrom") = 0.0f,
-      py::arg("rampTo") = 1.0f);
-  bindRecord<field::CrtOverlayParameters>(field, "CrtOverlayParameters",
-                                          "Unknown CRT field: ")
-      .def_readwrite("uScanPitch", &field::CrtOverlayParameters::uScanPitch)
-      .def_readwrite("uScanStrength",
-                     &field::CrtOverlayParameters::uScanStrength)
-      .def_readwrite("uVigInner", &field::CrtOverlayParameters::uVigInner)
-      .def_readwrite("uVigOuter", &field::CrtOverlayParameters::uVigOuter)
-      .def_readwrite("uVigStrength", &field::CrtOverlayParameters::uVigStrength)
-      .def_readwrite("uSqueeze", &field::CrtOverlayParameters::uSqueeze)
-      .def_readwrite("uBeamPitch", &field::CrtOverlayParameters::uBeamPitch)
-      .def_readwrite("uBeamFalloff", &field::CrtOverlayParameters::uBeamFalloff)
-      .def_readwrite("uBeamStrength",
-                     &field::CrtOverlayParameters::uBeamStrength)
-      .def_readwrite("uBeatPitch", &field::CrtOverlayParameters::uBeatPitch)
-      .def_readwrite("uBeatFalloff", &field::CrtOverlayParameters::uBeatFalloff)
-      .def_readwrite("uBeatStrength",
-                     &field::CrtOverlayParameters::uBeatStrength)
-      .def_readwrite("uGrain", &field::CrtOverlayParameters::uGrain);
-  field.def(
-      "crtOverlay",
-      py::overload_cast<const field::CrtOverlayParameters&>(&field::crtOverlay),
-      py::arg("parameters") = field::CrtOverlayParameters{});
 }
 }  // namespace sigil::python

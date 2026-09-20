@@ -51,6 +51,10 @@ void bindLibraries(pybind11::module_& module) {
   bindMotionParticles(module);
   bindMaterial(module);
   bindMaterialCore(module);
+  // The paint is the material a Skia backend draws, and a tile, a
+  // stock draw and every pen verb answer one, so it stands ahead of
+  // them rather than at the end of its own library.
+  bindMaterialPaintEffect(module);
   bindMaterialTexture(module);
   bindMaterialTextureSets(module);
   bindMaterialEnvironment(module);
@@ -60,7 +64,6 @@ void bindLibraries(pybind11::module_& module) {
   bindMaterialKitGrained(module);
   bindMaterialKitText(module);
   bindMaterialSkiaDraw(module);
-  bindMaterialPaintEffect(module);
   bindWeavePorts(module);
   bindWeave(module);
   bindWeaveCascade(module);

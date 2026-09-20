@@ -49,10 +49,11 @@ sigil_library(SigilPython
     compose/Kit.h compose/Registration.h core/Registration.h data/Convert.h
     data/Registration.h draw/Canvas.h draw/Registration.h geometry/Casters.h
     geometry/Registration.h image/Registration.h io/Hub.h io/Registration.h
-    material/Registration.h measure/Registration.h motion/Convert.h
-    motion/Registration.h scry/Registration.h skia/Registration.h
-    skia/Values.h substance/Registration.h usd/Registration.h
-    video/Registration.h weave/Registration.h world/Registration.h
+    material/Convert.h material/Registration.h measure/Registration.h
+    motion/Convert.h motion/Registration.h scry/Registration.h
+    skia/Registration.h skia/Values.h substance/Registration.h
+    usd/Registration.h video/Registration.h weave/Registration.h
+    world/Registration.h
   PUBLIC
     pybind11::headers unofficial::skia::skia SigilComposeCore SigilComposeKit
     SigilMotionValues SigilComposeBrush SigilGeometryPath SigilGeometryKit
