@@ -44,9 +44,10 @@ sigil_header_self_test(geometry_header_self_test
   LIBRARIES SigilGeometry)
 
 # Every API name the prose spells, compiled against the headers that own
-# it — the README and every chapter under reference/, because a chapter
-# is the same canon as the page that links it, and the header indexes
-# the two tiers are catalogued by live there.
+# it — the README, every chapter under reference/ and every entity page
+# under reference/pages/, because a chapter is the same canon as the
+# page that links it, the header indexes the two tiers are catalogued by
+# live there, and a page carries the prose a brief in the header cannot.
 # SigilCore is scanned beside this library's own root for the chance
 # source, the noise field and the PCG words the path tier agrees with,
 # and SigilSkia for the offscreen surface the device walkthrough paints
@@ -64,6 +65,26 @@ sigil_doc_probes(geometry
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/KIT.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEVICE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Arcs.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/BillboardStyle.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Chords.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Cloud.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/CrossingRule.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Grid.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/PolarFrame.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Projection.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Rotation.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Roughen.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Strip.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Ticks.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/crossingPatch.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/deviceRuntime.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/geo.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/lattice.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/multigrid.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/offset.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/ply.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/roundCorners.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include
   PRELUDES "<sigilcore/hardware/GpuDevice.h>"
@@ -75,5 +96,5 @@ sigil_doc_probes(geometry
           "device::TextureResidency=declared in the device residency feature's private headers, which no consumer include path carries"
           "device::Resources=declared in the device residency feature's private headers, which no consumer include path carries"
           "device::PipelineCache=declared in the device residency feature's private headers, which no consumer include path carries"
-  FLOORS 100,12,12,0,0
+  FLOORS 160,32,38,58,3
   LIBRARIES SigilGeometry SigilCoreHardware SigilSkiaGraphite)
