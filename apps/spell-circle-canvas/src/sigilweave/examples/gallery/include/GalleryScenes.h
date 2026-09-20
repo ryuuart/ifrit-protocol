@@ -8,7 +8,9 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSize.h>
-#include <sigilweave/SigilWeave.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/layout/Breaking.h>
+#include <sigilweave/query/Selector.h>
 
 #include <QString>
 #include <QVariantMap>

@@ -9,8 +9,10 @@
 
 #include <include/core/SkSurface.h>
 #include <sigilmeasure/time/Stopwatch.h>
-#include <sigilweave/SigilWeave.h>
 #include <sigilweave/kit/SigilWeaveKit.h>
+#include <sigilweave/layout/Flow.h>
+#include <sigilweave/paragraph/Paragraph.h>
+#include <sigilweave/style/TextStyle.h>
 
 #include <chrono>
 #include <filesystem>

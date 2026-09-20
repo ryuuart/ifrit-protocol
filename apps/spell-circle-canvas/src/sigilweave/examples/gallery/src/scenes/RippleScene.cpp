@@ -1,6 +1,9 @@
 // Scene: ripple pool (click to drop).
 #include <include/core/SkPaint.h>
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilweave/choreograph/GlyphBatches.h>
+#include <sigilweave/choreograph/GlyphDress.h>
+#include <sigilweave/choreograph/PlacedGlyph.h>
 
 #include <algorithm>
 #include <cmath>

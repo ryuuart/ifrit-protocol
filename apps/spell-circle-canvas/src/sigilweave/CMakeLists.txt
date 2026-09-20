@@ -13,7 +13,8 @@
 # this library's, so a binary reaches it through <Fonts.h>. The constructed
 # faces under test/assets/ reach a binary through SIGIL_TEST_ASSET_DIR.
 sigil_library_root(SigilWeave
-  BRIEF "Styled Unicode text shaped into positioned glyph runs ready for a Skia canvas")
+  BRIEF "Styled Unicode text shaped into positioned glyph runs ready for a Skia canvas"
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
 
 # Dependencies point down this list.
 add_subdirectory(unicode)
@@ -29,8 +30,8 @@ add_subdirectory(ports)
 add_subdirectory(kit)
 add_subdirectory(qt)
 
-# The engine: every feature a consumer of <sigilweave/SigilWeave.h>
-# reaches. Shaders, ports, the kit and the Qt bridge stay separate
+# The engine: every feature a consumer of the whole engine links.
+# Shaders, ports, the kit and the Qt bridge stay separate
 # targets, as content, platform glue, consumer discipline and a bridge
 # rather than engine.
 sigil_library(SigilWeave

@@ -6,8 +6,16 @@
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
-#include <sigilweave/SigilWeave.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/layout/Breaking.h>
+#include <sigilweave/layout/Flow.h>
+#include <sigilweave/layout/LayoutOptions.h>
+#include <sigilweave/layout/TextContext.h>
+#include <sigilweave/paint/Paint.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/query/Selector.h>
+#include <sigilweave/style/PaintStyle.h>
+#include <sigilweave/style/TextStyle.h>
 
 #include <algorithm>
 #include <cmath>

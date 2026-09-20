@@ -16,9 +16,17 @@
 
 #include <sigilmaterial/core/Material.h>
 
-#include <sigilweave/SigilWeave.h>
+#include <sigilweave/choreograph/GlyphBatches.h>
+#include <sigilweave/choreograph/PlacedGlyph.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/layout/ParagraphLayout.h>
+#include <sigilweave/paint/Paint.h>
+#include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/query/Selector.h>
+#include <sigilweave/style/Decoration.h>
+#include <sigilweave/style/PaintLayer.h>
+#include <sigilweave/style/TextStyle.h>
 
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>

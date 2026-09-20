@@ -125,8 +125,7 @@ belongs to none of them, so the shared ones sit at the library root:
 `test/support/`, `test/assets/` and `bench/support/`. Internal headers never leave the feature
 directory. The features form a dependency chain — each links those it
 needs, and each header includes those it needs, so including a later one
-pulls the earlier ones in. `<sigilweave/SigilWeave.h>` is the umbrella
-over every engine feature; a translation unit that uses one feature
+pulls the earlier ones in. A translation unit that uses one feature
 includes that feature's header.
 
 **`unicode`** — `SigilWeaveUnicode`, the leaf: `unicode/Unicode.h`, every

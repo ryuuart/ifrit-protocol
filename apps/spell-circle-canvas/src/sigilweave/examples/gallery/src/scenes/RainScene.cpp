@@ -2,6 +2,9 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilweave/choreograph/GlyphBatches.h>
+#include <sigilweave/choreograph/GlyphDress.h>
+#include <sigilweave/choreograph/PlacedGlyph.h>
 
 #include <cmath>
 #include <random>

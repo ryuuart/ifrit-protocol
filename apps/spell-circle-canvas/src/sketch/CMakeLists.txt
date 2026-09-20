@@ -216,7 +216,6 @@ sigil_doc_probes(sketch
            "<sigilcompose/kit/Kinetic.h>"
            "<sigilgeometry/kit/Generators.h>"
            "<sigilworld/diligent/Import.h>"
-           "<sigilweave/SigilWeave.h>"
            "<sigilweave/ports/SystemFontManager.h>"
   ALIASES ${SIGIL_SKETCH_DOC_SCRY_ALIASES}
   SKIP_HEADERS ${SIGIL_SKETCH_DOC_SKIP_HEADERS}

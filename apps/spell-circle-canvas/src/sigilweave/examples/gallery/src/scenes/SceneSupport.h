@@ -12,8 +12,10 @@
 #include <include/core/SkPath.h>
 #include <sigilcore/cache/Rebuild.h>
 #include <sigilmeasure/time/Stopwatch.h>
-#include <sigilweave/SigilWeave.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/kit/SigilWeaveKit.h>
+#include <sigilweave/paragraph/Paragraph.h>
+#include <sigilweave/query/Selector.h>
 
 #include <QString>
 #include <chrono>

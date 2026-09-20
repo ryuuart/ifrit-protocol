@@ -1,0 +1,48 @@
+// The documentation groups whose members are spread over several of this
+// library's headers, declared where no header has to include another to
+// reach them.
+
+/** @defgroup weave-unicode Unicode analysis
+ *  Transcoding, scripts, case mapping, segmentation and bidi as plain
+ *  values over UTF-16 text (unicode/Unicode.h). */
+/** @defgroup weave-shaping Shaping & fonts
+ *  Word shaping, the shape cache, font management, fallback, and the style
+ *  vocabulary that keys it all (style/Style.h, fonts/FontContext.h,
+ *  fonts/Shaper.h). */
+/** @defgroup weave-document Document model
+ *  Styled UTF-16 text with incremental analysis: Paragraph, spans,
+ *  placeholders, words, and the edit history, with the same content as a
+ *  comparable value (paragraph/Paragraph.h, paragraph/Word.h,
+ *  paragraph/RichText.h). */
+/** @defgroup weave-geometry Flow geometry
+ *  The shapes text flows into: blocks, exclusions, vertical columns,
+ *  explicit line sets, and paths (layout/Flow.h). */
+/** @defgroup weave-layout Layout
+ *  Line breaking and placement: layoutParagraph, options, positioned runs,
+ *  and the label fast path (layout/ParagraphLayout.h,
+ *  layout/LayoutOptions.h, layout/PositionedRun.h,
+ *  layout/TextContext.h). */
+/** @defgroup weave-paint Painting & effects
+ *  Draw-time appearance: the two draws of a finished layout, the paint
+ *  layers a run is dressed in, and the decoration bands resolved
+ *  against the placed runs (paint/Paint.h, the PaintStyle half of
+ *  style/Style.h, decoration/Decoration.h). */
+/** @defgroup weave-query Query & markers
+ *  Range search, selection as a value, and edit-following marker sets
+ *  (query/Query.h, query/Selector.h). */
+/** @defgroup weave-animation Animation
+ *  Per-glyph choreography over finished layouts (choreograph/). */
+/** @defgroup weave-kit Consumer kit
+ *  The discipline a consumer of the engine needs and the engine does not
+ *  impose: layout memoization, glyph bucketing, the hyphenation and
+ *  line-edge tables the engine asks for and holds no opinion about, the
+ *  OpenType feature presets, the one-call label draw, and deterministic
+ *  sample content (kit/). Its own interface target, linked on top of the
+ *  engine. */
+/** @defgroup weave-ports Platform ports
+ *  The system font manager, behind the seam the engine names fonts
+ *  through (ports/SystemFontManager.h). Its own target, so the engine
+ *  itself binds to no operating system. */
+/** @defgroup weave-qt The Qt bridge
+ *  QString and Skia types crossing into the engine's own
+ *  (qt/SigilWeaveQt.h). Its own target, so the engine stays Qt-free. */
