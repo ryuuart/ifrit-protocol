@@ -31,6 +31,7 @@
 
 // TAGS: Materials/Compositing, Media/Images
 
+#include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

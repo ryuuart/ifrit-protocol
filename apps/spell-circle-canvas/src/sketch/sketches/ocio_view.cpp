@@ -30,6 +30,7 @@
 
 // TAGS: Materials/Color
 
+#include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Core.h>

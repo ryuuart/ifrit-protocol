@@ -13,6 +13,7 @@
  * dashed rules and small diamond accents. Not uniform stamps.
  */
 
+#include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>

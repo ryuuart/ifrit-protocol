@@ -33,6 +33,22 @@ float Shadow::bleed() const {
   return std::max({std::abs(offset.fX), std::abs(offset.fY), maxBind}) + extent;
 }
 
+void Shadow::paint(SkCanvas& canvas, const PaintContext& ctx) const {
+  SkPaint p;
+  p.setAntiAlias(true);
+  p.setColor4f(color, nullptr);
+  if (blur > 0)
+    p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
+  canvas.save();
+  if (knockout) canvas.clipPath(ctx.outline, SkClipOp::kDifference, true);
+  canvas.translate(bindOffsetX ? motion::resolveFloatAt(nullptr, *bindOffsetX)
+                               : offset.x(),
+                   bindOffsetY ? motion::resolveFloatAt(nullptr, *bindOffsetY)
+                               : offset.y());
+  canvas.drawPath(ctx.outline, p);
+  canvas.restore();
+}
+
 void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(antiAlias);

@@ -19,7 +19,6 @@
  * header is SigilWeaveLayout.
  */
 
-#include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 
@@ -32,6 +31,8 @@
 #include "sigilweave/layout/LayoutOptions.h"
 #include "sigilweave/layout/PositionedRun.h"
 #include "sigilweave/paragraph/Paragraph.h"
+
+class SkCanvas;
 
 namespace sigil::weave {
 

@@ -25,6 +25,7 @@
 
 // TAGS: Geometry/Diagrams
 
+#include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

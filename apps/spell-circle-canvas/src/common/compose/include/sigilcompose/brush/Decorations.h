@@ -31,7 +31,6 @@
  * geometry you built yourself — see `decorations::paintOn`.
  */
 
-#include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkPicture.h>
@@ -44,6 +43,8 @@
 #include <optional>
 
 #include "sigilcompose/Compose.h"
+
+class SkCanvas;
 
 namespace sigil::compose {
 
@@ -229,21 +230,7 @@ struct Shadow {
    *  declared through `maxBind` — bleed() cannot read a future value. */
   float bleed() const;
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
-    SkPaint p;
-    p.setAntiAlias(true);
-    p.setColor4f(color, nullptr);
-    if (blur > 0)
-      p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
-    canvas.save();
-    if (knockout) canvas.clipPath(ctx.outline, SkClipOp::kDifference, true);
-    canvas.translate(bindOffsetX ? motion::resolveFloatAt(nullptr, *bindOffsetX)
-                                 : offset.x(),
-                     bindOffsetY ? motion::resolveFloatAt(nullptr, *bindOffsetY)
-                                 : offset.y());
-    canvas.drawPath(ctx.outline, p);
-    canvas.restore();
-  }
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
 };
 
 /** A blurred copy of the node's outline cast at @p offset — attach it

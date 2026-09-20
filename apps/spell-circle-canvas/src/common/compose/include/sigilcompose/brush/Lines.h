@@ -25,7 +25,6 @@
  * directed edge
  */
 
-#include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <sigilmaterial/skia/Paint.h>  // material::skia::Stop — the along-arc gradient ramp
 
@@ -33,6 +32,8 @@
 #include <vector>
 
 #include "sigilcompose/Compose.h"
+
+class SkCanvas;
 
 /** THE LINE VOCABULARY a map or a diagram needs beyond a dash: parallel
  *  casings (double and triple rails, highway pairs), terminal caps
