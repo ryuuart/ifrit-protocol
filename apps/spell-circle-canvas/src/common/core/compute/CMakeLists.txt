@@ -3,10 +3,11 @@
 # accumulated with, the interval algebra every consumer that answers
 # "where on this thing" in runs arrives at, and the shaped curve an
 # easing, a colour ramp and a keyed track all reshape a unit position
-# with. The standard library is the whole of its dependencies — no glm,
-# no Skia, no kernel, no animation runtime — so a shader's CPU twin, a
-# point cook, a text cache, a colour leaf and a resource store can all
-# reach the same body. Header-only, hence an INTERFACE target: there is
+# with, and the one rounding an angle in degrees is scaled by. The
+# standard library is the whole of its dependencies — no glm, no Skia,
+# no kernel, no animation runtime — so a shader's CPU twin, a point
+# cook, a text cache, a colour leaf and a resource store can all reach
+# the same body. Header-only, hence an INTERFACE target: there is
 # no archive because every function is inline by nature.
 sigil_library(SigilCoreCompute)
 
@@ -15,8 +16,9 @@ sigil_library(SigilCoreCompute)
 # pins them: exact words, and floats compared as bits. Links only the
 # library it exercises.
 sigil_test(core_test
-  SOURCES test/ChanceTest.cpp test/CurveTest.cpp test/FieldTest.cpp
-          test/HashTest.cpp test/IntervalsTest.cpp test/NoiseTest.cpp
+  SOURCES test/AngleTest.cpp test/ChanceTest.cpp test/CurveTest.cpp
+          test/FieldTest.cpp test/HashTest.cpp test/IntervalsTest.cpp
+          test/NoiseTest.cpp
   LIBRARIES SigilCoreCompute)
 
 sigil_bench(core_bench

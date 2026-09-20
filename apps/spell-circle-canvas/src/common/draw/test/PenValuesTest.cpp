@@ -5,6 +5,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilcore/compute/Angle.h>
 #include <sigildraw/Draw.h>
 
 #include <cmath>
@@ -99,6 +100,11 @@ TEST(Pen, TheMathVocabularyComputesWhatItsNamesPromise) {
   EXPECT_FLOAT_EQ(norm(5, 0, 10), 0.5f);
   EXPECT_FLOAT_EQ(radians(180), PI);
   EXPECT_FLOAT_EQ(degrees(PI), 180.0f);
+  // p5's two spellings, scaling by the float every other library here
+  // scales an angle by: a pen that rounded its own way would place a
+  // mark where no contour does.
+  EXPECT_EQ(radians(37.5f), sigil::core::angle::radians(37.5f));
+  EXPECT_EQ(degrees(0.6545f), sigil::core::angle::degrees(0.6545f));
 }
 
 TEST(Pen, AGuestIsRetainedPerCallSite) {

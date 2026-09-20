@@ -4,8 +4,8 @@ The chapter on the arithmetic several libraries have to agree on to the
 bit: the seeded mixers a jitter draws from, the stream a caller holds one
 of them as and the distributions drawn out of it, the noise field read at
 a point, the folds a cache key is accumulated with, the normal form a set
-of runs over one axis is put in, and the shaped curve a unit position is
-reshaped by. `README.md` beside this file is the library; `COMPARABLE.md`
+of runs over one axis is put in, the shaped curve a unit position is
+reshaped by, and the one rounding between degrees and radians. `README.md` beside this file is the library; `COMPARABLE.md`
 is the other leaf that links nothing, and `RECONCILE.md` holds the
 inherited-value channel the last section here reads a bound value through.
 
@@ -20,9 +20,10 @@ bodies.
 | `compute/Chance.h` | `chance::Stream` — the seeded stream a caller holds (`bits`, `unit`, `signedUnit`, `range`, `below`, `normal`, `sample`, `reseed`) over a `chance::Source` (`Pcg`, `Mix64`, `Xorshift`, `Halton`, `Sobol`, `Golden`, `Stratified`); the shapes `chance::Uniform`, `chance::Gaussian`, `chance::Exponential`, `chance::Weighted`; `chance::shuffle`, `chance::Reservoir`; and `chance::Chance`, the token one sheet re-rolls from |
 | `compute/Hash.h` | `hash::kFnvOffset`, `hash::kFnvPrime`, `hash::fnv1a` over a word or over text, and `hash::combine` — the stir that folds one more word into a hash in hand |
 | `compute/Curve.h` | `curve::Curve` — a shape as a captureless `float(float, const float*)` beside the four `parameters` it reads, with `at`, `operator()` and equality by both (a default-built one is the identity ramp, and a caller's own captureless body is the escape hatch); the plain `curve::smoothstep`; and the house shapes `curve::cubicBezier`, `curve::outBack`, `curve::inBack`, `curve::inOutBack`, `curve::outElastic`, `curve::inElastic`, `curve::outBounce` |
+| `compute/Angle.h` | `angle::kDegToRad`, `angle::kRadToDeg`, `angle::radians` and `angle::degrees` — the one rounding between the two measures of an angle, which the pen and the contour both scale by |
 | `compute/Intervals.h` | `IntervalEnds`, `Inverted`, `normalizeIntervals`, `complementIntervals`, `intersectIntervals` and `firstOverlap` — the sorted, disjoint normal form a set of runs is put in, and the three combinators over it, with the endpoint type and the epsilon the caller's |
 
-`<sigilcore/compute/Compute.h>` includes all six.
+`<sigilcore/compute/Compute.h>` includes all seven.
 
 ## Why the curve is here
 

@@ -8,6 +8,7 @@
  * pen — `random`, `noise`, `millis` — is a verb on the pen instead.
  */
 
+#include <sigilcore/compute/Angle.h>
 #include <sigildraw/Constants.h>
 
 #include <algorithm>
@@ -52,10 +53,17 @@ inline float norm(float value, float start, float stop) {
 /** @p n squared. */
 inline float sq(float n) { return n * n; }
 
-/** Degrees to radians. */
-inline float radians(float degrees) { return degrees * (PI / 180.0f); }
+/** Degrees to radians. p5's spelling of the conversion every library
+ *  here scales an angle by, which is `core::angle`'s: a quotient of a
+ *  rounded pi rounds twice, and a pen that drifted by that ulp would
+ *  place a mark where no contour does. */
+inline constexpr float radians(float degrees) {
+  return core::angle::radians(degrees);
+}
 
-/** Radians to degrees. */
-inline float degrees(float radians) { return radians * (180.0f / PI); }
+/** Radians to degrees, through the same single rounding. */
+inline constexpr float degrees(float radians) {
+  return core::angle::degrees(radians);
+}
 
 }  // namespace sigil::draw

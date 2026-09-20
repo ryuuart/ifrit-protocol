@@ -5,6 +5,8 @@
  * Small numeric routines every geometry tool reaches for and none should
  * spell twice.
  */
+#include <sigilcore/compute/Angle.h>
+
 #include <cmath>
 #include <glm/vec2.hpp>
 #include <numbers>
@@ -16,25 +18,24 @@ namespace sigil::geometry::path {
 inline constexpr float kPi = std::numbers::pi_v<float>;
 /** A full turn: the period every angular `wrap` is taken against. */
 inline constexpr float kTau = 2.0f * kPi;
-/** Degrees to radians, written as the correctly rounded float of the exact
- *  value and not as a quotient of the rounded kPi: 180 / kPi lands one ulp
- *  below the nearest float to 180 / π, and an angle scaled by it drifts
- *  by that ulp. */
-inline constexpr float kDegToRad = 0.017453293f;
-/** Radians to degrees, rounded independently for the same reason. */
-inline constexpr float kRadToDeg = 57.29578f;
+/** Degrees to radians, and back — the ratios and the two verbs a caller
+ *  spells, which are `core::angle`'s. They stand here because an angle
+ *  is geometry's own word and a caller measuring one should not have to
+ *  reach past this header for it; they carry no arithmetic, so a contour
+ *  and a pen scale an angle by the same float. */
+inline constexpr float kDegToRad = core::angle::kDegToRad;
+/** Radians to degrees, the same single rounding. */
+inline constexpr float kRadToDeg = core::angle::kRadToDeg;
 
-/** Degrees → radians, and back — the constants above as the verb that
- *  reads at a call site: `std::cos(radians(bearingDeg))`.
- *
- *  A pair of one-line functions rather than a note telling every caller
- *  to multiply, because the multiply IS the thing that gets respelled: a
- *  hand-written `deg * 3.14159f / 180.0f` rounds twice, and a hand-written
- *  `deg / 57.29578f` is a divide by a rounded reciprocal, which is a third
- *  answer again. These are the one rounding. */
-inline constexpr float radians(float deg) { return deg * kDegToRad; }
+/** Degrees → radians, as the verb that reads at a call site:
+ *  `std::cos(radians(bearingInDegrees))`. */
+inline constexpr float radians(float degrees) {
+  return core::angle::radians(degrees);
+}
 /** Radians to degrees, through the same single rounding. */
-inline constexpr float degrees(float rad) { return rad * kRadToDeg; }
+inline constexpr float degrees(float radians) {
+  return core::angle::degrees(radians);
+}
 
 /** Locates the boundary in [lo, hi] where a predicate stops holding, by
  *  bisection: `stillNear(x)` is true on the `lo` side and false on the
