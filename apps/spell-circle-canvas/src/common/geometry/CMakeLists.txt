@@ -9,7 +9,9 @@
 # whole library. Skia-only by contract: no compose kernel, no motion,
 # no Qt.
 sigil_library_root(SigilGeometry
-  BRIEF "2D and 3D drawing over Skia: path operators, meshes, splines, point clouds")
+  BRIEF "2D and 3D drawing over Skia: path operators, meshes, splines, point clouds"
+  DOCS reference/PATH.md reference/MESH.md reference/POP.md
+       reference/KIT.md reference/DEVICE.md reference/TRAPS.md)
 
 add_subdirectory(path)
 # The device feature stands both APIs on one GPU device; it comes BEFORE
@@ -37,7 +39,10 @@ sigil_test(geometry_test
   LIBRARIES SigilGeometry)
 
 # Every API name the prose spells, compiled against the headers that own
-# it. SigilCore is scanned beside this library's own root for the chance
+# it — the README and every chapter under reference/, because a chapter
+# is the same canon as the page that links it, and the header indexes
+# the two tiers are catalogued by live there.
+# SigilCore is scanned beside this library's own root for the chance
 # source, the noise field and the PCG words the path tier agrees with,
 # and SigilSkia for the offscreen surface the device walkthrough paints
 # into; the hardware and surface headers are named as preludes because
@@ -48,6 +53,12 @@ sigil_test(geometry_test
 # the same passage says, so no consumer include path carries them.
 sigil_doc_probes(geometry
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/PATH.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/MESH.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/POP.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/KIT.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEVICE.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include
   PRELUDES "<sigilcore/hardware/GpuDevice.h>"
