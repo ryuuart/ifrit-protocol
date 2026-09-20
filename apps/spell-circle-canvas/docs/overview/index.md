@@ -74,3 +74,8 @@ for someone with no prior context and compile-checked against its
 headers. This overview layer points at them; it does not restate them.
 The generated per-library API reference sits beside this page, one site
 per library, cross-linked.
+
+One thing every library shares is how it is built, tested and measured,
+so that is written here rather than twenty times over:
+**[building and testing a library](overview:testing)**. A library's own
+README states what is true of it alone.
