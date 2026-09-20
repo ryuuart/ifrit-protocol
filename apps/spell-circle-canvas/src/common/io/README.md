@@ -334,7 +334,7 @@ Every other network case is a pre-seeded disk cache, with a stub
 transport standing in for libcurl where a fetch has to succeed or fail,
 so libcurl itself is untested by default.
 
-`io_bench` times `Hub::blob` on a cache hit, `load<T>` on a decoded view
+`io_bench` times `Hub::fetch` on a cache hit, `load<T>` on a decoded view
 per call and `resolve` per URI against the mount table — the disk kept
 out of every timed loop — and THE WIRES' OWN ARMS beside them, one per
 door with both ends of that door standing in the binary: a batch of
