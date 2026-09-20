@@ -8,7 +8,9 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <sigilsubstance/Substance.h>
+#include <sigilsubstance/graph/Graph.h>
+#include <sigilsubstance/graph/Parameter.h>
+#include <sigilsubstance/package/Package.h>
 
 #include <cstdio>
 #include <filesystem>

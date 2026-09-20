@@ -29,7 +29,8 @@
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilsubstance/Substance.h>
+#include <sigilsubstance/graph/Graph.h>
+#include <sigilsubstance/package/Package.h>
 
 #include <cstdio>
 #include <filesystem>

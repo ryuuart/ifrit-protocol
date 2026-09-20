@@ -24,8 +24,8 @@ include("${SUBSTANCE_SDK_DIR}/substance-config.cmake")
 # graphs and the engine renderer they share). They are one feature
 # because neither exists without the other — a Graph is only ever
 # constructed by its Package, and a Package is nothing but its graphs —
-# so a test of one is a test of both. <sigilsubstance/Substance.h> is
-# the umbrella over them. The package subject fills a Graph through
+# so a test of one is a test of both. The package subject fills a Graph
+# through
 # graph/GraphImpl.h, an internal header spelled by its subject directory,
 # which is why this directory is on the private include path.
 sigil_library_root(SigilSubstance
@@ -41,7 +41,7 @@ sigil_library(SigilSubstance
   SOURCES graph/Describe.cpp graph/Graph.cpp graph/GraphImpl.h
           graph/Inputs.cpp graph/Numeric.h graph/Render.cpp
           package/Package.cpp
-  HEADERS Substance.h graph/Graph.h graph/Output.h graph/Parameter.h
+  HEADERS graph/Graph.h graph/Output.h graph/Parameter.h
           package/Package.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC unofficial::skia::skia Boost::container

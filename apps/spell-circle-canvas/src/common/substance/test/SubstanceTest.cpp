@@ -9,7 +9,10 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
-#include <sigilsubstance/Substance.h>
+#include <sigilsubstance/graph/Graph.h>
+#include <sigilsubstance/graph/Output.h>
+#include <sigilsubstance/graph/Parameter.h>
+#include <sigilsubstance/package/Package.h>
 
 #include <boost/container/map.hpp>
 #include <filesystem>

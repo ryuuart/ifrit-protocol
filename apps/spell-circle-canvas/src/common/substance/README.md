@@ -21,8 +21,8 @@ over two subjects; every public header lives under
 | `graph`   | `graph/Parameter.h`, `graph/Output.h`, `graph/Graph.h` | `Parameter` and `Output`, the described inputs and outputs; `Graph`, one graph described, changed, cooked and read |
 | `package` | `package/Package.h` | `Package`, the loaded archive that owns its graphs and the engine renderer they share, and `Package::engineVersion()`, the engine's own version string for a diagnostic |
 
-`<sigilsubstance/Substance.h>` is the umbrella header over both. The two
-subjects are one target because neither exists without the other: a
+The two subjects are one target because neither exists without the
+other: a
 `Graph` is only ever constructed by its `Package`, and a `Package` is
 nothing but its graphs, so a test of one is a test of both.
 
@@ -31,7 +31,8 @@ nothing but its graphs, so a test of one is a test of both.
 ```cpp
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/texture/TextureSet.h>
-#include <sigilsubstance/Substance.h>
+#include <sigilsubstance/graph/Graph.h>
+#include <sigilsubstance/package/Package.h>
 
 using namespace sigil;
 
