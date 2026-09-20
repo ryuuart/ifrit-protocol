@@ -435,9 +435,7 @@ class Catalogue:
                 )
                 entity.python = self._spelling(held[0])
             declaration = (
-                self.surface.declaration(self._native(entity.python))
-                if entity.python
-                else None
+                self.surface.declaration(entity.python) if entity.python else None
             )
             if declaration is not None:
                 entity.python_signatures = declaration.signatures
@@ -494,7 +492,7 @@ class Catalogue:
             return None
         if not spelling or not library:
             return None
-        declaration = self.surface.declaration(self._native(spelling))
+        declaration = self.surface.declaration(spelling)
         if declaration is None:
             return None
         return model.Entity(
@@ -555,12 +553,6 @@ class Catalogue:
             for entity in group:
                 entity.page_name = self.display(entity.qualified, entity.library)
 
-    def _native(self, public: str) -> str:
-        for target, spelling in self.surface.spellings.items():
-            if spelling == public:
-                return target
-        return public
-
     def _spelling(self, binding) -> str:
         """What an author types for the entity this binding names.
 
@@ -587,8 +579,8 @@ class Catalogue:
         """The public path of a name, when exactly one module offers it."""
         found = [
             spelling
-            for target, spelling in self.surface.spellings.items()
-            if target.rsplit(".", 1)[-1] == name and spelling.count(".") <= 2
+            for spelling in self.surface.paths
+            if spelling.rsplit(".", 1)[-1] == name and spelling.count(".") <= 2
         ]
         return found[0] if len(found) == 1 else ""
 
@@ -614,9 +606,7 @@ class Catalogue:
     def _enumeration_property(self, declaration) -> bool:
         if declaration.name not in ("name", "value") or not declaration.owner:
             return False
-        holder = self.surface.native.get(declaration.module) or self.surface.public.get(
-            declaration.module
-        )
+        holder = self.surface.public.get(declaration.module)
         # An enumeration pybind11 bound carries the members table it
         # writes, and nothing a person declares carries that name.
         return (

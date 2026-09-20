@@ -232,11 +232,10 @@ class Composer:
         return "\n\n".join(lines)
 
     def _python_member(self, member: str) -> str:
-        roles = self.catalogue.roles
-        native = roles.native_path(member)
-        if not native:
-            return member
-        return self.catalogue.surface.public_of(native) or member
+        # A union member is written as the path an author imports it by,
+        # so a type is already spelled and a plain one has nothing to
+        # spell.
+        return member
 
     def members(self, entity: model.Entity) -> str:
         rows = [

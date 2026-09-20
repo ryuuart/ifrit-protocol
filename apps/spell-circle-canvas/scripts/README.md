@@ -159,7 +159,7 @@ network and every other port still downloads normally.
 ## Formatting and linting — `check`
 
 One command covering clang-format (Google C++ style, stock), ruff (lint
-and format for Python source and handwritten type stubs) and qmllint.
+and format for Python source) and qmllint.
 THE DEFAULT SCOPE IS THE BRANCH'S WORK:
 everything this branch changed since it left `main`, committed or not,
 plus untracked files that are not ignored — work is committed freely and
@@ -177,11 +177,13 @@ than passing it. clang-format rides the Xcode toolchain through
 `xcrun`, qmllint the Qt prefix the setup verb recorded, ruff comes from
 `brew install ruff`.
 
-Generated FlatBuffers sources, `vcpkg_installed/`, and the generated native
-Python stub tree are excluded by `EXCLUDED_FRAGMENTS` in the verb, including
-when explicitly named on the command line. `ruff.toml` also excludes the
-generated Python sources and stubs for direct Ruff invocations. The native
-stub generator owns their formatting and its drift check verifies them.
+Generated FlatBuffers sources and `vcpkg_installed/` are excluded by
+`EXCLUDED_FRAGMENTS` in the verb, including when explicitly named on the
+command line. `ruff.toml` also excludes the generated Python sources and
+the declaration generator's addition fragments, which are completed by
+the re-exports spliced above them. The Python package's own modules are
+generated too, and the generator owns their formatting; its drift check
+verifies them.
 
 `--docs` adds a fourth tier, and it is the one tier that is OPT-IN: it
 parses the scoped libraries with Doxygen and reports every comment that
@@ -675,8 +677,8 @@ by what a thing IS, with an index per kind — and what do I make to pass
 to it, which is a page per value carrying what makes one, everywhere
 one is taken, and everything that hands one back, gathered across every
 library rather than inside one. It reads the XML, the Python
-declaration stubs under `apps/python/sigil`, and the `.def` calls in
-the binding sources, and joins the three so that one page carries both
+declarations the package's extension writes beside itself under
+`build/python/sigil`, and the `.def` calls in the binding sources, and joins the three so that one page carries both
 spellings and a badge when they diverge. Nothing in it runs Doxygen:
 `--reference-only` writes the layer alone from an inventory an earlier
 run left behind, which is the loop while prose is moving, and with no

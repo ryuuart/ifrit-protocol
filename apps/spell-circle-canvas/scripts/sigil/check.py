@@ -41,7 +41,6 @@ TRUNK = "main"
 EXCLUDED_FRAGMENTS = (
     "SpellCircle_generated",
     "vcpkg_installed/",
-    "apps/python/sigil/stubs/",
 )
 
 

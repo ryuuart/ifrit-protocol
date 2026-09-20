@@ -105,10 +105,15 @@ def collect(run) -> dict:
         )
 
     for spelling, _ in run.catalogue.unbound_python():
-        add("Bindings", "unbound python", spelling, "declared in the stubs, no page")
+        add(
+            "Bindings",
+            "unbound python",
+            spelling,
+            "declared in the package, no page",
+        )
 
     for library, entity, name in _python_names(run):
-        add(library, "unresolved link", entity, f"`{name}` is not in the stub tree")
+        add(library, "unresolved link", entity, f"`{name}` is not declared")
 
     for stem, why in run.examples.failures:
         add("Examples", "no example", stem, why)
@@ -117,10 +122,9 @@ def collect(run) -> dict:
 
 
 def _python_names(run) -> list:
-    """Every Sigil path a page spells, checked against the stubs."""
+    """Every Sigil path a page spells, checked against the declarations."""
     found = []
-    surface = run.catalogue.surface
-    known = set(surface.spellings.values())
+    known = set(run.catalogue.surface.paths)
     for entity in run.catalogue.entities:
         page = entity.page
         if page is None:

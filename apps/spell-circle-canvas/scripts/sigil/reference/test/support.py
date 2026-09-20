@@ -219,10 +219,11 @@ INDEX = """<?xml version='1.0' encoding='UTF-8' standalone='no'?>
 <doxygenindex version="1.18.0"/>
 """
 
-STUB = """
+DECLARATIONS = """
 from __future__ import annotations
 import typing
-__all__: list[str] = ['Brush', 'Ink', 'Wash', 'Cap', 'brush', 'hexInk']
+import sigil._types as _t
+__all__: list[str] = ['Brush', 'Cap', 'Ink', 'Wash', 'brush', 'hex_ink']
 
 class Brush:
 
@@ -263,28 +264,30 @@ class Cap:
 def brush() -> Brush:
     ...
 
-def hexInk(packed: typing.SupportsInt) -> Ink:
+def hex_ink(packed: typing.SupportsInt) -> Ink:
     ...
 """
 
-PUBLIC = """
-from _sigil.paint import (
-    Brush,
-    Cap,
-    Ink,
-    brush,
-)
-from _sigil.paint import (
-    hexInk as hex_ink,
-)
+# The package's own table, as the reference layer reads it off disk.
+SURFACE = """
+PUBLIC_MODULES = {"_sigil.paint": "sigil.paint"}
+RENAMES = {"sigil.paint": {"hexInk": "hex_ink"}}
+
+
+def public_module(raw):
+    return PUBLIC_MODULES[raw]
+
+
+def public_name(public, name):
+    return RENAMES.get(public, {}).get(name, name)
 """
 
 ROLES = """
 from typing import TypeAlias
-from _sigil import paint
+import sigil.paint
 
 ColorLike: TypeAlias = str | tuple[float, float, float]
-InkLike: TypeAlias = ColorLike | paint.Ink
+InkLike: TypeAlias = ColorLike | sigil.paint.Ink
 """
 
 BINDING = """
@@ -418,18 +421,17 @@ class Tree(unittest.TestCase):
         (self.root / "templates").mkdir()
 
         package = self.root / "package"
-        (package / "stubs" / "_sigil" / "paint").mkdir(parents=True)
-        (package / "stubs" / "_sigil" / "paint" / "__init__.pyi").write_text(
-            textwrap.dedent(STUB)
-        )
-        (package / "stubs" / "_sigil" / "__init__.pyi").write_text(
-            "from . import paint\n__all__: list[str] = ['paint']\n"
-        )
-        (package / "sigil").mkdir(parents=True)
-        (package / "sigil" / "paint.pyi").write_text(textwrap.dedent(PUBLIC))
         (package / "typing").mkdir(parents=True)
-        (package / "typing" / "_types.pyi").write_text(textwrap.dedent(ROLES))
+        (package / "typing" / "surface.py").write_text(textwrap.dedent(SURFACE))
         self.package = package
+        declarations = self.root / "declarations" / "sigil"
+        declarations.mkdir(parents=True)
+        (declarations / "paint.pyi").write_text(textwrap.dedent(DECLARATIONS))
+        (declarations / "__init__.pyi").write_text(
+            "from . import paint as paint\n__all__: list[str] = ['paint']\n"
+        )
+        (declarations / "_types.pyi").write_text(textwrap.dedent(ROLES))
+        self.declarations = declarations
 
         sources = self.root / "bindings"
         sources.mkdir()
@@ -441,7 +443,7 @@ class Tree(unittest.TestCase):
 
         with lowered_floor(node):
             inventories = doxygen_xml.read(self.root / "work", ["SigilPaint"])
-        surface, roles = python_stubs.read(self.package)
+        surface, roles = python_stubs.read(self.package, self.declarations)
         return catalogue.Catalogue(
             inventories, surface, roles, bindings.read(self.sources)
         )
@@ -451,7 +453,12 @@ class Tree(unittest.TestCase):
         from sigil.reference.build import Build, Options
 
         manifest = Manifest(self.root, self.source)
-        options = Options(package=self.package, binding_sources=self.sources, **asked)
+        options = Options(
+            package=self.package,
+            declarations=self.declarations,
+            binding_sources=self.sources,
+            **asked,
+        )
         run = Build(manifest, options)
         with lowered_floor(True):
             self.assertTrue(run.read())

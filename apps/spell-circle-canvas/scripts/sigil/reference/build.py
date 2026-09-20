@@ -39,6 +39,7 @@ class Options:
     """What one reference build was asked for."""
 
     package: Path
+    declarations: Path
     binding_sources: list
     example_images: bool = False
     report: bool = False
@@ -80,7 +81,7 @@ class Build:
         self.missing = [name for name in wanted if name not in inventories]
         for name in self.missing:
             print(f"note: no inventory for {name} — its pages are not written")
-        surface, roles = python_surface(self.options.package)
+        surface, roles = python_surface(self.options.package, self.options.declarations)
         bound = bindings.read(self.options.binding_sources)
         self.catalogue = catalogue_module.Catalogue(inventories, surface, roles, bound)
         self.graph = graph_module.Graph(self.catalogue)
@@ -591,10 +592,10 @@ def read_page(path: Path) -> model.Page:
     )
 
 
-def python_surface(package: Path):
+def python_surface(package: Path, declarations: Path):
     from sigil.reference import python_stubs
 
-    return python_stubs.read(package)
+    return python_stubs.read(package, declarations)
 
 
 def generate(manifest, options: Options) -> int:

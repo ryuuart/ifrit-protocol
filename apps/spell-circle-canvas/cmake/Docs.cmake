@@ -145,6 +145,9 @@ function(sigil_finalize_docs)
   # Everything used to produce them: the rendered Doxyfiles, the tag
   # files, the theme, the generated header.
   string(APPEND manifest "work=${CMAKE_BINARY_DIR}/docs-build\n")
+  # The Python package's declarations, written when its extension is
+  # built. They carry both the signatures and the spellings a page shows.
+  string(APPEND manifest "declarations=${CMAKE_BINARY_DIR}/python/sigil\n")
   # Doxyfile.in, the stylesheet and the container files the verb renders
   # from.
   string(APPEND manifest "templates=${SIGIL_DOCS_TEMPLATE_DIR}\n")

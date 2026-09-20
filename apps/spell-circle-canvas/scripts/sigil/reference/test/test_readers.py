@@ -43,7 +43,7 @@ class APublicSpellingWinsOverTheNativeOne(Tree):
     def test(self) -> None:
         from sigil.reference import python_stubs
 
-        surface, _ = python_stubs.read(self.package)
+        surface, _ = python_stubs.read(self.package, self.declarations)
         self.assertEqual(surface.public_of("_sigil.paint.Brush"), "sigil.paint.Brush")
         self.assertEqual(
             surface.public_of("_sigil.paint.Brush.tint"), "sigil.paint.Brush.tint"
@@ -64,13 +64,13 @@ class ARoleUnionExpandsThroughItsNesting(Tree):
     def test(self) -> None:
         from sigil.reference import python_stubs
 
-        _, roles = python_stubs.read(self.package)
+        _, roles = python_stubs.read(self.package, self.declarations)
         self.assertEqual(
             roles.expand("InkLike"),
-            ["ColorLike", "str", "tuple[float, float, float]", "paint.Ink"],
+            ["ColorLike", "str", "tuple[float, float, float]", "sigil.paint.Ink"],
         )
-        self.assertEqual(roles.native_path("paint.Ink"), "_sigil.paint.Ink")
-        self.assertEqual(roles.containing("_sigil.paint.Ink"), ["InkLike"])
+        self.assertEqual(roles.path_of("sigil.paint.Ink"), "sigil.paint.Ink")
+        self.assertEqual(roles.containing("sigil.paint.Ink"), ["InkLike"])
 
 
 class ABindingScanTellsTheThreeShapesApart(Tree):

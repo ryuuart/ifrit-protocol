@@ -212,6 +212,7 @@ class Manifest:
         self.warn_undocumented = settings["warn_undocumented"]
         self.root = Path(settings["docs_root"])
         self.work = Path(settings["work"])
+        self.declarations = Path(settings["declarations"])
         self.templates = Path(settings["templates"])
 
     def find(self, name: str) -> Library:
@@ -631,11 +632,12 @@ def stage_container(manifest: Manifest) -> None:
         shutil.copyfile(manifest.templates / name, manifest.root / staged)
 
 
-def reference_options(arguments) -> reference.Options:
+def reference_options(manifest: Manifest, arguments) -> reference.Options:
     """What the reference layer is asked for, from the verb's flags."""
     application = Path(__file__).resolve().parents[2]
     return reference.Options(
         package=application.parent / "python" / "sigil",
+        declarations=manifest.declarations,
         binding_sources=[
             application / "src" / "common" / "python",
             application / "src" / "sketch" / "python",
@@ -663,7 +665,7 @@ def generate(manifest_path: Path, arguments) -> int:
 
     code = 0
     if arguments.reference:
-        code = reference.generate(manifest, reference_options(arguments))
+        code = reference.generate(manifest, reference_options(manifest, arguments))
     if libraries:
         return code
     write_index(manifest)

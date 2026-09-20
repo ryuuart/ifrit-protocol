@@ -196,20 +196,20 @@ class Graph:
         roles = self.catalogue.roles
         for alias in roles.members:
             for member in roles.members[alias]:
-                native = roles.native_path(member)
-                if not native:
+                path = roles.path_of(member)
+                if not path:
                     continue
-                qualified = self._from_python(native)
+                qualified = self._from_python(path)
                 if not qualified:
                     continue
                 for other in roles.expand(alias):
-                    if other in roles.members or roles.native_path(other) == native:
+                    if other in roles.members or roles.path_of(other) == path:
                         continue
                     self._add(
                         self.made,
                         qualified,
                         model.Site(
-                            label=self._python_spelling(other, roles),
+                            label=other,
                             kind="value",
                             library="",
                             language="python",
@@ -217,15 +217,8 @@ class Graph:
                         ),
                     )
 
-    def _python_spelling(self, member: str, roles) -> str:
-        native = roles.native_path(member)
-        if not native:
-            return member
-        return self.catalogue.surface.public_of(native) or f"sigil.{member}"
-
-    def _from_python(self, native: str) -> str:
-        """The C++ type a native Python path names."""
-        spelling = self.catalogue.surface.public_of(native) or native
+    def _from_python(self, spelling: str) -> str:
+        """The C++ type one Python path names."""
         for entity in self.catalogue.entities:
             if entity.python == spelling:
                 return entity.qualified
