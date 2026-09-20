@@ -1042,6 +1042,20 @@ implementations of the same dispatch seams.
   named rather than assumed, because a cloud may carry `"Tex"` for the
   stamping path while its splats are meant to be one sprite.
 
+  **A cloud is ONE DRAW.** The splats of one call share a sheet and a
+  blend mode, so they go down as a single sprite-atlas batch in depth
+  order: the cell, the tint and the size are per sprite rather than per
+  draw, and a dense cloud costs the canvas one draw instead of one per
+  point — which is what a backend that must break its render pass at
+  every additive draw charges for. The splat stays square whatever the
+  aspect of the cell it takes. Because one shader samples the whole
+  sheet, a cell's coordinates are pulled half a texel in so a linear
+  filter cannot reach the cell next door, which holds while a splat is
+  near the size of its cell: a sheet whose cells are meant to be sampled
+  to their very edge wants a one-texel gutter, and a sheet seen far
+  smaller than its cells is read from a mip level of the whole sheet,
+  where the boundaries are averaged over whatever the gutter.
+
   **A modifier is its operator without a chain.** `jitter()` runs the
   `Jitter` operator's own kernel over the positions and
   `displaceNoise()` reads the field `Noise` displaces by
@@ -1876,7 +1890,7 @@ suite's file sits in the feature it covers.
 | `kit/test/` — `SilhouettesTest`, `ShapersTest`, `HatchesTest`, `DivisionsTest`, `SolidsTest` | the shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, the hatch door taking an outline and giving one back with the lattice and the offset behind it, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled, and each regular solid counted by its own faces, closed on itself (V - E + F = 2), equal-edged and stood on a chosen face |
 | `mesh/curve/test/CurveTest` | splines, the two rails, the pose read along them, and the projection to a 2D path |
 | `mesh/render/test/` — `PainterTest`, `RuntimeTest`, `ShadingTest` | the mesh draw's pixels and the normals G-buffer's encoding; the draw's runtime seam; and each shading term against the closed form a device shader's own spelling of it is held to |
-| `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopNeighboursTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the lanes a chain carries and the dials that address them by name, the operators that read points they do not own — a relaxation pushing a scatter apart and stopping, a clustering grouping it in the metric its weights name, a transfer carrying a lane over from another cloud, and the connection sink answering the pairs near enough to join — each declined by name on a device runtime, naming a subset and acting on it, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
+| `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopNeighboursTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the splat as one canvas draw however many points and however many cells the cloud carries — with that draw keeping the back-to-front order, each point's own tint, size and atlas cell with no neighbouring cell bleeding into it, the square splat a cell of any aspect draws, the requested blend where two splats overlap, and every splat across the batch's chunk boundary, the lanes a chain carries and the dials that address them by name, the operators that read points they do not own — a relaxation pushing a scatter apart and stopping, a clustering grouping it in the metric its weights name, a transfer carrying a lane over from another cloud, and the connection sink answering the pairs near enough to join — each declined by name on a device runtime, naming a subset and acting on it, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
 | `mesh/codec/test/` — `ObjTest`, `GltfTest`, `StlTest`, `PlyTest`, `AlembicTest`, `GeoTest`, `ModelTest`, `EncodeTest` | one file per format, plus the Model operations over whatever reader made it and both writers' return leg. The only binary linking Alembic |
 | `device/test/DeviceTest` | one device end to end: Graphite draws on the very queue Diligent submits through, the adopted device names every Vulkan handle, and Diligent still drives it afterwards |
 | `device/residency/test/ResidencyTest` | what the device keeps between draws: a named mesh crossing once and drawn from after, a nameless one written through the streaming pair, the depth of an uploaded map's chain, and the letting go that keeps a scene from holding everything it ever cooked |
