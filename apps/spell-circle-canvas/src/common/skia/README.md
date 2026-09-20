@@ -380,7 +380,10 @@ of that texture, which is the mip chain the sampling wants: a sheet
 sampled with mipmaps promotes with them, so a minified sprite reads the
 same on a Graphite canvas as it does on a raster one, and the provider's
 key carries the request so the two promotions do not displace each
-other. Each recorder created by `GraphiteContext`
+other. A requirement never costs the draw: a format that cannot carry a
+generated chain promotes without one, because a draw left holding a
+raster image on a Graphite canvas is dropped altogether. Each recorder
+created by `GraphiteContext`
 owns its provider; replacing a recorder also replaces its retained images.
 Callers hand over the canvas and image without any cache storage. An
 image provider that cannot supply a texture falls back to an uncached

@@ -213,9 +213,14 @@ struct BillboardStyle {
    *  image.
    *
    *  THE SHEET WANTS A GUTTER. One batch samples the whole sheet through
-   *  one shader, so a cell is taken half a texel inside its window to
-   *  keep the linear filter off the cell next door: a sheet whose
-   *  sprites run to their cell edges loses that half texel. A cell
+   *  one shader, so a cell is taken half a texel inside its window,
+   *  which keeps the linear filter off the cell next door at the size
+   *  the sheet is authored for: a sheet whose sprites run to their cell
+   *  edges loses that half texel. Splats minified far below their cell
+   *  read from a mip level of the WHOLE sheet, whose texels already
+   *  average over the cell boundaries, so no gutter holds the
+   *  neighbours out down there; a sheet meant to be seen that small
+   *  wants cells that stay legible when they blur together. A cell
    *  narrower than the inset is not drawn at all. */
   std::string textureLane;
   glm::vec4 tint = {1, 1, 1, 1};

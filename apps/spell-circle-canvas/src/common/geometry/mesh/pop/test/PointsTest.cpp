@@ -158,12 +158,13 @@ TEST(Points, AppendPadsLanesWithConventionalDefaults) {
 
 namespace {
 
-/** A FLAT sprite: one opaque white square. The default soft dot fades to
- *  nothing at its rim, so every assertion about a colour would be an
- *  assertion about a threshold; a flat sprite carries its tint exactly. */
-sk_sp<SkImage> flatSprite(int edge = 32) {
+/** A FLAT sprite: one opaque white rectangle, square unless asked
+ *  otherwise. The default soft dot fades to nothing at its rim, so every
+ *  assertion about a colour would be an assertion about a threshold; a
+ *  flat sprite carries its tint exactly. */
+sk_sp<SkImage> flatSprite(int width = 32, int height = 32) {
   SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::MakeN32Premul(edge, edge));
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(width, height));
   bitmap.eraseColor(SK_ColorWHITE);
   bitmap.setImmutable();
   return bitmap.asImage();
@@ -397,18 +398,70 @@ TEST(Points, EverySplatTakesItsOwnSizeFromTheLane) {
 
   Plate plate;
   points::drawBillboards(plate.canvas(), cloud, camera, {200, 200}, style);
-  const std::optional<SkPoint> centre =
+  const std::optional<SkPoint> narrowAt =
       camera.project(cloud.positions[0], {200, 200});
-  ASSERT_TRUE(centre);
+  const std::optional<SkPoint> wideAt =
+      camera.project(cloud.positions[1], {200, 200});
+  ASSERT_TRUE(narrowAt && wideAt);
   const SkBitmap pixels = plate.pixels();
-  const int row = (int)std::lround(centre->fY);
+  const int row = (int)std::lround(narrowAt->fY);
   int narrow = 0, wide = 0;
   for (int x = 0; x < 200; ++x)
     if (SkColorGetR(pixels.getColor(x, row)) > 128) ++(x < 100 ? narrow : wide);
+  const auto down = [&](const SkPoint& at) {
+    int lit = 0;
+    for (int y = 0; y < 200; ++y)
+      if (SkColorGetR(pixels.getColor((int)std::lround(at.fX), y)) > 128) ++lit;
+    return lit;
+  };
+  // BOTH AXES, because the lane scales a splat as a square: a width read
+  // on its own cannot tell that from a splat stretched along one axis.
   // An edge pixel the splat only partly covers may fall either side of
   // the threshold, which is the whole of the tolerance.
   EXPECT_NEAR(narrow, 20, 1);
   EXPECT_NEAR(wide, 40, 1);
+  EXPECT_NEAR(down(*narrowAt), 20, 1);
+  EXPECT_NEAR(down(*wideAt), 40, 1);
+}
+
+TEST(Points, ASplatIsSquareWhateverTheAspectOfItsCell) {
+  // A cell need not be square — a sheet wider than it is tall, or an
+  // atlas grid with more columns than rows — but the splat it draws is.
+  // The batch's uniform scale answers the cell's width and its size lane
+  // answers the height, so a batch that dropped the lane draws this
+  // sprite four times as wide as it is tall.
+  camera::Camera camera;
+  camera.eye = {0, 0, 200};
+  Cloud cloud;
+  cloud.positions = {{0, 0, 0}};
+  cloud.color("Tex") = {{0.0f, 0.0f, 0.5f, 1.0f}};  // the sheet's left half
+  points::BillboardStyle style;
+  style.sprite = flatSprite(64, 16);
+  style.size = 40;
+  style.additive = false;
+  style.perspective = false;
+
+  const auto extent = [&](const std::string& lane) {
+    style.textureLane = lane;
+    Plate plate;
+    points::drawBillboards(plate.canvas(), cloud, camera, {200, 200}, style);
+    const SkBitmap pixels = plate.pixels();
+    int across = 0, down = 0;
+    for (int i = 0; i < 200; ++i) {
+      if (SkColorGetR(pixels.getColor(i, 100)) > 128) ++across;
+      if (SkColorGetR(pixels.getColor(100, i)) > 128) ++down;
+    }
+    return std::pair{across, down};
+  };
+  // The whole sheet as one four-to-one cell...
+  const auto [wholeAcross, wholeDown] = extent("");
+  EXPECT_NEAR(wholeAcross, 40, 1);
+  EXPECT_NEAR(wholeDown, 40, 1);
+  // ...and a two-to-one window of it, which the half-texel inset leaves
+  // unsquare as well.
+  const auto [windowAcross, windowDown] = extent("Tex");
+  EXPECT_NEAR(windowAcross, 40, 1);
+  EXPECT_NEAR(windowDown, 40, 1);
 }
 
 TEST(Points, AdditiveSplatsAccumulateWhereTheyOverlap) {

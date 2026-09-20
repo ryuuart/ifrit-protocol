@@ -137,7 +137,10 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
     // by pulling its coordinates half a texel in: a linear filter at a
     // cell edge would otherwise reach the neighbouring cell and bleed one
     // sprite into the next. A sheet taken whole has no neighbour to reach.
-    // A cell thinner than the inset is no cell at all and is dropped.
+    // The inset answers the sheet's own texels and so holds while a splat
+    // is near its cell's size; a splat minified far below it reads a mip
+    // level of the whole sheet, which has averaged across the boundaries
+    // already. A cell thinner than the inset is no cell at all, dropped.
     if (splat.window != glm::vec4{0, 0, 1, 1}) cell.inset(0.5f, 0.5f);
     if (cell.isEmpty()) continue;
     if (cell.width() != cell.height()) anyCellNotSquare = true;

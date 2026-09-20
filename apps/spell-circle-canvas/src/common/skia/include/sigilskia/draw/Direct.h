@@ -48,15 +48,26 @@ namespace sigil::skia::draw {
  *  @p required is what the draw needs of the texture — a mip chain, above
  *  all. A promotion that dropped the request would sample a minified sheet
  *  from its top level alone, which is where a raster canvas and a Graphite
- *  one stop agreeing. */
+ *  one stop agreeing.
+ *
+ *  A REQUIREMENT IS NEVER WORTH THE DRAW. A format that cannot carry a
+ *  generated chain promotes without one rather than not at all: a draw
+ *  left holding a raster image on a Graphite canvas is dropped for want
+ *  of a texture, so insisting would trade a sheet filtered from its top
+ *  level for no sheet at all. */
 inline sk_sp<SkImage> ready(SkCanvas& canvas, sk_sp<SkImage> img,
                             SkImage::RequiredProperties required = {}) {
   skgpu::graphite::Recorder* recorder = canvas.recorder();
   if (!recorder || !img || img->isTextureBacked()) return img;
-  sk_sp<SkImage> texture = recorder->clientImageProvider()->findOrCreate(
-      recorder, img.get(), required);
-  if (!texture)
-    texture = SkImages::TextureFromImage(recorder, img.get(), required);
+  const auto promote = [&](SkImage::RequiredProperties properties) {
+    sk_sp<SkImage> texture = recorder->clientImageProvider()->findOrCreate(
+        recorder, img.get(), properties);
+    if (!texture)
+      texture = SkImages::TextureFromImage(recorder, img.get(), properties);
+    return texture;
+  };
+  sk_sp<SkImage> texture = promote(required);
+  if (!texture && required.fMipmapped) texture = promote({});
   return texture ? std::move(texture) : std::move(img);
 }
 
