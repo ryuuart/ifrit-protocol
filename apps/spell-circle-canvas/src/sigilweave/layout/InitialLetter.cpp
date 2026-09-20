@@ -78,12 +78,20 @@ float InitialLetterPlan::notchAt(int band) const {
 }
 
 InitialLetterPlan planInitialLetter(FontContext& fontContext,
-                                    const Paragraph& paragraph,
-                                    const Block& block,
+                                    Paragraph& paragraph, const Block& block,
                                     const Paragraph::Strut& strut) {
   InitialLetterPlan plan;
   const InitialLetter& asked = block.style.initial;
   if (asked.lines <= 0 || asked.graphemes == 0) return plan;
+  // THE OPENING WORD IS READ HERE AND NOT MERELY ADDRESSED. The glue after
+  // it and the span its segments were shaped under are both filled in by
+  // shaping, and an unshaped word answers no glue and no segment at all —
+  // which would take the space between the split word and the one after it
+  // out of the band the following words are set in, and set the cap in the
+  // first span of the text rather than in its own. The frontier is brought
+  // to the word before anything is read off it; it is ascending and
+  // idempotent, so a pass that already shaped this far spends nothing.
+  paragraph.ensureShapedTo(fontContext, block.firstWord + 1);
   const std::vector<Word>& words = paragraph.words();
   if (block.firstWord >= words.size()) return plan;
   const Word& opening = words[block.firstWord];

@@ -38,6 +38,42 @@ const std::u8string& passage() {
   return text;
 }
 
+/// A passage whose opening word is split by a three-line initial and whose
+/// second word follows it on the same line, which is where the glue after
+/// the split word is read or lost.
+const std::u8string& opening() {
+  static const std::u8string text =
+      u8"When the first words set the tone, the reader finds a way into "
+      u8"the page. An opening can carry a quiet initial, a change of "
+      u8"voice, or a mark at the margin.";
+  return text;
+}
+
+/// The run holding what is left of the word the initial split — the one run
+/// of the opening word that is not the cap, which stands on the initial's
+/// own baseline.
+const PositionedRun* remainderRun(const ParagraphLayout& layout,
+                                  uint32_t openingWord) {
+  for (const PositionedRun& run : layout.runs)
+    if (run.wordIndex == openingWord && run.origin != layout.initial.baseline)
+      return &run;
+  return nullptr;
+}
+
+/// The first run of a word, in the order the runs were placed.
+const PositionedRun* runOfWord(const ParagraphLayout& layout,
+                               uint32_t wordIndex) {
+  for (const PositionedRun& run : layout.runs)
+    if (run.wordIndex == wordIndex) return &run;
+  return nullptr;
+}
+
+/// The advance between the end of one run and the start of the next, along
+/// the reading axis of a horizontal line.
+float gapBetween(const PositionedRun& before, const PositionedRun& after) {
+  return after.origin.x() - (before.origin.x() + before.advance);
+}
+
 }  // namespace
 
 TEST(InitialLetter, TheNotchIsAsManyBandsDeepAsTheInitialSinks) {
@@ -371,4 +407,122 @@ TEST(InitialLetter, TheLineTheCapStandsOnKeepsItsOwnBand) {
   EXPECT_LT(lines[0].ascent, layout.initial.fontSize * 0.5f);
   // The cap's own reach is reported where a caller looks for it.
   EXPECT_GT(layout.initial.box.height(), layout.linePitch * 2.0f);
+}
+
+TEST(InitialLetter, TheSpaceAfterTheSplitWordSurvives) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(opening(), 14.0f);
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+  ParagraphLayoutOptions options;
+  ParagraphStyle style;
+  style.initial = {.lines = 3, .margin = 8.0f};
+  options.blocks = {style};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+
+  ASSERT_TRUE(layout.initial.placed);
+  const PositionedRun* remainder = remainderRun(layout, 0);
+  const PositionedRun* second = runOfWord(layout, 1);
+  ASSERT_NE(remainder, nullptr);
+  ASSERT_NE(second, nullptr);
+  ASSERT_FALSE(paragraph.words().empty());
+  // The initial took "W" and the remainder is "hen"; the word after it
+  // stands one space along, and that space is the opening word's own glue.
+  const float glue = paragraph.words()[0].spaceWidth;
+  EXPECT_GT(glue, 0.0f) << "the opening word carries trailing whitespace";
+  EXPECT_NEAR(gapBetween(*remainder, *second), glue, 0.5f);
+}
+
+TEST(InitialLetter, TheSameParagraphLaidOutTwiceOpensTheSameFirstLine) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(opening(), 14.0f);
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+  ParagraphLayoutOptions options;
+  ParagraphStyle style;
+  style.initial = {.lines = 3, .margin = 8.0f};
+  options.blocks = {style};
+
+  // Nothing between the two passes changes the paragraph, so nothing
+  // about the second answer may differ from the first — including what
+  // the second pass finds already shaped and the first had to ask for.
+  const ParagraphLayout first =
+      layoutParagraph(fonts, paragraph, flow, options);
+  const ParagraphLayout again =
+      layoutParagraph(fonts, paragraph, flow, options);
+
+  const std::vector<float> firstStarts = lineStarts(first);
+  const std::vector<float> againStarts = lineStarts(again);
+  ASSERT_EQ(firstStarts.size(), againStarts.size());
+  for (size_t line = 0; line < firstStarts.size(); ++line)
+    EXPECT_NEAR(firstStarts[line], againStarts[line], 0.01f)
+        << "line " << line;
+  ASSERT_EQ(first.runs.size(), again.runs.size());
+  for (size_t index = 0; index < first.runs.size(); ++index) {
+    if (first.runs[index].lineIndex != 0) continue;
+    EXPECT_EQ(first.runs[index].wordIndex, again.runs[index].wordIndex);
+    EXPECT_NEAR(first.runs[index].origin.x(), again.runs[index].origin.x(),
+                0.01f)
+        << "run " << index;
+  }
+}
+
+TEST(InitialLetter, TheRemainderOfTheOpeningLineSetsAsAnOrdinaryParagraphDoes) {
+  FontContext& fonts = sigil::test::fonts();
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+
+  Paragraph plain = makeParagraph(opening(), 14.0f);
+  ParagraphLayoutOptions plainOptions;
+  const ParagraphLayout ordinary =
+      layoutParagraph(fonts, plain, flow, plainOptions);
+  const PositionedRun* plainFirst = runOfWord(ordinary, 0);
+  const PositionedRun* plainSecond = runOfWord(ordinary, 1);
+  ASSERT_NE(plainFirst, nullptr);
+  ASSERT_NE(plainSecond, nullptr);
+
+  Paragraph dropped = makeParagraph(opening(), 14.0f);
+  ParagraphLayoutOptions options;
+  ParagraphStyle style;
+  style.initial = {.lines = 3, .margin = 8.0f};
+  options.blocks = {style};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, dropped, flow, options);
+  const PositionedRun* remainder = remainderRun(layout, 0);
+  const PositionedRun* second = runOfWord(layout, 1);
+  ASSERT_TRUE(layout.initial.placed);
+  ASSERT_NE(remainder, nullptr);
+  ASSERT_NE(second, nullptr);
+
+  // The same face, the same size and the same measure: an initial changes
+  // where the words stand and not how far apart they read.
+  EXPECT_NEAR(gapBetween(*remainder, *second),
+              gapBetween(*plainFirst, *plainSecond), 0.5f);
+}
+
+TEST(InitialLetter, TheCapTakesTheStyleItsOwnWordIsSetIn) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph;
+  paragraph.appendText(u8"The block above runs on for several words so "
+                       u8"that it wraps and ends.\n",
+                       sigil::weave::test::basicStyle(14.0f));
+  paragraph.appendText(opening(), sigil::weave::test::basicStyle(18.0f));
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+  ParagraphLayoutOptions options;
+  ParagraphStyle above;
+  ParagraphStyle dropped;
+  dropped.initial = {.lines = 3, .margin = 8.0f};
+  options.blocks = {above, dropped};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+
+  ASSERT_TRUE(layout.initial.placed);
+  const PositionedRun* cap = nullptr;
+  for (const PositionedRun& run : layout.runs)
+    if (run.origin == layout.initial.baseline) cap = &run;
+  ASSERT_NE(cap, nullptr);
+  // The cap is set in the voice of the word it was taken from, which is
+  // the second span here and the first span in every single-voice text.
+  EXPECT_EQ(cap->styleIndex, 1u);
+  const PositionedRun* remainder = remainderRun(layout, cap->wordIndex);
+  ASSERT_NE(remainder, nullptr);
+  EXPECT_EQ(remainder->styleIndex, 1u);
 }

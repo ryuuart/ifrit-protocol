@@ -509,10 +509,13 @@ struct InitialLetterPlan {
 
 // Resolves the sizing rule against the block's own pitch and strut and
 // shapes the initial. Answers an inactive plan when the block declares
-// none, or when its opening has nothing to give one.
+// none, or when its opening has nothing to give one. The paragraph is
+// taken by reference and not by const reference because the plan READS the
+// block's opening word: the glue after that word and the span its segments
+// were shaped under are both filled in by shaping, so the frontier is
+// brought to it here.
 InitialLetterPlan planInitialLetter(FontContext& fontContext,
-                                    const Paragraph& paragraph,
-                                    const Block& block,
+                                    Paragraph& paragraph, const Block& block,
                                     const Paragraph::Strut& strut);
 
 // Cuts an initial's notch out of any FlowGeometry: the bands the initial

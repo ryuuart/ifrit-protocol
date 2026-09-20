@@ -234,9 +234,13 @@ goes; `InitialLetter::align` picks the reference metric — the cap
 height, the em box, or the ascent a script hangs from. A block with fewer lines
 than the initial sinks hands the rest of the cut to the block after it,
 so nothing runs under the cap; a column's initial is set down the column
-and hangs from its head. The initial's glyphs are runs of the layout and
-draw with the rest; `ParagraphLayout::initial` reports where they
-landed.
+and hangs from its head. AN INITIAL CONSUMES GRAPHEMES AND NEVER THE
+SPACE AFTER THEM: what is left of the word it split stands at the head of
+the first band, and the travel cut there carries that word's own trailing
+glue as well, so the word after the split reads at the distance it would
+have had with no initial at all. The initial's glyphs are runs of the
+layout and draw with the rest; `ParagraphLayout::initial` reports where
+they landed.
 
 ## The seams
 
