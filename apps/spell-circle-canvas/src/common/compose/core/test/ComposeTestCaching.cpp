@@ -391,7 +391,7 @@ Element haloedNode(Boundary boundary, const choreograph::Output<float>* turn) {
       .height(80)
       .cache(Cache::Texture)
       .boundary(boundary)
-      .transformOrigin(0.5f, 0.5f)
+      .transformOrigin(pct(50), pct(50))
       .rotate(motion::bind(turn).target(0.0f, 360.0f))
       .effect(material::skia::Effect::glow({0.1f, 0.85f, 1.0f, 1}, 6))
       .children({box().absolute().left(20).top(20).width(40).height(40).fill(

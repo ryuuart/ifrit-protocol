@@ -220,7 +220,7 @@ struct EvaMagiInterior {
     return box()
         .rect(SkRect::MakeXYWH(kCentre.fX - 185, kCentre.fY - 185, 370, 370))
         .rotate(&rotation)
-        .transformOrigin(0.5f, 0.5f)
+        .transformOrigin(pct(50), pct(50))
         .children(
             {trace(SkPathBuilder()
                        .arcTo(SkRect::MakeXYWH(0, 0, 370, 370), -60, 78, true)
@@ -309,16 +309,16 @@ struct EvaMagiInterior {
     ctx.composer.render(box().inset(0).children(
         {box()
              .inset(0)
-             .children(
-                 {frame().cache(Cache::Texture),
-                  box()
-                      .inset(0)
-                      .transformOrigin(kCentre.fX / 1440, kCentre.fY / 1052)
-                      .scale(0.86f)
-                      .translateY(20)
-                      .children(
-                          {architecture().cache(Cache::Texture), scanner()}),
-                  diagnostic(), slot("status")})
+             .children({frame().cache(Cache::Texture),
+                        box()
+                            .inset(0)
+                            .transformOrigin(pct(100.0f * (kCentre.fX / 1440)),
+                                             pct(100.0f * (kCentre.fY / 1052)))
+                            .scale(0.86f)
+                            .translateY(20)
+                            .children({architecture().cache(Cache::Texture),
+                                       scanner()}),
+                        diagnostic(), slot("status")})
              .fill(mskia::Paint::solid(kGround))
              .effect(evangelion::crt(1440, 1052))}));
     ctx.composer.renderSlot("status", status());

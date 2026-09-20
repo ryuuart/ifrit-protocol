@@ -467,7 +467,7 @@ auto ChaucerAstrolabe::rule() -> Element {
       {box()
            .rect(SkRect::MakeXYWH(kCx, kCy - 4.5f, kMaterR * 1.02f, 9.0f))
            .key("label")
-           .transformOriginPx({0, 4.5f})
+           .transformOrigin(Dimension(0), Dimension(4.5f))
            .rotate(bind(&hourAngle).scale(1.0f).offset(-90.0f))
            .fill(brass(0.80f))
            .foreground(stroke(1.2f, Fill::color(hexColor(0x2a1d08, 0.7f))))

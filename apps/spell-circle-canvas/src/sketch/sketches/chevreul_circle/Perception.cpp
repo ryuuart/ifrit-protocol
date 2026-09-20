@@ -43,7 +43,7 @@ auto ChevreulCircle::theLabPlot() -> Element {
         .shape(shapes::circle())
         .fill(Fill::color(corrected[n]))
         .stroke(stroke(0.4f, Fill::color(hexColor(0x221F1A, 0.5f))))
-        .transformOrigin(0.5f, 0.5f)
+        .transformOrigin(pct(50), pct(50))
         .opacity(bind(&demo).window(lo, lo + 0.01f));
   };
   const auto centroid = [this](const sketch::kit::Datum&) {
@@ -53,7 +53,7 @@ auto ChevreulCircle::theLabPlot() -> Element {
         .key("centroid")
         .shape(shapes::circle())
         .stroke(stroke(1.6f, Fill::currentInk()))
-        .transformOrigin(0.5f, 0.5f)
+        .transformOrigin(pct(50), pct(50))
         .scale(bind(&demo)
                    .window(0.275f, 0.30f)
                    .map(ch::EaseFn(ease::outBack(2.0f))));

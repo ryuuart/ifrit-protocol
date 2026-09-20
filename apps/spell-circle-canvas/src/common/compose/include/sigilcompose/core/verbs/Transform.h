@@ -6,8 +6,8 @@
  * The 2D transform lanes and the stacking index.
  */
 
-#include <include/core/SkPoint.h>
 #include <sigilcompose/core/Declarations.h>
+#include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilmotion/values/Animatable.h>
 
@@ -53,14 +53,17 @@ class TransformVerbs {
    *  origin. Zero when unstated; a positive angle pushes points
    *  further right further down. */
   Derived& skewY(motion::Animatable<float> degrees);
-  /** THE PIVOT every rotation, scale and skew turns about, as
-   *  fractions of the node's own box: 0,0 its top-left, 1,1 its
-   *  bottom-right. The CENTRE when unstated. */
-  Derived& transformOrigin(float fx, float fy);
-  /** The pivot in node-local PIXELS instead — for a pivot that is not
-   *  a fraction of this node's box, such as zooming a window that
-   *  lives inside a full-canvas overlay about its own centre. */
-  Derived& transformOriginPx(SkPoint p);
+  /** THE PIVOT every rotation, scale and skew turns about — CSS
+   *  `transform-origin`. A percentage is of the node's own box,
+   *  `pct(0)` its left or top edge and `pct(100)` its right or bottom;
+   *  any other length is node-local pixels; @p z is the pivot's
+   *  distance in front of the plane, which a percentage cannot say. The
+   *  CENTRE, in the plane, when unstated. */
+  Derived& transformOrigin(Dimension x, Dimension y, Dimension z = 0.0f);
+  /** A BARE NUMBER IS REFUSED, as CSS refuses a length without a unit
+   *  here: it reads as a fraction of the box as readily as a pixel
+   *  count. Write `pct(50)` or `Dimension(12)`. */
+  Derived& transformOrigin(float, float, float = 0.0f) = delete;
   /** PAINT ORDER AMONG SIBLINGS — CSS `z-index`. Zero when unstated,
    *  so siblings paint in declaration order. It reorders nothing
    *  outside this node's own parent, and it changes no layout. */

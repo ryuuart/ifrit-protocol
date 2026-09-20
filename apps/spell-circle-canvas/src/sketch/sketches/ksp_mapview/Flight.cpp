@@ -49,7 +49,7 @@ auto KspMapView::navball() -> Element {
             .rotate(bind(&rollOut)
                         .source(-1.0f, 1.0f)
                         .target(57.29578f, -57.29578f))
-            .transformOrigin(0.5f, 0.5f)
+            .transformOrigin(pct(50), pct(50))
             .translateY(
                 bind(&pitchOut).source(-1.0f, 1.0f).target(-kBallR, kBallR));
     static const int kRungs[5] = {10, 20, 30, 45, 60};
@@ -124,7 +124,7 @@ auto KspMapView::navball() -> Element {
               .shape(shapes::sector(-0.42f, 0.84f, major ? 0.79f : 0.86f))
               .fill(Paint::solid(mskia::withAlpha(hexColor(0xC6CFD3), 0.85f)))
               .rotate(a)
-              .transformOrigin(0.5f, 0.5f),
+              .transformOrigin(pct(50), pct(50)),
           kBall, kBezelR * 2, kBezelR * 2)});
     }
   }
@@ -137,13 +137,13 @@ auto KspMapView::navball() -> Element {
                      .shape(shapes::sector(-3.0f, 6.0f, 0.80f))
                      .fill(Paint::solid(hexColor(0xF2F4F5)))
                      .rotate(bind(&throttle).target(207, 148))
-                     .transformOrigin(0.5f, 0.5f),
+                     .transformOrigin(pct(50), pct(50)),
                  kBall, kBezelR * 2, kBezelR * 2),
               at(box()
                      .shape(shapes::sector(-3.0f, 6.0f, 0.80f))
                      .fill(Paint::solid(hexColor(0xF2F4F5)))
                      .rotate(bind(&gforce).target(28, -33))
-                     .transformOrigin(0.5f, 0.5f),
+                     .transformOrigin(pct(50), pct(50)),
                  kBall, kBezelR * 2, kBezelR * 2)});
 
   auto arcLabel = [&](const char* s, float atFrac, float sz, SkColor4f c,
@@ -165,8 +165,8 @@ auto KspMapView::navball() -> Element {
 
   // A heading ring of numerals inside the bezel, rotating with the ball —
   // eight onPath runs sharing one rotating container.
-  Element ring = at(box().rotate(&ringSpin).transformOrigin(0.5f, 0.5f), kBall,
-                    kBallR * 1.66f, kBallR * 1.66f);
+  Element ring = at(box().rotate(&ringSpin).transformOrigin(pct(50), pct(50)),
+                    kBall, kBallR * 1.66f, kBallR * 1.66f);
   static const char* kHdg[4] = {"N", "E", "S", "W"};
   for (int i = 0; i < 4; ++i)
     ring.children(
@@ -329,7 +329,7 @@ auto KspMapView::staging() -> Element {
                          {0, 0}, {0, 1},
                          {{0.0f, mskia::lighten(kFuel, 0.10f)}, {1.0f, kFuel}}))
                      .scaleX(fill)
-                     .transformOrigin(0.0f, 0.5f),
+                     .transformOrigin(pct(0), pct(50)),
                  box()
                      .inset(4, 0, 0, 0)
                      .alignItems(Align::Center)

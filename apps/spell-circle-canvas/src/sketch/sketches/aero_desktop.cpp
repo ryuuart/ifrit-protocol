@@ -499,8 +499,8 @@ struct AeroDesktop {
     // fading in -- mount transitions, so a re-describe prunes clean.
     return stack()
         .inset(0)
-        .transformOrigin((ad::kWX + ad::kWW * 0.5f) / ad::kW,
-                         (ad::kWY + ad::kWH * 0.5f) / ad::kH)
+        .transformOrigin(pct(100.0f * ((ad::kWX + ad::kWW * 0.5f) / ad::kW)),
+                         pct(100.0f * ((ad::kWY + ad::kWH * 0.5f) / ad::kH)))
         .scale(animate(motion::from(0.96f).to(1.0f), {220ms}))
         .opacity(animate(motion::from(0.0f).to(1.0f), {180ms}))
         // the DWM soft drop shadow (SDF ring -- no filter, no overflow)

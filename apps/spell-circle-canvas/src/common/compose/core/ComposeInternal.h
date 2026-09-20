@@ -102,8 +102,9 @@ struct PaintProps {
   // primitive in a UI and none of them are uniform.
   motion::Animatable<float> scaleX = 1.0f, scaleY = 1.0f;
   motion::Animatable<float> skewX = 0.0f, skewY = 0.0f;  // degrees (shear)
-  float originX = 0.5f, originY = 0.5f;
-  bool originPx = false;  // origin in node-local px instead of fractions
+  // The pivot: a percentage is of the node's own box, any other length is
+  // node-local pixels. Its depth is DepthData::originZ.
+  Dimension originX = pct(50.0f), originY = pct(50.0f);
   int zIndex = 0;
 };
 
@@ -496,9 +497,10 @@ struct DepthData {
   /// The viewer's distance in front of THIS node's plane, for its
   /// children. 0 is no perspective: an orthographic projection.
   motion::Animatable<float> perspective = 0.0f;
-  float perspectiveOriginX = 0.5f, perspectiveOriginY = 0.5f;  // fractions
+  /// Where the viewer stands over the plane, read as PaintProps::originX is.
+  Dimension perspectiveOriginX = pct(50.0f), perspectiveOriginY = pct(50.0f);
   /// The transform origin's depth, beside PaintProps::originX/originY.
-  float originZ = 0.0f;
+  Dimension originZ = 0.0f;
   bool preserve3d = false;
   material::Backface backface = material::Backface::Visible;
 };
@@ -625,6 +627,11 @@ inline uint64_t mix64Value(uint64_t z) {
  *  `writingMode`: a path run's baseline is its own geometry, so there are
  *  no columns to advance and the path wins. */
 void warnWritingModeOnPath();
+
+/** The once-per-process diagnostic behind a transform origin whose depth
+ *  is written as a percentage: a depth has no box to be a percentage of,
+ *  so the pivot stays in the plane. */
+void warnPercentOriginDepth();
 
 /** The once-per-name diagnostic behind a paragraph style name that
  *  resolves to nothing — no set in scope, or a set that does not carry it.

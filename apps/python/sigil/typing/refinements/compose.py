@@ -69,7 +69,20 @@ def inset(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.Dimensi
     table.erased(ELEMENT, "alignItems alignSelf", "_t.AlignLike")
     table.erased(ELEMENT, "justify", "_t.JustifyLike")
     table.erased(ELEMENT, "cellAlign", "_t.AlignLike", "_t.AlignLike")
-    table.erased(ELEMENT, "at centerAt transformOriginPx", "_t.PointLike")
+    table.erased(ELEMENT, "at centerAt", "_t.PointLike")
+    # An origin takes a length that carries its unit, so the bare number every
+    # other dimension accepts as pixels is left out of what these accept.
+    origin = "str | Dimension | _sigil.weave.Length | VarRef"
+    table.declares(
+        ELEMENT,
+        "transformOrigin",
+        f"def transformOrigin(self, x: {origin}, y: {origin}, z: {origin} | None = None) -> Element: ...",
+    )
+    table.declares(
+        ELEMENT,
+        "perspectiveOrigin",
+        f"def perspectiveOrigin(self, x: {origin}, y: {origin}) -> Element: ...",
+    )
     table.erased(ELEMENT, "rect region", "_t.RectLike")
     table.erased(ELEMENT, "shape", "_t.ShapeLike")
     table.erased(ELEMENT, "background foreground overlay stroke", "_t.DecorationLike")

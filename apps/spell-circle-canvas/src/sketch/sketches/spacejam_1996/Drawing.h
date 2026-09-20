@@ -419,7 +419,7 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
   // width is what keeps it one line; the artBox's clip() takes the
   // overhang, and the paint-time condense brings it back inside.
   t.left(x).top(y).width(m.width() + 4.0f);
-  if (sx < 0.999f) t.scaleX(sx).transformOrigin(0.0f, 0.5f);
+  if (sx < 0.999f) t.scaleX(sx).transformOrigin(pct(0), pct(50));
   return t;
 }
 

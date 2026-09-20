@@ -29,7 +29,7 @@ auto WinampBase::describe() -> Element {
                  {{0ms, 0.0f}, {ms(d.atMs - 1), 0.0f}, {ms(d.atMs), 1.0f}}),
              &ch::easeNone));
          if (i == 0)
-           return w.transformOrigin(0.5f, 0.5f)
+           return w.transformOrigin(pct(50), pct(50))
                .scale(animate(motion::from(0.9f).to(1.0f),
                               {200ms, motion::ease::outBack(), ms(d.atMs)}));
          return w.translateY(

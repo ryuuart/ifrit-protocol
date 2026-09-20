@@ -221,7 +221,7 @@ struct Bg3DiceRoll {
                      .stroke(spans::corners(11.0f, a),
                              brush::solid(3.4f, bg3::gilt()))});
     return ring.rotate(&bezelSpin)
-        .transformOrigin(0.5f, 0.5f)
+        .transformOrigin(pct(50), pct(50))
         .cache(Cache::Texture);
   }
 
@@ -262,7 +262,7 @@ struct Bg3DiceRoll {
             {bg3::kVellum, mskia::withAlpha(bg3::kVellumDeep, 1.0f)}))
         .overlay(lines::presets::radialHatch(bg3::giltDark(0.34f), 60, 0.6f))
         .rotate(&rosetteSpin)
-        .transformOrigin(0.5f, 0.5f)
+        .transformOrigin(pct(50), pct(50))
         .cache(Cache::Texture);
   }
 
@@ -686,7 +686,7 @@ struct Bg3DiceRoll {
             .translateX(-40.0f)
             .translateY(-40.0f)
             .rotate(-23.0f)
-            .transformOriginPx({bg3::kCx, bg3::kCy})
+            .transformOrigin(Dimension(bg3::kCx), Dimension(bg3::kCy))
             .children({die(bg3::kDieRadius * 0.86f, 0.45f, false, 1.9f)}),
         0, 0, bg3::kW, bg3::kH);
   }
@@ -712,16 +712,17 @@ struct Bg3DiceRoll {
   /** The winner, punching in on a keyframe path: one ramp cannot shape a
    *  landing. */
   Element heroDie() const {
-    return kit::at(box()
-                       .transformOriginPx({bg3::kCx, bg3::kCy})
-                       .scale(animate(through({{0ms, 0.80f},
-                                               {1100ms, 1.0f},
-                                               {1210ms, 1.075f},
-                                               {1300ms, 0.975f},
-                                               {1390ms, 1.02f},
-                                               {1450ms, 1.0f}})))
-                       .children({die(bg3::kDieRadius, 1.0f, true, 0.0f)}),
-                   0, 0, bg3::kW, bg3::kH);
+    return kit::at(
+        box()
+            .transformOrigin(Dimension(bg3::kCx), Dimension(bg3::kCy))
+            .scale(animate(through({{0ms, 0.80f},
+                                    {1100ms, 1.0f},
+                                    {1210ms, 1.075f},
+                                    {1300ms, 0.975f},
+                                    {1390ms, 1.02f},
+                                    {1450ms, 1.0f}})))
+            .children({die(bg3::kDieRadius, 1.0f, true, 0.0f)}),
+        0, 0, bg3::kW, bg3::kH);
   }
 
   // ---------------------------------------------------------------- describe

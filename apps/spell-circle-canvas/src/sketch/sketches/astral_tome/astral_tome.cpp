@@ -270,7 +270,7 @@ struct AstralTome {
             .rect(SkRect::MakeXYWH(at::gx(guiX), at::gy(guiY), at::g(30),
                                    at::g(15)))
             .key(k)
-            .transformOrigin(0.5f, 0.5f)
+            .transformOrigin(pct(50), pct(50))
             .shape(shapes::arrow(0.34f, 0.42f))
             .rotate(flip ? 180.0f : 0.0f)
             .fill(Paint::linearUnit(
@@ -416,7 +416,8 @@ struct AstralTome {
         e.translateX(org.fX).translateY(org.fY);
         if (hovered) {
           e.scale(1.1f);
-          e.transformOriginPx({org.fX + pivot, org.fY + pivot});
+          e.transformOrigin(Dimension(org.fX + pivot),
+                            Dimension(org.fY + pivot));
         }
         return e;
       };

@@ -293,7 +293,7 @@ auto Minard1869::cardGeo(const data::Json& said) -> Element {
         .styleClass(i >= 4 ? "amber" : "")
         .scale(animate(from(0.0f).to(1.0f),
                        ramp((tGeo + 1.0f) * 1000 + 60.0f * (float)i, 320)))
-        .transformOrigin(0.5f, 1.0f)
+        .transformOrigin(pct(50), pct(100))
         .opacity(beat(tGeo + 1.0f + 0.06f * (float)i,
                       tGeo + 1.2f + 0.06f * (float)i));
   };
@@ -364,19 +364,21 @@ auto Minard1869::cardLegs(const data::Json& said) -> Element {
                   .inset(0)
                   .styleClass(bad ? "amberInk" : "measured")
                   .opacity(beat(t0, t0 + 0.2f))
-                  .children({text(l.name).font({.size = 9.5f}).at({60, y - 2}),
-                             box()
-                                 .rect(SkRect::MakeXYWH(
-                                     dx < 0 ? mid + dx : mid, y,
-                                     std::max(std::fabs(dx), 1.0f), 7))
-                                 .fill(Fill::currentInk())
-                                 .scale(animate(
-                                     from(0.0f).to(1.0f),
-                                     ramp(t0 * 1000, 420, ch::EaseOutBack())))
-                                 .transformOrigin(dx < 0 ? 1.0f : 0.0f, 0.5f),
-                             text(kit::formatted("%.3f", l.ratio))
-                                 .font({.size = 9.5f})
-                                 .at({bx + bw + 20, y - 2})});
+                  .children(
+                      {text(l.name).font({.size = 9.5f}).at({60, y - 2}),
+                       box()
+                           .rect(SkRect::MakeXYWH(dx < 0 ? mid + dx : mid, y,
+                                                  std::max(std::fabs(dx), 1.0f),
+                                                  7))
+                           .fill(Fill::currentInk())
+                           .scale(
+                               animate(from(0.0f).to(1.0f),
+                                       ramp(t0 * 1000, 420, ch::EaseOutBack())))
+                           .transformOrigin(
+                               pct(100.0f * (dx < 0 ? 1.0f : 0.0f)), pct(50)),
+                       text(kit::formatted("%.3f", l.ratio))
+                           .font({.size = 9.5f})
+                           .at({bx + bw + 20, y - 2})});
             }),
        // Two lines of 10 pt under ten rows is what the card's 206 holds:
        // set the note any lower and the second line's baseline falls past

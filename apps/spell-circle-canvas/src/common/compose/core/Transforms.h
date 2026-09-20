@@ -213,12 +213,48 @@ inline float maxScaleOf(const SkMatrix& m, const SkRect& local) {
   return std::max(std::abs(m.getScaleX()), std::abs(m.getScaleY()));
 }
 
-/** The paint-transform pivot: fractional by default, node-local px under
- *  transformOriginPx(). One definition for paint(), recordBounds(), and
- *  the hit-test inverse. */
-inline SkPoint resolveOrigin(const PaintProps& p, float w, float h) {
-  return p.originPx ? SkPoint{p.originX, p.originY}
-                    : SkPoint{w * p.originX, h * p.originY};
+/** AN ORIGIN RESOLVED FOR ONE NODE AND ONE FRAME — what the lengths
+ *  `transformOrigin()` and `perspectiveOrigin()` take come to: per axis a
+ *  fraction of the node's box and a pixel offset, since a percentage is the
+ *  first and every other unit the second; `depth` is the pivot's distance
+ *  in front of the plane. The centre, in the plane, by default. One
+ *  definition for paint(), recordBounds() and the hit-test inverse. */
+struct Pivot {
+  float fractionX = 0.5f, fractionY = 0.5f;
+  float offsetX = 0.0f, offsetY = 0.0f;
+  float depth = 0.0f;
+  /** The point in a box @p w by @p h. */
+  SkPoint at(float w, float h) const {
+    return {w * fractionX + offsetX, h * fractionY + offsetY};
+  }
+};
+
+/** Whether an origin this node declares is measured against the font in
+ *  force or read from a custom property, so a change in either moves the
+ *  node's matrix under recordings that hold the one it had. */
+inline bool originsFollowCascade(const ElementNode& node) {
+  const auto follows = [](const Dimension& d) {
+    return d.relative() && d.unit != Dimension::Unit::Pw &&
+           d.unit != Dimension::Unit::Ph;
+  };
+  if (follows(node.paint.originX) || follows(node.paint.originY)) return true;
+  if (!node.depthData) return false;
+  const DepthData& depth = *node.depthData;
+  return follows(depth.originZ) || follows(depth.perspectiveOriginX) ||
+         follows(depth.perspectiveOriginY);
+}
+
+/** Whether an origin this node declares is measured against the CANVAS,
+ *  which only a canvas that changes size moves. */
+inline bool originsFollowCanvas(const ElementNode& node) {
+  const auto follows = [](const Dimension& d) {
+    return d.unit == Dimension::Unit::Pw || d.unit == Dimension::Unit::Ph;
+  };
+  if (follows(node.paint.originX) || follows(node.paint.originY)) return true;
+  if (!node.depthData) return false;
+  const DepthData& depth = *node.depthData;
+  return follows(depth.originZ) || follows(depth.perspectiveOriginX) ||
+         follows(depth.perspectiveOriginY);
 }
 
 inline SkRRect cornersRRect(const SkRect& bounds, const Corners& c) {

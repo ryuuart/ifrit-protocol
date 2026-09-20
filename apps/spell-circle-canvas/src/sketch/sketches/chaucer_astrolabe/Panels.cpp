@@ -287,7 +287,7 @@ auto ChaucerAstrolabe::backPanel() -> Element {
   const Transition swing = ramp(tChaucer * 1000 + 200, 900, ease::outBack());
   face.children(
       {kit::at(c.fX - r * 0.97f, c.fY - 5, 2 * r * 0.97f, 10)
-           .transformOrigin(0.5f, 0.5f)
+           .transformOrigin(pct(50), pct(50))
            .rotate(animate(from(0.0f).to(-25.5f), swing))
            .fill(brass(0.76f))
            .foreground(stroke(1.0f, Fill::color(hexColor(0x2a1d08, 0.6f))))
@@ -295,7 +295,8 @@ auto ChaucerAstrolabe::backPanel() -> Element {
        each(std::array{-1.0f, 1.0f},
             [&](float side) {
               return kit::at(c.fX + side * r * 0.90f - 5, c.fY - 16, 10, 32)
-                  .transformOriginPx({5.0f - side * r * 0.90f, 16})
+                  .transformOrigin(Dimension(5.0f - side * r * 0.90f),
+                                   Dimension(16))
                   .rotate(animate(from(0.0f).to(-25.5f), swing))
                   .fill(brass(0.80f))
                   .foreground(
@@ -417,7 +418,7 @@ auto ChaucerAstrolabe::zodiacPanel() -> Element {
         .fill(Fill::color(span[i] > 30 ? hexColor(0x8c2f22, 0.72f)
                                        : hexColor(0x241c15, 0.62f)))
         .scaleY(rise(ramp(tYear * 1000 + (float)i * 45, 520, ease::outBack())))
-        .transformOrigin(0.5f, 1.0f);
+        .transformOrigin(pct(50), pct(100));
   };
   const float band = (kWide - 32) / 12.0f;
   return card(

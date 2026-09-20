@@ -318,7 +318,7 @@ struct BlackWatch {
          // over it.
          at(0, 0, kClothW, kClothH)
              .fill(kWell)
-             .transformOrigin(1.0f, 0.5f)
+             .transformOrigin(pct(100), pct(50))
              .scaleX(bind(&loom)
                          .source(0.0f, kBeamEnd)
                          .invert()
@@ -418,7 +418,7 @@ struct BlackWatch {
         g.children({at(x - 6, kBarY - 11, 12, 10)
                         .shape(shapes::polygon(3, 180))
                         .fill(kRed)
-                        .transformOrigin(0.5f, 1.0f)
+                        .transformOrigin(pct(50), pct(100))
                         .scale(bind(&loom)
                                    .source(kWeaveEnd, kWeaveEnd + 0.035f)
                                    .map(backOut()))});

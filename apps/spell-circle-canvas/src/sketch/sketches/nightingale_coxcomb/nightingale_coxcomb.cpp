@@ -501,7 +501,7 @@ struct NightingaleCoxcomb {
         .shape(spoke(1.0f, 0.0f))
         .stroke(stroke(1.4f, Fill::color(hexColor(0xd8b45c))))
         .background(shadow(hexColor(0xd8b45c, 0.5f), {0, 0}, 9))
-        .transformOrigin(0.5f, 0.5f)
+        .transformOrigin(pct(50), pct(50))
         .rotate(deg)
         .opacity(alpha)
         .cache(Cache::None);
@@ -612,7 +612,7 @@ struct NightingaleCoxcomb {
           {box()
                .rect(SkRect::MakeXYWH(775, 108.0f + (float)i * 4.0f, 368, 1))
                .fill(Fill::currentInk())
-               .transformOrigin(0.0f, 0.5f)
+               .transformOrigin(pct(0), pct(50))
                .scale(animate(from(0.0f).to(1.0f),
                               ramp(tTitle2 * 1000 + 220 + (float)i * 60, 420,
                                    ch::easeOutQuint)))});
@@ -634,7 +634,7 @@ struct NightingaleCoxcomb {
            box()
                .rect(SkRect::MakeXYWH(cx - 140, 94, 280, 1))
                .fill(Fill::color(kInkSoft))
-               .transformOrigin(0.0f, 0.5f)
+               .transformOrigin(pct(0), pct(50))
                .scale(animate(
                    from(0.0f).to(1.0f),
                    ramp(startSec * 1000 + 180, 380, ch::easeOutQuint)))});

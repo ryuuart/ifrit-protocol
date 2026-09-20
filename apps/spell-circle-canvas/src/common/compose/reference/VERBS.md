@@ -149,8 +149,7 @@ animating one never relayouts.
 | `scaleY` | Scale down the other axis, the same way. |
 | `skewX` | Shear the verticals, in degrees; a negative one is the italic lean. |
 | `skewY` | Shear the horizontals. |
-| `transformOrigin` | The pivot every lane turns about, as fractions of the node's box. |
-| `transformOriginPx` | The same pivot in node-local pixels. |
+| [`transformOrigin`](pages/verbs/transformOrigin.md) | The pivot every lane turns about: a percentage of the node's box or a length in it, and a depth. |
 
 ## Depth
 
@@ -164,8 +163,7 @@ its parent's. Paint-only, like the transforms.
 | `translateZ` | Move the plane along the viewing axis; invisible without a `perspective` above it. |
 | `scaleZ` | Scale the depth of the children a shared space hosts. |
 | `perspective` | The view this node's CHILDREN are seen through, in px in front of the plane. |
-| `perspectiveOrigin` | Where the viewer stands over the plane, as fractions of the box. |
-| `transformOrigin3d` | The pivot with a depth: two fractions and a distance in front of the plane. |
+| `perspectiveOrigin` | Where the viewer stands over the plane, written as `transformOrigin` writes its pivot. |
 | [`preserve3d`](pages/verbs/preserve3d.md) | The children keep their own depth and are painted back to front by it. |
 | `backface` | Whether the back of the plane is drawn once a lane has turned it away. |
 
@@ -286,11 +284,10 @@ spelling is the feature's.
   `appear`.
 - `core/verbs/Transform.h` — the transform lanes `translateX`,
   `translateY`, `travel`, `rotate`, `scale`, `scaleX`, `scaleY`,
-  `skewX`, `skewY`, `transformOrigin`, `transformOriginPx`, and
-  `zIndex`.
+  `skewX`, `skewY`, `transformOrigin`, and `zIndex`.
 - `core/verbs/Depth.h` — the depth lanes `rotateX`, `rotateY`,
   `translateZ`, `scaleZ`, `perspective`,
-  `perspectiveOrigin`, `transformOrigin3d`, `preserve3d`, `backface`.
+  `perspectiveOrigin`, `preserve3d`, `backface`.
 - `core/verbs/TextStyle.h` — the text properties `paragraphs`,
   `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,
   `ellipsis`, `maxLines`, `textFill`, `textStroke`, `flowAround`.

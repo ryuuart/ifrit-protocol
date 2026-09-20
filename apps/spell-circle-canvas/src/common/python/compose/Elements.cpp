@@ -86,6 +86,17 @@ Element memo(py::object properties, py::function describe) {
         }
       });
 }
+/** One length of a transform or perspective origin. A bare number is
+ *  refused as the native verb refuses it: it reads as a fraction of the
+ *  box as readily as a pixel count. */
+compose::Dimension originLength(py::handle value) {
+  if (py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value))
+    throw py::type_error(
+        "An origin is written with its unit: pct(50) or '50%' of the node's "
+        "box, Dimension(12) for pixels, a Length or a custom property. A "
+        "bare number is refused.");
+  return dimension(value);
+}
 }  // namespace
 
 compose::Dimension dimension(py::handle value) {
@@ -597,9 +608,21 @@ void bindCompose(py::module_& module) {
             return self.inset(dimension(all));
           },
           py::arg("all"), fluent)
-      .def("transformOrigin",
-           py::overload_cast<float, float>(&Element::transformOrigin),
-           py::arg("x"), py::arg("y"), fluent);
+      .def(
+          "transformOrigin",
+          [](Element& self, py::object x, py::object y,
+             py::object z) -> Element& {
+            return self.transformOrigin(
+                originLength(x), originLength(y),
+                z.is_none() ? compose::Dimension(0.0f) : originLength(z));
+          },
+          py::arg("x"), py::arg("y"), py::arg("z") = py::none(), fluent)
+      .def(
+          "perspectiveOrigin",
+          [](Element& self, py::object x, py::object y) -> Element& {
+            return self.perspectiveOrigin(originLength(x), originLength(y));
+          },
+          py::arg("x"), py::arg("y"), fluent);
 
   const auto dimensionMethod =
       [&](const char* name, Element& (Element::*setter)(compose::Dimension)) {
@@ -782,17 +805,7 @@ void bindCompose(py::module_& module) {
       .def("appear", &Element::appear, py::arg("entrance"), fluent)
       .def("blend", &Element::blend, py::arg("mode"), fluent)
       .def("travel", &Element::travel, py::arg("path"), fluent)
-      .def(
-          "transformOriginPx",
-          [](Element& self, py::object value) -> Element& {
-            return self.transformOriginPx(point(value));
-          },
-          py::arg("point"), fluent)
       .def("zIndex", &Element::zIndex, py::arg("index"), fluent)
-      .def("perspectiveOrigin", &Element::perspectiveOrigin, py::arg("x"),
-           py::arg("y"), fluent)
-      .def("transformOrigin3d", &Element::transformOrigin3d, py::arg("x"),
-           py::arg("y"), py::arg("z"), fluent)
       .def("preserve3d", &Element::preserve3d, py::arg("preserve") = true,
            fluent)
       .def("backface", &Element::backface, py::arg("visibility"), fluent)

@@ -238,7 +238,7 @@ struct Flourish {
                kH - (cy + kMedD / 2))
         .width(kMedD)
         .height(kMedD)
-        .transformOrigin(0.5f, 0.5f)
+        .transformOrigin(pct(50), pct(50))
         .rotate(&spin[q])
         .scale(&breathe[q])
         .cache(Cache::Picture)
@@ -384,7 +384,7 @@ struct Flourish {
                  .key("seal")
                  .width(42)
                  .height(42)
-                 .transformOrigin(0.5f, 0.5f)
+                 .transformOrigin(pct(50), pct(50))
                  .scale(&sealBreathe)
                  .shape(shapes::star(12, 0.66f))
                  .fill(animate(

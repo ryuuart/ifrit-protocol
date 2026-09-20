@@ -18,10 +18,7 @@ using namespace detail;
 
 SkM44 Composer::Impl::depthMatrixOf(Instance& inst, const NodeTransform& tf,
                                     const SkRect& rect) {
-  const ElementNode& node = *inst.description;
-  const DepthData* depth = node.depthData ? &*node.depthData : nullptr;
-  SkM44 m = tf.matrix44({rect.left(), rect.top()}, node.paint, depth,
-                        rect.width(), rect.height());
+  SkM44 m = tf.matrix44({rect.left(), rect.top()}, rect.width(), rect.height());
   // THE PARENT'S VIEW, folded here and nowhere else. CSS's `perspective`
   // applies to the children of the node that declares it, about the point
   // of that node's box the perspective origin names; a child whose plane
@@ -34,9 +31,11 @@ SkM44 Composer::Impl::depthMatrixOf(Instance& inst, const NodeTransform& tf,
                                                   pn.depthData->perspective);
       if (distance > 0) {
         const SkRect frame = instanceRect(*parent);
-        m = perspectiveMatrix(
-                distance, {frame.width() * pn.depthData->perspectiveOriginX,
-                           frame.height() * pn.depthData->perspectiveOriginY}) *
+        const Pivot viewer =
+            pivotOf(*parent, pn.depthData->perspectiveOriginX,
+                    pn.depthData->perspectiveOriginY, nullptr);
+        m = perspectiveMatrix(distance,
+                              viewer.at(frame.width(), frame.height())) *
             m;
       }
     }

@@ -630,6 +630,12 @@ struct Composer::Impl {
    *  paint's matrix, recordBounds's child union and hitInstance's inverse
    *  all describe the same matrix. */
   NodeTransform transformOf(detail::Instance& inst);
+  /** An origin written as lengths, resolved for @p inst: a percentage as
+   *  a fraction of its box, every other unit as pixels against its font,
+   *  its custom properties and the canvas. @p z is the depth, null where
+   *  the origin has none. */
+  detail::Pivot pivotOf(const detail::Instance& inst, const Dimension& x,
+                        const Dimension& y, const Dimension* z) const;
 
   // ---- depth (Depth.cpp): the plane a node is, and the space it hosts ----
   /** The node's 4x4 in the plane its PARENT paints on: the parent's

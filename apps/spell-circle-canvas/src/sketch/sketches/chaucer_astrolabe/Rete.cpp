@@ -1,7 +1,8 @@
 #include "ChaucerAstrolabe.h"
 
 auto ChaucerAstrolabe::reteShadow() -> Element {
-  auto inner = box().inset(0).rotate(&reteRot).transformOrigin(0.5f, 0.5f);
+  auto inner =
+      box().inset(0).rotate(&reteRot).transformOrigin(pct(50), pct(50));
   const Fill dark = Fill::color(hexColor(0x140e04, 0.50f));
   for (size_t i = 0; i < pieces.size(); ++i) {
     const Piece& p = pieces[i];
@@ -55,7 +56,7 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                .rect(SkRect::MakeXYWH(kCx - kR, kCy - kR, 2 * kR, 2 * kR))
                .key("rete")
                .rotate(&reteRot)
-               .transformOrigin(0.5f, 0.5f);
+               .transformOrigin(pct(50), pct(50));
 
   const Paint bandMat = brass(0.64f);
 

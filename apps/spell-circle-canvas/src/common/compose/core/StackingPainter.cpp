@@ -87,7 +87,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     canvas.concat(*flat);
   } else {
     canvas.translate(rect.left(), rect.top());
-    tf.concatTo(canvas, node.paint, rect.width(), rect.height());
+    tf.concatTo(canvas, rect.width(), rect.height());
   }
 
   // Accumulate the node→root matrix alongside the canvas ops — the same
@@ -114,7 +114,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   } else {
     curToRoot.preTranslate(rect.left(), rect.top());
     curToRoot.preConcat(
-        tf.matrix({0, 0}, node.paint, rect.width(), rect.height()));
+        tf.matrix({0, 0}, rect.width(), rect.height()));
   }
 
   // The space this node hosts for its children, and its own plane for

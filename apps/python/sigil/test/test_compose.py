@@ -89,6 +89,40 @@ class Edges:
         # A margin stands outside the box, so the pair keeps the child's width.
         self.assertEqual(pair.width(), 10)
 
+    def test_an_origin_carries_its_unit_and_a_bare_number_is_refused(self):
+        for element in (
+            box().transformOrigin(pct(0), "100%"),
+            box().transformOrigin(Dimension(12), weave.em(1), Dimension(40)),
+            box().perspectiveOrigin("50%", pct(0)),
+        ):
+            self.assertIsInstance(element, raw.Element)
+        # Half the box and half a pixel are both plausible readings of 0.5.
+        for refused in (
+            lambda: box().transformOrigin(0.5, 0.5),
+            lambda: box().transformOrigin(pct(50), pct(50), 12),
+            lambda: box().perspectiveOrigin(0, 0),
+        ):
+            with self.assertRaisesRegex(TypeError, "bare number"):
+                refused()
+        pixels = self.render(
+            """from sigil.compose import Dimension, box, pct
+from sigil.sketch import sketch
+
+
+@sketch(size=(40, 20), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        bar = box().absolute().inset(0).fill("#ff0000").scaleX(0.25)
+        ctx.render(box().size(40, 20).children([bar.transformOrigin(pct(100), pct(50))]))
+""",
+            at=0,
+        )
+        self.assertEqual(len(pixels), 40 * 20 * 4)
+        row = pixels[10 * 40 * 4 : 11 * 40 * 4]
+        # A quarter of the width, standing against the right edge.
+        self.assertEqual(row[5 * 4 : 5 * 4 + 4], b"\x00\x00\x00\xff")
+        self.assertEqual(row[35 * 4 : 35 * 4 + 4], b"\xff\x00\x00\xff")
+
     def test_animatable_fields_roundtrip_without_losing_live_output(self):
         source = Output(0.25)
         path = raw.MotionPath(skia.Path.Circle(0, 0, 40), t=source)

@@ -179,7 +179,7 @@ struct PenrosePaving {
                      .inset(0)
                      .key("gen" + std::to_string(gen))
                      .staggerChildren(9ms, motion::Spread::From::Center)
-                     .transformOrigin(0.5f, 0.5f)
+                     .transformOrigin(pct(50), pct(50))
                      .scale(animate(from(0.94f).to(1.0f),
                                     Transition{320ms, ease::outBack(1.1f)}));
 

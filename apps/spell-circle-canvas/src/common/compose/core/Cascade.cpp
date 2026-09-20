@@ -354,6 +354,16 @@ void Composer::Impl::resolveCascade(
     applyLayoutProps(inst);
     needsLayout = true;
   }
+  // An origin is a length too, read at paint instead of by the layout: one
+  // in the font or on a property moves the node's matrix when either
+  // moves, under recordings that hold the matrix it had. One on the canvas
+  // is moved by a resize alone, which the layout pass answers for.
+  if (!first && (shapeChanged || varsChanged) &&
+      originsFollowCascade(*inst.description)) {
+    inst.markPaintDirtyUp();
+    contentDirty = true;
+  }
+  if (originsFollowCanvas(*inst.description)) anyCanvasLengths = true;
   // Whatever reads the ink, a property or the sampling at paint — a stroke
   // in the ink, a fill on a property, an image through its filter — baked
   // the old value into its recording.

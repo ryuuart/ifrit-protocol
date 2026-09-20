@@ -91,6 +91,17 @@ void warnWritingModeOnPath() {
       "stands and the writing mode is dropped\n");
 }
 
+void warnPercentOriginDepth() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "compose: transformOrigin() was given a percentage for its depth — a "
+      "depth has no box to be a percentage of, so the pivot stays in the "
+      "node's plane. Write the depth as a length: pixels, an em, a custom "
+      "property\n");
+}
+
 void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
   // Once per distinct name: a description re-runs every frame and a name
   // that is wrong is wrong every time.

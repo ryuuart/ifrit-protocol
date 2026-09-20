@@ -39,19 +39,10 @@ Derived& DepthVerbs<Derived>::perspective(motion::Animatable<float> v) {
 }
 
 template <class Derived>
-Derived& DepthVerbs<Derived>::perspectiveOrigin(float fx, float fy) {
+Derived& DepthVerbs<Derived>::perspectiveOrigin(Dimension x, Dimension y) {
   detail::DepthData& depth = declarations()->depthData.ensure();
-  depth.perspectiveOriginX = fx;
-  depth.perspectiveOriginY = fy;
-  return self();
-}
-
-template <class Derived>
-Derived& DepthVerbs<Derived>::transformOrigin3d(float fx, float fy, float zPx) {
-  // The x and y ARE transformOrigin()'s fields, so the 2D pivot and the
-  // 3D one can never disagree about where the plane turns.
-  self().transformOrigin(fx, fy);
-  declarations()->depthData.ensure().originZ = zPx;
+  depth.perspectiveOriginX = x;
+  depth.perspectiveOriginY = y;
   return self();
 }
 

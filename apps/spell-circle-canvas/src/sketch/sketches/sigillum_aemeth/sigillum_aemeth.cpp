@@ -23,7 +23,7 @@ auto SigillumAemeth::describe(sketch::SketchContext&) -> Element {
                       // contain
                       box()
                           .inset(0)
-                          .transformOrigin(0.5f, 0.5f)
+                          .transformOrigin(pct(50), pct(50))
                           .rotate(bind(&settle).target(0.0f, -360.0f / 7.0f))
                           .appear(ramp(tInner * 1000, 900))
                           .cache(Cache::Texture)
@@ -32,7 +32,7 @@ auto SigillumAemeth::describe(sketch::SketchContext&) -> Element {
                       innerRings(),
                       pentagram()
                           .rotate(bind(&settle).target(0.0f, 72.0f))
-                          .transformOrigin(0.5f, 0.5f),
+                          .transformOrigin(pct(50), pct(50)),
                       centreCross(), slot("solver")}),
        margin(), consolePanel(), colophon()});
 }

@@ -341,7 +341,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
                     stroke(3, Fill::color(mskia::withAlpha(kCyan, 0.5f)),
                            PathFormat::Align::Inner)))
         .scaleY(&shutter[(size_t)i])
-        .transformOrigin(0.5f, 0.0f);
+        .transformOrigin(pct(50), pct(0));
   };
   // The ACCESSING readout rides the closed shutters, in the middle of the
   // viewport — which is what a centred absolute child says, with no

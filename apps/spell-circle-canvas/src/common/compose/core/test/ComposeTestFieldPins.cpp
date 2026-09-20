@@ -79,6 +79,8 @@ void perturb(SkBlendMode& v) { v = SkBlendMode::kMultiply; }
 
 void perturb(Corners& v) { v.topLeft += 1.0f; }
 
+void perturb(Dimension& v) { v = Dimension(v.value + 1.0f); }
+
 void perturb(cd::LayoutProps& v) { v.gap = Dimension(v.gap.value + 1.0f); }
 
 void perturb(Shape& v) {
@@ -176,10 +178,10 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
   static const char* const kNames[] = {
       "fill",   "opacity", "blendMode", "translateX", "translateY",
       "rotate", "scale",   "scaleX",    "scaleY",     "skewX",
-      "skewY",  "originX", "originY",   "originPx",   "zIndex"};
+      "skewY",  "originX", "originY",   "zIndex"};
   static const bool kParticipates[] = {true, true, true, true, true,
                                        true, true, true, true, true,
-                                       true, true, true, true, true};
+                                       true, true, true, true};
   walkFields<cd::PaintProps>(
       [](const cd::PaintProps& a, const cd::PaintProps& b) {
         cd::ElementNode na, nb;

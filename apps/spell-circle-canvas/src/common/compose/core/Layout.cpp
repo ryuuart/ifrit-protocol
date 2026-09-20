@@ -105,6 +105,7 @@ void Composer::Impl::ensureLayout() {
 
 void Composer::Impl::reapplyCanvasLengths(Instance& inst) {
   if (inst.canvasLengths) applyLayoutProps(inst);
+  if (originsFollowCanvas(*inst.description)) inst.markPaintDirtyUp();
   for (auto& child : inst.children) reapplyCanvasLengths(*child);
 }
 

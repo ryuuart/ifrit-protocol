@@ -178,7 +178,7 @@ auto WinampBase::mainWindow() -> Element {
                .children(
                    {at(box(), 1, 1, 246, 8)
                         .fill(hexColor(0x24243A))
-                        .transformOrigin(0, 0.5f)
+                        .transformOrigin(pct(0), pct(50))
                         .scaleX(&playPos),
                     raised(at(box(), 1, 0, 29, 10)
                                .fill(mskia::Paint::linearUnit(

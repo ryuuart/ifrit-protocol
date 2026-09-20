@@ -157,7 +157,7 @@ TEST(ComposeTransform, ScaleXGrowsFromItsOrigin) {
                           .absolute()
                           .left(0)
                           .top(0)
-                          .transformOrigin(0.0f, 0.5f)
+                          .transformOrigin(pct(0), pct(50))
                           .scaleX(&fraction)
                           .fill(material::skia::Paint::solid({1, 0, 0, 1}))}));
   host.frame();
@@ -178,7 +178,7 @@ TEST(ComposeTransform, ScaleYIsIndependentOfScaleX) {
                           .absolute()
                           .left(0)
                           .top(0)
-                          .transformOrigin(0.0f, 0.0f)
+                          .transformOrigin(pct(0), pct(0))
                           .scaleX(0.25f)
                           .scaleY(0.75f)
                           .fill(material::skia::Paint::solid({0, 1, 0, 1}))}));
@@ -187,6 +187,41 @@ TEST(ComposeTransform, ScaleYIsIndependentOfScaleX) {
   EXPECT_LT(SkColorGetG(host.pixel(90, 10)), 60u);    // past x, inside y
   EXPECT_GT(SkColorGetG(host.pixel(10, 140)), 200u);  // inside x, inside y
   EXPECT_LT(SkColorGetG(host.pixel(10, 190)), 60u);   // past y
+}
+
+TEST(ComposeTransform, AnOriginIsAPercentageOfTheBoxOrALengthInIt) {
+  // One verb, CSS's: a percentage is of the node's own box, any other length
+  // is node-local pixels, and the two axes need not share a unit. The box
+  // is 80 square at (60, 60) and shrinks to a quarter of its side, so where
+  // the red lands says where the pivot stood.
+  const auto shrunk = [](Element pivoted) {
+    Host host(200, 200);
+    host.composer.render(
+        box().children({pivoted.absolute()
+                            .rect(SkRect::MakeXYWH(60, 60, 80, 80))
+                            .fill(red())
+                            .scale(0.25f)}));
+    host.frame();
+    SkIRect ink = SkIRect::MakeEmpty();
+    for (int row = 0; row < 200; ++row)
+      for (int column = 0; column < 200; ++column)
+        if (host.pixel(column, row) == SK_ColorRED)
+          ink.join(SkIRect::MakeXYWH(column, row, 1, 1));
+    return ink;
+  };
+  // Unstated is the centre, and fifty percent says the same.
+  EXPECT_EQ(shrunk(box()), SkIRect::MakeLTRB(90, 90, 110, 110));
+  EXPECT_EQ(shrunk(box().transformOrigin(pct(50), pct(50))),
+            SkIRect::MakeLTRB(90, 90, 110, 110));
+  // The right and bottom edges: the quarter stands in the far corner.
+  EXPECT_EQ(shrunk(box().transformOrigin(pct(100), pct(100))),
+            SkIRect::MakeLTRB(120, 120, 140, 140));
+  // The same corner in pixels.
+  EXPECT_EQ(shrunk(box().transformOrigin(Dimension(80), Dimension(80))),
+            SkIRect::MakeLTRB(120, 120, 140, 140));
+  // A pivot outside the box: forty pixels left of it, level with its top.
+  EXPECT_EQ(shrunk(box().transformOrigin(Dimension(-40), pct(0))),
+            SkIRect::MakeLTRB(30, 60, 50, 80));
 }
 
 TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
@@ -211,7 +246,7 @@ TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
                           .children({box()
                                          .absolute()
                                          .rect(SkRect::MakeXYWH(0, 0, 40, 40))
-                                         .transformOrigin(0, 0)
+                                         .transformOrigin(pct(0), pct(0))
                                          .fill(red())
                                          .scaleX(3.0f)})}));
   host.frame();

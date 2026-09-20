@@ -211,7 +211,7 @@ inline Element bar(const Bar& b) {
   if (b.live)
     e.children({box()
                     .rect(SkRect::MakeXYWH(padX, padY, b.innerW, b.innerH))
-                    .transformOrigin(0.0f, 0.5f)
+                    .transformOrigin(pct(0), pct(50))
                     .scaleX(b.live)
                     .fill(body)});
   else

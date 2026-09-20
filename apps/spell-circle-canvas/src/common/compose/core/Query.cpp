@@ -106,7 +106,7 @@ std::optional<std::string> Composer::Impl::hitInstance(
     const float ky = std::tan(geometry::path::radians(tf.sky));
     if (std::abs(1.0f - kx * ky) <= 1e-6f) safe.skx = safe.sky = 0;
     SkMatrix inv;
-    if (safe.matrix({0, 0}, node.paint, rect.width(), rect.height())
+    if (safe.matrix({0, 0}, rect.width(), rect.height())
             .invert(&inv))
       local = inv.mapPoint(local);
     else  // unreachable once sanitized; match "never refuse": translate only

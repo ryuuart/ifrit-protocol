@@ -244,9 +244,54 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
   return std::make_pair(here, orient);
 }
 
+Pivot Composer::Impl::pivotOf(const Instance& inst, const Dimension& x,
+                              const Dimension& y, const Dimension* z) const {
+  // One axis: a percentage is a fraction of the box, auto is where an
+  // unstated origin stands, and every other unit is pixels for this node.
+  const auto resolve = [&](const Dimension& declared, float rest,
+                           float& fraction, float& offset) {
+    Dimension length = declared;
+    if (length.unit == Dimension::Unit::Var) {
+      const VarValue* value =
+          inst.vars ? inst.vars->find(length.reference()) : nullptr;
+      const Dimension* found = value ? std::get_if<Dimension>(value) : nullptr;
+      if (!found || found->unit == Dimension::Unit::Var) {
+        if (inst.cascadeResolved) warnNoSuchVar(length.reference(), false);
+        length = Dimension();
+      } else {
+        length = *found;
+      }
+    }
+    fraction = 0.0f;
+    offset = 0.0f;
+    if (length.unit == Dimension::Unit::Auto) {
+      fraction = rest;
+    } else if (length.unit == Dimension::Unit::Pct) {
+      // Divided, never multiplied by a hundredth: fifty percent is exactly
+      // the half a matrix was built about before it had a unit.
+      fraction = length.value / 100.0f;
+    } else {
+      bool relative = false;
+      offset = resolveLength(inst, length, relative);
+    }
+  };
+  Pivot out;
+  resolve(x, 0.5f, out.fractionX, out.offsetX);
+  resolve(y, 0.5f, out.fractionY, out.offsetY);
+  if (z) {
+    // A depth has no box to be a percentage of, so one written as a
+    // percentage is no depth at all.
+    float fraction = 0.0f;
+    resolve(*z, 0.0f, fraction, out.depth);
+  }
+  return out;
+}
+
 NodeTransform Composer::Impl::transformOf(Instance& inst) {
   const ElementNode& node = *inst.description;
   NodeTransform out;
+  out.pivot = pivotOf(inst, node.paint.originX, node.paint.originY,
+                      node.depthData ? &node.depthData->originZ : nullptr);
   out.rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
   out.scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
   out.sx = inst.resolveFloat(Instance::kScaleX, node.paint.scaleX);
@@ -272,8 +317,7 @@ NodeTransform Composer::Impl::transformOf(Instance& inst) {
     // PRECEDENCE: the path drives position OUTRIGHT (the lanes are not
     // read at all), and ADDS its tangent angle to rotate() rather than
     // replacing it — see MotionPath.
-    const SkPoint origin =
-        resolveOrigin(node.paint, rect.width(), rect.height());
+    const SkPoint origin = out.pivot.at(rect.width(), rect.height());
     out.tx = sample->first.x() - rect.left() - origin.x();
     out.ty = sample->first.y() - rect.top() - origin.y();
     out.rot += sample->second;
@@ -414,8 +458,8 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
     // contribute UNSCALED bounds, so its parent's effect layer, opacity
     // layer and texture bake would all be sized to the unscaled box and
     // truncate the overflow.
-    const SkMatrix m = tf.matrix({crect.left(), crect.top()}, cn.paint,
-                                 crect.width(), crect.height());
+    const SkMatrix m = tf.matrix({crect.left(), crect.top()}, crect.width(),
+                                 crect.height());
     local.join(m.mapRect(cb));
   }
   return local;

@@ -138,7 +138,7 @@ auto SlitScan2001::s4Sampling() -> Element {
                        .key(kit::formatted("s4_%d", (int)idx))
                        .scaleX(animate(from(0.0f).to(1.0f),
                                        {220ms, ease::outBack()}))
-                       .transformOrigin(0.0f, 0.5f)
+                       .transformOrigin(pct(0), pct(50))
                        .children({instancing::instances(flatAtlas, s4[idx],
                                                         instancing::Mode::Data,
                                                         SkBlendMode::kPlus)});

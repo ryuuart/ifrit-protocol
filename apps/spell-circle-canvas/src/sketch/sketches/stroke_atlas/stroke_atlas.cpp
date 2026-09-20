@@ -56,7 +56,7 @@ struct StrokeAtlasSketch {
         plate.children(
             {box()
                  .rect(SkRect::MakeXYWH(originX, originY - 19, length, 38))
-                 .transformOrigin(0, 0.5f)
+                 .transformOrigin(pct(0), pct(50))
                  .rotate(deg)
                  .shape(hline())
                  .stroke(fan[(size_t)i].dec)});
@@ -422,7 +422,7 @@ struct StrokeAtlasSketch {
                                                                        : 0.0f);
         Element frame = box()
                             .rect(SkRect::MakeXYWH(x, y, 150, 100))
-                            .transformOrigin(0.5f, 0.5f)
+                            .transformOrigin(pct(50), pct(50))
                             .rotate(frames[i].rot)
                             .shape(frames[i].shape);
         const Frame& spec = frames[i];

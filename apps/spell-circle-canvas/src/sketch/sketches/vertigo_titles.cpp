@@ -708,7 +708,7 @@ struct VertigoTitles {
         {box()
              .height(1)
              .fill(Fill::color(kKeyline))
-             .transformOrigin(0.0f, 0.5f)
+             .transformOrigin(pct(0), pct(50))
              .scale(animate(from(0.0f).to(1.0f),
                             ramp(200, 620, ch::easeOutCubic))),
          // ---- body -----------------------------------------------------

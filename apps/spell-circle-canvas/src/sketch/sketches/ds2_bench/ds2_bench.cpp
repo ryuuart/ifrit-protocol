@@ -745,7 +745,7 @@ struct Ds2Bench {
                     .translateX(&jitterX)
                     .opacity(&holoAlpha)
                     .scale(animate(from(0.955f).to(1.0f), {380ms}))
-                    .transformOriginPx({kW * 0.5f, kH * 0.5f})
+                    .transformOrigin(Dimension(kW * 0.5f), Dimension(kH * 0.5f))
                     .zIndex(2);
     plate(holo);
     header(holo);

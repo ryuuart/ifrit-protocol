@@ -291,7 +291,8 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
 
   // The measured body axis runs from the tail at (4.5, 41) to the nose at
   // (125, 14): atan2(-27, 120) = -12.6 degrees.
-  Element ship = rect(0, 0, W, H).rotate(-12.6f).transformOrigin(0.5f, 0.5f);
+  Element ship =
+      rect(0, 0, W, H).rotate(-12.6f).transformOrigin(pct(50), pct(50));
   // dorsal fin, swept back from mid-body
   ship.children(
       {rect(S(38), S(6), S(52), S(20))
@@ -399,7 +400,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
         .width(m.width() + 4.0f)
         .scaleX(sx)
         .skewX(lean)
-        .transformOrigin(0.0f, 0.5f);
+        .transformOrigin(pct(0), pct(50));
   };
 
   return artBox(W, H).children(
@@ -449,7 +450,7 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
   Element t = text(s).font(styleAt(size));
   t.echo({kScale, kScale}, C5(0x8C0000));
   t.left(rightAlign ? w - target : 0).top(-h * 0.22f).width(m.width() + 4.0f);
-  if (sx < 0.999f) t.scaleX(sx).transformOrigin(0.0f, 0.5f);
+  if (sx < 0.999f) t.scaleX(sx).transformOrigin(pct(0), pct(50));
   return stack().width(w).height(h).clip(true).children({std::move(t)});
 }
 

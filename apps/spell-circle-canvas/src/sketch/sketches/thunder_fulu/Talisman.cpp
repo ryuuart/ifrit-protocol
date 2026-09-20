@@ -55,7 +55,7 @@ auto ThunderFulu::sealBlock() -> Element {
       box()
           .rect(SkRect::MakeXYWH(x, y, S, S))
           .rotate(-6.0f)
-          .transformOrigin(0.5f, 0.5f)
+          .transformOrigin(pct(50), pct(50))
           .opacity(bind(&scribe).window(tSeal, tSeal + 0.45f))
           .scale(bind(&scribe).window(tSeal, tSeal + 0.45f).target(1.5f, 1.0f))
           .key("seal");
@@ -249,7 +249,7 @@ auto ThunderFulu::tread() -> Element {
     auto mp = box()
                   .rect(SkRect::MakeXYWH(at.fX - pw * 0.5f, at.fY, pw, ph))
                   .rotate(((i * 37) % 11 - 5) * 0.62f)
-                  .transformOrigin(0.5f, 0.0f)
+                  .transformOrigin(pct(50), pct(0))
                   .opacity(bind(&scribe).window(t, t + 0.5f))
                   .key(kit::formatted("mini%d", i));
     mp.children({box()

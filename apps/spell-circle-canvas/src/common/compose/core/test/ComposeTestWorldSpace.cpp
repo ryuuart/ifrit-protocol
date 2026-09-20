@@ -49,7 +49,7 @@ Element rotatedInstrument(float rotationDeg, bool flagged) {
                    .rect(SkRect::MakeXYWH(20, 20, 160, 160))
                    .key("group")
                    .rotate(rotationDeg)
-                   .transformOrigin(0.5f, 0.5f);
+                   .transformOrigin(pct(50), pct(50));
   // The corner child makes the panel RECORD — a childless leaf paints
   // live and re-resolves on every reach, which would hide a stale-W
   // recording from every pin built on this fixture.
@@ -240,7 +240,7 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
                      .rect(SkRect::MakeXYWH(20, 20, 160, 160))
                      .key("group")
                      .rotate(&rot)
-                     .transformOrigin(0.5f, 0.5f);
+                     .transformOrigin(pct(50), pct(50));
     group.children({box()
                         .absolute()
                         .left(20)

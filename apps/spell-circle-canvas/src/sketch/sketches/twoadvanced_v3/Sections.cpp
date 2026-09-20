@@ -67,7 +67,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
                    kStageW - 560, 12, 540, 22)
                     .opacity(0.25f + 0.75f * settle)
                     .scaleX(1.5f - 0.5f * settle)
-                    .transformOrigin(1.0f, 0.5f)});
+                    .transformOrigin(pct(100), pct(50))});
   // Sub-nav tabs, centre top — sections without them page by arrows.
   if (spec.subnav[0]) {
     Element tabs = box().row().gap(2);

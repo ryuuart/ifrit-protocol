@@ -538,7 +538,7 @@ struct CdeMotifSketch {
              .width(3)
              .height(11)
              .fill(cde::C(cde::kIconColor[0]))
-             .transformOrigin(0.5f, 1.0f)
+             .transformOrigin(pct(50), pct(100))
              .rotate(motion::bind(&clockT).quantize(61).scale(30).offset(300)),
          box()
              .left(23)
@@ -546,7 +546,7 @@ struct CdeMotifSketch {
              .width(2)
              .height(18)
              .fill(cde::C(cde::kIconColor[0]))
-             .transformOrigin(0.5f, 1.0f)
+             .transformOrigin(pct(50), pct(100))
              .rotate(motion::bind(&clockT).quantize(61).scale(360)),
          box().left(22).top(22).width(4).height(4).corners({2}).fill(
              cde::C(cde::kIconColor[0]))});

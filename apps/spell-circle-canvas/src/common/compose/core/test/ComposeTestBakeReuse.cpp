@@ -135,7 +135,7 @@ Element turnedPill(float degrees, Cache mode) {
                               .key("pill")
                               .cache(mode)
                               .rotate(degrees)
-                              .transformOrigin(0.5f, 0.5f)
+                              .transformOrigin(pct(50), pct(50))
                               .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))
                               .children({text(u8"LEFT SIDE BARRIER",
                                               whiteStyle(15))})})});
@@ -236,7 +236,7 @@ TEST(ComposeCaching, ANodeUnderALiveTransformKeepsTheLocalBakeInItsRecording) {
                                   .height(60)
                                   .cache(Cache::Texture)
                                   .rotate(-90.0f)
-                                  .transformOrigin(0.5f, 0.5f)
+                                  .transformOrigin(pct(50), pct(50))
                                   .fill(red())
                                   .children({box().width(20).height(20).fill(
                                       green())})})}));
@@ -314,7 +314,7 @@ Element ringOfType(Cache mode, const choreograph::Output<float>* turn) {
                      .width(side)
                      .height(side)
                      .cache(mode)
-                     .transformOrigin(0.5f, 0.5f);
+                     .transformOrigin(pct(50), pct(50));
   const char8_t* letters[] = {u8"ANIMA", u8"LUMEN", u8"ORDO",  u8"SIGNUM",
                               u8"VOX",   u8"NOMEN", u8"CIRCU", u8"TERRA",
                               u8"AQUA",  u8"IGNIS", u8"AER",   u8"SAL"};

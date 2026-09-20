@@ -218,7 +218,7 @@ struct CardFlip {
         .padding(22)
         .column()
         .gap(10)
-        .transformOrigin(0.5f, 1.0f)  // hinged along its bottom edge
+        .transformOrigin(pct(50), pct(100))  // hinged along its bottom edge
         .rotateX(kTilt)
         .rotateY(motion::bind(&sway).source(-1, 1).target(-14, 14))
         .children({text("TILTED PLATE").font({.size = 18, .track = 3}),

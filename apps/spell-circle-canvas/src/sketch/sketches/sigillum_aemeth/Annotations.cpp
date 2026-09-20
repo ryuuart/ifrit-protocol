@@ -266,7 +266,7 @@ auto SigillumAemeth::margin() -> Element {
   return box()
       .rect(SkRect::MakeXYWH(1660 * kS, 56 * kS, w, 1588))
       .scale(kS)
-      .transformOrigin(0.0f, 0.0f)
+      .transformOrigin(pct(0), pct(0))
       .column()
       .gap(8)
       .font({.face = faceMono, .size = 15})
@@ -355,14 +355,14 @@ auto SigillumAemeth::consolePanel() -> Element {
                         .divider = Fill::color(hexColor(0xc7ab74, 0.16f))}})
       .rect(SkRect::MakeXYWH(px, py, pw, ph))
       .scale(kS)
-      .transformOrigin(0.0f, 0.0f);
+      .transformOrigin(pct(0), pct(0));
 }
 
 auto SigillumAemeth::colophon() -> Element {
   return box()
       .rect(SkRect::MakeXYWH(1660 * kS, 1552 * kS, 690, 120))
       .scale(kS)
-      .transformOrigin(0.0f, 0.0f)
+      .transformOrigin(pct(0), pct(0))
       .column()
       .gap(16)
       .styleSheet(voices())

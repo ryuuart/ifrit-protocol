@@ -102,10 +102,10 @@ sound model; nothing below them changes kernel semantics.
   `effect`, `backdrop`.
 - `core/verbs/Transform.h` — `TransformVerbs`: `translateX`,
   `translateY`, `travel`, `rotate`, `scale`, `scaleX`, `scaleY`,
-  `skewX`, `skewY`, `transformOrigin`, `transformOriginPx`, `zIndex`.
+  `skewX`, `skewY`, `transformOrigin`, `zIndex`.
 - `core/verbs/Depth.h` — `DepthVerbs`: `rotateX`, `rotateY`,
   `translateZ`, `scaleZ`, `perspective`, `perspectiveOrigin`,
-  `transformOrigin3d`, `preserve3d`, `backface`.
+  `preserve3d`, `backface`.
 - `core/verbs/TextStyle.h` — `TextStyleVerbs`: `paragraphs`,
   `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,
   `ellipsis`, `maxLines`, `textFill`, `textStroke`, `flowAround`.

@@ -175,7 +175,7 @@ Element meter(const Channel &c) {
                  .grow()
                  .height(6)
                  .fill(ink)
-                 .transformOrigin(0.0f, 0.5f)
+                 .transformOrigin(pct(0), pct(50))
                  // The bar ramps because the DESCRIBED value moved. Nobody
                  // steps it; the reconciler sees the change and starts a
                  // motion that retargets from wherever the bar is now.

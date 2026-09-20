@@ -65,7 +65,7 @@ auto HitmanVerlet::panelA3() -> Element {
         .scaleY(animate(
             from(0.0f).to(1.0f),
             {.duration = 220ms, .ease = ease::outBack(), .delay = 1600ms}))
-        .transformOrigin(0.5f, 1.0f);
+        .transformOrigin(pct(50), pct(100));
   };
   return panel(kPanelAH[2], a3["heading"].text(), 3)
       .styleSheet(plotClasses())

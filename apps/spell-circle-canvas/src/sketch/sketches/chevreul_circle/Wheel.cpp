@@ -62,7 +62,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
                     .shape(shapes::sector(sectorStart(n) + kBladeGapDeg * 0.5f,
                                           kSectorDeg - kBladeGapDeg, kInner))
                     .fill(Fill::color(corrected[(size_t)n]))
-                    .transformOrigin(0.5f, 0.5f)
+                    .transformOrigin(pct(50), pct(50))
                     .opacity(bind(&demo).window(lo, lo + 0.010f))
                     .scale(bind(&demo)
                                .window(lo, lo + 0.014f)
@@ -134,7 +134,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
     }
     g.children({at(kC.fX - 48, kC.fY + 54, 96, 1)
                     .fill(Fill::color(kInk))
-                    .transformOrigin(0.5f, 0.5f)
+                    .transformOrigin(pct(50), pct(50))
                     .scale(bind(&demo).window(0.22f, 0.24f))});
   }
 
@@ -236,7 +236,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
                   .fill(Fill::none())
                   .shape(diameter())
                   .stroke(stroke(1.2f, Fill::color(kRed)))
-                  .transformOrigin(0.5f, 0.5f)
+                  .transformOrigin(pct(50), pct(50))
                   .rotate(bind(&demo).window(0.18f, 0.30f).target(0.0f, 180.0f))
                   .opacity(bind(&demo).window(0.18f, 0.30f).map(pulses(1)))});
 

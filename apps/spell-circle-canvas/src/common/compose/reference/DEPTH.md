@@ -10,8 +10,8 @@ many pixels in front of the ancestor's plane, over the point
 `Element::perspectiveOrigin` names (its centre by default). Every one of
 them is a `motion::Animatable` lane exactly like the 2D lanes: it
 transitions, mounts, binds and prunes the same way, animating it never
-relayouts, and `Element::transformOrigin3d` gives the pivot a depth. The
-frame is CSS's — x right, y down, **+z toward the viewer** — so a
+relayouts, and the third length of `Element::transformOrigin` gives the
+pivot a depth. The frame is CSS's — x right, y down, **+z toward the viewer** — so a
 positive `translateZ` under a `perspective` comes closer and grows. The
 three rotations compose as the CSS list `rotateX() rotateY() rotateZ()`,
 x outermost, then the scale and the skew about the transform origin, with

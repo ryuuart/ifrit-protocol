@@ -307,12 +307,13 @@ TEST(ComposeTransform, PixelOriginPivotsWhereTold) {
                                 .inset(80, 80, 80, 80)
                                 .fill(red())
                                 .rotate(90.0f)));  // pivots on its center
-  px.composer.render(tree(box()
-                              .absolute()
-                              .inset(80, 80, 80, 80)
-                              .fill(red())
-                              .rotate(90.0f)
-                              .transformOriginPx({0, 0})));  // pivots top-left
+  px.composer.render(tree(
+      box()
+          .absolute()
+          .inset(80, 80, 80, 80)
+          .fill(red())
+          .rotate(90.0f)
+          .transformOrigin(Dimension(0), Dimension(0))));  // pivots top-left
   frac.frame();
   px.frame();
   EXPECT_EQ(frac.pixel(100, 100), SK_ColorRED);  // unchanged footprint

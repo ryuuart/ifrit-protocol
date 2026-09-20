@@ -395,7 +395,7 @@ struct TwoAdvancedEquipment {
             .children({topFrame(), leftFrame(), contentFrame(), bottomFrame()});
     return stack().children({at(std::move(page), 0, 0, kPageW, kPageH)
                                  .scale(2.0f)
-                                 .transformOrigin(0, 0)});
+                                 .transformOrigin(pct(0), pct(0))});
   }
 
   void setup(sketch::SketchContext& ctx) {

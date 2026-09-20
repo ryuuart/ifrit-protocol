@@ -161,7 +161,7 @@ auto SigillumAemeth::circumferenceCells() -> Element {
   // circles. One node, forty contours, one trim window on the stroke.
   return box()
       .inset(0)
-      .transformOrigin(0.5f, 0.5f)
+      .transformOrigin(pct(50), pct(50))
       .font({.face = faceRing, .size = 0.060f * kR})
       .ink(hexColor(0x241603, 1.0f))
       .styleSheet(weaveNs::StyleSheet{
@@ -242,7 +242,7 @@ auto SigillumAemeth::angles() -> Element {
   };
   return box()
       .inset(0)
-      .transformOrigin(0.5f, 0.5f)
+      .transformOrigin(pct(50), pct(50))
       .font({.face = faceSeal, .size = 0.049f * kR, .track = 0.034f * kR})
       .ink(hexColor(0x201404, 1.0f))
       .children(
@@ -310,7 +310,7 @@ auto SigillumAemeth::heptagonNames() -> Element {
   // inside it is the italic, untracked.
   return box()
       .inset(0)
-      .transformOrigin(0.5f, 0.5f)
+      .transformOrigin(pct(50), pct(50))
       .font({.face = faceQuill, .size = 0.048f * kR, .track = 0.026f * kR})
       .ink(hexColor(0x201404, 1.0f))
       .styleSheet(weaveNs::StyleSheet{
@@ -567,7 +567,7 @@ auto SigillumAemeth::pentagram() -> Element {
   };
   return box()
       .rect(path::centred({kRR, kRR}, {2 * kHp, 2 * kHp}))
-      .transformOrigin(0.5f, 0.5f)
+      .transformOrigin(pct(50), pct(50))
       .font({.face = faceSeal, .size = 0.052f * kR})
       .ink(hexColor(0x241704, 1.0f))
       .styleSheet(weaveNs::StyleSheet{

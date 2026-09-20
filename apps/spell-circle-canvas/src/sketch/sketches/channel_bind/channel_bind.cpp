@@ -299,7 +299,7 @@ struct ChannelBind {
                                kBladeAt + kBladeWide, kFloor))
         .fill(compose::Fill::color(look.palette.figure))
         .corners(4)
-        .transformOrigin(0.5f, 1.0f)
+        .transformOrigin(compose::pct(50), compose::pct(100))
         .scaleY(rise());
   }
 
@@ -347,7 +347,7 @@ struct ChannelBind {
         compose::box()
             .rect(SkRect::MakeLTRB(kPlumbAt, kPlumbTop, kPlumbAt + kPlumbWide,
                                    kPlumbTop + kPlumbLong))
-            .transformOrigin(0.5f, 0.0f)
+            .transformOrigin(compose::pct(50), compose::pct(0))
             .rotate(swing())
             .children({compose::box()
                            .rect(SkRect::MakeLTRB(kPlumbWide * 0.5f - 3, 0,

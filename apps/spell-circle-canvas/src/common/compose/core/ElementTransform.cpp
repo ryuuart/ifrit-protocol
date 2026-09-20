@@ -62,20 +62,19 @@ Derived& TransformVerbs<Derived>::skewY(motion::Animatable<float> v) {
 }
 
 template <class Derived>
-Derived& TransformVerbs<Derived>::transformOrigin(float fx, float fy) {
+Derived& TransformVerbs<Derived>::transformOrigin(Dimension x, Dimension y,
+                                                  Dimension z) {
   detail::ElementNode* node = declarations();
-  node->paint.originX = fx;
-  node->paint.originY = fy;
-  node->paint.originPx = false;
-  return self();
-}
-
-template <class Derived>
-Derived& TransformVerbs<Derived>::transformOriginPx(SkPoint p) {
-  detail::ElementNode* node = declarations();
-  node->paint.originX = p.x();
-  node->paint.originY = p.y();
-  node->paint.originPx = true;
+  node->paint.originX = x;
+  node->paint.originY = y;
+  if (z.unit == Dimension::Unit::Pct) {
+    detail::warnPercentOriginDepth();
+    z = Dimension(0.0f);
+  }
+  // The depth lives in the block a flat node does not carry, so only a
+  // pivot off the plane, or a node that already has the block, writes it.
+  if (node->depthData || z != Dimension(0.0f))
+    node->depthData.ensure().originZ = z;
   return self();
 }
 

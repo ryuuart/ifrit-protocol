@@ -413,7 +413,7 @@ namespace detail {
  * reaches here, because `inst.description` holds the memo's PRODUCED payload;
  * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 27 && kFieldCount<PaintProps> == 15 &&
+static_assert(kFieldCount<ElementNode> == 27 && kFieldCount<PaintProps> == 14 &&
                   kFieldCount<ImageData> == 2 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 5,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
@@ -508,8 +508,7 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
       !propertyEqual(pa.scaleY, pb.scaleY) ||
       !propertyEqual(pa.skewX, pb.skewX) ||
       !propertyEqual(pa.skewY, pb.skewY) || pa.originX != pb.originX ||
-      pa.originY != pb.originY || pa.originPx != pb.originPx ||
-      pa.zIndex != pb.zIndex)
+      pa.originY != pb.originY || pa.zIndex != pb.zIndex)
     return false;
   // travel(): a motion path is read live at paint, so every one of its
   // fields participates here or a change to that field prunes into its
@@ -559,7 +558,7 @@ bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
       !propertyEqual(pa.scaleY, pb.scaleY) ||
       !propertyEqual(pa.skewX, pb.skewX) ||
       !propertyEqual(pa.skewY, pb.skewY) || pa.originX != pb.originX ||
-      pa.originY != pb.originY || pa.originPx != pb.originPx)
+      pa.originY != pb.originY)
     return false;
   if ((bool)a.motionData != (bool)b.motionData) return false;
   if (a.motionData && (!(a.motionData->path == b.motionData->path) ||

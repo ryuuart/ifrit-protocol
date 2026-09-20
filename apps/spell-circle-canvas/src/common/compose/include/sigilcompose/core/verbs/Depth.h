@@ -9,6 +9,7 @@
  */
 
 #include <sigilcompose/core/Declarations.h>
+#include <sigilcompose/core/Layout.h>
 #include <sigilmaterial/core/Backface.h>
 #include <sigilmotion/values/Animatable.h>
 
@@ -46,14 +47,13 @@ class DepthVerbs {
    *  `perspective` property does. 0 is no perspective. Bindable, so a
    *  dolly is a bound distance. */
   Derived& perspective(motion::Animatable<float> distancePx);
-  /** Where the viewer stands over the plane, as fractions of this
-   *  node's box — the vanishing point of the view `perspective()`
-   *  declares. The centre by default. */
-  Derived& perspectiveOrigin(float fx, float fy);
-  /** The pivot the lanes turn about, with a depth: `fx, fy` are the
-   *  fractions `transformOrigin()` takes and `zPx` is a distance in
-   *  front of the plane, positive toward the viewer. */
-  Derived& transformOrigin3d(float fx, float fy, float zPx);
+  /** Where the viewer stands over the plane — the vanishing point of
+   *  the view `perspective()` declares, CSS `perspective-origin`. Read
+   *  as `transformOrigin()` reads its lengths: a percentage is of this
+   *  node's box, any other length is node-local pixels, and a bare
+   *  number is refused. The centre when unstated. */
+  Derived& perspectiveOrigin(Dimension x, Dimension y);
+  Derived& perspectiveOrigin(float, float) = delete;
   /** THE SHARED SPACE: this node's children keep the depth their own
    *  lanes give them and are painted back to front by the depth of
    *  each child's centre. A cube is six children of one such node. A

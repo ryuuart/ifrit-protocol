@@ -11,6 +11,9 @@
 #include <include/effects/SkImageFilters.h>
 
 #include <functional>
+#include <memory>
+#include <optional>
+#include <utility>
 
 #include "support/CoreTestSupport.h"
 
@@ -526,7 +529,7 @@ TEST(ComposeDepth, AHingeBehindThePlaneIsATransformOriginWithADepth) {
              .absolute()
              .rect(SkRect::MakeXYWH(50, 50, 100, 100))
              .fill(red())
-             .transformOrigin3d(0.5f, 0.5f, pivotZ)
+             .transformOrigin(pct(50), pct(50), Dimension(pivotZ))
              .rotateY(45)}));
     host.frame();
     int painted = 0;
@@ -540,6 +543,41 @@ TEST(ComposeDepth, AHingeBehindThePlaneIsATransformOriginWithADepth) {
   EXPECT_GT(onAHingeBehind, 0);
   EXPECT_NE(inThePlane, onAHingeBehind)
       << "the pivot's depth is part of the turn";
+}
+
+TEST(ComposeDepth, TheViewerStandsWhereThePerspectiveOriginIsWritten) {
+  // A plane pushed as far behind the page as the viewer stands in front of
+  // it draws at half its size, drawn in toward the point the viewer stands
+  // over. That point is written as `transformOrigin` writes a pivot: a
+  // percentage of the declaring node's box, or a length in it.
+  const auto drawnUnder = [](std::optional<std::pair<Dimension, Dimension>>
+                                 viewer) {
+    auto host = std::make_unique<Host>(200, 200);
+    Element view = box().perspective(400);
+    if (viewer) view.perspectiveOrigin(viewer->first, viewer->second);
+    host->composer.render(
+        view.children({box()
+                           .absolute()
+                           .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                           .fill(red())
+                           .translateZ(-400)}));
+    host->frame();
+    return host;
+  };
+  const auto centred = drawnUnder(std::nullopt);
+  EXPECT_EQ(centred->pixel(100, 100), SK_ColorRED);
+  EXPECT_NE(centred->pixel(40, 40), SK_ColorRED);
+
+  const auto cornerInPercent = drawnUnder({{pct(0), pct(0)}});
+  EXPECT_EQ(cornerInPercent->pixel(40, 40), SK_ColorRED);
+  EXPECT_NE(cornerInPercent->pixel(100, 100), SK_ColorRED);
+
+  const auto cornerInPixels = drawnUnder({{Dimension(0), Dimension(0)}});
+  EXPECT_TRUE(identicalPixels(*cornerInPercent, *cornerInPixels, 200, 200));
+
+  const auto farCorner = drawnUnder({{Dimension(200), pct(100)}});
+  EXPECT_EQ(farCorner->pixel(150, 150), SK_ColorRED);
+  EXPECT_NE(farCorner->pixel(100, 100), SK_ColorRED);
 }
 
 TEST(ComposeDepth, ADepthLaneRampsLikeAnyOtherLane) {

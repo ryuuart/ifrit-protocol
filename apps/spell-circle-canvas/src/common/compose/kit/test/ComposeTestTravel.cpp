@@ -165,7 +165,7 @@ TEST(ComposeTravel, PlacesTheTransformOriginOnTheParentSizedCurve) {
   t = 0.0f;
   host.composer.render(
       travelFrame(rider({.path = geometry::shapes::circle(), .t = &t})
-                      .transformOrigin(0, 0)));
+                      .transformOrigin(pct(0), pct(0))));
   host.frame();
   const SkPoint pinned = inkCentroid(host, SK_ColorRED, 200, 200);
   EXPECT_NEAR(pinned.x(), 184.0f, 1.5f)

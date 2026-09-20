@@ -338,8 +338,8 @@ struct EvaMagiDefense {
   Element describe() {
     using namespace eva;
     auto camera = [](Element e) {
-      return box().inset(0).children({std::move(
-          e.rotate(kRoll).transformOriginPx({kW * 0.5f, kH * 0.5f}))});
+      return box().inset(0).children({std::move(e.rotate(kRoll).transformOrigin(
+          Dimension(kW * 0.5f), Dimension(kH * 0.5f)))});
     };
 
     auto root = stack().inset(0);

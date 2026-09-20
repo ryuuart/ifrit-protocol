@@ -40,7 +40,7 @@ compose::Element meter(const Meter& bar) {
     // recording and only the transform moves.
     Element run = box().absolute().inset(bar.inset.value_or(0.0f));
     barPaint.apply(run);
-    run.transformOrigin(0, 0.5f).scaleX(*bar.level);
+    run.transformOrigin(compose::pct(0), compose::pct(50)).scaleX(*bar.level);
     if (bar.corners > 0) run.corners(Corners{bar.corners});
     rail.children({std::move(run)});
   } else if (filled > 0) {

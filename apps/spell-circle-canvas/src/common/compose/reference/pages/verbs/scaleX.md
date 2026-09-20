@@ -30,11 +30,12 @@ while the fill happens to be a gradient along the OTHER axis.
 **Pin the growing edge with `transformOrigin`.**
 
 ```cpp
-element.transformOrigin(0, 0.5f).scaleX(motion::bind(&fraction));
+element.transformOrigin(pct(0), pct(50)).scaleX(motion::bind(&fraction));
 ```
 
 grows a bar rightward from its left edge.
 
 ## See also
 
-`scale`, `scaleY`, `transformOrigin`, [`opacity`](opacity.md).
+`scale`, `scaleY`, [`transformOrigin`](transformOrigin.md),
+[`opacity`](opacity.md).

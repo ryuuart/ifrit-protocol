@@ -35,6 +35,8 @@ struct NodeTransform {
   // depth scale. At rest they are exactly the identity, and a node at
   // rest in all four is a 2D node in every consumer.
   float rx = 0, ry = 0, tz = 0, sz = 1;
+  // The point the rotate, scale and skew lanes turn about.
+  detail::Pivot pivot;
   /** Does anything past the translate need the origin pivot at all?
    *
    *  THE ONE DEFINITION, and every consumer asks it rather than writing
@@ -63,11 +65,10 @@ struct NodeTransform {
    *
    *  The 2D producer: a node whose depth lanes have left rest is placed
    *  by matrix44() instead, and every consumer asks spatial() first. */
-  SkMatrix matrix(SkPoint anchor, const detail::PaintProps& p, float w,
-                  float h) const {
+  SkMatrix matrix(SkPoint anchor, float w, float h) const {
     SkMatrix m = SkMatrix::Translate(anchor.x() + tx, anchor.y() + ty);
     if (pivoted()) {
-      const SkPoint origin = detail::resolveOrigin(p, w, h);
+      const SkPoint origin = pivot.at(w, h);
       m.preTranslate(origin.x(), origin.y());
       if (rot != 0) m.preRotate(rot);
       if (scl != 1 || sx != 1 || sy != 1) m.preScale(scl * sx, scl * sy);
@@ -87,14 +88,12 @@ struct NodeTransform {
    *  the bounds union, the hit test's inverse, the depth sort and the
    *  node→root accumulation all read this, in this order of operations,
    *  and the settle compare between two of them needs the products to
-   *  agree bit for bit. `depth` is the node's block, null on a node
-   *  without one (then the origin has no z). */
-  SkM44 matrix44(SkPoint anchor, const detail::PaintProps& p,
-                 const detail::DepthData* depth, float w, float h) const {
+   *  agree bit for bit. */
+  SkM44 matrix44(SkPoint anchor, float w, float h) const {
     SkM44 m = SkM44::Translate(anchor.x() + tx, anchor.y() + ty, tz);
     if (pivoted() || spatial()) {
-      const SkPoint origin = detail::resolveOrigin(p, w, h);
-      const float oz = depth ? depth->originZ : 0.0f;
+      const SkPoint origin = pivot.at(w, h);
+      const float oz = pivot.depth;
       m.preTranslate(origin.x(), origin.y(), oz);
       if (rx != 0) m.preConcat(detail::rotateXMatrix(rx));
       if (ry != 0) m.preConcat(detail::rotateYMatrix(ry));
@@ -121,11 +120,10 @@ struct NodeTransform {
    *  lane; the four depth lanes are matrix44()'s alone, since a canvas
    *  has no elementary op for them. A flat lane added to the struct goes
    *  in both (the fieldPin below counts it). */
-  void concatTo(SkCanvas& canvas, const detail::PaintProps& p, float w,
-                float h) const {
+  void concatTo(SkCanvas& canvas, float w, float h) const {
     if (tx != 0 || ty != 0) canvas.translate(tx, ty);
     if (pivoted()) {
-      const SkPoint origin = detail::resolveOrigin(p, w, h);
+      const SkPoint origin = pivot.at(w, h);
       canvas.translate(origin.x(), origin.y());
       if (rot != 0) canvas.rotate(rot);
       if (scl != 1 || sx != 1 || sy != 1) canvas.scale(scl * sx, scl * sy);
@@ -139,14 +137,14 @@ struct NodeTransform {
    *  is a hand-written exhaustive list over these members, exactly like
    *  a comparator, and fails the same way: silently, by not noticing. */
   static void fieldPin(NodeTransform& v) {
-    auto& [tx, ty, rot, scl, sx, sy, skx, sky, rx, ry, tz, sz] = v;
+    auto& [tx, ty, rot, scl, sx, sy, skx, sky, rx, ry, tz, sz, pivot] = v;
     static_assert(
         std::tuple_size_v<decltype(std::tie(tx, ty, rot, scl, sx, sy, skx, sky,
-                                            rx, ry, tz, sz))> == 12,
+                                            rx, ry, tz, sz, pivot))> == 13,
         "NodeTransform gained or lost a lane — put it in pivoted() or "
-        "spatial() above (unless it is a pure translate), in matrix()'s "
-        "and matrix44()'s builds, and in transformOf()'s resolve, then "
-        "bump this count.");
+        "spatial() above (unless it is a pure translate, or the pivot the "
+        "others turn about), in matrix()'s and matrix44()'s builds, and in "
+        "transformOf()'s resolve, then bump this count.");
   }
 };
 

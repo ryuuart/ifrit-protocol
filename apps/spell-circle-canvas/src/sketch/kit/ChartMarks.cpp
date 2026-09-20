@@ -323,8 +323,11 @@ Layer banded(std::vector<Datum> data, double base, float corners, Axis along,
         // the wheel and not out of the middle of itself.
         const SkRect unit = wedge.unit;
         one.shape(wedge).transformOrigin(
-            unit.width() > 0 ? -unit.fLeft / unit.width() : 0.0f,
-            unit.height() > 0 ? -unit.fTop / unit.height() : 0.0f);
+            compose::pct(100.0f * (unit.width() > 0 ? -unit.fLeft / unit.width()
+                                                    : 0.0f)),
+            compose::pct(100.0f * (unit.height() > 0
+                                       ? -unit.fTop / unit.height()
+                                       : 0.0f)));
       }
       children.push_back(std::move(one.key(stem + "-" + std::to_string(i))));
     }

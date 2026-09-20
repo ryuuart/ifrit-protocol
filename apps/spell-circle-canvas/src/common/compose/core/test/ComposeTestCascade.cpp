@@ -195,6 +195,30 @@ TEST(ComposeCascade, AChangedAncestorFontRelaysOutTheLengthsMeasuredInIt) {
   EXPECT_FLOAT_EQ(require(host.composer.bounds("in")).left(), 30.0f);
 }
 
+TEST(ComposeCascade, AnOriginInEmsFollowsTheFontItIsMeasuredIn) {
+  // The pivot is a length of the node like any other, read at paint: two
+  // ems is 20 px under a 10 px font and 60 under 30. The box collapses to
+  // a sliver across its pivot, so the sliver's column is the pivot's, and
+  // a font that changes above the node moves it with nothing else said.
+  Host host;
+  const auto page = [](float size) {
+    return box().font({.size = size}).children({box()
+                                                    .absolute()
+                                                    .rect(SkRect::MakeWH(100, 20))
+                                                    .fill(red())
+                                                    .transformOrigin(2_em, pct(0))
+                                                    .scaleX(0.04f)});
+  };
+  host.composer.render(page(10));
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 10), SK_ColorRED);
+  EXPECT_NE(host.pixel(60, 10), SK_ColorRED);
+  host.composer.render(page(30));
+  host.frame();
+  EXPECT_NE(host.pixel(20, 10), SK_ColorRED);
+  EXPECT_EQ(host.pixel(60, 10), SK_ColorRED);
+}
+
 TEST(ComposeCascade, ASlotInheritsFromWhereItStands) {
   // The slot's content is described elsewhere and later; it is set in the
   // font and ink of the slot's ancestors all the same.
