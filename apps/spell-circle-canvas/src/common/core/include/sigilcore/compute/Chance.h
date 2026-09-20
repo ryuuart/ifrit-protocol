@@ -350,7 +350,12 @@ class Stream {
   float m_spare = 0.0f;
 };
 
-// ---- the shapes -----------------------------------------------------------
+/** @name The shapes
+ *  The distributions a stream is read through, each a comparable value
+ *  carrying its own parameters and answering one draw. A caller holds
+ *  the shape it wants rather than calling a function per name, so the
+ *  shape can be stored, compared and varied like any other value.
+ *  @{ */
 
 /** [lo, hi). The default is the unit interval, so `Uniform{}` is
  *  `unit()` under the name the other shapes are spelled by. */
@@ -480,6 +485,7 @@ class Reservoir {
   size_t m_seen = 0;
   std::vector<size_t> m_kept;
 };
+/** @} */
 
 /** THE SEED A WHOLE SHEET RE-ROLLS FROM, as one carried value.
  *

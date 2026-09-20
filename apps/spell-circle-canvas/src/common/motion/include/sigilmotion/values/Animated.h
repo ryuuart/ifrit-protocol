@@ -47,7 +47,7 @@ template <typename T>
 struct ResolvedProperty {
   T target{};
   const choreograph::Output<T>* binding = nullptr;
-  const Transition* transition = nullptr;  // the value's own or the default
+  const Transition* transition = nullptr;  ///< the value's own or the default
 };
 
 /** Reads one animatable against a transition the caller supplies as its

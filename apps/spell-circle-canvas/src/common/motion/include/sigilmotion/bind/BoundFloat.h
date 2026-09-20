@@ -72,30 +72,31 @@ enum class Envelope : uint8_t {
  *  that never shapes anything pays nothing. */
 struct BoundFloat {
   const choreograph::Output<float>* source = nullptr;
-  float inScale = 1.0f, inOffset = 0.0f;  // source(): pre-curve normalise
-  choreograph::EaseFn curve;              // map()
-  bool clampInput = false;                // window(): clamp before the curve
-  // The envelope stage: the shape, and the trapezoid's four corners in
-  // NORMALISED phase. The corners are stored non-decreasing, so a zero-length
-  // shoulder is an instant cut rather than a division by zero.
+  float inScale = 1.0f, inOffset = 0.0f;  ///< source(): pre-curve normalise
+  choreograph::EaseFn curve;              ///< map()
+  bool clampInput = false;  ///< window(): clamp before the curve
+  /** The envelope stage: the shape, and the trapezoid's four corners in
+   *  NORMALISED phase. The corners are stored non-decreasing, so a
+   *  zero-length shoulder is an instant cut rather than a division by
+   *  zero. */
   Envelope envelope = Envelope::kNone;
   float riseStart = 0.0f, holdStart = 0.0f, holdEnd = 1.0f, fallEnd = 1.0f;
-  // square(): the ON fraction of each period, stored clamped to [0,1].
+  /** square(): the ON fraction of each period, stored clamped to [0,1]. */
   float duty = 0.5f;
-  // wave(): the caller's own periodic shape, read on the folded phase.
+  /** wave(): the caller's own periodic shape, read on the folded phase. */
   choreograph::EaseFn waveFunction;
-  int steps = 0;                      // quantize(): 0 = continuous
-  float scale = 1.0f, offset = 0.0f;  // the affine chain
+  int steps = 0;                      ///< quantize(): 0 = continuous
+  float scale = 1.0f, offset = 0.0f;  ///< the affine chain
   bool clamped = false;
   float lo = 0.0f, hi = 1.0f;
-  // wiggle(): the procedural noise stage. amount == 0 disengages it
-  // entirely, at the cost of one float compare.
-  float wiggleAmount = 0.0f;     // peak displacement, in OUTPUT units
-  float wiggleFrequency = 2.0f;  // cycles per unit of NORMALISED input
+  /** wiggle(): the procedural noise stage. An amount of zero disengages
+   *  it entirely, at the cost of one float compare. */
+  float wiggleAmount = 0.0f;     ///< peak displacement, in OUTPUT units
+  float wiggleFrequency = 2.0f;  ///< cycles per unit of NORMALISED input
   uint32_t wiggleSeed = 0;
   int wiggleOctaves = 1;
   float wiggleFalloff = 0.5f;
-  // wrap(): fold the post-affine value into [0, period). 0 = no wrap.
+  /** wrap(): fold the post-affine value into [0, period). 0 = no wrap. */
   float wrapPeriod = 0.0f;
 
   /** Runs the chain on one sample of the bound Output. */

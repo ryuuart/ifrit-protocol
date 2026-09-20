@@ -85,7 +85,10 @@ class Pen {
   Pen(const Pen&) = delete;
   Pen& operator=(const Pen&) = delete;
 
-  // ---- the frame, for whoever holds the canvas ---------------------------
+  /** @name The frame
+   *  What whoever holds the canvas calls around a frame, and the
+   *  canvas itself for a caller that draws past the pen.
+   *  @{ */
   /** Starts a frame on @p canvas: the transform the canvas carries at
    *  this moment is what `resetMatrix()` returns to, and everything in
    *  @p frame is read into the variables below. */
@@ -145,8 +148,12 @@ class Pen {
   /** The rate `frameRate(fps)` asked for, or zero for whatever the
    *  runtime steps at. */
   [[nodiscard]] double targetFrameRate() const { return m_targetFrameRate; }
+  /** @} */
 
-  // ---- p5's variables ------------------------------------------------------
+  /** @name p5's variables
+   *  The ambient values p5 exposes as globals, read off the frame
+   *  the runtime handed to `begin`.
+   *  @{ */
   float width = 0;
   float height = 0;
   int frameCount = 0;
@@ -160,8 +167,12 @@ class Pen {
   bool keyIsPressed = false;
   std::string key;
   int keyCode = 0;
+  /** @} */
 
-  // ---- environment ---------------------------------------------------------
+  /** @name The environment
+   *  The clock, the rate the loop is asked to run at, and the keys
+   *  held this frame.
+   *  @{ */
   /** Milliseconds since the sketch began, on the clock of whoever
    *  steps it — stepped, on a plate; the wall, in a window. */
   [[nodiscard]] double millis() const { return m_seconds * 1000.0; }
@@ -178,8 +189,12 @@ class Pen {
   [[nodiscard]] bool keyIsDown(int code) const;
   /** Every key code held this frame — what `keyIsDown` answers over. */
   [[nodiscard]] std::span<const int> keysDown() const { return m_keysDown; }
+  /** @} */
 
-  // ---- colour --------------------------------------------------------------
+  /** @name Colour
+   *  The mode every component-taking verb is read in, the fill and
+   *  stroke inks, and the ground a frame starts from.
+   *  @{ */
   void colorMode(Constant mode);
   void colorMode(Constant mode, float max);
   void colorMode(Constant mode, float max1, float max2, float max3);
@@ -286,8 +301,12 @@ class Pen {
                phase);
   }
   void noDash();
+  /** @} */
 
-  // ---- blending ------------------------------------------------------------
+  /** @name Blending
+   *  How what is drawn combines with what is already there. It is
+   *  style, so `push` saves it and `pop` puts it back.
+   *  @{ */
   /** HOW WHAT IS DRAWN MEETS WHAT IS ALREADY THERE. `BLEND` lays the
    *  source over the canvas by its alpha and is where a pen starts;
    *  `ADD` adds the two and clamps, which is what light does; `REPLACE`
@@ -302,8 +321,12 @@ class Pen {
    *  and the ground a `background` lays — and it is style, so `push`
    *  saves it and `pop` puts it back. */
   void blendMode(Constant mode);
+  /** @} */
 
-  // ---- modes ---------------------------------------------------------------
+  /** @name Modes
+   *  How a shape verb reads its arguments: which corner or centre a
+   *  box is placed by, and what unit an angle is in.
+   *  @{ */
   void rectMode(Constant mode);
   void ellipseMode(Constant mode);
   void imageMode(Constant mode);
@@ -312,8 +335,12 @@ class Pen {
    *  library drawing beside the pen — a brush engine — reads it here so
    *  its angles and the pen's are in one unit. */
   [[nodiscard]] Constant angleMode() const { return m_style.angleMode; }
+  /** @} */
 
-  // ---- shapes --------------------------------------------------------------
+  /** @name Shapes
+   *  Every mark the pen puts down, in p5's spellings and in added
+   *  overloads taking this repository's point and silhouette values.
+   *  @{ */
   void point(float x, float y);
   void line(float x1, float y1, float x2, float y2);
   /** THE SAME MARKS TAKING POINTS. p5 has no such overload because p5 has
@@ -408,8 +435,12 @@ class Pen {
    *  the same reason. Building the mesh is Skia's business: this verb
    *  takes one and asks no questions about how it was made. */
   void vertices(const sk_sp<SkVertices>& mesh);
+  /** @} */
 
-  // ---- the clip ------------------------------------------------------------
+  /** @name The clip
+   *  A mask drawn by a callable, confining everything drawn after it
+   *  until the matching `pop()`.
+   *  @{ */
   /** p5's CLIP: @p shape draws the mask, and everything drawn after it
    *  is confined to what @p shape covered.
    *
@@ -434,8 +465,12 @@ class Pen {
     shape();
     applyClip(options);
   }
+  /** @} */
 
-  // ---- text ----------------------------------------------------------------
+  /** @name Text
+   *  The type a run of text is set in, where it sits, and what it
+   *  measures.
+   *  @{ */
   void textSize(float size);
   /** A family by name, matched through the font context's manager; a
    *  family it cannot find falls back to the context's default face. */
@@ -463,8 +498,11 @@ class Pen {
   [[nodiscard]] float textWidth(std::string_view str);
   [[nodiscard]] float textAscent();
   [[nodiscard]] float textDescent();
+  /** @} */
 
-  // ---- image ---------------------------------------------------------------
+  /** @name Images
+   *  A picture or an offscreen buffer put down, whole or in part.
+   *  @{ */
   void image(const sk_sp<SkImage>& img, float x, float y);
   void image(const sk_sp<SkImage>& img, float x, float y, float w, float h);
   /** The part of @p img at (@p sx, @p sy, @p sw, @p sh) drawn into the
@@ -476,8 +514,12 @@ class Pen {
    *  was formed at. Its words are in `<sigildraw/Graphics.h>`. */
   void image(const Graphics& buffer, float x, float y);
   void image(const Graphics& buffer, float x, float y, float w, float h);
+  /** @} */
 
-  // ---- transform -----------------------------------------------------------
+  /** @name The transform
+   *  Where the pen draws and how large, and the stack that saves and
+   *  restores it together with the style.
+   *  @{ */
   void translate(float x, float y);
   /** In the current angle mode. */
   void rotate(float angle);
@@ -491,8 +533,12 @@ class Pen {
   /** Back to the transform the frame began on. */
   void resetMatrix();
   void applyMatrix(float a, float b, float c, float d, float e, float f);
+  /** @} */
 
-  // ---- random and noise ----------------------------------------------------
+  /** @name Random and noise
+   *  Seeded once per pen, so a frame stepped from zero draws the same
+   *  picture every time.
+   *  @{ */
   /** [0, 1), [0, max) or [min, max), from a stream seeded once per pen —
    *  so a plate stepped from zero draws the same picture every time.
    *  `randomSeed` restarts the stream. */
@@ -507,8 +553,12 @@ class Pen {
   }
   void noiseSeed(uint32_t seed) { m_noise.seed(seed); }
   void noiseDetail(int lod, float falloff) { m_noise.detail(lod, falloff); }
+  /** @} */
 
-  // ---- a retained guest ----------------------------------------------------
+  /** @name A retained guest
+   *  Something another library keeps between frames, painted inside a
+   *  box on this one and told apart by the call site that painted it.
+   *  @{ */
   /** THE OTHER WAY THROUGH THE DOOR. Something another library keeps
    *  between frames, painted inside @p box on this frame: laid out,
    *  reconciled and cached by its own library, with this pen lending it
@@ -523,8 +573,13 @@ class Pen {
     if (!m_canvas) return;
     paintRetained(*this, guest, box, Slot::at(where, index));
   }
+  /** @} */
 
-  // ---- the paints, for a guest that draws with them -----------------------
+  /** @name The paints
+   *  The fill and the stroke as Skia paints, resolved for this frame,
+   *  for a caller drawing through the canvas rather than through a
+   *  verb.
+   *  @{ */
   /** The fill as an SkPaint, resolved against the CANVAS for this frame.
    *
    *  NULL UNDER `noFill()`, and that is the whole answer: `noFill()` means
@@ -543,6 +598,7 @@ class Pen {
   /** The stroke as an SkPaint, resolved for this frame; null when
    *  `noStroke()` holds or the weight is zero, on the same rule. */
   [[nodiscard]] const SkPaint* strokePaint();
+  /** @} */
 
  private:
   struct Style {

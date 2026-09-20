@@ -108,7 +108,10 @@ struct Frame {
 
   bool operator==(const Frame&) const = default;
 
-  // ---- angles ------------------------------------------------------------
+  /** @name Angles
+   *  This frame's degrees converted to and from the screen angle Skia
+   *  and the shape generators take, and back from a fraction of a turn.
+   *  @{ */
 
   /** This frame's @p deg as a SCREEN angle: degrees from +x, increasing in
    *  the direction that looks clockwise. That is exactly what Skia's
@@ -173,7 +176,12 @@ struct Frame {
     return sense == Sense::CW ? rel : -rel;
   }
 
-  // ---- points ------------------------------------------------------------
+  /** @} */
+
+  /** @name Points
+   *  An angle and a radius resolved into the frame's parent space, and
+   *  the outward direction at an angle.
+   *  @{ */
 
   /** `(angle, NORMALISED radius)` → a point in the frame's parent space.
    *  `normalizedRadius = 1` is `radius`. */
@@ -193,7 +201,11 @@ struct Frame {
     return {std::cos(a), std::sin(a)};
   }
 
-  // ---- boxes -------------------------------------------------------------
+  /** @} */
+
+  /** @name Boxes
+   *  The square a silhouette generator inscribes itself in.
+   *  @{ */
 
   /** The square box of radius `normalizedRadius` about the centre — the frame
    * every silhouette generator inscribes itself in: inset it, union it, or hand
@@ -202,7 +214,13 @@ struct Frame {
     return centred(centre, 2 * normalizedRadius * radius,
                    2 * normalizedRadius * radius);
   }
-  // ---- derived frames ----------------------------------------------------
+  /** @} */
+
+  /** @name Derived frames
+   *  Another frame that inherits this one's conventions, so the four
+   *  fields are never restated and a convention is never silently
+   *  dropped.
+   *  @{ */
 
   /** A concentric frame at @p k of this radius, same centre and
    *  conventions — the inner limb, the cell band, the hub. Saves the
@@ -222,6 +240,7 @@ struct Frame {
     return {centre, radius, zero, sense,
             originDeg + (sense == Sense::CW ? deg : -deg)};
   }
+  /** @} */
 };
 
 // ---------------------------------------------------------------------------

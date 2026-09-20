@@ -53,7 +53,10 @@ class Engine {
   Engine();
   explicit Engine(Catalogue catalogue);
 
-  // ---- the catalogue and the selection --------------------------------------
+  /** @name The catalogue and the selection
+   *  The tools the engine holds, which one the next stroke deposits
+   *  with, and the colour and weight it carries.
+   *  @{ */
   /** Adds a tool and answers it; an empty name answers null. */
   const Tool* add(std::string name, Tool tool);
   [[nodiscard]] std::vector<std::string> names() const;
@@ -70,8 +73,13 @@ class Engine {
   /** The tool the next stroke deposits with: the selected definition
    *  carrying the colour, with width and scatter scaled by the weight. */
   [[nodiscard]] Tool tool() const;
+  /** @} */
 
-  // ---- the interiors --------------------------------------------------------
+  /** @name The interiors
+   *  What fills a shape rather than outlining it: the pigment and
+   *  flat washes, which are independent and may be active together,
+   *  the hatch, and the mass.
+   *  @{ */
   /** The pigment wash and the flat wash are independent and can be
    *  active together. */
   void fill(SkColor4f color, float opacity = 150.0f / 255.0f);
@@ -97,8 +105,12 @@ class Engine {
   const Tool* mass(std::string_view name, SkColor4f color,
                    const Mass& style = {});
   void noMass();
+  /** @} */
 
-  // ---- the field ------------------------------------------------------------
+  /** @name The field
+   *  The direction field a stroke is bent by, named and selected the
+   *  way a tool is.
+   *  @{ */
   /** Adds a field under a name, answering whether the name and the units
    *  were taken; a field declared in DEGREES is wrapped to answer
    *  radians. */
@@ -109,8 +121,12 @@ class Engine {
   void noField();
   /** Selects the `hand` field and scales its influence by @p amount. */
   void wiggle(float amount = 1.0f);
+  /** @} */
 
-  // ---- the clip and the state ----------------------------------------------
+  /** @name The clip and the state
+   *  The rectangle every mark is confined to, and the stack that
+   *  saves and restores the whole selection.
+   *  @{ */
   /** A rectangle every mark, interior and outline is confined to, in the
    *  pen's space at the time of the mark. */
   void clip(SkRect region);
@@ -121,8 +137,12 @@ class Engine {
   void noClip();
   void push();
   void pop();
+  /** @} */
 
-  // ---- strokes --------------------------------------------------------------
+  /** @name Strokes
+   *  Geometry painted with the current tool through the current
+   *  field.
+   *  @{ */
   /** Paints geometry with the current tool through the current field. */
   void paint(Pen& pen, std::span<const Sample> path) const;
   void line(Pen& pen, SkPoint from, SkPoint to, float startPressure = 1.0f,
@@ -133,8 +153,13 @@ class Engine {
    *  field bends it. */
   PlacedPlot spline(Pen& pen, std::span<const Sample> controls,
                     float curvature = 0.5f) const;
+  /** @} */
 
-  // ---- surfaces -------------------------------------------------------------
+  /** @name Surfaces
+   *  A closed shape painted whole — every active interior and then
+   *  the outline, in wash, fill, mass, hatch, outline order — and the
+   *  verbs that run one of those passes on its own.
+   *  @{ */
   /** Paints every active interior and the outline, in wash, fill, mass,
    *  hatch, outline order. */
   Polygon polygon(Pen& pen, std::span<const SkPoint> points) const;
@@ -185,8 +210,13 @@ class Engine {
   [[nodiscard]] Position position(float x = 0.0f, float y = 0.0f) const;
   [[nodiscard]] Position position(const Pen& pen, float x = 0.0f,
                                   float y = 0.0f) const;
+  /** @} */
 
-  // ---- live input -----------------------------------------------------------
+  /** @name Live input
+   *  Absolute stylus or pointer observations streamed through the
+   *  sampler and deposited as they arrive, with the device's own
+   *  pressure.
+   *  @{ */
   /** Streams absolute stylus or pointer observations through the sampler
    *  and deposits them as they arrive. Device pressure is used directly.
    *  Nothing is deposited before the first movement. */
@@ -194,8 +224,13 @@ class Engine {
   void moveInput(Pen& pen, Input input);
   void endInput(Pen& pen, Input input);
   void cancelInput();
+  /** @} */
 
-  // ---- relative strokes -----------------------------------------------------
+  /** @name Relative strokes
+   *  A stroke described by turns rather than by points: each move
+   *  appends at an angle and a length, and ending it paints the
+   *  centreline.
+   *  @{ */
   /** A stroke described by turns: each move appends a point at the angle
    *  and length, in the pen's angle mode; endStroke paints and answers the
    *  centreline. */
@@ -203,6 +238,7 @@ class Engine {
   void move(const Pen& pen, float angle, float length, float pressure = 1.0f);
   [[nodiscard]] Stroke endStroke(Pen& pen, float angle, float pressure = 1.0f);
   void cancelStroke();
+  /** @} */
 
  private:
   struct Clip {
