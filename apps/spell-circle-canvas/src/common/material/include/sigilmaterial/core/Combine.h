@@ -5,30 +5,10 @@
  *
  * Stacking one material over another through a mask — the combinator
  * that makes local variation (rust over steel, dirt in the crevices) a
- * composition of materials rather than a bespoke recipe per pair.
- *
- * A MASK is an ordinary material whose output is read as a scalar: its
- * red channel, clamped to 0..1, says how much of the top material shows
- * at that point. `over()` returns a material like any other, so a stack
- * is built by applying it again, and every query — animated,
- * geometry-dependent, equality — answers over the whole stack because
- * the operands are its children.
- *
- * TWO KINDS OF TARGET READ A STACK, and only one of them can reach the
- * operands. A target whose slot is a SHADER — SkSL's is — samples
- * each operand's own program, so one body over three slots is the whole
- * story. A target handed exactly ONE body per material cannot reach a
- * child material at all; for it a stack is COMPOSED: `over()` builds a
- * recipe out of its operands' own definitions, whose parameters are
- * theirs under a prefix per operand, whose sampled slots are theirs, and
- * whose body inlines all three of their bodies and mixes what they
- * return. The composition costs one recipe and one program per distinct
- * triple of definitions, and buys nothing for a target that samples its
- * operands, so it is built only where a compiler that needs it is
- * installed. A stack composed and a stack not composed are the same
- * material otherwise: the same operands as children, the same walk down,
- * the same recipe NAME — which is what says a material is a stack, since
- * a composed one carries a recipe built for its own operands.
+ * composition of materials rather than a bespoke recipe per pair. A
+ * MASK is an ordinary material read as a scalar: its red channel,
+ * clamped to 0..1, is how much of the top shows. A stack is a material
+ * like any other, so every query answers over the whole of it.
  */
 
 #include <sigilmaterial/core/Material.h>
@@ -68,23 +48,12 @@ const std::shared_ptr<const Recipe>& overRecipe(Blend blend);
 std::string stackName(Blend blend);
 
 /** @p top stacked over @p base where @p mask says, by @p blend, at
- *  @p amount. The three operands become the result's children, so the
+ *  @p amount in 0..1 — how strongly the top shows where the mask is
+ *  fully on. The three operands become the result's children, so the
  *  result compares, animates and resolves as one material.
- *
- *  @p amount is how strongly the top shows where the mask is fully on —
- *  the stack's own strength, which is a different question from where it
- *  applies and is why it is here rather than folded into the mask. It is
- *  ON THE SIGNATURE because a stack composed from its operands has no
- *  parameter struct to write afterwards: its ABI is its operands' fields,
- *  so `set("amount", …)` on the result is a per-field write a caller has
- *  to know to make, and a caller who does not make it gets a stack at
- *  full strength that reads as a wrong mask.
- *
- *  Where the stack is COMPOSED the operands' parameter values and their
- *  sampled slots are copied into the result at the moment of the call,
- *  so a later edit to one of them is not seen and a live binding on one
- *  of them does not reach the composed body — the operand still rides
- *  every query as a child, so the stack still reports itself animated. */
+ *  @trap Where a target composes the stack, the operands' values and
+ *  sampled slots are copied AT THE CALL, so a later edit to one of them
+ *  is not seen and a live binding on one does not reach the body. */
 Material over(Material base, Material top, Material mask,
               Blend blend = Blend::Mix, float amount = 1.0f);
 

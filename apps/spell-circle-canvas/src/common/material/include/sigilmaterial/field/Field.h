@@ -70,17 +70,15 @@ struct GrainParameters {
   float uContrast;
 };
 
-/** LUMINANCE noise — value-noise fBm collapsed to one channel, so a blend
- *  mode over a coloured surface reads as light rather than a hue shift:
- *  paper tooth, film grain, stone veining, worn metal. @p contrast scales
- *  the field about 0.5; @p stretch divides the x frequency and multiplies
- *  the y one, so > 1 runs the fibre lengthwise. Keep
- *  `frequency · stretch · 2^(octaves-1)` under roughly 0.4 or the y axis
- *  aliases. The shader returns its own opaque luminance, so it composites
- *  as that luminance over a transparent base rather than modulating it:
- *  multiply grain over an opaque ground. One recipe per octave count: the
- *  count is a constant in the body, never a uniform a loop breaks
- *  against. */
+/** LUMINANCE noise — value-noise fBm collapsed to one channel, so a
+ *  blend mode over a coloured surface reads as light rather than a hue
+ *  shift. @p contrast scales the field about 0.5; @p stretch divides the
+ *  x frequency and multiplies the y one, so above 1 it runs the fibre
+ *  lengthwise. One recipe per octave count, the count a constant in the
+ *  body rather than a uniform a loop breaks against.
+ *  @trap Keep `frequency · stretch · 2^(octaves-1)` under roughly 0.4 or
+ *  the y axis aliases. The shader returns its own OPAQUE luminance, so
+ *  multiply it over an opaque ground rather than modulating one. */
 Material grain(float frequency, int octaves = 4, float seed = 1.0f,
                float contrast = 1.0f, float stretch = 1.0f);
 /** grain()'s recipe for @p octaves, defined once per count — the octave
@@ -118,19 +116,13 @@ struct CrtOverlayParameters {
 };
 
 /** THE TUBE, as something laid OVER a picture: its lines and a corner
- *  falloff, in black, with the alpha carrying both. It darkens what is
- *  under it rather than shading anything itself, so it is drawn as the
- *  last layer over the frame it ages.
- *
- *  @p scanPitch is the full period in px and the darker half is the first
- *  half of it, which is what makes these lines hard-edged; the beam and
- *  the beat in `CrtOverlayParameters` are the profile a gun actually draws,
- *  and this entry point leaves both out. @p squeeze is applied to the
- *  normalised coordinate before the radius is taken, so a value under 1
- *  makes the falloff reach in from the sides sooner than from the top.
- *
- *  Reads the resolution. Every parameter is a uniform; the defaults are a
- *  monitor seen straight on with the lines just visible. */
+ *  falloff, in black, with the alpha carrying both, so it is drawn as
+ *  the last layer over the frame it ages. @p scanPitch is the full
+ *  period in px and the darker half is the first half of it, which is
+ *  what makes these lines hard-edged; @p squeeze under 1 makes the
+ *  falloff reach in from the sides sooner than from the top. It reads
+ *  the resolution, and the defaults are a monitor seen straight on with
+ *  the lines just visible. */
 Material crtOverlay(float scanPitch = 4.0f, float scanStrength = 0.052f,
                     float vigInner = 1.45f, float vigOuter = 2.15f,
                     float vigStrength = 0.34f, float squeeze = 0.70f);

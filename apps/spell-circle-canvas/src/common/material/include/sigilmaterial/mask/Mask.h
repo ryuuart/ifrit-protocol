@@ -4,20 +4,11 @@
  * @ingroup material-mask
  *
  * Masks — WHERE on a surface something applies, as a material whose
- * output is read as a scalar. A mask is what `over()` reads to decide how
- * much of a stacked material shows at a point, and it is an ordinary
- * material: it compares, animates and resolves like any other.
- *
- * Two shapes cover every source. A CONSTANT mask is a number. A SAMPLED
- * mask reads its `source` slot and turns what it finds into a scalar one
- * of three ways: a channel of it (a painted map, a mesh's colour lane), a
- * direction dotted with an axis after the map's tangent-normal decode
- * (SLOPE — moss on the faces that point up), or the value dotted with an
- * axis with no decode (HEIGHT — a tide line, dust on the top shelf).
- *
- * Both shapes then FIT the raw value: `low` and `high` remap onto 0..1
- * and clamp, and `inverted` flips the result. A slope or height mask is
- * meaningless without a fit, which is why the factories take the range.
+ * output is read as a scalar, and an ordinary material otherwise. A
+ * CONSTANT mask is a number; a SAMPLED one reads its `source` slot as a
+ * channel, as a SLOPE (a direction dotted with an axis after the
+ * tangent-normal decode) or as a HEIGHT (undecoded). Both then FIT the
+ * raw value onto 0..1, which is why the factories take the range.
  */
 
 #include <sigilmaterial/core/Material.h>

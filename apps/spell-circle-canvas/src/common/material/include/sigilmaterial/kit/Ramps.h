@@ -4,16 +4,11 @@
  * @ingroup material-kit
  *
  * THE NAMED COLOUR RAMPS: one function per name, each answering the same
- * `Ramp` value.
- *
- * They are stock values over the ramp, not types: a caller takes one,
- * changes its domain to the numbers it is reading, reverses it or eases
- * it, and it is still a ramp that every consumer of one understands. The
- * point of naming them is that these particular stop lists were measured
- * rather than picked — each sequential map below rises steadily in
- * lightness, so a difference in the data is a difference an eye reports
- * and none of the false edges a rainbow puts at its yellow and cyan
- * appear anywhere in it.
+ * `Ramp` value. They are stock values over the ramp, not types, so a
+ * caller changes a domain, reverses or eases one and it is still a ramp.
+ * These particular stop lists were measured rather than picked: each
+ * sequential map rises steadily in lightness, so a difference in the
+ * data is a difference an eye reports.
  */
 
 #include <sigilmaterial/color/Ramp.h>

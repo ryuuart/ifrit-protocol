@@ -36,21 +36,13 @@ enum class Scheme : uint8_t {
 };
 
 /** THE SAME COLOUR AT ANOTHER HUE: @p degrees around the OKLCH circle,
- *  holding the lightness it had.
- *
- *  In OKLCH rather than on the HSV wheel, and the difference is the whole
- *  reason this is a library verb: rotating an HSV hue holds `value`,
- *  which is the largest channel and not a brightness, so a scheme built
- *  that way lands a yellow and a blue at wildly different weights and the
- *  set does not read as one family. Here the only thing that changed is
- *  which colour it is.
- *
- *  A hue sRGB cannot show at the base's chroma gives up CHROMA and keeps
- *  its lightness and its hue, through `fitToSrgb`: the alternative — the
- *  component-wise cut — moves the hue and the lightness both, so a set
- *  built by turning one colour would come back at several hues and
- *  several weights, which is the one thing a harmony exists to avoid.
- *  Alpha is carried through. */
+ *  holding the lightness it had, so the only thing that changed is which
+ *  colour it is. A hue sRGB cannot show at the base's chroma gives up
+ *  CHROMA and keeps its lightness and hue, through `fitToSrgb`. Alpha is
+ *  carried through.
+ *  @trap Rotating an HSV hue instead holds `value`, which is the largest
+ *  channel and not a brightness, so the set does not read as one
+ *  family. */
 [[nodiscard]] Color rotateHue(const Color& base, float degrees);
 
 /** THE COLOURS @p scheme NAMES around @p base, the base first.

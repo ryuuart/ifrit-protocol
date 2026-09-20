@@ -83,32 +83,22 @@ class Recipe {
   Recipe& slot(std::string slot);
   /** DECLARES A SLOT AN EXECUTOR FILLS from the layer through @p filter,
    *  whose amount is the value of the parameter @p amountField. It is
-   *  declared to a target exactly as any other slot is and the body
-   *  samples it by name; what differs is who fills it. An author may
-   *  still fill it — `Material::slot` on the name wins over the executor
-   *  — which is how a recipe run as an ordinary fill, where there is no
-   *  layer and no executor, still has a source there.
-   *
-   *  The amount is read once, when the executor builds: a recipe over a
-   *  layer is a snapshot, so a bound amount does not re-filter. A field
-   *  the parameters do not declare as one float is reported here and
-   *  the filter then runs at zero, which for a blur is the layer
-   *  itself — a slot that looks filled and is not. */
+   *  declared and sampled like any other slot; only who fills it
+   *  differs, and `Material::slot` on the name still wins.
+   *  @trap The amount is read ONCE, when the executor builds, so a bound
+   *  one does not re-filter; a field the parameters do not declare as
+   *  one float runs the filter at zero, which looks filled and is not. */
   Recipe& slot(std::string slot, LayerFilter filter, std::string amountField);
   /** Declares that the body reads @p input; its uniform is generated and
    *  its value uploaded each resolve. */
   Recipe& frame(FrameInput input);
-  /** DECLARES THE BODY CHANNELWISE over the slot @p slot: each
-   *  output channel depends on the same input channel of the sampled
-   *  content and on nothing else, and @p slot holds ONE ROW of samples
-   *  that is the response of red, green and blue in the row's own
-   *  channels. A renderer that knows its surface carries eight bits per
-   *  channel may then run this recipe as a 256-entry per-channel table —
-   *  the same picture, without a program over every pixel — and a
-   *  renderer that does not know, or whose surface carries more, runs the
-   *  body as written. The claim is the author's and is not checked: a
-   *  body that mixes channels and declares this paints two different
-   *  pictures. */
+  /** DECLARES THE BODY CHANNELWISE over the slot @p slot: each output
+   *  channel depends on the same input channel and on nothing else, and
+   *  @p slot holds ONE ROW of samples that is the response of red, green
+   *  and blue. A renderer over an eight-bit surface may then run a
+   *  256-entry per-channel table instead of a program.
+   *  @trap The claim is the author's and is not checked: a body that
+   *  mixes channels and declares this paints two different pictures. */
   Recipe& channelwise(std::string slot);
 
   const std::string& name() const { return m_name; }
@@ -120,37 +110,23 @@ class Recipe {
   const Schema& layout() const { return m_layout; }
   /** The body for @p target, or null when none was given. */
   const std::string* body(Target target) const;
-  /** WHETHER ANY BODY OF THIS RECIPE READS THE FIELD @p name.
-   *
-   *  A field no body spells is a dial that does nothing: the bytes are
-   *  uploaded and the picture does not change, which at a call site is
-   *  indistinguishable from a wrong value. Asking the bodies is the only
-   *  way to know — a shading compiler's reflection reports what the
-   *  source DECLARED, and the declarations are generated from the parameters
-   *  whether the body reads them or not.
-   *
-   *  Spelled means as a WHOLE IDENTIFIER, so a `low` inside `lowEdge` is
-   *  a different name; a recipe with no body at all answers yes, having
-   *  nothing to say. */
+  /** WHETHER ANY BODY OF THIS RECIPE READS THE FIELD @p name. A field
+   *  no body spells is a dial that does nothing, and asking the bodies
+   *  is the only way to know, since a compiler's reflection reports what
+   *  the generated declarations DECLARED. Spelled means as a WHOLE
+   *  IDENTIFIER, so a `low` inside `lowEdge` is a different name.
+   *  @trap A recipe with no body at all answers yes. */
   bool readsField(std::string_view name) const;
   /** `readsField(name)` for a field of `parameters()`, answered without
    *  looking the name up again. */
   bool readsField(const Field& field) const;
-  /** WHETHER THE BODY FOR @p target SAMPLES THE CHILD SLOT @p slot.
-   *
-   *  A slot is declared on the recipe and sampled by whichever bodies
-   *  name it, and the two need not agree. A stack composed for a
-   *  language that is handed one body per material declares a slot per
-   *  operand's own slot, because that language cannot reach a child
-   *  material at all; a language whose slot is a shader samples
-   *  the operands themselves and names none of those. A slot generated
-   *  into a program that never reads it still costs that program an
-   *  image sampler, and a device has few — Metal binds fragment
-   *  textures at sixteen indices — so a target's declarations carry the
-   *  slots its own body spells and no others.
-   *
-   *  Spelled means as a WHOLE IDENTIFIER, the reading `readsField`
-   *  takes; a target with no body answers yes, having nothing to say. */
+  /** WHETHER THE BODY FOR @p target SAMPLES THE CHILD SLOT @p slot. A
+   *  slot is declared on the recipe and sampled by whichever bodies name
+   *  it, and the two need not agree, so a target's declarations carry
+   *  the slots its own body spells and no others — an unread slot still
+   *  costs a program an image sampler, of which a device has few.
+   *  Spelled means as a WHOLE IDENTIFIER.
+   *  @trap A target with no body answers yes. */
   bool samples(Target target, std::string_view slot) const;
   bool has(Target target) const { return body(target) != nullptr; }
   /** The targets that have a body, in Target order. */

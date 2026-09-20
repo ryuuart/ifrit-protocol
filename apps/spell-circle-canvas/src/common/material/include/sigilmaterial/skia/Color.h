@@ -4,19 +4,11 @@
  * @ingroup material-skia
  *
  * The colour bridge between Skia and this library: `SkColor4f` in, this
- * library's `Color` out, and back — and the colour verbs answered in
- * Skia's colour, so a renderer-side caller reaches this library's
- * arithmetic without spelling the crossing at every site. Both colours
- * are four straight (not premultiplied) sRGB floats in the same order,
- * so the conversion is a field-for-field copy and nothing else — no
- * transfer function, no premultiply, no clamp.
- *
- * `Color` CONVERTS FROM AN SkColor4f ON ITS OWN, so a Skia caller hands
- * one to anything taking a colour and writes one into any field that is
- * one. What is here is the named spellings — the way back, which the
- * colour cannot carry without naming Skia, and the palette form — and
- * `toColor` is that same conversion under a name, not a second copy of
- * it.
+ * library's `Color` out, and back, with the colour verbs answered in
+ * Skia's colour. Both are four straight sRGB floats in the same order,
+ * so the conversion is a field-for-field copy and nothing else. `Color`
+ * converts from an `SkColor4f` on its own; what is here is the named
+ * spellings, the way back, and the palette form.
  */
 
 #include <include/core/SkColor.h>

@@ -5,25 +5,10 @@
  *
  * The Slang backend: Slang source compiled to SPIR-V, the reflected
  * layout that says where each uniform's bytes go, and the buffer one
- * draw's uniforms are written into at those offsets.
- *
- * A material's body exists only as a value in memory, so its program is
- * assembled and compiled when the library RUNS: a renderer's scaffold
- * text, the recipe's generated declarations, the recipe's body, and one
- * entry point that calls it. What the build compiles on its own is the
- * scaffold, which is what makes a mistake in it a build failure.
- *
- * NOTHING HERE GUESSES A LAYOUT. Every uniform's offset is the one the
- * compiler reported for the program it just built, so a body that
- * declares one more parameter moves nothing a renderer has to be told
- * about.
- *
- * Every session this opens already carries two modules by name, loaded from
- * their authored files before compilation, so a shader may `import` them
- * without another resource lookup: `Portable`, the subset whose
- * transcendentals a host and a device answer alike, and `Shading`, the
- * material kit's own terms — so a renderer's shading and every material body
- * compiled beside it call one definition of a term rather than a copy apiece.
+ * draw's uniforms are written into. A material's body exists only as a
+ * value in memory, so its program is assembled and compiled when the
+ * library RUNS, and NOTHING HERE GUESSES A LAYOUT. Every session
+ * carries the `Portable` and `Shading` modules by name.
  */
 
 #include <sigilmaterial/core/Program.h>

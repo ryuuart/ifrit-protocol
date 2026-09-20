@@ -75,22 +75,12 @@ constexpr Color rgb(uint32_t hex, float a = 1.0f) {
 
 /** A colour from HUE, SATURATION and VALUE — the wheel a palette is
  *  WALKED on, where `rgb()` is the one an authored palette is typed in.
- *
- *  Hue is in degrees and wraps, so a golden-angle walk (`i * 137.5`) or a
- *  hue driven by an angle needs no fold at the call site — and the fold is
- *  here rather than there because the sextant ladder underneath silently
- *  answers magenta for anything it does not recognise, which is what an
- *  unwrapped hue hands it. Saturation and value are clamped to the unit
- *  range for the same reason: outside it the ladder returns a colour, and
- *  the wrong one.
- *
- *  NOT A PERCEPTUAL SPACE, and it must not be used as one. `value` is the
- *  largest channel and nothing else: a full-value yellow and a full-value
- *  blue are nowhere near the same brightness, so a ramp built by moving
- *  `value` bends in lightness, and a hue sweep at fixed s and v reads as
- *  bands of unequal weight. Interpolate in OKLab (`lerpOklab`) and reach
- *  for this when the SEPARATION of hues is the point — a wheel, a run of
- *  chips, one hue's tone ladder read off s and v together. */
+ *  @p hueDegrees is in degrees and WRAPS, so a golden-angle walk needs
+ *  no fold at the call site; saturation and value clamp to 0..1.
+ *  @trap Not a perceptual space: `value` is the largest channel and
+ *  nothing else, so a ramp built by moving it bends in lightness.
+ *  Interpolate with `lerpOklab` and reach for this when the SEPARATION
+ *  of hues is the point. */
 Color hsv(float hueDegrees, float saturation, float value, float a = 1.0f);
 
 /** A colour in OKLab, the space every perceptual interpolation runs in:
@@ -230,29 +220,18 @@ inline Oklab oklabOf(const Oklch& lch) {
 inline Oklch toOklch(const Color& c) { return oklchOf(toOklab(c)); }
 
 /** OKLCH back to sRGB, clamped component-wise the way `fromOklab`
- *  clamps. A colour outside what the primaries can mix comes back with
- *  its channels cut to the range — which moves its hue and its
- *  lightness, since three channels are cut by three different amounts.
+ *  clamps.
+ *  @trap A colour outside what the primaries can mix comes back with
+ *  its channels cut, which moves its hue and its lightness;
  *  `fitToSrgb` is the reading that does not. */
 inline Color fromOklch(const Oklch& lch) { return fromOklab(oklabOf(lch)); }
 
 /** THE NEAREST COLOUR THE DISPLAY CAN SHOW AT THIS HUE AND LIGHTNESS:
  *  the chroma reduced until the colour is inside the sRGB gamut, and
- *  nothing else touched.
- *
- *  The difference from `fromOklch` is which fact survives. Cutting the
- *  channels keeps as much colour as it can and lets the hue drift, so a
- *  set of colours built by turning one hue comes back as a set at
- *  several hues and several lightnesses — which is exactly what a
- *  harmony, a tone ladder or a hue sweep exists to avoid. Reducing the
- *  chroma keeps the two numbers that were chosen and gives up the one
- *  the display cannot honour.
- *
- *  Found by halving rather than solved: the gamut is a solid with
- *  corners in this space, so there is no closed form for where a hue
- *  leaves it, and the boundary is crossed once along a ray of increasing
- *  chroma. Sixteen halvings put the answer well inside a single step of
- *  an eight-bit channel. */
+ *  nothing else touched, so a harmony, a tone ladder or a hue sweep
+ *  keeps the two numbers that were chosen. Found by halving, because
+ *  the gamut is a solid with corners in this space and there is no
+ *  closed form for where a hue leaves it. */
 inline Color fitToSrgb(const Oklch& lch) {
   Oklch fitted = lch;
   fitted.L = std::clamp(fitted.L, 0.0f, 1.0f);
@@ -314,17 +293,11 @@ constexpr Color mixToward(Color c, Color target, float t, float a) {
 }
 
 /** @p a and @p b mixed a fraction @p t apart IN LINEAR LIGHT — each
- *  channel linearised, mixed, and encoded back. Alpha mixes as it is
- *  given, since it never went through the transfer function.
- *
- *  This is the mix that answers a question about QUANTITIES — how much
- *  pigment, how much light, how much of one exposure over another — and
- *  it is a different answer from `mixToward`'s. Half way between black
- *  and white in code values is `#808080`, which carries a fifth of white's
- *  light; half way in linear light is near `#BCBCBC`, which carries half.
- *  Neither is wrong: `mixToward` walks the numbers a file stores, this
- *  walks the light they stand for, and `lerpOklab` walks what an eye
- *  reports. Say which one the drawing means. */
+ *  channel linearised, mixed, and encoded back. Alpha mixes as given,
+ *  since it never went through the transfer function. This is the mix
+ *  that answers a question about QUANTITIES.
+ *  @trap It is a different colour from `mixToward`'s: half way between
+ *  black and white is `#808080` there and near `#BCBCBC` here. */
 inline Color mixLinear(const Color& a, const Color& b, float t) {
   auto channel = [t](float x, float y) {
     // Two equal channels stand for one quantity of light, so the mix of
@@ -425,20 +398,10 @@ struct RampStop {
 
 /** AN ORDERED TABLE OF COLOURS READ BY INDEX — the fixed palette, which
  *  is a different thing from a ramp and is not a ramp with more stops.
- *
  *  A ramp says what lies BETWEEN its stops; a palette says there is
- *  nothing between its entries. An indexed picture's colour IS entry n,
- *  and blending entry n with entry n+1 makes a colour the palette does
- *  not contain — which is the one thing a fixed palette exists to
- *  prevent, and what a linear-filtered lookup silently does at every
- *  boundary. So every read here is EXACT: `at()` takes the index, and
- *  `nearest()` takes a unit position and answers the entry it falls in,
- *  never a blend of two.
- *
- *  Out of range CLAMPS rather than wrapping. An index past the end is a
- *  mistake somewhere upstream, and answering the last entry keeps the
- *  mistake visible as a flat band instead of hiding it as a plausible
- *  colour from the other end of the table. */
+ *  nothing between its entries, so every read here is EXACT and never a
+ *  blend of two. Out of range CLAMPS rather than wrapping, which keeps
+ *  a bad index visible as a flat band. */
 struct Palette {
   std::vector<Color> entries;
 
@@ -447,17 +410,16 @@ struct Palette {
   size_t size() const { return entries.size(); }
 
   /** Entry @p index exactly, clamped into the table. Transparent black
-   *  for an empty palette, which is the only colour a table with no
-   *  entries can honestly answer. */
+   *  for an empty palette. */
   Color at(int index) const {
     if (entries.empty()) return {0, 0, 0, 0};
     const int last = (int)entries.size() - 1;
     return entries[(size_t)std::clamp(index, 0, last)];
   }
 
-  /** The entry a unit position falls IN — the table divided into equal
-   *  bands, `t` at 1 landing on the last one. The reading a normalised
-   *  parameter (a height, a heat, a depth) is quantised through. */
+  /** The entry the unit position @p t falls IN — the table divided into
+   *  equal bands, 1 landing on the last. The reading a normalised
+   *  parameter is quantised through. */
   Color nearest(float t) const {
     if (entries.empty()) return {0, 0, 0, 0};
     return at((int)std::floor(t * (float)entries.size()));
@@ -466,19 +428,15 @@ struct Palette {
 
 /** THE RAMP READ ON THE CPU — the same ladder a renderer's gradient
  *  draws, for the caller that needs one colour out of it rather than a
- *  shader: a seeded scatter tinted by its own parameter, a legend chip, a
- *  measurement against the picture.
- *
- *  Straight sRGB between neighbouring stops, which is what the gradients
- *  here do; a ramp that is meant to be walked perceptually is
- *  `lerpOklab` between the two stops this finds. Stops are read in the
- *  order given and are expected to be ordered; @p t clamps, so outside
- *  the ramp is the end stop's flat colour rather than an extrapolation.
- *  An empty ramp answers transparent black. */
+ *  shader. Straight sRGB between neighbouring stops; @p t clamps, and
+ *  an empty ramp answers transparent black.
+ *  @trap Stops are read in the order given and are expected to be
+ *  ordered. */
 /** WHERE A POSITION FALLS in a stop list: the two stops it lies between
- *  and how far across them it is. One position on or past an end answers
- *  that end twice at fraction 0, so every reader mixes without a special
- *  case for the ends. Undefined for an empty list — ask that first. */
+ *  and how far across them it is. A position on or past an end answers
+ *  that end twice at fraction 0, so every reader mixes without a
+ *  special case.
+ *  @trap Undefined for an empty list — ask that first. */
 struct RampBracket {
   size_t low = 0;
   size_t high = 0;

@@ -3,20 +3,13 @@
 /** @file
  * @ingroup material-texture
  *
- * Texture sets — the folder a material authoring tool exports, read
- * back as textures by role.
- *
- * Substance Painter and Designer, Poly Haven, ambientCG, Quixel and
- * glTF-style pipelines all ship a PBR material the same way: one image
- * per map, named `<set>_<role>[_<size>].<ext>`. The role words differ
- * per tool (`BaseColor` / `diff` / `Color` / `albedo`; `Normal` /
- * `nor_gl` / `NormalGL`; `OcclusionRoughnessMetallic` / `arm` / `orm`)
- * but the shape is one convention. This header knows the words: it
- * classifies a file name into a Role, groups a directory's files into
- * sets by their shared stem, and decodes a set into one Texture per role.
- *
- * Decoding is not done here: the caller supplies a Decoder — anything
- * returning an image for a path — so the library owns no file access.
+ * Texture sets — the folder a material authoring tool exports, read back
+ * as textures by role. Every such tool ships a PBR material the same
+ * way, one image per map named `<set>_<role>[_<size>].<ext>`, with the
+ * role words differing per tool. This header knows the words: a file
+ * name classified into a role, a directory grouped into sets by shared
+ * stem, a set decoded into one texture per role. Decoding is the
+ * caller's, so the library owns no file access.
  */
 
 #include <include/core/SkImage.h>

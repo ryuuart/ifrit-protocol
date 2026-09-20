@@ -30,43 +30,21 @@
 #include <vector>
 
 /** Materials as recipe instances, and everything a surface is described
- *  with. A recipe is a definition — a plain struct of uniform-typed
- *  fields that is its ABI, one shader body per language, the slots it
- *  samples and the per-frame values it reads. A material is one instance
- *  of a recipe, and resolving an instance against a frame answers the
- *  compiled program for a renderer's shading language plus the bytes to
- *  upload, memoised until an input changes.
- *
- *  Reach for this namespace to describe WHAT a surface is. The nested
- *  namespaces are where it is described from: `skia` and `slang` are the
- *  backends that compile a recipe, `texture` the images that fill its
- *  slots, `pattern`, `sdf` and `field` the generators that need no
- *  image, and `kit` and `stock` the values already built. */
+ *  with: a recipe is the definition, a material one instance of it, and
+ *  resolving an instance answers the compiled program plus the bytes to
+ *  upload. Reach for this namespace to describe WHAT a surface is; the
+ *  nested namespaces are where it is described from — the backends, the
+ *  textures, the generators, and the values already built. */
 namespace sigil::material {
 
-/** A recipe instance.
- *
- *  VALUES are held as the bytes the shader receives, written from the
- *  parameter struct at construction and by `set()` per field afterwards.
- *  BINDINGS replace a field's bytes at every resolve: a
- *  `motion::Animatable<float>` fills a float field with what it reads as
- *  this frame, a `UniformBlock` fills an array field with its current
- *  values. A field bound to a LIVE animatable — a `choreograph::Output`,
- *  bare or shaped through a `bind()` chain — is live, which is what
- *  `isAnimated()` answers; one bound to a plain number is a value like
- *  any other. The resolve memo keys on the sampled values, so a frame
- *  that changed nothing reuses the last resolve. CHILDREN fill the recipe's
- * declared slots with other materials or with leaves (a `Leaf`: an image and
- * its sampling, bound by the backend rather than compiled) and ride every
- * query: a live child makes the parent live, a different child makes the parent
- * unequal.
- *
- *  EQUALITY is by value: recipe identity, bytes, bindings under
- *  SigilMotion's rule for an animatable (a live binding by the Output's
- *  IDENTITY, never the number behind it; a plain value by its number) and
- *  a block by pointer, children by value, and the instance settings. Two
- * materials describing the same thing compare equal, which is what lets a node
- * prune. */
+/** A recipe instance: the VALUES as the bytes the shader receives, the
+ *  BINDINGS that replace a field's bytes at every resolve, and the
+ *  CHILDREN that fill the recipe's declared slots. A live binding or a
+ *  live child makes the whole instance live. EQUALITY is by value —
+ *  recipe identity, bytes, bindings, children and settings — so two
+ *  materials describing the same thing compare equal and a node prunes.
+ *  @trap A live binding compares by the output's IDENTITY, never by the
+ *  number behind it. */
 class Material {
  public:
   /** An instance of @p recipe with the field values of @p parameters, whose

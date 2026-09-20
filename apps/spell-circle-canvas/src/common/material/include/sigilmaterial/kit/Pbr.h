@@ -4,40 +4,12 @@
  * @ingroup material-kit
  *
  * The metallic-roughness surface — the shading model the authoring tools
- * export for and glTF, USD's preview surface and every scanned material
- * set are written against. One parameter struct is its ABI: base colour,
- * metallic, roughness, emission, the normal convention, the channel each
- * packed map is read from, the cutout threshold and the glass terms. One
- * slot per map, named for the role it fills, so a discovered
- * texture set drops straight in.
- *
- * Two recipes over that ABI, and the choice between them is what a
- * surface IS rather than a flag on it: `surface()` takes light,
- * `unlit()` is its own light — a screen, a decal that must not be shaded.
- *
- * The SkSL bodies are what a device-space shader can answer honestly:
- * there is no surface normal, no view vector and no light in a 2D paint.
- * `surface()` there reads `baseColor` and its map, `occlusionStrength`
- * with `occlusionChannel`, `emissive` with `emissiveStrength` and its
- * map, and `alphaCutoff` with `opacityChannel` — the albedo attenuated
- * by occlusion plus its emission, which is the ambient-only evaluation
- * of the model — and `unlit()` shades the albedo alone. Every other
- * param is Slang-only and has no effect on a 2D paint: `roughness`,
- * `metallic`, `normalScale` and `normalDirectX` with the normal map,
- * `transmission`, `ior`, `thickness` and `absorption`.
- *
- * The Slang bodies read the same parameters and the same slots, and say more
- * than a colour, because the renderer that compiles them shades. Every
- * lit body states its surface's whole PBR standing — roughness, metal,
- * and the three glass terms — so a renderer with an environment map to
- * sample has what it needs from a surface carrying no maps at all. A map
- * that VARIES the normal, the roughness or the metallic across a face
- * says one thing more, because that is the case a shading evaluated once
- * per vertex cannot carry, and the renderer re-evaluates the pixel where
- * it can be seen.
- *
- * The bodies are composed from the library's shading TERMS, so what a
- * surface does can be read off the terms it calls.
+ * export for. One parameter struct is its ABI and one slot per map, so a
+ * discovered texture set drops straight in, under two recipes: one takes
+ * light, the other is its own light. The bodies are composed from the
+ * library's shading TERMS. What a 2D paint can answer is bounded — no
+ * surface normal, no view vector, no light — so those parameters are
+ * Slang-only.
  */
 
 #include <sigilmaterial/color/Color.h>
@@ -69,17 +41,13 @@ inline constexpr std::string_view kEmissiveSlot =
 inline constexpr std::string_view kOpacitySlot =
     "opacityMap";  ///< `opacityChannel`; `alphaCutoff` turns it into a cutout
 
-/** The metallic-roughness ABI. Its colours are LINEAR LIGHT: a body
- *  multiplies each of them by the sample of the map in its slot, and a
- *  map sample is light, so an authored colour has to be in the same
- *  space before the multiply means anything. A `material::Color` is the
- *  encoded sRGB number instead, so every builder below takes one and
- *  stores `srgbToLinear` of it — the one place the transfer function is
- *  applied — while a field assigned directly is the light itself.
- *
- *  Each scalar is multiplied by the map in the matching slot, so a set
- *  that ships a metallic map wants `metallic = 1` for the map's values
- *  to come through — which is what `surface(TextureMaps)` arranges. */
+/** The metallic-roughness ABI. Its colours are LINEAR LIGHT, because a
+ *  body multiplies each by a map sample and a sample is light; every
+ *  builder below takes a `material::Color` and stores `srgbToLinear` of
+ *  it, while a field assigned directly is the light itself.
+ *  @trap Each scalar multiplies the map in its slot, so a set that ships
+ *  a metallic map wants `metallic = 1` for the map to come through —
+ *  which is what `surface(TextureMaps)` arranges. */
 struct SurfaceParameters {
   Color baseColor = {0.8f, 0.8f, 0.8f, 1};
   float metallic = 0;

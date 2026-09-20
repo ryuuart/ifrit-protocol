@@ -5,16 +5,9 @@
  *
  * Reflective surfaces — gold foil, stainless chrome, glass — as recipes
  * over two textures: a normal map saying where the surface points and an
- * environment saying what it reflects. Real reflection models sampled
- * per pixel, not gradient impressions.
- *
- * Both textures encode device-space normals (+y down, +z toward the
- * viewer) as rgb = n * 0.5 + 0.5: `bevelNormals()` derives one from an
- * outline's coverage, a 3D painter's normal pass rasterizes true ones.
- * Roughness picks a pre-blurred level of the same environment. Gold adds
- * foil crinkle and glints, chrome the contrast curve and brushed
- * anisotropy, glass refracts a backdrop through the normal field with a
- * fresnel-weighted reflection on top.
+ * environment saying what it reflects. Both encode device-space normals
+ * (+y down, +z toward the viewer) as rgb = n * 0.5 + 0.5, and roughness
+ * picks a pre-blurred level of the same environment.
  */
 
 #include <sigilmaterial/color/Color.h>
