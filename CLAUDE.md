@@ -83,8 +83,9 @@ guard checks and what it cannot see.
   verbs: the checks and the ledgers
 - `docs/README.md` — the generated C++ API reference, with
   `docs/REFERENCE.md` beside it as the canon for the overview and
-  reference site built over it; the pages that site reads live in a
-  library's own `reference/` directory, beside its README
+  reference site built over it; that site reads an entity's page from
+  the library's own `reference/` directory, beside its README, and its
+  overviews and guides from `docs/overview/` and `docs/guides/`
 
 Defects found while working go to `apps/spell-circle-canvas/FINDINGS.md`
 — create it when needed. Each entry states what the code does, what it

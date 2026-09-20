@@ -2,18 +2,18 @@
 
 ## Group ruby is fixed in the library and `ruby_kenten` still asks for words
 
-Compose has a selection unit now: `weave::Unit::Selection` numbers one unit
-per extent a selector addressed, `TextAnnotations.cpp` associates one
-reading with that whole unit, and a base broken across columns partitions
-the reading across its fragments instead of repeating it. Two extents that
-touch are still two units.
+`weave::Unit::Selection` numbers one unit per extent a selector
+addressed, `TextAnnotations.cpp` associates one reading with that whole
+unit, and a base broken across columns partitions the reading across its
+fragments instead of repeating it. Two extents that touch are still two
+units.
 
-`src/sketch/sketches/ruby_kenten.cpp` has not moved. Its GROUP specimen
-(line 149) and its SPLIT specimen (line 173) still pass
-`weave::Unit::Word`, and word units divide `書物` and `国語辞典` into
-several units, so those two panels still show one reading repeated over
-each piece of the compound. The file's own header comment (line 19) and
-its GROUP panel caption still name the word unit.
+`src/sketch/sketches/ruby_kenten.cpp` asks for a different unit. Its
+GROUP specimen and its SPLIT specimen both pass `weave::Unit::Word`, and
+word units divide `書物` and `国語辞典` into several units, so those two
+panels show one reading repeated over each piece of the compound. The
+file's own header comment and its GROUP panel caption name the word unit
+with them.
 
 The specimens should ask for the unit that means what they demonstrate.
 Moving those two call sites to `weave::Unit::Selection`, with the comment
@@ -133,6 +133,30 @@ Either the struct takes a colour type of its own that says it is linear,
 or the setters and the two static helpers convert; the two header
 sentences cannot both stand.
 
+## `ksp_mapview` describes its map twice for a light that keeps its source
+
+A bright pass is a colour program: `skia::Effect::brightPass` sets a
+colour filter and leaves the image filter null, so a light built over it
+carries no program over coordinates and the layer beneath
+`Effect().emit(brightPass().then(<blur>))` is kept at the device's own
+resolution, which
+`SkiaEffect.AnEmittedLightLeavesTheSharpLayerAtDeviceResolution`
+asserts. One description of a layer is enough to bloom it.
+
+`src/sketch/sketches/ksp_mapview/ksp_mapview.cpp` builds its bloom out
+of a second `mapLayer(ctx)`, filtered and composited back over the first
+with `kPlus`, and the comment above it states that the duplicate
+describe "is not avoidable" and that only a gathering light would need
+one describe. Neither holds of the pass the scene uses: an emitted
+bright pass keeps its own source, at one tap and a separable blur.
+
+The scene should describe its map once and emit the bright pass and its
+blur from that one layer, with the light's strength folded into the
+light and the comment saying what the seam costs. The library half is
+asserted already; what a test cannot see is how many times a specimen
+describes a layer, so the plate is the check, and it moves where the
+composite differs — a plate rebase names the cause.
+
 ## A study turns a screen's light off and builds it again outside the recipe
 
 `eva_magi_interior/EvangelionUi.h` sets `uBloom` to zero on `kit::crt`
@@ -182,14 +206,14 @@ four distinct libraries again.
 ## The device sweep's shader-error sink collects without a lock
 
 `skgpu::ShaderErrorHandler::compileError` is called from the pipeline
-pool now, because `GraphiteContext` sets `fExecutor` and Graphite runs
-each pipeline creation task on it — several at once for a scene whose
-stages fail together. `ErrorSink` in
+pool, because `GraphiteContext` sets `fExecutor` and Graphite runs each
+pipeline creation task on it — several at once for a scene whose stages
+fail together. `ErrorSink` in
 `src/common/material/test/MaterialGpuTest.mm` is a process-wide handler
 that appends to a bare `std::string` with no lock, and the SigilSkia
 README names SigilMaterial's device sweep as what that handler is built
-on. It survives only because `shadeOnGpu` draws and submits one shader
-at a time; the contract it was written against no longer holds.
+on. It survives on one property of its caller: `shadeOnGpu` draws and
+submits one shader at a time, so two reports never land together.
 
 A collector called from a pool must guard what it collects into, as
 `PipelineLog` in `src/common/skia/graphite/test/GraphiteTest.mm` already
