@@ -5,12 +5,11 @@
  * The scanline lattice: parallel lines cut to the inside of a set of
  * rings, and the multigrid those lines dualise into a tiling of rhombs.
  *
- * A hatch, a fill drawn by a pen plotter, a shaded region and a mass of
- * strokes are all the same construction — lines at an angle, a spacing
- * apart, kept where they are inside and dropped where they are not — and
- * the marks it answers with are CENTRELINES, which is what separates it
- * from clipping a line pattern to an outline: a centreline can be walked,
- * drawn along with a natural-media tool, split, or joined to the next one.
+ * A hatch, a plotter fill, a shaded region and a mass of strokes are all
+ * one construction — lines at an angle, a spacing apart, kept where they
+ * are inside — and what it answers with are CENTRELINES, which a clipped
+ * line pattern is not: a centreline can be walked, drawn along with a
+ * natural-media tool, split, or joined to the next one.
  */
 #include <glm/vec2.hpp>
 #include <optional>
@@ -55,17 +54,13 @@ struct LatticeOptions {
   bool operator==(const LatticeOptions&) const = default;
 };
 
-/** PARALLEL LINES CUT TO THE EVEN-ODD INTERIOR of `rings`: each line's
- *  crossings with every edge, sorted along the line and paired, so a ring
- *  inside another is a hole and two rings side by side are two islands —
- *  the rule `containsEvenOdd` answers a point with, and the rule a path
- *  filled with `SkPathFillType::kEvenOdd` is drawn by.
- *
- *  The marks come in scan order, each running in the direction the lines
- *  run. Rings of fewer than three points bound no area and are skipped;
- *  the scan covers the rings that are left. Both ends of a ring are
- *  joined whether or not it says it is closed, because an area is what is
- *  being filled. */
+/** PARALLEL LINES CUT TO THE EVEN-ODD INTERIOR of @p rings: a ring
+ *  inside another is a hole and two rings side by side are two islands,
+ *  the rule `containsEvenOdd` answers a point with. The marks come in
+ *  scan order, each running the way the lines run.
+ *  @silent every ring holds fewer than three points, which bound no
+ *  area; a ring's two ends are joined whether or not it says it is
+ *  closed, because an area is what is being filled. */
 std::vector<LatticeMark> lattice(std::span<const Polyline> rings,
                                  const LatticeOptions& options);
 
@@ -84,11 +79,10 @@ struct MultigridFamily {
   double spacing = 1;
   /** THE PHASE, in whole spacings: line `k` of the family is where the
    *  normal coordinate reaches `(k - offset) * spacing`. The offsets are
-   *  what pick one tiling out of the family a set of directions admits.
-   *  Only the fractional part of one means anything — moving an offset by
-   *  a whole number renumbers that family's lines and leaves the lines
-   *  themselves where they were — and which fractions may be used
-   *  together is the regularity rule `multigrid` states. */
+   *  what pick one tiling out of the family a set of directions admits,
+   *  and only the FRACTIONAL part of one means anything.
+   *  @trap Which fractions may be used together is the regularity rule
+   *  `multigrid` judges: a singular set answers nothing. */
   double offset = 0;
 
   /** Value equality: the same direction at the same spacing and phase.
@@ -97,18 +91,11 @@ struct MultigridFamily {
   bool operator==(const MultigridFamily&) const = default;
 };
 
-/** `count` families evenly spread, all at one spacing and one phase.
- *
+/** @p count FAMILIES EVENLY SPREAD, all at one spacing and one phase.
  *  The spread is a WHOLE TURN for an odd count and a HALF TURN for an
- *  even one, which is the smallest turn giving `count` distinct line
- *  directions: an even count over a whole turn would land two families
- *  on the same lines, and a pair of parallel families bounds no rhomb.
- *  An odd ring over the whole turn carries the `count`-fold rotation
- *  that permutes its families cyclically, so the tiling it dualises into
- *  is exactly symmetric about the origin.
- *
- *  Five is the Penrose rhombs, four the Ammann-Beenker octagonal tiling,
- *  three the rhombille. */
+ *  even one, which is the smallest turn giving @p count distinct line
+ *  directions. Five is the Penrose rhombs, four the Ammann-Beenker
+ *  octagonal tiling, three the rhombille. */
 std::vector<MultigridFamily> multigridRing(int count, double offset,
                                            double spacing = 1);
 
@@ -166,57 +153,17 @@ struct MultigridOptions {
 };
 
 /** N FAMILIES OF PARALLEL LINES DUALISED INTO A TILING OF RHOMBS — de
- *  Bruijn's construction, which is the one operation an aperiodic rhomb
- *  tiling is: each crossing of two lines becomes a rhomb whose edges are
- *  the two families' normals, placed by counting how many lines of every
- *  family stand between the crossing and the origin.
- *
+ *  Bruijn's construction: each crossing of two lines becomes a rhomb
+ *  whose edges are the two families' normals, placed by counting how
+ *  many lines of every family stand between the crossing and the origin.
  *  Five evenly spread families give the Penrose rhombs, four the
- *  Ammann-Beenker squares and 45-degree rhombs, three the rhombille;
- *  families at angles of the caller's own choosing give the tiling those
- *  angles admit, and there is no other operation behind any of them.
- *
- *  SOLVED IN DOUBLE, AND THE ANSWER IS IN DOUBLE. The place of a rhomb
- *  is a count of lines, and a count is read off a crossing by a ceiling:
- *  a crossing that lands a hair on the wrong side of a line moves that
- *  rhomb a whole edge, so the arithmetic that finds it has to hold more
- *  digits than the picture it ends up in. A grid rounded to float before
- *  it is dualised does not merely blur — it tiles differently.
- *
- *  THE OFFSETS MUST BE REGULAR, AND A SINGULAR SET IS REFUSED. Placing a
- *  rhomb means counting, for every family the crossing does not belong
- *  to, how many of that family's lines stand between the crossing and
- *  the origin — and a count exists only where the crossing lies strictly
- *  between two of them. A point that lines of THREE or more families run
- *  through has no such count: which side of the third line it is read on
- *  is settled by the last digit of the arithmetic rather than by the
- *  geometry, and the rhomb moves a whole edge with the answer, so the
- *  patch comes back with a rhomb missing, or two rhombs on top of each
- *  other, or two corners welded that are not one corner. Offsets are
- *  REGULAR when no point of the plane lies on the lines of three or more
- *  families, and SINGULAR when one does; a singular set answers an empty
- *  tiling, the way families that cannot span the plane do. The judgement
- *  covers the crossings `radius` asks for — lines meeting beyond the
- *  reach cannot move a rhomb inside it.
- *
- *  Almost every offset set is regular, and the singular ones are the
- *  exact coincidences a caller reaches for on purpose. ALL-ZERO OFFSETS
- *  are singular whatever the families, since line zero of every one of
- *  them runs through the origin. A ring of THREE families is singular
- *  exactly when its offsets sum to a whole number, because three normals
- *  spread over a whole turn sum to zero and the coincidence then repeats
- *  at every crossing in the plane. For a longer ring the sum decides
- *  nothing: five families at a fifth each sum to one and are regular,
- *  and the tiling they dualise into is exactly fivefold about the
- *  origin — which is the tiling a caller reaching for zero offsets was
- *  after. Nudging a singular set instead of refusing it would answer,
- *  but with one of the several tilings the singular grid stands between,
- *  picked by the direction of the nudge rather than by the caller, and
- *  for a symmetric member it would answer with a tiling that no longer
- *  carries the symmetry that was asked for.
- *
- *  Two families that face the same way never cross and bound no rhomb,
- *  and are passed over. Fewer than two families dualise into nothing. */
+ *  Ammann-Beenker tiling, three the rhombille. Solved in double, and the
+ *  answer is in double, because a count read off a crossing by a ceiling
+ *  moves a rhomb a whole edge when it falls the other way.
+ *  @silent the offsets are SINGULAR — some point of the plane lies on
+ *  the lines of three or more families, so no count exists there — or
+ *  fewer than two families can span the plane. ALL-ZERO offsets are
+ *  singular whatever the families. */
 MultigridTiling multigrid(std::span<const MultigridFamily> families,
                           const MultigridOptions& options = {});
 

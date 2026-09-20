@@ -6,28 +6,13 @@
  * SigilGeometry path operations — the Pathfinder panel and the Distort
  * menu, as values. Three families:
  *
- *  - BOOLEANS over Skia's pathops: unite/subtract/intersect/exclude
- *    plus simplify (self-intersection cleanup) and a stroke-expand
- *    offset() — Illustrator's Offset Path. All pure functions:
- *    SkPath in, SkPath out. In the binary four `a` is the back object
- *    and `b` the front, and a pathops failure comes back as an empty
- *    path rather than an error. Beside them the two POLYLINE corner and
- *    displacement treatments, roundCorners/chamferCorners and
- *    displaceSquare.
- *  - STRIP JOINERY over a set of pieces of stock — a segment cut to a
- *    width: the outline of each piece mitred to the joints it stands
- *    in, the whole figure those outlines unite into, and the half-laps
- *    where two pieces cross rather than meet. Where a lattice, a
- *    trellis, a window bar or a Voronoi cage is joined up.
- *  - DISTORTS as parameter structs: Roughen, Zigzag, PuckerBloat,
- *    Twirl. Each is a small value carrying its dials and applying on
- *    demand (operator()), so a recipe stays editable — restack, retune,
- *    re-apply; the source path is never consumed. `chain()` composes
- *    any of them with ad-hoc lambdas.
- *
- * Distorts run over the resampled-polyline currency, so they respect
- * contours and closure and compose with blend keys, extrude sources,
- * and pathfinder results alike.
+ *  - BOOLEANS over Skia's pathops, with simplify and offset beside
+ *    them, and the two POLYLINE corner treatments. All pure: SkPath in,
+ *    SkPath out, and a pathops failure comes back empty.
+ *  - STRIP JOINERY over pieces of stock — a segment cut to a width —
+ *    mitred to the joints each piece stands in.
+ *  - DISTORTS as parameter structs, each carrying its dials and
+ *    applying on demand, so a recipe stays editable.
  */
 
 #include <include/core/SkPath.h>
@@ -88,17 +73,11 @@ enum class Join : uint8_t { Round, Miter, Bevel };
 /** How an offset mark ends where the source has an end. */
 enum class Cap : uint8_t { Butt, Round, Square };
 
-/** THE DIALS OF ONE OFFSET.
- *
- *  `position` is the one that makes this a single operator rather than a
- *  family. It is CONTINUOUS: at 0 the offset is the single curve a
- *  distance to the LEFT of travel, at 1 the single curve the same
- *  distance to the right, and at 0.5 it is both at once — the band that
- *  straddles the source, which for a filled shape is that shape grown by
- *  the distance (or shrunk, at a negative one). Everything between is
- *  the band slid across the source, its two rails at
- *  `distance·(1 ± 2·position ∓ 1)`. A three-valued side enum would be
- *  three operators wearing one name. */
+/** THE DIALS OF ONE OFFSET. `position` is what makes this a single
+ *  operator rather than a family, and it is CONTINUOUS: 0 is the single
+ *  curve a distance to the LEFT of travel, 1 the same distance to the
+ *  right, 0.5 both at once — the band that straddles the source — and
+ *  everything between is that band slid across it. */
 struct OffsetOptions {
   Join join = Join::Round;
   Cap cap = Cap::Round;
@@ -108,17 +87,13 @@ struct OffsetOptions {
   /** Where the offset sits across the source: 0 is wholly left of
    *  travel, 0.5 straddles it, 1 is wholly right. Clamped. */
   float position = 0.5f;
-  /** MOVE THE SOURCE'S OWN NODES rather than form a new outline: every
-   *  node travels along its corner bisector and every handle along its
-   *  segment's normal, so the answer has the nodes the source had, in
-   *  the same order and of the same kinds, and the two still
-   *  interpolate. Which way "out" is comes from the contour's own
-   *  winding, so this is the one spelling whose sign follows the
-   *  drawing rather than the boolean. A needle-sharp corner's mitre is
-   *  capped by `miterLimit`, blunting the corner rather than dropping
-   *  the node. It is the WHOLE offset when it is set: `position` and
-   *  `step`, which describe a band and a walk, say nothing about moving
-   *  a node and are not read. */
+  /** MOVE THE SOURCE'S OWN NODES rather than form a new outline: the
+   *  answer has the nodes the source had, in the same order and of the
+   *  same kinds, so the two still interpolate. Which way "out" is comes
+   *  from the contour's own winding, which makes this the one spelling
+   *  whose sign follows the drawing rather than the boolean.
+   *  @silent `position` and `step` are set beside it: they describe a
+   *  band and a walk, and this is the WHOLE offset when it is on. */
   bool keepCompatible = false;
   /** The stride the sideways walk takes where a walk is used — away
    *  from `position` 0.5, where Skia's stroker answers instead. */
@@ -126,24 +101,13 @@ struct OffsetOptions {
   bool operator==(const OffsetOptions&) const = default;
 };
 
-/** OFFSET: the mark `path` becomes a distance to the side of itself.
- *
+/** OFFSET: the mark @p path becomes a distance to the side of itself —
  *  ONE operator for what an outline offset, a concentric frame, a
- *  parallel rail and a bolder silhouette all are. A positive @p distance
- *  offsets to the LEFT of travel, which for a filled shape at the
- *  default `position` is outward — the library-wide sign convention,
- *  shared with `parallel` and `profile::offset`.
- *
- *  A band that STRADDLES the source encloses the source's own edge, so
- *  what is answered there is the source with the band added (a positive
- *  distance) or taken away (a negative one) — the grown or shrunk area,
- *  which is what an outline offset means. A band that lies to one side
- *  touches no interior and is answered as itself.
- *
- *  Implemented as stroke-expansion plus a boolean where the band
- *  straddles, which is robust for UI-scale geometry, and as the
- *  contour walk `parallel` elsewhere; a polygon-clipper backend can slot
- *  in later for cartography-grade needs. */
+ *  parallel rail and a bolder silhouette all are. A positive
+ *  @p distance offsets to the LEFT of travel, which for a filled shape
+ *  at the default `position` is outward: the library-wide sign
+ *  convention. A band that STRADDLES the source answers the source
+ *  grown or shrunk; one that lies to a side is answered as itself. */
 SkPath offset(const SkPath& path, float distance,
               const OffsetOptions& options = {});
 
@@ -168,31 +132,22 @@ struct CornerOptions {
   bool operator==(const CornerOptions&) const = default;
 };
 
-/** Round Corners: every sharp corner of the path replaced by an arc of
- *  @p radius. Non-positive radius returns the path unchanged, and a path
- *  the effect refuses comes back unchanged rather than empty.
- *
- *  WITH ANY OPTION SET this is a POLYLINE treatment: the selection and
- *  the visual correction are read off the two straight legs meeting at a
- *  corner, so a joint where either side is a curve passes through
- *  untouched. Skia's corner effect, which the default options use, has
- *  no such limit and no such dials. */
+/** ROUND CORNERS: every sharp corner of @p path replaced by an arc of
+ *  @p radius. A non-positive radius, and a path the effect refuses,
+ *  come back unchanged rather than empty.
+ *  @silent any option is set and a corner's legs are not both STRAIGHT:
+ *  with options this is a polyline treatment, where Skia's own corner
+ *  effect, which the default options use, has no such limit. */
 SkPath roundCorners(const SkPath& path, float radius,
                     const CornerOptions& options = {});
 
 /** CUT EVERY LINE-LINE CORNER of @p path with a straight bevel @p cut px
- *  along each leg — on an orthogonal route's right angles that is the
- *  45-degree face of the game-UI and PCB corner convention, which
- *  `SkCornerPathEffect` cannot spell because it only rounds. The cut
- *  clamps to half of each adjacent leg, so short legs degenerate to a
- *  diagonal rather than crossing over. Straight-through vertices are left
- *  alone; closed polyline contours chamfer the closing vertex too, so a
- *  routed loop and a `shapes::chamfered` panel agree.
- *
- *  THIS IS A POLYLINE TREATMENT. A contour containing ANY curve segment —
- *  quad, conic or cubic — is copied through completely untouched, so a
- *  chamfer over an arc, a rounded route, or anything already run through a
- *  corner effect is a silent no-op on that contour. */
+ *  along each leg — the 45-degree face of the game-UI and PCB corner
+ *  convention, which `SkCornerPathEffect` cannot spell because it only
+ *  rounds. The cut clamps to half of each adjacent leg; a closed
+ *  polyline contour chamfers its closing vertex too.
+ *  @silent the contour holds ANY curve segment: a chamfer over an arc
+ *  or a rounded route copies that contour through untouched. */
 SkPath chamferCorners(const SkPath& path, float cut);
 
 /** A SQUARE WAVE across the mark: the contour walked at a fixed
@@ -221,13 +176,11 @@ struct Strip {
 
 /** HOW A SET OF PIECES IS CUT WHERE IT MEETS ITSELF. */
 struct StripOptions {
-  /** The cut at a node. `Miter` planes each end back to the seams it
-   *  shares with its neighbours round the node, so the pieces fill the
-   *  node with no gap and no overlap — real mitred joinery, and the one
-   *  join a wood or metal lattice is actually cut to. `Bevel` stops each
-   *  end a half-width from the node instead, blunting the point. `Round`
-   *  finishes each end with an arc of its own half-width about the node,
-   *  which at a lone end is a round cap and at a joint a rounded one. */
+  /** THE CUT AT A NODE. `Miter` planes each end back to the seams it
+   *  shares with its neighbours, so the pieces fill the node with no gap
+   *  and no overlap — real mitred joinery. `Bevel` stops each end a
+   *  half-width short, blunting the point. `Round` finishes each end
+   *  with an arc of its own half-width about the node. */
   Join join = Join::Miter;
   /** How many half-widths a mitred point may stand from its node before
    *  it is cut back: the sharper the angle, the further a true mitre
@@ -245,17 +198,12 @@ struct StripOptions {
 };
 
 /** THE OUTLINE OF EACH PIECE, ITS ENDS CUT TO THE JOINTS IT STANDS IN —
- *  one closed contour per piece, in the order the pieces were given, and
- *  an empty path for a piece of no length.
- *
- *  A node is wherever ends meet: the ends there are put in order round
- *  it, and the seam between each neighbouring pair is the bisector of
- *  their two directions, so every piece is planed to the same face as
- *  the piece beside it. Two ends meeting give the corner mitre a picture
- *  frame is cut to; three or more give each piece a wedge, which is what
- *  a lattice node actually is; an end that meets nothing is cut square
- *  across. Nothing here reads which piece is on top — a lattice is one
- *  layer of stock at a time, and `stripLaps` is where the layers cross. */
+ *  one closed contour per piece, in the order @p pieces were given, and
+ *  an empty path for a piece of no length. A node is wherever ends meet,
+ *  and the seam between each neighbouring pair is the bisector of their
+ *  two directions; an end that meets nothing is cut square across.
+ *  @silent nothing here reads which piece is ON TOP — a lattice is one
+ *  layer of stock at a time, and `stripLaps` is where layers cross. */
 std::vector<SkPath> stripOutlines(std::span<const Strip> pieces,
                                   const StripOptions& options = {});
 
@@ -296,21 +244,13 @@ std::vector<StripLap> stripLaps(std::span<const Strip> pieces,
 // Distorts. All resample-based: segmentPx bounds fidelity (smaller =
 // truer curves, more points).
 
-/** Roughen — seeded jitter along the contour normal. `smooth` rebuilds
- *  with Catmull-Rom (Illustrator's Smooth points vs Corner).
- *
- *  The displacement is drawn from ONE SEEDED STREAM, the same value
- *  every other seeded thing in this tree draws from, so a roughened
- *  outline re-rolls identically on every platform and a caller that
- *  wants an evenly spread jitter rather than an independent one says so
- *  with `source` — a low-discrepancy sequence roughens without the
- *  clumps independent draws leave. Each contour draws from its own
- *  stream, so adding one contour does not re-roll the others.
- *
- *  `seed` and `parameter` are the pair every seeded value in this tree
- *  is described by, spelled the same way here as in `Distribution`: the
- *  parameter is the sequence's own dial — a Halton base, a stratum
- *  count — and a source that has none ignores it. */
+/** ROUGHEN — seeded jitter along the contour normal; `smooth` rebuilds
+ *  with Catmull-Rom. The displacement is drawn from ONE SEEDED STREAM,
+ *  the same value every other seeded thing in this tree draws from, so
+ *  a roughened outline re-rolls identically on every platform, and each
+ *  contour draws from its own stream. `seed` and `parameter` are the
+ *  pair every seeded value here is described by: the parameter is the
+ *  sequence's own dial, and a source that has none ignores it. */
 struct Roughen {
   float amplitude = 4;
   float segmentPx = 8;

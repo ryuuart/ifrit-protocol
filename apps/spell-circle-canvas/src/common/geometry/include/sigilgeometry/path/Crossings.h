@@ -5,13 +5,8 @@
  *
  * Where a set of paths cross each other, and which one is on top there.
  *
- * A crossing is DISCOVERED, never authored: `discoverCrossings` flattens
- * the paths and finds every PROPER crossing among them, numbered along
- * the boundary. "Proper" is load-bearing — coincident paths and endpoint
- * touches, such as a shared polygon vertex, are meetings rather than
- * crossings, and reporting them would put a knot at every corner of every
- * rectangle.
- *
+ * A crossing is DISCOVERED, never authored: `discoverCrossings` finds
+ * every PROPER crossing among the paths, numbered along the boundary.
  * `CrossingRule` is the comparable value that answers who passes over
  * whom, and `crossingPatch` is the region where two marks actually
  * overlap at one knot — the shape a consumer repaints to put one strand
@@ -80,18 +75,12 @@ concept PreparedCrossingScheme =
       { d.prepare(all) };
     };
 
-/** The rule ladder, as ONE comparable value. Climb only as far as the
- *  composition needs:
- *
- *      crossing::alternate()                    // == sequence({Over, Under})
- *      crossing::sequence({Over, Over, Under})  // any repeating pattern
- *      crossing::pairs({{0,1},{1,2},{2,0}})     // dominance, cyclic allowed
- *      MyRule{}                                 // your own decide() value
- *
- *  and pin exceptions onto whatever you chose with `.except(i, order)`.
- *
- *  The default is LIST ORDER: later strands pass over earlier ones. That
- *  is what makes `layers` and `weave` formally one machine. */
+/** THE RULE LADDER, as ONE comparable value: an alternation, any
+ *  repeating sequence, a dominance table, or a `decide()` value of the
+ *  caller's own, with exceptions pinned onto whichever was chosen
+ *  through `except()`. The default is LIST ORDER — later strands pass
+ *  over earlier ones — which is what makes `layers` and `weave`
+ *  formally one machine. */
 class CrossingRule {
  public:
   CrossingRule() = default;
@@ -136,29 +125,19 @@ class CrossingRule {
 
   /** WHAT THE WHOLE SET SAYS, handed over once per discovery and before
    *  the first `decide`. A rule about one meeting ignores it; a rule
-   *  about the WALK — every crossing you meet along a strand alternating
-   *  with the one before it — cannot be answered without it, because
-   *  nothing in a single Crossing says how many crossings on its strand
-   *  come before it.
-   *
-   *  A holder that discovers crossings calls this each time it
-   *  rediscovers them and may call it as often as it likes: what it
-   *  computes is a function of the set alone. It does not enter equality
-   *  — it is derived from geometry, not authored — so a rule that has
-   *  been prepared still prunes against the same rule that has not. */
+   *  about the WALK cannot be answered without it, because nothing in a
+   *  single `Crossing` says how many crossings on its strand come
+   *  before it. It may be called as often as a holder likes, and does
+   *  not enter equality, so a prepared rule still prunes against the
+   *  same rule unprepared. */
   void prepare(std::span<const Crossing> all) const;
 
-  /** Pin ONE crossing, layered over whatever rule this already is.
-   *
-   *  **Pins are POSITIONAL**: the index is a position in the discovered
-   *  order, so a stable RULE survives a geometry change and a pin does
-   *  not — move a strand and pin 3 lands on a different meeting. Use
-   *  rules while a composition is still moving, and pins only once it is
-   *  settled and you are correcting one knot by eye.
-   *
-   *  Pins compose onto the base rule and never stack as separate
-   *  entries: there is one `.crossing` field, and this is how it takes
-   *  exceptions. */
+  /** PIN ONE CROSSING, layered over whatever rule this already is. Pins
+   *  compose onto the base rule and never stack as separate entries:
+   *  there is one `.crossing` field, and this is how it takes
+   *  exceptions.
+   *  @trap Pins are POSITIONAL — @p index is a place in the discovered
+   *  order, so moving a strand lands pin 3 on a different meeting. */
   CrossingRule& except(size_t index, Order order) {
     for (auto& pin : m_pins)
       if (pin.first == index) {
@@ -262,27 +241,12 @@ inline CrossingRule pairs(std::vector<std::pair<int, int>> dominance) {
   return CrossingRule::pairs(std::move(dominance));
 }
 /** THE ALTERNATING WEAVE OF KNOT THEORY: walk any strand from its start
- *  and the crossings you meet run over, under, over, under.
- *
- *  IT IS NOT `alternate()`, and the difference is the whole reason both
- *  exist. `alternate()` alternates by DISCOVERED ORDINAL — the order the
- *  crossings were numbered in, which is arc length along the
- *  lowest-indexed strand each one involves. That is one strand's walk,
- *  and every other strand's crossings are numbered in whatever order the
- *  first strand met them, so on anything more braided than two strands
- *  the parity you meet walking strand 3 is arbitrary and the weave reads
- *  as a mistake. This one alternates along EVERY strand, by sorting the
- *  passes — two per crossing, one on each strand it joins — by strand and
- *  then by arc length, and reading the parity of each pass.
- *
- *  A {7/2} heptagram is the smallest figure that tells them apart: seven
- *  chords, two crossings on each and seven in all, and the plaited star
- *  everyone draws by hand is this rule and not the other.
- *
- *  Where a diagram is NOT alternable — a crossing whose two passes both
- *  come up even — the two strands cannot both go over and the pass on the
- *  lower-indexed strand decides. Such a figure has no alternating weave
- *  at all, and this is where it shows. */
+ *  and the crossings you meet run over, under, over, under. It
+ *  alternates along EVERY strand, by sorting the two passes of each
+ *  crossing by strand and then by arc length.
+ *  @trap Not `alternate()`, which alternates by DISCOVERED ORDINAL and
+ *  so reads as a mistake on anything more braided than two strands.
+ *  Where a diagram is not alternable, the lower-indexed strand decides. */
 inline CrossingRule alternateAlong() {
   return CrossingRule::alternateAlong();
 }
@@ -301,25 +265,14 @@ inline std::vector<Crossing> discoverCrossings(
       std::span<const SkPath>(strands.begin(), strands.size()));
 }
 
-/** The region where two strands' MARKS actually overlap at one crossing:
- *  the intersection of the two paths stroked to their own reach, reduced to
- *  the component containing `at` and bounded by @p maxRadius px around it.
- *
- *  Exact at any angle, which a disc is not — two marks meeting at 12° overlap
- *  in a long lens whose extent along each strand goes as reach/sin(theta),
- *  and a disc sized for the perpendicular case leaves the under-strand
- *  showing straight across the over-strand's mark.
- *
- *  `maxRadius` is not a safety margin, it is REQUIRED for correctness on any
- *  ordinary braid. Once reach/sin(theta) approaches the spacing between
- *  knots, neighbouring lenses touch and path operations merge them into ONE
- *  contour — at which point the first crossing's patch owns the whole run
- *  and the weave degenerates to "one strand on top" for half its knots.
- *  Pass half the arc distance to the adjacent crossing, so each knot can
- *  only ever claim its own half.
- *
- *  Falls back to a disc when the intersection is empty (degenerate or
- *  non-overlapping input). */
+/** THE REGION WHERE TWO STRANDS' MARKS OVERLAP at one crossing: the
+ *  intersection of the two paths stroked to their own reach, reduced to
+ *  the component containing @p at and bounded by @p maxRadius px around
+ *  it. Exact at any angle, which a disc is not. Falls back to a disc
+ *  when the intersection is empty.
+ *  @trap @p maxRadius is REQUIRED for correctness, not a margin: pass
+ *  half the arc distance to the adjacent crossing, or touching lenses
+ *  merge and one knot's patch owns the whole run. */
 SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
                      float reachB, SkPoint at, float maxRadius);
 
