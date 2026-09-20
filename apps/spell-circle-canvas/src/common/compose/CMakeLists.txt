@@ -68,7 +68,11 @@
 # Not fetch_assets — a TEST must never depend on an opt-in target.
 sigil_library_root(SigilCompose
   BRIEF "Immutable value-typed descriptions of a 2D scene, laid out with flexbox and drawn to an SkCanvas"
-  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md)
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/README.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/ELEMENTS.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERBS.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md)
 
 # Dependencies point down this list. testing/ precedes the features whose
 # test binaries link it; kit/ links the tiers above it.
@@ -98,14 +102,43 @@ sigil_library(SigilCompose
 # The cross-feature tests, which are the library's rather than one tier's.
 
 # The engine walkthroughs and the compile check over the prose.
-# Every API name README.md and TYPOGRAPHY.md spell, compiled against the
-# headers that own it — both files, because the type chapter is the same
-# canon as the page that links it. The testing tier's own include root is
-# scanned beside the library's, since the walkthroughs spell the harness
-# the cases are written against.
+# Every API name README.md, TYPOGRAPHY.md, the reference's catalogue
+# indexes and its entity pages spell, compiled against the headers that
+# own it — every one of them, because the type chapter, the catalogue
+# and an entity's own page are the same canon as the page that links
+# them. The testing tier's own include root is scanned beside the
+# library's, since the walkthroughs spell the harness the cases are
+# written against.
 sigil_doc_probes(compose
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/ELEMENTS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERBS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/COLOURING.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Corners.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Dimension.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Fill.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/PathFormat.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Shadow.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/SurfacePaint.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/box.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/custom.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/image.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/stack.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/text.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/backdrop.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/background.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/blend.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/effect.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/fill.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/foreground.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/ink.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/opacity.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/overlay.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/stroke.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textFill.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textStroke.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
