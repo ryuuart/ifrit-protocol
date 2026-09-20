@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: effect
 qualified: sigil::compose::Element::effect
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/Effects.h
 group: Effects
 python: sigil.compose.Element.effect
 status: stable

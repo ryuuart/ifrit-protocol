@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: textFill
 qualified: sigil::compose::Element::textFill
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/TextStyle.h
 group: Paint
 python: sigil.compose.Element.textFill
 status: stable

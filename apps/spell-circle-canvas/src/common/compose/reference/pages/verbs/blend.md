@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: blend
 qualified: sigil::compose::Element::blend
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/Effects.h
 group: Effects
 python: sigil.compose.Element.blend
 status: stable

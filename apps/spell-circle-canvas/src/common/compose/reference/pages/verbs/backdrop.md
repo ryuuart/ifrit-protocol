@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: backdrop
 qualified: sigil::compose::Element::backdrop
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/Effects.h
 group: Effects
 python: sigil.compose.Element.backdrop
 status: stable

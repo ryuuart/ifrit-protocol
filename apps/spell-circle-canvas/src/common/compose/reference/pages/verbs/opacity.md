@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: opacity
 qualified: sigil::compose::Element::opacity
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/Effects.h
 group: Effects
 python: sigil.compose.Element.opacity
 status: stable

@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: ink
 qualified: sigil::compose::Element::ink
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/Cascade.h
 group: Paint
 python: sigil.compose.Element.ink
 status: stable

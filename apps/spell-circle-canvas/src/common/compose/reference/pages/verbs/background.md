@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: background
 qualified: sigil::compose::Element::background
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/Decoration.h
 group: Paint
 python: sigil.compose.Element.background
 status: stable

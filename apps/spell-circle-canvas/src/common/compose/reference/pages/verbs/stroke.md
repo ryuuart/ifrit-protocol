@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: stroke
 qualified: sigil::compose::Element::stroke
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/Decoration.h
 group: Paint
 python: sigil.compose.Element.stroke
 status: stable
