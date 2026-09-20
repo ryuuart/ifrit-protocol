@@ -51,7 +51,6 @@ __all__ = [
     "TextureProducer",
     "TickCallback",
     "TileProgram",
-    "UniformInput",
     "UniformValue",
     "Vec2",
     "Vec2Like",
@@ -192,10 +191,6 @@ that makes the value re-read every frame, a colour written as the colour
 class or a CSS string, or a flat array matched against the declared
 uniform's total float count. A paint and an effect take the same set, so
 one uniform is written the same way on either seam."""
-UniformInput: TypeAlias = UniformValue | _sigil.material.UniformBlock
-"""A UNIFORM ON A SLOT THAT ALSO TAKES A BLOCK. Everything a named
-uniform is written as, plus a uniform block, whose floats the material
-re-reads every time the block commits instead of copying them once."""
 CellValue: TypeAlias = None | bool | int | float | str | _sigil.data.Instant
 CellInput: TypeAlias = CellValue | _sigil.data.Flag
 JsonValue: TypeAlias = (
