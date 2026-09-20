@@ -19,11 +19,17 @@ sigil_library(SigilDataValues
   HEADERS Values.h
   INTERFACE SigilDataDecode flatbuffers::flatbuffers)
 
-# The generator itself: one translation unit over the FlatBuffers
-# parser, which is the only thing it needs. It is a tool the build runs,
-# not a library anyone links, so it stands beside the binaries rather
-# than among the tests.
-add_executable(sigil_schema_values SchemaValues.cpp)
+# The generator itself: a file per subject over the FlatBuffers parser,
+# which is the only thing any of them needs — the names the written
+# header spells, how one of its lines is laid out, the value type each
+# definition becomes, the order those must be written in, the readings
+# and the writings, and the document they are assembled into. It is a
+# tool the build runs, not a library anyone links, so it stands beside
+# the binaries rather than among the tests.
+add_executable(sigil_schema_values
+  SchemaValues.cpp SchemaNames.cpp SchemaNames.h SchemaLines.cpp
+  SchemaLines.h SchemaHeader.cpp SchemaHeader.h SchemaValueTypes.cpp
+  SchemaOrder.cpp SchemaReadWrite.cpp)
 target_link_libraries(sigil_schema_values PRIVATE flatbuffers::flatbuffers)
 set_target_properties(sigil_schema_values PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/$<CONFIG>/tools)
