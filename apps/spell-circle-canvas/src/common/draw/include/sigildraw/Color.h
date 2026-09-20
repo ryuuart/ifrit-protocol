@@ -53,12 +53,9 @@ inline SkColor4f colorFrom(const ColorMode& mode, float gray) {
 }
 
 /** A CSS colour string as p5 accepts one: `#rgb`, `#rgba`, `#rrggbb`,
- *  `#rrggbbaa`, and the named colours a sketch reaches for — the
- *  sixteen of HTML's first palette with `grey`, `orange`, `pink`,
- *  `brown`, `gold`, `violet`, `indigo`, `crimson`, `coral`, `salmon`,
- *  `tomato`, `turquoise`, `skyblue`, `steelblue`, `slategray`,
- *  `darkgray`, `lightgray`, `transparent`. Anything else is opaque
- *  black, which is what a canvas gives an unparseable colour too. */
+ *  `#rrggbbaa`, and the named colours a sketch reaches for. Anything
+ *  else is opaque black, which is what a canvas gives an unparseable
+ *  colour too. */
 SkColor4f parseColor(std::string_view css);
 
 }  // namespace sigil::draw

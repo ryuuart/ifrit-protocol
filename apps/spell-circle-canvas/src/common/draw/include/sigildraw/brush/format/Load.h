@@ -53,23 +53,16 @@ inline constexpr std::string_view kGrainName = "grain.png";
 [[nodiscard]] std::optional<Tool> decodeBrush(std::span<const std::byte> bytes,
                                               std::string_view hint = {});
 
-/** The description a native brush directory holds, written from @p tool.
- *
- *  Every value of the tool that is a number, a flag or a word is in it,
- *  so a tool written and read back is the tool that was written. What is
- *  not in it is what a description cannot hold: the images, which sit
- *  beside this text as `shape.png` and `grain.png` for whoever writes
- *  the directory to encode, and the callables — a pressure curve, a
- *  response curve, a custom tip — which are a caller's own code. */
+/** The description a native brush directory holds, written from
+ *  @p tool: every value of it that is a number, a flag or a word, so a
+ *  tool written and read back is the tool that was written.
+ *  @trap What a description cannot hold is not in it — the two images,
+ *  which sit beside this text, and the callables, which are code. */
 [[nodiscard]] std::string encodeBrush(const Tool& tool);
 
-/** The decoder to register with a hub, so `load<Tool>()` answers:
- *
- *      hub.registerDecoder<brush::Tool>(brush::format::BrushDecoder{});
- *      auto ink = hub.load<brush::Tool>("res://brushes/ink.sigilbrush");
- *
- *  One decoder answers for every form, because a hub registers one
- *  decoder per type and a brush is one type however it was authored. */
+/** The decoder to register with a hub, so a typed load answers. One
+ *  decoder answers for every form, because a hub registers one decoder
+ *  per type and a brush is one type however it was authored. */
 struct BrushDecoder {
   [[nodiscard]] std::optional<Tool> decode(const io::Bytes& bytes,
                                            std::string_view hint) const {
@@ -77,17 +70,12 @@ struct BrushDecoder {
   }
 };
 
-/** The brush at @p uri, read through any byte source.
- *
- *  The native format is a DIRECTORY, `<name>.sigilbrush/`, holding
- *  `brush.json`, `shape.png` and an optional `grain.png` — so the
- *  artwork stays an image a painting program can open and edit in
- *  place. A directory has no bytes of its own, which is why loading one
- *  goes through a source rather than through a decoder: the three parts
- *  are three ordinary resources under it. Anything that is one file —
- *  a packed archive, an `.abr`, a `.brush` — is fetched whole and
- *  handed to `decodeBrush`, which is also what a hub's registered
- *  decoder runs. */
+/** The brush at @p uri, read through any byte source. The native
+ *  format is a DIRECTORY holding a description and its two images, so
+ *  the artwork stays an image a painting program can edit in place; a
+ *  directory has no bytes of its own, which is why loading one goes
+ *  through a source rather than through a decoder. Anything that is one
+ *  file is fetched whole and handed to `decodeBrush`. */
 template <io::ByteSource S>
 [[nodiscard]] std::optional<Tool> loadBrush(S& source, std::string_view uri) {
   // One file first: a brush that is one resource costs one fetch, and a

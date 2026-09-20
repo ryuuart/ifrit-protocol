@@ -12,13 +12,11 @@
 
 namespace sigil::draw {
 
-/** THE WORDS A VERB TAKES.
- *
- *  One enumeration for all of them, because p5 keeps one namespace for
- *  them and `CENTER` is the same word to rectMode, ellipseMode, imageMode
- *  and textAlign. A verb handed a word it does not take ignores it, as p5
- *  does. `POLYGON` is the one word p5 does not spell: it is what
- *  `beginShape()` with no kind means, and nothing needs to write it. */
+/** THE WORDS A VERB TAKES — one enumeration for all of them, because p5
+ *  keeps one namespace and `CENTER` is the same word to four verbs.
+ *  `POLYGON` is the one word p5 does not spell: what `beginShape()` with
+ *  no kind means.
+ *  @silent the verb does not take the word it was handed, as in p5. */
 enum Constant : uint8_t {
   // rectMode, ellipseMode, imageMode
   CORNER,

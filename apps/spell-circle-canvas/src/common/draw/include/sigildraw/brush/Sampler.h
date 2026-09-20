@@ -21,12 +21,9 @@ inline constexpr float kSpeedFilterSeconds = 0.04f;
 
 /** Resamples live device input into dabs one spacing apart, on
  *  SigilGeometryPath's even-spacing walk, so the event rate cannot
- *  change the density of pigment.
- *
- *  The dab at the beginning of a stroke is held until the first movement
- *  supplies its direction, so a tip that follows the heading never stamps
- *  its first mark at angle zero; a stroke that ends without moving is one
- *  dab at direction zero. */
+ *  change the density of pigment. The first dab is held until the first
+ *  movement supplies its direction, and a stroke that ends without
+ *  moving is one dab at direction zero. */
 class Sampler {
  public:
   explicit Sampler(float speedFilterSeconds = kSpeedFilterSeconds);
