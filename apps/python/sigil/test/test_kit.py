@@ -1,6 +1,7 @@
 """Native kit scope, value ownership and authoring prefix contracts."""
 
 import builtins
+import copy
 import tempfile
 import threading
 import unittest
@@ -48,6 +49,15 @@ class Kit(unittest.TestCase):
                     snapshot.spacing.cellGap += 1
                     self.assertEqual(kit.theme(), custom)
                 self.assertEqual(kit.theme(), ambient)
+
+    def test_theme_answers_the_copy_protocol_a_memo_model_is_snapshotted_with(self):
+        original = kit.house_theme()
+        for made in (copy.copy(original), copy.deepcopy(original)):
+            self.assertIsInstance(made, raw.kit.Theme)
+            self.assertEqual(made, original)
+            made.spacing.cellGap += 1
+            self.assertNotEqual(made, original)
+        self.assertEqual(original, kit.house_theme())
 
     def test_theme_font_and_style_name_the_same_register_across_overloads(self):
         look = kit.house_theme()

@@ -48,18 +48,40 @@ T keywordValue(pybind11::kwargs fields,
   return value.template cast<T>();
 }
 
+/** Gives @p type the copy protocol Python's `copy` module looks for:
+ *  `__copy__`, and `__deepcopy__` taking the memo dictionary that module
+ *  keeps its cycles in. Both answer what the native copy constructor
+ *  makes, which is what a deep copy of a value is — its fields are
+ *  values too, and a retained Python callable inside one is shared with
+ *  the copy rather than duplicated, exactly as `copy()` shares it, so
+ *  both call back into the same function. The memo goes unread because a
+ *  value reaches no Python object twice. A model handed to `compose.memo`
+ *  is snapshotted with `copy.deepcopy`, so a bound value without this
+ *  protocol cannot stand in one. Bound records get it from `bindRecord`;
+ *  a class registered by hand takes it in one call. */
+template <class T, class... Options>
+pybind11::class_<T, Options...>& copyProtocol(
+    pybind11::class_<T, Options...>& type) {
+  return type.def("__copy__", [](const T& value) { return value; })
+      .def(
+          "__deepcopy__",
+          [](const T& value, const pybind11::dict&) { return value; },
+          pybind11::arg("memo"));
+}
+
 /** Binds a native record as @p name on @p module: constructible from
- *  keyword arguments through `keywordValue`, and copyable. @p
- *  unknownField opens the message a field the record does not have
- *  raises. */
+ *  keyword arguments through `keywordValue`, copyable, and answering the
+ *  copy protocol. @p unknownField opens the message a field the record
+ *  does not have raises. */
 template <class T>
 pybind11::class_<T> bindRecord(pybind11::module_& module, const char* name,
                                const char* unknownField) {
-  return pybind11::class_<T>(module, name)
-      .def(pybind11::init([unknownField](pybind11::kwargs fields) {
+  pybind11::class_<T> type(module, name);
+  type.def(pybind11::init([unknownField](pybind11::kwargs fields) {
         return keywordValue<T>(fields, unknownField);
       }))
       .def("copy", [](const T& value) { return value; });
+  return copyProtocol(type);
 }
 
 /** Reads a native color from a colour object, a CSS string, or an RGB or
