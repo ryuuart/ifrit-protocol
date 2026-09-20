@@ -5,7 +5,6 @@
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Stroke.h>
-#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextPath.h>
@@ -957,35 +956,6 @@ void bindCompose(py::module_& module) {
       },
       py::arg("value"), py::arg("size") = py::none(),
       py::arg("color") = py::none());
-  composition.def(
-      "graphics",
-      [](const std::string& key, py::function program, compose::Cache cache) {
-        auto callback = retainCallback(std::move(program));
-        return compose::graphics(
-            key,
-            [callback](draw::Pen& pen) {
-              const py::gil_scoped_acquire lock;
-              invokePen(callback->get(), pen);
-            },
-            cache);
-      },
-      py::arg("key"), py::arg("program"),
-      py::arg("cache") = compose::Cache::None);
-  composition.def(
-      "pen",
-      [](const std::string& key, py::function program, compose::Cache cache) {
-        auto callback = retainCallback(std::move(program));
-        return compose::pen(
-            key,
-            [callback](draw::Pen& pen) {
-              const py::gil_scoped_acquire lock;
-              invokePen(callback->get(), pen);
-            },
-            cache);
-      },
-      py::arg("key"), py::arg("program"),
-      py::arg("cache") = compose::Cache::None);
-
   composition.def("memo", &memo, py::arg("properties"), py::arg("describe"));
   composition
       .def("stack",
