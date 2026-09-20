@@ -44,9 +44,10 @@ is placed.
 
 | Verb | What it says |
 |---|---|
-| `row` | Lay the children along the horizontal axis. |
-| `column` | Lay the children down the vertical axis. |
-| `wrapLines` | Let children that overflow the main axis flow onto new lines. |
+| `flexDirection` | Which way the main axis runs and from which end: `FlexDirection::Column`, `ColumnReverse`, `Row`, `RowReverse`. |
+| `row` | `flexDirection(FlexDirection::Row)`: the children run left to right. |
+| `column` | `flexDirection(FlexDirection::Column)`: top to bottom, which is what a node does unasked. |
+| `flexWrap` | What becomes of children that overflow the main axis: `FlexWrap::NoWrap`, `Wrap`, `WrapReverse`. The bare call wraps. |
 | `alignItems` | Where the children sit on the cross axis. |
 | `alignSelf` | Where THIS child sits on its parent's cross axis, whatever the parent said. |
 | `justify` | Where the children sit along the main axis, and how the slack is shared. |
@@ -80,6 +81,8 @@ parent, and a font-relative length measures against the type in force.
 | `minHeight` | The floor under the resolved height. |
 | `maxHeight` | The ceiling over it. |
 | `aspect` | Width over height, for a node whose other axis is free. |
+| `boxSizing` | What `width` and `height` measure: `BoxSizing::BorderBox`, the padding included, unless `ContentBox` is said. |
+| [`display`](pages/verbs/display.md) | Whether the node has a box: `Display::Flex`; `None`, which removes it and its subtree from layout, picture and hit test; `Contents`, which hands its children to its parent's line. |
 | `basis` | The flex basis outright, when it is neither the width nor the height. |
 | `grow` | The share of the leftover main-axis room this child takes. |
 | `shrink` | The share of the overflow this child gives back; 1 unless stated. |
@@ -263,11 +266,12 @@ out: `size(width, height)` is `width` then `height`; `fontSize`,
 Every verb on this page is declared in one header, and the include
 spelling is the feature's.
 
-- `core/verbs/Flex.h` — the flex verbs `row`, `column`, `wrapLines`,
-  `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`, `justify`.
+- `core/verbs/Flex.h` — the flex verbs `flexDirection`, `row`, `column`,
+  `flexWrap`, `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`,
+  `justify`.
 - `core/verbs/Box.h` — the box verbs `gap`, `padding`, `margin`,
   `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`,
-  `aspect`.
+  `aspect`, `boxSizing`, `display`.
 - `core/verbs/Placement.h` — the placement verbs `absolute`, `cover`,
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`,
   `cells`, `area`, `cellAlign`, `rect`, `at`.

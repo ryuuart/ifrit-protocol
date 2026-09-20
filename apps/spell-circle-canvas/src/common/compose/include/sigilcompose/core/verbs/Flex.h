@@ -19,16 +19,20 @@ namespace sigil::compose {
 template <class Derived>
 class FlexVerbs {
  public:
-  /** Lay the children out along the HORIZONTAL axis, so the main axis
-   *  is x — CSS `flex-direction: row`. */
+  /** WHICH WAY THE MAIN AXIS RUNS and from which end the children are
+   *  placed — CSS `flex-direction`. `FlexDirection::Column` when
+   *  unstated. */
+  Derived& flexDirection(FlexDirection direction);
+  /** `flexDirection(FlexDirection::Row)`: the children run left to
+   *  right. */
   Derived& row();
-  /** Lay the children out down the VERTICAL axis — CSS
-   *  `flex-direction: column`, and what a node does when it says
-   *  neither. */
+  /** `flexDirection(FlexDirection::Column)`: the children run top to
+   *  bottom, which is what a node does when it says nothing. */
   Derived& column();
-  /** Let children that overflow the main axis flow onto new lines or
-   *  columns — CSS `flex-wrap`. Off when unstated. */
-  Derived& wrapLines(bool on = true);
+  /** WHAT BECOMES OF CHILDREN THAT OVERFLOW the main axis — CSS
+   *  `flex-wrap`. `FlexWrap::NoWrap` when unstated; the bare call
+   *  wraps. */
+  Derived& flexWrap(FlexWrap wrap = FlexWrap::Wrap);
   /** THIS NODE'S SHARE OF THE ROOM LEFT OVER along the parent's main
    *  axis, as a weight against its siblings' — CSS `flex-grow`. Zero
    *  when unstated, so a node stays at its basis; the bare call is a

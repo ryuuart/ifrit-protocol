@@ -65,8 +65,9 @@ sound model; nothing below them changes kernel semantics.
   `geometry::path::crossing::` deciding who passes over whom.
 - `core/Mask.h` — the masking family: `Region`, `parts::`, `by::`, `Gate`,
   `Mask`.
-- `core/Layout.h` — `Dimension` and its literals, `Align`, `Justify`, `Echo`,
-  `Cache`, `LayoutInput` / `LayoutScheme`, `CellSpan`, and the
+- `core/Layout.h` — `Dimension` and its literals, `FlexDirection`,
+  `FlexWrap`, `Display`, `BoxSizing`, `Align`, `Justify`, `Echo`, `Cache`,
+  `LayoutInput` / `LayoutScheme`, `CellSpan`, and the
   `ComponentProperties` / `ComponentFunction` concepts. A `Dimension`
   also takes SigilWeave's `Length` (`em`, `rem`, `lh`) and a `VarRef`, the
   relative units the cascade resolves, with `pw` and `ph` — the canvas's own
@@ -79,9 +80,11 @@ sound model; nothing below them changes kernel semantics.
   description value is, and `NodeAccess`, the one door the verb mixins
   reach it through.
 - `core/verbs/Box.h` — `BoxVerbs`: `gap`, `padding`, `margin`, `width`,
-  `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `aspect`.
-- `core/verbs/Flex.h` — `FlexVerbs`: `row`, `column`, `wrapLines`,
-  `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`, `justify`.
+  `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `aspect`,
+  `boxSizing`, `display`.
+- `core/verbs/Flex.h` — `FlexVerbs`: `flexDirection`, `row`, `column`,
+  `flexWrap`, `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`,
+  `justify`.
 - `core/verbs/Placement.h` — `PlacementVerbs`: `absolute`, `cover`,
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`, `cells`,
   `area`, `cellAlign`, `rect`, `at`. `cover` is the one that says a

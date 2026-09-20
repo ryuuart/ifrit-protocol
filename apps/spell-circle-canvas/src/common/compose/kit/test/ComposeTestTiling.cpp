@@ -59,7 +59,7 @@ TEST(ComposeTiling, OnlyTouchedChunkRerecords) {
     for (int i = 0; i < 16; ++i) chunks[(size_t)c].tiles.push_back((i + c) % 4);
   }
   auto maze = [&] {
-    auto grid = box().row().wrapLines().width(2 * 4 * kTilePx);
+    auto grid = box().row().flexWrap().width(2 * 4 * kTilePx);
     for (int c = 0; c < 4; ++c)
       grid.children({memo(chunks[(size_t)c], tileChunk)
                          .key("chunk" + std::to_string(c))});

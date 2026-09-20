@@ -53,6 +53,7 @@ class DepthVerbs {
    *  node's box, any other length is node-local pixels, and a bare
    *  number is refused. The centre when unstated. */
   Derived& perspectiveOrigin(Dimension x, Dimension y);
+  /** A bare number is refused, as `transformOrigin()` refuses one. */
   Derived& perspectiveOrigin(float, float) = delete;
   /** THE SHARED SPACE: this node's children keep the depth their own
    *  lanes give them and are painted back to front by the depth of

@@ -9,20 +9,24 @@
 namespace sigil::compose {
 
 template <class Derived>
-Derived& FlexVerbs<Derived>::row() {
-  declarations()->layout.row = true;
+Derived& FlexVerbs<Derived>::flexDirection(FlexDirection direction) {
+  declarations()->layout.direction = direction;
   return self();
+}
+
+template <class Derived>
+Derived& FlexVerbs<Derived>::row() {
+  return flexDirection(FlexDirection::Row);
 }
 
 template <class Derived>
 Derived& FlexVerbs<Derived>::column() {
-  declarations()->layout.row = false;
-  return self();
+  return flexDirection(FlexDirection::Column);
 }
 
 template <class Derived>
-Derived& FlexVerbs<Derived>::wrapLines(bool on) {
-  declarations()->layout.wrap = on;
+Derived& FlexVerbs<Derived>::flexWrap(FlexWrap wrap) {
+  declarations()->layout.wrap = wrap;
   return self();
 }
 

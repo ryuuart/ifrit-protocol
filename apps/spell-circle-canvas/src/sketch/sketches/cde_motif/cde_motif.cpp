@@ -165,7 +165,7 @@ struct CdeMotifSketch {
       // The document names the folders the reference pane holds. They flow
       // and wrap, the way an XmContainer lays icons out, rather than
       // sitting in a hand-counted grid.
-      Element grid = box().row().wrapLines().gap(4).padding(8, 8).children(
+      Element grid = box().row().flexWrap().gap(4).padding(8, 8).children(
           {each(page["folders"].items(), [](const data::Json& name) {
             return box()
                 .width(70)

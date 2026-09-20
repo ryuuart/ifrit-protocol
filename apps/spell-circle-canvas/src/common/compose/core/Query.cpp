@@ -43,6 +43,7 @@ std::optional<std::string> Composer::Impl::hitInstance(
     Instance& inst, SkPoint parentPt, const std::string* inheritedKey,
     const HitSpace* space) {
   const ElementNode& node = *inst.description;
+  if (node.layout.display == Display::None) return std::nullopt;
 
   const float opacity = std::clamp(
       inst.resolveFloat(Instance::kOpacity, node.paint.opacity), 0.0f, 1.0f);
@@ -106,8 +107,7 @@ std::optional<std::string> Composer::Impl::hitInstance(
     const float ky = std::tan(geometry::path::radians(tf.sky));
     if (std::abs(1.0f - kx * ky) <= 1e-6f) safe.skx = safe.sky = 0;
     SkMatrix inv;
-    if (safe.matrix({0, 0}, rect.width(), rect.height())
-            .invert(&inv))
+    if (safe.matrix({0, 0}, rect.width(), rect.height()).invert(&inv))
       local = inv.mapPoint(local);
     else  // unreachable once sanitized; match "never refuse": translate only
       local.offset(-tf.tx, -tf.ty);

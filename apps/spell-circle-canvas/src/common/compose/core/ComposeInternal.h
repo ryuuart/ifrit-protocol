@@ -58,8 +58,10 @@ struct Insets {
 };
 
 struct LayoutProps {
-  bool row = false;
-  bool wrap = false;
+  FlexDirection direction = FlexDirection::Column;
+  FlexWrap wrap = FlexWrap::NoWrap;
+  Display display = Display::Flex;
+  BoxSizing boxSizing = BoxSizing::BorderBox;
   Dimension gap = 0.0f;
   EdgeDims padding{0.0f, 0.0f, 0.0f, 0.0f}, margin{0.0f, 0.0f, 0.0f, 0.0f};
   Dimension width, height, minWidth, maxWidth, minHeight, maxHeight, basis;
@@ -90,6 +92,12 @@ struct LayoutProps {
   CellSpan cells;
   bool operator==(const LayoutProps&) const = default;
 };
+
+/** Whether a container that runs @p direction has a HORIZONTAL main axis. */
+constexpr bool mainAxisHorizontal(FlexDirection direction) {
+  return direction == FlexDirection::Row ||
+         direction == FlexDirection::RowReverse;
+}
 
 struct PaintProps {
   std::optional<motion::Animatable<Fill>> fill;

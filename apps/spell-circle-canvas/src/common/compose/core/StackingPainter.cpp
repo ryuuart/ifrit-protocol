@@ -27,6 +27,9 @@ using namespace detail;
 
 void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   const ElementNode& node = *inst.description;
+  // No box, and no subtree: the description keeps the node, the picture
+  // does not.
+  if (node.layout.display == Display::None) return;
   const SkRect rect = instanceRect(inst);
   ProfileScope profileScope(this, inst, rect);
 
@@ -113,8 +116,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     curToRoot.preConcat(*flat);
   } else {
     curToRoot.preTranslate(rect.left(), rect.top());
-    curToRoot.preConcat(
-        tf.matrix({0, 0}, rect.width(), rect.height()));
+    curToRoot.preConcat(tf.matrix({0, 0}, rect.width(), rect.height()));
   }
 
   // The space this node hosts for its children, and its own plane for

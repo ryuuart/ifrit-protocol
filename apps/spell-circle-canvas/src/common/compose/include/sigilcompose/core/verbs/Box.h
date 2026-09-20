@@ -4,7 +4,8 @@
  * @ingroup compose-core
  *
  * The box model, as verbs: the air inside and outside a node, the size
- * it asks for, and the floors and ceilings around that size.
+ * it asks for, the floors and ceilings around that size, what the size
+ * measures, and whether the node has a box at all.
  */
 
 #include <sigilcompose/core/Declarations.h>
@@ -61,6 +62,18 @@ class BoxVerbs {
    *  box given only a width is sized down from it. Unstated, the two
    *  axes are independent. */
   Derived& aspect(float ratio);
+  /** WHAT `width()` AND `height()` MEASURE — CSS `box-sizing`.
+   *  `BoxSizing::BorderBox` when unstated: the stated size holds the
+   *  padding. Under `BoxSizing::ContentBox` it is the content's, and the
+   *  padding is added outside it. */
+  Derived& boxSizing(BoxSizing sizing);
+  /** WHETHER THE NODE HAS A BOX AT ALL — CSS `display`. `Display::Flex`
+   *  when unstated. `Display::None` removes the node and everything
+   *  under it from the layout, the picture and the hit test while the
+   *  description keeps it. `Display::Contents` removes only the node's
+   *  own box: its children are laid out as its parent's, and a size, a
+   *  fill or a clip said to the node itself has nothing to apply to. */
+  Derived& display(Display display);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

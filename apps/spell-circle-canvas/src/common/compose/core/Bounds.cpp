@@ -399,6 +399,8 @@ SkRect filteredReach(const ElementNode& node, const SkRect& local,
 SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
                                     bool forBake) {
   const ElementNode& node = *inst.description;
+  // A node with no box paints nothing, its decorations' reach included.
+  if (node.layout.display == Display::None) return SkRect::MakeEmpty();
   SkRect local = ownPaintBounds(inst);
   const bool hosts = hostsSpace(inst);
   // The host's own 4x4 in the plane its space is drawn on — what every
@@ -426,6 +428,7 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
   };
   for (auto& child : inst.children) {
     const ElementNode& cn = *child->description;
+    if (cn.layout.display == Display::None) continue;
     const SkRect crect = instanceRect(*child);
     const NodeTransform tf = transformOf(*child);
     if (hosts) {
@@ -458,8 +461,8 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
     // contribute UNSCALED bounds, so its parent's effect layer, opacity
     // layer and texture bake would all be sized to the unscaled box and
     // truncate the overflow.
-    const SkMatrix m = tf.matrix({crect.left(), crect.top()}, crect.width(),
-                                 crect.height());
+    const SkMatrix m =
+        tf.matrix({crect.left(), crect.top()}, crect.width(), crect.height());
     local.join(m.mapRect(cb));
   }
   return local;

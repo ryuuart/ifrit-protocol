@@ -480,7 +480,7 @@ enum class AccentFill { Bound, Plain };
 Element slowThemedPanel(int count, AccentFill mode,
                         const choreograph::Output<Fill>* bound,
                         SkColor4f plain) {
-  auto row = box().key("row").row().wrapLines().gap(2);
+  auto row = box().key("row").row().flexWrap().gap(2);
   for (int id = 0; id < count; ++id)
     row.children({box()
                       .key("c" + std::to_string(id))

@@ -21,7 +21,7 @@ constexpr int kSide = 256;
 /** A tree with real work in it: a grid of filled cells over a plate, so
  *  a paint is a paint rather than one rectangle. */
 Element card(int cells, int phase) {
-  Element root = box().width(pct(100)).height(pct(100)).row().wrapLines();
+  Element root = box().width(pct(100)).height(pct(100)).row().flexWrap();
   for (int i = 0; i < cells; ++i)
     root.children({box().width(16).height(16).fill(cellFill(i, 0, phase))});
   return root;

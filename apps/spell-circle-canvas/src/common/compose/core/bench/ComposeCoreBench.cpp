@@ -36,7 +36,7 @@ namespace {
 
 Element flexGrid(int count, int changed = -1, int phase = 0,
                  int orderShift = 0) {
-  auto root = box().row().wrapLines().gap(1);
+  auto root = box().row().flexWrap().gap(1);
   for (int slot = 0; slot < count; ++slot) {
     const int id = (slot + orderShift) % count;
     root.children({box()
@@ -294,7 +294,7 @@ struct MemoCellProps {
 
 Element memoGridUnder(int count, const BenchPalette& palette) {
   core::environment::Provide<BenchPalette> theme(palette);
-  auto root = box().row().wrapLines().gap(1);
+  auto root = box().row().flexWrap().gap(1);
   for (int id = 0; id < count; ++id)
     root.children({memo(MemoCellProps{id}, [](const MemoCellProps& properties) {
                      // Deliberately never reads core::environment::inherited:

@@ -215,6 +215,16 @@ SkSize Composer::Impl::minimumSizeOf(Instance& child) {
 
 namespace {
 
+/** The node whose flex line @p inst is an item of: its parent, or the
+ *  nearest ancestor above parents that have no box of their own. */
+const Instance* flexContainerOf(const Instance& inst) {
+  const Instance* container = inst.parent;
+  while (container && container->parent &&
+         container->description->layout.display == Display::Contents)
+    container = container->parent;
+  return container;
+}
+
 bool constrainedAxis(const Instance& inst, bool horizontal) {
   const LayoutProps& layout = inst.description->layout;
   const Dimension& size = horizontal ? layout.width : layout.height;
@@ -226,11 +236,11 @@ bool constrainedAxis(const Instance& inst, bool horizontal) {
           Dimension::Unit::Auto)
     return true;
   if (!inst.parent) return true;
-  const Instance& parent = *inst.parent;
+  const Instance& parent = *flexContainerOf(inst);
   if (parent.description->deriveData && parent.description->deriveData->placeFn)
     return true;
   const LayoutProps& parentLayout = parent.description->layout;
-  if (horizontal == parentLayout.row)
+  if (horizontal == mainAxisHorizontal(parentLayout.direction))
     return layout.grow > 0 || layout.basis.unit != Dimension::Unit::Auto;
   const Align alignment = layout.alignSelf == Align::Auto
                               ? parentLayout.alignItems
@@ -243,12 +253,13 @@ bool constrainedAxis(const Instance& inst, bool horizontal) {
 // derive that contribution from them; the scheme supplies it instead.
 bool stretchedFromContent(const Instance& inst, bool horizontal) {
   if (!inst.parent) return false;
+  const Instance& container = *flexContainerOf(inst);
   const LayoutProps& layout = inst.description->layout;
-  const LayoutProps& parent = inst.parent->description->layout;
+  const LayoutProps& parent = container.description->layout;
   const Align alignment =
       layout.alignSelf == Align::Auto ? parent.alignItems : layout.alignSelf;
-  return horizontal != parent.row && alignment == Align::Stretch &&
-         !constrainedAxis(*inst.parent, horizontal);
+  return horizontal != mainAxisHorizontal(parent.direction) &&
+         alignment == Align::Stretch && !constrainedAxis(container, horizontal);
 }
 
 float boundInPixels(const Instance& inst, bool horizontal, YGValue value) {
@@ -311,16 +322,23 @@ float constrainedMeasure(const Instance& inst, bool horizontal, float extent) {
 
 bool Composer::Impl::applyCustomLayouts(Instance& inst) {
   bool applied = false;
+  // THE CHILDREN A SCHEME PLACES: every child that has a box. One with
+  // `Display::None` takes no cell, as it takes no room on a flex line.
+  std::vector<Instance*> placed;
+  if (inst.description->deriveData && inst.description->deriveData->placeFn)
+    for (const auto& child : inst.children)
+      if (child->description->layout.display != Display::None)
+        placed.push_back(child.get());
   // layout() schemes are a flex-world feature; inside a positioned
   // subtree (no Yoga nodes) — or ON a positioned() container, whose
   // children have none — the placeFn is documented-unsupported.
   if (inst.yoga && !inst.description->layout.positioned &&
       inst.description->deriveData && inst.description->deriveData->placeFn &&
-      !inst.children.empty()) {
+      !placed.empty()) {
     LayoutInput input;
     input.container = {YGNodeLayoutGetWidth(inst.yoga),
                        YGNodeLayoutGetHeight(inst.yoga)};
-    for (const auto& child : inst.children) {
+    for (Instance* child : placed) {
       input.childSizes.push_back({YGNodeLayoutGetWidth(child->yoga),
                                   YGNodeLayoutGetHeight(child->yoga)});
       // First-baseline offset from the child's top — measured text only
@@ -339,10 +357,10 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
                                      : std::string());
     }
     if (inst.description->deriveData->placeReadsMinSizes)
-      for (const auto& child : inst.children)
+      for (Instance* child : placed)
         input.childMinSizes.push_back(minimumSizeOf(*child));
     std::vector<SkRect> rects = inst.description->deriveData->placeFn(input);
-    size_t count = std::min(rects.size(), inst.children.size());
+    size_t count = std::min(rects.size(), placed.size());
     // Track placement supplies a text leaf's final reading measure. Its
     // automatic cross extent must be measured at that width (or depth in
     // vertical writing) before the scheme sizes the other tracks. The
@@ -351,7 +369,7 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     for (int pass = 0; pass < 2; ++pass) {
       bool reflowed = false;
       for (size_t i = 0; i < count; ++i) {
-        Instance& child = *inst.children[i];
+        Instance& child = *placed[i];
         if (!child.paragraph || child.description->layout.centerAt) continue;
         const TextData* text = child.description->textData
                                    ? &*child.description->textData
@@ -389,17 +407,17 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
       }
       if (!reflowed) break;
       rects = inst.description->deriveData->placeFn(input);
-      count = std::min(rects.size(), inst.children.size());
+      count = std::min(rects.size(), placed.size());
     }
     for (size_t i = 0; i < count; ++i) {
       // A centerAt() child opts OUT of the scheme's placement — the pin
       // wins (otherwise place() and the pin fight in a period-2
       // oscillation that never settles).
-      if (inst.children[i]->description->layout.centerAt) continue;
-      YGNodeRef child = inst.children[i]->yoga;
+      if (placed[i]->description->layout.centerAt) continue;
+      YGNodeRef child = placed[i]->yoga;
       // Count a change only on an actual delta: the convergence loop in
       // ensureLayout keys off this (idempotent writes are free).
-      const SkRect cur = instanceRect(*inst.children[i]);
+      const SkRect cur = instanceRect(*placed[i]);
       if (std::abs(cur.left() - rects[i].left()) > 0.25f ||
           std::abs(cur.top() - rects[i].top()) > 0.25f ||
           std::abs(cur.width() - rects[i].width()) > 0.25f ||

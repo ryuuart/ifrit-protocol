@@ -30,7 +30,7 @@ enum class ShapeIdentity { Comparable, RawCallable };
  *  comparable `geometry::shapes::` value or as a bare callable, which the
  * reconciler can never prove equal to the one it replaces. */
 Element shapedGrid(int count, ShapeIdentity identity) {
-  auto root = box().row().wrapLines();
+  auto root = box().row().flexWrap();
   for (int id = 0; id < count; ++id) {
     Element leaf = box()
                        .key("s" + std::to_string(id))

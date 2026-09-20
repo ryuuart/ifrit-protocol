@@ -168,6 +168,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/clip.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/corners.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cover.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/display.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/effect.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/fill.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/flowAround.md

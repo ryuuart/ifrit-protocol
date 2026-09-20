@@ -73,7 +73,7 @@ struct TileGrid {
   }
 
   Element describe() const {
-    auto grid = box().row().wrapLines().width(6 * 160.0f);
+    auto grid = box().row().flexWrap().width(6 * 160.0f);
     for (int c = 0; c < 24; ++c)
       grid.children(
           {memo(chunks[(size_t)c], benchChunk).key("c" + std::to_string(c))});

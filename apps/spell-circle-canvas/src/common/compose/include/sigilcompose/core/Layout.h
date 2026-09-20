@@ -140,6 +140,34 @@ constexpr Dimension operator""_ph(long double v) { return ph((float)v); }
 constexpr Dimension operator""_ph(unsigned long long v) { return ph((float)v); }
 }  // namespace literals
 
+/** WHICH WAY A CONTAINER'S MAIN AXIS RUNS, and from which end its
+ *  children are placed — CSS's `flex-direction`. */
+enum class FlexDirection : uint8_t {
+  Column,         ///< top to bottom; the default
+  ColumnReverse,  ///< bottom to top
+  Row,            ///< left to right
+  RowReverse      ///< right to left
+};
+/** WHAT BECOMES OF CHILDREN THAT OVERFLOW the main axis — CSS's
+ *  `flex-wrap`. */
+enum class FlexWrap : uint8_t {
+  NoWrap,      ///< one line, however long; the default
+  Wrap,        ///< new lines after the first, toward the cross-axis end
+  WrapReverse  ///< new lines stacked toward the cross-axis start
+};
+/** WHETHER A NODE HAS A BOX IN THE LAYOUT AT ALL — CSS's `display`, as far
+ *  as a flex tree has one. */
+enum class Display : uint8_t {
+  Flex,     ///< a flex item that lays its own children out; the default
+  None,     ///< no box and no subtree: nothing is laid out, drawn or hit
+  Contents  ///< no box of its own: its children are its parent's items
+};
+/** WHAT `width()` AND `height()` MEASURE — CSS's `box-sizing`. */
+enum class BoxSizing : uint8_t {
+  BorderBox,  ///< the whole box, padding included; the default
+  ContentBox  ///< the content alone, so padding is added outside it
+};
+
 /** WHERE A CHILD SITS ACROSS the container's main axis — down a row,
  *  across a column — which is CSS's `align-items` on the container and
  *  `align-self` on one child. */

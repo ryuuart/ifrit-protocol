@@ -28,7 +28,7 @@ Pattern halfTilePattern() {
  *  passed in by reference because its baked tile IS its identity — the test
  *  holds it like an asset rather than re-minting it. */
 Element pannedPanel(Pattern& pat) {
-  auto row = box().key("row").row().wrapLines().gap(2);
+  auto row = box().key("row").row().flexWrap().gap(2);
   for (int id = 0; id < 12; ++id)
     row.children({box()
                       .width(26)

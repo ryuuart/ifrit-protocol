@@ -121,7 +121,7 @@ namespace {
 enum class CardPaint { Sdf, Path };
 
 Element cardGrid(int count, float side, CardPaint paint) {
-  auto root = box().row().wrapLines().gap(6).padding(6);
+  auto root = box().row().flexWrap().gap(6).padding(6);
   material::sdf::Style style;
   style.fill = {0.18f, 0.22f, 0.32f, 1};
   style.borderWidth = 2;
@@ -182,7 +182,7 @@ BENCHMARK(BM_Draw_Path_Cards_Live)->Apply(cardLadder);
 namespace {
 
 Element shadowedCards(int count, Cache mode) {
-  auto root = box().row().wrapLines().gap(10).padding(10);
+  auto root = box().row().flexWrap().gap(10).padding(10);
   for (int id = 0; id < count; ++id)
     root.children(
         {box()

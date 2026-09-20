@@ -30,6 +30,44 @@ YGAlign toYogaAlign(Align a) {
   return YGAlignAuto;
 }
 
+YGFlexDirection toYogaFlexDirection(FlexDirection direction) {
+  switch (direction) {
+    case FlexDirection::Column:
+      return YGFlexDirectionColumn;
+    case FlexDirection::ColumnReverse:
+      return YGFlexDirectionColumnReverse;
+    case FlexDirection::Row:
+      return YGFlexDirectionRow;
+    case FlexDirection::RowReverse:
+      return YGFlexDirectionRowReverse;
+  }
+  return YGFlexDirectionColumn;
+}
+
+YGWrap toYogaWrap(FlexWrap wrap) {
+  switch (wrap) {
+    case FlexWrap::NoWrap:
+      return YGWrapNoWrap;
+    case FlexWrap::Wrap:
+      return YGWrapWrap;
+    case FlexWrap::WrapReverse:
+      return YGWrapWrapReverse;
+  }
+  return YGWrapNoWrap;
+}
+
+YGDisplay toYogaDisplay(Display display) {
+  switch (display) {
+    case Display::Flex:
+      return YGDisplayFlex;
+    case Display::None:
+      return YGDisplayNone;
+    case Display::Contents:
+      return YGDisplayContents;
+  }
+  return YGDisplayFlex;
+}
+
 YGJustify toYogaJustify(Justify j) {
   switch (j) {
     case Justify::Start:
@@ -126,9 +164,12 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
     }
   };
 
-  YGNodeStyleSetFlexDirection(
-      n, l.row ? YGFlexDirectionRow : YGFlexDirectionColumn);
-  YGNodeStyleSetFlexWrap(n, l.wrap ? YGWrapWrap : YGWrapNoWrap);
+  YGNodeStyleSetFlexDirection(n, toYogaFlexDirection(l.direction));
+  YGNodeStyleSetFlexWrap(n, toYogaWrap(l.wrap));
+  YGNodeStyleSetDisplay(n, toYogaDisplay(l.display));
+  YGNodeStyleSetBoxSizing(n, l.boxSizing == BoxSizing::ContentBox
+                                 ? YGBoxSizingContentBox
+                                 : YGBoxSizingBorderBox);
   {
     const Dimension gap = deref(l.gap);
     if (gap.unit == Dimension::Unit::Pct)

@@ -208,7 +208,7 @@ Element cells(const choreograph::Output<Fill>* tint) {
       .column()
       .width(kCellsWidth)
       .height(kFieldHeight)
-      .children({box().key("cells").row().wrapLines().gap(2).children(
+      .children({box().key("cells").row().flexWrap().gap(2).children(
           {each(kCells, cell),
            box()
                .key("accent")

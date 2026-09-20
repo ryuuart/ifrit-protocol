@@ -131,6 +131,7 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
     return SkRect::MakeEmpty();
   }
   const LayoutProps& l = inst.description->layout;
+  if (l.display == Display::None) return SkRect::MakeEmpty();
   float parentW = 0, parentH = 0;
   if (anchor) {
     parentW = anchor->width();
@@ -165,6 +166,13 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
       l.hasInsets ? resolve(l.insets.top, parentH).value_or(0.0f) : 0.0f;
   std::optional<float> width = resolve(l.width, parentW);
   std::optional<float> height = resolve(l.height, parentH);
+  // Under content-box sizing a stated extent is the content's and the
+  // padding stands outside it, as the flex world sizes the same node.
+  if (l.boxSizing == BoxSizing::ContentBox && (width || height)) {
+    const detail::Insets pad = paddingOf(inst);
+    if (width) *width += pad.across();
+    if (height) *height += pad.down();
+  }
   if (!width && l.hasInsets)
     if (std::optional<float> right = resolve(l.insets.right, parentW))
       width = std::max(parentW - left - *right, 0.0f);

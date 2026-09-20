@@ -89,6 +89,64 @@ class Edges:
         # A margin stands outside the box, so the pair keeps the child's width.
         self.assertEqual(pair.width(), 10)
 
+    def test_flex_and_box_keywords_lay_out_as_css_says(self):
+        for element in (
+            box().flexDirection(raw.FlexDirection.ColumnReverse),
+            box().flexWrap(),
+            box().flexWrap(raw.FlexWrap.WrapReverse),
+            box().display(raw.Display.Contents),
+            box().boxSizing(raw.BoxSizing.BorderBox),
+        ):
+            self.assertIsInstance(element, raw.Element)
+        # A keyword is its enumeration: the boolean the wrap once took is not one.
+        with self.assertRaises(TypeError):
+            box().flexWrap(True)
+        self.render("""import builtins
+from sigil.compose import BoxSizing, Display, FlexDirection, box
+from sigil.sketch import sketch
+
+
+def item(key, width=20):
+    return box().key(key).size(width, 10)
+
+
+@sketch(size=(100, 60), capture_at=0)
+class Keywords:
+    def setup(self, ctx):
+        reverse = box().size(100, 10).flexDirection(FlexDirection.RowReverse)
+        wrap = box().size(100, 20).row().flexWrap()
+        padded = item("padded").padding(5).boxSizing(BoxSizing.ContentBox)
+        ctx.render(
+            box().children(
+                [
+                    reverse.children([item("reversed")]),
+                    wrap.children([item("first", 60), item("wrapped", 60)]),
+                    box().row().children(
+                        [item("gone").display(Display.None_), item("closed")]
+                    ),
+                    box().row().children([padded]),
+                ]
+            )
+        )
+
+    def update(self, elapsed, ctx):
+        if elapsed > 1 / 60:
+            builtins._sigil_compose_contract = [
+                ctx.composer.bounds(key)
+                for key in ("reversed", "wrapped", "gone", "closed", "padded")
+            ]
+""")
+        reversed_, wrapped, gone, closed, padded = builtins._sigil_compose_contract
+        # Placed from the far end of the row.
+        self.assertEqual(reversed_.left(), 80)
+        # The second sixty does not fit beside the first, so it starts a line.
+        self.assertEqual((wrapped.left(), wrapped.top()), (0, 20))
+        # No box at all, and the sibling stands where it would have.
+        self.assertEqual((gone.width(), gone.height()), (0, 0))
+        self.assertEqual(closed.left(), 0)
+        # The stated size is the content's, with the padding outside it.
+        self.assertEqual((padded.width(), padded.height()), (30, 20))
+
     def test_an_origin_carries_its_unit_and_a_bare_number_is_refused(self):
         for element in (
             box().transformOrigin(pct(0), "100%"),

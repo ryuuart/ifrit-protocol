@@ -265,6 +265,22 @@ void bindCompose(py::module_& module) {
       .def("pw", &pw, py::arg("percent"))
       .def("ph", &ph, py::arg("percent"))
       .def("autoDimension", &autoDimension);
+  py::enum_<FlexDirection>(composition, "FlexDirection")
+      .value("Column", FlexDirection::Column)
+      .value("ColumnReverse", FlexDirection::ColumnReverse)
+      .value("Row", FlexDirection::Row)
+      .value("RowReverse", FlexDirection::RowReverse);
+  py::enum_<FlexWrap>(composition, "FlexWrap")
+      .value("NoWrap", FlexWrap::NoWrap)
+      .value("Wrap", FlexWrap::Wrap)
+      .value("WrapReverse", FlexWrap::WrapReverse);
+  py::enum_<Display>(composition, "Display")
+      .value("Flex", Display::Flex)
+      .value("None_", Display::None)
+      .value("Contents", Display::Contents);
+  py::enum_<BoxSizing>(composition, "BoxSizing")
+      .value("BorderBox", BoxSizing::BorderBox)
+      .value("ContentBox", BoxSizing::ContentBox);
   py::enum_<Align>(composition, "Align")
       .value("Auto", Align::Auto)
       .value("Start", Align::Start)
@@ -645,7 +661,13 @@ void bindCompose(py::module_& module) {
   dimensionMethod("right", &Element::right);
   dimensionMethod("bottom", &Element::bottom);
 
-  element.def("wrapLines", &Element::wrapLines, py::arg("wrap") = true, fluent)
+  element
+      .def("flexDirection", &Element::flexDirection, py::arg("direction"),
+           fluent)
+      .def("flexWrap", &Element::flexWrap,
+           py::arg("wrap") = compose::FlexWrap::Wrap, fluent)
+      .def("boxSizing", &Element::boxSizing, py::arg("sizing"), fluent)
+      .def("display", &Element::display, py::arg("display"), fluent)
       .def("aspect", &Element::aspect, py::arg("ratio"), fluent)
       .def(
           "basis",

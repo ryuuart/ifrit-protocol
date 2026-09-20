@@ -3,8 +3,8 @@
 // composite an opacity or blend implies, per-axis scale about a transform
 // origin, the child-bounds union a parent reports, and the placement
 // longhand beside the two shorthands that must describe the same node,
-// the wrap, the per-edge spacing and the Dimension literals a box is
-// sized by, and the hit test that follows paint order and skew.
+// the per-edge spacing and the Dimension literals a box is sized by, and
+// the hit test that follows paint order and skew.
 
 #include "support/CoreTestSupport.h"
 
@@ -517,25 +517,8 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
 }
 
 // -------------------------------------------------------------------------
-// Wrapping, per-edge spacing and Dimension literals; the hit test
-// under paint order and keys; and the skew that leans both the paint
-// and the hits.
-
-TEST(ComposeLayout, WrapLinesFlowsToSecondRow) {
-  Host host;
-  host.composer.render(box().children(
-      {box()
-           .row()
-           .wrapLines()
-           .width(200)
-           .children({box().width(80).height(40).fill(red())})
-           .children({box().width(80).height(40).fill(green())})
-           .children({box().width(80).height(40).fill(blue())})}));
-  host.frame();
-  EXPECT_EQ(host.pixel(40, 20), SK_ColorRED);
-  EXPECT_EQ(host.pixel(120, 20), SK_ColorGREEN);
-  EXPECT_EQ(host.pixel(40, 60), SK_ColorBLUE);  // wrapped to the next line
-}
+// Per-edge spacing and Dimension literals; the hit test under paint
+// order and keys; and the skew that leans both the paint and the hits.
 
 TEST(ComposeLayout, PerEdgePaddingAndMargin) {
   Host host;

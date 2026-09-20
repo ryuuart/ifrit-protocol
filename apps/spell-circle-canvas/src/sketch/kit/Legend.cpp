@@ -73,7 +73,7 @@ compose::Element legend(const Legend& key) {
     run.column();
   else
     run.row();
-  if (key.wrap) run.wrapLines();
+  if (key.wrap) run.flexWrap();
   const float labelGap = key.labelGap.value_or(look.spacing.captionNoteGap);
   for (const LegendEntry& entry : key.entries) {
     // A mark the caller drew IS the mark: it carries its own extent and

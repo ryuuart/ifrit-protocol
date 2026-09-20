@@ -1,6 +1,7 @@
 /** @file
  * The box verbs — the air inside and outside a node, the size it asks
- * for, and the floors and ceilings around that size.
+ * for, the floors and ceilings around that size, what the size measures,
+ * and whether the node has a box at all.
  */
 
 #include "ComposeInternal.h"
@@ -109,6 +110,18 @@ Derived& BoxVerbs<Derived>::maxHeight(Dimension d) {
 template <class Derived>
 Derived& BoxVerbs<Derived>::aspect(float r) {
   declarations()->layout.aspect = r;
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::boxSizing(BoxSizing sizing) {
+  declarations()->layout.boxSizing = sizing;
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::display(Display display) {
+  declarations()->layout.display = display;
   return self();
 }
 
