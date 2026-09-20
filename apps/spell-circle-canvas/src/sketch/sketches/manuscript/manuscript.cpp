@@ -83,9 +83,10 @@ using namespace sigil::compose::kit::ornament;
 
 namespace {
 
-const sigil::weave::kit::PatternHyphenator& hyphenator() {
-  static const sigil::weave::kit::PatternHyphenator table(
-      "en", sigil::weave::kit::englishHyphenationPatterns());
+std::shared_ptr<const sigil::weave::Hyphenator> hyphenator() {
+  static const std::shared_ptr<const sigil::weave::Hyphenator> table =
+      std::make_shared<const sigil::weave::kit::PatternHyphenator>(
+          "en", sigil::weave::kit::englishHyphenationPatterns());
   return table;
 }
 
@@ -275,7 +276,7 @@ struct Manuscript {
                          {.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
                      .block({.hyphenation =
                                  sigil::weave::HyphenationOptions{
-                                     .patterns = &hyphenator()}})
+                                     .patterns = hyphenator()}})
                      .flowAround("note", px(3.0f))
                      .flowAround("sprig", px(2.4f)),
                  kit::at(illuminatedPanel(rubric),

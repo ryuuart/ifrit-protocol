@@ -17,6 +17,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
@@ -127,9 +128,9 @@ class Paragraph {
   /** Sets what is asked where INSIDE a word may break — see
    * paragraph/Hyphenation.h.
    *
-   * Null (the default) leaves the soft hyphens the author typed as the only
-   * discretionary opportunities. A hyphenator is consulted once per word
-   * during analysis, in the shaping style's own language tag, and the
+   * Empty (the default) leaves the soft hyphens the author typed as the
+   * only discretionary opportunities. A hyphenator is consulted once per
+   * word during analysis, in the shaping style's own language tag, and the
    * offsets it names become break opportunities carrying a hyphen glyph
    * exactly as a typed soft hyphen does. Break opportunities are decided
    * during analysis, so this belongs to the paragraph: changing it re-runs
@@ -138,9 +139,12 @@ class Paragraph {
    *
    * `layoutParagraph` sets this from `HyphenationOptions::patterns` before
    * it analyzes, so callers who go through it never call this directly. The
-   * pointer is borrowed: it must outlive every layout of this paragraph.
+   * paragraph KEEPS the hyphenator: every re-analysis asks it again, and
+   * those happen for as long as the text is edited, so a hyphenator built
+   * for one document need not be kept alive by anyone else.
    */
-  void setHyphenator(const Hyphenator* hyphenator, HyphenationLimits limits);
+  void setHyphenator(std::shared_ptr<const Hyphenator> hyphenator,
+                     HyphenationLimits limits);
   /** Sets which characters may not stand at a line's edge — see
    * KinsokuTable in paragraph/Hyphenation.h.
    *
@@ -190,8 +194,9 @@ class Paragraph {
   [[nodiscard]] const KinsokuTable& kinsoku() const noexcept {
     return m_kinsoku;
   }
-  /** Returns what is asked where inside a word may break, or null. */
-  [[nodiscard]] const Hyphenator* hyphenator() const noexcept {
+  /** Returns what is asked where inside a word may break, or empty. */
+  [[nodiscard]] const std::shared_ptr<const Hyphenator>& hyphenator()
+      const noexcept {
     return m_hyphenator;
   }
 
@@ -367,8 +372,8 @@ class Paragraph {
   // The tailoring the line segmentation runs under; empty is untailored.
   std::string m_lineBreakLocale;
   // Where inside a word analyze() opens further break opportunities;
-  // borrowed, and null for the typed soft hyphens alone.
-  const Hyphenator* m_hyphenator = nullptr;
+  // held, and empty for the typed soft hyphens alone.
+  std::shared_ptr<const Hyphenator> m_hyphenator;
   HyphenationLimits m_hyphenationLimits;
   KinsokuTable m_kinsoku;
   bool m_dirty = true;

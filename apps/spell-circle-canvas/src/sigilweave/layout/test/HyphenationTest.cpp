@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -24,9 +25,10 @@ using namespace sigil::weave::test;
 namespace {
 
 /// The English pattern table every table question here is asked of.
-const kit::PatternHyphenator& englishPatterns() {
-  static const kit::PatternHyphenator hyphenator(
-      "en", kit::englishHyphenationPatterns());
+std::shared_ptr<const Hyphenator> englishPatterns() {
+  static const std::shared_ptr<const Hyphenator> hyphenator =
+      std::make_shared<const kit::PatternHyphenator>(
+          "en", kit::englishHyphenationPatterns());
   return hyphenator;
 }
 
@@ -157,8 +159,43 @@ TEST(Hyphenation, PatternBreaksReachTheWordList) {
   paragraph.appendText(u8"hyphenation", style);
   BlockFlow flow(SkRect::MakeWH(40, 400));
   ParagraphLayoutOptions options;
-  options.hyphenation.patterns = &englishPatterns();
+  options.hyphenation.patterns = englishPatterns();
   layoutParagraph(fonts, paragraph, flow, options);
+  int opportunities = 0;
+  for (const Word& word : paragraph.words())
+    if (word.hyphenBreak) ++opportunities;
+  EXPECT_GT(opportunities, 0);
+}
+
+TEST(Hyphenation, AHyphenatorHandedOverIsKeptForAsLongAsItIsAsked) {
+  // A table built for ONE document — an exception list that document
+  // carries, an implementation living outside this process — has no owner
+  // but the options it was set on. The analysis asks it once per word and
+  // asks again after every edit, so the paragraph must keep it: by the
+  // second analysis nothing else is holding it.
+  FontContext& fonts = sigil::test::fonts();
+  TextStyle style = basicStyle(16.0f);
+  style.shaping.languageTag = "en-US";
+  Paragraph paragraph;
+  paragraph.appendText(u8"hyphenation", style);
+  BlockFlow flow(SkRect::MakeWH(40, 400));
+
+  std::weak_ptr<const Hyphenator> watched;
+  {
+    ParagraphLayoutOptions options;
+    options.hyphenation.patterns =
+        std::make_shared<const kit::PatternHyphenator>(
+            "en", kit::englishHyphenationPatterns());
+    watched = options.hyphenation.patterns;
+    layoutParagraph(fonts, paragraph, flow, options);
+  }
+  ASSERT_FALSE(watched.expired());
+  EXPECT_EQ(paragraph.hyphenator(), watched.lock());
+
+  // The edit re-opens the segmentation, which asks the table again — this
+  // time with the paragraph as its only owner.
+  paragraph.replaceText(0, 0, u8"un");
+  paragraph.ensureAnalyzed(fonts);
   int opportunities = 0;
   for (const Word& word : paragraph.words())
     if (word.hyphenBreak) ++opportunities;
@@ -199,7 +236,7 @@ TEST_P(HyphenationZone, AZoneAsWideAsTheMeasureLeavesTheRagAlone) {
     BlockFlow flow(SkRect::MakeWH(kMeasure, 600));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = breaker();
-    options.hyphenation.patterns = &englishPatterns();
+    options.hyphenation.patterns = englishPatterns();
     options.hyphenation.penalty = 0;
     options.hyphenation.zone = zone;
     const ParagraphLayout layout =
@@ -229,7 +266,7 @@ TEST(Hyphenation, TheZoneIsARaggedSettingRuleAndAJustifiedLineIgnoresIt) {
   BlockFlow flow(SkRect::MakeWH(180, 600));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
-  options.hyphenation.patterns = &englishPatterns();
+  options.hyphenation.patterns = englishPatterns();
   options.hyphenation.zone = 180.0f;
   const ParagraphLayout layout =
       layoutParagraph(fonts, paragraph, flow, options);
@@ -244,7 +281,7 @@ TEST(Hyphenation, TheMinimumWordLengthIsSettledInTheAnalysis) {
   paragraph.appendText(u8"hyphenation", style);
   BlockFlow flow(SkRect::MakeWH(40, 400));
   ParagraphLayoutOptions options;
-  options.hyphenation.patterns = &englishPatterns();
+  options.hyphenation.patterns = englishPatterns();
   options.hyphenation.limits.minimumWordLength = 40;
   layoutParagraph(fonts, paragraph, flow, options);
   for (const Word& word : paragraph.words()) EXPECT_FALSE(word.hyphenBreak);

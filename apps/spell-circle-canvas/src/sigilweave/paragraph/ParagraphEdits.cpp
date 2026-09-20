@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -79,10 +80,10 @@ void Paragraph::setSoftHyphenBreaks(bool enabled) {
   markDirty();  // break opportunities are decided in analyze()
 }
 
-void Paragraph::setHyphenator(const Hyphenator* hyphenator,
+void Paragraph::setHyphenator(std::shared_ptr<const Hyphenator> hyphenator,
                               HyphenationLimits limits) {
   if (m_hyphenator == hyphenator && m_hyphenationLimits == limits) return;
-  m_hyphenator = hyphenator;
+  m_hyphenator = std::move(hyphenator);
   m_hyphenationLimits = limits;
   markDirty();  // break opportunities are decided in analyze()
 }

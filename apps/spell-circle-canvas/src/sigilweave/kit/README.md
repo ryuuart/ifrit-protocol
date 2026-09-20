@@ -69,11 +69,18 @@ collects are break points, and an explicit exception spelling overrides the
 lot:
 
 ```cpp
-static const kit::PatternHyphenator english("en",
-                                            kit::englishHyphenationPatterns());
+const auto english = std::make_shared<const kit::PatternHyphenator>(
+    "en", kit::englishHyphenationPatterns());
 ParagraphLayoutOptions options;
-options.hyphenation.patterns = &english;   // borrowed; outlives the layout
+options.hyphenation.patterns = english;    // held; nothing else need keep it
 ```
+
+The table is HELD and not borrowed. The analysis asks it once per word and
+asks again after every edit, long after the call that set it returned, so
+the options and the paragraph they reach both keep it: a table built for
+one document — from that document's own exception list, or from an
+implementation that lives outside this process — needs no owner of its
+own.
 
 A table answers only for the language it was loaded for: a paragraph set in
 a tag that does not start with it gets no answer at all, because a word
@@ -96,8 +103,8 @@ them, each under its own terms:
 ```cpp
 // Read the file however this application reads its assets.
 const std::string patterns = readTextFile("hyph-de-1996.pat.txt");
-static const kit::PatternHyphenator german("de", patterns);
-options.hyphenation.patterns = &german;    // one table per language tag
+options.hyphenation.patterns =             // one table per language tag
+    std::make_shared<const kit::PatternHyphenator>("de", patterns);
 ```
 
 The corpus itself is NOT in this repository: pattern tables are data a

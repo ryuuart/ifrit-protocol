@@ -9,6 +9,7 @@
  */
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 #include "sigilweave/paragraph/Hyphenation.h"
@@ -52,12 +53,21 @@ struct HyphenationOptions {
   float penalty = 50.0f;
 
   /// Where inside a word a break may fall, beyond the soft hyphens the
-  /// author typed. Null leaves discretionary hyphens the only opportunity,
-  /// which is what a text that says nothing gets. The kit ships Liang
-  /// pattern sets (kit/Hyphenation.h); a caller's own implementation is a
-  /// peer of them. Compared by identity, because two hyphenators that are
-  /// not the same object cannot be shown to answer the same way.
-  const Hyphenator* patterns = nullptr;
+  /// author typed. Empty leaves discretionary hyphens the only
+  /// opportunity, which is what a text that says nothing gets. The kit
+  /// ships Liang pattern sets (kit/Hyphenation.h); a caller's own
+  /// implementation is a peer of them. Compared by identity, because two
+  /// hyphenators that are not the same object cannot be shown to answer
+  /// the same way.
+  ///
+  /// HELD, NOT BORROWED: the analysis asks the hyphenator once per word
+  /// and asks again whenever the text changes, which is long after the
+  /// call that set it returned. A hyphenator built for one document — a
+  /// table loaded from that document's own exception list, an
+  /// implementation living in a scripting language — is therefore kept by
+  /// the options and by the paragraph they reach, and one that outlives
+  /// the process is handed over the same way.
+  std::shared_ptr<const Hyphenator> patterns;
 
   /// Which of a word's break points become opportunities at all — a fact
   /// about the word, so it is settled during segmentation and the whole

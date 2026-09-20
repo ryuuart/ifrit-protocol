@@ -35,9 +35,10 @@ constexpr const char8_t* kProof =
     u8"Small type makes a field visible as texture. Eight inks share "
     u8"the same words, face, measure and size.";
 
-const weave::kit::PatternHyphenator& hyphenator() {
-  static const weave::kit::PatternHyphenator value(
-      "en", weave::kit::englishHyphenationPatterns());
+std::shared_ptr<const weave::Hyphenator> hyphenator() {
+  static const std::shared_ptr<const weave::Hyphenator> value =
+      std::make_shared<const weave::kit::PatternHyphenator>(
+          "en", weave::kit::englishHyphenationPatterns());
   return value;
 }
 
@@ -55,7 +56,7 @@ Element passage(std::u8string_view words, float size, float width,
       .paragraphs({paragraph})
       .block(
           {.alignment = weave::TextAlignment::kJustify,
-           .hyphenation = weave::HyphenationOptions{.patterns = &hyphenator()},
+           .hyphenation = weave::HyphenationOptions{.patterns = hyphenator()},
            .lineBreak = weave::LineBreakStrategy::kKnuthPlass})
       .textFill(std::move(fill));
 }

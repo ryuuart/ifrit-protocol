@@ -10,7 +10,9 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Query.h>
 
+#include <memory>
 #include <thread>
+#include <utility>
 
 namespace sigil::python {
 namespace py = pybind11;
@@ -491,8 +493,8 @@ void bindWeaveLayout(py::module_& root) {
       "layoutParagraph",
       [](Fonts& fonts, Paragraph& p, FlowGeometry& flow,
          ParagraphLayoutOptions options, uint32_t firstWord,
-         const Hyphenator* hyphenator) {
-        options.hyphenation.patterns = hyphenator;
+         std::shared_ptr<const Hyphenator> hyphenator) {
+        options.hyphenation.patterns = std::move(hyphenator);
         return OwnedLayout(
             p, layoutParagraph(fonts.get(), p, flow, options, firstWord));
       },
