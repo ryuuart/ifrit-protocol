@@ -110,7 +110,16 @@ class Effect {
    *  Brightness is the peak channel, not luminance, so a saturated
    *  primary blooms as readily as a white — which is what a phosphor and
    *  a lamp both do, and what a luminance gate would refuse a deep blue
-   *  source. */
+   *  source.
+   *
+   *  IT READS ITS OWN PIXEL AND NO NEIGHBOUR, so it is a COLOUR MAP and
+   *  `colorFilter()` answers it rather than `imageFilter()`. That is what
+   *  keeps `emit()` honest: a filter graph holding a program over
+   *  coordinates is evaluated in the LAYER's pixels and resampled onto a
+   *  scaled canvas, so a light made with one would soften the sharp layer
+   *  it is laid back over even where the light is wholly transparent. A
+   *  colour map carries no such constraint and the layer keeps the
+   *  device's own pixels. */
   static Effect brightPass(float threshold = 0.68f, float knee = 0.30f);
   /** The layer blurred by a Gaussian of @p sigma local pixels in both
    *  directions — the stage a glow spreads its light with. */
@@ -383,6 +392,15 @@ class Effect {
     bool operator==(const ParametricBlur&) const = default;
   };
 
+  /** A COLOUR MAP AS A COMPARABLE VALUE: @p program is a colour-filter
+   *  runtime effect and @p uniforms are its declared floats by name. The
+   *  built filter lands in the colour lane, and the program and the
+   *  names ride operator== so a re-described equal map prunes where an
+   *  already-built SkColorFilter — which carries no recipe — cannot. */
+  static Effect colorProgram(
+      sk_sp<SkRuntimeEffect> program,
+      std::vector<std::pair<std::string, float>> uniforms);
+
   /** The comparable source and compiled program of one recipe()
    *  snapshot. Live sources are not retained: the filter owns their
    *  sampled values and compares by identity. */
@@ -422,6 +440,15 @@ class Effect {
   // Derived from nothing else, so it takes part in equality: two effects
   // over the same program and uniforms paint differently by it.
   bool m_gatheredHalo = false;
+  // brightPass(), deepen() and whiten(): the program in m_effect is a
+  // COLOUR-FILTER program rather than a shader one, so the value built
+  // from it and the constant lanes is a colour map and not a pass over
+  // the layer. A map has no neighbourhood, and a filter graph carrying
+  // one is evaluated in the device's own pixels rather than in the
+  // layer's, which is what keeps a source sharp under an emitted light.
+  // Derived from nothing else, so it takes part in equality beside the
+  // program.
+  bool m_colorProgram = false;
   // The slots: `uniform shader NAME` → Paint. Held by shared_ptr
   // so a copied Effect shares its slots rather than deep-copying a
   // whole paint tree per copy; the surface is still slot(name, Paint) by
@@ -461,14 +488,14 @@ class Effect {
   static void fieldPin(Effect& v) {
     auto& [filter, colorFilter, recipeSnapshot, effect, uniforms, uniforms2,
            uniforms4, uniformArrays, bound, blocks, directionalBlur,
-           parametricBlur, blurLevels, gatheredHalo, children, chainA, chainB,
-           chainBlend] = v;
+           parametricBlur, blurLevels, gatheredHalo, colorProgram, children,
+           chainA, chainB, chainBlend] = v;
     static_assert(
         std::tuple_size_v<decltype(std::tie(
                 filter, colorFilter, recipeSnapshot, effect, uniforms,
                 uniforms2, uniforms4, uniformArrays, bound, blocks,
                 directionalBlur, parametricBlur, blurLevels, gatheredHalo,
-                children, chainA, chainB, chainBlend))> == 18,
+                colorProgram, children, chainA, chainB, chainBlend))> == 19,
         "Effect gained or lost a member — rule on it in "
         "Effect::operator==, then bump this count. "
         "(m_colorFilter compares by pointer, like m_filter, an "
@@ -481,6 +508,10 @@ class Effect {
         "and m_blurLevels is derived from m_parametricBlur alone, "
         "while m_gatheredHalo is derived from nothing and is "
         "compared beside the shader recipe; "
+        "m_colorProgram says the program in m_effect is a colour filter "
+        "rather than a shader, so the value built from it is a colour "
+        "map; it is derived from nothing and is compared beside the "
+        "program; "
         "m_bound and m_blocks make the effect isAnimated(), which "
         "operator== already refuses; m_chainA/B and m_chainBlend "
         "exist only on a chain with a side that needs a paint frame, "

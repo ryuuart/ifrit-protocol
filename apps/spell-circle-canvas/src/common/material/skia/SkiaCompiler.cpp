@@ -192,6 +192,13 @@ int samplerCount(const Material& material) {
       ++count;
     }
   }
+  // A slot an executor fills from the layer is an image of the program
+  // too, and it is not in slots() because nobody bound it here.
+  for (const LayerSlot& slot : material.recipe().layerSlots()) {
+    if (!material.recipe().samples(Target::SkSL, slot.name)) continue;
+    if (material.slot(slot.name) || material.leaf(slot.name)) continue;
+    ++count;
+  }
   return count;
 }
 
@@ -210,6 +217,25 @@ std::unique_ptr<SkRuntimeShaderBuilder> builder(
                    std::to_string(samplers) +
                    " image samplers and a fragment program may declare " +
                    std::to_string(kSamplerLimit));
+    return nullptr;
+  }
+  // A SLOT AN EXECUTOR FILLS, WITH NO EXECUTOR. The recipe says the
+  // layer through a filter belongs here; run as an ordinary fill there
+  // is no layer and no caller leaving the name, and a child nothing
+  // binds shades nothing at all. Refused by name rather than left to
+  // paint a hole nobody can trace back to the slot.
+  for (const LayerSlot& slot : material.recipe().layerSlots()) {
+    if (!material.recipe().samples(Target::SkSL, slot.name)) continue;
+    if (material.slot(slot.name) || material.leaf(slot.name)) continue;
+    bool left = false;
+    for (std::string_view name : leave) left |= name == slot.name;
+    if (left) continue;
+    reportOnce("layerslot:" + material.recipe().name() + ":" + slot.name,
+               "recipe \"" + material.recipe().name() + "\" slot \"" +
+                   slot.name +
+                   "\" is filled by an executor from the layer the recipe "
+                   "runs over, and this is a fill with no layer: bind a "
+                   "source to it, or run the material through an effect");
     return nullptr;
   }
   const Material::Resolved resolved =

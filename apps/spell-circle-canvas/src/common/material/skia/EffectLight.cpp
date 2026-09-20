@@ -6,7 +6,6 @@
  */
 
 #include <include/core/SkColorFilter.h>
-#include <include/core/SkData.h>
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
@@ -14,12 +13,11 @@
 #include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
-#include <initializer_list>
 #include <memory>
 
-namespace sigil::material::skia {
+#include "EffectInternal.h"
 
-namespace {
+namespace sigil::material::skia {
 
 sk_sp<SkRuntimeEffect> colourProgram(const char* file) {
   auto [program, error] =
@@ -28,15 +26,6 @@ sk_sp<SkRuntimeEffect> colourProgram(const char* file) {
     SkDebugf("[material] skia::Effect: %s failed: %s\n", file, error.c_str());
   return program;
 }
-
-sk_sp<SkColorFilter> colourFilter(const sk_sp<SkRuntimeEffect>& program,
-                                  std::initializer_list<float> uniforms) {
-  if (!program) return nullptr;
-  return program->makeColorFilter(
-      SkData::MakeWithCopy(uniforms.begin(), uniforms.size() * sizeof(float)));
-}
-
-}  // namespace
 
 Effect Effect::blur(float sigma) {
   const float s = std::max(0.0f, sigma);
@@ -59,7 +48,7 @@ Effect Effect::deepen(float amount) {
   static const sk_sp<SkRuntimeEffect> program =
       colourProgram("HaloDeepening.sksl");
   if (!(amount > 0)) return {};
-  return filter(colourFilter(program, {amount}));
+  return colorProgram(program, {{"uDeepening", amount}});
 }
 
 Effect Effect::whiten(float amount, float threshold, float knee) {
@@ -67,9 +56,10 @@ Effect Effect::whiten(float amount, float threshold, float knee) {
       colourProgram("CoreWhitening.sksl");
   if (!(amount > 0)) return {};
   const float gate = std::clamp(threshold, 0.0f, 1.0f);
-  return filter(colourFilter(program, {gate,
-                                       std::min(gate + std::max(knee, 0.0f), 1.0f),
-                                       std::min(amount, 1.0f)}));
+  return colorProgram(
+      program, {{"uThreshold", gate},
+                {"uTop", std::min(gate + std::max(knee, 0.0f), 1.0f)},
+                {"uWhitening", std::min(amount, 1.0f)}});
 }
 
 Effect Effect::emit(const Effect& light, SkBlendMode mode) const {

@@ -35,6 +35,11 @@ struct Effect::BlurLevels {
  *  over the sharp source. */
 sk_sp<SkRuntimeEffect> bloomProgram(const char* door, const char* file);
 
+/** A COLOUR-FILTER program from the library's own shader table — a body
+ *  written `half4 main(half4 color)`, which reads one pixel and reaches
+ *  no neighbour. */
+sk_sp<SkRuntimeEffect> colourProgram(const char* file);
+
 /** The bloom's filter DAG: reduce, gather, enlarge, composite. */
 sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
                                        const sk_sp<SkRuntimeEffect>& composite,

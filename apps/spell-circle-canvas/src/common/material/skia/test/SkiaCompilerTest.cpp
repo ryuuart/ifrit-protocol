@@ -12,6 +12,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialSkia.h>
 
 #include <memory>
@@ -172,4 +173,29 @@ INSTANTIATE_TEST_SUITE_P(TheNamesAGpuBackendTakes, BodyOverAReservedName,
 TEST(SkiaShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(
       sigil::material::skia::shaderSources(), SIGIL_MATERIAL_SKIA_SHADER_DIR);
+}
+
+TEST(SkiaCompiler, ALayerSlotNothingFilledRefusesRatherThanShadingAnEmptyChild) {
+  // A slot an executor fills from the layer has no source at all when
+  // the material is painted as an ordinary fill: there is no layer and
+  // no caller leaving the name. Refused by name here, because a child
+  // nothing binds shades nothing and leaves no trace of which slot it
+  // was.
+  struct OneRadius {
+    float uRadius;
+  };
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<OneRadius>("compiler.layerslot")
+          .slot("content")
+          .slot("bloom", LayerFilter::Blurred, "uRadius")
+          .body(Target::SkSL,
+                "half4 main(float2 p) { return content.eval(p) + "
+                "bloom.eval(p); }"));
+  Material material(recipe, OneRadius{4});
+  material.slot("content", Texture::of(test::solid(SK_ColorRED, 8, 8)));
+  EXPECT_EQ(skia::shader(material, {}), nullptr);
+  // Filled by hand, it shades: the declaration states who fills the slot
+  // by default, and an author may answer for it.
+  material.slot("bloom", Texture::of(test::solid(SK_ColorBLUE, 8, 8)));
+  EXPECT_NE(skia::shader(material, {}), nullptr);
 }

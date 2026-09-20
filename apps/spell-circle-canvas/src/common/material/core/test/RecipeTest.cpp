@@ -123,3 +123,41 @@ TEST(Recipe, NoParametersIsARecipeOverSlotsAndFrameInputsAlone) {
   std::memcpy(&seconds, resolved.bytes.data(), sizeof(float));
   EXPECT_EQ(seconds, 2.0f);
 }
+
+TEST(Recipe, ASlotAnExecutorFillsIsDeclaredLikeAnyOtherAndItsAmountIsRead) {
+  struct Blurred {
+    float uRadius;
+  };
+  auto r = std::make_shared<const Recipe>(
+      Recipe::of<Blurred>("layered")
+          .slot("content")
+          .slot("bloom", LayerFilter::Blurred, "uRadius")
+          .body(Target::SkSL,
+                "half4 main(float2 p) { return content.eval(p) + "
+                "bloom.eval(p); }"));
+  // Declared to the target exactly as any other slot is: what differs
+  // is who fills it, which the generated head cannot say and need not.
+  EXPECT_EQ(r->declarations(Target::SkSL),
+            "uniform float uRadius;\nuniform shader content;\nuniform shader "
+            "bloom;\n");
+  ASSERT_EQ(r->slots().size(), 2u);
+  ASSERT_EQ(r->layerSlots().size(), 1u);
+  EXPECT_EQ(r->layerSlots()[0].name, "bloom");
+  EXPECT_EQ(r->layerSlots()[0].filter, LayerFilter::Blurred);
+  EXPECT_EQ(r->layerSlots()[0].amountField, "uRadius");
+  // The amount is read although no body spells it: the filter it names
+  // is spent before the body runs, and a field reported as reading
+  // nothing would send a caller looking for a fault that is not there.
+  EXPECT_TRUE(r->readsField("uRadius"));
+
+  // The definition carries it, so two recipes differing only in which
+  // field the amount comes from are two definitions.
+  auto other = std::make_shared<const Recipe>(
+      Recipe::of<Blurred>("layered")
+          .slot("content")
+          .slot("bloom", LayerFilter::Blurred, "uOther")
+          .body(Target::SkSL,
+                "half4 main(float2 p) { return content.eval(p) + "
+                "bloom.eval(p); }"));
+  EXPECT_FALSE(*r == *other);
+}

@@ -85,7 +85,9 @@ never reaches the value it was copied from.
 takes the layer a consumer has already rendered and runs a filter over
 it: `filter()` wraps any `SkImageFilter`, `shader()` an SkSL program
 whose `content` slot IS that layer, `recipe()` a `Material` in the same
-position, and `blur()`/`directionalBlur()`/`glow()` are the three named
+position — and any slot that material's recipe declared as one an
+executor fills, filled here from that same layer through the filter it
+named — and `blur()`/`directionalBlur()`/`glow()` are the three named
 spatial ones. `brightPass()` is the layer with everything but its light
 taken out — what is over a threshold, faded in across a knee, carried at
 its own coverage — which is the first half of a bloom on its own: chain
@@ -95,6 +97,17 @@ STRAIGHT colour and rewrites the coverage from it, because what it emits
 is a layer: a pixel half covered by white is white, and a gate on the
 premultiplied colour would call it grey and eat the edge of every source
 there is.
+
+It reads its own pixel and no neighbour, so it is a COLOUR MAP —
+`colorFilter()` answers it and `imageFilter()` does not — and that is
+what keeps `emit()` honest. A filter graph holding a program over
+COORDINATES is evaluated in the layer's own coordinates and resampled
+onto a scaled canvas, so a light built from one softens the sharp layer
+it is laid back over even where that light is wholly transparent; a
+colour map carries no such constraint and the layer keeps the device's
+own pixels. `deepen()` and `whiten()` are colour maps for the same
+reason, and all three compare by their numbers, so a re-described equal
+stage prunes.
 
 A glow is made of stages, each an ordinary effect chained with `then()`:
 `Effect::blur(sigma)` spreads light; `Effect::dilate(pixels)` grows its

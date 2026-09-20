@@ -8,9 +8,12 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/field/Crt.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialField.h>
@@ -193,10 +196,58 @@ TEST(Field, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
       field::shaderSources(), SIGIL_MATERIAL_FIELD_SHADER_DIR);
 }
 
+namespace {
+
+/** The screen over a rendered LAYER: @p source painted into a layer that
+ *  carries the CRT as an effect. That is the path that gives the recipe
+ *  an EXECUTOR, which is what fills its bloom slot from the layer
+ *  blurred — a fill has no layer and must bind that slot itself. */
+SkBitmap throughScreen(const field::CrtParameters& parameters,
+                       const sk_sp<SkImage>& source, int side) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
+  SkCanvas& canvas = *surface->getCanvas();
+  canvas.clear(SK_ColorTRANSPARENT);
+  SkPaint layer;
+  layer.setImageFilter(
+      skia::Effect::recipe(field::crt(parameters),
+                           field::crtSampleRadius(parameters))
+          .resolvedImageFilter(nullptr));
+  canvas.saveLayer(nullptr, &layer);
+  canvas.drawImage(source, 0, 0);
+  canvas.restore();
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(side, side));
+  EXPECT_TRUE(surface->makeImageSnapshot()->readPixels(nullptr,
+                                                       bitmap.pixmap(), 0, 0));
+  return bitmap;
+}
+
+/** A black field of @p side pixels with one bright vertical band @p wide
+ *  pixels across, centred — the thin bright line a tube's light is
+ *  judged by. */
+sk_sp<SkImage> brightBand(int side, int wide) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(side, side));
+  bitmap.eraseColor(SK_ColorBLACK);
+  SkCanvas canvas(bitmap);
+  SkPaint paint;
+  paint.setColor(SK_ColorGREEN);
+  canvas.drawRect(
+      SkRect::MakeXYWH((float)(side - wide) / 2, 0, (float)wide, (float)side),
+      paint);
+  bitmap.setImmutable();
+  return bitmap.asImage();
+}
+
+}  // namespace
+
 TEST(Field, CrtZeroStrengthPreservesColourAndHonoursBounds) {
   field::CrtParameters p{.uBounds = {8, 8, 16, 16}};
+  const auto red = Texture::of(test::solid(SK_ColorRED, 32, 32));
   Material screen = field::crt(p);
-  screen.slot("content", Texture::of(test::solid(SK_ColorRED, 32, 32)));
+  screen.slot("content", red);
+  screen.slot("bloom", red);
   ASSERT_NE(skia::shader(screen, {}), nullptr);
   const auto pixels = render(screen, 32, 32);
   EXPECT_EQ(pixels.getColor(16, 16), SK_ColorRED);
@@ -204,44 +255,57 @@ TEST(Field, CrtZeroStrengthPreservesColourAndHonoursBounds) {
   EXPECT_EQ(pixels.getColor(24, 16), SK_ColorTRANSPARENT);
   p.uCurvature = 1;
   Material curved = field::crt(p);
-  curved.slot("content", Texture::of(test::solid(SK_ColorRED, 32, 32)));
+  curved.slot("content", red);
+  curved.slot("bloom", red);
   const auto glass = render(curved, 32, 32);
   EXPECT_EQ(glass.getColor(8, 8), SK_ColorBLACK);
   EXPECT_EQ(glass.getColor(16, 16), SK_ColorRED);
 }
 
 TEST(Field, CrtBloomSpreadsLightAndExplicitTimeIsRepeatable) {
-  SkBitmap source;
-  source.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
-  source.eraseColor(SK_ColorBLACK);
-  SkCanvas canvas(source);
-  SkPaint paint;
-  paint.setColor(SK_ColorGREEN);
-  canvas.drawRect(SkRect::MakeXYWH(14, 0, 4, 32), paint);
-  const auto texture = Texture::of(source.asImage());
+  const sk_sp<SkImage> band = brightBand(32, 4);
   field::CrtParameters p{.uBounds = {0, 0, 32, 32}, .uBloomRadius = 2};
-  auto make = [&] {
-    Material m = field::crt(p);
-    m.slot("content", texture);
-    return m;
-  };
-  const auto plain = render(make(), 32, 32);
+  const auto plain = throughScreen(p, band, 32);
   p.uBloom = 1;
-  const auto glow = render(make(), 32, 32);
+  const auto glow = throughScreen(p, band, 32);
   EXPECT_GT(SkColorGetG(glow.getColor(12, 16)),
             SkColorGetG(plain.getColor(12, 16)));
   p.uBloomRadius = 4.8f;
   p.uBloom = 1.6f;
-  const auto wide = render(make(), 32, 32);
-  // Light fills the gap between the near core and the outer halo.
+  const auto wide = throughScreen(p, band, 32);
+  // Light fills the gap between the band and the edge, thinning with
+  // distance rather than repeating the band at the gather's radii.
   EXPECT_GT(SkColorGetG(wide.getColor(6, 16)), 0);
   EXPECT_GT(SkColorGetG(wide.getColor(10, 16)),
             SkColorGetG(wide.getColor(6, 16)));
   p.uNoise = 0.3f;
   p.uTime = 1;
-  const auto first = render(make(), 32, 32);
-  EXPECT_TRUE(test::identical(first, render(make(), 32, 32)));
+  const auto first = throughScreen(p, band, 32);
+  EXPECT_TRUE(test::identical(first, throughScreen(p, band, 32)));
   p.uTime = 2;
-  EXPECT_GT(test::differing(first, render(make(), 32, 32)), 0);
-  EXPECT_GE(field::crtSampleRadius(p), p.uBloomRadius * 3);
+  EXPECT_GT(test::differing(first, throughScreen(p, band, 32)), 0);
+  // THE REACH IS NOT THE BLOOM'S ANY MORE. Nothing gathers, so the
+  // sampling radius covers the warp and the shift alone and does not
+  // grow when the light does — the executor's blur grows its own input
+  // bounds.
+  const float reach = field::crtSampleRadius(p);
+  p.uBloomRadius *= 8;
+  EXPECT_EQ(field::crtSampleRadius(p), reach);
+}
+
+TEST(Field, TheScreensLightReachesWellBeyondTheLineThatMadeIt) {
+  // A fixed tap count is what caps how far a gather may reach before it
+  // starts leaving copies of what it spread; a Gaussian has no such cap.
+  // So light from a thin bright band stands far outside it and thins the
+  // whole way — no secondary copy anywhere along the run.
+  const sk_sp<SkImage> band = brightBand(64, 4);
+  const field::CrtParameters p{
+      .uBounds = {0, 0, 64, 64}, .uBloomRadius = 12, .uBloom = 1.6f};
+  const SkBitmap lit = throughScreen(p, band, 64);
+  const int near = SkColorGetG(lit.getColor(44, 32));
+  const int middle = SkColorGetG(lit.getColor(50, 32));
+  const int far = SkColorGetG(lit.getColor(58, 32));
+  EXPECT_GT(near, middle);
+  EXPECT_GT(middle, far);
+  EXPECT_GT(far, 0);
 }

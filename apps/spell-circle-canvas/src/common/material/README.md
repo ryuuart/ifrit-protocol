@@ -274,6 +274,19 @@ child makes it unequal — which is required, not incidental: a child left
 out of equality would let a node prune while its second source had
 changed.
 
+**A slot an EXECUTOR fills comes from the layer.** A recipe run over a
+rendered layer reads that layer in a slot the executor fills; declaring
+one with `Recipe::slot(name, LayerFilter::Blurred, amountField)` says it
+is filled from the SAME layer put through a filter first, at the amount
+the named parameter carries. `Recipe::layerSlots()` is the list, and the
+declaration is additive: the slot is generated to a target exactly as
+any other is, and an author who fills the name himself keeps his source,
+which is how a recipe with one still paints as an ordinary fill. A body
+that needs a blurred copy of its input therefore reads one tap of it
+instead of gathering the blur itself, per pixel, for as long as the
+picture is on screen — and because the filter is Skia's, the cost of a
+wide reach is Skia's reduction rather than a fixed tap count.
+
 **A slot is declared to the target that samples it, and to no other.**
 A slot belongs to the recipe, but each target's generated declarations
 carry only the slots ITS body spells — `Recipe::samples(target, slot)` is
@@ -828,20 +841,31 @@ tube.
 ### CRT screens
 
 `field::crt` in `<sigilmaterial/field/Crt.h>` resamples a `content` slot
-through a curved screen with RGB spread, beam rasterization, two-radius
-bloom, grain, vignette, jitter, horizontal sync and flicker. Its
+through a curved screen with RGB spread, beam rasterization, bloom,
+grain, vignette, jitter, horizontal sync and flicker. Its
 `field::CrtParameters` use local pixels and explicit seconds, so a still
 is deterministic. Zero effect strengths preserve source RGB inside the
 bounds. The screen is opaque black beneath transparent source content;
 outside its rectangular bounds it is transparent. Burn-in needs frame
 history and is not included.
 
+The tube's light is a SECOND slot, `bloom`, declared as one an executor
+fills from the same layer blurred at `uBloomRadius` — a Gaussian sigma
+in local pixels — and read once at the warped coordinate. So the bloom
+is spread flat and sampled through the curvature, its cost follows its
+own radius, and how far it reaches is not capped by a tap count. An
+ordinary fill has no layer and therefore no executor: bind a source to
+`bloom` as well, or the compiler refuses the material by name.
+
 `kit::crt` in `<sigilmaterial/kit/Crt.h>` supplies a restrained colour CRT
-preset. The material stays renderer-independent; fill its `content` slot
-with a texture for a material, or pass it to `skia::Effect::recipe` for a
-rendered layer. Pass a conservative local sampling radius to the effect;
-`field::crtSampleRadius` calculates it from a parameter struct. When
-changing uniforms on the preset, update that radius to cover them.
+preset. The material stays renderer-independent; fill its `content` and
+`bloom` slots with textures for a material, or pass it to
+`skia::Effect::recipe` for a rendered layer, which fills `bloom` itself.
+Pass a conservative local sampling radius to the effect;
+`field::crtSampleRadius` calculates it from a parameter struct, and it
+covers the warp, the shift, the jitter and the sync — never the bloom,
+which asks for no reach of its own. When changing uniforms on the
+preset, update that radius to cover them.
 
 ```cpp
 #include <sigilmaterial/kit/Crt.h>
@@ -864,7 +888,9 @@ ramps that need no box size written down; and `skia::Effect`, the
 post-processing recipe over a layer a consumer has already rendered.
 
 `skia::Effect::recipe(material)` captures the material's uniforms and child
-slots when constructed. Static captures compare by material value and compiled
+slots when constructed — the layer slots with them, whose filters are
+built from the amounts the material carries at that moment and for the
+same reason. Static captures compare by material value and compiled
 program, so describing the same effect again can reuse a retained layer.
 Captures with live inputs compare by their built filter's identity: a binding
 names its source rather than the value captured from it. Re-describe to sample

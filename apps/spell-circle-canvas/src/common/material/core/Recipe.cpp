@@ -82,6 +82,22 @@ Recipe& Recipe::slot(std::string slot) {
   return *this;
 }
 
+Recipe& Recipe::slot(std::string name, LayerFilter filter,
+                     std::string amountField) {
+  this->slot(name);
+  for (LayerSlot& declared : m_layerSlots)
+    if (declared.name == name) {
+      declared.filter = filter;
+      declared.amountField = std::move(amountField);
+      rescan();
+      return *this;
+    }
+  m_layerSlots.push_back(
+      LayerSlot{std::move(name), filter, std::move(amountField)});
+  rescan();
+  return *this;
+}
+
 Recipe& Recipe::channelwise(std::string slot) {
   m_channelwise = std::move(slot);
   return *this;
@@ -129,8 +145,15 @@ bool Recipe::readsField(const Field& field) const {
 
 void Recipe::rescan() {
   m_read.resize(m_parameters.fields.size());
-  for (size_t i = 0; i < m_parameters.fields.size(); ++i)
+  for (size_t i = 0; i < m_parameters.fields.size(); ++i) {
     m_read[i] = spelled(m_parameters.fields[i].name) ? 1 : 0;
+    // A FIELD AN EXECUTOR READS IS READ. A layer slot's amount never
+    // appears in a body — the filter it names is spent before the body
+    // runs — and a field no body spells is otherwise reported as a dial
+    // that does nothing the first time anybody writes to it.
+    for (const LayerSlot& slot : m_layerSlots)
+      if (slot.amountField == m_parameters.fields[i].name) m_read[i] = 1;
+  }
 }
 
 bool Recipe::spelled(std::string_view name) const {

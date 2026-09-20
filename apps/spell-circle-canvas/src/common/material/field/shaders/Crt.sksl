@@ -11,22 +11,6 @@ half3 source(float2 p) {
   return content.eval(p).rgb;
 }
 
-// A Gaussian-weighted disc distributes samples across the halo instead of
-// copying the source at a few widely separated offsets. The same kernel
-// serves a material and a layer effect without a separate bloom texture.
-half3 halo(float2 p, float radius) {
-  half3 light = half3(0);
-  float total = 0;
-  for (int i = 0; i < 96; ++i) {
-    float r = sqrt((float(i) + 0.5) / 96.0);
-    float angle = float(i) * 2.39996323;
-    float weight = exp(-4.5 * r * r);
-    light += source(p + radius * r * float2(cos(angle), sin(angle))) * weight;
-    total += weight;
-  }
-  return light / total;
-}
-
 half4 main(float2 p) {
   float2 size = max(uBounds.zw, float2(1));
   float2 uv = (p - uBounds.xy) / size;
@@ -51,10 +35,12 @@ half4 main(float2 p) {
   half3 low = ((1.0 - 0.30) + 0.1 * texel) * texel;
   float mask = 1 - abs(fract((q.y - uBounds.y) / max(uScanPitch, 1)) * 2 - 1);
   texel = mix(texel, mix(low, high, mask), clamp(uRaster, 0, 1));
-  if (uBloom > 0) {
-    half3 light = halo(q, uBloomRadius) * 0.7 + halo(q, uBloomRadius * 3) * 0.3;
-    texel += clamp(light * uBloom, 0, 0.5);
-  }
+  // The tube's light is the layer already blurred flat, read once at the
+  // warped coordinate — so the halo is spread by a separable Gaussian
+  // whose cost follows its own radius, rather than gathered per pixel
+  // through the curvature at a fixed tap count that caps how far it can
+  // reach before it starts leaving copies of fine lettering.
+  if (uBloom > 0) texel += clamp(bloom.eval(q).rgb * uBloom, 0, 0.5);
   texel *= 1 - clamp(uVignette * dot(cc, cc) * 2, 0, 1);
   texel *= uBrightness * (1 + (noise(float2(frame, 7)) - 0.5) * uFlicker);
   texel += half3((noise(floor(p) + float2(frame, frame * 0.37)) - 0.5) * uNoise);

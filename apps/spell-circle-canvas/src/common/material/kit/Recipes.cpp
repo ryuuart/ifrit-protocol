@@ -47,6 +47,10 @@ std::vector<Material> everyRecipe() {
   constexpr float kSeconds = 1.25f;
   Material screen = crt(bounds, kSeconds);
   screen.slot("content", stand(SK_ColorCYAN));
+  // The bloom is the executor's slot where there is a layer; a
+  // catalogue entry has none, and an unfilled slot is a different
+  // program from the one a backend will really compile.
+  screen.slot("bloom", stand(SK_ColorCYAN));
   return {
       std::move(screen),
       surface({}, Reflection::SplitSum),

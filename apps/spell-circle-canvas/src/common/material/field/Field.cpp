@@ -180,7 +180,14 @@ std::vector<Material> everyRecipe() {
     warp.slot("content", Texture::of(content->makeImageSnapshot()));
   }
   Material screen = crt({.uBounds = {0, 0, 4, 4}});
-  if (content) screen.slot("content", Texture::of(content->makeImageSnapshot()));
+  if (content) {
+    // Both slots, because a slot nothing fills generates a different
+    // program from the one a backend will really run — and the bloom
+    // slot is the executor's where there is a layer, which a catalogue
+    // entry has not got.
+    screen.slot("content", Texture::of(content->makeImageSnapshot()));
+    screen.slot("bloom", Texture::of(content->makeImageSnapshot()));
+  }
   all.push_back(std::move(screen));
   all.push_back(std::move(warp));
   return all;

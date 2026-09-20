@@ -30,6 +30,26 @@ enum class FrameInput : uint8_t {
   WorldTransform = 8,  ///< `uniform float3x3 uWorld`, local to root
 };
 
+/** WHAT AN EXECUTOR MAKES A SLOT OUT OF THE LAYER. A recipe run over a
+ *  rendered layer reads that layer in a slot the executor fills; a slot
+ *  declared with one of these is filled from the SAME layer put through
+ *  a filter first, so a body that needs a blurred copy of its input
+ *  reads one tap of it instead of gathering the blur itself, per pixel,
+ *  for as long as the picture is on screen. */
+enum class LayerFilter : uint8_t {
+  Blurred = 1,  ///< a Gaussian at the sigma the named field carries
+};
+
+/** A slot an executor fills, and what it fills it from. */
+struct LayerSlot {
+  std::string name;
+  LayerFilter filter = LayerFilter::Blurred;
+  /** The parameter whose value is the filter's amount — local pixels of
+   *  Gaussian sigma for `Blurred`. */
+  std::string amountField;
+  bool operator==(const LayerSlot&) const = default;
+};
+
 /** A material definition. IDENTITY is the object: two recipes compiled
  *  from the same text are two recipes, each with its own programs, so a
  *  recipe is defined once — held in a `shared_ptr<const Recipe>` beside
@@ -59,6 +79,17 @@ class Recipe {
   /** Declares a slot: a second material sampled by name, which the
    *  generated declarations expose as `uniform shader NAME` in SkSL. */
   Recipe& slot(std::string slot);
+  /** DECLARES A SLOT AN EXECUTOR FILLS from the layer through @p filter,
+   *  whose amount is the value of the parameter @p amountField. It is
+   *  declared to a target exactly as any other slot is and the body
+   *  samples it by name; what differs is who fills it. An author may
+   *  still fill it — `Material::slot` on the name wins over the executor
+   *  — which is how a recipe run as an ordinary fill, where there is no
+   *  layer and no executor, still has a source there.
+   *
+   *  The amount is read once, when the executor builds: a recipe over a
+   *  layer is a snapshot, so a bound amount does not re-filter. */
+  Recipe& slot(std::string slot, LayerFilter filter, std::string amountField);
   /** Declares that the body reads @p input; its uniform is generated and
    *  its value uploaded each resolve. */
   Recipe& frame(FrameInput input);
@@ -120,6 +151,9 @@ class Recipe {
   /** The targets that have a body, in Target order. */
   std::vector<Target> targets() const;
   std::span<const std::string> slots() const { return m_slots; }
+  /** The slots an executor fills, in declaration order. Every one of
+   *  them is also in `slots()`. */
+  std::span<const LayerSlot> layerSlots() const { return m_layerSlots; }
   /** The slot holding the per-channel response, or EMPTY when the
    *  recipe made no channelwise claim. */
   const std::string& channelwiseSlot() const { return m_channelwise; }
@@ -158,6 +192,8 @@ class Recipe {
   Schema m_layout;
   boost::container::map<Target, std::string> m_bodies;
   std::vector<std::string> m_slots;
+  /** The subset of m_slots an executor fills from the layer. */
+  std::vector<LayerSlot> m_layerSlots;
   /** channelwise()'s slot; empty means the body is not channelwise. */
   std::string m_channelwise;
   /** Per parameter field, whether a body spells it — settled once when a

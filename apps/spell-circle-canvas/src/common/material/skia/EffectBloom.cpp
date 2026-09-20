@@ -93,11 +93,11 @@ sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
 
 Effect Effect::brightPass(float threshold, float knee) {
   static const sk_sp<SkRuntimeEffect> program =
-      bloomProgram("brightPass", "BrightPass.sksl");
+      colourProgram("BrightPass.sksl");
   const float gate = std::clamp(threshold, 0.0f, 1.0f);
-  return shader(program,
-                {{"uThreshold", gate},
-                 {"uTop", std::min(gate + std::max(knee, 0.0f), 1.0f)}});
+  return colorProgram(program,
+                      {{"uThreshold", gate},
+                       {"uTop", std::min(gate + std::max(knee, 0.0f), 1.0f)}});
 }
 
 Effect Effect::phosphorBloom(float radius, float threshold, float intensity,

@@ -8,6 +8,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorFilter.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkString.h>
@@ -548,7 +549,84 @@ std::vector<float> brightThrough(const sk_sp<SkImageFilter>& filter,
   return px;
 }
 
+/** A 64x64 scene holding one thin bright diagonal, painted through
+ *  @p filter as one layer onto a surface SCALED by @p scale — so the
+ *  picture is read in DEVICE pixels, and a filter graph that can only be
+ *  placed by a translation shows the resample it forces on everything it
+ *  keeps. A thin antialiased line is the instrument: its coverage at the
+ *  layer's own resolution is nothing like its coverage at twice it, and
+ *  an eight-bit ground is what a filtered layer is composited through
+ *  anyway, so a light that adds nothing leaves the codes alone. */
+std::vector<uint8_t> scaledThrough(const sk_sp<SkImageFilter>& filter,
+                                   int scale) {
+  const int side = 64 * scale;
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(side, side);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
+  SkCanvas& canvas = *surface->getCanvas();
+  canvas.clear(SK_ColorBLACK);
+  canvas.scale((float)scale, (float)scale);
+  SkPaint layer;
+  layer.setImageFilter(filter);
+  canvas.saveLayer(nullptr, &layer);
+  canvas.clear(SK_ColorBLACK);
+  SkPaint ink;
+  ink.setColor(SkColor4f{1.0f, 0.92f, 0.45f, 1.0f});
+  ink.setAntiAlias(true);
+  ink.setStroke(true);
+  ink.setStrokeWidth(0.75f);
+  canvas.drawLine(9.5f, 12.25f, 53.5f, 49.75f, ink);
+  canvas.restore();
+  std::vector<uint8_t> px((size_t)side * side * 4);
+  EXPECT_TRUE(
+      surface->readPixels(SkPixmap(info, px.data(), (size_t)side * 4), 0, 0));
+  return px;
+}
+
+/** A light that adds nothing: the alpha-scaling colour matrix at
+ *  @p alpha, which at zero leaves whatever it is blended over. */
+skia::Effect dimming(float alpha) {
+  const float m[20] = {1, 0, 0, 0, 0, 0, 1, 0, 0,     0,
+                       0, 0, 1, 0, 0, 0, 0, 0, alpha, 0};
+  return skia::Effect::filter(SkColorFilters::Matrix(m));
+}
+
 }  // namespace
+
+TEST(SkiaEffect, AnEmittedLightLeavesTheSharpLayerAtDeviceResolution) {
+  // A light that is wholly transparent adds nothing, so on a canvas
+  // carrying a scale the layer beneath it must come back exactly as it
+  // was drawn. The bright pass reads its own pixel and no neighbour, so
+  // it is a colour map, and a filter graph carrying one is evaluated in
+  // the device's own pixels.
+  const std::vector<uint8_t> plain = scaledThrough(nullptr, 2);
+  const std::vector<uint8_t> overPass = scaledThrough(
+      skia::Effect()
+          .emit(skia::Effect::brightPass().then(dimming(0)))
+          .resolvedImageFilter(nullptr),
+      2);
+  ASSERT_EQ(plain.size(), overPass.size());
+  for (size_t i = 0; i < plain.size(); ++i)
+    ASSERT_EQ((int)plain[i], (int)overPass[i]) << i;
+
+  // The case discriminates, and this is what it is guarding against: a
+  // light made of a program over COORDINATES, transparent though it is,
+  // has the whole graph — the kept layer with it — evaluated in the
+  // layer's own coordinates and resampled up, which moves the thin
+  // antialiased diagonal it was supposed to keep.
+  auto [nothing, error] = SkRuntimeEffect::MakeForShader(
+      SkString("half4 main(float2 p) { return half4(0); }"));
+  ASSERT_NE(nothing, nullptr) << error.c_str();
+  const std::vector<uint8_t> overShader = scaledThrough(
+      skia::Effect()
+          .emit(skia::Effect::shader(nothing))
+          .resolvedImageFilter(nullptr),
+      2);
+  ASSERT_EQ(plain.size(), overShader.size());
+  int worst = 0;
+  for (size_t i = 0; i < plain.size(); ++i)
+    worst = std::max(worst, std::abs((int)plain[i] - (int)overShader[i]));
+  EXPECT_GT(worst, 1);
+}
 
 TEST(SkiaEffect, TheBrightPassKeepsTheLightAboveItsKneeAndNothingElse) {
   const sk_sp<SkImageFilter> pass =
@@ -595,6 +673,24 @@ TEST(SkiaEffect, TheBrightPassIsComparableByItsThresholdAndKnee) {
   // "everything above the threshold" are one effect.
   EXPECT_TRUE(skia::Effect::brightPass(0.9f, 0.2f) ==
               skia::Effect::brightPass(0.9f, 4.0f));
+  // The pass is a colour map, so a consumer hangs it on a paint rather
+  // than running it as a pass of its own.
+  EXPECT_EQ(skia::Effect::brightPass().imageFilter(), nullptr);
+  EXPECT_NE(skia::Effect::brightPass().colorFilter(), nullptr);
+}
+
+TEST(SkiaEffect, TheLightStagesCompareByTheirParameters) {
+  // deepen() and whiten() are colour maps described by their numbers, so
+  // a re-described equal stage prunes where an already-built colour
+  // filter compared by pointer could not.
+  EXPECT_TRUE(skia::Effect::deepen(2) == skia::Effect::deepen(2));
+  EXPECT_FALSE(skia::Effect::deepen(2) == skia::Effect::deepen(1));
+  EXPECT_TRUE(skia::Effect::whiten(0.5f) == skia::Effect::whiten(0.5f));
+  EXPECT_FALSE(skia::Effect::whiten(0.5f) == skia::Effect::whiten(0.5f, 0.4f));
+  EXPECT_NE(skia::Effect::deepen(2).colorFilter(), nullptr);
+  EXPECT_EQ(skia::Effect::deepen(2).imageFilter(), nullptr);
+  // An amount at or below zero is no stage at all.
+  EXPECT_TRUE(skia::Effect::deepen(0) == skia::Effect{});
 }
 
 TEST(SkiaEffect, OpticalBloomSpreadsColourBeyondTheSourceAndSoftensIt) {
@@ -775,4 +871,89 @@ TEST(SkiaEffect, EmitOfStaticSidesComparesByItsFilter) {
   const auto lit = skia::Effect().emit(skia::Effect::blur(2));
   EXPECT_TRUE(lit == lit);
   EXPECT_FALSE(lit == skia::Effect().emit(skia::Effect::blur(2)));
+}
+
+// ---------------------------------------------------------------------------
+// A SLOT THE EXECUTOR FILLS FROM THE LAYER. A recipe over a layer reads
+// that layer in one slot; a body that needs a NEIGHBOURHOOD of it — a
+// bloom, a glass pass over its own light — would otherwise have to
+// gather that neighbourhood itself, per pixel, at a fixed tap count.
+
+namespace {
+
+struct OneRadius {
+  float uRadius = 0;
+};
+
+/** A recipe whose `bloom` slot an executor fills from the layer blurred
+ *  at `uRadius`. It answers the slot where there is a radius and the
+ *  layer where there is not, which is one body reading both names. */
+const std::shared_ptr<const Recipe>& blurredSlotRecipe() {
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<OneRadius>("effect.layerslot.blurred")
+          .slot("content")
+          .slot("bloom", LayerFilter::Blurred, "uRadius")
+          .body(Target::SkSL,
+                "half4 main(float2 p) {\n"
+                "  if (uRadius > 0) return bloom.eval(p);\n"
+                "  return content.eval(p);\n"
+                "}"));
+  return recipe;
+}
+
+/** One flat colour as an image, for a slot an author fills himself. */
+sk_sp<SkImage> oneColour(SkColor colour) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(8, 8));
+  bitmap.eraseColor(colour);
+  bitmap.setImmutable();
+  return bitmap.asImage();
+}
+
+}  // namespace
+
+TEST(SkiaEffect, ASlotTheExecutorFillsIsTheLayerThroughThatFilter) {
+  // The claim is an identity, not a likeness: the slot IS the layer
+  // through that filter. So the same program reading the slot, and the
+  // same program reading the layer after the filter was spent on it,
+  // paint the same picture — at a sigma Skia's linear blur takes whole
+  // and at one it has to reduce and enlarge for.
+  const SkColor4f amber{1.0f, 0.72f, 0.1f, 1.0f};
+  for (float sigma : {3.0f, 24.0f}) {
+    const Material derived(blurredSlotRecipe(), OneRadius{sigma});
+    const Material plain(blurredSlotRecipe(), OneRadius{0});
+    const auto fromSlot = bloomThrough(
+        skia::Effect::recipe(derived, 0).resolvedImageFilter(nullptr), amber);
+    const auto fromChain = bloomThrough(
+        skia::Effect::blur(sigma)
+            .then(skia::Effect::recipe(plain, 0))
+            .resolvedImageFilter(nullptr),
+        amber);
+    ASSERT_EQ(fromSlot.size(), fromChain.size());
+    for (size_t i = 0; i < fromSlot.size(); ++i)
+      ASSERT_EQ(fromSlot[i], fromChain[i]) << "sigma " << sigma << " at " << i;
+    // And it really is spread: light stands well outside the square the
+    // layer holds, where the layer itself is black.
+    EXPECT_GT(texel(fromSlot, 16, 32)[0], 0.0f);
+  }
+}
+
+TEST(SkiaEffect, AnAuthorFilledSlotIsNotRefilledByTheExecutor) {
+  // A recipe that declares who fills a slot states a default, not a
+  // rule: an author who binds a source to the name keeps it, which is
+  // also what lets the same material be painted as an ordinary fill.
+  Material material(blurredSlotRecipe(), OneRadius{8});
+  material.slot("bloom", Texture::of(oneColour(SK_ColorBLUE)));
+  const auto pixels = bloomThrough(
+      skia::Effect::recipe(material, 0).resolvedImageFilter(nullptr),
+      {1.0f, 0.72f, 0.1f, 1.0f});
+  EXPECT_FLOAT_EQ(texel(pixels, 32, 32)[2], 1.0f);
+  EXPECT_FLOAT_EQ(texel(pixels, 32, 32)[0], 0.0f);
+}
+
+TEST(SkiaEffect, ARecipeWithALayerSlotStillComparesByItsValues) {
+  const Material eight(blurredSlotRecipe(), OneRadius{8});
+  const Material four(blurredSlotRecipe(), OneRadius{4});
+  EXPECT_TRUE(skia::Effect::recipe(eight, 0) == skia::Effect::recipe(eight, 0));
+  EXPECT_FALSE(skia::Effect::recipe(eight, 0) == skia::Effect::recipe(four, 0));
 }

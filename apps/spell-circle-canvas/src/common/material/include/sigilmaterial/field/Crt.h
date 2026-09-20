@@ -16,7 +16,7 @@ struct CrtParameters {
   float uRgbShift = 0;
   float uScanPitch = 3;
   float uRaster = 0;
-  float uBloomRadius = 3;
+  float uBloomRadius = 3;  ///< Gaussian sigma of the bloom, local pixels
   float uBloom = 0;
   float uNoise = 0;
   float uVignette = 0;
@@ -28,8 +28,11 @@ struct CrtParameters {
 };
 
 /** SkSL screen treatment. Bind the picture to the content slot, or let
- * a layer effect provide it. Bloom gathers the source at two radii;
- * burn-in requires history and is not part of this stateless recipe. */
+ * a layer effect provide it. The bloom is a second slot an EXECUTOR
+ * fills from the same layer blurred at `uBloomRadius`, read once at the
+ * warped coordinate; run as an ordinary fill there is no executor, so
+ * bind a source to `bloom` as well. Burn-in requires history and is not
+ * part of this stateless recipe. */
 Material crt(const CrtParameters& parameters);
 const std::shared_ptr<const Recipe>& crtRecipe();
 /** Maximum source displacement for an image-filter executor. */
