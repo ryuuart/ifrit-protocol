@@ -15,12 +15,10 @@ namespace sigil::scry {
 
 /**
  * True when the resource directory the engine would boot with holds the
- * runtime data it needs. When false, @p why names what is missing and
- * where it was looked for.
- *
- * It answers for the MACHINE, not for the process: it creates no
- * renderer and consumes nothing, so a caller may ask before deciding
- * whether to create the one renderer a process is allowed.
+ * runtime data it needs; false sets @p why to what is missing and where
+ * it was looked for. It answers for the MACHINE, not the process: it
+ * creates no renderer and consumes nothing, so a caller may ask before
+ * deciding whether to create the one renderer a process is allowed.
  */
 bool available(std::string* why = nullptr);
 

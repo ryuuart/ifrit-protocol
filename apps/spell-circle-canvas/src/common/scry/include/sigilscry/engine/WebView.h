@@ -30,44 +30,32 @@ namespace sigil::scry {
 class WebEngine;
 
 /**
- * One offscreen web page ("tab") rendered by the WebEngine.
+ * One offscreen web page ("tab") rendered by the WebEngine, publishing
+ * an immutable premultiplied-BGRA snapshot per repaint. Holding one
+ * keeps its WebEngine alive.
  *
- * In threaded engines every method is safe to call from any thread:
- * commands (loads, input, script) are marshalled to the web thread, and
- * frame() / frameVersion() read the latest published frame. In unthreaded
- * engines everything runs inline on the caller's thread.
- *
- * A published frame is an immutable raster SkImage (premultiplied BGRA,
- * sRGB) — draw it like any other image; a Graphite recorder uploads it on
- * first use. Holding a WebView keeps its WebEngine alive.
+ * In threaded engines every method is safe from any thread: commands
+ * are marshalled to the web thread, and frame() and frameVersion() read
+ * the latest published frame. In unthreaded engines everything runs
+ * inline on the caller's thread.
  */
 class WebView {
  public:
   /**
    * A published page snapshot — everything about the latest repaint in
-   * one value (the acquire-latest-frame shape of Android's ImageReader
-   * and CAMetalLayer, rather than separate accessors per fact).
-   *
-   * `image` is the frame as a drawable SkImage: always set on CPU
-   * engines; on GPU engines it is set when frame() was given a recorder
-   * to wrap `nativeTexture` for. Wraps are cached per version, so the
-   * SkImage identity is stable across draws of the same frame and
-   * Skia-side caches keyed on it stay warm.
-   *
-   * `dirtyBounds` is the page region that changed in this repaint (CEF
-   * OnPaint-style), in frame pixels — full bounds when unknown.
-   * Consumers that blend the frame over live content can use it to
-   * limit their own repaint area.
-   *
-   * `version` increases by one per repaint and is 0 before the first
-   * paint. A default-constructed Frame is falsy.
+   * one value. `image` is the drawable frame, always set on CPU engines
+   * and on GPU ones when frame() was given a recorder to wrap the
+   * texture for. `dirtyBounds` is the page region that changed, in
+   * frame pixels, and the full bounds when unknown. `version` increases
+   * by one per repaint and is 0 before the first paint, so a
+   * default-constructed Frame is falsy.
    */
   struct Frame {
     sk_sp<SkImage> image;
     /** GPU engines: the published texture, named on the engine's
      *  GpuDevice; `exportNative` there hands the native object out.
-     *  Stale once the view republishes at a new size — the wrap in
-     *  `image` is what keeps a frame's texture alive. */
+     *  @trap Stale once the view republishes at a new size — the wrap
+     *  in `image` is what keeps a frame's texture alive. */
     sigil::core::hardware::TextureHandle texture;
     int width = 0;
     int height = 0;
@@ -99,48 +87,38 @@ class WebView {
   /** Navigates to @p url — file:///, http(s)://, or data: . */
   void loadURL(std::string url);
 
-  /**
-   * Evaluates JavaScript in the page. If @p onResult is set it receives
-   * the result (or the exception text) stringified, on the web thread.
-   */
+  /** Evaluates JavaScript in the page. @p onResult receives the result,
+   *  or the exception text, stringified, on the web thread. */
   void evaluateScript(std::string script,
                       std::function<void(std::string)> onResult = {});
 
   /** Fires on the web thread when the main frame finishes loading. */
   void setLoadCallback(std::function<void()> callback);
 
-  /** Fires on the web thread after each repaint publishes a new frame.
-   *  Use it to schedule a redraw of whatever composites this view. The
-   *  Frame carries metadata and (CPU engines) the raster image; GPU
-   *  consumers treat it as a signal and acquire via frame(recorder) on
-   *  their own render thread. */
+  /** Fires on the web thread after each repaint publishes a new frame
+   *  — what schedules a redraw of whatever composites this view. The
+   *  Frame carries the metadata and, on CPU engines, the raster image;
+   *  a GPU consumer treats it as a signal and acquires through
+   *  frame(recorder) on its own render thread. */
   void setFrameCallback(std::function<void(const Frame&)> callback);
 
   /** Fires on the web thread at the END of every pass the engine makes
-   *  over its pages — the pass that published a repaint of this one and
-   *  the pass that found nothing to publish alike — carrying how many
-   *  passes the engine has made. The count is the ENGINE'S own tick,
-   *  the same number for every view over it, and a frame callback for
-   *  the same pass has already run when this one does.
-   *
-   *  It is what a page's STILLNESS is counted in: a stretch with no
-   *  repaint in it is a number of passes rather than a stretch of clock,
-   *  so a machine that runs the engine slowly and one that runs it fast
-   *  call the same page still on the same repaint. */
+   *  over its pages — published or not — carrying how many passes it
+   *  has made. It is what a page's STILLNESS is counted in, so a
+   *  machine that runs the engine slowly and one that runs it fast call
+   *  the same page still on the same repaint.
+   *  @trap The count is the ENGINE's own tick, the same number for
+   *  every view over it. */
   void setRenderPassCallback(
       std::function<void(uint64_t renderPasses)> callback);
 
   /**
-   * Acquires the latest published frame. Falsy until the first repaint.
-   *
-   * On GPU engines pass the Graphite recorder you will draw with (over
-   * the engine's device, on its shared context or another over the same
-   * queue) to get `image` populated with a zero-copy, per-version-cached
-   * wrap of the frame texture; without a recorder you still get
-   * `texture` + metadata. On CPU engines the recorder is ignored and
-   * `image` is the raster frame.
-   *
-   * Call from the thread that owns @p recorder.
+   * Acquires the latest published frame, falsy until the first repaint.
+   * On GPU engines @p recorder — over the engine's device, on its
+   * shared context or another over the same queue — is what populates
+   * `image` with a zero-copy, per-version-cached wrap; without one you
+   * still get `texture` and the metadata. On CPU engines it is ignored.
+   * @trap Call it from the thread that owns @p recorder.
    */
   Frame frame(skgpu::graphite::Recorder* recorder = nullptr) const;
 
@@ -156,10 +134,11 @@ class WebView {
                 SkFilterMode::kLinear, SkMipmapMode::kNone)) const;
 
   /**
-   * Zero-copy access to the live surface pixels (premultiplied BGRA).
-   * Only valid on the web thread — i.e. from unthreaded-engine callers
-   * between renderFrame() calls, or inside a frame callback — and only
-   * until the next renderFrame()/resize. Returns false when unavailable.
+   * Zero-copy access to the LIVE surface pixels, premultiplied BGRA.
+   * False when unavailable.
+   * @trap Valid only on the web thread — from an unthreaded engine's
+   * caller between renderFrame() calls, or inside a frame callback —
+   * and only until the next renderFrame() or resize.
    */
   bool peekPixels(SkPixmap* pixmap) const;
 
@@ -174,13 +153,10 @@ class WebView {
 
   /** A wheel of @p dx / @p dy pixels, exactly as an input device
    *  delivers one.
-   *
-   *  THE DELTA IS WHAT THE CONTENT MOVES BY, not where the viewport goes
-   *  — so WALKING DOWN A PAGE IS NEGATIVE: `scroll(0, -120)` lifts the
-   *  content 120 pixels and shows what stood below it, the way a wheel
-   *  rolled away from the reader does. Positive brings the page back
-   *  down toward its top. `dx` is the same statement sideways: negative
-   *  reveals what stood to the right. */
+   *  @trap THE DELTA IS WHAT THE CONTENT MOVES BY, not where the
+   *  viewport goes, so walking DOWN a page is NEGATIVE: `scroll(0,
+   *  -120)` lifts the content and shows what stood below it. Negative
+   *  `dx` is the same sideways, revealing what stood to the right. */
   void scroll(int dx, int dy);
 
   class Impl;
