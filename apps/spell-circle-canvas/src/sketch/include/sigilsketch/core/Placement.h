@@ -23,7 +23,7 @@ namespace sigil::sketch {
  *  is DRAWN through the scale and a pointer is read BACK through its
  *  inverse. Two spellings of the same arithmetic is how they stop
  *  agreeing. */
-struct Fit {
+struct Placement {
   float scale = 1.0f;
   float x = 0.0f;
   float y = 0.0f;
@@ -38,16 +38,16 @@ struct Fit {
 /** @p content centred inside @p box at the largest scale that fits it
  *  whole, times @p zoom — which magnifies about the box's centre, so a
  *  zoom past 1 crops rather than moving the subject. */
-[[nodiscard]] inline Fit fitInto(SkSize content, const SkRect& box,
-                                 float zoom = 1.0f) {
-  Fit fit;
-  if (content.width() <= 0 || content.height() <= 0) return fit;
-  fit.scale =
+[[nodiscard]] inline Placement fitInto(SkSize content, const SkRect& box,
+                                       float zoom = 1.0f) {
+  Placement placement;
+  if (content.width() <= 0 || content.height() <= 0) return placement;
+  placement.scale =
       std::min(box.width() / content.width(), box.height() / content.height()) *
       zoom;
-  fit.x = box.centerX() - content.width() * fit.scale * 0.5f;
-  fit.y = box.centerY() - content.height() * fit.scale * 0.5f;
-  return fit;
+  placement.x = box.centerX() - content.width() * placement.scale * 0.5f;
+  placement.y = box.centerY() - content.height() * placement.scale * 0.5f;
+  return placement;
 }
 
 }  // namespace sigil::sketch

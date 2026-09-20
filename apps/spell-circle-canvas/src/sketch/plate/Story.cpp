@@ -12,7 +12,7 @@
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Crash.h>
-#include <sigilsketch/core/Fit.h>
+#include <sigilsketch/core/Placement.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilvideo/encode/Encode.h>

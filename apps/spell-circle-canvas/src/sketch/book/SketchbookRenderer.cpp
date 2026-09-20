@@ -24,7 +24,7 @@
 #include <include/core/SkSurface.h>
 #include <rhi/qrhi.h>
 #include <sigilmeasure/time/Stopwatch.h>
-#include <sigilsketch/core/Fit.h>
+#include <sigilsketch/core/Placement.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
@@ -423,7 +423,8 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   canvas.clear(SkColorSetRGB(0x0b, 0x0a, 0x14));
   if (!host || !host->live()) return;
   const SkSize size = host->canvasSize();
-  const sketch::Fit fit = sketch::fitInto(size, SkRect::MakeWH(width, height));
+  const sketch::Placement fit =
+      sketch::fitInto(size, SkRect::MakeWH(width, height));
   canvas.save();
   // The compensation above, applied. It is the identity whenever the item
   // and the texture agree in shape, which is every frame of a zoom.

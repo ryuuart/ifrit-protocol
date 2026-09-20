@@ -5,7 +5,7 @@
 #include "SketchbookView.h"
 
 #include <WindowChrome.h>
-#include <sigilsketch/core/Fit.h>
+#include <sigilsketch/core/Placement.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>
 
@@ -200,7 +200,7 @@ void SketchbookView::pointer(qreal x, qreal y, bool pressed) {
   // canvas letterboxed into the item, so a point on the item is a point
   // on the declared canvas by the inverse of that fit.
   const SkSize size = host->canvasSize();
-  const sketch::Fit fit =
+  const sketch::Placement fit =
       sketch::fitInto(size, SkRect::MakeWH((float)width(), (float)height()));
   session->pointer(((float)x - fit.x) / fit.scale,
                    ((float)y - fit.y) / fit.scale, pressed);

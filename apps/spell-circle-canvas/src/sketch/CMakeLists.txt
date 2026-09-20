@@ -60,8 +60,9 @@ set(SIGIL_SKETCH_SOURCES
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp plate/ThumbnailWriter.cpp)
 set(SIGIL_SKETCH_HEADERS
-  core/Assets.h core/CanvasSpecification.h core/Crash.h core/Device.h core/Fit.h
-  core/Kind.h core/Members.h core/Registry.h core/Session.h core/Sources.h
+  core/Assets.h core/CanvasSpecification.h core/Crash.h core/Device.h
+  core/Kind.h core/Members.h core/Placement.h core/Registry.h core/Session.h
+  core/Sources.h
   canvas/Guest.h canvas/Sketch.h
   set/Set.h
   live/Host.h live/Residency.h
