@@ -35,6 +35,16 @@ namespace sigil::geometry::path {
 struct OffsetJoin {
   float distance = 0;  ///< arc length along the contour
   float radius = 0;
+  /** HOW FAR EITHER SIDE OF `distance` THIS JOIN ANSWERS FOR: every
+   *  sample inside it is the corner's own place and belongs to the join
+   *  rather than to the walk. A miter sits back from the vertex by the
+   *  offset over the tangent of half the interior angle — at a right
+   *  angle exactly the offset, below one further, above one less — and
+   *  every sample inside that has already passed it, so the rail doubles
+   *  back if the walk writes them. An arc answers for its vertex alone:
+   *  a turn away from the offset side spreads the two offset edges
+   *  apart, so no sample beyond the vertex has overshot anything. */
+  float answers = 0;
   bool miter = false;
   glm::vec2 point{0, 0};  ///< miter: the single replacement point
   glm::vec2 entering{0, 0}, leaving{0, 0};
@@ -62,11 +72,19 @@ void appendOffsetPoint(SkPathBuilder& out, glm::vec2 point, bool& started);
 void appendOffsetJoin(SkPathBuilder& out, const OffsetJoin& join,
                       bool& started);
 
-/** Is a sample at `distance` inside a miter's reach — a place some join
- *  has already answered for? Those samples are dropped: the miter stands
- *  for them, and keeping them is what doubles a rail back into a loop at
- *  the inside of a turn. */
+/** Is a sample at `distance` inside the reach of some join — a place a
+ *  join has already answered for? Those samples are dropped: the join
+ *  stands for them, and keeping them is what doubles a rail back into a
+ *  loop at the inside of a turn. */
 bool swallowedByJoin(std::span<const OffsetJoin> joins, const Contour& contour,
                      float distance);
+
+/** Has the walk already written a join for this place? `written` is the
+ *  joins it has emitted so far, in contour order, and it emits each on
+ *  reaching that join's distance — so a sample standing no further along
+ *  than the last one written is that join's own vertex, written once
+ *  already. A contour's real vertex falls exactly on a sample whenever
+ *  the walk's step divides its edges, which is every box. */
+bool joinAlreadyWrote(std::span<const OffsetJoin> written, float distance);
 
 }  // namespace sigil::geometry::path

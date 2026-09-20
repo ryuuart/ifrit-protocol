@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <cmath>
 #include <glm/geometric.hpp>
+#include <optional>
+#include <span>
 #include <utility>
 
 #include "OffsetInternal.h"
@@ -112,17 +114,26 @@ std::vector<Contour::Corner> Contour::corners(float angleDeg, float minSpacing,
       sharpestDot = std::min(sharpestDot, cosine);
       if (cosine < cosThresh) {
         glm::vec2 inTan = prev, outTan = tan;
-        const float at = bisect(
-            std::max(0.0f, d - stride), std::min(d, len), [&](float mid) {
-              const auto ms = sampleOf(m, mid);
-              if (!ms) return true;  // unevaluable: keep the near side
-              if (dot(inTan, ms->tangent) < cosThresh) {
-                outTan = ms->tangent;
-                return false;
-              }
-              inTan = ms->tangent;
-              return true;
-            });
+        // THE CORNER IS THE LAST DISTANCE THE INCOMING TANGENT STILL
+        // HOLDS. A measure answers a vertex with the tangent of the
+        // piece that ENDS there, so at a real vertex that distance is
+        // the vertex itself — exactly, when a sample lands on it.
+        // `bisect` answers the other side of the same bracket, the first
+        // distance past the turn, which places a corner a fraction of a
+        // stride down the outgoing edge and carries an offset walk's
+        // join there with it.
+        float at = std::max(0.0f, d - stride);
+        (void)bisect(at, std::min(d, len), [&](float mid) {
+          const auto ms = sampleOf(m, mid);
+          if (!ms) return true;  // unevaluable: keep the near side
+          if (dot(inTan, ms->tangent) < cosThresh) {
+            outTan = ms->tangent;
+            return false;
+          }
+          inTan = ms->tangent;
+          at = mid;
+          return true;
+        });
         if (corners.empty() || at - corners.back().distance > minSpacing)
           corners.push_back({at, inTan, outTan});
       }
@@ -171,6 +182,14 @@ std::vector<OffsetJoin> offsetJoins(
         join.miter = true;                          // to infinity — bevel
         join.point = {join.entering.x + hit.in.x * reach,
                       join.entering.y + hit.in.y * reach};
+        // The miter sits `reach` back from where the two offset edges
+        // end, so every sample within that of the vertex stands past it
+        // and the join answers for it. Below a right angle the reach is
+        // longer than the offset; at one it is the offset exactly; above
+        // one the offset is the wider of the two, and it is still the
+        // corner's own place, because that is how far the rail stands
+        // from the spine there.
+        join.answers = std::max(join.radius, std::abs(reach));
       }
     } else if (turn * side < 0.0f) {
       join.arc = true;
@@ -188,12 +207,19 @@ std::vector<OffsetJoin> offsetJoins(
 }
 
 void appendOffsetPoint(SkPathBuilder& out, glm::vec2 point, bool& started) {
-  if (started) {
-    out.lineTo(toSk(point));
-  } else {
+  if (!started) {
     out.moveTo(toSk(point));
     started = true;
+    return;
   }
+  // ONE PLACE IS WRITTEN ONCE. A join's own end and the arc that already
+  // landed there are the same point twice, and the segment between them
+  // is nothing at all — but a reader asking whether the rail doubles
+  // back sees two edges meeting at a point with an edge between them,
+  // and cannot tell that from a fold.
+  const std::optional<SkPoint> last = out.getLastPt();
+  if (last && *last == toSk(point)) return;
+  out.lineTo(toSk(point));
 }
 
 void appendOffsetJoin(SkPathBuilder& out, const OffsetJoin& join,
@@ -216,13 +242,20 @@ void appendOffsetJoin(SkPathBuilder& out, const OffsetJoin& join,
 bool swallowedByJoin(std::span<const OffsetJoin> joins, const Contour& contour,
                      float distance) {
   const float len = contour.length();
-  for (const OffsetJoin& join : joins)
-    if (join.miter && ((distance > join.distance - join.radius &&
-                        distance < join.distance + join.radius) ||
-                       (contour.closed() && join.distance < join.radius &&
-                        distance > len - (join.radius - join.distance))))
+  for (const OffsetJoin& join : joins) {
+    const float answers = join.answers;
+    if (answers <= 0) continue;
+    if ((distance > join.distance - answers &&
+         distance < join.distance + answers) ||
+        (contour.closed() && join.distance < answers &&
+         distance > len - (answers - join.distance)))
       return true;
+  }
   return false;
+}
+
+bool joinAlreadyWrote(std::span<const OffsetJoin> written, float distance) {
+  return !written.empty() && distance <= written.back().distance;
 }
 
 SkPath parallel(const SkPath& path, float across, float step) {
@@ -244,7 +277,8 @@ SkPath parallel(const SkPath& path, float across, float step) {
         appendOffsetJoin(out, joins[next++], started);
       const auto sample = contour.at(at);
       if (!sample) break;
-      if (!swallowedByJoin(joins, contour, at))
+      if (!joinAlreadyWrote(std::span(joins).first(next), at) &&
+          !swallowedByJoin(joins, contour, at))
         appendOffsetPoint(out, beside(*sample, side), started);
       if (at >= len) break;
     }

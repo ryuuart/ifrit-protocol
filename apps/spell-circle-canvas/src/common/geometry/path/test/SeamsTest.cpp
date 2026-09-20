@@ -208,6 +208,37 @@ float railSampleStep(const SkPath& spine) {
   return len / (float)std::max(8, (int)std::ceil(len / 2.0f));
 }
 
+/** An open zigzag of four equal arms whose every interior angle is
+ *  `interiorDegrees`, turning alternately so that for one side of travel
+ *  each corner is in turn the inside and the outside of its turn. */
+SkPath zigzagOfInteriorAngle(float interiorDegrees, float arm = 140.0f) {
+  const float turn = 3.14159265f - interiorDegrees * 3.14159265f / 180.0f;
+  SkPathBuilder b;
+  SkPoint at{60.0f, 300.0f};
+  float heading = 0.0f;
+  b.moveTo(at);
+  for (int k = 0; k < 4; ++k) {
+    at = {at.fX + arm * std::cos(heading), at.fY + arm * std::sin(heading)};
+    b.lineTo(at);
+    heading += k % 2 == 0 ? turn : -turn;
+  }
+  return b.detach();
+}
+
+/** How near a rail comes to one of its spine's vertices. A rail stands
+ *  the law's width off the spine everywhere, and a corner is the one
+ *  place that is a property of the JOIN rather than of a sample: the
+ *  join's own points are struck at the vertex and reach exactly that
+ *  width away from it, so the nearest the rail comes to the vertex is
+ *  the width itself. */
+float nearestTo(const SkPath& rail, glm::vec2 vertex) {
+  float nearest = 1e9f;
+  for (const Polyline& ring : flatten(rail))
+    for (const glm::vec2& point : ring.points)
+      nearest = std::min(nearest, glm::distance(point, vertex));
+  return nearest;
+}
+
 /** A regular polygon wound CLOCKWISE in Skia's y-down space, which is
  *  the winding that makes "inward" unambiguous. */
 SkPath clockwisePolygon(int sides, float radius, float centre) {
@@ -298,10 +329,8 @@ TEST(Band, AnOpenVaryingRailJoinsItsCornersAndLeavesItsEndsAlone) {
   // An open zigzag: one corner turns each way, so for a given side one is
   // the inside of the turn and the other the outside — which separates
   // corner joining from anything a closed contour's seam does. The turns
-  // are the hexagon's, near 120° of interior angle: the miter a corner
-  // collapses to reaches `radius / tan(half the interior angle)` past the
-  // vertex, so at a right angle and wider it is inside the window of
-  // samples the join stands for, and below one it is not.
+  // are the hexagon's, near 120° of interior angle; the case below walks
+  // the same shape from obtuse to sharply acute.
   SkPathBuilder b;
   b.moveTo(60, 300);
   b.lineTo(200, 220);
@@ -331,6 +360,73 @@ TEST(Band, AnOpenVaryingRailJoinsItsCornersAndLeavesItsEndsAlone) {
     const glm::vec2 end = distance == 0.0f ? rail.front().points.front()
                                            : rail.front().points.back();
     EXPECT_LT(glm::distance(end, want), 0.5f) << "at " << distance;
+  }
+}
+
+TEST(Band, ARailStandsItsWholeWidthOffEveryCornerItTurnsAround) {
+  // A clockwise rectangle, because its corners fall ON the walk's own
+  // samples: the step divides its edges, and a measure answers a vertex
+  // with the tangent of the piece that ENDS there. That is the
+  // arrangement a corner search has to land on exactly — a corner placed
+  // a fraction of a stride down the OUTGOING edge carries the join
+  // struck at it that far off the vertex, and every point the join
+  // writes stands that much nearer the spine than the law says.
+  SkPathBuilder b;
+  b.addRect(SkRect::MakeXYWH(0, 0, 300, 200));
+  const SkPath spine = b.detach();
+  ASSERT_GT(flatten(spine).front().signedArea(), 0.0f) << "clockwise";
+  const std::vector<Contour> contour = Contour::of(spine);
+  ASSERT_EQ(contour.size(), 1u);
+  const float len = contour.front().length();
+  // Positive across is LEFT of travel, which on a clockwise path is
+  // outward, so every corner opens an ARC — the join no window of
+  // swallowed samples stands in for, and the one a duplicated sample at
+  // the vertex therefore survives at.
+  const float corners[]{0.0f, 300.0f, 500.0f, 800.0f};
+  for (const float width : {12.0f, 4.0f, 30.0f}) {
+    const SkPath constant = parallel(spine, width, 2.0f);
+    for (const float distance : corners) {
+      const auto at = contour.front().at(distance);
+      ASSERT_TRUE(at.has_value());
+      EXPECT_GE(nearestTo(constant, at->position), width - 0.002f)
+          << "constant " << width << " at " << distance;
+    }
+  }
+  // …and the same of a rail a width LAW cuts, read at the corner's own
+  // distance: a corner is one place and the width of that place is the
+  // one its join is struck with.
+  const Profile law = Swell{};
+  const SkPath varying = profileOffset(spine, law);
+  for (const float distance : corners) {
+    const auto at = contour.front().at(distance);
+    ASSERT_TRUE(at.has_value());
+    const float width = law.acrossAt(distance / len, len);
+    EXPECT_GE(nearestTo(varying, at->position), width - 0.002f)
+        << "varying at " << distance;
+  }
+}
+
+TEST(Band, ACornerSharperThanARightAngleLeavesNoSpurEitherSide) {
+  // The miter a corner collapses to sits back from the vertex by
+  // `radius / tan(half the interior angle)`: at a right angle exactly
+  // the offset, above one less, and BELOW one further — so a window of
+  // the offset alone leaves the samples between the two standing in the
+  // rail, each of them already past the miter, and each closing a small
+  // loop toward the offset side.
+  for (const float interior :
+       {150.0f, 120.0f, 90.0f, 75.0f, 60.0f, 45.0f, 30.0f}) {
+    const SkPath spine = zigzagOfInteriorAngle(interior);
+    const float step = railSampleStep(spine);
+    // Both sides: a zigzag turns each way, so one side's inside of a
+    // turn is the other side's outside.
+    for (const float width : {12.0f, -12.0f}) {
+      EXPECT_EQ(cornerLoops(parallel(spine, width, step), step), 0)
+          << "constant " << width << " at " << interior << "°";
+      EXPECT_EQ(
+          cornerLoops(profileOffset(spine, Swell{width, width * 0.35f}), step),
+          0)
+          << "varying " << width << " at " << interior << "°";
+    }
   }
 }
 

@@ -374,6 +374,7 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
         appendOffsetJoin(out, joins[next++], started);
       const auto sample = contour.at(d);
       if (!sample) continue;
+      if (joinAlreadyWrote(std::span(joins).first(next), d)) continue;
       if (swallowedByJoin(joins, contour, d)) continue;
       const float width = acrossAt(d);
       appendOffsetPoint(out,
