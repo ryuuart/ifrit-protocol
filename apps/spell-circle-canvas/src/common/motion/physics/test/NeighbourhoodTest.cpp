@@ -2,9 +2,10 @@
  * The grid held against the walk it replaces: the same neighbours on a
  * seeded cloud whatever the cell size, an answer in index order, the
  * degenerate sets a caller can hand in (nothing, one point, a line, a
- * heap of coincident points, a coordinate that is not a number), and the
- * flock over it — the same steering the pair walk computes, reaching
- * only inside its radius, and the same run twice.
+ * heap of coincident points, a coordinate that is not a number), the
+ * cells read one by one as a partition of the set, and the flock over it
+ * — the same steering the pair walk computes, reaching only inside its
+ * radius, and the same run twice.
  */
 
 #include <gtest/gtest.h>
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <span>
 #include <vector>
 
 #include "support/StandsAlone.h"
@@ -135,6 +137,48 @@ TEST(Neighbourhood, TheSetsAGridCannotSpaceItselfOverStillAnswer) {
   EXPECT_EQ(ragged.size(), withNaN.size());
   EXPECT_EQ(ragged.within(withNaN[7], 30.0f),
             byWalking(withNaN, withNaN[7], 30.0f));
+}
+
+TEST(Neighbourhood, TheCellsHoldEveryIndexOnceAndCanBeRead) {
+  const std::vector<Vec2> points = cloud(800, 1597);
+  const Neighbourhood near(points, 50.0f);
+  ASSERT_GT(near.columns(), 1);
+  ASSERT_GT(near.rows(), 1);
+
+  // The grid is a partition: reading it cell by cell is reading the set,
+  // once, which is what makes a picture of the cells over the points a
+  // picture of the grouping rather than of a sample of it.
+  std::vector<int> timesHeld(points.size(), 0);
+  size_t counted = 0;
+  size_t fullest = 0;
+  const float diagonal = near.cell() * std::sqrt(2.0f);
+  for (int row = 0; row < near.rows(); ++row)
+    for (int column = 0; column < near.columns(); ++column) {
+      const std::span<const uint32_t> held = near.cellContents(column, row);
+      EXPECT_TRUE(std::is_sorted(held.begin(), held.end()));
+      counted += held.size();
+      fullest = std::max(fullest, held.size());
+      for (const uint32_t index : held) {
+        ASSERT_LT(index, points.size());
+        ++timesHeld[index];
+        // A cell is a box of one edge, so what it holds is within a
+        // diagonal of itself: the run really is the neighbourhood the
+        // grid grouped, not a relabelling of the whole set.
+        for (const uint32_t other : held)
+          ASSERT_LE((points[index] - points[other]).length(), diagonal + 1e-3f);
+      }
+    }
+  EXPECT_EQ(counted, points.size());
+  for (const int held : timesHeld) EXPECT_EQ(held, 1);
+  EXPECT_GT(fullest, 1u);
+
+  // Off the grid, and off an index that has no grid at all, there is
+  // nothing to hold.
+  EXPECT_TRUE(near.cellContents(-1, 0).empty());
+  EXPECT_TRUE(near.cellContents(0, -1).empty());
+  EXPECT_TRUE(near.cellContents(near.columns(), 0).empty());
+  EXPECT_TRUE(near.cellContents(0, near.rows()).empty());
+  EXPECT_TRUE(Neighbourhood().cellContents(0, 0).empty());
 }
 
 TEST(Neighbourhood, ARebuiltIndexAnswersAboutWhereThePointsAreNow) {

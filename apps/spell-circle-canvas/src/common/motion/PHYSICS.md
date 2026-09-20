@@ -131,6 +131,14 @@ move its points while the index still answers about where they were, and
 a moved set is a `Neighbourhood::build` rather than an update — which is
 what keeps every point of one pass seeing the same arrangement.
 
+The grouping itself can be read: `Neighbourhood::cellContents` answers
+what one cell holds, in index order, and nothing for a cell off the
+grid. Walking `Neighbourhood::columns` and `Neighbourhood::rows` is
+therefore a partition of the set, which is what a study draws when it
+shows the cells over the points they gathered. The span is into the
+index's own storage, so a rebuild voids it as it voids every answer
+`within` gave.
+
 The same grid stands in three dimensions in the geometry library's path
 leaf, where outlines and scatters ask it. It is not what stands here,
 and the reason is a link edge rather than a disagreement: that leaf

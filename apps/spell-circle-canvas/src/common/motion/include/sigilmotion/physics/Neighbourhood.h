@@ -98,6 +98,19 @@ class Neighbourhood {
   /** The same, allocating its own answer. */
   [[nodiscard]] std::vector<uint32_t> within(Vec2 at, float radius) const;
 
+  /** WHAT THE CELL AT @p column, @p row HOLDS, lowest index first, and
+   *  nothing at all for a cell outside the grid.
+   *
+   *  `within` answers about a place and says nothing about the
+   *  arrangement it walked, so the grouping the grid made is otherwise
+   *  invisible. A caller that wants to SHOW it — the cells drawn over
+   *  the points they gathered, which is how a study explains why a query
+   *  costs what it costs — reads it cell by cell across `columns()` and
+   *  `rows()`. The span is into the index's own storage: a `build` voids
+   *  it, exactly as it voids every answer `within` gave. */
+  [[nodiscard]] std::span<const uint32_t> cellContents(int column,
+                                                       int row) const;
+
  private:
   /** Which column and row a position falls in, clamped to the grid, and
    *  which bucket that is. */

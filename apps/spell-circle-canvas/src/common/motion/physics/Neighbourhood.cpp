@@ -185,4 +185,15 @@ std::vector<uint32_t> Neighbourhood::within(Vec2 at, float radius) const {
   return out;
 }
 
+std::span<const uint32_t> Neighbourhood::cellContents(int column,
+                                                      int row) const {
+  if (column < 0 || row < 0 || column >= m_columns || row >= m_rows) return {};
+  // The bucket is the run the scatter laid down, and the scatter walked
+  // the caller's points in their own order, so a cell's run needs no
+  // sorting to come back in index order the way a swept answer does.
+  const size_t cell = linear(column, row);
+  return std::span<const uint32_t>(m_ordered).subspan(
+      m_starts[cell], m_starts[cell + 1] - m_starts[cell]);
+}
+
 }  // namespace sigil::motion::physics
