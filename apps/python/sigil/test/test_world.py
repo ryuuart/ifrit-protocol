@@ -9,7 +9,7 @@ from pathlib import Path
 
 from sigil import image, world
 from sigil.geometry import mesh
-from sigil.material import Material
+from sigil.material import Color, Material
 from sigil.material import kit as surfaces
 from sigil.motion import Output
 from sigil.sketch import render_file
@@ -167,10 +167,10 @@ class World(unittest.TestCase):
         parameters = surfaces.SurfaceParameters()
         parameters.baseColor = "#804000"
         parameters.emissive = (0.5, 0.25, 0.125, 1.0)
-        # The parameter holds light and a colour is the encoded number,
-        # so a colour comes back out in the space it went in, close
-        # enough that typing it into the next surface says the same
-        # thing.
+        # The parameter is a factor on the map in its slot, so nothing
+        # converts a colour on the way in or on the way out and it
+        # comes back the number it was typed as, close enough to write
+        # into the next surface.
         typed = (0x80 / 255, 0x40 / 255, 0.0)
         for channel, expected in zip(parameters.baseColor, typed):
             self.assertAlmostEqual(channel, expected, places=4)
@@ -181,6 +181,15 @@ class World(unittest.TestCase):
         metal = surfaces.SurfaceParameters.metal("#804000", 0.3)
         for written, built in zip(parameters.baseColor, metal.baseColor):
             self.assertAlmostEqual(written, built, places=4)
+        # Absorption is taken per unit of thickness rather than looked
+        # at, so a dense channel is a number above one and the field
+        # answers it as written. A sequence is the colour spelling and
+        # keeps a colour's range; the class carries any four floats.
+        parameters.absorption = Color(4.0, 0.5, 0.25)
+        for channel, expected in zip(parameters.absorption, (4.0, 0.5, 0.25)):
+            self.assertAlmostEqual(channel, expected, places=4)
+        with self.assertRaises(ValueError):
+            parameters.absorption = (4.0, 0.5, 0.25)
 
     def test_scene_rejects_wrong_thread_and_invalid_sizes_or_steps(self):
         scene = world.Scene()

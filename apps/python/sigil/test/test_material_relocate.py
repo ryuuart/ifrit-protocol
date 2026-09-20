@@ -275,10 +275,10 @@ class MovedInventories(unittest.TestCase):
         )
 
     def test_a_surface_colour_goes_back_out_the_way_it_came_in(self):
-        # The surface's colour fields hold light, and the property the
-        # move brought across converts once on the way in and once on
-        # the way back, so the parameter answers the colour it was
-        # written with.
+        # The surface's colour fields are factors on the maps in their
+        # slots, and the property the move brought across converts
+        # nothing either way, so the parameter answers the colour class
+        # it was written with, at the value it was written with.
         parameters = material.kit.SurfaceParameters(baseColor="#e75a31")
         read = parameters.baseColor
         self.assertIsInstance(read, material.Color)

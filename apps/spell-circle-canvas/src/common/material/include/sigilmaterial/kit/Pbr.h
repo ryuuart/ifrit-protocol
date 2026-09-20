@@ -69,13 +69,14 @@ inline constexpr std::string_view kEmissiveSlot =
 inline constexpr std::string_view kOpacitySlot =
     "opacityMap";  ///< `opacityChannel`; `alphaCutoff` turns it into a cutout
 
-/** The metallic-roughness ABI. Its colours are LINEAR LIGHT: a body
- *  multiplies each of them by the sample of the map in its slot, and a
- *  map sample is light, so an authored colour has to be in the same
- *  space before the multiply means anything. A `material::Color` is the
- *  encoded sRGB number instead, so every builder below takes one and
- *  stores `srgbToLinear` of it — the one place the transfer function is
- *  applied — while a field assigned directly is the light itself.
+/** The metallic-roughness ABI. Its colours are FACTORS ON THE MAPS in
+ *  their slots — `baseColor` on `baseColorMap`, `emissive` on
+ *  `emissiveMap` — and neither body transforms either side of that
+ *  multiply or the product it hands on: a map is sampled as the numbers
+ *  the image stores, and what comes out reaches the target as it is. So
+ *  a colour is held here exactly as it is typed, in the encoding the
+ *  images beside it are in, and a surface whose map is the white one
+ *  `surface()` dresses it with shows the colour it was given.
  *
  *  Each scalar is multiplied by the map in the matching slot, so a set
  *  that ships a metallic map wants `metallic = 1` for the map's values
@@ -110,10 +111,10 @@ struct SurfaceParameters {
   float ior = 1.5f;
   float thickness = 40;
   /** GLASS: what the medium takes out of the light per unit of
-   *  thickness, per channel — the Beer-Lambert coefficient, so a
-   *  quantity of light like the rest of these and not an encoded
-   *  colour. Zero is water-clear; a little in red and blue is what
-   *  makes thick glass green at its edge and clear across its face. */
+   *  thickness, per channel — the Beer-Lambert coefficient rather than
+   *  a colour anyone looks at, so nothing holds it inside the unit
+   *  range. Zero is water-clear; a little in red and blue is what makes
+   *  thick glass green at its edge and clear across its face. */
   Color absorption = {0, 0, 0, 1};
   /** How much environment an ADDITIVE reflection puts on the surface.
    *  The split-sum composition ignores it: there the weight IS the
@@ -125,13 +126,10 @@ struct SurfaceParameters {
   /** Warm metal at the reflectance gold actually has. */
   static SurfaceParameters gold();
   /** A metal at @p roughness — the study between a mirror and a matte
-   *  casting. @p tint is an encoded sRGB colour and is stored as the
-   *  light it stands for. */
+   *  casting. */
   static SurfaceParameters metal(Color tint, float roughness);
   /** A dielectric: not a metal, so it reflects a few per cent head on
-   *  and much more at the rim, and keeps its colour in the diffuse.
-   *  @p baseColor is an encoded sRGB colour and is stored as the light
-   *  it stands for. */
+   *  and much more at the rim, and keeps its colour in the diffuse. */
   static SurfaceParameters dielectric(Color baseColor, float roughness);
   /** Clear glass: what is behind it, refracted, with a reflection over
    *  the top. */

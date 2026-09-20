@@ -17,10 +17,8 @@ the renderer that owns the picture (`skia::palette`) and not here.
 
 `Color` is four straight (not premultiplied) sRGB floats, uploaded as one
 float4; `rgb(0xRRGGBB)` is its packed spelling. `Color.h` also holds the
-sRGB transfer function both ways — `srgbToLinear` and `linearToSrgb`, per
-component and over a whole colour, the colour form carrying alpha through
-untouched so a parameter that means QUANTITIES of light can take a colour
-at its door and give one back — and the OKLab round trip — `toOklab`,
+sRGB transfer function both ways — `srgbToLinear` and `linearToSrgb`, a
+component at a time — and the OKLab round trip — `toOklab`,
 `fromOklab`, `lerpOklab` — which every perceptual interpolation in the
 codebase runs through, plus OKLCH, its polar form, where the two numbers
 a harmony and a tone ladder are stated in — a chroma and a hue — are

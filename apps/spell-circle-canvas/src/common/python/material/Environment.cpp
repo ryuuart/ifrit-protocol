@@ -22,18 +22,16 @@ void bindMaterialEnvironment(py::module_& module) {
            {"absorption", &Parameters::absorption}}) {
     parameters.def_property(
         name,
-        // These fields hold light and a colour is the encoded number, so
-        // the transfer function is inverted on the way in and applied
-        // again on the way out. A colour therefore reads back as the
-        // colour class it was written with and at the value it was
-        // written with, so a parameter taken off one surface is a value
-        // the next one accepts without being spelled out into four
-        // numbers.
-        [member](const Parameters& self) {
-          return material::linearToSrgb(self.*member);
-        },
+        // A colour answers as the colour class rather than as four bare
+        // numbers, so a parameter taken off one surface is a value the
+        // next one accepts. Nothing is converted either way: these
+        // fields are factors on the maps beside them and `absorption`
+        // is a coefficient that runs past one, so a transfer function
+        // here would change what the author wrote and clip what does
+        // not belong inside the unit range.
+        [member](const Parameters& self) { return self.*member; },
         [member](Parameters& self, py::handle value) {
-          self.*member = material::srgbToLinear(material::Color(color(value)));
+          self.*member = material::Color(color(value));
         });
   }
   parameters.def_readwrite("metallic", &Parameters::metallic)

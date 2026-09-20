@@ -115,26 +115,6 @@ inline float linearToSrgb(float c) {
                          : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
 }
 
-/** A WHOLE COLOUR'S LIGHT: the three components through the inverted
- *  transfer function, alpha carried through untouched.
- *
- *  A `Color` is the encoded number an author types; a shading model
- *  multiplies quantities of light. The two are four floats either way,
- *  so a parameter that means light and is given a colour needs this
- *  spelled once where the colour enters it, and never again. */
-inline Color srgbToLinear(const Color& c) {
-  return {srgbToLinear(c.r), srgbToLinear(c.g), srgbToLinear(c.b), c.a};
-}
-
-/** Light back to the encoded colour, so a value written through
- *  `srgbToLinear` reads back as it was written. Each component is
- *  clamped to the unit range, which is where the curve is defined, so a
- *  channel carrying more light than white does not survive the trip. */
-inline Color linearToSrgb(const Color& light) {
-  return {linearToSrgb(light.r), linearToSrgb(light.g), linearToSrgb(light.b),
-          light.a};
-}
-
 /** sRGB to OKLab: linearise, project onto the cone response, take cube
  *  roots, and rotate into Lab. Alpha is carried through untouched. */
 inline Oklab toOklab(const Color& c) {

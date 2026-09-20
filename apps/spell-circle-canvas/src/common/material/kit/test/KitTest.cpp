@@ -220,46 +220,63 @@ TEST(Surface, BothRecipesCompileAndShade) {
   EXPECT_FALSE(kit::surface(parameters) == kit::unlit(parameters));
 }
 
-TEST(Surface, AnAuthoredColourBecomesLightExactlyOnce) {
-  // Mid-grey as an author types it, and the quantity of light it stands
-  // for. A builder takes the first and the parameter holds the second.
-  const float encoded = 0.5f;
-  const float light = srgbToLinear(encoded);
+TEST(Surface, AnAuthoredColourAndAMapTexelAreOneNumber) {
+  // A mid-grey as an author types it. A builder takes it and the
+  // parameter holds it, because nothing between the two has a space to
+  // convert between.
+  const int code = 128;
+  const float typed = (float)code / 255.0f;
   const kit::SurfaceParameters authored =
-      kit::SurfaceParameters::dielectric({encoded, encoded, encoded, 1}, 0.5f);
-  EXPECT_FLOAT_EQ(authored.baseColor.r, light);
-  EXPECT_FLOAT_EQ(authored.baseColor.g, light);
-  EXPECT_FLOAT_EQ(authored.baseColor.b, light);
+      kit::SurfaceParameters::dielectric({typed, typed, typed, 1}, 0.5f);
+  EXPECT_FLOAT_EQ(authored.baseColor.r, typed);
+  EXPECT_FLOAT_EQ(authored.baseColor.g, typed);
+  EXPECT_FLOAT_EQ(authored.baseColor.b, typed);
   EXPECT_FLOAT_EQ(authored.baseColor.a, 1.0f);
 
-  // The body multiplies the base colour by the sample of its map, so a
-  // colour written into the parameter and the same light sampled out of
-  // a flat map have to shade to one place — which they only do if the
-  // transfer function was applied on the way in and nowhere else.
-  const int step = (int)std::lround(light * 255.0f);
+  // The body multiplies the base colour by the sample of the map in its
+  // slot, so the colour in the parameter and the SAME colour carried by
+  // a flat map have to shade to one place. This is the claim for a real
+  // image: what a decoded texel carries is the number the image stores,
+  // which is the number the author typed.
   kit::SurfaceParameters white;
   white.baseColor = {1, 1, 1, 1};
   Material sampled = kit::unlit(white);
-  sampled.slot(kit::kBaseColorSlot,
-               Texture::of(test::solid(
-                               SkColorSetARGB(255, step, step, step), 4, 4))
-                   .tile(SkTileMode::kClamp));
-  const SkColor fromParameter = test::shade(kit::unlit(authored), 4, 4).getColor(1, 1);
+  sampled.slot(
+      kit::kBaseColorSlot,
+      Texture::of(test::solid(SkColorSetARGB(255, code, code, code), 4, 4))
+          .tile(SkTileMode::kClamp));
+  const SkColor fromParameter =
+      test::shade(kit::unlit(authored), 4, 4).getColor(1, 1);
   const SkColor fromMap = test::shade(sampled, 4, 4).getColor(1, 1);
   EXPECT_NEAR((int)SkColorGetR(fromParameter), (int)SkColorGetR(fromMap), 1);
   EXPECT_NEAR((int)SkColorGetG(fromParameter), (int)SkColorGetG(fromMap), 1);
   EXPECT_NEAR((int)SkColorGetB(fromParameter), (int)SkColorGetB(fromMap), 1);
 
-  // And it is the light that reaches the surface rather than the number
-  // the colour was spelled with: half the code value is a fifth of the
-  // light, which is nowhere near half way up.
-  EXPECT_LT((int)SkColorGetR(fromParameter), 80);
+  // And what the surface shows is the colour that was typed: a recipe
+  // that is its own light, over a white map, paints the number and not
+  // a transformation of it.
+  EXPECT_NEAR((int)SkColorGetR(fromParameter), code, 1);
+  EXPECT_NEAR((int)SkColorGetG(fromParameter), code, 1);
+  EXPECT_NEAR((int)SkColorGetB(fromParameter), code, 1);
+}
 
-  // A colour goes back the way it came, so a parameter read off one
-  // surface can be typed into the next.
-  const Color readBack = linearToSrgb(authored.baseColor);
-  EXPECT_NEAR(readBack.r, encoded, 1e-5f);
-  EXPECT_NEAR(readBack.a, 1.0f, 1e-6f);
+TEST(Surface, EveryColourFieldReachesTheUniformAsItWasWritten) {
+  kit::SurfaceParameters p = kit::SurfaceParameters::glass();
+  p.baseColor = {0.9f, 0.4f, 0.1f, 1};
+  p.emissive = {0.2f, 0.3f, 0.4f, 1};
+  // The Beer-Lambert coefficient is taken per unit of thickness, so a
+  // dense channel is a number above one: what would be out of range for
+  // a colour is in range for this, and nothing may hold it under one.
+  p.absorption = {4.0f, 0.5f, 0.25f, 1};
+  const Material m = kit::surface(p);
+  const Color baseColor = m.get<Color>("baseColor");
+  const Color emissive = m.get<Color>("emissive");
+  const Color absorption = m.get<Color>("absorption");
+  EXPECT_FLOAT_EQ(baseColor.r, 0.9f);
+  EXPECT_FLOAT_EQ(baseColor.b, 0.1f);
+  EXPECT_FLOAT_EQ(emissive.g, 0.3f);
+  EXPECT_FLOAT_EQ(absorption.r, 4.0f);
+  EXPECT_FLOAT_EQ(absorption.g, 0.5f);
 }
 
 TEST(Surface, DressesADecodedSet) {
