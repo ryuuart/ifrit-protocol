@@ -17,7 +17,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -41,8 +40,7 @@ void bindRegion(py::module_& composition) {
       "shape gate keeps. It is a value rather than a callable so a node "
       "masked by one still compares, and so still prunes.");
 
-  py::enum_<Region::Kind>(region, "Kind",
-                          "Which shape a region is.")
+  py::enum_<Region::Kind>(region, "Kind", "Which shape a region is.")
       .value("Own", Region::Kind::Own, "The node's own shape.")
       .value("Rect", Region::Kind::Rect, "A rectangle in local coordinates.")
       .value("Oval", Region::Kind::Oval,
@@ -139,12 +137,9 @@ void bindParts(py::module_& composition, py::module_& selections) {
                  "The text, image or custom leaf.");
   selections.def("children", &compose::parts::children,
                  "Everything under the node.");
-  selections.def(
-      "named",
-      [](const std::string& name) { return compose::parts::named(name); },
-      py::arg("name"),
-      "One mark, by the local name its slot call gave it. A name that "
-      "matches nothing selects nothing.");
+  selections.def("named", &compose::parts::named, py::arg("name"),
+                 "One mark, by the local name its slot call gave it. A name "
+                 "that matches nothing selects nothing.");
 }
 
 /** The gate value and the factories that build it. A gate is made by a
@@ -157,21 +152,19 @@ void bindGates(py::module_& composition, py::module_& gates) {
       "factories. Only the fields its kind reads are meaningful; the rest "
       "keep their defaults so the value compares.");
 
-  py::enum_<Gate::Kind>(gate, "Kind",
-                        "What decides whether paint arrives.")
-      .value("Spans", Gate::Kind::Spans,
-             "Runs of the boundary, by arc length.")
+  py::enum_<Gate::Kind>(gate, "Kind", "What decides whether paint arrives.")
+      .value("Spans", Gate::Kind::Spans, "Runs of the boundary, by arc length.")
       .value("Edge", Gate::Kind::Edge,
              "A straight wipe at an angle, to a fraction.")
-      .value("Shape", Gate::Kind::Shape,
-             "A region in the node's local space.")
+      .value("Shape", Gate::Kind::Shape, "A region in the node's local space.")
       .value("Coverage", Gate::Kind::Coverage,
              "Another paint's alpha or luma, per pixel.");
   py::enum_<Gate::Channel>(
-      gate, "Channel",
-      "Which channel of a coverage paint becomes coverage.")
-      .value("Alpha", Gate::Channel::Alpha)
-      .value("Luma", Gate::Channel::Luma);
+      gate, "Channel", "Which channel of a coverage paint becomes coverage.")
+      .value("Alpha", Gate::Channel::Alpha, "The coverage paint's alpha.")
+      .value("Luma", Gate::Channel::Luma,
+             "The coverage paint's luma, taken on the encoded, premultiplied "
+             "colour.");
 
   gate.def_readwrite("kind", &Gate::kind,
                      "Which of the fields below this gate reads.")
