@@ -265,20 +265,40 @@ std::size_t laneIndex(py::ssize_t index, std::size_t size) {
   return static_cast<std::size_t>(index);
 }
 
+/** What a slice says before it meets a length. A bound may be any object
+ *  that answers `__index__`, so reading the three of them runs Python, and
+ *  Python may change the pool's length while it runs: they are read before
+ *  the lane is asked for, and met with its length afterwards. */
+struct SliceBounds {
+  py::ssize_t start = 0;
+  py::ssize_t stop = 0;
+  py::ssize_t step = 1;
+};
+
+SliceBounds sliceBounds(const py::slice& index) {
+  SliceBounds bounds;
+  if (PySlice_Unpack(index.ptr(), &bounds.start, &bounds.stop, &bounds.step) <
+      0)
+    throw py::error_already_set();
+  return bounds;
+}
+
 /** The items a slice names, as where it starts, how it steps and how many
- *  it reaches in a lane of @p size items. */
+ *  it reaches. */
 struct LaneSlice {
   py::ssize_t start = 0;
   py::ssize_t step = 1;
   py::ssize_t count = 0;
 };
 
-LaneSlice laneSlice(const py::slice& index, std::size_t size) {
+/** @p bounds met with a lane of @p size items. Nothing here runs Python,
+ *  so a span taken before it is still the lane after it. */
+LaneSlice laneSlice(SliceBounds bounds, std::size_t size) {
   LaneSlice named;
-  py::ssize_t stop = 0;
-  if (!index.compute(static_cast<py::ssize_t>(size), &named.start, &stop,
-                     &named.step, &named.count))
-    throw py::error_already_set();
+  named.count = PySlice_AdjustIndices(static_cast<py::ssize_t>(size),
+                                      &bounds.start, &bounds.stop, bounds.step);
+  named.start = bounds.start;
+  named.step = bounds.step;
   return named;
 }
 
@@ -372,19 +392,21 @@ std::vector<Scalar> bufferScalars(const py::buffer_info& info, py::ssize_t rows,
 
 /** Writes @p values over the items @p index names. Everything Python
  *  hands over is read before the lane is asked for, because reading runs
- *  Python — an iterator, a number's own conversion — and Python may change
- *  the pool's length while it runs. A slice never changes that length, so
- *  the count has to match. */
+ *  Python — a slice bound, an iterator, a number's own conversion, a
+ *  buffer an object exports — and Python may change the pool's length
+ *  while it runs. A slice never changes that length, so the count has to
+ *  match. */
 template <class Item>
 void assignSlice(const Lane<Item>& lane, const py::slice& index,
                  const py::object& values) {
   using Traits = LaneTraits<Item>;
   using Scalar = typename Traits::Scalar;
+  const SliceBounds bounds = sliceBounds(index);
   if (PyObject_CheckBuffer(values.ptr())) {
     const py::buffer_info info =
         py::reinterpret_borrow<py::buffer>(values).request();
     const std::span<Item> items = lane.items();
-    const LaneSlice named = laneSlice(index, items.size());
+    const LaneSlice named = laneSlice(bounds, items.size());
     const std::vector<Scalar> numbers =
         bufferScalars<Scalar>(info, named.count, Traits::width);
     for (py::ssize_t row = 0; row < named.count; ++row)
@@ -396,7 +418,7 @@ void assignSlice(const Lane<Item>& lane, const py::slice& index,
   for (const py::handle value : py::reinterpret_borrow<py::iterable>(values))
     read.push_back(laneItem<Item>(value));
   const std::span<Item> items = lane.items();
-  const LaneSlice named = laneSlice(index, items.size());
+  const LaneSlice named = laneSlice(bounds, items.size());
   if (static_cast<py::ssize_t>(read.size()) != named.count)
     throw py::value_error("A slice of " + std::to_string(named.count) +
                           " items is assigned " + std::to_string(read.size()) +
@@ -529,8 +551,11 @@ void bindLane(py::module_& module, const char* documentation) {
       .def(
           "__getitem__",
           [](const Lane<Item>& lane, const py::slice& index) {
+            // The bounds are read first: reading them may run Python, and
+            // Python may change the pool's length while it runs.
+            const SliceBounds bounds = sliceBounds(index);
             const std::span<Item> items = lane.items();
-            const LaneSlice named = laneSlice(index, items.size());
+            const LaneSlice named = laneSlice(bounds, items.size());
             std::vector<Item> copied;
             copied.reserve(static_cast<std::size_t>(named.count));
             for (py::ssize_t row = 0; row < named.count; ++row)
