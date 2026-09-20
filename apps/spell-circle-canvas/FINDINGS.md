@@ -356,6 +356,17 @@ created before the material warm-up joins; a batch run has no frame
 anyone watches, but it draws the same programs, and letting it fill the
 store would make the first interactive open of a machine the cheap one.
 
+`sketch_pipeline_warmup` covers the second LAUNCH and not the second
+open inside one process, deliberately: within one process the programs
+are already standing in the context's own in-memory cache, which is what
+the tally counts as found, so a second open of the same sketch builds
+nothing whether or not a recorded set exists. Nothing there is this
+feature's to remove. What the in-process case would show is a different
+subject — the browser flipping between sketches, where each new sketch
+brings a stack the context has never built — and that is what the route
+of describing a SELECTED sketch's stacks ahead of opening it would
+serve. A test for it belongs with that route rather than with this one.
+
 A test should open a sketch in the window with a cold store and assert
 that the stack's programs are standing before its first frame, and that
 a headless run of the same sketch leaves a store the window run then

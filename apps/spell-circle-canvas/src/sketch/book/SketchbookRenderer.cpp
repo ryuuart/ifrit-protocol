@@ -125,10 +125,16 @@ void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   if (m_graphiteContext && m_graphiteContext->context()) {
     std::unique_ptr<skgpu::graphite::PrecompileContext> precompile =
         m_graphiteContext->makePrecompileContext();
-    if (precompile)
+    if (precompile) {
       m_pipelineWarmup = std::async(
           std::launch::async, warmStockPipelines, std::move(precompile),
           graphiteBackendName(*m_graphiteContext->context()));
+      // The hold belongs to THIS warm-up. A replaced QRhi runs all of
+      // this again against a new device, and a count left where the
+      // last warm-up put it is a hold already spent: the frame after it
+      // would draw straight away and pay for its own programs.
+      m_framesHeldForWarmup = 0;
+    }
   }
 #else
   g_backend.store(2);

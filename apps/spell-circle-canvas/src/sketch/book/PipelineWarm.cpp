@@ -27,6 +27,7 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -58,8 +59,15 @@ bool namesEveryPipeline() {
   return asked;
 }
 
-/** WHAT THIS RUN'S PROGRAMS WERE: one key per program built, and the
- *  counts the closing line reports.
+/** THE CEILING ON A WRITTEN SET, which a run that opened a handful of
+ *  sketches does not reach. What ordinarily bounds the file is that
+ *  only the programs a run's own draws wanted go into it; this is for
+ *  the run that walked the whole registry, whose draws wanted more
+ *  programs than any later launch should stand up before drawing. */
+constexpr size_t kMostKeysWrittenDown = 256;
+
+/** WHAT THIS RUN'S PROGRAMS WERE: one key per program built, which of
+ *  them a draw asked for, and the counts the closing line reports.
  *
  *  Reached from the pool every context builds its programs on and from
  *  every thread that records a draw, at the same time, so everything
@@ -76,39 +84,71 @@ class PipelineRecord final
       ++m_builtAhead;
     else
       ++m_builtForADraw;
+    // A program built for a draw is one a draw wanted, there and then.
+    // One built ahead is a guess until a draw finds it.
+    if (!fromPrecompile) m_wanted.insert(uniqueHash);
     if (namesEveryPipeline())
       std::fprintf(stderr, "[sketchbook] pipeline %s %08x%s: %s\n",
                    fromPrecompile ? "ahead" : "for a draw", uniqueHash,
                    key ? "" : " (no key)", label.c_str());
     if (!key || !m_seen.insert(uniqueHash).second) return;
-    m_recorded.push_back({std::move(key), label});
+    m_recorded.push_back({uniqueHash, {std::move(key), label}});
   }
 
-  void found(const std::string&, std::uint32_t, bool fromPrecompile) override {
+  void found(const std::string&, std::uint32_t uniqueHash,
+             bool fromPrecompile) override {
     const std::lock_guard<std::mutex> held(m_lock);
     ++m_found;
     if (fromPrecompile) ++m_foundStanding;
+    // A draw asking for a program and getting one wanted it, however it
+    // came to be standing — which is how a key stood up from the file
+    // earns its place in the next one.
+    m_wanted.insert(uniqueHash);
   }
 
-  std::vector<pipelines::RecordedPipeline> recorded() const {
+  /** THE SET TO WRITE BACK, at most @p most of them: the programs this
+   *  run's DRAWS wanted, and only those.
+   *
+   *  A program stood up from the file is reported as built again, so a
+   *  run that wrote back everything it recorded would write back its
+   *  own replay: the set would then be every program every sketch ever
+   *  opened on the machine needed, each one a program a later launch
+   *  stands up before its canvas draws whether that launch is opening
+   *  that sketch or not. What a run's draws wanted is the scope that
+   *  keeps the next launch's warm-up about the work in front of it. */
+  std::vector<pipelines::RecordedPipeline> toWriteDown(size_t most) const {
     const std::lock_guard<std::mutex> held(m_lock);
-    return m_recorded;
+    std::vector<pipelines::RecordedPipeline> writing;
+    writing.reserve(std::min(most, m_recorded.size()));
+    for (const Built& one : m_recorded) {
+      if (writing.size() >= most) break;
+      if (m_wanted.count(one.hash) != 0) writing.push_back(one.program);
+    }
+    return writing;
   }
 
-  void report(size_t replayed, size_t recorded) const {
+  void report(size_t replayed, size_t written) const {
     const std::lock_guard<std::mutex> held(m_lock);
     std::fprintf(stderr,
                  "[sketchbook] pipelines: %zu built for a draw, %zu built "
                  "ahead of one, %zu found standing (%zu of them stood up "
-                 "ahead), %zu replayed, %zu keys recorded\n",
+                 "ahead), %zu replayed, %zu of %zu keys written down\n",
                  m_builtForADraw, m_builtAhead, m_found, m_foundStanding,
-                 replayed, recorded);
+                 replayed, written, m_recorded.size());
   }
 
  private:
+  /** One program, and the hash the wanted set is kept by — which is the
+   *  backend's own, so the same program reported twice is one entry. */
+  struct Built {
+    std::uint32_t hash;
+    pipelines::RecordedPipeline program;
+  };
+
   mutable std::mutex m_lock;
-  std::vector<pipelines::RecordedPipeline> m_recorded;
+  std::vector<Built> m_recorded;
   std::unordered_set<std::uint32_t> m_seen;
+  std::unordered_set<std::uint32_t> m_wanted;
   size_t m_builtForADraw = 0;
   size_t m_builtAhead = 0;
   size_t m_found = 0;
@@ -132,15 +172,21 @@ std::vector<sk_sp<SkRuntimeEffect>> g_declared;
  *  shorter list than the one above — see `buildStagesAhead`. */
 std::vector<sk_sp<SkRuntimeEffect>> g_stages;
 std::filesystem::path g_storeDirectory;
-bool g_open = false;
 
 /** WHAT THE WARM-UPS SHARE, and the lock over it. A window stands more
  *  than one canvas up, each with a context and a warm-up of its own —
  *  the programs are a context's, so each has to build its own — and
  *  they run at the same time on their own workers. The file they read
  *  and write back is one file, so only one of them is inside here at a
- *  time and the name is worked out once. */
+ *  time and the name is worked out once.
+ *
+ *  The flag is under the same lock as everything it gates, and for the
+ *  same reason: it is set on the thread the process starts on and
+ *  cleared there while a worker may still be inside, and a worker that
+ *  reads it outside the lock could go on to record into a set already
+ *  written. */
 std::mutex g_warmupLock;
+bool g_open = false;
 std::filesystem::path g_keySetFile;
 size_t g_replayed = 0;
 
@@ -269,6 +315,7 @@ std::string graphiteBackendName(const skgpu::graphite::Context& context) {
 }
 
 void openPipelineWarmup(const std::filesystem::path& storeDirectory) {
+  const std::lock_guard<std::mutex> alone(g_warmupLock);
   g_storeDirectory = storeDirectory;
   const std::vector<sk_sp<SkRuntimeEffect>> declarable =
       everyDeclarableProgram();
@@ -295,8 +342,9 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory) {
 void warmStockPipelines(
     std::unique_ptr<skgpu::graphite::PrecompileContext> precompile,
     std::string backend) {
-  if (!g_open || !precompile) return;
+  if (!precompile) return;
   const std::lock_guard<std::mutex> alone(g_warmupLock);
+  if (!g_open) return;
   if (g_keySetFile.empty())
     g_keySetFile = pipelines::keySetFile(
         g_storeDirectory, pipelines::keySetName(g_declared, backend));
@@ -324,33 +372,44 @@ void warmStockPipelines(
     if (precompile->precompile(one.key)) ++replayed;
   }
   g_replayed += replayed;
-  if (replayed > 0) {
+  // WHAT THE SET WAS WORTH, said whenever there was one. A store whose
+  // every key has gone stale is the one state an operator has to be
+  // able to see: the stale drop works around a crash, so a set silently
+  // dropped whole reads as a warm-up that helps and costs nothing while
+  // being neither.
+  if (!recorded.empty())
     std::fprintf(stderr,
                  "[sketchbook] pipelines: %zu of %zu recorded programs stood "
                  "up before the first frame, %zu no longer described what "
                  "they described\n",
                  replayed, recorded.size(), stale);
-    return;
-  }
-  // NOTHING TO REPLAY: a fresh machine, an edited shader, a Skia that
-  // no longer reads the last run's keys. The effect stages are what can
-  // be known without having read a sketch.
+  if (replayed > 0) return;
+  // NOTHING STOOD UP: a fresh machine, an edited shader, a Skia that no
+  // longer reads the last run's keys. The effect stages are what can be
+  // known without having read a sketch.
   const size_t stages = buildStagesAhead(*precompile, g_stages);
   std::fprintf(stderr,
-               "[sketchbook] pipelines: no recorded set for this build, %zu "
-               "effect stages stood up instead\n",
+               "[sketchbook] pipelines: %s, %zu effect stages stood up "
+               "instead\n",
+               recorded.empty()
+                   ? "no recorded set for this build"
+                   : "none of the recorded set still described what it "
+                     "described",
                stages);
 }
 
 void finishPipelineWarmup() {
+  const std::lock_guard<std::mutex> alone(g_warmupLock);
   if (!g_open) return;
   g_open = false;
-  const std::lock_guard<std::mutex> alone(g_warmupLock);
-  const std::vector<pipelines::RecordedPipeline> keys = recorder()->recorded();
+  // No file name means no context was ever warmed: this run drew
+  // through no Graphite, nothing was recorded or replayed, and a tally
+  // of zeroes on a lane the warm-up cannot serve says only that.
+  if (g_keySetFile.empty()) return;
+  const std::vector<pipelines::RecordedPipeline> keys =
+      recorder()->toWriteDown(kMostKeysWrittenDown);
   recorder()->report(g_replayed, keys.size());
-  // No file name means no context was ever warmed, so nothing in this
-  // run knows which backend the keys would be for.
-  if (g_keySetFile.empty() || keys.empty()) return;
+  if (keys.empty()) return;
   if (!pipelines::writeKeySet(g_keySetFile, keys))
     std::fprintf(stderr, "[sketchbook] pipelines: could not write %s\n",
                  g_keySetFile.c_str());

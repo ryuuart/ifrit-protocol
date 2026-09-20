@@ -853,6 +853,18 @@ and not an empty one. A first frame recorded beside the warm-up would ask for
 the very programs it is building, which is the stall moved rather than
 removed.
 
+**What is written back is what the run's DRAWS wanted**, not everything it
+built: a program a draw asked for, whether it was built for that draw or
+found standing because the replay had stood it up. A replayed program is
+reported as built again, so a run writing back everything it recorded would
+write back its own replay, and the set would grow into every program every
+sketch ever opened here needed — each one a program a later launch stands
+up before its canvas draws, whether that launch is opening that sketch or
+not, and the canvas holds its frames for the warm-up only so long. A sketch
+that stops being opened therefore falls out of the set rather than being
+stood up forever, and a run that walked the whole registry is cut at a
+ceiling no later launch should be made to warm.
+
 A key is replayed only if its description still reads back the same. A key
 names the pieces a program is inlined out of by number, and a piece the
 reading run cannot yet put a name to reads back as a hole — the backend makes
@@ -872,7 +884,12 @@ wears is not known before the sketch is read. Those are built as the draws
 ask for them, and recorded, which is what makes the second launch the cheap
 one. Each run says on stderr what it spent: how many programs it built for a
 draw, how many it stood up ahead of one, how many draws found a program
-already standing, and how many keys it wrote.
+already standing, and how many of the keys it recorded it wrote down. A run
+that found a set says how much of it stood up and how much of it no longer
+described what it described — a store gone wholly stale reads as a
+warm-up that is neither helping nor free, and is the one state worth
+seeing. A run with no Graphite behind its window says nothing at all: it
+neither records nor replays, so the tally would be zeroes.
 `SIGIL_SKETCHBOOK_PIPELINE_NAMES` adds one line per program, naming it, which
 is how to see which program a first frame still had to build.
 

@@ -15,8 +15,11 @@ twice over one store and reads the tally each run closes with.
 
 The first run starts on an empty store: it has nothing to replay, stands
 up what it can of the stock stages, builds the rest as the draws ask for
-them, and writes the set. The second run replays that set, and its draws
-must find programs standing that the first run had to build.
+them, and writes down the ones its draws wanted. The second run replays
+that set, and its draws must find programs standing that the first run
+had to build — and must write back a set no larger than the one they
+read, because a replayed program is reported as built again and a run
+writing back everything it recorded would grow the file at every launch.
 
 Usage (invoked by the build; the paths are all absolute):
   pipeline_warmup.py --sketchbook <Sketchbook binary> --sketch <name> \\
@@ -34,7 +37,7 @@ from pathlib import Path
 TALLY = re.compile(
     r"\[sketchbook\] pipelines: (\d+) built for a draw, (\d+) built ahead "
     r"of one, (\d+) found standing \((\d+) of them stood up ahead\), "
-    r"(\d+) replayed, (\d+) keys recorded"
+    r"(\d+) replayed, (\d+) of (\d+) keys written down"
 )
 
 
@@ -48,6 +51,7 @@ class Tally:
             self.found,
             self.found_standing,
             self.replayed,
+            self.written,
             self.recorded,
         ) = (int(group) for group in match.groups())
 
@@ -56,7 +60,8 @@ class Tally:
             f"{self.built_for_a_draw} built for a draw, "
             f"{self.built_ahead} built ahead, "
             f"{self.found} found ({self.found_standing} standing ahead), "
-            f"{self.replayed} replayed, {self.recorded} recorded"
+            f"{self.replayed} replayed, "
+            f"{self.written} of {self.recorded} written down"
         )
 
 
@@ -120,7 +125,8 @@ def main() -> None:
     written = sorted(store.glob("*.keys"))
     if len(written) != 1:
         sys.exit(f"expected one recorded set under {store}, found {written}")
-    print(f"recorded {written[0].name}, {written[0].stat().st_size} bytes")
+    first_bytes = written[0].stat().st_size
+    print(f"recorded {written[0].name}, {first_bytes} bytes")
 
     _, second = run(shot, environment)
     if "stood up before the first frame" not in second:
@@ -142,6 +148,27 @@ def main() -> None:
     print(
         f"the second open built {again.built_for_a_draw} programs for a draw "
         f"where the first built {opening.built_for_a_draw}",
+        flush=True,
+    )
+
+    # THE SET IS WHAT THE DRAWS WANTED, NOT EVERYTHING THAT WAS BUILT. A
+    # replayed program is reported as built again, so a run that wrote
+    # back everything it recorded would write back its own replay and the
+    # file would grow at every launch — and every key in it is a program
+    # the next launch stands up before its canvas draws.
+    rewritten = sorted(store.glob("*.keys"))
+    if len(rewritten) != 1:
+        sys.exit(f"expected one recorded set under {store}, found {rewritten}")
+    second_bytes = rewritten[0].stat().st_size
+    if second_bytes > first_bytes:
+        sys.exit(
+            f"the recorded set grew from {first_bytes} to {second_bytes} "
+            f"bytes over a second open of the same sketch — a launch is "
+            f"writing back more than its draws wanted"
+        )
+    print(
+        f"the recorded set held at {second_bytes} bytes against the first "
+        f"open's {first_bytes}",
         flush=True,
     )
 

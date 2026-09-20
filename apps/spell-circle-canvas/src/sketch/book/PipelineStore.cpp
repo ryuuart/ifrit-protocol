@@ -148,9 +148,13 @@ bool writeKeySet(const fs::path& file,
     writeNumber(open, (std::uint32_t)one.description.size());
     std::fwrite(one.description.data(), 1, one.description.size(), open);
   }
-  const bool whole = std::ferror(open) == 0;
-  std::fclose(open);
-  if (!whole) {
+  // BOTH HALVES OF THE WRITE. The close flushes the stream's last
+  // buffer, so a write can still fail inside it — a file called whole
+  // before the close and renamed over the last good one would lose its
+  // tail with nothing saying so.
+  const bool written = std::ferror(open) == 0;
+  const bool closed = std::fclose(open) == 0;
+  if (!written || !closed) {
     fs::remove(beside, ec);
     return false;
   }

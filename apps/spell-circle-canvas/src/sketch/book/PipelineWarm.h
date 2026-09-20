@@ -54,10 +54,21 @@ void warmStockPipelines(
     std::unique_ptr<skgpu::graphite::PrecompileContext> precompile,
     std::string backend);
 
-/** WRITES BACK WHAT THIS RUN BUILT, and says on stderr what the run
- *  cost in programs. Called once, after the last context is gone, so
- *  the set is everything the run needed rather than everything it had
- *  needed by then. */
+/** WRITES BACK WHAT THIS RUN'S DRAWS WANTED, and says on stderr what
+ *  the run cost in programs. Called once, after the last context is
+ *  gone, so the set is everything the run needed rather than everything
+ *  it had needed by then.
+ *
+ *  ONLY the programs a draw asked for. A program stood up from the file
+ *  is reported as built again, so writing back everything recorded
+ *  would write back the replay as well and the set would become every
+ *  program every sketch ever opened here needed — each one a program a
+ *  later launch stands up before its canvas draws whether it is opening
+ *  that sketch or not.
+ *
+ *  Says nothing where no context was ever warmed — a window with no
+ *  Graphite behind it neither records nor replays, and a tally of
+ *  zeroes on such a lane says only that. */
 void finishPipelineWarmup();
 
 /** WHAT A BACKEND IS CALLED for the name a recorded set answers to: a
