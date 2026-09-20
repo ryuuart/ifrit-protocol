@@ -53,7 +53,7 @@ def bead(index, diameter=12):
         .height(diameter)
         .borderRadius(diameter / 2)
         .fill(colors[index % len(colors)])
-        .shrink(0)
+        .flexShrink(0)
     )
 
 
@@ -68,7 +68,7 @@ def radial():
                 marks.centred(text(f"{i + 1:02}", size=10, color=TEAL))
                 .width(24)
                 .height(24)
-                .shrink(0)
+                .flexShrink(0)
                 for i in range(12)
             ]
         )

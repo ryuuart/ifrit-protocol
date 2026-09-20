@@ -145,7 +145,7 @@ struct Options {
  *  between.
  *
  *  The returned column is an ordinary Element: give it a size, a fill, a
- *  `grow(1)`, or append something after the rows (a caret, a "…more"
+ *  `flexGrow(1)`, or append something after the rows (a caret, a "…more"
  *  affordance) with `.children({…})`. */
 template <class T, class RowFunction>
   requires std::invocable<RowFunction, const T&>

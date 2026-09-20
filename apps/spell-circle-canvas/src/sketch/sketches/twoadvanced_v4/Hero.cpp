@@ -363,9 +363,8 @@ auto TwoAdvancedV4::mainframe() -> Element {
                                                 10, 2, 3, shapes::Corner::All})
 
                    .children({slot("mfload")})});
-  Element body = box().grow(1).clip().children(
-      {hero(1178, 316), each(6, slat),
-       std::move(accessing)});
+  Element body = box().flexGrow(1).clip().children(
+      {hero(1178, 316), each(6, slat), std::move(accessing)});
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("mainframe")
@@ -418,9 +417,9 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
   for (const sigil::data::Json& caption : doc()["stills"].items()) {
     ++i;
     const float g = 0.30f + 0.18f * (float)i;
-    Element cell = box().grow(1).column().gap(3).children(
+    Element cell = box().flexGrow(1).column().gap(3).children(
         {box()
-             .grow(1)
+             .flexGrow(1)
              .shape(shapes::chamfered(7, shapes::Corner::Diagonal))
              .fill(mskia::Paint::linearUnit(
                  {0, 0}, {0, 1},

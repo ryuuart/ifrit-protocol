@@ -122,7 +122,7 @@ constexpr Dimension ph(float v) {
  *  opposite inset, size it rather than stretching it across the box. */
 constexpr Dimension autoDimension() { return {}; }
 
-/** `width(50_pct)`, `width(50_pw)`, `top(10_ph)`, `basis(120_px)` — for the
+/** `width(50_pct)`, `width(50_pw)`, `top(10_ph)`, `flexBasis(120_px)` — for the
  *  Dimension-valued setters; exposed by `using namespace sigil::compose` (or
  *  `using namespace sigil::compose::literals`). */
 inline namespace literals {

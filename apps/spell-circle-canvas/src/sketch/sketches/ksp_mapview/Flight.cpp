@@ -368,7 +368,7 @@ auto KspMapView::staging() -> Element {
                Fill::color(hexColor(0x141414, 0.9f)), 8.0f, 4.0f, -45.0f)),
        box()
            .row()
-           .grow(1)
+           .flexGrow(1)
            .gap(5)
            .padding(0, 6, 0, 6)
            .alignItems(Align::Center)
@@ -381,7 +381,8 @@ auto KspMapView::staging() -> Element {
                                                    {0.5f, kGo},
                                                    {1.0f, hexColor(0x2E6E33)}}))
                           .opacity(&goPulse),
-                      t("STAGE", bold(9, hexColor(0xE8ECEE))), box().grow(1),
+                      t("STAGE", bold(9, hexColor(0xE8ECEE))),
+                      box().flexGrow(1),
                       box().row().gap(2).children(std::vector<Element>{
                           digitCell("0"), digitCell("0"), digitCell("1")})})});
   g.children({std::move(stage)});

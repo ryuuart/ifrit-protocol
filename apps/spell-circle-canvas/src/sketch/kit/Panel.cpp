@@ -61,7 +61,7 @@ compose::Element panel(const Panel& region, compose::Element content) {
 
 compose::Element frame(const Frame& chrome, compose::Element screen) {
   const Theme& look = theme();
-  Element opening = compose::box().column().grow(1);
+  Element opening = compose::box().column().flexGrow(1);
   chrome.screen.value_or(Fill::color(look.palette.ground)).apply(opening);
   opening.clip().children({std::move(screen)});
   if (const float round =

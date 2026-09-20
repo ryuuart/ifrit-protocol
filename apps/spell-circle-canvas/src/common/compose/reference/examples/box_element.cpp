@@ -29,8 +29,8 @@ Element card(const char* title, const char* body) {
       .column()
       .gap(10)
       .padding(18)
-      .basis(0)
-      .grow(1)
+      .flexBasis(0)
+      .flexGrow(1)
       .borderRadius({10})
       .fill(kCard)
       .children({text(title).font({.size = 17, .color = kInk}),

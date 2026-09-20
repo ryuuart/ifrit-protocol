@@ -25,8 +25,8 @@ Element cell(const char* caption, SkBlendMode mode) {
   return box()
       .column()
       .gap(10)
-      .basis(0)
-      .grow(1)
+      .flexBasis(0)
+      .flexGrow(1)
       .alignItems(Align::Center)
       .children(
           {stack()

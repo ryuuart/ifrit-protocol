@@ -42,14 +42,14 @@ inline Element marquee(const Element& content, MarqueeOptions how) {
   auto copy = [&] {
     return pin ? box()
                      .width(Dimension(how.contentWidth))
-                     .shrink(0)
+                     .flexShrink(0)
                      .children({content})
                : content;
   };
   return box().clip(true).children({box()
                                         .row()
                                         .gap(how.gap)
-                                        .shrink(0)
+                                        .flexShrink(0)
                                         .alignSelf(Align::Start)
                                         .translateX(std::move(how.phase))
                                         .children({copy()})

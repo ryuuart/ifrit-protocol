@@ -575,7 +575,7 @@ TEST(ComposeGrid, TextWrapsAtItsResolvedTrackWidthBeforeRowsAreSized) {
            .key("grid")
            .row()
            .alignItems(Align::Start)
-           .children({paragraph().key("paragraph").shrink(0).cells(0, 0),
+           .children({paragraph().key("paragraph").flexShrink(0).cells(0, 0),
                       box().height(18).cells(1, 0),
                       box().key("nextRow").height(20).cells(0, 1)}),
        box().key("following").height(20)}));
@@ -612,7 +612,7 @@ TEST(ComposeGrid, TextWrapsAtItsBoundedWidthBeforeRowsAreSized) {
   for (const bool maximum : {true, false}) {
     const float trackWidth = maximum ? 240 : 80;
     const float expectedWidth = maximum ? 100 : 140;
-    Element bounded = paragraph().key("paragraph").shrink(0).cells(0, 0);
+    Element bounded = paragraph().key("paragraph").flexShrink(0).cells(0, 0);
     if (maximum)
       bounded.maxWidth(expectedWidth);
     else
@@ -661,7 +661,7 @@ TEST(ComposeGrid, ACustomSchemeCanReturnFewerRectsAfterTextReflow) {
           .children(
               {text(u8"A sentence becomes several lines at the proposed width.",
                     styleAt(16))
-                   .shrink(0)}));
+                   .flexShrink(0)}));
   host.frame();
   EXPECT_TRUE(*scheme.shortened);
 }
@@ -720,7 +720,7 @@ TEST(ComposeGrid, EqualModulesRespectSpansAndFlowIntoFreeCells) {
   host.composer.render(box().children(
       {layout(grid)
            .width(pct(100))
-           .grow(1)
+           .flexGrow(1)
            .children({box().key("a").cells(0, 0, 2, 1).fill(red())})
            .children({box().key("b").cells(3, 0, 1, 3).fill(blue())})
            .children({box().key("c").fill(green())})

@@ -143,7 +143,7 @@ struct PaintShelf {
     // is read by.
     const auto pair = [&](bool world) {
       return box().row().padding(18, 34).gap(16).children({each(2, [&](int) {
-        return box().grow(1).alignSelf(Align::Stretch).fill(field(world));
+        return box().flexGrow(1).alignSelf(Align::Stretch).fill(field(world));
       })});
     };
 

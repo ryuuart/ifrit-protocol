@@ -25,11 +25,12 @@ TEST(ComposeLayout, ACanvasRelativeLengthIsTheRootsBoxHoweverDeepItIsWritten) {
   // in, and it follows the canvas when the canvas changes size.
   Host host(400, 200);
   const auto tree = [] {
-    // shrink(0) on both: what is read back is what each unit RESOLVED to,
+    // flexShrink(0) on both: what is read back is what each unit RESOLVED to,
     // not how the flex line fitted it afterwards.
     return box().padding(50).children({box().width(100).height(100).children(
-        {box().key("canvas").width(50_pw).height(50_ph).shrink(0).fill(red()),
-         box().key("parent").width(50_pct).height(50_pct).shrink(0).fill(
+        {box().key("canvas").width(50_pw).height(50_ph).flexShrink(0).fill(
+             red()),
+         box().key("parent").width(50_pct).height(50_pct).flexShrink(0).fill(
              green())})});
   };
   host.composer.render(tree());

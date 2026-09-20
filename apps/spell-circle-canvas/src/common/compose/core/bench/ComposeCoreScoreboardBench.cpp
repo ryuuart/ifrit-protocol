@@ -36,7 +36,7 @@ Element scoreRow(const Row& row) {
       .padding(8)
       .borderRadius({6})
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
-      .children({text(row.name, style).grow(1),
+      .children({text(row.name, style).flexGrow(1),
                  text(std::to_string(row.score), style)});
 }
 

@@ -114,7 +114,7 @@ struct CdeMotifSketch {
         .padding(2, 1)
         .children({furniture(std::move(menuGlyph)),
                    kit::centred()
-                       .grow(1)
+                       .flexGrow(1)
 
                        .children({cde::label(t)}),
                    furniture(std::move(minGlyph)), box().width(2),
@@ -132,7 +132,7 @@ struct CdeMotifSketch {
                       .alignItems(Align::Center)
                       .padding(10, 1);
     for (int i = 0; i < (int)items.size(); ++i) {
-      if (i == rightFrom) bar.children({box().grow(1)});
+      if (i == rightFrom) bar.children({box().flexGrow(1)});
       bar.children({box().padding(8, 4).children(
           {cde::mnemonicLabel(items[(size_t)i], s.fg, 0)})});
     }
@@ -188,7 +188,7 @@ struct CdeMotifSketch {
           return kit::centred()
               .width(15)
               .height(15)
-              .shrink(0)
+              .flexShrink(0)
               .fill(c3.bg)
               .overlay(cde::bevel(2, false, false))
 
@@ -224,19 +224,19 @@ struct CdeMotifSketch {
 
       Element client =
           cde::surface(c5)
-              .grow(1)
+              .flexGrow(1)
               .column()
               .children({std::move(pathRow)})
               // The icon pane is an XmScrolledWindow: XmSHADOW_IN at
               // T = 2, which is why a CDE file view reads as a well and
               // not as a sheet of colour.
               .children({box()
-                             .grow(1)
+                             .flexGrow(1)
                              .margin(6, 0, 6, 0)
                              .row()
                              .overlay(cde::bevel(2, true, false))
                              .padding(2)
-                             .children({box().grow(1).clip().children(
+                             .children({box().flexGrow(1).clip().children(
                                             {std::move(grid)}),
                                         std::move(scrollbar)}),
                          box().height(2).margin(2, 3).overlay(
@@ -248,7 +248,7 @@ struct CdeMotifSketch {
                              .padding(8, 2)
                              .children({cde::label(page["status"])})});
 
-      window = box().grow(1).column().children(
+      window = box().flexGrow(1).column().children(
           {std::move(title), menuBar(cde::wordList(page["menu"]), 3),
            std::move(client)});
     }
@@ -268,7 +268,7 @@ struct CdeMotifSketch {
     Element list = cde::surface(c6)
                        .overlay(cde::bevel(2, true, false))
                        .padding(2)
-                       .grow(1)
+                       .flexGrow(1)
                        .column();
     for (int i = 0; i < (int)cde::kPalettes.size(); ++i) {
       const bool current = i == paletteIndex;
@@ -334,8 +334,8 @@ struct CdeMotifSketch {
                  cde::pushButton(page["buttons"][3].text())});
 
     Element body =
-        cde::surface(c2).grow(1).column().padding(10).gap(10).children(
-            {box().row().gap(12).grow(1).children(
+        cde::surface(c2).flexGrow(1).column().padding(10).gap(10).children(
+            {box().row().gap(12).flexGrow(1).children(
                  {box().gap(4).children(
                       {cde::label(page["palettes"]), std::move(listPane)}),
                   box().gap(4).children({cde::label(page["sets"]),
@@ -345,7 +345,7 @@ struct CdeMotifSketch {
              box().height(2).overlay(cde::bevel(2, false, true)),
              std::move(buttons)});
 
-    return windowFrame(box().grow(1).column().children(
+    return windowFrame(box().flexGrow(1).column().children(
         {titleBar(page["title"], false), std::move(body)}));
   }
 
@@ -360,7 +360,7 @@ struct CdeMotifSketch {
                         .alignItems(Align::Center)
                         .height(24)
                         .padding(14, 0)
-                        .children({cde::label(t), box().grow(1)});
+                        .children({cde::label(t), box().flexGrow(1)});
       if (cascade)
         row.children({box().width(9).height(9).fill(s.bg).overlay(
             cde::bevel(2, false, false))});
@@ -472,7 +472,7 @@ struct CdeMotifSketch {
 
   Element panelSeparator() {
     return box().width(2).column().children(
-        {box().grow(1).overlay(cde::bevel(2, true, true))});
+        {box().flexGrow(1).overlay(cde::bevel(2, true, true))});
   }
 
   /** A Front Panel control: a 48 x 48 icon, 4 px either side, with the
@@ -670,7 +670,7 @@ struct CdeMotifSketch {
         .overlay(cde::bevel(2, false, false))
         .padding(4)
         .children({box()
-                       .grow(1)
+                       .flexGrow(1)
                        .fill(s.bg)
                        .overlay(cde::bevel(2, false, false))
                        .padding(2)

@@ -83,7 +83,7 @@ sound model; nothing below them changes kernel semantics.
   `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `aspect`,
   `boxSizing`, `display`.
 - `core/verbs/Flex.h` — `FlexVerbs`: `flexDirection`, `row`, `column`,
-  `flexWrap`, `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`,
+  `flexWrap`, `flexGrow`, `flexShrink`, `flexBasis`, `alignItems`, `alignSelf`,
   `justifyContent`.
 - `core/verbs/Placement.h` — `PlacementVerbs`: `absolute`, `cover`,
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`, `cells`,

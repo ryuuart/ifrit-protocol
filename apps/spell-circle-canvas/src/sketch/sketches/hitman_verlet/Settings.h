@@ -230,7 +230,7 @@ inline Element panel(float height, std::string_view heading, int order) {
       .column()
       .width(kColW)
       .height(height)
-      .shrink(0)
+      .flexShrink(0)
       .padding(kPanelPad)
       .gap(7)
       .borderRadius({5})
@@ -241,7 +241,7 @@ inline Element panel(float height, std::string_view heading, int order) {
       .translateX(
           animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order))
-      .children({t(heading, ui(9.5f, kSteel, 1.9f)).height(12).shrink(0)});
+      .children({t(heading, ui(9.5f, kSteel, 1.9f)).height(12).flexShrink(0)});
 }
 
 }  // namespace hitman_verlet

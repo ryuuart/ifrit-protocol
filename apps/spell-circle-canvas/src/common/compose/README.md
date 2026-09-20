@@ -172,7 +172,7 @@ Element meter(const Channel &c) {
       // A mark on part of the boundary: L-brackets at every tangent break.
       .stroke(spans::corners(12), stroke(1.5f, Fill::color(ink)))
       .children({text(c.label, weave::textStyle({.size = 13, .color = ink})), box()
-                 .grow()
+                 .flexGrow()
                  .height(6)
                  .fill(ink)
                  .transformOrigin(pct(0), pct(50))

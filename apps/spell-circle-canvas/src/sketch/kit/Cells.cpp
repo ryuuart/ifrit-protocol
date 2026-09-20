@@ -110,7 +110,7 @@ compose::Element comparison(Comparison specification) {
       if (!one.title.empty())
         children.push_back(document::label(std::move(one.title))
                                .width(columnWidth)
-                               .shrink(0)
+                               .flexShrink(0)
                                .cells(int(column), row));
       ++row;
     }
@@ -121,21 +121,21 @@ compose::Element comparison(Comparison specification) {
                 .role(weave::rule("code").font(
                     look.font({.size = 10.5f, .mono = true}, look.palette.ash)))
                 .width(columnWidth)
-                .shrink(0)
+                .flexShrink(0)
                 .cells(int(column), row));
       ++row;
     }
     children.push_back(box()
                            .column()
                            .width(columnWidth)
-                           .shrink(0)
+                           .flexShrink(0)
                            .alignItems(Align::Center)
-                           .children({std::move(one.figure.shrink(0))})
+                           .children({std::move(one.figure.flexShrink(0))})
                            .cells(int(column), row++));
     if (notes && !one.note.empty())
       children.push_back(document::caption(std::move(one.note))
                              .width(columnWidth)
-                             .shrink(0)
+                             .flexShrink(0)
                              .cells(int(column), row));
   }
   // Grid places already-measured children. Measure its tracks side by side
@@ -149,7 +149,7 @@ compose::Element comparison(Comparison specification) {
                     .down = Align::Start})
       .row()
       .width(specification.measure)
-      .shrink(0)
+      .flexShrink(0)
       .alignItems(Align::Start)
       .children(std::move(children));
 }

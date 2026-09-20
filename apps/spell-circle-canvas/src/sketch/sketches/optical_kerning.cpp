@@ -166,7 +166,7 @@ struct OpticalKerning {
             .gap(24)
             .children({sketch::kit::readout(
                            pairs, {.measure = kReading - 44, .ruled = true})
-                           .shrink(0),
+                           .flexShrink(0),
                        box().column().gap(4).children(
                            {document::eyebrow("WHOLE LINE"),
                             text(lineDelta)

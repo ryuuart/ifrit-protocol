@@ -745,7 +745,7 @@ struct PassiveTree {
                          .font({.size = 12,
                                 .color = SkColor4f{0.62f, 0.68f, 0.90f, 1},
                                 .track = 0.2f})
-                         .grow(1)});
+                         .flexGrow(1)});
     })});
     if (detail->flavour)
       card.children({text(detail->flavour)

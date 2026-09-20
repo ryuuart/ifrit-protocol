@@ -316,8 +316,8 @@ struct Y2kChrome {
             .alignItems(Align::Center)
             .height(yc::kStatusH)
             .children({text(unit, yc::type(11, hexColor(0x39424C), 1.0f, 550))
-                           .shrink(0)});
-    if (unitW > 0) content.width(unitW).shrink(0);
+                           .flexShrink(0)});
+    if (unitW > 0) content.width(unitW).flexShrink(0);
     return content;
   }
 
@@ -350,7 +350,7 @@ struct Y2kChrome {
                                   .weight = 600,
                                   .underlays = {{yc::ground(
                                       {0, 0.04f, 0.10f, 0.6f})}}}),
-                       box().grow(1), yc::chromeSquare(hexColor(0xD4D0C8)),
+                       box().flexGrow(1), yc::chromeSquare(hexColor(0xD4D0C8)),
                        yc::chromeSquare(hexColor(0xD4D0C8)),
                        yc::chromeSquare(hexColor(0xC87050))});
 
@@ -499,7 +499,7 @@ struct Y2kChrome {
     // seam, with the wrap this file already keeps on `tickX`.
     Element strip = sketch::kit::ticker(
         {.content = stripContent(), .phase = &tickX, .gap = yc::kTickerGap});
-    strip.grow(1);
+    strip.flexGrow(1);
     Element statusBar =
         box()
             .height(yc::kStatusH)
@@ -577,13 +577,13 @@ struct Y2kChrome {
                  .stroke(stroke(1, Fill::color(hexColor(0x70777E))))
                  .children(
                      {titleBar,
-                      box().column().grow(1).padding(28, 12).children(
-                          {box().grow(0.55f),
+                      box().column().flexGrow(1).padding(28, 12).children(
+                          {box().flexGrow(0.55f),
                            box()
                                .row()
                                .justifyContent(Justify::Center)
                                .children({wordmark}),
-                           tagline, pills, abCard, box().grow(1),
+                           tagline, pills, abCard, box().flexGrow(1),
                            // 3D groove rule - the <hr> of the period
                            box()
                                .height(2)
@@ -618,7 +618,7 @@ struct Y2kChrome {
                                                   "industries — "
                                                   "best viewed at 800×600")
                                                  .styleClass("note")}),
-                                    box().grow(1),
+                                    box().flexGrow(1),
                                     box()
                                         .column()
                                         .alignItems(Align::End)

@@ -280,7 +280,7 @@ Element decoratedRow(const Row& row) {
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
       .background(shadow({0, 0, 0, 0.5f}, {0, 2}, 6))
       .foreground(stroke(1.5f, Fill::color({0.5f, 0.5f, 0.6f, 1})))
-      .children({text(row.name, style).grow(1),
+      .children({text(row.name, style).flexGrow(1),
                  text(std::to_string(row.score), style)});
 }
 

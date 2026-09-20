@@ -471,7 +471,7 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
     return box().row().gap(8).padding(12).children(
         {box().width(40).height(40).borderRadius({6}).fill(red()),
          text(u8"static", styleAt(18)).key("t"),
-         box().grow(1).fill(blue()).opacity(0.9f)});
+         box().flexGrow(1).fill(blue()).opacity(0.9f)});
   };
   host.composer.render(tree());
   host.frame();

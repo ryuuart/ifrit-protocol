@@ -128,7 +128,7 @@ auto SigillumAemeth::nameRows() -> Element {
                            .styleClass("raw")
                            .width(108)
                            .opacity(lit(at + 240)),
-                       text(chain).styleClass("chain").grow(1).opacity(
+                       text(chain).styleClass("chain").flexGrow(1).opacity(
                            lit(at + 60))});
       }));
 }

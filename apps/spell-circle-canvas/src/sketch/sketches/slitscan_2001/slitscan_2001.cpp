@@ -13,11 +13,12 @@ auto SlitScan2001::describe(sketch::SketchContext& ctx) -> Element {
       .padding(kPad)
       .gap(20)
       .fill(kInk)
-      .children({header(),
-                 box().row().gap(28).height(kBodyH).children(
-                     {box().column().width(kLeftW).shrink(0).gap(24).children(
-                          {filmFrame(), rigStrip()}),
-                      sidebar()})});
+      .children(
+          {header(),
+           box().row().gap(28).height(kBodyH).children(
+               {box().column().width(kLeftW).flexShrink(0).gap(24).children(
+                    {filmFrame(), rigStrip()}),
+                sidebar()})});
 }
 
 // ===========================================================================

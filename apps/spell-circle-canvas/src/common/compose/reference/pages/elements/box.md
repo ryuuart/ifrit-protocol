@@ -8,7 +8,7 @@ group: Containers
 python: sigil.compose.box
 status: stable
 example: box_element
-common_verbs: [row, column, gap, padding, fill, borderRadius, children, grow]
+common_verbs: [row, column, gap, padding, fill, borderRadius, children, flexGrow]
 ---
 
 # box
@@ -47,14 +47,14 @@ writes as `box().children({a, b})`.
 
 A box is a flex node. Its children lay out along the main axis its
 `row` or `column` chose — `row` unless it says otherwise — sized by
-their own dimensions, their `grow` and their `shrink`, and spaced by the
+their own dimensions, their `flexGrow` and their `flexShrink`, and spaced by the
 container's `gap`. `padding` is the air inside the box, `margin` the air
 outside it.
 
 A box with no children has no intrinsic size. It is exactly as big as it
 was told to be, and a box nobody sized measures zero on its main axis —
 which is the commonest way a leaf draws nothing at all. State a size, or
-let flex give it one with `grow`, or take the whole parent with
+let flex give it one with `flexGrow`, or take the whole parent with
 `cover`.
 
 The verbs are all on `Element`, so the same node that IS a container is

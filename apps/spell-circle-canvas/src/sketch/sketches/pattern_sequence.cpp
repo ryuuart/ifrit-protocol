@@ -120,10 +120,10 @@ struct PatternSequence {
     Element filters =
         sketch::kit::well({.width = kCell, .height = kPicture})
             .row()
-            .children({box().grow(1).fill(
+            .children({box().flexGrow(1).fill(
                            painted(pattern::Tile(squares).scale(5).filter(
                                SkFilterMode::kNearest))),
-                       box().grow(1).fill(
+                       box().flexGrow(1).fill(
                            painted(pattern::Tile(squares).scale(5).filter(
                                SkFilterMode::kLinear)))});
     ctx.composer.render(sketch::kit::page(

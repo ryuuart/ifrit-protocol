@@ -275,7 +275,7 @@ struct EmberDecode {
                   "— a WORD is a unit here, and the "
                   "runtime compiled and cached one variant per "
                   "count"),
-             box().grow(1),
+             box().flexGrow(1),
              text("one draw and one pass over each line's own box, "
                   "whatever N is · per-unit progress is "
                   "uniform DATA, not scene structure"),

@@ -42,7 +42,7 @@ class StackElement:
                 .right(18)
                 .bottom(16),
             )
-            .grow(1)
+            .flexGrow(1)
             .borderRadius(12)
             .fill(PLATE)
             .clip()

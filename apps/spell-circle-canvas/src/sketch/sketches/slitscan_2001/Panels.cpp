@@ -21,7 +21,7 @@ auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
       .styleSheet(std::move(classes))
       .column()
       .width(kSideW)
-      .shrink(0)
+      .flexShrink(0)
       .padding(11)
       .gap(4)
       .borderRadius({5})
@@ -53,18 +53,18 @@ auto SlitScan2001::prose(const data::Json& said) -> std::vector<Element> {
     if (!n["slot"].text().empty())
       return slot(std::string(n["slot"].text()))
           .height((float)n["height"].number(19.0))
-          .shrink(0);
+          .flexShrink(0);
     Element line = text(n["words"])
                        .font({.size = (float)n["size"].number(6.5)})
                        .styleClass(std::string(n["style"].text()))
-                       .shrink(0);
+                       .flexShrink(0);
     if (!n["marked"].boolean()) return line;
-    return box().row().gap(5).shrink(0).children(
+    return box().row().gap(5).flexShrink(0).children(
         {text("▸")
              .font({.face = uiFace(), .size = 9})
              .styleClass("red")
              .width(7),
-         line.grow(1)});
+         line.flexGrow(1)});
   });
 }
 
@@ -93,7 +93,7 @@ auto SlitScan2001::s3Law() -> Element {
       {box()
            .width(386)
            .height(62)
-           .shrink(0)
+           .flexShrink(0)
            .fill(al(kBlack, 0.6f))
            .stroke(stroke(1.0f, Fill::color(kRule)))
            .children(
@@ -106,7 +106,7 @@ auto SlitScan2001::s3Law() -> Element {
                                 to(1.0f), {520ms, ch::easeOutCubic, 1500ms})),
                             stroke(1.6f, Fill::color(kAmber))),
                 pen([this](Pen& p2) { drawMeasuredPoints(p2); }).inset(4)}),
-       slot("fit").height(21).shrink(0)});
+       slot("fit").height(21).flexShrink(0)});
   p.children({prose(said["lines"])});
   return p;
 }
@@ -123,7 +123,7 @@ auto SlitScan2001::s4Sampling() -> Element {
         return box()
             .row()
             .gap(5)
-            .shrink(0)
+            .flexShrink(0)
             .alignItems(Align::Center)
             .children(
                 {text(name).font({.size = 7.0f}).width(80),
@@ -132,7 +132,7 @@ auto SlitScan2001::s4Sampling() -> Element {
                    return box()
                        .width(98)
                        .height(18)
-                       .shrink(0)
+                       .flexShrink(0)
                        .fill(kBlack)
                        .clip()
                        .key(kit::formatted("s4_%d", (int)idx))
@@ -144,8 +144,8 @@ auto SlitScan2001::s4Sampling() -> Element {
                                                         SkBlendMode::kPlus)});
                  })});
       })});
-  p.children({box().row().gap(5).shrink(0).children(
-      {box().width(80).shrink(0),
+  p.children({box().row().gap(5).flexShrink(0).children(
+      {box().width(80).flexShrink(0),
        each(wordsOf(said["keys"]), [](const Utf8& key) -> Element {
          return text(key).font({.size = 6.6f}).styleClass("tick").width(98);
        })})});
@@ -159,7 +159,7 @@ auto SlitScan2001::sidebar() -> Element {
       .column()
       .width(kSideW)
       .height(kBodyH)
-      .shrink(0)
+      .flexShrink(0)
       .justifyContent(Justify::SpaceBetween)
       .staggerChildren(85ms)
       .children({s1Quote(), s2Lens(), s3Law(), s4Sampling()});

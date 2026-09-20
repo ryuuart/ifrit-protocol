@@ -628,7 +628,7 @@ def metric(label, value, accent):
         .padding(24)
         .fill("#1b2735")
         .borderRadius(16)
-        .grow(1)
+        .flexGrow(1)
         .opacity(entrance(0, 1, duration=0.6))
         .children(
             text(label, size=13, color="#92a4b6"),

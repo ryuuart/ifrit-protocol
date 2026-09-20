@@ -170,9 +170,9 @@ struct Zellige {
 
   Element panel(const zellige_wall::Panel& one) {
     namespace zw = zellige_wall;
-    return box().column().grow(1).gap(8).children(
+    return box().column().flexGrow(1).gap(8).children(
         {box()
-             .grow(1)
+             .flexGrow(1)
              .borderRadius({3})
              .fill(one.tile.material())
              // GLAZED, not carved. An inner shadow with an inner glow
@@ -217,7 +217,7 @@ struct Zellige {
                                                .font({.size = 14,
                                                       .color = zw::kSub,
                                                       .track = 1})}),
-                            box().row().grow(1).gap(22).children({each(
+                            box().row().flexGrow(1).gap(22).children({each(
                                 panels, [this](const zellige_wall::Panel& one) {
                                   return panel(one);
                                 })})})});

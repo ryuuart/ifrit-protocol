@@ -74,7 +74,7 @@ parent, and a font-relative length measures against the type in force.
 
 | Verb | What it says |
 |---|---|
-| `width` | The flex BASIS across, not a guarantee — pair with `shrink(0)` for a promise. |
+| `width` | The flex BASIS across, not a guarantee — pair with `flexShrink(0)` for a promise. |
 | `height` | The same down the other axis. |
 | `minWidth` | The floor under the resolved width. |
 | `maxWidth` | The ceiling over it. |
@@ -83,9 +83,9 @@ parent, and a font-relative length measures against the type in force.
 | `aspect` | Width over height, for a node whose other axis is free. |
 | `boxSizing` | What `width` and `height` measure: `BoxSizing::BorderBox`, the padding included, unless `ContentBox` is said. |
 | [`display`](pages/verbs/display.md) | Whether the node has a box: `Display::Flex`; `None`, which removes it and its subtree from layout, picture and hit test; `Contents`, which hands its children to its parent's line. |
-| `basis` | The flex basis outright, when it is neither the width nor the height. |
-| `grow` | The share of the leftover main-axis room this child takes. |
-| `shrink` | The share of the overflow this child gives back; 1 unless stated. |
+| `flexBasis` | The flex basis outright, when it is neither the width nor the height. |
+| `flexGrow` | The share of the leftover main-axis room this child takes. |
+| `flexShrink` | The share of the overflow this child gives back; 1 unless stated. |
 | `gap` | The air BETWEEN the children, on the main axis. |
 | `padding` | The air inside the node, on one, two or four sides. |
 | `margin` | The air outside it, on one, two or four sides. |
@@ -267,7 +267,7 @@ Every verb on this page is declared in one header, and the include
 spelling is the feature's.
 
 - `core/verbs/Flex.h` — the flex verbs `flexDirection`, `row`, `column`,
-  `flexWrap`, `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`,
+  `flexWrap`, `flexGrow`, `flexShrink`, `flexBasis`, `alignItems`, `alignSelf`,
   `justifyContent`.
 - `core/verbs/Box.h` — the box verbs `gap`, `padding`, `margin`,
   `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`,

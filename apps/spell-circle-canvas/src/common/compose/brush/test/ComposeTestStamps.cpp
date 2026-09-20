@@ -95,8 +95,8 @@ TEST(ComposeStamps, CustomLeafDrawsNestedComposer) {
   auto nestedTicker = std::make_shared<sigil::motion::Ticker>();
   auto nested = std::make_shared<Composer>(*nestedTicker, fonts());
   nested->setSize({60, 60});
-  nested->render(
-      box().padding(10).fill(green()).children({box().grow(1).fill(red())}));
+  nested->render(box().padding(10).fill(green()).children(
+      {box().flexGrow(1).fill(red())}));
 
   host.composer.render(box().children(
       {custom([nested, nestedTicker](SkCanvas& c) {

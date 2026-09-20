@@ -54,7 +54,7 @@ TEST(ComposeWeb, WebLeafDrawsPublishedFrame) {
   composer.render(box()
                       .padding(50)
                       .fill(Fill::color({1, 0, 0, 1}))
-                      .children({web(view).grow(1)}));
+                      .children({web(view).flexGrow(1)}));
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 200));

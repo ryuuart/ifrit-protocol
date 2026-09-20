@@ -111,7 +111,7 @@ sketch::kit::Theme sheetTheme() {
  *  here divides the canvas by hand. */
 Element panel(const char* caption, Element content) {
   return kit::centred(std::move(content))
-      .grow(1)
+      .flexGrow(1)
       .borderRadius({10})
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)

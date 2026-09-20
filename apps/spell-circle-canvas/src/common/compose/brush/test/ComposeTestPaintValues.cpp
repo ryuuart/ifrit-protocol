@@ -94,8 +94,8 @@ TEST(ComposeSdf, ResizeReResolvesGeometry) {
   // uResolution bakes into the recording; a size change must re-resolve —
   // the materialSize invalidation, without any prop change.
   Host host;  // 200x200 surface
-  host.composer.render(box().children(
-      {box().grow(1).fill(material::skia::Paint::recipe(material::sdf::material(
+  host.composer.render(box().children({box().flexGrow(1).fill(
+      material::skia::Paint::recipe(material::sdf::material(
           material::sdf::circle(), {.fill = {1, 0, 0, 1}})))}));
   host.frame();  // circle c=(100,100) r≈99
   host.composer.setSize({120, 120});

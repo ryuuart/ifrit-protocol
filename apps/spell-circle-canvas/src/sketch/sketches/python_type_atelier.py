@@ -156,7 +156,7 @@ class TypeAtelier:
                         ),
                     )
                     .gap(16)
-                    .shrink(0),
+                    .flexShrink(0),
                     column(
                         doc.eyebrow("02 / THE SAME ENGINE, TWO KINDS OF JOURNEY"),
                         kit.comparison(
@@ -190,7 +190,7 @@ class TypeAtelier:
                         ),
                     )
                     .gap(16)
-                    .shrink(0),
+                    .flexShrink(0),
                 )
                 .gap(30)
                 .font(Type(face=book))

@@ -16,7 +16,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
       box()
           .width(150)
           .height(150)
-          .shrink(0)
+          .flexShrink(0)
           .shape(shapes::chamfered(12, shapes::Corner::Diagonal))
           .fill(mskia::Paint::linearUnit(
               {0, 0}, {0, 1},
@@ -38,7 +38,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                                        shapes::Corner::All})
           .foreground(styles::Scanlines{{0, 0, 0, 0.22f}, 3, 1});
 
-  Element copy = box().grow(1).column().gap(6).children(
+  Element copy = box().flexGrow(1).column().gap(6).children(
       {box()
            .row()
            .gap(7)
@@ -51,7 +51,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                     .fill(kDate),
                 t(feature["date"], cut(blackFace(), 14, kDate, 40, 0.95f)),
                 kit::line({.fill = Fill::color(mskia::withAlpha(kDate, 0.35f))})
-                    .grow(1)}),
+                    .flexGrow(1)}),
        t(feature["headline"],
          cut(blackFace(), 17, hexColor(0x0E3234), 40, 0.92f)),
        box()
@@ -65,7 +65,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
        // the related-work strip: four chamfered stills over the
        // dither ground, the way the FEATURE panel filled its slack
        box()
-           .grow(1)
+           .flexGrow(1)
            .row()
            .gap(7)
            .alignItems(Align::Stretch)
@@ -78,7 +78,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
            .alignItems(Align::Center)
            .children(
                {t("› VIEW CASE STUDY", micro(11, hexColor(0x123B3D), 220)),
-                box().grow(1),
+                box().flexGrow(1),
                 box()
                     .width(150)
                     .height(6)
@@ -88,10 +88,10 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                 t("74%", micro(10, hexColor(0x123B3D), 160)),
                 box().width(126)})});
 
-  Element leftCol = box().width(150).shrink(0).column().gap(8).children(
+  Element leftCol = box().width(150).flexShrink(0).column().gap(8).children(
       {thumb,
        box()
-           .grow(1)
+           .flexGrow(1)
            .column()
            .gap(4)
            .padding(8)
@@ -109,7 +109,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                 box().height(3), t("STUDIO", micro(9, kDate, 200)),
                 t("2ADVANCED",
                   cut(blackFace(), 11, hexColor(0x0E3234), 40, 0.92f)),
-                box().grow(1),
+                box().flexGrow(1),
                 box()
                     .row()
                     .gap(4)
@@ -167,7 +167,7 @@ auto TwoAdvancedV4::pressList() -> Element {
              .children({t(e["date"], cut(blackFace(), 13, kDate, 40, 0.95f)),
                         kit::line({.fill = Fill::color(
                                        mskia::withAlpha(kDate, 0.3f))})
-                            .grow(1),
+                            .flexGrow(1),
                         t("▸", micro(9, kDate, 0))}),
          t(e["headline"], cut(blackFace(), 13, hexColor(0x0E3234), 50, 0.92f)),
          t(e["body"], prose(12.5f, hexColor(0x0C2E30)))});
@@ -216,9 +216,9 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
           .gap(3);
 
   Element bodyArea = monitorBody(376).column().padding(11).gap(9).children(
-      {box().grow(1).row().gap(8).children(
+      {box().flexGrow(1).row().gap(8).children(
            {box()
-                .grow(1)
+                .flexGrow(1)
                 .clip()
                 .padding(9)
                 .fill(dither.material())
@@ -233,7 +233,7 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
            .gap(8)
            .children(
                {t("06 ENTRIES · PAGE 1/4", micro(11, hexColor(0x123B3D), 220)),
-                box().grow(1), cta("ARCHIVES", 116, 34, kPanelSh)})});
+                box().flexGrow(1), cta("ARCHIVES", 116, 34, kPanelSh)})});
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("press")
@@ -290,7 +290,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
             {kit::centred()
                  .width(26)
                  .height(26)
-                 .shrink(0)
+                 .flexShrink(0)
                  .borderRadius({4})
                  .fill(mskia::Paint::linearUnit(
                      {0, 0}, {0, 1},
@@ -299,26 +299,27 @@ auto TwoAdvancedV4::auxiliary() -> Element {
                                 PathFormat::Align::Inner))
 
                  .children({t(it["glyph"], micro(11, kPanelHi, 0))}),
-             box().grow(1).column().children(
+             box().flexGrow(1).column().children(
                  {t(it["first"], prose(11.5f, kCopy)),
                   box().row().children(
-                      {t(it["second"], prose(11.5f, kCopy)), box().grow(1),
+                      {t(it["second"], prose(11.5f, kCopy)), box().flexGrow(1),
                        t(it["link"],
                          micro(9, mskia::withAlpha(kNear, 0.85f), 160))})})});
   };
-  Element supplementals = box().grow(1).basis(0).column().gap(3).children(
-      {auxBar("SUPPLEMENTALS & ESSENTIALS"),
-       each(aux["items"].items(), module)});
+  Element supplementals =
+      box().flexGrow(1).flexBasis(0).column().gap(3).children(
+          {auxBar("SUPPLEMENTALS & ESSENTIALS"),
+           each(aux["items"].items(), module)});
 
   // Column 2: the book plate is white — the one white rectangle on the
   // whole page — with the title set dark on it.
   const sigil::data::Json& book = aux["book"];
-  Element photoshop = box().grow(1).basis(0).column().gap(4).children(
+  Element photoshop = box().flexGrow(1).flexBasis(0).column().gap(4).children(
       {auxBar(book["bar"].text()),
-       box().row().gap(8).grow(1).children(
+       box().row().gap(8).flexGrow(1).children(
            {box()
                 .width(118)
-                .shrink(0)
+                .flexShrink(0)
                 .fill(hexColor(0xF2F0EA))
                 .column()
                 .padding(7, 6)
@@ -333,7 +334,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
   // Column 3: the 2ADVANCED.NET plate — its angular mark is the only
   // amber on the interface.
   const sigil::data::Json& wire = aux["wire"];
-  Element press = box().grow(1).basis(0).column().gap(4).children(
+  Element press = box().flexGrow(1).flexBasis(0).column().gap(4).children(
       {auxBar(wire["bar"].text()),
        box()
            .height(40)
@@ -357,7 +358,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
                       box().column().gap(1).children(
                           {t(wire["name"], heavy(13, hexColor(0xD9DDE0), 60)),
                            t(wire["tagline"], micro(8, kDust, 220))})}),
-       t(wire["body"], prose(11.5f, kCopy)), box().grow(1), auxView()});
+       t(wire["body"], prose(11.5f, kCopy)), box().flexGrow(1), auxView()});
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("aux")
@@ -369,7 +370,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
       .children({panelHeader("AUXILIARY", " PANEL",
                              "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 3),
                  box()
-                     .grow(1)
+                     .flexGrow(1)
                      .row()
                      .gap(10)
                      .padding(8, 6)
@@ -473,7 +474,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
       .children(
           {t("SUB", heavy(15, kNear, 40)),
            t("SYSTEM", cut(arial(), 14, kHeadDim, 40, 0.95f)), std::move(run),
-           box().grow(1),
+           box().flexGrow(1),
            box()
                .column()
                .alignItems(Align::End)

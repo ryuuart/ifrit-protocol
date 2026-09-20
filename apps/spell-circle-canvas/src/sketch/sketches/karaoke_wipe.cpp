@@ -312,10 +312,10 @@ struct KaraokeWipe {
             {box()
                  .row()
                  .alignItems(Align::End)
-                 .children({text("FOLLOW THE BOUNCING BALL").grow(1),
+                 .children({text("FOLLOW THE BOUNCING BALL").flexGrow(1),
                             text("FLEISCHER 1924 · CD+G 1985").ink(kNext)}),
              kit::line({.fill = Fill::color(kFaint)}),
-             kit::centred(std::move(stage)).grow(1),
+             kit::centred(std::move(stage)).flexGrow(1),
              // The numbers are read off the table rather than typed
              // beside it: a caption that can disagree with the schedule
              // it describes is the one thing worse than no caption.

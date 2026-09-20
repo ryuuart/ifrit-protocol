@@ -194,7 +194,7 @@ struct Probing {
   [[nodiscard]] Element art() const {
     return box().inset(0).children({box()
                                         .alignSelf(Align::Start)
-                                        .shrink(0)
+                                        .flexShrink(0)
                                         .width(Dimension(ink))
                                         .height(Dimension(20))
                                         .fill(Fill::color({1, 0, 0, 1}))});

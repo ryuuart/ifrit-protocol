@@ -445,7 +445,7 @@ struct ShippingForecast {
     };
     const data::Json& page = doc["ring"];
 
-    return box().width(kRingBox).height(kRingBox).shrink(0).children({
+    return box().width(kRingBox).height(kRingBox).flexShrink(0).children({
         // The wash under the ring: a soft light filling the square, so the
         // lettering has something to sit on without a visible plate edge.
         box().inset(0).fill(mskia::Paint::glowUnit(
@@ -563,7 +563,7 @@ struct ShippingForecast {
         // names no colour takes it.
         .ink(kAmber)
         .children({
-            box().width(7).height(7).borderRadius({4}).shrink(0).fill(
+            box().width(7).height(7).borderRadius({4}).flexShrink(0).fill(
                 Fill::currentInk()),
             text(doc["gale"])
                 .styleClass("warning")
@@ -765,7 +765,7 @@ struct ShippingForecast {
                    .opacity(
                        beat(2.80f + (float)i * 0.14f, 3.40f + (float)i * 0.14f))
                    .children({
-                       text(r["place"]).styleClass("place").grow(1),
+                       text(r["place"]).styleClass("place").flexGrow(1),
                        text(r["wind"]).styleClass("wind").width(74).block(
                            {.alignment = sigil::weave::TextAlignment::kEnd}),
                        text(r["baro"]).styleClass("station").width(166).block(
@@ -798,7 +798,7 @@ struct ShippingForecast {
                     [](int f) {
                       const bool named = f >= 5 && f <= 8;
                       return box()
-                          .grow(1)
+                          .flexGrow(1)
                           .column()
                           .gap(6)
                           .alignItems(Align::Center)
@@ -918,18 +918,23 @@ struct ShippingForecast {
                 .children({
                     header(),
                     box().height(1).fill(Fill::color(kKeyline)),
-                    box().row().gap(48).grow(1).children({
-                        box().width(kColW).shrink(0).column().gap(26).children({
-                            galeStrip(),
-                            forecast(),
-                            barometer(),
-                            synopsis(),
-                            box().grow(1),
-                            beaufort(),
-                            stations(),
-                        }),
+                    box().row().gap(48).flexGrow(1).children({
+                        box()
+                            .width(kColW)
+                            .flexShrink(0)
+                            .column()
+                            .gap(26)
+                            .children({
+                                galeStrip(),
+                                forecast(),
+                                barometer(),
+                                synopsis(),
+                                box().flexGrow(1),
+                                beaufort(),
+                                stations(),
+                            }),
                         kit::centred()
-                            .grow(1)
+                            .flexGrow(1)
 
                             .children({ringPanel()}),
                     }),

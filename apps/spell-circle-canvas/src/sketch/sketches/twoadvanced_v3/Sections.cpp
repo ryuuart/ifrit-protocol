@@ -59,7 +59,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
                        .justifyContent(Justify::End)
                        .alignItems(Align::Center)
                        .gap(10)
-                       .children({box().grow(1).height(1).fill(
+                       .children({box().flexGrow(1).height(1).fill(
                                       mskia::withAlpha(kSteelHi, 0.55f)),
                                   t(spec.tab, micro(14, kNear, 600)),
                                   box().width(24).height(8).fill(
@@ -127,7 +127,7 @@ Element TwoAdvancedV3::module(const Utf8& glyph, const Utf8& barLabel,
       .children(
           {moduleBar(glyph, barLabel, kPanelW),
            box()
-               .grow(1)
+               .flexGrow(1)
                .fill(mskia::withAlpha(hexColor(0x4A5872), 0.80f))
                .stroke(stroke(1, Fill::color(mskia::withAlpha(kSteelHi, 0.55f)),
                               PathFormat::Align::Inner))
@@ -144,7 +144,7 @@ Element TwoAdvancedV3::thumbPlate(Element content, const Utf8& btn) {
   using namespace tv3;
   return box()
       .width(150)
-      .shrink(0)
+      .flexShrink(0)
       .column()
       .gap(2)
       // the toolbar strip: a small lit segment on a dark rail
@@ -199,7 +199,7 @@ Element TwoAdvancedV3::featuredPartner() {
   const data::Json& page = doc["modules"]["partner"];
   Element body = box().row().padding(12).gap(12).children(
       {thumbPlate(riveLockup(), page["button"]),
-       box().grow(1).column().gap(8).children(
+       box().flexGrow(1).column().gap(8).children(
            {box()
                 .row()
                 .gap(7)
@@ -230,7 +230,7 @@ Element TwoAdvancedV3::subData() {
                          .children({meter(3),
                                     t(page["head"], micro(13.5f, kNear, 60))}),
                      icon, t(page["copy"], prose(12, hexColor(0xC7D0DD))),
-                     box().grow(1),
+                     box().flexGrow(1),
                      box()
                          .row()
                          .gap(8)
@@ -249,7 +249,7 @@ Element TwoAdvancedV3::updates() {
                           : text(page["mark"], sigil::weave::kit::tracked(
                                                    grotBold(), 20, kNear, 100)),
                   page["button"]),
-       box().grow(1).column().gap(8).children(
+       box().flexGrow(1).column().gap(8).children(
            {box()
                 .row()
                 .gap(7)
@@ -269,7 +269,7 @@ Element TwoAdvancedV3::mailingList() {
            .gap(8)
            .alignItems(Align::Center)
            .children({box()
-                          .grow(1)
+                          .flexGrow(1)
                           .height(22)
                           .fill(mskia::withAlpha(kPage, 0.9f))
                           .stroke(stroke(
@@ -290,15 +290,15 @@ Element TwoAdvancedV3::support2a() {
   const data::Json& page = doc["modules"]["support"];
   const auto half = [&](const data::Json& side) {
     return box()
-        .grow(1)
-        .basis(0)
+        .flexGrow(1)
+        .flexBasis(0)
         .column()
         .gap(4)
         .alignItems(Align::Center)
         .children({t(side["head"], micro(11, kNear, 60)),
                    t(side["copy"],
                      prose(9, mskia::withAlpha(hexColor(0xC7D0DD), 0.95f))),
-                   box().grow(1),
+                   box().flexGrow(1),
                    box()
                        .row()
                        .gap(6)

@@ -331,7 +331,7 @@ auto WinampBase::lcdCells(const std::string& s, SkColor4f ink) const
   const float pitch = n(54) / (s.empty() ? 1.0f : (float)s.size());
   return box().row().width(n(54)).height(n(13)).ink(ink).children(
       each(s, [this, pitch](char ch) {
-        Element cell = kit::centred().width(pitch).shrink(0);
+        Element cell = kit::centred().width(pitch).flexShrink(0);
         if (ch != ' ') cell.children({t(std::string(1, ch), pix(10))});
         return cell;
       }));

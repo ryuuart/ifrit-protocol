@@ -301,7 +301,7 @@ struct AxisRipple {
                                   float lo, float hi, const char* loLabel,
                                   const char* hiLabel, const Utf8& verdict,
                                   SkColor4f verdictInk) {
-    return box().column().gap(12).grow(1).children(
+    return box().column().gap(12).flexGrow(1).children(
         {text(heading),
          box().column().gap(6).children({proofRow(tag, lo, loLabel, true),
                                          proofRow(tag, hi, hiLabel, false)}),
@@ -362,10 +362,10 @@ struct AxisRipple {
                      {text("THE AXIS RIPPLE")
                           .font({.size = 12.5f, .track = 3.4f})
                           .ink(kInk)
-                          .grow(1),
+                          .flexGrow(1),
                       text("OPENTYPE FONT VARIATIONS · 2016").ink(kFaint)}),
              kit::line({.fill = Fill::color(kFaint)}), ripplePanel(),
-             proofPanels(), box().grow(1),
+             proofPanels(), box().flexGrow(1),
              text("A GRADE IS WEIGHT WITHOUT WIDTH · IT IS THE "
                   "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
                   "REASON THE RIPPLE COSTS ONE SHAPING RATHER THAN "

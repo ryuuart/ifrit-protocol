@@ -20,7 +20,7 @@ auto TwoAdvancedV4::panelHeader(const char* boldHalf, const char* restHalf,
                       .fill = Fill::color(mskia::withAlpha(kCyan, 0.4f))}),
            box().width(10),
            t(flavor, micro(11, mskia::withAlpha(kDust, 1.0f), 260)),
-           box().grow(1), tickDots(cluster), box().width(8),
+           box().flexGrow(1), tickDots(cluster), box().width(8),
            box().width(34).height(10).foreground(
                styles::TickRail{mskia::withAlpha(kCyan, 0.55f), 4, 3, 7, 1, 3,
                                 0.5f, path::Edge::Bottom})});
@@ -139,7 +139,7 @@ auto TwoAdvancedV4::masthead() -> Element {
                        {300ms, &ch::easeOutQuad, 1850ms}))
       .children(
           {box()
-               .grow(1)
+               .flexGrow(1)
                .row()
                .alignItems(Align::Center)
                .padding(26, 0, 8, 0)
@@ -163,7 +163,7 @@ auto TwoAdvancedV4::masthead() -> Element {
                                                            kCyan, 0.5f))}),
                                         t("EST. 1999 · IRVINE CA",
                                           micro(10, kDustDim, 200))})}),
-                    box().grow(1),
+                    box().flexGrow(1),
                     box()
                         .column()
                         .alignItems(Align::End)
@@ -235,7 +235,7 @@ auto TwoAdvancedV4::legalStrip() -> Element {
                                             mskia::withAlpha(kDust, 0.35f))}),
                              t(doc()["legal"]["requires"],
                                micro(10, kDustDim, 200))}),
-                    box().grow(1),
+                    box().flexGrow(1),
                     box()
                         .row()
                         .gap(7)
@@ -260,7 +260,7 @@ auto TwoAdvancedV4::legalStrip() -> Element {
                                             t(doc()["legal"]["version"],
                                               label(12, kNear, 90)),
                                             t("▾", micro(9, kDust, 0))})})}),
-           box().grow(1),
+           box().flexGrow(1),
            box()
                .row()
                .gap(9)
@@ -287,7 +287,7 @@ auto TwoAdvancedV4::dockBars() -> std::vector<Element> {
   for (int i = 0; i < 56; ++i) {
     const float v = 0.14f + 0.82f * std::abs(std::sin(i * 0.51f) *
                                              std::cos(i * 0.19f + 0.7f));
-    bars.push_back(box().grow(1).shrink(0).height(72 * v).fill(
+    bars.push_back(box().flexGrow(1).flexShrink(0).height(72 * v).fill(
         mskia::Paint::linearUnit({0, 0}, {0, 1},
                                  {{0.0f, mskia::withAlpha(kD7, 1.0f)},
                                   {1.0f, mskia::withAlpha(kD4, 0.9f)}})));
@@ -343,11 +343,11 @@ auto TwoAdvancedV4::footerDock() -> Element {
                  .alignItems(Align::Center)
                  .gap(6)
                  .children({t(w["title"], cut(blackFace(), 12, kD7, 60, 0.92f)),
-                            kit::line({.fill = Fill::color(kD4)}).grow(1),
+                            kit::line({.fill = Fill::color(kD4)}).flexGrow(1),
                             t("»", micro(11, kD5, 0))}),
              t(w["first"], micro(10, kD6, 220)),
              t(w["second"], micro(10, mskia::withAlpha(kD6, 0.7f), 220)),
-             box().grow(1),
+             box().flexGrow(1),
              box()
                  .row()
                  .gap(5)
@@ -355,7 +355,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
                  .children(
                      {box().width(58).height(8).foreground(styles::TickRail{
                           kD6, 5, 3, 7, 1, 3, 0.5f, path::Edge::Top}),
-                      box().grow(1), t("v v", micro(10, kD6, 200))})});
+                      box().flexGrow(1), t("v v", micro(10, kD6, 200))})});
   };
 
   strip.children(
@@ -373,7 +373,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
                       box().left(12).top(122).children(
                           {t("ARRAY 6×14 · IDLE", micro(10, kD6, 220))})}),
        box()
-           .grow(1)
+           .flexGrow(1)
            .height(150)
            .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
            .fill(hexColor(0x140404))
@@ -389,10 +389,10 @@ auto TwoAdvancedV4::footerDock() -> Element {
                     .gap(6)
                     .children(
                         {t("SIGNAL", cut(blackFace(), 12, kD7, 60, 0.92f)),
-                         kit::line({.fill = Fill::color(kD4)}).grow(1),
+                         kit::line({.fill = Fill::color(kD4)}).flexGrow(1),
                          t("»", micro(11, kD5, 0))}),
                 box()
-                    .grow(1)
+                    .flexGrow(1)
                     .fill(hexColor(0x0D0202))
                     .foreground(styles::BevelPair{kD4, {0, 0, 0, 0.5f}, 1, 1})
                     .row()
@@ -406,7 +406,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
                     .alignItems(Align::Center)
                     .children(
                         {t("GAIN 0.42 · SWEEP 20 MS", micro(10, kD6, 220)),
-                         box().grow(1),
+                         box().flexGrow(1),
                          box().width(70).height(8).foreground(styles::TickRail{
                              kD5, 5, 3, 7, 1, 3, 0.5f, path::Edge::Top})})})});
 

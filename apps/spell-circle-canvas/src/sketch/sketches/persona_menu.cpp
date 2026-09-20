@@ -644,7 +644,7 @@ struct PersonaMenu {
                box()
                    .width(84)
                    .height(6)
-                   .grow(0)
+                   .flexGrow(0)
                    .fill(Paint::solid({0, 0.05f, 0.18f, 0.55f}))
                    .children({kit::at(0, 0, 84 * frac, 6.0f)
                                   .fill(Paint::linear(
@@ -687,7 +687,7 @@ struct PersonaMenu {
                    .alignItems(Align::End)
                    .children({text(m.name)
                                   .font(nn::menuType(17, nn::kPaper, 1.0f))
-                                  .grow(1),
+                                  .flexGrow(1),
                               text(kit::formatted("LV %d", m.level))
                                   .font(nn::smallType(10, nn::kCyanB, 1.6f))}),
                bar("HP", m.hp, m.hpMax, kHp), bar("SP", m.sp, m.spMax, kSp)});

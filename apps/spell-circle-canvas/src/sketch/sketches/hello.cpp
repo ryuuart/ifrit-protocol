@@ -50,7 +50,7 @@ Element card(Utf8 step, Utf8 title, Utf8 note, SkColor4f color) {
   return box()
       .column()
       .gap(10)
-      .grow()
+      .flexGrow()
       .height(150)
       .padding(24)
       .borderRadius({18})
@@ -84,7 +84,7 @@ struct HelloSketch {
                   card("03 / PLAY", "Repeat", "Keep the part you love.",
                        hexColor(0xdbe6b4))}),
              box().row().gap(24).children(
-                 {box().column().grow().gap(12).children(
+                 {box().column().flexGrow().gap(12).children(
                       {text("A line with a little life.").font({.size = 20}),
                        // This keyless program reads the clock and runs each
                        // frame.

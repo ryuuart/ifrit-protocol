@@ -10,7 +10,7 @@ Element GenesisFire::generationPanel() {
           {panelHead(law["head"]),
            each(law["equations"].items(),
                 [this](const sigil::data::Json& line) { return eqn(line); }),
-           box().grow(1), note(law["note"]).ink(kSteelDim)});
+           box().flexGrow(1), note(law["note"]).ink(kSteelDim)});
 }
 
 Element GenesisFire::censusBar(float frac, SkColor4f c, const char* key) {
@@ -22,7 +22,7 @@ Element GenesisFire::censusBar(float frac, SkColor4f c, const char* key) {
       from(0.0f).to(frac),
       {.duration = 420ms, .ease = ease::outBack(1.2f), .delay = 1200ms});
   if (key) bar.level = bind(&liveFrac).clamp(0.02f, 1.0f);
-  Element rail = sketch::kit::meter(bar).shrink(0);
+  Element rail = sketch::kit::meter(bar).flexShrink(0);
   if (key) rail.key(key);
   return rail;
 }
@@ -31,7 +31,7 @@ Element GenesisFire::censusRow(const sigil::data::Json& row) {
   return box()
       .row()
       .height(14)
-      .shrink(0)
+      .flexShrink(0)
       .alignItems(Align::Center)
       .styleClass("cell")
       .children({censusCell(row["fig"], 0, kSteel),
@@ -53,7 +53,7 @@ Element GenesisFire::liveRow() {
   return box()
       .row()
       .height(14)
-      .shrink(0)
+      .flexShrink(0)
       .alignItems(Align::Center)
       .styleClass("cell")
       .children({censusCell("THIS", 0, kCyan).font({.face = monoBoldFace()}),
@@ -69,18 +69,18 @@ Element GenesisFire::censusPanel() {
       .gap(4)
       .children(
           {panelHead(census["head"]),
-           box().row().height(11).shrink(0).styleClass("colhead").children(
+           box().row().height(11).flexShrink(0).styleClass("colhead").children(
                {each(census["columns"].items(),
                      [this](const sigil::data::Json& name, size_t i) {
                        return censusCell(name, i, kSteelDim);
                      })}),
-           box().column().gap(3).shrink(0).staggerChildren(70ms).children(
+           box().column().gap(3).flexShrink(0).staggerChildren(70ms).children(
                {each(census["rows"].items(),
                      [this](const sigil::data::Json& row) {
                        return censusRow(row);
                      }),
                 liveRow()}),
-           box().grow(1), note(census["footnote"]).ink(kSteelDim),
+           box().flexGrow(1), note(census["footnote"]).ink(kSteelDim),
            note(census["note"])});
 }
 
@@ -109,18 +109,18 @@ Element GenesisFire::rampPanel() {
                       .height = Dimension(26),
                       .gap = 2,
                       .appear = {{.duration = 220ms, .ease = ease::outBack()}}})
-                     .shrink(0)
+                     .flexShrink(0)
                      .staggerChildren(26ms),
-                 box().grow(1), note(ramp["note"])});
+                 box().flexGrow(1), note(ramp["note"])});
 }
 
 Element GenesisFire::benchCell(Element content, const Utf8& caption,
                                SkColor4f cc) {
-  return box().column().gap(3).width(130).shrink(0).children(
+  return box().column().gap(3).width(130).flexShrink(0).children(
       {box()
            .width(130)
            .height(52)
-           .shrink(0)
+           .flexShrink(0)
            .clip(true)
            .fill(hexColor(0x05060A))
            .stroke(stroke(1.0f, Fill::color(hexColor(0x1B2029)),
@@ -142,13 +142,13 @@ Element GenesisFire::renderModelPanel() {
   return panel(kPanelH[3], 4)
       .gap(4)
       .children({panelHead(model["head"]),
-                 box().row().gap(15).shrink(0).children(
+                 box().row().gap(15).flexShrink(0).children(
                      {benchCell(instanced(SkBlendMode::kSrcOver), cells[0],
                                 hexColor(0x8A93A8)),
                       benchCell(instanced(SkBlendMode::kPlus), cells[1],
                                 hexColor(0xFFB672)),
                       benchCell(box().inset(0), cells[2], hexColor(0xFFB672))}),
-                 box().grow(1), note(model["note"])});
+                 box().flexGrow(1), note(model["note"])});
 }
 
 Element GenesisFire::productionPanel() {
@@ -162,7 +162,7 @@ Element GenesisFire::productionPanel() {
                                                            ? kBone
                                                            : kSteel);
                       }),
-                 box().grow(1), note(made["note"]).ink(kSteelDim)});
+                 box().flexGrow(1), note(made["note"]).ink(kSteelDim)});
 }
 
 Element GenesisFire::header() {
@@ -177,7 +177,7 @@ Element GenesisFire::header() {
   return box()
       .column()
       .height(kHeaderH)
-      .shrink(0)
+      .flexShrink(0)
       .gap(4)
       .font({.face = uiFace()})
       .ink(kSteel)
@@ -194,8 +194,8 @@ Element GenesisFire::header() {
            text(head["credit"])
                .font({.size = 11.0f, .track = 0.1f})
                .appear({.duration = 240ms, .delay = 420ms}),
-           box().grow(1),
+           box().flexGrow(1),
            kit::line({.fill = Fill::color(kKeyline)})
-               .shrink(0)
+               .flexShrink(0)
                .appear({.duration = 400ms, .delay = 320ms})});
 }

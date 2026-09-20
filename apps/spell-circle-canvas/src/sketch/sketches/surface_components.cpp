@@ -45,7 +45,7 @@ Element card(const Card& properties, Element content) {
   return kit::well(
       {.height = 204, .ground = properties.ground},
       box().column().padding(18).gap(12).borderRadius({12}).children(
-          {text(properties.title), std::move(content).grow(1)}));
+          {text(properties.title), std::move(content).flexGrow(1)}));
 }
 
 Element gel(float height) {

@@ -243,12 +243,12 @@ struct GenesisFire {
         .font({.size = 11.0f, .track = 0.1f})
         .ink(kBone)
         .height(16)
-        .shrink(0);
+        .flexShrink(0);
   }
 
   /** A PANEL'S CLOSING REMARK, in the class every panel sets one in. */
   static Element note(const Utf8& words) {
-    return text(words).styleClass("note").shrink(0);
+    return text(words).styleClass("note").flexShrink(0);
   }
 
   Element generationPanel();
@@ -261,7 +261,7 @@ struct GenesisFire {
   /** One cell of a census row: the @p column-th of those widths, in the
    *  register the row states and its own colour. */
   Element censusCell(const Utf8& s, size_t column, SkColor4f c) {
-    return text(s).ink(c).width(kCensusW[column]).shrink(0);
+    return text(s).ink(c).width(kCensusW[column]).flexShrink(0);
   }
 
   /** A ROW'S SHARE OF THE LARGEST CENSUS, as a bar SCALED from its left
@@ -295,7 +295,7 @@ struct GenesisFire {
   Element renderModelPanel();
 
   Element prodLine(const Utf8& s, SkColor4f c) {
-    return text(s).styleClass("line").ink(c).height(10).shrink(0);
+    return text(s).styleClass("line").ink(c).height(10).flexShrink(0);
   }
 
   Element productionPanel();

@@ -70,8 +70,8 @@ auto KspMapView::infoCard() -> Element {
                                                          hexColor(0x8A8E93))}),
                               kit::readout(readings(page["ship"]),
                                            {.measure = 176, .gap = 7})
-                                  .grow(1)}),
-               each(page["sections"].items(), section), box().grow(1),
+                                  .flexGrow(1)}),
+               each(page["sections"].items(), section), box().flexGrow(1),
                box().height(6).fill(hexColor(0x9DA1A6))}),
       906, 40, 240, 318);
 }

@@ -40,7 +40,7 @@ TEST(SketchKitRows, ALabelRowRangesItsFigureToTheMeasure) {
           .children(
               {compose::text(u8"nodes", house.style(house.type.captionNote,
                                                     house.palette.ash)),
-               compose::box().grow(1),
+               compose::box().flexGrow(1),
                compose::text(u8"1 248", house.style(house.type.captionLabel,
                                                     house.palette.figure))});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
@@ -118,7 +118,8 @@ TEST(SketchKitRows, ATableDrawsTheHandSpelledColumns) {
                    .alignItems(compose::Align::Center)
                    .gap(8)
                    .children(
-                       {compose::box().width(9).height(9).fill(tier).shrink(0)})
+                       {compose::box().width(9).height(9).fill(tier).flexShrink(
+                           0)})
                    .children(
                        {compose::text(u8"cellPanel", figure()).width(126)})
                    .children({compose::text(u8"0.00", figure()).width(46)})

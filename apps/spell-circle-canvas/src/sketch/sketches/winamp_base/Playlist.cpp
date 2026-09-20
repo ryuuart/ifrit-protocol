@@ -116,7 +116,7 @@ auto WinampBase::trackList() -> Element {
         .translateY(motion::bind(&rowIn[i]).invert().scale(n(2)))
         .children({ellipsized((int)i, std::to_string(i + 1) + ". " + tr.title,
                               st, n(listW - 40)),
-                   box().grow(1), text(tr.time, st)});
+                   box().flexGrow(1), text(tr.time, st)});
   }));
 }
 
@@ -131,5 +131,5 @@ auto WinampBase::ellipsized(int idx, const std::string& s,
   sigil::weave::ParagraphLayoutOptions o;
   o.overflow.ellipsis = u"…";
   o.overflow.maxLines = 1;
-  return text(p, o).width(w).shrink(0);
+  return text(p, o).width(w).flexShrink(0);
 }

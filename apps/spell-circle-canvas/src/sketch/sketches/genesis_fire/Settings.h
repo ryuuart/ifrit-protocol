@@ -237,7 +237,7 @@ inline Element panel(float height, int order) {
       .column()
       .width(kSideW)
       .height(height)
-      .shrink(0)
+      .flexShrink(0)
       .padding(12)
       .borderRadius({5})
       .font({.face = monoFace(), .track = 0.2f})
@@ -254,7 +254,7 @@ inline Element panelHead(const Utf8& s) {
   return text(s)
       .font({.face = uiFace(), .size = 9.5f, .track = 1.9f})
       .height(13)
-      .shrink(0);
+      .flexShrink(0);
 }
 
 }  // namespace genesis

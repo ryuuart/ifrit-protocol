@@ -34,7 +34,7 @@ Element ranged(Element line, Element note) {
   return box()
       .row()
       .alignItems(Align::Center)
-      .children({std::move(line), box().grow(1), std::move(note)});
+      .children({std::move(line), box().flexGrow(1), std::move(note)});
 }
 
 }  // namespace

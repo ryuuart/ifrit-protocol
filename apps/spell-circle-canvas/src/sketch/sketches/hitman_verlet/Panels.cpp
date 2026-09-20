@@ -5,10 +5,10 @@ auto HitmanVerlet::codeLine(const sigil::data::Json& listed, SkColor4f c)
   // A MARKED LINE is one the paper prints wrong: the caret and the alarm
   // colour are the document's own flag, not the panel's.
   const bool marked = listed["marked"].boolean();
-  return box().row().gap(4).height(12).shrink(0).children(
+  return box().row().gap(4).height(12).flexShrink(0).children(
       {t(marked ? "\u25c4" : " ", mono(7.0f, marked ? kRed : kInk))
            .width(8)
-           .shrink(0),
+           .flexShrink(0),
        t(listed["line"], mono(9.5f, marked ? kRed : c, 0.1f))});
 }
 
@@ -16,14 +16,15 @@ auto HitmanVerlet::panelA1() -> Element {
   const sigil::data::Json& a1 = doc()["a1"];
   return panel(kPanelAH[0], a1["heading"].text(), 1)
       .gap(4)
-      .children({t(a1["law"], monoB(12.0f, kBone, 0.2f)).height(16).shrink(0),
-                 each(a1["code"].items(),
-                      [this](const sigil::data::Json& line) {
-                        return codeLine(line, kBlue);
-                      }),
-                 box().grow(1), t(a1["alarm"], ui(7.5f, kRed, 0.5f)),
-                 t(a1["working"], mono(7.5f, kSteel, 0.1f)),
-                 t(a1["note"], ui(7.0f, kTick, 0.4f))});
+      .children(
+          {t(a1["law"], monoB(12.0f, kBone, 0.2f)).height(16).flexShrink(0),
+           each(a1["code"].items(),
+                [this](const sigil::data::Json& line) {
+                  return codeLine(line, kBlue);
+                }),
+           box().flexGrow(1), t(a1["alarm"], ui(7.5f, kRed, 0.5f)),
+           t(a1["working"], mono(7.5f, kSteel, 0.1f)),
+           t(a1["note"], ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::panelA2() -> Element {
@@ -33,13 +34,13 @@ auto HitmanVerlet::panelA2() -> Element {
                       [this](const sigil::data::Json& line) {
                         return codeLine(line, kBlue);
                       }),
-                 box().height(2).shrink(0),
+                 box().height(2).flexShrink(0),
                  t(a2["working"], mono(7.5f, kSteel, 0.1f)),
                  t(a2["printed"], mono(8.0f, kRed, 0.1f)),
                  t(a2["corrected"], mono(8.0f, hexColor(0x4FC79E), 0.1f)),
-                 box().height(2).shrink(0),
+                 box().height(2).flexShrink(0),
                  t(a2["carried"], ui(7.5f, kSteel, 0.4f)),
-                 t(a2["fifth"], ui(7.5f, kTick, 0.4f)), box().grow(1),
+                 t(a2["fifth"], ui(7.5f, kTick, 0.4f)), box().flexGrow(1),
                  t(a2["verdict"], monoB(9.0f, kRed, 0.2f))});
 }
 
@@ -108,7 +109,7 @@ auto HitmanVerlet::panelA3() -> Element {
                     {.anchor = {.across = Align::End, .down = Align::End},
                      .styleClass = "plotTick"})})
                .height(64)
-               .shrink(0),
+               .flexShrink(0),
            t(a3["ratios"], mono(7.5f, kSteel, 0.1f)),
            t(a3["note"], ui(7.0f, kTick, 0.4f)),
            sketch::kit::plot(
@@ -135,7 +136,7 @@ auto HitmanVerlet::panelA3() -> Element {
                                                  "%g", kSoft[(std::size_t)v]));
                                        }})})
                .height(44)
-               .shrink(0),
+               .flexShrink(0),
            t(a3["soft"], ui(7.0f, kTick, 0.4f))});
 }
 
@@ -145,7 +146,7 @@ auto HitmanVerlet::panelB1() -> Element {
   // panel keeps the room for it and says nothing about what stands there.
   return panel(kPanelBH[0], b1["heading"].text(), 4)
       .gap(4)
-      .children({box().height(118).shrink(0),
+      .children({box().height(118).flexShrink(0),
                  t(b1["count"], monoB(8.5f, kBone, 0.1f)),
                  t(b1["dof"], mono(8.0f, kSteel, 0.1f)),
                  t(b1["compare"], mono(8.0f, kSteel, 0.1f)),
@@ -193,7 +194,8 @@ auto HitmanVerlet::panelB2() -> Element {
   const sigil::data::Json& b2 = doc()["b2"];
   return panel(kPanelBH[1], b2["heading"].text(), 5)
       .gap(4)
-      .children({box().height(156).shrink(0), box().height(34).shrink(0),
+      .children({box().height(156).flexShrink(0),
+                 box().height(34).flexShrink(0),
                  t(b2["note"], ui(7.0f, kTick, 0.4f))});
 }
 
@@ -255,8 +257,8 @@ auto HitmanVerlet::panelB3() -> Element {
   // colour because the document says which one it is.
   const auto restRow = [](const sigil::data::Json& rest) {
     const bool anchor = rest["anchor"].boolean();
-    return box().row().height(11).shrink(0).children(
-        {t(rest["name"], mono(8.0f, anchor ? kBlue : kSteel, 0.1f)).grow(1),
+    return box().row().height(11).flexShrink(0).children(
+        {t(rest["name"], mono(8.0f, anchor ? kBlue : kSteel, 0.1f)).flexGrow(1),
          t(rest["value"],
            anchor ? monoB(8.0f, kBlue, 0.1f) : mono(8.0f, kBone, 0.1f))});
   };
@@ -265,7 +267,7 @@ auto HitmanVerlet::panelB3() -> Element {
       .gap(3)
       .children(
           {each(b3["rests"].items(), restRow),
-           t(b3["note"], ui(7.0f, kTick, 0.4f)), box().height(4).shrink(0),
+           t(b3["note"], ui(7.0f, kTick, 0.4f)), box().height(4).flexShrink(0),
            each(b3["production"].items(), [](const sigil::data::Json& line) {
              return t(line, ui(7.0f, kSteel, 0.3f));
            })});
@@ -278,7 +280,7 @@ auto HitmanVerlet::header() -> Element {
                                                        .ease = ch::easeOutQuad,
                                                        .delay = 120ms})};
   const sigil::data::Json& head = doc()["header"];
-  return box().column().height(kHeaderH).shrink(0).gap(3).children(
+  return box().column().height(kHeaderH).flexShrink(0).gap(3).children(
       {t(head["eyebrow"], ui(10.0f, kSteel, 2.6f))
            .appear({.duration = 260ms})
            .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
@@ -287,8 +289,8 @@ auto HitmanVerlet::header() -> Element {
            .fx(std::move(rise)),
        t(head["credit"], ui(10.5f, kSteel, 0.1f))
            .appear({.duration = 240ms, .delay = 400ms}),
-       box().grow(1),
+       box().flexGrow(1),
        kit::line({.fill = Fill::color(kKeyline)})
-           .shrink(0)
+           .flexShrink(0)
            .appear({.duration = 400ms, .delay = 320ms})});
 }

@@ -146,7 +146,7 @@ struct BlurFalloff {
         box().column().gap(28).children(
             {box()
                  .row()
-                 .shrink(0)
+                 .flexShrink(0)
                  .alignItems(Align::Start)
                  .gap(40)
                  .children(

@@ -27,33 +27,27 @@ using sigil::sketch::test::fonts;
 /** A stepper of the kind a bar puts at each end — the caller's chrome,
  *  which is all a stepper ever is. */
 Element stepper() {
-  return compose::box()
-      .width(16)
-      .height(16)
-      .shrink(0)
-      .fill(Fill::color({0.4f, 0.4f, 0.5f, 1}));
+  return compose::box().width(16).height(16).flexShrink(0).fill(
+      Fill::color({0.4f, 0.4f, 0.5f, 1}));
 }
 
 /** The bar the component has to draw: two steppers, a track that takes
  *  what is left, and the thumb standing absolutely in it. */
 Element barByHand(float top, float length) {
   const kit::Theme& house = kit::houseTheme();
-  return compose::box()
-      .column()
-      .width(16)
-      .height(232)
-      .children({stepper(),
-                 compose::box()
-                     .grow(1)
-                     .fill(Fill::color(house.palette.cellGround))
-                     .children({compose::box()
-                                    .absolute()
-                                    .left(0)
-                                    .right(0)
-                                    .top(top)
-                                    .height(length)
-                                    .fill(Fill::color(house.palette.figure))}),
-                 stepper()});
+  return compose::box().column().width(16).height(232).children(
+      {stepper(),
+       compose::box()
+           .flexGrow(1)
+           .fill(Fill::color(house.palette.cellGround))
+           .children({compose::box()
+                          .absolute()
+                          .left(0)
+                          .right(0)
+                          .top(top)
+                          .height(length)
+                          .fill(Fill::color(house.palette.figure))}),
+       stepper()});
 }
 
 Element bar(float at) {

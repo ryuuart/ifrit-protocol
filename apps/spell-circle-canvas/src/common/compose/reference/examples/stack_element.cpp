@@ -32,7 +32,7 @@ struct StackElement {
 
   Element describe() const {
     return box().padding(26).children({
-        stack().grow(1).borderRadius({12}).fill(kPlate).clip().children({
+        stack().flexGrow(1).borderRadius({12}).fill(kPlate).clip().children({
             // The plate's own ground, filling the box it stands in.
             box().cover().fill(kPlate),
             // A scrim over it: a covering child painted after the

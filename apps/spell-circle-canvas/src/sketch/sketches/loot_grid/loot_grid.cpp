@@ -345,7 +345,7 @@ struct LootGrid {
           .alignItems(Align::Center)
           .children({text(label).font({.size = 10.5f, .track = 1.1f}),
                      box()
-                         .grow(1)
+                         .flexGrow(1)
                          .height(1.0f)
                          .margin(6, 0, 6, 0)
                          .fill(Paint::solid({0.42f, 0.38f, 0.31f, 0.28f})),

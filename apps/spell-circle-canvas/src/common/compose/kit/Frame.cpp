@@ -90,7 +90,7 @@ Element ladder(const Ladder& rungs) {
     rails.children({line({.thickness = rungs.thickness,
                           .column = rungs.column,
                           .fill = rungs.fill})
-                        .shrink(0)});
+                        .flexShrink(0)});
   return rails;
 }
 

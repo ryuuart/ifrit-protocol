@@ -92,12 +92,12 @@ compose::Element titleCard(const TitleCard& card) {
   return box()
       .row()
       .alignItems(Align::End)
-      .children({std::move(column.grow(1)), std::move(ranged)});
+      .children({std::move(column.flexGrow(1)), std::move(ranged)});
 }
 
 compose::Element sectionHeader(const SectionHeader& header) {
   const Theme& look = theme();
-  Element column = box().column().shrink(0);
+  Element column = box().column().flexShrink(0);
   Element row =
       box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
   if (!header.label.empty())
@@ -106,7 +106,7 @@ compose::Element sectionHeader(const SectionHeader& header) {
                           look.font(look.type.section, look.palette.ink)))});
   if (header.ruled)
     row.children(
-        {box().grow(1).height(1).fill(Fill::color(look.palette.rule))});
+        {box().flexGrow(1).height(1).fill(Fill::color(look.palette.rule))});
   if (!header.label.empty() || header.ruled) column.children({std::move(row)});
   if (!header.note.empty())
     column.children(

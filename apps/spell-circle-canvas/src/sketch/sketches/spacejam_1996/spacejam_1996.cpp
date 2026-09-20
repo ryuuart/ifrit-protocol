@@ -85,7 +85,7 @@ struct SpaceJam1996 {
   Element cell(const sj::Slot& s) const {
     const bool inFlight =
         s.asset >= 0 && (arrivedMask & (1u << (unsigned)s.asset)) == 0;
-    Element c = box().column().alignSelf(Align::Start).shrink(0);
+    Element c = box().column().alignSelf(Align::Start).flexShrink(0);
     if (s.asset < 0) c.width(0).height(0);
     if (s.brs > 0)
       c.children({box().width(0).height(sj::S(18) * (float)s.brs)});

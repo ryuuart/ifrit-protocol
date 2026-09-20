@@ -23,17 +23,18 @@ Element TwoAdvancedV3::moduleBar(const Utf8& glyph, const Utf8& label,
           onEdges(path::Edge::Top,
                   stroke(1, Fill::color(mskia::withAlpha(kSteelHi, 0.7f)),
                          PathFormat::Align::Inner)))
-      .children({kit::centred()
-                     .width(16)
-                     .height(16)
-                     .fill(kInk)
+      .children(
+          {kit::centred()
+               .width(16)
+               .height(16)
+               .fill(kInk)
 
-                     .children({text(glyph).font(micro(9, kSteelHi, 0))}),
-                 text(label).font(micro(14.5f, kInk, 140)), box().width(6),
-                 box().grow(1).height(16).fill(dots.material()).opacity(0.85f),
-                 box().width(4).height(4).fill(mskia::withAlpha(kInk, 0.8f)),
-                 box().width(4).height(4).fill(mskia::withAlpha(kInk, 0.5f)),
-                 box().width(4).height(4).fill(mskia::withAlpha(kInk, 0.3f))});
+               .children({text(glyph).font(micro(9, kSteelHi, 0))}),
+           text(label).font(micro(14.5f, kInk, 140)), box().width(6),
+           box().flexGrow(1).height(16).fill(dots.material()).opacity(0.85f),
+           box().width(4).height(4).fill(mskia::withAlpha(kInk, 0.8f)),
+           box().width(4).height(4).fill(mskia::withAlpha(kInk, 0.5f)),
+           box().width(4).height(4).fill(mskia::withAlpha(kInk, 0.3f))});
 }
 
 Element TwoAdvancedV3::button(const Utf8& label, float w, float h) {
@@ -134,7 +135,7 @@ Element TwoAdvancedV3::wordmark() {
                     text(mark2["studios"],
                          sigil::weave::kit::tracked(grotBold(), 12, kNear, 560,
                                                     1.0f))}),
-               box().grow(1)});
+               box().flexGrow(1)});
   return panel
       .translateY(animate(motion::from(-60.0f).to(0.0f),
                           {420ms, &ch::easeOutQuint, 1600ms}))
@@ -189,7 +190,7 @@ Element TwoAdvancedV3::navTabs(int active) {
     const bool on = i == active;
     row.children(
         {kit::centred()
-             .grow(1)
+             .flexGrow(1)
              .height(33)
              .column()
 
@@ -241,7 +242,7 @@ Element TwoAdvancedV3::scrollStrip() {
                 .children({t(strip["arrow"], micro(9, kSteelHi, 0)),
                            t(strip["left"],
                              micro(9, mskia::withAlpha(kSteelHi, 0.85f), 180)),
-                           box().grow(1),
+                           box().flexGrow(1),
                            t(strip["right"],
                              micro(9, mskia::withAlpha(kSteel, 0.9f), 180))}),
             kStageX, 617, kStageW, 16)
@@ -274,7 +275,7 @@ Element TwoAdvancedV3::footerRail() {
                                   micro(9, mskia::withAlpha(kInk, 0.5f), 0))});
                             return one;
                           }),
-                     box().grow(1), t(foot["hosting"], micro(9, kInk, 140)),
+                     box().flexGrow(1), t(foot["hosting"], micro(9, kInk, 140)),
                      box().width(12).height(12).borderRadius({6}).fill(kHost)}),
             kStageX, 1045, kStageW, 20)
       .opacity(animate(motion::from(0.0f).to(1.0f),

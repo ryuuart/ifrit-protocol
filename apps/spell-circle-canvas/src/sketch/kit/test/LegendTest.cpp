@@ -52,7 +52,7 @@ TEST(SketchKitLegend, AnEntryIsASwatchAndItsWords) {
                                         .width(house.spacing.swatchSide)
                                         .height(house.spacing.swatchSide)
                                         .fill(warm)
-                                        .shrink(0)})
+                                        .flexShrink(0)})
                          .children({compose::text(
                              u8"lit", house.style(house.type.captionNote,
                                                   house.palette.ink))})});
@@ -84,7 +84,7 @@ TEST(SketchKitLegend, AnEntryCanCarryItsOwnEdgeAndItsOwnInk) {
                                   .width(9)
                                   .height(9)
                                   .fill(body)
-                                  .shrink(0)
+                                  .flexShrink(0)
                                   .borderRadius(compose::Corners{1.5f})
                                   .foreground(compose::stroke(
                                       1.0f, Fill::color(rare)))})

@@ -43,7 +43,7 @@ def metric(label, value, detail, accent, level, index):
         column()
         .padding(23)
         .gap(15)
-        .grow(1)
+        .flexGrow(1)
         .borderRadius(16)
         .fill(PANEL)
         .key(label)
@@ -119,7 +119,7 @@ def signal_panel():
                         (
                             box()
                             .height(124 * sample + 8)
-                            .grow(1)
+                            .flexGrow(1)
                             .borderRadius(3)
                             .fill("#8bd0bd" if i < 32 else "#edbb83")
                             .key(f"sample.{i}")

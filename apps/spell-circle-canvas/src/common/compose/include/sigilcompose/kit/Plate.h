@@ -90,15 +90,15 @@ struct Plate {
   Fill divider;
   float dividerWidth = 1.0f;
   /** Fixed extent per column across the stacking axis; 0 shares the space
-   *  equally with grow(1).
+   *  equally with flexGrow(1).
    *
    *  There is deliberately no third "size each column to its content" mode.
    *  A feed sizes itself from `Options::visible`, so a column's natural
    *  extent normally EXCEEDS the padded interior — and in that case flex
-   *  `shrink` (which defaults to 1) distributes the deficit across exactly
-   *  the sizes grow(1) would distribute a surplus across, making the two
+   *  `flexShrink` (which defaults to 1) distributes the deficit across exactly
+   *  the sizes flexGrow(1) would distribute a surplus across, making the two
    *  indistinguishable. They diverge only for columns whose natural extent
-   *  is SMALLER than the interior, where grow(1) stretches them and pushes
+   *  is SMALLER than the interior, where flexGrow(1) stretches them and pushes
    *  later siblings along; give those a `columnExtent`. */
   float columnExtent = 0.0f;
 };
@@ -108,9 +108,9 @@ struct Plate {
   if (p.border.kind != Fill::Kind::None)
     ground.stroke(stroke(p.borderWidth, p.border, p.borderAlign));
 
-  // grow(1) so the padded interior fills whatever rect the caller gave the
+  // flexGrow(1) so the padded interior fills whatever rect the caller gave the
   // plate, without the interior needing its own size.
-  Element inner = box().padding(p.paddingX, p.paddingY).gap(p.gap).grow(1);
+  Element inner = box().padding(p.paddingX, p.paddingY).gap(p.gap).flexGrow(1);
   if (p.column)
     inner.column();
   else
@@ -123,12 +123,12 @@ struct Plate {
       inner.children({p.column ? box().height(p.dividerWidth).fill(p.divider)
                                : box().width(p.dividerWidth).fill(p.divider)});
     first = false;
-    // Shared-space columns go in DIRECTLY with grow(1) — no wrapper box. The
-    // difference is not cosmetic: as a flex child of the row a feed also
+    // Shared-space columns go in DIRECTLY with flexGrow(1) — no wrapper box.
+    // The difference is not cosmetic: as a flex child of the row a feed also
     // stretches to the interior height, where inside a wrapper it would take
     // its content height and leave the rest of the cell empty.
     if (p.columnExtent <= 0) {
-      col.grow(1);
+      col.flexGrow(1);
       inner.children({std::move(col)});
       continue;
     }
@@ -190,7 +190,7 @@ struct Console {
     const size_t end = std::min(i + per, c.feeds.size());
     for (size_t j = i; j < end; ++j)
       if (c.feeds[j])
-        stack.children({feed::feed(*c.feeds[j], c.style).grow(1)});
+        stack.children({feed::feed(*c.feeds[j], c.style).flexGrow(1)});
     columns.push_back(std::move(stack));
   }
   c.plate.columns = std::move(columns);

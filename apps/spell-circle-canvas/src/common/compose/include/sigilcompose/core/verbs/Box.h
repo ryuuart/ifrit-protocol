@@ -39,9 +39,9 @@ class BoxVerbs {
   /** The air outside it, a length per side, clockwise from the left. */
   Derived& margin(Dimension left, Dimension top, Dimension right,
                   Dimension bottom);
-  /** The node's width, as a flex BASIS and not a guarantee: `shrink`
+  /** The node's width, as a flex BASIS and not a guarantee: `flexShrink`
    *  defaults to 1, faithful to Yoga and CSS, so a stated width gives
-   *  room back when the line it is on overflows. `shrink(0)` is what
+   *  room back when the line it is on overflows. `flexShrink(0)` is what
    *  makes a size exact. Unstated, the node is as wide as its
    *  content. */
   Derived& width(Dimension d);
@@ -51,7 +51,7 @@ class BoxVerbs {
   /** A FLOOR under the node's width that the flex factors may not take
    *  it below. None when unstated. */
   Derived& minWidth(Dimension d);
-  /** A CEILING over the node's width that `grow()` may not take it
+  /** A CEILING over the node's width that `flexGrow()` may not take it
    *  above. None when unstated. */
   Derived& maxWidth(Dimension d);
   /** A FLOOR under the node's height. None when unstated. */

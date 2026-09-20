@@ -27,11 +27,12 @@ auto ChaucerAstrolabe::rack() -> Element {
   return kit::at(kRackX, kRackY, kRackW, kRackH)
       .row()
       .gap(30)
-      .children({box().width(kNarrow).gap(kCardGap).children(
-                     {projectionPanel(), familiesPanel(), backPanel().grow(1)}),
-                 box().width(kWide).gap(kCardGap).children(
-                     {specCard(), starPanel(), chaucerPanel(),
-                      zodiacPanel().grow(1)})});
+      .children(
+          {box().width(kNarrow).gap(kCardGap).children(
+               {projectionPanel(), familiesPanel(), backPanel().flexGrow(1)}),
+           box().width(kWide).gap(kCardGap).children(
+               {specCard(), starPanel(), chaucerPanel(),
+                zodiacPanel().flexGrow(1)})});
 }
 
 auto ChaucerAstrolabe::projectionPanel() -> Element {
@@ -42,7 +43,7 @@ auto ChaucerAstrolabe::projectionPanel() -> Element {
   const float rise = rr * std::sin(kEps * kD);
   const Fill hair = Fill::color(hexColor(0x241c15, 0.42f));
   // the section over the reading it answers
-  Element section = box().height(kSectionH).shrink(0).children(
+  Element section = box().height(kSectionH).flexShrink(0).children(
       {// the sphere seen in section, and the plane of the equator it
        // is struck onto — the plane of projection, which reaches past
        // the sphere because the plate does
@@ -352,7 +353,7 @@ auto ChaucerAstrolabe::starPanel() -> Element {
   const std::vector<sketch::kit::Document::Line> heads = doc.run(page["heads"]);
   return card(
       page, box().gap(6).children(
-                {box().row().gap(14).grow(1).children(
+                {box().row().gap(14).flexGrow(1).children(
                      {sketch::kit::table(
                           listOf<sketch::kit::Row>(
                               kStars,
@@ -377,7 +378,7 @@ auto ChaucerAstrolabe::starPanel() -> Element {
                            .pad = 6},
                           {sketch::kit::rules({.x = {kRcan, kReq, 1.0}}),
                            sketch::kit::marks(kStars, pointer, {.x = radius})})
-                          .grow(1)}),
+                          .flexGrow(1)}),
                  text(page["note"]).styleClass("gloss")}));
 }
 
@@ -451,7 +452,7 @@ auto ChaucerAstrolabe::zodiacPanel() -> Element {
                 sketch::kit::label(page["reference"], 0, 30,
                                    {.anchor = {.across = Align::Start,
                                                .down = Align::Start}})})
-               .grow(1),
+               .flexGrow(1),
            // the live marker: which sign the sun stands in, under its band
            box()
                .width(band - 6)

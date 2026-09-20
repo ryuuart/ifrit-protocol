@@ -530,7 +530,7 @@ struct Sheet {
       content.margin(0, page.contentGap, 0, 0);
   }
 
-  content.grow(1);
+  content.flexGrow(1);
   root.children({named(std::move(content), "content")});
 
   if (!page.footer.empty()) {

@@ -65,7 +65,7 @@ compose::Element meter(const Meter& bar) {
     head.children(
         {document::caption(bar.label).role(weave::rule("caption").font(
             look.font(look.type.captionNote, look.palette.ash)))});
-  head.children({box().grow(1)});
+  head.children({box().flexGrow(1)});
   if (!bar.reading.empty())
     head.children({document::paragraph(bar.reading)
                        .role(weave::rule("paragraph")

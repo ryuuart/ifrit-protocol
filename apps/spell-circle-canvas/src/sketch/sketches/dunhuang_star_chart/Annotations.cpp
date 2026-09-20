@@ -320,7 +320,7 @@ auto DunhuangStarChart::projectionPanel() -> Element {
                   },
                   {.pen = {.width = 1.5f}, .samples = 80})})
              .height(132)
-             .shrink(0)
+             .flexShrink(0)
              .stroke(spans::edges(16.0f),
                      brush::solid(0.9f, Fill::color(hexColor(0x8a7458, 0.5f)))),
          text(plot["caption"]).styleClass("caption"),
@@ -377,7 +377,7 @@ auto DunhuangStarChart::auditRow(int i) -> Element {
                      Fill::color(c < r.confidence ? hexColor(0xc9a35c, 0.85f)
                                                   : hexColor(0x6d6249, 0.28f)));
                })),
-           text(r.defect).styleClass("flag").grow(1)});
+           text(r.defect).styleClass("flag").flexGrow(1)});
 }
 
 auto DunhuangStarChart::auditPanel() -> Element {
@@ -404,7 +404,7 @@ auto DunhuangStarChart::auditPanel() -> Element {
                      [](const sketch::kit::Document::Line& h, size_t i) {
                        Element cell = text(h.words).styleClass("caption dim");
                        return i + 1 < std::size(kHeads) ? cell.width(kHeads[i])
-                                                        : cell.grow(1);
+                                                        : cell.flexGrow(1);
                      })),
                  each(20, [this](int i) { return auditRow(i); }),
                  hairline(0.5f).opacity(gate(tAudit + 5.4f, tAudit + 5.9f)),

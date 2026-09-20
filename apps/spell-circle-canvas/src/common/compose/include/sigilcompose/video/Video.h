@@ -115,7 +115,7 @@ inline void paintVideoFrame(SkCanvas& canvas,
 
 /** A video frame sampled from the composer's motion clock. Its intrinsic
  *  layout size is the encoded frame size and remains overridable by the usual
- *  width, height, grow, and aspect-ratio setters. */
+ *  width, height, flexGrow, and aspect-ratio setters. */
 inline Element video(std::shared_ptr<sigil::video::Video> clip,
                      VideoOptions options = {}) {
   const int width = clip ? clip->probe().width : 0;

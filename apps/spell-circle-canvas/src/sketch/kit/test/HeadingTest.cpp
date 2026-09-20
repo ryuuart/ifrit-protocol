@@ -95,7 +95,7 @@ TEST(SketchKitHeading, ACardWithNotesIsTheHandSpelledRow) {
                        {compose::text(u8"THE SHIPPING FORECAST",
                                       line(house.type.title, house.palette.ink))
                             .margin(0, house.spacing.subtitleGap, 0, 0)})
-                   .grow(1),
+                   .flexGrow(1),
                compose::box()
                    .column()
                    .gap(house.spacing.rowGap)
@@ -201,7 +201,7 @@ TEST(SketchKitHeading, DocumentRulesSetASectionHeadingAndItsCaption) {
   note.size = 18;
   const Element header =
       kit::sectionHeader({.label = "AAAA", .note = "BBBB", .ruled = false});
-  Element byHand = compose::box().column().shrink(0).children(
+  Element byHand = compose::box().column().flexShrink(0).children(
       {compose::box()
            .row()
            .alignItems(compose::Align::Center)

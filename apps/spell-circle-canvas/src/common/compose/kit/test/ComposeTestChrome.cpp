@@ -183,7 +183,7 @@ TEST(KitChrome, DressingAPanelPutsTheInnerRingOverItsContent) {
       kit::bevelled(face, b);
     else
       face.overlay(b);
-    face.children({box().grow(1).fill(SkColor4f{1, 0, 1, 1})});
+    face.children({box().flexGrow(1).fill(SkColor4f{1, 0, 1, 1})});
     return box().padding(kX).children({std::move(face)});
   };
 

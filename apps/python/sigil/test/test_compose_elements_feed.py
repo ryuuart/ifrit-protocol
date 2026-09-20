@@ -348,7 +348,7 @@ class Columns(unittest.TestCase):
         self.assertIsInstance(feed.feed(ring), compose.Element)
         self.assertIsInstance(feed.feed(ring=ring), compose.Element)
         # The column is an ordinary element: it takes the fluent verbs.
-        self.assertIsInstance(feed.feed(ring, windowed(6)).grow(1), compose.Element)
+        self.assertIsInstance(feed.feed(ring, windowed(6)).flexGrow(1), compose.Element)
 
     def test_only_the_window_is_built(self):
         four = instances(feed.feed(log(4), windowed(4)))

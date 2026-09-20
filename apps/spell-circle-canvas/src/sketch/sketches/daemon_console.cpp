@@ -599,7 +599,7 @@ struct DaemonConsole {
         .children({box().width(6).height(6).borderRadius({1.5f}).fill(
                        Fill::color(chip)),
                    text(label).font(chrome(10, dc::kChrome, 1.6f)),
-                   box().grow(1),
+                   box().flexGrow(1),
                    text(std::format("{}", n))
                        .font(chrome(12, dc::kBone, 0, true, true))});
   }
@@ -662,7 +662,7 @@ struct DaemonConsole {
     const sigil::weave::StyleSheet styles = rowStyles();
     Element well =
         box()
-            .grow(1)
+            .flexGrow(1)
             .clip()
             // The scrollback's voice, stated once: every row is set in it
             // and its named runs are partials over it.
@@ -685,7 +685,7 @@ struct DaemonConsole {
                      Fill::color(dc::kAccent)),
                  text("WARDNET").font(chrome(15, dc::kBone, 3.5f, true)),
                  text("PERIMETER WATCH").font(chrome(10.5f, dc::kChrome, 3.5f)),
-                 box().grow(1),
+                 box().flexGrow(1),
                  text("NODE 07 · flooded-causeway")
                      .font(chrome(10.5f, dc::kDim, 0.8f)),
                  box()
@@ -718,7 +718,7 @@ struct DaemonConsole {
                      .alignItems(Align::Center)
                      .children(
                          {text("latency").font(chrome(10, dc::kChrome, 0.8f)),
-                          box().grow(1),
+                          box().flexGrow(1),
                           text(std::format(
                                    "{:2.0f} mS",
                                    11.0 + 3.0 * std::sin(clockNow * 0.7)))
@@ -726,7 +726,7 @@ struct DaemonConsole {
             // The hero stat anchors the rail's foot: session health as one
             // number, amber the moment the breach count says it should be.
             .children(
-                {box().grow(1), rule(6, 2),
+                {box().flexGrow(1), rule(6, 2),
                  text("WARD INTEGRITY").styleClass("label"),
                  box()
                      .row()
@@ -772,7 +772,7 @@ struct DaemonConsole {
                                         .square(0.62f / 1.06f)
                                         .target(0.10f, 1.0f))
                            .key("caret"),
-                       box().grow(1),
+                       box().flexGrow(1),
                        text(std::format("ring 256 · {} events",
                                         (unsigned long long)gen.events))
                            .styleClass("fine")});
@@ -793,7 +793,7 @@ struct DaemonConsole {
                  // voice under it.
                  .font({.face = faceChrome})
                  .children({header, rule(9, 8),
-                            box().row().grow(1).gap(16).clip().children(
+                            box().row().flexGrow(1).gap(16).clip().children(
                                 {std::move(well),
                                  box().width(1).fill(Fill::color(dc::kRule)),
                                  std::move(rail)}),

@@ -37,15 +37,15 @@ class FlexVerbs {
    *  axis, as a weight against its siblings' — CSS `flex-grow`. Zero
    *  when unstated, so a node stays at its basis; the bare call is a
    *  weight of one. */
-  Derived& grow(float factor = 1.0f);
+  Derived& flexGrow(float factor = 1.0f);
   /** THIS NODE'S SHARE OF THE OVERFLOW when the parent's main axis runs
    *  short — CSS `flex-shrink`. ONE when unstated, faithful to Yoga and
    *  CSS, which is why a stated width is a basis. */
-  Derived& shrink(float factor);
+  Derived& flexShrink(float factor);
   /** THE SIZE THE FLEX FACTORS START FROM along the parent's main axis
    *  — CSS `flex-basis`. Unstated, the node's own width or height on
    *  that axis is the basis. */
-  Derived& basis(Dimension d);
+  Derived& flexBasis(Dimension d);
   /** WHERE THIS NODE'S CHILDREN SIT ACROSS its main axis — CSS
    *  `align-items`. `Align::Stretch` when unstated, so a child with no
    *  cross-axis size fills. */

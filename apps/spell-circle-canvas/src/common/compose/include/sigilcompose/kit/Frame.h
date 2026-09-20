@@ -165,7 +165,7 @@ struct Line {
   /** Along the line. Auto (default) stretches it across the flow it
    *  stands in, which is what a separator between stacked things wants; a
    *  line that must fill the flow's OWN axis — the rule that fills what a
-   *  name and a note leave between them — says `Element::grow` on what
+   *  name and a note leave between them — says `Element::flexGrow` on what
    *  comes back. */
   Dimension length;
   /** Across the line, px. */

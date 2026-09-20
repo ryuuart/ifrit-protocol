@@ -145,13 +145,13 @@ Element banner(float length) {
   // carries. The spacers are grow boxes, so the column distributes
   // whatever length it was told it is.
   for (int s = 0; s < kSectors; ++s)
-    column.children({box().grow(),
+    column.children({box().flexGrow(),
                      text(kit::formatted("- %02d -", s + 1))
                          .font({.size = 34})
                          .ink(kNumeral),
                      text(pool[(size_t)s % 4]).font({.size = 42})});
   column.children(
-      {box().grow(), text(u8"REPEAT").font({.size = 42}).ink(kAccent)});
+      {box().flexGrow(), text(u8"REPEAT").font({.size = 42}).ink(kAccent)});
   return column;
 }
 

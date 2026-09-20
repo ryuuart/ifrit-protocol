@@ -160,7 +160,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                           .fill = Fill::color(mskia::withAlpha(kCyan, 0.4f))}),
                t("› GLOBAL AMBIENCE",
                  micro(11, mskia::withAlpha(kCyan, 0.9f), 240)),
-               box().grow(1),
+               box().flexGrow(1),
                box().width(90).height(12).foreground(
                    styles::TickRail{mskia::withAlpha(kNear, 0.45f), 6, 3, 8, 1,
                                     3, 0.5f, path::Edge::Bottom}),
@@ -180,20 +180,20 @@ auto TwoAdvancedV4::statusBar() -> Element {
                  kChrome)
           .translateY(animate(motion::from(-46.0f).to(0.0f),
                               {380ms, &ch::easeOutQuint, 1530ms}))
-          .children(
-              {t("› GLOBAL NAVIGATOR", micro(11, kDust, 260)), box().grow(1),
-               // V4.PROPHECY sits in its own hairline-outlined plate at the
-               // bar's right end — the one piece of type up here that is
-               // boxed rather than bare.
-               box()
-                   .height(24)
-                   .padding(9, 0)
-                   .stroke(stroke(1,
-                                  Fill::color(mskia::withAlpha(kNear, 0.75f)),
-                                  PathFormat::Align::Inner))
-                   .row()
-                   .alignItems(Align::Center)
-                   .children({t("V4.PROPHECY", heavy(14, kNear, 80))})});
+          .children({t("› GLOBAL NAVIGATOR", micro(11, kDust, 260)),
+                     box().flexGrow(1),
+                     // V4.PROPHECY sits in its own hairline-outlined plate at
+                     // the bar's right end — the one piece of type up here that
+                     // is boxed rather than bare.
+                     box()
+                         .height(24)
+                         .padding(9, 0)
+                         .stroke(stroke(
+                             1, Fill::color(mskia::withAlpha(kNear, 0.75f)),
+                             PathFormat::Align::Inner))
+                         .row()
+                         .alignItems(Align::Center)
+                         .children({t("V4.PROPHECY", heavy(14, kNear, 80))})});
 
   return box().left(24).top(0).width(1892).height(40).children({maroon, teal});
 }
@@ -226,7 +226,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
 
   Element scope =
       box()
-          .grow(1)
+          .flexGrow(1)
           .height(100)
           .shape(shapes::chamfered(8, shapes::Corner::AntiDiagonal))
           .fill(spectrum)
@@ -284,7 +284,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
                    {key("◂◂", false), key("■", false), key("▸", true),
                     key("▸▸", false), box().width(8),
                     meter(64, &vuLeft, mskia::withAlpha(kCyan, 0.85f)),
-                    box().grow(1), t("VOL", micro(10, kDustDim, 200)),
+                    box().flexGrow(1), t("VOL", micro(10, kDustDim, 200)),
                     meter(56, &vuRight, mskia::withAlpha(kCyanRing, 0.8f))}),
            box()
                .height(18)
@@ -294,7 +294,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
                .fill(mskia::withAlpha(kChrome, 0.9f))
                .children(
                    {t("AUDIO PREFERENCES", micro(11, kDust, 240)),
-                    box().grow(1),
+                    box().flexGrow(1),
                     t("STREAM 128K · STEREO", micro(10, kDustDim, 200))})});
   return panel;
 }

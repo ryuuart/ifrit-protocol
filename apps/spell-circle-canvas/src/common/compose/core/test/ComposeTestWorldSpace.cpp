@@ -307,7 +307,7 @@ TEST(ComposeWorldSpace, TheFlagRidesThePruneSignature) {
 // rebuild its shader — a digest cannot notice an input it was never fed, so
 // omitting the matrix serves the pre-move shader on the frame after a move.
 //
-// The move here is a setSize() RELAYOUT against a grow() spacer, with no
+// The move here is a setSize() RELAYOUT against a flexGrow() spacer, with no
 // re-describe, so the same live recipe and its memo survive it. Re-describing
 // the material would mint a fresh memo and hide the hole entirely.
 TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
@@ -324,7 +324,7 @@ TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
   m.worldSpace();
   Host host;
   host.composer.render(box().row().children(
-      {box().grow(1).height(10),
+      {box().flexGrow(1).height(10),
        box().width(120).height(200).key("panel").fill(m)}));
   host.frame();
   // Canvas 200 wide: the spacer grows to 80, the panel spans [80, 200] —

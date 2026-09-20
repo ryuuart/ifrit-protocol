@@ -15,7 +15,7 @@ namespace {
 Element mark(const SurfacePaint& paint, float side, float corners) {
   Element patch = box().width(Dimension(side)).height(Dimension(side));
   paint.apply(patch);
-  patch.shrink(0);
+  patch.flexShrink(0);
   if (corners > 0.0f) patch.borderRadius(Corners{corners});
   return patch;
 }
@@ -42,7 +42,7 @@ Element reading(const Reading& one, const Rows& how) {
   }
   // With a measure the space between is what grows, which is what puts
   // every figure on one edge however long the names are.
-  if (how.measure > 0.0f) row.children({box().grow(1)});
+  if (how.measure > 0.0f) row.children({box().flexGrow(1)});
   if (!one.value.empty())
     row.children({lit(how.valueLine ? how.valueLine(one.value, how)
                                     : figure(one.value))});
@@ -93,7 +93,7 @@ Element table(std::span<const std::span<const Utf8>> rows, const Table& how) {
   if (headed) {
     Element head =
         box().row().alignItems(Align::Center).gap(Dimension(how.gap));
-    if (marked) head.children({box().width(how.swatchSide).shrink(0)});
+    if (marked) head.children({box().width(how.swatchSide).flexShrink(0)});
     for (size_t index = 0; index < how.columns.size(); ++index) {
       const Utf8& words = how.columns[index].head;
       head.children({sized(

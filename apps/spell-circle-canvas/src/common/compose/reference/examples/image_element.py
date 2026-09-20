@@ -47,8 +47,8 @@ def cell(caption: str, leaf: compose.Element) -> compose.Element:
         )
         .column()
         .gap(8)
-        .basis(0)
-        .grow(1)
+        .flexBasis(0)
+        .flexGrow(1)
         .alignItems("center")
     )
 

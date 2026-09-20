@@ -203,7 +203,7 @@ inline weave::Type quo(float s, SkColor4f c) {
 }
 
 inline Element rule(float w, SkColor4f c, float h = 1.0f) {
-  return box().width(w).height(h).shrink(0).fill(c);
+  return box().width(w).height(h).flexShrink(0).fill(c);
 }
 
 /** THE WORDS OF A LIST, one per entry. */

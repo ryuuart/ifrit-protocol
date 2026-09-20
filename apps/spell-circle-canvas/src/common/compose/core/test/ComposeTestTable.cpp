@@ -21,7 +21,7 @@ TEST(ComposeTable, AColumnIsAsWideAsWhatIsInItAndSharesTheSurplus) {
   host.composer.render(box().children(
       {layout(table)
            .width(pct(100))
-           .grow(1)
+           .flexGrow(1)
            .children({box().key("a").width(30).height(20).cells(0, 0)})
            .children({box().key("b").width(60).height(20).cells(1, 0)})
            .children({box().key("c").width(90).height(20).cells(2, 0)})}));

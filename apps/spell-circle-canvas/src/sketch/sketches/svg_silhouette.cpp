@@ -54,7 +54,7 @@ Element viewport(SkSize size, bool preserveAspect) {
           .height(size.height())
           .stroke(stroke(1.0f, Fill::color(kBoxRule)))
           .children({box()
-                         .grow(1)
+                         .flexGrow(1)
                          .alignSelf(Align::Stretch)
                          .shape(shapes::svg(kBolt, preserveAspect))
                          .fill(Fill::color(kFigure))}));

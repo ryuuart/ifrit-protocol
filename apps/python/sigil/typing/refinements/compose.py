@@ -45,7 +45,7 @@ def children(self, *children: Element) -> Element: ...
     )
     table.erased(
         ELEMENT,
-        "width height minWidth minHeight maxWidth maxHeight basis left top right bottom gap",
+        "width height minWidth minHeight maxWidth maxHeight flexBasis left top right bottom gap",
         "_t.DimensionLike",
     )
     table.erased(ELEMENT, "size", "_t.DimensionLike", "_t.DimensionLike")

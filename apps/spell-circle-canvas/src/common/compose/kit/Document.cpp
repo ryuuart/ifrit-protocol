@@ -109,8 +109,8 @@ Element item(Element body, Utf8 marker) {
       .children({text(std::move(marker))
                      .role("marker")
                      .minWidth(weave::em(1.25f))
-                     .shrink(0),
-                 std::move(body.minWidth(0).grow(1))});
+                     .flexShrink(0),
+                 std::move(body.minWidth(0).flexGrow(1))});
 }
 Element figure(Element body, Utf8 note) {
   Element result = flow("figure", {std::move(body)}, listGap);

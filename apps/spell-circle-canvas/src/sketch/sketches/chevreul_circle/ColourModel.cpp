@@ -189,7 +189,7 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
   if (ctx.fonts) {
     Element strip = box().row();
     for (int b = 0; b < kBandN; ++b)
-      strip.children({box().width(kBandW).height(32).shrink(0).fill(
+      strip.children({box().width(kBandW).height(32).flexShrink(0).fill(
           Fill::color(gamme[(size_t)b]))});
     // test::rasterize is the read-back: it wraps the tree in the shell
     // snapshot() needs, draws it at an explicit canvas size and hands the

@@ -29,7 +29,7 @@ compose::Element instrument(const Instrument& specification,
       box()
           .column()
           .width(specification.pictureWidth)
-          .shrink(0)
+          .flexShrink(0)
           .gap(14)
           .children({sectionHeader({.label = specification.pictureLabel}),
                      well({.width = Dimension(specification.pictureWidth),
@@ -40,7 +40,7 @@ compose::Element instrument(const Instrument& specification,
                           stack().children({std::move(picture)}))});
   if (!specification.note.empty())
     preview.children({document::caption(specification.note)});
-  Element detail = box().column().basis(0).grow().gap(14).children(
+  Element detail = box().column().flexBasis(0).flexGrow().gap(14).children(
       {sectionHeader({.label = specification.readingsLabel}),
        well(
            {.padding = 18, .clip = false, .corners = look.spacing.panelCorners},

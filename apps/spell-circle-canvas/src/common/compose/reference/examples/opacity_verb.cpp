@@ -27,8 +27,8 @@ Element card(float value, const char* caption) {
   return box()
       .column()
       .gap(10)
-      .basis(0)
-      .grow(1)
+      .flexBasis(0)
+      .flexGrow(1)
       .alignItems(Align::Center)
       .children({stack().width(pct(100)).height(120).opacity(value).children(
                      {box().cover().borderRadius({10}).fill(kPlate),

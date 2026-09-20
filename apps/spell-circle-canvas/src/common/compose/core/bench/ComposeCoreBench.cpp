@@ -412,7 +412,7 @@ Element marqueeStrip(float acrossPx, float alongPx) {
                Fill::color({0.455f, 0.878f, 0.745f, 0.5f}))});
   const int sectors = (int)(alongPx / 930.0f);  // the marquee's own density
   for (int s = 0; s < sectors; ++s) {
-    root.children({box().grow()});
+    root.children({box().flexGrow()});
     root.children({label("— " + std::to_string(s + 1) + " —", 64.0f,
                          {0.62f, 0.69f, 0.79f, 1.0f})});
     root.children(

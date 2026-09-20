@@ -106,7 +106,7 @@ auto SlitScan2001::filmFrame() -> Element {
   return box()
       .width(kFilmW)
       .height(kFilmH)
-      .shrink(0)
+      .flexShrink(0)
       .font({.face = monoFace(), .size = 8, .track = 0.6f})
       .fill(kBlack)
       .clip()
@@ -167,7 +167,7 @@ auto SlitScan2001::rigStrip() -> Element {
   return box()
       .width(kRigW)
       .height(kRigH)
-      .shrink(0)
+      .flexShrink(0)
       .font({.face = monoFace()})  // the monitor's lines and the readouts
       .key("rig")
       // BOTH PROGRAMS BELOW ARE KEYLESS ON PURPOSE. They read the

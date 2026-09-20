@@ -26,8 +26,8 @@ Element cell(const char* caption, Element plate) {
   return box()
       .column()
       .gap(12)
-      .basis(0)
-      .grow(1)
+      .flexBasis(0)
+      .flexGrow(1)
       .alignItems(Align::Center)
       .justifyContent(Justify::Center)
       .children({plate.width(160).height(100).borderRadius({12}),

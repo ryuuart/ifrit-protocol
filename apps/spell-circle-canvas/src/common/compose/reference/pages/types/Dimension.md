@@ -84,7 +84,7 @@ In Python the whole of that column is the union `DimensionLike`.
 | `Element::minWidth`, `Element::maxWidth`, `Element::minHeight`, `Element::maxHeight` | verb | SigilCompose |
 | `Element::padding`, `Element::margin` | verb | SigilCompose — one, two or four lengths |
 | `Element::gap` | verb | SigilCompose |
-| `Element::basis` | verb | SigilCompose |
+| `Element::flexBasis` | verb | SigilCompose |
 | `Element::inset` | verb | SigilCompose |
 | `Element::left`, `Element::top`, `Element::right`, `Element::bottom` | verb | SigilCompose |
 | `Element::var` | verb | SigilCompose — the length a subtree reads under a name |

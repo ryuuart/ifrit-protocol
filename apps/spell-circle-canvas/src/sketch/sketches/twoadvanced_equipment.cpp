@@ -224,8 +224,8 @@ struct TwoAdvancedEquipment {
               SkColor4f fallback = teq::kMaroon) {
     auto it = art.find(name);
     if (it == art.end() || !it->second)
-      return box().width(w).height(h).shrink(0).fill(fallback);
-    return image(it->second).width(w).height(h).shrink(0);
+      return box().width(w).height(h).flexShrink(0).fill(fallback);
+    return image(it->second).width(w).height(h).flexShrink(0);
   }
 
   // ---- the three frames ---------------------------------------------------
@@ -281,7 +281,7 @@ struct TwoAdvancedEquipment {
 
                   .children({img("ecom-arrowbutton.gif", 16, 15)}),
               box()
-                  .grow(1)
+                  .flexGrow(1)
                   .fill(kMaroon)
                   .row()
                   .alignItems(Align::Center)
@@ -298,7 +298,7 @@ struct TwoAdvancedEquipment {
               box().width(3),
               box().width(416).height(52).fill(kRose).column().children(
                   {box().padding(7).children({t(p.copy, {.color = kMaroon})}),
-                   box().grow(1),
+                   box().flexGrow(1),
                    box()
                        .row()
                        .justifyContent(Justify::End)
@@ -321,20 +321,21 @@ struct TwoAdvancedEquipment {
             .column()
             .width(501)
             .height(kListH)
-            .shrink(0)
+            .flexShrink(0)
             .translateY(scrollEnvelope().target(0.0f, -contentOverflow))
-            .children({box().height(1),
-                       img("ecom-productselection.gif", 501, 16, kMaroon),
-                       box().height(6),
-                       each(kProducts,
-                            [this](const Product& p) { return product(p); }),
-                       img("ecom-breakerbar.gif", 501, 6, kMaroon),
-                       box()
-                           .height(11)
-                           .row()
-                           .alignItems(Align::Center)
-                           .children({box().grow(1), img("ecom-copyright.gif",
-                                                         165, 11, kWhite)})});
+            .children(
+                {box().height(1),
+                 img("ecom-productselection.gif", 501, 16, kMaroon),
+                 box().height(6),
+                 each(kProducts,
+                      [this](const Product& p) { return product(p); }),
+                 img("ecom-breakerbar.gif", 501, 6, kMaroon),
+                 box()
+                     .height(11)
+                     .row()
+                     .alignItems(Align::Center)
+                     .children({box().flexGrow(1),
+                                img("ecom-copyright.gif", 165, 11, kWhite)})});
 
     // The styled IE scrollbar: two arrow buttons and a proportional
     // thumb, in exactly the BODY's SCROLLBAR-* colours.
@@ -369,7 +370,7 @@ struct TwoAdvancedEquipment {
     return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
         .clip()
         .row()
-        .children({box().grow(1).clip().children({list}), scrollbar});
+        .children({box().flexGrow(1).clip().children({list}), scrollbar});
   }
 
   Element bottomFrame() {

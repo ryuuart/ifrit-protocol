@@ -31,19 +31,19 @@ Derived& FlexVerbs<Derived>::flexWrap(FlexWrap wrap) {
 }
 
 template <class Derived>
-Derived& FlexVerbs<Derived>::grow(float f) {
+Derived& FlexVerbs<Derived>::flexGrow(float f) {
   declarations()->layout.grow = f;
   return self();
 }
 
 template <class Derived>
-Derived& FlexVerbs<Derived>::shrink(float f) {
+Derived& FlexVerbs<Derived>::flexShrink(float f) {
   declarations()->layout.shrink = f;
   return self();
 }
 
 template <class Derived>
-Derived& FlexVerbs<Derived>::basis(Dimension d) {
+Derived& FlexVerbs<Derived>::flexBasis(Dimension d) {
   declarations()->layout.basis = d;
   return self();
 }

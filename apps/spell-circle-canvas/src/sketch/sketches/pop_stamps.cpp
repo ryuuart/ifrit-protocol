@@ -82,7 +82,7 @@ Element atlasSheet(float cell) {
         return kit::at((float)(i % 2) * cell, (float)(i / 2) * cell, cell, cell)
             .padding(cell * 0.12f)
             .children({box()
-                           .grow()
+                           .flexGrow()
                            .shape(motif.first)
                            .fill(Fill::color(motif.second))});
       }));

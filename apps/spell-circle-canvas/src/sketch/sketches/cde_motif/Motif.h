@@ -468,14 +468,14 @@ inline std::vector<std::string> wordList(const data::Json& node) {
   return out;
 }
 
-inline Element label(const Utf8& t) { return text(t).shrink(0); }
+inline Element label(const Utf8& t) { return text(t).flexShrink(0); }
 
 /** The same at another size, and in a colour of its own where the run is
  *  not in the set's: a calendar page's month over its day, the one figure a
  *  proof row fails on. */
 inline Element label(const Utf8& t, float size,
                      std::optional<SkColor4f> c = std::nullopt) {
-  return text(t).font({.size = size, .color = c}).shrink(0);
+  return text(t).font({.size = size, .color = c}).flexShrink(0);
 }
 
 /** One run with Motif's mnemonic underline on exactly one character. Two
@@ -501,7 +501,7 @@ inline Element mnemonicLabel(std::string_view t, SkColor4f c, int mnemonic) {
                   .add(t.substr(0, (size_t)mnemonic))
                   .add(t.substr((size_t)mnemonic, 1), under)
                   .add(t.substr((size_t)mnemonic + 1)))
-      .shrink(0);
+      .flexShrink(0);
 }
 
 // ===========================================================================
@@ -546,7 +546,7 @@ inline Element textField(const Utf8& t, float w, bool caret = false,
   Element inner = box()
                       .row()
                       .alignItems(Align::Center)
-                      .grow(1)
+                      .flexGrow(1)
                       .padding(3, 0)
                       .children({label(t)});
   if (caret && caretOut)
@@ -566,7 +566,7 @@ inline Element textField(const Utf8& t, float w, bool caret = false,
       .width(w)
       .padding(2)
       .overlay(highlight(2))
-      .children({std::move(field).grow(1)});
+      .children({std::move(field).flexGrow(1)});
 }
 
 // ---------------------------------------------------------------------------

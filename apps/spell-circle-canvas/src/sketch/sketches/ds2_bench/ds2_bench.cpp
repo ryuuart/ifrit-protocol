@@ -495,7 +495,7 @@ struct Ds2Bench {
                  .appear({320ms})
                  .translateX(animate(from(-16.0f).to(0.0f), {380ms}))
                  .children({instancing::instances(pips, pipPools[(size_t)r])}),
-             box().grow(1),
+             box().flexGrow(1),
              box().width(84.0f).children({text(s.value).styleClass("value")})});
   }
 
@@ -522,7 +522,7 @@ struct Ds2Bench {
              .width(160.0f)
              .alignItems(Align::End)
              .children({text("SPECIFICATION")}),
-         box().width(35.0f), text("NANOCIRCUIT LOAD"), box().grow(1),
+         box().width(35.0f), text("NANOCIRCUIT LOAD"), box().flexGrow(1),
          box().width(84.0f).children({text("VALUE")})})});
     for (int r = 0; r < kStatCount; ++r) card.children({statRow(r)});
     root.children(

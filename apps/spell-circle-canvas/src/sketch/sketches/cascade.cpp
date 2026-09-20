@@ -83,7 +83,7 @@ Element editorialCard(bool cooled) {
                           box().column().gap(5).children(
                               {text("units / second").font({.size = 16}),
                                text("same inherited ink")}),
-                          box().grow(),
+                          box().flexGrow(),
                           box().width(42).height(42).stroke(stroke(1.5f)),
                           box().width(42).height(42).fill(Fill::currentInk())}),
            document::paragraph(

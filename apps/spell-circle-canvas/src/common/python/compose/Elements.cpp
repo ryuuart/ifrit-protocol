@@ -420,8 +420,8 @@ void bindCompose(py::module_& module) {
       .def("__copy__", [](const Element& value) { return value; })
       .def("row", &Element::row, fluent)
       .def("column", &Element::column, fluent)
-      .def("grow", &Element::grow, py::arg("factor") = 1.0f, fluent)
-      .def("shrink", &Element::shrink, py::arg("factor"), fluent)
+      .def("flexGrow", &Element::flexGrow, py::arg("factor") = 1.0f, fluent)
+      .def("flexShrink", &Element::flexShrink, py::arg("factor"), fluent)
       .def("absolute", &Element::absolute, fluent)
       .def("cover", &Element::cover, fluent)
       .def("key", &Element::key, py::arg("key"), fluent)
@@ -555,9 +555,9 @@ void bindCompose(py::module_& module) {
       .def("display", &Element::display, py::arg("display"), fluent)
       .def("aspect", &Element::aspect, py::arg("ratio"), fluent)
       .def(
-          "basis",
+          "flexBasis",
           [](Element& self, py::object value) -> Element& {
-            return self.basis(dimension(value));
+            return self.flexBasis(dimension(value));
           },
           py::arg("value"), fluent)
       .def(

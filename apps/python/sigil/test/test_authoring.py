@@ -210,7 +210,7 @@ class Containers:
             positioned(*(mark.at((index * 4, 0)) for index, mark in enumerate(marks()))),
             stack(*(mark.absolute().left(index * 4).top(0) for index, mark in enumerate(marks()))),
         ]
-        ctx.render(column(row.size(12, 4).shrink(0) for row in rows))
+        ctx.render(column(row.size(12, 4).flexShrink(0) for row in rows))
 """)
             render_file(source, output, at=0)
             pixels = image.load(output).rgba()

@@ -391,7 +391,7 @@ struct VertigoTitles {
     auto panel = box()
                      .width(kPanelW)
                      .height(kPanelH)
-                     .shrink(0)
+                     .flexShrink(0)
                      .borderRadius({10})
                      .clip(true)
                      .key("screen")
@@ -590,7 +590,7 @@ struct VertigoTitles {
               {box()
                    .width(38)
                    .height(38)
-                   .shrink(0)
+                   .flexShrink(0)
                    .borderRadius({3})
                    .fill(Fill::color(hexColor(0x080605)))
                    .stroke(stroke(1.0f, Fill::color(kKeyline),
@@ -599,7 +599,7 @@ struct VertigoTitles {
                                   .shape(figure(c, 360))
                                   .stroke(stroke(0.9f, Fill::color(c.core)))
                                   .rotate(turntable())}),
-               box().column().grow(1).gap(2).children(
+               box().column().flexGrow(1).gap(2).children(
                    {text(c.line1).font(
                         {.face = faceGothicBold, .size = 11, .track = 0.7f}),
                     text(c.line2).font({.size = 9, .color = kSteel})})});
@@ -627,7 +627,7 @@ struct VertigoTitles {
         {text("THE M-5 GUN DIRECTOR")
              .font({.face = faceGothicBold, .size = 13, .track = 1.6f})
              .key("rig-h"),
-         each(kFacts, fact), box().grow(1),
+         each(kFacts, fact), box().flexGrow(1),
          text("hitchcocksvertigo.substack.com · rhizome.org "
               "· diyphotography.net")
              .font({.size = 9, .color = kSteelDim})
@@ -714,7 +714,7 @@ struct VertigoTitles {
          // ---- body -----------------------------------------------------
          box().row().gap(32).height(kPanelH).children(
              {screenPanel(),
-              box().width(kSideW).shrink(0).column().gap(20).children(
+              box().width(kSideW).flexShrink(0).column().gap(20).children(
                   {typeSpecimen(), spiralIndex(), rigPlate()})}),
          // ---- the whole sheet under one very faint tooth ---------------
          // A full-canvas procedural grain shader. It never changes, but the

@@ -291,7 +291,7 @@ Element lanePanel(const Lane& lane) {
   };
   const float lo = lane.lo, hi = lane.hi, rest = lane.rest;
 
-  return box().column().grow(1).gap(7).children(
+  return box().column().flexGrow(1).gap(7).children(
       {box()
            .width(pct(100))
            .height(kPlotH)
@@ -380,7 +380,7 @@ struct ElasticType {
                  .children({text("ELASTIC TYPE")
                                 .font({.size = 12.5f, .track = 3.4f})
                                 .ink(kInk)
-                                .grow(1),
+                                .flexGrow(1),
                             text("ANIMATE.CSS 2013 · SQUASH AND "
                                  "STRETCH 1981")
                                 .ink(kFaint)}),
@@ -396,7 +396,7 @@ struct ElasticType {
                  "jello · A HALVING, ALTERNATING SHEAR · "
                  "BOTH AXES",
                  fx::keys(jelloTable(), &cssEase)),
-             box().grow(1),
+             box().flexGrow(1),
              box().row().gap(28).height(146).children(
                  {each(kLanes, lanePanel)}),
              text("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
