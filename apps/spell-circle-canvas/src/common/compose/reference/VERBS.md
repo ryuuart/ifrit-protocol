@@ -8,6 +8,11 @@ expression:
 box().row().gap(12).padding(18).corners({10}).fill(Fill::color(ink))
 ```
 
+One verb ends the chain rather than continuing it: `atRest` hands back a
+SECOND element by value, because a rest pose is something to place
+beside the moving copy rather than a state of it. Its row below says so,
+and it is the only row that does.
+
 One hundred and fourteen of them, in fourteen concerns. Each row says
 what the verb SAYS, in one line; the page behind a linked name says what
 it takes, what Python spells, and shows it drawn. An unlinked name has no
@@ -223,7 +228,7 @@ once and do nothing.
 | `variationDrive` | Drive a variable-font axis from a bound output at draw time, with no reshape. |
 | `mark` | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |
 | `onPath` | Lay the run out along a path instead of a line. |
-| `atRest` | This leaf as it stands at rest, as a second element that can stand beside it. |
+| `atRest` | This leaf as it stands at rest, RETURNED BY VALUE as a second element that can stand beside it — the one verb that does not chain. |
 
 ## Content
 

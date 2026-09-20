@@ -43,22 +43,21 @@ struct StrokeVerb {
   }
 
   Element describe() const {
-    return box()
-        .row()
-        .gap(18)
-        .padding(24)
-        .children({
-            cell("stroke(brush)", box().stroke(stroke(2, Fill::color(kEdge)))),
-            // Repeated calls append: two calls are two rings.
-            cell("two calls, two rings",
-                 box()
-                     .stroke(stroke(6, Fill::color(kHalo)))
-                     .stroke(stroke(2, Fill::color(kEdge)))),
-            // A span-qualified pass claims the run it resolves to.
-            cell("stroke(where, what)",
-                 box().stroke(spans::corners(22), stroke(2,
-                                                         Fill::color(kEdge)))),
-        });
+    return box().row().gap(18).padding(24).children({
+        cell("stroke(brush)", box().stroke(stroke(2, Fill::color(kEdge)))),
+        // Repeated calls append: two calls are two rings.
+        cell("two calls, two rings",
+             box()
+                 .stroke(stroke(6, Fill::color(kHalo)))
+                 .stroke(stroke(2, Fill::color(kEdge)))),
+        // A span-qualified pass claims the run it resolves to. The
+        // plate's corners are rounded, and a fillet turns by less at
+        // each step than the 30 degrees a break defaults to, so the
+        // angle comes down to what this silhouette actually turns.
+        cell(
+            "stroke(where, what)",
+            box().stroke(spans::corners(22, 7), stroke(2, Fill::color(kEdge)))),
+    });
   }
 };
 

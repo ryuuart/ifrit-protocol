@@ -29,7 +29,7 @@ Element& textFill(material::skia::Paint paint);
 ```
 
 ```python
-def textFill(self, paint: material.Paint) -> Element: ...
+def textFill(self, paint: material.skia.Paint) -> Element: ...
 ```
 
 ## Parameters

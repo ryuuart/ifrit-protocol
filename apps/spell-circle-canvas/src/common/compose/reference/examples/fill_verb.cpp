@@ -50,10 +50,11 @@ struct FillVerb {
         .ink(kAccent)
         .children({
             swatch(box().fill(kAccent), "fill(colour)"),
-            swatch(box().fill(skia::Paint::linearUnit(
-                       {0, 0}, {1, 1},
-                       {{0.0f, hexColor(0x2f6f8f)}, {1.0f, hexColor(0x8f2f4f)}})),
-                   "fill(paint)"),
+            swatch(
+                box().fill(skia::Paint::linearUnit(
+                    {0, 0}, {1, 1},
+                    {{0.0f, hexColor(0x2f6f8f)}, {1.0f, hexColor(0x8f2f4f)}})),
+                "fill(paint)"),
             swatch(box().fill(Fill::currentInk()), "fill(the ink in force)"),
         });
   }

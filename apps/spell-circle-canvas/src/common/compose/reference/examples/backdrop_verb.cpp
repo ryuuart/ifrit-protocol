@@ -30,9 +30,8 @@ constexpr float kTile = 28;
 Element lattice() {
   return box().column().children({each(10, [](size_t row) {
     return box().row().height(kTile).children({each(23, [row](size_t column) {
-      return box().width(kTile).height(kTile).fill((row + column) % 2 == 0
-                                                       ? kLight
-                                                       : kDark);
+      return box().width(kTile).height(kTile).fill(
+          (row + column) % 2 == 0 ? kLight : kDark);
     })});
   })});
 }

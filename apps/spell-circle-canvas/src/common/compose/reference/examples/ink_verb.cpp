@@ -35,9 +35,9 @@ Element panel(const char* caption) {
       .corners({10})
       .fill(kPlate)
       .stroke(stroke(1.5f))
-      .children({text(caption).font({.size = 15}),
-                 box().height(30).width(30).corners({4}).fill(
-                     Fill::currentInk())});
+      .children(
+          {text(caption).font({.size = 15}),
+           box().height(30).width(30).corners({4}).fill(Fill::currentInk())});
 }
 
 }  // namespace

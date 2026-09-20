@@ -2,8 +2,8 @@
  * image — a picture as a leaf, and the three ways it meets its box.
  *
  * The picture is drawn here rather than loaded, so the example depends on
- * no asset: a four-by-four checker, sampled nearest, whose proportions
- * differ from the cells it is shown in.
+ * no asset: an eight-by-four checker, sampled nearest, whose proportions
+ * disagree with the square box each fit is given.
  *
  * A reference example. It stands outside the sketch registry, so it is
  * photographed with `--frame` and never enters the plate sweep.
@@ -25,8 +25,8 @@ constexpr SkColor4f kGround = hexColor(0x14181d);
 constexpr SkColor4f kCell = hexColor(0x1c232a);
 constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
 
-/** Eight by four pixels of checker, so a square cell shows what each fit
- *  does with the proportions. */
+/** Eight by four pixels of checker, twice as wide as it is tall, so a
+ *  square box is a box the fit has to do something about. */
 sk_sp<SkImage> checker() {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 4));
@@ -41,7 +41,12 @@ sk_sp<SkImage> checker() {
   return surface->makeImageSnapshot();
 }
 
+/** The leaf is given a SQUARE box, not the cell's own. A leaf told to
+ *  cover its parent has nothing left for the fit to decide; a box whose
+ *  proportions disagree with the picture's is what makes the three
+ *  answers different pictures. */
 Element cell(const char* caption, Element leaf) {
+  leaf.width(120).height(120);
   return box()
       .column()
       .gap(8)
@@ -54,6 +59,8 @@ Element cell(const char* caption, Element leaf) {
                      .corners({8})
                      .fill(kCell)
                      .clip()
+                     .justify(Justify::Center)
+                     .alignItems(Align::Center)
                      .children({std::move(leaf)}),
                  text(caption).font({.size = 12, .color = kAsh})});
 }
@@ -75,9 +82,9 @@ struct ImageElement {
         .gap(16)
         .padding(22)
         .sampling(SkSamplingOptions(SkFilterMode::kNearest))
-        .children({cell("Fit::Contain", image(picture, Fit::Contain).cover()),
-                   cell("Fit::Cover", image(picture, Fit::Cover).cover()),
-                   cell("Fit::Stretch", image(picture, Fit::Stretch).cover())});
+        .children({cell("Fit::Contain", image(picture, Fit::Contain)),
+                   cell("Fit::Cover", image(picture, Fit::Cover)),
+                   cell("Fit::Stretch", image(picture, Fit::Stretch))});
   }
 };
 

@@ -59,8 +59,7 @@ struct OverlayVerb {
 
   Element describe() const {
     return box().row().gap(18).padding(24).children({
-        cell("overlay — over the fill, under the digit",
-             box().overlay(band())),
+        cell("overlay — over the fill, under the digit", box().overlay(band())),
         cell("foreground — over the digit too", box().foreground(band())),
     });
   }

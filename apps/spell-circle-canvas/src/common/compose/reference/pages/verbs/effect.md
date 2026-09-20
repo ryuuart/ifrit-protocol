@@ -25,7 +25,7 @@ Element& effect(material::skia::Effect e);
 ```
 
 ```python
-def effect(self, effect: material.Effect) -> Element: ...
+def effect(self, effect: material.skia.Effect) -> Element: ...
 ```
 
 ## Parameters

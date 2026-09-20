@@ -25,7 +25,7 @@ Element& backdrop(material::skia::Effect e);
 ```
 
 ```python
-def backdrop(self, effect: material.Effect) -> Element: ...
+def backdrop(self, effect: material.skia.Effect) -> Element: ...
 ```
 
 ## Parameters

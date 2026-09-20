@@ -50,8 +50,9 @@ struct TextFillVerb {
         .justify(Justify::Center)
         .children({
             text("CHROME").font({.size = 64, .track = 2}).textFill(chrome()),
-            text("SET SMALLER").font({.size = 26, .track = 2}).textFill(
-                chrome()),
+            text("SET SMALLER")
+                .font({.size = 26, .track = 2})
+                .textFill(chrome()),
             text("One ramp, two sizes, the same horizon.")
                 .font({.size = 13, .color = kAsh}),
         });

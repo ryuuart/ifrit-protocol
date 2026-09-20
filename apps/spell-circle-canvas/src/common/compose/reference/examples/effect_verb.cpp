@@ -39,9 +39,8 @@ Element cell(const char* caption, Element plate) {
                      .gap(8)
                      .justify(Justify::Center)
                      .alignItems(Align::Center)
-                     .children({text("SIGNAL").font({.size = 26,
-                                                     .color = kInk,
-                                                     .track = 3}),
+                     .children({text("SIGNAL").font(
+                                    {.size = 26, .color = kInk, .track = 3}),
                                 box().width(58).height(4).fill(kInk)}),
                  text(caption).font({.size = 12, .color = kAsh})});
 }

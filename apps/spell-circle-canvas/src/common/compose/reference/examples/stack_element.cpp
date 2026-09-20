@@ -32,33 +32,28 @@ struct StackElement {
 
   Element describe() const {
     return box().padding(26).children({
-        stack()
-            .grow(1)
-            .corners({12})
-            .fill(kPlate)
-            .clip()
-            .children({
-                // The plate's own ground, filling the box it stands in.
-                box().cover().fill(kPlate),
-                // A scrim over it: a covering child painted after the
-                // ground and before the corner pieces.
-                box().cover().fill(kWash),
-                // A pinned corner piece — an absolute child keeps its
-                // insets, so two edges place it and its content sizes it.
-                box()
-                    .top(14)
-                    .right(14)
-                    .padding(8, 5)
-                    .corners({4})
-                    .fill(kBadge)
-                    .children({text("NEW").font({.size = 12, .color = kInk})}),
-                // A caption pinned to the other three edges.
-                text("Every child shares the box.")
-                    .font({.size = 15, .color = kInk})
-                    .left(18)
-                    .right(18)
-                    .bottom(16),
-            }),
+        stack().grow(1).corners({12}).fill(kPlate).clip().children({
+            // The plate's own ground, filling the box it stands in.
+            box().cover().fill(kPlate),
+            // A scrim over it: a covering child painted after the
+            // ground and before the corner pieces.
+            box().cover().fill(kWash),
+            // A pinned corner piece — an absolute child keeps its
+            // insets, so two edges place it and its content sizes it.
+            box()
+                .top(14)
+                .right(14)
+                .padding(8, 5)
+                .corners({4})
+                .fill(kBadge)
+                .children({text("NEW").font({.size = 12, .color = kInk})}),
+            // A caption pinned to the other three edges.
+            text("Every child shares the box.")
+                .font({.size = 15, .color = kInk})
+                .left(18)
+                .right(18)
+                .bottom(16),
+        }),
     });
   }
 };

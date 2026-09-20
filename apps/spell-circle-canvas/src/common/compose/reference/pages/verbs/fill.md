@@ -46,7 +46,7 @@ def fill(self, value: PaintLike) -> Element: ...
 
 In Python the parameter is `PaintLike`, which additionally accepts a
 `"#rrggbb"` or `"#rrggbbaa"` string, a three- or four-number sequence,
-`material.Color`, `material.Paint`, `compose.SurfacePaint`, a custom
+`material.Color`, `material.skia.Paint`, `compose.SurfacePaint`, a custom
 property reference, and `None` for no fill at all.
 
 ## Description

@@ -72,7 +72,8 @@ sigil_library_root(SigilCompose
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/README.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/ELEMENTS.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERBS.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md)
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/COLOURING.md)
 
 # Dependencies point down this list. testing/ precedes the features whose
 # test binaries link it; kit/ links the tiers above it.
@@ -112,6 +113,7 @@ sigil_library(SigilCompose
 sigil_doc_probes(compose
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/ELEMENTS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERBS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
@@ -154,7 +156,7 @@ sigil_doc_probes(compose
            "<sigilskia/draw/Direct.h>"
   ALIASES ch=choreograph
   SKIP_HEADERS Web.h
-  FLOORS 40,3,12,40,1
+  FLOORS 280,190,150,220,5
   LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
             SigilComposeTypography SigilComposeVideo SigilComposeDraw
             SigilComposeTesting SigilWeavePorts SigilSkiaDraw)

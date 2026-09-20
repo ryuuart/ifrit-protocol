@@ -35,7 +35,7 @@ def ink(self, value: ElementInkLike) -> Element: ...
 | Value | What it is | Where one comes from |
 |---|---|---|
 | `SkColor4f` | The colour outright. | `hexColor(0xRRGGBB)`, or the four channels |
-| `VarRef` | The custom property to read it from: `ink(var("accent"))`. | [`VarRef`](../../VALUES.md), through `compose::var` |
+| `VarRef` | The custom property to read it from: `ink(var("accent"))`. | [`VarRef`](../../VALUES.md#the-custom-properties), through `compose::var` |
 
 In Python the parameter is `ElementInkLike`: a colour in any of its
 written forms, or a `compose.var` reference.

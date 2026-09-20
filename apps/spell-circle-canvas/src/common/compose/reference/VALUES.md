@@ -58,6 +58,20 @@ read before the four rows under *The surface*.
 | `motion::Animatable` | A value at rest, a value in transition, or a value bound to a live output. | Implicitly from the value; `motion::animate`, `motion::bind` | `Element::fill`, `Element::opacity`, every transform lane |
 | `motion::Transition` | How a change is eased: a duration, a curve, a delay. | SigilMotion's own vocabulary | `Element::transition`, `Element::appear` |
 
+## The custom properties
+
+| Value | What it is | Make one | Passed to |
+|---|---|---|---|
+| `VarRef` | A custom property's NAME as a value, interned once, so two references to one name compare as an integer. | `compose::var`, and `varName` reads the name back | `Element::ink`, `Fill::var`, `Dimension`, `VarTable::set` |
+| `VarValue` | What a property HOLDS: a colour, or a length that resolves where it is read. | Either half outright — an `SkColor4f` or a `Dimension` | `VarTable::set`, and `Element::var` through its two overloads |
+| `VarTable` | Every property in force at a node, nearest ancestor winning, as one comparable value. | `VarTable::set` per entry, or `VarTable::overlay` over another | `Element::varDefaults`, and `PaintContext` carries it to a program |
+
+A reference stands in for a value until the tree resolves it, so it is
+written where the value would be: `Element::ink(var("accent"))`, a
+`Fill::var`, or a `Dimension` given a reference instead of a number. In
+Python the reference is `compose.var` and the table is the dictionary
+`Element.varDefaults` takes.
+
 ## The text values
 
 | Value | What it is | Make one | Passed to |
@@ -72,10 +86,10 @@ read before the four rows under *The surface*.
 `material.Color` is the one colour class, and a colour is accepted
 wherever it is written as a string — `"#rrggbb"` and `"#rrggbbaa"` — as
 a three- or four-number sequence, or as a colour value. The paint and
-the effect are `material.Paint` and `material.Effect`.
+the effect are `material.skia.Paint` and `material.skia.Effect`.
 
 A fill is anything in that list plus `compose.Fill`, a custom property
-reference, a transitioned or bound value, a `material.Paint` and a
+reference, a transitioned or bound value, a `material.skia.Paint` and a
 `compose.SurfacePaint`; the annotation for that whole union is
 `PaintLike`, and the narrower ones under it are `FillLike` and
 `ColorLike`. A dimension is a number, a string, a `compose.Dimension`, a
@@ -92,6 +106,10 @@ scheme of your own is C++ only.
   `StampCache`; `resolveRef`, `toFill`, `resolveFill` and `frameOf`; and
   the gradient fills `linearGradient` and `radialGradient`.
 - `core/SurfacePaint.h` — `SurfacePaint`, the surface a component takes.
+- `core/Var.h` — `VarRef`, the `var` that interns one, and the `varName`
+  that reads it back.
+- `core/Cascade.h` — `VarValue` and the `VarTable` that holds the
+  properties in force.
 - `core/Shape.h` — `Shape`, `MotionPath`, `Decoration` with the
   `DecorationScheme` it is built from and the `AnimatedDecoration`,
   `BleedingDecoration`, `ReachingDecoration`, `BlendingDecoration` and

@@ -81,17 +81,23 @@ draws through `compose.pen`.
 ## How this stays true
 
 Every document here is listed in the compose library's
-`sigil_doc_probes()` call — the three indexes, the colour chapter and
-every page — so each qualified name it spells is compiled against the
-header that owns it, and the bare names of a bullet that opens with a
-header path are checked against that header. A rename the prose misses
-is a build break, and a page added without that one line is a page
-nothing checks.
+`sigil_doc_probes()` call — the three indexes, the colour chapter, every
+page, and this file — so each qualified name it spells is compiled
+against the header that owns it, and the bare names of a bullet that
+opens with a header path are checked against that header. A rename the
+prose misses is a build break, and a page added without that one line is
+a page nothing checks.
 
 Two things the probe cannot see, and the site assembler owns: a Python
 spelling, which lives in a fenced `python` block, and an entity with no
 page at all. The assembler reads the compiled surface and the stubs and
 reports both, along with a page whose entity no longer exists.
+
+What neither of those two reads is whether an example DRAWS. That is the
+assembler's `--example-images` pass, which renders each pair in both
+languages and fails on the one that did not: a twin can name only real
+attributes and still die on the first frame, so a pair is not checked
+until it has been rendered.
 
 ## Python spellings
 
@@ -101,6 +107,8 @@ The names on these pages are the ones an author types:
 from sigil import compose, material
 ```
 
-`material.Color` is the one colour class; `material.Paint` is a paint
-and `material.Effect` an effect. The implementation module under them is
-not a public spelling and appears nowhere in this reference.
+`material.Color` is the one colour class. The paint and the effect sit
+one level down, in the `skia` submodule that carries what compiles to a
+Skia shader: `material.skia.Paint` and `material.skia.Effect`. That
+submodule is the spelling the stubs annotate and the spelling an author
+types, so it is what every page and every twin here writes.

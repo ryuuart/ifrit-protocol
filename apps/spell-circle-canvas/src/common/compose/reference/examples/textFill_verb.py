@@ -13,11 +13,11 @@ GROUND = "#101418"
 ASH = "#7e8f9c"
 
 
-def chrome() -> material.Paint:
+def chrome() -> material.skia.Paint:
     """The chrome ramp, authored once in the unit square: the horizon
     sits where the ramp's middle stops meet, and lands on the capitals
     at whatever size the word is set."""
-    return material.Paint.linearUnit(
+    return material.skia.Paint.linearUnit(
         (0, 0),
         (0, 1),
         [

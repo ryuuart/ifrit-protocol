@@ -46,10 +46,14 @@ class StrokeVerb:
                     .stroke(compose.stroke(2, EDGE)),
                 ),
                 # A span-qualified pass claims the run it resolves to.
+                # The plate's corners are rounded, and a fillet turns by
+                # less at each step than the 30 degrees a break defaults
+                # to, so the angle comes down to what this silhouette
+                # actually turns.
                 cell(
                     "stroke(where, what)",
                     compose.box().stroke(
-                        compose.spans.corners(22), compose.stroke(2, EDGE)
+                        compose.spans.corners(22, 7), compose.stroke(2, EDGE)
                     ),
                 ),
             )

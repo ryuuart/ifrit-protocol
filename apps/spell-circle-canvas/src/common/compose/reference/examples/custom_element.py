@@ -21,7 +21,7 @@ ASH = "#8ea0ad"
 def rings(pen: Pen) -> None:
     """The program: rings measured off the box the node was laid out at,
     which the pen reports as its own width and height."""
-    centre_x, centre_y = pen.width() / 2, pen.height() / 2
+    centre_x, centre_y = pen.width / 2, pen.height / 2
     pen.noFill()
     for ring in range(1, 8):
         t = ring / 7

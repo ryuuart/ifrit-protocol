@@ -33,18 +33,16 @@ Element tile(const char* caption, Element plate) {
       .grow(1)
       .alignItems(Align::Center)
       .children(
-          {plate.width(pct(100))
-               .height(120)
-               .corners({10})
-               .children({box()
-                              .cover()
-                              .corners({10})
-                              .fill(kPlate)
-                              .justify(Justify::Center)
-                              .alignItems(Align::Center)
-                              .children({text("A FULL-BLEED CHILD")
-                                             .font({.size = 14, .color = kInk,
-                                                    .track = 2})})}),
+          {plate.width(pct(100)).height(120).corners({10}).children(
+               {box()
+                    .cover()
+                    .corners({10})
+                    .fill(kPlate)
+                    .justify(Justify::Center)
+                    .alignItems(Align::Center)
+                    .children(
+                        {text("A FULL-BLEED CHILD")
+                             .font({.size = 14, .color = kInk, .track = 2})})}),
            text(caption).font({.size = 12, .color = kAsh})});
 }
 
@@ -60,12 +58,12 @@ struct ForegroundVerb {
     return box().row().gap(18).padding(24).children({
         // Under the fill and under the children: the child covers it.
         tile("background(keyline)",
-             box().background(stroke(3, Fill::color(kKey),
-                                     PathFormat::Align::Inner))),
+             box().background(
+                 stroke(3, Fill::color(kKey), PathFormat::Align::Inner))),
         // Over the children: the keyline stands.
         tile("foreground(keyline)",
-             box().foreground(stroke(3, Fill::color(kKey),
-                                     PathFormat::Align::Inner))),
+             box().foreground(
+                 stroke(3, Fill::color(kKey), PathFormat::Align::Inner))),
     });
   }
 };

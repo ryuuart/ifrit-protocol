@@ -19,8 +19,8 @@ DARK = (0x25, 0x30, 0x3A, 0xFF)
 
 
 def checker() -> skia.Image:
-    """Eight by four pixels of checker, so a square cell shows what each
-    fit does with the proportions."""
+    """Eight by four pixels of checker, twice as wide as it is tall, so a
+    square box is a box the fit has to do something about."""
     pixels = bytearray()
     for row in range(4):
         for column in range(8):
@@ -29,14 +29,20 @@ def checker() -> skia.Image:
 
 
 def cell(caption: str, leaf: compose.Element) -> compose.Element:
+    """The leaf is given a SQUARE box, not the cell's own. A leaf told to
+    cover its parent has nothing left for the fit to decide; a box whose
+    proportions disagree with the picture's is what makes the three
+    answers different pictures."""
     return (
         compose.box(
-            compose.box(leaf)
+            compose.box(leaf.width(120).height(120))
             .height(140)
             .width(compose.pct(100))
             .corners(8)
             .fill(CELL)
-            .clip(),
+            .clip()
+            .justify("center")
+            .alignItems("center"),
             compose.text(caption, size=12, color=ASH),
         )
         .column()
@@ -59,9 +65,9 @@ class ImageElement:
         # does not.
         return (
             compose.box(
-                cell("Fit.Contain", compose.image(picture, compose.Fit.Contain).cover()),
-                cell("Fit.Cover", compose.image(picture, compose.Fit.Cover).cover()),
-                cell("Fit.Stretch", compose.image(picture, compose.Fit.Stretch).cover()),
+                cell("Fit.Contain", compose.image(picture, compose.Fit.Contain)),
+                cell("Fit.Cover", compose.image(picture, compose.Fit.Cover)),
+                cell("Fit.Stretch", compose.image(picture, compose.Fit.Stretch)),
             )
             .row()
             .gap(16)
