@@ -12,6 +12,7 @@ import _sigil.weave
 
 __all__ = [
     "AlignLike",
+    "BankMaker",
     "CellInput",
     "CellValue",
     "ChildLike",
@@ -25,11 +26,15 @@ __all__ = [
     "FillLike",
     "FloatLike",
     "GradientStops",
+    "ImageDecoder",
+    "IntRectLike",
     "JsonInput",
     "JsonValue",
     "JustifyLike",
     "PointBatch",
     "PointLike",
+    "RadianceFunction",
+    "RampStops",
     "RectLike",
     "SampleLike",
     "ScalarFunction",
@@ -39,7 +44,10 @@ __all__ = [
     "SilhouetteLike",
     "SizeLike",
     "SurfacePaintLike",
+    "TextureProducer",
     "TickCallback",
+    "TileProgram",
+    "UniformInput",
     "UniformValue",
     "Vec2",
     "Vec2Like",
@@ -64,6 +72,10 @@ given is what it paints. Colours read back out of the libraries are the
 colour class, so a colour taken off one value passes into the next."""
 PointLike: TypeAlias = _sigil.skia.Point | Sequence[FloatLike]
 RectLike: TypeAlias = _sigil.skia.Rect | Sequence[FloatLike]
+IntRectLike: TypeAlias = Sequence[SupportsIndex]
+"""A RECTANGLE COUNTED IN WHOLE TEXELS — left, top, right, bottom. A
+region of an image addresses texels rather than measuring a distance
+across them, so it is written as four integers and read back as four."""
 SizeLike: TypeAlias = _sigil.skia.Size | Sequence[FloatLike]
 ScalarLike: TypeAlias = (
     FloatLike
@@ -144,12 +156,20 @@ DrawCallback: TypeAlias = Callable[[_sigil.draw.Pen], None]
 ScalarFunction: TypeAlias = Callable[[float], float]
 EaseLike: TypeAlias = _sigil.motion.Easing | _sigil.motion.Curve | ScalarFunction | None
 GradientStops: TypeAlias = Iterable[tuple[FloatLike, ColorLike]]
+RampStops: TypeAlias = Sequence[_sigil.material.RampStop]
+"""THE STOPS A RAMP IS SAMPLED FROM, in the order they climb. A sequence
+rather than any iterable, because the stops are read more than once and
+a generator would be spent on the first reading."""
 UniformValue: TypeAlias = ScalarLike | _sigil.material.Color | str | Sequence[FloatLike]
 """A NAMED UNIFORM on an SkSL paint or effect. A number, a live scalar
 that makes the value re-read every frame, a colour written as the colour
 class or a CSS string, or a flat array matched against the declared
 uniform's total float count. A paint and an effect take the same set, so
 one uniform is written the same way on either seam."""
+UniformInput: TypeAlias = UniformValue | _sigil.material.UniformBlock
+"""A UNIFORM ON A SLOT THAT ALSO TAKES A BLOCK. Everything a named
+uniform is written as, plus a uniform block, whose floats the material
+re-reads every time the block commits instead of copying them once."""
 CellValue: TypeAlias = None | bool | int | float | str | _sigil.data.Instant
 CellInput: TypeAlias = CellValue | _sigil.data.Flag
 JsonValue: TypeAlias = (
@@ -191,3 +211,28 @@ TickCallback: TypeAlias = (
     | Callable[[float], bool | None]
     | Callable[[float, float], bool | None]
 )
+TileProgram: TypeAlias = Callable[[_sigil.draw.Canvas, Vec2, int], None]
+"""THE DRAWING ONE TILE IS BAKED FROM: the canvas of the bake, the
+tile's size in pixels, and the seed the bake was asked for. The same
+seed draws the same tile, which is what makes regeneration a choice.
+The canvas is lent for the call and refuses every verb once the bake
+has returned."""
+TextureProducer: TypeAlias = Callable[[], _sigil.skia.Image | None]
+"""HOW A NAMED TEXTURE BAKES ITS IMAGE, called on first use and kept.
+The key beside it is the identity, so a producer under a key another
+texture already baked is never called. None is a producer that had
+nothing to give, and leaves the texture empty rather than raising."""
+RadianceFunction: TypeAlias = Callable[[float, float], Vec3Like]
+"""THE LIGHT ARRIVING ALONG ONE DIRECTION, as linear red, green and
+blue. It is called once per texel of a panorama with the
+equirectangular coordinates that texel stands for, so this is the seam
+a procedural sky is written against."""
+ImageDecoder: TypeAlias = Callable[[str], _sigil.skia.Image | None]
+"""HOW A TEXTURE SET READS ONE FILE. The path is handed over as the
+folder listing spelled it, and None is a file this decoder cannot
+read, which leaves that role empty instead of failing the set."""
+BankMaker: TypeAlias = Callable[[int], _sigil.material.Material]
+"""HOW A BANK MINTS THE INSTANCE A BUCKET IS MISSING. The bucket number
+is what varies the piece — a seed the recipe reads, a jitter on a tone
+— and the material comes back whole, so a blend of several recipes is
+banked exactly as one recipe is."""
