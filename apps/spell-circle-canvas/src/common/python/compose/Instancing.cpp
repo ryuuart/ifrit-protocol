@@ -63,6 +63,18 @@ SkSize sizeFrom(py::handle value, const char* refusal) {
   }
 }
 
+/** A point read from @p value: a point, or an x and a y. The shared
+ *  reading raises a cast error, which reaches Python as a runtime one, so
+ *  what is no point is refused here as a type error, in the words of the
+ *  slot that asked. */
+SkPoint pointFrom(py::handle value, const char* refusal) {
+  try {
+    return point(value);
+  } catch (const py::cast_error&) {
+    throw py::type_error(refusal);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Lanes
 
@@ -700,18 +712,22 @@ void bindFlight(PoolClass& pool) {
             return value == other;
           },
           py::is_operator(), py::arg("other"));
+  constexpr const char* flightPoint =
+      "A flight starts and lands at a Point, or an x and a y.";
   // `from` is a Python keyword, so the field answers to `from_` as well:
   // the native name reaches it through keywords and `getattr`, and the
   // other one through attribute syntax.
   for (const char* name : {"from", "from_"})
     flight.def_property(
         name, [](const Flight& value) { return value.from; },
-        [](Flight& value, py::handle position) {
-          value.from = point(position);
+        [flightPoint](Flight& value, py::handle position) {
+          value.from = pointFrom(position, flightPoint);
         });
   flight.def_property(
       "to", [](const Flight& value) { return value.to; },
-      [](Flight& value, py::handle position) { value.to = point(position); });
+      [flightPoint](Flight& value, py::handle position) {
+        value.to = pointFrom(position, flightPoint);
+      });
   copyProtocol(flight);
 }
 
@@ -744,7 +760,10 @@ void bindPool(py::module_& module) {
           "add",
           [](Pool& self, py::handle position, int frame, float rotateRadians,
              float scale, SkColor4f tint) {
-            return self.add(point(position), frame, rotateRadians, scale, tint);
+            return self.add(
+                pointFrom(position,
+                          "An instance stands at a Point, or an x and a y."),
+                frame, rotateRadians, scale, tint);
           },
           py::arg("position"), py::arg("frame") = 0,
           py::arg("rotateRadians") = 0.0f, py::arg("scale") = 1.0f,
@@ -999,7 +1018,10 @@ void bindComposeInstancing(py::module_& root) {
   module.def(
       "pick",
       [](const Pool& pool, const CellSheet& atlas, py::handle position) {
-        return instancing::pick(pool, atlas, point(position));
+        return instancing::pick(
+            pool, atlas,
+            pointFrom(position,
+                      "A pick is asked about a Point, or an x and a y."));
       },
       py::arg("pool"), py::arg("atlas"), py::arg("point"),
       "The index of the topmost instance whose drawn quad contains "
