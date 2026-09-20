@@ -158,6 +158,12 @@ Material& Material::bind(std::string_view name,
   return *this;
 }
 
+bool Material::isBound(std::string_view name) const {
+  for (const Binding& b : m_bindings)
+    if (b.name == name) return true;
+  return false;
+}
+
 void Material::place(std::string_view name, Slot slot) {
   const auto slots = m_recipe->slots();
   if (std::find(slots.begin(), slots.end(), name) == slots.end()) {

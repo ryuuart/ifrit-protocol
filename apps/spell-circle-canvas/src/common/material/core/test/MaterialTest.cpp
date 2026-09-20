@@ -1,8 +1,8 @@
 /** @file
  * The material: what a write to a field no body reads says, the bytes it
- * mirrors, equality by value with bindings by identity, the tiers its
- * bindings and children put it in, what resolve injects, and the
- * uniform block's revision.
+ * mirrors, equality by value with bindings by identity, which fields
+ * carry a binding, the tiers its bindings and children put it in, what
+ * resolve injects, and the uniform block's revision.
  */
 
 #include <gtest/gtest.h>
@@ -15,6 +15,7 @@
 #include <sigilmaterial/core/Target.h>
 #include <sigilmaterial/core/UniformBlock.h>
 
+#include <array>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -228,6 +229,43 @@ TEST(Material, TiersFollowBindingsFrameInputsAndChildren) {
   EXPECT_TRUE(parent == same);
   same.slot("uB", Material(sized).amount(0.2f));
   EXPECT_FALSE(parent == same);
+}
+
+TEST(Material, AFieldSaysWhetherItCarriesABindingAtAll) {
+  struct Table {
+    float uScale;
+    std::array<float, 4> uTable;
+  };
+  auto r = std::make_shared<const Recipe>(Recipe::of<Table>("bound").body(
+      Target::SkSL,
+      "half4 main(float2 p) { return half4(uScale * uTable[0]); }"));
+  Material m(r);
+  EXPECT_FALSE(m.isBound("uScale"));
+  EXPECT_FALSE(m.isBound("nothing"));
+
+  // An output, a plain number and a block are all bindings; only the
+  // output makes the material move, which is the other question.
+  choreograph::Output<float> out{0.5f};
+  m.bind("uScale", &out);
+  EXPECT_TRUE(m.isBound("uScale"));
+  EXPECT_FALSE(m.isBound("uTable"));
+  m.bind("uScale", 2.0f);
+  EXPECT_TRUE(m.isBound("uScale"));
+  EXPECT_FALSE(m.isAnimated());
+  m.unbind("uScale");
+  EXPECT_FALSE(m.isBound("uScale"));
+  // Bytes are not a binding: what `set()` writes stays a value.
+  m.set("uScale", 3.0f);
+  EXPECT_FALSE(m.isBound("uScale"));
+
+  m.bind("uTable", std::make_shared<UniformBlock>(4));
+  EXPECT_TRUE(m.isBound("uTable"));
+  m.bind("uTable", std::shared_ptr<const UniformBlock>{});
+  EXPECT_FALSE(m.isBound("uTable"));
+  // A binding the material refused is no binding.
+  const std::string said = captureStderr([&] { m.bind("uTable", &out); });
+  EXPECT_NE(said.find("\"uTable\""), std::string::npos) << said;
+  EXPECT_FALSE(m.isBound("uTable"));
 }
 
 TEST(Material, ResolveSamplesBindingsInjectsFrameAndMemoises) {

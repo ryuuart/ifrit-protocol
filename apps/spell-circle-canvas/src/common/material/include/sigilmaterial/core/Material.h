@@ -142,6 +142,11 @@ class Material {
    *  clears the binding. */
   Material& bind(std::string_view name,
                  std::shared_ptr<const UniformBlock> block);
+  /** Whether @p name carries a binding — an animatable or a block —
+   *  rather than only the bytes `set()` last wrote. A field bound to a
+   *  plain number is bound like any other; whether anything behind a
+   *  binding MOVES is `isAnimated()`. */
+  bool isBound(std::string_view name) const;
   /** Fills the slot @p name. A slot the recipe does not declare is
    *  reported once and ignored. */
   Material& slot(std::string_view name, Material material);
