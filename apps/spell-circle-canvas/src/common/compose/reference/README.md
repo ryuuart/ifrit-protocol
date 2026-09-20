@@ -132,8 +132,9 @@ The names on these pages are the ones an author types:
 from sigil import compose, material
 ```
 
-`material.Color` is the one colour class. The paint and the effect sit
-one level down, in the `skia` submodule that carries what compiles to a
-Skia shader: `material.skia.Paint` and `material.skia.Effect`. That
-submodule is the spelling the stubs annotate and the spelling an author
-types, so it is what every page and every twin here writes.
+`material.Color` is the one colour class, and what compiles to a Skia
+shader sits beside it: `material.Paint` and `material.Effect`. The C++
+namespace one level down, `material::skia`, has no Python spelling of
+its own. These are the names the compiled declarations annotate and the
+names an author types, so they are what every page and every twin here
+writes.

@@ -59,7 +59,7 @@ class BackdropVerb:
                 # panel's own translucent fill goes down.
                 panel(
                     "backdrop(blur)",
-                    compose.box().backdrop(material.skia.Effect.blur(7)),
+                    compose.box().backdrop(material.Effect.blur(7)),
                 ),
             )
             .cover()

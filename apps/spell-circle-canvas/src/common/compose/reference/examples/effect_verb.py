@@ -51,11 +51,11 @@ class EffectVerb:
             compose.box(
                 cell("no effect", compose.box()),
                 cell(
-                    "effect(blur)", compose.box().effect(material.skia.Effect.blur(3))
+                    "effect(blur)", compose.box().effect(material.Effect.blur(3))
                 ),
                 cell(
                     "effect(glow)",
-                    compose.box().effect(material.skia.Effect.glow("#3fd6b0", 9)),
+                    compose.box().effect(material.Effect.glow("#3fd6b0", 9)),
                 ),
             )
             .row()

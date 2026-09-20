@@ -37,7 +37,7 @@ class FillVerb:
                 swatch(compose.box().fill(ACCENT), "fill(colour)"),
                 swatch(
                     compose.box().fill(
-                        material.skia.Paint.linearUnit(
+                        material.Paint.linearUnit(
                             (0, 0), (1, 1), [(0.0, "#2f6f8f"), (1.0, "#8f2f4f")]
                         )
                     ),

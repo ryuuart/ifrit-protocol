@@ -52,7 +52,7 @@ word every value in this tree spells it with.
 | `SurfacePaint(paint)` | C++ | implicit from a `material::skia::Paint` |
 | `SurfacePaint(recipe)` | C++ | implicit from a `material::Material`, wrapped through `material::skia::Paint::recipe` |
 | `"#1f2933"`, a tuple, `material.Color(...)` | Python | every colour spelling, implicitly |
-| `material.skia.Paint.linear(...)` | Python | a material paint, implicitly |
+| `material.Paint.linear(...)` | Python | a material paint, implicitly |
 | `material.kit.unlit()` | Python | a recipe instance, implicitly — the kit's recipe functions are Python's door to a material |
 | `motion.bind(...)`, an output, a transition | Python | the moving forms, implicitly |
 | `compose.SurfacePaint(...)` | Python | direct, when a name for the value is wanted |

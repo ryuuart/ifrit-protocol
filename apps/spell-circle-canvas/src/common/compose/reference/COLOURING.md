@@ -132,7 +132,7 @@ Three unions name the three roles, and in Python they are spelled:
 | --- | --- | --- |
 | a flat colour value | `ColorLike` | `material.Color`, a CSS string, a 3- or 4-tuple or list of unit floats |
 | a flat mark that may be a tree reference | `FillLike` | everything in `ColorLike`, plus `compose.Fill`, `compose.VarRef` and `None` |
-| anything that can colour a surface | `SurfacePaintLike` | everything in `FillLike`, plus the transitions and outputs, plus `material.skia.Paint` and `material.Material`, plus `compose.SurfacePaint` |
+| anything that can colour a surface | `SurfacePaintLike` | everything in `FillLike`, plus the transitions and outputs, plus `material.Paint` and `material.Material`, plus `compose.SurfacePaint` |
 
 The narrowings that ARE modelled, with their reasons:
 
@@ -168,7 +168,7 @@ of the difference.
 | Name | What it is | Python |
 | --- | --- | --- |
 | Skia's paint | a style, a stroke width, a blend mode, a colour and the filter objects for ONE draw | `sigil.skia.Paint` |
-| the material paint | what a surface is shaded WITH, as a comparable value that compiles to one shader | `sigil.material.skia.Paint` |
+| the material paint | what a surface is shaded WITH, as a comparable value that compiles to one shader | `sigil.material.Paint` |
 
 `Element::fill` takes the material one. A raw Skia paint appears where a
 caller is drawing on a canvas directly — inside a paint program, a pen

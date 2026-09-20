@@ -8,7 +8,7 @@ The Python twin of image_element.cpp. A reference example: it is
 rendered with ``sigil render`` and belongs to no sketch registry.
 """
 
-from sigil import compose, image, skia
+from sigil import compose, image, material, skia
 from sigil.sketch import SketchContext, sketch
 
 GROUND = "#14181d"
@@ -65,9 +65,9 @@ class ImageElement:
         # does not.
         return (
             compose.box(
-                cell("Fit.Contain", compose.image(picture, material.skia.Fit.Contain)),
-                cell("Fit.Cover", compose.image(picture, material.skia.Fit.Cover)),
-                cell("Fit.Stretch", compose.image(picture, material.skia.Fit.Stretch)),
+                cell("Fit.Contain", compose.image(picture, material.Fit.Contain)),
+                cell("Fit.Cover", compose.image(picture, material.Fit.Cover)),
+                cell("Fit.Stretch", compose.image(picture, material.Fit.Stretch)),
             )
             .row()
             .gap(16)

@@ -86,12 +86,12 @@ Python the reference is `compose.var` and the table is the dictionary
 `material.Color` is the one colour class, and a colour is accepted
 wherever it is written as a string — `"#rrggbb"` and `"#rrggbbaa"` — as
 a three- or four-number sequence, or as a colour value. The paint and
-the effect are `material.skia.Paint` and `material.skia.Effect`.
+the effect are `material.Paint` and `material.Effect`.
 
 A fill is anything in that list plus `compose.Fill`, a custom property
-reference, a transitioned or bound value, a `material.skia.Paint` and a
+reference, a transitioned or bound value, a `material.Paint` and a
 `compose.SurfacePaint`; the annotation for that whole union is
-`PaintLike`, and the narrower ones under it are `FillLike` and
+`SurfacePaintLike`, and the narrower ones under it are `FillLike` and
 `ColorLike`. A dimension is a number, a string, a `compose.Dimension`, a
 weave length or a property reference. A decoration is a
 `compose.Decoration`, a `compose.PathFormat` or a `compose.Shadow`: a
