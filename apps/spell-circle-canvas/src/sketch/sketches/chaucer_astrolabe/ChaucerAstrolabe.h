@@ -22,7 +22,7 @@ struct ChaucerAstrolabe {
 
   Rete rete;
   std::vector<Piece> pieces;
-  std::shared_ptr<instancing::Atlas> tickAtlas;
+  std::shared_ptr<instancing::CellSheet> tickAtlas;
   std::shared_ptr<instancing::Pool> tickPool;
   Paint brassGrain, vellumGrain;
   Pattern verdigris;

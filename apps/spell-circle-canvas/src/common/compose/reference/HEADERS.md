@@ -25,7 +25,7 @@ sound model; nothing below them changes kernel semantics.
   Empty paint preserves the element's fill; bindings retain their source
   identity and materials retain their frame-dependent behavior. Neutral
   wells and sheets accept this same value as their ground.
-- `core/Paint.h` — the paint values: `Fill`, `Corners`, `Backface`,
+- `core/Paint.h` — the paint values: `Fill`, `Corners`,
   `PaintContext`, `KeyState` — the keys a host fed, as a paint program
   reads them beside `PaintContext::pointer` — `PromotionPolicy`, what
   decides a texture promotion, which `PaintContext::promotion` carries as
@@ -127,10 +127,10 @@ sound model; nothing below them changes kernel semantics.
   back PARALLEL to the boxes given so a frame index indexes both. A caller
   that wants the denser sheet sorts its own boxes by height first; sorting
   here would break the parallel every consumer reads the result through.
-  It is what `instancing::Atlas` packs its cells with and what
+  It is what `instancing::CellSheet` packs its cells with and what
   `kit::SpriteSheet` packs its sprites with.
 - `core/Instances.h` — the instanced sprite leaf: `instancing::Pool`,
-  the struct-of-arrays store on your side of the seam; `instancing::Atlas`,
+  the struct-of-arrays store on your side of the seam; `instancing::CellSheet`,
   the cells baked once from element trees; `instancing::instances`, the
   leaf that stamps the pool in one draw; and `instancing::pick`, the
   inverse of the stamp. The fillers that arrange a pool are the kit's

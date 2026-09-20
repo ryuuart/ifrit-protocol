@@ -16,7 +16,7 @@ struct WorldHud {
   choreograph::Output<float> lowPulse{0}, compass{0};
   std::array<choreograph::Output<float>, 4> cooldown{};
 
-  std::shared_ptr<instancing::Atlas> slotAtlas;
+  std::shared_ptr<instancing::CellSheet> slotAtlas;
   std::shared_ptr<instancing::Pool> slotPool;
 
   /** The HUD's own scene, asked of the session once and held by it: a
@@ -52,7 +52,7 @@ struct WorldHud {
     ctx.camera(lens);
 
     // The empty slot frame is one atlas cell stamped twelve times.
-    slotAtlas = std::make_shared<instancing::Atlas>(2.0f);
+    slotAtlas = std::make_shared<instancing::CellSheet>(2.0f);
     slotAtlas->cell(
         wh::boneFrame(wh::kSlotFrame, wh::kSlotFrame, 3)
             .children({wh::track(wh::kSlot - 4, wh::kSlot - 4).at({5, 5})}),

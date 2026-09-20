@@ -28,7 +28,7 @@ struct KspMapView {
    *  the template and an edit to the words needs no rebuild. */
   sketch::kit::Document doc;
 
-  std::shared_ptr<instancing::Atlas> starAtlas;
+  std::shared_ptr<instancing::CellSheet> starAtlas;
   std::shared_ptr<instancing::Pool> starPool;
   int burnTick = 0;
   double nextBurnAt = 0;

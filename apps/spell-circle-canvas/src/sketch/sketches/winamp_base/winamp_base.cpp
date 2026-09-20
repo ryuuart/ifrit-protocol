@@ -70,7 +70,7 @@ auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
   }
 
   // --- the LED atlas: ONE cell, a 3x1 native quad, tinted per instance.
-  ledAtlas = std::make_shared<instancing::Atlas>(2.0f);
+  ledAtlas = std::make_shared<instancing::CellSheet>(2.0f);
   ledAtlas->cell(box().fill(SkColor4f{1, 1, 1, 1}), {n(3), n(1)});
   ledPool = std::make_shared<instancing::Pool>();
   ledPool->resize((size_t)kCols * (size_t)kRows + (size_t)kCols);
@@ -94,7 +94,7 @@ auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
   }
 
   // --- playlist row backgrounds: three tint states, one stamp.
-  rowAtlas = std::make_shared<instancing::Atlas>(1.0f);
+  rowAtlas = std::make_shared<instancing::CellSheet>(1.0f);
   rowAtlas->cell(box().fill(SkColor4f{1, 1, 1, 1}), {n(368), n(13)});
   rowPool = std::make_shared<instancing::Pool>();
   rowPool->resize(25);

@@ -23,7 +23,7 @@ struct BlackWatch {
   Pattern threadGrid;                   // the interlacement grooves
   Paint warpMat, gridMat, boardMat, yarnGrain, drawGrid, swatchMat;
   std::vector<Paint> pickMat;  // 12, resolved once
-  std::shared_ptr<instancing::Atlas> pickAtlas;
+  std::shared_ptr<instancing::CellSheet> pickAtlas;
   std::shared_ptr<instancing::Pool> pickPool;
   std::vector<Paint> clothMat;  // 5 palettes, whole cloth
   Paint argyllMat;
@@ -116,7 +116,7 @@ struct BlackWatch {
     // strip of cloth, and a POOL of one frame per pick. kNearest, because a
     // thread is a whole number of pixels and any filtering across a stripe
     // boundary is a blur of the interlacement this card exists to show.
-    pickAtlas = std::make_shared<instancing::Atlas>(2.0f);
+    pickAtlas = std::make_shared<instancing::CellSheet>(2.0f);
     pickAtlas->filter(SkFilterMode::kNearest);
     std::array<int, 12> frame{};
     for (int c = 0; c < 3; ++c)
@@ -305,10 +305,10 @@ struct BlackWatch {
         {at(0, 0, kClothW, kClothH).fill(warpMat),
          // the picks. 378 strips that differ only in WHICH of twelve pick
          // materials they wear and how far along the beat they have beaten in —
-         // which is one instanced leaf: an Atlas of the twelve (colour, phase)
-         // tiles, and a Pool of 378 frames whose per-instance ALPHA lane is
-         // written from the loom. One draw, no layout, and a fade that rewrites
-         // one float per pick instead of running 378 bindings.
+         // which is one instanced leaf: a CellSheet of the twelve (colour,
+         // phase) tiles, and a Pool of 378 frames whose per-instance ALPHA
+         // lane is written from the loom. One draw, no layout, and a fade
+         // that rewrites one float per pick instead of running 378 bindings.
          at(0, 0, kClothW, kClothH)
              .children({instancing::instances(pickAtlas, pickPool,
                                               instancing::Mode::Live)}),

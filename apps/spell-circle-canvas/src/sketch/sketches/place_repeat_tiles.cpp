@@ -83,7 +83,7 @@ const sketch::kit::Cell kSpecimen{
 }  // namespace
 
 struct PlaceRepeatTiles {
-  std::shared_ptr<instancing::Atlas> atlas;
+  std::shared_ptr<instancing::CellSheet> atlas;
   std::shared_ptr<instancing::Pool> plain, spun, faded;
   sk_sp<SkPicture> strip;
 
@@ -92,7 +92,7 @@ struct PlaceRepeatTiles {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    atlas = std::make_shared<instancing::Atlas>();
+    atlas = std::make_shared<instancing::CellSheet>();
     atlas->cell(motif(sketch::kit::theme().palette.figure), kMotif);
 
     plain = std::make_shared<instancing::Pool>();

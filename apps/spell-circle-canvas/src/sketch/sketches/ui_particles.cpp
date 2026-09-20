@@ -7,7 +7,7 @@
 // Scale scene: "UI as particles" — from confetti chips to whole POSTS, and
 // none of them look instanced.
 //
-// TWO instancing::Atlas sheets, each stamped by one instances() leaf
+// TWO instancing::CellSheet sheets, each stamped by one instances() leaf
 // (Mode::Live) over an EnTT registry sim:
 //   - CHIPS: five parameterized components (pill, spiky shout, scalloped
 //     seal, carved nine-slice, dashed field note) baked THIRTY-TWO ways —
@@ -92,7 +92,7 @@ struct UiParticles {
   /** The leftover fraction of a step after the frame's stepping — the
    *  Ticker writes it, the pool fill reads it. */
   choreograph::Output<float> stepAlpha;
-  std::shared_ptr<instancing::Atlas> chipAtlas, postAtlas;
+  std::shared_ptr<instancing::CellSheet> chipAtlas, postAtlas;
   std::shared_ptr<instancing::Pool> chipPool, postPool;
 
   struct Pos {
@@ -189,7 +189,7 @@ struct UiParticles {
 
   void buildChipAtlas() {
     chipAtlas =
-        std::make_shared<instancing::Atlas>();  // 2x oversample built in
+        std::make_shared<instancing::CellSheet>();  // 2x oversample built in
 
     static constexpr const char8_t* kPillLabels[] = {
         u8"+250", u8"+120", u8"+45", u8"-87",  u8"-12",
@@ -359,7 +359,8 @@ struct UiParticles {
          u8"A rope that has held once will tell you before it fails."},
     };
 
-    postAtlas = std::make_shared<instancing::Atlas>();  // 2x: crisp paragraphs
+    // 2x: crisp paragraphs
+    postAtlas = std::make_shared<instancing::CellSheet>();
     for (const auto& post : kPosts)
       postAtlas->cell(kit::centred(postVariant(post)), {kPostW, kPostH});
   }

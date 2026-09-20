@@ -5,7 +5,7 @@
  * size past which it culls each sprite against the clip, and the properties the
  * cached mode memoizes the leaf on.
  *
- * Private to the kernel. A consumer describes a pool and an atlas and
+ * Private to the kernel. A consumer describes a pool and a cell sheet and
  * never names any of this: the leaf's shape is the value, and the draw is
  * how the value is painted.
  */
@@ -30,7 +30,7 @@ inline constexpr size_t kCullThreshold = 2048;
 
 /** Every instance of @p pool as ONE atlas draw off @p atlas's baked
  *  sheet. */
-void stamp(SkCanvas& canvas, const PaintContext& ctx, Atlas& atlas,
+void stamp(SkCanvas& canvas, const PaintContext& ctx, CellSheet& atlas,
            const Pool& pool, SkBlendMode blend);
 
 /** What the cached mode memoizes the leaf on: the two values by identity,
@@ -39,7 +39,7 @@ void stamp(SkCanvas& canvas, const PaintContext& ctx, Atlas& atlas,
  *  the first describe is not answered with the picture recorded from the
  *  sheet before it. */
 struct DataProps {
-  std::shared_ptr<Atlas> atlas;
+  std::shared_ptr<CellSheet> atlas;
   std::shared_ptr<const Pool> pool;
   uint64_t revision = 0;
   uint64_t atlasRevision = 0;

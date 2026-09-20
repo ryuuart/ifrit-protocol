@@ -30,9 +30,9 @@ struct WinampBase {
   // ---- instancing: the spectrum analyser LEDs and the playlist rows ----
   static constexpr int kCols = 19;  // 19 bars x (3 px bar + 1 px gap) = 76
   static constexpr int kRows = 16;  // VISCOLOR gives exactly 16 ramp stops
-  std::shared_ptr<instancing::Atlas> ledAtlas;
+  std::shared_ptr<instancing::CellSheet> ledAtlas;
   std::shared_ptr<instancing::Pool> ledPool;
-  std::shared_ptr<instancing::Atlas> rowAtlas;
+  std::shared_ptr<instancing::CellSheet> rowAtlas;
   std::shared_ptr<instancing::Pool> rowPool;
   std::array<float, kCols> colLevel{}, colPeak{};
   long long lastRoll = -1;

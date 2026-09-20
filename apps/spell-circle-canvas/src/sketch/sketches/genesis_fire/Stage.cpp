@@ -3,7 +3,7 @@
 #include "GenesisFire.h"
 
 void GenesisFire::seedStars() {
-  starAtlas = std::make_shared<instancing::Atlas>(2.0f);
+  starAtlas = std::make_shared<instancing::CellSheet>(2.0f);
   // Five magnitude cells: a soft disc each, 10/7/5/4/3 px logical.
   const float sizes[5] = {7.0f, 5.4f, 4.2f, 3.2f, 2.4f};
   for (float s : sizes)

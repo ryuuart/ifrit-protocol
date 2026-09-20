@@ -7,7 +7,7 @@
  *
  * Several small drawings share one image, and each one needs to know which
  * rectangle of it is its own. That arithmetic is the same whether the boxes
- * are an `Atlas`'s baked cells, a set of pixel sprites or anything else a
+ * are a `CellSheet`'s baked cells, a set of pixel sprites or anything else a
  * caller wants on one surface, so it is a value here rather than a private
  * loop inside whichever component happened to need it first.
  *

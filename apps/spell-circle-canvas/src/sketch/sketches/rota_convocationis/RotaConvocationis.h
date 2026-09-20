@@ -67,7 +67,7 @@ struct RotaConvocationis {
   SkPath cageLadder, cageBeads, cageFenceOut, cageFenceIn, hubMotes;
   SkPath arcNodes, starNodes, arcSpokes, starSpokes, innerSpokes, hubDots,
       spurRules;
-  std::shared_ptr<instancing::Atlas> emberAtlas;
+  std::shared_ptr<instancing::CellSheet> emberAtlas;
   std::shared_ptr<instancing::Pool> embers;
   int emberFrame = 0;
 

@@ -249,7 +249,7 @@ void GenesisFire::writePlanPool() {
 }
 
 void GenesisFire::seedPlan() {
-  planAtlas = std::make_shared<instancing::Atlas>(3.0f);
+  planAtlas = std::make_shared<instancing::CellSheet>(3.0f);
   // cell 0: unlit open ring; cell 1: lit dot.
   planAtlas->cell(box()
                       .width(3.2f)
@@ -284,7 +284,7 @@ void GenesisFire::seedPlan() {
 }
 
 void GenesisFire::seedBench() {
-  abAtlas = std::make_shared<instancing::Atlas>(4.0f);
+  abAtlas = std::make_shared<instancing::CellSheet>(4.0f);
   // ONE baked aspect. The paper's shape goes from elongated at ejection to
   // stubby at apogee; an atlas cell is one size and a Pool scale is one
   // float, so this cell is the compromise the middle two panels show.

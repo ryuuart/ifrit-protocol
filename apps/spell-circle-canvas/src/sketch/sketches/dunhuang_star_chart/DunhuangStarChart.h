@@ -110,7 +110,7 @@ struct DunhuangStarChart {
   Pattern paperSpeck;
 
   // --- the star field -----------------------------------------------------
-  std::shared_ptr<instancing::Atlas> atlas;
+  std::shared_ptr<instancing::CellSheet> atlas;
   std::shared_ptr<instancing::Pool> pool;
   int cellRed = 0, cellBlack = 1, cellWhite = 2, cellOpen = 3, cellBare = 4;
 

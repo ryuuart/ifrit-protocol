@@ -49,13 +49,13 @@ struct GenesisFire {
   physics::Emitter abMouth;
   physics::Particles abParts;
   std::vector<sk_sp<SkVertices>> abChunks;
-  std::shared_ptr<instancing::Atlas> abAtlas;
+  std::shared_ptr<instancing::CellSheet> abAtlas;
   std::shared_ptr<instancing::Pool> abPool;
 
   // --- the two CONTROL pools (textbook instancing) -------------------------
-  std::shared_ptr<instancing::Atlas> starAtlas;
+  std::shared_ptr<instancing::CellSheet> starAtlas;
   std::shared_ptr<instancing::Pool> starPool;
-  std::shared_ptr<instancing::Atlas> planAtlas;
+  std::shared_ptr<instancing::CellSheet> planAtlas;
   std::shared_ptr<instancing::Pool> planPool;
   struct PlanMark {
     SkPoint p;

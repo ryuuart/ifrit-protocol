@@ -406,7 +406,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   // ---- ONE atlas, THREE cells, ONE bake: one cell per artwork strip, and
   // nothing else. The crawl across a strip is addressed per stamp through
   // Pool::texWindows(), so it costs no extra cells and no re-bake.
-  atlas = std::make_shared<instancing::Atlas>(1.0f);
+  atlas = std::make_shared<instancing::CellSheet>(1.0f);
   atlas->filter(SkFilterMode::kNearest);  // 1-bit artwork
   for (int i = 0; i < 3; ++i) {
     const Strip& S = strips[(size_t)i];
@@ -423,7 +423,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   }
   // A uniform white slit, for the measurement and for the sampling strips:
   // there the subject is the SPACING, not the artwork.
-  flatAtlas = std::make_shared<instancing::Atlas>(1.0f);
+  flatAtlas = std::make_shared<instancing::CellSheet>(1.0f);
   flatAtlas->filter(SkFilterMode::kNearest);
   flatAtlas->cell(box().fill(Fill::color(kWhite)), {kCellW, kCellH});
 

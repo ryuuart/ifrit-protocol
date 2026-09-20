@@ -126,7 +126,7 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
   // FIVE cells, because an atlas cell is a whole ELEMENT TREE: the black
   // ring and the school fill bake into ONE sprite, so 1,460 dots stay one
   // draw and there is no second concentric pass.
-  atlas = std::make_shared<instancing::Atlas>(3.0f);
+  atlas = std::make_shared<instancing::CellSheet>(3.0f);
   auto dot = [](SkColor4f fill, bool ring) {
     auto e = box().width(11).height(11).shape(shapes::circle());
     if (fill.fA > 0) e.fill(Fill::color(fill));

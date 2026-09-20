@@ -6,12 +6,12 @@
 #include "Sprites.h"
 
 struct XcomBattlescape {
-  using Atlas = instancing::Atlas;
+  using Sheet = instancing::CellSheet;
   using Pool = instancing::Pool;
 
   // ---- the flyweight -------------------------------------------------------
-  std::shared_ptr<Atlas> tiles;       // 128x160 cells, (type x shade) + markers
-  std::shared_ptr<Atlas> fontAtlas;   // ONE 4x4 white cell, tinted per instance
+  std::shared_ptr<Sheet> tiles;       // 128x160 cells, (type x shade) + markers
+  std::shared_ptr<Sheet> fontAtlas;   // ONE 4x4 white cell, tinted per instance
   std::shared_ptr<Pool> terrain;      // z0 floors + objects, z1 tree tops
   std::shared_ptr<Pool> overlay;      // path arrows + the box selector
   std::shared_ptr<Pool> mapGlyphs;    // fifteen bordered TU markers
@@ -77,8 +77,8 @@ struct XcomBattlescape {
     using namespace xcom;
     paletteFx = paletteEffect();
     paletteTable = sigil::material::skia::paletteLookup(palette());
-    tiles = std::make_shared<Atlas>(1.0f);
-    // Atlas::filter, and it is the palette's guard rail.
+    tiles = std::make_shared<Sheet>(1.0f);
+    // Sheet::filter, and it is the palette's guard rail.
     //
     // At oversample 1.0 with every stamp on an integer pixel, kLinear and
     // kNearest agree exactly: the linear sample lands on the texel centre and
@@ -151,7 +151,7 @@ struct XcomBattlescape {
         box().fill(paletteLut(paletteFx, paletteTable, idxCursor, 0)), cell);
     atlasCells = tiles->frameCount();
 
-    fontAtlas = std::make_shared<Atlas>(1.0f);
+    fontAtlas = std::make_shared<Sheet>(1.0f);
     fontAtlas->filter(SkFilterMode::kNearest);
     // The font cell is a MASK, not a colour: Pool::tints() MULTIPLIES, so the
     // cell has to be pure white. Filling it with the palette's own white —

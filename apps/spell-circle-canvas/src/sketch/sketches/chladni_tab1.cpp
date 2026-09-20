@@ -433,7 +433,7 @@ struct ChladniTab1 {
   // Where each figure's grains begin, plus the end — so the bow's nudge is
   // read once per figure instead of stored once per grain.
   std::array<size_t, kFigures.size() + 1> figureFirst{};
-  std::shared_ptr<instancing::Atlas> atlas;
+  std::shared_ptr<instancing::CellSheet> atlas;
   std::shared_ptr<instancing::Pool> pool;
 
   Pattern foxing, foxingLL;
@@ -810,7 +810,7 @@ struct ChladniTab1 {
     settleEase = ease::outBounce();
 
     // The grain atlas: three engraved marks, baked once, stamped ~5900x.
-    atlas = std::make_shared<instancing::Atlas>(3.0f);
+    atlas = std::make_shared<instancing::CellSheet>(3.0f);
     atlas->cell(box().width(8.6f).height(2.3f).corners({1.15f}).fill(
                     Fill::color(hexColor(0x211c14, 0.94f))),
                 {10, 4});

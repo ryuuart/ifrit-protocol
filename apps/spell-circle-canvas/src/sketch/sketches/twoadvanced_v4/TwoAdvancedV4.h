@@ -60,7 +60,7 @@ struct TwoAdvancedV4 {
       float h, SkTileMode tx = SkTileMode::kClamp);
 
   // --- instancing: the footer dock's chevron tick array ---
-  std::shared_ptr<instancing::Atlas> dockAtlas;
+  std::shared_ptr<instancing::CellSheet> dockAtlas;
   std::shared_ptr<instancing::Pool> dockPool;
 
   /** The MAINFRAME hero, rendered once as a world scene and held. */

@@ -66,7 +66,7 @@ struct ChevreulCircle {
   Paint paperGrain, plateTone, sweepRing, medallionGlow;
   std::shared_ptr<weave::Paragraph> lawPara;
 
-  std::shared_ptr<instancing::Atlas> quadAtlas;
+  std::shared_ptr<instancing::CellSheet> quadAtlas;
   std::shared_ptr<instancing::Pool> quadPool;
   int quadFrame = 0;
 

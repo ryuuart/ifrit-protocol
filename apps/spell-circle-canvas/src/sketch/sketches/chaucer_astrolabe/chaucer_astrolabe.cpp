@@ -152,7 +152,7 @@ auto ChaucerAstrolabe::setup(sketch::SketchContext& ctx) -> void {
   pieces = retePieces(rete);
 
   // the 360 limb ticks: ONE cell, three LENGTHS through Pool::sizes()
-  tickAtlas = std::make_shared<instancing::Atlas>(3.0f);
+  tickAtlas = std::make_shared<instancing::CellSheet>(3.0f);
   tickAtlas->cell(
       box().width(24).height(2.0f).fill(Fill::color(hexColor(0x33240c, 0.92f))),
       {26, 4});

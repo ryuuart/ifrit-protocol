@@ -28,7 +28,7 @@ auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
   buildPlants();
   buildChains();
 
-  dotAtlas = std::make_shared<instancing::Atlas>(2.0f);
+  dotAtlas = std::make_shared<instancing::CellSheet>(2.0f);
   cellDot = dotAtlas->cell(box().shape(shapes::circle()).fill(kBone), {5, 5});
   cellPin = dotAtlas->cell(
       box()
@@ -41,7 +41,7 @@ auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
   // The stick cell: a bar with BUTT ends. Round caps would deform under
   // the sizes() lane — a satisfied constraint holds the stretch to a
   // percent or so, but the cell must not assume that.
-  barAtlas = std::make_shared<instancing::Atlas>(2.0f);
+  barAtlas = std::make_shared<instancing::CellSheet>(2.0f);
   // A PILL, not a bar, is what a stick's collision proxy really is — and
   // it is the case sizes() cannot hold: one cell length serving 24
   // different stick lengths scales x per instance against a fixed y, so

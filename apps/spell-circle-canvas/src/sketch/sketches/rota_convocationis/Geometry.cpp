@@ -412,7 +412,7 @@ auto RotaConvocationis::bakeGeometry() -> void {
   // THE EMBERS: one cell baked from a soft dot, and a pool the ticker
   // owns. The stamp is one draw whatever the count, which is what lets
   // the drizzle keep running for the whole charged idle.
-  emberAtlas = std::make_shared<instancing::Atlas>(2.0f);
+  emberAtlas = std::make_shared<instancing::CellSheet>(2.0f);
   emberFrame = emberAtlas->cell(
       box().fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                         {{0.0f, hexColor(0xFFF3D2)},

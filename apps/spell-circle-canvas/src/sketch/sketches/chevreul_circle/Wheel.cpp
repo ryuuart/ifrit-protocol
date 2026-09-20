@@ -1,7 +1,7 @@
 #include "ChevreulCircle.h"
 
 auto ChevreulCircle::buildQuadrantPool() -> void {
-  quadAtlas = std::make_shared<instancing::Atlas>(2.0f);
+  quadAtlas = std::make_shared<instancing::CellSheet>(2.0f);
   // ONE white cell. Every one of the 200 colours arrives as a tint, which
   // is precisely the fidelity question nobody had asked of this path.
   quadFrame =

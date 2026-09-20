@@ -26,7 +26,7 @@ TEST(ComposePlacers, TheAlphaLaneFadesWithoutTouchingTheTint) {
   // alphas() is an opt-in lane that composes with the authored tint, and
   // place::repeat writes IT rather than tints[].fA. Sharing one lane would
   // make a faded pool silently un-tintable.
-  auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+  auto atlas = std::make_shared<instancing::CellSheet>(1.0f);
   atlas->cell(box().fill(Fill::color({1, 0, 0, 1})), {40, 40});
   auto pool = std::make_shared<instancing::Pool>();
   instancing::place::repeat(*pool, 2, {40, 40}, {80, 0}, 0.0f, 1.0f, 1.0f,

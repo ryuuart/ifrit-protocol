@@ -18,7 +18,7 @@ struct SlitScan2001 {
    *  cut; a function-local static would be worse still, since it outlives
    *  the dylib a hot-reloaded sketch is unloaded with. */
   sk_sp<SkRuntimeEffect> transfer;
-  std::shared_ptr<instancing::Atlas> atlas, flatAtlas;
+  std::shared_ptr<instancing::CellSheet> atlas, flatAtlas;
   std::shared_ptr<instancing::Pool> wallA, wallB, monA, monB;
   std::array<std::shared_ptr<instancing::Pool>, 6> s4;
   std::array<slit::Strip, 3> strips;

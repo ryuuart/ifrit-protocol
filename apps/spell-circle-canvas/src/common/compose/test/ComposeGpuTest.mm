@@ -201,7 +201,7 @@ INSTANTIATE_TEST_SUITE_P(
         DirectDraw{"AStampedAtlas",
                    [] {
                      using namespace sigil::compose::instancing;
-                     auto atlas = std::make_shared<Atlas>();
+                     auto atlas = std::make_shared<CellSheet>();
                      atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {24, 24});
                      auto pool = std::make_shared<Pool>();
                      pool->add({60, 60});

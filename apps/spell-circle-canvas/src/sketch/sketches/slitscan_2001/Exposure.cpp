@@ -213,7 +213,7 @@ auto SlitScan2001::roundTrip(sigil::weave::FontContext& fonts) -> void {
   const int boxW = cw + 16, boxH = chh + 8;
   const float cx = (float)boxW * 0.5f, cy = (float)boxH * 0.5f;
 
-  auto one = std::make_shared<instancing::Atlas>(1.0f);
+  auto one = std::make_shared<instancing::CellSheet>(1.0f);
   one->filter(SkFilterMode::kNearest);
   one->cell(box().fill(Paint::image(
                 S.image, SkTileMode::kClamp, SkTileMode::kClamp,

@@ -457,7 +457,7 @@ inline void buildWall(instancing::Pool& p, const WallSpec& s) {
     // a different sub-rect per stamp, so the artwork crawl is continuous.
     // The alternative is pre-registering a cell per crawl position, which
     // quantises the crawl to that cell count and cannot be repaired later:
-    // Atlas::cell() drops the whole baked sheet when you re-register.
+    // CellSheet::cell() drops the whole baked sheet when you re-register.
     const float left =
         s.artwork ? std::fmod(s.artLeft + s.artDrift * f + 8.0f, 1.0f) : 0.0f;
     win[j] =

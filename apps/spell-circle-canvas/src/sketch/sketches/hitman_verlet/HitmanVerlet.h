@@ -110,9 +110,9 @@ struct HitmanVerlet {
 
   // Instancing: the particle dots (the control case) and the sticks (the
   // Pool::sizes() lane).
-  std::shared_ptr<instancing::Atlas> dotAtlas;
+  std::shared_ptr<instancing::CellSheet> dotAtlas;
   std::shared_ptr<instancing::Pool> dotPool;
-  std::shared_ptr<instancing::Atlas> barAtlas;
+  std::shared_ptr<instancing::CellSheet> barAtlas;
   std::shared_ptr<instancing::Pool> barPool;
   int cellDot = 0, cellPin = 0, cellBar = 0;
 

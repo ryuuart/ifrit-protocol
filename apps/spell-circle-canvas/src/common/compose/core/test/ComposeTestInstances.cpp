@@ -8,7 +8,7 @@
 TEST(ComposeInstances, StampsAtlasCellsAtPoolPositionsWithTint) {
   using namespace sigil::compose::instancing;
   Host host;
-  auto atlas = std::make_shared<Atlas>();
+  auto atlas = std::make_shared<CellSheet>();
   atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {20, 20});
   auto pool = std::make_shared<Pool>();
   pool->add({50, 50});                                // white cell, untinted
@@ -32,7 +32,7 @@ TEST(ComposeInstances, StampsAtlasCellsAtPoolPositionsWithTint) {
 TEST(ComposeInstances, DataModePrunesUntilTouched) {
   using namespace sigil::compose::instancing;
   Host host;
-  auto atlas = std::make_shared<Atlas>();
+  auto atlas = std::make_shared<CellSheet>();
   atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {16, 16});
   auto pool = std::make_shared<Pool>();
   pool->add({40, 40});
@@ -59,7 +59,7 @@ TEST(ComposeInstances, DataModePrunesUntilTouched) {
 TEST(ComposeInstances, LiveModeReadsThePoolEveryFrame) {
   using namespace sigil::compose::instancing;
   Host host;
-  auto atlas = std::make_shared<Atlas>();
+  auto atlas = std::make_shared<CellSheet>();
   atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {16, 16});
   auto pool = std::make_shared<Pool>();
   pool->add({40, 40});
@@ -81,7 +81,7 @@ TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
   // is the entire colour model of an additive particle system: the colour
   // is the overlap count and there is no palette.
   auto build = [](SkBlendMode blend) {
-    auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+    auto atlas = std::make_shared<instancing::CellSheet>(1.0f);
     atlas->cell(
         box().width(40).height(40).fill(Fill::color({0.25f, 0.25f, 0.25f, 1})),
         {40, 40});
@@ -118,7 +118,7 @@ TEST(ComposeInstances, ThePerInstanceSizeLaneCarriesNonUniformScale) {
   // The lane is opt-in: a pool that never asks for it keeps the pure
   // RSXform path and costs nothing.
   auto build = [](bool stretch) {
-    auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+    auto atlas = std::make_shared<instancing::CellSheet>(1.0f);
     atlas->cell(box().width(20).height(20).fill(Fill::color({1, 0, 0, 1})),
                 {20, 20});
     auto pool = std::make_shared<instancing::Pool>();
@@ -156,7 +156,7 @@ TEST(ComposeInstances, ANonUniformInstanceStillRotatesAboutItsCentre) {
   // The quad is built by hand on this path, so the anchor has to come out
   // where RSXform would have put it — a 90-degree turn must swap the
   // extents in place, not orbit the sprite away from its position.
-  auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+  auto atlas = std::make_shared<instancing::CellSheet>(1.0f);
   atlas->cell(box().width(20).height(20).fill(Fill::color({1, 0, 0, 1})),
               {20, 20});
   auto pool = std::make_shared<instancing::Pool>();
@@ -183,7 +183,7 @@ TEST(ComposeInstances, TheAtlasChoosesItsOwnFilter) {
   // real use is tilemaps and sprite sheets — pixel grids — where linear
   // filtering is exactly wrong.
   auto blend = [](SkFilterMode mode) {
-    auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+    auto atlas = std::make_shared<instancing::CellSheet>(1.0f);
     atlas->filter(mode);
     // A cell that is half red, half green: magnified, linear invents a
     // blend band across the seam and nearest does not.
@@ -216,7 +216,7 @@ TEST(ComposeInstances, WhatTheRecipeAnswersDecidesHowAVariantIsSized) {
   // states, and one answering a tree AND a size brings its own. The index is
   // offered either way, so a recipe that bakes the same drawing three times
   // names nothing.
-  auto shared = std::make_shared<instancing::Atlas>(1.0f);
+  auto shared = std::make_shared<instancing::CellSheet>(1.0f);
   const int first = shared->variants(2, {20, 20}, [](int v) {
     const float g = 0.3f + 0.3f * (float)v;
     return box().fill(Fill::color({g, g, g, 1}));
@@ -224,7 +224,7 @@ TEST(ComposeInstances, WhatTheRecipeAnswersDecidesHowAVariantIsSized) {
   EXPECT_EQ(first, 0);
   EXPECT_EQ(shared->frameSize(1), SkSize::Make(20, 20));
 
-  auto own = std::make_shared<instancing::Atlas>(1.0f);
+  auto own = std::make_shared<instancing::CellSheet>(1.0f);
   own->variants(2, [](int v) {
     const float side = 10.0f + 10.0f * (float)v;
     return std::pair<Element, SkSize>{box().fill(red()), {side, side}};
@@ -232,7 +232,7 @@ TEST(ComposeInstances, WhatTheRecipeAnswersDecidesHowAVariantIsSized) {
   EXPECT_EQ(own->frameSize(0), SkSize::Make(10, 10));
   EXPECT_EQ(own->frameSize(1), SkSize::Make(20, 20));
 
-  auto nullary = std::make_shared<instancing::Atlas>(1.0f);
+  auto nullary = std::make_shared<instancing::CellSheet>(1.0f);
   nullary->variants(3, {8, 8}, [] { return box().fill(red()); });
   EXPECT_EQ(nullary->frameCount(), 3);
 }
@@ -242,7 +242,7 @@ TEST(ComposeInstances, VariantsAreConsecutiveBakesOfOneRecipe) {
   // That is what tints() cannot do: a variant may differ by a whole
   // re-render — a per-channel ramp, a different shade table — rather than by
   // a multiply.
-  auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+  auto atlas = std::make_shared<instancing::CellSheet>(1.0f);
   const int first = atlas->variants(3, {20, 20}, [](int v) {
     const float g = 0.2f + 0.3f * (float)v;  // three distinct shades
     return box().fill(Fill::color({g, g, g, 1}));
@@ -269,7 +269,7 @@ TEST(ComposeInstances, AddAfterAlphasKeepsEveryFade) {
   // mutator has to keep the alpha lane in step. The sharp case is add()
   // AFTER the lane exists: a lane left one short would fail that length
   // test and silently drop every fade in the pool.
-  auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+  auto atlas = std::make_shared<instancing::CellSheet>(1.0f);
   atlas->cell(box().fill(Fill::color({1, 0, 0, 1})), {40, 40});
   auto pool = std::make_shared<instancing::Pool>();
   pool->add({40, 40});
@@ -331,7 +331,7 @@ TEST(ComposeInstances, PickInvertsTheStampTopmostFirst) {
   // projection, read against the same lanes the stamp reads: rotation,
   // scale, and topmost-wins where stamps overlap.
   using namespace sigil::compose::instancing;
-  Atlas atlas(1.0f);
+  CellSheet atlas(1.0f);
   atlas.cell(box().fill(Fill::color({1, 0, 0, 1})), {40, 20});
   Pool pool;
   pool.add({100, 100});     // instance 0
@@ -362,7 +362,7 @@ TEST(ComposeInstances, APerInstanceUVWindowAddressesInsideACell) {
   // that a Pool could name a cell INDEX and never a RECT. So a strip of
   // artwork crawling behind a slit, or a sprite scrolling within its own
   // cell, was out of reach for want of a lane, not a draw path.
-  auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+  auto atlas = std::make_shared<instancing::CellSheet>(1.0f);
   atlas->filter(SkFilterMode::kNearest);
   // One cell, four vertical quarters: red, green, blue, white.
   atlas->cell(box().width(16).height(64).column().children(
@@ -472,7 +472,7 @@ TEST(ComposeInstances, ACellRegisteredAfterTheFirstDrawIsDrawn) {
   // from the sheet before that cell and the new frame would never appear.
   using namespace sigil::compose::instancing;
   Host host;
-  auto atlas = std::make_shared<Atlas>();
+  auto atlas = std::make_shared<CellSheet>();
   atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {16, 16});
   auto pool = std::make_shared<Pool>();
   pool->add({40, 40});

@@ -19,8 +19,8 @@ struct Ds2Bench {
   choreograph::Output<float> scanClock{0};
 
   // the legend pip masses: one atlas (2 cells), one pool per row
-  std::shared_ptr<instancing::Atlas> pips =
-      std::make_shared<instancing::Atlas>(2.0f);
+  std::shared_ptr<instancing::CellSheet> pips =
+      std::make_shared<instancing::CellSheet>(2.0f);
   std::array<std::shared_ptr<instancing::Pool>, kStatCount> pipPools;
   int pipFilled = 0, pipEmpty = 1;
   int glowSlot = 0;

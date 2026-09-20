@@ -149,7 +149,7 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
           kPressWellH);
 
   // --- the instanced chevron array in the footer dock ---
-  dockAtlas = std::make_shared<instancing::Atlas>(2.0f);
+  dockAtlas = std::make_shared<instancing::CellSheet>(2.0f);
   const int chev = dockAtlas->cell(
       box()
           .shape(keyedShape(std::string_view("dock-chevron"),

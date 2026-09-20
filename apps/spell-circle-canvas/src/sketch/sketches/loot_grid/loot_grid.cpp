@@ -20,7 +20,7 @@ struct LootGrid {
   choreograph::Output<float> goldFrac{0};
   int gold = 0;
 
-  std::shared_ptr<instancing::Atlas> cellAtlas;
+  std::shared_ptr<instancing::CellSheet> cellAtlas;
   std::shared_ptr<instancing::Pool> cellPool;
 
   int shownGold = -1;
@@ -75,7 +75,7 @@ struct LootGrid {
 
     // One atlas cell, forty instances: the empty grid is a single
     // drawAtlas stamp, which is the whole point of the flyweight layer.
-    cellAtlas = std::make_shared<instancing::Atlas>(2.0f);
+    cellAtlas = std::make_shared<instancing::CellSheet>(2.0f);
     cellAtlas->cell(lt::well(lt::kCell, lt::kCell), {lt::kCell, lt::kCell});
     cellPool = std::make_shared<instancing::Pool>();
     // An instance sits at the centre of its slot; `place::grid` fills the

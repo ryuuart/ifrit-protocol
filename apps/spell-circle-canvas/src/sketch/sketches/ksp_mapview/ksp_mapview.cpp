@@ -60,7 +60,7 @@ auto KspMapView::setup(sketch::SketchContext& ctx) -> void {
            .face = sansB(), .size = 11, .color = kOrange, .track = 0.2f}}};
 
   // Starfield: one soft-dot cell, 360 hashed instances.
-  starAtlas = std::make_shared<instancing::Atlas>(2.0f);
+  starAtlas = std::make_shared<instancing::CellSheet>(2.0f);
   const int dot = starAtlas->cell(
       box().fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
                                    {{0.0f, hexColor(0xFFFFFF, 1.0f)},
