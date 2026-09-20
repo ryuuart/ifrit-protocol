@@ -46,6 +46,8 @@ def feed[Value](ring: Ring, options: Options, row: collections.abc.Callable[[Val
         table.returns(f"{FEED}.{ring}", "__iter__", "collections.abc.Iterator[Row]")
     # One row class serves every ring, so the value under a sequence id is
     # an object, and the ring of Python's own values takes any object. Both
-    # are stated as that rather than left as an unknown.
-    table.returns(f"{FEED}.Row", "value", "builtins.object")
+    # are stated as that rather than left as an unknown. The value reads
+    # and writes as one type, so it is declared as a field, and the
+    # record's keyword takes its type from that field.
+    table.attribute(f"{FEED}.Row.value", "builtins.object")
     table.erased(f"{FEED}.Ring", "append", "builtins.object")
