@@ -102,7 +102,7 @@ so pens drawing through one recorder share its retained texture.
 
 | word | what it is |
 | --- | --- |
-| `Polygon` | vertices, the whole of its state; `intersect(line)` (`path::edgeCrossings`, nearest the line's start first), `translated`, and `draw`/`fill`/`wash`/`hatch`/`mass` with a tool or through an engine; `show` is every active interior in the engine's order |
+| `Polygon` | vertices, the whole of its state; `intersect(line)` (`path::edgeCrossings`, nearest the line's start first) and `translated`. It carries no verbs: paint it through an engine, or pass its vertices to `hatch`, `wash`, `mass` or `paint` with a tool |
 | `Plot` | a path by turns: `addSegment(angle, length, pressure)`, `endPlot`, `rotate`; `angle(distance)` and `pressure(distance)`; `path(origin, spacing, curvature, scale)` and `polygon(x, y, …)` place it anywhere at any scale. `fromStroke` records a stroke's turns relative to its first sample. A plot is always relative |
 | `PlacedPlot` | a plot and the origin it was first drawn at — what the engine's `circle`, `arc`, `spline` and `endShape` answer |
 | `Position` | a cursor: `moveTo(direction, length, step)` walks with its field's answer added to the direction, `plotTo(plot, length, step, scale)` walks a plot's headings; `plotted()` accumulates; with bounds it stops once it has left them by half their size |
@@ -131,9 +131,9 @@ other setter and verb answers nothing.
 | `field(name)`, `addField(name, field, units)`, `listFields`, `noField`, `wiggle(amount)` | the field; `wiggle` selects `hand` and scales its influence |
 | `clip(rect)`, `clip(pen, rect)`, `noClip` | a rectangle every mark, interior and outline is confined to; with a pen, captured in the pen's space at the call and applied there whatever the transform is later — for that canvas |
 | `paint`, `line`, `flowLine`, `spline` | strokes with the selected tool through the field; `spline` answers its plot |
-| `polygon`, `rect(…, mode)`, `rect(…, radius)`, `circle(…, irregularity)`, `arc`, `beginShape`/`vertex`/`endShape` | surfaces: wash, fill, mass, hatch and the outline in that order, all under the clip, all through one bent boundary; `rect` takes p5's `CORNER`, `CORNERS` or `CENTER` |
+| `polygon(pen, points)`, `polygon(pen, Polygon)`, `rect(…, mode)`, `rect(…, radius)`, `circle(…, irregularity)`, `arc`, `beginShape`/`vertex`/`endShape` | surfaces: wash, fill, mass, hatch and the outline in that order, all under the clip, all through one bent boundary; `rect` takes p5's `CORNER`, `CORNERS` or `CENTER` |
 | `draw`/`fill`/`wash`/`hatch`/`mass(pen, Polygon)` and `(pen, Plot, x, y, scale)` | one interior over stored geometry |
-| `hatchArray`, `massArray` | over a collection |
+| `hatchArray(pen, polygons)`, `massArray(pen, polygons)` | the hatch or the mass through a collection as one even-odd gesture |
 | `position(x, y)`, `position(pen, x, y)` | a cursor through the field; with a pen, at the pen's clock and bounded by the canvas |
 | `beginInput`, `moveInput`, `endInput`, `cancelInput` | live input through the sampler and the executor; nothing is deposited before the first movement, and the tool's randomness is rolled once at `beginInput` |
 | `beginStroke(kind, at)`, `move(pen, angle, length, pressure)`, `endStroke(pen, angle)`, `cancelStroke` | a stroke by turns, in the pen's angle mode |

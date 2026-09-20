@@ -3,12 +3,7 @@
  */
 
 #include <sigildraw/Math.h>
-#include <sigildraw/brush/Deposit.h>
-#include <sigildraw/brush/Engine.h>
-#include <sigildraw/brush/Hatch.h>
-#include <sigildraw/brush/Mass.h>
 #include <sigildraw/brush/Plot.h>
-#include <sigildraw/brush/Wash.h>
 
 #include <algorithm>
 #include <cmath>
@@ -99,65 +94,6 @@ Polygon Plot::polygon(float x, float y, float spacing, float curvature,
   points.reserve(samples.size());
   for (const Sample& sample : samples) points.push_back(sample.position);
   return Polygon(std::move(points));
-}
-
-void Plot::draw(Pen& pen, const Tool& tool, float x, float y,
-                float scale) const {
-  paint(pen, tool, path({x, y}, tool.spacing, 0.5f, scale));
-}
-
-void Plot::fill(Pen& pen, const Wash& style, float x, float y,
-                float scale) const {
-  polygon(x, y, 1.0f, 0.5f, scale).fill(pen, style);
-}
-
-void Plot::wash(Pen& pen, const Wash& style, float x, float y,
-                float scale) const {
-  polygon(x, y, 1.0f, 0.5f, scale).wash(pen, style);
-}
-
-void Plot::hatch(Pen& pen, const Tool& tool, const Hatch& style, float x,
-                 float y, float scale) const {
-  polygon(x, y, tool.spacing, 0.5f, scale).hatch(pen, tool, style);
-}
-
-void Plot::mass(Pen& pen, const Tool& tool, const Mass& style, float x, float y,
-                float scale) const {
-  polygon(x, y, tool.spacing, 0.5f, scale).mass(pen, tool, style);
-}
-
-void Plot::draw(Pen& pen, const Engine& engine, float x, float y,
-                float scale) const {
-  engine.draw(pen, *this, x, y, scale);
-}
-
-void Plot::fill(Pen& pen, const Engine& engine, float x, float y,
-                float scale) const {
-  engine.fill(pen, *this, x, y, scale);
-}
-
-void Plot::wash(Pen& pen, const Engine& engine, float x, float y,
-                float scale) const {
-  engine.wash(pen, *this, x, y, scale);
-}
-
-void Plot::hatch(Pen& pen, const Engine& engine, float x, float y,
-                 float scale) const {
-  engine.hatch(pen, *this, x, y, scale);
-}
-
-void Plot::mass(Pen& pen, const Engine& engine, float x, float y,
-                float scale) const {
-  engine.mass(pen, *this, x, y, scale);
-}
-
-void Plot::show(Pen& pen, const Engine& engine, float x, float y,
-                float scale) const {
-  engine.wash(pen, *this, x, y, scale);
-  engine.fill(pen, *this, x, y, scale);
-  engine.mass(pen, *this, x, y, scale);
-  engine.hatch(pen, *this, x, y, scale);
-  engine.draw(pen, *this, x, y, scale);
 }
 
 Plot Plot::fromStroke(std::span<const Sample> stroke, PlotType type) {

@@ -97,20 +97,12 @@ void Engine::hatchArray(Pen& pen, std::span<const Polygon> polygons) const {
   pen.pop();
 }
 
-void Engine::hatchArray(Pen& pen, const Polygon& polygon) const {
-  hatchArray(pen, std::span<const Polygon>(&polygon, 1));
-}
-
 void Engine::massArray(Pen& pen, std::span<const Polygon> polygons) const {
   if (!m_mass) return;
   pen.push();
   applyClip(pen);
   brush::massArray(pen, m_massTool, polygons, *m_mass);
   pen.pop();
-}
-
-void Engine::massArray(Pen& pen, const Polygon& polygon) const {
-  massArray(pen, std::span<const Polygon>(&polygon, 1));
 }
 
 // ---- primitives -------------------------------------------------------------

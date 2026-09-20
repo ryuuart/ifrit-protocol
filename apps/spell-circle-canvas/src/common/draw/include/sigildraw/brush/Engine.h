@@ -165,9 +165,7 @@ class Engine {
   Polygon polygon(Pen& pen, std::span<const SkPoint> points) const;
   void polygon(Pen& pen, const Polygon& polygon) const;
   void hatchArray(Pen& pen, std::span<const Polygon> polygons) const;
-  void hatchArray(Pen& pen, const Polygon& polygon) const;
   void massArray(Pen& pen, std::span<const Polygon> polygons) const;
-  void massArray(Pen& pen, const Polygon& polygon) const;
   /** A rect in the mode named — p5's CORNER, CORNERS or CENTER. */
   void rect(Pen& pen, float x, float y, float width, float height,
             Constant mode = CORNER) const;

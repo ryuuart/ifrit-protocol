@@ -224,7 +224,7 @@ struct BrushBotanicalStudy {
                        .jitter = 0.12f,
                        .gradient = index % 2 == 0 ? 0.16f : -0.12f});
       }
-      leaf.polygon.show(pen, brushes);
+      brushes.polygon(pen, leaf.polygon);
       brushes.pop();
       vein(pen, leaf, edge);
     }

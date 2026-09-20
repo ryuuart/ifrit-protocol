@@ -14,17 +14,7 @@
 #include <span>
 #include <vector>
 
-namespace sigil::draw {
-class Pen;
-}
-
 namespace sigil::draw::brush {
-
-class Engine;
-struct Tool;
-struct Wash;
-struct Hatch;
-struct Mass;
 
 /** Whether a plot's samples are joined by a curve through them or by
  *  straight segments. */
@@ -58,29 +48,6 @@ class Plot {
   [[nodiscard]] Polygon polygon(float x = 0.0f, float y = 0.0f,
                                 float spacing = 1.0f, float curvature = 0.5f,
                                 float scale = 1.0f) const;
-  void draw(Pen& pen, const Tool& tool, float x = 0.0f, float y = 0.0f,
-            float scale = 1.0f) const;
-  void fill(Pen& pen, const Wash& style, float x = 0.0f, float y = 0.0f,
-            float scale = 1.0f) const;
-  void wash(Pen& pen, const Wash& style, float x = 0.0f, float y = 0.0f,
-            float scale = 1.0f) const;
-  void hatch(Pen& pen, const Tool& tool, const Hatch& style, float x = 0.0f,
-             float y = 0.0f, float scale = 1.0f) const;
-  void mass(Pen& pen, const Tool& tool, const Mass& style, float x = 0.0f,
-            float y = 0.0f, float scale = 1.0f) const;
-  /** The same through an engine's current state. */
-  void draw(Pen& pen, const Engine& engine, float x = 0.0f, float y = 0.0f,
-            float scale = 1.0f) const;
-  void fill(Pen& pen, const Engine& engine, float x = 0.0f, float y = 0.0f,
-            float scale = 1.0f) const;
-  void wash(Pen& pen, const Engine& engine, float x = 0.0f, float y = 0.0f,
-            float scale = 1.0f) const;
-  void hatch(Pen& pen, const Engine& engine, float x = 0.0f, float y = 0.0f,
-             float scale = 1.0f) const;
-  void mass(Pen& pen, const Engine& engine, float x = 0.0f, float y = 0.0f,
-            float scale = 1.0f) const;
-  void show(Pen& pen, const Engine& engine, float x = 0.0f, float y = 0.0f,
-            float scale = 1.0f) const;
 
   /** The stroke's segments as a plot relative to its first sample. */
   [[nodiscard]] static Plot fromStroke(std::span<const Sample> stroke,
