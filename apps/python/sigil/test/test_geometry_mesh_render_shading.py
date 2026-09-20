@@ -323,7 +323,7 @@ class Panels(unittest.TestCase):
                 results['size'] = (face.width, face.height)
                 results['face'] = face
                 face.noStroke()
-                face.fill('#ff2020')
+                face.fill('#ff0000')
                 face.rect(-face.width / 2, -face.height / 2, face.width, face.height)
             render.drawPanel(pen, camera.Matrix(), camera.Camera(), body,
                              width=extent.width(), height=extent.height())
@@ -334,7 +334,7 @@ class Panels(unittest.TestCase):
         for spot in ((PLATE // 2, PLATE // 2), (4, 4), (PLATE - 5, PLATE - 5)):
             red = self.pixel(picture, *spot)
             self.assertGreater(red[0], 200, spot)
-            self.assertLess(red[1], 80, spot)
+            self.assertLess(red[1], 60, spot)
 
     def test_the_pen_a_panel_lent_cannot_draw_once_the_panel_is_drawn(self):
         self.render("""
@@ -358,7 +358,7 @@ class Panels(unittest.TestCase):
             except RuntimeError as error:
                 results['raised'] = str(error)
             pen.noStroke()
-            pen.fill('#20ff20')
+            pen.fill('#00ff00')
             pen.rect(0, 0, pen.width, pen.height)
         """)
         self.assertIn("the panel gave up", self.results["raised"])
@@ -371,14 +371,14 @@ class Panels(unittest.TestCase):
     def test_an_image_panel_takes_the_runtime_it_draws_on(self):
         picture = self.render("""
             extent = frustum()
-            texture = image.from_rgba(bytes([255, 32, 32, 255] * 4), 2, 2)
+            texture = image.from_rgba(bytes([255, 0, 0, 255] * 4), 2, 2)
             render.drawImagePanel(pen, texture, extent.width(), extent.height(),
                                   camera.Matrix(), camera.Camera(),
                                   runtime=render.Runtime.cpu())
         """)
         middle = self.pixel(picture, PLATE // 2, PLATE // 2)
         self.assertGreater(middle[0], 200)
-        self.assertLess(middle[1], 80)
+        self.assertLess(middle[1], 60)
 
     def test_a_primitive_lane_tints_one_triangle_and_not_the_other(self):
         # The quad's two triangles meet along the diagonal from the
