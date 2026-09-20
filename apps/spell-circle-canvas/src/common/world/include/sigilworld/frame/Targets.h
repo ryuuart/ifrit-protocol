@@ -70,25 +70,12 @@ class Targets {
       std::string_view name) const;
 
   /** @p cloud STAMPED with @p stamp, formed once per distinct pair and
-   *  kept while both stand. Null when there is nothing to stamp.
-   *
-   *  A geometry pass draws the stamps of every point set it reads, every
-   *  frame. Forming them in the draw would re-stamp a set that has not
-   *  moved — the whole cloud times the stamp's vertices, on both tiers,
-   *  however still the frame is — so the answer is held here under
-   *  `stampKey`, which is a fold over the two VALUES. The fold buckets
-   *  the lookup and the pair itself decides it, so two pairs that fold
-   *  to one number are two stampings under two numbers and neither is
-   *  ever served the other's mesh. A frame that asks for one it already
-   *  has pays the fold and the confirmation and nothing else, and the
-   *  device tier keys its upload by the number this answers, so a still
-   *  set is neither formed twice nor uploaded twice.
-   *
-   *  What is not asked for in a frame is let go at the end of it.
-   *
-   *  @p key, when given, receives the number this stamping is held
-   *  under — for a tier that keys an upload by the same one, so that the
-   *  fold is paid once per frame and not twice. */
+   *  kept while both stand; null when there is nothing to stamp. The
+   *  answer is held under `stampKey`, a fold over the two VALUES, so a
+   *  still set is neither formed twice nor uploaded twice, and what a
+   *  frame does not ask for is let go at the end of it. @p key receives
+   *  the number the stamping is held under, for a tier that keys an
+   *  upload by the same one. */
   const geometry::mesh::Mesh* stamped(const geometry::mesh::Cloud& cloud,
                                       const geometry::mesh::Mesh& stamp,
                                       uint64_t* key = nullptr);
@@ -102,14 +89,11 @@ class Targets {
   [[nodiscard]] int surfaces() const;
 
   /** WHERE AN IMAGE COMES FROM when the frame's passes did not paint it
-   *  here — an executor that performed them somewhere else, on a device.
-   *  It answers for one name at a time, so only the resources something
-   *  actually asks for cost the crossing back.
-   *
-   *  Installing one hands that executor "what stood at the end of the
-   *  frame before" as well: `previous()` answers null and `endFrame()`
-   *  keeps nothing, because the executor that owns where the pixels are
-   *  owns what last frame means for them. */
+   *  here — an executor that performed them on a device. It answers for
+   *  one name at a time, so only what something asks for costs the
+   *  crossing back.
+   *  @trap Installing one hands that executor last frame too: `previous`
+   *  answers null and `endFrame` keeps nothing. */
   using ImageSource = std::function<sk_sp<SkImage>(std::string_view)>;
   /** Installs @p source, on the terms above. */
   void source(ImageSource source) { m_source = std::move(source); }

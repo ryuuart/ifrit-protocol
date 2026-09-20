@@ -59,14 +59,10 @@ using Lane = motion::Lane<LaneFamily>;
 
 /** Fills @p out with @p node's lanes: always `kLaneCount` of them, in
  *  `Slot` order, with a null value on every row this description does
- *  not carry the block for. A caller-owned vector so a per-frame walk
- *  allocates nothing after the first node.
- *
- *  The four EMITTER rows and the seven ENVIRONMENT rows stand at their own
- *  value's fields rather than at the fixed defaults below: a light whose
- *  strength lane is dropped ramps back to the strength the light itself
- *  declares, which is what makes the lanes dials on the value instead of
- *  a second copy of it. */
+ *  not carry the block for. The vector is the caller's so a per-frame
+ *  walk allocates nothing after the first node.
+ *  @trap The emitter and environment rows stand at their own value's
+ *  fields rather than at the fixed defaults below. */
 void lanesOf(const ElementNode& node, std::vector<Lane>& out);
 
 /** What a row's field defaults to — the endpoint a patch ramps from or

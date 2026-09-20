@@ -6,15 +6,7 @@
  * `Executor` — the one operation a pass is performed by — so the same
  * Frame, the same passes and the same declarations run on whichever
  * executor the caller carries. One executor ships here, the CPU one; a
- * feature that owns a device supplies its own as a value, which keeps
- * every dependency pointing down and duplicates no file.
- *
- * What an executor must reproduce: a geometry pass paints the bodies its
- * realisation leaves it into the first image it writes, from the view's
- * camera and under the view's lights; a compute pass cooks its chain
- * into the point set it writes; a post pass applies its operation to the images
- * it reads and writes the result. A pass carrying a body runs that body
- * instead, given the view and the targets.
+ * feature that owns a device supplies its own as a value.
  */
 
 #include <sigilcore/comparable/Erased.h>

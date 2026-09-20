@@ -95,30 +95,20 @@ struct ElementNode {
   std::optional<motion::Transition> nodeTransition;
   /** THE CASCADE OVER THIS NODE'S CHILDREN AS THEY MOUNT: each child's
    *  entrance is delayed by the start time the schedule gives its
-   *  ordinal, and that delay compounds down the subtree, so a set that
-   *  arrives arrives in an order rather than all at once.
-   *
-   *  It delays only children that actually MOUNT. The first describe
-   *  cascades the whole list; a child appended to a live list is the only
-   *  new mount in its patch and enters at once, and children already
-   *  standing never re-enter. */
+   *  ordinal, and that delay compounds down the subtree.
+   *  @silent the child was already standing, or is the only new mount in
+   *  its patch: neither is delayed. */
   std::optional<motion::Spread> childStagger;
   std::vector<Element> children;
   std::optional<Memo> memo;
 };
 
 /** THE STRUCTURAL PRUNE: are @p a and @p b provably the same node
- *  described twice?
- *
- *  Every field of ElementNode is ruled on, and anything that cannot be
- *  compared answers false — a field left out does not produce a wrong
- *  answer where the mistake is, it produces a node that never patches on
- *  that field again.
- *
- *  Two fields are deliberately excluded and both are compared elsewhere:
- *  `memo` is compared earlier and more strictly by the reconciler (the
- *  captured environment, then the author's own properties comparison), and
- *  `children` are reconciled by key rather than compared. */
+ *  described twice? Every field of ElementNode is ruled on, and anything
+ *  that cannot be compared answers false.
+ *  @trap Two fields are excluded and both are compared elsewhere: the
+ *  memo, which the reconciler compares earlier and more strictly, and
+ *  the children, which are reconciled by key. */
 bool propertiesEqual(const ElementNode& a, const ElementNode& b);
 
 }  // namespace sigil::world

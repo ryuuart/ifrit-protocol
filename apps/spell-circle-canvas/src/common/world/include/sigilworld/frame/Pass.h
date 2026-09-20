@@ -96,9 +96,9 @@ class PassBodyOperations {
   virtual void run(const View& view, Targets& targets) const = 0;
 };
 
-/** A body carried as a comparable value. A model with `==` declares its
- *  own identity; a model without one — the lambda door below — compares
- *  equal to nothing but its own copies. */
+/** A body carried as a comparable value.
+ *  @trap A model without `==` — the lambda door below — compares equal
+ *  to nothing but its own copies. */
 using PassBody = core::Erased<PassBodyOperations>;
 
 /** ONE STAGE OF MAKING A FRAME.
@@ -264,9 +264,8 @@ Pass postPass(std::string name);
 
 /** ONE COVERAGE a geometry pass paints for a masked pass behind it: the
  *  resource it goes into, and whose coverage it is. Two masked passes
- *  behind the same producer asking for the same selection share one
- *  entry; asking for different selections gets one entry each, because
- *  a coverage answers for exactly one selector. */
+ *  asking the same producer for the same selection share one entry,
+ *  a coverage answering for exactly one selector. */
 struct Coverage {
   std::string name;
   Selector of;

@@ -3,16 +3,10 @@
 /** @file
  * @ingroup world-element
  * What a node is made of: the four shapes a geometry slot takes — a
- * formed mesh, a cloud with the body stamped at every point, a point
- * chain with the runtime that cooks it, or a generator that builds its
- * own — and the cook that turns any of them into the points and
- * triangles a draw uses.
- *
- * There is no kind field anywhere in this library. The slot's value type
- * IS the kind: a node holding a Mesh and a node holding a Chained are
- * told apart by what they hold, so a node that changes from one to the
- * other resolves new resources and keeps its identity, its handle and
- * its lanes.
+ * formed mesh, a stamped cloud, a point chain with the runtime that
+ * cooks it, or a generator — and the cook that turns any of them into
+ * points and triangles. There is no kind field anywhere in this
+ * library: the slot's value type IS the kind.
  */
 
 #include <sigilcore/comparable/Erased.h>
@@ -95,17 +89,10 @@ Cooked cook(const Geometry& geometry);
 
 /** THE NUMBER TWO STAMPINGS AGREE ON when they are the same stamping:
  *  a fold over the VALUES of @p cloud and @p stamp, not over their
- *  shapes and not over their addresses. A stamped point set is formed
- *  once per distinct pair and uploaded once, so what says "distinct"
- *  has to be the content — a cloud that has not moved between two
- *  frames must answer with the same number, and a cloud that has moved
- *  must not.
- *
- *  An address cannot say it (a cloud freed and remade lands on the same
- *  memory) and a shape cannot (two clouds of one size are two clouds),
- *  which is why this reads the bytes. It costs one pass over the cloud
- *  against forming its whole stamped mesh, which is the point count
- *  times the stamp's vertices. */
+ *  shapes and not over their addresses. A cloud that has not moved must
+ *  answer with the same number and a cloud that has moved must not,
+ *  which is why this reads the bytes: it costs one pass over the cloud
+ *  against forming its whole stamped mesh. */
 uint64_t stampKey(const geometry::mesh::Cloud& cloud,
                   const geometry::mesh::Mesh& stamp);
 

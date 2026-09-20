@@ -15,18 +15,12 @@
 
 namespace sigil::world {
 
-/** A node's placement, lane by lane.
- *
- *  Three lanes of translation, three of rotation in degrees about the x,
- *  y and z axes, three of scale, and three that put the origin those
- *  rotations and scales turn about. `axis` with `axisDegrees` adds one
- *  turn about a direction the three axis lanes cannot spell. Every lane
- *  is a `motion::Animatable<float>`, so each takes a constant, a
- *  transition or a live binding on its own.
- *
- *  `matrix` is the escape: a node carrying one is placed by it and every
- *  lane above is ignored, which is the door for a placement computed
- *  outside this vocabulary. */
+/** A node's placement, lane by lane: three of translation, three of
+ *  rotation in degrees, three of scale, three for the origin they turn
+ *  about, and one axis turn the three axis lanes cannot spell. Every
+ *  lane is an `motion::Animatable<float>`.
+ *  @trap `matrix` is the escape: a node carrying one is placed by it and
+ *  every lane above is ignored. */
 struct Transform {
   motion::Animatable<float> translateX{0.0f};
   motion::Animatable<float> translateY{0.0f};

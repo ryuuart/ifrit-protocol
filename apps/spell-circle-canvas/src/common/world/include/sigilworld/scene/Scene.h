@@ -31,29 +31,14 @@ class Ticker;
 
 namespace sigil::world {
 
-/** A 3D SCENE, retained.
- *
- *  An author builds a fresh Element tree every frame and hands it to
- *  `render()`; the Scene reconciles it onto what it already holds, so
- *  only what changed is touched. THREE LIFETIMES run underneath and none
- *  of them is the others':
- *
- *   - a NODE — its key, its lanes, the motions in flight on them and its
- *     entity — lives as long as its key is in the tree;
- *   - a RESOURCE — what a geometry slot cooked to — lives in a
- *     content-keyed store, reference-counted, shared by every node that
- *     describes the same geometry, and dropped when the last of them
- *     lets go;
- *   - an EXTRACTED FRAME lives for one draw.
- *
- *  So a node whose geometry slot changes resolves a new resource and
- *  drops the old one while its entity and its running motions stand.
- *  Nothing is welded to what a slot holds, which is why there is no kind
- *  field and why nothing here ever remounts.
- *
- *  There are exactly two write paths: `render()`, and the live values a
- *  description's lanes are bound to. Nothing writes onto a retained node
- *  from outside. */
+/** A 3D SCENE, retained: an author hands it a fresh Element tree every
+ *  frame and it reconciles that onto what it already holds, so only what
+ *  changed is touched. A node lives as long as its key is in the tree, a
+ *  cooked resource lives reference-counted in a content-keyed store, and
+ *  an extracted frame lives for one draw.
+ *  @trap There are exactly two write paths — `render`, and the live
+ *  values a description's lanes are bound to. Nothing writes onto a
+ *  retained node from outside. */
 class Scene {
  public:
   /** @p ticker drives the lanes' transitions; the Scene neither owns it
@@ -67,13 +52,10 @@ class Scene {
   ~Scene();
 
   /** ONE FRAME: describe, sample the lanes, derive the placements,
-   *  extract, order the passes and execute them.
-   *
-   *  A frame with no passes is its scene — nothing is executed and the
-   *  draw below paints the bodies extract left. A frame WITH passes has
-   *  already been performed when this returns, into the resources the
-   *  ordering gave it, and the draw presents what they wrote. Execution
-   *  reads the extracted state and never the Element tree. */
+   *  extract, order the passes and execute them. A frame WITH passes has
+   *  already been performed when this returns, and the draw presents what
+   *  they wrote; a frame with no passes is its scene.
+   *  @trap Execution reads the extracted state and never the tree. */
   void render(const Frame& frame);
 
   /** Draw what the last `render()` produced, from @p camera, on

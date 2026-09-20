@@ -3,14 +3,9 @@
 /** @file
  * @ingroup world-element
  * The environment a set stands in: a panorama placed in the scene, what
- * of it reaches a surface, and how much of it is shown behind one.
- *
- * The map itself is the material library's value — one equirect
- * panorama, prefiltered by roughness, with a cosine-convolved diffuse
- * side. What is added here is where it stands and how far it is
- * believed: the node's transform ORIENTS it, the way a dome light is
- * placed in every authoring tool, and the dials below are the lanes a
- * tree binds.
+ * of it reaches a surface, and how much of it is shown behind one. The
+ * map itself is the material library's value; what is added here is
+ * where it stands and how far it is believed.
  */
 
 #include <sigilmaterial/texture/EnvironmentMap.h>
@@ -19,13 +14,10 @@
 
 namespace sigil::world {
 
-/** THE MAP SHOWN AS THE SET'S SKY, behind everything else in it.
- *
- *  A backdrop is a separate question from what the map lights: a set can
- *  be lit by a sunset it does not show, or show one it barely takes any
- *  light from. `intensity` is both the dial and the switch — at zero
- *  nothing is drawn, which is one number rather than a flag and a
- *  number that can disagree. */
+/** THE MAP SHOWN AS THE SET'S SKY, behind everything else in it — a
+ *  separate question from what the map lights, since a set can be lit by
+ *  a sunset it does not show. `intensity` is both the dial and the
+ *  switch, at zero drawing nothing. */
 struct Backdrop {
   float intensity = 0;
   /** How much the sky is blurred where it is SHOWN, in roughness units
@@ -66,13 +58,9 @@ struct Environment {
   float roughnessBias = 0;
   /** THE EXPOSURE THE SET IS READ AT: what every radiance is multiplied
    *  by before the tone curve compresses it onto what a display can
-   *  hold. Doubling it is one stop, and it is the dial that decides
-   *  which part of the range the curve's shoulder falls on — a set lit
-   *  by a panorama with a sun in it wants a smaller one than a set lit
-   *  by a lamp.
-   *
-   *  It is the one dial here that stands where no panorama does: a lit
-   *  sum ends at the curve whether or not the set carries a sky. */
+   *  hold, so doubling it is one stop. It is the one dial here that
+   *  stands where no panorama does, a lit sum ending at the curve
+   *  whether or not the set carries a sky. */
   float exposure = 1;
 
   /** A SECOND MAP, crossfaded over the first: at 0 only `map` is read,
