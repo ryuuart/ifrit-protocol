@@ -86,12 +86,22 @@ sigil_doc_probes(material
           ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
           ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/enums/Backface.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/over.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Color.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Effect.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Material.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Paint.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Palette.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Ramp.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/amount.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/bleed.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/fit.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/offset.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/quantizeTime.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/slot.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/uniform.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/worldSpace.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../io/include
@@ -104,7 +114,7 @@ sigil_doc_probes(material
            "<sigilskia/graphite/GraphiteContext.h>"
            "<ScratchDir.h>"
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
-  FLOORS 60,3,12,0,0
+  FLOORS 100,55,100,60,3
   LIBRARIES SigilMaterial SigilIOHub SigilCoreCache SigilSkiaGraphite)
 
 # THE DEVICE SWEEP, over the whole library rather than one feature: a body
