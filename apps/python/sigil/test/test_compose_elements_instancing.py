@@ -107,10 +107,11 @@ class Pools(unittest.TestCase):
         pool.add((0, 0), tint="#ff0000")
         self.assertEqual(tuple(pool.tints()[0]), (1, 0, 0, 1))
 
-    def test_a_position_that_is_no_point_is_refused(self):
+    def test_a_position_that_is_no_point_is_a_type_error(self):
         pool = instancing.Pool()
-        with self.assertRaises((TypeError, RuntimeError)):
-            pool.add("nowhere")
+        for junk in ("nowhere", None, (1, 2, 3)):
+            with self.subTest(position=junk), self.assertRaises(TypeError):
+                pool.add(junk)
         self.assertEqual(len(pool), 0)
 
     def test_a_change_of_length_publishes_itself_and_a_lane_write_does_not(self):
@@ -472,6 +473,16 @@ class Flights(unittest.TestCase):
         flight.to.x = 99
         self.assertEqual(flight.to.x, 3)
 
+    def test_a_flight_point_that_is_no_point_is_a_type_error(self):
+        flight = instancing.Pool.Flight(to=(3, 4))
+        with self.assertRaises(TypeError):
+            flight.to = "nowhere"
+        with self.assertRaises(TypeError):
+            flight.from_ = (1, 2, 3)
+        with self.assertRaises(TypeError):
+            instancing.Pool.Flight(to=None)
+        self.assertEqual((flight.to.x, flight.from_.x), (3, 0))
+
     def test_a_flight_materialises_at_rest_where_its_instance_stands(self):
         pool = instancing.Pool()
         pool.add((3, 4), rotateRadians=0.5, scale=2)
@@ -756,6 +767,18 @@ class Picks(unittest.TestCase):
 
     def test_a_sheet_with_no_cells_picks_nothing(self):
         self.assertIsNone(instancing.pick(filled(1), instancing.CellSheet(), (0, 0)))
+
+    def test_a_pick_needs_a_pool_a_sheet_and_a_point(self):
+        sheet, pool = instancing.CellSheet(), filled(1)
+        for arguments in (
+            (pool, sheet, "nowhere"),
+            (pool, sheet, None),
+            (None, sheet, (0, 0)),
+            (pool, None, (0, 0)),
+            (sheet, pool, (0, 0)),
+        ):
+            with self.subTest(arguments=arguments), self.assertRaises(TypeError):
+                instancing.pick(*arguments)
 
 
 class Leaves(unittest.TestCase):
