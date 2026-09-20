@@ -17,6 +17,7 @@ from __future__ import annotations
 from .table import Table
 
 MODULE = "_sigil.compose"
+DERIVE = MODULE + ".derive"
 ANCHOR = MODULE + ".Anchor"
 TETHER = MODULE + ".Tether"
 
@@ -54,4 +55,20 @@ def register(table: Table) -> None:
     table.parameters(
         MODULE + ".rail",
         anchors=f"collections.abc.Iterable[{ANCHOR_LIKE}]",
+    )
+    # The family's module holds three of the compose functions themselves
+    # beside the one verb it defines. A generated module declares only what
+    # it defines, so the three are declared here as the functions they are,
+    # after the verb, whose signature is restated because a declaration is
+    # replaced whole.
+    table.declares(
+        DERIVE,
+        "flowAround",
+        f"def flowAround(element: {MODULE}.Element, key: str, "
+        f"margin: typing.SupportsFloat = 0.0) -> {MODULE}.Element:\n"
+        '    """A copy of `element` whose text flows around the keyed node, as\n'
+        '    Element.flowAround sets on the element itself."""\n'
+        f"around = {MODULE}.around\n"
+        f"connector = {MODULE}.connector\n"
+        f"rail = {MODULE}.rail\n",
     )
