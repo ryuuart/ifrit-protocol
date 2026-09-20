@@ -23,48 +23,15 @@ template <class Description>
 using DescriptionValue =
     std::remove_reference_t<decltype(*std::declval<const Description&>())>;
 
-/** What the reconciler asks of its host.
- *
- *  The reconciler owns the tree's shape — which node answers to which
- *  description, matched by key and then by position, memo resolution, the
- *  identity prune and the pass counts — and the host owns everything a
- *  node retains beyond that: layout state, paint caches, running motions.
- *  The split is a set of named operations the host implements on itself:
- *
- *  Reading a description:
- *  - `keyOf(description)` — the description's key; empty means positional.
- *  - `equal(a, b)` — are two descriptions provably identical? Equal
- *    descriptions PRUNE: the node is not patched, nothing is dirtied, and
- *    only its children keep reconciling. Anything the host cannot compare
- *    must answer false.
- *  - `reconcilesChildren(description)` — does the reconciler walk this node's
- *    children, or does the host fill them by another path (a slot)?
- *  - `children(description)` — the child descriptions, as a sized range whose
- *    elements `descriptionOf()` reads a handle off.
- *  - `memoOf(description)` — the description's Memo, or null when it is not
- * one.
- *  - `produce(memo)` — run the memo and read the description it made.
- *
- *  Acting on a node:
- *  - `create(description, parent, ordinal, count)` — a fresh node for
- * `description` under `parent`, patched once through the reconciler. `ordinal`
- * is the node's order among the children created in the same patch and `count`
- * the parent's child count, for a host that staggers mounts.
- *  - `onPatched(node, prev, next)` — the description changed: `prev` is
- *    null on the first patch. The node and whatever it retains SURVIVE an
- *    identity change; a kind that cannot carry the old state over
- *    rebuilds it here and keeps the handle.
- *  - `reorder(parent, structureChanged)` — the children now stand in
- *    `parent.children` order; `structureChanged` says a child mounted,
- *    unmounted or moved, which the prune must not swallow.
- *  - `remountRequired(match, parent)` — must this surviving node be
- *    retired and created afresh rather than patched in place? For a
- *    property fixed at mount.
- *  - `invalidate(node)` — the one upward signal: the node's content
- *    changed and every cache above it is stale.
- *  - `destroy(node, frame)` — the node left the tree in reconcile pass
- *    `frame`. The host retires it now or queues it; nothing in the
- *    reconciler holds it after this call. */
+/** WHAT THE RECONCILER ASKS OF ITS HOST, as a set of named operations
+ *  the host implements on itself. The reconciler owns the tree's SHAPE
+ *  — which node answers to which description, matched by key and then
+ *  by position, memo resolution, the identity prune and the pass counts
+ *  — and the host owns everything a node retains beyond that: layout
+ *  state, paint caches, running motions.
+ *  @trap `equal` decides the PRUNE, so anything the host cannot compare
+ *  must answer false; and a node SURVIVES an identity change, so a kind
+ *  that cannot carry its old state over rebuilds it in `onPatched`. */
 template <class H, class Node, class Description>
 concept ReconcileHost =
     requires(H& host, Node& node, const Node& cnode, Node* parent,
