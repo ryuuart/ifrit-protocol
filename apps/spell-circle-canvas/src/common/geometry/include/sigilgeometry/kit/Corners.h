@@ -8,7 +8,6 @@
  * to: chamfered and notched.
  */
 
-
 #include <concepts>
 #include <cstdint>
 #include <utility>
@@ -37,8 +36,8 @@ concept Silhouette =
       { s.path(size) } -> std::convertible_to<SkPath>;
     };
 
-/** Wraps any silhouette so every sharp corner rounds with a consistent
- *  radius — the corner treatment for shapes that have no box corners:
+/** Wraps any silhouette so every sharp corner rounds to a consistent
+ *  @p radius — the corner treatment for shapes that have no box corners:
  *  `rounded(star(5), 8)`. It holds the wrapped value rather than erasing
  *  it, so wrapping a generator gives a generator that compares by its
  *  parameters, and wrapping a bare callable gives something that compares
@@ -59,13 +58,12 @@ struct Rounded {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** @p shape with every sharp corner rounded to @p radius px. */
 template <typename Inner>
 Rounded<Inner> rounded(Inner shape, float radius) {
   return Rounded<Inner>{std::move(shape), radius};
 }
 
-/** Wraps any silhouette so a SHAPER bends the outline it answers — a
+/** Wraps any silhouette so a @p shaper bends the outline it answers — a
  *  torn edge, a wobbled ring, a hand-drawn square: `shaped(polygon(7),
  *  shapers::Jitter{3, 6, 11})`.
  *
@@ -96,8 +94,6 @@ struct Shaped {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** @p shape with @p shaper bending the outline it answers, applied once
- *  where the shape is asked for. */
 template <typename Inner, typename S>
 Shaped<Inner, S> shaped(Inner shape, S shaper) {
   return Shaped<Inner, S>{std::move(shape), std::move(shaper)};
@@ -135,8 +131,8 @@ constexpr bool has(Corner mask, Corner c) {
   return (uint8_t(mask) & uint8_t(c)) != 0;
 }
 
-/** The CHAMFERED box: each selected corner replaced by a cut of @p cut
- *  px, and every corner the mask does NOT name rounded by @p radius —
+/** The CHAMFERED box: each corner @p mask names replaced by a cut of
+ *  @p cut px, and every corner the mask does NOT name rounded by @p radius —
  *  "rounded except where cut", which is the machined-panel corner rule
  *  and the reason the two live in one value rather than as a rounding
  *  wrapped round a chamfer. A wrapper would round the cut as well, and
@@ -161,15 +157,13 @@ struct Chamfered {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The box with each corner @p mask names replaced by a 45 degree cut
- *  of @p cut px, and every other corner left square. */
 inline Chamfered chamfered(float cut, Corner mask = Corner::All) {
   return Chamfered{.cut = cut, .mask = mask};
 }
 
-/** The NOTCHED box: each selected corner carries a rectangular bite @p
- *  notchWidth wide and @p depth deep — the stencil corner, the fixing lug.
- *  Both are clamped to 0.45 of the shorter side. */
+/** The NOTCHED box: each corner @p mask names carries a rectangular bite
+ *  @p notchWidth wide and @p depth deep — the stencil corner, the fixing
+ *  lug. Both are clamped to 0.45 of the shorter side. */
 struct Notched {
   float notchWidth = 0.0f;
   float depth = 0.0f;
@@ -179,8 +173,6 @@ struct Notched {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The box with a rectangular bite @p notchWidth wide and @p depth deep
- *  taken out of each corner @p mask names. */
 inline Notched notched(float notchWidth, float depth,
                        Corner mask = Corner::All) {
   return Notched{notchWidth, depth, mask};

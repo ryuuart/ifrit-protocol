@@ -146,8 +146,8 @@ struct FormationBands {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    const path::Profile wave =
-        path::Profile(shapers::wave(kAmplitude, kWavelength));
+    const path::Profile wave = path::Profile(
+        shapers::Wave{.amplitude = kAmplitude, .wavelength = kWavelength});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "From a rail to a band",

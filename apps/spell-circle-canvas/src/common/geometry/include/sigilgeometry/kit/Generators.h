@@ -26,7 +26,12 @@
  *
  *  Everything here is a unit shape over the box it is asked for, so one
  *  generator serves at any size, and the operators in
- *  `sigil::geometry::path` are what a caller reaches for next. */
+ *  `sigil::geometry::path` are what a caller reaches for next.
+ *
+ *  A shape is ONE value and a lowercase factory spelling that value's
+ *  fields as arguments. The value carries the documentation, parameter by
+ *  parameter, and the factory carries none: a second copy of it can only
+ *  repeat the first or disagree with it. */
 namespace sigil::geometry::shapes {
 
 /** A silhouette generator: local-coordinate path over the node's laid-out
@@ -38,8 +43,8 @@ namespace sigil::geometry::shapes {
 using OutlineFunction = sigil::core::Callable<SkPath(SkSize)>;
 
 /** An outline from an SVG path-d string (SkParsePath) — trace a reference
- *  silhouette in any vector tool, paste the `d`, done. The path's bounds
- *  map onto the node's box (stretch by default; `preserveAspect` fits and
+ *  silhouette in any vector tool, paste the @p d, done. The path's bounds
+ *  map onto the node's box (stretch by default; @p preserveAspect fits and
  *  centers instead). Parsed ONCE at call time; the parsed SkPath is a
  *  comparable value, so an svg() shape prunes like any generator. */
 struct Svg {
@@ -61,15 +66,13 @@ struct Svg {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The outline an SVG path string `d` draws, fitted to the box; with
- *  @p preserveAspect it is letterboxed rather than stretched. */
 Svg svg(const char* d, bool preserveAspect = false);
 
 // ---------------------------------------------------------------------------
 // Generators
 
-/** Regular N-gon inscribed in the box (first vertex up unless rotated;
- *  @p rotationDeg spins the whole figure). */
+/** Regular @p sides -gon inscribed in the box, first vertex up unless
+ *  rotated; @p rotationDeg spins the whole figure clockwise. */
 struct Polygon {
   int sides = 3;
   float rotationDeg = 0.0f;
@@ -78,13 +81,11 @@ struct Polygon {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** A regular @p sides -gon inscribed in the box, spun by @p rotationDeg
- *  clockwise from first-vertex-up. */
 inline Polygon polygon(int sides, float rotationDeg = 0.0f) {
   return Polygon{sides, rotationDeg};
 }
 
-/** N-pointed star inscribed in the box (first point up); inner
+/** A @p points -pointed star inscribed in the box (first point up); inner
  *  vertices sit at @p innerRatio of the outer radius.
  *
  *  @p waist bows each arm edge INWARD along its own bisector, in units of
@@ -101,14 +102,14 @@ struct Star {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** A @p points -pointed star whose inner vertices sit at @p innerRatio
- *  of the outer radius, with @p waist bowing each arm edge inward. */
 inline Star star(int points, float innerRatio = 0.5f, float waist = 0.0f) {
   return Star{points, innerRatio, waist};
 }
 
 /** The circle (ellipse, on a non-square box) inscribed in the box, with a
- *  chosen WINDING and start point.
+ *  chosen WINDING and start point. It is the OUTLINE a path-following
+ *  consumer takes — a baseline, a mask gate, a decoration; a consumer
+ *  that also has an element form for a disc keeps that separately.
  *
  *  Direction is not a detail on a text baseline — it decides which way the
  *  glyphs face. `onPath` orients to the tangent, so a clockwise ring puts
@@ -150,16 +151,8 @@ struct Circle {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The shape VALUE, which is what a path-following consumer takes — a
- *  baseline, a mask gate, a decoration. A consumer that also has an
- *  element form for a disc keeps that separately; this is the outline. */
 inline Circle circle() { return Circle{}; }
-/** The same circle pulled concentrically @p inset px inside the box, so
- *  a ring stands clear of the edge. */
 inline Circle circle(float inset) { return Circle{.inset = inset}; }
-/** The circle wound @p direction and begun at @p startIndex of the
- *  oval's four extreme points, which is what a text baseline placed by
- *  arc-length fraction measures from, inset by @p inset px. */
 inline Circle circle(SkPathDirection direction, unsigned startIndex = 1,
                      float inset = 0.0f) {
   return Circle{direction, startIndex, inset};
@@ -168,14 +161,14 @@ inline Circle circle(SkPathDirection direction, unsigned startIndex = 1,
 /** A ring: the inscribed circle with a concentric hole at @p innerRatio
  *  of the radius. Even-odd, so it fills as an annulus.
  *
- *  `thickness` is the same ring said the other way about — its own width
+ *  @p thickness is the same ring said the other way about — its own width
  *  in PIXELS, which is what a ring keeps when the box it stands in does
  *  not: a reticle, a dial's rim, a glyph that must read the same weight at
- *  two sizes. Nonzero, it decides the hole and `innerRatio` is not read. A
+ *  two sizes. Nonzero, it decides the hole and @p innerRatio is not read. A
  *  thickness that eats the whole radius leaves a disc, which is what a
  *  ring that thick is.
  *
- *  `dot` puts a concentric disc of that pixel radius at the centre. Two
+ *  @p dot puts a concentric disc of that pixel radius at the centre. Two
  *  marks are not always two things: a ring around a point says something
  *  an arrow cannot — that what it names is not in the picture plane at
  *  all — and as ONE outline the pair fills, strokes and animates
@@ -189,12 +182,8 @@ struct Annulus {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The ring between the inscribed circle and one at @p innerRatio of
- *  its radius. */
 inline Annulus annulus(float innerRatio = 0.6f) { return Annulus{innerRatio}; }
 
-/** The ring of a stated pixel width, with an optional dot at its
- *  centre. */
 inline Annulus ring(float thickness, float dot = 0.0f) {
   return Annulus{.thickness = thickness, .dot = dot};
 }
@@ -209,9 +198,6 @@ struct Squircle {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The superellipse at @p exponent: two is the inscribed ellipse, four
- *  the rounded square a device icon is cut to, and larger approaches the
- *  box itself. */
 inline Squircle squircle(float exponent = 4.0f) { return Squircle{exponent}; }
 
 namespace detail {
@@ -256,8 +242,6 @@ struct Blob {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** A closed wobble around the inscribed circle: @p lobes swells of up to
- *  @p amplitude of the radius, re-rolled by @p seed. */
 inline Blob blob(uint32_t seed, float amplitude = 0.18f, int lobes = 8) {
   return Blob{seed, amplitude, lobes};
 }
@@ -275,8 +259,6 @@ struct Arc {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** An open arc of the inscribed oval, clockwise from @p startDeg (zero
- *  at three o'clock) through @p sweepDeg. */
 inline Arc arc(float startDeg, float sweepDeg = 359.9f) {
   return Arc{startDeg, sweepDeg};
 }
@@ -298,8 +280,6 @@ struct Sector {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The closed wedge that arc cuts: from @p startDeg through @p sweepDeg,
- *  hollowed to a ring segment by an @p innerRatio above zero. */
 inline Sector sector(float startDeg, float sweepDeg, float innerRatio = 0.0f) {
   return Sector{startDeg, sweepDeg, innerRatio};
 }
@@ -313,15 +293,14 @@ struct Parallelogram {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The box with its vertical edges leaned over by @p skewDeg. */
 inline Parallelogram parallelogram(float skewDeg) {
   return Parallelogram{skewDeg};
 }
 
-/** An arrow along +x, inscribed in the box: a shaft of `shaftFrac` of the
- *  height and a head of `headFrac` of the width.
+/** An arrow along +x, inscribed in the box: a shaft of @p shaftFrac of the
+ *  height and a head of @p headFrac of the width.
  *
- *  `headSpan` is how far ACROSS the head reaches, as a fraction of the
+ *  @p headSpan is how far ACROSS the head reaches, as a fraction of the
  *  height: 1 is the barb that fills the box, and less than that is the
  *  paddle — a handle whose head is a stated size while its shaft runs
  *  whatever length the box is. A fan of arms of different lengths off one
@@ -336,9 +315,6 @@ struct Arrow {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** An arrow pointing right across the box: a shaft @p shaftFrac of the
- *  height, a head @p headFrac of the width, and @p headSpan scaling how
- *  far the barbs reach. */
 inline Arrow arrow(float shaftFrac = 0.34f, float headFrac = 0.42f,
                    float headSpan = 1.0f) {
   return Arrow{shaftFrac, headFrac, headSpan};
@@ -349,11 +325,11 @@ inline Arrow arrow(float shaftFrac = 0.34f, float headFrac = 0.42f,
  *  its shoulders — the level indicator, the rank mark, the "you are here"
  *  on a gauge.
  *
- *  It is a V and not an arrowhead: `spread` takes the shoulders out to a
- *  fraction of the box's width, `drop` takes the point down a fraction of
+ *  It is a V and not an arrowhead: @p spread takes the shoulders out to a
+ *  fraction of the box's width, @p drop takes the point down a fraction of
  *  its height, and the shoulders stand a third of the drop ABOVE centre,
- *  which is what keeps the two arms shallow. `thickness` is the mark's own
- *  width as a fraction of the height. `bars` is how far the outriggers run
+ *  which is what keeps the two arms shallow. @p thickness is the mark's own
+ *  width as a fraction of the height. @p bars is how far the outriggers run
  *  in from each edge; zero leaves the V on its own. */
 struct Chevron {
   float spread = 0.20f;
@@ -365,9 +341,6 @@ struct Chevron {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** A chevron pointing down: @p spread of the width to either side,
- *  @p drop of the height at the point, drawn at @p thickness, and
- *  repeated into @p bars stacked copies. */
 inline Chevron chevron(float spread = 0.20f, float drop = 0.34f,
                        float thickness = 0.16f, float bars = 0.0f) {
   return Chevron{spread, drop, thickness, bars};

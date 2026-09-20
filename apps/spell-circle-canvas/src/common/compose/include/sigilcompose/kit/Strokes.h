@@ -221,10 +221,11 @@ inline std::vector<brush::Strand> braid(int n, float amplitude,
   const int count = std::max(1, n);
   out.reserve((size_t)count);
   for (int k = 0; k < count; ++k)
-    out.push_back(
-        brush::Strand{geometry::path::Profile(geometry::shapers::wave(
-                          amplitude, wavelength, (float)k / (float)count)),
-                      ink});
+    out.push_back(brush::Strand{geometry::path::Profile(geometry::shapers::Wave{
+                                    .amplitude = amplitude,
+                                    .wavelength = wavelength,
+                                    .phase = (float)k / (float)count}),
+                                ink});
   return out;
 }
 
@@ -288,7 +289,7 @@ inline Spans brackets(float arm = 18.0f, float angleDeg = 30.0f) {
 // Peers of the shapers in MECHANICS — free functions over the public API,
 // nothing reaching inside — and not peers of them in kind: a shaper is
 // vocabulary, a preset is a finished drawing. They are scoped apart so the
-// difference is visible at every call site: `geometry::shapers::wave` is
+// difference is visible at every call site: `geometry::shapers::Wave` is
 // a word, `brush::presets::rope` is a picture.
 
 /** FINISHED BRUSH COMPOSITIONS WITH CRAFT NAMES — a rope, a filament, a

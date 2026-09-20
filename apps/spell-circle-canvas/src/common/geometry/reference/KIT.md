@@ -54,13 +54,16 @@ beneath, in `sigil::geometry::shapes`.
 - **`kit/Shapers.h`** — `shapers::`, the stock over the deviation seam:
   `Wave` (also the braid primitive — strands that oscillate trade sides,
   and where they trade sides they cross), `Zigzag`, `Square`, `Jitter`,
-  `Offset`, `Rounded` and `Chamfer`, with a factory each. `Wave` answers
-  BOTH seams: `shape()`/`bleed()` make it a shaper and
+  `Offset`, `Rounded` and `Chamfer`. Each is written as the value it is,
+  `shapers::Wave{.amplitude = 6, .wavelength = 40}`, with no lowercase
+  factory beside it: a shaper carries two or three dials whose names are
+  the whole of what a reader needs, and a positional call hides them.
+  `Wave` answers BOTH seams: `shape()`/`bleed()` make it a shaper and
   `across()`/`max()` make it a `path::Profile`, so the oscillating width
-  law is the same `shapers::wave` call rather than a second one. As a
-  profile it is ZERO-MEAN and therefore a strand centreline rather than
-  a band width. Both stand in `shapers::` and not in `path::profile`,
-  because a kit composes over a seam and does not grow it.
+  law is that same value rather than a second one. As a profile it is
+  ZERO-MEAN and therefore a strand centreline rather than a band width.
+  Both stand in `shapers::` and not in `path::profile`, because a kit
+  composes over a seam and does not grow it.
 - **`kit/Hatches.h`** — `hatchOutline()`, a silhouette filled with lines
   as one path: the outline narrowed by `operations::offset`, flattened, run
   through `path::lattice` and joined up. It is a door rather than a
@@ -120,9 +123,13 @@ beneath, in `sigil::geometry::shapes`.
 Every value here has `path(SkSize)`, `operator==` and `operator()`, and
 that is the whole contract: a consumer that caches drawings prunes on the
 equality, and a consumer that wants a plain path-over-size function gets
-one from the call operator. Your own generator written the same way has
-the same standing — the kit is stock, never privileged, and equal values
-must draw identical paths at every size. A hand-rolled
+one from the call operator. A silhouette is ONE value and a lowercase
+factory spelling that value's fields as arguments — `shapes::Polygon`
+and `shapes::polygon` are the same shape — and the value is where the
+documentation lives, parameter by parameter, so there is no second copy
+of it to drift. Your own generator written the same way has the same
+standing — the kit is stock, never privileged, and equal values must
+draw identical paths at every size. A hand-rolled
 `shapes::OutlineFunction` is the escape hatch beside them, and the size is
 offered to it rather than demanded: one that draws the same path whatever
 the box is takes `[] { return p; }`.

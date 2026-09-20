@@ -36,20 +36,24 @@ TEST(ComposeKitStrokes, ShapersSatisfyThePublicSeam) {
   b.lineTo(200, 50);
   const SkPath straight = b.detach();
 
-  const SkPath waved = geometry::shapers::wave(6, 30).shape(straight);
+  const geometry::shapers::Wave wave{.amplitude = 6, .wavelength = 30};
+  const SkPath waved = wave.shape(straight);
   EXPECT_GT(waved.getBounds().height(), 6.0f) << "the wave did not deviate";
-  const SkPath jittered = geometry::shapers::jitter(8, 3, 5).shape(straight);
+  const SkPath jittered =
+      geometry::shapers::Jitter{.segmentLength = 8, .deviation = 3, .seed = 5}
+          .shape(straight);
   EXPECT_GT(jittered.getBounds().height(), 1.0f);
-  const SkPath railed = geometry::shapers::offset(-12).shape(straight);
+  const SkPath railed = geometry::shapers::Offset{.px = -12}.shape(straight);
   EXPECT_NEAR(railed.getBounds().centerY(), 62.0f, 1.5f)
       << "positive offset is LEFT of travel — the one convention (R3's "
          "sign port), so travelling +x with y down a NEGATIVE offset goes "
          "down the screen";
 
   // Comparable, so a brush holding one prunes.
-  EXPECT_TRUE(geometry::shapers::wave(6, 30) == geometry::shapers::wave(6, 30));
-  EXPECT_FALSE(geometry::shapers::wave(6, 30) ==
-               geometry::shapers::wave(6, 31));
+  EXPECT_TRUE(wave ==
+              (geometry::shapers::Wave{.amplitude = 6, .wavelength = 30}));
+  EXPECT_FALSE(wave ==
+               (geometry::shapers::Wave{.amplitude = 6, .wavelength = 31}));
 }
 
 TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
@@ -114,10 +118,13 @@ TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
   // The seam itself ships profile::self()/offset() only; everything that
   // oscillates lives in the geometry kit — but it plugs the SAME Profile
   // seam, so nothing beneath it learns that a kit profile exists.
-  const geometry::path::Profile undulating = geometry::shapers::wave(9, 50);
+  const geometry::path::Profile undulating =
+      geometry::shapers::Wave{.amplitude = 9, .wavelength = 50};
   EXPECT_NEAR(undulating.max(), 9.0f, 1e-4f) << "max() is required by the seam";
-  EXPECT_TRUE(undulating == geometry::shapers::wave(9, 50));
-  EXPECT_FALSE(undulating == geometry::shapers::wave(9, 51));
+  EXPECT_TRUE(undulating ==
+              (geometry::shapers::Wave{.amplitude = 9, .wavelength = 50}));
+  EXPECT_FALSE(undulating ==
+               (geometry::shapers::Wave{.amplitude = 9, .wavelength = 51}));
   EXPECT_FALSE(undulating == geometry::path::profile::offset(9));
 }
 
@@ -146,9 +153,10 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
       e.stroke(brush::restyle(geometry::shapers::Wave{5, 24},
                               brush::solid(3, red()), 8));
     else
-      e.stroke(Brush{}
-                   .shaped(geometry::shapers::wave(5, 24))
-                   .layer(brush::solid(3, red())));
+      e.stroke(
+          Brush{}
+              .shaped(geometry::shapers::Wave{.amplitude = 5, .wavelength = 24})
+              .layer(brush::solid(3, red())));
     host.composer.render(stack().children({std::move(e)}));
     host.frame();
     int inked = 0;
@@ -163,20 +171,29 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
 
   // Two brushes built from equal shaper values compare equal, which is what
   // lets a node carrying a shaped brush prune instead of re-patching.
-  EXPECT_TRUE(Brush{}.shaped(geometry::shapers::wave(5, 24)) ==
-              Brush{}.shaped(geometry::shapers::wave(5, 24)));
-  EXPECT_FALSE(Brush{}.shaped(geometry::shapers::wave(5, 24)) ==
-               Brush{}.shaped(geometry::shapers::wave(5, 25)));
+  EXPECT_TRUE(Brush{}.shaped(
+                  geometry::shapers::Wave{.amplitude = 5, .wavelength = 24}) ==
+              Brush{}.shaped(
+                  geometry::shapers::Wave{.amplitude = 5, .wavelength = 24}));
+  EXPECT_FALSE(Brush{}.shaped(
+                   geometry::shapers::Wave{.amplitude = 5, .wavelength = 24}) ==
+               Brush{}.shaped(
+                   geometry::shapers::Wave{.amplitude = 5, .wavelength = 25}));
 }
 
 TEST(ComposeKitStrokes, ShapersAreComparableValuesAndPrune) {
   static_assert(geometry::path::ShaperScheme<geometry::shapers::Wave>);
-  EXPECT_TRUE(geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
-              geometry::path::Shaper(geometry::shapers::wave(4, 20)));
-  EXPECT_FALSE(geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
-               geometry::path::Shaper(geometry::shapers::wave(5, 20)));
-  EXPECT_FALSE(geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
-               geometry::path::Shaper(geometry::shapers::jitter()));
+  EXPECT_TRUE(geometry::path::Shaper(
+                  geometry::shapers::Wave{.amplitude = 4, .wavelength = 20}) ==
+              geometry::path::Shaper(
+                  geometry::shapers::Wave{.amplitude = 4, .wavelength = 20}));
+  EXPECT_FALSE(geometry::path::Shaper(
+                   geometry::shapers::Wave{.amplitude = 4, .wavelength = 20}) ==
+               geometry::path::Shaper(
+                   geometry::shapers::Wave{.amplitude = 5, .wavelength = 20}));
+  EXPECT_FALSE(geometry::path::Shaper(
+                   geometry::shapers::Wave{.amplitude = 4, .wavelength = 20}) ==
+               geometry::path::Shaper(geometry::shapers::Jitter{}));
   EXPECT_TRUE(geometry::path::Shaper() == geometry::path::Shaper())
       << "reflexive when empty";
 }
@@ -201,12 +218,14 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
     const SkPath spine = sp.detach();
 
     const std::vector<brush::Strand> strands = {
-        brush::Strand{geometry::path::Profile(
-                          geometry::shapers::wave(amp, wavelength, 0.0f)),
-                      brush::solid(inkWidth, red())},
-        brush::Strand{geometry::path::Profile(
-                          geometry::shapers::wave(amp, wavelength, 0.5f)),
-                      brush::solid(inkWidth, green())}};
+        brush::Strand{
+            geometry::path::Profile(geometry::shapers::Wave{
+                .amplitude = amp, .wavelength = wavelength, .phase = 0.0f}),
+            brush::solid(inkWidth, red())},
+        brush::Strand{
+            geometry::path::Profile(geometry::shapers::Wave{
+                .amplitude = amp, .wavelength = wavelength, .phase = 0.5f}),
+            brush::solid(inkWidth, green())}};
     // Same phases braid() would hand out for n = 2.
     const std::vector<brush::Strand> viaBraid =
         kit::braid(2, amp, wavelength, brush::solid(inkWidth, red()));
@@ -292,14 +311,17 @@ TEST(ComposeKitStrokes, TheNewTwinsAreComparableSeamValuesLikeTheRest) {
   static_assert(geometry::path::ShaperScheme<geometry::shapers::Rounded>);
   static_assert(geometry::path::ShaperScheme<geometry::shapers::Square>);
   static_assert(geometry::path::ShaperScheme<geometry::shapers::Zigzag>);
-  EXPECT_TRUE(geometry::path::Shaper(geometry::shapers::rounded(6)) ==
-              geometry::path::Shaper(geometry::shapers::rounded(6)));
-  EXPECT_FALSE(geometry::path::Shaper(geometry::shapers::rounded(6)) ==
-               geometry::path::Shaper(geometry::shapers::rounded(7)));
+  EXPECT_TRUE(geometry::path::Shaper(geometry::shapers::Rounded{.radius = 6}) ==
+              geometry::path::Shaper(geometry::shapers::Rounded{.radius = 6}));
+  EXPECT_FALSE(
+      geometry::path::Shaper(geometry::shapers::Rounded{.radius = 6}) ==
+      geometry::path::Shaper(geometry::shapers::Rounded{.radius = 7}));
   // Different KINDS never compare equal even at equal numbers — the type
   // is part of the value, which is what keeps a re-described brush honest.
-  EXPECT_FALSE(geometry::path::Shaper(geometry::shapers::square(4, 28)) ==
-               geometry::path::Shaper(geometry::shapers::zigzag(4, 28)));
+  EXPECT_FALSE(geometry::path::Shaper(geometry::shapers::Square{
+                   .amplitude = 4, .wavelength = 28}) ==
+               geometry::path::Shaper(geometry::shapers::Zigzag{
+                   .amplitude = 4, .wavelength = 28}));
 }
 
 TEST(ComposeKitPresets, TheFourPresetsAreTheCoreValuesTheyName) {

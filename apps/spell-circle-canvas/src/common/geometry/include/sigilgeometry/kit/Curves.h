@@ -8,7 +8,6 @@
  * spiral and trochoid.
  */
 
-
 #include <cstdint>
 #include <string>
 
@@ -59,21 +58,17 @@ struct Parametric {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** A curve traced by @p f over the parameter from @p t0 to @p t1, at
- *  @p samples segments, optionally @p close d back to its first point.
- *  The held callable cannot compare, so the value never prunes — key it
- *  through the overload below once the curve has settled. */
 inline Parametric parametric(std::function<SkPoint(float)> f, float t0,
                              float t1, int samples = 512, bool close = false) {
   return Parametric{std::move(f), t0, t1, samples, close};
 }
 
-/** The KEYED parametric: comparable by (key, t0, t1, samples, close), so
- *  the node prunes. The key is the FUNCTION's identity — the author's
- *  contract is that one key always names one curve; reusing a key for a
- *  different `f` silently keeps whichever recorded first. Change the key
- *  (or fold the changing number into a parameter of a named family
- *  below) when the curve changes. */
+/** The KEYED parametric: comparable by @p key, @p t0, @p t1, @p samples
+ *  and @p close, so the node prunes. The key is the FUNCTION's identity —
+ *  the author's contract is that one key always names one curve; reusing
+ *  a key for a different @p f silently keeps whichever recorded first.
+ *  Change the key (or fold the changing number into a parameter of a
+ *  named family below) when the curve changes. */
 struct KeyedParametric {
   std::string key;
   std::function<SkPoint(float)> f;
@@ -91,8 +86,6 @@ struct KeyedParametric {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The same curve made comparable by a @p key the caller promises is
- *  unique to that function and its parameters, so it prunes. */
 inline KeyedParametric parametric(std::string_view key,
                                   std::function<SkPoint(float)> f, float t0,
                                   float t1, int samples = 512,
@@ -101,11 +94,12 @@ inline KeyedParametric parametric(std::string_view key,
                          samples,          close};
 }
 
-/** Lissajous figure: x = sin(a·t + δ), y = sin(b·t). The ratio a:b picks
- *  the family (1:1 an ellipse, 3:2 the classic pretzel, 5:4 a tight
- *  weave) and δ its phase — the same two numbers a physical harmonograph
- *  is set to. `turns` is how many 2π the parameter runs for; the curve
- *  closes when a:b is rational and `turns` covers the period. */
+/** Lissajous figure: x = sin(@p a ·t + @p deltaDeg), y = sin(@p b ·t).
+ *  The ratio a:b picks the family (1:1 an ellipse, 3:2 the classic
+ *  pretzel, 5:4 a tight weave) and the phase is the same second number a
+ *  physical harmonograph is set to. @p turns is how many 2π the parameter
+ *  runs for, at @p samples segments; the curve closes when a:b is
+ *  rational and the turns cover the period. */
 struct Lissajous {
   float a = 3.0f;
   float b = 2.0f;
@@ -117,19 +111,18 @@ struct Lissajous {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The Lissajous figure at frequency ratio @p a : @p b and phase
- *  @p deltaDeg, drawn for @p turns of the parameter at @p samples
- *  segments. */
 inline Lissajous lissajous(float a, float b, float deltaDeg = 0.0f,
                            float turns = 1.0f, int samples = 720) {
   return Lissajous{a, b, deltaDeg, turns, samples};
 }
 
-/** A harmonograph: a Lissajous whose amplitudes DECAY, which is what
- *  makes a real pen-and-pendulum figure spiral inward instead of
- *  retracing one closed rosette. @p damping is the exponential rate per
- *  unit t; @p precession spins the whole figure as it draws (the rotating
- *  turntable under John Whitney's pendulum). */
+/** A harmonograph: the Lissajous at ratio @p a : @p b and phase
+ *  @p deltaDeg, whose amplitudes DECAY — which is what makes a real
+ *  pen-and-pendulum figure spiral inward instead of retracing one closed
+ *  rosette. @p damping is the exponential rate per unit t; @p precession
+ *  spins the whole figure as it draws (the rotating turntable under John
+ *  Whitney's pendulum). It runs for @p turns of the parameter at
+ *  @p samples segments. */
 struct Harmonograph {
   float a = 3.0f;
   float b = 2.0f;
@@ -143,17 +136,15 @@ struct Harmonograph {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The decaying Lissajous a pen-and-pendulum figure draws: ratio @p a :
- *  @p b at phase @p deltaDeg, amplitudes falling at @p damping per unit
- *  of the parameter and the whole figure turning at @p precession. */
 inline Harmonograph harmonograph(float a, float b, float deltaDeg = 0.0f,
                                  float damping = 0.05f, float precession = 0.0f,
                                  float turns = 6.0f, int samples = 2000) {
   return Harmonograph{a, b, deltaDeg, damping, precession, turns, samples};
 }
 
-/** Rose (rhodonea) r = cos(k·θ). Integer @p k gives k petals when k is
- *  odd and 2k when even; rational k gives the multi-lobed forms. */
+/** Rose (rhodonea) r = cos(@p k ·θ), drawn for @p turns of θ at
+ *  @p samples segments. Integer k gives k petals when k is odd and 2k
+ *  when even; rational k gives the multi-lobed forms. */
 struct Rose {
   float k = 3.0f;
   float turns = 1.0f;
@@ -163,15 +154,14 @@ struct Rose {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The rhodonea at @p k: k petals for odd whole k, 2k for even, and the
- *  multi-lobed forms for a fraction. */
 inline Rose rose(float k, float turns = 1.0f, int samples = 720) {
   return Rose{k, turns, samples};
 }
 
-/** Spiral from the centre outward. @p logarithmic switches Archimedean
- *  (even spacing — a clock spring, a record groove) for logarithmic
- *  (constant angle — a nautilus, a galaxy arm). */
+/** Spiral of @p turns from the centre outward, at @p samples segments.
+ *  @p logarithmic switches Archimedean (even spacing — a clock spring, a
+ *  record groove) for logarithmic (constant angle — a nautilus, a galaxy
+ *  arm), and @p growth is how fast it opens. */
 struct Spiral {
   float turns = 3.0f;
   bool logarithmic = false;
@@ -182,9 +172,6 @@ struct Spiral {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** A spiral of @p turns from the centre outward: evenly spaced by
- *  default, or at a constant angle when @p logarithmic, with @p growth
- *  setting how fast it opens. */
 inline Spiral spiral(float turns = 3.0f, bool logarithmic = false,
                      float growth = 0.25f, int samples = 720) {
   return Spiral{turns, logarithmic, growth, samples};
@@ -192,8 +179,9 @@ inline Spiral spiral(float turns = 3.0f, bool logarithmic = false,
 
 /** Epitrochoid / hypotrochoid — the spirograph pair. A circle of radius
  *  @p r rolls around one of radius @p R (outside for an epitrochoid,
- *  inside when @p inside), with the pen @p d from its centre. Everything
- *  is normalised so the figure fills the box. */
+ *  inside when @p inside), with the pen @p d from its centre, for
+ *  @p turns of the parameter at @p samples segments. Everything is
+ *  normalised so the figure fills the box. */
 struct Trochoid {
   float R = 5.0f;
   float r = 3.0f;
@@ -206,9 +194,6 @@ struct Trochoid {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** The spirograph curve a circle of radius @p r rolling on one of
- *  radius @p R draws with the pen @p d from its centre — outside unless
- *  @p inside. */
 inline Trochoid trochoid(float R, float r, float d, bool inside = false,
                          float turns = 1.0f, int samples = 1440) {
   return Trochoid{R, r, d, inside, turns, samples};

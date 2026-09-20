@@ -23,12 +23,14 @@ TEST(Shapers, EveryStockShaperAnswersTheSeamAndComparesByItsDials) {
   static_assert(path::ShaperScheme<shapers::Rounded>);
   static_assert(path::ShaperScheme<shapers::Chamfer>);
   static_assert(path::ShaperScheme<shapers::Square>);
-  EXPECT_TRUE(shapers::wave(6, 40) == shapers::wave(6, 40));
-  EXPECT_FALSE(shapers::wave(6, 40) == shapers::wave(6, 41));
+  const shapers::Wave wave{.amplitude = 6, .wavelength = 40};
+  EXPECT_TRUE(wave == (shapers::Wave{.amplitude = 6, .wavelength = 40}));
+  EXPECT_FALSE(wave == (shapers::Wave{.amplitude = 6, .wavelength = 41}));
   // Bleed is how far the deviation reaches, so a cull can grow by it.
-  EXPECT_FLOAT_EQ(shapers::wave(6, 40).bleed(), 6.0f);
-  EXPECT_FLOAT_EQ(shapers::zigzag(4, 24).bleed(), 4.0f);
-  EXPECT_FLOAT_EQ(shapers::offset(-9).bleed(), 9.0f);
+  EXPECT_FLOAT_EQ(wave.bleed(), 6.0f);
+  EXPECT_FLOAT_EQ((shapers::Zigzag{.amplitude = 4, .wavelength = 24}).bleed(),
+                  4.0f);
+  EXPECT_FLOAT_EQ((shapers::Offset{.px = -9}).bleed(), 9.0f);
 }
 
 TEST(Shapers, EachOneActuallyMovesTheMarkItIsGiven) {
@@ -37,15 +39,19 @@ TEST(Shapers, EachOneActuallyMovesTheMarkItIsGiven) {
   b.lineTo(200, 50);
   const SkPath run = b.detach();
   // A wave and a zigzag swing the run off its own axis.
-  EXPECT_GT(shapers::wave(8, 40).shape(run).getBounds().height(), 8.0f);
-  EXPECT_GT(shapers::zigzag(8, 40).shape(run).getBounds().height(), 8.0f);
-  EXPECT_GT(shapers::square(8, 40).shape(run).getBounds().height(), 8.0f);
+  const shapers::Wave wave{.amplitude = 8, .wavelength = 40};
+  const shapers::Zigzag zigzag{.amplitude = 8, .wavelength = 40};
+  const shapers::Square square{.amplitude = 8, .wavelength = 40};
+  EXPECT_GT(wave.shape(run).getBounds().height(), 8.0f);
+  EXPECT_GT(zigzag.shape(run).getBounds().height(), 8.0f);
+  EXPECT_GT(square.shape(run).getBounds().height(), 8.0f);
   // An offset moves it bodily, LEFT of travel, which on a west-to-east
   // run is upward on screen.
-  EXPECT_NEAR(shapers::offset(10).shape(run).getBounds().centerY(), 40.0f,
-              1.5f);
+  const shapers::Offset rail{.px = 10};
+  EXPECT_NEAR(rail.shape(run).getBounds().centerY(), 40.0f, 1.5f);
   // A corner treatment over a straight run has no corner to treat.
-  EXPECT_EQ(shapers::rounded(6).shape(run).getBounds(), run.getBounds());
+  const shapers::Rounded rounded{.radius = 6};
+  EXPECT_EQ(rounded.shape(run).getBounds(), run.getBounds());
 }
 
 TEST(Shapers, AChamferCutsEveryCornerOfAClosedRun) {
@@ -55,7 +61,7 @@ TEST(Shapers, AChamferCutsEveryCornerOfAClosedRun) {
   // the interior kept.
   SkPathBuilder sq;
   sq.moveTo(0, 0).lineTo(100, 0).lineTo(100, 100).lineTo(0, 100).close();
-  const SkPath oct = shapers::chamfered(30).shape(sq.detach());
+  const SkPath oct = shapers::Chamfer{.cut = 30}.shape(sq.detach());
   int vertices = 0, closes = 0;
   SkPath::Iter iter(oct, false);
   SkPoint pts[4];
@@ -71,10 +77,10 @@ TEST(Shapers, AChamferCutsEveryCornerOfAClosedRun) {
 }
 
 TEST(Shapers, TheOscillatingWidthLawIsZeroMeanAndPlugsTheProfileSeam) {
-  const path::Profile w = shapers::wave(9, 50);
+  const path::Profile w = shapers::Wave{.amplitude = 9, .wavelength = 50};
   EXPECT_NEAR(w.max(), 9.0f, 1e-4f) << "max() is what a cull is sized from";
-  EXPECT_TRUE(w == shapers::wave(9, 50));
-  EXPECT_FALSE(w == shapers::wave(9, 51));
+  EXPECT_TRUE(w == (shapers::Wave{.amplitude = 9, .wavelength = 50}));
+  EXPECT_FALSE(w == (shapers::Wave{.amplitude = 9, .wavelength = 51}));
   // Zero-mean: it goes both ways, which is what makes it a centreline and
   // not a band width.
   bool positive = false, negative = false;
