@@ -2,15 +2,20 @@
  * The billboard rasterizer: every point drawn as a camera-facing
  * sprite on an ordinary canvas, sized by its lane and by perspective,
  * painted back to front.
+ *
+ * A whole cloud goes down as ONE sprite-atlas batch, so the back-to-front
+ * order is a property of the vertex list rather than of a sequence of
+ * canvas draws, and a dense cloud costs the canvas one draw instead of
+ * one per point.
  */
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <include/core/SkColorFilter.h>
-#include <include/core/SkPaint.h>
+#include <sigilskia/draw/Direct.h>
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "sigilgeometry/mesh/pop/Points.h"
 
@@ -100,36 +105,73 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
     return bm.asImage();
   }();
 
-  SkPaint paint;
-  paint.setAntiAlias(true);
-  if (style.additive) paint.setBlendMode(SkBlendMode::kPlus);
+  const sk_sp<SkImage>& sprite = style.sprite ? style.sprite : softDot;
+  const float sheetWidth = (float)sprite->width();
+  const float sheetHeight = (float)sprite->height();
   const SkSamplingOptions sampling(SkFilterMode::kLinear,
                                    SkMipmapMode::kLinear);
-  const sk_sp<SkImage>& sprite = style.sprite ? style.sprite : softDot;
+
+  // ONE BATCH CARRIES THE WHOLE CLOUD. Every splat of one call shares the
+  // sheet and the blend mode, and its atlas cell rides the batch per
+  // sprite, so nothing here has to be grouped: the compatible set is the
+  // cloud. A backend that fences on a destination-reading draw — which an
+  // additive splat is — then fences once for the cloud rather than once
+  // per point.
+  std::vector<SkRSXform> transforms;
+  std::vector<SkRect> cells;
+  std::vector<SkColor> tints;
+  std::vector<SkSize> sizes;
+  transforms.reserve(splats.size());
+  cells.reserve(splats.size());
+  tints.reserve(splats.size());
+  sizes.reserve(splats.size());
+  bool tinted = false;
+  bool anyCellNotSquare = false;
 
   for (const Splat& splat : splats) {
+    // The window is in the unit square and the sheet is in texels.
+    SkRect cell = SkRect::MakeXYWH(
+        splat.window.x * sheetWidth, splat.window.y * sheetHeight,
+        splat.window.z * sheetWidth, splat.window.w * sheetHeight);
+    // One shader samples the WHOLE sheet, so a cell keeps its own texels
+    // by pulling its coordinates half a texel in: a linear filter at a
+    // cell edge would otherwise reach the neighbouring cell and bleed one
+    // sprite into the next. A sheet taken whole has no neighbour to reach.
+    // A cell thinner than the inset is no cell at all and is dropped.
+    if (splat.window != glm::vec4{0, 0, 1, 1}) cell.inset(0.5f, 0.5f);
+    if (cell.isEmpty()) continue;
+    if (cell.width() != cell.height()) anyCellNotSquare = true;
+
+    // A splat is a SQUARE of 2 * px whatever its cell's aspect. The
+    // uniform scale answers the cell's width; the size lane answers its
+    // height, which is the one thing an SkRSXform cannot carry.
+    const float scale = 2.0f * splat.px / cell.width();
+    transforms.push_back(SkRSXform::MakeFromRadians(
+        scale, 0.0f, splat.screen.fX, splat.screen.fY, cell.width() * 0.5f,
+        cell.height() * 0.5f));
+    cells.push_back(cell);
+    sizes.push_back({1.0f, cell.width() / cell.height()});
     // Full-color tint via modulate — works for any sprite (a white
     // sprite tints exactly).
-    const SkColor4f tintColor = {splat.tint.r, splat.tint.g, splat.tint.b,
-                                 splat.tint.a};
-    paint.setColorFilter(
-        SkColorFilters::Blend(tintColor.toSkColor(), SkBlendMode::kModulate));
-    const SkRect dst =
-        SkRect::MakeXYWH(splat.screen.fX - splat.px, splat.screen.fY - splat.px,
-                         splat.px * 2, splat.px * 2);
-    if (splat.window == glm::vec4{0, 0, 1, 1}) {
-      canvas.drawImageRect(sprite, dst, sampling, &paint);
-      continue;
-    }
-    // The window is in the unit square and the sheet is in texels. Its
-    // own cell is drawn with kStrict, so the linear filter never reaches
-    // a neighbouring cell's texels and bleeds one sprite into the next.
-    const float w = (float)sprite->width(), h = (float)sprite->height();
-    const SkRect src = SkRect::MakeXYWH(splat.window.x * w, splat.window.y * h,
-                                        splat.window.z * w, splat.window.w * h);
-    canvas.drawImageRect(sprite, src, dst, sampling, &paint,
-                         SkCanvas::kStrict_SrcRectConstraint);
+    const SkColor tint =
+        SkColor4f{splat.tint.r, splat.tint.g, splat.tint.b, splat.tint.a}
+            .toSkColor();
+    tinted = tinted || tint != SK_ColorWHITE;
+    tints.push_back(tint);
   }
+  if (transforms.empty()) return;
+
+  skia::draw::SpriteBatch batch;
+  batch.transforms = transforms;
+  batch.sourceRectangles = cells;
+  // A white tint modulates to identity and a square cell scales
+  // uniformly, so either lane is dropped rather than carried when it
+  // says nothing.
+  if (tinted) batch.colors = tints;
+  if (anyCellNotSquare) batch.sizes = sizes;
+  skia::draw::drawSpriteAtlas(
+      canvas, sprite, batch, sampling,
+      style.additive ? SkBlendMode::kPlus : SkBlendMode::kSrcOver);
 }
 
 }  // namespace sigil::geometry::mesh::points

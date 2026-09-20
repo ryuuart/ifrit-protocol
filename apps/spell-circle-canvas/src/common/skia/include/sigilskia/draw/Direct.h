@@ -43,13 +43,20 @@ namespace sigil::skia::draw {
 /** @p img ready for Graphite: the cached or freshly promoted texture
  *  (unchanged on raster canvases / already-texture images). The recorder's
  *  image provider owns reuse. When it cannot supply a texture, an uncached
- *  upload is attempted; a failed upload returns @p img. */
-inline sk_sp<SkImage> ready(SkCanvas& canvas, sk_sp<SkImage> img) {
+ *  upload is attempted; a failed upload returns @p img.
+ *
+ *  @p required is what the draw needs of the texture — a mip chain, above
+ *  all. A promotion that dropped the request would sample a minified sheet
+ *  from its top level alone, which is where a raster canvas and a Graphite
+ *  one stop agreeing. */
+inline sk_sp<SkImage> ready(SkCanvas& canvas, sk_sp<SkImage> img,
+                            SkImage::RequiredProperties required = {}) {
   skgpu::graphite::Recorder* recorder = canvas.recorder();
   if (!recorder || !img || img->isTextureBacked()) return img;
-  sk_sp<SkImage> texture =
-      recorder->clientImageProvider()->findOrCreate(recorder, img.get(), {});
-  if (!texture) texture = SkImages::TextureFromImage(recorder, img.get(), {});
+  sk_sp<SkImage> texture = recorder->clientImageProvider()->findOrCreate(
+      recorder, img.get(), required);
+  if (!texture)
+    texture = SkImages::TextureFromImage(recorder, img.get(), required);
   return texture ? std::move(texture) : std::move(img);
 }
 
@@ -219,7 +226,9 @@ inline void drawSpriteAtlas(SkCanvas& canvas, sk_sp<SkImage> sheet,
   // ALWAYS decomposed (see drawLattice): raster's native drawAtlas lowers
   // to the same vertices internally, and a recorded drawVertices replays
   // on Graphite where a recorded native atlas op would vanish.
-  sheet = ready(canvas, std::move(sheet));
+  sheet = ready(canvas, std::move(sheet),
+                {.fMipmapped = !sampling.useCubic &&
+                               sampling.mipmap != SkMipmapMode::kNone});
   // uint16 indices cap one vertex list at 16383 sprites — chunk above it.
   constexpr size_t kMaxSprites = 16000;
   size_t count = batch.size();

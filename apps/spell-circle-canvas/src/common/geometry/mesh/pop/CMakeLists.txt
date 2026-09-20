@@ -45,7 +45,10 @@ sigil_slang_kernel_flags(${SIGIL_STAMP_KERNEL_CPP})
 # seeded mixers the scatter and the generators deal from are
 # SigilCoreCompute's, read in the sources alone. The built-in executor
 # divides its passes through SigilCoreSchedule, which is where every
-# divided range in this repository is decided.
+# divided range in this repository is decided. SigilSkiaDraw is the
+# sprite batch a whole cloud of billboards goes down as: header-only over
+# Skia, with no device, no context and no bring-up, so naming it leaves
+# this feature's promise to know nothing about a device standing.
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilGeometryMeshPop
   SOURCES Billboards.cpp Cloud.cpp Cook.cpp CookInternal.h Fields.cpp
@@ -59,7 +62,7 @@ sigil_library(SigilGeometryMeshPop
   HEADERS Builder.h Kernel.h Operations.h Points.h Pop.h Runtime.h Sinks.h
           Stamp.h Sweep.h
   PUBLIC SigilGeometryMeshCurve SigilCoreComparable Boost::container
-  PRIVATE SigilCoreCompute SigilCoreSchedule)
+  PRIVATE SigilCoreCompute SigilCoreSchedule SigilSkiaDraw)
 # The generated headers are PUBLIC because a runtime that dispatches the
 # kernel on a device reads the words this build embedded rather than
 # compiling the source a second time.

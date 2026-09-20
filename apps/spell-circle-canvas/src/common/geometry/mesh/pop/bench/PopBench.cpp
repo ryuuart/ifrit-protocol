@@ -1,8 +1,9 @@
 /** @file
  * Benchmarks of the point operators: the cook, each operator over a
- * thousand points, whole chains by count and operator mix, and the swept
+ * thousand points, whole chains by count and operator mix, the swept
  * operator by tessellation and by profile — plus the ring seam a device
- * executor replaces on its own.
+ * executor replaces on its own, and the billboard splat by cloud size,
+ * sprite and atlas cell count.
  */
 
 // geometry_pop_bench — the CPU pop executor under load: what each
@@ -12,9 +13,15 @@
 // Release build; Debug numbers say nothing.
 
 #include <benchmark/benchmark.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSurface.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/pop/Sweep.h>
 
@@ -416,5 +423,136 @@ BENCHMARK(BM_ConnectAdjacent)
     ->Range(1000, 100000)
     ->Unit(benchmark::kMillisecond)
     ->Complexity(benchmark::oN);
+
+/** THE PLATE EVERY BILLBOARD ARM SPLATS ONTO. It is made and cleared
+ *  once: a memset of a plate this size would swamp the splat at the
+ *  small counts, and splatting over what the last iteration left costs
+ *  the rasteriser the same as splatting over black. */
+sk_sp<SkSurface> billboardSurface() {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1024, 1024));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  return surface;
+}
+
+/** The eye the clouds below are seen from: back along +z, far enough
+ *  out that the whole ring is in frame and every point is in front of
+ *  the near plane, so no arm measures a cloud it is rejecting. */
+camera::Camera billboardStage() {
+  camera::Camera camera;
+  camera.eye = {0, 120, 900};
+  return camera;
+}
+
+/** A stroked ring, baked once: an opaque rim with a hole in it, against
+ *  the default soft dot's fully covered square. */
+sk_sp<SkImage> ringSprite() {
+  static const sk_sp<SkImage> ring = [] {
+    constexpr int kEdge = 64;
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kEdge, kEdge));
+    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setStyle(SkPaint::kStroke_Style);
+    paint.setStrokeWidth(6);
+    paint.setColor(SK_ColorWHITE);
+    surface->getCanvas()->drawCircle(kEdge * 0.5f, kEdge * 0.5f,
+                                     kEdge * 0.5f - 5.0f, paint);
+    return surface->makeImageSnapshot();
+  }();
+  return ring;
+}
+
+/** The cloud the arms splat: the plain chain, cooked, so it carries the
+ *  "size" and "tint" lanes a splat varies by. */
+Cloud billboardCloud(int count) { return plain(count).cloud(); }
+
+/** …and the same cloud with a "Tex" window per point, dealt from a grid
+ *  of @p columns by @p rows cells. */
+Cloud billboardCloudWithCells(int count, int columns, int rows) {
+  return plain(count).atlas(columns, rows).cloud();
+}
+
+/** What a splat costs per point: the projection, the depth sort, the
+ *  lane build and the rasterisation of one batch. A device's submission
+ *  is not in it — this binary has no Graphite context — so the arms say
+ *  what the CPU side of a dense cloud costs and the frame-rate ledger
+ *  says what the lane it runs on adds. */
+void BM_Billboards_SoftDot(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  const Cloud cloud = billboardCloud(count);
+  const sk_sp<SkSurface> surface = billboardSurface();
+  const camera::Camera camera = billboardStage();
+  points::BillboardStyle style;
+  style.size = 3;
+  for ([[maybe_unused]] auto iteration : state) {
+    points::drawBillboards(*surface->getCanvas(), cloud, camera, {1024, 1024},
+                           style);
+    benchmark::ClobberMemory();
+  }
+  countPoints(state, count);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_Billboards_SoftDot)
+    ->Arg(1000)
+    ->Arg(10000)
+    ->Arg(100000)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+/** The same cloud through a sprite with a hole in it, drawn over rather
+ *  than added: the second figure of the billboard sheet. */
+void BM_Billboards_RingSprite(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  const Cloud cloud = billboardCloud(count);
+  const sk_sp<SkSurface> surface = billboardSurface();
+  const camera::Camera camera = billboardStage();
+  points::BillboardStyle style;
+  style.sprite = ringSprite();
+  style.size = 7;
+  style.additive = false;
+  for ([[maybe_unused]] auto iteration : state) {
+    points::drawBillboards(*surface->getCanvas(), cloud, camera, {1024, 1024},
+                           style);
+    benchmark::ClobberMemory();
+  }
+  countPoints(state, count);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_Billboards_RingSprite)
+    ->Arg(1000)
+    ->Arg(10000)
+    ->Arg(100000)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+/** WHAT A PER-POINT CELL COSTS. One cell is the identity window — the
+ *  whole sheet, the floor the other two are read against; sixteen and
+ *  sixty-four say whether dealing every point a different window of one
+ *  sheet costs anything over splatting them all from the same one. */
+void BM_Billboards_AtlasWindows(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  const int cells = (int)state.range(1);
+  const int columns = (int)std::lround(std::sqrt((double)cells));
+  const Cloud cloud = billboardCloudWithCells(count, columns, cells / columns);
+  const sk_sp<SkSurface> surface = billboardSurface();
+  const camera::Camera camera = billboardStage();
+  points::BillboardStyle style;
+  style.sprite = ringSprite();
+  style.size = 7;
+  style.additive = false;
+  style.textureLane = "Tex";
+  for ([[maybe_unused]] auto iteration : state) {
+    points::drawBillboards(*surface->getCanvas(), cloud, camera, {1024, 1024},
+                           style);
+    benchmark::ClobberMemory();
+  }
+  countPoints(state, count);
+}
+BENCHMARK(BM_Billboards_AtlasWindows)
+    ->ArgsProduct({{1000, 10000, 100000}, {1, 16, 64}})
+    ->ArgNames({"points", "cells"})
+    ->Unit(benchmark::kMicrosecond);
 
 }  // namespace

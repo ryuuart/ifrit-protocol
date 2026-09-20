@@ -210,7 +210,13 @@ struct BillboardStyle {
    *  stamping path while these splats are meant to be one sprite; say
    *  `"Tex"` to read what the atlas operation wrote. A point whose window is
    *  degenerate, or which the lane does not reach, takes the whole
-   *  image. */
+   *  image.
+   *
+   *  THE SHEET WANTS A GUTTER. One batch samples the whole sheet through
+   *  one shader, so a cell is taken half a texel inside its window to
+   *  keep the linear filter off the cell next door: a sheet whose
+   *  sprites run to their cell edges loses that half texel. A cell
+   *  narrower than the inset is not drawn at all. */
   std::string textureLane;
   glm::vec4 tint = {1, 1, 1, 1};
   bool additive = true;  ///< kPlus glow vs kSrcOver

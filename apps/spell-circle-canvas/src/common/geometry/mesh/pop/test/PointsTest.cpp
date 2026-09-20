@@ -3,15 +3,22 @@
  * modifiers move positions exactly as the operators of the same name do,
  * a stamp instanced at every point is scaled and turned by the lanes it
  * names, and a splat takes the atlas cell the cloud carries.
+ *
+ * A cloud of billboards is ONE canvas draw, so the properties a sequence
+ * of draws used to carry — the back-to-front order, each point's tint,
+ * size and cell, and the requested blend — are read here off the pixels
+ * the single batch lays down.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <include/utils/SkNoDrawCanvas.h>
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
+#include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
@@ -149,6 +156,62 @@ TEST(Points, AppendPadsLanesWithConventionalDefaults) {
   EXPECT_FLOAT_EQ((*tex)[2].x, 0.5f);  // b's actual window
 }
 
+namespace {
+
+/** A FLAT sprite: one opaque white square. The default soft dot fades to
+ *  nothing at its rim, so every assertion about a colour would be an
+ *  assertion about a threshold; a flat sprite carries its tint exactly. */
+sk_sp<SkImage> flatSprite(int edge = 32) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(edge, edge));
+  bitmap.eraseColor(SK_ColorWHITE);
+  bitmap.setImmutable();
+  return bitmap.asImage();
+}
+
+/** The canvas a cloud splats onto, over black, and its pixels read back. */
+struct Plate {
+  explicit Plate(int width = 200, int height = 200)
+      : surface(SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height))) {
+    surface->getCanvas()->clear(SK_ColorBLACK);
+  }
+  SkCanvas& canvas() { return *surface->getCanvas(); }
+  SkBitmap pixels() const {
+    SkBitmap bitmap;
+    bitmap.allocPixels(surface->imageInfo());
+    EXPECT_TRUE(surface->readPixels(bitmap.pixmap(), 0, 0));
+    return bitmap;
+  }
+  sk_sp<SkSurface> surface;
+};
+
+/** Every draw a splat makes, counted with no device and no pixels. */
+class CountingCanvas final : public SkNoDrawCanvas {
+ public:
+  using SkNoDrawCanvas::SkNoDrawCanvas;
+  int vertexLists = 0;
+  int imageRectangles = 0;
+  int atlases = 0;
+
+ protected:
+  void onDrawVerticesObject(const SkVertices*, SkBlendMode,
+                            const SkPaint&) override {
+    ++vertexLists;
+  }
+  void onDrawImageRect2(const SkImage*, const SkRect&, const SkRect&,
+                        const SkSamplingOptions&, const SkPaint*,
+                        SrcRectConstraint) override {
+    ++imageRectangles;
+  }
+  void onDrawAtlas2(const SkImage*, const SkRSXform[], const SkRect[],
+                    const SkColor[], int, SkBlendMode, const SkSamplingOptions&,
+                    const SkRect*, const SkPaint*) override {
+    ++atlases;
+  }
+};
+
+}  // namespace
+
 TEST(Points, ACloudSplattedAsBillboardsReachesTheCanvas) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 150));
@@ -207,22 +270,19 @@ TEST(Points, BillboardsSplatTheAtlasCellTheCloudCarries) {
   camera::Camera camera;
   camera.eye = {0, 0, 200};
 
-  const auto centrePixel = [&](const std::string& lane) {
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 120));
-    surface->getCanvas()->clear(SK_ColorBLACK);
+  const auto splatted = [&](const std::string& lane) {
+    Plate plate(120, 120);
     points::BillboardStyle style;
     style.sprite = sheet;
     style.size = 60;
     style.additive = false;
     style.perspective = false;
     style.textureLane = lane;
-    points::drawBillboards(*surface->getCanvas(), cloud, camera, {120, 120},
-                           style);
-    SkBitmap bm;
-    bm.allocPixels(surface->imageInfo());
-    EXPECT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
-    return bm.getColor(60, 60);
+    points::drawBillboards(plate.canvas(), cloud, camera, {120, 120}, style);
+    return plate.pixels();
+  };
+  const auto centrePixel = [&](const std::string& lane) {
+    return splatted(lane).getColor(60, 60);
   };
   // The cell is one flat colour, so its centre IS its colour.
   EXPECT_EQ(centrePixel("Tex"), SK_ColorGREEN) << "the window was not read";
@@ -230,11 +290,219 @@ TEST(Points, BillboardsSplatTheAtlasCellTheCloudCarries) {
   // between four different colours — anything but the cell's own.
   EXPECT_NE(centrePixel(""), SK_ColorGREEN);
 
+  // ...AND NOT ONE TEXEL OF A NEIGHBOUR ANYWHERE. One shader samples the
+  // whole sheet, so the cell's own edges are where a linear filter would
+  // reach the cell next door: a 60-pixel splat centred on a 120-pixel
+  // plate spans 30 to 90, and its outermost pixels are the ones that
+  // would show the blue cell to the right or the white one above.
+  const SkBitmap cell = splatted("Tex");
+  EXPECT_EQ(cell.getColor(30, 60), SK_ColorGREEN) << "the left edge";
+  EXPECT_EQ(cell.getColor(89, 60), SK_ColorGREEN) << "the right edge bled";
+  EXPECT_EQ(cell.getColor(60, 30), SK_ColorGREEN) << "the top edge bled";
+  EXPECT_EQ(cell.getColor(60, 89), SK_ColorGREEN) << "the bottom edge";
+
   // A degenerate window is not a cell: an atlas operation that never ran, or a
   // lane padded with zeros, takes the whole image rather than splatting
   // a sliver of one texel over everything.
   cloud.color("Tex") = {{0.0f, 0.0f, 0.0f, 0.0f}};
   EXPECT_EQ(centrePixel("Tex"), centrePixel(""));
+}
+
+TEST(Points, BillboardsInOneBatchKeepTheirBackToFrontOrder) {
+  // Two opaque splats at the same place, one behind the other: the near
+  // one is what shows. The whole cloud is one draw, so the order is
+  // carried by the vertex list rather than by a sequence of draws —
+  // a batch built in cloud order, or one whose quads are reordered,
+  // reads the far splat here.
+  camera::Camera camera;
+  camera.eye = {0, 0, 200};
+  points::BillboardStyle style;
+  style.sprite = flatSprite();
+  style.size = 40;
+  style.additive = false;
+  style.perspective = false;
+  style.tintLane = "tint";
+
+  const auto centreOf = [&](float firstDepth, float secondDepth) {
+    Cloud cloud;
+    cloud.positions = {{0, 0, firstDepth}, {0, 0, secondDepth}};
+    cloud.color("tint") = {{1, 0, 0, 1}, {0, 1, 0, 1}};
+    Plate plate;
+    points::drawBillboards(plate.canvas(), cloud, camera, {200, 200}, style);
+    return plate.pixels().getColor(100, 100);
+  };
+  // The second point stands nearer the eye, so green covers red...
+  EXPECT_EQ(centreOf(-30.0f, 30.0f), SK_ColorGREEN);
+  // ...and the same two points with their depths exchanged read the
+  // other way about.
+  EXPECT_EQ(centreOf(30.0f, -30.0f), SK_ColorRED);
+}
+
+TEST(Points, EverySplatTakesItsOwnTintFromTheLane) {
+  // One batch, one sheet, two colours: the tint is per sprite, not per
+  // draw. An all-white lane is dropped rather than carried, so the drop
+  // has to be identity — the sprite's own colour, not a changed one.
+  camera::Camera camera;
+  camera.eye = {0, 0, 200};
+  Cloud cloud;
+  cloud.positions = {{-30, 0, 0}, {30, 0, 0}};
+  points::BillboardStyle style;
+  style.sprite = flatSprite();
+  style.size = 20;
+  style.additive = false;
+  style.perspective = false;
+  style.tintLane = "tint";
+
+  const std::optional<SkPoint> left =
+      camera.project(cloud.positions[0], {200, 200});
+  const std::optional<SkPoint> right =
+      camera.project(cloud.positions[1], {200, 200});
+  ASSERT_TRUE(left && right);
+  const auto splatted = [&]() {
+    Plate plate;
+    points::drawBillboards(plate.canvas(), cloud, camera, {200, 200}, style);
+    const SkBitmap pixels = plate.pixels();
+    return std::pair{
+        pixels.getColor((int)std::lround(left->fX), (int)std::lround(left->fY)),
+        pixels.getColor((int)std::lround(right->fX),
+                        (int)std::lround(right->fY))};
+  };
+
+  cloud.color("tint") = {{1, 0, 0, 1}, {0, 0, 1, 1}};
+  auto [red, blue] = splatted();
+  EXPECT_EQ(red, SK_ColorRED);
+  EXPECT_EQ(blue, SK_ColorBLUE);
+
+  cloud.color("tint") = {{1, 1, 1, 1}, {1, 1, 1, 1}};
+  auto [firstWhite, secondWhite] = splatted();
+  EXPECT_EQ(firstWhite, SK_ColorWHITE);
+  EXPECT_EQ(secondWhite, SK_ColorWHITE);
+}
+
+TEST(Points, EverySplatTakesItsOwnSizeFromTheLane) {
+  // With perspective off a splat is its lane's multiple of the style's
+  // size, in pixels, so the second covers exactly twice the width of the
+  // first. One uniform scale for the batch reads two equal splats here.
+  camera::Camera camera;
+  camera.eye = {0, 0, 200};
+  Cloud cloud;
+  cloud.positions = {{-40, 0, 0}, {40, 0, 0}};
+  cloud.scalar("size", 1)[1] = 2;
+  points::BillboardStyle style;
+  style.sprite = flatSprite();
+  style.size = 20;
+  style.sizeLane = "size";
+  style.additive = false;
+  style.perspective = false;
+
+  Plate plate;
+  points::drawBillboards(plate.canvas(), cloud, camera, {200, 200}, style);
+  const std::optional<SkPoint> centre =
+      camera.project(cloud.positions[0], {200, 200});
+  ASSERT_TRUE(centre);
+  const SkBitmap pixels = plate.pixels();
+  const int row = (int)std::lround(centre->fY);
+  int narrow = 0, wide = 0;
+  for (int x = 0; x < 200; ++x)
+    if (SkColorGetR(pixels.getColor(x, row)) > 128) ++(x < 100 ? narrow : wide);
+  // An edge pixel the splat only partly covers may fall either side of
+  // the threshold, which is the whole of the tolerance.
+  EXPECT_NEAR(narrow, 20, 1);
+  EXPECT_NEAR(wide, 40, 1);
+}
+
+TEST(Points, AdditiveSplatsAccumulateWhereTheyOverlap) {
+  // Additive is the whole colour model of a glow: two half-bright splats
+  // over black are brighter where they meet. A batch that lost the
+  // requested blend paints the second over the first instead, and the
+  // overlap reads the same as either splat alone.
+  camera::Camera camera;
+  camera.eye = {0, 0, 200};
+  Cloud cloud;
+  cloud.positions = {{-5, 0, 0}, {5, 0, 0}};
+  points::BillboardStyle style;
+  style.sprite = flatSprite();
+  style.size = 40;
+  style.tint = {0.5f, 0.5f, 0.5f, 1};
+  style.additive = true;
+  style.perspective = false;
+
+  Plate plate;
+  points::drawBillboards(plate.canvas(), cloud, camera, {200, 200}, style);
+  const SkBitmap pixels = plate.pixels();
+  const int row = 100;
+  const int alone = SkColorGetR(pixels.getColor(80, row));
+  const int overlap = SkColorGetR(pixels.getColor(100, row));
+  const int alsoAlone = SkColorGetR(pixels.getColor(120, row));
+  EXPECT_NEAR(alone, 128, 2);
+  EXPECT_NEAR(alsoAlone, 128, 2);
+  EXPECT_GT(overlap, alone + 64);
+}
+
+TEST(Points, EverySplatSurvivesTheBatchChunkBoundary) {
+  // One vertex list indexes a bounded number of sprites, so a bigger
+  // cloud is cut into chunks — and the LAST chunk is the one an
+  // off-by-one loses. The cloud is one point past the cut, with that
+  // point somewhere else, so a lost tail is a place that is not lit.
+  constexpr size_t kCount = 16001;
+  camera::Camera camera;
+  camera.eye = {0, 0, 200};
+  Cloud cloud;
+  cloud.positions.assign(kCount, {-20, 0, 0});
+  cloud.positions.back() = {20, 0, 0};
+  points::BillboardStyle style;
+  style.sprite = flatSprite();
+  style.size = 8;
+  style.additive = false;
+  style.depthSort = false;
+  style.perspective = false;
+
+  Plate plate;
+  points::drawBillboards(plate.canvas(), cloud, camera, {200, 200}, style);
+  const std::optional<SkPoint> pile = camera.project({-20, 0, 0}, {200, 200});
+  const std::optional<SkPoint> tail = camera.project({20, 0, 0}, {200, 200});
+  ASSERT_TRUE(pile && tail);
+  const SkBitmap pixels = plate.pixels();
+  EXPECT_EQ(
+      pixels.getColor((int)std::lround(pile->fX), (int)std::lround(pile->fY)),
+      SK_ColorWHITE)
+      << "the first chunk";
+  EXPECT_EQ(
+      pixels.getColor((int)std::lround(tail->fX), (int)std::lround(tail->fY)),
+      SK_ColorWHITE)
+      << "…and the tail";
+}
+
+TEST(Points, ADenseCloudIsOneCanvasDraw) {
+  // THE POINT OF THE BATCH, read without a device: however many points a
+  // cloud holds, and whatever cells they take, the canvas is asked for
+  // one draw. A splat per point still paints the same picture, so no
+  // pixel test catches the regression this one does.
+  Cloud cloud = points::scatterBox({-60, -60, -60}, {60, 60, 60}, 1000, 3);
+  camera::Camera camera;
+  camera.eye = {0, 0, 400};
+  points::BillboardStyle style;
+  style.sprite = flatSprite();
+  style.size = 6;
+
+  CountingCanvas counting(200, 200);
+  points::drawBillboards(counting, cloud, camera, {200, 200}, style);
+  EXPECT_EQ(counting.vertexLists, 1);
+  EXPECT_EQ(counting.imageRectangles, 0);
+  EXPECT_EQ(counting.atlases, 0) << "the native atlas op draws nothing on "
+                                    "some backends";
+
+  // Sixteen different cells of one sheet are still one draw: a cell is
+  // per sprite in the batch, not per draw.
+  std::vector<glm::vec4>& windows = cloud.color("Tex");
+  for (size_t i = 0; i < windows.size(); ++i)
+    windows[i] = {(float)(i % 4) * 0.25f, (float)(i / 4 % 4) * 0.25f, 0.25f,
+                  0.25f};
+  style.textureLane = "Tex";
+  CountingCanvas withCells(200, 200);
+  points::drawBillboards(withCells, cloud, camera, {200, 200}, style);
+  EXPECT_EQ(withCells.vertexLists, 1);
+  EXPECT_EQ(withCells.imageRectangles, 0);
 }
 
 TEST(Points, AnInstancedFacingLaneAgreesWithTheCameraFacingTransform) {
