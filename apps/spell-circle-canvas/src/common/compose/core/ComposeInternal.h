@@ -109,7 +109,7 @@ struct PaintProps {
 
 /** Value-semantic heap box for ElementNode's rare-field blocks: absent
  *  costs one null pointer; copying deep-copies a present block (the COW
- *  clone in Element::NodeHandle::operator-> relies on ElementNode's
+ *  clone in detail::NodeHandle::operator-> relies on ElementNode's
  *  defaulted copy constructor). ensure() is the builder-side entry. */
 template <class T>
 class Box {

@@ -36,8 +36,9 @@ find_package(unofficial-skia CONFIG REQUIRED)
 find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeCore
   SOURCES
-    # the element value and its builders, one subject each
-    ElementLayout.cpp ElementShape.cpp ElementMask.cpp ElementPaint.cpp
+    # the element value and its builders, one verb family each
+    ElementBox.cpp ElementFlex.cpp ElementPlacement.cpp
+    ElementShape.cpp ElementMask.cpp ElementPaint.cpp
     ElementMarks.cpp ElementTransform.cpp ElementText.cpp
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
     ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
@@ -69,10 +70,12 @@ sigil_library(SigilComposeCore
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
     PaintInternal.h PaintPass.h
     PaintProfile.h InstanceStamp.h
-  HEADERS ../Compose.h Cascade.h Composer.h Core.h Derive.h Element.h
+  HEADERS ../Compose.h Cascade.h Composer.h Core.h Declarations.h Derive.h
+          Element.h
           Factories.h Feed.h Grid.h Instances.h Layout.h Mask.h Measure.h
           Paint.h Pattern.h Shape.h Shelf.h Stroke.h SurfacePaint.h Table.h
           TextPainter.h Tiles.h Utf8.h Var.h
+          verbs/Box.h verbs/Flex.h verbs/Placement.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilCoreCache SigilCoreCallable SigilCoreComparable SigilCoreCompute
          SigilCoreReconcile SigilGeometryPath SigilImage SigilMaterial

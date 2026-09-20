@@ -75,9 +75,20 @@ sound model; nothing below them changes kernel semantics.
   interns to, with `var` to make one and `varName` to read it back.
 - `core/Cascade.h` — `VarValue`, what a custom property holds, and
   `VarTable`, the properties in force at a node.
-- `core/Element.h` — `Element` and its builders, the class alone;
-  `cover` is the one that says a node FILLS the box it stands in,
-  which `absolute` and `inset` said between them at 74 sites.
+- `core/Declarations.h` — `NodeHandle`, the copy-on-write handle a
+  description value is, and `NodeAccess`, the one door the verb mixins
+  reach it through.
+- `core/verbs/Box.h` — `BoxVerbs`: `gap`, `padding`, `margin`, `width`,
+  `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `aspect`.
+- `core/verbs/Flex.h` — `FlexVerbs`: `row`, `column`, `wrapLines`,
+  `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`, `justify`.
+- `core/verbs/Placement.h` — `PlacementVerbs`: `absolute`, `cover`,
+  `inset`, `left`, `top`, `right`, `bottom`, `tether`, `centerAt`,
+  `cells`, `area`, `cellAlign`, `rect`, `at`. `cover` is the one that
+  says a node FILLS the box it stands in, which `absolute` and `inset`
+  said between them.
+- `core/Element.h` — `Element` and its builders: the verb mixins it
+  inherits, its own identity and structure, and `Children`.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image` (an `image::ImageAsset`, or a
   raw `SkImage` with a `material::skia::Fit` — `Stretch`, `Contain`,

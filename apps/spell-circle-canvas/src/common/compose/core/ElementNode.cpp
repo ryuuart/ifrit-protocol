@@ -23,7 +23,13 @@ Fill Fill::shader(sk_sp<SkShader> s) {
 
 Element::Element() : m_node(std::make_shared<ElementNode>()) {}
 
-ElementNode* Element::NodeHandle::operator->() {
+// A description value is the handle and nothing else: the verb mixins are
+// empty, so a node still costs exactly one shared pointer to describe.
+static_assert(sizeof(Element) == sizeof(std::shared_ptr<ElementNode>),
+              "a verb mixin grew a field, and every Element in every "
+              "children() vector pays for it");
+
+ElementNode* detail::NodeHandle::operator->() {
   if (!value)
     value = std::make_shared<ElementNode>();
   else if (value.use_count() != 1)
@@ -31,7 +37,7 @@ ElementNode* Element::NodeHandle::operator->() {
   return value.get();
 }
 
-const ElementNode* Element::NodeHandle::operator->() const {
+const ElementNode* detail::NodeHandle::operator->() const {
   return value.get();
 }
 

@@ -13,6 +13,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
+#include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Mask.h>
 #include <sigilcompose/core/Paint.h>
@@ -20,6 +21,9 @@
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilcompose/core/verbs/Box.h>
+#include <sigilcompose/core/verbs/Flex.h>
+#include <sigilcompose/core/verbs/Placement.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Schedule.h>
@@ -149,236 +153,11 @@ struct Children;
  *  answer for it; a keyless node is matched by its position among its
  *  siblings. Names given to marks and passes are LOCAL to the node and
  *  are not keys. */
-class Element {
+class Element : public BoxVerbs<Element>,
+                public FlexVerbs<Element>,
+                public PlacementVerbs<Element> {
  public:
   Element();  ///< An empty box: no size, no fill, no children.
-
-  /** @name Layout
-   *  Where the node sits and how big it is: the flex direction, the box
-   *  model, the flex factors, the absolute placement longhand, and the
-   *  cell a grid-shaped scheme puts it in. Lengths are `Dimension`s, so
-   *  a bare number is pixels.
-   *  @{ */
-  /** Lay the children out along the HORIZONTAL axis, so the main axis is
-   *  x — CSS `flex-direction: row`. */
-  Element& row();
-  /** Lay the children out down the VERTICAL axis, so the main axis is y
-   *  — CSS `flex-direction: column`, and what a node does when it says
-   *  neither. */
-  Element& column();
-  /** Flex-wrap: children flow onto new lines/columns when they
-   *  overflow the main axis. */
-  Element& wrapLines(bool on = true);
-  /** THE AIR BETWEEN THE CHILDREN, along both axes. Zero when unstated.
-   *
-   *  The gap, the padding and the margin take a `Dimension`: a bare
-   *  number is pixels, a percent is of the parent, and `1_em`, `0.5_lh`
-   *  and `1_rem` (SigilWeave's length literals) measure against the font
-   *  in force — the node's own size and line height, or the root's — so
-   *  the air around type follows the type. */
-  Element& gap(Dimension length);
-  /** The air INSIDE the node's box, between its edge and its content —
-   *  the same `Dimension` forms the gap takes, and zero on every side
-   *  when unstated. One value is all four sides, two are horizontal then
-   *  vertical, four are left, top, right, bottom. */
-  Element& padding(Dimension all);
-  /** The air inside it, one length across and one down. */
-  Element& padding(Dimension horizontal, Dimension vertical);
-  /** The air inside it, a length per side, clockwise from the left. */
-  Element& padding(Dimension left, Dimension top, Dimension right,
-                   Dimension bottom);
-  /** The air OUTSIDE the node's box, between its edge and its siblings —
-   *  the same `Dimension` forms and the same one/two/four spellings as
-   *  the padding, and zero on every side when unstated. */
-  Element& margin(Dimension all);
-  /** The air outside it, one length across and one down. */
-  Element& margin(Dimension horizontal, Dimension vertical);
-  /** The air outside it, a length per side, clockwise from the left. */
-  Element& margin(Dimension left, Dimension top, Dimension right,
-                  Dimension bottom);
-  /** The flex BASIS, not a guarantee. `shrink` defaults to 1, faithful to
-   *  Yoga and CSS, so a `width(150)` child of a row that overflows is
-   *  150 px wide only until the row runs out of room — then it gives some
-   *  back, and the result is silently narrower content rather than an
-   *  error. Pair with `.shrink(0)` when `width(150)` means "this IS 150".
-   *  The same holds for `height()` in a column. */
-  Element& width(Dimension d);
-  /** The node's height, in the same `Dimension` forms the width takes,
-   *  and the same flex basis rather than a guarantee: in a column it is
-   *  what the node asks for and gives back when the column overflows.
-   *  Unstated, the node is as tall as its content. */
-  Element& height(Dimension d);
-  /** A FLOOR under the node's width that the flex factors may not take
-   *  it below, in the same `Dimension` forms. Unstated, there is none. */
-  Element& minWidth(Dimension d);
-  /** A CEILING over the node's width that `grow()` may not take it
-   *  above, in the same `Dimension` forms. Unstated, there is none. */
-  Element& maxWidth(Dimension d);
-  /** A FLOOR under the node's height, in the same `Dimension` forms.
-   *  Unstated, there is none. */
-  Element& minHeight(Dimension d);
-  /** A CEILING over the node's height, in the same `Dimension` forms.
-   *  Unstated, there is none. */
-  Element& maxHeight(Dimension d);
-  /** WIDTH OVER HEIGHT, held while the other axis is free — a `16f/9`
-   *  video box given only a width is sized down from it. Unstated, the
-   *  two axes are independent. */
-  Element& aspect(float ratio);
-  /** THIS NODE'S SHARE OF THE ROOM LEFT OVER along the parent's main
-   *  axis, as a weight against its siblings' (CSS `flex-grow`). Zero when
-   *  unstated, so a node takes none of it and stays at its basis; the
-   *  bare call is a weight of one. */
-  Element& grow(float factor = 1.0f);
-  /** THIS NODE'S SHARE OF THE OVERFLOW when the parent's main axis runs
-   *  short, as a weight against its siblings' (CSS `flex-shrink`). ONE
-   *  when unstated, faithful to Yoga and CSS, which is why a stated
-   *  width is a basis; `shrink(0)` is what makes a size exact. */
-  Element& shrink(float factor);
-  /** THE SIZE THE FLEX FACTORS START FROM along the parent's main axis
-   *  (CSS `flex-basis`), in the same `Dimension` forms. Unstated, the
-   *  node's own width or height on that axis is the basis. */
-  Element& basis(Dimension d);
-  /** WHERE THIS NODE'S CHILDREN SIT ACROSS its main axis — CSS
-   *  `align-items`. `Align::Stretch` when unstated, so a child with no
-   *  cross-axis size fills. A child that says `alignSelf()` overrides
-   *  it for itself. */
-  Element& alignItems(Align a);
-  /** WHERE THIS NODE SITS ACROSS its parent's main axis, overriding that
-   *  parent's `alignItems()` for this child alone — CSS `align-self`.
-   *  `Align::Auto` when unstated, which is to take the parent's. */
-  Element& alignSelf(Align a);
-  /** HOW THIS NODE'S CHILDREN ARE DISTRIBUTED ALONG its main axis, and
-   *  what becomes of the room left over — CSS `justify-content`.
-   *  `Justify::Start` when unstated. */
-  Element& justify(Justify j);
-  /** TAKE THIS NODE OUT OF THE FLOW — CSS `position: absolute`. It no
-   *  longer sizes or displaces its siblings, and it is placed by the
-   *  insets, the pins, `rect()`, `at()`, `centerAt()` or `tether()`
-   *  instead; with none of those it stands at its parent's origin at its
-   *  own size. Every verb below that needs it implies it. */
-  Element& absolute();
-  /** THIS NODE FILLS THE BOX IT STANDS IN — `absolute()` and `inset(0)`,
-   *  which is one sentence and was written as two. CSS's own word: the
-   *  node is taken out of the flow and stretched to its parent's box, so
-   *  a drawing, an overlay, a scrim, a rail and a hit surface each say
-   *  what they are rather than how they are pinned.
-   *
-   *  A node that must fill only part of the box states that part with
-   *  `inset()` instead; a node that must stand in the flow states its
-   *  size and says nothing here — or says this first and its size
-   *  after, which puts it back in the flow at that size: a covering
-   *  node is a canvas filling its box by nature, and a box of its own
-   *  is the one other thing it can be. A pin or an inset stated after
-   *  this is a placement, and stands. */
-  Element& cover();
-  /** HOW FAR IN FROM EACH EDGE of the parent's box an absolute node's own
-   *  edges stand, in pixels (implies absolute()) — CSS's four inset
-   *  properties. One value is all four sides; four are left, top, right,
-   *  bottom. `inset(0)` stretches the node across the whole box, which
-   *  is what `cover()` says in one word. */
-  Element& inset(float all);
-  Element& inset(float left, float top, float right, float bottom);
-  /** Dimension-valued insets: px, pct(), or autoDimension() per side —
-   * autoDimension() leaves that side unpinned (the CSS `auto`), so width/height
-   * (or the opposite inset) size the node instead of stretching it. */
-  Element& inset(Dimension left, Dimension top, Dimension right,
-                 Dimension bottom);
-  /** Pin ONE edge of an absolute node (implies absolute()): the
-   *  corner-badge idiom — `.top(12).right(12)` pins a date block to the
-   *  top-right without stretching it across the box. Unpinned sides stay
-   *  auto. */
-  Element& left(Dimension d);
-  /** Pin the node's TOP edge @p d below the parent's, in the same
-   *  `Dimension` forms the other pins take (implies absolute()). The
-   *  other three sides stay auto unless they are pinned too. */
-  Element& top(Dimension d);
-  /** Pin the node's RIGHT edge @p d inside the parent's, in the same
-   *  `Dimension` forms (implies absolute()). Pinning left and right both
-   *  stretches the node between them. */
-  Element& right(Dimension d);
-  /** Pin the node's BOTTOM edge @p d above the parent's, in the same
-   *  `Dimension` forms (implies absolute()). Pinning top and bottom both
-   *  stretches the node between them. */
-  Element& bottom(Dimension d);
-  /** HANG THIS NODE OFF A KEYED ONE, at a stated pair of points, with a
-   *  list of places to try when the first will not fit (implies
-   *  absolute()).
-   *
-   *      tooltip().tether({.key = "port",
-   *                        .on = {0.5f, 0.0f}, .at = {0.5f, 1.0f},
-   *                        .offset = {0, -6},
-   *                        .fallbacks = {{.key = "port",
-   *                                       .on = {0.5f, 1.0f},
-   *                                       .at = {0.5f, 0.0f},
-   *                                       .offset = {0, 6}}}})
-   *
-   *  Resolved after layout, against the geometry the anchor resolved to,
-   *  and re-resolved whenever it moves. The value states the rule; see
-   *  `Tether` for what fits means and what an unknown key does. */
-  Element& tether(Tether t);
-  /** Center this absolute node ON a parent-space point — the dominant
-   *  placement in node-graph scenes (sockets on orbit positions, badges
-   *  on markers). Resolved after measurement, so intrinsic-size nodes
-   *  center correctly; implies absolute(). */
-  Element& centerAt(SkPoint p);
-  /** WHICH CELLS this child claims of the `layout()` scheme above it, and
-   *  how many it covers — read by grid-shaped schemes (`layouts::Table`,
-   *  `layouts::Grid`) and by nothing else.
-   *
-   *  Said HERE, on the child, rather than in a list the scheme carries
-   *  beside it: a parallel list has nothing to check itself against, and
-   *  an inserted or reordered child silently shifts every entry after it
-   *  onto the wrong cell. */
-  Element& cells(int column, int row, int columns = 1, int rows = 1);
-  /** The same claim as one value — the shape a scheme reads it back as,
-   *  so a caller computing a span passes what it computed. */
-  Element& cells(CellSpan span);
-  /** WHICH NAMED REGION of the `layout()` scheme above it this child
-   *  claims — the same statement as `cells()` with the numbers left to the
-   *  scheme's own picture of itself (`layouts::Grid::areas`).
-   *
-   *      layout(layouts::Grid{.areas = {"head head", "nav  main"}})
-   *          .children({masthead().area("head")})
-   *          .children({sidebar().area("nav")})
-   *
-   *  A name survives what four integers do not: insert a row into the
-   *  picture and every child stays in the region it named, where every
-   *  numbered child after the insertion would have moved one cell up. A
-   *  name the picture does not carry is silent, and the child flows into
-   *  the next free cell like any child that claimed nothing. */
-  Element& area(std::string_view name);
-  /** Where this child sits INSIDE the cell box its span makes.
-   *  `Align::Stretch` sizes it to the box instead of placing it in one. */
-  Element& cellAlign(Align across, Align down);
-  /** Place an absolute node on a parent-space RECT — the peer of
-   *  centerAt(), for when you already know the box.
-   *
-   *  Exactly `left(r.fLeft).top(r.fTop).width(r.width()).height(r.height())`
-   *  — it calls those four setters, so it writes the same four layout
-   *  fields, prunes identically, and cannot drift from the longhand. Right
-   *  and bottom stay unpinned.
-   *
-   *  **A primitive for placing content whose coordinates you already
-   *  have**, typically because they were measured off a reference. When a
-   *  position is a *relationship* instead — "inside its parent", "next to
-   *  that one", "as wide as the column" — flex and inset() express it and
-   *  this does not.
-   *
-   *      g.children({box().rect(panelBox).fill(…)});
-   *      g.children({text(u8"…", st).at({panelBox.fLeft + 16,
-   * panelBox.fTop})});
-   *
-   *  Does not cover right()/bottom() pinning, percentage insets, or
-   *  autoDimension() sides — those are different intents and keep the longhand.
-   *  `geometry::path::centred()` (kit/Frame.h) builds the rect for the
-   * centre-and-size case. */
-  Element& rect(const SkRect& r);
-  /** Pin an absolute node's top-left to a parent-space POINT, leaving the
-   *  node to size itself from its content — `left(p.fX).top(p.fY)`. The
-   *  half of the placement longhand that carries no box; same
-   *  qualification as rect() above. */
-  Element& at(SkPoint topLeft);
-  /** @} */
 
   /** @name Shape
    *  The node's own outline, which is what its fill covers, what
@@ -1683,19 +1462,11 @@ class Element {
    *  its half that way. */
   void labelMark(int slot, size_t index, std::string name);
 
-  /** Copy-on-write handle: Element stays a cheap value, but fluent mutation
-   *  can never alter another copy or a description retained by Composer. */
-  struct NodeHandle {
-    explicit NodeHandle(std::shared_ptr<detail::ElementNode> node)
-        : value(std::move(node)) {}
+  // The verb mixins hold no state and reach this handle through the one
+  // door a declaring value grants them.
+  friend struct detail::NodeAccess;
 
-    detail::ElementNode* operator->();
-    const detail::ElementNode* operator->() const;
-
-    std::shared_ptr<detail::ElementNode> value;
-  };
-
-  NodeHandle m_node;
+  detail::NodeHandle m_node;
 };
 
 /** ONE RUN OF A `children({…})` BLOCK: an element, or the list `each()`

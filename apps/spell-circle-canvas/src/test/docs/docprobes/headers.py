@@ -30,11 +30,24 @@ def strip_comments(text):
 HEADER_TOKENS = re.compile(
     r"(?P<ns>\bnamespace\s+(?P<nsname>[A-Za-z_][A-Za-z0-9_:]*)\s*\{)"
     r"|(?P<alias>\bnamespace\s+(?P<aname>[A-Za-z_][A-Za-z0-9_]*)\s*=)"
+    # A BASE CLAUSE MAY WRAP. Everything else that follows a type's name
+    # before its body is on the name's own line, so the tail stops at the
+    # newline there — which is what keeps `template <class T>` on the line
+    # above a definition from reading as a definition of `T`. A `:` says a
+    # base clause or an underlying type has begun, and one list of bases
+    # does not fit on one line, so from there the tail runs to the body.
     r"|(?P<agg>\b(?:struct|class|enum\s+class|enum\s+struct|enum)\s+"
-    r"(?P<aggname>[A-Za-z_][A-Za-z0-9_]*)\b(?P<tail>[^;{\n]*)(?P<open>\{)?)"
+    r"(?P<aggname>[A-Za-z_][A-Za-z0-9_]*)\b"
+    r"(?P<tail>\s*:[^;{]*|[^;{\n]*)(?P<open>\{)?)"
     r"|(?P<access>\b(?:public|private|protected)\s*:)"
     r"|(?P<fn>\b[A-Za-z_][A-Za-z0-9_]*)\s*\("
     r"|(?P<open2>\{)|(?P<close>\})"
+)
+
+# The bases in an aggregate's tail, by the access keyword that introduces
+# each: `: public BoxVerbs<Element>, public FlexVerbs<Element>`.
+BASE_SPEC = re.compile(
+    r"\b(?:public|protected|private|virtual)\s+([A-Za-z_][A-Za-z0-9_:]*)"
 )
 
 
@@ -76,6 +89,7 @@ def scan_headers(incdirs):
     templates = set()  # qualified names of class templates
     ns_paths = {}
     funcs = {}  # simple type name -> names declared with a ( in its body
+    bases = {}  # simple type name -> the simple names of its base classes
     # path suffix -> every identifier that header's CODE carries, which is
     # what a header-listing bullet's bare names are checked against.
     spelled_in = {}
@@ -134,6 +148,10 @@ def scan_headers(incdirs):
                                 )
                                 if opens_a_template(text, m.start()):
                                     templates.add(spelling)
+                            for base in BASE_SPEC.findall(m.group("tail")):
+                                bases.setdefault(name_, set()).add(
+                                    base.split("::")[-1]
+                                )
                             # A class is a scope too: `Composer::CacheState`
                             # must not come out as `sigil::compose::CacheState`.
                             # `struct` opens public, `class` private.
@@ -158,6 +176,21 @@ def scan_headers(incdirs):
                         depth -= 1
                         while scope and scope[-1][0] >= depth:
                             scope.pop()
+    # A CLASS DECLARES WHAT IT INHERITS. A verb a document spells on a
+    # class that takes it from a base is a member of that class to every
+    # reader of it, and the index is what an overloaded one is checked
+    # against, so a base's members belong in the derived class's entry.
+    # Repeated until nothing grows, so a chain of bases carries through.
+    growing = True
+    while growing:
+        growing = False
+        for name_, own in bases.items():
+            inherited = set()
+            for base in own:
+                inherited |= set(funcs.get(base, ()))
+            if not inherited <= set(funcs.get(name_, ())):
+                funcs.setdefault(name_, set()).update(inherited)
+                growing = True
     return (
         namespaces,
         {k: sorted(v) for k, v in types.items()},  # (qualified, declaring file)

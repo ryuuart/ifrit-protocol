@@ -152,16 +152,22 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/image.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/stack.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/text.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/area.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/at.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/backdrop.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/background.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/blend.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cells.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cover.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/effect.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/fill.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/foreground.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/ink.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/opacity.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/overlay.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/rect.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/stroke.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/tether.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textFill.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textStroke.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose

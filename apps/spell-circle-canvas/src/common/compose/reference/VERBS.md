@@ -266,12 +266,15 @@ out: `size(width, height)` is `width` then `height`; `fontSize`,
 Every verb on this page is declared in one header, and the include
 spelling is the feature's.
 
-- `core/Element.h` — the flow and placement verbs `row`, `column`,
-  `wrapLines`, `alignItems`, `alignSelf`, `justify`, `absolute`, `cover`,
-  `inset`, `left`, `top`, `right`, `bottom`, `at`, `rect`, `centerAt`,
-  `tether`, `cells`, `area`, `cellAlign`; the box verbs `width`,
-  `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `aspect`,
-  `basis`, `grow`, `shrink`, `gap`, `padding`, `margin`; the paint verbs
+- `core/verbs/Flex.h` — the flex verbs `row`, `column`, `wrapLines`,
+  `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`, `justify`.
+- `core/verbs/Box.h` — the box verbs `gap`, `padding`, `margin`,
+  `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`,
+  `aspect`.
+- `core/verbs/Placement.h` — the placement verbs `absolute`, `cover`,
+  `inset`, `left`, `top`, `right`, `bottom`, `tether`, `centerAt`,
+  `cells`, `area`, `cellAlign`, `rect`, `at`.
+- `core/Element.h` — the paint verbs
   `fill`, `ink`, `stroke`, `background`, `overlay`, `foreground`,
   `style`, `echo`, `textFill`, `textStroke`, `boundary`, `threshold`;
   the region verbs `corners`, `shape`, `clip`, `mask`, `centered`,
