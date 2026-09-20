@@ -118,7 +118,9 @@ sound model; nothing below them changes kernel semantics.
   `styleClass`, the anchor it hangs off with `tether`, its identity
   with `key`, `hitTestable`, `cache`, `bakeScale`, `transition` and
   `staggerChildren`, and `children` with the `Children` value its runs
-  are.
+  are. This is the header a consumer includes: it brings every verb
+  family with it, and a family's own header is for a value that
+  inherits the family.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image` (an `image::ImageAsset`, or a
   raw `SkImage` with a `material::skia::Fit` — `Stretch`, `Contain`,
