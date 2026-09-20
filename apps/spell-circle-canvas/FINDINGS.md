@@ -130,10 +130,22 @@ Sketchbook stands its device programs up before the canvas draws: every
 stock body is declared before the first Graphite context exists, the
 programs a run builds are written down under the platform cache
 location, and the next launch replays that set on a worker while the
-canvas holds its frames. A headless `--gpu` sweep now declares and
-records the same way and fills a store that stands empty, so a machine
-that has swept arrives at its first interactive open with the set
-already there.
+canvas holds its frames. A headless `--gpu` sweep declares and records
+the same way and fills a store that stands empty, so a machine that has
+swept arrives at its first interactive open with something to replay.
+
+How much of that first open it pays for is unmeasured, and the case it
+is written for is the one nothing has measured. The written set is cut
+at `kMostKeysWrittenDown`, and what survives the cut is what the run
+recorded first, so a sweep of the whole registry leaves a set chosen by
+the order the selection was drawn in rather than by the sketch someone
+opens next — while the canvas holds its frames for every key in it.
+`sketch_pipeline_cold_store` sweeps one sketch and then another, which
+is the shape that cannot reach the ceiling. A test should sweep the
+whole selection on the device, then open one sketch over the set it
+left, and assert that the open builds fewer programs for a draw than
+the same open over an empty store and holds no more frames for the
+replay than it saves.
 
 What is left is a store that is cold for the STACK a sketch wears, which
 is what an effect pass hits after every shader edit. Nothing can be
