@@ -593,6 +593,9 @@ class Lent(Session):
         self.assertEqual(self.results["names"], sorted(dir(Composer)))
 
     def test_the_size_the_clock_and_the_draw_stay_the_hosts(self):
+        # The setup renders nothing of its own: a render there replaces
+        # the node the draw method runs in, and the draw is where the
+        # third refusal is asked for.
         self.render(
             """
             pen.background('#000000')
@@ -602,7 +605,6 @@ class Lent(Session):
                 results['draw'] = str(error)
             """,
             setup="""
-                ctx.render(plate())
                 results['composer'] = ctx.composer
                 for name, call in (
                     ('size', lambda: ctx.composer.setSize((10, 10))),
