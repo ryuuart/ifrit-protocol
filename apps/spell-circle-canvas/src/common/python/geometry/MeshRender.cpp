@@ -30,8 +30,8 @@ namespace {
 constexpr glm::length_t kAxisCount = 3;
 
 /** The three columns of @p value, each of them three numbers. */
-std::array<glm::vec3, kAxisCount> orientationColumns(const glm::mat3& value) {
-  return {value[0], value[1], value[2]};
+py::tuple orientationColumns(const glm::mat3& value) {
+  return py::make_tuple(value[0], value[1], value[2]);
 }
 
 /** The rotation @p columns describe, column by column. */
@@ -51,10 +51,13 @@ glm::mat3 orientationOf(const std::array<glm::vec3, kAxisCount>& columns) {
  *  exception through it would leave the host canvas one deep.
  *
  *  @p width and @p height are the panel's own size in world units: the
- *  two numbers `pen.width` and `pen.height` answer inside the body. The
- *  clock, the step and the frame count are the ones the frame outside is
- *  drawing at. The pointer is not carried in, because a position
- *  measured on the host canvas does not stand in panel-local
+ *  two numbers `pen.width` and `pen.height` answer inside the body. They
+ *  are a size and not a rectangle, because the canvas the body draws on
+ *  has its origin at the panel's CENTRE, with x to the right and y down
+ *  as any Skia canvas has, so the panel spans half of each either way.
+ *  The clock, the step and the frame count are the ones the frame
+ *  outside is drawing at. The pointer is not carried in, because a
+ *  position measured on the host canvas does not stand in panel-local
  *  coordinates. */
 std::exception_ptr drawThroughPanelPen(const py::function& body,
                                        draw::Pen& host, SkCanvas& canvas,
