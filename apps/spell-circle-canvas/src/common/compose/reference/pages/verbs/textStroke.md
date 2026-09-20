@@ -23,11 +23,11 @@ and is a different thing entirely. This one thickens the letterforms.
 ## Syntax
 
 ```cpp
-Element& textStroke(float width, Fill fill);
+Element& textStroke(float width, SurfacePaint paint);
 ```
 
 ```python
-def textStroke(self, width: float, color: ColorLike) -> Element: ...
+def textStroke(self, width: float, paint: SurfacePaintLike) -> Element: ...
 ```
 
 ## Parameters
@@ -35,9 +35,10 @@ def textStroke(self, width: float, color: ColorLike) -> Element: ...
 | Value | What it is | Where one comes from |
 |---|---|---|
 | `width` | The stroke width in pixels, centred on the letterform's edge. | A number |
-| `fill` | What the stroke is painted with. | [`Fill`](../types/Fill.md), including `Fill::currentInk()` |
+| `paint` | What the stroke is painted with. | [`SurfacePaint`](../types/SurfacePaint.md), including `Fill::currentInk()` |
 
-Python takes a colour where C++ takes a fill.
+The stroke settles to one comparable `Fill` on the node, so a static
+paint collapses onto it and a live one strokes with nothing.
 
 ## Description
 

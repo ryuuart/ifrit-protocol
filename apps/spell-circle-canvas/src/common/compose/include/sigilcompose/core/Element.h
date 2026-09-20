@@ -98,7 +98,9 @@ class Element {
   Element();  // empty box
 
   // ---- layout ----
+  /** Lay the children out along the horizontal axis. */
   Element& row();
+  /** Lay the children out down the vertical axis. */
   Element& column();
   /** Flex-wrap: children flow onto new lines/columns when they
    *  overflow the main axis. */
@@ -109,12 +111,18 @@ class Element {
    *  in force — the node's own size and line height, or the root's — so
    *  the air around type follows the type. */
   Element& gap(Dimension length);
+  /** The air INSIDE the node, the same on all four sides. */
   Element& padding(Dimension all);
+  /** The air inside it, one length across and one down. */
   Element& padding(Dimension horizontal, Dimension vertical);
+  /** The air inside it, a length per side, clockwise from the left. */
   Element& padding(Dimension left, Dimension top, Dimension right,
                    Dimension bottom);
+  /** The air OUTSIDE the node, the same on all four sides. */
   Element& margin(Dimension all);
+  /** The air outside it, one length across and one down. */
   Element& margin(Dimension horizontal, Dimension vertical);
+  /** The air outside it, a length per side, clockwise from the left. */
   Element& margin(Dimension left, Dimension top, Dimension right,
                   Dimension bottom);
   /** The flex BASIS, not a guarantee. `shrink` defaults to 1, faithful to
@@ -124,18 +132,41 @@ class Element {
    *  error. Pair with `.shrink(0)` when `width(150)` means "this IS 150".
    *  The same holds for `height()` in a column. */
   Element& width(Dimension d);
+  /** The node's height, a basis rather than a guarantee: in a column
+   *  that overflows it gives room back unless `shrink(0)` says not to. */
   Element& height(Dimension d);
+  /** The floor under the resolved width; it outranks the basis and
+   *  whatever shrinking would otherwise take the node below it. */
   Element& minWidth(Dimension d);
+  /** The ceiling over the resolved width; it outranks the basis and
+   *  whatever growing would otherwise take the node above it. */
   Element& maxWidth(Dimension d);
+  /** The floor under the resolved height, on the other axis. */
   Element& minHeight(Dimension d);
+  /** The ceiling over the resolved height, on the other axis. */
   Element& maxHeight(Dimension d);
+  /** Width over height, held for a node whose other axis is free to be
+   *  computed from this one. */
   Element& aspect(float ratio);
+  /** This child's share of the main-axis room left over once every
+   *  basis is placed. */
   Element& grow(float factor = 1.0f);
+  /** This child's share of the overflow to give back. It is 1 unless
+   *  stated, which is why a stated size is not by itself a guarantee. */
   Element& shrink(float factor);
+  /** The flex basis outright, for a node whose starting main-axis size
+   *  is neither its width nor its height. */
   Element& basis(Dimension d);
+  /** Where the children sit on the cross axis. */
   Element& alignItems(Align a);
+  /** Where THIS child sits on its parent's cross axis, overriding what
+   *  the parent said for the rest of them. */
   Element& alignSelf(Align a);
+  /** Where the children sit along the main axis, and how the slack
+   *  between them is shared out. */
   Element& justify(Justify j);
+  /** Take the node out of the flow: its insets and pins place it, and
+   *  its siblings lay out as though it were not there. */
   Element& absolute();
   /** THIS NODE FILLS THE BOX IT STANDS IN — `absolute()` and `inset(0)`,
    *  which is one sentence and was written as two. CSS's own word: the
@@ -163,8 +194,11 @@ class Element {
    *  top-right without stretching it across the box. Unpinned sides stay
    *  auto. */
   Element& left(Dimension d);
+  /** Pin the top edge (implies `absolute()`); unpinned sides stay auto. */
   Element& top(Dimension d);
+  /** Pin the right edge (implies `absolute()`); unpinned sides stay auto. */
   Element& right(Dimension d);
+  /** Pin the bottom edge (implies `absolute()`); unpinned sides stay auto. */
   Element& bottom(Dimension d);
   /** HANG THIS NODE OFF A KEYED ONE, at a stated pair of points, with a
    *  list of places to try when the first will not fit (implies
@@ -246,6 +280,8 @@ class Element {
   Element& at(SkPoint topLeft);
 
   // ---- shape (defines PaintContext::outline and clipping) ----
+  /** The four corner radii of the node's box — the outline its fill,
+   *  its clip and every outline-following decoration trace. */
   Element& corners(Corners c);
   /** THE NODE'S SHAPE: a path generator over its laid-out size, in local
    *  coordinates. Overrides corners() — the fill surface, clip(), every
@@ -276,7 +312,9 @@ class Element {
    *  `.inward()` take one side (the offset-path lineage). No effect on a
    *  node that is not a band(). */
   Element& centered();
+  /** A band takes the OUTER side of its spine. */
   Element& outward();
+  /** A band takes the INNER side of its spine. */
   Element& inward();
   /** Clip fill, content, and children to the node's shape. Decorations
    *  are NOT clipped — they dress the outline (outer strokes, shadows,
@@ -659,6 +697,8 @@ class Element {
    *  Cache::Texture (the backdrop depends on the live destination);
    *  such nodes fall back to picture caching. */
   Element& backdrop(material::skia::Effect e);
+  /** Fade the node and its whole subtree as ONE group, through a layer,
+   *  so overlapping children do not show through one another. */
   Element& opacity(motion::Animatable<float> o);
   /** THE NODE FADES IN WHEN IT MOUNTS, over @p how — `opacity(animate(
    *  from(0).to(1), how))` written once, because that sentence is what
@@ -671,8 +711,13 @@ class Element {
    *  instead. A node under a staggered container takes its share of the
    *  cascade's delay here as it would on any other entrance. */
   Element& appear(motion::Transition how);
+  /** How the node's own paint meets what is already under it. */
   Element& blend(SkBlendMode mode);
+  /** Move the node's plane across, in px. Paint-only: animating it
+   *  never relayouts. */
   Element& translateX(motion::Animatable<float> v);
+  /** Move the node's plane down, in px. Paint-only, like the lane
+   *  across. */
   Element& translateY(motion::Animatable<float> v);
   /** Ride a CURVE instead of two lanes — the motion path (see MotionPath
    *  for the six rules). Paint-only like the lanes it outranks; the
@@ -684,7 +729,11 @@ class Element {
    *               .lookAhead = 0.02f})   // auto-orient along the tangent
    */
   Element& travel(MotionPath along);
+  /** Turn the node's plane about the transform origin, in degrees.
+   *  Paint-only: animating it never relayouts. */
   Element& rotate(motion::Animatable<float> degrees);
+  /** Scale both axes about the transform origin. Paint-only, and the
+   *  per-axis lanes multiply into it. */
   Element& scale(motion::Animatable<float> factor);
   /** Per-axis scale about the transform origin, multiplied INTO scale().
    *  Paint-only like scale(): animating one never relayouts, and the
@@ -699,6 +748,8 @@ class Element {
    *  `transformOrigin(0, 0.5f).scaleX(&fraction)` grows a bar rightward
    *  from its left edge. */
   Element& scaleX(motion::Animatable<float> factor);
+  /** The vertical half of the per-axis scale, multiplied into `scale()`
+   *  exactly as the horizontal one is. */
   Element& scaleY(motion::Animatable<float> factor);
   /** Shear, in degrees, about the transform origin. Paint-only like
    *  rotate/scale: animating a skew never relayouts, and content pictures
@@ -709,6 +760,8 @@ class Element {
    *  node further right, so the shape's top leans LEFT — the italic
    *  forward lean is a NEGATIVE skewX. */
   Element& skewX(motion::Animatable<float> degrees);
+  /** The shear that slants the HORIZONTALS, in degrees about the
+   *  transform origin. */
   Element& skewY(motion::Animatable<float> degrees);
   // Integer-literal sugar (rotate(-8) etc. — int doesn't convert into the
   // Animatable variant on its own, and the resulting error is unreadable).
@@ -752,11 +805,15 @@ class Element {
   Element& skewY(T deg) {
     return skewY(motion::Animatable<float>((float)deg));
   }
+  /** The pivot every transform lane turns about, as fractions of the
+   *  node's own box: {0, 0} is its top-left and {0.5, 0.5} its centre. */
   Element& transformOrigin(float fx, float fy);
   /** Pixel-valued transform origin (node-local px) — for pivots that
    *  aren't a fraction of THIS node's box, e.g. zooming a window that
    *  lives inside a full-canvas overlay around its own center. */
   Element& transformOriginPx(SkPoint p);
+  /** Paint order among siblings that overlap: higher paints later, and
+   *  the sort is stable, so an unstated index keeps declaration order. */
   Element& zIndex(int z);
 
   // ---- depth: the CSS 3D model over the 2D tree ----
@@ -1309,6 +1366,8 @@ class Element {
    *  nothing. It warns once, in Release too, because the visible symptom
    *  is an empty region rather than an error. */
   Element& key(std::string_view k);
+  /** How the node's paint is held between frames: a recorded picture, a
+   *  baked texture, a group, or nothing. */
   Element& cache(Cache c);
   /** Texture-bake resolution multiplier (Cache::Texture only; 0.1–1).
    *  The bake rasterizes at `factor` times the device scale and the blit
@@ -1323,6 +1382,8 @@ class Element {
    *  resample. Sharp text and 1 px hairlines never belong under a reduced
    *  bake. */
   Element& bakeScale(float factor);
+  /** The node's default transition, taken by every plain constant set
+   *  on it that names no transition of its own. */
   Element& transition(
       motion::Transition t);  // node default for plain constants
   /** Container stagger: child i's subtree enters with an EXTRA

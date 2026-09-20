@@ -25,18 +25,23 @@ whatever the type size, with no hand-positioned gradient.
 ## Syntax
 
 ```cpp
-Element& textFill(material::skia::Paint paint);
+Element& textFill(SurfacePaint paint);
 ```
 
 ```python
-def textFill(self, paint: material.skia.Paint) -> Element: ...
+def textFill(self, paint: SurfacePaintLike) -> Element: ...
 ```
 
 ## Parameters
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | [`material::skia::Paint`](../../VALUES.md#the-surface) — `Paint::linearUnit`, `Paint::radialUnit`, `Paint::recipe` and the rest |
+| `SurfacePaint` | Everything the node's own fill takes — a colour, a `Fill`, a material paint, a recipe — because both dress the same surface. | [`SurfacePaint`](../types/SurfacePaint.md) |
+
+Two spellings a glyph paint cannot hold: a cascade reference and a live
+fill binding. A reference reads the ink in force, which is what the
+glyphs already carry, so it leaves them on the style's own foreground
+rather than blanking them.
 
 ## Description
 
