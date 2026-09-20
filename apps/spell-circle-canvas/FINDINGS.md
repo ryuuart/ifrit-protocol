@@ -181,28 +181,6 @@ MAGI screen is the one the `bloom` slot's executor fills — and that the
 screen each describes asks for that light, with `uBloom` above zero.
 The rebased plates are what hold the radius and strength chosen.
 
-## A live host cannot run a compiler spelled as more than one word
-
-`compileLine` and `linkLine` in `src/sketch/live/Host.cpp` wrap
-`options.compiler` in `shellArgument`, which single-quotes the whole
-string, so a compiler given as a command prefix reaches `popen` as one
-argv word. The case
-`SketchHostBuildDirectory.TwoHostsInOneProcessNeverLinkOverEachOther`
-hands the host a stub compiler spelled `/bin/sh <script>` — the comment
-above `stubCompiler` says a command prefix "is all the host ever does
-with the compiler it is given" — so every build in that case fails with
-`sh: /bin/sh …/compiler.sh: No such file or directory`, the case finds
-zero linked dylibs where it expects four, and it fails on every run. The
-guard against two hosts in one process linking over each other is
-asserting nothing.
-
-A compiler is a command prefix: the host should split it into words
-before quoting each one, or the option should be stated and checked as
-one executable path and the stub rewritten as one. A regression should
-build through a compiler given as a multi-word prefix and assert the
-object and the dylib land, and the two-hosts case should then count its
-four distinct libraries again.
-
 ## The device sweep's shader-error sink collects without a lock
 
 `skgpu::ShaderErrorHandler::compileError` is called from the pipeline
