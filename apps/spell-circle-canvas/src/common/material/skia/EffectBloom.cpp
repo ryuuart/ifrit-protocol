@@ -7,10 +7,8 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSamplingOptions.h>
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
 #include <string>
@@ -20,15 +18,6 @@
 #include "EffectInternal.h"
 
 namespace sigil::material::skia {
-
-sk_sp<SkRuntimeEffect> bloomProgram(const char* door, const char* file) {
-  auto [program, error] =
-      SkRuntimeEffect::MakeForShader(SkString(shaderSource(file)));
-  if (!program)
-    SkDebugf("[material] skia::Effect::%s: %s failed: %s\n", door, file,
-             error.c_str());
-  return program;
-}
 
 namespace {
 
@@ -92,8 +81,8 @@ sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
 }
 
 Effect Effect::brightPass(float threshold, float knee) {
-  static const sk_sp<SkRuntimeEffect> program =
-      colourProgram("BrightPass.sksl");
+  const sk_sp<SkRuntimeEffect>& program =
+      effectProgram(EffectProgram::BrightPass);
   const float gate = std::clamp(threshold, 0.0f, 1.0f);
   return colorProgram(program,
                       {{"uThreshold", gate},
@@ -102,8 +91,8 @@ Effect Effect::brightPass(float threshold, float knee) {
 
 Effect Effect::phosphorBloom(float radius, float threshold, float intensity,
                              float chroma, float hueDrift, float tail) {
-  static const sk_sp<SkRuntimeEffect> halo =
-      bloomProgram("phosphorBloom", "PhosphorHalo.sksl");
+  const sk_sp<SkRuntimeEffect>& halo =
+      effectProgram(EffectProgram::PhosphorHalo);
 
   constexpr float kDegree = 3.14159265f / 180.0f;
   Effect e = shader(halo, {{"uRadius", std::max(radius, 0.0f)},

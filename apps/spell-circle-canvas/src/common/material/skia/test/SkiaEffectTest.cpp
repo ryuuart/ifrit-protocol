@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <vector>
 
 using namespace sigil::material;
@@ -963,4 +964,40 @@ TEST(SkiaEffect, ARecipeWithALayerSlotStillComparesByItsValues) {
   const Material four(blurredSlotRecipe(), OneRadius{4});
   EXPECT_TRUE(skia::Effect::recipe(eight, 0) == skia::Effect::recipe(eight, 0));
   EXPECT_FALSE(skia::Effect::recipe(eight, 0) == skia::Effect::recipe(four, 0));
+}
+
+TEST(SkiaEffect, TheProgramsAnEffectIsBuiltOutOfAreOneSharedList) {
+  const std::span<const sk_sp<SkRuntimeEffect>> programs =
+      skia::everyEffectProgram();
+  ASSERT_FALSE(programs.empty());
+  // The list is what a backend can be asked to NAME, and it names the
+  // object: nothing in it may be absent, and two asks must answer the
+  // same objects in the same order or a name written down one run means
+  // something else the next.
+  const std::span<const sk_sp<SkRuntimeEffect>> again =
+      skia::everyEffectProgram();
+  ASSERT_EQ(again.size(), programs.size());
+  std::vector<const SkRuntimeEffect*> seen;
+  for (size_t at = 0; at < programs.size(); ++at) {
+    EXPECT_NE(programs[at], nullptr);
+    EXPECT_EQ(programs[at].get(), again[at].get());
+    EXPECT_EQ(std::count(seen.begin(), seen.end(), programs[at].get()), 0);
+    seen.push_back(programs[at].get());
+  }
+}
+
+TEST(SkiaEffect, AnEffectDrawsThroughTheProgramTheListNames) {
+  // The whole point of the list: the object declared is the object the
+  // draw runs, so a stage built here is found in it.
+  const std::span<const sk_sp<SkRuntimeEffect>> programs =
+      skia::everyEffectProgram();
+  const skia::Effect gate = skia::Effect::brightPass(0.5f, 0.1f);
+  const sk_sp<SkColorFilter> map = gate.colorFilter();
+  ASSERT_NE(map, nullptr);
+  // The bright pass reads its own pixel, so it is one of the bodies
+  // made for a colour filter rather than for a shader.
+  size_t colourMaps = 0;
+  for (const sk_sp<SkRuntimeEffect>& program : programs)
+    if (program->allowColorFilter()) ++colourMaps;
+  EXPECT_GT(colourMaps, size_t{0});
 }

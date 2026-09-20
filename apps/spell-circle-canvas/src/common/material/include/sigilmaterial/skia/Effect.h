@@ -29,6 +29,7 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -522,5 +523,25 @@ class Effect {
         "and compare side by side with the blend.)");
   }
 };
+
+/** EVERY SkSL BODY AN EFFECT IS BUILT OUT OF, as one list in a fixed
+ *  order: the bright pass and the phosphor halo a bloom gathers, the tap
+ *  that lays that halo back over the source, the deepening and whitening
+ *  of a light, and the mix a parametric blur interpolates through. The
+ *  recipes a `Paint` runs are not here — those are reached through the
+ *  program cache, one per recipe.
+ *
+ *  These are the very objects the effects go on to use, not copies of
+ *  them. A device backend can be asked to give a runtime effect a name
+ *  that survives the run, so a program built over one can be written
+ *  down and rebuilt at the next launch instead of compiled again — and
+ *  it names the OBJECT, so a second effect compiled from the same source
+ *  is a stranger to it. An effect's place in the list is part of its
+ *  name, which is why the order is fixed and why a body that would not
+ *  compile is absent rather than null: the list is what is really there.
+ *
+ *  Asking compiles all of them, which is a handful of small SkSL
+ *  programs beside the device programs they are inlined into. */
+std::span<const sk_sp<SkRuntimeEffect>> everyEffectProgram();
 
 }  // namespace sigil::material::skia

@@ -9,10 +9,8 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSamplingOptions.h>
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
 #include <cmath>
@@ -67,16 +65,8 @@ namespace {
  *  Branch-free because both nested mixes are exact at the level sigmas:
  *  t=0 → level0, t=1 → level1, t=2 → level2, and linear in sigma between.
  *  The level COUNT is deliberately not in the API — see Effect::blur. */
-sk_sp<SkRuntimeEffect> parametricBlurMix() {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, error] = SkRuntimeEffect::MakeForShader(
-        SkString(shaderSource("ParametricBlurMix.sksl")));
-    if (!effect)
-      SkDebugf("[material] skia::Effect::blur: mix shader failed: %s\n",
-               error.c_str());
-    return effect;
-  }();
-  return fx;
+const sk_sp<SkRuntimeEffect>& parametricBlurMix() {
+  return effectProgram(EffectProgram::ParametricBlurMix);
 }
 }  // namespace
 

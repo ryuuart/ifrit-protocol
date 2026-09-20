@@ -6,11 +6,9 @@
  */
 
 #include <include/core/SkColorFilter.h>
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Effect.h>
-#include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
 #include <memory>
@@ -18,14 +16,6 @@
 #include "EffectInternal.h"
 
 namespace sigil::material::skia {
-
-sk_sp<SkRuntimeEffect> colourProgram(const char* file) {
-  auto [program, error] =
-      SkRuntimeEffect::MakeForColorFilter(SkString(shaderSource(file)));
-  if (!program)
-    SkDebugf("[material] skia::Effect: %s failed: %s\n", file, error.c_str());
-  return program;
-}
 
 Effect Effect::blur(float sigma) {
   const float s = std::max(0.0f, sigma);
@@ -45,21 +35,21 @@ Effect Effect::dilate(float pixels) {
 }
 
 Effect Effect::deepen(float amount) {
-  static const sk_sp<SkRuntimeEffect> program =
-      colourProgram("HaloDeepening.sksl");
+  const sk_sp<SkRuntimeEffect>& program =
+      effectProgram(EffectProgram::HaloDeepening);
   if (!(amount > 0)) return {};
   return colorProgram(program, {{"uDeepening", amount}});
 }
 
 Effect Effect::whiten(float amount, float threshold, float knee) {
-  static const sk_sp<SkRuntimeEffect> program =
-      colourProgram("CoreWhitening.sksl");
+  const sk_sp<SkRuntimeEffect>& program =
+      effectProgram(EffectProgram::CoreWhitening);
   if (!(amount > 0)) return {};
   const float gate = std::clamp(threshold, 0.0f, 1.0f);
-  return colorProgram(
-      program, {{"uThreshold", gate},
-                {"uTop", std::min(gate + std::max(knee, 0.0f), 1.0f)},
-                {"uWhitening", std::min(amount, 1.0f)}});
+  return colorProgram(program,
+                      {{"uThreshold", gate},
+                       {"uTop", std::min(gate + std::max(knee, 0.0f), 1.0f)},
+                       {"uWhitening", std::min(amount, 1.0f)}});
 }
 
 Effect Effect::emit(const Effect& light, SkBlendMode mode) const {
@@ -71,7 +61,8 @@ Effect Effect::emit(const Effect& light, SkBlendMode mode) const {
     e.m_chainBlend = mode;
     return e;
   }
-  e.m_filter = SkImageFilters::Blend(mode, liftedFilter(), light.liftedFilter());
+  e.m_filter =
+      SkImageFilters::Blend(mode, liftedFilter(), light.liftedFilter());
   return e;
 }
 

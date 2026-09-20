@@ -30,15 +30,31 @@ struct Effect::BlurLevels {
   sk_sp<SkImageFilter> half, full;
 };
 
-/** The programs a bloom is made of: the bright pass on its own, the
- *  gather, and the one tap of each that lays the gather's answer back
- *  over the sharp source. */
-sk_sp<SkRuntimeEffect> bloomProgram(const char* door, const char* file);
+/** WHICH BODY OF THE EFFECT'S OWN, and the order they stand in.
+ *
+ *  The order is part of the name a device backend can be asked to give
+ *  each program, and a name written down on one run is read back on the
+ *  next — so an entry is added at the end and none is ever moved. */
+enum class EffectProgram {
+  BrightPass,         ///< what is brighter than a gate, as its own coverage
+  PhosphorHalo,       ///< the gather a bloom spreads its light with
+  PhosphorComposite,  ///< the tap that lays the gather back over the source
+  HaloDeepening,      ///< a fading halo sinking toward its strongest channel
+  CoreWhitening,      ///< a lit source moving toward white at its own peak
+  ParametricBlurMix,  ///< the mix between the fixed levels of a blur pyramid
+  Count,
+};
 
-/** A COLOUR-FILTER program from the library's own shader table — a body
- *  written `half4 main(half4 color)`, which reads one pixel and reaches
- *  no neighbour. */
-sk_sp<SkRuntimeEffect> colourProgram(const char* file);
+/** THE ONE COMPILED PROGRAM FOR @p which. Every call site and
+ *  `everyEffectProgram()` are handed the SAME object, because a backend
+ *  that gives a program a stable name gives it to the object and cannot
+ *  recognise a second copy compiled from the same source. Null when that
+ *  body would not compile, which is reported once.
+ *
+ *  Asking for one compiles them all: the list has to be whole and in one
+ *  order before any of it can be named, and the bodies are small beside
+ *  the device programs they are inlined into. */
+const sk_sp<SkRuntimeEffect>& effectProgram(EffectProgram which);
 
 /** The bloom's filter DAG: reduce, gather, enlarge, composite. */
 sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
