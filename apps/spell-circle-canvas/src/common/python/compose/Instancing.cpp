@@ -775,12 +775,22 @@ void bindPool(py::module_& module) {
            "Makes the pool `count` instances long. An appended instance "
            "stands at the origin, unrotated, at unit scale, untinted, on "
            "frame zero.")
-      .def("size", &Pool::size)
+      .def("size", &Pool::size, "How many instances the pool holds.")
       .def("__len__", &Pool::size)
-      .def("hasTexWindows", &Pool::hasTexWindows)
-      .def("hasSizes", &Pool::hasSizes)
-      .def("hasAlphas", &Pool::hasAlphas)
-      .def("hasFlights", &Pool::hasFlights)
+      .def("hasTexWindows", &Pool::hasTexWindows,
+           "Whether the window lane stands at the pool's length, which is "
+           "what makes the stamp read it.")
+      .def("hasSizes", &Pool::hasSizes,
+           "Whether the size lane stands at the pool's length, which is "
+           "what makes the stamp read it.")
+      .def("hasAlphas", &Pool::hasAlphas,
+           "Whether the opacity lane stands at the pool's length, which is "
+           "what makes the stamp read it.")
+      .def("hasFlights", &Pool::hasFlights,
+           "Whether the pool carries the flight lane at all. A lane the "
+           "pool has grown past is still the pool's: the instances "
+           "appended to it materialise at rest at the next read or step, "
+           "and `clear()` is what drops it.")
       .def(
           "fly",
           [](Pool& self, float seconds, py::handle ease) {
@@ -797,7 +807,10 @@ void bindPool(py::module_& module) {
            "Publishes what was written through the lanes: the next "
            "describe carries a new revision, so a `Mode.Data` leaf "
            "repaints once.")
-      .def("revision", &Pool::revision);
+      .def("revision", &Pool::revision,
+           "What the pool has published, counted: `add`, `resize`, `clear`, "
+           "`commit` and a step of its flights each make it a different "
+           "number, and a lane write alone does not.");
   poolLane<SkPoint>(
       pool, "positions", +[](Pool& self) { return self.positions(); },
       "Where each instance's cell is centred.");
@@ -906,7 +919,8 @@ void bindCellSheet(py::module_& module) {
            "How stamps sample the baked sheet. Linear suits soft sprites "
            "and softens every edge of deliberately blocky art; pass "
            "Nearest for a tilemap or a bitmap font.")
-      .def("filter", py::overload_cast<>(&CellSheet::filter, py::const_))
+      .def("filter", py::overload_cast<>(&CellSheet::filter, py::const_),
+           "How stamps sample the baked sheet as it stands.")
       .def(
           "cell",
           [cellSize](CellSheet& self, const Element& tree,
@@ -940,14 +954,19 @@ void bindCellSheet(py::module_& module) {
           py::arg("count"), py::arg("make"),
           "The same, where every variant answers a tree and its own size, "
           "so there is no shared one to state.")
-      .def("frameCount", &CellSheet::frameCount)
+      .def("frameCount", &CellSheet::frameCount,
+           "How many cells the sheet has registered, which is one more than "
+           "the last frame index it answers for.")
       .def("frameSize", &CellSheet::frameSize, py::arg("frame"),
            "The logical size of `frame`, or an empty size for a frame "
            "the sheet does not have.")
       .def("frameTex", &CellSheet::frameTex, py::arg("frame"),
            "Where `frame` was baked, in the sheet's own pixels; empty "
            "until the sheet has baked.")
-      .def("oversample", &CellSheet::oversample)
+      .def("oversample", &CellSheet::oversample,
+           "How many baked pixels stand behind one logical pixel along each "
+           "axis. The sheet keeps at least a half, whatever it was built "
+           "with.")
       .def("revision", &CellSheet::revision,
            "What the sheet has become, counted: a registration or a filter "
            "change makes it a different picture.")
