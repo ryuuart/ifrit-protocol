@@ -22,9 +22,7 @@ def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
     table.parameters(MESH + ".box", lo="_t.Vec3Like", hi="_t.Vec3Like")
     table.parameters(MESH + ".superellipsoid", radii="_t.Vec3Like")
-    table.parameters(
-        MESH + ".revolve", profile="collections.abc.Sequence[_t.Vec2Like]"
-    )
+    table.parameters(MESH + ".revolve", profile="collections.abc.Sequence[_t.Vec2Like]")
     # WHAT THE FORMULA ANSWERS DECIDES WHICH GRID IS CALLED: a position
     # on its own is differenced, and a position with its normal is taken
     # at its word, which is what `normals=True` asks for.
@@ -54,13 +52,9 @@ def register(table: Table) -> None:
         MESH_CLASS + ".setPrimitive",
         values="collections.abc.Sequence[_t.Vec4Like]",
     )
-    table.parameters(
-        MESH + ".normalized", vector="_t.Vec3Like", fallback="_t.Vec3Like"
-    )
+    table.parameters(MESH + ".normalized", vector="_t.Vec3Like", fallback="_t.Vec3Like")
     table.returns(MESH, "normalized", "_t.Vec3")
-    table.parameters(
-        MESH + ".basisFor", direction="_t.Vec3Like", up="_t.Vec3Like"
-    )
+    table.parameters(MESH + ".basisFor", direction="_t.Vec3Like", up="_t.Vec3Like")
     table.returns(MESH, "basisFor", "tuple[_t.Vec3, _t.Vec3, _t.Vec3]")
     table.returns(MESH, "faceCentroid faceNormal", "_t.Vec3")
     table.parameters(MESH + ".faceUp", up="_t.Vec3Like")
