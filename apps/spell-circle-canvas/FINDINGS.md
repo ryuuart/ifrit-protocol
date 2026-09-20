@@ -22,69 +22,6 @@ JUKUGO and KENTEN must not — closes this entry. The library behaviour is
 already asserted by `ComposeAnnotate` and `TextVertical`; what a test
 cannot see is which unit a specimen names, so the plate is the check.
 
-## An outward rail doubles back at every arc join
-
-`src/common/geometry/path/Contour.cpp` writes a join at the distance
-`Contour::corners` bisects to, and `bisect` answers the far end of its
-bracket, so the corner's recorded distance lands just past the real
-vertex. The sample at the vertex is therefore emitted before the join's
-entering point, and `swallowedByJoin` drops a sample only inside a
-MITER's reach — an arc join, which is what a turn away from the offset
-side opens, stands for no sample at all. A constant outward rail
-(`parallel` on a clockwise polygon) and a varying one (`profileOffset`,
-which shares the same body) both zigzag by well under a sample step at
-every corner, and the rail self-crosses there.
-
-A join stands for its vertex, so a sample at that vertex is a place the
-join has already answered and must be dropped whether the join is a
-miter or an arc. A regression should offset a clockwise polygon outward,
-at several scales, with a constant profile and with a varying one, and
-assert the rail has no self-crossing at any corner. Closing it moves
-every constant rail's point list — `operations::offset`,
-`edges::insetOutline` and every constant band — so the plate tier is the
-cost of the fix.
-
-## A corner sharper than a right angle keeps a spur the miter window misses
-
-`swallowedByJoin` drops samples within `join.radius` either side of a
-miter, while the miter overshoots the vertex along the contour by the
-offset divided by the tangent of half the interior angle. The two are
-equal at a right angle, smaller above it and larger below, so a corner
-sharper than 90° leaves samples the miter already answered for standing
-in the rail, and each one closes a small loop toward the offset side. A
-four-point zigzag with sharply acute corners shows one loop per turn, on
-a constant rail and on a varying one alike.
-
-The window should be the reach the join actually takes, which
-`offsetJoins` already computes as `reach` when it strikes the miter
-point. A regression should offset a polyline whose interior angles run
-from obtuse through 90° to sharply acute, on both sides, and assert no
-corner loop at any of them, with the rails at 90° and wider unchanged to
-the bit. Only plates holding corners sharper than a right angle move.
-
-## The chord between two of a strand's contours is walked as a strand
-
-`flat()` in `src/common/geometry/path/Crossings.cpp` repeats a contour's
-last point at a break, and the comment beside it says this lets the
-segment loop skip the join. It skips half of it: the duplicated pair is
-zero length and is dropped by the `r.length() <= 1e-6f` guard, but the
-pair that follows runs from the previous contour's last point to the
-next contour's first and is intersected like any other segment. What
-suppresses a hit on that chord today is the run rule in `changesSides`,
-which refuses a probe that cannot step past an open contour's end;
-where the contour before the break is CLOSED the suppression is instead
-the seam wrap, which probes geometry that has nothing to do with the
-chord.
-
-A chord between two contours is part of neither mark and should never be
-intersected. The run indices `Flat::Run` records make the skip a test on
-the segment index. A regression should hand `discoverCrossings` a
-two-contour strand whose contours are closed and whose join chord is met
-by another strand running nearly along it, and assert no crossing on the
-chord while the crossings on both contours still answer. The comment in
-`flat()` overstates what the duplicate point buys and should be
-corrected whether or not the segment is skipped.
-
 ## `Element::fill` refuses the material its own surface value accepts
 
 `compose::SurfacePaint` has an implicit constructor from
