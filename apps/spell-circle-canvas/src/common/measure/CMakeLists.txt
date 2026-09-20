@@ -5,14 +5,14 @@
 # Boost.Container header the compact, ordered counter table is built on.
 #
 # Every public header lives under one include root, include/sigilmeasure/.
-# <sigilmeasure/Measure.h> is the umbrella header over every feature.
 sigil_library_root(SigilMeasure
-  BRIEF "Timing, statistics and check reporting, with compact ordered counter storage")
+  BRIEF "Timing, statistics and check reporting, with compact ordered counter storage"
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
 
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilMeasure
   SOURCES check/Check.cpp
-  HEADERS Measure.h check/Check.h
+  HEADERS check/Check.h
           stats/Counters.h stats/Fit.h stats/FrameSample.h stats/Histogram.h
           stats/Moments.h stats/Rescale.h stats/Samples.h
           time/FrameTimer.h time/Laps.h time/Stopwatch.h

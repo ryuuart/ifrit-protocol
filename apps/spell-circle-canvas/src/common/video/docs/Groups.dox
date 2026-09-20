@@ -1,8 +1,6 @@
-#pragma once
-
-/** @file
- * Every public SigilVideo header in one include.
- */
+// The documentation groups whose members are spread over several of this
+// library's headers, declared where no header has to include another to
+// reach them.
 
 /** @defgroup video-decode Streaming decode
  *  Encoded bytes opened as a seekable clip, the frames decoded around a
@@ -16,8 +14,3 @@
  *  container.
  *  @{ */
 /** @} */
-
-#include "sigilvideo/Types.h"
-#include "sigilvideo/decode/Decode.h"
-#include "sigilvideo/decode/Playback.h"
-#include "sigilvideo/encode/Encode.h"

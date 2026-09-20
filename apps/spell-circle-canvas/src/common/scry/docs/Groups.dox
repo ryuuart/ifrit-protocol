@@ -1,0 +1,15 @@
+// The documentation groups whose members are spread over several of this
+// library's headers, declared where no header has to include another to
+// reach them.
+
+/** @defgroup scry-engine The engine
+ *  The headless browser itself: the engine, the views loaded into it,
+ *  and the image each view's pixels arrive as.
+ *  @{ */
+/** @} */
+
+/** @defgroup scry-platform The platform seam
+ *  What the engine asks of its host — files, logging, surfaces — and
+ *  the levels a log line carries.
+ *  @{ */
+/** @} */

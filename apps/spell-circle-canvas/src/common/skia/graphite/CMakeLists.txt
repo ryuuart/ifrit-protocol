@@ -35,7 +35,7 @@ sigil_library(SigilSkiaGraphite
           OffscreenSurface.cpp OffscreenSurfaceOnDevice.cpp
           OffscreenSurfaceVulkan.cpp PaintOrder.cpp Pixels.cpp
           ${SIGIL_SKIA_GRAPHITE_METAL_SOURCES}
-  HEADERS ../Skia.h GraphiteContext.h OffscreenSurface.h PaintOrder.h
+  HEADERS GraphiteContext.h OffscreenSurface.h PaintOrder.h
           Pixels.h TextureImage.h
   PUBLIC unofficial::skia::skia SigilCoreHardware
   PRIVATE Vulkan::Headers Boost::unordered)

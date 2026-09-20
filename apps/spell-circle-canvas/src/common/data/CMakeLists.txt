@@ -9,9 +9,9 @@
 #
 # Every public header lives under one include root, include/sigildata/
 # <feature>/, so a feature adds the root and spells its own directory.
-# <sigildata/Data.h> is the umbrella header over every feature.
 sigil_library_root(SigilData
-  BRIEF "Tabular data and scales: typed columns, and the one value that maps a domain onto a range")
+  BRIEF "Tabular data and scales: typed columns, and the one value that maps a domain onto a range"
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
 
 # Dependencies point down this list.
 add_subdirectory(scale)
@@ -25,7 +25,6 @@ add_subdirectory(connection)
 # umbrella links the hub as well: a connection is a feed read as values,
 # and there is no feed without the hub that opens it.
 sigil_library(SigilData
-  HEADERS Data.h
   INTERFACE SigilDataScale SigilDataTable SigilDataDecode SigilDataValues
             SigilDataQuery SigilDataConnection)
 

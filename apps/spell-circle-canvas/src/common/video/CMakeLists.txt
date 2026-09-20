@@ -2,7 +2,8 @@
 # device executor for native decoded frames and a CPU executor for every
 # surface that can accept pixels.
 sigil_library_root(SigilVideo
-  BRIEF "Streaming video decoding, device composition, and video encoding")
+  BRIEF "Streaming video decoding, device composition, and video encoding"
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
 
 find_package(concurrentqueue CONFIG REQUIRED)
 find_package(FFMPEG REQUIRED)
@@ -46,7 +47,6 @@ add_subdirectory(decode)
 add_subdirectory(encode)
 
 sigil_library(SigilVideo
-  HEADERS Video.h
   INTERFACE SigilVideoDecode SigilVideoEncode)
 
 # Every API name the prose spells, compiled against the headers that own

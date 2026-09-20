@@ -17,8 +17,7 @@ Namespace `sigil::measure`, target `SigilMeasure`. Timing and statistics are
 inline; check formatting lives in the library's one compiled source file.
 The same target supplies the headers and their implementation. Every public header
 lives under `include/sigilmeasure/<feature>/` and is spelled
-`<sigilmeasure/<feature>/X.h>`, and `<sigilmeasure/Measure.h>` includes
-them all:
+`<sigilmeasure/<feature>/X.h>`:
 
 | header | holds |
 |--------|-------|
@@ -37,7 +36,9 @@ them all:
 ## Using it
 
 ```cpp
-#include <sigilmeasure/Measure.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmeasure/time/FrameTimer.h>
+#include <sigilmeasure/time/Laps.h>
 
 using namespace sigil::measure;
 

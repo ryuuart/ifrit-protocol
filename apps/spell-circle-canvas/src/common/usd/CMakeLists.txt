@@ -6,7 +6,7 @@
 # SigilGeometry, SigilMaterial and the world's light values; nothing links
 # it but its tests, its demo hooks and whoever wants a stage.
 #
-# <sigilusd/Usd.h> is the umbrella header. The fixtures every binary here
+# The fixtures every binary here
 # shares — the scratch path, the runtime skip and the scene both doors are
 # exercised over — sit in test/.
 #

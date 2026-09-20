@@ -12,7 +12,7 @@ find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilScryEngine
   SOURCES Bringup.cpp Engine.cpp EngineImpl.h Image.cpp ImageImpl.h View.cpp
           ViewImpl.cpp ViewImpl.h WebThread.cpp
-  HEADERS ../Scry.h WebEngine.h WebImage.h WebView.h
+  HEADERS WebEngine.h WebImage.h WebView.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../platform
                   ${CMAKE_CURRENT_LIST_DIR}/../gpu
   PUBLIC SigilScryPlatform SigilScryGpu SigilSkiaGraphite SigilCoreHardware

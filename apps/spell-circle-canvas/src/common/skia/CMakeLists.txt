@@ -12,11 +12,12 @@
 # its handles and its fences know nothing of Skia, so a Diligent renderer
 # and Graphite stand on the same one. Both features here link it.
 #
-# <sigilskia/Skia.h> is the umbrella header over the graphite feature;
-# the draw feature and the Qt adapters are each included by their own
-# header. Nothing here knows what is being drawn.
+# Every feature's headers are included by name: the graphite feature's
+# context, surfaces and pixel reads, the draw feature's two canvas ops,
+# and the Qt adapters. Nothing here knows what is being drawn.
 sigil_library_root(SigilSkia
-  BRIEF "Skia Graphite bring-up on a Metal or Vulkan device someone else owns")
+  BRIEF "Skia Graphite bring-up on a Metal or Vulkan device someone else owns"
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
 
 # Dependencies point up this list.
 add_subdirectory(draw)

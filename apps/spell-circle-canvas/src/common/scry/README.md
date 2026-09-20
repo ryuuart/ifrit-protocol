@@ -17,9 +17,8 @@ header lives under `include/sigilscry/<feature>/` and is spelled
 | `SigilScryGpu`      | — | Ultralight's GPU command lists executed on a SigilCoreHardware `GpuDevice`, and the texture interop the engine needs beyond that; the graphics-API-neutral contract and its Metal implementation are internal |
 | `SigilScryEngine`   | `engine/WebEngine.h`, `engine/WebView.h`, `engine/WebImage.h` | `WebEngineConfig`, `ViewOptions` and `WebEngine`; `WebView` and its `Frame`; `WebImage` |
 
-`SigilScry` is the umbrella target over all three, and
-`<sigilscry/Scry.h>` the umbrella header. A consumer links `SigilScry`
-and includes the engine headers; the platform and gpu features are the
+`SigilScry` is the umbrella target over all three. A consumer links
+`SigilScry` and includes the engine headers; the platform and gpu features are the
 engine's, and their internal headers name Ultralight types, which is why
 they stay beside their sources rather than under the include root —
 Ultralight is private to the library and no public header includes it.

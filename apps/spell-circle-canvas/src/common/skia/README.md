@@ -19,8 +19,8 @@ Graphite on whatever device it is handed and reads it through the entry
 points below.
 
 Namespace `sigil::skia`. Headers live under `<sigilskia/<feature>/...>`;
-`<sigilskia/Skia.h>` is the umbrella over the graphite feature; the draw
-feature is included by its own header, `<sigilskia/draw/Direct.h>`.
+every header is included by name, the draw feature's through
+`<sigilskia/draw/Direct.h>`.
 
 ## Features
 
@@ -48,7 +48,7 @@ Stand the context up once, from handles you already have, and keep it
 alive for as long as you draw:
 
 ```cpp
-#include <sigilskia/Skia.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 // From raw Metal handles (id<MTLDevice> / id<MTLCommandQueue> bridged to
 // void*):
@@ -166,7 +166,8 @@ signal are the same three calls whichever backend the device is:
 
 ```cpp
 #include <sigilcore/hardware/GpuDevice.h>
-#include <sigilskia/Skia.h>
+#include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilskia/graphite/OffscreenSurface.h>
 using namespace sigil::core::hardware;
 using sigil::skia::GraphiteContext;
 using sigil::skia::OffscreenSurface;

@@ -32,9 +32,8 @@ what a consumer uses; every public header lives under
 | `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken once it has asked for them, the handlers a message's name reaches and the `Connection::otherwise()` one that runs when no name did, the two ways a message goes back out the same door, the schema a door may read and write every message through, and `Connection::reply()`, which answers the sender of one |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Access`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, whose `writes()` says whether a statement would change the store before it runs, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub for reading only |
 
-`SigilData` is the umbrella target over them, and `<sigildata/Data.h>`
-the umbrella header. Every one of them reads bytes somebody else
-resolved, except the connection: it stands on SigilIO's hub, so what
+`SigilData` is the umbrella target over them. Every one of them reads
+bytes somebody else resolved, except the connection: it stands on SigilIO's hub, so what
 links the umbrella links the hub with it.
 
 ## Using it

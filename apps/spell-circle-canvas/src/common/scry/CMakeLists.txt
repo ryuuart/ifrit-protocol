@@ -9,7 +9,7 @@
 # the views that publish frames and the image slots pages display.
 # `SigilScry` is the umbrella over all three.
 #
-# <sigilscry/Scry.h> is the umbrella header. The platform and gpu
+# The platform and gpu
 # features also carry headers that name Ultralight types; Ultralight is
 # private to the library, so those stay beside their sources and the
 # engine feature reaches them by directory rather than the include root.
@@ -29,7 +29,8 @@ if(NOT Ultralight_FOUND)
 endif()
 
 sigil_library_root(SigilScry
-  BRIEF "A headless web engine whose HTML, CSS and JavaScript output arrives as Skia images")
+  BRIEF "A headless web engine whose HTML, CSS and JavaScript output arrives as Skia images"
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
 
 # Dependencies point up this list.
 add_subdirectory(platform)
