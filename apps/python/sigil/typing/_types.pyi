@@ -31,7 +31,10 @@ __all__ = [
     "JsonInput",
     "JsonValue",
     "JustifyLike",
+    "KeyedShapeFunction",
     "MotionCallback",
+    "PaintProgram",
+    "PenProgram",
     "PointBatch",
     "PointLike",
     "RadianceFunction",
@@ -154,6 +157,28 @@ DecorationLike: TypeAlias = (
 )
 PointBatch: TypeAlias = Buffer | Iterable[PointLike]
 DrawCallback: TypeAlias = Callable[[_sigil.draw.Pen], None]
+PaintProgram: TypeAlias = (
+    Callable[[], None]
+    | Callable[[_sigil.draw.Canvas], None]
+    | Callable[[_sigil.draw.Canvas, _sigil.compose.PaintContext], None]
+)
+"""WHAT A CUSTOM LEAF PAINTS WITH. A program names the parameters it
+reads, from the first: nothing, the canvas, or the canvas and the paint
+context of the node. Both are lent for the one call and refuse every
+reading once it has returned, so neither is kept past it."""
+PenProgram: TypeAlias = (
+    Callable[[], None]
+    | Callable[[_sigil.draw.Pen], None]
+    | Callable[[_sigil.draw.Pen, _sigil.compose.PaintContext], None]
+)
+"""WHAT A PEN LEAF AND A GRAPHICS LEAF RUN EACH FRAME, on the same terms
+as a paint program with the node's pen in place of the canvas."""
+KeyedShapeFunction: TypeAlias = ShapeFunction | Callable[[], _sigil.skia.Path]
+"""THE OUTLINE A KEYED SHAPE GENERATES, over the box's width and height,
+or over nothing when the path is the same whatever the box is. The key
+beside it is the identity: everything the function reads belongs in the
+key, because a node whose key is unchanged replays the picture it
+recorded."""
 ScalarFunction: TypeAlias = Callable[[float], float]
 EaseLike: TypeAlias = _sigil.motion.Easing | _sigil.motion.Curve | ScalarFunction | None
 GradientStops: TypeAlias = Iterable[tuple[FloatLike, ColorLike]]

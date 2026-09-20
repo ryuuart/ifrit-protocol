@@ -112,8 +112,6 @@ def {edge}(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.Dimens
         "_t.FloatLike | _sigil.weave.Length | None",
         "_t.ColorLike | None",
     )
-    for name in ("pen", "graphics"):
-        table.parameters(f"_sigil.compose.{name}", program="_t.DrawCallback")
     table.declares(
         "_sigil.compose",
         "memo",
