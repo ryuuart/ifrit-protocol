@@ -115,26 +115,39 @@ RowCopy rowAt(const feed::Ring<Value>& ring, py::ssize_t index) {
  *  same copies `rows` answers, so iterating a ring while appending to it
  *  walks the rows that stood when the iteration began. */
 template <class Value, class Append>
-void bindRing(py::module_& module, const char* name, Append append) {
+void bindRing(py::module_& module, const char* name, const char* documentation,
+              Append append, const char* appendDocumentation) {
   using Ring = feed::Ring<Value>;
-  py::class_<Ring> ring(module, name);
-  ring.def(py::init<std::size_t>(), py::arg("capacity") = 512)
-      .def("append", append, py::arg("value"))
-      .def("clear", &Ring::clear)
-      .def("rows", [](const Ring& self) { return copiedRows(self); })
-      .def("size", &Ring::size)
-      .def("empty", &Ring::empty)
-      .def("capacity", &Ring::capacity)
-      .def("nextSequence", &Ring::nextSequence)
+  py::class_<Ring> ring(module, name, documentation);
+  ring.def(py::init<std::size_t>(), py::arg("capacity") = 512,
+           "An empty ring that keeps the newest `capacity` rows.")
+      .def("append", append, py::arg("value"), appendDocumentation)
+      .def("clear", &Ring::clear,
+           "Drops every row. The sequence ids go on from where they were, so "
+           "a ring that fills again mounts fresh rows rather than matching "
+           "the ones it dropped.")
+      .def(
+          "rows", [](const Ring& self) { return copiedRows(self); },
+          "Every row the ring holds, oldest first, as copies.")
+      .def("size", &Ring::size, "How many rows the ring holds.")
+      .def("empty", &Ring::empty, "Whether the ring holds no row.")
+      .def("capacity", &Ring::capacity, "How many rows the ring keeps.")
+      .def("nextSequence", &Ring::nextSequence,
+           "The sequence id the next append takes.")
       .def("copy", [](const Ring& self) { return self; })
       .def("__len__", &Ring::size)
       .def(
           "__getitem__",
-          [](const Ring& self, py::ssize_t index) { return rowAt(self, index); },
-          py::arg("index"))
-      .def("__iter__", [](const Ring& self) {
-        return py::iter(py::cast(copiedRows(self)));
-      });
+          [](const Ring& self, py::ssize_t index) {
+            return rowAt(self, index);
+          },
+          py::arg("index"),
+          "The row at `index` counted from the oldest, or from the newest "
+          "when it is negative, copied.")
+      .def(
+          "__iter__",
+          [](const Ring& self) { return py::iter(py::cast(copiedRows(self))); },
+          "Iterates over copies of the rows that stand now, oldest first.");
   copyProtocol(ring);
 }
 
@@ -165,18 +178,34 @@ Element feedOf(const feed::Ring<Value>& ring, const feed::Options& options,
 void bindRecords(py::module_& module) {
   auto options =
       bindRecord<feed::Options>(module, "Options", "Unknown Options field: ");
-  options.def_readwrite("visible", &feed::Options::visible)
-      .def_readwrite("gap", &feed::Options::gap)
+  options.doc() = "How a feed lays its rows out. Comparable.";
+  options
+      .def_readwrite("visible", &feed::Options::visible,
+                     "The window: only the newest `visible` rows are built, "
+                     "so the rest of a long ring are not mounted, laid out or "
+                     "painted.")
+      .def_readwrite("gap", &feed::Options::gap,
+                     "The space between rows, along the column.")
       .def(py::self == py::self);
   // The entrance is written in the schedule vocabulary, which another
   // file registers ahead of this one. A property's signature is written
   // when it is registered, so the field is offered once that value has a
   // Python name to be read back under.
   if (py::detail::get_type_info(typeid(motion::Spread)))
-    options.def_readwrite("entrance", &feed::Options::entrance);
+    options.def_readwrite(
+        "entrance", &feed::Options::entrance,
+        "The entrance cascade for rows that mount: `eachMs` is the delay "
+        "step and `from` is where the cascade starts. It delays only rows "
+        "that mount, so the first describe cascades the window and a later "
+        "append enters at once. Zero mounts every row immediately.");
 
   auto textRow =
       bindRecord<feed::TextRow>(module, "TextRow", "Unknown TextRow field: ");
+  textRow.doc() =
+      "A text row: the line, and the name of the style it is set in. The "
+      "name is resolved against a style sheet when the row is built, so a "
+      "name the sheet does not carry, the empty one included, takes the "
+      "sheet's base style.";
   // The line is held as the bytes the shaping vocabulary takes; Python
   // reads and writes it as a string.
   textRow
@@ -186,60 +215,104 @@ void bindRecords(py::module_& module) {
             const std::u8string& bytes = row.text.bytes();
             return std::string(bytes.begin(), bytes.end());
           },
-          [](feed::TextRow& row, const std::string& text) { row.text = text; })
-      .def_readwrite("style", &feed::TextRow::style)
+          [](feed::TextRow& row, const std::string& text) { row.text = text; },
+          "The line.")
+      .def_readwrite("style", &feed::TextRow::style,
+                     "The name of the style the line is set in.")
       .def(py::self == py::self);
 
   // The window and the styles are read as references into the record, so
   // `options.window.gap = 0` and `options.styles.set(...)` write through.
   auto textOptions = bindRecord<feed::TextOptions>(
       module, "TextOptions", "Unknown TextOptions field: ");
-  textOptions.def_readwrite("window", &feed::TextOptions::window)
-      .def_readwrite("styles", &feed::TextOptions::styles)
+  textOptions.doc() =
+      "A text feed's whole appearance: the layout and the styles its rows "
+      "name. Comparable.";
+  textOptions
+      .def_readwrite("window", &feed::TextOptions::window,
+                     "How the rows are laid out.")
+      .def_readwrite("styles", &feed::TextOptions::styles,
+                     "Row style by name. The base style sets every row that "
+                     "names nothing.")
       .def(py::self == py::self);
 
   auto row = bindRecord<RowCopy>(module, "Row", "Unknown Row field: ");
-  row.def_readwrite("sequence", &RowCopy::sequence)
-      .def_readwrite("value", &RowCopy::value)
+  row.doc() =
+      "One row as a ring holds it, copied out: the value under the "
+      "sequence id that keys it for as long as it is on screen.";
+  row.def_readwrite("sequence", &RowCopy::sequence,
+                    "The row's sequence id. Ids start at one and never "
+                    "repeat, across `clear()` included.")
+      .def_readwrite("value", &RowCopy::value,
+                     "What was appended: a TextRow from a text ring, and "
+                     "from a ring of Python's own values the value itself.")
       .def(py::self == py::self);
 }
 
 void bindRings(py::module_& module) {
-  bindRing<feed::TextRow>(module, "TextRing",
-                          [](feed::TextRing& self, feed::TextRow value) {
-                            return self.append(std::move(value));
-                          });
+  constexpr const char* appended =
+      "Appends one row, drops the oldest once the ring is past its capacity, "
+      "and answers the sequence id the row took.";
+  bindRing<feed::TextRow>(
+      module, "TextRing",
+      "Append-only retention of text rows under sequence ids that never "
+      "repeat: the newest `capacity` rows, oldest first.",
+      [](feed::TextRing& self, feed::TextRow value) {
+        return self.append(std::move(value));
+      },
+      appended);
   // The ring of Python's own values: a row is whatever was appended, and
   // a row function is handed it back.
-  bindRing<PythonRow>(module, "Ring", [](PythonRing& self, py::object value) {
-    return self.append(PythonRow{retainValue(std::move(value))});
-  });
+  bindRing<PythonRow>(
+      module, "Ring",
+      "Append-only retention of any Python values under sequence ids that "
+      "never repeat: the newest `capacity` rows, oldest first. Two rows "
+      "compare equal when Python says their values do.",
+      [](PythonRing& self, py::object value) {
+        return self.append(PythonRow{retainValue(std::move(value))});
+      },
+      appended);
 }
 
 void bindColumns(py::module_& module) {
-  module.def("rowKey", &feed::rowKey, py::arg("sequence"));
-  module.def("textRow", &feed::textRow, py::arg("row"), py::arg("styles"));
+  module.def("rowKey", &feed::rowKey, py::arg("sequence"),
+             "The key a feed writes on the row under `sequence`. A column "
+             "built by hand writes the same one for its rows to match "
+             "across describes.");
+  module.def("textRow", &feed::textRow, py::arg("row"), py::arg("styles"),
+             "One text row as an element: what a text feed builds for each "
+             "row, without the key the feed puts on it.");
   module.def(
       "feed",
       [](const feed::TextRing& ring, const feed::TextOptions& options) {
         return feed::feed(ring, options);
       },
-      py::arg("ring"), py::arg("options"));
+      py::arg("ring"), py::arg("options"),
+      "The text feed: the newest rows, each set in the style it names, "
+      "keyed by its sequence id, in a clipped column.");
   // Styled by whichever native scope provides the text options on this
   // thread, and by default-constructed options where none does.
   module.def(
       "feed", [](const feed::TextRing& ring) { return feed::feed(ring); },
-      py::arg("ring"));
+      py::arg("ring"),
+      "The text feed under the options a native scope provides, or the "
+      "default ones.");
   module.def(
       "feed",
       [](const feed::TextRing& ring, const feed::Options& options,
          const py::function& row) { return feedOf(ring, options, row); },
-      py::arg("ring"), py::arg("options"), py::arg("row"));
+      py::arg("ring"), py::arg("options"), py::arg("row"),
+      "The newest rows of a text ring, each built by the row function "
+      "from a copy of its TextRow. The function is called once for every "
+      "visible row before this returns and is not kept, and the key it "
+      "set is replaced by the row's own.");
   module.def(
       "feed",
       [](const PythonRing& ring, const feed::Options& options,
          const py::function& row) { return feedOf(ring, options, row); },
-      py::arg("ring"), py::arg("options"), py::arg("row"));
+      py::arg("ring"), py::arg("options"), py::arg("row"),
+      "The newest rows of a ring, each built by the row function from the "
+      "value that was appended.");
 }
 }  // namespace
 
