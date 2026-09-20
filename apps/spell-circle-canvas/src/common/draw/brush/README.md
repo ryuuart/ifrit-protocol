@@ -144,6 +144,57 @@ the drift the bends accumulate is taken back out along the way, so the
 outline sits on the wash's edge and the shape closes. Two engines draw
 through one pen without seeing each other's state.
 
+### The dynamics, the shape and the grain
+
+Three things an imported brush arrives as, and three a tool has none of
+until one is given.
+
+**A dynamic is a curve over a unit input.** `Drive` says which input:
+pressure is the stylus pressure with the tool's envelope along the
+stroke already applied, velocity is the dab's speed against the tool's
+reference speed — one at the reference and above it beyond — and tilt is
+zero for an upright stylus and one for a stylus flat against the
+surface. Every drive arrives as a unit value, which is what lets one
+curve type serve all three.
+
+`Curve::minimum` is the answer at zero and `Curve::maximum` the answer at
+one; `Curve::bend` shapes the ramp between them — one is straight, above
+one holds near the minimum until late in the range, below one rises
+early. A `Curve::curve` of the caller's own replaces all three and is not
+clamped to the two ends. The answer is a MULTIPLIER on what the tool
+already says, so a flat curve at one changes nothing, and `Dynamics` is
+three optional responses on the same terms: size scales the stamp,
+opacity scales the tool's load, and flow scales the alpha of the one dab.
+There is no buffer between a dab and the canvas, so the two alphas
+multiply into the same place; they are separate because one may follow
+the stylus while the other follows the hand.
+
+**A shape states its stroke against the stamp.** `Shape::spacing`,
+`Shape::scatter` and `Shape::angleJitter` are FRACTIONS OF THE TOOL'S
+WIDTH, where the tool's own spacing and scatter are canvas units, and a
+tool carrying a shape is spaced and scattered by these. A spacing of a
+tenth is a dense continuous mark and one is a chain of separate stamps;
+scatter moves each stamp off the centreline by up to that fraction of the
+width in both axes; the angle jitter turns each stamp by up to that many
+radians either way, on top of whatever the tool's rotation answers.
+`ImageMask` says which channel of the artwork is the coverage: the
+inverted luminance a scanned tip is, or an authored alpha channel.
+
+**A grain is a texture the whole mark is laid through.** Its LUMINANCE is
+its coverage: the mark survives where the texture is white and is taken
+away where it is black. `Grain::depth` is how much may be taken — zero
+leaves the mark untouched and one lets black erase it completely — and
+`Grain::scale` multiplies the texture's pixel size in the pen's space.
+The texture tiles in both axes, so a small tile covers a whole canvas.
+
+`GrainSpace` is where it stands still. In stroke space the texture is
+fixed in the pen's space, so two marks crossing the same place meet the
+same texture and the stroke reads as pigment caught on a surface. In dab
+space the texture rides each stamp, turning and travelling with it, so it
+reads as the tip's own material. A dab-space grain has to ride a stamp,
+so it applies to a shape tip; every other tip deposits as one sprite
+batch and takes its grain in stroke space whichever space is asked for.
+
 ### Custom brushes
 
 A tool built from pictures is the brush a painting program means by the

@@ -12,7 +12,8 @@
 # library and reach down to it.
 sigil_library_root(SigilDraw
   BRIEF "An immediate-mode canvas with p5's verbs, over Skia, material paints and shaped text"
-  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/GRAPHICS.md)
 
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 
@@ -72,12 +73,15 @@ sigil_bench(draw_bench
 sigil_doc_probes(draw
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/brush/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/GRAPHICS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Pen.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/path
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/skia
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
   PRELUDES "<sigilgeometry/path/Polyline.h>"
            "<sigilgeometry/path/Lattice.h>"
+           "<sigilgeometry/path/Noise.h>"
            "<sigilweave/paragraph/Paragraph.h>"
   EXCLUDE "sigil::sketch=SigilSketch stands on this library, so its names are named and not probed"
           "sigil::compose=SigilCompose stands on this library, so its names are named and not probed"
@@ -85,5 +89,5 @@ sigil_doc_probes(draw
           "sketch::SketchContext=SigilSketch stands on this library, so its names are named and not probed"
                     "compose::pen=SigilCompose stands on this library, so its names are named and not probed"
           "compose::graphics=SigilCompose stands on this library, so its names are named and not probed"
-  FLOORS 20,3,1,0,5
+  FLOORS 28,10,40,0,6
   LIBRARIES SigilDraw SigilDrawBrush SigilIOSource SigilWeavePorts)
