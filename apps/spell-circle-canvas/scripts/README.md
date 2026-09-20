@@ -194,7 +194,7 @@ group that belongs to another library, a stray token that closes the
 block early — and none of that is visible in the source. Nothing is
 generated: no HTML, no XML, no tag file, only the warning log. A
 library is swept when the scope holds a header, a README or a chapter
-under it, so the default scope sweeps what the branch touched and
+under it, Markdown or `.dox`, so the default scope sweeps what the branch touched and
 `--all` sweeps every registered library. It needs a configured tree for
 `build/docs-manifest.txt` and says SKIPPED without one, the way qmllint
 does. Because no tag file is read, a name that lives in another library

@@ -353,7 +353,7 @@ def main(argv: list) -> int:
         "qmllint": check_qmllint(with_suffixes(scope, {".qml"})),
     }
     if arguments.docs or arguments.docs_undocumented:
-        documents = with_suffixes(scope, {".h", ".hpp", ".md"})
+        documents = with_suffixes(scope, {".h", ".hpp", ".md", ".dox"})
         results["doxygen"] = check_docs(documents)
         if arguments.docs_undocumented:
             report_undocumented(documents)
