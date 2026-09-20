@@ -405,6 +405,16 @@ class Reports(unittest.TestCase):
         self.assertEqual(events, ["cleared"])
         self.assertTrue(timeline.empty())
 
+    def cue(self, ticker, calls):
+        """Cue a call reading a value only the cue's closure names."""
+
+        class Reading:
+            word = "held"
+
+        reading = Reading()
+        ticker.timeline().cue(lambda: calls.append(reading.word), 0.2)
+        return weakref.ref(reading)
+
     def test_a_cue_fires_once_and_the_timeline_holds_it_until_it_does(self):
         ticker = native.Ticker()
         calls = []
@@ -421,16 +431,6 @@ class Reports(unittest.TestCase):
         ticker.tick(0.1)
         self.assertEqual(calls, ["held"])
 
-    def cue(self, ticker, calls):
-        """Cue a call reading a value only the cue's closure names."""
-
-        class Reading:
-            word = "held"
-
-        reading = Reading()
-        ticker.timeline().cue(lambda: calls.append(reading.word), 0.2)
-        return weakref.ref(reading)
-
     def test_a_cue_waits_a_nonnegative_finite_time(self):
         with self.assertRaisesRegex(ValueError, "cue's delay"):
             native.Ticker().timeline().cue(lambda: None, -1)
@@ -442,8 +442,7 @@ class Sessions(unittest.TestCase):
             self.addCleanup(lambda name=name: builtins.__dict__.pop(name, None))
         source = """
             import builtins
-            from _sigil import motion as native
-            from sigil.motion import Output
+            from sigil.motion import Output, rampTo
             from sigil.sketch import sketch
 
             @sketch(size=(64, 24), background="#000000", capture_at=0)
@@ -452,7 +451,7 @@ class Sessions(unittest.TestCase):
                     ramped = Output(0)
                     timeline = ctx.ticker.timeline()
                     assert timeline.empty()
-                    timeline.apply(ramped, [native.rampTo(32.0, 0.2)])
+                    timeline.apply(ramped, [rampTo(32.0, 0.2)])
                     assert timeline.size() == 1
                     builtins._clock_ramped = ramped
                     builtins._clock_timeline = timeline
