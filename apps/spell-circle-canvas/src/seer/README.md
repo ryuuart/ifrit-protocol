@@ -375,26 +375,26 @@ tests link the model archive without the canvas or a model QML plugin.
 
 ## Building
 
-One archive and one application, both always configured. The cases are
-in `seer_test` under `build/bin/<config>/tests/`, and every one of them
-runs with no application in the process. `seer_qt_test` hosts the Qt scene
-consumer and covers shared delivery, source pinning, port failures, replay,
-and settings persistence. It also covers CLI argument validation and, on
-macOS, texture capture channel/row order and late subscription to a static
-publication. Those texture cases carry the `gpu` label and require Metal.
-The native preview test also asserts pause, resize, reconnection, source changes,
-full-resolution capture and window teardown. Run it with `QT_QPA_PLATFORM=cocoa`
-on macOS; it skips on the default offscreen test platform. Window preview
-additionally needs a real window and a Syphon publisher. The codecs are linked there
-beside the library, because what the dialect cases assert is that a
-reading and a spelling agree with the bytes a sender writes; the build
-also
-compiles a schema of the cases' own and the schema cases read the
-`.bfbs` file it writes off the disk, since what the schema reading
-promises is a format no generated header in that binary was compiled
-from:
+One archive and one application, both always configured.
+[docs/overview/testing.md](../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under. What is
+only true of Seer:
 
-```sh
-cmake --build build --config Release --target Seer seer_test
-ctest --test-dir build -C Release -R '^Seer' --output-on-failure
-```
+Two test binaries stand here rather than one, because the wire and the
+application are two subjects. `seer_test` holds the cases that run with
+no application in the process. The codecs are linked there beside the
+library, because what the dialect cases assert is that a reading and a
+spelling agree with the bytes a sender writes; the build also compiles a
+schema of the cases' own, and the schema cases read the `.bfbs` file it
+writes off the disk, since what the schema reading promises is a format
+no generated header in that binary was compiled from.
+
+`seer_qt_test` hosts the Qt scene consumer and covers shared delivery,
+source pinning, port failures, replay, settings persistence and CLI
+argument validation. On macOS it also covers texture capture channel and
+row order and late subscription to a static publication; those cases
+need Metal and carry the `gpu` label. The native preview cases assert
+pause, resize, reconnection, source changes, full-resolution capture and
+window teardown; they want `QT_QPA_PLATFORM=cocoa` and skip on the
+default offscreen test platform, and the window preview additionally
+needs a real window and a Syphon publisher.
