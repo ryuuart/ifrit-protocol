@@ -885,18 +885,21 @@ that stops being opened therefore falls out of the set rather than being
 stood up forever, and a run that walked the whole registry is cut at a
 ceiling no later launch should be made to warm.
 
-**A batch lane fills a store that stands empty.** A headless sweep and a
-captured frame on the device draw the programs an open window draws,
-with nobody waiting on any of them, so they declare and record exactly
-as a launch does and leave their set behind — which is what makes the
-FIRST interactive open of a machine the cheap one, rather than the
-second. They never replace a set: a run that drew a whole selection
-knows less about what the next launch will open than a window run that
-drew one sketch, so a store that already answers for this declaration
-keeps its answer and the batch run's set is dropped. And they stand
-nothing up ahead of themselves — there is no frame to protect, and
-replaying would put the store's state inside a lane whose picture has to
-depend on nothing but the sketch.
+**A headless sweep on the device fills a store that stands empty.** It
+draws the programs an open window draws, with nobody waiting on any of
+them, so it declares and records exactly as a launch does and leaves its
+set behind — which is what makes the FIRST interactive open of a machine
+the cheap one, rather than the second. It never replaces a set: a run
+that drew a whole selection knows less about what the next launch will
+open than a window run that drew one sketch, so a store that already
+answers for this declaration keeps its answer and the sweep's set is
+dropped. And it stands nothing up ahead of itself — there is no frame to
+protect, and replaying would put the store's state inside a lane whose
+picture has to depend on nothing but the sketch. `--frame` is not one of
+these lanes and does not warm at all: it photographs a canvas on a
+raster surface so the picture is reproducible, and a set is drawn by the
+device's own renderer, so a capture builds no Graphite program to
+record.
 
 A key is replayed only if its description still reads back the same. A key
 names the pieces a program is inlined out of by number, and a piece the
