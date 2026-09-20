@@ -37,16 +37,17 @@ FIXTURE_RGBA = (255, 0, 0, 255)
 
 # Where the sketch builds its own theme. Its canvas and its page both
 # take their ground from that theme, so writing one colour into the
-# palette here grounds the whole picture. Matched by the line that opens
-# the theme, so a fixture that stops substituting fails loudly here
-# rather than silently rendering the original.
-THEME_OPENING = re.compile(
-    r"( *)sketch::kit::Theme (\w+) = sketch::kit::houseTheme\(\);"
-)
-FIXTURE_GROUND = (
-    r"\1sketch::kit::Theme \2 = sketch::kit::houseTheme();"
-    r"\n\1\2.palette.ground = {1, 0, 0, 1};"
-)
+# palette here grounds the whole picture.
+#
+# The anchor is the DECLARATION OF A THEME VARIABLE — the type and the
+# name it is given — and not what that theme starts from: which stock
+# look a study derives from, and how it spells the namespaces, are the
+# sketch's own business and change without this fixture being wrong. The
+# declaration must be the sketch's only one, so the colour cannot land
+# in a theme nothing is drawn under; the whole match is kept and the
+# ground written on the line after it.
+THEME_OPENING = re.compile(r"^( *)(?:[\w:]+::)?Theme (\w+) = [^;]+;", re.MULTILINE)
+FIXTURE_GROUND = r"\g<0>\n\1\2.palette.ground = {1, 0, 0, 1};"
 
 
 def corner_pixel(png: Path) -> tuple[int, int, int, int]:
@@ -114,10 +115,10 @@ def main() -> None:
     fixture_text, substitutions = THEME_OPENING.subn(FIXTURE_GROUND, original)
     if substitutions != 1:
         sys.exit(
-            f"{args.source}: expected one theme built from houseTheme() to "
+            f"{args.source}: expected exactly one `Theme <name> = …;` to "
             f"ground the fixture through, found {substitutions} — the "
-            "fixture needs a sketch whose whole canvas takes one theme's "
-            "ground"
+            "fixture needs a sketch that builds one theme of its own and "
+            "takes its whole canvas from it"
         )
     fixture = work / args.source.name
     header = work / "ground.h"
