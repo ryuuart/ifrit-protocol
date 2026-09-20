@@ -73,8 +73,9 @@ sigil_test(material_test
   SUITES Ocio LABELS ocio)
 
 # Every API name the prose spells, compiled against the headers that own
-# it — README.md and both chapters, because a chapter is the same canon as
-# the page that links it. It links every library the prose names — the
+# it — README.md, both chapters, and the reference's value index and its
+# pages, because a chapter and a value's own page are the same canon as
+# the page that links them. It links every library the prose names — the
 # resource hub the usage example opens shaders through, the cache policy
 # and the Graphite context the caching and device sections name, and the
 # scratch folder the testing section names — because a document that
@@ -83,6 +84,13 @@ sigil_doc_probes(material
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
           ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Color.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Effect.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Material.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Paint.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Palette.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Ramp.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../io/include
