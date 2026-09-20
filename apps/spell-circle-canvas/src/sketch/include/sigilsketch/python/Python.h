@@ -58,6 +58,16 @@ void configureInterpreter(const std::filesystem::path& executable);
                              std::initializer_list<const char*> modules,
                              std::string* why = nullptr);
 
+/** The same check, and the fetched art in @p cachedUrls required to be
+ * in the IO hub's network cache on this machine as well — the probe a
+ * Python sketch over fetched art is registered with, answered without
+ * importing it. The cache is asked before the interpreter is, because
+ * reading a directory costs nothing and starting Python does. */
+[[nodiscard]] bool available(const std::filesystem::path& source,
+                             std::initializer_list<const char*> modules,
+                             std::initializer_list<std::string_view> cachedUrls,
+                             std::string* why = nullptr);
+
 /** Loads a Python sketch into a fresh package. Relative imports belong to
  * this generation; installed packages keep their ordinary Python identity.
  * The returned kind owns its code and constructs a fresh body per session.

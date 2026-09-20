@@ -11,6 +11,7 @@
 #include <sigilpython/io/Hub.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/core/Assets.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/python/Python.h>
@@ -21,6 +22,7 @@
 #include <cmath>
 #include <memory>
 #include <mutex>
+#include <span>
 #include <stdexcept>
 #include <system_error>
 #include <thread>
@@ -543,6 +545,13 @@ Kind source(const std::filesystem::path& path) {
 
 bool available(const std::filesystem::path& path,
                std::initializer_list<const char*> modules, std::string* why) {
+  return available(path, modules, {}, why);
+}
+
+bool available(const std::filesystem::path& path,
+               std::initializer_list<const char*> modules,
+               std::initializer_list<std::string_view> cachedUrls,
+               std::string* why) {
   const auto unavailable = [why](std::string reason) {
     if (why) *why = std::move(reason);
     return false;
@@ -550,6 +559,8 @@ bool available(const std::filesystem::path& path,
   std::error_code error;
   if (!std::filesystem::is_regular_file(path, error))
     return unavailable("Python source is unavailable: " + path.string());
+  if (!requireCached(std::span(cachedUrls.begin(), cachedUrls.size()), why))
+    return false;
   if (modules.size() == 0) return true;
   try {
     interpreter();

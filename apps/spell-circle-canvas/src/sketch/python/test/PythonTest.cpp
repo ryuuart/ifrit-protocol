@@ -253,6 +253,27 @@ TEST(SketchPython,
   EXPECT_NE(why.find("discovery failed"), std::string::npos);
 }
 
+TEST(SketchPython, ArtNobodyFetchedStandsTheEntryDownBeforePythonStarts) {
+  PythonSource source("sigil_python_source_cached_art");
+  source.write("entry.py",
+               "raise RuntimeError('Do not execute this sketch')\n");
+  const char* url = "https://sketch.invalid/art/python_entry.png";
+
+  // The cache is read before the interpreter is asked anything, so the
+  // reason is the missing art and not the missing module behind it.
+  std::string why;
+  EXPECT_FALSE(sketch::python::available(
+      source.entry(), {"_sigil_missing_requirement_for_availability"}, {url},
+      &why));
+  EXPECT_NE(why.find(url), std::string::npos);
+  EXPECT_EQ(why.find("_sigil_missing_requirement_for_availability"),
+            std::string::npos);
+
+  // An entry that asks for no fetched art is the check that was there
+  // before it.
+  EXPECT_TRUE(sketch::python::available(source.entry(), {}, {}, &why));
+}
+
 TEST(SketchPython, ASourceKindImportsCurrentCodeEachTimeItOpens) {
   PythonSource source("sigil_python_source_kind_edits");
   source.write("entry.py", kGood);
