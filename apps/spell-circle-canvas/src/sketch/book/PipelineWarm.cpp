@@ -189,6 +189,9 @@ std::mutex g_warmupLock;
 bool g_open = false;
 std::filesystem::path g_keySetFile;
 size_t g_replayed = 0;
+/** Whether this run may only FILL the store — see
+ *  `recordPipelinesForAColdStore`. */
+bool g_fillsAColdStoreOnly = false;
 
 /** Every distinct compiled program under @p from, itself first and then
  *  the materials filling its slots, in recipe order. Its program is the
@@ -339,6 +342,17 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory) {
   g_open = true;
 }
 
+void recordPipelinesForAColdStore(const skgpu::graphite::Context& context) {
+  const std::string backend = graphiteBackendName(context);
+  const std::lock_guard<std::mutex> alone(g_warmupLock);
+  // A lane that already named the file is a lane that replayed from it,
+  // and a run does one or the other.
+  if (!g_open || !g_keySetFile.empty()) return;
+  g_keySetFile = pipelines::keySetFile(
+      g_storeDirectory, pipelines::keySetName(g_declared, backend));
+  g_fillsAColdStoreOnly = true;
+}
+
 void warmStockPipelines(
     std::unique_ptr<skgpu::graphite::PrecompileContext> precompile,
     std::string backend) {
@@ -408,6 +422,14 @@ void finishPipelineWarmup() {
   if (g_keySetFile.empty()) return;
   const std::vector<pipelines::RecordedPipeline> keys =
       recorder()->toWriteDown(kMostKeysWrittenDown);
+  // A BATCH LANE FILLS A COLD STORE AND NEVER REPLACES A WARM ONE. What
+  // it drew was a selection rather than the sketch someone is about to
+  // open, so its set is the better answer only where there is no answer
+  // at all.
+  if (g_fillsAColdStoreOnly && std::filesystem::exists(g_keySetFile)) {
+    recorder()->report(g_replayed, 0);
+    return;
+  }
   recorder()->report(g_replayed, keys.size());
   if (keys.empty()) return;
   if (!pipelines::writeKeySet(g_keySetFile, keys))

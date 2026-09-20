@@ -54,6 +54,25 @@ void warmStockPipelines(
     std::unique_ptr<skgpu::graphite::PrecompileContext> precompile,
     std::string backend);
 
+/** LETS A LANE WITH NO FRAME TO HOLD WRITE ITS PROGRAMS DOWN, for a
+ *  machine that has none written down yet.
+ *
+ *  A sweep and a single-frame capture draw the programs an interactive
+ *  run draws, and they draw them where nobody is waiting, so the set
+ *  they leave is what makes the FIRST interactive open of a machine the
+ *  cheap one. They stand nothing up ahead of themselves: there is no
+ *  frame to protect, and replaying would put the store's state inside a
+ *  lane whose output has to depend on nothing but the sketch.
+ *
+ *  It never REPLACES a set. A run that opened the whole registry knows
+ *  less about what the next launch will draw than a run that opened one
+ *  sketch, so a store that already answers for this declaration keeps
+ *  its answer and this run's set is dropped at the end.
+ *
+ *  Called after `openPipelineWarmup`, on the thread that owns @p
+ *  context, once that context exists. */
+void recordPipelinesForAColdStore(const skgpu::graphite::Context& context);
+
 /** WRITES BACK WHAT THIS RUN'S DRAWS WANTED, and says on stderr what
  *  the run cost in programs. Called once, after the last context is
  *  gone, so the set is everything the run needed rather than everything

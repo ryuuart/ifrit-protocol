@@ -5,12 +5,16 @@
 #include "SweepLane.h"
 
 #include <sigilsketch/core/Crash.h>
+#include <sigilsketch/plate/Graphite.h>
 #include <sigilsketch/plate/Sweep.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <cstdio>
 #include <exception>
 
 #include "Arguments.h"
+#include "PipelineStore.h"
+#include "PipelineWarm.h"
 #include "Startup.h"
 
 namespace sketch = sigil::sketch;
@@ -29,7 +33,18 @@ int runSweep(const Arguments& args, int chosen,
   // painter still stays on the CPU executor whatever the flag says: a
   // plate is hashed from that executor, and the two rasterise the same
   // picture but not the same bytes.
+  // A SWEEP DRAWS THE PROGRAMS AN OPEN WINDOW DRAWS, with nobody
+  // waiting on any of them, so what it built is worth writing down for
+  // a machine that has nothing written down yet. The declaration has to
+  // stand before the first Graphite context does and after the bodies
+  // it names are compiled, which is why the material warm-up is joined
+  // here rather than after the device comes up.
+  finishMaterialWarmup(materialWarmup);
+  openPipelineWarmup(pipelines::storeDirectory());
   if (args.gpu && !useDevice()) return 1;
+  const sigil::skia::GraphiteContext* graphite = sketch::deviceGraphite();
+  if (graphite && graphite->context())
+    recordPipelinesForAColdStore(*graphite->context());
   SharedWebEngineScope sharedWebEngine;
   // A SWEEP HAS A GUEST TOO, and it has a hundred of them in one
   // process: without the reporter a faulting sketch takes the run down
@@ -37,7 +52,6 @@ int runSweep(const Arguments& args, int chosen,
   // was is whatever the one before it happened to print. There is no
   // one file to name here — the sweep names the entry it is on.
   sketch::installCrashReporter({});
-  finishMaterialWarmup(materialWarmup);
   int result = 1;
   try {
     result = sketch::sweep(options, fonts(), assets());
@@ -46,5 +60,7 @@ int runSweep(const Arguments& args, int chosen,
   }
   sharedWebEngine.shutdown();
   releaseDevice();
+  // Last, so a program built on the way out is in the set too.
+  finishPipelineWarmup();
   return result;
 }

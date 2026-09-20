@@ -73,7 +73,9 @@
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Compare.h>
+#include <sigilsketch/plate/Graphite.h>
 #include <sigilsketch/python/Python.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 #include <unistd.h>
 
 #include <QtCore/QCoreApplication>
@@ -441,9 +443,18 @@ int main(int argc, char* argv[]) {
     // because a run that asked for the device and quietly gave the CPU's
     // picture puts two different pictures under one name — which is the
     // one thing a capture must never do.
-    if (args.gpu && !useDevice()) return 1;
-    SharedWebEngineScope sharedWebEngine;
+    // AND THIS LANE WRITES ITS PROGRAMS DOWN TOO, for the same reason
+    // the sweep does: it draws what an open window draws with no frame
+    // anyone is watching, so a machine with an empty store is seeded
+    // here rather than in front of someone. Joined before the device
+    // because the declaration stands between the two.
     finishMaterialWarmup(materialWarmup);
+    openPipelineWarmup(pipelines::storeDirectory());
+    if (args.gpu && !useDevice()) return 1;
+    const sigil::skia::GraphiteContext* graphite = sketch::deviceGraphite();
+    if (graphite && graphite->context())
+      recordPipelinesForAColdStore(*graphite->context());
+    SharedWebEngineScope sharedWebEngine;
     int result = 0;
     {
       sketch::Host host(std::move(options), fonts());
@@ -456,6 +467,7 @@ int main(int argc, char* argv[]) {
     // their teardown into static destruction.
     sharedWebEngine.shutdown();
     releaseDevice();
+    finishPipelineWarmup();
     return result;
   }
 

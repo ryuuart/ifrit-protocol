@@ -30,8 +30,11 @@ namespace pipelines {
 /** WHERE SKETCHBOOK KEEPS THE KEYS IT HAS RECORDED. An environment
  *  variable names one for a test; otherwise the platform cache
  *  location, under this app's own name and beside the thumbnails. The
- *  store is the app's alone — no ledger and no sweep writes into it —
- *  and losing it costs one launch's worth of compiling. */
+ *  store is the app's alone: a window run replays it and writes back
+ *  what its own draws wanted, and a batch lane — a sweep, a captured
+ *  frame — writes into it only where it stands empty, so a run that
+ *  drew a whole selection can seed a machine but never displace what a
+ *  window learned. Losing it costs one launch's worth of compiling. */
 std::filesystem::path storeDirectory();
 
 /** THE FILE A SET RECORDED AGAINST @p name STANDS IN, under @p

@@ -344,6 +344,22 @@ add_test(NAME sketch_pipeline_warmup
 set_tests_properties(sketch_pipeline_warmup PROPERTIES
   LABELS "window;gpu" TIMEOUT 300)
 
+# WHAT A BATCH LANE LEAVES BEHIND, which needs no window: a headless
+# sweep on the device draws the programs an open window draws, so it
+# writes them down for a machine whose store stands empty — and only
+# then, because a run that drew a selection knows less about the next
+# launch than a window run that drew one sketch. Two sweeps over one
+# store: the first seeds it, the second records its own and writes none.
+add_test(NAME sketch_pipeline_cold_store
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/pipeline_cold_store.py
+    --sketchbook $<TARGET_FILE:Sketchbook>
+    --first crt_bloom
+    --second chrome_type
+    --work ${CMAKE_BINARY_DIR}/sketch_pipeline_cold_store)
+set_tests_properties(sketch_pipeline_cold_store PROPERTIES
+  LABELS gpu TIMEOUT 300)
+
 # THE CATALOG SEAM, without a window. `--catalog` prints the browser's
 # rows as the model would hand them to QML, and the script asserts what
 # a row says before anything is opened: a compiled-in sketch names the
