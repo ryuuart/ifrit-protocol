@@ -63,7 +63,7 @@ namespace fo {
 
 constexpr path::Grid kUnits{.scale = 2.0f};
 constexpr float kScale = kUnits.scale;
-constexpr float n(float v) { return kUnits.s(v); }
+constexpr float n(float v) { return kUnits.lengthX(v); }
 constexpr float kScreenW = n(640), kScreenH = n(480);
 constexpr float kCaptionH = 128.0f;
 
@@ -212,14 +212,14 @@ inline Element t(const std::string& s, weave::Type partial) {
 /** Place at a DOCUMENTED (x, y) in original screen px. `y` is Fallout's draw
  *  y — the top of the glyph cell — so the rise correction lands here, once. */
 inline Element ink(Element e, float x, float y, float rise) {
-  e.at({kUnits.x(x), kUnits.y(y) - rise});
+  e.at({kUnits.positionX(x), kUnits.positionY(y) - rise});
   return e;
 }
 /** Absolute placement in the SHEET'S OWN pixels — the numbers read off
  *  the capture — through the unit map on the way to the canvas. */
 inline Element at(Element e, float x, float y, float w, float h) {
-  return kit::at(std::move(e), kUnits.x(x), kUnits.y(y), kUnits.s(w),
-                 kUnits.s(h));
+  return kit::at(std::move(e), kUnits.positionX(x), kUnits.positionY(y), kUnits.lengthX(w),
+                 kUnits.lengthX(h));
 }
 inline Element atR(Element e, Rect r) {
   return at(std::move(e), r.x, r.y, r.w, r.h);

@@ -74,7 +74,7 @@ namespace thaum {
 // same arithmetic either way; the mod just does not open at scale 2 here.
 constexpr path::Grid kUnits{.scale = 3.0f};
 constexpr float U = kUnits.scale;
-constexpr float g(float v) { return kUnits.s(v); }
+constexpr float g(float v) { return kUnits.lengthX(v); }
 
 constexpr float kCanvasW = 1280.0f, kCanvasH = 800.0f;
 constexpr float kGuiW = 427, kGuiH = 267;    // ceil(canvas / 3)

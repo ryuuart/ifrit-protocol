@@ -66,7 +66,7 @@ constexpr float PX = 4.0f;
 // instead of calling std::round — that would make n() unusable in the
 // constant expressions below.
 constexpr path::Grid kGrid{.scale = PX};
-constexpr float n(float v) { return kGrid.s(v); }
+constexpr float n(float v) { return kGrid.lengthX(v); }
 constexpr float kCanvasW = n(320), kCanvasH = n(200);
 constexpr float kPanelY = n(144), kPanelH = n(56);  // 200 - iconsHeight
 

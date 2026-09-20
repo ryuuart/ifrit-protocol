@@ -258,10 +258,12 @@ struct PolarFrame {
  *
  *      const Grid geo{.scale = 4.0f}, type{.scale = 2.5f};
  *      box().rect(geo.rect(12, 8, 40, 16))
- *           .children({text(u8"HIT", ts).at({type.x(13), type.y(9)})});
+ *           .children({text(u8"HIT", ts)
+ *                          .at({type.positionX(13), type.positionY(9)})});
  *
- *  Note `s()` takes no origin and `x()`/`y()` do. A width is not a
- *  position; adding the origin to one is the bug this split prevents. */
+ *  A LENGTH takes no origin and a POSITION does, which is why the four
+ *  readings are named apart: a width is not a position, and adding the
+ *  origin to one is the bug the split prevents. */
 struct Grid {
   /** Canvas px per artefact unit. */
   float scale = 1.0f;
@@ -297,37 +299,39 @@ struct Grid {
     const float q = v / snap;
     return snap * (float)(long long)(q + (q < 0 ? -0.5f : 0.5f));
   }
-  /** A LENGTH in artefact units → px, along x. */
-  constexpr float s(float units) const { return snapped(units * scale); }
+  /** A LENGTH along x, in artefact units → px. */
+  constexpr float lengthX(float units) const { return snapped(units * scale); }
   /** A LENGTH along y, which a flipped or anisotropic frame measures
    *  differently — and which comes back SIGNED under a flip, because a
    *  length up the page IS negative in canvas px. */
-  constexpr float sy(float units) const {
+  constexpr float lengthY(float units) const {
     return snapped(units * scale * yScale);
   }
-  /** An X position. */
-  constexpr float x(float units) const {
+  /** A POSITION on x: the length from the origin. */
+  constexpr float positionX(float units) const {
     return snapped(origin.fX + units * scale);
   }
-  /** A Y position. */
-  constexpr float y(float units) const {
+  /** A POSITION on y, down the canvas even where the axis runs up. */
+  constexpr float positionY(float units) const {
     return snapped(origin.fY + units * scale * yScale);
   }
   constexpr SkPoint at(SkPoint units) const {
-    return {x(units.fX), y(units.fY)};
+    return {positionX(units.fX), positionY(units.fY)};
   }
   /** SORTED, so a flipped frame answers a rect and not an inside-out one:
    *  under `yScale` < 0 the unit-space top is the canvas-space bottom, and
    *  every consumer of an SkRect reads left ≤ right and top ≤ bottom. */
   SkRect rect(float ux, float uy, float uw, float uh) const {
-    return SkRect::MakeLTRB(x(ux), y(uy), x(ux + uw), y(uy + uh)).makeSorted();
+    return SkRect::MakeLTRB(positionX(ux), positionY(uy), positionX(ux + uw),
+                            positionY(uy + uh))
+        .makeSorted();
   }
   /** The artefact-unit rect as canvas px, corner-by-corner — so a snapped
    *  grid keeps both edges on the grid rather than only the near one, and
    *  sorted for the same reason the other overload is. */
   SkRect rect(const SkRect& units) const {
-    return SkRect::MakeLTRB(x(units.fLeft), y(units.fTop), x(units.fRight),
-                            y(units.fBottom))
+    return SkRect::MakeLTRB(positionX(units.fLeft), positionY(units.fTop),
+                            positionX(units.fRight), positionY(units.fBottom))
         .makeSorted();
   }
   /** A polyline in artefact units → canvas px. */

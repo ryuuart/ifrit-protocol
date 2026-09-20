@@ -146,9 +146,9 @@ TEST(Frame, PolarPointsLandWhereTheirDegreesSay) {
 
 TEST(Grid, ALengthTakesNoOriginAndAPositionDoes) {
   const Grid g{.scale = 4.0f, .origin = {100, 50}};
-  EXPECT_FLOAT_EQ(g.s(10), 40);   // a WIDTH
-  EXPECT_FLOAT_EQ(g.x(10), 140);  // a POSITION
-  EXPECT_FLOAT_EQ(g.y(10), 90);
+  EXPECT_FLOAT_EQ(g.lengthX(10), 40);     // a WIDTH
+  EXPECT_FLOAT_EQ(g.positionX(10), 140);  // a POSITION
+  EXPECT_FLOAT_EQ(g.positionY(10), 90);
   const SkRect r = g.rect(10, 10, 5, 5);
   EXPECT_FLOAT_EQ(r.fLeft, 140);
   EXPECT_FLOAT_EQ(r.width(), 20);
@@ -160,16 +160,16 @@ TEST(Grid, SnapRoundsTheResultAndTwoGridsCoexist) {
   // text grid — without either being global state.
   const Grid geo{.scale = 4.0f, .snap = 4.0f};
   const Grid type{.scale = 2.5f, .snap = 2.5f};
-  EXPECT_FLOAT_EQ(geo.x(1.3f), 4.0f);   // 5.2 → 4
-  EXPECT_FLOAT_EQ(type.x(1.3f), 2.5f);  // 3.25 → 2.5
-  EXPECT_NE(geo.s(3), type.s(3));
+  EXPECT_FLOAT_EQ(geo.positionX(1.3f), 4.0f);   // 5.2 → 4
+  EXPECT_FLOAT_EQ(type.positionX(1.3f), 2.5f);  // 3.25 → 2.5
+  EXPECT_NE(geo.lengthX(3), type.lengthX(3));
   const Grid none{.scale = 4.0f};
-  EXPECT_FLOAT_EQ(none.x(1.3f), 5.2f);
+  EXPECT_FLOAT_EQ(none.positionX(1.3f), 5.2f);
   // Snap rounds half away from zero: 0.7 units is 2.8 px, which is more
   // than half a 5 px step, and 0.6 is not.
   const Grid snapped{.scale = 4.0f, .origin = {0, 0}, .snap = 5.0f};
-  EXPECT_FLOAT_EQ(snapped.x(0.7f), 5.0f);
-  EXPECT_FLOAT_EQ(snapped.x(0.6f), 0.0f);
+  EXPECT_FLOAT_EQ(snapped.positionX(0.7f), 5.0f);
+  EXPECT_FLOAT_EQ(snapped.positionX(0.6f), 0.0f);
   // Scaling the map scales the unit and leaves the step it snaps to.
   EXPECT_FLOAT_EQ(snapped.scaled(0.5f).scale, 2.0f);
   EXPECT_FLOAT_EQ(snapped.scaled(0.5f).snap, 5.0f);
@@ -187,11 +187,11 @@ TEST(Grid, TheMathFrameCountsYUpward) {
   // surveyed elevation are measured in: read the artefact's own numbers
   // off the page rather than negating every one of them at the call site.
   const Grid math{.scale = 4.0f, .yScale = -1.0f, .origin = {100, 200}};
-  EXPECT_FLOAT_EQ(math.x(10), 140);
-  EXPECT_FLOAT_EQ(math.y(10), 160);  // ten units UP the page
-  EXPECT_FLOAT_EQ(math.y(-10), 240);
-  EXPECT_FLOAT_EQ(math.s(10), 40);    // an x length is unsigned
-  EXPECT_FLOAT_EQ(math.sy(10), -40);  // a y length up the page is negative
+  EXPECT_FLOAT_EQ(math.positionX(10), 140);
+  EXPECT_FLOAT_EQ(math.positionY(10), 160);  // ten units UP the page
+  EXPECT_FLOAT_EQ(math.positionY(-10), 240);
+  EXPECT_FLOAT_EQ(math.lengthX(10), 40);   // an x length is unsigned
+  EXPECT_FLOAT_EQ(math.lengthY(10), -40);  // a y length up the page is negative
   // A rect comes back SORTED, so every consumer still reads top ≤ bottom.
   const SkRect r = math.rect(0, 0, 5, 5);
   EXPECT_FLOAT_EQ(r.fTop, 180);
@@ -209,13 +209,13 @@ TEST(Grid, TheMathFrameCountsYUpward) {
 TEST(Grid, AnAnisotropicMapMeasuresItsTwoAxesDifferently) {
   // Two axes of different quantities: half as tall as it is wide.
   const Grid chart{.scale = 10.0f, .yScale = 0.5f};
-  EXPECT_FLOAT_EQ(chart.x(3), 30);
-  EXPECT_FLOAT_EQ(chart.y(3), 15);
-  EXPECT_FLOAT_EQ(chart.sy(3), 15);
+  EXPECT_FLOAT_EQ(chart.positionX(3), 30);
+  EXPECT_FLOAT_EQ(chart.positionY(3), 15);
+  EXPECT_FLOAT_EQ(chart.lengthY(3), 15);
   // The default is the canvas's own frame: y down, square units.
   const Grid plain{.scale = 10.0f};
-  EXPECT_FLOAT_EQ(plain.y(3), 30);
-  EXPECT_FLOAT_EQ(plain.sy(3), 30);
+  EXPECT_FLOAT_EQ(plain.positionY(3), 30);
+  EXPECT_FLOAT_EQ(plain.lengthY(3), 30);
 }
 
 TEST(Grid, APolylineAndAMatrixCarryTheSameMap) {
