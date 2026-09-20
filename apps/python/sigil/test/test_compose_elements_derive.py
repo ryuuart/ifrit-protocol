@@ -123,9 +123,7 @@ class Spellings(unittest.TestCase):
         # The width law is a class of the geometry bindings; the reading
         # that answers one is offered exactly where it is registered.
         path = getattr(_sigil.geometry, "path", None)
-        self.assertEqual(
-            hasattr(native.Across, "profile"), hasattr(path, "Profile")
-        )
+        self.assertEqual(hasattr(native.Across, "profile"), hasattr(path, "Profile"))
 
 
 class Routers(unittest.TestCase):
@@ -236,9 +234,11 @@ class Routers(unittest.TestCase):
     def test_a_router_refuses_what_is_neither_a_function_nor_a_scheme(self):
         for kind in (native.Router, native.RailRouter):
             for value in (3, "arc", None, native.Router(), native.RailRouter()):
-                with self.subTest(kind=kind.__name__, value=value):
-                    with self.assertRaises(TypeError):
-                        kind(value)
+                with (
+                    self.subTest(kind=kind.__name__, value=value),
+                    self.assertRaises(TypeError),
+                ):
+                    kind(value)
 
     def test_a_router_asked_directly_refuses_what_is_no_rect_or_point(self):
         router = native.Router(segment)
@@ -398,11 +398,15 @@ class Tethers(unittest.TestCase):
     def test_place_is_the_pair_of_points_and_the_offset(self):
         tether = native.Tether(key="dial", on=(0.5, 0), at=(0.5, 1), offset=(0, -4))
         # x: 10 + 100 * 0.5 + 0 - 30 * 0.5; y: 20 + 50 * 0 - 4 - 10 * 1.
-        self.assertEqual(edges(tether.place((10, 20, 100, 50), (30, 10))), (45, 6, 30, 10))
+        self.assertEqual(
+            edges(tether.place((10, 20, 100, 50), (30, 10))), (45, 6, 30, 10)
+        )
         placed = tether.place(anchor=skia.Rect(10, 20, 100, 50), size=skia.Size(30, 10))
         self.assertEqual(edges(placed), (45, 6, 30, 10))
         beside = native.Tether(key="dial", on=(1, 0.5), at=(0, 0.5))
-        self.assertEqual(edges(beside.place([10, 20, 100, 50], [30, 10])), (110, 40, 30, 10))
+        self.assertEqual(
+            edges(beside.place([10, 20, 100, 50], [30, 10])), (110, 40, 30, 10)
+        )
 
     def test_tethers_copy(self):
         tether = native.Tether(
