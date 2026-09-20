@@ -121,8 +121,10 @@ TEST(BackgroundRendering, AsksForEveryWindowRatherThanTheFirst) {
   std::unique_ptr<QQuickWindow> first = nativeWindow();
   std::unique_ptr<QQuickWindow> second = nativeWindow();
   EXPECT_TRUE(WindowChrome::keepRendering(first.get()));
-  // A mechanism keyed on the first window's class alone answers a later
-  // window with silence and says nothing about having done so.
+  // A mechanism that reclassifies the window it is given answers only
+  // the windows whose class it still recognises, and says nothing about
+  // the ones it turns away. An override on the class answers every
+  // window of it, and the mark is what each window asks with.
   EXPECT_TRUE(WindowChrome::keepRendering(second.get()));
   NSWindow *nativeSecond = cocoaWindowOf(*second);
   ASSERT_NE(nativeSecond, nil);

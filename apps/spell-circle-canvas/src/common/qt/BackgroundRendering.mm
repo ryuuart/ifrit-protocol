@@ -46,7 +46,16 @@ ClassOverride g_overrides[kMaxOverriddenClasses];
 std::atomic<int> g_overrideCount{0};
 
 /** The class @p windowClass or its nearest overridden ancestor chains
- *  into, or Nil when neither was overridden. */
+ *  into, or Nil when neither was overridden.
+ *
+ *  THE OVERRIDDEN CLASSES MUST BE SIBLINGS, never one an ancestor of
+ *  another. Were a class overridden and an ancestor of it overridden
+ *  afterwards, this would answer a receiver of the first with the
+ *  second — which now carries the override too, so the chained call
+ *  would re-enter the implementation below and never stop. The two
+ *  classes handed in are the native window classes Qt names for a
+ *  window and for a panel, which descend from NSWindow and NSPanel
+ *  separately, so neither is above the other. */
 Class chainForClass(Class windowClass) {
   const int count = g_overrideCount.load(std::memory_order_acquire);
   for (Class candidate = windowClass; candidate;
@@ -111,7 +120,11 @@ bool overrideOcclusionState(Class windowClass) {
   const int at = g_overrideCount.load(std::memory_order_relaxed);
   if (at >= kMaxOverriddenClasses) return false;
   // PUBLISHED BEFORE THE METHOD IS ADDED, because the implementation
-  // reads this table the moment it becomes reachable.
+  // reads this table the moment it becomes reachable. The count cannot
+  // then be wound back, so a class that fails below spends its entry
+  // for the life of the process. It fails only for a class that
+  // implements -occlusionState itself, which no NSWindow subclass in
+  // reach does, and the spare entries absorb it either way.
   g_overrides[at].chainsInto = chain;
   g_overrides[at].overridden.store(windowClass, std::memory_order_release);
   g_overrideCount.store(at + 1, std::memory_order_release);
