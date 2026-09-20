@@ -170,6 +170,7 @@ sigil_doc_probes(compose
            ${CMAKE_CURRENT_SOURCE_DIR}/../measure/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/kit
            ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/path
+           ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/core
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/skia
            ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include/sigilskia/draw
            ${CMAKE_CURRENT_SOURCE_DIR}/../draw/include/sigildraw
