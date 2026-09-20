@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * A FRACTION DRAWN: along a bar, or around a dial.
  */
 

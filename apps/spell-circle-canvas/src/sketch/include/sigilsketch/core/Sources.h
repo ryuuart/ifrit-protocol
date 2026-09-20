@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-core
+ *
  * Where a sketch stands on disk: the file a registry key names, and the
  * translation units an entry file carries with it.
  */

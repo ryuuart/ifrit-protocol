@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-publish
+ *
  * The door a drawn frame leaves by: the seam a host offers its texture
  * over, and the one factory that answers with whatever this build can
  * publish through.

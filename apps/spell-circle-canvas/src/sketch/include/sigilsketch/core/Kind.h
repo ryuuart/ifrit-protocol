@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-core
+ *
  * The kind seam: what a sketch draws through, held as a value.
  */
 

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-plate
+ *
  * TWO DIRECTORIES OF PLATES, PICTURE BY PICTURE.
  *
  * A byte-identity sweep needs no decoder — two plates are the same file

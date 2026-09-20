@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-core
+ *
  * The registry: every sketch this binary was built with, and the macro a
  * sketch file joins it by.
  */

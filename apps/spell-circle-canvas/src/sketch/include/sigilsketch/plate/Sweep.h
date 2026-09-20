@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-plate
+ *
  * The headless sweep: every sketch stepped to its declared moment and
  * photographed, with the timing table beside it.
  */

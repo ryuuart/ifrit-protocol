@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * THINGS ALONG AN AXIS: the strip that crawls past a window, and the rail
  * a scale is marked off on.
  */

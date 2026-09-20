@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-plate
+ *
  * The app's own thumbnail store: where a sketch's still is kept, when it
  * is stale, and the CPU render that fills it.
  *

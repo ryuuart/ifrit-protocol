@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-publish
+ *
  * The door another application's frames arrive by: the seam a host holds
  * a publication over, and the one factory that answers with whatever
  * this build can subscribe through.

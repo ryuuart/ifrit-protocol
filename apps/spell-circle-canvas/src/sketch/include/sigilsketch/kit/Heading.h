@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * The two lines that ANNOUNCE something: the card a picture is titled
  * with, and the header that names one section inside a page.
  */

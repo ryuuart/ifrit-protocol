@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-core
+ *
  * What a sketch declares about the surface it wants: how big, what is
  * behind it, and the moment a still of it is worth taking.
  */

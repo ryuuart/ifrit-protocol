@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-live
+ *
  * The live-reload host: a sketch watched, rebuilt into a dylib on save,
  * and hot-swapped into the running session.
  */
@@ -70,6 +72,15 @@ namespace sigil::sketch {
  *  trade every host in this family makes. */
 class Host {
  public:
+  /** EVERYTHING A HOST IS TOLD WHEN IT IS BUILT: which file it is
+   *  watching, how to compile it, what mounts where, and how hard to
+   *  look for a change.
+   *
+   *  Only `sketchPath` has no useful default — everything else stands
+   *  at what a host opened on a file in this tree wants, so a caller
+   *  states the fields its situation differs in and leaves the rest.
+   *  It is read once, when the host is constructed, and a change of
+   *  policy is a new host. */
   struct Options {
     /** The sketch's ENTRY: the file to watch, and the one whose
      *  directory says what else is built with it. A file standing in a

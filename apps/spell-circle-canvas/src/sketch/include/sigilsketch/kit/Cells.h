@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * The pieces a specimen on a sheet is made of — the well it is shown in
  * and the caption that names it — and the three ways a run of them is
  * arranged: along a line, into equal shares, and into a grid.

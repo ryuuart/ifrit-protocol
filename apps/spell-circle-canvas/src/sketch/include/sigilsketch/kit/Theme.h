@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * The look a sheet is set in, as one comparable value: the colours, the
  * registers its lines are set in, and the distances between things. It is bound
  * for a scope and read where a component is described, so a component four
@@ -18,6 +20,19 @@
 #include <sigilweave/style/TextStyle.h>
 #include <sigilweave/style/Type.h>
 
+/** THE SHEET A SKETCH STANDS ON: the theme, the page, and the furniture
+ *  a specimen is built out of — headings, passages, panels, rows, cells,
+ *  charts, legends, meters, tickers, scrollbars and consoles.
+ *
+ *  The theme is one comparable value bound for a scope and read where a
+ *  component is described, so a piece four levels down obeys it without
+ *  being handed it. Every piece here therefore takes CONTENT and carries
+ *  no colour of its own, and a study changes its whole look by changing
+ *  the theme above it.
+ *
+ *  These are the shapes a reference study keeps reaching for. Nothing
+ *  here decides how a study looks, and a sketch that wants something
+ *  else writes the compose tree itself. */
 namespace sigil::sketch::kit {
 
 /** THE COLOURS A SHEET IS SET IN.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-scry
+ *
  * The opt-in process-owned WebEngine a sketch host configures and several
  * sketches may borrow.
  *
@@ -22,6 +24,15 @@
 
 #include <memory>
 
+/** WEB CONTENT INSIDE A SKETCH: an HTML and CSS page rendered into a
+ *  leaf, and the two things a deterministic capture of one needs — the
+ *  process-owned engine several sketches may share, and the settling
+ *  that decides when a page has stopped moving.
+ *
+ *  It is a SigilSketch integration rather than SigilScry's ordinary
+ *  ownership model: a standalone consumer owns its own engine value,
+ *  and a host whose sketches must coexist configures one here. Nothing
+ *  here renders anything itself; SigilScry does the drawing. */
 namespace sigil::sketch::scry {
 
 /** Selects the one configuration the sketch host will share without booting

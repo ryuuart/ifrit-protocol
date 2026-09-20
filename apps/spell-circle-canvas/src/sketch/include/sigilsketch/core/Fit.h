@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-core
+ *
  * Letterboxing: where a canvas of one shape lands inside a box of
  * another.
  */

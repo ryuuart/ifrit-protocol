@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-core
+ *
  * The GPU device this process brought up, if it brought one up.
  */
 

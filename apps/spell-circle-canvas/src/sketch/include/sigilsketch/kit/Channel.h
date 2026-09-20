@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * ONE NUMBER OF A WIRE AS A MOTION OUTPUT: the channel a fader reaches a
  * bound property through, with no handler standing between the two.
  */

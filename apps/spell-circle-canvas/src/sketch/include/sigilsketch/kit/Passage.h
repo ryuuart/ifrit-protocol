@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * The prose a specimen is set in, read from beside the sketch rather than
  * typed into it.
  */

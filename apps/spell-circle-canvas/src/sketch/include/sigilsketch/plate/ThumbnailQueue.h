@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-plate
+ *
  * The order stills are drawn in, and the one worker that draws them.
  */
 

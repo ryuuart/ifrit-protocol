@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-set
+ *
  * The 3D sketch surface: a lit set, described as a function of the scene
  * time. Include this and SIGIL_SKETCH registers a sketch that draws a
  * world Frame.

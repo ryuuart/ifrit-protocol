@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * THE LOG PANEL a study prints into: N feeds of one monospaced voice on
  * one bordered plate.
  */

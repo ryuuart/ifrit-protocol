@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-live
+ *
  * The cadence a frame-rate sweep over a window keeps: when a selected
  * sketch's warm-up starts, when the stretch that is measured starts, and
  * when a sketch that never reached the screen is stood down.
@@ -25,6 +27,10 @@ namespace sigil::sketch {
  *  rather than read as a rate of nothing. */
 class BenchCadence {
  public:
+  /** THE THREE STRETCHES THE CADENCE IS MADE OF, in seconds of wall
+   *  time. They are the run's policy rather than a sketch's, so a
+   *  caller states them once and every sketch of the sweep is judged
+   *  over the same clock. */
   struct Times {
     /** Presented but not yet measured: the stretch a session spends
      *  reaching a steady frame before its rate counts. */
