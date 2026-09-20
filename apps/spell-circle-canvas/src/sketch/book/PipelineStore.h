@@ -31,10 +31,10 @@ namespace pipelines {
  *  variable names one for a test; otherwise the platform cache
  *  location, under this app's own name and beside the thumbnails. The
  *  store is the app's alone: a window run replays it and writes back
- *  what its own draws wanted, and a batch lane — a sweep, a captured
- *  frame — writes into it only where it stands empty, so a run that
- *  drew a whole selection can seed a machine but never displace what a
- *  window learned. Losing it costs one launch's worth of compiling. */
+ *  what its own draws wanted, and a headless sweep on the device writes
+ *  into it only where it stands empty, so a run that drew a whole
+ *  selection can seed a machine but never displace what a window
+ *  learned. Losing it costs one launch's worth of compiling. */
 std::filesystem::path storeDirectory();
 
 /** THE FILE A SET RECORDED AGAINST @p name STANDS IN, under @p

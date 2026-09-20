@@ -33,14 +33,19 @@ int runSweep(const Arguments& args, int chosen,
   // painter still stays on the CPU executor whatever the flag says: a
   // plate is hashed from that executor, and the two rasterise the same
   // picture but not the same bytes.
-  // A SWEEP DRAWS THE PROGRAMS AN OPEN WINDOW DRAWS, with nobody
-  // waiting on any of them, so what it built is worth writing down for
-  // a machine that has nothing written down yet. The declaration has to
-  // stand before the first Graphite context does and after the bodies
-  // it names are compiled, which is why the material warm-up is joined
-  // here rather than after the device comes up.
+  // A SWEEP ON THE DEVICE DRAWS THE PROGRAMS AN OPEN WINDOW DRAWS, with
+  // nobody waiting on any of them, so what it built is worth writing
+  // down for a machine that has nothing written down yet. The
+  // declaration has to stand before the first Graphite context does and
+  // after the bodies it names are compiled, which is why the material
+  // warm-up is joined here rather than after the device comes up.
+  //
+  // ONLY WHERE A DEVICE WAS ASKED FOR. A sweep with no `--gpu` builds no
+  // device program at all, so declaring the bodies, walking every stock
+  // recipe's program and installing a reporter would be a warm-up for a
+  // store this lane can neither read nor write.
   finishMaterialWarmup(materialWarmup);
-  openPipelineWarmup(pipelines::storeDirectory());
+  if (args.gpu) openPipelineWarmup(pipelines::storeDirectory());
   if (args.gpu && !useDevice()) return 1;
   const sigil::skia::GraphiteContext* graphite = sketch::deviceGraphite();
   if (graphite && graphite->context())

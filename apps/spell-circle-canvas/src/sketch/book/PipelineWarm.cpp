@@ -422,8 +422,8 @@ void finishPipelineWarmup() {
   if (g_keySetFile.empty()) return;
   const std::vector<pipelines::RecordedPipeline> keys =
       recorder()->toWriteDown(kMostKeysWrittenDown);
-  // A BATCH LANE FILLS A COLD STORE AND NEVER REPLACES A WARM ONE. What
-  // it drew was a selection rather than the sketch someone is about to
+  // THE SWEEP FILLS A COLD STORE AND NEVER REPLACES A WARM ONE. What it
+  // drew was a selection rather than the sketch someone is about to
   // open, so its set is the better answer only where there is no answer
   // at all.
   if (g_fillsAColdStoreOnly && std::filesystem::exists(g_keySetFile)) {

@@ -57,12 +57,18 @@ void warmStockPipelines(
 /** LETS A LANE WITH NO FRAME TO HOLD WRITE ITS PROGRAMS DOWN, for a
  *  machine that has none written down yet.
  *
- *  A sweep and a single-frame capture draw the programs an interactive
- *  run draws, and they draw them where nobody is waiting, so the set
- *  they leave is what makes the FIRST interactive open of a machine the
- *  cheap one. They stand nothing up ahead of themselves: there is no
- *  frame to protect, and replaying would put the store's state inside a
- *  lane whose output has to depend on nothing but the sketch.
+ *  The headless sweep on the device is that lane: it draws the programs
+ *  an interactive run draws and draws them where nobody is waiting, so
+ *  the set it leaves is what a first interactive open finds instead of
+ *  nothing. It stands nothing up ahead of itself — there is no frame to
+ *  protect, and replaying would put the store's state inside a lane
+ *  whose output has to depend on nothing but the sketch.
+ *
+ *  What the set is worth to that open follows what the sweep drew. A
+ *  selection of a few sketches leaves those sketches' programs; the
+ *  whole registry wants more than the ceiling a written set is cut at,
+ *  and what survives the cut is what the run drew FIRST rather than
+ *  anything chosen for the sketch someone opens next.
  *
  *  It never REPLACES a set. A run that opened the whole registry knows
  *  less about what the next launch will draw than a run that opened one

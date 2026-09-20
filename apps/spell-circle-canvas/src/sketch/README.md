@@ -888,18 +888,23 @@ ceiling no later launch should be made to warm.
 **A headless sweep on the device fills a store that stands empty.** It
 draws the programs an open window draws, with nobody waiting on any of
 them, so it declares and records exactly as a launch does and leaves its
-set behind — which is what makes the FIRST interactive open of a machine
-the cheap one, rather than the second. It never replaces a set: a run
-that drew a whole selection knows less about what the next launch will
-open than a window run that drew one sketch, so a store that already
-answers for this declaration keeps its answer and the sweep's set is
-dropped. And it stands nothing up ahead of itself — there is no frame to
-protect, and replaying would put the store's state inside a lane whose
-picture has to depend on nothing but the sketch. `--frame` is not one of
-these lanes and does not warm at all: it photographs a canvas on a
-raster surface so the picture is reproducible, and a set is drawn by the
-device's own renderer, so a capture builds no Graphite program to
-record.
+set behind, and the FIRST interactive open of a machine then has
+something to replay rather than nothing. What that is worth follows what
+was swept: a selection of a few sketches leaves those sketches'
+programs, while the whole registry wants far more than the ceiling a
+written set is cut at, and what survives the cut is what the run drew
+first — not a set chosen for the sketch someone opens next. It never
+replaces a set either: a run that drew a whole selection knows less
+about what the next launch will open than a window run that drew one
+sketch, so a store that already answers for this declaration keeps its
+answer and the sweep's set is dropped. And it stands nothing up ahead of
+itself — there is no frame to protect, and replaying would put the
+store's state inside a lane whose picture has to depend on nothing but
+the sketch. A sweep with no `--gpu` does not warm at all, because it
+builds no device program to record. Neither does `--frame`: it
+photographs a canvas on a raster surface so the picture is reproducible,
+and a set is drawn by the device's own renderer, so a capture builds no
+Graphite program either.
 
 A key is replayed only if its description still reads back the same. A key
 names the pieces a program is inlined out of by number, and a piece the
