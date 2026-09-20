@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * Lower-level shaping types the pipeline is built on. A ShapedWord is the
  * immutable, cache-shared result of shaping one word-sized segment with one

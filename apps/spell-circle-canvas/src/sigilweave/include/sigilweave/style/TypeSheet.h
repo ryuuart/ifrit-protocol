@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * TypeSheet — the type half of a sheet: a base style and the named CLASSES over
  * it: small, ordered, comparable by value, whose lookup always answers.

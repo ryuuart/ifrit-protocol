@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-typography
+ *
  * SigilCompose typography — THE EFFECT AS A VALUE: what a body sees for
  * one glyph (`GlyphInfo`), the deviation from rest it returns
  * (`GlyphModifier`), the callable those two make (`GlyphModifierFunction`), the

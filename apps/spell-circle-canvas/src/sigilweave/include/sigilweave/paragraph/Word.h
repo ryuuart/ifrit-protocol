@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup document
+ * @ingroup weave-document
  *
  * The atomic layout unit: a Word is the text between two line-break
  * opportunities, measured as content plus trailing glue, carrying its bidi

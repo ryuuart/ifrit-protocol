@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup weave-kit
+ *
  * Umbrella header for SigilWeaveKit — companion utilities distilled from
  * SigilWeave's gallery, demo, and application consumers. The caching and
  * batching that keep animated text cheap are invisible when done right

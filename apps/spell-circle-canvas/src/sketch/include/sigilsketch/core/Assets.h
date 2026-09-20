@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-core
+ *
  * Sketch-facing assets: a thin veneer over the resource hub, with the
  * forgiving contract a live-edited file wants — and the probe a sketch
  * over fetched art answers its availability with.

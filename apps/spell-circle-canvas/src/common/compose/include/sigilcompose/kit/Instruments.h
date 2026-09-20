@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — instruments for looking at arithmetic while you
  * author it: `trackMeter`, a cascade's schedule drawn, and `restGhost`,
  * the same text at rest under the moving copy. A cascade is an invisible
@@ -46,11 +48,15 @@ namespace sigil::compose::kit {
  *  run of finished beats reading as a run of beats rather than as one
  *  filled bar. */
 struct MeterPlacement {
-  enum class Where { Over, Under };
-  Where where = Where::Over;
-  float thickness = 3.0f;  // Under only; Over takes the beat's own height
-  float gap = 6.0f;        // Under only: below the beat's bottom edge
-  float trim = 0.0f;       // taken off every cell's width
+  /** Whether the cells stand on the beats or under them. */
+  enum class Where {
+    Over,  ///< a cell laid over each beat, at the beat's own height
+    Under  ///< a rule under the beats, `thickness` px deep
+  };
+  Where where = Where::Over;  ///< where the cells stand
+  float thickness = 3.0f;     ///< Under only; Over takes the beat's own height
+  float gap = 6.0f;           ///< Under only: below the beat's bottom edge
+  float trim = 0.0f;          ///< px taken off every cell's width
 };
 
 /** THE SCHEDULE, DRAWN: one cell per beat of track @p trackIndex on the

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose Pattern — a repeating fill built from one tile, drawn by a
  * program or described as an Element tree. The mechanism — one bake,
  * a mapping, an explicit reseed — is SigilMaterial's Tile; this value

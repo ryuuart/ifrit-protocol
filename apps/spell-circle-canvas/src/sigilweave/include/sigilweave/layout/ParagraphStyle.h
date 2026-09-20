@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * ONE BLOCK'S SETTING — the paragraph controls a reader sees as a
  * paragraph: its pitch, its indents, the keeps that hold its lines
@@ -34,8 +34,14 @@ namespace sigil::weave {
  * same grid share one rhythm however differently their faces are cut.
  */
 struct Leading {
-  enum class Kind : uint8_t { kFace, kMultiple, kAbsolute, kGrid };
-  Kind kind = Kind::kFace;
+  /** How `value` is read. Each has a factory below that names it. */
+  enum class Kind : uint8_t {
+    kFace,      ///< the first span's own line height; `value` unused
+    kMultiple,  ///< `value` times the face's own line height
+    kAbsolute,  ///< `value` px, whatever the face reports
+    kGrid      ///< round the block's height up to a multiple of `value` px
+  };
+  Kind kind = Kind::kFace;  ///< how `value` is read
   float value = 0;  ///< the factor, the px pitch, or the px grid step
 
   /** The first span's own single-spaced line height. */

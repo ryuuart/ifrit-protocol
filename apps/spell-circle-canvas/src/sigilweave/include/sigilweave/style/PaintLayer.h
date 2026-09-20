@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * One additional rendering of the positioned glyphs — a complete SkPaint,
  * an offset for this pass alone, and optionally a SigilMaterial instance

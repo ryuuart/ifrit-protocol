@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose text painter — THE SEAM THE KERNEL DRAWS DRESSED TYPE
  * THROUGH: every operation the composer asks of text that is not simply
  * resting on its own straight baseline, as a value a text verb installs

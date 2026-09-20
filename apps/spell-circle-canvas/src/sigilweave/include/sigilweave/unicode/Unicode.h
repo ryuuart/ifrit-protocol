@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup unicode
+ * @ingroup weave-unicode
  *
  * The Unicode text analysis a layout engine needs, as plain values over
  * UTF-16 text: transcoding, locale-aware case mapping, script itemization,
@@ -24,6 +24,14 @@
 #include <string_view>
 #include <vector>
 
+/** THE TEXT ANALYSIS LEAF: what ICU can say about a string, as plain
+ *  functions over UTF-16 — transcoding, script and direction runs, case
+ *  mapping, grapheme/word/line segmentation, and the bidi reorder.
+ *
+ *  Everything above it asks these questions and decides what to do with
+ *  the answers; nothing here knows about fonts, styles or geometry. Reach
+ *  for it directly when you need a boundary or a script run without
+ *  building a paragraph. */
 namespace sigil::weave::unicode {
 
 // ── Transcoding ────────────────────────────────────────────────────────

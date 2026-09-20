@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * WHERE THE LINES BREAK and what decides it: the alignment, the choice of
  * breaker, the metrics that override the font's, where a word may be

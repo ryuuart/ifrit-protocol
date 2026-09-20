@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose masking family — Region, the `parts::` selection of a node's
  * paint outputs, the `by::` gates that say how that paint arrives, and
  * Mask, the pairing of the two that `Element::mask` stacks.
@@ -74,6 +76,8 @@ struct Instance;
  *  reason clip() survives as sugar over this. */
 class Region {
  public:
+  /** Which shape the region is, and therefore which of the members
+   *  below it reads. */
   enum class Kind : uint8_t {
     Own,   ///< the node's own shape() / corners box
     Rect,  ///< a rectangle in local coordinates
@@ -139,14 +143,16 @@ class Region {
  *  `spans::rest("unknown")` and `spans::fit("unknown")` do. */
 class Parts {
  public:
+  /** The four things a node paints, as one bit each, so a selection is
+   *  any combination of them. */
   enum Bits : uint8_t {
-    kSurface = 1u << 0u,
-    kMarks = 1u << 1u,
-    kContent = 1u << 2u,
-    kChildren = 1u << 3u,
-    kAll = 0b1111u,  // kSurface | kMarks | kContent | kChildren
+    kSurface = 1u << 0u,   ///< the fill, and whatever fills the shape
+    kMarks = 1u << 1u,     ///< the decorations: strokes, glows, shadows
+    kContent = 1u << 2u,   ///< the leaf's own text, image or program
+    kChildren = 1u << 3u,  ///< everything under the node
+    kAll = 0b1111u,        // kSurface | kMarks | kContent | kChildren
   };
-  uint8_t bits = 0;
+  uint8_t bits = 0;  ///< which of `Bits` this selection holds
   /** parts::named(): local mark labels, in declaration order. */
   std::vector<std::string> names;
 
@@ -264,7 +270,14 @@ Gate lumaOut(material::skia::Paint coverage);
  *  keep their defaults so the value compares. */
 class Gate {
  public:
-  enum class Kind : uint8_t { Spans, Edge, Shape, Coverage };
+  /** What decides whether paint arrives, and therefore which of the
+   *  members below this gate reads. */
+  enum class Kind : uint8_t {
+    Spans,    ///< runs of the boundary, by arc length
+    Edge,     ///< a straight wipe at an angle, to a fraction
+    Shape,    ///< a region in the node's local space
+    Coverage  ///< another paint's alpha or luma, per pixel
+  };
   /** Coverage: WHICH channel of the coverage paint becomes coverage. The two
    *  members are one mechanism — the same `saveLayer` and the same
    *  compositing pass — so they are a field of one Kind and not two Kinds.

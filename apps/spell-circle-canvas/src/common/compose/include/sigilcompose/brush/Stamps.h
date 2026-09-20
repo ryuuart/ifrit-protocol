@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose brushes — THE STAMPED KINDS: a mark laid down as COPIES of
  * a picture rather than as a stroke.
  *
@@ -31,6 +33,7 @@ namespace sigil::compose::brush {
  *  tangents, so a marker at a bend sits exactly on it. `interval` above 1
  *  is px; at or below 1 it is a FRACTION of each contour's length. */
 struct Placement {
+  /** Which points of the path carry an instance. */
   enum class Mode : uint8_t {
     Interval,       ///< every `interval` px (or fraction), phase `offset`
     Vertex,         ///< every path vertex (bends + endpoints)

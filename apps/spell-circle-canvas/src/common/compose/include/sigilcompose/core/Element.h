@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose Element — the value description of one node: what to draw,
  * how to lay it out, and the children under it, as chaining setters. The
  * factories that start one are in Factories.h; the one-shot verbs that
@@ -62,6 +64,42 @@ namespace sigil::material::pattern {
 class Tile;
 }
 
+/** DATA-DRIVEN DRAWING: a scene described as a tree of values, diffed
+ *  against the last description and painted through Skia.
+ *
+ *  A description is a tree of `Element`s. Each is a cheap VALUE built
+ *  fresh — a factory such as `box()`, `row()`, `column()`, `text()`,
+ *  `image()` or `custom()` starts one, chaining setters shape it, and
+ *  `children({…})` says what is under it. Nothing in the tree owns a GPU
+ *  or layout resource, so a description may be built, copied and thrown
+ *  away freely.
+ *
+ *  A `Composer` is the retained side and the only long-lived object.
+ *  `Composer::render()` hands it a description, which it reconciles
+ *  against the one before — matching nodes by `Element::key()`, laying
+ *  out through Yoga, resolving the cascade, running the derive pass, and
+ *  caching the subtrees that did not move — and `Composer::draw()` paints
+ *  the result onto an `SkCanvas`. `Composer::bounds()` and
+ *  `Composer::hitTest()` answer questions about what it laid out.
+ *
+ *  The vocabulary is CSS's wherever CSS has a word for it: flex layout,
+ *  the box model, `align-items`, `z-index`, custom properties and
+ *  inheritance, transforms including the 3D ones, blend modes, backdrop
+ *  filters. What inherits down the tree is the font, the block, the ink,
+ *  the style sheet and the custom properties; everything else a node
+ *  says stays on that node.
+ *
+ *  The features beside the kernel: `brush/` for marks along a boundary
+ *  and layer styles over a surface, `typography/` for what a text leaf
+ *  says beyond its words, `kit/` for stock components built out of these
+ *  verbs, and `draw/`, `texture/`, `video/` and `web/` for the leaves
+ *  that bring in a pen, an offscreen scene, a video stream and a
+ *  rendered page.
+ *
+ *  Reach for it when a picture is a function of state that changes.
+ *  A one-off drawing with no state behind it is cheaper with an
+ *  immediate-mode pen (SigilDraw); a lit scene in space is a set
+ *  (SigilWorld). */
 namespace sigil::compose {
 
 namespace detail {
@@ -83,42 +121,76 @@ struct TextPath;
 // rest of the derive family because it is resolved by the same pass.
 struct Tether;
 
-// ---------------------------------------------------------------------------
-// Element — a cheap value description
-
-/** One node of a scene description: what to draw, how to lay it out,
- *  and the children under it. An Element is a VALUE built fresh every
- *  frame and thrown away — it holds no GPU or layout state, and the
- *  retained tree behind it is the composer's business. The chaining
- *  setters return `*this`, so a node reads as one expression. */
+// One run of a children({…}) block; defined at the foot of this header,
+// where the block verb that takes it can be read beside it.
 struct Children;
 
+/** ONE NODE OF A SCENE DESCRIPTION: what to draw, how to lay it out, and
+ *  the children under it. An Element is a VALUE built fresh every frame
+ *  and thrown away — it holds no GPU or layout state, and the retained
+ *  tree behind it is the composer's business. The chaining setters
+ *  return `*this`, so a node reads as one expression.
+ *
+ *  A node is STARTED by a factory — `box()`, `row()`, `column()`,
+ *  `text()`, `image()`, `custom()` and the rest in Factories.h — and
+ *  SHAPED by the verbs below, which are grouped here in the order a node
+ *  is usually written: where it sits, what shape it is, what gates its
+ *  paint, what it hands down to its children, what it paints, where it
+ *  stands in depth, what it derives, what it contains, how its type is
+ *  treated, who it is, and what is under it.
+ *
+ *  A VERB WHOSE VALUE THIS NODE CANNOT USE IS SILENTLY IGNORED rather
+ *  than an error: the text verbs do nothing on a box, `region()` does
+ *  nothing off an image leaf, and a `cells()` claim is read only by a
+ *  grid-shaped scheme. That is what lets one kit component say
+ *  everything it might mean and let each node take its share.
+ *
+ *  THE NODE'S IDENTITY FOR CACHING IS `key()`. The reconciler matches a
+ *  child across describes by it, and `Composer::bounds` and `hitTest`
+ *  answer for it; a keyless node is matched by its position among its
+ *  siblings. Names given to marks and passes are LOCAL to the node and
+ *  are not keys. */
 class Element {
  public:
-  Element();  // empty box
+  Element();  ///< An empty box: no size, no fill, no children.
 
-  // ---- layout ----
-  /** Lay the children out along the horizontal axis. */
+  /** @name Layout
+   *  Where the node sits and how big it is: the flex direction, the box
+   *  model, the flex factors, the absolute placement longhand, and the
+   *  cell a grid-shaped scheme puts it in. Lengths are `Dimension`s, so
+   *  a bare number is pixels.
+   *  @{ */
+  /** Lay the children out along the HORIZONTAL axis, so the main axis is
+   *  x — CSS `flex-direction: row`. */
   Element& row();
-  /** Lay the children out down the vertical axis. */
+  /** Lay the children out down the VERTICAL axis, so the main axis is y
+   *  — CSS `flex-direction: column`, and what a node does when it says
+   *  neither. */
   Element& column();
   /** Flex-wrap: children flow onto new lines/columns when they
    *  overflow the main axis. */
   Element& wrapLines(bool on = true);
-  /** The gap, the padding and the margin take a `Dimension`: a bare
+  /** THE AIR BETWEEN THE CHILDREN, along both axes. Zero when unstated.
+   *
+   *  The gap, the padding and the margin take a `Dimension`: a bare
    *  number is pixels, a percent is of the parent, and `1_em`, `0.5_lh`
    *  and `1_rem` (SigilWeave's length literals) measure against the font
    *  in force — the node's own size and line height, or the root's — so
    *  the air around type follows the type. */
   Element& gap(Dimension length);
-  /** The air INSIDE the node, the same on all four sides. */
+  /** The air INSIDE the node's box, between its edge and its content —
+   *  the same `Dimension` forms the gap takes, and zero on every side
+   *  when unstated. One value is all four sides, two are horizontal then
+   *  vertical, four are left, top, right, bottom. */
   Element& padding(Dimension all);
   /** The air inside it, one length across and one down. */
   Element& padding(Dimension horizontal, Dimension vertical);
   /** The air inside it, a length per side, clockwise from the left. */
   Element& padding(Dimension left, Dimension top, Dimension right,
                    Dimension bottom);
-  /** The air OUTSIDE the node, the same on all four sides. */
+  /** The air OUTSIDE the node's box, between its edge and its siblings —
+   *  the same `Dimension` forms and the same one/two/four spellings as
+   *  the padding, and zero on every side when unstated. */
   Element& margin(Dimension all);
   /** The air outside it, one length across and one down. */
   Element& margin(Dimension horizontal, Dimension vertical);
@@ -132,41 +204,59 @@ class Element {
    *  error. Pair with `.shrink(0)` when `width(150)` means "this IS 150".
    *  The same holds for `height()` in a column. */
   Element& width(Dimension d);
-  /** The node's height, a basis rather than a guarantee: in a column
-   *  that overflows it gives room back unless `shrink(0)` says not to. */
+  /** The node's height, in the same `Dimension` forms the width takes,
+   *  and the same flex basis rather than a guarantee: in a column it is
+   *  what the node asks for and gives back when the column overflows.
+   *  Unstated, the node is as tall as its content. */
   Element& height(Dimension d);
-  /** The floor under the resolved width; it outranks the basis and
-   *  whatever shrinking would otherwise take the node below it. */
+  /** A FLOOR under the node's width that the flex factors may not take
+   *  it below, in the same `Dimension` forms. Unstated, there is none. */
   Element& minWidth(Dimension d);
-  /** The ceiling over the resolved width; it outranks the basis and
-   *  whatever growing would otherwise take the node above it. */
+  /** A CEILING over the node's width that `grow()` may not take it
+   *  above, in the same `Dimension` forms. Unstated, there is none. */
   Element& maxWidth(Dimension d);
-  /** The floor under the resolved height, on the other axis. */
+  /** A FLOOR under the node's height, in the same `Dimension` forms.
+   *  Unstated, there is none. */
   Element& minHeight(Dimension d);
-  /** The ceiling over the resolved height, on the other axis. */
+  /** A CEILING over the node's height, in the same `Dimension` forms.
+   *  Unstated, there is none. */
   Element& maxHeight(Dimension d);
-  /** Width over height, held for a node whose other axis is free to be
-   *  computed from this one. */
+  /** WIDTH OVER HEIGHT, held while the other axis is free — a `16f/9`
+   *  video box given only a width is sized down from it. Unstated, the
+   *  two axes are independent. */
   Element& aspect(float ratio);
-  /** This child's share of the main-axis room left over once every
-   *  basis is placed. */
+  /** THIS NODE'S SHARE OF THE ROOM LEFT OVER along the parent's main
+   *  axis, as a weight against its siblings' (CSS `flex-grow`). Zero when
+   *  unstated, so a node takes none of it and stays at its basis; the
+   *  bare call is a weight of one. */
   Element& grow(float factor = 1.0f);
-  /** This child's share of the overflow to give back. It is 1 unless
-   *  stated, which is why a stated size is not by itself a guarantee. */
+  /** THIS NODE'S SHARE OF THE OVERFLOW when the parent's main axis runs
+   *  short, as a weight against its siblings' (CSS `flex-shrink`). ONE
+   *  when unstated, faithful to Yoga and CSS, which is why a stated
+   *  width is a basis; `shrink(0)` is what makes a size exact. */
   Element& shrink(float factor);
-  /** The flex basis outright, for a node whose starting main-axis size
-   *  is neither its width nor its height. */
+  /** THE SIZE THE FLEX FACTORS START FROM along the parent's main axis
+   *  (CSS `flex-basis`), in the same `Dimension` forms. Unstated, the
+   *  node's own width or height on that axis is the basis. */
   Element& basis(Dimension d);
-  /** Where the children sit on the cross axis. */
+  /** WHERE THIS NODE'S CHILDREN SIT ACROSS its main axis — CSS
+   *  `align-items`. `Align::Stretch` when unstated, so a child with no
+   *  cross-axis size fills. A child that says `alignSelf()` overrides
+   *  it for itself. */
   Element& alignItems(Align a);
-  /** Where THIS child sits on its parent's cross axis, overriding what
-   *  the parent said for the rest of them. */
+  /** WHERE THIS NODE SITS ACROSS its parent's main axis, overriding that
+   *  parent's `alignItems()` for this child alone — CSS `align-self`.
+   *  `Align::Auto` when unstated, which is to take the parent's. */
   Element& alignSelf(Align a);
-  /** Where the children sit along the main axis, and how the slack
-   *  between them is shared out. */
+  /** HOW THIS NODE'S CHILDREN ARE DISTRIBUTED ALONG its main axis, and
+   *  what becomes of the room left over — CSS `justify-content`.
+   *  `Justify::Start` when unstated. */
   Element& justify(Justify j);
-  /** Take the node out of the flow: its insets and pins place it, and
-   *  its siblings lay out as though it were not there. */
+  /** TAKE THIS NODE OUT OF THE FLOW — CSS `position: absolute`. It no
+   *  longer sizes or displaces its siblings, and it is placed by the
+   *  insets, the pins, `rect()`, `at()`, `centerAt()` or `tether()`
+   *  instead; with none of those it stands at its parent's origin at its
+   *  own size. Every verb below that needs it implies it. */
   Element& absolute();
   /** THIS NODE FILLS THE BOX IT STANDS IN — `absolute()` and `inset(0)`,
    *  which is one sentence and was written as two. CSS's own word: the
@@ -182,6 +272,11 @@ class Element {
    *  is the one other thing it can be. A pin or an inset stated after
    *  this is a placement, and stands. */
   Element& cover();
+  /** HOW FAR IN FROM EACH EDGE of the parent's box an absolute node's own
+   *  edges stand, in pixels (implies absolute()) — CSS's four inset
+   *  properties. One value is all four sides; four are left, top, right,
+   *  bottom. `inset(0)` stretches the node across the whole box, which
+   *  is what `cover()` says in one word. */
   Element& inset(float all);
   Element& inset(float left, float top, float right, float bottom);
   /** Dimension-valued insets: px, pct(), or autoDimension() per side —
@@ -194,11 +289,17 @@ class Element {
    *  top-right without stretching it across the box. Unpinned sides stay
    *  auto. */
   Element& left(Dimension d);
-  /** Pin the top edge (implies `absolute()`); unpinned sides stay auto. */
+  /** Pin the node's TOP edge @p d below the parent's, in the same
+   *  `Dimension` forms the other pins take (implies absolute()). The
+   *  other three sides stay auto unless they are pinned too. */
   Element& top(Dimension d);
-  /** Pin the right edge (implies `absolute()`); unpinned sides stay auto. */
+  /** Pin the node's RIGHT edge @p d inside the parent's, in the same
+   *  `Dimension` forms (implies absolute()). Pinning left and right both
+   *  stretches the node between them. */
   Element& right(Dimension d);
-  /** Pin the bottom edge (implies `absolute()`); unpinned sides stay auto. */
+  /** Pin the node's BOTTOM edge @p d above the parent's, in the same
+   *  `Dimension` forms (implies absolute()). Pinning top and bottom both
+   *  stretches the node between them. */
   Element& bottom(Dimension d);
   /** HANG THIS NODE OFF A KEYED ONE, at a stated pair of points, with a
    *  list of places to try when the first will not fit (implies
@@ -278,10 +379,17 @@ class Element {
    *  half of the placement longhand that carries no box; same
    *  qualification as rect() above. */
   Element& at(SkPoint topLeft);
+  /** @} */
 
-  // ---- shape (defines PaintContext::outline and clipping) ----
-  /** The four corner radii of the node's box — the outline its fill,
-   *  its clip and every outline-following decoration trace. */
+  /** @name Shape
+   *  The node's own outline, which is what its fill covers, what
+   *  `clip()` clips to, and what every stroke pass and
+   *  outline-following decoration traces (`PaintContext::outline`).
+   *  @{ */
+  /** ROUND THE NODE'S CORNERS, per corner, in pixels — CSS
+   *  `border-radius`. Square when unstated, and overridden outright by
+   *  `shape()`. It is the cheap path: a rounded box clips and strokes as
+   *  a round rect where a general shape has to build a path. */
   Element& corners(Corners c);
   /** THE NODE'S SHAPE: a path generator over its laid-out size, in local
    *  coordinates. Overrides corners() — the fill surface, clip(), every
@@ -312,9 +420,13 @@ class Element {
    *  `.inward()` take one side (the offset-path lineage). No effect on a
    *  node that is not a band(). */
   Element& centered();
-  /** A band takes the OUTER side of its spine. */
+  /** Band formation: the whole band sits on the LEFT of travel, which in
+   *  screen space is outside a clockwise spine — so it exits a `shapes::`
+   *  rect or circle. No effect on a node that is not a band(). */
   Element& outward();
-  /** A band takes the INNER side of its spine. */
+  /** Band formation: the whole band sits on the RIGHT of travel, which
+   *  in screen space is inside a clockwise spine. No effect on a node
+   *  that is not a band(). */
   Element& inward();
   /** Clip fill, content, and children to the node's shape. Decorations
    *  are NOT clipped — they dress the outline (outer strokes, shadows,
@@ -329,8 +441,13 @@ class Element {
    *  clips with `clipRRect`, where the general shape gate has to build a
    *  path and clip against that. */
   Element& clip(bool on = true);
+  /** @} */
 
-  // ---- mask (the appearance-gating family) ----
+  /** @name Mask
+   *  The appearance-gating family: what of this node's paint is shown,
+   *  and where. Paint-only and bindable, so a mask never relayouts and
+   *  hit-testing keeps the unmasked shape.
+   *  @{ */
   /** THE FAMILY VERB, taught form: gate everything this node paints.
    *
    *      .mask(by::spans(spans::upTo(animate(from(0.f).to(1.f), {600ms}))))
@@ -370,15 +487,18 @@ class Element {
    *  so an overlapping claim is a description-level mistake reported once,
    *  never one that blinks in and out partway through a transition. */
   Element& mask(Parts what, Gate with);
+  /** @} */
 
-  // ---- the cascade ----
-  // Three things flow down the TREE, from a node to everything under it,
-  // wherever the code that built a child ran: the font, its colour (the
-  // ink), and the custom properties. Everything else a node says about
-  // itself stays on that node — CSS's own split between the properties
-  // that inherit and the ones that do not. A node that leaves one unset
-  // takes the nearest ancestor's, and the root's are the composer's
-  // `setInherited` defaults.
+  /** @name The cascade
+   *  What flows down the TREE, from a node to everything under it,
+   *  wherever the code that built a child ran: the font, the block, the
+   *  colour (the ink), the style sheet, the classes resolved through it,
+   *  and the custom properties. Everything else a node says about itself
+   *  stays on that node — CSS's own split between the properties that
+   *  inherit and the ones that do not. A node that leaves one unset takes
+   *  the nearest ancestor's, and the root's are the composer's
+   *  `setInherited` defaults.
+   *  @{ */
   /** THE FONT EVERYTHING UNDER THIS NODE IS SET IN, as a PARTIAL: the
    *  fields @p partial names override the inherited font, and every field
    *  it leaves unset inherits — `font({.size = 22})` is the inherited face
@@ -455,15 +575,37 @@ class Element {
    *  concrete values, so a property reaches exactly what resolves through
    *  the paint context: a fill, a stroke, a mark, a length, the ink. */
   Element& var(std::string_view name, SkColor4f colour);
+  /** The same, holding a LENGTH rather than a colour, read back through
+   *  `var(name)` wherever a `Dimension` is taken. A property is one or
+   *  the other, and reading one as the other leaves the target standing
+   *  and says so once. */
   Element& var(std::string_view name, Dimension length);
   /** FALLBACK CUSTOM PROPERTIES for this node and its descendants.
    *  Inherited properties override these defaults, and properties this
    *  node sets with var() override both, including explicit zero values.
    *  A later call replaces this table. */
   Element& varDefaults(VarTable defaults);
+  /** @} */
 
-  // ---- paint ----
-  /** A colour, a shader, a transition between colours, or a LIVE binding.
+  /** @name Paint
+   *  What the node's own surface is painted with, and how image leaves
+   *  sample their source.
+   *  @{ */
+  /** PAINT THE NODE'S SURFACE — a colour, a shader, a transition between
+   *  colours, or a LIVE binding. Unfilled when unstated, so a box paints
+   *  nothing and only its decorations and children show.
+   *
+   *  WHAT MAY BE PASSED, across the overloads below: an `SkColor4f`, a
+   *  `Fill` (a colour or a shader), a `motion::Animatable<Fill>` (one
+   *  that eases or is driven), a `material::skia::Paint` (a gradient
+   *  ramp, a blend stack, a sprite, SkSL), or a `SurfacePaint`, which is
+   *  the one value all of those convert into and the type a component
+   *  declares so its caller may pass whichever it holds. A `Pattern` and
+   *  a `material::pattern::Tile` are deliberately NOT accepted — fill
+   *  with what a held Pattern bakes instead.
+   *
+   *  @see sigil::compose::SurfacePaint
+   *  @see sigil::material::skia::Paint
    *
    *  The binding form is `fill(&output)` where the Output holds a `Fill`,
    *  and it is the answer to "this widget's colour IS its value" — a
@@ -521,15 +663,23 @@ class Element {
    *  inherits `image-rendering`: a panel of pixel art states nearest once.
    *  `Material::image()` takes the same options for a sprite fill. */
   Element& sampling(SkSamplingOptions options);
-  // ---- decoration layers ----
-  // Backgrounds paint below content/children (in declaration order),
-  // foregrounds above; fill() is the transitionable first background,
-  // custom() a box with one background program.
-  // Repeated calls APPEND (the Photoshop stacked-strokes model — two
-  // stroke() calls are two rings).
-  // Decorations dress the OUTLINE: clip() does not clip them (it bounds
-  // fill/content/children only), so outer strokes and shadows survive on
-  // clipped nodes.
+  /** @} */
+
+  /** @name Decoration layers
+   *  The marks laid under, over and around what the node paints.
+   *  Backgrounds paint below content and children, in declaration order,
+   *  foregrounds above; `fill()` is the transitionable first background
+   *  and `custom()` a box with one background program.
+   *
+   *  Repeated calls APPEND — the Photoshop stacked-strokes model, where
+   *  two `stroke()` calls are two rings — and every slot takes an
+   *  optional local name, which is what `mask(parts::named(name), …)`
+   *  addresses and is never a query key.
+   *
+   *  Decorations dress the OUTLINE: `clip()` does not clip them (it
+   *  bounds the fill, the content and the children only), so outer
+   *  strokes and shadows survive on a clipped node.
+   *  @{ */
   /** Takes this node OUT of hit testing — CSS `pointer-events: none`.
    *
    *  READ THIS BEFORE KEYING A CONTAINER. `hitTest` returns any keyed node
@@ -697,8 +847,20 @@ class Element {
    *  Cache::Texture (the backdrop depends on the live destination);
    *  such nodes fall back to picture caching. */
   Element& backdrop(material::skia::Effect e);
-  /** Fade the node and its whole subtree as ONE group, through a layer,
-   *  so overlapping children do not show through one another. */
+  /** @} */
+
+  /** @name Transform
+   *  The paint-phase lanes: opacity, the blend, and the 2D transform
+   *  stack — translate, then rotate, then scale, then skew, about the
+   *  transform origin. Animating any of them never relayouts; the
+   *  content picture replays under the new transform, and hit-testing
+   *  follows the transformed box.
+   *  @{ */
+  /** HOW OPAQUE THE WHOLE NODE IS, 0 clear to 1 solid, multiplying
+   *  everything it and its children paint. 1 when unstated. Below 1 the
+   *  node composites as a group, which is what makes a subtree fade as
+   *  one picture rather than layer by layer — and what ends a
+   *  `preserve3d()` space at this node. */
   Element& opacity(motion::Animatable<float> o);
   /** THE NODE FADES IN WHEN IT MOUNTS, over @p how — `opacity(animate(
    *  from(0).to(1), how))` written once, because that sentence is what
@@ -711,13 +873,18 @@ class Element {
    *  instead. A node under a staggered container takes its share of the
    *  cascade's delay here as it would on any other entrance. */
   Element& appear(motion::Transition how);
-  /** How the node's own paint meets what is already under it. */
+  /** HOW THE NODE'S PAINT COMBINES with what is already beneath it — any
+   *  Skia blend mode. `SkBlendMode::kSrcOver` when unstated. Anything
+   *  else makes the node composite as a group, so its subtree resolves
+   *  into one layer before the mode is applied, and a
+   *  `preserve3d()` space ends here. */
   Element& blend(SkBlendMode mode);
-  /** Move the node's plane across, in px. Paint-only: animating it
-   *  never relayouts. */
+  /** SLIDE THE NODE ALONG X, in pixels, positive to the right. Zero when
+   *  unstated. Paint-only: the node's layout box does not move, so
+   *  nothing reflows and nothing else shifts to make room. */
   Element& translateX(motion::Animatable<float> v);
-  /** Move the node's plane down, in px. Paint-only, like the lane
-   *  across. */
+  /** SLIDE THE NODE ALONG Y, in pixels, positive downward. Zero when
+   *  unstated, and paint-only exactly as `translateX()` is. */
   Element& translateY(motion::Animatable<float> v);
   /** Ride a CURVE instead of two lanes — the motion path (see MotionPath
    *  for the six rules). Paint-only like the lanes it outranks; the
@@ -729,11 +896,13 @@ class Element {
    *               .lookAhead = 0.02f})   // auto-orient along the tangent
    */
   Element& travel(MotionPath along);
-  /** Turn the node's plane about the transform origin, in degrees.
-   *  Paint-only: animating it never relayouts. */
+  /** TURN THE NODE IN ITS OWN PLANE, in degrees, positive clockwise in
+   *  screen space, about the transform origin. Zero when unstated, and
+   *  paint-only: the layout box stays axis-aligned where it was. */
   Element& rotate(motion::Animatable<float> degrees);
-  /** Scale both axes about the transform origin. Paint-only, and the
-   *  per-axis lanes multiply into it. */
+  /** SCALE THE NODE UNIFORMLY about the transform origin, 1 being its
+   *  laid-out size. 1 when unstated, and paint-only, so a scaled node
+   *  takes exactly the room it took unscaled. */
   Element& scale(motion::Animatable<float> factor);
   /** Per-axis scale about the transform origin, multiplied INTO scale().
    *  Paint-only like scale(): animating one never relayouts, and the
@@ -748,8 +917,10 @@ class Element {
    *  `transformOrigin(0, 0.5f).scaleX(&fraction)` grows a bar rightward
    *  from its left edge. */
   Element& scaleX(motion::Animatable<float> factor);
-  /** The vertical half of the per-axis scale, multiplied into `scale()`
-   *  exactly as the horizontal one is. */
+  /** Scale along Y alone about the transform origin, multiplied INTO
+   *  `scale()`. 1 when unstated; the vertical twin of `scaleX()`, and
+   *  what a meter or a wipe that grows downward uses with
+   *  `transformOrigin(0.5f, 0)`. */
   Element& scaleY(motion::Animatable<float> factor);
   /** Shear, in degrees, about the transform origin. Paint-only like
    *  rotate/scale: animating a skew never relayouts, and content pictures
@@ -760,15 +931,20 @@ class Element {
    *  node further right, so the shape's top leans LEFT — the italic
    *  forward lean is a NEGATIVE skewX. */
   Element& skewX(motion::Animatable<float> degrees);
-  /** The shear that slants the HORIZONTALS, in degrees about the
-   *  transform origin. */
+  /** Shear that slants HORIZONTALS, in degrees, about the transform
+   *  origin. Zero when unstated, and paint-only as `skewX()` is; the
+   *  sense is screen-space, y down, so a positive angle pushes points
+   *  further right further down. */
   Element& skewY(motion::Animatable<float> degrees);
-  // Integer-literal sugar (rotate(-8) etc. — int doesn't convert into the
-  // Animatable variant on its own, and the resulting error is unreadable).
-  // std::integral-constrained so FLOAT calls can never land here (a plain
-  // int overload would capture them via the standard float→int conversion
-  // and recurse); the Animatable is constructed explicitly for the same
-  // reason.
+  /** THE INTEGER-LITERAL SPELLING of this lane and of the ones after it
+   *  — `rotate(-8)`, `scale(2)` — which exists because a plain `int`
+   *  does not convert into the animatable variant on its own and the
+   *  error when it does not is unreadable.
+   *
+   *  Constrained on `std::integral` so a FLOAT call can never land here:
+   *  a plain `int` overload would capture one through the standard
+   *  float-to-int conversion and recurse. The animatable is constructed
+   *  explicitly for the same reason. */
   template <std::integral T>
   Element& opacity(T v) {
     return opacity(motion::Animatable<float>((float)v));
@@ -805,36 +981,41 @@ class Element {
   Element& skewY(T deg) {
     return skewY(motion::Animatable<float>((float)deg));
   }
-  /** The pivot every transform lane turns about, as fractions of the
-   *  node's own box: {0, 0} is its top-left and {0.5, 0.5} its centre. */
+  /** THE PIVOT every rotation, scale and skew turns about, as fractions
+   *  of the node's own box: 0,0 its top-left, 1,1 its bottom-right. The
+   *  CENTRE (0.5, 0.5) when unstated. `transformOrigin(0, 0.5f)` is what
+   *  grows a bar rightward from its left edge. */
   Element& transformOrigin(float fx, float fy);
   /** Pixel-valued transform origin (node-local px) — for pivots that
    *  aren't a fraction of THIS node's box, e.g. zooming a window that
    *  lives inside a full-canvas overlay around its own center. */
   Element& transformOriginPx(SkPoint p);
-  /** Paint order among siblings that overlap: higher paints later, and
-   *  the sort is stable, so an unstated index keeps declaration order. */
+  /** PAINT ORDER AMONG SIBLINGS — CSS `z-index`. Zero when unstated, so
+   *  siblings paint in declaration order; a higher number paints later
+   *  and therefore on top. It reorders nothing outside this node's own
+   *  parent, and it changes no layout. */
   Element& zIndex(int z);
+  /** @} */
 
-  // ---- depth: the CSS 3D model over the 2D tree ----
-  //
-  // A node is a PLANE. These lanes turn it and move it in depth, and the
-  // node projects its plane onto the one its parent paints on — one 4x4
-  // per node, flattened at paint, so tree order stays draw order and
-  // everything the node holds (its fill, its text, its children, its
-  // caches) lives in the plane exactly as it did before. Paint-only like
-  // the 2D lanes: animating one never relayouts, and a settled node's
-  // recording is taken in its own plane and replayed through the
-  // projection. The frame is CSS's: x right, y down, and +z TOWARD the
-  // viewer, so a positive `translateZ` under a `perspective` comes closer
-  // and grows.
-  //
-  // The three rotations compose as CSS's `rotateX() rotateY() rotateZ()`
-  // list — X outermost — and then scale and skew, about the transform
-  // origin, exactly where the 2D `rotate → scale → skew` stack stands.
-  // What none of this is: a scene. Two planes never intersect, nothing is
-  // lit, and a depth is not a position in a world — a set (SigilWorld) is
-  // where that lives.
+  /** @name Depth — the CSS 3D model over the 2D tree
+   *  A node is a PLANE. These lanes turn it and move it in depth, and
+   *  the node projects its plane onto the one its parent paints on — one
+   *  4x4 per node, flattened at paint, so tree order stays draw order
+   *  and everything the node holds (its fill, its text, its children,
+   *  its caches) lives in the plane exactly as it did before. Paint-only
+   *  like the 2D lanes: animating one never relayouts, and a settled
+   *  node's recording is taken in its own plane and replayed through the
+   *  projection. The frame is CSS's: x right, y down, and +z TOWARD the
+   *  viewer, so a positive `translateZ` under a `perspective` comes
+   *  closer and grows.
+   *
+   *  The three rotations compose as CSS's `rotateX() rotateY()
+   *  rotateZ()` list — X outermost — and then scale and skew, about the
+   *  transform origin, exactly where the 2D `rotate → scale → skew`
+   *  stack stands. What none of this is: a scene. Two planes never
+   *  intersect, nothing is lit, and a depth is not a position in a world
+   *  — a set (SigilWorld) is where that lives.
+   *  @{ */
 
   /** Turn the plane about its horizontal axis, in degrees: positive tips
    *  the bottom edge toward the viewer. */
@@ -918,8 +1099,12 @@ class Element {
   Element& perspective(T px) {
     return perspective(motion::Animatable<float>((float)px));
   }
+  /** @} */
 
-  // ---- derive phase (inputs are resolved geometry) ----
+  /** @name Derive phase
+   *  What this node says about OTHER nodes' resolved geometry, answered
+   *  in a bounded second pass once layout has run.
+   *  @{ */
   /** Text leaves only: flow this paragraph around the keyed node, with
    *  @p margin px of standoff.
    *
@@ -936,8 +1121,14 @@ class Element {
    *  ignored (cycle guard). Call repeatedly to weave around several
    *  elements. */
   Element& flowAround(std::string_view key, float margin = 0.0f);
+  /** @} */
 
-  // ---- content ----
+  /** @name Content
+   *  What a leaf holds and how it is set: the image region, the
+   *  per-glyph fx tracks, the marks and readings beside the type, the
+   *  frame chain, and how each block of a passage is styled. Every verb
+   *  here does nothing on a node of the wrong kind.
+   *  @{ */
   /** Image leaves only: draw this sub-rect of the asset (atlas / sprite
    *  regions, in source pixels) instead of the whole image. Strictly
    *  constrained — neighboring atlas cells never bleed in. */
@@ -1189,47 +1380,50 @@ class Element {
    *  top of this, so a passage that only carries readings needs none of
    *  this. */
   Element& reserve(sigil::weave::ReservedBand band);
+  /** @} */
 
-  // ---- span restyling: the type treatment, addressed by selector -------
-  //
-  // The same `selectors::` vocabulary the fx() tracks address glyphs with, used
-  // to say what a range LOOKS LIKE rather than how it moves. Each verb
-  // takes an ordered list — call any of them as many times as the passage
-  // needs — and a LATER DECLARATION WINS wherever two overlap, so a broad
-  // rule followed by a narrow exception reads in the order it is written.
-  //
-  // They apply to every content form alike: plain `text(utf8, style)`,
-  // `weave::rich()` spans, and the `shared_ptr<Paragraph>` overload, because
-  // all three are one materialized paragraph by the time a restyle runs.
-  //
-  // The two are ordered by WHAT THEY ARE ALLOWED TO DISTURB. `spanPaint`
-  // repaints and nothing else. `spanStyle` may change anything, and
-  // re-shapes to do it — except a change of advance-invariant axes alone,
-  // which it carries to the glyphs at draw time with the pen positions
-  // standing.
-  //
-  // …which is why "later wins" holds PER DIMENSION where the two meet: the
-  // PAINT of a range is `spanPaint`'s to say, so a `spanStyle` over text an
-  // earlier `spanPaint` coloured applies its other dimensions and leaves
-  // that colour standing. Either order therefore does the same thing, and
-  // neither verb has to know what the other declared. A `spanStyle` alone
-  // paints with the style it is given, as ever.
-  //
-  // Both run on the PARAGRAPH and resolve their selection as TEXT RANGES,
-  // not glyphs: `weave::selectors::text` and
-  // `weave::selectors::regex` go through weave's query layer,
-  // `weave::selectors::word`, `weave::selectors::words`,
-  // `weave::selectors::sentence` and `weave::selectors::range` through the
-  // paragraph's own structure, and `weave::selectors::line` through the layout.
-  // `weave::Selector::take` and `weave::Selector::drop` slice GLYPHS inside a
-  // unit, which a text range cannot express — an `weave::selectors::each`
-  // selector restyles its whole units here, and the slice is ignored with a
-  // warning.
-  //
-  // A `weave::selectors::line` restyle addresses THE LAYOUT OF THE TEXT BEFORE
-  // THE RESTYLE, and costs a second layout pass. It does not chase its own
-  // result: a `spanStyle` on a line that moves the line breaks leaves the
-  // selection where the first breaking put it.
+  /** @name Span restyling — the type treatment, addressed by selector
+   *  The same `selectors::` vocabulary the fx() tracks address glyphs
+   *  with, used to say what a range LOOKS LIKE rather than how it moves.
+   *  Each verb takes an ordered list — call any of them as many times as
+   *  the passage needs — and a LATER DECLARATION WINS wherever two
+   *  overlap, so a broad rule followed by a narrow exception reads in
+   *  the order it is written.
+   *
+   *  They apply to every content form alike: plain `text(utf8, style)`,
+   *  `weave::rich()` spans, and the `shared_ptr<Paragraph>` overload,
+   *  because all three are one materialized paragraph by the time a
+   *  restyle runs.
+   *
+   *  The two are ordered by WHAT THEY ARE ALLOWED TO DISTURB.
+   *  `spanPaint` repaints and nothing else. `spanStyle` may change
+   *  anything, and re-shapes to do it — except a change of
+   *  advance-invariant axes alone, which it carries to the glyphs at
+   *  draw time with the pen positions standing.
+   *
+   *  …which is why "later wins" holds PER DIMENSION where the two meet:
+   *  the PAINT of a range is `spanPaint`'s to say, so a `spanStyle` over
+   *  text an earlier `spanPaint` coloured applies its other dimensions
+   *  and leaves that colour standing. Either order therefore does the
+   *  same thing, and neither verb has to know what the other declared. A
+   *  `spanStyle` alone paints with the style it is given, as ever.
+   *
+   *  Both run on the PARAGRAPH and resolve their selection as TEXT
+   *  RANGES, not glyphs: `weave::selectors::text` and
+   *  `weave::selectors::regex` go through weave's query layer,
+   *  `weave::selectors::word`, `weave::selectors::words`,
+   *  `weave::selectors::sentence` and `weave::selectors::range` through
+   *  the paragraph's own structure, and `weave::selectors::line` through
+   *  the layout. `weave::Selector::take` and `weave::Selector::drop`
+   *  slice GLYPHS inside a unit, which a text range cannot express — an
+   *  `weave::selectors::each` selector restyles its whole units here,
+   *  and the slice is ignored with a warning.
+   *
+   *  A `weave::selectors::line` restyle addresses THE LAYOUT OF THE TEXT
+   *  BEFORE THE RESTYLE, and costs a second layout pass. It does not
+   *  chase its own result: a `spanStyle` on a line that moves the line
+   *  breaks leaves the selection where the first breaking put it.
+   *  @{ */
 
   /** Text leaves only: repaint the range this selector finds — a colour, a
    *  shader, an underline, an added glow pass. PAINT ONLY, so it NEVER
@@ -1271,19 +1465,20 @@ class Element {
    *  size, tracking, features or any other shaping field re-shapes the
    *  words it covers, exactly as the whole style above does. */
   Element& spanStyle(sigil::weave::Selector where, sigil::weave::Type partial);
+  /** @} */
 
-  // ---- layout options, fluently ----------------------------------------
-  //
-  // The general knobs of `weave::ParagraphLayoutOptions`, as setters that
-  // work on every content form. The rest of that struct — justification
-  // elasticity, Knuth-Plass tolerance, tab stops, line-metric overrides —
-  // stays behind the `shared_ptr<Paragraph>` overload, which takes the
-  // whole options value.
-  //
-  // ON THE PARAGRAPH OVERLOAD THESE OVERRIDE FIELD BY FIELD, and only the
-  // fields actually set: options passed to `text(paragraph, options)` stand
-  // for everything a setter did not name. Setting none of them leaves the
-  // passed options untouched.
+  /** @name Layout options, fluently
+   *  The general knobs of `weave::ParagraphLayoutOptions`, as setters
+   *  that work on every content form. The rest of that struct —
+   *  justification elasticity, Knuth-Plass tolerance, tab stops,
+   *  line-metric overrides — stays behind the `shared_ptr<Paragraph>`
+   *  overload, which takes the whole options value.
+   *
+   *  ON THE PARAGRAPH OVERLOAD THESE OVERRIDE FIELD BY FIELD, and only
+   *  the fields actually set: options passed to `text(paragraph,
+   *  options)` stand for everything a setter did not name. Setting none
+   *  of them leaves the passed options untouched.
+   *  @{ */
 
   /** Text leaves only: the marker appended to the last line when the text
    *  overflows its geometry. Empty disables it. */
@@ -1366,8 +1561,12 @@ class Element {
    *  against, and `kit::restGhost` draws it under the moving copy.
    *  Anything but text warns once and comes back as a plain copy. */
   [[nodiscard]] Element atRest() const;
+  /** @} */
 
-  // ---- identity, caching, transitions ----
+  /** @name Identity, caching, transitions
+   *  Who the node is across describes, what the painter is allowed to
+   *  keep of it, and how its plain constants change.
+   *  @{ */
   /** The author-owned identity: what the reconciler matches a child by
    *  across describes, and what `connector`/`rail`/`spans::fit` borrow
    *  geometry by.
@@ -1378,8 +1577,14 @@ class Element {
    *  nothing. It warns once, in Release too, because the visible symptom
    *  is an empty region rather than an error. */
   Element& key(std::string_view k);
-  /** How the node's paint is held between frames: a recorded picture, a
-   *  baked texture, a group, or nothing. */
+  /** WHAT THE PAINTER MAY KEEP OF THIS SUBTREE — record it as a picture,
+   *  bake it to a texture, bake it with its children, or nothing at all.
+   *  `Cache::Auto` when unstated, which records provably-static subtrees
+   *  and leaves the rest alone. A per-frame paint program that reads the
+   *  clock MUST state `Cache::None`, because nothing can see that it
+   *  sampled the time. See `Cache` for what each mode costs and refuses.
+   *
+   *  @see sigil::compose::Cache */
   Element& cache(Cache c);
   /** Texture-bake resolution multiplier (Cache::Texture only; 0.1–1).
    *  The bake rasterizes at `factor` times the device scale and the blit
@@ -1394,8 +1599,13 @@ class Element {
    *  resample. Sharp text and 1 px hairlines never belong under a reduced
    *  bake. */
   Element& bakeScale(float factor);
-  /** The node's default transition, taken by every plain constant set
-   *  on it that names no transition of its own. */
+  /** HOW THIS NODE'S PLAIN CONSTANTS CHANGE when a later describe gives
+   *  them a new value: the duration, easing and delay that every
+   *  animatable lane on the node — its transforms, its opacity, its
+   *  mask gates, its fx progresses, its fill — is retargeted over. None
+   *  when unstated, so a new constant lands on the frame it arrives. A
+   *  value that already carries its own `animate(...)` keeps that one;
+   *  this is the node's default for the ones that do not. */
   Element& transition(
       motion::Transition t);  // node default for plain constants
   /** Container stagger: child i's subtree enters with an EXTRA
@@ -1409,8 +1619,12 @@ class Element {
   Element& staggerChildren(
       std::chrono::milliseconds each,
       motion::Spread::From from = motion::Spread::From::Start);
+  /** @} */
 
-  // ---- composition ----
+  /** @name Composition
+   *  What is under the node — written last, after every verb that says
+   *  what is done to the node itself.
+   *  @{ */
   /** THE CHILDREN, AS ONE BLOCK: what is in the node, in order, after
    *  every verb that says what is done to it —
    *
@@ -1424,12 +1638,16 @@ class Element {
    *  range, so a block mixes the two. Braces on a description mean this
    *  and nothing else. */
   Element& children(std::initializer_list<Children> runs);
+  /** THE CHILDREN FROM A RANGE, appended in the range's own order — for
+   *  a container whose whole content is a collection, where the braced
+   *  block would hold one `each()` and nothing else. */
   template <std::ranges::input_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, Element>
   Element& children(R&& range) {
     for (auto&& e : range) append(std::move(e));
     return *this;
   }
+  /** @} */
 
   /** @private reconciler access */
   const std::shared_ptr<detail::ElementNode>& node() const {

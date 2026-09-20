@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — keeping type readable where it crosses the drawing.
  *
  * One problem, three mechanisms: an annotation has to sit ON the artwork

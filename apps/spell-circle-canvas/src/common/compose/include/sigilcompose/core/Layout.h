@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose layout values — Dimension and its literals, Align, Justify,
  * Echo, Cache with the `cachePolicy` that reads it as the kernel's own, the
  * CellSpan a child claims and the LayoutInput a custom LayoutScheme
@@ -49,7 +51,18 @@ namespace sigil::compose {
  *  margin is `6_pw` keeps its proportions at every canvas size, however
  *  many boxes deep it is written. */
 struct Dimension {
-  enum class Unit : uint8_t { Px, Pct, Auto, Em, Rem, Lh, Var, Pw, Ph };
+  /** What `value` is measured in. */
+  enum class Unit : uint8_t {
+    Px,    ///< device-independent pixels
+    Pct,   ///< percent of the parent's corresponding extent
+    Auto,  ///< left for layout to decide; `value` unused
+    Em,    ///< multiples of the node's own resolved font size
+    Rem,   ///< multiples of the root's font size
+    Lh,    ///< multiples of the node's own line height
+    Var,   ///< a custom property, its id bit-cast into `value`
+    Pw,    ///< percent of the CANVAS's width
+    Ph     ///< percent of the CANVAS's height
+  };
   Unit unit = Unit::Auto;
   /** The length, or under `Var` the reference id, bit-cast into the float
    *  and never read as one. */
@@ -80,6 +93,8 @@ struct Dimension {
   }
   bool operator==(const Dimension&) const = default;
 };
+/** @p v percent of the PARENT's corresponding extent — Yoga's own
+ *  percent, and the one CSS means by `%`. */
 constexpr Dimension pct(float v) {
   Dimension d;
   d.unit = Dimension::Unit::Pct;
@@ -100,6 +115,11 @@ constexpr Dimension ph(float v) {
   d.value = v;
   return d;
 }
+/** THE CSS `auto`: this length is not stated, so layout decides it. It is
+ *  what an unstated `Dimension` already is, and the name exists so a side
+ *  of an `inset()` can be left unpinned in the middle of four that are
+ *  stated — an unpinned side lets the node's own width or height, or the
+ *  opposite inset, size it rather than stretching it across the box. */
 constexpr Dimension autoDimension() { return {}; }
 
 /** `width(50_pct)`, `width(50_pw)`, `top(10_ph)`, `basis(120_px)` — for the
@@ -120,14 +140,26 @@ constexpr Dimension operator""_ph(long double v) { return ph((float)v); }
 constexpr Dimension operator""_ph(unsigned long long v) { return ph((float)v); }
 }  // namespace literals
 
-enum class Align : uint8_t { Auto, Start, Center, End, Stretch, Baseline };
+/** WHERE A CHILD SITS ACROSS the container's main axis — down a row,
+ *  across a column — which is CSS's `align-items` on the container and
+ *  `align-self` on one child. */
+enum class Align : uint8_t {
+  Auto,     ///< take the container's `alignItems`; the child's default
+  Start,    ///< against the cross-axis start edge
+  Center,   ///< centred across the cross axis
+  End,      ///< against the cross-axis end edge
+  Stretch,  ///< sized to the container across the cross axis
+  Baseline  ///< first baselines of the run share one line
+};
+/** HOW THE CHILDREN ARE DISTRIBUTED ALONG the container's main axis, and
+ *  what becomes of the room left over — CSS's `justify-content`. */
 enum class Justify : uint8_t {
-  Start,
-  Center,
-  End,
-  SpaceBetween,
-  SpaceAround,
-  SpaceEvenly
+  Start,         ///< packed at the main-axis start; the default
+  Center,        ///< packed in the middle
+  End,           ///< packed at the main-axis end
+  SpaceBetween,  ///< the leftover room split between the children
+  SpaceAround,   ///< a half share outside the first and last as well
+  SpaceEvenly    ///< every gap equal, the outer ones included
 };
 
 /** One misprint pass: the node's own fill shape and text re-stamped at
@@ -275,8 +307,8 @@ void flowCells(std::vector<CellSpan>& spans, int columns, bool dense = false);
 struct LayoutInput {
   SkSize container = SkSize::MakeEmpty();
   std::vector<SkSize> childSizes;
-  std::vector<float> childBaselines;  // NaN = no baseline (non-text)
-  std::vector<CellSpan> childCells;   // .declared = false when unspoken
+  std::vector<float> childBaselines;  ///< NaN = no baseline (non-text)
+  std::vector<CellSpan> childCells;   ///< .declared = false when unspoken
   /** THE NAME OF THE REGION each child claims, when the scheme draws a
    *  picture of itself out of names (`layouts::Grid::areas`) — empty for a
    *  child that named none, which is the numeric spelling in `childCells`
@@ -324,11 +356,18 @@ concept SizesFromContentMinima = LayoutScheme<L> && requires {
 // ---------------------------------------------------------------------------
 // Concepts (readable errors at the generic entry points)
 
+/** WHAT A COMPONENT'S PROPERTIES MUST BE: a copyable value that compares
+ *  equal to itself. Both are what the reconciler needs to tell a
+ *  component's new properties from the ones it drew last time and skip
+ *  the ones that did not move. */
 template <typename P>
 concept ComponentProperties = std::equality_comparable<P> && std::copyable<P>;
 
 class Element;
 
+/** WHAT A COMPONENT IS: anything callable with its properties that
+ *  answers a node. There is no base class and nothing to inherit — a
+ *  lambda, a free function or a struct with `operator()` all qualify. */
 template <typename F, typename P>
 concept ComponentFunction =
     std::invocable<F, const P&> &&

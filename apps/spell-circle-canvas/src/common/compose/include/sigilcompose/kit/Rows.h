@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — A NAME AND THE FIGURE THAT ANSWERS IT: one reading,
  * the readout a stack of them makes, the table a reading of more than a
  * pair needs, and the bars a column of values is drawn as.

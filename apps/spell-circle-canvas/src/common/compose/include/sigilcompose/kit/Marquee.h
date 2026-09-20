@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — the marquee: text in motion that costs a repaint and
  * never a reflow.
  */

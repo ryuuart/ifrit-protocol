@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose paint values — Fill, Corners, the PaintContext a paint
  * program is handed, the instance-side StampCache, and the three lines
  * that put SigilMaterial's paint on a node. These are the
@@ -64,7 +66,12 @@ struct ElementNode;
  *  REFERENCE to a colour the tree supplies where the fill is painted: the
  *  ink in force, or a custom property. */
 struct Fill {
-  enum class Kind : uint8_t { None, Color, Shader };
+  /** Which of the three things a fill holds. */
+  enum class Kind : uint8_t {
+    None,   ///< nothing is painted
+    Color,  ///< a single colour, or a reference that resolves to one
+    Shader  ///< anything Skia can shade
+  };
   /** Where a colour fill READS its colour from when it was written as a
    *  reference rather than a value. `None` is a value. */
   enum class Ref : uint8_t { None, CurrentInk, Var };
@@ -404,6 +411,9 @@ inline Fill linearGradient(SkPoint from, SkPoint to,
                                                 {})));
 }
 
+/** A radial ramp out of @p center to @p radius, in the node's local
+ *  space. @p stops are positions in [0,1], one per colour; an empty
+ *  list spaces them evenly. Clamped past the radius. */
 inline Fill radialGradient(SkPoint center, float radius,
                            std::vector<SkColor4f> colors,
                            std::vector<float> stops = {}) {

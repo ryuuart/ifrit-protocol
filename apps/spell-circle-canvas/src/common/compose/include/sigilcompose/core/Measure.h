@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose one-shot verbs — a tree taken without a live composer:
  * `snapshot` bakes it to a picture, `intrinsicSize` answers the size it
  * would take,
@@ -65,6 +67,9 @@ struct TextMetrics {
   float capSlack() const { return ascent - capHeight; }
 };
 
+/** THE FACE'S OWN NUMBERS for @p style — ascent, descent, cap height,
+ *  x-height and line height — read through @p fonts without laying
+ *  anything out. What a caller seats type against a reference with. */
 TextMetrics metrics(const sigil::weave::TextStyle& style,
                     sigil::weave::FontContext& fonts);
 /** The same for a PARTIAL, resolved against the initial values — what a

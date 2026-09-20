@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * `Story` — a text and the block styles it is set under, filled into as
  * many frames as it is given.

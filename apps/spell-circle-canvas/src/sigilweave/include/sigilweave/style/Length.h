@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * `Length` — a distance in pixels, or one stated against a size that is
  * not known where it is written: the type size it is set at, the root size
@@ -68,7 +68,11 @@ struct Length {
 /** The three relative units as suffixes — `1.5_em`, `2_rem`, `0.5_lh` —
  *  each in both the floating and the integral spelling, so `2_em` and
  *  `2.0_em` are one length. There is no `_px`: a plain number already is
- *  pixels. */
+ *  pixels.
+ *
+ *  Inline, so the suffixes are visible wherever `sigil::weave` is, and
+ *  named so a caller that wants only them can say
+ *  `using namespace sigil::weave::literals`. */
 inline namespace literals {
 
 constexpr Length operator""_em(long double multiple) {

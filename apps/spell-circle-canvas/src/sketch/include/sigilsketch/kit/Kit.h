@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * The whole of SigilSketchKit, for a sketch that reaches for more than
  * one piece of it. A sketch that reaches for one includes that one.
  */

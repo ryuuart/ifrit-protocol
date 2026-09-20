@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup document
+ * @ingroup weave-document
  *
  * WHERE A WORD MAY BREAK, asked of something outside the engine. The
  * analysis knows every break opportunity BETWEEN words — that is UAX #14 —

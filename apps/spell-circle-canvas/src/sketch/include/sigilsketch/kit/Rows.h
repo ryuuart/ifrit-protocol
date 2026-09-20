@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * A NAME AND THE FIGURE THAT ANSWERS IT: one row of it, the readout
  * several of them make, the fixed-column table for the reading that is
  * more than a pair, and the bars a column of values is drawn as.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose brushes — THE SWEPT KINDS: a band the outline carries,
  * rather than a run of stamps or a stroke.
  *
@@ -43,7 +45,7 @@ struct Ribbon {
   float widthStart = 10.0f, widthEnd = 2.0f;
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
-  float step = 3.0f;  // clamped ≥ 0.5px at paint (0 would never advance)
+  float step = 3.0f;  ///< clamped ≥ 0.5px at paint (0 would never advance)
 
   /** THE WIDTH LAW, on the shared PROFILE seam.
    *
@@ -174,8 +176,8 @@ struct Art {
   /** The art's rastered strip, shared by every copy of the brush value
    *  and pinned to the art it came from. */
   struct Cache {
-    sk_sp<SkImage> image;  // the 2x bake
-    SkSize artSize{0, 0};  // logical art size
+    sk_sp<SkImage> image;  ///< the 2x bake
+    SkSize artSize{0, 0};  ///< logical art size
     std::weak_ptr<detail::ElementNode> bakedFor;
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();

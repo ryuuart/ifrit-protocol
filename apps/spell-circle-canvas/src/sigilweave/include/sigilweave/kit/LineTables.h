@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup weave-kit
+ *
  * WHAT MAY STAND AT A LINE'S EDGE, as DATA — the two tables the layout
  * asks for and holds no opinion about.
  *

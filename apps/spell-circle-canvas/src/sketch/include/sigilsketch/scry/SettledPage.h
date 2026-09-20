@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-scry
+ *
  * Waiting for a web page by the ENGINE'S OWN EVENTS rather than by a
  * stretch of clock — what a deterministic still of a `scry::WebView`
  * needs, and a host concern rather than anything about a look.

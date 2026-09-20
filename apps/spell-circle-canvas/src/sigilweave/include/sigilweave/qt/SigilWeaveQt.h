@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup weave-qt
+ *
  * Qt ↔ SigilWeave/Skia bridging. Lives in its own tiny interface target
  * (SigilWeaveQt) so the core SigilWeave library stays Qt-free — link this only
  * from Qt applications.
@@ -26,6 +28,11 @@
 #include <QString>
 #include <string_view>
 
+/** QT'S TYPES AND THE ENGINE'S, CONVERTED BOTH WAYS: `QString` as text
+ *  the engine can shape, `QFont` as a `TextStyle`, and Skia's rects and
+ *  points as Qt's. Text crosses without copying, both sides storing
+ *  UTF-16. It is a separate target, so the engine stays free of Qt and
+ *  only a Qt application links this. */
 namespace sigil::weave::qt {
 
 /** @name Text (zero-copy: QString is UTF-16, and so is Paragraph)

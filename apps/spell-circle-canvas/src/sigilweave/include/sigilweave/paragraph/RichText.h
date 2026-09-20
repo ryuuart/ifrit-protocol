@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup paragraph
+ * @ingroup weave-document
  *
  * MIXED TEXT AS ONE VALUE: `RichText`, a passage described as runs and the
  * styles they are set in, and `rich()`, which starts one.

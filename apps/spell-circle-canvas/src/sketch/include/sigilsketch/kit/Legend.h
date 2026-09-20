@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * COLOUR, NAMED: the key that says what each colour in a picture stands
  * for, the strip that shows a ramp's steps in order, and the chip one
  * word is set inside.

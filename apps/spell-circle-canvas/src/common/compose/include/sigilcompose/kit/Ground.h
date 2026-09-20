@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose kit — the two fills a flat ground is DRESSED with: a
  * vignette, which is a radial ramp from nothing at the middle to a colour
  * at the corners, and a grain, which is value noise folded into a colour

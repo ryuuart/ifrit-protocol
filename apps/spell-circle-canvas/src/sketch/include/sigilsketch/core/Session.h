@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-core
+ *
  * One running sketch: the seam a host drives, whatever the sketch draws
  * through.
  */

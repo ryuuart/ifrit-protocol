@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose shape and decoration seams — Shape, the comparable
  * silhouette value, with HeldPath and KeyedShape, the two ways a
  * silhouette is carried already cooked, and the ShapeScheme concept
@@ -174,6 +176,9 @@ class HeldPath {
   SkPath m_cooked;
 };
 
+/** A path ALREADY COOKED, as a comparable shape: the node ignores its
+ *  own size and traces exactly this. For geometry computed once and
+ *  held, where a generator would recompute it every frame. */
 inline HeldPath heldPath(SkPath cooked) { return HeldPath(std::move(cooked)); }
 
 /** A CALLABLE MADE COMPARABLE BY THE VALUE IT CLOSES OVER.
@@ -213,6 +218,10 @@ class KeyedShape {
   F m_fn;
 };
 
+/** @p fn made comparable by @p key: two of these are equal when their
+ *  keys are, so a generated shape prunes. The author takes on the
+ *  one-key-one-drawing contract — the same key must mean the same path
+ *  — which nothing can check. */
 template <std::equality_comparable K, typename F>
   requires core::PrefixCallable<const F&, SkPath(SkSize)>
 KeyedShape<K, F> keyedShape(K key, F fn) {

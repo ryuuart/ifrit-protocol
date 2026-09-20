@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * The shaping half of a text style: typeface, size, tracking, language,
  * OpenType features, variable-font axes, case transform and vertical

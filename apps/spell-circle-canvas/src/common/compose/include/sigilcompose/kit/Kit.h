@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * Components and presets built from the public Compose API.
  * Properties describe the appearance; Element children supply the content.
  * Stroke, plate and ornament components are included from their own

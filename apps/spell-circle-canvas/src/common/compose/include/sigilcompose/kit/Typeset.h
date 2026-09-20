@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — the furniture a page of set text carries, as stock
  * values over the seams underneath: readings beside the type (`ruby`,
  * `kenten`), a block's opening words set in a style of their own
@@ -131,8 +133,13 @@ namespace sigil::compose::kit {
  *  inclusive, which is how a lead-in that ends at a colon or a dash is
  *  written without counting anything. */
 struct NestedStyle {
-  enum class Until { Characters, Words, Delimiter };
-  Until until = Until::Words;
+  /** How far into the block the nested run reaches. */
+  enum class Until {
+    Characters,  ///< `count` UTF-16 code units of the text
+    Words,       ///< `count` of the paragraph's own line-break words
+    Delimiter    ///< through the first `delimiter`, inclusive
+  };
+  Until until = Until::Words;  ///< how the run's end is stated
   /** `Characters` and `Words`: how many. Zero covers nothing. */
   uint32_t count = 1;
   /** `Delimiter`: the mark the run ends on, and includes. */
@@ -350,12 +357,17 @@ struct ColumnSet {
 
 /** WHERE A RULE OR A SHADE STANDS relative to the block it dresses. */
 struct BlockRule {
-  enum class Where { Above, Below, Behind };
-  Where where = Where::Above;
-  float thickness = 1.0f;  ///< Above/Below: the rule's own weight
-  float gap = 4.0f;        ///< Above/Below: clearance from the type
-  float inset = 0.0f;      ///< taken off both ends of the extent
-  float bleed = 0.0f;      ///< Behind: added above and below the extent
+  /** Where the mark stands relative to the block. */
+  enum class Where {
+    Above,  ///< a rule over the block, `gap` px clear of the type
+    Below,  ///< a rule under the block, `gap` px clear of the type
+    Behind  ///< a shade filling the block's extent, grown by `bleed`
+  };
+  Where where = Where::Above;  ///< where the mark stands
+  float thickness = 1.0f;      ///< Above/Below: the rule's own weight
+  float gap = 4.0f;            ///< Above/Below: clearance from the type
+  float inset = 0.0f;          ///< taken off both ends of the extent
+  float bleed = 0.0f;          ///< Behind: added above and below the extent
   SkColor4f colour = {0, 0, 0, 1};
 };
 

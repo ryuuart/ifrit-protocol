@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * THE WORDS A SKETCH SETS, read from beside it rather than typed into it:
  * the document as a value, the line it answers, and the figures a
  * sentence names.

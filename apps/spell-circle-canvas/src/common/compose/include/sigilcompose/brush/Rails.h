@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose rails — N-rail strokes, where every rail of a parallel rule
  * is its own line with its own width, fill, dash and phase.
  */

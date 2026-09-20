@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-testing
+ *
  * SigilCompose checks for GENERATED geometry — tilings, subdivisions,
  * lattices, pavings: the constructions whose correctness is a property of a
  * rule rather than of anything you can see at a glance — and for reading

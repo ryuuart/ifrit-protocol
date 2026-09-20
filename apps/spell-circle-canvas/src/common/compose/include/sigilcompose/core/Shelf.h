@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose CORE — the shelf a sheet of boxes is packed onto.
  *
  * Several small drawings share one image, and each one needs to know which

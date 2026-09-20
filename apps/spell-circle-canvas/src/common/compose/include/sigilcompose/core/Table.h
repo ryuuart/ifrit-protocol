@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * Automatic table layout with intrinsic column widths, cell spans and
  * proportional surplus distribution.
  */

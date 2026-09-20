@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * The KIT's stroke-grammar values, each under the catalog it is a member
  * of: `lines::presets::`, finished lines, rails and hatches;
  * `kit::braid`, a strand set; `spans::brackets`, a span composition
@@ -50,6 +52,14 @@ namespace sigil::compose {
 // is what makes them stock and puts them a namespace apart from the
 // vocabulary they are written in.
 
+/** FINISHED LINES, RAILS AND HATCHES: a casing pair, a weighted triple,
+ *  an arrowhead, a railway's ties, a squiggle, four parallel rules, a
+ *  lattice at forty-five degrees, a fan out of a point.
+ *
+ *  Each is a `lines::Line` with its constants chosen, and everything
+ *  they set a caller could set on the same value — which is what makes
+ *  them stock and what puts them a namespace apart from the vocabulary
+ *  they are written in. */
 namespace lines::presets {
 
 /** The transit pair: two rails following the route. */
@@ -281,6 +291,14 @@ inline Spans brackets(float arm = 18.0f, float angleDeg = 30.0f) {
 // difference is visible at every call site: `geometry::shapers::wave` is
 // a word, `brush::presets::rope` is a picture.
 
+/** FINISHED BRUSH COMPOSITIONS WITH CRAFT NAMES — a rope, a filament, a
+ *  chalk line, and the rest: layered stacks of the brush vocabulary
+ *  with their constants chosen.
+ *
+ *  Free functions over the public API, reaching inside nothing, and
+ *  scoped apart from the vocabulary so the difference is visible at
+ *  every call site: a shaper is a word, and one of these is a
+ *  picture. */
 namespace brush::presets {
 
 /** An organic glowing filament: four strokes bottom-up — wide additive

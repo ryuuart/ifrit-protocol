@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * The per-thread service object at the center of the pipeline: font
  * management (HarfBuzz faces, variable-font clones, fallback resolution)

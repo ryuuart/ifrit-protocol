@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * The custom properties a node sets and its descendants read: the value a
  * property holds and the table the properties in force at a node make.
  * The inherited font and ink are `Element::font` and `Element::ink`; what

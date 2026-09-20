@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * A FRAME WITH SCALES, AND LAYERS AS FUNCTIONS OF IT. One `plot` holds a
  * frame — two `data::Scale`s, a pad, and Cartesian or polar coordinates —
  * and a run of layers, each a value the plot calls with that frame to make

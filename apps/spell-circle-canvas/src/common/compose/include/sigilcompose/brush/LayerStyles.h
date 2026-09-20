@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose layer styles — THE MECHANISMS an image editor builds a
  * rich surface out of: fake bevels, metallic sheens, inner shadows, glows
  * and overlays, made of gradients, blurs and blend modes and never of
@@ -37,6 +39,20 @@
 
 #include "sigilcompose/Compose.h"
 
+/** THE SURFACE TREATMENTS an image editor is made of, as values: fake
+ *  bevels, metallic sheens, inner shadows, glows and overlays, plus the
+ *  pixel-grid family — dithers, halftones, scanlines and posterisation —
+ *  that dress a surface by resampling it.
+ *
+ *  Each is built from gradients, blurs and blend modes rather than from
+ *  a shader, and each is a comparable decoration value, so a node
+ *  dressed in one prunes and caches like any static chrome. A whole
+ *  bundle of them is a `LayerStyle`, which `Element::style()` takes in
+ *  one call.
+ *
+ *  These are MECHANISMS. The LOOKS built out of them — aqua gel, y2k
+ *  chrome, a gloss — are the kit's, because a look belongs to an era and
+ *  a mechanism does not. */
 namespace sigil::compose::styles {
 
 /** Drop shadow — `shadow` under the name it has in this family.
@@ -58,7 +74,7 @@ inline Shadow dropShadow(SkColor4f color = {0, 0, 0, 0.5f},
 struct InnerShadow {
   SkColor4f color = {0, 0, 0, 0.5f};
   SkVector offset = {0, 3};
-  float size = 5;  // blur extent, px
+  float size = 5;  ///< blur extent, px
 
   bool operator==(const InnerShadow&) const = default;
 
@@ -74,8 +90,8 @@ inline InnerShadow innerGlow(SkColor4f color, float size) {
  *  attach as a background; the fill covers the center. */
 struct OuterGlow {
   SkColor4f color = {1, 1, 1, 0.8f};
-  float size = 8;    // blur extent, px
-  float spread = 0;  // hard expansion before the blur, px
+  float size = 8;    ///< blur extent, px
+  float spread = 0;  ///< hard expansion before the blur, px
 
   bool operator==(const OuterGlow&) const = default;
   /** Paint reach beyond the node's bounds (recording cull grows by this). */
@@ -90,8 +106,8 @@ struct OuterGlow {
  *  two bands. `angleDeg` is the light angle, counter-clockwise from +x and
  *  naming the direction the light COMES FROM, so 120° is upper-left. */
 struct BevelEmboss {
-  float depth = 3;  // plane offset, px
-  float size = 4;   // soften blur, px
+  float depth = 3;  ///< plane offset, px
+  float size = 4;   ///< soften blur, px
   float angleDeg = 120;
   SkColor4f highlight = {1, 1, 1, 0.65f};
   SkColor4f shadow = {0, 0, 0, 0.45f};

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-live
+ *
  * The last few sketches opened, held alive and paused, so that coming
  * back to one is not opening it again.
  */
@@ -55,8 +57,10 @@ class Residency {
   Residency(const Residency&) = delete;
   Residency& operator=(const Residency&) = delete;
 
+  /** WHAT A `present()` CALL ANSWERS: the session now on screen,
+   *  whether this call is what built it, and whatever it displaced. */
   struct Presented {
-    Host* host = nullptr;
+    Host* host = nullptr;  ///< the resident session for the key asked for
     /** True when this call built it, false when it was already resident.
      *  A caller holding per-session state of its own starts that state
      *  over on the first and keeps it on the second. */

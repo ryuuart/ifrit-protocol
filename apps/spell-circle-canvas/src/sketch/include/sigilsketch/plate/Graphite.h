@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-plate
+ *
  * The Graphite context a plate is drawn through: the one the device this
  * process brought up already carries.
  */

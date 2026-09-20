@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-canvas
+ *
  * ANOTHER APPLICATION'S PICTURE, as something a sketch can wear: the
  * newest frame of a publication on this machine, as an image the canvas
  * paints like any other and as a texture a body in the world is dressed

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose core — the kernel in dependency order. Each header stands
  * on its own; include the one a translation unit needs, or this file for
  * all of them. The streaming feed (Feed.h) is the kernel's too and is

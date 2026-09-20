@@ -1,11 +1,25 @@
 #pragma once
 /** @file
+ * @ingroup compose-kit
+ *
  * A part: one of a component's own lines, as a function of what the
  * component knows about it, called with only the parameters it names.
  */
 #include <sigilcompose/core/Element.h>
 #include <sigilcore/callable/Callable.h>
 
+/** THE COMPONENT KIT: stock pieces built out of the kernel's own verbs
+ *  — frames, boards, panels, rows, plates, specimens, chrome, gloss,
+ *  gel, ground, sprites, typesetting, legibility, marquees, meters and
+ *  the parts a component is written out of.
+ *
+ *  Each takes CONTENT and reads the theme classes in force, so a kit
+ *  piece carries no colour of its own and a sheet stated above it
+ *  dresses everything under it. Nothing here decides anything the
+ *  kernel could decide, and nothing here is a new mechanism: a kit
+ *  component is a function returning an `Element` tree, and a caller
+ *  that wants something else writes that tree itself. Its whole job is
+ *  to make the common shapes shorter to say. */
 namespace sigil::compose::kit {
 
 /** A PART OF A COMPONENT — one of the lines a component writes itself,

@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * The style vocabulary every other SigilWeave header speaks, one include
  * over its subjects. A TextStyle splits into two halves on purpose:

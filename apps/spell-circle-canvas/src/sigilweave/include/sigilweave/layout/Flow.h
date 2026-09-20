@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup geometry
+ * @ingroup weave-geometry
  *
  * The geometry a paragraph flows into. Text is never bound to a rectangle: a
  * "line" is an ordered list of LineIntervals — straight segments in any

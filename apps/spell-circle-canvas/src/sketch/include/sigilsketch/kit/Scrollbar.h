@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * A WINDOW'S SHARE OF WHAT IT SCROLLS: how long the thumb that says so
  * is, how far it can travel, and the bar it travels in.
  */

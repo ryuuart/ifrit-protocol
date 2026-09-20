@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * The surface a sketch stands on: the canvas it declares, and the titled,
  * footed page drawn over it in the theme's voice.
  */

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose feeds — a streaming collection: rows arrive at the tail,
  * the oldest fall off the head, and a window of the newest is on screen.
  * A log, a chat transcript, a tape of readings, a subtitle track. It is
@@ -43,6 +45,15 @@
 #include <utility>
 #include <vector>
 
+/** A STREAMING COLLECTION AS A DESCRIPTION: rows arrive at the tail, the
+ *  oldest fall off the head, and a window of the newest is on screen — a
+ *  log, a chat transcript, a tape of readings, a subtitle track.
+ *
+ *  It is built entirely out of the kernel: a ring of values, windowed to
+ *  the last N, laid out as a clipped column. Nothing here is new
+ *  machinery. Rows are keyed by a monotonic sequence id rather than by
+ *  array index, so an append shifts nothing and costs one mount and one
+ *  unmount however long the window is. */
 namespace sigil::compose::feed {
 
 /** One row as the ring holds it: the caller's value under the sequence id

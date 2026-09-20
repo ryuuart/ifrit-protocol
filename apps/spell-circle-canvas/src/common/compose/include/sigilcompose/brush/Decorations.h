@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose decoration primitives — the concrete treatments over the
  * kernel's Decoration seam. Each is a thin value struct over machinery Skia
  * already ships, and there are deliberately few of them:
@@ -244,6 +246,8 @@ struct Shadow {
   }
 };
 
+/** A blurred copy of the node's outline cast at @p offset — attach it
+ *  as the FIRST background so everything else paints over it. */
 inline Shadow shadow(SkColor4f color, SkVector offset, float blur) {
   return Shadow{color, offset, blur};
 }
@@ -282,7 +286,7 @@ struct PathSample {
   SkPoint position;
   SkVector tangent;
   float distance = 0.0f;
-  float fraction = 0.0f;  // 0..1 within its contour
+  float fraction = 0.0f;  ///< 0..1 within its contour
 };
 
 /** Walk the outline at `spacing` px intervals; at every sample the
@@ -463,6 +467,12 @@ struct Border {
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
 };
 
+/** THE DECORATION FACTORIES, spelled the way a call site reads:
+ *  `decorations::border(...)`, `decorations::wash(...)`. Each mints one
+ *  of the decoration values declared above it and nothing more — the
+ *  factory exists so a node's slot verbs read as English and so a value
+ *  with several fields can be started from the two or three that
+ *  matter. */
 namespace decorations {
 inline Wash wash(material::skia::Paint material,
                  SkBlendMode blend = SkBlendMode::kSrcOver,

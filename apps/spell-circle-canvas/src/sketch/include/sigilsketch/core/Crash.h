@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-core
+ *
  * A guest crash, made attributable.
  *
  * EVERY HOST HERE HAS A GUEST. The live host loads a sketch as a dylib

@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * JAPANESE COMPOSITION: the class a character is set by, and the table
  * that says how much space stands between two of them.

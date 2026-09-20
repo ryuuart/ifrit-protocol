@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose decoration adaptors — the two mechanisms that run a
  * decoration on ANOTHER OUTLINE than the node's own: `onEdges`, against
  * only the sub-contours facing chosen box edges, and `inset`, against a
@@ -62,6 +64,10 @@ struct EdgeSlice {
   }
 };
 
+/** Run @p inner against only the edges @p mask names — the top and the
+ *  left of a box, say — leaving the rest of the outline bare. @p step
+ *  is the arc length between the samples the edge runs are extracted
+ *  at. */
 inline EdgeSlice onEdges(geometry::path::Edge mask, Decoration inner,
                          float step = 3.0f) {
   return EdgeSlice{mask, std::move(inner), step};
@@ -98,6 +104,9 @@ struct Inset {
   }
 };
 
+/** Run @p inner against a copy of the node's outline moved @p px
+ *  inward — outward for a negative number — so a keyline sits clear of
+ *  the edge without a second node. */
 inline Inset inset(float px, Decoration inner) {
   return Inset{px, std::move(inner)};
 }

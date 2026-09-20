@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-plate
+ *
  * The rolling frame-time lanes a running sketch is judged by.
  */
 

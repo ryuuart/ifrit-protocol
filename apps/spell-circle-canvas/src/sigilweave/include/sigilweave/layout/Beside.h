@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * SETTING A RUN BESIDE ANOTHER'S EXTENT — the placement every reading over
  * or beside a base is made of: furigana over a compound, emphasis marks
@@ -43,9 +43,14 @@ class FontContext;
 struct Beside {
   SkRect base = SkRect::MakeEmpty();  ///< the extent the base occupied
   WritingMode writingMode = WritingMode::kHorizontal;
-  enum class Side : uint8_t { Before, After };
-  Side side = Side::Before;
-  float gap = 0;
+  /** Which side of the base the reading stands on, named by the reading
+   *  direction rather than by the screen. */
+  enum class Side : uint8_t {
+    Before,  ///< above a line, right of a column
+    After    ///< below a line, left of a column
+  };
+  Side side = Side::Before;  ///< which side of the base to place on
+  float gap = 0;             ///< px the reading stands clear of the base
 };
 
 /** The band a reading set in `style` needs beside a line, `gap` included.

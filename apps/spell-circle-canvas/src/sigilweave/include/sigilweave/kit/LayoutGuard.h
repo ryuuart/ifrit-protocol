@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup weave-kit
+ *
  * Paragraph-aware layout memoization. Re-breaking lines every frame is the
  * single most common invisible cost in animated SigilWeave use: paint-only
  * restyles (setPaint, shader swaps, marker repaints) never require a
@@ -21,6 +23,18 @@
 #include <tuple>
 #include <utility>
 
+/** THE DISCIPLINE A CONSUMER OF THE ENGINE NEEDS, which the engine
+ *  itself will not impose: the layout guard that keeps a scene from
+ *  re-breaking its lines every frame, the glyph-bucket accumulator that
+ *  keeps per-glyph animation to a handful of draw calls, the hyphenation
+ *  and line-edge tables the layout asks for and holds no opinion about,
+ *  the OpenType feature presets, the one-call label draw, and
+ *  deterministic sample content.
+ *
+ *  Every piece here is a stock value or a helper a consumer could have
+ *  written; none of it is on the path the engine takes on its own. It is
+ *  a separate interface target, so a consumer that wants none of it links
+ *  none of it. */
 namespace sigil::weave::kit {
 
 /**

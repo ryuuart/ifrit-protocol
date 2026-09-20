@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-texture
+ *
  * A compose scene as a `material::Texture` — the value a 3D surface, a
  * pattern or anything else that samples an image holds in a slot.
  *

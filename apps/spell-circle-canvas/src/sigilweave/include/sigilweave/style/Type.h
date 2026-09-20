@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * `Type` — a text style's parameters as a PARTIAL: every field optional, so
  * a call site states the two it changes and says nothing about the rest.

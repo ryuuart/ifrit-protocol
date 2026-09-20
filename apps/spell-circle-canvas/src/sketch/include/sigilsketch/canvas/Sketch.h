@@ -1,10 +1,49 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-canvas
+ *
  * The 2D sketch surface: a p5-style entry point over the full compose
  * API. Include this and SIGIL_SKETCH registers a sketch that draws a
  * compose Element tree.
  */
+
+/** @defgroup sketch-canvas The sketch surface
+ *  The 2D entry point: what a sketch is handed every frame
+ *  (`SketchContext`), what makes a type a sketch (`CanvasSketch`), and
+ *  the kind that opens one on the compose runtime (canvas/). The first
+ *  header a sketch author opens. */
+/** @defgroup sketch-core Registry, session, assets, device
+ *  What every kind of sketch shares: the registry a sketch is addressed
+ *  in, the session a host drives, the canvas specification a sketch
+ *  declares, hot-reloading asset access, the device seam, and the
+ *  crash guard (core/). */
+/** @defgroup sketch-kit The sheet a sketch stands on
+ *  The theme, the page, and the furniture a specimen is built out of —
+ *  headings, passages, panels, rows, cells, charts, legends, meters,
+ *  tickers, scrollbars and the channel a live value arrives on (kit/).
+ *  Each takes content and reads the theme; none of them decides how a
+ *  study looks. */
+/** @defgroup sketch-live The live host
+ *  What drives a sketch while someone is watching it: the host, the
+ *  bench cadence it is judged against, and the texture residency it
+ *  reports (live/). */
+/** @defgroup sketch-plate Plates and sweeps
+ *  Rendering sketches to files and judging the results: the sweep over
+ *  the registry, the per-frame statistics, the channel-by-channel
+ *  comparison, the MP4 montage, and the thumbnails the browser shows
+ *  (plate/). */
+/** @defgroup sketch-set 3D sets
+ *  A sketch whose subject is a lit scene in space rather than a canvas
+ *  (set/). */
+/** @defgroup sketch-scry Web leaves
+ *  An HTML and CSS page rendered into a sketch, and the settling a
+ *  deterministic capture of one needs (scry/). */
+/** @defgroup sketch-publish Publication
+ *  A sketch's canvas offered to other applications as a shared texture,
+ *  and another application's offered back to it (publish/). */
+/** @defgroup sketch-python The Python session
+ *  A Python source file as a sketch kind (python/). */
 
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
@@ -33,6 +72,27 @@ namespace sigil::geometry::mesh::camera {
 struct Camera;
 }
 
+/** EVERY RENDERABLE THING AS ONE SKETCH: a single file, addressed by its
+ *  stem, that a live host opens, a sweep photographs and a browser lists.
+ *
+ *  A sketch is a plain type with no base class and nothing to inherit. A
+ *  struct spelling `setup(SketchContext&)` is a canvas sketch; spelling
+ *  `update()` as well makes it one that reacts. The `SIGIL_SKETCH` macro
+ *  registers it, and a `Kind` says what runtime it draws through — a
+ *  compose Element tree, a lit 3D set, or a Python source file.
+ *
+ *  A `Session` is what a host drives: it holds the composer, the clock
+ *  and the assets, opens the body once, and steps it. `SketchContext` is
+ *  the per-frame value the body is handed, and is rebuilt every frame
+ *  deliberately, so nothing may capture it.
+ *
+ *  Around that: `kit` is the sheet a study stands on, `plate` renders and
+ *  compares sketches as files, `live` is the host that shows one while it
+ *  is edited, and `publish` offers the canvas to other applications.
+ *
+ *  It is the library the visual work of this tree is done in: a sketch is
+ *  where a library's vocabulary is exercised, and its plate is what says
+ *  the vocabulary still draws what it drew. */
 namespace sigil::sketch {
 
 /** WHAT A SKETCH IS HANDED every time it is asked to describe itself.
@@ -43,13 +103,13 @@ namespace sigil::sketch {
  * size just as silently. Neither compiles. Capture `ctx.composer` (stable for
  * the sketch's life) or plain data instead. */
 struct SketchContext {
-  compose::Composer& composer;    // render()/renderSlot()/query surface
-  sigil::motion::Ticker& ticker;  // steppables + choreograph timeline
-  Assets& assets;                 // hot-reloading resource access
-  SkSize size;                    // the current logical canvas size
-  CanvasSpecification* specification =
-      nullptr;  // host-owned; written via the calls below
-  sigil::weave::FontContext* fonts = nullptr;  // measure()/snapshot() fuel
+  compose::Composer& composer;    ///< render()/renderSlot()/query surface
+  sigil::motion::Ticker& ticker;  ///< steppables + choreograph timeline
+  Assets& assets;                 ///< hot-reloading resource access
+  SkSize size;                    ///< the current logical canvas size
+  /// Host-owned; written through the declaration calls below.
+  CanvasSpecification* specification = nullptr;
+  sigil::weave::FontContext* fonts = nullptr;  ///< measure()/snapshot() fuel
   /** Host-owned: the texture scenes `textureScene()` handed out, kept
    *  for the session's life. */
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;

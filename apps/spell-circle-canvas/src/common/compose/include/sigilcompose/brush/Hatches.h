@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose hatches — the parallel lattice clipped to a silhouette, and
  * the radial and concentric hatches about a centre.
  */

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-core
+ *
  * A SKETCH'S OWN MEMBERS, AS CALLABLES: what the one prefix search in
  * the tree is asked about when a body names fewer parameters than a host
  * offers it.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-kit
+ *
  * WHAT STANDS BEHIND AND AROUND: the ground a whole canvas is dressed
  * with, the titled region a page divides itself into, and the shell a
  * screen is set into.

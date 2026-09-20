@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup sketch-scry
+ *
  * A PAGE'S SETTLE AS ONE SEQUENCE, driven either way: blocked through on
  * the thread that takes a capture, or advanced a step per frame in a
  * window that must keep drawing while the page is still coming.

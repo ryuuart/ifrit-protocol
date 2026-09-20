@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — kinetic type: the stock entrances and loops for the
  * kernel's multi-track `fx()` seam, all as plain comparable `TextEffect`
  * VALUES built from the same constructor any caller may use.

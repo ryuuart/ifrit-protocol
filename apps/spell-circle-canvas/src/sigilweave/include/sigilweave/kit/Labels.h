@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup weave-kit
+ *
  * Single-span style shorthand and the one-call caption/label draw that
  * every SigilWeave-based tool reinvents for its annotations and HUDs.
  */

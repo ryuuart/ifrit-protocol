@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup document
+ * @ingroup weave-document
  *
  * The document model: UTF-16 text carrying normalized style spans, optional
  * inline placeholders, and a horizontal or vertical-RL writing mode. Build
@@ -27,6 +27,23 @@
 #include "sigilweave/style/Style.h"
 #include "sigilweave/unicode/Unicode.h"
 
+/** THE TEXT ENGINE: shaping, line breaking and painting for styled text,
+ *  built directly on HarfBuzz and ICU over Skia's drawing primitives.
+ *
+ *  A passage is a `Paragraph` — UTF-16 text carrying normalized style
+ *  spans — analysed into `Word`s and shaped through a per-thread
+ *  `FontContext` whose cache is keyed on the shaping half of a style, so
+ *  an edit reshapes only the words it touched. `layoutParagraph()` breaks
+ *  the shaped words into a `FlowGeometry` and answers a
+ *  `ParagraphLayout`, which draws, measures and can be queried for the
+ *  glyphs a `Selector` addresses.
+ *
+ *  Reach for it when text must be set rather than merely drawn: mixed
+ *  styles in one passage, justification, hyphenation, vertical writing,
+ *  text flowing around a shape or along a path, ruby, columns filled from
+ *  one story, or per-glyph animation. A single label on a canvas is
+ *  cheaper through `kit::drawLabel`. The engine draws; it owns no window,
+ *  no device and no document format. */
 namespace sigil::weave {
 
 class FontContext;

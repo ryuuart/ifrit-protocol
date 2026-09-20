@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * THE GEL: one era's look, as a bundle of this library's mechanisms over
  * SigilMaterial's colour tables. A deep-to-light body ramp with a
  * recessed band under the top edge, a wet highlight lens across the top

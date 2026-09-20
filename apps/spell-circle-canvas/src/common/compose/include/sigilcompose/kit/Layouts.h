@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * Free-form child placement: rings, paths, sheared stacks, baseline
  * rhythms and seeded jitter. Each scheme places measured child boxes
  * within a container. Track-based arrangements use Grid.
@@ -166,8 +168,8 @@ struct Diagonal {
  *  like any other static layout. */
 struct BaselineGrid {
   float rhythm = 24.0f;  ///< distance between grid lines
-  float offset = 0.0f;   // grid phase
-  float gap = 0.0f;      // extra space between children before snapping
+  float offset = 0.0f;   ///< grid phase
+  float gap = 0.0f;      ///< extra space between children before snapping
 
   std::vector<SkRect> place(const LayoutInput& in) const {
     std::vector<SkRect> rects(in.childSizes.size());
@@ -199,7 +201,7 @@ struct BaselineGrid {
  *  different questions. */
 struct Jittered {
   uint32_t seed = 1;
-  float jitter = 0.6f;  // 0 = regular grid, 1 = up to half a cell off
+  float jitter = 0.6f;  ///< 0 = regular grid, 1 = up to half a cell off
 
   std::vector<SkRect> place(const LayoutInput& in) const {
     const size_t n = in.childSizes.size();

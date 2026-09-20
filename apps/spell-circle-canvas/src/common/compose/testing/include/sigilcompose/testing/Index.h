@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-testing
+ *
  * The two spatial indexes the read-back checks read their answers out of.
  *
  * Both exist for the same reason: a check asks ONE question of a figure
@@ -41,6 +43,14 @@
 #include <span>
 #include <vector>
 
+/** THE HARNESS A CONSUMER'S OWN TESTS REACH FOR: checks that read a
+ *  described tree back and assert what it drew, and the two spatial
+ *  indexes those checks answer out of.
+ *
+ *  It is a second public include root and its own target, so a test
+ *  binary links it and nothing that ships does. Reach for it when a
+ *  test must assert about geometry a description produced rather than
+ *  about the description itself. */
 namespace sigil::compose::test {
 
 /** A path's straight segments resolved into the crossings of each ROW of

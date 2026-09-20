@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup weave-layout
+ *
  * Single-style text measured and laid out through a per-thread service.
  * Paragraph reuse is configured on the service; callers supply content,
  * style and geometry and receive a result that owns its text.

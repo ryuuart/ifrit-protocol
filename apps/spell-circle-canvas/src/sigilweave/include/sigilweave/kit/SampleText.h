@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup weave-kit
+ *
  * Deterministic sample content for demos, stress tests, and benchmarks —
  * shared so every showcase target exercises the same corpus instead of
  * growing its own subtly different filler.

@@ -1,5 +1,13 @@
 #pragma once
 
+/** @file
+ * @ingroup sketch-python
+ *
+ * A Python source file as a sketch kind: what a host may ask about an
+ * interpreter and a source before Python starts, and how a source
+ * becomes a kind a session can be opened on.
+ */
+
 #include <sigilsketch/core/Kind.h>
 
 #include <filesystem>
@@ -8,6 +16,17 @@
 #include <string_view>
 #include <utility>
 
+/** A PYTHON FILE AS A SKETCH, on the same footing as a compiled one: it
+ *  registers a kind, a session opens on it, and the host drives it
+ *  through the calls every kind answers.
+ *
+ *  The doors here are ordered by how much they start. `interpreterAbi`,
+ *  `interpreterVersion` and `source` cost nothing and touch no
+ *  interpreter, so a browser may list a Python sketch that is missing or
+ *  will not import. `available` probes for the modules a source
+ *  declares, and `load` imports it into a fresh generation — which is
+ *  what makes an edit reloadable, since relative imports belong to that
+ *  generation and installed packages keep their ordinary identity. */
 namespace sigil::sketch::python {
 
 /** The embedded interpreter's extension ABI, without initializing Python. */

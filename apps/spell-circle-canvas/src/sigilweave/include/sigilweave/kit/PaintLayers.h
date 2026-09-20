@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup paint
+ * @ingroup weave-kit
  *
  * The three paint layers everyone writes: a shadow, a glow and an
  * outline.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-web
+ *
  * SigilCompose × SigilScry — the web leaf. Header-only
  * adapter: the compose kernel never links SigilScry; include this only
  * in targets that do.

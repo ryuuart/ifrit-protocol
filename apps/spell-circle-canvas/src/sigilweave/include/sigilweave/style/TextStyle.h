@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * TextStyle — the shaping half and the paint half together, with the
  * fluent axis setters over the shaping half. The split is about who owns

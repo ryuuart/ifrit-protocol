@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose layered brush — the stroke STACK: several passes over the
  * same path with their own widths, colours, blurs, dashes and blend modes,
  * painted bottom-up.
@@ -27,8 +29,8 @@ namespace sigil::compose {
 struct StrokeLayer {
   float width = 2.0f;
   SkColor4f color = {1, 1, 1, 1};
-  float blurSigma = 0;         // soft halo layers
-  std::vector<SkScalar> dash;  // empty → solid
+  float blurSigma = 0;         ///< soft halo layers
+  std::vector<SkScalar> dash;  ///< empty → solid
   float dashPhase = 0;
   SkBlendMode blend = SkBlendMode::kSrcOver;
   bool roundCap = true;

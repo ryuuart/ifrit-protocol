@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-typography
+ *
  * SigilCompose typography — the feature umbrella over the text
  * vocabulary: the laid-out unit, the two selector forms that address a
  * compose description, the effect and the effects the runtime evaluates
