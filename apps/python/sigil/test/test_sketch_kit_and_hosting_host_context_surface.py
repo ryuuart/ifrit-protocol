@@ -140,7 +140,7 @@ class HostContextSurface(unittest.TestCase):
         self.render("""
             import builtins
             from sigil import world
-            from sigil.compose import picture
+            from sigil.compose import image
             from sigil.geometry import mesh
             from sigil.material import kit as surfaces
             from sigil.sketch import sketch
@@ -183,7 +183,7 @@ class HostContextSurface(unittest.TestCase):
                     except ValueError as error:
                         refusals.append(str(error))
                     builtins._sigil_host_context = (still, later, wider, refusals)
-                    ctx.render(picture(still, 64, 64))
+                    ctx.render(image(still))
         """)
         still, later, wider, refusals = builtins._sigil_host_context
         self.assertEqual((still.width(), still.height()), (64, 64))

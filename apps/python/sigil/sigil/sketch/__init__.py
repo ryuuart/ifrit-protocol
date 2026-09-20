@@ -13,6 +13,9 @@ from _sigil import Context as SketchContext
 from _sigil import render_file as _native_render_file
 from _sigil.sketch import (
     Assets,
+    CanvasSpecification,
+    Guest,
+    requireCached,
 )
 
 from . import (
@@ -110,9 +113,12 @@ def sketch(*, size=(960, 640), background="#121720", capture_at=1.0):
 
 __all__ = [
     "Assets",
+    "CanvasSpecification",
+    "Guest",
     "SketchContext",
     "kit",
     "render_file",
+    "requireCached",
     "scry",
     "sketch",
 ]
