@@ -45,31 +45,10 @@
  *  sprites and laid out as children must land on the same pixels. */
 namespace sigil::compose::instancing::place {
 
-/** Row-major grid of cell-sized slots from @p origin. */
+/** Row-major grid of @p count slots @p cell in size, @p columns to a row,
+ *  from @p origin and spaced by @p gap. */
 inline void grid(Pool& pool, size_t count, int columns, SkSize cell,
-                 SkPoint origin = {0, 0}, SkSize gap = {0, 0});
-
-/** Evenly spaced ring; @p faceOut rotates each instance along its spoke. */
-inline void ring(Pool& pool, size_t count, SkPoint center, float radius,
-                 float startRadians = 0.0f, bool faceOut = false);
-
-/** A repeated copy chain: per-copy LINEAR translate and rotate, and
- *  EXPONENTIAL scale (pow(scaleStep, i)), with an optional start→end
- *  opacity ramp.
- *
- *  The opacity ramp touches the `alphas()` lane — composing with an
- *  authored tint rather than overwriting it — and only when the two opacity
- *  arguments actually say something; `frame` is written only when it is
- *  non-negative. */
-inline void repeat(Pool& pool, size_t count, SkPoint start, SkPoint translate,
-                   float rotateStepRadians = 0.0f, float scaleStep = 1.0f,
-                   float opacityFrom = 1.0f, float opacityTo = 1.0f,
-                   int frame = -1);
-
-// ---------------------------------------------------------------------------
-
-inline void grid(Pool& pool, size_t count, int columns, SkSize cell,
-                 SkPoint origin, SkSize gap) {
+                 SkPoint origin = {0, 0}, SkSize gap = {0, 0}) {
   pool.resize(count);
   auto positions = pool.positions();
   // An instance sits at the CENTRE of its slot; a laid-out child is given
@@ -81,8 +60,11 @@ inline void grid(Pool& pool, size_t count, int columns, SkSize cell,
   pool.commit();
 }
 
+/** Evenly spaced ring of @p count slots on @p radius about @p center,
+ *  begun at @p startRadians; @p faceOut rotates each instance along its
+ *  spoke. */
 inline void ring(Pool& pool, size_t count, SkPoint center, float radius,
-                 float startRadians, bool faceOut) {
+                 float startRadians = 0.0f, bool faceOut = false) {
   pool.resize(count);
   auto positions = pool.positions();
   auto rotations = pool.rotations();
@@ -99,9 +81,18 @@ inline void ring(Pool& pool, size_t count, SkPoint center, float radius,
   pool.commit();
 }
 
+/** A repeated copy chain from @p start: per-copy LINEAR @p translate and
+ *  @p rotateStepRadians, and EXPONENTIAL scale (pow(@p scaleStep, i)),
+ *  with an optional @p opacityFrom → @p opacityTo ramp.
+ *
+ *  The opacity ramp touches the `alphas()` lane — composing with an
+ *  authored tint rather than overwriting it — and only when the two opacity
+ *  arguments actually say something; @p frame is written only when it is
+ *  non-negative. */
 inline void repeat(Pool& pool, size_t count, SkPoint start, SkPoint translate,
-                   float rotateStepRadians, float scaleStep, float opacityFrom,
-                   float opacityTo, int frame) {
+                   float rotateStepRadians = 0.0f, float scaleStep = 1.0f,
+                   float opacityFrom = 1.0f, float opacityTo = 1.0f,
+                   int frame = -1) {
   pool.resize(count);
   auto positions = pool.positions();
   auto rotations = pool.rotations();
