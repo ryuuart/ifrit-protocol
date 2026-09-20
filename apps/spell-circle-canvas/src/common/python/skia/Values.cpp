@@ -1,27 +1,21 @@
-#include <include/core/SkData.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPicture.h>
-#include <include/core/SkPixmap.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkVertices.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/pathops/SkPathOps.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
-#include <sigilcore/compute/Chance.h>
-#include <sigilimage/decode/Decode.h>
-#include <sigilimage/encode/Encode.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Bloom.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilpython/Bindings.h>
-#include <sigilpython/core/Registration.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Registration.h>
 #include <sigilpython/skia/Values.h>
@@ -104,44 +98,6 @@ SkRect rect(py::handle value) {
   if (py::isinstance<SkRect>(value)) return py::cast<SkRect>(value);
   const auto v = py::cast<std::array<float, 4>>(value);
   return SkRect::MakeXYWH(v[0], v[1], v[2], v[3]);
-}
-
-void bindCore(py::module_& module) {
-  auto chance = module.def_submodule("core").def_submodule("chance");
-  namespace chanceNative = core::chance;
-  py::enum_<chanceNative::Source>(chance, "Source")
-      .value("Pcg", chanceNative::Source::Pcg)
-      .value("Mix64", chanceNative::Source::Mix64)
-      .value("Xorshift", chanceNative::Source::Xorshift)
-      .value("Halton", chanceNative::Source::Halton)
-      .value("Sobol", chanceNative::Source::Sobol)
-      .value("Golden", chanceNative::Source::Golden)
-      .value("Stratified", chanceNative::Source::Stratified);
-  using Stream = chanceNative::Stream;
-  py::class_<Stream>(chance, "Stream")
-      .def(py::init<>())
-      .def_static("pcg", &Stream::pcg, py::arg("seed"))
-      .def_static("mix64", &Stream::mix64, py::arg("seed"))
-      .def_static("xorshift", &Stream::xorshift, py::arg("seed"))
-      .def_static("halton", &Stream::halton, py::arg("base"),
-                  py::arg("skip") = 0)
-      .def_static("sobol", &Stream::sobol, py::arg("skip") = 0)
-      .def_static("golden", &Stream::golden, py::arg("seed") = 0)
-      .def_static("stratified", &Stream::stratified, py::arg("strata"),
-                  py::arg("seed") = 0)
-      .def_static("of", &Stream::of, py::arg("source"), py::arg("seed"),
-                  py::arg("parameter") = 0)
-      .def("copy", [](const Stream& self) { return self; })
-      .def("__copy__", [](const Stream& self) { return self; })
-      .def("bits", &Stream::bits)
-      .def("unit", &Stream::unit)
-      .def("signedUnit", &Stream::signedUnit)
-      .def("range", &Stream::range, py::arg("low"), py::arg("high"))
-      .def("below", &Stream::below, py::arg("upper"))
-      .def("normal", &Stream::normal)
-      .def("source", &Stream::source)
-      .def("parameter", &Stream::parameter)
-      .def("drawn", &Stream::drawn);
 }
 
 void bindValues(py::module_& module) {
@@ -476,77 +432,6 @@ void bindValues(py::module_& module) {
       });
   py::class_<SkRuntimeEffect, sk_sp<SkRuntimeEffect>>(skia, "RuntimeEffect")
       .def_static("MakeForShader", &shader, py::arg("source"));
-
-  auto images = module.def_submodule("image");
-  images.def(
-      "from_rgba",
-      [](py::buffer buffer, int width, int height) {
-        if (width < 1 || height < 1 || width > 16384 || height > 16384)
-          throw py::value_error(
-              "Image dimensions must be between one and 16384 pixels.");
-        const auto source = buffer.request();
-        if (source.itemsize != 1 ||
-            source.size != static_cast<py::ssize_t>(width) * height * 4)
-          throw py::value_error(
-              "RGBA pixels need exactly four bytes per pixel.");
-        py::ssize_t stride = 1;
-        for (py::ssize_t axis = source.ndim; axis-- > 0;) {
-          if (source.shape[axis] > 1 && source.strides[axis] != stride)
-            throw py::value_error("RGBA pixels must be C-contiguous.");
-          stride *= source.shape[axis];
-        }
-        const auto info = SkImageInfo::Make(
-            width, height, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType);
-        auto image = SkImages::RasterFromPixmapCopy(
-            SkPixmap(info, source.ptr, info.minRowBytes()));
-        if (!image)
-          throw py::value_error("The pixel image could not be allocated.");
-        return image;
-      },
-      py::arg("pixels"), py::arg("width"), py::arg("height"));
-  py::enum_<image::Format>(images, "Format")
-      .value("Png", image::Format::Png)
-      .value("Jpeg", image::Format::Jpeg)
-      .value("Webp", image::Format::Webp)
-      .value("Exr", image::Format::Exr);
-  py::class_<image::ImageAsset>(images, "ImageAsset")
-      .def("width", &image::ImageAsset::width)
-      .def("height", &image::ImageAsset::height)
-      .def("animated", &image::ImageAsset::animated)
-      .def("totalDurationMs", &image::ImageAsset::totalDurationMs)
-      .def(
-          "frameAt",
-          [](const image::ImageAsset& asset, double milliseconds) {
-            return asset.frameAt(milliseconds).image;
-          },
-          py::arg("milliseconds"));
-  const auto decode = [](py::bytes encoded, int width, int height,
-                         const std::string& hint) {
-    const std::string bytes = encoded;
-    auto decoded = image::decodeImage(
-        reinterpret_cast<const std::byte*>(bytes.data()), bytes.size(),
-        {.width = width, .height = height}, hint);
-    if (!decoded) throw py::value_error("The image could not be decoded.");
-    return *decoded;
-  };
-  images.def("decodeAsset", decode, py::arg("data"), py::arg("width") = 0,
-             py::arg("height") = 0, py::arg("hint") = "");
-  images.def(
-      "decode",
-      [decode](py::bytes data, int w, int h, const std::string& hint) {
-        return decode(data, w, h, hint).frameAt(0).image;
-      },
-      py::arg("data"), py::arg("width") = 0, py::arg("height") = 0,
-      py::arg("hint") = "");
-  images.def(
-      "encode",
-      [](const SkImage& image, image::Format format, int quality) {
-        auto data = image::encodeImage(image, format, {.quality = quality});
-        if (!data) throw py::value_error("The image could not be encoded.");
-        return py::bytes(static_cast<const char*>(data->data()), data->size());
-      },
-      py::arg("image"), py::arg("format") = image::Format::Png,
-      py::arg("quality") = 100);
 
   auto materials = module.def_submodule("material");
   py::class_<material::Material>(materials, "Material")
