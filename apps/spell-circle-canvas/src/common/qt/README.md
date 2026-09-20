@@ -232,12 +232,14 @@ or the products that use it.
 ## Building
 
 One target, `IfritQt`, always configured; it is a static Qt library declared
-with `qt_add_qml_module(URI Ifrit.Qt VERSION 1.0)`. The `qt_qml_test` target
-checks keyboard activation, font-result navigation, search clearing, disabled
-choices and model updates that must not emit user-edit signals. There are no
-assets.
+with `qt_add_qml_module(URI Ifrit.Qt VERSION 1.0)`. There are no assets.
 
-`qt_test` is the module's one C++ test binary, on Apple alone: its
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under. Two
+binaries stand here rather than one, because the module has two sides.
+`qt_qml_test` checks keyboard activation, font-result navigation, search
+clearing, disabled choices and model updates that must not emit
+user-edit signals. `qt_test` is the C++ side, on Apple alone: its
 subject is the native window dressing, and its cases want a window
 server, so they carry the `cocoa` label and skip where there is no
 session behind them.
