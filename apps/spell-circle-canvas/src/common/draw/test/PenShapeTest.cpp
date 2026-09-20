@@ -201,6 +201,7 @@ TEST(Pen, AMeshTakesAFittedMaterialOverItsOwnBounds) {
 
 struct Ring {
   float inset = 0;
+  bool operator==(const Ring&) const = default;
   SkPath path(SkSize size) const {
     return SkPath::Oval(
         SkRect::MakeWH(size.width(), size.height()).makeInset(inset, inset));

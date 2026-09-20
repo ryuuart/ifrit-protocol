@@ -5,20 +5,17 @@
  *
  * WHAT A PEN TAKES AND WHAT IT DRAWS FOR SOMEONE ELSE, apart from the pen
  * itself: the frame a host supplies, what `clip` does with a shape, and
- * the two concepts a caller's own value satisfies to be drawn as a shape
- * or painted as a retained guest.
+ * the concept a caller's own value satisfies to be painted as a retained
+ * guest.
  *
  * They are here so that a host that hands a pen a frame, or a library
  * that declares itself paintable, includes what it needs and not the
  * whole surface.
  */
 
-#include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
-#include <include/core/SkSize.h>
 #include <sigildraw/Retained.h>
 
-#include <concepts>
 #include <span>
 #include <string>
 #include <string_view>
@@ -42,13 +39,6 @@ concept Retainable =
     requires(Pen& pen, const G& guest, const SkRect& box, Slot slot) {
       paintRetained(pen, guest, box, slot);
     };
-
-/** A SILHOUETTE: any value that answers a path over a size — the
- *  geometry kit's generators, or one of your own. */
-template <class S>
-concept Silhouette = requires(const S& s, SkSize size) {
-  { s.path(size) } -> std::convertible_to<SkPath>;
-};
 
 /** WHAT `clip` DOES WITH THE SHAPE IT IS GIVEN. */
 struct ClipOptions {

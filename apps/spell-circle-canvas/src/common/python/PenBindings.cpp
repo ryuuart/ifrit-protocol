@@ -690,6 +690,14 @@ void bindPen(py::module_& root) {
          float width, float height) {
         struct Shape {
           py::object object;
+          /** The silhouette concept asks a value to compare, and for a
+           *  wrapped Python object the honest answer is whether it
+           *  wraps the same object — never the object's own `__eq__`,
+           *  which may run code and may say two different drawings are
+           *  one. */
+          bool operator==(const Shape& other) const {
+            return object.is(other.object);
+          }
           SkPath path(SkSize size) const {
             return object
                 .attr("path")(py::make_tuple(size.width(), size.height()))

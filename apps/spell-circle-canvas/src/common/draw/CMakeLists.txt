@@ -17,8 +17,10 @@ set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 
 # The material's Skia paint is what a fill is; the weave targets are what
 # text is shaped, laid out and painted by; the core mixer is what the
-# random stream and the noise field are seeded through. All public: the
-# pen's header spells each of their types.
+# random stream and the noise field are seeded through; the geometry kit
+# is where the silhouette concept the shape verb takes is declared, so a
+# generator written for the kit's wrappers is a value the pen draws. All
+# public: the pen's header spells each of their types.
 find_package(boost_container_hash CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilDraw
@@ -27,7 +29,7 @@ sigil_library(SigilDraw
           PenTransform.cpp Text.cpp
   HEADERS Color.h Constants.h Draw.h Graphics.h Math.h Noise.h Pen.h
           PenTypes.h Retained.h
-  PUBLIC SigilMaterialSkia SigilCoreCompute
+  PUBLIC SigilMaterialSkia SigilCoreCompute SigilGeometryKit
          SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
          SigilWeaveFonts Boost::container_hash Boost::unordered)
 sigil_shader_sources(SigilDraw DIR ${_shaders} NAMESPACE sigil::draw)
