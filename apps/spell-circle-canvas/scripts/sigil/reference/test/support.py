@@ -491,9 +491,13 @@ class Tree(unittest.TestCase):
         (declarations / "_types.pyi").write_text(textwrap.dedent(ROLES))
         self.declarations = declarations
 
+        # One directory per library under the binding root, which is how
+        # the package lays its sources out and what the scan has to walk.
         sources = self.root / "bindings"
-        sources.mkdir()
-        (sources / "PaintBindings.cpp").write_text(textwrap.dedent(BINDING))
+        (sources / "paint").mkdir(parents=True)
+        (sources / "paint" / "PaintBindings.cpp").write_text(
+            textwrap.dedent(BINDING)
+        )
         self.sources = [sources]
 
     def inherit_the_edges(self) -> None:

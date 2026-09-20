@@ -416,9 +416,13 @@ class Scan:
 
 
 def read(sources: list) -> list:
-    """Every binding in every source, in the order the files are given."""
+    """Every binding under every source directory, however deep.
+
+    A binding package keeps one directory per library, so the sources
+    are walked, and a directory holding no binding adds nothing.
+    """
     found = []
     for directory in sources:
-        for path in sorted(Path(directory).glob("*.cpp")):
+        for path in sorted(Path(directory).rglob("*.cpp")):
             found.extend(Scan(path).bindings)
     return found
