@@ -1411,11 +1411,11 @@ class Element {
    *  Both run on the PARAGRAPH and resolve their selection as TEXT
    *  RANGES, not glyphs: `weave::selectors::text` and
    *  `weave::selectors::regex` go through weave's query layer,
-   *  `weave::selectors::word`, `weave::selectors::words`,
-   *  `weave::selectors::sentence` and `weave::selectors::range` through
-   *  the paragraph's own structure, and `weave::selectors::line` through
-   *  the layout. `weave::Selector::take` and `weave::Selector::drop`
-   *  slice GLYPHS inside a unit, which a text range cannot express — an
+   *  `weave::selectors::word`, `weave::selectors::words` and
+   *  `weave::selectors::range` through the paragraph's own structure,
+   *  and `weave::selectors::line` through the layout.
+   *  `weave::Selector::take` and `weave::Selector::drop` slice GLYPHS
+   *  inside a unit, which a text range cannot express — an
    *  `weave::selectors::each` selector restyles its whole units here,
    *  and the slice is ignored with a warning.
    *

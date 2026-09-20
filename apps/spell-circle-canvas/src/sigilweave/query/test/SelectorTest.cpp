@@ -37,11 +37,10 @@ TEST(Selector, AbsoluteFormsRecordTheirBounds) {
   EXPECT_EQ(words->hi, 5u);
   EXPECT_TRUE(selectors::word(3) == selectors::words(3, 4));
 
-  // A single line and a run of lines are ONE kind: line(i) is lines(i, i+1),
-  // so a resolver has one case to answer rather than two that must agree.
   const Selector oneLine = selectors::line(1);
   EXPECT_EQ(oneLine.state()->kind, Selector::Kind::Line);
-  EXPECT_TRUE(selectors::line(1) == selectors::lines(1, 2));
+  EXPECT_EQ(oneLine.state()->lo, 1u);
+  EXPECT_EQ(oneLine.state()->hi, 2u) << "one line is the range [i, i+1)";
 
   const Selector chars = selectors::range({4, 9});
   const Selector::State* range = chars.state();

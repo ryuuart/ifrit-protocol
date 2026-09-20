@@ -180,15 +180,6 @@ namespace selectors {
   return Selector::of(
       {.kind = Selector::Kind::Line, .lo = index, .hi = index + 1});
 }
-/** Flow lines `[lo, hi)`. */
-[[nodiscard]] inline Selector lines(uint32_t lo, uint32_t hi) {
-  return Selector::of({.kind = Selector::Kind::Line, .lo = lo, .hi = hi});
-}
-/** The i-th sentence, as the Unicode sentence segmentation finds them. */
-[[nodiscard]] inline Selector sentence(uint32_t index) {
-  return Selector::of(
-      {.kind = Selector::Kind::Sentence, .lo = index, .hi = index + 1});
-}
 /** Everything whose cluster falls inside a UTF-16 range of the text. */
 [[nodiscard]] inline Selector range(CharRange chars) {
   return Selector::of(

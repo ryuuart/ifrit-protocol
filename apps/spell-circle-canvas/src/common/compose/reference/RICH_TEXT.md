@@ -134,8 +134,8 @@ re-shapes too, so the later declaration is the one that stands.
 `spanPaint` and `spanStyle` resolve their selection as TEXT RANGES rather
 than glyphs, because a restyle runs on the paragraph before there are glyphs
 to point at: `weave::selectors::text` and `weave::selectors::regex` through weave's
-query layer, `weave::selectors::word`, `weave::selectors::words`, `weave::selectors::sentence`
-and `weave::selectors::range` through the paragraph's own structure, `selectors::style`
+query layer, `weave::selectors::word`, `weave::selectors::words` and
+`weave::selectors::range` through the paragraph's own structure, `selectors::style`
 through the named runs the content declared, and `weave::selectors::line` through
 the layout. Two consequences follow. `weave::Selector::take` and
 `weave::Selector::drop` slice glyphs inside a unit, which no text range can

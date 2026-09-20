@@ -46,7 +46,7 @@ them touch — which is what puts one reading over a compound the breaker
 is free to divide.
 
 **Selectors.** `weave::selectors::word`, `weave::selectors::words`, `weave::selectors::line`,
-`weave::selectors::sentence`, `weave::selectors::range`, `weave::selectors::text` and
+`weave::selectors::range`, `weave::selectors::text` and
 `weave::selectors::regex` name a position in the text; `weave::selectors::each` slices
 every unit of one granularity the same way, with `weave::Selector::take` and
 `weave::Selector::drop` partitioning each unit exactly. Combine with `|`,
