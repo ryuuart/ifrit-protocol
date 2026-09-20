@@ -445,22 +445,55 @@ formula, because there is one formula and this side compiled it.
 
 ## Build and test
 
-Configure and build from `apps/spell-circle-canvas`:
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`geometry_test` over every feature's `test/` and one `geometry_bench`
+over every feature's `bench/`, ctest one entry per CASE, what a case may
+pin, and what a label promises. What is only true of SigilGeometry:
 
-```sh
-python3 scripts/sigil.py setup --config Release
-cmake --build build --config Release
-```
-
-Targets: one static library per feature — `SigilGeometryPath`,
+Targets — one static library per feature: `SigilGeometryPath`,
 `SigilGeometryPathBlend`, `SigilGeometryMesh`, `SigilGeometryMeshCamera`,
 `SigilGeometryMeshRender`, `SigilGeometryMeshCurve`,
 `SigilGeometryMeshPop`, `SigilGeometryMeshCodec`,
 `SigilGeometryMeshRenderDevice`, `SigilGeometryDevice`,
-`SigilGeometryDeviceResidency`, `SigilGeometryKit` — the `SigilGeometry` umbrella over all of them, the tests, and one Google Benchmark binary,
-`geometry_bench`, built by the `benches` target into
-`bin/<config>/benches/` and run from a Release build through
-`scripts/sigil.py bench`. Its arms sit in each feature's `bench/`:
+`SigilGeometryDeviceResidency`, `SigilGeometryKit` — with the
+`SigilGeometry` umbrella over all of them.
+
+| Files | Proves |
+| --- | --- |
+| `path/test/` — `ContoursTest`, `PolylinesTest`, `MarksTest`, `SegmentsTest`, `NodesTest`, `NeighboursTest`, `ScatterTest`, `TriangulateTest`, `FieldsTest`, `OpsTest`, `SeamsTest`, `CrossingsTest`, `FramesTest`, `ConicsTest`, `ProjectionsTest`, `BlendTest` | the 2D leaf and the shape interpolation over it: where a distance along a contour lands (held against an independent walk of the same contours), what a polyline flattens and resamples to, where marks land inside a shape, an outline read verb for verb and rewritten to start elsewhere or run the other way, the node arithmetic, the uniform grid judged against the brute-force answer, what each rate and each spread of a scatter guarantees, a triangulation on sets whose answer is known by hand, the three things a field is walked, repeated or stepped by, what each path operator names of two outlines, the two comparable seams a mark is deviated and widened through, who goes over at a crossing, the two coordinate systems a figure is measured in, which of the four curves a conic is at each eccentricity, every map coming back from the plane it lands on — a stereographic carrying circles to circles and saying so rather than approximating where it cannot, the plate an astrolabe is, the two cylindrical forms' parallels spaced by their own rule, and the three-angle turn that carries a star from one epoch to the next — and how many steps a blend makes |
+| `mesh/test/` — `MeshTest`, `FacesTest`, `CameraTest` | the mesh currency, its faces and the camera that places it: the sheet's coherent lanes, transform and append with every lane kept sized to its elements, the primitive bake, a fanned polygon read as one face with one plane and one centroid, the face-up rotation, and the view-projection and billboard transforms carried through to viewport pixels |
+| `kit/test/` — `SilhouettesTest`, `ShapersTest`, `HatchesTest`, `DivisionsTest`, `SolidsTest` | the shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, the hatch door taking an outline and giving one back, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled, and each regular solid counted by its own faces, closed on itself (V - E + F = 2), equal-edged and stood on a chosen face |
+| `mesh/curve/test/CurveTest` | splines, the two rails, the pose read along them, and the projection to a 2D path |
+| `mesh/render/test/` — `PainterTest`, `RuntimeTest`, `ShadingTest` | the mesh draw's pixels and the normals G-buffer's encoding; the draw's runtime seam; and each shading term against the closed form a device shader's own spelling of it is held to |
+| `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopNeighboursTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the splat as one canvas draw however many points and however many cells the cloud carries — keeping the back-to-front order, each point's own tint, size and atlas cell with no neighbouring cell bleeding into it, the requested blend where two splats overlap, and every splat across the batch's chunk boundary — the lanes a chain carries and the dials that address them by name, the operators that read points they do not own, each declined by name on a device runtime, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
+| `mesh/codec/test/` — `ObjTest`, `GltfTest`, `StlTest`, `PlyTest`, `AlembicTest`, `GeoTest`, `ModelTest`, `EncodeTest` | one file per format, plus the Model operations over whatever reader made it and both writers' return leg. The only binary linking Alembic |
+| `device/test/DeviceTest` | one device end to end: Graphite draws on the very queue Diligent submits through, the adopted device names every Vulkan handle, and Diligent still drives it afterwards |
+| `device/residency/test/ResidencyTest` | what the device keeps between draws: a named mesh crossing once and drawn from after, a nameless one written through the streaming pair, the depth of an uploaded map's chain, and the letting go that keeps a scene from holding everything it ever cooked |
+| `mesh/pop/device/test/` — `DeviceCookTest`, `DeviceStampTest`, `DeviceSweepTest` | the CONFORMANCE of the device executors: every chain, stamping and sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected |
+| `mesh/render/device/test/PainterTest` | the mesh painter's device executor: the runtime as a value, the style's own answers read the same way on either executor, and a panel as the same BYTES on both — which it is because a panel's content is Skia's to rasterise whichever executor holds it. How far two rasterisers stand apart on everything else is a picture, judged against a committed baseline rather than here |
+
+| Label | On | Means |
+| --- | --- | --- |
+| `gpu` | `AdoptedDevice`, `AdoptedGraphite`, `Device`, `MapUpload`, `MeshResidency`, `TextureResidency`, `DevicePop`, `DeviceStamp`, `DeviceSweep`, `Painter` | needs a Vulkan runtime (on macOS: `brew install molten-vk vulkan-loader`); skips with the reason without one |
+
+Every case in the device suites brings a Vulkan device up and skips,
+naming what is missing, where the machine has none, so `ctest -LE gpu`
+checks the whole host tier. Nothing else here needs a device, a font or
+a network.
+
+Fixtures live in one place per audience. `test/support/` at the library
+root holds what more than one binary reads: `GeometrySupport.h` (the OBJ
+cube with its material, a quad with a known winding, the bytes of a piece
+of text), `Paths.h` (a square and a rectangle) and `RuntimeSeam.h` — the
+typed suite every runtime seam in this library is held to, instantiated
+once per seam with a traits type. `device/test/support/OnDevice.h` is the
+one device a test process brings up, and the reason there is none; any
+binary with device cases puts that directory on its include path.
+`mesh/pop/test/support/Loops.h` holds the ring every pop chain is
+scattered along.
+
+`geometry_bench`'s arms sit in each feature's `bench/`:
 
 | Arms | Measure |
 | --- | --- |
@@ -475,65 +508,6 @@ Targets: one static library per feature — `SigilGeometryPath`,
 | `device/bench/` | the way in, less the driver: the Vulkan handles read off Diligent's interfaces and adopted, with Graphite stood up on what comes back |
 | `kit/bench/` | one silhouette generated from a value — analytic, sampled by density, seeded, wrapped — against the comparison a caching consumer prunes with; and the solids by output size, an extrusion against the outline it lifts, a lathe against the profile it turns, and each regular solid gathered from its own corner table |
 
-A test asserts ONE behaviour this library promises through its public
-headers to a caller who has read only this document, and its name is that
-promise written as a sentence, so a failure line reads as the claim that
-broke. It pins only what editing this library alone could falsify: a
-closed form, a comparison two values are held to, a lane sized to its
-vertices, two executors of one kernel agreeing bit for bit. It never pins
-an anti-aliased byte, a fitted tolerance, a golden float read out of a
-mixer, a byte layout the compiler chose or elapsed time — a picture
-compared byte for byte is the plate ledger's to judge and a duration is
-the bench ledger's. A claim made N times with one thing varying is one
-`TEST_P` whose rows are named, so the failure line still reads as a
-promise. One file per subject, named for what it asserts.
-
-The library has ONE test binary, `geometry_test`, built from every
-feature's `test/` directory and landing in `bin/<config>/tests/`. ctest
-discovers one entry per CASE out of it, so a suite or a case is selected
-by name — `ctest -R '^PopChains\.'` — with no target behind it. A
-suite's file sits in the feature it covers.
-
-| Files | Proves |
-| --- | --- |
-| `path/test/` — `ContoursTest`, `PolylinesTest`, `MarksTest`, `SegmentsTest`, `NodesTest`, `NeighboursTest`, `ScatterTest`, `TriangulateTest`, `FieldsTest`, `OpsTest`, `SeamsTest`, `CrossingsTest`, `FramesTest`, `ConicsTest`, `ProjectionsTest`, `BlendTest` | the 2D leaf and the shape interpolation over it: where a distance along a contour lands (held against an independent walk of the same contours), what a polyline flattens and resamples to, where marks land inside a shape, an outline read verb for verb and rewritten to start elsewhere or run the other way, the node arithmetic (nodes put where a curve turns, nodes taken away where they say nothing, a run of points fitted as few cubics, the exact in-between of a pair that pairs), the uniform grid judged against the brute-force answer, what each rate and each spread of a scatter guarantees, a triangulation on sets whose answer is known by hand with the dual cells and the outline at a tightness beside it, the three things a field is walked, repeated or stepped by, what each path operator names of two outlines, the two comparable seams a mark is deviated and widened through, who goes over at a crossing, the two coordinate systems a figure is measured in, which of the four curves a conic is at each eccentricity with where its focus stands against the figure it draws, every map coming back from the plane it lands on with the middle of it the same size whichever scheme was chosen — a stereographic carrying circles to circles and saying so rather than approximating where it cannot, the plate an astrolabe is with its pole and its horizon, the two cylindrical forms' parallels spaced by their own rule, and the three-angle turn that carries a star from one epoch to the next — and how many steps a blend makes |
-| `mesh/test/` — `MeshTest`, `FacesTest`, `CameraTest` | the mesh currency, its faces and the camera that places it: the sheet's coherent lanes, transform and append with every lane kept sized to its elements, the primitive bake, a fanned polygon read as one face with one plane and one centroid, the face-up rotation landing the face it names on the axis it is given, and the view-projection and billboard transforms carried through to viewport pixels |
-| `kit/test/` — `SilhouettesTest`, `ShapersTest`, `HatchesTest`, `DivisionsTest`, `SolidsTest` | the shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, the hatch door taking an outline and giving one back with the lattice and the offset behind it, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled, and each regular solid counted by its own faces, closed on itself (V - E + F = 2), equal-edged and stood on a chosen face |
-| `mesh/curve/test/CurveTest` | splines, the two rails, the pose read along them, and the projection to a 2D path |
-| `mesh/render/test/` — `PainterTest`, `RuntimeTest`, `ShadingTest` | the mesh draw's pixels and the normals G-buffer's encoding; the draw's runtime seam; and each shading term against the closed form a device shader's own spelling of it is held to |
-| `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopNeighboursTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the splat as one canvas draw however many points and however many cells the cloud carries — with that draw keeping the back-to-front order, each point's own tint, size and atlas cell with no neighbouring cell bleeding into it, the square splat a cell of any aspect draws, the requested blend where two splats overlap, and every splat across the batch's chunk boundary, the lanes a chain carries and the dials that address them by name, the operators that read points they do not own — a relaxation pushing a scatter apart and stopping, a clustering grouping it in the metric its weights name, a transfer carrying a lane over from another cloud, and the connection sink answering the pairs near enough to join — each declined by name on a device runtime, naming a subset and acting on it, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
-| `mesh/codec/test/` — `ObjTest`, `GltfTest`, `StlTest`, `PlyTest`, `AlembicTest`, `GeoTest`, `ModelTest`, `EncodeTest` | one file per format, plus the Model operations over whatever reader made it and both writers' return leg. The only binary linking Alembic |
-| `device/test/DeviceTest` | one device end to end: Graphite draws on the very queue Diligent submits through, the adopted device names every Vulkan handle, and Diligent still drives it afterwards |
-| `device/residency/test/ResidencyTest` | what the device keeps between draws: a named mesh crossing once and drawn from after, a nameless one written through the streaming pair, the depth of an uploaded map's chain, and the letting go that keeps a scene from holding everything it ever cooked |
-| `mesh/pop/device/test/` — `DeviceCookTest`, `DeviceStampTest`, `DeviceSweepTest` | the CONFORMANCE of the device executors: every chain, stamping and sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected |
-| `mesh/render/device/test/PainterTest` | the mesh painter's device executor: the runtime as a value, the style's own answers read the same way on either executor, and a panel as the same BYTES on both — which it is because a panel's content is Skia's to rasterise whichever executor holds it. How far two rasterisers stand apart on everything else is a picture, judged against a committed baseline rather than here |
-
-The device suites carry the `gpu` label: every case in them brings a
-Vulkan device up and skips, naming what is missing, when the machine has
-none. A machine without one runs `ctest -LE gpu` and checks the whole
-host tier. Nothing else here needs a device, a font or a network.
-
-| Label | On | Means |
-| --- | --- | --- |
-| `gpu` | `AdoptedDevice`, `AdoptedGraphite`, `Device`, `MapUpload`, `MeshResidency`, `TextureResidency`, `DevicePop`, `DeviceStamp`, `DeviceSweep`, `Painter` | needs a Vulkan runtime (on macOS: `brew install molten-vk vulkan-loader`); skips with the reason without one |
-
-Fixtures live in one place per audience. `test/support/` at the library
-root holds what more than one binary reads: `GeometrySupport.h` (the OBJ
-cube with its material, a quad with a known winding, the bytes of a piece
-of text), `Paths.h` (a square and a rectangle) and `RuntimeSeam.h` — the
-typed suite every runtime seam in this library is held to, instantiated
-once per seam with a traits type. `device/test/support/OnDevice.h` is the
-one device a test process brings up, and the reason there is none; any
-binary with device cases puts that directory on its include path.
-`mesh/pop/test/support/Loops.h` holds the ring every pop chain is
-scattered along. A helper one file uses stays in that file.
-
-```sh
-ctest --test-dir build -C Release --output-on-failure
-```
-
-**Looking at any of it** goes through SigilSketch, in `src/sketch/`: one
-file per renderable thing, in one registry, drawn by one application.
 The studies over this library are `blend_options`, `path_booleans`,
 `crossing_rule`, `exact_tangent`, `curve_shelf`, `shape_tour`,
 `corner_notched`, `svg_silhouette`, `contour_poses`, `mesh_generators`,
@@ -542,9 +516,4 @@ The studies over this library are `blend_options`, `path_booleans`,
 `formation_bands`, `over_under`, `routes_probe`, `geo_groups`,
 `yarn_marquee` and `shapeworks_lab`; `codec_roundtrip` takes a mesh out
 through the codec and back, and `scattered_model` brings a file in
-through it and stands it in a lit room. Each is addressed by
-its own stem:
-
-```sh
-build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook --sketch pop_stamps
-```
+through it and stands it in a lit room.
