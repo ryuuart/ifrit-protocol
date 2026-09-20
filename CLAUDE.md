@@ -81,7 +81,10 @@ guard checks and what it cannot see.
   callback ownership; the sketch session adapter stays under `src/sketch/python/`
 - `apps/spell-circle-canvas/scripts/README.md` — `sigil.py` and its
   verbs: the checks and the ledgers
-- `docs/README.md` — the generated C++ API reference
+- `docs/README.md` — the generated C++ API reference, with
+  `docs/REFERENCE.md` beside it as the canon for the overview and
+  reference site built over it; the pages that site reads live in a
+  library's own `reference/` directory, beside its README
 
 Defects found while working go to `apps/spell-circle-canvas/FINDINGS.md`
 — create it when needed. Each entry states what the code does, what it
