@@ -203,3 +203,32 @@ the key is dropped. It carries a `workaround:` marker. The fix belongs
 upstream — `precompile` should refuse a key it cannot resolve — and a
 test should assert that a key naming an unmade piece comes back false
 rather than taking the process down.
+
+## A varying rail's fold is struck at one width and met at another
+
+`offsetJoins` in `src/common/geometry/path/Contour.cpp` reads a width
+law once per corner, at the vertex, and strikes from that one number
+both the place the two offset edges fold across each other and the
+window of samples the corner answers for. The window reaches the fold,
+which below a right angle is longer than the offset and grows without
+bound as the turn approaches a reversal, so at a sharp corner the
+samples at the window's ends stand far enough along the contour for the
+law to read a different width there. The rail steps sideways by that
+difference where the window ends, and the step closes a small loop
+against the cut the join wrote. A four-arm zigzag under a width that
+swells over its length shows it below about 30 degrees of interior
+angle, on the side of travel the corner turns into, one crossing
+enclosing a few pixels of rail at 30 and more of them as the corner
+sharpens. A constant law on the same spine has nothing to read twice
+and is clean to the sharpest corner a spine can carry without folding
+its own arms onto the rail.
+
+The offset edges a varying law cuts are not parallel to the edges they
+came from — they slant by the law's own rate along the contour — and
+the fold is where those slanted edges meet, not where the edges of one
+width would. `Band.ACornerSharperThanARightAngleLeavesNoSpurEitherSide`
+already sweeps its zigzag from 150 degrees of interior angle down, with
+both rails to 30 and the constant rail on to 10; closing this entry
+means carrying the varying rail down to 10 beside it, with every corner
+blunter than a right angle and every constant rail unchanged to the
+bit.
