@@ -95,6 +95,48 @@ assert "sigil._loader" not in sys.modules
            scope);
 }
 
+TEST(PythonBindings, AnOwnedTickerAndItsTimelineOutliveTheirPythonWrappers) {
+  auto module = native();
+  py::dict scope;
+  scope["native"] = module;
+  py::exec(R"(
+import gc
+import weakref
+
+motion = native.motion
+ticker = motion.Ticker()
+ramped = motion.Output(0)
+timeline = ticker.timeline()
+timeline.apply(ramped, [motion.rampTo(1.0, 0.2, ease=motion.ease.linear)])
+
+# A timeline is a view onto the one the ticker owns, so what is written
+# through one wrapper is read through the next, and dropping a wrapper
+# takes nothing with it.
+assert ticker.timeline().size() == 1
+timeline_ref = weakref.ref(timeline)
+del timeline
+gc.collect()
+assert timeline_ref() is None
+ticker.tick(0.1)
+assert abs(ramped.value - 0.5) < 1e-5
+assert ticker.timeline().size() == 1
+
+# The other way round, a timeline outlives the name its ticker was held
+# by: the handle it reads through holds the ticker, so the motion keeps
+# running rather than reading storage that has gone.
+kept = ticker.timeline()
+ticker_ref = weakref.ref(ticker)
+del ticker
+gc.collect()
+assert ticker_ref() is None
+assert kept.size() == 1
+kept.clear()
+assert kept.empty()
+assert not hasattr(native, "Context")
+)",
+           scope);
+}
+
 TEST(PythonBindings, WeaveLayoutsAndResourceLeasesOwnTheirDependencies) {
   auto module = native();
   py::dict scope;
