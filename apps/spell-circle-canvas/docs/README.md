@@ -196,6 +196,35 @@ that is only reachable because C++ has no way to hide a header, and
 documenting them would advertise names that carry no compatibility
 promise.
 
+## What a comment in a header says
+
+A header carries a BRIEF and nothing longer. A brief says, in at most
+six lines for a member and ten for a class, a namespace or an `@file`,
+`@name` or `@defgroup` banner: what the thing IS, what it accepts —
+units, or the set of accepted forms — what holds when it is never
+stated, and the one thing a caller cannot discover from the signature. A
+clause that does not apply is left out rather than padded.
+
+It does not carry narrative, an example longer than two lines, a
+rationale, a mechanism, a proof of equivalence, a comparison with
+another tool, or an enumeration of how one call interacts with the rest.
+Those are prose, and prose lives on a page under the library's
+`reference/`, which is compile-checked exactly as its README is: every
+sentence a header does not carry is on a page, so a reader of the brief
+who wants the argument behind it has one place to look.
+
+Two of the house markers are the spelling for the last two clauses, in
+place of running prose:
+
+| Marker | What it opens |
+| --- | --- |
+| `@trap` | the one thing a caller cannot read off the signature and walks into. One per member; a second trap is prose and belongs on the page. |
+| `@silent` | a call that is accepted and does nothing — the wrong kind of node, a state that has no such slot, an input too small to answer from. |
+
+`@name` groups and `@defgroup` structure stay in the headers and in each
+library's `docs/Groups.dox`: they are what the site's topics are built
+from, and they are structure rather than prose.
+
 ## Checking that a comment arrives
 
 ```sh
