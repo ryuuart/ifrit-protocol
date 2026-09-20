@@ -1,10 +1,12 @@
 """One whole run: the pages written, the index, and the example."""
 
+import contextlib
+import io
 import json
 import unittest
 
 from sigil.reference import model, site
-from sigil.reference.test.support import Tree
+from sigil.reference.test.support import Manifest, Tree, lowered_floor
 
 
 class ARunWritesOnePageForEveryEntity(Tree):
@@ -102,6 +104,29 @@ class TwoEntitiesNeverShareAPage(Tree):
         with self.assertRaises(SystemExit) as raised:
             run.write()
         self.assertIn("claimed by two entities", str(raised.exception))
+
+
+class AMissingDeclarationTreeIsANamedSkip(Tree):
+    def test(self) -> None:
+        from sigil.reference.build import Build, Options
+
+        # The declarations are written when the extension links, so a
+        # tree built without the generator has none to read. The layer
+        # names the reader it is missing and is skipped, the way it is
+        # for an inventory that has not been written.
+        (self.declarations / "_types.pyi").unlink()
+        run = Build(
+            Manifest(self.root, self.source),
+            Options(
+                package=self.package,
+                declarations=self.declarations,
+                binding_sources=self.sources,
+            ),
+        )
+        said = io.StringIO()
+        with lowered_floor(True), contextlib.redirect_stderr(said):
+            self.assertFalse(run.read())
+        self.assertIn("no Python declarations to read", said.getvalue())
 
 
 if __name__ == "__main__":

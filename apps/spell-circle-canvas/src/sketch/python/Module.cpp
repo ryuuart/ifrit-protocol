@@ -14,7 +14,8 @@ PYBIND11_MODULE(_sigil, module) {
   sigil::python::bindLibraries(module);
   sigil::sketch::python::bindRuntime(module);
   sigil::sketch::python::bindSketchKit(module);
-  // Last, so every class and submodule this process registers is named for
-  // the package an author imports it from rather than for this module.
+  // Last, so every class, enumeration and free function this process
+  // registers is named for the package an author imports it from rather than
+  // for this module.
   sigil::python::namePublicly(module);
 }

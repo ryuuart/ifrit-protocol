@@ -24,7 +24,6 @@ from pathlib import Path
 
 from sigil.reference import model
 
-NATIVE = "_sigil"
 PUBLIC = "sigil"
 
 
@@ -124,8 +123,6 @@ class Module:
         self.path = path
         self.declarations = {}
         self.exports = {}
-        self.stars = []
-        self.submodules = {}
         self.declared_all = None
         tree = ast.parse(path.read_text(), filename=str(path))
         self._walk(tree)
@@ -142,10 +139,6 @@ class Module:
                 self._assigned(statement)
             elif isinstance(statement, ast.ImportFrom):
                 self._imported(statement)
-            elif isinstance(statement, ast.Import):
-                for alias in statement.names:
-                    if alias.name.startswith(NATIVE):
-                        self.submodules[alias.asname or alias.name] = alias.name
 
     def _class(self, node: ast.ClassDef) -> None:
         declaration = Declaration(
@@ -224,9 +217,10 @@ class Module:
             return
         for alias in node.names:
             if alias.name == "*":
-                self.stars.append(source)
-            else:
-                self.exports[alias.asname or alias.name] = f"{source}.{alias.name}"
+                # A star carries no name of its own, so there is nothing here
+                # to answer for. The generated declarations write none.
+                continue
+            self.exports[alias.asname or alias.name] = f"{source}.{alias.name}"
 
     def _resolve(self, node: ast.ImportFrom) -> str | None:
         if node.level:
@@ -238,10 +232,11 @@ class Module:
     def public_names(self) -> list:
         """What this module offers, whether or not it says so.
 
-        A generated stub declares `__all__`; a hand-written re-export
-        usually does not, and one written as `import *` declares nothing
-        at all — so the names it offers are the starred module's, which
-        only the caller holding both modules can resolve.
+        A generated declaration states its members outright and reaches
+        its submodules by importing them under a name of their own, so
+        what it offers is what it declares plus what it imports that
+        way. The role unions are the one file that also carries an
+        `__all__`, and where there is one it has the last word.
         """
         if self.declared_all is not None:
             return list(self.declared_all)

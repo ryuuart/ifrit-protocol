@@ -1,6 +1,14 @@
 # Declaration generation imports the extension, so its interpreter must match
-# the Python version the native module was built against and must carry the
-# stub generator the pass is written for.
+# the Python version the native module was built against, must carry the stub
+# generator the pass is written for, and must have no sigil package of its
+# own. The last condition is the one the generator itself enforces: an
+# installed _sigil, an editable one above all, is found ahead of PYTHONPATH,
+# so an interpreter that has one would describe a binding other than the one
+# just linked, and the generator refuses it. The search refuses it here
+# instead, because choosing it would fail the build rather than leave the
+# declarations out. PYTHONPATH is cleared for the probe: the tree it names is
+# where an accepted interpreter is meant to find the extension, so a copy
+# there is not the shadow this rejects.
 set(SIGIL_TYPING_PYTHON "")
 foreach(candidate IN ITEMS
     "${CMAKE_BINARY_DIR}/typing-tools/bin/python"
@@ -9,8 +17,9 @@ foreach(candidate IN ITEMS
     "${CMAKE_CURRENT_SOURCE_DIR}/../.venv/Scripts/python.exe"
     "${Python3_EXECUTABLE}")
   if(EXISTS "${candidate}")
-    execute_process(COMMAND "${candidate}" -c
-      "import importlib.metadata, sys; assert sys.version_info[:2] == (${Python3_VERSION_MAJOR}, ${Python3_VERSION_MINOR}); assert importlib.metadata.version('pybind11-stubgen') == '2.5.5'; import pybind11_stubgen"
+    execute_process(COMMAND ${CMAKE_COMMAND} -E env --unset=PYTHONPATH
+      "${candidate}" -c
+      "import importlib.metadata, importlib.util, sys; assert sys.version_info[:2] == (${Python3_VERSION_MAJOR}, ${Python3_VERSION_MINOR}); assert importlib.metadata.version('pybind11-stubgen') == '2.5.5'; import pybind11_stubgen; assert importlib.util.find_spec('_sigil') is None"
       RESULT_VARIABLE SIGIL_TYPING_PROBE OUTPUT_QUIET ERROR_QUIET TIMEOUT 10)
     if(SIGIL_TYPING_PROBE STREQUAL "0")
       set(SIGIL_TYPING_PYTHON "${candidate}")
@@ -20,10 +29,11 @@ foreach(candidate IN ITEMS
 endforeach()
 if(NOT SIGIL_TYPING_PYTHON)
   message(STATUS
-    "pybind11-stubgen 2.5.5 was not found on an interpreter matching Python "
-    "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}: the Python package is "
-    "built without the declarations an editor reads, and the checks over them "
-    "are left out")
+    "No interpreter matching Python "
+    "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR} carries "
+    "pybind11-stubgen 2.5.5 without a sigil package of its own: the Python "
+    "package is built without the declarations an editor reads, and the "
+    "checks over them are left out")
 endif()
 
 set(SIGIL_PYTHON_ROOT "${CMAKE_BINARY_DIR}/python")

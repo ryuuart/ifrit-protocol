@@ -224,14 +224,34 @@ checks positive and invalid authoring examples against the installed types.
 The `typing` development dependency group supplies the checker and pinned
 stub generator; these tools are not runtime dependencies.
 
-Native declarations are checked in so an editor can read them without a
-native build. After changing bindings, regenerate against the rebuilt
-extension using an interpreter that has the `typing` group installed AND
-NO SIGIL PACKAGE OF ITS OWN: an installed copy, an editable one above
-all, is found ahead of `PYTHONPATH`, so an interpreter that has one
-would describe a binding that is not the one just built. The generator
-refuses that interpreter rather than writing the wrong declarations. The
-build tree configures one with nothing else in it. From `apps/python`:
+The declarations an editor reads are a build product: `typing/generate.py`
+writes them into the package in the build tree when the extension links,
+and the wheel and the editable install take them from there. They are
+never a file in this project. The package's own modules are, and a plain
+run of the same script refreshes those — do that after a binding change,
+and `--check` reports the modules an extension no longer agrees with
+while writing nothing.
+
+The script imports the extension, so it needs an interpreter that matches
+the built module's Python version, carries the pinned stub generator from
+the `typing` group, and HAS NO SIGIL PACKAGE OF ITS OWN: an installed
+copy, an editable one above all, is found ahead of `PYTHONPATH`, so an
+interpreter that has one would describe a binding that is not the one
+just built, and the script refuses it rather than writing the wrong
+declarations. The build looks for one at `build/typing-tools`, then
+beside this workspace, then wherever CMake found Python, and leaves the
+declarations and the checks over them out when none of them qualifies. A
+wheel build needs none of this, because its isolated build environment
+has the generator and no package of its own. Nothing creates the first
+candidate; make it from `apps/spell-circle-canvas`:
+
+```sh
+uv venv --python <the extension's Python version> build/typing-tools
+uv pip install --python build/typing-tools pybind11-stubgen==2.5.5
+```
+
+Refresh the package modules from `apps/python`, against the rebuilt
+extension:
 
 ```sh
 PYTHONPATH=../spell-circle-canvas/build/python \

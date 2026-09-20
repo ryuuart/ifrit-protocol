@@ -194,8 +194,8 @@ assert not hasattr(material, "skia")
 assert compose_kit.Well is compose.kit.Well
 assert sketch_kit.Theme is sketch.kit.Theme
 assert Output is motion.Output
-assert data.Json is sketch.SketchContext.assets.fget is not None or True
-assert io.Hub is io.Hub
+assert data.Json.__module__ == "sigil.data"
+assert io.Hub.__module__ == "sigil.io"
 payload = {"values": [1, 2, 3], "label": "installed"}
 assert data.decodeJson(data.encodeJson(payload)).to_python() == payload
 assert data.Scale(domain=(0, 100), range=(20, 420))(25) == 120

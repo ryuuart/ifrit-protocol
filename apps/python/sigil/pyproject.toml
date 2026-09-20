@@ -36,14 +36,32 @@ typing = ["basedpyright==1.40.1", "pybind11-stubgen==2.5.5"]
 
 [tool.uv]
 # An editable install reads .py from this project but installs the generated
-# declarations, and maps only the modules present when it was built. Rebuild
-# when a module file is added or removed, or when the pass that writes the
-# declarations changes; a binding change rebuilds through the native sources.
+# declarations, and maps only the modules present when it was built. A
+# directory key answers for that directory alone, so every package directory
+# is named: a module added or removed anywhere in the package rebuilds the
+# install. The pass that writes the declarations is matched by glob instead,
+# because what matters there is that a file changed, not that one appeared.
+# A binding change rebuilds through the native sources.
 cache-keys = [
   { file = "pyproject.toml" },
+  { file = "typing/*.py" },
+  { file = "typing/*.pyi" },
+  { file = "typing/**/*.py" },
+  { file = "typing/**/*.pyi" },
   { dir = "sigil" },
   { dir = "sigil/compose" },
+  { dir = "sigil/core" },
+  { dir = "sigil/draw" },
+  { dir = "sigil/draw/brush" },
+  { dir = "sigil/examples" },
+  { dir = "sigil/examples/tools" },
+  { dir = "sigil/geometry" },
+  { dir = "sigil/geometry/mesh" },
+  { dir = "sigil/material" },
+  { dir = "sigil/motion" },
   { dir = "sigil/sketch" },
+  { dir = "sigil/weave" },
+  { dir = "sigil/world" },
   { dir = "typing" },
 ]
 

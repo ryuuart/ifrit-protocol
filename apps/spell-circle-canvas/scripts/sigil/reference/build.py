@@ -81,6 +81,17 @@ class Build:
         self.missing = [name for name in wanted if name not in inventories]
         for name in self.missing:
             print(f"note: no inventory for {name} — its pages are not written")
+        if not (self.options.declarations / "_types.pyi").is_file():
+            # The declarations are written when the extension links, and a
+            # build whose interpreter cannot write them leaves the package
+            # without any. A page carries both spellings, so there is no
+            # half of this layer to write from the other two readers.
+            print(
+                "no Python declarations to read — build the extension with an "
+                "interpreter carrying the pinned stub generator",
+                file=sys.stderr,
+            )
+            return False
         surface, roles = python_surface(self.options.package, self.options.declarations)
         bound = bindings.read(self.options.binding_sources)
         self.catalogue = catalogue_module.Catalogue(inventories, surface, roles, bound)

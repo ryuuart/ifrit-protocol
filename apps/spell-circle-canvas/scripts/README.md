@@ -679,12 +679,13 @@ to it, which is a page per value carrying what makes one, everywhere
 one is taken, and everything that hands one back, gathered across every
 library rather than inside one. It reads the XML, the Python
 declarations the package's extension writes beside itself under
-`build/python/sigil`, and the `.def` calls in the binding sources, and joins the three so that one page carries both
-spellings and a badge when they diverge. Nothing in it runs Doxygen:
-`--reference-only` writes the layer alone from an inventory an earlier
-run left behind, which is the loop while prose is moving, and with no
-inventory to read it says so and is skipped; `--no-reference` leaves it
-out; `--example-images` renders each page's example in both languages;
+`build/python/sigil`, and the `.def` calls in the binding sources, and
+joins the three so that one page carries both spellings and a badge when
+they diverge. Nothing in it runs Doxygen: `--reference-only` writes the
+layer alone from an inventory an earlier run left behind, which is the
+loop while prose is moving, and with no inventory or no declarations to
+read it says so and is skipped; `--no-reference` leaves it out;
+`--example-images` renders each page's example in both languages;
 `--report` prints every entity with no page by name and keeps
 `docs/reference_coverage.json`, and `--strict` fails when that ledger
 shows coverage has DROPPED — which belongs in the one refinement pass
