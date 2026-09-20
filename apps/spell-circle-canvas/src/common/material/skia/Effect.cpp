@@ -380,8 +380,8 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
   for (const auto& [name, source] : m_slots)
     if (source) builder.child(name) = detail::childShader(*source, paintFrame);
   if (m_gatheredHalo) {
-    static const sk_sp<SkRuntimeEffect> composite =
-        bloomProgram("phosphorBloom", "PhosphorComposite.sksl");
+    const sk_sp<SkRuntimeEffect>& composite =
+        effectProgram(EffectProgram::PhosphorComposite);
     // The reach the reduction is chosen from is the recipe's, or the
     // bound value where one drives it — a breathing radius picks its own
     // divisor rather than riding a stale one.
