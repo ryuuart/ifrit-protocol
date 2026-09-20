@@ -58,6 +58,74 @@ text, so it is not here: `sigil::core::RebuildGuard`,
 `<sigilcore/cache/Rebuild.h>`, are what a scene declares its non-text
 derived values against.
 
+## The guard's two orderings
+
+`LayoutGuard` records the paragraph's revision *after* the callable runs,
+so the shaping performed inside the relayout does not re-trigger the
+guard. If the callable never actually lays this paragraph out,
+`Paragraph::needsShaping` stays set and the guard fires every call — a
+fail-toward-correct default.
+
+The guard owns no layout storage. The callable writes wherever the caller
+keeps its layouts, which is what lets one guard cover a multi-layout
+rebuild: the same paragraph broken two ways side by side is one guard and
+two assignments.
+
+`GlyphBuckets` looks a bucket up by a linear scan, so effects quantize
+their keys precisely and the bucket count stays tiny. The key is any
+equality-comparable value — a raw pointer, a tuple, a small struct with a
+defaulted `==` — and drawing stays a caller lambda so each effect derives
+paints from its key however it wants, including drawing the same buckets
+in several passes. `sigil::weave::GlyphRSXformBatches` is the fixed
+font-and-paint RSXform special case; the template is for effects whose
+bucket key or placement type is richer.
+
+## The feature presets, and the one trap in them
+
+`features` is the CSS `font-variant-*` vocabulary as ready-made
+`FontFeature` values, so a style reads
+`features::tabularNumbers` instead of a hand-spelled four-cc tag list.
+Every one is a chosen tag and a value, which is why they are stock rather
+than engine: nothing there is a mechanism, and a caller spelling the tag
+by hand reaches the same shaping. The header is header-only, and every
+constant combines freely with a hand-rolled feature.
+`features::stylisticSet` returns `ss01` through `ss20`, clamping an index
+outside that range into it.
+
+A column asks the face for more than a line does. Shaping a run
+top-to-bottom already applies the face's vertical forms (`vert`) and
+reads its vertical metrics; the vertical presets are what a setting asks
+for on top of that, and each is off until a style names it.
+
+**A NAMED FEATURE IS NOT GATED ON THE DIRECTION.** The shaper runs the
+lookups a style asks for whichever way the run is set, so a style
+carrying `features::verticalAlternates` or
+`features::proportionalVerticalMetrics` and set along a line takes them
+there too — substituting forms cut for a column, and moving ink off a
+baseline that was meant to move along a column axis. Carry them on the
+styles a passage sets vertically.
+
+The tags are the whole contract of that header, and they are decided at
+compile time, so the compiler is what holds them to it: a wrong four-cc
+or a stylistic set that does not clamp fails there rather than reaching a
+shaper.
+
+## The three paint layers
+
+`PaintLayer` is the mechanism — an `SkPaint` and an offset, drawn under or
+over the run, with `PaintLayer::blurred` for attaching a blur mask to
+one. `kit::dropShadow`, `kit::glow` and `kit::outline` are the three
+arrangements of it a caller would otherwise assemble by hand every time,
+with the constants a shadow and a glow are usually asked for already
+chosen.
+
+Their `spread` dilates the source shape — stroke-and-fill — before the
+blur mask is applied, so a wide blur keeps a solid core instead of
+thinning a hairline glyph outline down to near-transparency. Their
+`intensity` scales the colour's alpha, letting a caller push a pass
+brighter without picking a new hex value; above 1 it clamps to fully
+opaque.
+
 ## The tables: data the engine asks for and does not hold
 
 The engine asks exactly one question about where a word may break
