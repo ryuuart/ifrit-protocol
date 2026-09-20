@@ -9,7 +9,7 @@ import copy
 import unittest
 
 import _sigil
-from sigil import material
+from sigil import material, skia
 
 # The submodules of the material library, each registered from its own
 # file and each re-exported by the package.
@@ -24,6 +24,130 @@ SUBMODULES = (
     "stock",
     "texture",
 )
+
+# What the four subjects that were written in another library's file
+# registered before the split, module name by module name. A subject
+# grows names afterwards, so a case asks that each of these is there
+# and never that nothing else is.
+MOVED_NAMES = {
+    "field": (
+        "CrtOverlayParameters",
+        "crtOverlay",
+        "grain",
+        "halftoneRamp",
+        "noise",
+        "ripple",
+    ),
+    "kit": ("Reflection", "SurfaceParameters", "surface", "unlit"),
+    "pattern": ("Tile", "checker", "gridLines", "halftone", "stripes"),
+    "skia": ("BloomParameters", "Effect", "Fit", "Paint", "bloom"),
+}
+
+# The members the classes carried across with them: the fields a record
+# is written by keyword, and the verbs and factories a value answers.
+MOVED_MEMBERS = {
+    ("field", "CrtOverlayParameters"): (
+        "uBeamFalloff",
+        "uBeamPitch",
+        "uBeamStrength",
+        "uBeatFalloff",
+        "uBeatPitch",
+        "uBeatStrength",
+        "uGrain",
+        "uScanPitch",
+        "uScanStrength",
+        "uSqueeze",
+        "uVigInner",
+        "uVigOuter",
+        "uVigStrength",
+    ),
+    ("kit", "SurfaceParameters"): (
+        "absorption",
+        "alphaCutoff",
+        "baseColor",
+        "chrome",
+        "dielectric",
+        "emissive",
+        "emissiveStrength",
+        "glass",
+        "gold",
+        "ior",
+        "metal",
+        "metallic",
+        "metallicChannel",
+        "normalDirectX",
+        "normalScale",
+        "occlusionChannel",
+        "occlusionStrength",
+        "opacityChannel",
+        "reflectionWeight",
+        "roughness",
+        "roughnessChannel",
+        "thickness",
+        "transmission",
+    ),
+    ("pattern", "Tile"): ("image", "offset", "paint", "rotate", "scale", "seed"),
+    ("skia", "BloomParameters"): (
+        "deepening",
+        "dilation",
+        "knee",
+        "maxOpacity",
+        "sigma",
+        "softness",
+        "spread",
+        "strength",
+        "tail",
+        "threshold",
+        "whitening",
+    ),
+    ("skia", "Effect"): (
+        "brightPass",
+        "blur",
+        "deepen",
+        "dilate",
+        "directionalBlur",
+        "emit",
+        "glow",
+        "isAnimated",
+        "phosphorBloom",
+        "recipe",
+        "shader",
+        "slot",
+        "then",
+        "uniform",
+        "usesWorldSpace",
+        "whiten",
+    ),
+    ("skia", "Paint"): (
+        "amount",
+        "blend",
+        "conical",
+        "copy",
+        "fit",
+        "glowUnit",
+        "image",
+        "isAnimated",
+        "isNone",
+        "linear",
+        "linearUnit",
+        "quantizeTime",
+        "radial",
+        "radialUnit",
+        "recipe",
+        "sksl",
+        "slot",
+        "solid",
+        "sweep",
+        "uniform",
+        "worldSpace",
+    ),
+}
+
+# The enumerations that moved, and the values an author writes.
+MOVED_VALUES = {
+    ("kit", "Reflection"): ("Additive", "SplitSum"),
+    ("skia", "Fit"): ("Contain", "Cover", "Native", "Stretch"),
+}
 
 
 class MovedNames(unittest.TestCase):
@@ -106,6 +230,66 @@ class MovedNames(unittest.TestCase):
             self.assertIs(
                 getattr(material, name), getattr(_sigil.material.skia, name), name
             )
+
+
+class MovedInventories(unittest.TestCase):
+    """The four subjects that were registered in another library's file.
+
+    The colour leaf never left its file, so the list above is enough for
+    it. These four were written in the Skia file and the world file and
+    now stand in the material files named for them, which is the move a
+    dropped name would hide in.
+    """
+
+    def test_every_moved_module_still_answers_each_name(self):
+        for module, names in MOVED_NAMES.items():
+            registered = getattr(_sigil.material, module)
+            for name in names:
+                with self.subTest(module=module, name=name):
+                    self.assertTrue(hasattr(registered, name))
+
+    def test_every_moved_class_still_carries_each_member(self):
+        for (module, class_name), members in MOVED_MEMBERS.items():
+            registered = getattr(getattr(_sigil.material, module), class_name)
+            for member in members:
+                with self.subTest(owner=f"{module}.{class_name}", member=member):
+                    self.assertTrue(hasattr(registered, member))
+
+    def test_every_moved_enumeration_still_names_each_value(self):
+        for (module, class_name), values in MOVED_VALUES.items():
+            registered = getattr(getattr(_sigil.material, module), class_name)
+            for value in values:
+                with self.subTest(owner=f"{module}.{class_name}", value=value):
+                    self.assertTrue(hasattr(registered, value))
+
+    def test_a_material_is_still_one_kind_of_paint(self):
+        # The conversion that lets a recipe stand where a paint is asked
+        # for is registered beside the paint, and the recipe class it
+        # names is registered in a file ahead of it: the order the one
+        # dispatcher runs the subjects in is what keeps this a material
+        # a slot accepts rather than a type error.
+        recipe = material.field.noise(0.02)
+        self.assertIsInstance(material.Effect.blur(recipe, 4.0), material.Effect)
+        self.assertIsInstance(
+            material.Paint.blend([(recipe, skia.BlendMode.Multiply)]), material.Paint
+        )
+
+    def test_a_surface_colour_goes_back_out_the_way_it_came_in(self):
+        # The surface's colour fields hold light, and the field the move
+        # brought across converts once on the way in and once on the way
+        # back, so the parameter answers the colour it was written with.
+        parameters = material.kit.SurfaceParameters(baseColor="#e75a31")
+        read = parameters.baseColor
+        self.assertIsInstance(read, material.Color)
+        for written, answered in zip(material.Color("#e75a31"), read):
+            self.assertAlmostEqual(written, answered, places=3)
+        self.assertIsInstance(material.kit.surface(parameters), material.Material)
+        self.assertIsInstance(
+            material.kit.surface(
+                parameters=parameters, reflection=material.kit.Reflection.Additive
+            ),
+            material.Material,
+        )
 
 
 class TheFieldSubject(unittest.TestCase):
