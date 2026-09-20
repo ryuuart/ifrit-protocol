@@ -248,7 +248,9 @@ a contour interval carries a `geometry::path::Contour`:
   `LineMetrics` and `ColumnMetrics` bands derived from placed runs. A run
   BORROWS its glyphs: `shaped` is a `const ShapedWord*` into the paragraph
   the layout was set from, exactly as `wordIndex` is an index into that
-  paragraph's word list.
+  paragraph's word list — except for the glyphs the layout made itself, an
+  overflow marker, a tab leader or an initial letter, whose handles
+  `ParagraphLayout::ownedWords()` hands out.
 - **`layout/InitialLetter.h`** — `InitialLetter`, the block's opening set
   large enough to span several lines; `initialLetterSize()`, the size the
   rule derives; and `PlacedInitial`, what the layout reports about where it

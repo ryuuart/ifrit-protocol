@@ -85,6 +85,32 @@ TEST(Overflow, EllipsisMarksOverflow) {
     if (&run != &marker) EXPECT_LT(run.wordIndex, layout.firstUnplacedWord);
 }
 
+TEST(Overflow, TheMarkerIsAShapedWordTheLayoutOwns) {
+  // A run borrows its glyphs from the paragraph, but the marker's glyphs
+  // are the layout's own — no word of the text stands behind them. A
+  // caller that carries the marker past the layout, into a re-placement
+  // or into a language whose values outlive the call, has to take the
+  // handle from here, because the run itself only points.
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(
+      u8"far more text than a two line box can ever hope to hold so the "
+      "marker has to step in and admit that the rest is missing");
+  BlockFlow flow(SkRect::MakeWH(260, 44));  // ~2 lines
+  ParagraphLayoutOptions options;
+  options.overflow.ellipsis = u"…";
+
+  const ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  ASSERT_TRUE(layout.ellipsized);
+  ASSERT_FALSE(layout.runs.empty());
+  const ShapedWord* marker = layout.runs.back().shaped;
+  ASSERT_NE(marker, nullptr);
+  // The marker is the one thing this layout made: every other run's
+  // glyphs are a word of the text, which the paragraph holds.
+  ASSERT_EQ(layout.ownedWords().size(), 1u);
+  EXPECT_EQ(layout.ownedWords().front().get(), marker);
+}
+
 TEST(Overflow, NoEllipsisWhenTextFits) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"short and sweet");

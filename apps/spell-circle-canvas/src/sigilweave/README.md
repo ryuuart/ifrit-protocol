@@ -94,7 +94,10 @@ conveniences over it. A run borrows: `run.shaped` is a `const ShapedWord*`
 into the paragraph, and the word, interval and style indices beside it are
 indices into that same paragraph and layout. Keep the paragraph and the
 layout alive for as long as you read runs off it — a run copied out of a
-layout keeps nothing alive on its own.
+layout keeps nothing alive on its own. The few glyphs the layout MADE
+rather than borrowed — an overflow marker, a tab leader, the pieces an
+initial letter was cut into — are the layout's own, and
+`ParagraphLayout::ownedWords()` hands out the handles that keep them.
 
 ### Text without a caller-managed cache
 

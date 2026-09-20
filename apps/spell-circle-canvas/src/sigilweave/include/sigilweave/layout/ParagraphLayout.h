@@ -185,6 +185,20 @@ struct ParagraphLayout {
   [[nodiscard]] std::vector<ColumnMetrics> columnMetrics(
       const Paragraph& paragraph) const;
 
+  /** The shaped words this layout made and OWNS, rather than borrowed
+   * from the paragraph: the overflow marker, a tab leader, the glyphs an
+   * initial letter was cut from. No word of the text stands behind them,
+   * so nothing else is holding them.
+   *
+   * A caller that hands one of these on — to a run it re-places, to a
+   * cache, to a language whose values outlive the call — takes a copy of
+   * the handle it wants from here, which keeps the glyphs alive on its
+   * own. Reading the span is not enough: the span dies with the layout.
+   */
+  [[nodiscard]] std::span<const ShapedWordReference> ownedWords() const {
+    return m_shapedWords;
+  }
+
  private:
   friend struct detail::LayoutAccess;
   // Owns auxiliary glyphs for leaders, overflow markers and initial letters.
