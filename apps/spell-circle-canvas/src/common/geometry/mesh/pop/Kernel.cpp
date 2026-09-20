@@ -82,7 +82,7 @@ bool has(const pop::Operation& operation) {
         return std::is_same_v<T, pop::Jitter> || std::is_same_v<T, pop::Ramp> ||
                std::is_same_v<T, pop::Vary> || std::is_same_v<T, pop::LookAt> ||
                std::is_same_v<T, pop::Math> || std::is_same_v<T, pop::Fill> ||
-               std::is_same_v<T, pop::Atlas> ||
+               std::is_same_v<T, pop::AtlasCell> ||
                std::is_same_v<T, pop::Lookup> ||
                std::is_same_v<T, pop::Select> ||
                std::is_same_v<T, pop::Affine> || std::is_same_v<T, pop::Peak> ||
@@ -133,7 +133,7 @@ bool describe(const pop::Operation& operation, size_t count,
           work.destination = value.attribute.name;
           work.mask = value.mask;
           work.arguments.a = value.value;
-        } else if constexpr (std::is_same_v<T, pop::Atlas>) {
+        } else if constexpr (std::is_same_v<T, pop::AtlasCell>) {
           // Clamped HERE and nowhere else, so the kernel divides by a
           // number that cannot be zero however the description was
           // written.

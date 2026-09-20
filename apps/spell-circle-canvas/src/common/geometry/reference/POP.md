@@ -15,7 +15,7 @@ window of a closed loop), `MeshScatter` (points on a formed model's
 faces) and `PointSet` (an existing `Cloud` — an import's `asCloud()`, a
 previous cook — every lane riding in as an attribute, so a Houdini group
 arrives as a mask under its own name). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
-`Vary`, `LookAt`, `Math`, `Smooth`, `Fill`, `Atlas`, `Lookup`, `Affine`
+`Vary`, `LookAt`, `Math`, `Smooth`, `Fill`, `AtlasCell`, `Lookup`, `Affine`
 (any `mat4` on a position or a direction lane), `Peak` (push along a
 direction lane), `Deform` (twist, taper or bend about an axis), `Mix`
 (blend two lanes into a third by a constant or a lane) and `Normal` (make
@@ -98,7 +98,7 @@ message naming both the operator and the runtime.
 | `Math` | filter | kernel | kernel | |
 | `Smooth` | filter | yes | declines | a point reads two it does not own, so one lane cannot be both what is read and what is written |
 | `Fill` | creator | kernel | kernel | |
-| `Atlas` | filter | kernel | kernel | |
+| `AtlasCell` | filter | kernel | kernel | |
 | `Promote` | primitive | yes | declines | addresses triangles a sink has not formed yet |
 | `Lookup` | filter | kernel | kernel | |
 | `Sort` | permutation | yes | declines | a permutation is a sorting network, not a per-point map |
@@ -131,7 +131,7 @@ Skin/Sweep. **Not present**: Ray (project points onto a surface along a
 direction), Limit (clamp a lane to a range — a `Lookup` with a flat table
 is the workaround), Trail (a point's history as a curve), Particle
 (integrate velocity and force per frame) and Texture Sampler (read an
-image at a point's uv into a lane; `Atlas` picks a cell, it does not
+image at a point's uv into a lane; `AtlasCell` picks a cell, it does not
 sample).
 
 **One table for the lane convention, and one for the stamp.**

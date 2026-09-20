@@ -174,11 +174,11 @@ struct Fill {
 /** Texture hint: pick a sprite-atlas cell per point (stable hash)
  *  and write "Tex" = {uOffset, vOffset, uScale, vScale}. The
  *  stamps sink applies it to each stamped point's uvs. */
-struct Atlas {
+struct AtlasCell {
   int columns = 2, rows = 2;
   uint32_t seed = 17;
   std::string mask;
-  bool operator==(const Atlas&) const = default;
+  bool operator==(const AtlasCell&) const = default;
 };
 /** Filter, PRIMITIVE class (TD/Houdini's Attribute Promote,
  *  point -> primitive): bake a point attribute onto the PRIMITIVES the
@@ -481,7 +481,7 @@ struct Transfer {
  * are APPENDED, never inserted. */
 using Operation =
     std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt, Math, Smooth,
-                 MeshScatter, Fill, Atlas, Promote, Lookup, Sort, Select,
+                 MeshScatter, Fill, AtlasCell, Promote, Lookup, Sort, Select,
                  Affine, Peak, Deform, Mix, PointSet, Delete, Normal, Relax,
                  Cluster, Transfer>;
 /** A run of operations applied to a cloud in order — the whole cook. */

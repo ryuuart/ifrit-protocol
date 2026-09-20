@@ -116,7 +116,7 @@ class Builder {
   }
   /** Texture hint: a stable per-point sprite-atlas cell in "Tex". */
   Builder& atlas(int columns, int rows) {
-    m_chain.emplace_back(Atlas{columns, rows, nextSeed()});
+    m_chain.emplace_back(AtlasCell{columns, rows, nextSeed()});
     return *this;
   }
   /** Drive one attribute from another through a table of stops —

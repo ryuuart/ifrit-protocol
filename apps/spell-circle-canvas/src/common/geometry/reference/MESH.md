@@ -171,7 +171,7 @@ implementations of the same dispatch seams.
   stamp a mesh at every point into one merged mesh (`Stamp.cpp`); and
   `drawBillboards()`, camera-facing sprites
   (`Billboards.cpp`). `BillboardStyle::textureLane` names a colour lane of
-  {uOffset, vOffset, uScale, vScale} windows — what a `pop::Atlas` operation
+  {uOffset, vOffset, uScale, vScale} windows — what a `pop::AtlasCell` operation
   writes into `"Tex"` — and each splat then draws THAT CELL of the
   sprite, so one sheet splats as a field of different sprites. It is
   named rather than assumed, because a cloud may carry `"Tex"` for the

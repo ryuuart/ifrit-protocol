@@ -137,7 +137,7 @@ std::vector<Case> everySupportedChain() {
   add("LookAt", pop::on(loop()).count(n).lookAt({30, -90, 55}));
   add("Math", pop::on(loop()).count(n).move({13.5f, -2.25f, 7.125f}));
   add("Fill", pop::on(loop()).count(n).fill("heat", {0.3f, 0.6f, 0.9f, 1.0f}));
-  add("Atlas", pop::on(loop()).count(n).atlas(3, 5));
+  add("AtlasCell", pop::on(loop()).count(n).atlas(3, 5));
   add("Lookup",
       pop::on(loop()).count(n).rampBy(
           geometry::mesh::pop::Attribute::P, 1,

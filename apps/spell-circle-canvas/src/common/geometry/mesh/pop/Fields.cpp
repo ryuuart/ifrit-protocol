@@ -83,7 +83,7 @@ void eachField(OpRef& operation, F&& f) {
           f("seed", o.seed);
         } else if constexpr (std::is_same_v<T, pop::Fill>) {
           vec4("value", o.value);
-        } else if constexpr (std::is_same_v<T, pop::Atlas>) {
+        } else if constexpr (std::is_same_v<T, pop::AtlasCell>) {
           f("columns", o.columns);
           f("rows", o.rows);
           f("seed", o.seed);
@@ -205,8 +205,8 @@ std::string_view pop::operationName(const pop::Operation& operation) {
           return "MeshScatter";
         else if constexpr (std::is_same_v<T, pop::Fill>)
           return "Fill";
-        else if constexpr (std::is_same_v<T, pop::Atlas>)
-          return "Atlas";
+        else if constexpr (std::is_same_v<T, pop::AtlasCell>)
+          return "AtlasCell";
         else if constexpr (std::is_same_v<T, pop::Promote>)
           return "Promote";
         else if constexpr (std::is_same_v<T, pop::Lookup>)

@@ -16,7 +16,7 @@
  * result — and that is also why it has no per-point kernel and a device
  * executor declines it: a point reads two it does not own.
  *
- * One sprite serves a whole splat. The "Tex" lane `pop::Atlas` writes
+ * One sprite serves a whole splat. The "Tex" lane `pop::AtlasCell` writes
  * rides on the cooked cloud for the STAMPING sink, which builds real
  * geometry with real uvs; this sink has a single image and a tint.
  *

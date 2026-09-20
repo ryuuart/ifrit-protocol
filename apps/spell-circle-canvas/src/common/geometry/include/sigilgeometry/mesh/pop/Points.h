@@ -208,7 +208,7 @@ struct BillboardStyle {
   std::string tintLane;  ///< color per point
   /** THE ATLAS WINDOW LANE: a colour lane holding {uOffset, vOffset,
    *  uScale, vScale} per point, in the unit square — which is exactly
-   *  what a `pop::Atlas` operation writes into "Tex". Each splat then draws
+   *  what a `pop::AtlasCell` operation writes into "Tex". Each splat then draws
    *  THAT CELL of the sprite instead of the whole image, so one sheet of
    *  sprites splats as a field of different ones and a cloud carries
    *  which is which.

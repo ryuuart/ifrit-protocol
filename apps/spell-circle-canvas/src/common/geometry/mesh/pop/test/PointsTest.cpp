@@ -240,7 +240,7 @@ TEST(Points, ACloudSplattedAsBillboardsReachesTheCanvas) {
 
 TEST(Points, BillboardsSplatTheAtlasCellTheCloudCarries) {
   // A sprite SHEET splats as a field of different sprites, and which one
-  // each point takes is the window a pop::Atlas operation wrote into "Tex".
+  // each point takes is the window a pop::AtlasCell operation wrote into "Tex".
   // Without the lane every point takes the whole sheet, which is the
   // failure this reads: a splat showing all four quadrants at once.
   //
