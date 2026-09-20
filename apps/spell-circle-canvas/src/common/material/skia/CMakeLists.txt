@@ -31,6 +31,8 @@ sigil_shader_sources(SigilMaterialSkia
 sigil_test(material_test
   SOURCES test/SkiaCompilerTest.cpp test/SkiaFirstUseTest.cpp test/SkiaColorTest.cpp
           test/SkiaPaintTest.cpp test/SkiaEffectTest.cpp
+          test/SkiaEffectBlurTest.cpp test/SkiaEffectPhosphorTest.cpp
+          test/SkiaEffectLightTest.cpp test/SkiaEffectSlotTest.cpp
           test/SkiaRampTest.cpp test/PaletteTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SKIA_SHADER_DIR="${_shaders}"
