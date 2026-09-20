@@ -49,13 +49,14 @@ sigil_test(compose_test
   SOURCES test/ComposeTestBoard.cpp test/ComposeTestChrome.cpp
           test/ComposeTestColumns.cpp test/ComposeTestDocument.cpp
           test/ComposeTestEras.cpp test/ComposeTestFeedPlate.cpp
-          test/ComposeTestFrame.cpp test/ComposeTestGround.cpp
-          test/ComposeTestLayoutsAndShapes.cpp
+          test/ComposeTestFlowAround.cpp test/ComposeTestFrame.cpp
+          test/ComposeTestGround.cpp test/ComposeTestLayouts.cpp
           test/ComposeTestLegibility.cpp test/ComposeTestOrnament.cpp
           test/ComposeTestPixelType.cpp test/ComposeTestPlacers.cpp
           test/ComposeTestQueries.cpp test/ComposeTestRouters.cpp
-          test/ComposeTestRows.cpp test/ComposeTestSpecimen.cpp
-          test/ComposeTestSprites.cpp test/ComposeTestStudio.cpp
+          test/ComposeTestRows.cpp test/ComposeTestShapeValues.cpp
+          test/ComposeTestSpecimen.cpp test/ComposeTestSprites.cpp
+          test/ComposeTestStudio.cpp test/ComposeTestTiling.cpp
           test/ComposeTestTravel.cpp
   LIBRARIES SigilComposeKit SigilComposeBrush SigilMeasure
             SigilComposeTesting SigilWeavePorts
