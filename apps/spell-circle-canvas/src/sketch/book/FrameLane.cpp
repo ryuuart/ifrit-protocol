@@ -159,7 +159,7 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
       const sketch::Timing timing = session->timing();
       updates.push_back(timing.updateMs);
       draws.push_back(timing.drawMs);
-      const std::span<const sketch::Lane> frameLanes = session->lanes();
+      const std::span<const sketch::LaneCost> frameLanes = session->lanes();
       lanes.resize(frameLanes.size());
       laneNames.resize(frameLanes.size());
       for (size_t l = 0; l < frameLanes.size(); ++l) {

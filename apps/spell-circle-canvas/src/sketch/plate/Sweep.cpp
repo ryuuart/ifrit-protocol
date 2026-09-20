@@ -315,7 +315,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     int sampleFrames = kMinSampleFrames;
     bool shortened = false;
     measure::FrameSample sample;
-    std::vector<Lane> lanes;
+    std::vector<LaneCost> lanes;
     if (!options.ledger) {
       for (int f = 0; f < kProbeFrames; ++f) stepOne(*surface);
       const double probeMs = std::max(0.01, stats.average());
@@ -331,7 +331,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       std::vector<double> laneTotals;
       for (int f = 0; f < sampleFrames; ++f) {
         stepOne(*surface);
-        const std::span<const Lane> frameLanes = session->lanes();
+        const std::span<const LaneCost> frameLanes = session->lanes();
         laneTotals.resize(frameLanes.size(), 0.0);
         lanes.assign(frameLanes.begin(), frameLanes.end());
         for (size_t l = 0; l < frameLanes.size(); ++l)
@@ -421,7 +421,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     } else {
       std::printf("%-22s %10s %8.2f %8.2f %9.0f ", nameLabel, canvasLabel,
                   sample.frameMs, sample.p99Ms, sample.headroomFps);
-      for (const Lane& lane : lanes)
+      for (const LaneCost& lane : lanes)
         std::printf(" %s %.2f", lane.name, lane.ms);
       std::printf("\n");
       if (timingJson) {

@@ -374,7 +374,9 @@ class PythonSession final : public Session {
   }
   float oversample() const override { return m_session->oversample(); }
   Timing timing() const override { return m_session->timing(); }
-  std::span<const Lane> lanes() const override { return m_session->lanes(); }
+  std::span<const LaneCost> lanes() const override {
+    return m_session->lanes();
+  }
   std::string counters() const override { return m_session->counters(); }
 
   void frame(SkCanvas& canvas, double dt) override {

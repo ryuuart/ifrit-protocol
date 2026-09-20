@@ -141,10 +141,10 @@ class SetSession final : public Session {
     m_timing.drawMs = m_laps.mark("draw");
     m_timing.totalMs = m_laps.totalMs();
     const world::SceneStats& stats = m_scene.stats();
-    m_lanes = {Lane{"nodes", (double)stats.nodes},
-               Lane{"drawn", (double)stats.drawn},
-               Lane{"cooked", (double)stats.cooked},
-               Lane{"passes", (double)stats.passes}};
+    m_lanes = {LaneCost{"nodes", (double)stats.nodes},
+               LaneCost{"drawn", (double)stats.drawn},
+               LaneCost{"cooked", (double)stats.cooked},
+               LaneCost{"passes", (double)stats.passes}};
   }
 
   void repaint(SkCanvas& canvas) override { paint(canvas); }
@@ -158,7 +158,9 @@ class SetSession final : public Session {
 
   [[nodiscard]] Timing timing() const override { return m_timing; }
 
-  [[nodiscard]] std::span<const Lane> lanes() const override { return m_lanes; }
+  [[nodiscard]] std::span<const LaneCost> lanes() const override {
+    return m_lanes;
+  }
 
   [[nodiscard]] std::string counters() const override {
     const world::SceneStats& stats = m_scene.stats();
@@ -254,7 +256,7 @@ class SetSession final : public Session {
   // Reset per frame rather than built per frame, so the laps a frame
   // lays cost no allocation inside the span they are timing.
   measure::Laps m_laps;
-  std::array<Lane, 4> m_lanes{};
+  std::array<LaneCost, 4> m_lanes{};
   motion::FrameClock m_clock;
 };
 

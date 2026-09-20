@@ -360,7 +360,7 @@ void SketchbookRenderer::publishMetrics() {
   metrics.insert(QStringLiteral("counters"),
                  QString::fromStdString(session->counters()));
   QVariantList lanes;
-  for (const sketch::Lane& lane : session->lanes()) {
+  for (const sketch::LaneCost& lane : session->lanes()) {
     QVariantMap row;
     row.insert(QStringLiteral("name"), QString::fromUtf8(lane.name));
     row.insert(QStringLiteral("ms"), lane.ms);

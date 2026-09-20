@@ -22,7 +22,7 @@ class SkCanvas;
 namespace sigil::sketch {
 
 /** What one LANE of a frame cost, named by the runtime that spent it. */
-struct Lane {
+struct LaneCost {
   const char* name = "";
   double ms = 0;
 };
@@ -97,7 +97,7 @@ class Session {
 
   /** What the last frame spent, lane by lane, in the runtime's own
    *  words. Empty for a runtime that keeps no such breakdown. */
-  [[nodiscard]] virtual std::span<const Lane> lanes() const { return {}; }
+  [[nodiscard]] virtual std::span<const LaneCost> lanes() const { return {}; }
 
   /** One line of live counters for a status bar — what the runtime
    *  currently holds rather than what it just spent. Empty for a

@@ -203,8 +203,10 @@ class CanvasSession final : public Session {
     m_timing.drawMs = m_laps.mark("draw");
     m_timing.totalMs = m_laps.totalMs();
     const compose::Composer::Stats& stats = m_composer->stats();
-    m_lanes = {Lane{"recon", stats.reconcileMs}, Lane{"layout", stats.layoutMs},
-               Lane{"volat", stats.volatileMs}, Lane{"paint", stats.paintMs}};
+    m_lanes = {LaneCost{"recon", stats.reconcileMs},
+               LaneCost{"layout", stats.layoutMs},
+               LaneCost{"volat", stats.volatileMs},
+               LaneCost{"paint", stats.paintMs}};
   }
 
   void repaint(SkCanvas& canvas) override {
@@ -230,7 +232,9 @@ class CanvasSession final : public Session {
 
   [[nodiscard]] Timing timing() const override { return m_timing; }
 
-  [[nodiscard]] std::span<const Lane> lanes() const override { return m_lanes; }
+  [[nodiscard]] std::span<const LaneCost> lanes() const override {
+    return m_lanes;
+  }
 
   /** What the runtime is HOLDING, and the one split that is easy to
    *  read wrongly: `picturesRecorded` counts pixel bakes too, so the
@@ -387,7 +391,7 @@ class CanvasSession final : public Session {
   // Reset per frame rather than built per frame, so the laps a frame
   // lays cost no allocation inside the span they are timing.
   measure::Laps m_laps;
-  std::array<Lane, 4> m_lanes{};
+  std::array<LaneCost, 4> m_lanes{};
   SkSize m_applied = m_specification.size;  // what the composer was last told
   bool m_stepping = false;                  // the last frame took a stated step
   geometry::mesh::render::Runtime m_painter;

@@ -89,7 +89,8 @@ TYPED_TEST_P(SessionContract, TheKindNamesTheRuntimeAndIsOneValuePerSketch) {
 TYPED_TEST_P(SessionContract, TheLanesAreTheOnesItsRuntimeNames) {
   this->step();
   const std::vector<const char*> expected = TypeParam::lanes();
-  const std::span<const sigil::sketch::Lane> spent = this->session().lanes();
+  const std::span<const sigil::sketch::LaneCost> spent =
+      this->session().lanes();
   ASSERT_EQ(spent.size(), expected.size());
   for (size_t i = 0; i < expected.size(); ++i)
     EXPECT_STREQ(spent[i].name, expected[i]) << "lane " << i;
