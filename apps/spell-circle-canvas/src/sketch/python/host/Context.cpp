@@ -6,6 +6,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
+#include <sigilpython/compose/Composer.h>
 #include <sigilpython/compose/Kit.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilsketch/canvas/Guest.h>
@@ -32,7 +33,6 @@ namespace sigil::sketch::python {
 namespace py = pybind11;
 
 using detail::AssetsView;
-using detail::ComposerView;
 using detail::Context;
 
 namespace {
@@ -113,9 +113,18 @@ void bindContext(py::module_& module) {
             ctx.state()->composer->render(element);
           },
           py::arg("element"))
+      // The session's own composer, handed over as the one Composer
+      // class Python has: the host sizes it, sets its clock and draws
+      // it, so the handle borrows rather than owns, and every call on it
+      // asks the session again whether it is still open.
       .def_property_readonly(
           "composer",
-          [](const Context& ctx) { return ComposerView(ctx.state()); })
+          [](const Context& ctx) {
+            return sigil::python::ComposerHandle(
+                [view = Context(ctx.state())]() -> compose::Composer& {
+                  return *view.state()->composer;
+                });
+          })
       // The session's own ticker, handed over as the one Ticker class
       // Python has: the host owns the stepping, so the handle borrows
       // rather than owns, and what a ticker call is given — an output,

@@ -104,10 +104,6 @@ class Context {
   std::weak_ptr<State> m_state;
 };
 
-class ComposerView : public Context {
- public:
-  using Context::Context;
-};
 class AssetsView : public Context {
  public:
   using Context::Context;

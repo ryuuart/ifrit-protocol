@@ -32,7 +32,6 @@ namespace sigil::sketch::python {
 namespace py = pybind11;
 
 using detail::AssetsView;
-using detail::ComposerView;
 using detail::Context;
 using detail::State;
 
@@ -461,54 +460,7 @@ void stageContext(py::handle value, const kit::Stage& stage) {
 }
 
 void bindRuntime(py::module_& module) {
-  auto composition = module.attr("compose").cast<py::module_>();
   auto sketches = module.def_submodule("sketch");
-  py::class_<ComposerView>(composition, "Composer")
-      .def(
-          "render",
-          [](const ComposerView& v, const compose::Element& e) {
-            v.state()->composer->render(e);
-          },
-          py::arg("element"))
-      .def(
-          "renderSlot",
-          [](const ComposerView& v, const std::string& key,
-             const compose::Element& e) {
-            v.state()->composer->renderSlot(key, e);
-          },
-          py::arg("name"), py::arg("element"))
-      .def(
-          "bounds",
-          [](const ComposerView& v, const std::string& key) {
-            return v.state()->composer->bounds(key);
-          },
-          py::arg("key"))
-      .def(
-          "hitTest",
-          [](const ComposerView& v, py::handle at) {
-            return v.state()->composer->hitTest(sigil::python::point(at));
-          },
-          py::arg("at"))
-      .def(
-          "routesAt",
-          [](const ComposerView& v, const std::string& key) {
-            return v.state()->composer->routesAt(key);
-          },
-          py::arg("key"))
-      .def(
-          "settling",
-          [](const ComposerView& v, const std::string& key) {
-            return v.state()->composer->settling(key);
-          },
-          py::arg("key"))
-      .def("active",
-           [](const ComposerView& v) { return v.state()->composer->active(); })
-      .def("dirty",
-           [](const ComposerView& v) { return v.state()->composer->dirty(); })
-      .def("purgeCaches",
-           [](const ComposerView& v) { v.state()->composer->purgeCaches(); })
-      .def("stats",
-           [](const ComposerView& v) { return v.state()->composer->stats(); });
   py::class_<AssetsView>(sketches, "Assets")
       .def(
           "image",
