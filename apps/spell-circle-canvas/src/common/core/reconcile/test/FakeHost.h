@@ -12,7 +12,9 @@
  * what the host would print.
  */
 
-#include <sigilcore/reconcile/Reconcile.h>
+#include <sigilcore/reconcile/Memo.h>
+#include <sigilcore/reconcile/Node.h>
+#include <sigilcore/reconcile/Reconciler.h>
 
 #include <algorithm>
 #include <cstddef>

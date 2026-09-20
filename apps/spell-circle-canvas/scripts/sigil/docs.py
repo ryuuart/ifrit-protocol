@@ -137,7 +137,7 @@ HEADER_SCRIPTS = """<script type="text/javascript" src="$relpath^doxygen-awesome
 # values start in.
 CONTINUE = " \\\n" + " " * 25
 
-SOURCE_PATTERNS = ("*.h", "*.hpp", "*.md")
+SOURCE_PATTERNS = ("*.h", "*.hpp", "*.md", "*.dox")
 
 CONTAINER = "spellcircle-docs"
 

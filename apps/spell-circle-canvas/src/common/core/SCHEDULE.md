@@ -12,8 +12,6 @@ disk or a server, which must not sit on the workers a compute range shares.
 | `schedule/Parallel.h` | `schedule::parallelFor(count, grain, body)` over contiguous chunks and `schedule::parallelForEach(items, grain, body)` over a range's elements |
 | `schedule/ConcurrentIo.h` | `schedule::concurrentIo(count \| items, body)` — one blocking call per item, off the task runtime — and `schedule::concurrentIoWidth()`, how many of them run at once |
 
-`<sigilcore/schedule/Schedule.h>` includes both.
-
 ## A grain, and nothing else
 
 `schedule::parallelFor(count, grain, body)` divides `[0, count)` into

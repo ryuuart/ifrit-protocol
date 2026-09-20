@@ -7,7 +7,8 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <sigilcore/compute/Compute.h>
+#include <sigilcore/compute/Hash.h>
+#include <sigilcore/compute/Noise.h>
 
 #include <cstdint>
 #include <string_view>

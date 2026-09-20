@@ -7,7 +7,7 @@ PROJECT_BRIEF          = "@SIGIL_DOCS_BRIEF@"
 OUTPUT_DIRECTORY       = @SIGIL_DOCS_OUTPUT@
 
 INPUT                  = @SIGIL_DOCS_INPUT@
-FILE_PATTERNS          = *.h *.hpp *.md
+FILE_PATTERNS          = *.h *.hpp *.md *.dox
 RECURSIVE              = YES
 EXCLUDE_PATTERNS       = */archive/* */build/* */test/* */bench/*
 

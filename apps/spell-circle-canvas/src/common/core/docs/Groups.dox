@@ -1,0 +1,39 @@
+// The documentation groups whose members are spread over several of this
+// library's headers, declared where no header has to include another to
+// reach them. A group whose members all live in one header is declared in
+// that header instead.
+
+/** @defgroup core-comparable Comparable erasure
+ *  What a value needs before anything can decide it did not change: type
+ *  erasure that keeps its equality, so a set of operations can ride on a
+ *  value and two holders can still ask whether they carry the same one;
+ *  and the field pin, which fails the build when a struct grows a member
+ *  a hand-written comparator does not mention. */
+
+/** @defgroup core-compute Compute values
+ *  The arithmetic several libraries have to agree on to the bit: the
+ *  seeded mixers a jitter draws from, the stream a caller holds one of
+ *  them as and the distributions drawn out of it, the noise field read
+ *  at a point, the folds a cache key is accumulated with, the normal
+ *  form a set of runs over one axis is put in, the shaped curve a unit
+ *  position is reshaped by, and the one rounding between degrees and
+ *  radians. The standard library is the whole of its dependencies, so a
+ *  shader's CPU twin, a point cook and a text cache all reach the same
+ *  bodies. */
+
+/** @defgroup core-schedule Where work runs
+ *  One parallel for over the task runtime, taking a count, a grain and a
+ *  body, so the runtime is named in one file of this repository and in
+ *  no header of it; and beside it a fan-out of its own threads for calls
+ *  that BLOCK on a disk or a server, which must not sit on the workers a
+ *  compute range shares. */
+
+/** @defgroup core-reconcile The reconciler
+ *  Descriptions built fresh every frame, reconciled onto a tree the host
+ *  retains, so only what changed is touched. It owns the shape of that
+ *  tree — which retained node answers to which description, matched by
+ *  key and then by position — the memo that skips a describe whose
+ *  inputs did not change, the identity prune that leaves an unchanged
+ *  node alone, and the counts of what a pass did. Everything a node
+ *  retains beyond its place in the tree is the host's, reached through
+ *  named operations the host implements on itself. */

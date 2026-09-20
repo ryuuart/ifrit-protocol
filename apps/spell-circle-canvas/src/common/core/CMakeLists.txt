@@ -47,7 +47,8 @@
 # device links it.
 sigil_library_root(SigilCore
   BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, inherited values, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over four leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, the one prefix search a callable is called with the parameters it named through, and the GPU device with its handles and fences"
-  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/CACHE.md
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
+       ${CMAKE_CURRENT_SOURCE_DIR}/CACHE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/CALLABLE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/COMPARABLE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/COMPUTE.md

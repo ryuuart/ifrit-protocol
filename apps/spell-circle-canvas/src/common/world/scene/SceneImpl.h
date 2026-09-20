@@ -11,7 +11,9 @@
  */
 
 #include <sigilcore/cache/Cache.h>
-#include <sigilcore/reconcile/Reconcile.h>
+#include <sigilcore/reconcile/Memo.h>
+#include <sigilcore/reconcile/Node.h>
+#include <sigilcore/reconcile/Reconciler.h>
 #include <sigilworld/element/Lanes.h>
 #include <sigilworld/element/Node.h>
 #include <sigilworld/frame/Runtime.h>

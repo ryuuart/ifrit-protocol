@@ -89,10 +89,8 @@ Every public header lives under `include/sigilcore/<feature>/` and is
 spelled `<sigilcore/comparable/X.h>`, `<sigilcore/compute/X.h>`,
 `<sigilcore/callable/Callable.h>`,
 `<sigilcore/schedule/X.h>`, `<sigilcore/reconcile/X.h>` or
-`<sigilcore/cache/X.h>`; `<sigilcore/comparable/Comparable.h>`,
-`<sigilcore/compute/Compute.h>`, `<sigilcore/schedule/Schedule.h>`,
-`<sigilcore/reconcile/Reconcile.h>` and `<sigilcore/cache/Cache.h>` include
-their own directory's headers. The hardware feature's are
+`<sigilcore/cache/X.h>`; `<sigilcore/cache/Cache.h>` includes its own
+directory's headers. The hardware feature's are
 `<sigilcore/hardware/GpuDevice.h>`, `<sigilcore/hardware/Handle.h>` and
 `<sigilcore/hardware/Fence.h>`.
 

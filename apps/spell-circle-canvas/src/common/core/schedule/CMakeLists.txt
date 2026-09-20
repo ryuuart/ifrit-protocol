@@ -12,7 +12,7 @@
 find_package(TBB CONFIG REQUIRED)
 sigil_library(SigilCoreSchedule
   SOURCES ConcurrentIo.cpp Parallel.cpp
-  HEADERS ConcurrentIo.h Parallel.h Schedule.h
+  HEADERS ConcurrentIo.h Parallel.h
   PRIVATE TBB::tbb)
 
 # workaround: the task runtime is a prebuilt archive whose scheduler no

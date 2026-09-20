@@ -21,15 +21,15 @@ is the leaf the erased seam value on a description comes from.
 | `reconcile/Reads.h` | `Facet`, `Read`, `orderByReads` — what one node reads off another, and the order that puts every reader after what it read |
 | `reconcile/Stats.h` | `ReconcileStats` — the pass counts, and `report()` into `sigil::measure::Counters` |
 
-`<sigilcore/reconcile/Reconcile.h>` includes all of them.
-
 ## Using it
 
 A host is any class that implements the `ReconcileHost` operations on
 itself and holds a `Reconciler` over its own node and description types:
 
 ```cpp
-#include <sigilcore/reconcile/Reconcile.h>
+#include <sigilcore/reconcile/Memo.h>
+#include <sigilcore/reconcile/Node.h>
+#include <sigilcore/reconcile/Reconciler.h>
 
 using namespace sigil::core;
 

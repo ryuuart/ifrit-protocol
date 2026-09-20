@@ -23,8 +23,6 @@ bodies.
 | `compute/Angle.h` | `angle::kDegToRad`, `angle::kRadToDeg`, `angle::radians` and `angle::degrees` — the one rounding between the two measures of an angle, which the pen and the contour both scale by |
 | `compute/Intervals.h` | `IntervalEnds`, `Inverted`, `normalizeIntervals`, `complementIntervals`, `intersectIntervals` and `firstOverlap` — the sorted, disjoint normal form a set of runs is put in, and the three combinators over it, with the endpoint type and the epsilon the caller's |
 
-`<sigilcore/compute/Compute.h>` includes all seven.
-
 ## Why the curve is here
 
 The curve is here for the same reason the mixers are. Three libraries

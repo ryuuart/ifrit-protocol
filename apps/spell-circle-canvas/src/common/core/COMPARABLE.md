@@ -14,8 +14,6 @@ links nothing at all.
 | `comparable/Erased.h` | `Erased<Ops>` — comparable type erasure: a set of operations carried on the value that implements them |
 | `comparable/Fields.h` | `kFieldCount<T>` — how many direct non-static data members an aggregate has, and the pin a hand-written comparator sits under |
 
-`<sigilcore/comparable/Comparable.h>` includes both.
-
 ## A comparable value carries its own equality
 
 `Erased<Ops>` holds a model behind an abstract interface, and copies of
