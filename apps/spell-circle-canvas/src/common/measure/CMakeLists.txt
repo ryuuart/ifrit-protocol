@@ -5,9 +5,22 @@
 # Boost.Container header the compact, ordered counter table is built on.
 #
 # Every public header lives under one include root, include/sigilmeasure/.
+# The reference pages: the prose a header's brief stands over, one page
+# per entity, named once here and read by both the documentation site and
+# the probe below — so a page that is written is a page that is checked.
+set(SIGIL_MEASURE_REFERENCE
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/README.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Check.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/FrameTimer.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Histogram.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Laps.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/LineFit.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Moments.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Rescale.md)
+
 sigil_library_root(SigilMeasure
   BRIEF "Timing, statistics and check reporting, with compact ordered counter storage"
-  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox ${SIGIL_MEASURE_REFERENCE})
 
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilMeasure
@@ -31,6 +44,6 @@ sigil_bench(measure_bench
 # Every API name the prose spells, compiled against the headers that own
 # it.
 sigil_doc_probes(measure
-  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  FLOORS 2,0,0,0,0
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md ${SIGIL_MEASURE_REFERENCE}
+  FLOORS 20,10,40,8,0
   LIBRARIES SigilMeasure)
