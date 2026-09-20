@@ -11,10 +11,9 @@
 #
 # Every public header lives under one include root, include/sigilio/
 # <feature>/, so a feature adds the root and spells its own directory.
-# <sigilio/IO.h> is the umbrella header for source and hub access.
 sigil_library_root(SigilIO
   BRIEF "Runtime resource access, byte transports and native frame sharing"
-  DOCS publish/README.md
+  DOCS docs/Groups.dox publish/README.md
        reference/SOURCES.md reference/TRANSPORTS.md reference/TRAPS.md)
 
 # Dependencies point down this list.
@@ -27,7 +26,6 @@ add_subdirectory(transport)
 add_subdirectory(publish)
 
 sigil_library(SigilIO
-  HEADERS IO.h
   INTERFACE SigilIOSource SigilIOHub)
 
 # Every API name the prose spells, compiled against the headers that own

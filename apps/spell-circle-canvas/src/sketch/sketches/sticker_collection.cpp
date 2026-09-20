@@ -21,7 +21,8 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
 #include <sigilimage/asset/ImageAsset.h>
-#include <sigilio/IO.h>
+#include <sigilio/hub/Hub.h>
+#include <sigilio/source/Source.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilvideo/decode/Decode.h>

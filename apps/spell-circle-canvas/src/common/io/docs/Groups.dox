@@ -1,8 +1,6 @@
-#pragma once
-
-/** @file
- * Every public SigilIO header in one include.
- */
+// The documentation groups whose members are spread over several of this
+// library's headers, declared where no header has to include another to
+// reach them.
 
 /** @defgroup io-source Sources and sinks
  *  Where bytes come from and where they go: the byte source seam, the
@@ -29,9 +27,3 @@
  *  taken from it.
  *  @{ */
 /** @} */
-
-#include "sigilio/hub/Hub.h"
-#include "sigilio/hub/Network.h"
-#include "sigilio/hub/TextCatalog.h"
-#include "sigilio/source/Sink.h"
-#include "sigilio/source/Source.h"

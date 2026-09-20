@@ -9,7 +9,7 @@
  */
 
 #include <sigilimage/asset/ImageAsset.h>
-#include <sigilio/IO.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilvideo/decode/Decode.h>
 
 #include <filesystem>

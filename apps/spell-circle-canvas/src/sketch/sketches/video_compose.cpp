@@ -17,7 +17,8 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/video/Video.h>
 #include <sigilgeometry/path/Arrange.h>
-#include <sigilio/IO.h>
+#include <sigilio/hub/Hub.h>
+#include <sigilio/source/Source.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilvideo/decode/Decode.h>

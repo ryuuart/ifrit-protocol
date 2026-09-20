@@ -24,7 +24,8 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSamplingOptions.h>
-#include <sigilio/IO.h>
+#include <sigilio/hub/Hub.h>
+#include <sigilio/source/Source.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilvideo/decode/Decode.h>
