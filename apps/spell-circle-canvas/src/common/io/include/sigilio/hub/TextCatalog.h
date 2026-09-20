@@ -5,10 +5,9 @@
  * One directory of text resources mounted at one URI prefix — the shape
  * a directory of AUTHORED shaders takes: a consumer keeps its `.sksl` or
  * `.slang` files wherever it likes, asks for each by name, and may warm
- * the whole directory before the first ask. A stock value over the hub,
- * so a catalogue is a declaration rather than a hub, a mount and a
- * lookup written out again. A shader a library SHIPS is not this: it is
- * compiled into that library's archive, and reading one costs no hub.
+ * the whole directory before the first ask. A shader a library SHIPS is
+ * not this: it is compiled into that library's archive, and reading one
+ * costs no hub.
  */
 
 #include <cstddef>
@@ -22,13 +21,10 @@
 
 namespace sigil::io {
 
-/** A hub of its own with one directory mounted at one prefix.
- *
- *  `text(name)` is the file `name` beneath the directory, through the
- *  hub's cache, so a file edited on disk reaches the next ask after
- *  `poll()`. `preload()` fetches every file beneath the directory
- *  concurrently. The hub is reachable for anything else — a typed
- *  decode, a poll, a lease. */
+/** A hub of its own with one directory mounted at one prefix. `text()`
+ *  is a file beneath the directory, through that hub's cache, and
+ *  `preload()` fetches every one of them concurrently; the hub itself
+ *  is reachable for anything else — a typed decode, a poll, a lease. */
 class TextCatalog {
  public:
   /** @p prefix is a namespace, and every name asked for is BENEATH it,

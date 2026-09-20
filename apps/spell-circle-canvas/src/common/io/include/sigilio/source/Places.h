@@ -25,9 +25,8 @@ std::filesystem::path executablePath();
  *  The process id is in the name, so two runs of one binary side by side
  *  never write into one directory, and the label separates one purpose
  *  from another within a run.
- *
- *  Nothing is created: the caller decides whether a stale directory from
- *  a run that died is emptied or swept, which is not one answer. */
+ *  @silent the filesystem: nothing is created, the caller deciding what
+ *  becomes of a stale directory from a run that died. */
 std::filesystem::path scratchDirectory(std::string_view label);
 
 }  // namespace sigil::io
