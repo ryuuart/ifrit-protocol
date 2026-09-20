@@ -1,8 +1,10 @@
 /** @file
  * The fields under load: grain per octave count, the halftone ramp and
- * the CRT overlay, each shaded over a box per side; and the CRT screen
- * over a rendered layer at a rising bloom radius, which is where the
- * cost of a light that is blurred rather than gathered shows.
+ * the CRT overlay, each shaded over a box per side; the CRT screen over
+ * a rendered layer at a rising bloom radius, which is where the cost of
+ * a light that is blurred rather than gathered shows; and the screen's
+ * three subjects each over the same layer on their own, which is what
+ * says what a surface pays for taking one of them.
  */
 
 #include <benchmark/benchmark.h>
@@ -43,14 +45,34 @@ void CrtOverlayPaint(benchmark::State& state) {
 }
 BENCHMARK(CrtOverlayPaint)->Arg(64)->Arg(256);
 
-/** THE SCREEN OVER A LAYER, at the bloom radius the argument names. The
- *  light is a slot the executor fills with the layer blurred, so what
- *  this measures across its arguments is how the cost of a tube's glow
- *  follows its reach. */
+constexpr int kScreenSide = 512;
+
+/** A thin bright line drawn into a layer that carries @p effect, which
+ *  is the picture every screen arm below is measured over. */
+void overLayer(benchmark::State& state, const skia::Effect& effect) {
+  SkPaint layer;
+  layer.setImageFilter(effect.resolvedImageFilter(nullptr));
+  SkPaint ink;
+  ink.setColor(SK_ColorGREEN);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(
+      SkImageInfo::MakeN32Premul(kScreenSide, kScreenSide));
+  SkCanvas& canvas = *surface->getCanvas();
+  for ([[maybe_unused]] auto iteration : state) {
+    canvas.saveLayer(nullptr, &layer);
+    canvas.clear(SK_ColorBLACK);
+    canvas.drawRect(SkRect::MakeXYWH(200, 0, 8, kScreenSide), ink);
+    canvas.restore();
+  }
+  state.SetItemsProcessed(state.iterations() * kScreenSide * kScreenSide);
+}
+
+/** THE WHOLE SCREEN OVER A LAYER, at the bloom radius the argument
+ *  names. The light is a slot the executor fills with the layer
+ *  blurred, so what this measures across its arguments is how the cost
+ *  of a tube's glow follows its reach. */
 void CrtScreenLayer(benchmark::State& state) {
-  constexpr int kSide = 512;
   const field::CrtParameters parameters{
-      .uBounds = {0, 0, kSide, kSide},
+      .uBounds = {0, 0, kScreenSide, kScreenSide},
       .uCurvature = 0.055f,
       .uRgbShift = 0.8f,
       .uRaster = 0.45f,
@@ -59,24 +81,48 @@ void CrtScreenLayer(benchmark::State& state) {
       .uNoise = 0.012f,
       .uVignette = 0.22f,
   };
-  SkPaint layer;
-  layer.setImageFilter(
-      skia::Effect::recipe(field::crt(parameters),
-                           field::crtSampleRadius(parameters))
-          .resolvedImageFilter(nullptr));
-  SkPaint ink;
-  ink.setColor(SK_ColorGREEN);
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSide, kSide));
-  SkCanvas& canvas = *surface->getCanvas();
-  for ([[maybe_unused]] auto iteration : state) {
-    canvas.saveLayer(nullptr, &layer);
-    canvas.clear(SK_ColorBLACK);
-    canvas.drawRect(SkRect::MakeXYWH(200, 0, 8, kSide), ink);
-    canvas.restore();
-  }
-  state.SetItemsProcessed(state.iterations() * kSide * kSide);
+  overLayer(state, skia::Effect::recipe(field::crt(parameters),
+                                        field::crtSampleRadius(parameters)));
 }
 BENCHMARK(CrtScreenLayer)->Arg(2)->Arg(8)->Arg(24)->Arg(64);
+
+/** EACH SUBJECT ON ITS OWN, at the numbers the whole screen is measured
+ *  at: what a surface pays for raster lines, for a tube's light, or for
+ *  the bend alone, against what it pays for all three. */
+void CrtBeamLayer(benchmark::State& state) {
+  const field::CrtBeamParameters parameters{
+      .uBounds = {0, 0, kScreenSide, kScreenSide},
+      .uRgbShift = 0.8f,
+      .uRaster = 0.45f,
+      .uNoise = 0.012f,
+  };
+  overLayer(state,
+            skia::Effect::recipe(field::crtBeam(parameters),
+                                 field::crtBeamSampleRadius(parameters)));
+}
+BENCHMARK(CrtBeamLayer);
+
+void CrtBloomLayer(benchmark::State& state) {
+  const field::CrtBloomParameters parameters{
+      .uBounds = {0, 0, kScreenSide, kScreenSide},
+      .uBloomRadius = (float)state.range(0),
+  };
+  overLayer(state, skia::Effect::recipe(field::crtBloom(parameters)));
+}
+BENCHMARK(CrtBloomLayer)->Arg(2)->Arg(64);
+
+void CrtGlassLayer(benchmark::State& state) {
+  const field::CrtGlassParameters parameters{
+      .uBounds = {0, 0, kScreenSide, kScreenSide},
+      .uCurvature = 0.055f,
+      .uBloomRadius = 2.4f,
+      .uBloom = 0.38f,
+      .uVignette = 0.22f,
+  };
+  overLayer(state,
+            skia::Effect::recipe(field::crtGlass(parameters),
+                                 field::crtGlassSampleRadius(parameters)));
+}
+BENCHMARK(CrtGlassLayer);
 
 }  // namespace
