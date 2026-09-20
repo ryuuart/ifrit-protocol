@@ -38,8 +38,11 @@ and preserves the handwritten API.
 
 ## Native Sigil authoring
 
-The `sigil/` project contains the public package, type declarations, examples,
-contract tests and wheel tooling. Its compiled bindings live under
+The `sigil/` project contains the public package, the table and fragments
+its declarations are generated from, examples, contract tests and wheel
+tooling. The declarations themselves are a build product: the pass that
+writes them runs when the extension links and puts them in the build tree,
+so nothing generated is a file here. Its compiled bindings live under
 `apps/spell-circle-canvas/src/common/python/`; the native sketch adapter lives
 under `apps/spell-circle-canvas/src/sketch/python/`. The package requires Python
 3.12 or newer. Wheels target a particular interpreter ABI and platform.

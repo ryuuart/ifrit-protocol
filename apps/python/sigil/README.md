@@ -13,16 +13,17 @@ standalone Python interpreter, including headless file rendering.
 
 ## Direct bindings and convenient authorship
 
-The public direct binding surface is `sigil.native`: its library namespaces
-expose the bound native types and verbs, including `compose`, `draw`,
-`material`, `geometry`, `image`, `weave`, `core`, `motion`, `sketch`,
-`data`, `io`, `skia` and `world`.
-`sigil.compose` exposes those same native factories and types, with `row()`
-and `column()` as small shortcuts for a box's flow direction. Properties
-use native fluent methods; container arguments supply composed elements:
+There is one importable package, `sigil`, and its library modules are the
+direct binding surface: `compose`, `draw`, `material`, `geometry`, `image`,
+`weave`, `core`, `motion`, `sketch`, `data`, `io`, `skia` and `world`.
+Each one carries the bound native types and verbs, plus the few things
+Python adds by hand — `row()` and `column()` as shortcuts for a box's flow
+direction, `image.load()` and `image.save()`, the `@sketch` decorator.
+Properties use native fluent methods; container arguments supply composed
+elements:
 
 ```python
-from sigil.native import compose as raw
+from sigil import compose as raw
 from sigil.compose import row, text
 
 mark = raw.box().width(12).height(12).fill("#8bd0bd")
@@ -34,8 +35,11 @@ There is one element type and no separate Python node model to keep in
 sync. `box`, `text`, `frame`, `image`, `picture`, `pathFigure`, `slot`, `pen`,
 `graphics`, `memo`, `layout`, `stack` and `positioned` are direct bound
 factories; `PARITY.md` names the native overloads and factories not yet bound.
-`_sigil` is the extension's implementation module; application code uses the
-public package paths.
+`_sigil` is the compiled extension. It ships as a bare shared object with
+no declarations beside it, so a type checker cannot resolve a name through
+it and an editor offers each name once, under the module an author imports
+it from. A bound class reports that module too: `material.Color` reads as
+`sigil.material.Color` in a repr and in `pydoc`.
 
 Both Python surfaces target the capabilities needed to reproduce the native
 sketch catalog. Coverage is still incomplete; `PARITY.md` lists the outstanding
@@ -45,7 +49,14 @@ checking shared types, mixed construction, typing and lifecycle contracts.
 ## Type information
 
 The wheel includes type declarations for the direct bindings and authoring
-helpers, with a `py.typed` marker for editors. Builders return native
+helpers, with a `py.typed` marker for editors. They are not files in this
+project: `typing/generate.py` writes them from the extension it was built
+with, into the package in the build tree, and the wheel and the editable
+install take them from there. `typing/surface.py` is the one table saying
+which module of the extension surfaces where, and which of its names an
+author spells differently; the same table writes the package's own modules,
+so the surface an editor reads and the surface an import finds cannot
+disagree. Builders return native
 `Element` values; material factories return native paints or materials.
 Supported input forms use unions and overloads. Fluent
 methods retain their native signatures,
@@ -454,8 +465,8 @@ outputs are owned values and can outlive the session that produced them.
 
 ## Live data and output
 
-`sigil.io` exposes the native SigilIO types directly, also available through
-`sigil.native.io`. A sketch uses its existing resource hub; transports are
+`sigil.io` exposes the native SigilIO types directly. A sketch uses its
+existing resource hub; transports are
 already registered, and the host advances recorded feeds before `update`.
 Receive and decode messages on the sketch thread, without authoring a worker
 thread or calling back into Python from a transport:
@@ -815,15 +826,15 @@ components; arbitrary text does not become an implicit child of an article.
 
 A kit can be an ordinary Python module exporting component functions and
 paint factories. A component returns an `Element`; a paint factory returns
-a native `skia.Paint`. Both compose directly with the bound native kits:
+a native `material.Paint`. Both compose directly with the bound native kits:
 
 ```python
 from sigil.compose import column, text
-from sigil.material import skia
+from sigil.material import Paint
 
 
 def wash(accent):
-    return skia.Paint.linearUnit((0, 0), (1, 1), [(0, accent), (1, "#172b36")])
+    return Paint.linearUnit((0, 0), (1, 1), [(0, accent), (1, "#172b36")])
 
 
 def card(title, detail, accent):
@@ -989,13 +1000,16 @@ tuple means `(x, y, width, height)`.
 buffer closes when the host pen's callback ends, including on exceptions.
 Its pixels survive resizing, and `pen.image(buffer, ...)` draws them.
 
-Material paints come from `sigil.material.skia` as an attribute namespace:
+Material paints come from `sigil.material`. The Skia backend is one
+executor of that catalogue rather than a catalogue of peers beside `field`,
+`kit` and `pattern`, and it is the only executor Python reaches, so its
+paint, effect, fit and bloom stand in the material module itself:
 
 ```python
-from sigil.material import field, skia
+from sigil.material import Paint, field
 
-paper = skia.Paint.recipe(field.grain(0.02, seed=23))
-glass = skia.Paint.sksl(shader_source, {"uStrength": 42})
+paper = Paint.recipe(field.grain(0.02, seed=23))
+glass = Paint.sksl(shader_source, {"uStrength": 42})
 glass.slot("uSource", paper)
 # Inside draw(self, pen): pen.fill(glass, CANVAS)
 ```
@@ -1008,7 +1022,7 @@ fills a shader input through `slot`; it is the native material graph.
 
 A custom SkSL paint can also be authored in Python. Compile a shader through
 `sigil.skia.RuntimeEffect.MakeForShader`, keep that effect, and make paint
-instances with `skia.Paint.sksl(effect, uniforms)`. Reusing the compiled
+instances with `material.Paint.sksl(effect, uniforms)`. Reusing the compiled
 effect avoids compiling source on each description. Use a fresh instance
 or `paint.copy()` before changing uniform values or child slots on a shared
 paint.
@@ -1159,8 +1173,8 @@ Render one with `sigil render --example NAME -o preview.png`.
 
 Imports follow library ownership: composition comes from `sigil.compose`,
 motion from `sigil.motion`, drawing from `sigil.draw`, and sketch
-declarations and rendering from `sigil.sketch`. Direct bindings preserve
-those library namespaces under `sigil.native`.
+declarations and rendering from `sigil.sketch`. Every module of the
+extension surfaces under one of those names and under no other.
 
 The package is an alpha Python frontend working toward complete sketch authoring
 coverage. The remaining native capabilities in `PARITY.md` are implementation

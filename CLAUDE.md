@@ -283,7 +283,10 @@ editing the schema run `mise run flatbuffers` and commit what it writes;
 the script copies only the schema modules, since the hand-written
 `SpellCircle/__init__.py` is the public API.
 
-The native `_sigil` declarations in `apps/python/sigil/stubs/` are generated
-from the compiled bindings and typed refinements. Edit the bindings or
-`apps/python/sigil/typing/refinements.py`, then run that directory's
-`generate.py` against the matching extension; do not edit generated stubs.
+The `sigil` package's declarations are generated from the compiled bindings
+and typed refinements when the extension links, into `build/python/sigil`,
+and are never files in the checkout. Its own modules are generated from the
+same pass and committed, because the wheel ships them: edit the bindings,
+`apps/python/sigil/typing/surface.py`, `typing/refinements/` or
+`typing/additions/`, then run `apps/python/sigil/typing/generate.py` against
+the matching extension and commit what it writes.

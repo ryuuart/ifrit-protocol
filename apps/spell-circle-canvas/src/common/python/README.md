@@ -35,10 +35,23 @@ in dependency order, including neutral Compose kit and layout values. The host
 can then add its own checked service views and execution model. Registration
 does not create a sketch context or import a sketch loader.
 
-The Python package, convenience functions, stubs and package tests belong to
-`apps/python/sigil`. Native callback signature adaptation imports its neutral
-`sigil._callbacks` helper. An embedding host supplies the matching package on
-its interpreter's module path. A normal extension uses its importing environment.
+The Python package, convenience functions, declarations and package tests
+belong to `apps/python/sigil`. Native callback signature adaptation imports
+its neutral `sigil._callbacks` helper. An embedding host supplies the
+matching package on its interpreter's module path. A normal extension uses
+its importing environment.
+
+* `PublicNames.h` — `namePublicly`
+
+Every class, enumeration and free function reports the module an author
+imports it from, so a repr and `pydoc` name the package rather than the
+extension. Call `namePublicly` once, after the last registration, because a
+class records its module when it is registered. The table it reads is
+written out again in the package's `typing/surface.py`, which generates the
+declarations and the package's own modules; a module the table does not
+name keeps the extension's own naming, and the package's surface check
+reports it. The modules keep the extension's naming either way: that is
+what a stub generator reads to find what a module declares.
 
 The sketch adapter assembles the complete `_sigil` module by registering this
 library followed by sketch context, session and specimen-kit bindings. An

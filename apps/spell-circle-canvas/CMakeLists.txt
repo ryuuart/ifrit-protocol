@@ -74,7 +74,7 @@ add_custom_target(fetch_assets
 get_filename_component(SIGIL_PYTHON_PACKAGE_DEFAULT
   "${CMAKE_CURRENT_SOURCE_DIR}/../python/sigil" ABSOLUTE)
 set(SIGIL_PYTHON_PACKAGE_DIR "${SIGIL_PYTHON_PACKAGE_DEFAULT}" CACHE PATH
-  "Python package project containing sigil, stubs, and packaging rules")
+  "Python package project containing sigil, its typing pass, and packaging rules")
 
 add_subdirectory(src)
 add_subdirectory("${SIGIL_PYTHON_PACKAGE_DIR}" "python-package")
