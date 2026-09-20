@@ -50,7 +50,9 @@ find_package(LibDataChannel CONFIG REQUIRED)
 find_package(msquic CONFIG REQUIRED)
 sigil_library(SigilIOTransport
   SOURCES Udp.cpp WebSocket.cpp WebSocketClient.cpp SharedMemory.cpp Midi.cpp
-          Serial.cpp Grpc.cpp Quic.cpp WebRtc.cpp Introduction.cpp
+          Serial.cpp Grpc.cpp Quic.cpp QuicLibrary.cpp QuicLibrary.h
+          QuicAddress.cpp QuicAddress.h QuicSession.cpp QuicSession.h
+          QuicPeer.cpp QuicPeer.h WebRtc.cpp Introduction.cpp
           Introduction.h IoThread.cpp IoThread.h
   HEADERS Transport.h
   PUBLIC SigilIOHub
