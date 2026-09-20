@@ -345,6 +345,54 @@ TEST(SetBodies, ASetIsAnyTypeThatNamesDescribe) {
   EXPECT_EQ(Bare::describes, 1);
 }
 
+TEST(SetDoors, OpensAnOwnedBodyWithNoKindBehindIt) {
+  // The door a host whose set is not a C++ type comes in by: it holds
+  // the body itself and names the runtime, and what comes back is the
+  // session the registered kind would have opened.
+  Spun::describes = 0;
+  std::unique_ptr<Session> owned =
+      openSet(std::make_unique<SetBodyOf<Spun>>(), fonts(), assets(), false,
+              sigil::sketch::runtime());
+  ASSERT_NE(owned, nullptr);
+  EXPECT_EQ(owned->canvas().size, SkSize::Make(160, 120));
+  const SkBitmap throughTheDoor = oneFrame(*owned);
+  EXPECT_EQ(Spun::describes, 1);
+
+  Spun::describes = 0;
+  std::unique_ptr<Session> registered = kindOf<Spun>()->open(fonts(), assets());
+  ASSERT_NE(registered, nullptr);
+  EXPECT_TRUE(samePicture(throughTheDoor, oneFrame(*registered)));
+}
+
+/** A supplier standing where the address of a factory function would:
+ *  what a host whose sets are made somewhere else registers. */
+class SpunSource final : public SetBodySource {
+ public:
+  std::unique_ptr<SetBody> open() const override {
+    return std::make_unique<SetBodyOf<Spun>>();
+  }
+};
+
+TEST(SetKinds, ASupplierOpensTheBodiesWhereNoFactoryFunctionCan) {
+  const auto source = std::make_shared<const SpunSource>();
+  const Kind supplied = SetKind{source};
+
+  // Two kinds are the same kind when they open the same body: the same
+  // supplier is one kind, a second supplier of the same type is
+  // another, and neither is the kind a factory function makes.
+  EXPECT_TRUE(supplied == Kind{SetKind{source}});
+  EXPECT_FALSE(supplied == Kind{SetKind{std::make_shared<const SpunSource>()}});
+  EXPECT_FALSE(supplied == kindOf<Spun>());
+  EXPECT_EQ(supplied->runtime(), "set");
+
+  Spun::describes = 0;
+  std::unique_ptr<Session> session = supplied->open(fonts(), assets());
+  ASSERT_NE(session, nullptr);
+  EXPECT_EQ(session->canvas().size, SkSize::Make(160, 120));
+  oneFrame(*session);
+  EXPECT_EQ(Spun::describes, 1);
+}
+
 /** The 3D session's answers to what every session promises. */
 struct SetTraits {
   static Kind kind() { return kindOf<Spun>(); }

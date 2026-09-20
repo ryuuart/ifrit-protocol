@@ -64,9 +64,9 @@ void throughPasses(world::Frame& frame, const SkColor4f& background) {
 /** ONE 3D SKETCH, RUNNING. */
 class SetSession final : public Session {
  public:
-  SetSession(SetBody* set, weave::FontContext& fonts, Assets& assets,
-             bool deterministic, world::Runtime runtime)
-      : m_set(set),
+  SetSession(std::unique_ptr<SetBody> set, weave::FontContext& fonts,
+             Assets& assets, bool deterministic, world::Runtime runtime)
+      : m_set(std::move(set)),
         m_assets(assets),
         m_scene(m_ticker),
         m_runtime(std::move(runtime)) {
@@ -262,13 +262,21 @@ class SetSession final : public Session {
 
 }  // namespace
 
+std::unique_ptr<Session> openSet(std::unique_ptr<SetBody> body,
+                                 weave::FontContext& fonts, Assets& assets,
+                                 bool deterministic,
+                                 const world::Runtime& runtime) {
+  return std::make_unique<SetSession>(std::move(body), fonts, assets,
+                                      deterministic, runtime);
+}
+
 std::unique_ptr<Session> SetKind::open(weave::FontContext& fonts,
                                        Assets& assets, bool deterministic,
                                        std::string_view key) const {
   (void)key;
-  return std::make_unique<SetSession>(
-      m_factory(), fonts, assets, deterministic,
-      m_runtime ? *m_runtime : processRuntime());
+  return openSet(
+      m_source ? m_source->open() : std::unique_ptr<SetBody>(m_factory()),
+      fonts, assets, deterministic, m_runtime ? *m_runtime : processRuntime());
 }
 
 Kind onRuntime(const Kind& kind, const world::Runtime& runtime) {

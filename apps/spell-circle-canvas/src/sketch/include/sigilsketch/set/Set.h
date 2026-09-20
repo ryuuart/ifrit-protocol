@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace sigil::weave {
@@ -129,6 +130,29 @@ class SetBody {
   virtual world::Frame describe(float seconds) = 0;
 };
 
+/** Opens an owned body on the set runtime — the door a host whose set
+ *  is not a C++ type comes in by, where a registered sketch comes in
+ *  through its kind. Setup runs before the session is returned. The
+ *  body must not be null, and @p runtime is the one every frame is
+ *  drawn through: `runtime()` below is the process's own, which is what
+ *  a kind that stated none opens on. */
+[[nodiscard]] std::unique_ptr<Session> openSet(std::unique_ptr<SetBody> body,
+                                               weave::FontContext& fonts,
+                                               Assets& assets,
+                                               bool deterministic,
+                                               const world::Runtime& runtime);
+
+/** WHAT OPENS ONE SET BODY when there is no C++ type to take the
+ *  address of a factory for: a host whose sets are written in another
+ *  language names its own supplier, and two kinds are the same kind
+ *  when they hold the same one. */
+class SetBodySource {
+ public:
+  virtual ~SetBodySource() = default;
+  /** One fresh body, for one session. Never null. */
+  [[nodiscard]] virtual std::unique_ptr<SetBody> open() const = 0;
+};
+
 /** ONE SET OF TYPE @p SetType, OWNED, answering those calls with the
  *  parameters it named — so a set spelling no `setup` at all takes the
  *  plate and the viewpoint it was opened with, and one spelling
@@ -155,10 +179,15 @@ class SetKind final : public KindOperations {
  public:
   using Factory = SetBody* (*)();
   explicit SetKind(Factory factory) : m_factory(factory) {}
+  /** A kind whose bodies @p source makes, for a host holding sets that
+   *  are not C++ types. */
+  explicit SetKind(std::shared_ptr<const SetBodySource> source)
+      : m_source(std::move(source)) {}
   /** What identifies a kind is the body it opens and where it opens it;
    *  see the 2D kind for the first half. */
   bool operator==(const SetKind& other) const {
-    return m_factory == other.m_factory && m_runtime == other.m_runtime;
+    return m_factory == other.m_factory && m_source == other.m_source &&
+           m_runtime == other.m_runtime;
   }
 
   /** THIS KIND, OPENING ITS SESSIONS ON @p runtime — an empty one being
@@ -192,7 +221,9 @@ class SetKind final : public KindOperations {
       std::string_view key) const override;
 
  private:
-  Factory m_factory;
+  /** Null where a supplier makes the bodies instead. */
+  Factory m_factory = nullptr;
+  std::shared_ptr<const SetBodySource> m_source;
   /** Unset is the process's own — the runtime a host installed once. */
   std::optional<world::Runtime> m_runtime;
 };
