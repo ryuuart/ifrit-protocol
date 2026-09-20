@@ -142,16 +142,19 @@ std::vector<TextUnit> detail::unitsOfText(
   structure.build(layout, paragraph, scopeOf(inst));
   if (structure.glyphs.empty()) return {};
   const auto count = (uint32_t)structure.glyphs.size();
-  const std::vector<uint8_t> selected = detail::resolveSelection(
-      selector, structure, paragraph, inst.textNamedRuns);
   // THE SELECTION IS ITS OWN UNIT. The five walk lanes are numbered off
   // the placement; this one is numbered off the question, so it is built
   // beside the selection rather than read out of the structure — which is
   // what lets one reading stand over a compound the breaker is free to
   // divide.
+  static thread_local std::vector<uint32_t> selectionPieces;
   static thread_local std::vector<uint32_t> selectionLane;
   const bool bySelection = unit == sigil::weave::Unit::Selection;
-  if (bySelection) detail::buildSelectionLane(selected, selectionLane);
+  const std::vector<uint8_t> selected = detail::resolveSelection(
+      selector, structure, paragraph, inst.textNamedRuns,
+      bySelection ? &selectionPieces : nullptr);
+  if (bySelection)
+    detail::buildSelectionLane(selected, selectionPieces, selectionLane);
   const std::vector<uint32_t>& unitOf =
       bySelection ? selectionLane : structure.unitOf[(size_t)unit];
   const bool vertical =
@@ -240,6 +243,9 @@ struct TrackSchedule {
   const sigil::weave::ParagraphLayout* layout = nullptr;
   uint32_t glyphCount = 0;
   std::vector<uint8_t> selected;
+  /// Filled only where the track beats over the selection, which is the
+  /// one unit the walk does not number.
+  std::vector<uint32_t> selectionPieces;
   detail::TrackCascade resolved;
 };
 
@@ -266,9 +272,13 @@ bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
   out.glyphCount = (uint32_t)structure.glyphs.size();
   if (out.glyphCount == 0) return false;
 
-  out.selected = detail::resolveSelection(out.track->where, structure,
-                                          *inst.paragraph, inst.textNamedRuns);
-  out.resolved.build(*out.track, structure, out.selected);
+  const bool bySelection =
+      out.track->unit == sigil::weave::Unit::Selection ||
+      out.track->innerUnit == sigil::weave::Unit::Selection;
+  out.selected = detail::resolveSelection(
+      out.track->where, structure, *inst.paragraph, inst.textNamedRuns,
+      bySelection ? &out.selectionPieces : nullptr);
+  out.resolved.build(*out.track, structure, out.selected, out.selectionPieces);
   return true;
 }
 }  // namespace

@@ -103,12 +103,21 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   if (selectionsStale) {
     textStateOf(inst).selectionKeys.clear();
     textStateOf(inst).selectionMasks.clear();
+    textStateOf(inst).selectionPieces.clear();
     textStateOf(inst).selectionKeys.reserve(tracks.size());
     textStateOf(inst).selectionMasks.reserve(tracks.size());
-    for (const Track& track : tracks) {
+    textStateOf(inst).selectionPieces.resize(tracks.size());
+    for (size_t i = 0; i < tracks.size(); ++i) {
+      const Track& track = tracks[i];
       textStateOf(inst).selectionKeys.push_back(track.where);
+      // THE EXTENTS THE SELECTOR NAMED, only where a track beats over
+      // them: the mask alone cannot tell two occurrences that touch apart,
+      // and every other unit is numbered off the walk.
+      const bool bySelection = track.unit == sigil::weave::Unit::Selection ||
+                               track.innerUnit == sigil::weave::Unit::Selection;
       textStateOf(inst).selectionMasks.push_back(detail::resolveSelection(
-          track.where, structure, *inst.paragraph, inst.textNamedRuns));
+          track.where, structure, *inst.paragraph, inst.textNamedRuns,
+          bySelection ? &textStateOf(inst).selectionPieces[i] : nullptr));
     }
     textStateOf(inst).selectionRev = inst.contentRev;
     textStateOf(inst).selectionWidth = inst.measuredForWidth;
@@ -120,6 +129,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   struct Resolved {
     const Track* track = nullptr;
     const std::vector<uint8_t>* selected = nullptr;
+    const std::vector<uint32_t>* pieces = nullptr;
     detail::TrackCascade resolved;
     float master = 1.0f;
   };
@@ -135,11 +145,12 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     Resolved& r = resolved[used++];
     r.track = &track;
     r.selected = &textStateOf(inst).selectionMasks[i];
+    r.pieces = &textStateOf(inst).selectionPieces[i];
     const AnimatedFloat* anim =
         i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
     r.master =
         std::clamp(inst.resolveFloatAt(anim, track.progress), 0.0f, 1.0f);
-    r.resolved.build(track, structure, *r.selected);
+    r.resolved.build(track, structure, *r.selected, *r.pieces);
   }
   // A path run with no tracks still draws: every glyph keeps the identity
   // deviation and rests on the curve.

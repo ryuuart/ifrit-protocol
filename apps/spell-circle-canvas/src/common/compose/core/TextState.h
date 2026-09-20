@@ -52,6 +52,11 @@ struct TextState {
   // the description's selectors themselves change.
   std::vector<sigil::weave::Selector> selectionKeys;
   std::vector<std::vector<uint8_t>> selectionMasks;
+  // WHICH EXTENT OF ITS SELECTOR each glyph fell in, beside the mask and
+  // rebuilt with it — four bytes a glyph, so it is filled only for a track
+  // that beats over the selection and left empty for every other, which is
+  // numbered off the walk instead.
+  std::vector<std::vector<uint32_t>> selectionPieces;
   uint32_t selectionRev = ~0u;
   // BOTH MEASURES LAYOUT KEYS ON: a line selector moves with the break,
   // and a vertical or depth-bounded passage breaks on its height exactly

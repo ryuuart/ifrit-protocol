@@ -61,12 +61,19 @@ bool startsUnit(sigil::weave::Unit granularity,
 }  // namespace
 
 uint32_t buildSelectionLane(std::span<const uint8_t> selected,
+                            std::span<const uint32_t> pieces,
                             std::vector<uint32_t>& lane) {
   lane.assign(selected.size(), 0);
   uint32_t units = 0;
-  uint8_t previous = 0;
+  uint32_t previous = kNoSelectionPiece;
   for (size_t index = 0; index < selected.size(); ++index) {
-    const uint8_t here = selected[index] ? (uint8_t)1 : (uint8_t)0;
+    // THE PIECE, NOT THE MASK. Two occurrences that touch leave the mask
+    // unbroken between them, and reading only the mask would make them one
+    // unit — which is a reading silently dropped off the end of the list
+    // the caller paired with them.
+    const uint32_t here = !selected[index]        ? kNoSelectionPiece
+                          : index < pieces.size() ? pieces[index]
+                                                  : 0u;
     if (index == 0 || here != previous) ++units;
     previous = here;
     lane[index] = units - 1;

@@ -106,6 +106,46 @@ TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
          "not doing anything";
 }
 
+TEST(ComposeTextFx, ATrackOverTheSelectionBeatsOnceForEachExtentItNamed) {
+  // A cascade at weave::Unit::Selection beats over the extents the
+  // SELECTOR named rather than over a size the text is divided into: one
+  // beat per occurrence, and a compound the breaker would divide is still
+  // one of them. The two numberings differ here as they do everywhere
+  // else — the default counts the occurrences alone, and the paragraph's
+  // own numbering runs across the whole walk, so the stretches BETWEEN
+  // the occurrences take beats of their own and each match falls where
+  // the text puts it.
+  const auto beatsUnder = [](Beats numbering) {
+    Host host(500, 120);
+    const sigil::motion::Spread spec{.eachMs = 100, .durationMs = 100};
+    host.composer.render(box().padding(6).children(
+        {text(u8"AA BB AA BB AA", whiteStyle(16))
+             .key("p")
+             .width(460)
+             .fx({.where = sigil::weave::selectors::text(u8"AA"),
+                  .effect = fx::rise(6),
+                  .stagger = spec,
+                  .unit = sigil::weave::Unit::Selection,
+                  .beatsOver = numbering})}));
+    host.frame();
+    return host.composer.beatsOf("p", 0);
+  };
+
+  const std::vector<Beat> own = beatsUnder(beats::Selection);
+  ASSERT_EQ(own.size(), 3u) << "three occurrences, three beats";
+  EXPECT_FLOAT_EQ(startOfUnit(own, 0), 0.0f);
+  EXPECT_FLOAT_EQ(startOfUnit(own, 1), 100.0f);
+  EXPECT_FLOAT_EQ(startOfUnit(own, 2), 200.0f);
+
+  // Under the paragraph's numbering the gaps are units too, so the
+  // matches are units 0, 2 and 4 and open twice as far apart.
+  const std::vector<Beat> text = beatsUnder(beats::Text);
+  ASSERT_EQ(text.size(), 3u) << "three occurrences still report three beats";
+  EXPECT_FLOAT_EQ(startOfUnit(text, 0), 0.0f);
+  EXPECT_FLOAT_EQ(startOfUnit(text, 2), 200.0f);
+  EXPECT_FLOAT_EQ(startOfUnit(text, 4), 400.0f);
+}
+
 TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
   // Real caption timing is a table cut against a recording, not a spacing.
   // weave::Unit k starts at table[k], exactly, and nothing about `eachMs`

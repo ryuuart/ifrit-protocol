@@ -7,8 +7,10 @@
 #include <sigilcompose/kit/Annotations.h>
 #include <sigilcompose/kit/Typeset.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -301,6 +303,33 @@ TEST(ComposeUnits, EachOccurrenceOfASelectionIsItsOwnUnit) {
   EXPECT_EQ(found[1].index, 1u);
 }
 
+TEST(ComposeUnits, OccurrencesThatTouchAreStillTheirOwnUnits) {
+  // A MASK CARRIES NO IDENTITY. Two matches with nothing between them
+  // leave one unbroken stretch of selected glyphs, and a lane read off the
+  // mask alone would call that one unit — which drops the second of the
+  // two readings a caller paired with them, and under-reports the units
+  // everything beside the text is placed from.
+  Host host(400, 300);
+  host.composer.render(box().children(
+      {text(u8"abab cd", whiteStyle(16)).key("t").width(360.0f)}));
+  host.frame();
+  const std::vector<TextUnit> matches =
+      host.composer.units("t", sigil::weave::selectors::text(u8"ab"),
+                          sigil::weave::Unit::Selection);
+  ASSERT_EQ(matches.size(), 2u);
+  EXPECT_EQ(matches[0].range.end, matches[1].range.start)
+      << "the two matches were meant to touch";
+  EXPECT_LT(matches[0].rect.right(), matches[1].rect.left() + 0.5f);
+  EXPECT_EQ(matches[0].index, 0u);
+  EXPECT_EQ(matches[1].index, 1u);
+  // The same holds of a form that names several numbered units at once:
+  // two words that touch across one space are two extents, not one.
+  const std::vector<TextUnit> words = host.composer.units(
+      "t", sigil::weave::selectors::words(0, 2), sigil::weave::Unit::Selection);
+  ASSERT_EQ(words.size(), 2u);
+  EXPECT_LT(words[0].rect.right(), words[1].rect.left() + 0.5f);
+}
+
 TEST(ComposeUnits, AnUnknownKeyAndAnEmptySelectionAnswerEmpty) {
   Host host(300, 200);
   host.composer.render(box().children(
@@ -527,6 +556,57 @@ TEST(ComposeTypeset, AnInitialLetterCarriesANestedOpeningIntoItsBlock) {
   EXPECT_FALSE(greenAt(2)) << "the nested run counted two words, not three";
 }
 
+TEST(ComposeTypeset, ANestedOpeningDoesNotCloseTheSpaceAfterTheInitial) {
+  // The initial takes the first grapheme of the opening word and the rest
+  // of that word sets beside it; the space after the word is the word's
+  // own and has to reach the band the following words are set in. A
+  // nested run over the opening restyles those words and re-breaks
+  // nothing, so the gap is the one the same passage sets with no initial
+  // at all — counted in words or ended at a delimiter alike.
+  const std::u8string opening = u8"When the first light, the hall was still.";
+  const auto gapAfterTheOpeningWord =
+      [&](bool initial, std::optional<kit::NestedStyle> nested) {
+        Host host(400, 300);
+        auto leaf = text(opening, whiteStyle(14));
+        leaf.key("body").absolute().left(20.0f).top(40.0f).width(260.0f);
+        if (initial) leaf.initialLetter({.lines = 3, .margin = 8.0f});
+        if (nested) leaf.spanStyle(kit::nestedRun(*nested), nested->style);
+        host.composer.render(box().children({leaf}));
+        host.frame();
+        // The opening word is the CAP and the remainder together, so its
+        // right edge is the rightmost of the pieces it was placed as.
+        float rightOfOpening = 0.0f;
+        for (const TextUnit& piece :
+             host.composer.units("body", sigil::weave::selectors::words(0, 1),
+                                 sigil::weave::Unit::Word))
+          rightOfOpening = std::max(rightOfOpening, piece.rect.right());
+        const std::vector<TextUnit> second =
+            host.composer.units("body", sigil::weave::selectors::words(1, 2),
+                                sigil::weave::Unit::Word);
+        EXPECT_FALSE(second.empty()) << "the second word was never placed";
+        return second.empty() ? 0.0f
+                              : second.front().rect.left() - rightOfOpening;
+      };
+
+  const float ordinary = gapAfterTheOpeningWord(false, std::nullopt);
+  EXPECT_GT(ordinary, 1.0f)
+      << "an ordinary paragraph of this passage sets no gap between its "
+         "first two words, so nothing below can prove anything";
+  EXPECT_NEAR(gapAfterTheOpeningWord(true, std::nullopt), ordinary, 0.5f);
+  EXPECT_NEAR(
+      gapAfterTheOpeningWord(
+          true, kit::NestedStyle{.until = kit::NestedStyle::Until::Words,
+                                 .count = 5,
+                                 .style = colouredType(14, SK_ColorGREEN)}),
+      ordinary, 0.5f);
+  EXPECT_NEAR(
+      gapAfterTheOpeningWord(
+          true, kit::NestedStyle{.until = kit::NestedStyle::Until::Delimiter,
+                                 .delimiter = u8",",
+                                 .style = colouredType(14, SK_ColorGREEN)}),
+      ordinary, 0.5f);
+}
+
 // ── Readings that reserve ─────────────────────────────────────────────────
 
 TEST(ComposeAnnotate, AReservingReadingOpensThePitchBeforeTheBaseIsBroken) {
@@ -637,9 +717,8 @@ TEST(ComposeAnnotate, OneReadingStandsOverTheWholeSelectedCompound) {
       (base.left() + base.right()) / 2.0f, 3.0f);
 
   // Addressed by WORD, the same declaration is a reading over each word,
-  // whose ink together spans most of the base — which is what a compound
-  // the breaker divides used to look like, and the reason the selection
-  // is a unit of its own.
+  // whose ink together spans most of the base — which is why a compound
+  // the breaker is free to divide needs a unit of its own.
   const GroupReading perWord =
       groupReading(sigil::weave::Unit::Word, u8"ab", 360.0f);
   ASSERT_FALSE(perWord.ink.empty());
@@ -662,9 +741,8 @@ TEST(ComposeAnnotate, ASelectionBrokenAcrossLinesPartitionsItsOneReading) {
   EXPECT_LT(broken.bases[0].bottom(), broken.bases[1].bottom());
   ASSERT_FALSE(broken.ink[0].isEmpty()) << "the first piece carries nothing";
   ASSERT_FALSE(broken.ink[1].isEmpty()) << "the second piece carries nothing";
-  // The pieces SHARE the one reading. Repeating it on each — which is what
-  // a list of one used to do — would make both of them as wide as the
-  // whole, and the two together twice as wide.
+  // The pieces SHARE the one reading. Repeating it on each would make both
+  // of them as wide as the whole, and the two together twice as wide.
   EXPECT_LT(broken.ink[0].width(), reading);
   EXPECT_LT(broken.ink[1].width(), reading);
   const int shared = broken.ink[0].width() + broken.ink[1].width();

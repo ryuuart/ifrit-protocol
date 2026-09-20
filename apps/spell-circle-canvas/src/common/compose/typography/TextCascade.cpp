@@ -23,7 +23,8 @@ namespace sigil::compose {
 namespace detail {
 
 void TrackCascade::build(const Track& track, const GlyphStructure& structure,
-                         const std::vector<uint8_t>& selected) {
+                         const std::vector<uint8_t>& selected,
+                         std::span<const uint32_t> selectionPieces) {
   const motion::Spread& spec = track.stagger;
   const auto count = (uint32_t)structure.glyphs.size();
   // THE SELECTION'S OWN LANE, for a track that beats over the extent it
@@ -36,7 +37,8 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
   const bool outerBySelection = track.unit == sigil::weave::Unit::Selection;
   uint32_t selectionUnits = 0;
   if (outerBySelection)
-    selectionUnits = buildSelectionLane(selected, outerSelection);
+    selectionUnits =
+        buildSelectionLane(selected, selectionPieces, outerSelection);
   // THE STORY'S NUMBERING where this leaf is one frame of a chain, the
   // leaf's own everywhere else. A cascade over a threaded story runs one
   // clock across the whole of it: the fortieth word is beat forty wherever
@@ -55,7 +57,11 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
     // THE PARAGRAPH'S OWN NUMBERING, which is the whole point of the
     // setting: a unit's beat does not depend on which of its glyphs this
     // track happens to address, so two tracks that split one paragraph run
-    // one clock however differently their selections resolve.
+    // one clock however differently their selections resolve. Over the
+    // SELECTION that numbering runs across the whole walk too, so the
+    // stretches between the extents the selector named take beats of their
+    // own and the matches fall where the text puts them; renumbering the
+    // matches alone is what the other setting is for.
     for (uint32_t g = 0; g < count; ++g) outerUnit[g] = outerLane[g];
     outerCount = outerBySelection ? selectionUnits
                  : story ? structure.storyUnitCounts[(size_t)track.unit]
@@ -83,7 +89,8 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
     const bool overText = track.beatsOver == Beats::Text;
     const bool innerBySelection =
         track.innerUnit == sigil::weave::Unit::Selection;
-    if (innerBySelection) buildSelectionLane(selected, innerSelection);
+    if (innerBySelection)
+      buildSelectionLane(selected, selectionPieces, innerSelection);
     const std::vector<uint32_t>& innerLane =
         innerBySelection ? innerSelection
                          : structure.unitOf[(size_t)track.innerUnit];

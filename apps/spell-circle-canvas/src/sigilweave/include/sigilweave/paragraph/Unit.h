@@ -27,14 +27,14 @@ namespace sigil::weave {
  *  will separate those marks from what they sit on.
  *
  *  `Selection` is the odd one: not a size the engine segments at, but the
- *  extent the CALLER named — one unit per stretch a selector addresses
- *  without interruption, however many clusters, words or lines that
- *  stretch turns out to be made of, and a second unit wherever the
- *  address stops and starts again. It is what a reading over a compound
- *  is placed from, because a compound is a selection and not a break
- *  opportunity: a breaker may open an opportunity inside one. Nothing
- *  numbers it before the selector is resolved, so it is answered where
- *  the selection is and not off the placement. */
+ *  extent the CALLER named — one unit per extent a selector addresses,
+ *  however many clusters, words or lines that extent turns out to be made
+ *  of, and one for each of two extents even where they touch and nothing
+ *  divides them. It is what a reading over a compound is placed from,
+ *  because a compound is a selection and not a break opportunity: a
+ *  breaker may open an opportunity inside one. Nothing numbers it before
+ *  the selector is resolved, so it is answered where the selection is and
+ *  not off the placement. */
 enum class Unit : uint8_t { Glyph, Cluster, Word, Line, Sentence, Selection };
 
 }  // namespace sigil::weave

@@ -83,9 +83,9 @@ beats over: `weave::Unit::Glyph`, `weave::Unit::Cluster`,
 the one that keeps text correct — a base letter and its combining marks
 are one unit and never separate under a stagger. `weave::Unit::Selection`
 is the odd one: not a size the text is divided into but the extent the
-selector named, one unit per stretch it addressed without interruption,
-which is what puts one reading over a compound the breaker is free to
-divide.
+selector named, one unit per extent it addressed — and two where two of
+them touch — which is what puts one reading over a compound the breaker
+is free to divide.
 
 **Selectors.** `weave::selectors::word`, `weave::selectors::words`, `weave::selectors::line`,
 `weave::selectors::sentence`, `weave::selectors::range`, `weave::selectors::text` and

@@ -33,14 +33,20 @@ namespace detail {
 
 namespace {
 
-/** Marks every glyph whose cluster falls inside one of `ranges`. */
+/** Marks every glyph whose cluster falls inside one of `ranges`, and tells
+ *  a caller that asked which of the ranges did it. The ranges arrive in
+ *  text order and unmerged, so two occurrences that touch keep their own
+ *  ordinals and stay two pieces. */
 void markRanges(const std::vector<sigil::weave::CharRange>& ranges,
-                const GlyphStructure& structure, std::vector<uint8_t>& out) {
-  for (const sigil::weave::CharRange& r : ranges)
+                const GlyphStructure& structure, std::vector<uint8_t>& out,
+                std::vector<uint32_t>* pieces) {
+  for (size_t range = 0; range < ranges.size(); ++range)
     for (size_t i = 0; i < structure.glyphs.size(); ++i)
-      if (structure.glyphs[i].textIndex >= r.start &&
-          structure.glyphs[i].textIndex < r.end)
+      if (structure.glyphs[i].textIndex >= ranges[range].start &&
+          structure.glyphs[i].textIndex < ranges[range].end) {
         out[i] = 1;
+        if (pieces) (*pieces)[i] = (uint32_t)range;
+      }
 }
 
 /** Once per process: an `weave::selectors::each` asked to step over the
@@ -71,23 +77,41 @@ std::vector<sigil::weave::CharRange> namedRunRanges(
 void resolveInto(const sigil::weave::Selector& selector,
                  const GlyphStructure& structure,
                  const sigil::weave::Paragraph& paragraph,
-                 std::span<const NamedRun> named, std::vector<uint8_t>& out) {
+                 std::span<const NamedRun> named, std::vector<uint8_t>& out,
+                 std::vector<uint32_t>* pieces) {
   const size_t count = structure.glyphs.size();
   out.assign(count, 0);
+  if (pieces) pieces->assign(count, kNoSelectionPiece);
+  // WHERE A FORM NAMES ONE EXTENT and the walk's own interruptions are
+  // what separate its stretches, every selected glyph is piece zero: the
+  // lane the pieces feed starts a new unit wherever the mask does anyway,
+  // so numbering the stretches here would say the same thing twice.
+  const auto onePiece = [&] {
+    if (!pieces) return;
+    for (size_t i = 0; i < count; ++i)
+      if (out[i]) (*pieces)[i] = 0;
+  };
   const sigil::weave::Selector::State* s = selector.state();
   if (!s) {  // default-constructed: everything
     std::fill(out.begin(), out.end(), (uint8_t)1);
+    onePiece();
     return;
   }
+  // A SELECTOR OVER NUMBERED UNITS NAMES ONE EXTENT PER UNIT, so the piece
+  // is the unit's own ordinal inside the range asked for — which is what
+  // keeps `words(2, 5)`, whose three words touch, three pieces.
   const auto byIndex = [&](auto&& field, uint32_t lo, uint32_t hi) {
     for (size_t i = 0; i < count; ++i) {
       const uint32_t v = field(structure.glyphs[i]);
-      if (v >= lo && v < hi) out[i] = 1;
+      if (v < lo || v >= hi) continue;
+      out[i] = 1;
+      if (pieces) (*pieces)[i] = v - lo;
     }
   };
   switch (s->kind) {
     case sigil::weave::Selector::Kind::All:
       std::fill(out.begin(), out.end(), (uint8_t)1);
+      onePiece();
       break;
     case sigil::weave::Selector::Kind::Word:
       byIndex([](const GlyphInfo& g) { return g.wordIndex; }, s->lo, s->hi);
@@ -99,11 +123,14 @@ void resolveInto(const sigil::weave::Selector& selector,
       byIndex([](const GlyphInfo& g) { return g.sentenceIndex; }, s->lo, s->hi);
       break;
     case sigil::weave::Selector::Kind::Range:
+      // A range is ONE range, however many words of it the caller happened
+      // to cover.
       byIndex([](const GlyphInfo& g) { return g.textIndex; }, s->lo, s->hi);
+      onePiece();
       break;
     case sigil::weave::Selector::Kind::Text:
       markRanges(sigil::weave::findAllOccurrences(paragraph, s->pattern),
-                 structure, out);
+                 structure, out, pieces);
       break;
     case sigil::weave::Selector::Kind::Regex: {
       std::optional<std::vector<sigil::weave::CharRange>> matches =
@@ -112,7 +139,7 @@ void resolveInto(const sigil::weave::Selector& selector,
         warnBadSelectorPattern(s->pattern);
         break;  // an unresolvable pattern selects nothing
       }
-      markRanges(*matches, structure, out);
+      markRanges(*matches, structure, out, pieces);
       break;
     }
     case sigil::weave::Selector::Kind::Named: {
@@ -122,7 +149,7 @@ void resolveInto(const sigil::weave::Selector& selector,
         warnNoSuchStyleName(s->pattern);
         break;  // content that carries no such name selects nothing
       }
-      markRanges(runs, structure, out);
+      markRanges(runs, structure, out, pieces);
       break;
     }
     case sigil::weave::Selector::Kind::Scope: {
@@ -135,6 +162,7 @@ void resolveInto(const sigil::weave::Selector& selector,
       if (key.empty()) warnNoSuchFrameKey(s->pattern);
       if (!key.empty() && key == s->pattern)
         std::fill(out.begin(), out.end(), (uint8_t)1);
+      onePiece();
       break;
     }
     case sigil::weave::Selector::Kind::Each: {
@@ -145,6 +173,7 @@ void resolveInto(const sigil::weave::Selector& selector,
       if (s->each == sigil::weave::Unit::Selection) {
         warnSelectionIsNotAGranularity();
         std::fill(out.begin(), out.end(), (uint8_t)1);
+        onePiece();
         break;
       }
       const std::vector<uint32_t>& units = structure.unitOf[(size_t)s->each];
@@ -155,7 +184,12 @@ void resolveInto(const sigil::weave::Selector& selector,
         const bool afterDrop = within >= drop;
         const bool beforeTake =
             s->take < 0 || within < drop + std::max(s->take, 0);
-        if (afterDrop && beforeTake) out[i] = 1;
+        if (afterDrop && beforeTake) {
+          out[i] = 1;
+          // One piece per unit, so a sliced `each` keeps its units apart
+          // even where the slices of two of them meet.
+          if (pieces) (*pieces)[i] = units[i];
+        }
         ++within;
       }
       break;
@@ -163,18 +197,36 @@ void resolveInto(const sigil::weave::Selector& selector,
     case sigil::weave::Selector::Kind::Union:
     case sigil::weave::Selector::Kind::Intersect: {
       std::vector<uint8_t> lhs, rhs;
-      resolveInto(s->operands[0], structure, paragraph, named, lhs);
-      resolveInto(s->operands[1], structure, paragraph, named, rhs);
-      for (size_t i = 0; i < count; ++i)
-        out[i] = s->kind == sigil::weave::Selector::Kind::Union
-                     ? (lhs[i] | rhs[i])
-                     : (lhs[i] & rhs[i]);
+      std::vector<uint32_t> lhsPieces, rhsPieces;
+      resolveInto(s->operands[0], structure, paragraph, named, lhs,
+                  pieces ? &lhsPieces : nullptr);
+      resolveInto(s->operands[1], structure, paragraph, named, rhs,
+                  pieces ? &rhsPieces : nullptr);
+      // THE LEFT OPERAND NAMES THE PIECE wherever it selected: an
+      // intersection cuts the left's own extents down, and a union stands
+      // the right's numbering after the left's so no extent of one is
+      // taken for an extent of the other.
+      uint32_t leftExtents = 0;
+      if (pieces)
+        for (size_t i = 0; i < count; ++i)
+          if (lhs[i] && lhsPieces[i] != kNoSelectionPiece)
+            leftExtents = std::max(leftExtents, lhsPieces[i] + 1);
+      const bool unite = s->kind == sigil::weave::Selector::Kind::Union;
+      for (size_t i = 0; i < count; ++i) {
+        out[i] = unite ? (lhs[i] | rhs[i]) : (lhs[i] & rhs[i]);
+        if (!pieces || !out[i]) continue;
+        (*pieces)[i] = lhs[i] ? lhsPieces[i] : rhsPieces[i] + leftExtents;
+      }
       break;
     }
     case sigil::weave::Selector::Kind::Complement: {
       std::vector<uint8_t> inner;
-      resolveInto(s->operands[0], structure, paragraph, named, inner);
+      resolveInto(s->operands[0], structure, paragraph, named, inner, nullptr);
       for (size_t i = 0; i < count; ++i) out[i] = inner[i] ? 0 : 1;
+      // What the complement leaves standing is separated by what the
+      // operand took, which is an interruption of the mask, so the lane
+      // numbers its stretches apart with no ordinal of its own.
+      onePiece();
       break;
     }
   }
@@ -222,9 +274,10 @@ void warnNoSuchFrameKey(const std::u8string& key) {
 std::vector<uint8_t> resolveSelection(const sigil::weave::Selector& selector,
                                       const GlyphStructure& structure,
                                       const sigil::weave::Paragraph& paragraph,
-                                      std::span<const NamedRun> named) {
+                                      std::span<const NamedRun> named,
+                                      std::vector<uint32_t>* pieceOf) {
   std::vector<uint8_t> out;
-  resolveInto(selector, structure, paragraph, named, out);
+  resolveInto(selector, structure, paragraph, named, out, pieceOf);
   return out;
 }
 

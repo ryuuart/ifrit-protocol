@@ -84,25 +84,39 @@ struct GlyphStructure {
              const sigil::weave::Paragraph& paragraph, TextScope scope = {});
 };
 
+/** THE PIECE OF A SELECTION A GLYPH THE SELECTOR DID NOT ADDRESS IS IN,
+ *  which is none. */
+inline constexpr uint32_t kNoSelectionPiece = ~0u;
 /** Which glyphs a selector addresses: one byte per glyph, in walk order.
  *  A pattern that does not compile answers all-zero and warns once, and so
- *  does an `selectors::style` name @p named does not carry. */
+ *  does an `selectors::style` name @p named does not carry.
+ *
+ *  @p pieceOf, when given, receives the PIECE of the selection each glyph
+ *  belongs to — one piece per extent the selector named, numbered in draw
+ *  order, `kNoSelectionPiece` where the glyph is not selected. It is what
+ *  keeps two occurrences apart when they touch, which a mask alone cannot
+ *  do: a mask carries no identity, so `text("字")` over `字字` would be one
+ *  stretch and its second reading would be dropped. */
 std::vector<uint8_t> resolveSelection(const sigil::weave::Selector& selector,
                                       const GlyphStructure& structure,
                                       const sigil::weave::Paragraph& paragraph,
-                                      std::span<const NamedRun> named);
+                                      std::span<const NamedRun> named,
+                                      std::vector<uint32_t>* pieceOf = nullptr);
 /** THE LANE `weave::Unit::Selection` IS ADDRESSED BY: glyph index → the
  *  unit it falls in, numbered from zero in draw order, filled into @p lane
  *  and answering how many units that came to.
  *
- *  The number changes wherever the selection starts or stops, so every
- *  stretch the selector addressed without interruption is one unit — and
- *  so is every stretch between them, which is what makes the lane total
- *  and lets a consumer number the whole walk from it. It is not read out
- *  of the glyph structure because the structure's lanes are facts about
- *  the walk and this one is a fact about the question: a compound the
- *  breaker may divide is still one thing the caller pointed at. */
+ *  The number changes wherever the piece does, so every extent the
+ *  selector named is one unit — and so is every stretch between them,
+ *  which is what makes the lane total and lets a consumer number the whole
+ *  walk from it. @p pieces is the lane `resolveSelection` filled beside
+ *  @p selected and is the same length; it is what tells two touching
+ *  occurrences apart. The lane is not read out of the glyph structure
+ *  because the structure's lanes are facts about the walk and this one is
+ *  a fact about the question: a compound the breaker may divide is still
+ *  one thing the caller pointed at. */
 uint32_t buildSelectionLane(std::span<const uint8_t> selected,
+                            std::span<const uint32_t> pieces,
                             std::vector<uint32_t>& lane);
 /** The once-per-pattern diagnostic behind an unresolvable selector. */
 void warnBadSelectorPattern(const std::u8string& pattern);
@@ -155,7 +169,8 @@ struct TrackCascade {
    *  glyphs into those numbers, and the arithmetic over them is
    *  SigilMotion's. */
   void build(const Track& track, const GlyphStructure& structure,
-             const std::vector<uint8_t>& selected);
+             const std::vector<uint8_t>& selected,
+             std::span<const uint32_t> selectionPieces = {});
 };
 
 /** The composition algebra, in one place: offsets, rotations and shears ADD,
