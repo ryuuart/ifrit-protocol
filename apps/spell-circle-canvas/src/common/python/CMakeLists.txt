@@ -40,7 +40,8 @@ sigil_library(SigilPython
     weave/Shaping.cpp weave/Tables.cpp weave/Unicode.cpp
     world/Description.cpp world/Device.cpp world/Environment.cpp
     world/Geometry.cpp world/Passes.cpp world/Plan.cpp world/Targets.cpp
-    world/View.cpp compose/Document.cpp compose/Elements.cpp compose/Kit.cpp
+    world/View.cpp compose/Convert.cpp compose/Document.cpp
+    compose/Elements.cpp compose/Kit.cpp
     data/Data.cpp draw/Brush.cpp draw/Pen.cpp geometry/Geometry.cpp
     io/Resources.cpp material/Material.cpp motion/Motion.cpp skia/Values.cpp
     weave/Layout.cpp weave/Type.cpp world/World.cpp
