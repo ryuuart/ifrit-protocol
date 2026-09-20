@@ -18,11 +18,25 @@ namespace {
 constexpr double kMicrosPerSecond = 1e6;
 constexpr double kSecondsPerDay = 86400.0;
 
+/** WHETHER A PREPARED STATEMENT ONLY READS. A select, the plan behind one
+ *  and a pragma answer what the store holds; every other kind of statement
+ *  either changes it or changes the session it is read through. An
+ *  unparsed statement is the invalid kind, which is treated as a write so
+ *  nothing unrecognised passes a refusal. */
+bool statementReads(duckdb_statement_type type) {
+  return type == DUCKDB_STATEMENT_TYPE_SELECT ||
+         type == DUCKDB_STATEMENT_TYPE_EXPLAIN ||
+         type == DUCKDB_STATEMENT_TYPE_PRAGMA;
+}
+
 class Duck final : public Database::Impl {
  public:
   Duck(duckdb_database db, duckdb_connection connection,
-       std::filesystem::path file)
-      : m_db(db), m_connection(connection), m_file(std::move(file)) {}
+       std::filesystem::path file, Access access)
+      : m_db(db),
+        m_connection(connection),
+        m_file(std::move(file)),
+        m_access(access) {}
   ~Duck() override {
     duckdb_disconnect(&m_connection);
     duckdb_close(&m_db);
@@ -31,6 +45,41 @@ class Duck final : public Database::Impl {
   [[nodiscard]] Engine engine() const override { return Engine::Duck; }
   [[nodiscard]] const std::filesystem::path& file() const override {
     return m_file;
+  }
+  [[nodiscard]] Access access() const override { return m_access; }
+
+  [[nodiscard]] std::optional<bool> writes(std::string_view sql,
+                                           std::string* why) const override {
+    const std::string text(sql);
+    duckdb_extracted_statements extracted = nullptr;
+    const idx_t count =
+        duckdb_extract_statements(m_connection, text.c_str(), &extracted);
+    if (count == 0) {
+      if (why) {
+        const char* error = duckdb_extract_statements_error(extracted);
+        *why = error && *error ? error : "no statement to run";
+      }
+      duckdb_destroy_extracted(&extracted);
+      return std::nullopt;
+    }
+    bool writes = false;
+    for (idx_t index = 0; index < count && !writes; ++index) {
+      duckdb_prepared_statement prepared = nullptr;
+      if (duckdb_prepare_extracted_statement(m_connection, extracted, index,
+                                             &prepared) == DuckDBError) {
+        if (why) {
+          const char* error = duckdb_prepare_error(prepared);
+          *why = error ? error : "duckdb could not prepare the statement";
+        }
+        duckdb_destroy_prepare(&prepared);
+        duckdb_destroy_extracted(&extracted);
+        return std::nullopt;
+      }
+      writes = !statementReads(duckdb_prepared_statement_type(prepared));
+      duckdb_destroy_prepare(&prepared);
+    }
+    duckdb_destroy_extracted(&extracted);
+    return writes;
   }
 
   [[nodiscard]] std::optional<Table> query(std::string_view sql,
@@ -209,17 +258,32 @@ class Duck final : public Database::Impl {
   duckdb_database m_db;
   duckdb_connection m_connection;
   std::filesystem::path m_file;
+  Access m_access;
 };
 
 }  // namespace
 
 std::unique_ptr<Database::Impl> openDuck(const std::filesystem::path& file,
-                                         std::string* why) {
+                                         Access access, std::string* why) {
   duckdb_database db = nullptr;
   char* error = nullptr;
   const std::string name = file.string();
-  if (duckdb_open_ext(file.empty() ? nullptr : name.c_str(), &db, nullptr,
-                      &error) == DuckDBError) {
+  // A memory store has nothing to read until something is written into it,
+  // so it opens for writing whatever access the caller named.
+  const Access opened = file.empty() ? Access::ReadWrite : access;
+  duckdb_config config = nullptr;
+  if (opened == Access::ReadOnly) {
+    if (duckdb_create_config(&config) == DuckDBError) {
+      if (why) *why = "duckdb could not hold a configuration";
+      duckdb_destroy_config(&config);
+      return nullptr;
+    }
+    duckdb_set_config(config, "access_mode", "READ_ONLY");
+  }
+  const duckdb_state state = duckdb_open_ext(
+      file.empty() ? nullptr : name.c_str(), &db, config, &error);
+  duckdb_destroy_config(&config);
+  if (state == DuckDBError) {
     if (why) *why = error ? error : "duckdb could not open";
     duckdb_free(error);
     return nullptr;
@@ -230,7 +294,7 @@ std::unique_ptr<Database::Impl> openDuck(const std::filesystem::path& file,
     duckdb_close(&db);
     return nullptr;
   }
-  return std::make_unique<Duck>(db, connection, file);
+  return std::make_unique<Duck>(db, connection, file, opened);
 }
 
 }  // namespace sigil::data::detail

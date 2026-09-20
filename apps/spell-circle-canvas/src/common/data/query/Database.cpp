@@ -27,6 +27,11 @@ std::optional<Engine> engineOf(const std::filesystem::path& file) {
 
 std::optional<Database> Database::open(const std::filesystem::path& file,
                                        std::string* why) {
+  return open(file, Access::ReadWrite, why);
+}
+
+std::optional<Database> Database::open(const std::filesystem::path& file,
+                                       Access access, std::string* why) {
   const std::optional<Engine> engine = engineOf(file);
   if (!engine) {
     if (why) *why = "not a database file by its extension: " + file.string();
@@ -40,8 +45,8 @@ std::optional<Database> Database::open(const std::filesystem::path& file,
     return std::nullopt;
   }
   std::unique_ptr<Impl> impl = *engine == Engine::Sqlite
-                                   ? detail::openSqlite(file, why)
-                                   : detail::openDuck(file, why);
+                                   ? detail::openSqlite(file, access, why)
+                                   : detail::openDuck(file, access, why);
   if (!impl) return std::nullopt;
   return Database(std::move(impl));
 }
@@ -60,19 +65,25 @@ std::optional<Database> Database::fromBytes(const io::Bytes& bytes,
 }
 
 std::optional<Database> Database::memory(Engine engine, std::string* why) {
-  std::unique_ptr<Impl> impl = engine == Engine::Sqlite
-                                   ? detail::openSqlite({}, why)
-                                   : detail::openDuck({}, why);
+  std::unique_ptr<Impl> impl =
+      engine == Engine::Sqlite ? detail::openSqlite({}, Access::ReadWrite, why)
+                               : detail::openDuck({}, Access::ReadWrite, why);
   if (!impl) return std::nullopt;
   return Database(std::move(impl));
 }
 
 Engine Database::engine() const { return m_impl->engine(); }
 const std::filesystem::path& Database::file() const { return m_impl->file(); }
+Access Database::access() const { return m_impl->access(); }
 
 std::optional<Table> Database::query(std::string_view sql,
                                      std::string* why) const {
   return m_impl->query(sql, why);
+}
+
+std::optional<bool> Database::writes(std::string_view sql,
+                                     std::string* why) const {
+  return m_impl->writes(sql, why);
 }
 
 bool Database::execute(std::string_view sql, std::string* why) {
@@ -87,8 +98,10 @@ bool Database::insert(std::string_view name, const Table& rows,
 std::optional<Database> DatabaseDecoder::decode(const io::Bytes& bytes,
                                                 std::string_view hint) const {
   // A file on disk is opened in place; bytes alone are a SQLite store.
+  // Either way for reading only: one cached resource stands behind every
+  // holder, and the file behind it belongs to none of them.
   if (!hint.empty() && std::filesystem::exists(std::filesystem::path(hint)))
-    return Database::open(std::filesystem::path(hint));
+    return Database::open(std::filesystem::path(hint), Access::ReadOnly);
   return Database::fromBytes(bytes, hint);
 }
 

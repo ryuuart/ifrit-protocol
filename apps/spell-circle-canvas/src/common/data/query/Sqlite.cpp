@@ -97,8 +97,8 @@ Column typed(Held&& held) {
 
 class Sqlite final : public Database::Impl {
  public:
-  Sqlite(sqlite3* db, std::filesystem::path file)
-      : m_db(db), m_file(std::move(file)) {}
+  Sqlite(sqlite3* db, std::filesystem::path file, Access access)
+      : m_db(db), m_file(std::move(file)), m_access(access) {}
   ~Sqlite() override {
     if (m_db) sqlite3_close(m_db);
   }
@@ -106,6 +106,41 @@ class Sqlite final : public Database::Impl {
   [[nodiscard]] Engine engine() const override { return Engine::Sqlite; }
   [[nodiscard]] const std::filesystem::path& file() const override {
     return m_file;
+  }
+  [[nodiscard]] Access access() const override { return m_access; }
+
+  [[nodiscard]] std::optional<bool> writes(std::string_view sql,
+                                           std::string* why) const override {
+    // The text may hold several statements, and the reader is the one that
+    // separates them, so each is prepared in turn and the tail carries the
+    // rest. Preparing compiles without running.
+    const std::string text(sql);
+    const char* head = text.c_str();
+    const char* end = head + text.size();
+    bool any = false;
+    while (head < end) {
+      sqlite3_stmt* stmt = nullptr;
+      const char* tail = nullptr;
+      if (sqlite3_prepare_v2(m_db, head, (int)(end - head), &stmt, &tail) !=
+          SQLITE_OK) {
+        if (why) *why = sqlite3_errmsg(m_db);
+        sqlite3_finalize(stmt);
+        return std::nullopt;
+      }
+      if (!stmt) {  // whitespace or a comment after the last statement
+        if (!tail || tail <= head) break;
+        head = tail;
+        continue;
+      }
+      any = true;
+      const bool reads = sqlite3_stmt_readonly(stmt) != 0;
+      sqlite3_finalize(stmt);
+      if (!reads) return true;
+      if (!tail || tail <= head) break;
+      head = tail;
+    }
+    if (!any && why) *why = "no statement to run";
+    return any ? std::optional<bool>(false) : std::nullopt;
   }
 
   [[nodiscard]] std::optional<Table> query(std::string_view sql,
@@ -234,22 +269,29 @@ class Sqlite final : public Database::Impl {
  private:
   sqlite3* m_db;
   std::filesystem::path m_file;
+  Access m_access;
 };
 
 }  // namespace
 
 std::unique_ptr<Database::Impl> openSqlite(const std::filesystem::path& file,
-                                           std::string* why) {
+                                           Access access, std::string* why) {
   sqlite3* db = nullptr;
-  const std::string name = file.empty() ? ":memory:" : file.string();
+  // A memory store has nothing to read until something is written into it,
+  // so it opens for writing whatever access the caller named.
+  const bool memory = file.empty();
+  const Access opened = memory ? Access::ReadWrite : access;
+  const std::string name = memory ? ":memory:" : file.string();
   const int flags =
-      SQLITE_OPEN_READWRITE | (file.empty() ? SQLITE_OPEN_CREATE : 0);
+      opened == Access::ReadOnly
+          ? SQLITE_OPEN_READONLY
+          : SQLITE_OPEN_READWRITE | (memory ? SQLITE_OPEN_CREATE : 0);
   if (sqlite3_open_v2(name.c_str(), &db, flags, nullptr) != SQLITE_OK) {
     if (why) *why = db ? sqlite3_errmsg(db) : "sqlite could not open";
     sqlite3_close(db);
     return nullptr;
   }
-  return std::make_unique<Sqlite>(db, file);
+  return std::make_unique<Sqlite>(db, file, opened);
 }
 
 std::unique_ptr<Database::Impl> sqliteFromBytes(const io::Bytes& bytes,
@@ -277,7 +319,8 @@ std::unique_ptr<Database::Impl> sqliteFromBytes(const io::Bytes& bytes,
     sqlite3_close(db);
     return nullptr;
   }
-  return std::make_unique<Sqlite>(db, std::filesystem::path{});
+  return std::make_unique<Sqlite>(db, std::filesystem::path{},
+                                  Access::ReadOnly);
 }
 
 }  // namespace sigil::data::detail

@@ -30,6 +30,11 @@ namespace sigil::data {
  *  of its own. */
 enum class Engine { Sqlite, Duck };
 
+/** WHETHER A STORE ACCEPTS WRITES. A store opened for reading answers every
+ *  query and refuses every statement that would change the file, which is
+ *  what a cached resource several readers share has to be. */
+enum class Access { ReadWrite, ReadOnly };
+
 /** AN OPEN DATABASE, IN A FILE OR IN MEMORY.
  *
  *  `query()` answers a `Table`: every column of the result typed by what
@@ -50,10 +55,17 @@ class Database {
   Database& operator=(Database&&) noexcept;
   ~Database();
 
-  /** Opens @p file by its extension. Absent, unreadable or of neither
-   *  engine's kind: nullopt, and `why` says which. */
+  /** Opens @p file by its extension for reading and writing. Absent,
+   *  unreadable or of neither engine's kind: nullopt, and `why` says
+   *  which. */
   [[nodiscard]] static std::optional<Database> open(
       const std::filesystem::path& file, std::string* why = nullptr);
+  /** Opens @p file by its extension with @p access. A store opened
+   *  `ReadOnly` is a connection the engine itself refuses writes through,
+   *  so the file behind it is safe from every holder of the value. */
+  [[nodiscard]] static std::optional<Database> open(
+      const std::filesystem::path& file, Access access,
+      std::string* why = nullptr);
   /** Opens the bytes of a SQLite file held in memory — the form a
    *  resource hub hands a decoder — as a read-only store. DuckDB opens
    *  files only, so bytes of a `.duckdb` answer nullopt. */
@@ -67,6 +79,8 @@ class Database {
   [[nodiscard]] Engine engine() const;
   /** The file this store was opened from, or empty for a memory store. */
   [[nodiscard]] const std::filesystem::path& file() const;
+  /** The access this store was opened with. */
+  [[nodiscard]] Access access() const;
 
   /** Runs @p sql and answers its rows as a table; nullopt and `why` on an
    *  error. A column's type is what its cells hold: an integer or a real
@@ -74,6 +88,16 @@ class Database {
    *  timestamp is an instant — SQLite's declared DATE and DATETIME and
    *  ISO text included — and a NULL is a missing cell. */
   [[nodiscard]] std::optional<Table> query(std::string_view sql,
+                                           std::string* why = nullptr) const;
+  /** WHETHER RUNNING @p sql WOULD WRITE. Every statement in the text is
+   *  examined, not only the first, because a holder that refuses writes
+   *  has to refuse a writing statement wherever it stands. A statement
+   *  the engine cannot parse answers nullopt and `why` names the error.
+   *
+   *  A transaction's own verbs and a reading statement that calls a
+   *  writing function answer false, so this is the message a caller shows
+   *  and `Access::ReadOnly` is what stops the write. */
+  [[nodiscard]] std::optional<bool> writes(std::string_view sql,
                                            std::string* why = nullptr) const;
   /** Runs @p sql for its effect. */
   bool execute(std::string_view sql, std::string* why = nullptr);
@@ -96,7 +120,9 @@ class Database {
  *  both engines answer and the store is read as the engine reads it; a
  *  resource that is bytes alone — a network cache with no file, a byte
  *  source — is a SQLite store deserialised from them, and a `.duckdb`
- *  from bytes alone is refused. */
+ *  from bytes alone is refused. Either way the store is `Access::ReadOnly`:
+ *  a hub hands one cached resource to every reader, so no reader may
+ *  change the file the others are reading. */
 struct DatabaseDecoder {
   std::optional<Database> decode(const io::Bytes& bytes,
                                  std::string_view hint) const;
