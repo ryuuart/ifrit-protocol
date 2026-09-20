@@ -38,11 +38,11 @@ struct SpaceJam1996 {
   mskia::Paint fastballMat;
   // <TABLE WIDTH=500 CELLSPACING=2 CELLPADDING=1>, at this sketch's scale.
   // The columns and rows are the ones the children claim.
-  Table table{.columns = 5,
-              .rows = 5,
-              .width = sj::S(500),
-              .spacing = sj::S(2),
-              .padding = sj::S(1)};
+  layouts::Table table{.columns = 5,
+                       .rows = 5,
+                       .width = sj::S(500),
+                       .spacing = sj::S(2),
+                       .padding = sj::S(1)};
 
   // ---- the reveal --------------------------------------------------------
   Element revealed(int i, bool inFlight) const {
@@ -143,7 +143,7 @@ struct SpaceJam1996 {
       fastRow.children({revealed(kFastbreak, true).left(S(53)).top(S(3))});
     }
 
-    // 3. the planet table. Nothing below is hand-placed: `Table`
+    // 3. the planet table. Nothing below is hand-placed: `layouts::Table`
     //    runs the auto-layout rule over the children's measured sizes and
     //    the cells they claim.
     Element grid =
@@ -248,7 +248,7 @@ struct SpaceJam1996 {
                                .down = s.down,
                                .declared = true});
     }
-    const Table::Grid grid = table.solve(in);
+    const layouts::Table::Grid grid = table.solve(in);
     verdict = {};
     verdict.add(measure::heading("TABLE-AUTO AGAINST HEADLESS CHROME"));
     // The surplus a table-auto scheme distributes lands on fractional

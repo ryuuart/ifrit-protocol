@@ -10,6 +10,8 @@
 
 #include "support/CoreTestSupport.h"
 
+using sigil::compose::layouts::Table;
+
 TEST(ComposeTable, AColumnIsAsWideAsWhatIsInItAndSharesTheSurplus) {
   // Three columns of unequal content in a 300-wide table with no spacing:
   // each column starts at its widest child, and the 300 − 180 left over is

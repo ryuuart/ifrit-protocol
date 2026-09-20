@@ -318,7 +318,7 @@ every entry after it silently addresses the wrong one, taking another
 cell's span, alignment and origin, with no error and a picture that still
 looks plausible. `CellSpan::declared` is what a scheme reads to tell
 "cell (0,0)" from "wherever you like", so a table can flow the children
-that said nothing into the cells no child claimed. `Table` and
+that said nothing into the cells no child claimed. `layouts::Table` and
 `layouts::Grid` are placed entirely by it — the grid resolving a name to
 one first. Equal modules use repeated fractional tracks on both axes;
 placement stays on each child:
@@ -331,7 +331,7 @@ layout(layouts::Grid{
     .children({header().cells(0, 0, 2, 1), sidebar().cells(3, 0, 1, 3), body()});  // flows into the next unoccupied cell
 ```
 
-`Table` is the HTML automatic table layout: unequal columns
+`layouts::Table` is the HTML automatic table layout: unequal columns
 sized by what is in them, spans, and a surplus shared out in proportion.
 It is not a modular grid under another name and it goes through none of
 `geometry::arrange` — a module is one size repeated, and no column of a
@@ -349,7 +349,7 @@ the columns want, each gives up the same fraction of the distance between
 its two widths, so a column with nothing to give up gives nothing;
 narrower still and they stand at what they need and the table overflows,
 which is what a browser does rather than dropping content.
-`Table::declaredWidths` is the width the markup gave a column, where it
+`layouts::Table::declaredWidths` is the width the markup gave a column, where it
 gave one — a fixed column, out of both divisions, which what is in it can
 still widen, since no column is narrower than the narrowest thing in it.
 It is ONE `Dimension` per column, the same length the rest of the library is
@@ -361,15 +361,15 @@ only once the table's own width is known; the columns the markup left
 alone then divide what is left of that room by the auto rule above, and a
 percentage the content will not fit into is widened by the content
 exactly as a stated pixel width is.
-`Table::fit` is what the table does with room it does not need:
-`Table::Fit::Fill` shares the surplus, which is a table whose markup
-states a width, and `Table::Fit::Shrink` stops at the content, which is
+`layouts::Table::fit` is what the table does with room it does not need:
+`layouts::Table::Fit::Fill` shares the surplus, which is a table whose markup
+states a width, and `layouts::Table::Fit::Shrink` stops at the content, which is
 shrink-to-fit — a table whose markup states none.
 
 Rows take the first of those steps and deliberately not the second: the
 whole of a rowspan's height deficit lands on the LAST row it covers,
 because sharing it in proportion inflates the first row of every span and
-drags everything below it down the page. `Table::solve` hands the
+drags everything below it down the page. `layouts::Table::solve` hands the
 resolved column widths, row heights and origins back, so a study
 reproducing a published table can print what it resolved and diff it
 against what the original measured — numbers no placed rect carries,

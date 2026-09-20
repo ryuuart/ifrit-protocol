@@ -233,11 +233,11 @@ static void BM_Layout_Table_Resolve(benchmark::State& state) {
                            std::numeric_limits<float>::quiet_NaN());
   in.childAreas.resize(in.childSizes.size());
   in.childMinSizes = in.childSizes;
-  const Table table{.columns = kColumns,
-                    .rows = kRows,
-                    .width = 1200,
-                    .spacing = 2,
-                    .padding = 1};
+  const layouts::Table table{.columns = kColumns,
+                             .rows = kRows,
+                             .width = 1200,
+                             .spacing = 2,
+                             .padding = 1};
   for ([[maybe_unused]] auto iteration : state)
     benchmark::DoNotOptimize(table.place(in));
   state.counters["cells"] = (double)in.childSizes.size();

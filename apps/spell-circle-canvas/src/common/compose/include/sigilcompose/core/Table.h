@@ -16,7 +16,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace sigil::compose {
+namespace sigil::compose::layouts {
 
 /** THE AUTO TABLE: unequal columns sized by what is in them, spans, and a
  *  surplus shared out in proportion — the layout every HTML table has run
@@ -26,7 +26,7 @@ namespace sigil::compose {
  *  sits in them with `Element::cellAlign`. A child that says nothing flows
  *  into the next free cell, left to right and then down.
  *
- *      layout(Table{.width = 500, .spacing = 2, .padding = 1})
+ *      layout(layouts::Table{.width = 500, .spacing = 2, .padding = 1})
  *          .children({masthead().cells(0, 0, 5, 1).cellAlign(Align::End,
  *                                                        Align::Start)})
  *          .children({panel().cells(1, 0, 1, 2)})
@@ -328,4 +328,4 @@ struct Table {
   }
 };
 
-}  // namespace sigil::compose
+}  // namespace sigil::compose::layouts
