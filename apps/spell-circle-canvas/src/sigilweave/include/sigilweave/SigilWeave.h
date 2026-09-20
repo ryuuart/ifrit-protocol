@@ -65,8 +65,10 @@
  *  layout/LayoutOptions.h, layout/PositionedRun.h,
  *  layout/TextContext.h). */
 /** @defgroup weave-paint Painting & effects
- *  Draw-time appearance: paint layers and decoration bands (the
- *  PaintStyle half of style/Style.h; decoration/Decoration.h). */
+ *  Draw-time appearance: the two draws of a finished layout, the paint
+ *  layers a run is dressed in, and the decoration bands resolved
+ *  against the placed runs (paint/Paint.h, the PaintStyle half of
+ *  style/Style.h, decoration/Decoration.h). */
 /** @defgroup weave-query Query & markers
  *  Range search, selection as a value, and edit-following marker sets
  *  (query/Query.h, query/Selector.h). */

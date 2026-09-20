@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup weave-shaping
+ * @ingroup weave-paint
  *
  * The paint feature's face: the two draws of a finished layout as free
  * functions over the ParagraphLayout members — draw() one blob per run and
