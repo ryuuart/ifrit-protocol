@@ -14,7 +14,8 @@
 # <sigilio/IO.h> is the umbrella header for source and hub access.
 sigil_library_root(SigilIO
   BRIEF "Runtime resource access, byte transports and native frame sharing"
-  DOCS publish/README.md)
+  DOCS publish/README.md
+       reference/SOURCES.md reference/TRANSPORTS.md reference/TRAPS.md)
 
 # Dependencies point down this list.
 add_subdirectory(source)
@@ -30,7 +31,10 @@ sigil_library(SigilIO
   INTERFACE SigilIOSource SigilIOHub)
 
 # Every API name the prose spells, compiled against the headers that own
-# it. SigilImage's decode leaf is scanned and linked because the hub
+# it — the README, the publish feature's page and every chapter under
+# reference/, because a chapter is the same canon as the page that links
+# it, and the wires' whole vocabulary lives in one of them.
+# SigilImage's decode leaf is scanned and linked because the hub
 # links it publicly: the probe and encode names the walkthrough writes
 # are that library's, reached through this one.
 #
@@ -42,6 +46,9 @@ sigil_library(SigilIO
 sigil_doc_probes(io
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/publish/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/SOURCES.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRANSPORTS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../image/include/sigilimage
   PRELUDES "<sigilimage/asset/ImageAsset.h>"
            "<sigilimage/encode/Encode.h>"
