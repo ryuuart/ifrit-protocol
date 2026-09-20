@@ -15,6 +15,7 @@
 
 #include <filesystem>
 #include <future>
+#include <span>
 #include <string>
 
 namespace sigil::sketch {
@@ -54,6 +55,14 @@ class SharedWebEngineScope {
   void shutdown() {}
 };
 #endif
+
+/** THE PROCESS'S ONE LIST OF STOCK RECIPES, read from disk on the first
+ *  ask and held. The warm-up compiles this list, and a later pass walks
+ *  the same list to reach each compiled program — reading the
+ *  catalogues a second time would spend the disk again and, worse,
+ *  answer with recipes that are equal to the first lot without being
+ *  the same objects. */
+std::span<const sigil::material::Material> stockRecipes();
 
 /** THE STOCK MATERIALS, COMPILED BEFORE THE FIRST SKETCH DRAWS: the
  *  backend this host draws through, and then the material library's own

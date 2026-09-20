@@ -19,6 +19,8 @@ qt_add_executable(Sketchbook
   Workspace.cpp Workspace.h
   FrameLane.cpp FrameLane.h
   Keys.cpp Keys.h
+  PipelineStore.cpp PipelineStore.h
+  PipelineWarm.cpp PipelineWarm.h
   SketchbookRenderer.cpp SketchbookRenderer.h
   Startup.cpp Startup.h
   SweepLane.cpp SweepLane.h
@@ -107,7 +109,9 @@ target_link_libraries(Sketchbook PRIVATE
   Qt6::QuickDialogs2)
 
 sigil_test(sketch_test
-  SOURCES Arguments.cpp Workspace.cpp test/ArgumentsTest.cpp test/WorkspaceTest.cpp
+  SOURCES Arguments.cpp Workspace.cpp PipelineStore.cpp
+          test/ArgumentsTest.cpp test/WorkspaceTest.cpp
+          test/PipelineStoreTest.cpp
   LIBRARIES SigilSketch Qt6::Core)
 
 target_compile_definitions(Sketchbook PRIVATE
@@ -324,6 +328,21 @@ add_test(NAME sketch_window_orientation
     --work ${CMAKE_BINARY_DIR}/sketch_window_orientation)
 set_tests_properties(sketch_window_orientation PROPERTIES
   LABELS window TIMEOUT 300)
+
+# WHAT A SECOND OPEN NO LONGER BUILDS, which only a window can say. The
+# device program a draw waits for is built by the context behind the
+# presented canvas, so neither a still nor a headless sweep reaches it:
+# this opens the real window twice over one recorded set and reads the
+# tally each run closes with. A machine with no device behind the window
+# reports so and passes, having measured nothing.
+add_test(NAME sketch_pipeline_warmup
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/pipeline_warmup.py
+    --sketchbook $<TARGET_FILE:Sketchbook>
+    --sketch crt_bloom
+    --work ${CMAKE_BINARY_DIR}/sketch_pipeline_warmup)
+set_tests_properties(sketch_pipeline_warmup PROPERTIES
+  LABELS "window;gpu" TIMEOUT 300)
 
 # THE CATALOG SEAM, without a window. `--catalog` prints the browser's
 # rows as the model would hand them to QML, and the script asserts what

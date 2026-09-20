@@ -101,6 +101,8 @@
 
 #include "Arguments.h"
 #include "FrameLane.h"
+#include "PipelineStore.h"
+#include "PipelineWarm.h"
 #include "PythonEnvironment.h"
 #include "SketchActions.h"
 #include "SketchCatalog.h"
@@ -573,6 +575,15 @@ int main(int argc, char* argv[]) {
     history.remember({args.workspace, args.sketchFile});
 
   finishMaterialWarmup(materialWarmup);
+  // AND THE SECOND COMPILE, DECLARED BEFORE ANYTHING CAN DRAW. The
+  // warm-up above turns each stock recipe's SkSL into a program; a
+  // device builds a further program per distinct DRAW, out of the whole
+  // inlined paint tree, and the thread that records the draw waits for
+  // it. Which of those a run needed can be written down and stood up at
+  // the next launch — but only for a paint tree whose runtime effects
+  // were declared before the context was created, which is here: the
+  // window's context is made on the render thread, after this.
+  openPipelineWarmup(pipelines::storeDirectory());
 
   QQmlApplicationEngine engine;
   QObject::connect(
@@ -645,5 +656,10 @@ int main(int argc, char* argv[]) {
   }
   sharedWebEngine.shutdown();
   releaseDevice();
+  // Last, because the set written down is everything this run's draws
+  // needed: the canvas's own context goes with the item above, and a
+  // program it built on the way out belongs in the file as much as one
+  // built on the way in.
+  finishPipelineWarmup();
   return status;
 }

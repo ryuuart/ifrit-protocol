@@ -12,6 +12,7 @@
 #include <QtCore/QSizeF>
 #include <QtQuick/QQuickRhiItem>
 #include <cstdint>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -81,6 +82,19 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
 #ifdef SIGILSKETCH_BOOK_GPU
   bool readbackGraphite(SkSurface& surface, const SkPixmap& out);
   std::unique_ptr<sigil::skia::GraphiteContext> m_graphiteContext;
+  /** THE DEVICE PROGRAMS STOOD UP BEFORE THE FIRST SKETCH DRAWS, off
+   *  this thread — building one costs exactly what waiting for it
+   *  would, which is the whole point of not doing it here. Kicked once
+   *  the context exists, because it precompiles through that context;
+   *  waited for before the context is let go, and declared after it so
+   *  this is the first of the two to be destroyed. */
+  std::future<void> m_pipelineWarmup;
+  /** HOW MANY FRAMES THE CANVAS STAYS EMPTY waiting for that warm-up,
+   *  and how many it has stayed. Long enough for a recorded set to be
+   *  rebuilt, which is what the frame after it wants; short enough that
+   *  a warm-up gone wrong is a late sketch rather than no sketch. */
+  static constexpr int kFramesHeldForWarmup = 120;
+  int m_framesHeldForWarmup = 0;
   /** Kept alive for the length of a capture: the fence the still on a
    *  device is described through. */
   std::unique_ptr<sigil::skia::PaintOrderCanvas> m_captureCanvas;

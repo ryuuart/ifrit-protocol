@@ -29,11 +29,21 @@
 #include <cstdio>
 #include <memory>
 #include <system_error>
+#include <vector>
 
 namespace sketch = sigil::sketch;
 
+std::span<const sigil::material::Material> stockRecipes() {
+  // Leaked deliberately, as the font context is: the recipes hold
+  // Skia-backed programs, and a static destructor racing Skia teardown
+  // is a class of crash worth not having.
+  static const auto* recipes = new std::vector<sigil::material::Material>(
+      sigil::material::stock::everyRecipe());
+  return *recipes;
+}
+
 sigil::material::WarmupResult warmStockMaterials() {
-  return sigil::material::skia::warmup(sigil::material::stock::everyRecipe());
+  return sigil::material::skia::warmup(stockRecipes());
 }
 
 void finishMaterialWarmup(std::future<sigil::material::WarmupResult>& loading) {

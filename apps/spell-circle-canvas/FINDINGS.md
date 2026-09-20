@@ -317,30 +317,60 @@ render thread. A test should open a sketch in the window lane and assert
 no frame after the settled moment exceeds the frame budget by the
 encode's cost, and that the thumbnail still lands.
 
-## Opening a sketch builds its effect pipelines on the render thread
+## A sketch's first frame still waits for the programs a chain of stages needs
 
-Graphite creates a Metal graphics pipeline the first time each distinct
-draw appears, and `DrawPass::prepareResources` waits for the creation
-task on `QSGRenderThread`. A sketch whose root carries a chain of
-runtime-shader and runtime-colour-filter stages — the MAGI studies'
-bloom and CRT are about a dozen — pays one pipeline per stage on its
-first frame: profiling `eva_magi_deliberation` opening in the window
-shows the render thread stalled under `MtlGraphicsPipeline::Make` for
-several hundred milliseconds in the first half second, while the
-sketch's own `Composer::draw` costs about a millisecond and the scene
-then caches to a texture. Metal serves already-compiled shaders from its
-disk cache, so the stall is shorter on a second open and longest after
-any edit to a shader, which is every edit during effect work. The
-startup warm-up (`warmStockMaterials`) compiles each stock recipe's
-SkSL, which is not the pipeline.
+Sketchbook now stands its device programs up before the canvas draws:
+every stock body is declared before the first Graphite context exists,
+the programs a run builds are written down under the platform cache
+location with the descriptions they were built under, and the next
+launch replays that set on a worker while the canvas holds its frames.
+Opening `crt_bloom` in the window twice over one store takes the
+programs a draw builds from nine to one, which `sketch_pipeline_warmup`
+asserts.
 
-The pipelines a sketch's effects need should be built before its first
-frame and off the render thread. Graphite ships `PrecompileContext` for
-exactly this, and `ContextOptions` can report each pipeline's key as it
-is created so a later launch precompiles the set; the material warm-up
-is the seam it belongs beside, and a stock effect stack — the bloom's
-stages, the CRT — should be part of what it warms. A test should open a
-sketch twice in one process and assert that the second open's first
-frame carries no pipeline creation, and that precompiling a recorded
-key set before the first open removes the stall from it too.
+What is left is the FIRST open on a machine, which is still the one an
+effect pass does after every shader edit. Nothing can be replayed then,
+and what stands up instead is only the effect bodies that declare no
+child: a described paint is expanded into every combination it allows,
+so offering a child as an image makes a two-child body hundreds of
+programs — the device is asked to hold hundreds it may never draw, the
+driver stops compiling once its compiled variants no longer fit, and the
+warm-up never returns. A composed stack, which is what the MAGI studies
+wear and what costs the most, cannot be described ahead at all: the
+backend inlines the whole chain into one program and which chain a
+sketch wears is not known until the sketch has been read.
 
+Two routes are worth trying, and neither was. A sketch declares what it
+draws before it draws it, so the host could describe the stacks a
+SELECTED sketch wears — from its own description rather than from the
+catalogue — and precompile those, which is the only way to reach a
+composed program ahead of its first frame. And the sweep and `--frame`
+lanes neither declare nor record, because their device context is
+created before the material warm-up joins; a batch run has no frame
+anyone watches, but it draws the same programs, and letting it fill the
+store would make the first interactive open of a machine the cheap one.
+
+A test should open a sketch in the window with a cold store and assert
+that the stack's programs are standing before its first frame, and that
+a headless run of the same sketch leaves a store the window run then
+replays.
+
+## Replaying a recorded pipeline key walks a null name
+
+`PrecompileContext::precompile` builds the program a serialised key
+names, and the key names the pieces that program is inlined out of by
+number. A piece the reading run cannot put a name to is not refused: the
+generator reads the name anyway and walks a null string, which is a
+segmentation fault inside `ShaderInfo::generateFragmentSkSL`. The pieces
+this reaches are the backend's own — Skia's `$1DBlur16` and its
+neighbours are made on first use — so a key recorded by a run whose
+draws made one is a crash in a run whose draws have not yet, which is
+every second launch of a sketch that blurs.
+
+`src/sketch/book/PipelineWarm.cpp` works around it by keeping each key's
+description beside it and reading the description back before replaying:
+a piece with no name reads back as a hole, the description differs, and
+the key is dropped. It carries a `workaround:` marker. The fix belongs
+upstream — `precompile` should refuse a key it cannot resolve — and a
+test should assert that a key naming an unmade piece comes back false
+rather than taking the process down.

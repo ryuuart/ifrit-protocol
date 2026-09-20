@@ -8,6 +8,7 @@
 
 #ifdef SIGILSKETCH_BOOK_GPU
 #include <include/gpu/graphite/Context.h>
+#include <include/gpu/graphite/PrecompileContext.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
@@ -42,11 +43,13 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <future>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <utility>
 
+#include "PipelineWarm.h"
 #include "SketchCatalog.h"
 #include "SketchbookView.h"
 
@@ -98,6 +101,9 @@ void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   SketchbookView::sessions.clear();
   SketchbookView::host = nullptr;
 #ifdef SIGILSKETCH_BOOK_GPU
+  // …and the warm-up goes before the context too: it is precompiling
+  // through the very context below, on another thread.
+  if (m_pipelineWarmup.valid()) m_pipelineWarmup.wait();
   m_graphiteContext.reset();
   // Metal only: the Vulkan adapter does not yet hand the image's final
   // layout back to QRhi's state tracker, so Qt's later sampling of it
@@ -105,6 +111,25 @@ void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   if (currentRhi && currentRhi->backend() == QRhi::Metal)
     m_graphiteContext = sigil::skia::createGraphiteContext(currentRhi);
   g_backend.store(m_graphiteContext ? 1 : 2);
+  // THE PROGRAMS THE FIRST SKETCH WOULD OTHERWISE WAIT FOR. Here and
+  // not at startup, because the warm-up precompiles THROUGH a context
+  // and this is where the window's first exists; on a worker, because
+  // building a program costs on this thread exactly what waiting for it
+  // does, which is what the warm-up is for.
+  //
+  // What crosses to the worker is the helper and a name, both taken
+  // HERE: the context belongs to this thread, and a warm-up reaching
+  // for it from another would be two threads inside one context. The
+  // helper holds the context's shared half and is made to be spent
+  // elsewhere.
+  if (m_graphiteContext && m_graphiteContext->context()) {
+    std::unique_ptr<skgpu::graphite::PrecompileContext> precompile =
+        m_graphiteContext->makePrecompileContext();
+    if (precompile)
+      m_pipelineWarmup = std::async(
+          std::launch::async, warmStockPipelines, std::move(precompile),
+          graphiteBackendName(*m_graphiteContext->context()));
+  }
 #else
   g_backend.store(2);
 #endif
@@ -638,6 +663,30 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
     update();
     return;
   }
+#ifdef SIGILSKETCH_BOOK_GPU
+  // NOTHING IS DRAWN UNTIL THE PROGRAMS ARE STANDING. Standing them up
+  // on a worker only helps a frame that waits for it: a first frame
+  // recorded beside the warm-up asks for the very programs it is
+  // building and builds them itself, which is the stall moved rather
+  // than removed. So the frame is SKIPPED rather than blocked — this
+  // thread stays free, Qt presents what it already has, and the next
+  // frame asks again.
+  //
+  // Bounded, because a canvas that never draws is worse than a hitch:
+  // past the hold the sketch is drawn and pays for its own programs.
+  if (m_pipelineWarmup.valid()) {
+    using namespace std::chrono_literals;
+    if (m_pipelineWarmup.wait_for(0s) == std::future_status::ready)
+      // Dropped rather than got: a warm-up that threw is a warm-up that
+      // did not happen, and rethrowing it here would end the frame loop
+      // over a hitch.
+      m_pipelineWarmup = std::future<void>();
+    else if (++m_framesHeldForWarmup <= kFramesHeldForWarmup) {
+      update();
+      return;
+    }
+  }
+#endif
   if (m_publishing && !m_publisher) startPublishing();
   if (!m_publishing && m_publisher) stopPublishing();
 

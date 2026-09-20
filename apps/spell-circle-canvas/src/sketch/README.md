@@ -831,9 +831,50 @@ The device program a draw runs through is a second compile, built per distinct
 draw out of the whole inlined paint tree, and warming the SkSL does not reach
 it. Every Graphite context is given a thread pool to build those programs on,
 so the stages of a scene wearing a chain of effects are built beside each
-other rather than one after another — but they are still built when the draw
-that needs them is first recorded, so the first frame of such a scene waits
-for the slowest of them. Nothing yet stands them up ahead of that frame.
+other rather than one after another, and the window's canvas stands them up
+before its first frame rather than inside it.
+
+**Which programs a launch stands up is what the last launch needed.** As the
+app comes up, and before any Graphite context exists, it declares every SkSL
+body the effects are made of and every stock recipe's program to SigilSkia —
+the precondition for a program built over one of them having a name that
+survives the run. Every program the run then builds is recorded, with the key
+that rebuilds it and the description it was built under, and written at exit
+under the platform cache location beside the thumbnails
+(`Sketchbook/pipelines/<digest>.keys`; `SIGIL_SKETCHBOOK_PIPELINES` names
+another). The digest is over the declared bodies, in the order they were
+declared, and the backend's name: an edited shader, a recipe added or a
+different device is a different file rather than a set of keys describing
+other programs. The next launch replays that set on a worker as soon as the
+canvas's context exists, and **the canvas draws nothing until it lands** —
+skipping frames rather than blocking the thread that presents, and for a
+bounded number of them, because a warm-up gone wrong must be a late sketch
+and not an empty one. A first frame recorded beside the warm-up would ask for
+the very programs it is building, which is the stall moved rather than
+removed.
+
+A key is replayed only if its description still reads back the same. A key
+names the pieces a program is inlined out of by number, and a piece the
+reading run cannot yet put a name to reads back as a hole — the backend makes
+its own blur and lighting pieces on first use, so a key recorded after a draw
+that made one is unreadable by a run where nothing has. Such a key is dropped
+and its program is built when a draw asks for it, which is one program rather
+than a walk off the end of a name.
+
+With no set to replay — a fresh machine, an edited shader, a Skia that no
+longer reads the keys — the same worker stands up the effects' own bodies as
+stages instead, and only those that declare no child: a described paint is
+expanded into every combination it allows, so a body with two children is
+hundreds of programs a device is asked to hold and a driver that stops
+compiling. That reaches a stage drawn alone; it cannot reach a STACK, because
+a backend inlines a whole chain into one program and which chains a sketch
+wears is not known before the sketch is read. Those are built as the draws
+ask for them, and recorded, which is what makes the second launch the cheap
+one. Each run says on stderr what it spent: how many programs it built for a
+draw, how many it stood up ahead of one, how many draws found a program
+already standing, and how many keys it wrote.
+`SIGIL_SKETCHBOOK_PIPELINE_NAMES` adds one line per program, naming it, which
+is how to see which program a first frame still had to build.
 
 `--video-frames` changes each sketch's share of the edit, `--video-size`
 changes the even output dimensions, `--video-bitrate` sets H.264 bits per
