@@ -34,6 +34,13 @@ TEST(DataSchemaHeader, TheTokenConvertsWithNothingOfTheReaderInReach) {
   const std::optional<std::vector<std::byte>> buffer =
       sheet.binary(R"({"readings": [{"name": "a", "value": 2.5}]})");
   ASSERT_TRUE(buffer.has_value());
+  // The check the conversions make, asked on its own: what a holder
+  // that keeps the bytes proves once instead of converting them.
+  EXPECT_TRUE(sheet.verifies(*buffer));
+  why.clear();
+  EXPECT_FALSE(sheet.verifies(std::span<const std::byte>(*buffer).first(4),
+                              &why));
+  EXPECT_FALSE(why.empty());
   const std::optional<std::string> form = sheet.text(*buffer);
   ASSERT_TRUE(form.has_value());
   EXPECT_NE(std::string::npos, form->find("\"name\""));

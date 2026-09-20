@@ -75,22 +75,32 @@ Schema Schema::fromBinarySchema(std::span<const std::byte> bfbs,
   return made;
 }
 
-std::optional<std::string> Schema::text(std::span<const std::byte> binary,
-                                        std::string* why) const {
+bool Schema::verifies(std::span<const std::byte> binary,
+                      std::string* why) const {
   if (!m_state) {
-    if (why) *why = "there is no schema to read the buffer through";
-    return std::nullopt;
+    if (why) *why = "there is no schema to verify the buffer against";
+    return false;
   }
   if (binary.empty()) {
     if (why) *why = "no bytes are no buffer";
-    return std::nullopt;
+    return false;
   }
-  const auto* first = reinterpret_cast<const uint8_t*>(binary.data());
-  if (!flatbuffers::Verify(*m_state->reflected, *m_state->root, first,
+  // The verifier walks the reflected schema and the bytes alone, so it
+  // takes nothing of the parser and no lock: several doors verify at
+  // once through one token.
+  if (!flatbuffers::Verify(*m_state->reflected, *m_state->root,
+                           reinterpret_cast<const uint8_t*>(binary.data()),
                            binary.size())) {
     if (why) *why = "the bytes do not verify as " + m_state->rootName;
-    return std::nullopt;
+    return false;
   }
+  return true;
+}
+
+std::optional<std::string> Schema::text(std::span<const std::byte> binary,
+                                        std::string* why) const {
+  if (!verifies(binary, why)) return std::nullopt;
+  const auto* first = reinterpret_cast<const uint8_t*>(binary.data());
   std::string form;
   const std::lock_guard<std::mutex> held(m_state->lock);
   if (const char* trouble =

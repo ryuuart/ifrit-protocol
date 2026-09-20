@@ -27,7 +27,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
-| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Schema.h`, `decode/Osc.h`, `decode/Midi.h`, `decode/ArtNet.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; `Schema`, `Schema::fromBinarySchema()` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once and names nothing of the reader under it; `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one; `decodeMidi()` and `encodeMidi()` — one MIDI message read into that same value, its kind, its channel and the fields that kind carries, and written back out of one; and `decodeArtNet()` and `encodeArtNet()` — one Art-Net packet read into that same value, the universe of dimmers a lighting desk sends and the three other forms its wire carries, and written back out of one |
+| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Schema.h`, `decode/Osc.h`, `decode/Midi.h`, `decode/ArtNet.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; `SchemaBuffer`, `SchemaBufferDecoder`, `schemaBufferFromBytes()`, `schemaBufferFromJson()` and `registerSchemaBuffer(hub, schema)` — the same bytes where a schema names the root and no generated header does, read back as the schema's own JSON form; `Schema`, `Schema::fromBinarySchema()`, `Schema::verifies()` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once, says whether bytes are that root at all, and names nothing of the reader under it; `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one; `decodeMidi()` and `encodeMidi()` — one MIDI message read into that same value, its kind, its channel and the fields that kind carries, and written back out of one; and `decodeArtNet()` and `encodeArtNet()` — one Art-Net packet read into that same value, the universe of dimmers a lighting desk sends and the three other forms its wire carries, and written back out of one |
 | `SigilDataValues` | `values/Values.h` | `rootOf()`, `bytesOf()`, `readString()`, `readStrings()`, `readScalars()`, `readBools()`, `readEach()`, `readEachOrNone()`, `writeString()`, `writeStrings()`, `writeScalars()`, `writeBools()`, `writeStructs()` and `writeEach()` — what a generated value header stands on: a string, a vector and a struct read out of a buffer into standard types and written back through a builder, with the one place a whole buffer is verified |
 | `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken once it has asked for them, the handlers a message's name reaches and the `Connection::otherwise()` one that runs when no name did, the two ways a message goes back out the same door, the schema a door may read and write every message through, and `Connection::reply()`, which answers the sender of one |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Access`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, whose `writes()` says whether a statement would change the store before it runs, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub for reading only |
@@ -257,13 +257,29 @@ otherwise from its first byte that is not a space. `flatBufferFromBytes()` and
 `flatBufferFromJson()` are the same two readings for a caller holding bytes of
 its own, with the parser's own message where they refuse.
 
+**A buffer whose root only a schema names is a value too.** Where the
+generated header is out of reach — a tool handed a `.bfbs`, a process
+that compiles no header at all — `SchemaBuffer` is the same bytes
+carrying the schema they were verified against, and `SchemaBuffer::text()`
+answers the schema's own JSON form, which is how a holder with no
+generated accessor reads a field. `schemaBufferFromBytes()` and
+`schemaBufferFromJson()` are its two readings, refusing with the same
+messages, and `registerSchemaBuffer(hub, schema)` makes
+`hub.load<SchemaBuffer>(uri)` answer for a file in either form. Two of
+them are the same value when their bytes are and their schemas name one
+root. A hub keeps one decoder per type and a `SchemaBuffer` is one type
+however many schemas there are, so registering a second schema replaces
+the one later asks are read through.
+
 **A schema is one token.** `schema<Root>()` is the schema itself as a
 value: the binary schema the generated header carries, read once and
 held behind a shared pointer, so copying it costs a pointer and every
 copy is the same schema. `Schema::text()` answers a buffer's own JSON
 form, verified against the root before a byte of it is read, and
 `Schema::binary()` answers the buffer that form makes, refusing text the
-schema cannot hold; `Schema::rootName()` says which root both go
+schema cannot hold; `Schema::verifies()` is the check both of them make,
+for a holder that keeps the bytes and wants them proved once rather than
+converted whole to prove them; `Schema::rootName()` says which root both go
 through, which is the root the schema FILE declares rather than the type
 the token was spelled with, a generated header embedding its file's
 whole schema beside every type in it. That is what lets the root be

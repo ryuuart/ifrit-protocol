@@ -1,7 +1,8 @@
 /** The FlatBuffer decoder: a FlatBuffer read in place once verified, the
  *  schema's own JSON form converted through the schema the generated
  *  root carries, the same schema made out of a binary schema's own
- *  bytes, and a hub answering either form for a file. */
+ *  bytes, the runtime buffer a holder with no generated root carries
+ *  instead, and a hub answering either form for a file. */
 
 #include <gtest/gtest.h>
 #include <sigildata/decode/FlatBuffer.h>
@@ -21,8 +22,12 @@ using sigil::data::FlatBuffer;
 using sigil::data::flatBufferFromBytes;
 using sigil::data::flatBufferFromJson;
 using sigil::data::registerFlatBuffer;
+using sigil::data::registerSchemaBuffer;
 using sigil::data::Schema;
 using sigil::data::schema;
+using sigil::data::SchemaBuffer;
+using sigil::data::schemaBufferFromBytes;
+using sigil::data::schemaBufferFromJson;
 using sigil::test::ScratchDir;
 
 namespace {
@@ -36,6 +41,14 @@ std::vector<uint8_t> sheet() {
   builder.Finish(flatbuffer_test::CreateSheetDirect(builder, &rows));
   return {builder.GetBufferPointer(),
           builder.GetBufferPointer() + builder.GetSize()};
+}
+
+/** The same sheet as the bytes a schema reads: what a wire hands a
+ *  holder that names no generated type. */
+std::vector<std::byte> sheetBytes() {
+  const std::vector<uint8_t> raw = sheet();
+  const auto* first = reinterpret_cast<const std::byte*>(raw.data());
+  return {first, first + raw.size()};
 }
 
 TEST(DataFlatBuffer, ABufferIsReadInPlaceOnceVerified) {
@@ -132,6 +145,76 @@ TEST(DataFlatBuffer, AHubAnswersAFileInEitherForm) {
   EXPECT_EQ(
       fromJson.get(),
       hub.load<FlatBuffer<flatbuffer_test::Sheet>>("res://sheet.json").get());
+}
+
+TEST(DataSchemaBuffer, TheBytesAreVerifiedAgainstTheSchemaAndReadThroughIt) {
+  const Schema sheetSchema = schema<flatbuffer_test::Sheet>();
+  const std::vector<std::byte> bytes = sheetBytes();
+
+  const std::optional<SchemaBuffer> held =
+      schemaBufferFromBytes(sheetSchema, bytes);
+  ASSERT_TRUE(held);
+  EXPECT_EQ(bytes.size(), held->bytes().size());
+  EXPECT_EQ("flatbuffer_test.Sheet", held->schema().rootName());
+  // A field is read by name out of the schema's own form, there being
+  // no generated accessor for a holder that got here with a schema.
+  const std::optional<std::string> form = held->text();
+  ASSERT_TRUE(form.has_value());
+  EXPECT_NE(std::string::npos, form->find("\"name\""));
+  EXPECT_NE(std::string::npos, form->find("2.5"));
+  // The same bytes read through a schema of the same root are the same
+  // value, however that schema was made; other bytes are not.
+  const std::optional<SchemaBuffer> again = schemaBufferFromBytes(
+      Schema::fromBinarySchema(
+          {reinterpret_cast<const std::byte*>(
+               flatbuffer_test::Sheet::BinarySchema::data()),
+           flatbuffer_test::Sheet::BinarySchema::size()}),
+      bytes);
+  ASSERT_TRUE(again);
+  EXPECT_TRUE(*held == *again);
+  const std::optional<SchemaBuffer> other = schemaBufferFromJson(
+      sheetSchema, R"({"readings": [{"name": "a", "value": 2.5}]})");
+  ASSERT_TRUE(other);
+  EXPECT_FALSE(*held == *other);
+
+  // A buffer cut short is refused before any of it is read, and so are
+  // bytes held against a schema that is none.
+  std::string why;
+  EXPECT_FALSE(schemaBufferFromBytes(
+      sheetSchema, std::span<const std::byte>(bytes).first(bytes.size() / 2),
+      &why));
+  EXPECT_FALSE(why.empty());
+  why.clear();
+  EXPECT_FALSE(schemaBufferFromBytes(Schema{}, bytes, &why));
+  EXPECT_FALSE(why.empty());
+  // Text the schema cannot hold is no buffer, with the reader's own
+  // message naming what it found.
+  why.clear();
+  EXPECT_FALSE(schemaBufferFromJson(
+      sheetSchema, R"({"readings": [{"name": "a", "value": "tall"}]})", &why));
+  EXPECT_NE(std::string::npos, why.find("tall"));
+}
+
+TEST(DataSchemaBuffer, AHubAnswersAFileInEitherFormWithNoGeneratedRoot) {
+  const ScratchDir scratch("data_schema_hub");
+  scratch.write("sheet.json", R"({"readings": [{"name": "a", "value": 2.5}]})");
+  const std::vector<uint8_t> raw = sheet();
+  scratch.write("sheet.bin", std::string(raw.begin(), raw.end()));
+
+  sigil::io::Hub hub;
+  hub.mount("res://", scratch.path);
+  registerSchemaBuffer(hub, schema<flatbuffer_test::Sheet>());
+  const std::shared_ptr<const SchemaBuffer> fromJson =
+      hub.load<SchemaBuffer>("res://sheet.json");
+  const std::shared_ptr<const SchemaBuffer> fromBytes =
+      hub.load<SchemaBuffer>("res://sheet.bin");
+  ASSERT_TRUE(fromJson);
+  ASSERT_TRUE(fromBytes);
+  EXPECT_NE(std::string::npos, fromJson->text()->find("2.5"));
+  EXPECT_NE(std::string::npos, fromBytes->text()->find("\"c\""));
+  EXPECT_EQ(raw.size(), fromBytes->bytes().size());
+  // One view per resource: a second ask is the same decoded value.
+  EXPECT_EQ(fromJson.get(), hub.load<SchemaBuffer>("res://sheet.json").get());
 }
 
 }  // namespace

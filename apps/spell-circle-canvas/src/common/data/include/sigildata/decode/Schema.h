@@ -85,6 +85,15 @@ class Schema {
   /** Whether this is a schema at all. */
   explicit operator bool() const { return m_state != nullptr; }
 
+  /** WHETHER @p binary IS THE ROOT: the check both conversions make,
+   *  for a holder that wants the answer and not the reading. False for
+   *  a buffer of another schema, one cut short, and for a schema that
+   *  is none; @p why says which where it is asked for. So bytes that
+   *  are kept and read field by field later are proved once, here,
+   *  rather than converted whole to prove them. */
+  bool verifies(std::span<const std::byte> binary,
+                std::string* why = nullptr) const;
+
   /** THE BUFFER IN @p binary AS THE SCHEMA'S OWN JSON FORM. The bytes
    *  are verified against the root first, so a buffer of another
    *  schema, or one cut short, answers nothing rather than a reading of
