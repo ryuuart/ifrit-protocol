@@ -215,6 +215,53 @@ KIT = """<?xml version='1.0' encoding='UTF-8' standalone='no'?>
 </doxygen>
 """
 
+# A verb family the node inherits instead of declaring: a class template
+# over the value that inherits it, whose one member hands that value
+# back. `Tree.inherit_the_edges()` lays it down, with a Brush that names
+# it as a base; the tree every other case reads does without it.
+EDGES = """<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen version="1.18.0">
+  <compounddef id="classsigil_1_1paint_1_1_edge_verbs" kind="class" prot="public">
+    <compoundname>sigil::paint::EdgeVerbs</compoundname>
+    <templateparamlist>
+      <param><type>class Derived</type></param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classsigil_1_1paint_1_1_edge_verbs_1aff" prot="public"
+                 static="no" const="no" explicit="no">
+        <type>Derived &amp;</type>
+        <definition>Derived &amp; sigil::paint::EdgeVerbs&lt; Derived &gt;::soften</definition>
+        <argsstring>(float amount)</argsstring>
+        <name>soften</name>
+        <qualifiedname>sigil::paint::EdgeVerbs::soften</qualifiedname>
+        <param><type>float</type><declname>amount</declname></param>
+        <briefdescription><para>How far the edge of the mark bleeds. </para></briefdescription>
+        <detaileddescription/>
+        <location file="sigilpaint/verbs/Edge.h" line="14"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-func">
+      <memberdef kind="function" id="classsigil_1_1paint_1_1_edge_verbs_1a00" prot="private"
+                 static="no" const="no" explicit="no">
+        <type>Derived &amp;</type>
+        <definition>Derived &amp; sigil::paint::EdgeVerbs&lt; Derived &gt;::self</definition>
+        <argsstring>()</argsstring>
+        <name>self</name>
+        <qualifiedname>sigil::paint::EdgeVerbs::self</qualifiedname>
+        <briefdescription/><detaileddescription/>
+        <location file="sigilpaint/verbs/Edge.h" line="18"/>
+      </memberdef>
+    </sectiondef>
+    <location file="sigilpaint/verbs/Edge.h" line="10"/>
+  </compounddef>
+</doxygen>
+"""
+
+EDGES_BASE = """    <compoundname>sigil::paint::Brush</compoundname>
+    <basecompoundref refid="classsigil_1_1paint_1_1_edge_verbs" prot="public"
+                     virt="non-virtual">sigil::paint::EdgeVerbs&lt; Brush &gt;</basecompoundref>
+"""
+
 INDEX = """<?xml version='1.0' encoding='UTF-8' standalone='no'?>
 <doxygenindex version="1.18.0"/>
 """
@@ -437,6 +484,16 @@ class Tree(unittest.TestCase):
         sources.mkdir()
         (sources / "PaintBindings.cpp").write_text(textwrap.dedent(BINDING))
         self.sources = [sources]
+
+    def inherit_the_edges(self) -> None:
+        """The Brush takes one of its verbs from a mixin over itself."""
+        xml = self.root / "work" / "SigilPaint" / "xml"
+        (xml / "classsigil_1_1paint_1_1_edge_verbs.xml").write_text(EDGES)
+        (xml / "classsigil_1_1paint_1_1_brush.xml").write_text(
+            COMPOUND.replace(
+                "    <compoundname>sigil::paint::Brush</compoundname>\n", EDGES_BASE
+            )
+        )
 
     def catalogue(self, node: bool = False):
         from sigil.reference import bindings, catalogue, doxygen_xml, python_stubs

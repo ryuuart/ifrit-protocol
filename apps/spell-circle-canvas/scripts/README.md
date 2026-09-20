@@ -104,9 +104,9 @@ less still emits a translation unit that compiles green.
 The reference generator keeps fixtures of the same shape and for the
 same reason, under `scripts/sigil/reference/test/` as one ctest entry,
 `reference_generator`: a small tree carrying every shape its three
-readers have to handle — a node type with verbs, a factory, a kit
-component, two values with one converting to the other, an
-enumeration, a role union, a name two namespaces share, a convenience
+readers have to handle — a node type with verbs, one of them inherited
+from a mixin over the node, a factory, a kit component, two values with
+one converting to the other, an enumeration, a role union, a name two namespaces share, a convenience
 Python has and C++ has not, a binding chain whose lambda bodies must
 not cut the chain, and a public Python name that renames the native
 one — and one whole run over that tree into a temporary root, so the

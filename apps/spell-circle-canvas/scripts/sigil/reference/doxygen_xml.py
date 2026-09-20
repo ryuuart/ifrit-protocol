@@ -10,6 +10,8 @@ Nothing here decides what a page says. It decides what exists, what
 shape it has, and which other declarations each type mentions.
 """
 
+import copy
+import dataclasses
 import re
 from pathlib import Path
 from xml.etree import ElementTree
@@ -106,6 +108,26 @@ def describe(node) -> str:
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
+def template_arguments(spelling: str) -> list:
+    """The arguments of `Base< A, B >` as written, outermost level only."""
+    opening = spelling.find("<")
+    closing = spelling.rfind(">")
+    if opening < 0 or closing < opening:
+        return []
+    found, depth, current = [], 0, ""
+    for character in spelling[opening + 1 : closing]:
+        if character == "," and depth == 0:
+            found.append(current.strip())
+            current = ""
+            continue
+        depth += character == "<"
+        depth -= character == ">"
+        current += character
+    if current.strip():
+        found.append(current.strip())
+    return found
+
+
 def parameters_of(node) -> list:
     found = []
     for param in node.findall("param"):
@@ -167,6 +189,37 @@ class Declaration:
         head = self.compound_refid + ANCHOR_SEPARATOR
         return self.refid[len(head) :] if self.refid.startswith(head) else ""
 
+    def inherited_by(self, inheritor, parameter: str):
+        """This member of a mixin, as the class that inherits it has it.
+
+        The name and the owner become the inheritor's and the template
+        parameter becomes the inheritor wherever a type spells it. The
+        identifier, the compound and the location stay the mixin's:
+        that is the page Doxygen wrote the member on and the header it
+        is declared in.
+        """
+        simple = inheritor.name.rsplit("::", 1)[-1]
+        spelled = re.compile(rf"\b{re.escape(parameter)}\b")
+
+        def stated(text: str, refs: tuple) -> tuple:
+            if not spelled.search(text):
+                return text, refs
+            if inheritor.refid not in refs:
+                refs = refs + (inheritor.refid,)
+            return spelled.sub(simple, text), refs
+
+        taken = copy.copy(self)
+        taken.owner = inheritor.name
+        taken.qualified = f"{inheritor.name}::{self.name}"
+        taken.returns, taken.return_refs = stated(self.returns, self.return_refs)
+        taken.parameters = []
+        for parameter_of in self.parameters:
+            text, refs = stated(parameter_of.type_text, parameter_of.type_refs)
+            taken.parameters.append(
+                dataclasses.replace(parameter_of, type_text=text, type_refs=refs)
+            )
+        return taken
+
     def qualifiers(self) -> str:
         return "const" if self.constant else ""
 
@@ -198,6 +251,17 @@ class Compound:
             for base in self.element.findall("basecompoundref")
             if base.text
         ]
+        # The same bases by Doxygen's identifier, each with the template
+        # arguments it was written with.
+        self.base_references = [
+            (base.get("refid", ""), template_arguments(base.text or ""))
+            for base in self.element.findall("basecompoundref")
+        ]
+        self.template_parameters = [
+            (text_of(param.find("declname")) or text_of(param.find("type"))).split()[-1]
+            for param in self.element.findall("templateparamlist/param")
+            if text_of(param.find("declname")) or text_of(param.find("type"))
+        ]
         self.declarations = [
             Declaration(member, self.refid, self.name)
             for section in self.element.findall("sectiondef")
@@ -227,6 +291,7 @@ class Inventory:
         self.node_refid = ""
         self.namespace = ""
         self._read()
+        self._inherit_mixins()
         self._find_node()
         self._find_namespace()
 
@@ -251,6 +316,45 @@ class Inventory:
                 # file that declares it; the first spelling is the one
                 # with the enclosing scope on it.
                 self.declarations.setdefault(declaration.refid, declaration)
+
+    def _inherit_mixins(self) -> None:
+        """A class that inherits a mixin over itself declares its members.
+
+        `class Element : public BoxVerbs<Element>` writes `width` on
+        `BoxVerbs` and means it on `Element`: the member hands back the
+        template parameter, and the parameter is the inheritor. So the
+        inheritor takes every public member of such a base as its own,
+        and the base stops being a type of the library — nothing takes a
+        mixin and nothing hands one back, so a page about one would
+        answer a question nobody asks.
+
+        Where several classes inherit one mixin, the first in the
+        inventory's order holds the member's identifier; the others
+        still list it among their own.
+        """
+        mixins = set()
+        for compound in self.compounds.values():
+            if compound.kind not in COMPOUND_TYPES:
+                continue
+            itself = (compound.name, compound.name.rsplit("::", 1)[-1])
+            for refid, arguments in compound.base_references:
+                base = self.compounds.get(refid)
+                if base is None or base is compound:
+                    continue
+                if len(base.template_parameters) != 1 or len(arguments) != 1:
+                    continue
+                if arguments[0] not in itself:
+                    continue
+                mixins.add(refid)
+                for declaration in base.declarations:
+                    taken = declaration.inherited_by(
+                        compound, base.template_parameters[0]
+                    )
+                    compound.declarations.append(taken)
+                    if self.declarations.get(taken.refid) is declaration:
+                        self.declarations[taken.refid] = taken
+        for refid in mixins:
+            del self.compounds[refid]
 
     def _find_node(self) -> None:
         """The library's node type: what its verbs hand back.

@@ -160,6 +160,16 @@ the library's single element and its setters as the library's verbs.
 The catalogue says what the library is shaped like, not what its author
 called things.
 
+**A verb a class inherits from a mixin over itself is that class's
+own.** `class Element : public BoxVerbs<Element>` writes `width` on the
+mixin and means it on `Element`: the member hands back the template
+parameter, and the parameter is the inheritor. So the reader files the
+member under the inheritor — `Element::width`, returning `Element&`,
+counted toward the node — while the header and the link into the
+literal API stay the mixin's, which is where it is declared and where
+Doxygen wrote it. The mixin itself is not catalogued as a type: nothing
+takes one and nothing hands one back.
+
 **A name only Python has is an entity too.** A binding that composes
 two C++ calls into one, or takes a Python object where no header does,
 has nothing on the C++ side to match. Where the stubs export it, it is

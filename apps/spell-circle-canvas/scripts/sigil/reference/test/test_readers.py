@@ -23,6 +23,42 @@ class ADoxygenInventoryFindsTheLibrarysNode(Tree):
         self.assertEqual(again["SigilPaint"].node, "sigil::paint::Brush")
 
 
+class AVerbInheritedFromAMixinIsTheNodesOwn(Tree):
+    def setUp(self) -> None:
+        super().setUp()
+        self.inherit_the_edges()
+
+    def test_the_member_is_read_under_the_inheritors_name(self) -> None:
+        from sigil.reference import doxygen_xml
+
+        paint = doxygen_xml.read(self.root / "work", ["SigilPaint"])["SigilPaint"]
+        soften = paint.declarations["classsigil_1_1paint_1_1_edge_verbs_1aff"]
+        self.assertEqual(soften.qualified, "sigil::paint::Brush::soften")
+        self.assertEqual(soften.owner, "sigil::paint::Brush")
+        self.assertEqual(soften.returns, "Brush &")
+        self.assertIn("classsigil_1_1paint_1_1_brush", soften.return_refs)
+        # Where it is declared, and the page Doxygen wrote it on, stay
+        # the mixin's.
+        self.assertEqual(soften.header, "sigilpaint/verbs/Edge.h")
+        self.assertEqual(soften.compound_refid, "classsigil_1_1paint_1_1_edge_verbs")
+        self.assertEqual(soften.anchor(), "aff")
+
+    def test_it_counts_toward_the_node_and_is_catalogued_as_a_verb(self) -> None:
+        catalogue = self.catalogue(node=True)
+        held = {entity.qualified: entity for entity in catalogue.entities}
+        self.assertEqual(catalogue.nodes["SigilPaint"], "sigil::paint::Brush")
+        self.assertEqual(held["sigil::paint::Brush::soften"].kind, model.VERB)
+        self.assertEqual(
+            held["sigil::paint::Brush::soften"].doxygen,
+            "SigilPaint/html/classsigil_1_1paint_1_1_edge_verbs.html#aff",
+        )
+        # Its private members stay private, and the mixin is no type of
+        # the library's: nothing takes one and nothing hands one back.
+        self.assertNotIn("sigil::paint::Brush::self", held)
+        self.assertNotIn("sigil::paint::EdgeVerbs", held)
+        self.assertNotIn("sigil::paint::EdgeVerbs::soften", catalogue.declared)
+
+
 class ADeclarationCarriesItsTypesAndItsProse(Tree):
     def test(self) -> None:
         from sigil.reference import doxygen_xml
