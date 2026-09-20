@@ -215,7 +215,6 @@ sigil_doc_probes(sketch
            "<sigilcompose/typography/TextEffect.h>"
            "<sigilcompose/kit/Kinetic.h>"
            "<sigilgeometry/Geometry.h>"
-           "<sigilworld/World.h>"
            "<sigilworld/diligent/Import.h>"
            "<sigilweave/SigilWeave.h>"
            "<sigilweave/ports/SystemFontManager.h>"

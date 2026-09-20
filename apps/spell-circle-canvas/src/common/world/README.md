@@ -45,7 +45,7 @@ library that is not here.
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane; and the rails a body rides — the turntable's ring, a loop that rises and falls, a winding round a shell. Nothing here decides a look. |
 | `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky and the post stages, compiled through SigilMaterial's Slang backend — the `Runtime` that performs a frame's passes on that device, and `importNative`, the door a foreign texture reaches a material slot by. What stands on the device beneath all of it is SigilGeometry's: `geometry::device::MeshResidency` and `TextureResidency` put a mesh and a map there, `PipelineCache` builds a pipeline out of a compiled program, and this feature asks them. So are the device executors of every seam it is not — the chain cook, the swept rings and the mesh painter each stand beside the CPU executor of their own seam. |
-| — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
+| — | `SigilWorld` | — | the umbrella target: an interface over every feature above, so a consumer of the whole library names one link and includes the headers it spells. The device feature is in it where it was built. |
 
 ## Writing a scene
 

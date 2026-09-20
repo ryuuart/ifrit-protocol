@@ -1,10 +1,6 @@
-#pragma once
-
-/** @file
- * Every public header of SigilWorld in one include, for a consumer that
- * takes the whole library rather than a feature of it. Narrowing to the
- * feature headers actually used is always available.
- */
+// The documentation groups whose members are spread over several of this
+// library's headers, declared where no header has to include another to
+// reach them.
 
 /** @defgroup world-element The element model
  *  One node of a 3D scene as a value: where it stands, what it is made
@@ -45,21 +41,3 @@
  *  Stock values over the element model, composed rather than decided.
  *  @{ */
 /** @} */
-
-#include "sigilworld/diligent/Runtime.h"
-#include "sigilworld/element/Element.h"
-#include "sigilworld/element/Geometry.h"
-#include "sigilworld/element/Lanes.h"
-#include "sigilworld/element/Node.h"
-#include "sigilworld/element/Selector.h"
-#include "sigilworld/element/Transform.h"
-#include "sigilworld/frame/Frame.h"
-#include "sigilworld/frame/Pass.h"
-#include "sigilworld/frame/Runtime.h"
-#include "sigilworld/frame/Targets.h"
-#include "sigilworld/frame/View.h"
-#include "sigilworld/graph/Plan.h"
-#include "sigilworld/kit/Kit.h"
-#include "sigilworld/light/Light.h"
-#include "sigilworld/scene/Scene.h"
-#include "sigilworld/scene/Stats.h"

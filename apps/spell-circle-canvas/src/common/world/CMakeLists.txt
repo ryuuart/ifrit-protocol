@@ -9,7 +9,7 @@
 # library's include path: nothing shipped may reach a fixture.
 sigil_library_root(SigilWorld
   BRIEF "3D scenes as values, executed on a GPU over a shared device"
-  DOCS reference/DEVICE.md reference/STUDIES.md)
+  DOCS docs/Groups.dox reference/DEVICE.md reference/STUDIES.md)
 
 # The light feature stands alone: emitter VALUES over glm, with no
 # device and no registry, so a consumer that only needs to say where the
