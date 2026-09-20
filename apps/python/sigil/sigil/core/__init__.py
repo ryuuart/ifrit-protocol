@@ -3,6 +3,10 @@
 
 """Native seeded chance streams for deterministic sketch models."""
 
+from _sigil.core import (
+    optionalLibraries,
+)
+
 from . import (
     chance,
     hardware,
@@ -17,4 +21,5 @@ __all__ = [
     "hash",
     "intervals",
     "noise",
+    "optionalLibraries",
 ]
