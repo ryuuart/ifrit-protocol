@@ -13,6 +13,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
+#include <sigilcompose/core/Band.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Mask.h>
@@ -22,8 +23,16 @@
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/core/verbs/Box.h>
+#include <sigilcompose/core/verbs/Cascade.h>
+#include <sigilcompose/core/verbs/Decoration.h>
+#include <sigilcompose/core/verbs/Depth.h>
+#include <sigilcompose/core/verbs/Effects.h>
 #include <sigilcompose/core/verbs/Flex.h>
+#include <sigilcompose/core/verbs/Mask.h>
+#include <sigilcompose/core/verbs/Paint.h>
 #include <sigilcompose/core/verbs/Placement.h>
+#include <sigilcompose/core/verbs/Shape.h>
+#include <sigilcompose/core/verbs/Transform.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Schedule.h>
@@ -155,172 +164,27 @@ struct Children;
  *  are not keys. */
 class Element : public BoxVerbs<Element>,
                 public FlexVerbs<Element>,
-                public PlacementVerbs<Element> {
+                public PlacementVerbs<Element>,
+                public ShapeVerbs<Element>,
+                public MaskVerbs<Element>,
+                public CascadeVerbs<Element>,
+                public PaintVerbs<Element>,
+                public DecorationVerbs<Element>,
+                public EffectVerbs<Element>,
+                public TransformVerbs<Element>,
+                public DepthVerbs<Element>,
+                public BandVerbs<Element> {
  public:
   Element();  ///< An empty box: no size, no fill, no children.
 
-  /** @name Shape
-   *  The node's own outline, which is what its fill covers, what
-   *  `clip()` clips to, and what every stroke pass and
-   *  outline-following decoration traces (`PaintContext::outline`).
-   *  @{ */
-  /** ROUND THE NODE'S CORNERS, per corner, in pixels — CSS
-   *  `border-radius`. Square when unstated, and overridden outright by
-   *  `shape()`. It is the cheap path: a rounded box clips and strokes as
-   *  a round rect where a general shape has to build a path. */
-  Element& corners(Corners c);
-  /** THE NODE'S SHAPE: a path generator over its laid-out size, in local
-   *  coordinates. Overrides corners() — the fill surface, clip(), every
-   *  stroke pass and every outline-following decoration (PathFormat,
-   *  ContourWalk) trace it. Spiky dialogs, scalloped frames, any
-   *  non-rectangular chrome.
-   *
-   *  A shape is a REGION; a stroke is a mark on its boundary. Filling this
-   *  is `fill()`, drawing its edge is `stroke()`.
-   *
-   *  Takes a `Shape`. Every `shapes::` generator is a comparable value, so
-   *  a shaped node prunes exactly like an unshaped one. A raw callable is
-   *  accepted as the escape hatch, but it never compares equal, so the
-   *  node re-patches and re-records on every describe — memo() such a
-   *  node, or hold the Shape value stable, to get pruning back. */
-  Element& shape(Shape path);
-  /** THE KEYED SPELLING: the generator plus the value it closes over, so
-   *  the node settles. Sugar for `shape(keyedShape(key, fn))` — see
-   *  KeyedShape for the one-key-one-drawing contract the author takes on.
-   *  A path already cooked wants `shape(heldPath(p))` instead. */
-  template <typename K, typename F>
-    requires core::PrefixCallable<const F&, SkPath(SkSize)>
-  Element& shape(K key, F fn) {
-    return shape(Shape(keyedShape(std::move(key), std::move(fn))));
-  }
-  /** BAND FORMATION: which side of the spine the band occupies.
-   *  `.centered()` is the default and straddles it; `.outward()` and
-   *  `.inward()` take one side (the offset-path lineage). No effect on a
-   *  node that is not a band(). */
-  Element& centered();
-  /** Band formation: the whole band sits on the LEFT of travel, which in
-   *  screen space is outside a clockwise spine — so it exits a `shapes::`
-   *  rect or circle. No effect on a node that is not a band(). */
-  Element& outward();
-  /** Band formation: the whole band sits on the RIGHT of travel, which
-   *  in screen space is inside a clockwise spine. No effect on a node
-   *  that is not a band(). */
-  Element& inward();
-  /** Clip fill, content, and children to the node's shape. Decorations
-   *  are NOT clipped — they dress the outline (outer strokes, shadows,
-   *  glows keep their reach); hit-testing still bounds the subtree.
-   *
-   *  SUGAR, and exactly equivalent, so the two spellings are one machine:
-   *
-   *      .clip()  ==  .mask(parts::surface() | parts::content() |
-   *                         parts::children(), by::shape(Region::own()))
-   *
-   *  Kept as its own word because it is also the cheap path: a rounded box
-   *  clips with `clipRRect`, where the general shape gate has to build a
-   *  path and clip against that. */
-  Element& clip(bool on = true);
-  /** @} */
 
-  /** @name Mask
-   *  The appearance-gating family: what of this node's paint is shown,
-   *  and where. Paint-only and bindable, so a mask never relayouts and
-   *  hit-testing keeps the unmasked shape.
+  /** @name The cascade a node NAMES
+   *  The sheet this node and everything under it resolve their classes
+   *  through, the semantic role that stands under those classes, and
+   *  the classes themselves. What a node DECLARES to its descendants —
+   *  the font, the block, the ink, the custom properties and the
+   *  sampling — is the cascade mixin's.
    *  @{ */
-  /** THE FAMILY VERB, taught form: gate everything this node paints.
-   *
-   *      .mask(by::spans(spans::upTo(animate(from(0.f).to(1.f), {600ms}))))
-   *      .mask(by::edge(90.f, bind(&sweep)))
-   *      .mask(by::shape(Region::path(seal)))
-   *      .mask(by::alpha(Material::linear({0,0}, {0,h}, fadeStops)))
-   *
-   *  Sugar for `mask(parts::all(), with)`, and the form to reach for
-   *  first. A gate addresses only the paint it CAN address: an arc-length
-   *  window means something to the surface and the marks and nothing to
-   *  the children, so `parts::all()` with `by::spans()` gates the boundary
-   *  tracers and leaves the children alone.
-   *
-   *  Paint-only and bindable, like the transforms: animating a mask never
-   *  relayouts, and hit-testing keeps the UNMASKED shape — a mask is a
-   *  paint-phase reveal, not a layout change. */
-  Element& mask(Gate with);
-  /** …and the granular form: gate SOME of what this node paints.
-   *
-   *      panel.overlay(hazardStripes, "hazard")
-   *           .foreground(bevelKeyline)
-   *           .mask(parts::named("hazard"), by::edge(0.f, &armTime));
-   *
-   *  Repeated calls APPEND, as every decoration slot does, and masks whose
-   *  selections OVERLAP INTERSECT on the overlap — both gates must pass.
-   *  Each mask carries its own animation slots, so masks at three
-   *  different rates on one node is a picture, not a race: the
-   *  intersection is recomputed exactly, per frame.
-   *
-   *  Union is spelled INSIDE a gate value (combining spans with `|`), never
-   *  across masks — two masks are two conditions, and stacking them can
-   *  only ever show less.
-   *
-   *  The one thing this cannot express that `stroke(where, what)` can: a
-   *  span pass CLAIMS its run and joins the overlap check, and a mask does
-   *  not. That check is deliberately read against the UNMASKED boundary,
-   *  so an overlapping claim is a description-level mistake reported once,
-   *  never one that blinks in and out partway through a transition. */
-  Element& mask(Parts what, Gate with);
-  /** @} */
-
-  /** @name The cascade
-   *  What flows down the TREE, from a node to everything under it,
-   *  wherever the code that built a child ran: the font, the block, the
-   *  colour (the ink), the style sheet, the classes resolved through it,
-   *  and the custom properties. Everything else a node says about itself
-   *  stays on that node — CSS's own split between the properties that
-   *  inherit and the ones that do not. A node that leaves one unset takes
-   *  the nearest ancestor's, and the root's are the composer's
-   *  `setInherited` defaults.
-   *  @{ */
-  /** THE FONT EVERYTHING UNDER THIS NODE IS SET IN, as a PARTIAL: the
-   *  fields @p partial names override the inherited font, and every field
-   *  it leaves unset inherits — `font({.size = 22})` is the inherited face
-   *  and colour at another size. A text leaf reads its own; a container's
-   *  reaches every text under it that does not say otherwise. Written
-   *  twice on one node, the later call wins field by field, and so does a
-   *  class written between. A relative size resolves against the PARENT's
-   *  font: `font({.size = 1.5_em})` is half again the size inherited. */
-  Element& font(sigil::weave::Type partial);
-  /** THE BLOCK everything under this node is set in, as a PARTIAL: the
-   *  fields it names — leading, alignment, justification, hyphenation,
-   *  tab stops, the first- and last-line indents, widows and orphans,
-   *  balanced ragging, the breaking strategy, the last line, the writing
-   *  mode, the line-break locale, the line tables — override the block
-   *  inherited and the rest inherit, exactly as `font` does for the type.
-   *  A text leaf's every block is set in the block in force where the
-   *  leaf lands, unless the leaf wrote a whole `weave::ParagraphStyle`
-   *  for it, which inherits nothing; a block named through
-   *  `paragraphs(names)` is that name's partial laid over it. This is the
-   *  ONE spelling of every block field — `block({.alignment =
-   *  TextAlignment::kCenter})` centres every line under the node,
-   *  `block({.writingMode = WritingMode::kVerticalRL})` sets the text under
-   *  it in vertical columns, and so on for every field of `weave::Block` —
-   *  and it cascades the same way from wherever it is written.
-   *
-   *  A VERTICAL leaf measures on the other axis: its main extent is its
-   *  height, its intrinsic width one column pitch per column, and for
-   *  `Align::Baseline` it reports its first character's baseline. Per
-   *  character the mode is UTR#50's — ideographs upright with their `vert`
-   *  forms, Latin on its side — and a run that wants otherwise says so in
-   *  its own style. A run on a path (`onPath`) ignores the mode: its
-   *  baseline is its own geometry and has no columns to advance; setting
-   *  both warns once and the path wins. */
-  Element& block(sigil::weave::Block partial);
-  /** THE INK: the colour text under this node is set in and every mark
-   *  that names no colour is painted in — CSS's `color`, which is the
-   *  font's own colour spelled alone. `Fill::currentInk()` reads it back
-   *  wherever a fill must be named. A node whose ink changes under a
-   *  `transition()` eases it, and everything under it follows. */
-  Element& ink(SkColor4f colour);
-  /** The ink read from a custom property in force here:
-   *  `ink(var("accent"))`. A property nobody set, or one holding a length,
-   *  leaves the inherited ink standing and says so once. */
-  Element& ink(VarRef reference);
   /** THE SHEET this node and everything under it resolve their classes
    *  through: rules under names, each a type half and a block half,
    *  stated on any node and inherited down the tree as the font is, a
@@ -345,545 +209,6 @@ class Element : public BoxVerbs<Element>,
    *  sets then inherit down the tree. A name neither sheet in force
    *  carries warns once and sets nothing. */
   Element& styleClass(std::string_view names);
-  /** A CUSTOM PROPERTY set on this node and inherited by everything under
-   *  it, read back through `var(name)` written as a length, `Fill::var`
-   *  written as a fill, or `ink(var(name))`. The nearest ancestor that set
-   *  a name wins, as CSS's custom properties do. A material, a layer
-   *  style and every other value the kernel cannot see inside take
-   *  concrete values, so a property reaches exactly what resolves through
-   *  the paint context: a fill, a stroke, a mark, a length, the ink. */
-  Element& var(std::string_view name, SkColor4f colour);
-  /** The same, holding a LENGTH rather than a colour, read back through
-   *  `var(name)` wherever a `Dimension` is taken. A property is one or
-   *  the other, and reading one as the other leaves the target standing
-   *  and says so once. */
-  Element& var(std::string_view name, Dimension length);
-  /** FALLBACK CUSTOM PROPERTIES for this node and its descendants.
-   *  Inherited properties override these defaults, and properties this
-   *  node sets with var() override both, including explicit zero values.
-   *  A later call replaces this table. */
-  Element& varDefaults(VarTable defaults);
-  /** @} */
-
-  /** @name Paint
-   *  What the node's own surface is painted with, and how image leaves
-   *  sample their source.
-   *  @{ */
-  /** PAINT THE NODE'S SURFACE — a colour, a shader, a transition between
-   *  colours, or a LIVE binding. Unfilled when unstated, so a box paints
-   *  nothing and only its decorations and children show.
-   *
-   *  WHAT MAY BE PASSED, across the overloads below: an `SkColor4f`, a
-   *  `Fill` (a colour or a shader), a `motion::Animatable<Fill>` (one
-   *  that eases or is driven), a `material::skia::Paint` (a gradient
-   *  ramp, a blend stack, a sprite, SkSL), or a `SurfacePaint`, which is
-   *  the one value all of those convert into and the type a component
-   *  declares so its caller may pass whichever it holds. A `Pattern` and
-   *  a `material::pattern::Tile` are deliberately NOT accepted — fill
-   *  with what a held Pattern bakes instead.
-   *
-   *  @see sigil::compose::SurfacePaint
-   *  @see sigil::material::skia::Paint
-   *
-   *  The binding form is `fill(&output)` where the Output holds a `Fill`,
-   *  and it is the answer to "this widget's colour IS its value" — a
-   *  level meter whose hue is the level, a temperature readout, a health
-   *  bar that reddens. Write the Fill Output from the same steppable that
-   *  computes the number:
-   *
-   *      ch::Output<float> level; ch::Output<Fill> bar;
-   *      ticker.add([&]{ level = v; bar = Fill::color(ramp(v)); … });
-   *      box().scaleX(bind(&level)).fill(&bar)
-   *
-   *  What does NOT exist is deriving one from the other at the binding
-   *  site: `fill(bind(&level).map(ramp))` does not compile, because the
-   *  shaping chain maps floats to floats. Compute the Fill in the
-   *  steppable, as above. */
-  Element& fill(motion::Animatable<Fill> f);
-  /** Fill with a paint (gradient ramp, blend stack, sprite, SkSL) — the
-   *  richer authoring value, `material::skia::Paint` from
-   *  <sigilmaterial/skia/Paint.h>. A static paint collapses to a Fill, so
-   *  it caches and prunes on the same path. */
-  Element& fill(material::skia::Paint m);
-  /** A surface value supplied by component properties. Exact-type deduction
-   *  keeps ordinary fill and material arguments on their own overloads. */
-  template <typename P>
-    requires std::same_as<std::remove_cvref_t<P>, SurfacePaint>
-  Element& fill(P&& paint) {
-    return paint.apply(*this);
-  }
-
-  /** NEITHER A TILE NOR A PATTERN IS A FILL, and the reason is where they
-   *  have to be STORED. A Pattern's bake is its identity: it renders its
-   *  tile once, on the shared state that Pattern holds, so a Pattern minted
-   *  inside a describe is a fresh state with no bake in it and re-renders
-   *  the tile on every render. Hold the Pattern where assets are held — a
-   *  sketch member, a model field — and fill with what it bakes:
-   *
-   *      Pattern m_grain = pattern::stripes(6, 6, kInk);  // once
-   *      box().fill(m_grain.material());                  // every describe
-   *
-   *  Deleted rather than absent so the error names the rule instead of
-   *  naming an overload set. */
-  Element& fill(material::pattern::Tile tile) = delete;
-  Element& fill(const Pattern& pattern) = delete;
-  /** Solid-color sugar: fill({r,g,b,a}) without the Fill:: ceremony. */
-  Element& fill(SkColor4f color) {
-    return fill(motion::Animatable<Fill>{Fill::color(color)});
-  }
-  /** How image leaves sample their source. Linear when nothing states
-   *  it, which is right for photographs and wrong for every pixel grid:
-   *  art, tilemaps, fonts baked as sprites, simulation buffers.
-   *
-   *      image(tileset).sampling(SkSamplingOptions(SkFilterMode::kNearest))
-   *
-   *  Set on any node and inherited by every image leaf under it, as CSS
-   *  inherits `image-rendering`: a panel of pixel art states nearest once.
-   *  `Material::image()` takes the same options for a sprite fill. */
-  Element& sampling(SkSamplingOptions options);
-  /** @} */
-
-  /** @name Decoration layers
-   *  The marks laid under, over and around what the node paints.
-   *  Backgrounds paint below content and children, in declaration order,
-   *  foregrounds above; `fill()` is the transitionable first background
-   *  and `custom()` a box with one background program.
-   *
-   *  Repeated calls APPEND — the Photoshop stacked-strokes model, where
-   *  two `stroke()` calls are two rings — and every slot takes an
-   *  optional local name, which is what `mask(parts::named(name), …)`
-   *  addresses and is never a query key.
-   *
-   *  Decorations dress the OUTLINE: `clip()` does not clip them (it
-   *  bounds the fill, the content and the children only), so outer
-   *  strokes and shadows survive on a clipped node.
-   *  @{ */
-  /** Takes this node OUT of hit testing — CSS `pointer-events: none`.
-   *
-   *  READ THIS BEFORE KEYING A CONTAINER. `hitTest` returns any keyed node
-   *  whose box contains the point, whether or not that node paints
-   *  anything. So a keyed, full-bleed layout SHELL with no fill swallows
-   *  every hit in the frame, and every query comes back naming it. There
-   *  is no visual symptom and no diagnostic — the shell is invisible and
-   *  the answers are simply wrong. This is the opt-out.
-   *
-   *  Children are still tested: this excludes the node's own box, not its
-   *  subtree. */
-  Element& hitTestable(bool enabled);
-  /** A decoration painted OVER the fill and UNDER the content and
-   *  children.
-   *
-   *  THE STACKING ORDER IS A CONTRACT, not a hint, and picking the wrong
-   *  slot is the commonest way to draw nothing visible. `background()`
-   *  sits beneath the FILL, so an opaque fill covers it completely — a
-   *  bevel put there renders as a flat slab. `foreground()` paints above
-   *  the children, so a texture put there greys out the node's own label.
-   *  This middle slot is what hazard stripes over a surface but under the
-   *  digit, scanlines over a panel but under its readout, and bevelled
-   *  chrome all want. The alternative is a sibling stack, which costs a
-   *  node and loses the shared outline.
-   *
-   *  `name` is optional and LOCAL: it labels this mark so
-   *  `mask(parts::named(name), by::…)` can address it and nothing else.
-   *  Same names, same law as `stroke(Spans, what, name)` — inspection and
-   *  intra-element reference, never a query key. */
-  Element& overlay(Decoration d, std::string name = {});
-  /** A decoration painted BENEATH the fill (the CSS box-shadow
-   *  ordering) — shadows, ground textures, anything the surface sits on
-   *  top of. If you want it over the surface but under the children, that
-   *  is `overlay()` above. `name` labels the mark for `parts::named()`. */
-  Element& background(Decoration d, std::string name = {});
-  /** THE BACKGROUND SLOT, span-qualified — `.stroke(where, what)`'s twin
-   *  in the other z-half.
-   *
-   *      .background(spans::edges(14), stroke(3, shadowInk))  // under the fill
-   *      .stroke(spans::corners(18), stroke(2, ink))          // over the kids
-   *
-   *  Identical in every respect to `stroke(Spans, ...)` except WHERE the
-   *  mark lands: it paints with the backgrounds, beneath the fill and
-   *  therefore beneath the content and the children. Everything else is
-   *  shared, deliberately — the passes append into ONE list in declaration
-   *  order, one claim record covers both z-halves, the no-overlap rule
-   *  reads across both, and `rest()` complements both. A boundary does not
-   *  have two of itself, so a background pass and a stroke pass claiming
-   *  the same run is the same conflict as two stroke passes doing it, and
-   *  `rest("name")` can name a pass in either half. */
-  Element& background(Spans where, Decoration what, std::string name = {});
-  /** A decoration painted OVER the children. `name` labels the mark for
-   *  `parts::named()`. */
-  Element& foreground(Decoration d, std::string name = {});
-  /** fill's peer: dress the node's whole BOUNDARY with a brush — a
-   *  PathFormat, a layered brush stack, any decoration that strokes.
-   *
-   *  This form does not CLAIM: it overlays the whole boundary, so repeated
-   *  calls stack (two strokes are two rings) and never collide. Naming a
-   *  `where` (below) is what turns a pass into a claim on part of the
-   *  boundary; naming a `name` (here) is what lets a mask address this
-   *  mark alone. */
-  Element& stroke(Decoration brush, std::string name = {});
-  /** THE STROKE SLOT: `where` on the boundary, painted by `what`.
-   *
-   *      .stroke(spans::corners(18), stroke(2, ink))          // reticle
-   *      .stroke(spans::edges(14), stroke(1, ink))            // open corners
-   *      .stroke(spans::upTo(animate(from(0.f).to(1.f), {600ms})), wire)
-   *
-   *  Repeated calls APPEND, in declaration order.
-   *
-   *  ORDERING, precisely, because CALL ORDER DOES NOT DECIDE IT: the
-   *  unqualified strokes paint FIRST — they are foregrounds and share that
-   *  list — then the span passes in their own declaration order. Within
-   *  each group declaration order holds; between the groups the
-   *  unqualified ones are always underneath. Interleaving the two by call
-   *  order is not expressible, and writing them interleaved does not make
-   *  it so. If a span pass must sit UNDER a whole-boundary one, make the
-   *  whole-boundary one a span pass too (`spans::every(1)`) so both are in
-   *  the same list.
-   *
-   *  Span-qualified passes CLAIM the runs they resolve to, and two claims
-   *  that overlap are reported out loud, naming both passes and the
-   *  overlapping run: one boundary, one mark. Layering two marks on one
-   *  run is a composite BRUSH rather than two passes —
-   *  `Brush{}.layer(a).layer(b)`, or a LayeredBrush.
-   *
-   *  Two exceptions, both deliberate: bare `spans::rest()` claims whatever
-   *  the other passes left over, so a rule and its bracket corners are two
-   *  calls and no arithmetic; and `spans::rest("name")` is the complement
-   *  of ONE named pass and may overlay the others.
-   *
-   *  `name` is LOCAL to this element — for inspection, for the
-   *  `rest("name")` reference, and for `mask(parts::named(name), …)`. It
-   *  is not a query key; `Composer::bounds` and `hitTest` see only
-   *  `key()`.
-   *
-   *  EXACTLY EQUIVALENT to the mask spelling, so the two are one machine:
-   *
-   *      .stroke(where, what, name)
-   *          ==  .stroke(what, name).mask(parts::named(name),
-   *                                       by::spans(where))
-   *
-   *  Identical pixels, and the same value under the same intersection
-   *  rule — a further `mask(parts::marks(), by::spans(upTo(t)))` cuts this
-   *  pass to `where ∩ upTo(t)`, which is how reticle brackets light up as
-   *  a sweep reaches them. The ONE thing the pass form does that the mask
-   *  spelling does not: it CLAIMS its run and joins the overlap check. */
-  Element& stroke(Spans where, Decoration what, std::string name = {});
-  /** WHAT THIS NODE'S DECORATIONS DRESS — its own shape (the default), the
-   *  OUTLINE OF ITS GLYPHS on a text leaf, or the silhouette of WHAT IT
-   *  DREW.
-   *
-   *      text(u8"CHROME",
-   * heavy).boundary(Boundary::Glyphs).style(styles::chrome())
-   *      image(cutOut).boundary(Boundary::Coverage).style(styles::chrome())
-   *
-   *  A decoration was never about a box: it is drawn across an outline, and
-   *  which outline it gets is this. So every layer style already written —
-   *  bevel, inner shadow, outer glow, gloss, the aqua and chrome presets —
-   *  works on letters, or around a cut-out, the moment that is the outline,
-   *  with no new preset and no second code path.
-   *
-   *  The glyph outline is the placement's own: it follows a wrapped line, a
-   *  mixed-style run's size, a path run's curve and a vertical column's
-   *  axis, because it is read off the placed glyphs rather than measured
-   *  again. On a node that is not text it means the node's shape, which is
-   *  what every node means by default.
-   *
-   *  The coverage outline is read off the node's rendered layer instead of
-   *  off any description of it, which is why it is the answer for a
-   *  cut-out, a clip or a mask — and why it is a staircase at the raster's
-   *  resolution, and costs a raster and a trace whenever the node's layer
-   *  is invalidated. Boundary states the whole bargain. */
-  Element& boundary(Boundary source);
-  /** HOW MUCH PAINT COUNTS AS INK under `Boundary::Coverage` — the
-   *  tolerance the silhouette is cut at, as a fraction of full opacity.
-   *
-   *      image(photo).key("fig").boundary(Boundary::Coverage).threshold(0.35f)
-   *      text(body, bodyStyle).flowAround("fig", 12)
-   *
-   *  The default is the rule an unantialiased rasteriser uses — the paint
-   *  reached at least half the pixel — so the traced edge is where the
-   *  drawn edge is. It is the dial a soft edge needs: lower it and a wash,
-   *  a feathered cut-out or a glow becomes silhouette; raise it and only
-   *  the solid core does. Read by everything that asks this node for its
-   *  coverage — its own decorations, and any text flowing around it. */
-  Element& threshold(float coverage);
-
-  /** Apply a whole LayerStyle (preset or hand-built): its `under` layers
-   *  append as backgrounds, `over` as foregrounds — one call dresses the
-   *  node in aqua gel / y2k chrome / any bundled treatment. Composable
-   *  with fill() and further background()/foreground() calls. */
-  Element& style(LayerStyle s);
-  /** Append a misprint echo (see Echo): the node's fill shape and text
-   *  re-stamped offset+flat-colored beneath the real pass. Not applied to
-   *  text carrying `fx()` tracks (a moving letter draws its own batched
-   *  buckets) or to image/custom content. */
-  Element& echo(SkVector offset, SkColor4f color);
-  /** Post-processes this node's rendered layer (forces a stacking
-   *  context). Baked once under Cache::Texture. */
-  Element& effect(material::skia::Effect e);
-  /** Filters what is already painted beneath this node's bounds before
-   *  the node paints (CSS backdrop-filter). Incompatible with
-   *  Cache::Texture (the backdrop depends on the live destination);
-   *  such nodes fall back to picture caching. */
-  Element& backdrop(material::skia::Effect e);
-  /** @} */
-
-  /** @name Transform
-   *  The paint-phase lanes: opacity, the blend, and the 2D transform
-   *  stack — translate, then rotate, then scale, then skew, about the
-   *  transform origin. Animating any of them never relayouts; the
-   *  content picture replays under the new transform, and hit-testing
-   *  follows the transformed box.
-   *  @{ */
-  /** HOW OPAQUE THE WHOLE NODE IS, 0 clear to 1 solid, multiplying
-   *  everything it and its children paint. 1 when unstated. Below 1 the
-   *  node composites as a group, which is what makes a subtree fade as
-   *  one picture rather than layer by layer — and what ends a
-   *  `preserve3d()` space at this node. */
-  Element& opacity(motion::Animatable<float> o);
-  /** THE NODE FADES IN WHEN IT MOUNTS, over @p how — `opacity(animate(
-   *  from(0).to(1), how))` written once, because that sentence is what
-   *  every card, panel, strip and pass on a plate says as it arrives and
-   *  the three values in it never vary.
-   *
-   *  It is the mount entrance and nothing else: after the entrance the
-   *  node is opaque and behaves as an unstated opacity does, so a node
-   *  that also FADES on some later condition states that with `opacity`
-   *  instead. A node under a staggered container takes its share of the
-   *  cascade's delay here as it would on any other entrance. */
-  Element& appear(motion::Transition how);
-  /** HOW THE NODE'S PAINT COMBINES with what is already beneath it — any
-   *  Skia blend mode. `SkBlendMode::kSrcOver` when unstated. Anything
-   *  else makes the node composite as a group, so its subtree resolves
-   *  into one layer before the mode is applied, and a
-   *  `preserve3d()` space ends here. */
-  Element& blend(SkBlendMode mode);
-  /** SLIDE THE NODE ALONG X, in pixels, positive to the right. Zero when
-   *  unstated. Paint-only: the node's layout box does not move, so
-   *  nothing reflows and nothing else shifts to make room. */
-  Element& translateX(motion::Animatable<float> v);
-  /** SLIDE THE NODE ALONG Y, in pixels, positive downward. Zero when
-   *  unstated, and paint-only exactly as `translateX()` is. */
-  Element& translateY(motion::Animatable<float> v);
-  /** Ride a CURVE instead of two lanes — the motion path (see MotionPath
-   *  for the six rules). Paint-only like the lanes it outranks; the
-   *  node's transform origin is the point that lands on the curve, and
-   *  the curve is resolved against the PARENT's box.
-   *
-   *      .travel({.path = shapes::circle(),
-   *               .t = bind(&phase).target(0, 1),
-   *               .lookAhead = 0.02f})   // auto-orient along the tangent
-   */
-  Element& travel(MotionPath along);
-  /** TURN THE NODE IN ITS OWN PLANE, in degrees, positive clockwise in
-   *  screen space, about the transform origin. Zero when unstated, and
-   *  paint-only: the layout box stays axis-aligned where it was. */
-  Element& rotate(motion::Animatable<float> degrees);
-  /** SCALE THE NODE UNIFORMLY about the transform origin, 1 being its
-   *  laid-out size. 1 when unstated, and paint-only, so a scaled node
-   *  takes exactly the room it took unscaled. */
-  Element& scale(motion::Animatable<float> factor);
-  /** Per-axis scale about the transform origin, multiplied INTO scale().
-   *  Paint-only like scale(): animating one never relayouts, and the
-   *  content picture replays under the new transform.
-   *
-   *  Bars, wipes, meters, cooldown sweeps, drain rings and "slide this
-   *  piece into its slot" are the most common animated primitive a UI
-   *  has, and not one of them is uniform. Without these the idiom was a
-   *  full-width fill inside a clip translated by -(1 - fraction) * width,
-   *  which only survives while the fill happens to be a gradient along
-   *  the OTHER axis. Set transformOrigin() to pin the growing edge —
-   *  `transformOrigin(0, 0.5f).scaleX(&fraction)` grows a bar rightward
-   *  from its left edge. */
-  Element& scaleX(motion::Animatable<float> factor);
-  /** Scale along Y alone about the transform origin, multiplied INTO
-   *  `scale()`. 1 when unstated; the vertical twin of `scaleX()`, and
-   *  what a meter or a wipe that grows downward uses with
-   *  `transformOrigin(0.5f, 0)`. */
-  Element& scaleY(motion::Animatable<float> factor);
-  /** Shear, in degrees, about the transform origin. Paint-only like
-   *  rotate/scale: animating a skew never relayouts, and content pictures
-   *  replay under the new transform.
-   *
-   *  skewX slants verticals, skewY slants horizontals. The sense is
-   *  screen-space, y down: a POSITIVE skewX shifts points further down the
-   *  node further right, so the shape's top leans LEFT — the italic
-   *  forward lean is a NEGATIVE skewX. */
-  Element& skewX(motion::Animatable<float> degrees);
-  /** Shear that slants HORIZONTALS, in degrees, about the transform
-   *  origin. Zero when unstated, and paint-only as `skewX()` is; the
-   *  sense is screen-space, y down, so a positive angle pushes points
-   *  further right further down. */
-  Element& skewY(motion::Animatable<float> degrees);
-  /** THE INTEGER-LITERAL SPELLING of this lane and of the ones after it
-   *  — `rotate(-8)`, `scale(2)` — which exists because a plain `int`
-   *  does not convert into the animatable variant on its own and the
-   *  error when it does not is unreadable.
-   *
-   *  Constrained on `std::integral` so a FLOAT call can never land here:
-   *  a plain `int` overload would capture one through the standard
-   *  float-to-int conversion and recurse. The animatable is constructed
-   *  explicitly for the same reason. */
-  template <std::integral T>
-  Element& opacity(T v) {
-    return opacity(motion::Animatable<float>((float)v));
-  }
-  template <std::integral T>
-  Element& translateX(T v) {
-    return translateX(motion::Animatable<float>((float)v));
-  }
-  template <std::integral T>
-  Element& translateY(T v) {
-    return translateY(motion::Animatable<float>((float)v));
-  }
-  template <std::integral T>
-  Element& rotate(T deg) {
-    return rotate(motion::Animatable<float>((float)deg));
-  }
-  template <std::integral T>
-  Element& scale(T f) {
-    return scale(motion::Animatable<float>((float)f));
-  }
-  template <std::integral T>
-  Element& scaleX(T f) {
-    return scaleX(motion::Animatable<float>((float)f));
-  }
-  template <std::integral T>
-  Element& scaleY(T f) {
-    return scaleY(motion::Animatable<float>((float)f));
-  }
-  template <std::integral T>
-  Element& skewX(T deg) {
-    return skewX(motion::Animatable<float>((float)deg));
-  }
-  template <std::integral T>
-  Element& skewY(T deg) {
-    return skewY(motion::Animatable<float>((float)deg));
-  }
-  /** THE PIVOT every rotation, scale and skew turns about, as fractions
-   *  of the node's own box: 0,0 its top-left, 1,1 its bottom-right. The
-   *  CENTRE (0.5, 0.5) when unstated. `transformOrigin(0, 0.5f)` is what
-   *  grows a bar rightward from its left edge. */
-  Element& transformOrigin(float fx, float fy);
-  /** Pixel-valued transform origin (node-local px) — for pivots that
-   *  aren't a fraction of THIS node's box, e.g. zooming a window that
-   *  lives inside a full-canvas overlay around its own center. */
-  Element& transformOriginPx(SkPoint p);
-  /** PAINT ORDER AMONG SIBLINGS — CSS `z-index`. Zero when unstated, so
-   *  siblings paint in declaration order; a higher number paints later
-   *  and therefore on top. It reorders nothing outside this node's own
-   *  parent, and it changes no layout. */
-  Element& zIndex(int z);
-  /** @} */
-
-  /** @name Depth — the CSS 3D model over the 2D tree
-   *  A node is a PLANE. These lanes turn it and move it in depth, and
-   *  the node projects its plane onto the one its parent paints on — one
-   *  4x4 per node, flattened at paint, so tree order stays draw order
-   *  and everything the node holds (its fill, its text, its children,
-   *  its caches) lives in the plane exactly as it did before. Paint-only
-   *  like the 2D lanes: animating one never relayouts, and a settled
-   *  node's recording is taken in its own plane and replayed through the
-   *  projection. The frame is CSS's: x right, y down, and +z TOWARD the
-   *  viewer, so a positive `translateZ` under a `perspective` comes
-   *  closer and grows.
-   *
-   *  The three rotations compose as CSS's `rotateX() rotateY()
-   *  rotateZ()` list — X outermost — and then scale and skew, about the
-   *  transform origin, exactly where the 2D `rotate → scale → skew`
-   *  stack stands. What none of this is: a scene. Two planes never
-   *  intersect, nothing is lit, and a depth is not a position in a world
-   *  — a set (SigilWorld) is where that lives.
-   *  @{ */
-
-  /** Turn the plane about its horizontal axis, in degrees: positive tips
-   *  the bottom edge toward the viewer. */
-  Element& rotateX(motion::Animatable<float> degrees);
-  /** Turn the plane about its vertical axis, in degrees: positive tips the
-   *  left edge toward the viewer — the card-flip lane. */
-  Element& rotateY(motion::Animatable<float> degrees);
-  /** The rotation `rotate()` already is, under its 3D name — the SAME lane,
-   *  so `rotate(30).rotateZ(45)` is one setting made twice, not two turns. */
-  Element& rotateZ(motion::Animatable<float> degrees);
-  /** Move the plane along the viewing axis, in px: positive is toward the
-   *  viewer. Invisible without a `perspective` above it — an orthographic
-   *  projection drops z — and inside a shared space it is what puts a face
-   *  in front of another. */
-  Element& translateZ(motion::Animatable<float> px);
-  /** Scale along the viewing axis, about the transform origin. Nothing in
-   *  the node's own plane moves (its z is zero); what it scales is the
-   *  depth of the children it hosts in a shared space. */
-  Element& scaleZ(motion::Animatable<float> factor);
-  /** THE VIEW, declared on an ancestor: this node's children are seen from
-   *  a viewer `distancePx` in front of the plane, so a child turned or
-   *  moved in depth converges toward the perspective origin as it recedes.
-   *  Applies to the children, never to this node itself, as CSS's
-   *  `perspective` property does; 0 is no perspective — an orthographic
-   *  projection where a turned plane only narrows. A shared space carries
-   *  the view of the ancestor that declared it down to every plane in the
-   *  space. Bindable, so a dolly is a bound distance. */
-  Element& perspective(motion::Animatable<float> distancePx);
-  /** Where the viewer stands over the plane, as fractions of this node's
-   *  box — the vanishing point of the view `perspective()` declares. The
-   *  centre by default. */
-  Element& perspectiveOrigin(float fx, float fy);
-  /** The pivot the lanes turn about, with a depth: `fx, fy` are the
-   *  fractions `transformOrigin()` takes and `zPx` is a distance in front
-   *  of the plane (positive toward the viewer). A card that swings on a
-   *  hinge behind it turns about a negative z. */
-  Element& transformOrigin3d(float fx, float fy, float zPx);
-  /** THE SHARED SPACE: this node's children keep the depth their own
-   *  lanes give them — their planes compose with this node's rather than
-   *  flattening into it — and are painted back to front by the depth of
-   *  each child's centre, whatever order they were declared in. A cube is
-   *  six children of one such node. Nested `preserve3d()` compounds the
-   *  space; a child that does not declare it ends the space at its own
-   *  plane, and its children are flat inside it.
-   *
-   *  Two rules, both stated so they are not discovered: PLANES DO NOT
-   *  INTERSECT — a child crossing another is drawn whole, in the order
-   *  their centres sort — and a node that composites as a group cannot
-   *  host a space. A `clip()`, an opacity below 1, a blend that is not
-   *  source-over, an `effect()`, a `backdrop()`, a `mask()`, a coverage
-   *  boundary or an explicit `cache(Cache::Texture)` / `Cache::Group`
-   *  flattens the node exactly as CSS's grouping properties do: its
-   *  children are then projected one by one onto its plane, in tree
-   *  order, with no depth between them. The node's own paint stands at the
-   *  front of its own plane and is drawn before its children. */
-  Element& preserve3d(bool on = true);
-  /** Whether the back of this node's plane is drawn when a depth lane has
-   *  turned it away. A node is a plane, and `rotateX` or `rotateY` past a
-   *  quarter turn shows the viewer its back: the same paint, mirrored.
-   *  `material::Backface::Hidden` draws nothing then and answers no hit,
-   *  which is what the two faces of a flipping card need. Visible by
-   *  default, and what a node with no depth lane always is. The side is
-   *  decided by the node's whole projection — its own lanes, every shared
-   *  space above it and the perspective it is seen through — never by a 2D
-   *  mirror, so `scaleX(-1)` stays visible. */
-  Element& backface(material::Backface facing);
-  template <std::integral T>
-  Element& rotateX(T deg) {
-    return rotateX(motion::Animatable<float>((float)deg));
-  }
-  template <std::integral T>
-  Element& rotateY(T deg) {
-    return rotateY(motion::Animatable<float>((float)deg));
-  }
-  template <std::integral T>
-  Element& rotateZ(T deg) {
-    return rotateZ(motion::Animatable<float>((float)deg));
-  }
-  template <std::integral T>
-  Element& translateZ(T px) {
-    return translateZ(motion::Animatable<float>((float)px));
-  }
-  template <std::integral T>
-  Element& scaleZ(T f) {
-    return scaleZ(motion::Animatable<float>((float)f));
-  }
-  template <std::integral T>
-  Element& perspective(T px) {
-    return perspective(motion::Animatable<float>((float)px));
-  }
   /** @} */
 
   /** @name Derive phase
@@ -1349,9 +674,22 @@ class Element : public BoxVerbs<Element>,
   /** @} */
 
   /** @name Identity, caching, transitions
-   *  Who the node is across describes, what the painter is allowed to
-   *  keep of it, and how its plain constants change.
+   *  Who the node is across describes, whether it answers a hit, what
+   *  the painter is allowed to keep of it, and how its plain constants
+   *  change.
    *  @{ */
+  /** Takes this node OUT of hit testing — CSS `pointer-events: none`.
+   *
+   *  READ THIS BEFORE KEYING A CONTAINER. `hitTest` returns any keyed node
+   *  whose box contains the point, whether or not that node paints
+   *  anything. So a keyed, full-bleed layout SHELL with no fill swallows
+   *  every hit in the frame, and every query comes back naming it. There
+   *  is no visual symptom and no diagnostic — the shell is invisible and
+   *  the answers are simply wrong. This is the opt-out.
+   *
+   *  Children are still tested: this excludes the node's own box, not its
+   *  subtree. */
+  Element& hitTestable(bool enabled);
   /** The author-owned identity: what the reconciler matches a child by
    *  across describes, and what `connector`/`rail`/`spans::fit` borrow
    *  geometry by.
@@ -1444,23 +782,6 @@ class Element : public BoxVerbs<Element>,
  private:
   /** One more child at the end, which both `children()` forms go through. */
   void append(Element e);
-  /** Register a decoration's declared derive borrows (see
-   *  BorrowingDecoration). Every slot that takes a Decoration must call
-   *  this: a borrow honoured in some slots and not others resolves to
-   *  nothing in the others, and draws nothing, with no diagnostic. */
-  void claimBorrows(const Decoration& d);
-
-  /** The shared body of stroke(Spans,…) and background(Spans,…). `half` is
-   *  a detail::StrokePass::Half, passed as an int so the exported header
-   *  does not have to name an internal enum. */
-  Element& addSpanPass(Spans where, Decoration what, std::string name,
-                       int half);
-
-  /** Bind the optional LOCAL label an unqualified mark slot took to the
-   *  mark it just appended, for `parts::named()`. `slot` is a
-   *  detail::MarkSlot as an int, for the same reason addSpanPass takes
-   *  its half that way. */
-  void labelMark(int slot, size_t index, std::string name);
 
   // The verb mixins hold no state and reach this handle through the one
   // door a declaring value grants them.

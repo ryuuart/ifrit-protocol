@@ -118,21 +118,4 @@ Element& Element::textFill(SurfacePaint paint) {
   return *this;
 }
 
-Element& Element::fill(material::skia::Paint m) {
-  detail::MaterialData& slots = m_node->materialData.ensure();
-  if (m.isAnimated() || m.geometryDependent()) {
-    // Live paints re-resolve per frame; geometry-dependent ones resolve
-    // when the node records (and re-record on size change) — both route
-    // through the material slot so the painter resolves with the frame.
-    slots.live = std::move(m);
-    m_node->paint.fill.reset();
-    slots.recipe.reset();
-  } else {
-    m_node->paint.fill = motion::Animatable<Fill>{toFill(m)};
-    slots.recipe = std::move(m);  // the prune signature
-    slots.live.reset();
-  }
-  return *this;
-}
-
 }  // namespace sigil::compose

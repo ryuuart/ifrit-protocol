@@ -192,9 +192,11 @@ Skia paint by value.
 - `core/Paint.h` — `Fill`, `hexColor`, `PaintContext`, `resolveRef`,
   `frameOf`, `toFill`, `resolveFill`, `linearGradient`, `radialGradient`
 - `core/SurfacePaint.h` — `SurfacePaint`
-- `core/Element.h` — `fill`, `ink`, `textFill`, `textStroke`,
-  `background`, `foreground`, `overlay`, `backdrop`, `effect`, `opacity`,
-  `var`
+- `core/verbs/Paint.h` — `fill`
+- `core/verbs/Cascade.h` — `ink`, `var`
+- `core/verbs/Decoration.h` — `background`, `foreground`, `overlay`
+- `core/verbs/Effects.h` — `backdrop`, `effect`, `opacity`
+- `core/Element.h` — `textFill`, `textStroke`
 
 ## See also
 

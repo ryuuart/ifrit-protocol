@@ -185,12 +185,16 @@ const StrokeResolver& detail::strokeResolver() {
 // so a description that claims runs of its boundary carries the engine
 // that resolves them.
 
-Element& Element::stroke(Spans where, Decoration what, std::string name) {
+template <class Derived>
+Derived& DecorationVerbs<Derived>::stroke(Spans where, Decoration what,
+                                          std::string name) {
   return addSpanPass(std::move(where), std::move(what), std::move(name),
                      (int)detail::StrokePass::Half::Foreground);
 }
 
-Element& Element::background(Spans where, Decoration what, std::string name) {
+template <class Derived>
+Derived& DecorationVerbs<Derived>::background(Spans where, Decoration what,
+                                              std::string name) {
   return addSpanPass(std::move(where), std::move(what), std::move(name),
                      (int)detail::StrokePass::Half::Background);
 }
@@ -199,25 +203,37 @@ Element& Element::background(Spans where, Decoration what, std::string name) {
  *  halves differ only in where the mark lands, so everything upstream of
  *  the paint (the fit() borrows, the claim ledger, the pass list) is one
  *  thing and must stay one thing. */
-Element& Element::addSpanPass(Spans where, Decoration what, std::string name,
-                              int half) {
+template <class Derived>
+Derived& DecorationVerbs<Derived>::addSpanPass(Spans where, Decoration what,
+                                               std::string name, int half) {
+  detail::ElementNode* node = declarations();
   // A fit() term borrows another element's resolved box, so the keys ride
   // into DeriveData where the ONE derive-registration walk finds them —
   // the flowAround pattern, not a second phase.
   for (const Spans::Term& t : where.terms)
     if (t.rule == Spans::Rule::Fit && !t.key.empty()) {
-      detail::DeriveData& derive = m_node->deriveData.ensure();
+      detail::DeriveData& derive = node->deriveData.ensure();
       derive.spanFitKeys.push_back(t.key);
       // A gap sized from where a node LANDED is a read of its box.
       derive.reads.push_back({t.key, sigil::core::Facet::Bounds});
     }
   claimBorrows(what);
-  detail::StrokeData& strokes = m_node->strokeData.ensure();
+  detail::StrokeData& strokes = node->strokeData.ensure();
   if (!strokes.resolver) strokes.resolver = detail::strokeResolver();
   strokes.passes.push_back(detail::StrokePass{std::move(where), std::move(what),
                                               std::move(name),
                                               (detail::StrokePass::Half)half});
-  return *this;
+  return self();
 }
+
+// The three members of the decoration family this tier defines, named one
+// by one: the family's other members are instantiated where they are
+// defined, in the kernel.
+template Element& DecorationVerbs<Element>::stroke(Spans, Decoration,
+                                                   std::string);
+template Element& DecorationVerbs<Element>::background(Spans, Decoration,
+                                                       std::string);
+template Element& DecorationVerbs<Element>::addSpanPass(Spans, Decoration,
+                                                        std::string, int);
 
 }  // namespace sigil::compose

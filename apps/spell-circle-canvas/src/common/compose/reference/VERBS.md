@@ -274,21 +274,31 @@ spelling is the feature's.
 - `core/verbs/Placement.h` — the placement verbs `absolute`, `cover`,
   `inset`, `left`, `top`, `right`, `bottom`, `tether`, `centerAt`,
   `cells`, `area`, `cellAlign`, `rect`, `at`.
-- `core/Element.h` — the paint verbs
-  `fill`, `ink`, `stroke`, `background`, `overlay`, `foreground`,
-  `style`, `echo`, `textFill`, `textStroke`, `boundary`, `threshold`;
-  the region verbs `corners`, `shape`, `clip`, `mask`, `centered`,
-  `outward`, `inward`; `effect`, `backdrop`, `blend`, `opacity`; the
-  transform lanes `translateX`, `translateY`, `travel`, `rotate`,
-  `scale`, `scaleX`, `scaleY`, `skewX`, `skewY`, `transformOrigin`,
-  `transformOriginPx`; the depth lanes `rotateX`, `rotateY`, `rotateZ`,
-  `translateZ`, `scaleZ`, `perspective`, `perspectiveOrigin`,
-  `transformOrigin3d`, `preserve3d`, `backface`; `appear`, `transition`,
-  `staggerChildren`; `cache`, `bakeScale`; the cascade verbs `font`,
-  `block`, `styleSheet`, `styleClass`, `role`, `var`, `varDefaults`; the
-  text-leaf verbs `paragraphs`, `initialLetter`, `firstBaseline`,
+- `core/verbs/Shape.h` — the region verbs `corners`, `shape`, `clip`.
+- `core/Band.h` — the band formation `centered`, `outward`, `inward`.
+- `core/verbs/Mask.h` — `mask`.
+- `core/verbs/Cascade.h` — the cascade verbs `font`, `block`, `ink`,
+  `var`, `varDefaults`, `sampling`.
+- `core/verbs/Paint.h` — `fill`.
+- `core/verbs/Decoration.h` — the decoration slots `stroke`,
+  `background`, `overlay`, `foreground`, `style`, `echo`, and what they
+  dress: `boundary`, `threshold`.
+- `core/verbs/Effects.h` — `effect`, `backdrop`, `blend`, `opacity`,
+  `appear`.
+- `core/verbs/Transform.h` — the transform lanes `translateX`,
+  `translateY`, `travel`, `rotate`, `scale`, `scaleX`, `scaleY`,
+  `skewX`, `skewY`, `transformOrigin`, `transformOriginPx`, and
+  `zIndex`.
+- `core/verbs/Depth.h` — the depth lanes `rotateX`, `rotateY`,
+  `rotateZ`, `translateZ`, `scaleZ`, `perspective`,
+  `perspectiveOrigin`, `transformOrigin3d`, `preserve3d`, `backface`.
+- `core/Element.h` — `transition`,
+  `staggerChildren`; `cache`, `bakeScale`; the cascade a node names,
+  `styleSheet`, `styleClass`, `role`; the
+  text-leaf verbs `textFill`, `textStroke`,
+  `paragraphs`, `initialLetter`, `firstBaseline`,
   `distribute`, `reserve`, `maxLines`, `ellipsis`, `live`, `thread`,
   `balanceChain`, `flowAround`, `annotate`, `spanPaint`, `spanStyle`,
-  `fx`, `variationDrive`, `mark`, `onPath`, `atRest`; `region` and
-  `sampling`; `key`, `zIndex`, `hitTestable`; and `children`, whose runs
+  `fx`, `variationDrive`, `mark`, `onPath`, `atRest`; `region`;
+  `key`, `hitTestable`; and `children`, whose runs
   are the `Children` value.

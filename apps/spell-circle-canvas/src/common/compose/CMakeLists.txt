@@ -157,19 +157,30 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/backdrop.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/background.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/blend.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/block.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/boundary.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cells.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/clip.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/corners.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cover.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/effect.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/fill.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/font.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/foreground.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/ink.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/mask.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/opacity.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/overlay.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/preserve3d.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/rect.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/sampling.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/scaleX.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/shape.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/stroke.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/tether.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textFill.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textStroke.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/threshold.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include

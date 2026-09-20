@@ -1,7 +1,7 @@
 /** @file
- * Element's cascade verbs — the inherited font and its colour, the class
- * folded in where the element is written, and the custom properties a
- * node sets for everything under it.
+ * The cascade verbs — the inherited font and its colour, the block,
+ * the custom properties a node sets for everything under it, and how
+ * image leaves under it sample.
  */
 
 #include <sigilweave/layout/Block.h>
@@ -13,8 +13,9 @@
 
 namespace sigil::compose {
 
-Element& Element::font(sigil::weave::Type partial) {
-  detail::CascadeData& cascade = m_node->cascadeData.ensure();
+template <class Derived>
+Derived& CascadeVerbs<Derived>::font(sigil::weave::Type partial) {
+  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
   if (!cascade.font) cascade.font.emplace();
   // Later wins field by field: the partial written last replaces what it
   // names and leaves the rest as an earlier call or a class left it.
@@ -22,30 +23,64 @@ Element& Element::font(sigil::weave::Type partial) {
   // A colour written here is the ink, so a property the ink was read from
   // before no longer stands.
   if (partial.color) cascade.inkVar.reset();
-  return *this;
+  return self();
 }
 
-Element& Element::block(sigil::weave::Block partial) {
-  detail::CascadeData& cascade = m_node->cascadeData.ensure();
+template <class Derived>
+Derived& CascadeVerbs<Derived>::block(sigil::weave::Block partial) {
+  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
   if (!cascade.block) cascade.block.emplace();
   sigil::weave::merge(*cascade.block, partial);
-  return *this;
+  return self();
 }
 
-Element& Element::ink(SkColor4f colour) {
-  detail::CascadeData& cascade = m_node->cascadeData.ensure();
+template <class Derived>
+Derived& CascadeVerbs<Derived>::ink(SkColor4f colour) {
+  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
   if (!cascade.font) cascade.font.emplace();
   cascade.font->color = colour;
   cascade.inkVar.reset();
-  return *this;
+  return self();
 }
 
-Element& Element::ink(VarRef reference) {
-  detail::CascadeData& cascade = m_node->cascadeData.ensure();
+template <class Derived>
+Derived& CascadeVerbs<Derived>::ink(VarRef reference) {
+  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
   cascade.inkVar = reference;
   if (cascade.font) cascade.font->color.reset();
-  return *this;
+  return self();
 }
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::var(std::string_view name, SkColor4f colour) {
+  declarations()->cascadeData.ensure().vars.set(compose::var(name), colour);
+  return self();
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::var(std::string_view name, Dimension length) {
+  declarations()->cascadeData.ensure().vars.set(compose::var(name), length);
+  return self();
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::varDefaults(VarTable defaults) {
+  declarations()->cascadeData.ensure().varDefaults = std::move(defaults);
+  return self();
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::sampling(SkSamplingOptions options) {
+  declarations()->cascadeData.ensure().sampling = options;
+  return self();
+}
+
+template class CascadeVerbs<Element>;
+
+// The cascade a node NAMES rather than states: the sheet its classes
+// resolve through, the role that stands under them, and the classes
+// themselves. They are the node's identity in the cascade, not a
+// property a rule could restate, so they stay on Element.
 
 Element& Element::styleClass(std::string_view names) {
   // The names are KEPT, and resolved by the cascade pass against the
@@ -74,21 +109,6 @@ Element& Element::role(sigil::weave::Rule defaults) {
 
 Element& Element::role(std::string name) {
   return role(sigil::weave::Rule(std::move(name)));
-}
-
-Element& Element::var(std::string_view name, SkColor4f colour) {
-  m_node->cascadeData.ensure().vars.set(compose::var(name), colour);
-  return *this;
-}
-
-Element& Element::var(std::string_view name, Dimension length) {
-  m_node->cascadeData.ensure().vars.set(compose::var(name), length);
-  return *this;
-}
-
-Element& Element::varDefaults(VarTable defaults) {
-  m_node->cascadeData.ensure().varDefaults = std::move(defaults);
-  return *this;
 }
 
 }  // namespace sigil::compose

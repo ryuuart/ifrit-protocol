@@ -87,6 +87,25 @@ sound model; nothing below them changes kernel semantics.
   `cells`, `area`, `cellAlign`, `rect`, `at`. `cover` is the one that
   says a node FILLS the box it stands in, which `absolute` and `inset`
   said between them.
+- `core/verbs/Shape.h` — `ShapeVerbs`: `corners`, `shape`, `clip`.
+- `core/Band.h` — `BandVerbs`: `centered`, `outward`, `inward`.
+- `core/verbs/Mask.h` — `MaskVerbs`: `mask`, in both its forms.
+- `core/verbs/Cascade.h` — `CascadeVerbs`: `font`, `block`, `ink`,
+  `var`, `varDefaults`, `sampling` — what a node declares to everything
+  under it.
+- `core/verbs/Paint.h` — `PaintVerbs`: `fill`, in every form a surface
+  can be painted with.
+- `core/verbs/Decoration.h` — `DecorationVerbs`: `background`,
+  `overlay`, `foreground`, `stroke`, `style`, `echo`, `boundary`,
+  `threshold`.
+- `core/verbs/Effects.h` — `EffectVerbs`: `opacity`, `appear`, `blend`,
+  `effect`, `backdrop`.
+- `core/verbs/Transform.h` — `TransformVerbs`: `translateX`,
+  `translateY`, `travel`, `rotate`, `scale`, `scaleX`, `scaleY`,
+  `skewX`, `skewY`, `transformOrigin`, `transformOriginPx`, `zIndex`.
+- `core/verbs/Depth.h` — `DepthVerbs`: `rotateX`, `rotateY`, `rotateZ`,
+  `translateZ`, `scaleZ`, `perspective`, `perspectiveOrigin`,
+  `transformOrigin3d`, `preserve3d`, `backface`.
 - `core/Element.h` — `Element` and its builders: the verb mixins it
   inherits, its own identity and structure, and `Children`.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,

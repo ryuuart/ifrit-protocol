@@ -1,54 +1,30 @@
 /** @file
- * Element's shape verbs — the corner radii, the silhouette, a band's
- * formation, the clip, and what the node's decorations dress.
+ * The shape verbs — the corner radii, the silhouette that overrides
+ * them, and the clip to either.
  */
-
-#include <algorithm>
 
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
 
-Element& Element::corners(Corners c) {
-  m_node->corners = c;
-  return *this;
+template <class Derived>
+Derived& ShapeVerbs<Derived>::corners(Corners c) {
+  declarations()->corners = c;
+  return self();
 }
 
-Element& Element::shape(Shape path) {
-  m_node->shapeFn = std::move(path);
-  return *this;
+template <class Derived>
+Derived& ShapeVerbs<Derived>::shape(Shape path) {
+  declarations()->shapeFn = std::move(path);
+  return self();
 }
 
-Element& Element::centered() {
-  m_node->deriveData.ensure().bandFormation =
-      geometry::path::Formation::Center;
-  return *this;
+template <class Derived>
+Derived& ShapeVerbs<Derived>::clip(bool on) {
+  declarations()->clipContent = on;
+  return self();
 }
 
-Element& Element::outward() {
-  m_node->deriveData.ensure().bandFormation =
-      geometry::path::Formation::Outer;
-  return *this;
-}
-
-Element& Element::inward() {
-  m_node->deriveData.ensure().bandFormation = geometry::path::Formation::Inner;
-  return *this;
-}
-
-Element& Element::clip(bool on) {
-  m_node->clipContent = on;
-  return *this;
-}
-
-Element& Element::boundary(Boundary source) {
-  m_node->boundary = source;
-  return *this;
-}
-
-Element& Element::threshold(float coverage) {
-  m_node->coverageThreshold = std::clamp(coverage, 0.0f, 1.0f);
-  return *this;
-}
+template class ShapeVerbs<Element>;
 
 }  // namespace sigil::compose

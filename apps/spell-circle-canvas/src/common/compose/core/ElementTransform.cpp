@@ -1,126 +1,90 @@
 /** @file
- * Element's transform lanes — the 2D translate, rotate, scale and skew
- * about the transform origin, the motion path, and the depth lanes with
- * the view a node declares for its children.
+ * The 2D transform lanes — translate, rotate, scale and skew about the
+ * transform origin, the motion path, and the stacking index.
  */
 
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
 
-Element& Element::translateX(motion::Animatable<float> v) {
-  m_node->paint.translateX = std::move(v);
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::translateX(motion::Animatable<float> v) {
+  declarations()->paint.translateX = std::move(v);
+  return self();
 }
 
-Element& Element::translateY(motion::Animatable<float> v) {
-  m_node->paint.translateY = std::move(v);
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::translateY(motion::Animatable<float> v) {
+  declarations()->paint.translateY = std::move(v);
+  return self();
 }
 
-Element& Element::travel(MotionPath along) {
-  m_node->motionData.ensure() = std::move(along);
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::travel(MotionPath along) {
+  declarations()->motionData.ensure() = std::move(along);
+  return self();
 }
 
-Element& Element::rotate(motion::Animatable<float> v) {
-  m_node->paint.rotate = std::move(v);
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::rotate(motion::Animatable<float> v) {
+  declarations()->paint.rotate = std::move(v);
+  return self();
 }
 
-Element& Element::scale(motion::Animatable<float> v) {
-  m_node->paint.scale = std::move(v);
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::scale(motion::Animatable<float> v) {
+  declarations()->paint.scale = std::move(v);
+  return self();
 }
 
-Element& Element::scaleX(motion::Animatable<float> v) {
-  m_node->paint.scaleX = std::move(v);
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::scaleX(motion::Animatable<float> v) {
+  declarations()->paint.scaleX = std::move(v);
+  return self();
 }
 
-Element& Element::scaleY(motion::Animatable<float> v) {
-  m_node->paint.scaleY = std::move(v);
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::scaleY(motion::Animatable<float> v) {
+  declarations()->paint.scaleY = std::move(v);
+  return self();
 }
 
-Element& Element::skewX(motion::Animatable<float> v) {
-  m_node->paint.skewX = std::move(v);
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::skewX(motion::Animatable<float> v) {
+  declarations()->paint.skewX = std::move(v);
+  return self();
 }
 
-Element& Element::skewY(motion::Animatable<float> v) {
-  m_node->paint.skewY = std::move(v);
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::skewY(motion::Animatable<float> v) {
+  declarations()->paint.skewY = std::move(v);
+  return self();
 }
 
-Element& Element::transformOrigin(float fx, float fy) {
-  m_node->paint.originX = fx;
-  m_node->paint.originY = fy;
-  m_node->paint.originPx = false;
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::transformOrigin(float fx, float fy) {
+  detail::ElementNode* node = declarations();
+  node->paint.originX = fx;
+  node->paint.originY = fy;
+  node->paint.originPx = false;
+  return self();
 }
 
-Element& Element::transformOriginPx(SkPoint p) {
-  m_node->paint.originX = p.x();
-  m_node->paint.originY = p.y();
-  m_node->paint.originPx = true;
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::transformOriginPx(SkPoint p) {
+  detail::ElementNode* node = declarations();
+  node->paint.originX = p.x();
+  node->paint.originY = p.y();
+  node->paint.originPx = true;
+  return self();
 }
 
-Element& Element::rotateX(motion::Animatable<float> v) {
-  m_node->depthData.ensure().rotateX = std::move(v);
-  return *this;
+template <class Derived>
+Derived& TransformVerbs<Derived>::zIndex(int z) {
+  declarations()->paint.zIndex = z;
+  return self();
 }
 
-Element& Element::rotateY(motion::Animatable<float> v) {
-  m_node->depthData.ensure().rotateY = std::move(v);
-  return *this;
-}
-
-Element& Element::rotateZ(motion::Animatable<float> v) {
-  // ONE lane: the 2D rotation IS the rotation about the viewing axis, and
-  // a second field for the same turn would be two settings of one thing.
-  return rotate(std::move(v));
-}
-
-Element& Element::translateZ(motion::Animatable<float> v) {
-  m_node->depthData.ensure().translateZ = std::move(v);
-  return *this;
-}
-
-Element& Element::scaleZ(motion::Animatable<float> v) {
-  m_node->depthData.ensure().scaleZ = std::move(v);
-  return *this;
-}
-
-Element& Element::perspective(motion::Animatable<float> v) {
-  m_node->depthData.ensure().perspective = std::move(v);
-  return *this;
-}
-
-Element& Element::perspectiveOrigin(float fx, float fy) {
-  detail::DepthData& depth = m_node->depthData.ensure();
-  depth.perspectiveOriginX = fx;
-  depth.perspectiveOriginY = fy;
-  return *this;
-}
-
-Element& Element::transformOrigin3d(float fx, float fy, float zPx) {
-  // The x and y ARE transformOrigin()'s fields, so the 2D pivot and the
-  // 3D one can never disagree about where the plane turns.
-  transformOrigin(fx, fy);
-  m_node->depthData.ensure().originZ = zPx;
-  return *this;
-}
-
-Element& Element::preserve3d(bool on) {
-  m_node->depthData.ensure().preserve3d = on;
-  return *this;
-}
-
-Element& Element::backface(material::Backface facing) {
-  m_node->depthData.ensure().backface = facing;
-  return *this;
-}
+template class TransformVerbs<Element>;
 
 }  // namespace sigil::compose

@@ -1,52 +1,45 @@
 /** @file
- * Element's own paint — the transitionable fill, opacity, the blend, the
- * layer and backdrop effects, and the stacking index. A paint as a
- * fill, and the glyph fill, are Fills.cpp's.
+ * The node's own surface — the transitionable fill, and the paint a
+ * fill collapses from.
  */
 
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
 
-Element& Element::fill(motion::Animatable<Fill> f) {
-  m_node->paint.fill = std::move(f);
+template <class Derived>
+Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
+  detail::ElementNode* node = declarations();
+  node->paint.fill = std::move(f);
   // Symmetric with fill(Material): the fill setters are last-wins — a plain
   // fill after a live-material fill must actually take effect (and release
   // the node from the live-volatile path). staticMaterial must drop too, or
   // a stale equal-comparing recipe would over-prune this new fill.
   // Dropping the WHOLE block (not just its members) keeps propertiesEqual's
   // block-presence check aligned with a node that never had a material.
-  m_node->materialData = {};
-  return *this;
+  node->materialData = {};
+  return self();
 }
 
-Element& Element::effect(material::skia::Effect e) {
-  m_node->fxData.ensure().layerEffect = std::move(e);
-  return *this;
+template <class Derived>
+Derived& PaintVerbs<Derived>::fill(material::skia::Paint m) {
+  detail::ElementNode* node = declarations();
+  detail::MaterialData& slots = node->materialData.ensure();
+  if (m.isAnimated() || m.geometryDependent()) {
+    // Live paints re-resolve per frame; geometry-dependent ones resolve
+    // when the node records (and re-record on size change) — both route
+    // through the material slot so the painter resolves with the frame.
+    slots.live = std::move(m);
+    node->paint.fill.reset();
+    slots.recipe.reset();
+  } else {
+    node->paint.fill = motion::Animatable<Fill>{toFill(m)};
+    slots.recipe = std::move(m);  // the prune signature
+    slots.live.reset();
+  }
+  return self();
 }
 
-Element& Element::backdrop(material::skia::Effect e) {
-  m_node->fxData.ensure().backdropEffect = std::move(e);
-  return *this;
-}
-
-Element& Element::opacity(motion::Animatable<float> o) {
-  m_node->paint.opacity = std::move(o);
-  return *this;
-}
-
-Element& Element::appear(motion::Transition how) {
-  return opacity(motion::animate(motion::from(0.0f).to(1.0f), std::move(how)));
-}
-
-Element& Element::blend(SkBlendMode mode) {
-  m_node->paint.blendMode = mode;
-  return *this;
-}
-
-Element& Element::zIndex(int z) {
-  m_node->paint.zIndex = z;
-  return *this;
-}
+template class PaintVerbs<Element>;
 
 }  // namespace sigil::compose
