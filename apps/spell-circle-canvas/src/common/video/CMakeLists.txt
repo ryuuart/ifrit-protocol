@@ -3,7 +3,8 @@
 # surface that can accept pixels.
 sigil_library_root(SigilVideo
   BRIEF "Streaming video decoding, device composition, and video encoding"
-  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/DECODE.md)
 
 find_package(concurrentqueue CONFIG REQUIRED)
 find_package(FFMPEG REQUIRED)
@@ -54,7 +55,8 @@ sigil_library(SigilVideo
 # walkthrough hands a finished file to.
 sigil_doc_probes(video
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/DECODE.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../io/include/sigilio
   PRELUDES "<sigilio/hub/Hub.h>"
-  FLOORS 2,5,2,0,0
+  FLOORS 3,6,6,0,0
   LIBRARIES SigilVideo SigilIOHub)
