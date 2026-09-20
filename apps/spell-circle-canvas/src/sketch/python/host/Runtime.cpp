@@ -2,7 +2,6 @@
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
-#include <sigilcompose/core/Measure.h>
 #include <sigildata/decode/Json.h>
 #include <sigildata/table/Table.h>
 #include <sigilmotion/bind/Bound.h>
@@ -18,23 +17,27 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
-#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <mutex>
 #include <span>
 #include <stdexcept>
 #include <system_error>
-#include <thread>
-#include <unordered_map>
 
 #include "../kit/Registration.h"
 #include "Registration.h"
+#include "Session.h"
 
 extern "C" PyObject* PyInit__sigil();
 
 namespace sigil::sketch::python {
 namespace py = pybind11;
+
+using detail::AssetsView;
+using detail::ComposerView;
+using detail::Context;
+using detail::State;
+using detail::TickerView;
 
 namespace {
 
@@ -147,89 +150,6 @@ struct Generation {
   }
 };
 
-struct State {
-  sigil::python::CallbackLifetime callbacks;
-  compose::Composer* composer = nullptr;
-  CanvasSpecification* specification = nullptr;
-  motion::Ticker* ticker = nullptr;
-  Assets* assets = nullptr;
-  weave::FontContext* fonts = nullptr;
-  std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
-  std::vector<std::shared_ptr<const void>> tickerOwners;
-  std::unordered_map<io::Feed*, std::shared_ptr<void>> feedLeases;
-  std::thread::id thread;
-  std::string key;
-  bool deterministic = false;
-  bool valid = false;
-  bool failed = false;
-
-  void retainFeed(std::shared_ptr<io::Feed> feed) {
-    auto* identity = feed.get();
-    if (!feedLeases.contains(identity))
-      feedLeases.emplace(identity,
-                         sigil::python::retainSessionFeed(std::move(feed)));
-  }
-
-  void close() {
-    valid = false;
-    callbacks.clear();
-    feedLeases.clear();
-  }
-
-  void update(SketchContext& ctx) {
-    composer = &ctx.composer;
-    ticker = &ctx.ticker;
-    assets = &ctx.assets;
-    fonts = ctx.fonts;
-    scenes = ctx.scenes;
-    specification = ctx.specification;
-    thread = std::this_thread::get_id();
-    key = ctx.key;
-    deterministic = ctx.deterministic;
-    valid = true;
-  }
-
-  SketchContext context() const {
-    return {*composer,           *ticker,       *assets,
-            specification->size, specification, fonts,
-            deterministic,       scenes,        key};
-  }
-};
-
-/** Session-scoped access without retaining a stack-allocated context. */
-class Context {
- public:
-  explicit Context(const std::shared_ptr<State>& state) : m_state(state) {}
-  std::shared_ptr<State> state() const {
-    const auto state = m_state.lock();
-    if (!state || !state->valid)
-      throw std::runtime_error(
-          "This sketch context belongs to a closed session");
-    if (state->failed)
-      throw std::runtime_error(
-          "This sketch session failed; save the sketch to reload it");
-    if (state->thread != std::this_thread::get_id())
-      throw std::runtime_error(
-          "Sketch context operations run on the sketch thread");
-    return state;
-  }
-
- private:
-  std::weak_ptr<State> m_state;
-};
-
-class ComposerView : public Context {
- public:
-  using Context::Context;
-};
-class TickerView : public Context {
- public:
-  using Context::Context;
-};
-class AssetsView : public Context {
- public:
-  using Context::Context;
-};
 int callbackArity(const py::function& fn, int maximum) {
   return py::module_::import("sigil._callbacks")
       .attr("arity")(fn, maximum)
@@ -713,105 +633,6 @@ void bindRuntime(py::module_& module) {
            })
       .def("root",
            [](const AssetsView& v) { return v.state()->assets->root(); });
-  py::class_<Context, std::shared_ptr<Context>>(module, "Context")
-      .def(
-          "canvas",
-          [](const Context& ctx, float width, float height) {
-            if (!std::isfinite(width) || !std::isfinite(height) || width <= 0 ||
-                height <= 0)
-              throw py::value_error(
-                  "Canvas dimensions must be finite and positive");
-            ctx.state()->specification->size = {width, height};
-          },
-          py::arg("width"), py::arg("height"))
-      .def(
-          "background",
-          [](const Context& ctx, py::handle value) {
-            ctx.state()->specification->background =
-                sigil::python::color(value);
-          },
-          py::arg("color"))
-      .def(
-          "captureAt",
-          [](const Context& ctx, double seconds) {
-            if (!std::isfinite(seconds) || seconds < 0)
-              throw py::value_error(
-                  "Capture time must be finite and nonnegative");
-            ctx.state()->specification->captureSeconds = seconds;
-          },
-          py::arg("seconds"))
-      .def(
-          "render",
-          [](const Context& ctx, const compose::Element& element) {
-            ctx.state()->composer->render(element);
-          },
-          py::arg("element"))
-      .def_property_readonly(
-          "composer",
-          [](const Context& ctx) { return ComposerView(ctx.state()); })
-      .def_property_readonly(
-          "ticker", [](const Context& ctx) { return TickerView(ctx.state()); })
-      .def_property_readonly(
-          "assets", [](const Context& ctx) { return AssetsView(ctx.state()); })
-      .def(
-          "measured",
-          [](const Context& ctx, double value, double pinned) {
-            return ctx.state()->context().measured(value, pinned);
-          },
-          py::arg("value"), py::arg("pinned") = 0)
-      .def(
-          "oversample",
-          [](const Context& ctx, int samples) {
-            ctx.state()->context().oversample(samples);
-          },
-          py::arg("samples"))
-      .def("plate", [](const Context& ctx) { ctx.state()->context().plate(); })
-      .def(
-          "nonlinearPicture",
-          [](const Context& ctx) { ctx.state()->context().nonlinearPicture(); })
-      .def(
-          "measure",
-          [](const Context& ctx, const compose::Element& element,
-             SkSize maximum) {
-            return ctx.state()->context().measure(element, maximum);
-          },
-          py::arg("element"), py::arg("maxSize") = SkSize::MakeEmpty())
-      .def(
-          "snapshot",
-          [](const Context& ctx, const compose::Element& element,
-             SkSize maximum) {
-            const auto state = ctx.state();
-            return compose::snapshot(element, *state->fonts, maximum);
-          },
-          py::arg("element"), py::arg("maxSize") = SkSize::MakeEmpty())
-      .def(
-          "local",
-          [](const Context& ctx, const std::string& name) {
-            return "sketch://" + ctx.state()->key + "/" + name;
-          },
-          py::arg("path"))
-      .def_property_readonly(
-          "elapsed",
-          [](const Context& ctx) { return ctx.state()->ticker->elapsed(); })
-      .def_property_readonly("width",
-                             [](const Context& ctx) {
-                               return ctx.state()->specification->size.width();
-                             })
-      .def_property_readonly("height",
-                             [](const Context& ctx) {
-                               return ctx.state()->specification->size.height();
-                             })
-      .def_property_readonly("size",
-                             [](const Context& ctx) {
-                               const auto state = ctx.state();
-                               return py::make_tuple(
-                                   state->specification->size.width(),
-                                   state->specification->size.height());
-                             })
-      .def_property_readonly("deterministic", [](const Context& ctx) {
-        return ctx.state()->deterministic;
-      });
-  sketches.attr("Context") = module.attr("Context");
   module.def("render_file", &renderFile, py::arg("source"), py::arg("output"),
              py::arg("at") = py::none());
 }
