@@ -8,6 +8,7 @@ instead of passing quietly.
 
 import copy
 import gc
+import math
 import unittest
 
 from sigil import skia
@@ -187,9 +188,16 @@ class Standpoint(unittest.TestCase):
         # basis the quad is already written in, so the transform is the
         # one that changes nothing.
         self.assertEqual(camera.faceCamera((0, 0, 1), (0, 0, 0)), camera.Matrix())
-        facing = camera.faceCamera((0, 0, 1), (5, 6, 7))
-        self.assertEqual(facing[3], (5, 6, 7, 1))
-        self.assertEqual(facing[2], (0, 0, 1, 0))
+        eye, at = (0, 0, 1), (5, 6, 7)
+        facing = camera.faceCamera(eye, at)
+        # The fourth column is where the content stands, and the third
+        # is the +z face it turns: away from that place, toward the eye.
+        self.assertEqual(facing[3], (*at, 1))
+        toward = [away - here for away, here in zip(eye, at)]
+        length = math.sqrt(sum(value * value for value in toward))
+        for axis, value in enumerate(toward):
+            self.assertAlmostEqual(facing[2][axis], value / length, places=5)
+        self.assertEqual(facing[2][3], 0)
 
 
 if __name__ == "__main__":

@@ -52,6 +52,23 @@ def register(table: Table) -> None:
         "@typing.overload\n"
         "def __matmul__(self, other: _t.Vec4Like) -> _t.Vec4: ...\n",
     )
+    # The buffer protocol's two slots are C slots, so they carry no
+    # signature of their own: the reading hands out the sixteen floats
+    # where the matrix already keeps them, and the release gives that
+    # view back.
+    table.declares(
+        MATRIX,
+        "__buffer__",
+        "def __buffer__(self, flags: int) -> memoryview:\n"
+        '    """The sixteen floats as they stand in memory, column by'
+        ' column."""\n',
+    )
+    table.declares(
+        MATRIX,
+        "__release_buffer__",
+        "def __release_buffer__(self, buffer: memoryview) -> None:\n"
+        '    """Gives back a view taken over the matrix\'s own floats."""\n',
+    )
     table.parameters(CAMERA + ".project", point="_t.Vec3Like", viewport="_t.SizeLike")
     table.parameters(CAMERA + ".viewProjection", viewport="_t.SizeLike")
     table.parameters(MODULE + ".place", position="_t.Vec3Like")
