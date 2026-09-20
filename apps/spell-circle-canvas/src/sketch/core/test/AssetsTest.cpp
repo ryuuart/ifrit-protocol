@@ -25,6 +25,7 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include "ScratchDir.h"
 
@@ -84,6 +85,32 @@ TEST(RequireCached, AnswersFromTheCacheAndNamesTheFirstMissingUrl) {
   ASSERT_TRUE(sigil::io::seedNetworkCache(missing, {}, cache.path));
   EXPECT_FALSE(requireCached({missing}, &why, cache.path));
   EXPECT_NE(why.find(missing), std::string::npos);
+}
+
+TEST(RequireCached, AnswersOverAListDecidedWhileItRuns) {
+  // The general form: a host asking on behalf of a sketch written in
+  // another language holds its URLs in a vector, not in a literal, and
+  // must reach the same probe with it.
+  sigil::test::ScratchDir cache("sketch_require_cached_span");
+  const std::string fetched = "https://sketch.invalid/art/sheet.png";
+  const std::string missing = "https://sketch.invalid/art/mask.png";
+  const std::string body = "png";
+  ASSERT_TRUE(sigil::io::seedNetworkCache(
+      fetched, std::as_bytes(std::span(body.data(), body.size())), cache.path));
+
+  std::vector<std::string_view> urls{fetched};
+  std::string why;
+  EXPECT_TRUE(requireCached(urls, &why, cache.path));
+  EXPECT_TRUE(why.empty());
+
+  urls.push_back(missing);
+  EXPECT_FALSE(requireCached(urls, &why, cache.path));
+  EXPECT_NE(why.find(missing), std::string::npos);
+
+  // An empty run of URLs asks for nothing and is missing nothing,
+  // whichever form it came in.
+  EXPECT_TRUE(
+      requireCached(std::span<const std::string_view>{}, &why, cache.path));
 }
 
 TEST(RequireCached, AConfiguredCacheIsNotTheDefaultCache) {

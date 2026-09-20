@@ -9,6 +9,7 @@
 #include <sigilio/transport/Transport.h>
 
 #include <algorithm>
+#include <span>
 
 namespace sigil::sketch {
 
@@ -131,8 +132,7 @@ bool Assets::poll() {
   return changed;
 }
 
-bool requireCached(std::initializer_list<std::string_view> urls,
-                   std::string* why,
+bool requireCached(std::span<const std::string_view> urls, std::string* why,
                    const std::filesystem::path& cacheDirectory) {
   for (std::string_view url : urls) {
     // A present but empty resource cannot supply the sketch's art.
@@ -144,6 +144,13 @@ bool requireCached(std::initializer_list<std::string_view> urls,
     return false;
   }
   return true;
+}
+
+bool requireCached(std::initializer_list<std::string_view> urls,
+                   std::string* why,
+                   const std::filesystem::path& cacheDirectory) {
+  return requireCached(std::span(urls.begin(), urls.size()), why,
+                       cacheDirectory);
 }
 
 }  // namespace sigil::sketch

@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <initializer_list>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -133,7 +134,17 @@ class Assets {
  *  in the directory fetches persist to — and never the network, because
  *  a probe that fetched would make availability a function of the
  *  connection. @p cacheDirectory names another cache than the IO hub's default,
- *  which is what a test hands it. */
+ *  which is what a test hands it.
+ *
+ *  THE SPAN IS THE GENERAL FORM, for a caller whose URLs are decided
+ *  while it runs — a host asking on behalf of a sketch written in
+ *  another language, where the list is a value and not a literal. */
+[[nodiscard]] bool requireCached(
+    std::span<const std::string_view> urls, std::string* why,
+    const std::filesystem::path& cacheDirectory = {});
+
+/** The same probe over a list written where it is asked, which is the
+ *  shape a sketch's own `available()` spells. */
 [[nodiscard]] bool requireCached(
     std::initializer_list<std::string_view> urls, std::string* why,
     const std::filesystem::path& cacheDirectory = {});
