@@ -104,7 +104,7 @@ gm::pop::Chain dustOver(const gm::Mesh& subject) {
   glm::vec3 low{0.0f}, high{0.0f};
   subject.bounds(&low, &high);
   return gm::pop::on(subject, kMotes)
-      .rampBy(gm::pop::Lane::P, 1,
+      .rampBy(gm::pop::Attribute::P, 1,
               {{0.35f, 0.52f, 0.95f, 1.0f}, {0.97f, 0.70f, 0.40f, 1.0f}}, low.y,
               high.y)
       .vary(0.85f, 0.55f);

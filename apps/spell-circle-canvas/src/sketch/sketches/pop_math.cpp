@@ -155,7 +155,8 @@ struct PopMath {
                         .figure = cloudFigure(
                             "stretch", base()
                                            .operation(pop::Math{
-                                               pop::Lane::P, {1, 2.4f, 1, 1}})
+                                               pop::Attribute::P,
+                                               {1, 2.4f, 1, 1}})
                                            .cloud()),
                         .note = "Multiply one component. The colour lane stays "
                                 "intact."},
@@ -175,7 +176,7 @@ struct PopMath {
                         .control = "Lookup · height −24…24",
                         .figure = cloudFigure(
                             "lookup", base()
-                                          .rampBy(pop::Lane::P, 1,
+                                          .rampBy(pop::Attribute::P, 1,
                                                   {{0.10f, 0.14f, 0.30f, 1},
                                                    {0.30f, 0.85f, 0.72f, 1},
                                                    {1.00f, 0.95f, 0.55f, 1}},
@@ -195,7 +196,8 @@ struct PopMath {
                             selected()
                                 .masked("core")
                                 .operation(pop::Math{
-                                    pop::Lane::P, {1, 1, 1, 1}, {0, 58, 0, 0}})
+                                    pop::Attribute::P, {1, 1, 1, 1},
+                                    {0, 58, 0, 0}})
                                 .cloud()),
                         .note = "A soft selection blends the displacement into "
                                 "untouched points."},
@@ -204,8 +206,8 @@ struct PopMath {
                         .figure = cloudFigure(
                             "mix", base()
                                        .fill("anchor", {0, 86, 0, 1})
-                                       .mix(pop::Lane::P, "anchor",
-                                            pop::Lane::P, kFactor)
+                                       .mix(pop::Attribute::P, "anchor",
+                                            pop::Attribute::P, kFactor)
                                        .cloud()),
                         .note = "Every position travels the same fraction "
                                 "toward a named value."},

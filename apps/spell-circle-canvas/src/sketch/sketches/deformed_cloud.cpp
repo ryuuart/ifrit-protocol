@@ -119,7 +119,7 @@ struct DeformedCloud {
 
     const gm::pop::Chain forged =
         pop::on(seed)
-            .rampBy(pop::Lane::P, 1, heights(), low, high)
+            .rampBy(pop::Attribute::P, 1, heights(), low, high)
             .select("band", pop::Select::Shape::Box, centre, slab, 0.45f)
             // Inside the band: pushed out along each point's own normal,
             // which raises the waist the shear is read against.

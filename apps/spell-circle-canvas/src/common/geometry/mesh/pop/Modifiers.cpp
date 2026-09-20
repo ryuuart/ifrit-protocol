@@ -33,7 +33,8 @@ void jitter(Cloud& cloud, float amplitude, uint32_t seed) {
   if (n == 0) return;
   mesh::kernel::OperationDispatch work;
   if (!mesh::kernel::describe(
-          pop::Operation{pop::Jitter{pop::Lane::P, amplitude, seed}}, n, &work))
+          pop::Operation{pop::Jitter{pop::Attribute::P, amplitude, seed}}, n,
+          &work))
     return;
   // The kernel reads and writes one four-wide lane; the positions are
   // poured across it and back, which is the whole of what reaching the

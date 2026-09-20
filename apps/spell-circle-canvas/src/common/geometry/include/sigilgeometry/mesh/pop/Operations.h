@@ -29,26 +29,26 @@ namespace sigil::geometry::mesh {
  *  executing it is the job of a backend, and the CPU and GPU backends
  *  are required to produce the same result from the same Chain. */
 namespace pop {
-/** Sugar for the conventional attribute names: `Lane::P` and the
+/** Sugar for the conventional attribute names: `Attribute::P` and the
  *  string "P" address the same attribute. Anything outside this set is
  *  reached by its name. */
-enum class Lane : int32_t { P = 0, T = 1, Dir = 2, Scale = 3, Color = 4 };
+enum class Attribute : int32_t { P = 0, T = 1, Dir = 2, Scale = 3, Color = 4 };
 /** TouchDesigner's real superpower, adopted: operators address
  *  attributes BY NAME. The conventional lanes ("P", "T", "Dir",
  *  "Scale", "Color", plus "Tex" for texture hinting) are just
  *  well-known names — any other name creates a custom float4
  *  attribute on first write, flows through every filter, and
- *  exports on the cooked Cloud. The Lane enum remains as sugar for
+ *  exports on the cooked Cloud. The Attribute enum remains as sugar for
  *  the builtins. */
 struct AttributeReference {
   std::string name = "P";
   AttributeReference() = default;
-  AttributeReference(Lane lane)  // NOLINT: implicit by design
-      : name(lane == Lane::P       ? "P"
-             : lane == Lane::Dir   ? "Dir"
-             : lane == Lane::Color ? "Color"
-             : lane == Lane::Scale ? "Scale"
-                                   : "T") {}
+  AttributeReference(Attribute attribute)  // NOLINT: implicit by design
+      : name(attribute == Attribute::P       ? "P"
+             : attribute == Attribute::Dir   ? "Dir"
+             : attribute == Attribute::Color ? "Color"
+             : attribute == Attribute::Scale ? "Scale"
+                                             : "T") {}
   AttributeReference(const char* n) : name(n) {}             // NOLINT: implicit
   AttributeReference(std::string n) : name(std::move(n)) {}  // NOLINT
   bool operator==(const AttributeReference&) const = default;
@@ -56,7 +56,7 @@ struct AttributeReference {
 /** Which builtin @p attribute is — "Tex" included, slot 5 — and -1 for a
  *  custom name. It is how a reader tells the conventional lanes apart
  *  from the ones a chain invented, which is what the export needs. The
- *  five it shares with `Lane` are numbered the same there: one set of
+ *  five it shares with `Attribute` are numbered the same there: one set of
  *  names has one numbering. */
 inline int32_t builtinIndex(const AttributeReference& attribute) {
   if (attribute.name == "P") return 0;
@@ -82,7 +82,7 @@ struct SplineScatter {
 };
 /** Filter: lane += a stable random cube offset per point. */
 struct Jitter {
-  AttributeReference lane = Lane::P;
+  AttributeReference lane = Attribute::P;
   float amplitude = 10;
   uint32_t seed = 7;
   std::string mask;  ///< see "Masks" below; empty = every point
@@ -94,7 +94,7 @@ struct Jitter {
  *  so a kernel would change what this operator means rather than where
  *  it runs. */
 struct Noise {
-  AttributeReference lane = Lane::P;
+  AttributeReference lane = Attribute::P;
   float amplitude = 10;
   float frequency = 0.01f;
   float seed = 0;
@@ -103,7 +103,7 @@ struct Noise {
 };
 /** Filter: lane = lerp(from, to) by the T attribute. */
 struct Ramp {
-  AttributeReference lane = Lane::Color;
+  AttributeReference lane = Attribute::Color;
   glm::vec4 from = {1, 1, 1, 1};
   glm::vec4 to = {1, 1, 1, 1};
   std::string mask;
@@ -113,7 +113,7 @@ struct Ramp {
  *  - 1)). The one value goes into all four, so a `Vary` on a colour
  *  varies its alpha with its channels. */
 struct Vary {
-  AttributeReference lane = Lane::Scale;
+  AttributeReference lane = Attribute::Scale;
   float base = 1;
   float spread = 0.5f;
   uint32_t seed = 11;
@@ -128,7 +128,7 @@ struct LookAt {
 };
 /** Filter: lane = lane * multiplier + add, per component. */
 struct Math {
-  AttributeReference lane = Lane::P;
+  AttributeReference lane = Attribute::P;
   glm::vec4 multiplier = {1, 1, 1, 1};
   glm::vec4 add = {0, 0, 0, 0};
   std::string mask;
@@ -146,7 +146,7 @@ struct Math {
  *  that one reads the neighbours SPACE decides and works on positions.
  *  A chain of points along a rail wants this; a scatter wants that. */
 struct Smooth {
-  AttributeReference lane = Lane::P;
+  AttributeReference lane = Attribute::P;
   float strength = 0.5f;  ///< 0 = off, 1 = full midpoint
   int iterations = 1;
   std::string mask;
@@ -193,7 +193,7 @@ struct Atlas {
  *  device executor cooks POINTS only and declines any chain holding
  *  this operation outright rather than dropping it silently. */
 struct Promote {
-  AttributeReference from = Lane::Color;
+  AttributeReference from = Attribute::Color;
   std::string to;  ///< primitive lane name; empty = the source's name
   bool operator==(const Promote&) const = default;
 };
@@ -208,9 +208,9 @@ struct Promote {
  *  falloff on a custom lane. Per-point and count-invariant, so BOTH
  *  executors run it; an empty table is a no-op on both. */
 struct Lookup {
-  AttributeReference from = Lane::T;
+  AttributeReference from = Attribute::T;
   glm::vec4 weights = {1, 0, 0, 0};  ///< key = dot(from, weights)
-  AttributeReference to = Lane::Color;
+  AttributeReference to = Attribute::Color;
   std::vector<glm::vec4> stops = {{0, 0, 0, 1}, {1, 1, 1, 1}};
   float low = 0, high = 1;  ///< the source range the table spans
   std::string mask;
@@ -233,7 +233,7 @@ struct Lookup {
  *  device executor declines any chain holding one, the way it
  *  declines Smooth and Promote. */
 struct Sort {
-  AttributeReference by = Lane::P;
+  AttributeReference by = Attribute::P;
   glm::vec4 weights = {0, 0, 1, 0};  ///< key = dot(by, weights)
   bool descending = false;
   bool operator==(const Sort&) const = default;
@@ -280,7 +280,7 @@ struct Select {
   float feather = 0;
   bool invert = false;
   Combine combine = Combine::Replace;
-  AttributeReference from = Lane::P;
+  AttributeReference from = Attribute::P;
   bool operator==(const Select&) const = default;
 };
 /** Filter: lane = matrix * lane — the whole affine vocabulary in one
@@ -290,7 +290,7 @@ struct Select {
  *  P and a second on Dir keep a stamp's basis honest under rotation.
  *  .w of the lane passes through untouched either way. */
 struct Affine {
-  AttributeReference lane = Lane::P;
+  AttributeReference lane = Attribute::P;
   glm::mat4 matrix = glm::mat4(1.0f);
   bool direction = false;
   std::string mask;
@@ -302,8 +302,8 @@ struct Affine {
  *  zero-length `along` moves nothing. */
 struct Peak {
   float distance = 10;
-  AttributeReference along = Lane::Dir;
-  AttributeReference lane = Lane::P;
+  AttributeReference along = Attribute::Dir;
+  AttributeReference lane = Attribute::P;
   std::string mask;
   bool operator==(const Peak&) const = default;
 };
@@ -333,7 +333,7 @@ struct Deform {
   glm::vec3 origin = {0, 0, 0};
   glm::vec3 direction = {1, 0, 0};  ///< Bend only
   float low = 0, high = 100;
-  AttributeReference lane = Lane::P;
+  AttributeReference lane = Attribute::P;
   std::string mask;
   bool operator==(const Deform&) const = default;
 };
@@ -343,9 +343,9 @@ struct Deform {
  *  (factor 0), or fades a lane toward another by a third — Houdini's
  *  attribute blend and Blender's mix in one per-point operation. */
 struct Mix {
-  AttributeReference a = Lane::Color;
-  AttributeReference b = Lane::Color;
-  AttributeReference to = Lane::Color;
+  AttributeReference a = Attribute::Color;
+  AttributeReference b = Attribute::Color;
+  AttributeReference to = Attribute::Color;
   float factor = 0.5f;
   std::string factorLane;
   std::string mask;
@@ -395,8 +395,8 @@ struct Delete {
  *  surface's directions agree across a seam, and what stands a
  *  closed shape's stamps up the same way all over. */
 struct Normal {
-  AttributeReference lane = Lane::Dir;
-  AttributeReference from = Lane::P;
+  AttributeReference lane = Attribute::Dir;
+  AttributeReference from = Attribute::P;
   glm::vec3 center = {0, 0, 0};
   float sense = 0;
   glm::vec3 fallback = {0, 0, 1};
@@ -437,7 +437,7 @@ struct Relax {
  *
  *  Host-only for the reason every neighbourhood operator is. */
 struct Cluster {
-  AttributeReference from = Lane::P;
+  AttributeReference from = Attribute::P;
   std::string to = "cluster";
   glm::vec4 weights = {1, 1, 1, 0};
   int count = 8;

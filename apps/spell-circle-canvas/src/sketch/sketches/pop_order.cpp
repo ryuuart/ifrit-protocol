@@ -159,7 +159,7 @@ struct PopOrder {
           .spread(kSpread)
           .seed(5)
           .vary(0.45f)
-          .rampBy(mesh::pop::Lane::P, 2, depthStops, -230.0f, 230.0f);
+          .rampBy(mesh::pop::Attribute::P, 2, depthStops, -230.0f, 230.0f);
     };
     unsorted = depthChain().cloud();
     sorted = depthChain().order(kOrderAxis, kDescending).cloud();

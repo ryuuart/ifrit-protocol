@@ -50,7 +50,7 @@ TEST(Pop, NormalUnitsADirectionLaneAndGivesItOneSense) {
   const Cloud cooked =
       pop::cook(pop::Chain(pop::on(loop)
                                .count(120)
-                               .fill(pop::Lane::Dir, {3, 0, 0, 0})
+                               .fill(pop::Attribute::Dir, {3, 0, 0, 0})
                                .normal(1.0f, {0, 0, 0})));
   const std::vector<glm::vec3>* dir = cooked.vectorIf("dir");
   ASSERT_TRUE(dir);
@@ -63,8 +63,11 @@ TEST(Pop, NormalUnitsADirectionLaneAndGivesItOneSense) {
         << "point " << i;
   }
   // A zero sense leaves the sense alone and only units the lane.
-  const Cloud plain = pop::cook(pop::Chain(
-      pop::on(loop).count(120).fill(pop::Lane::Dir, {3, 0, 0, 0}).normal()));
+  const Cloud plain = pop::cook(pop::Chain(pop::on(loop)
+                                               .count(120)
+                                               .fill(pop::Attribute::Dir,
+                                                     {3, 0, 0, 0})
+                                               .normal()));
   const std::vector<glm::vec3>* plainDir = plain.vectorIf("dir");
   ASSERT_TRUE(plainDir);
   for (const glm::vec3& d : *plainDir) EXPECT_EQ(d, glm::vec3(1, 0, 0));
@@ -185,7 +188,7 @@ TEST(Pop, DeformersTwistTaperAndBend) {
 TEST(Pop, VaryScatteresALaneAroundItsBaseWithinItsSpread) {
   const std::vector<glm::vec3> loop = flatRing(8, 200);
   const Cloud cooked = pop::cook(
-      pop::on(loop).count(256).vary(0.4f, 0.5f, pop::Lane::Color).chain());
+      pop::on(loop).count(256).vary(0.4f, 0.5f, pop::Attribute::Color).chain());
   const std::vector<glm::vec4>* tint = cooked.colorIf("tint");
   ASSERT_NE(tint, nullptr);
   ASSERT_EQ(tint->size(), 256u);

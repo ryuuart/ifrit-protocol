@@ -69,8 +69,8 @@ TEST(Points, AModifierMovesPointsExactlyAsItsOperatorDoes) {
 
   Cloud jittered = seeded;
   points::jitter(jittered, 14.0f, 21u);
-  const Cloud chained = pop::cook(
-      pop::Chain{pop::PointSet{seeded}, pop::Jitter{pop::Lane::P, 14.0f, 21u}});
+  const Cloud chained = pop::cook(pop::Chain{
+      pop::PointSet{seeded}, pop::Jitter{pop::Attribute::P, 14.0f, 21u}});
   ASSERT_EQ(chained.size(), jittered.size());
   for (size_t i = 0; i < jittered.size(); ++i)
     EXPECT_EQ(chained.positions[i], jittered.positions[i]) << "point " << i;
@@ -78,7 +78,7 @@ TEST(Points, AModifierMovesPointsExactlyAsItsOperatorDoes) {
   Cloud drifted = seeded;
   points::displaceNoise(drifted, 9.0f, 0.02f, 5u);
   const Cloud driftedChain = pop::cook(pop::Chain{
-      pop::PointSet{seeded}, pop::Noise{pop::Lane::P, 9.0f, 0.02f, 5.0f}});
+      pop::PointSet{seeded}, pop::Noise{pop::Attribute::P, 9.0f, 0.02f, 5.0f}});
   ASSERT_EQ(driftedChain.size(), drifted.size());
   for (size_t i = 0; i < drifted.size(); ++i)
     EXPECT_EQ(driftedChain.positions[i], drifted.positions[i]) << "point " << i;

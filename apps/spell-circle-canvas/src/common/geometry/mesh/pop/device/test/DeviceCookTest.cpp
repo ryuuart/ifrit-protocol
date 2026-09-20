@@ -140,7 +140,7 @@ std::vector<Case> everySupportedChain() {
   add("Atlas", pop::on(loop()).count(n).atlas(3, 5));
   add("Lookup",
       pop::on(loop()).count(n).rampBy(
-          geometry::mesh::pop::Lane::P, 1,
+          geometry::mesh::pop::Attribute::P, 1,
           {{0, 0, 0, 1}, {1, 0.5f, 0, 1}, {1, 1, 1, 1}}, -80.0f, 80.0f));
   add("Select and the mask it writes",
       pop::on(loop())
@@ -157,7 +157,7 @@ std::vector<Case> everySupportedChain() {
           .masked("slab"));
   add("Normal, unit and outward", pop::on(loop())
                                       .count(n)
-                                      .fill(pop::Lane::Dir, {3, 0, 0, 0})
+                                      .fill(pop::Attribute::Dir, {3, 0, 0, 0})
                                       .normal(1.0f, {0, 0, 0}));
   add("Affine, as a placement", pop::on(loop()).count(n).affine(place));
   add("Affine, as a direction", pop::on(loop()).count(n).orient(place));
@@ -165,14 +165,18 @@ std::vector<Case> everySupportedChain() {
   add("Mix, by a constant", pop::on(loop())
                                 .count(n)
                                 .fill("warm", {1, 0.4f, 0, 1})
-                                .mix(geometry::mesh::pop::Lane::Color, "warm",
-                                     geometry::mesh::pop::Lane::Color, 0.35f));
+                                .mix(geometry::mesh::pop::Attribute::Color,
+                                     "warm",
+                                     geometry::mesh::pop::Attribute::Color,
+                                     0.35f));
   add("Mix, by a lane", pop::on(loop())
                             .count(n)
                             .select("core", {0, 0, 0}, 70.0f, 0.5f)
                             .fill("warm", {1, 0.4f, 0, 1})
-                            .mixBy(geometry::mesh::pop::Lane::Color, "warm",
-                                   geometry::mesh::pop::Lane::Color, "core"));
+                            .mixBy(geometry::mesh::pop::Attribute::Color,
+                                   "warm",
+                                   geometry::mesh::pop::Attribute::Color,
+                                   "core"));
   // …and the two that run several in a row.
   add("A whole chain", pop::on(loop())
                            .count(n)
@@ -290,7 +294,8 @@ TEST(DevicePop, AnOperatorWithNoKernelIsDeclinedByName) {
   const pop::Chain relax = pop::on(loop()).count(64).smooth();
   const pop::Chain sorted = pop::on(loop()).count(64).order();
   const pop::Chain promoted =
-      pop::on(loop()).count(64).promote(geometry::mesh::pop::Lane::Color, "c");
+      pop::on(loop()).count(64).promote(geometry::mesh::pop::Attribute::Color,
+                                        "c");
   const pop::Chain noised = pop::on(loop()).count(64).noise(4.0f);
   const pop::Chain twisted = pop::on(loop()).count(64).twist(45.0f);
   for (const pop::Chain& chain : {relax, sorted, promoted, noised, twisted}) {

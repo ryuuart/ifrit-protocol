@@ -67,8 +67,9 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
     const pop::Chain chain =
         pop::on(loop)
             .count(4)
-            .fill(pop::Lane::P, {0, y, 0, 0})
-            .rampBy(pop::Lane::P, 1, {lowStop, midStop, highStop}, -100, 100);
+            .fill(pop::Attribute::P, {0, y, 0, 0})
+            .rampBy(pop::Attribute::P, 1, {lowStop, midStop, highStop}, -100,
+                    100);
     const Cloud cooked = pop::cook(chain);
     const std::vector<glm::vec4>* tint = cooked.colorIf("tint");
     EXPECT_TRUE(tint);
@@ -168,9 +169,9 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
                                .count(kPoints)
                                .fade({1, 0, 0, 1}, {0, 0, 1, 1})
                                .vary(0.5f)
-                               .promote(pop::Lane::Color)
+                               .promote(pop::Attribute::Color)
                                .promote("Id", "Id")
-                               .promote(pop::Lane::Scale, "size");
+                               .promote(pop::Attribute::Scale, "size");
 
   // Cooking to a Cloud is unaffected: points have no primitives, so a
   // promote in the chain is simply inert there.

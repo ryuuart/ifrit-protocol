@@ -79,23 +79,24 @@ class Builder {
       m->seed = v;
     return *this;
   }
-  Builder& jitter(float amplitude, AttributeReference attribute = Lane::P) {
+  Builder& jitter(float amplitude,
+                  AttributeReference attribute = Attribute::P) {
     m_chain.emplace_back(Jitter{std::move(attribute), amplitude, nextSeed()});
     return *this;
   }
   Builder& noise(float amplitude, float frequency = 0.01f,
-                 AttributeReference attribute = Lane::P) {
+                 AttributeReference attribute = Attribute::P) {
     m_chain.emplace_back(
         Noise{std::move(attribute), amplitude, frequency, (float)nextSeed()});
     return *this;
   }
   Builder& vary(float spread, float base = 1,
-                AttributeReference attribute = Lane::Scale) {
+                AttributeReference attribute = Attribute::Scale) {
     m_chain.emplace_back(Vary{std::move(attribute), base, spread, nextSeed()});
     return *this;
   }
   Builder& fade(glm::vec4 from, glm::vec4 to) {
-    m_chain.emplace_back(Ramp{Lane::Color, from, to});
+    m_chain.emplace_back(Ramp{Attribute::Color, from, to});
     return *this;
   }
   Builder& tint(glm::vec4 color) { return fade(color, color); }
@@ -105,7 +106,7 @@ class Builder {
   }
   Builder& move(glm::vec3 offset) {
     m_chain.emplace_back(
-        Math{Lane::P, {1, 1, 1, 1}, {offset.x, offset.y, offset.z, 0}});
+        Math{Attribute::P, {1, 1, 1, 1}, {offset.x, offset.y, offset.z, 0}});
     return *this;
   }
   /** Create/fill any attribute — customs included. */
@@ -121,18 +122,18 @@ class Builder {
   /** Drive one attribute from another through a table of stops —
    *  `fade` grown up: pick the source, pick which of its components
    *  reads, give the range it spans, hand over as many stops as the
-   *  curve needs. `.rampBy(Lane::P, 1, {deep, shallow}, 0, 200)` is
+   *  curve needs. `.rampBy(Attribute::P, 1, {deep, shallow}, 0, 200)` is
    *  "colour by height". */
   Builder& rampBy(AttributeReference from, int component,
                   std::vector<glm::vec4> stops, float low = 0, float high = 1,
-                  AttributeReference to = Lane::Color) {
+                  AttributeReference to = Attribute::Color) {
     m_chain.emplace_back(Lookup{std::move(from), componentWeight(component),
                                 std::move(to), std::move(stops), low, high});
     return *this;
   }
   /** The loud-default spelling: a multi-stop gradient down T. */
   Builder& rampBy(std::vector<glm::vec4> stops = {{0, 0, 0, 1}, {1, 1, 1, 1}}) {
-    return rampBy(Lane::T, 0, std::move(stops));
+    return rampBy(Attribute::T, 0, std::move(stops));
   }
   /** Put the points in order along an axis — farthest-first painter
    *  order for transparent sprites, or a re-threading of the path
@@ -140,7 +141,7 @@ class Builder {
    *  `descending` for back-to-front. */
   Builder& order(glm::vec3 axis = {0, 0, 1}, bool descending = false) {
     m_chain.emplace_back(
-        Sort{Lane::P, {axis.x, axis.y, axis.z, 0}, descending});
+        Sort{Attribute::P, {axis.x, axis.y, axis.z, 0}, descending});
     return *this;
   }
   /** ...or by any attribute's component: `.orderBy("energy")`. */
@@ -160,7 +161,7 @@ class Builder {
   }
   /** Heal kinks: chain-order smoothing on P (the sweep-saver). */
   Builder& smooth(float strength = 0.5f, int iterations = 2) {
-    m_chain.emplace_back(Smooth{Lane::P, strength, iterations});
+    m_chain.emplace_back(Smooth{Attribute::P, strength, iterations});
     return *this;
   }
   /** Push the points apart until nothing is nearer than @p radius. */
@@ -226,19 +227,20 @@ class Builder {
   }
   /** The affine vocabulary on P (or any lane): pass a matrix from
    *  camera::place or glm. */
-  Builder& affine(const glm::mat4& matrix, AttributeReference lane = Lane::P) {
+  Builder& affine(const glm::mat4& matrix,
+                  AttributeReference lane = Attribute::P) {
     m_chain.emplace_back(Affine{std::move(lane), matrix, false});
     return *this;
   }
   /** ...and its direction twin: rotate Dir (or any direction lane)
    *  by the same matrix's upper 3x3, renormalized. */
   Builder& orient(const glm::mat4& matrix,
-                  AttributeReference lane = Lane::Dir) {
+                  AttributeReference lane = Attribute::Dir) {
     m_chain.emplace_back(Affine{std::move(lane), matrix, true});
     return *this;
   }
   /** Push every point along its own Dir. */
-  Builder& peak(float distance, AttributeReference along = Lane::Dir) {
+  Builder& peak(float distance, AttributeReference along = Attribute::Dir) {
     m_chain.emplace_back(Peak{distance, std::move(along)});
     return *this;
   }
@@ -319,7 +321,7 @@ class Builder {
    *  @p sense — turn every one of them away from @p center (+1) or
    *  toward it (-1). */
   Builder& normal(float sense = 0, glm::vec3 center = {0, 0, 0},
-                  AttributeReference lane = Lane::Dir) {
+                  AttributeReference lane = Attribute::Dir) {
     Normal n;
     n.lane = std::move(lane);
     n.center = center;

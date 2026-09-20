@@ -37,7 +37,7 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   scatter.count = 96;
   scatter.head = 1;
   scatter.span = 1;
-  pop::Chain chain = {scatter, pop::Noise{pop::Lane::P, 40, 0.01f, 5}};
+  pop::Chain chain = {scatter, pop::Noise{pop::Attribute::P, 40, 0.01f, 5}};
 
   const Mesh tube = pop::cookSweep(chain, sections::circle(10), true,
                                    {.segments = 200, .scale = 12});
@@ -56,7 +56,8 @@ TEST(Pop, SweptSinksBendWithTheChain) {
                       .normals = pop::SweepOptions::Normals::Frame});
   EXPECT_GT(ribbon.triangleCount(), 200u);
 
-  chain.emplace_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 900, 0, 0}});
+  chain.emplace_back(
+      pop::Math{pop::Attribute::P, {1, 1, 1, 1}, {0, 900, 0, 0}});
   const Mesh lifted = pop::cookSweep(chain, sections::circle(10), true,
                                      {.segments = 160, .scale = 12});
   glm::vec3 lo2, hi2;

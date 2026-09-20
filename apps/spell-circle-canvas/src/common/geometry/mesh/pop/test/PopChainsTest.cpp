@@ -38,8 +38,9 @@ TEST(Pop, CookMeshFormsAModelFromAChain) {
   scatter.head = 1;
   scatter.span = 1;
   scatter.radius = 12;
-  pop::Chain chain = {scatter, pop::Vary{pop::Lane::Scale, 1.0f, 0.4f, 3},
-                      pop::Ramp{pop::Lane::Color, {1, 0, 0, 1}, {0, 0, 1, 1}}};
+  pop::Chain chain = {
+      scatter, pop::Vary{pop::Attribute::Scale, 1.0f, 0.4f, 3},
+      pop::Ramp{pop::Attribute::Color, {1, 0, 0, 1}, {0, 0, 1, 1}}};
   const Mesh stamp = mesh::quad(6, 6);
   const Mesh model = pop::cookMesh(chain, stamp);
   EXPECT_EQ(model.vertexCount(), 500u * stamp.vertexCount());
@@ -48,7 +49,8 @@ TEST(Pop, CookMeshFormsAModelFromAChain) {
   const Mesh again = pop::cookMesh(chain, stamp);
   ASSERT_EQ(again.positions.size(), model.positions.size());
   EXPECT_EQ(again.positions[123].x, model.positions[123].x);
-  chain.emplace_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 500, 0, 0}});
+  chain.emplace_back(
+      pop::Math{pop::Attribute::P, {1, 1, 1, 1}, {0, 500, 0, 0}});
   const Mesh lifted = pop::cookMesh(chain, stamp);
   EXPECT_GT(lifted.positions[123].y, model.positions[123].y + 400.0f);
 }
