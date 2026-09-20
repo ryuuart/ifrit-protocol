@@ -3,9 +3,7 @@ kind: type
 library: SigilMaterial
 name: Ramp
 qualified: sigil::material::Ramp
-header: sigilmaterial/color/Ramp.h
 group: Colour
-python: sigil.material.Ramp
 status: stable
 ---
 
@@ -124,7 +122,8 @@ of one is the caller deciding otherwise.
   `ramp`
 - `color/Color.h` — the ladder underneath: `RampStop`, `RampBracket`,
   `rampBracket`, `sampleRamp`
-- [Palette](Palette.md) — the fixed table, which is not a ramp with more
-  stops
-- [Color](Color.md) — what a ramp answers
-- [Paint](Paint.md) — where a ramp's stops become a gradient
+- [Palette](value:sigil::material::Palette) — the fixed table, which is
+  not a ramp with more stops
+- [Color](value:sigil::material::Color) — what a ramp answers
+- [Paint](value:sigil::material::skia::Paint) — where a ramp's stops
+  become a gradient

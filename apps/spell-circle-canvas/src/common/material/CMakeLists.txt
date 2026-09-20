@@ -26,7 +26,8 @@
 sigil_library_root(SigilMaterial
   BRIEF "Materials as recipe instances: reflected parameters, per-target bodies, one program cache"
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md)
+       ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md)
 
 # Dependencies point up this list.
 add_subdirectory(color)

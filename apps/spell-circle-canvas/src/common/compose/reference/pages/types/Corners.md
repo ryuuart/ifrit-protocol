@@ -3,9 +3,7 @@ kind: type
 library: SigilCompose
 name: Corners
 qualified: sigil::compose::Corners
-header: sigilcompose/core/Paint.h
 group: Shape and edge
-python: sigil.compose.Corners
 status: stable
 ---
 
@@ -69,7 +67,7 @@ like any other value.
 ## See also
 
 - `core/Paint.h` — the header: `Corners`, `Fill`, `PaintContext`
-- [PathFormat](PathFormat.md) — the stroke that follows the rounded
-  outline, and where its alignment puts the mark
-- [Dimension](Dimension.md) — the lengths a box is measured in, which a
-  radius deliberately is not
+- [PathFormat](value:sigil::compose::PathFormat) — the stroke that
+  follows the rounded outline, and where its alignment puts the mark
+- [Dimension](value:sigil::compose::Dimension) — the lengths a box is
+  measured in, which a radius deliberately is not

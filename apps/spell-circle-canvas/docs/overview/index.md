@@ -15,12 +15,14 @@ its own README, and each with the same values reachable from Python.
 
 Three things a reader usually wants next:
 
-- **[The libraries](libraries.md)** — what each one owns, and how they
-  relate.
-- **[The guides](../guides/index.md)** — the shortest path from nothing
+- **[The libraries](overview:libraries)** — what each one owns, and how
+  they relate.
+- **[The guides](/guides/index.html)** — the shortest path from nothing
   to a picture, in C++ and in Python.
-- **[The glossary](../glossary.md)** — the house words, and which
-  library each one belongs to.
+- **[The glossary](glossary:)** — the house words, and which library
+  each one belongs to.
+- **[The values](/values/index.html)** — every value in the tree, with
+  what makes one and what takes one.
 
 ## The data path
 

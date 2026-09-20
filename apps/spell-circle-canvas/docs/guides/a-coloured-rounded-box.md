@@ -87,12 +87,12 @@ sigil render first_box.py --output first_box.png
 **`box()`** is an **element**: a free function that returns an `Element`
 and starts a tree. An element is a cheap value, built fresh every frame
 and thrown away — you do not keep one and mutate it. The other factories
-are on [the element index](../../src/common/compose/reference/ELEMENTS.md).
+are on [the element index](/reference/SigilCompose/elements/index.html).
 
 **`.width`, `.corners`, `.fill`, `.justify`** are **verbs**: members that
 return the element by reference, so they chain. The order you say them
 in does not matter. They are grouped by concern on
-[the verb index](../../src/common/compose/reference/VERBS.md).
+[the verb index](/reference/SigilCompose/verbs/index.html).
 
 **`.children({...})`** takes the whole block of children at the end,
 after everything said about the node itself. In Python the children are
@@ -106,21 +106,18 @@ something to centre inside.
 `fill` takes a colour here, but that is the narrowest of what it
 accepts — it takes a gradient, a shader, a moving colour and a whole
 material just as happily. The value is a
-[`Fill`](../../src/common/compose/reference/pages/types/Fill.md), and
-the widest form of the same argument is a
-[`SurfacePaint`](../../src/common/compose/reference/pages/types/SurfacePaint.md).
-If you are unsure which of the four colour-ish things to reach for, read
-[Colour, fill, paint and material](../../src/common/compose/reference/COLOURING.md)
-once and you will not have to ask again.
+[`Fill`](value:sigil::compose::Fill), and the widest form of the same
+argument is a [`SurfacePaint`](value:sigil::compose::SurfacePaint). If
+you are unsure which of the four colour-ish things to reach for, read
+the colour chapter on the [SigilCompose](doxygen:SigilCompose) site once
+and you will not have to ask again.
 
-`corners` takes a
-[`Corners`](../../src/common/compose/reference/pages/types/Corners.md) —
-one number rounds all four, four numbers dress each corner. The radius
-is a plain number and not a length, because a radius changes what is
-drawn and never what is measured.
+`corners` takes a [`Corners`](value:sigil::compose::Corners) — one
+number rounds all four, four numbers dress each corner. The radius is a
+plain number and not a length, because a radius changes what is drawn
+and never what is measured.
 
-The sizes are
-[`Dimension`](../../src/common/compose/reference/pages/types/Dimension.md)s.
+The sizes are [`Dimension`](value:sigil::compose::Dimension)s.
 A bare number is pixels, which is why `width(220)` reads as a number;
 `width(50_pct)` is half the parent, `width(6_pw)` is six percent of the
 canvas whatever the parent is, and `width(2_rem)` follows the root's
@@ -129,10 +126,8 @@ font.
 ## Next
 
 - Give it a border: `.stroke(stroke(1.5f, Fill::color(kAccent)))`, whose
-  value is a
-  [`PathFormat`](../../src/common/compose/reference/pages/types/PathFormat.md).
+  value is a [`PathFormat`](value:sigil::compose::PathFormat).
 - Give it a shadow: `.background(shadow(kGround, {0, 6}, 18))`, whose
-  value is a
-  [`Shadow`](../../src/common/compose/reference/pages/types/Shadow.md) —
-  and note it goes on `background`, under the fill, not over it.
-- Make the colour move: [Animate a fill](animate-a-fill.md).
+  value is a [`Shadow`](value:sigil::compose::Shadow) — and note it goes
+  on `background`, which paints beneath the fill rather than over it.
+- Make the colour move: [Animate a fill](guide:animate-a-fill).

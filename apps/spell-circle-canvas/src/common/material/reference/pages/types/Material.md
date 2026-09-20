@@ -3,9 +3,7 @@ kind: type
 library: SigilMaterial
 name: Material
 qualified: sigil::material::Material
-header: sigilmaterial/core/Material.h
 group: Core
-python: sigil.material.Material
 status: stable
 ---
 
@@ -68,7 +66,12 @@ specialization of the same parameter layout.
 | `Material(recipe)` | C++ | an instance whose fields all start at zero |
 | `Material::withRecipe(recipe)` | C++ | the same values, bindings, children and settings over a second definition of the same layout |
 | the kit's recipe functions | C++ | a stock look already instanced — the kit composes, it decides nothing |
-| `material.Material(recipe, parameters)` | Python | the same two constructors |
+| `material.kit.unlit(parameters)`, `material.kit.surface(parameters)` | Python | the kit's recipe functions, which are the whole Python door |
+
+A RECIPE HAS NO PYTHON SPELLING, so neither constructor is reachable
+from Python and a Python author takes an instance the kit already made
+and moves it from there: `material::kit::unlit` and
+`material::kit::surface` are the two bound, and both answer a material.
 
 A material is a VALUE: every setter copies on write, so binding on a copy
 never affects the material it was copied from.
@@ -117,8 +120,13 @@ without a cache lookup.
 
 - `core/Material.h` — the header: `Material`
 - `core/Leaf.h` — the header: `Leaf`
-- [Paint](Paint.md) — the paint model a material is one leaf of
-- [Effect](Effect.md) — the same recipe over an already-rendered layer
-- [Color](Color.md) — what a material's colour-typed fields hold
-- [Colour, fill, paint and material](../../../../compose/reference/COLOURING.md)
-  — the lattice whole, and why the containment runs this way
+- `kit/Pbr.h` — the header the Python door comes from: `surface`,
+  `unlit`, `SurfaceParameters`
+- [Paint](value:sigil::material::skia::Paint) — the paint model a
+  material is one leaf of
+- [Effect](value:sigil::material::skia::Effect) — the same recipe over
+  an already-rendered layer
+- [Color](value:sigil::material::Color) — what a material's
+  colour-typed fields hold
+- The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
+  the lattice whole, and why the containment runs this way

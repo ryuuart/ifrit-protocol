@@ -3,9 +3,7 @@ kind: type
 library: SigilCompose
 name: Dimension
 qualified: sigil::compose::Dimension
-header: sigilcompose/core/Layout.h
 group: Box model
-python: sigil.compose.Dimension
 status: stable
 ---
 
@@ -118,6 +116,8 @@ one canvas.
 - `core/Layout.h` — the header: `Dimension`, `pct`, `pw`, `ph`,
   `autoDimension`, `Align`, `Justify`, `Echo`, `_px`, `_pct`, `_pw`,
   `_ph`
-- [Corners](Corners.md) — a radius is a plain number, not a dimension
-- [Colour, fill, paint and material](../../COLOURING.md) — the other
-  value a custom property can hold, and how a reference resolves
+- [Corners](value:sigil::compose::Corners) — a radius is a plain
+  number, not a dimension
+- The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
+  the other value a custom property can hold, and how a reference
+  resolves

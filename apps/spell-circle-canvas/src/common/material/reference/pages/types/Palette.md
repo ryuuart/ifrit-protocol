@@ -3,9 +3,7 @@ kind: type
 library: SigilMaterial
 name: Palette
 qualified: sigil::material::Palette
-header: sigilmaterial/color/Color.h
 group: Colour
-python: sigil.material.Palette
 status: stable
 ---
 
@@ -89,5 +87,6 @@ failure the type exists to prevent.
   `sampleRamp`
 - `color/Extract.h` — the header: `palette`, `closestEntry`
 - `color/Harmony.h` — the header: `harmony`, `rotateHue`, `Scheme`
-- [Ramp](Ramp.md) — what says there IS something between two colours
-- [Color](Color.md) — the entries
+- [Ramp](value:sigil::material::Ramp) — what says there IS something
+  between two colours
+- [Color](value:sigil::material::Color) — the entries

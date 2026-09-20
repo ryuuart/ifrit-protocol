@@ -3,9 +3,7 @@ kind: type
 library: SigilCompose
 name: PathFormat
 qualified: sigil::compose::PathFormat
-header: sigilcompose/brush/Decorations.h
 group: Shape and edge
-python: sigil.compose.PathFormat
 status: stable
 ---
 
@@ -120,6 +118,8 @@ the head of a self-drawing line.
 
 - `brush/Decorations.h` — the header: `PathFormat`, `stroke`, `Shadow`,
   `shadow`, `Wash`, `Slice`, `ContourWalk`, `PathSample`, `paintOn`
-- [SurfacePaint](SurfacePaint.md) — what `PathFormat::strokeFill` takes
-- [Shadow](Shadow.md) — the other value decoration
-- [Corners](Corners.md) — the outline a box stroke follows
+- [SurfacePaint](value:sigil::compose::SurfacePaint) — what
+  `PathFormat::strokeFill` takes
+- [Shadow](value:sigil::compose::Shadow) — the other value decoration
+- [Corners](value:sigil::compose::Corners) — the outline a box stroke
+  follows

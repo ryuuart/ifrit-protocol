@@ -3,9 +3,7 @@ kind: type
 library: SigilMaterial
 name: Color
 qualified: sigil::material::Color
-header: sigilmaterial/color/Color.h
 group: Colour
-python: sigil.material.Color
 status: stable
 ---
 
@@ -127,8 +125,11 @@ SEPARATION of hues is the point.
   `linearToSrgb`, `withAlpha`, `scale`, `lighten`, `mixToward`,
   `mixLinear`, `luminance`, `RampStop`, `Palette`, `RampBracket`,
   `rampBracket`, `sampleRamp`
-- [Ramp](Ramp.md) — the colours between two stops, as one value
-- [Palette](Palette.md) — the ordered table read by index
-- [Paint](Paint.md) — what a colour is painted WITH
-- [Colour, fill, paint and material](../../../../compose/reference/COLOURING.md)
-  — the lattice whole, and where a colour sits in it
+- [Ramp](value:sigil::material::Ramp) — the colours between two stops,
+  as one value
+- [Palette](value:sigil::material::Palette) — the ordered table read by
+  index
+- [Paint](value:sigil::material::skia::Paint) — what a colour is
+  painted WITH
+- The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
+  the lattice whole, and where a colour sits in it

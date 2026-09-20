@@ -29,7 +29,7 @@ about those two is the commonest way to read a signature backwards.
 | **pen** | SigilDraw | The immediate-mode drawing object: p5's verbs with p5's names, argument orders and defaults, over a canvas. |
 | **plate** | SigilSketch | A rendered still of a sketch, taken headless and compared against the recorded one. The plate ledger is what judges a change: a moved plate is a fact to be explained, not a failure. |
 | **primitive** | every library | Something irreducible, which lives in a library's core. If a consumer needs one that does not exist, the library that owns that domain grows — the consumer does not invent its own. |
-| **promotion** | SigilCompose | Turning a node's cached picture into a texture, decided by a policy the painting composer runs under. Never something a promotion is allowed to do — only what decides one. |
+| **promotion** | SigilCompose | Turning a node's cached picture into a texture, decided by a policy the painting composer runs under. The policy decides which nodes are promoted, not what a promoted node may do. |
 | **prune** | SigilCore | Skipping the repaint of a node whose description compares equal to the retained one. Everything in the tree that compares by value exists so that this is cheap and provable. |
 | **recipe** | SigilMaterial | A material's definition: a struct of uniform-typed fields that is its ABI, one shader body per language, the slots it samples, and the per-frame values it reads. |
 | **reconciler** | SigilCore | The kernel that matches a fresh description onto the retained tree — by key, then by position — so only what changed is touched. |

@@ -8,135 +8,133 @@ read in a signature tells you which library to go to.
 Libraries meant to be extracted into their own repositories carry the
 `Sigil` prefix; product-side integrations keep `Ifrit`.
 
+Each name below opens that library's own site, whose front page is its
+README — the canon for the library, written for someone with no prior
+context and compile-checked against its headers. Its chapters stand
+beside it there.
+
 ## Drawing a 2D scene
 
-**[SigilCompose](../../src/common/compose/README.md)** — the retained,
-declarative way to draw. Immutable value-typed descriptions of a 2D
-scene become pixels on an `SkCanvas` the caller owns: flexbox layout
-through Yoga, text leaves measured and drawn by the text engine, each
-new description diffed against a retained tree so only what changed is
-touched, painted in an explicit CSS-like stacking order, and cached
-automatically where it is provably still. Its type chapter is
-[TYPOGRAPHY.md](../../src/common/compose/TYPOGRAPHY.md), and the value
-index that answers "what do I pass here" is its
-[reference](../../src/common/compose/reference/VALUES.md).
+**[SigilCompose](doxygen:SigilCompose)** — the retained, declarative way
+to draw. Immutable value-typed descriptions of a 2D scene become pixels
+on an `SkCanvas` the caller owns: flexbox layout through Yoga, text
+leaves measured and drawn by the text engine, each new description
+diffed against a retained tree so only what changed is touched, painted
+in an explicit CSS-like stacking order, and cached automatically where
+it is provably still. Its type chapter and its colour chapter stand on
+that site; the catalogue over it is
+[the SigilCompose reference](/reference/SigilCompose/index.html).
 
-**[SigilDraw](../../src/common/draw/README.md)** — the imperative way
-beside Compose: a **pen** over an `SkCanvas` carrying p5's verbs with
-p5's names, argument orders and defaults, so a sketch written for p5
-pastes in and runs. The two open onto each other. Its
-[brush chapter](../../src/common/draw/brush/README.md) is the natural-media
-line vocabulary over the pen.
+**[SigilDraw](doxygen:SigilDraw)** — the imperative way beside Compose:
+a **pen** over an `SkCanvas` carrying p5's verbs with p5's names,
+argument orders and defaults, so a sketch written for p5 pastes in and
+runs. The two open onto each other. Its brush chapter is the
+natural-media line vocabulary over the pen.
 
-**[SigilWeave](../../src/sigilweave/README.md)** — styled Unicode text
-into positioned glyph runs ready to draw. HarfBuzz for shaping, ICU for
-line breaking, script itemization, bidi and case mapping, called
-directly rather than through Skia's own shapers. The paragraph engine is
-rooted here, with [FEATURES.md](../../src/sigilweave/FEATURES.md) for the
-catalogue, and a [kit](../../src/sigilweave/kit/README.md) of companion
-utilities for consumers.
+**[SigilWeave](doxygen:SigilWeave)** — styled Unicode text into
+positioned glyph runs ready to draw. HarfBuzz for shaping, ICU for line
+breaking, script itemization, bidi and case mapping, called directly
+rather than through Skia's own shapers. The paragraph engine is rooted
+here, with a feature catalogue and a kit of companion utilities for
+consumers.
 
-**[SigilGeometry](../../src/common/geometry/README.md)** — the
-higher-level drawing over Skia: path resampling, boolean and distortion
-operators over `SkPath`, shape interpolation, a renderer-neutral
-triangle mesh with procedural generators, splines with swept geometry,
-point clouds with named attribute lanes, and the point-operator chain
-language over them.
+**[SigilGeometry](doxygen:SigilGeometry)** — the higher-level drawing
+over Skia: path resampling, boolean and distortion operators over
+`SkPath`, shape interpolation, a renderer-neutral triangle mesh with
+procedural generators, splines with swept geometry, point clouds with
+named attribute lanes, and the point-operator chain language over them.
 
 ## Colour, paint and pixels
 
-**[SigilMaterial](../../src/common/material/README.md)** — materials as
-recipe instances. A **recipe** is a definition — a struct of
-uniform-typed fields that is its ABI, one shader body per language, its
-slots and its per-frame inputs — and a **material** is one instance of
-it. Beside that sits the Skia paint, the post-processing effect, the
-colour value and its reasoning spaces, ramps, palettes, harmonies and
-dithering, with chapters for [colour](../../src/common/material/COLOUR.md)
-and [the paint](../../src/common/material/PAINT.md) and a
-[value reference](../../src/common/material/reference/VALUES.md).
+**[SigilMaterial](doxygen:SigilMaterial)** — materials as recipe
+instances. A **recipe** is a definition — a struct of uniform-typed
+fields that is its ABI, one shader body per language, its slots and its
+per-frame inputs — and a **material** is one instance of it. Beside that
+sits the Skia paint, the post-processing effect, the colour value and
+its reasoning spaces, ramps, palettes, harmonies and dithering, with a
+colour chapter and a paint chapter on that site and
+[its own value pages](/reference/SigilMaterial/types/index.html) here.
 
-**[SigilSkia](../../src/common/skia/README.md)** — Skia's Graphite GPU
-backend brought up on a device someone else already owns: given a native
-device and queue, it builds a `Context` and `Recorder` and wraps the
-caller's textures.
+**[SigilSkia](doxygen:SigilSkia)** — Skia's Graphite GPU backend brought
+up on a device someone else already owns: given a native device and
+queue, it builds a `Context` and `Recorder` and wraps the caller's
+textures.
 
-**[SigilImage](../../src/common/image/README.md)** — image *meaning*,
-both directions: encoded bytes in and Skia images out, pixels in and
-encoded bytes out, plus distance fields. (Resource *access* is
-SigilIO's; the split between the two is deliberate.)
+**[SigilImage](doxygen:SigilImage)** — image *meaning*, both directions:
+encoded bytes in and Skia images out, pixels in and encoded bytes out,
+plus distance fields. (Resource *access* is SigilIO's; the split between
+the two is deliberate.)
 
-**[SigilVideo](../../src/common/video/README.md)** — video meaning:
-container bytes open as a seekable streaming video, frames decode around
-the playhead into a small presentation cache, and pixels flow the other
-way through an incremental encoder.
+**[SigilVideo](doxygen:SigilVideo)** — video meaning: container bytes
+open as a seekable streaming video, frames decode around the playhead
+into a small presentation cache, and pixels flow the other way through
+an incremental encoder.
 
-**[SigilScry](../../src/common/scry/README.md)** — a headless web
-browser embedded in a C++ application, handing back its output as Skia
-images. Optional: it wraps a licensed SDK.
+**[SigilScry](doxygen:SigilScry)** — a headless web browser embedded in
+a C++ application, handing back its output as Skia images. Optional: it
+wraps a licensed SDK.
 
 ## Structure and motion
 
-**[SigilCore](../../src/common/core/README.md)** — the kernels a
-retained runtime is built on: the reconciler and the shape of the tree
-it keeps, the memo that skips a describe, the caching proof, the device
-seam, and the compute values a drawing is drawn from.
+**[SigilCore](doxygen:SigilCore)** — the kernels a retained runtime is
+built on: the reconciler and the shape of the tree it keeps, the memo
+that skips a describe, the caching proof, the device seam, and the
+compute values a drawing is drawn from.
 
-**[SigilMotion](../../src/common/motion/README.md)** — animation timing
-and animation *values*, with no renderer in them: a monotonic frame
-clock, a ticker over a Choreograph timeline, the value types that
-describe how a property changes, bindings, and physics.
+**[SigilMotion](doxygen:SigilMotion)** — animation timing and animation
+*values*, with no renderer in them: a monotonic frame clock, a ticker
+over a Choreograph timeline, the value types that describe how a
+property changes, bindings, and physics.
 
-**[SigilData](../../src/common/data/README.md)** — tabular data, and the
-one value that maps a domain onto a range. Named, typed columns as
-contiguous spans a drawing walks straight down, reshaped by selecting,
-filtering, sorting and grouping.
+**[SigilData](doxygen:SigilData)** — tabular data, and the one value
+that maps a domain onto a range. Named, typed columns as contiguous
+spans a drawing walks straight down, reshaped by selecting, filtering,
+sorting and grouping.
 
 ## Three dimensions
 
-**[SigilWorld](../../src/common/world/README.md)** — a 3D scene as
-comparable values, turned into a frame — a scene, an ordered list of
-passes, the readbacks the caller asked for — and executed. It consumes
-SigilGeometry's types and never the reverse.
+**[SigilWorld](doxygen:SigilWorld)** — a 3D scene as comparable values,
+turned into a frame — a scene, an ordered list of passes, the readbacks
+the caller asked for — and executed. It consumes SigilGeometry's types
+and never the reverse.
 
-**[SigilUsd](../../src/common/usd/README.md)** and
-**[SigilSubstance](../../src/common/substance/README.md)** — optional SDK
+**[SigilUsd](doxygen:SigilUsd)** and
+**[SigilSubstance](doxygen:SigilSubstance)** — optional SDK
 integrations: USD in and out, and Adobe Substance archives rendered to
 images.
 
 ## Getting things in and out
 
-**[SigilIO](../../src/common/io/README.md)** — a runtime resource hub.
-Application code asks for a resource by URI rather than by filesystem
-path; prefixes mount onto directories, results are cached per resource,
-and a poll re-stats what has been loaded so edited files reload without
-a restart. Its [publish chapter](../../src/common/io/publish/README.md) is
-native inter-application texture publication and subscription.
+**[SigilIO](doxygen:SigilIO)** — a runtime resource hub. Application
+code asks for a resource by URI rather than by filesystem path; prefixes
+mount onto directories, results are cached per resource, and a poll
+re-stats what has been loaded so edited files reload without a restart.
+Its publish chapter is native inter-application texture publication and
+subscription.
 
-**[SigilMeasure](../../src/common/measure/README.md)** — timing,
-statistics and check reporting: stopwatches, lap timers, the frame timer
-whose marks feed a render loop's lanes, and the report a check writes.
+**[SigilMeasure](doxygen:SigilMeasure)** — timing, statistics and check
+reporting: stopwatches, lap timers, the frame timer whose marks feed a
+render loop's lanes, and the report a check writes.
 
-**[SigilPython](../../src/common/python/README.md)** — the reusable
-native bindings and the callback ownership rules behind them, with no
-sketch runtime, application, window or interpreter startup in the target.
+**[SigilPython](doxygen:SigilPython)** — the reusable native bindings
+and the callback ownership rules behind them, with no sketch runtime,
+application, window or interpreter startup in the target.
 
 ## Making and looking at pictures
 
-**[SigilSketch](../../src/sketch/README.md)** — everything renderable as
-one sketch each: a file that declares a scene, an entry in one registry,
-and something Sketchbook opens live and hot-swaps on every save. Its
-[kit](../../src/sketch/kit/README.md) is the sheet a sketch stands on —
-the theme, the page and the furniture a specimen is built out of — and
-its [sketches](../../src/sketch/sketches/README.md) are the reference
-studies.
+**[SigilSketch](doxygen:SigilSketch)** — everything renderable as one
+sketch each: a file that declares a scene, an entry in one registry, and
+something Sketchbook opens live and hot-swaps on every save. Its kit is
+the sheet a sketch stands on — the theme, the page and the furniture a
+specimen is built out of — and its sketches are the reference studies.
 
-**[SigilSeer](../../src/seer/README.md)** — every wire, and what is going
-down it: a tool that opens a wire, says what is coming down it and who is
-at the other end, shows the newest message several ways, sends one back,
+**[SigilSeer](doxygen:SigilSeer)** — every wire, and what is going down
+it: a tool that opens a wire, says what is coming down it and who is at
+the other end, shows the newest message several ways, sends one back,
 and previews shared textures.
 
-**[Ifrit.Qt](../../src/common/qt/README.md)** — the reusable Qt Quick
-controls the desktop tools share.
+**[Ifrit.Qt](doxygen:IfritQt)** — the reusable Qt Quick controls the
+desktop tools share.
 
 ## How they relate
 

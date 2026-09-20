@@ -3,9 +3,7 @@ kind: type
 library: SigilCompose
 name: Fill
 qualified: sigil::compose::Fill
-header: sigilcompose/core/Paint.h
 group: Paint
-python: sigil.compose.Fill
 status: stable
 ---
 
@@ -20,7 +18,7 @@ richer colouring value collapses to when it can.
 A colour boils down to a `Fill`. It does not boil down to a material:
 `Fill` is the slot a node's paint is pruned on, and a material reaches a
 node by being wrapped in a paint and carried in a
-[SurfacePaint](SurfacePaint.md).
+[SurfacePaint](value:sigil::compose::SurfacePaint).
 
 ## Anatomy
 
@@ -57,7 +55,7 @@ version of its top.
 | `Fill::none()` | C++ | the value that paints nothing |
 | `Fill::currentInk()` | C++ | the ink in force where the mark lands |
 | `Fill::var(reference)` | C++ | the colour a custom property holds |
-| `Fill::var(name)` | C++ | the same, interning the name through `compose::var` |
+| `Fill::var(name)` | C++ | the same, interning the name through `compose::var` — C++ only, since Python's `Fill.var` takes the reference alone |
 | `compose::hexColor(0x1f2933)` | C++ | a packed sRGB integer, constexpr, as an `SkColor4f` a `Fill::color` takes |
 | `compose::linearGradient(from, to, colours)` | C++ | a two-point ramp, as a shader fill |
 | `compose::radialGradient(centre, radius, colours)` | C++ | a circular ramp, as a shader fill |
@@ -65,9 +63,12 @@ version of its top.
 | `"#1f2933"` | Python | a CSS colour string, implicitly |
 | `(0.12, 0.16, 0.20)` | Python | a 3-tuple of unit floats, implicitly |
 | `(0.12, 0.16, 0.20, 0.5)` | Python | a 4-tuple, the fourth being alpha |
+| `[0.12, 0.16, 0.20]` | Python | a list of unit floats, implicitly |
 | `material.Color(0.12, 0.16, 0.20)` | Python | the one colour class, implicitly |
 | `material.rgb(0x1f2933)` | Python | the packed integer, which Python spells as a colour rather than as a fill |
-| `compose.Fill.color(...)`, `compose.Fill.currentInk()`, `compose.Fill.var(...)` | Python | the named constructors, each under its own name |
+| `compose.var("gutter")` | Python | a custom-property reference, implicitly — the colour the nearest ancestor set under that name |
+| `compose.Fill.color(...)`, `compose.Fill.currentInk()` | Python | the named constructors, each under its own name |
+| `compose.Fill.var(compose.var("gutter"))` | Python | the reference form, which is the only one Python's `Fill.var` takes |
 | `None` | Python | `Fill::none()` |
 
 In Python the whole of that column is the union `FillLike`, and a
@@ -122,9 +123,10 @@ subtree without re-describing it.
 - `core/Paint.h` — the header: `Fill`, `Corners`, `hexColor`,
   `PaintContext`, `resolveRef`, `frameOf`, `toFill`, `resolveFill`,
   `linearGradient`, `radialGradient`
-- [SurfacePaint](SurfacePaint.md) — the widest colouring value, which a
-  fill converts into
-- [Colour, fill, paint and material](../../COLOURING.md) — the lattice
-  whole, and which of the three spellings of the current ink is which
-- [Color](../../../../material/reference/pages/types/Color.md) — the one
-  colour value, in SigilMaterial
+- [SurfacePaint](value:sigil::compose::SurfacePaint) — the widest
+  colouring value, which a fill converts into
+- The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
+  the lattice whole, and which of the three spellings of the current ink
+  is which
+- [Color](value:sigil::material::Color) — the one colour value, in
+  SigilMaterial

@@ -100,9 +100,9 @@ bindings and slots — there is nowhere in it to put "ask the tree".
 
 **A flat colour would carry a program.** A material is a recipe pointer
 plus bytes plus bindings plus slots plus a resolve memo, and a recipe
-compiles one program per identity, target and variant. Today
-`Paint::isSolid` short-circuits before any shader is built, precisely
-because a solid has no coordinates and nothing to resolve.
+compiles one program per identity, target and variant. `Paint::isSolid`
+short-circuits before any shader is built, precisely because a solid has
+no coordinates and nothing to resolve.
 
 **Equality would get worse.** `Fill` compares in five scalar
 comparisons. `Material` compares by recipe identity, bytes, bindings
@@ -132,7 +132,7 @@ Three unions name the three roles, and in Python they are spelled:
 | --- | --- | --- |
 | a flat colour value | `ColorLike` | `material.Color`, a CSS string, a 3- or 4-tuple or list of unit floats |
 | a flat mark that may be a tree reference | `FillLike` | everything in `ColorLike`, plus `compose.Fill`, `compose.VarRef` and `None` |
-| anything that can colour a surface | `SurfacePaintLike` | everything in `FillLike`, plus the transitions and outputs, plus `material.Paint` and `material.Material`, plus `compose.SurfacePaint` |
+| anything that can colour a surface | `SurfacePaintLike` | everything in `FillLike`, plus the transitions and outputs, plus `material.skia.Paint` and `material.Material`, plus `compose.SurfacePaint` |
 
 The narrowings that ARE modelled, with their reasons:
 
@@ -161,12 +161,14 @@ are the spellings for a slot that DEMANDS a value.
 
 ## Which Paint is which
 
-Two unrelated types are called `Paint`, and one module apart in Python.
+Two unrelated types are called `Paint`. Python spells both of them with
+`skia.Paint` as the last two words, and the module in front is the whole
+of the difference.
 
 | Name | What it is | Python |
 | --- | --- | --- |
 | Skia's paint | a style, a stroke width, a blend mode, a colour and the filter objects for ONE draw | `sigil.skia.Paint` |
-| the material paint | what a surface is shaded WITH, as a comparable value that compiles to one shader | `sigil.material.Paint` |
+| the material paint | what a surface is shaded WITH, as a comparable value that compiles to one shader | `sigil.material.skia.Paint` |
 
 `Element::fill` takes the material one. A raw Skia paint appears where a
 caller is drawing on a canvas directly — inside a paint program, a pen

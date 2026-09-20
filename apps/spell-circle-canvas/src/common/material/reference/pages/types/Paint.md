@@ -3,9 +3,7 @@ kind: type
 library: SigilMaterial
 name: Paint
 qualified: sigil::material::skia::Paint
-header: sigilmaterial/skia/Paint.h
 group: The Skia paint
-python: sigil.material.Paint
 status: stable
 ---
 
@@ -19,9 +17,10 @@ general paint value the rest of the tree means by "a paint".
 
 It is not the raw Skia paint. A Skia `SkPaint` carries a style, a stroke
 width and a blend mode for one draw; this carries what a surface is
-shaded WITH, and compares by value so a consumer can prune on it. In
-Python they are two names one module apart: `sigil.skia.Paint` is Skia's
-own, `sigil.material.Paint` is this one.
+shaded WITH, and compares by value so a consumer can prune on it. Python
+spells the two with the same last word and a different module:
+`sigil.skia.Paint` is Skia's own, `sigil.material.skia.Paint` is this
+one.
 
 ## Anatomy
 
@@ -66,7 +65,7 @@ Every leaf is a static factory, and each names what it is made of.
 | `Paint::shader(shader)` | C++ | any raw Skia shader — the interop escape |
 | `Paint::recipe(material)` | C++ | a `Material` instance as the paint |
 | `Paint::blend(layers)` | C++ | layers painted bottom to top, each composited with its own blend mode, flattened into one shader |
-| `material.Paint.solid(...)` and the rest | Python | the same factories under the same names |
+| `material.skia.Paint.solid(...)` and the rest | Python | the same factories under the same names |
 | a `Material` | Python | implicitly, where a paint is taken |
 
 Then the modifiers, each of which copies on write: `Paint::uniform` sets
@@ -126,8 +125,13 @@ sketch must not take a live-reload host down.
 ## See also
 
 - `skia/Paint.h` — the header: `Paint`, `PaintFrame`, `Stop`, `Fit`
-- [Material](Material.md) — the recipe instance a `Paint::recipe` holds
-- [Effect](Effect.md) — the same idea over an already-rendered layer
-- [Ramp](Ramp.md) — the stops as one value, for the gradients above
-- [Colour, fill, paint and material](../../../../compose/reference/COLOURING.md)
-  — the lattice whole, and which Paint is which
+- [Material](value:sigil::material::Material) — the recipe instance a
+  `Paint::recipe` holds
+- [Effect](value:sigil::material::skia::Effect) — the same idea over an
+  already-rendered layer
+- [Ramp](value:sigil::material::Ramp) — the stops as one value, for the
+  gradients above
+- [SurfacePaint](value:sigil::compose::SurfacePaint) — the colouring
+  value this is one branch of
+- The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
+  the lattice whole, and which Paint is which

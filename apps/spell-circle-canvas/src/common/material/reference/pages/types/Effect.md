@@ -3,9 +3,7 @@ kind: type
 library: SigilMaterial
 name: Effect
 qualified: sigil::material::skia::Effect
-header: sigilmaterial/skia/Effect.h
 group: The Skia paint
-python: sigil.material.Effect
 status: stable
 ---
 
@@ -56,7 +54,7 @@ emit adds a light of the layer, never a light of the first light.
 | `Effect::brightPass(threshold, knee)` | C++ | the layer with everything but its light taken out — the first half of a bloom |
 | `Effect::phosphorBloom(radius, threshold)` | C++ | the whole bloom in one gather |
 | `Effect::dilate(pixels)`, `Effect::deepen(amount)`, `Effect::whiten(amount)` | C++ | the small tonal passes |
-| `material.Effect.blur(...)` and the rest | Python | the same factories under the same names |
+| `material.skia.Effect.blur(...)` and the rest | Python | the same factories under the same names |
 
 Then the modifiers: `Effect::uniform` sets or binds a named uniform —
 including a `motion::Animatable<float>`, which makes the effect live —
@@ -106,7 +104,9 @@ expensive filter over static content is paid once.
 
 - `skia/Effect.h` — the header: `Effect`
 - `skia/Bloom.h` — the header: `bloom`, `BloomParameters`
-- [Paint](Paint.md) — what shades a shape, as against what filters a layer
-- [Material](Material.md) — the recipe an effect can run
-- [Colour, fill, paint and material](../../../../compose/reference/COLOURING.md)
-  — the lattice whole
+- [Paint](value:sigil::material::skia::Paint) — what shades a shape, as
+  against what filters a layer
+- [Material](value:sigil::material::Material) — the recipe an effect can
+  run
+- The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
+  the lattice whole

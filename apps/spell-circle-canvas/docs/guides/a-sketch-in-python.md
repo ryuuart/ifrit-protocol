@@ -105,17 +105,21 @@ them.
 | --- | --- |
 | `sigil.compose` | the elements, the verbs, and the composition values |
 | `sigil.draw` | the pen, its verbs and the brushes |
-| `sigil.material` | `Color`, `Paint`, `Effect`, `Material`, `Ramp`, `Palette` and the colour arithmetic |
+| `sigil.material` | `Color`, `Material`, `Ramp`, `Palette` and the colour arithmetic |
+| `sigil.material.skia` | `Paint` and `Effect` — the paint model, and the filter over a rendered layer |
+| `sigil.material.kit` | the stock recipes, and Python's only door to a `Material`: `unlit`, `surface` |
 | `sigil.motion` | `animate`, `bind`, `to`, `from_`, `Transition`, the outputs |
 | `sigil.weave` | the text styles, the paragraph vocabulary |
 | `sigil.skia` | the raw Skia values a canvas program uses: paths, images, `Paint` as Skia means it |
 | `sigil.sketch` | `sketch`, `SketchContext`, `render_file`, and the sketch kit |
 
-Two names exist in two modules and it is worth fixing them in your head
-once. `sigil.skia.Paint` is Skia's own draw paint — a style, a stroke
-width, a blend mode for one draw. `sigil.material.Paint` is what a
-surface is shaded WITH, and it is the one `fill` takes. Colour has no
-such split: `sigil.material.Color` is the one colour class.
+One name exists in two modules and it is worth fixing in your head once.
+`sigil.skia.Paint` is Skia's own draw paint — a style, a stroke width, a
+blend mode for one draw. `sigil.material.skia.Paint` is what a surface
+is shaded WITH, and it is the one `fill` takes. The last word is the
+same in both and the module in front is the whole of the difference.
+Colour has no such split: `sigil.material.Color` is the one colour
+class.
 
 ## The other authoring path
 
@@ -139,9 +143,9 @@ where it stands.
 
 ## Next
 
-- [Colour, fill, paint and material](../../src/common/compose/reference/COLOURING.md)
-  — the values these calls are passing, in both languages.
-- [Animate a fill](animate-a-fill.md) — the Python spelling is beside
-  each C++ one.
+- The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
+  the values these calls are passing, in both languages.
+- [Animate a fill](guide:animate-a-fill) — the Python spelling is
+  beside each C++ one.
 - The Python package's own README is the canon for installation, the
   wheel, live sketches and what is not yet bound.

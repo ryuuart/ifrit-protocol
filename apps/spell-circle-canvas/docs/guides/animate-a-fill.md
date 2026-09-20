@@ -118,11 +118,11 @@ its first frame is recorded and replayed forever, with no error and no
 warning.
 
 Every value in the tree spells this the same way:
-[`Shadow`](../../src/common/compose/reference/pages/types/Shadow.md),
-[`PathFormat`](../../src/common/compose/reference/pages/types/PathFormat.md),
-[`Paint`](../../src/common/material/reference/pages/types/Paint.md),
-[`Effect`](../../src/common/material/reference/pages/types/Effect.md) and
-[`Material`](../../src/common/material/reference/pages/types/Material.md)
+[`Shadow`](value:sigil::compose::Shadow),
+[`PathFormat`](value:sigil::compose::PathFormat),
+[`Paint`](value:sigil::material::skia::Paint),
+[`Effect`](value:sigil::material::skia::Effect) and
+[`Material`](value:sigil::material::Material)
 all answer `isAnimated`, and it is always derived from how the value was
 constructed, never a setter.
 
@@ -132,7 +132,7 @@ constructed, never a setter.
 covers all of: a plain fill, a transition produced by `animate`, a bare
 output pointer, and a shaped `motion::bind` chain. Beside it the same
 verb takes a material paint, and the widest form of the argument is a
-[`SurfacePaint`](../../src/common/compose/reference/pages/types/SurfacePaint.md).
+[`SurfacePaint`](value:sigil::compose::SurfacePaint).
 
 In Python the whole union is `SurfacePaintLike`, which is what a
 colouring parameter is annotated with unless it has a stated reason to
@@ -142,6 +142,6 @@ would make every node under it volatile.
 
 ## Next
 
-- [Colour, fill, paint and material](../../src/common/compose/reference/COLOURING.md)
-  — the lattice all four of these values live in.
-- [Write a sketch in Python](a-sketch-in-python.md).
+- The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
+  the lattice all four of these values live in.
+- [Write a sketch in Python](guide:a-sketch-in-python).

@@ -3,9 +3,7 @@ kind: type
 library: SigilCompose
 name: Shadow
 qualified: sigil::compose::Shadow
-header: sigilcompose/brush/Decorations.h
 group: Shape and edge
-python: sigil.compose.Shadow
 status: stable
 ---
 
@@ -13,8 +11,8 @@ status: stable
 
 A soft drop shadow behind the node's outline, as a comparable value — so
 a statically shadowed node prunes with no memo. It is a decoration, not a
-paint: you attach it with `Element::background`, and you attach it BEFORE
-the fill, so the fill paints over it.
+paint: you attach it with `Element::background`, which paints BENEATH
+the fill however late in the chain it is said.
 
 ## Anatomy
 
@@ -83,7 +81,7 @@ number the value cannot read ahead.
 
 - `brush/Decorations.h` — the header: `Shadow`, `shadow`, `PathFormat`,
   `stroke`, `Wash`, `Slice`, `ContourWalk`, `paintOn`
-- [PathFormat](PathFormat.md) — the other value decoration, and the one
-  that formats a stroke
-- [Fill](Fill.md) — what the node's own surface is painted with, over the
-  shadow
+- [PathFormat](value:sigil::compose::PathFormat) — the other value
+  decoration, and the one that formats a stroke
+- [Fill](value:sigil::compose::Fill) — what the node's own surface is
+  painted with, over the shadow
