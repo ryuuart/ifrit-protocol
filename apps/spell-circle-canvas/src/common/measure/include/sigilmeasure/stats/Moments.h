@@ -14,24 +14,14 @@
 
 namespace sigil::measure {
 
-/** WHAT A RUN OF NUMBERS AMOUNTS TO, accumulated one at a time.
- *
- *  `Samples` keeps the numbers and computes on read; this keeps none of
- *  them and computes as they arrive, so it summarises a run of any
- *  length in a fixed six words — a sweep of a million values, a per-frame
- *  count that never ends. What it cannot do is anything that needs the
- *  values back: a quantile, a histogram, a re-read after a wider window
- *  was wanted. Reach for `Samples` or a `Histogram` for those.
- *
- *  THE SPREAD IS ACCUMULATED, NOT SUBTRACTED. The obvious variance —
- *  the mean of the squares less the square of the mean — is two large
- *  numbers differing in their last digits, and for values that are large
- *  and close together (a run of timestamps, a run of pixel coordinates
- *  on a wide sheet) the difference is nearly all rounding, and can come
- *  out NEGATIVE. Clamping that at zero hides the loss and reports a
- *  spread of none where there was a real one. Here each value's
- *  deviation from the mean so far is folded in as it arrives, so the sum
- *  is of small numbers and never goes negative. */
+/** WHAT A RUN OF NUMBERS AMOUNTS TO, accumulated one at a time and
+ *  holding none of them, so a run of any length is summarised in a
+ *  fixed six words. The spread is ACCUMULATED and not subtracted, so it
+ *  never comes out negative on values that are large and close
+ *  together.
+ *  @trap Nothing that needs the values back can be asked of it — a
+ *  quantile, a histogram, a re-read over a wider window. Those are
+ *  `Samples` and `Histogram`. */
 class Moments {
  public:
   Moments() = default;
@@ -62,9 +52,8 @@ class Moments {
   void clear() { *this = Moments(); }
 
   /** EVERYTHING @p other SAW, FOLDED IN. Two halves of a run summarised
-   *  separately amount to the same numbers as the whole run in one pass,
-   *  which is what lets a sweep be divided across workers and the parts
-   *  put back together. */
+   *  separately amount to the same numbers as the whole run in one
+   *  pass, so a sweep may be divided across workers. */
   void merge(const Moments& other) {
     if (other.m_count == 0) return;
     if (m_count == 0) {
@@ -103,8 +92,9 @@ class Moments {
   }
   /** THE SPREAD OF WHAT THE RUN WAS DRAWN FROM: Bessel's correction,
    *  dividing by one less. Take this when the values are a SAMPLE of
-   *  something larger and the answer is a claim about that larger thing.
-   *  Fewer than two values make no such claim and answer 0. */
+   *  something larger.
+   *  @silent fewer than two values, which make no such claim and
+   *  answer 0. */
   [[nodiscard]] double sampleVariance() const {
     return m_count > 1 ? m_second / (double)(m_count - 1) : 0.0;
   }
@@ -117,9 +107,9 @@ class Moments {
 
   /** HOW LOPSIDED THE RUN IS: zero for anything symmetric about its
    *  mean, positive when the long tail runs high, negative when it runs
-   *  low. What separates a frame time that is steady with occasional
-   *  spikes from one that is simply slow. A run with no spread at all
-   *  has no shape to report and answers 0. */
+   *  low — what separates a frame time that is steady with occasional
+   *  spikes from one that is simply slow.
+   *  @silent a run with no spread, which has no shape to report. */
   [[nodiscard]] double skewness() const {
     if (m_count < 2 || !(m_second > 0.0)) return 0.0;
     const double n = (double)m_count;

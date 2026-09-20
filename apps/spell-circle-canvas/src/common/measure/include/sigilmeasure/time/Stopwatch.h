@@ -54,13 +54,9 @@ inline double toMicroseconds(Stopwatch::Clock::duration span) {
 }
 
 /** Writes the milliseconds a scope took into the double it was given,
- *  at scope exit — one line to time a block without laying marks by hand:
- *
- *      double layoutMs;
- *      { ScopedMs timed(layoutMs); layout(); }
- *
- *  The target is ASSIGNED, not accumulated, so a block entered twice
- *  reports its last run. */
+ *  at scope exit — `{ ScopedMs timed(layoutMs); layout(); }`.
+ *  @trap The target is ASSIGNED, not accumulated, so a block entered
+ *  twice reports its last run. */
 class ScopedMs {
  public:
   /** Starts timing; @p out receives the elapsed milliseconds at scope

@@ -14,23 +14,13 @@
 
 namespace sigil::measure {
 
-/** EQUAL BINS ACROSS A RANGE, AND WHAT FELL IN EACH.
- *
- *  `Moments` says how spread a run is in one number; a histogram says
- *  what SHAPE that spread has — one hump or two, a tail on one side, a
- *  wall at a limit. It is also the only summary here that a drawing can
- *  be made of directly: the counts are the bar heights and the edges are
- *  where the bars stand.
- *
- *  WHAT FALLS OUTSIDE IS COUNTED, NOT DROPPED. A value below the low
- *  edge or above the high one goes to `below()` or `above()`, so a
- *  reader can see that the range was chosen too narrow. Silently
- *  clamping such a value into the end bin would make a wall that is not
- *  in the data, and dropping it would make a total that does not add up.
- *
- *  Counts are weights rather than integers so that a run of measurements
- *  with different confidences, or a resampled one, bins without a second
- *  class; an unweighted `add` contributes one. */
+/** EQUAL BINS ACROSS A RANGE, AND WHAT FELL IN EACH — what SHAPE a
+ *  run's spread has, where `Moments` says only how wide it is. Counts
+ *  are weights rather than integers, and an unweighted `add`
+ *  contributes one.
+ *  @trap WHAT FALLS OUTSIDE IS COUNTED, NOT DROPPED and not clamped: a
+ *  value past either edge goes to `below()` or `above()`, so `total()`
+ *  is the weight INSIDE and not everything added. */
 class Histogram {
  public:
   /** @p bins equal bins spanning [@p low, @p high). A count of zero is
@@ -43,10 +33,9 @@ class Histogram {
         m_counts(bins > 0 ? bins : 1, 0.0) {}
 
   /** THE HISTOGRAM OF A RUN ALREADY IN HAND, over the range the run
-   *  itself covers. The natural first look at data whose extent is not
-   *  known in advance — and the reason `below()` and `above()` are zero
-   *  for one of these, since nothing can fall outside a range taken from
-   *  the values. */
+   *  itself covers: the first look at data whose extent is not known in
+   *  advance. `below()` and `above()` are zero for one of these,
+   *  nothing falling outside a range taken from the values. */
   [[nodiscard]] static Histogram over(std::span<const double> values,
                                       size_t bins) {
     if (values.empty()) return Histogram(0.0, 0.0, bins);
@@ -78,8 +67,8 @@ class Histogram {
   }
 
   /** WHICH BIN @p value FALLS IN. The bins are half-open — a value on a
-   *  boundary belongs to the bin above it — except at the top, where the
-   *  high edge itself belongs to the last bin rather than to nothing. */
+   *  boundary belongs to the bin above it — except at the top, where
+   *  the high edge belongs to the last bin rather than to nothing. */
   [[nodiscard]] size_t binOf(double value) const {
     if (!(m_high > m_low)) return 0;
     const double where =

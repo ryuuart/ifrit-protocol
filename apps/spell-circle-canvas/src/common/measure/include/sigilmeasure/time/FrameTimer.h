@@ -13,25 +13,16 @@
 
 namespace sigil::measure {
 
-/** Four marks a render loop lays, three rings they feed.
- *
- *  - `begin()` at the top of the frame;
- *  - `composed()` when the frame's OWN work is done — every command
- *    recorded, nothing yet flushed to the backend;
- *  - `finished()` when the backend is done with the frame, flush included;
- *  - `presented()` when the frame reaches the screen.
- *
- *  `work()` holds begin→composed, `frame()` holds begin→finished, and
- *  `present()` holds the wall-clock delta between consecutive
- *  `presented()` marks. The two cost lanes are separate rather than one
- *  derived from the other because they answer different questions: a
- *  synchronous backend drain is not work the frame does, but it is time
- *  the machine spent, so charging it to the work lane understates
- *  headroom and leaving it out of the frame lane understates the cost.
- *  On a backend with no flush the two lanes hold the same numbers.
- *
- *  A loop that times its own spans may add samples directly instead of
- *  laying marks; the rings are the same either way. */
+/** Four marks a render loop lays, three rings they feed. `begin()` at
+ *  the top of the frame, `composed()` when the frame's OWN work is done
+ *  with nothing yet flushed, `finished()` when the backend is done with
+ *  it, `presented()` when it reaches the screen; `work()` holds
+ *  begin→composed, `frame()` holds begin→finished, and `present()` the
+ *  delta between consecutive presented marks. A loop that times its own
+ *  spans may add samples directly instead.
+ *  @trap The two cost lanes are SEPARATE and neither is derived from
+ *  the other: a synchronous backend drain is time the machine spent
+ *  that is not work the frame did. */
 class FrameTimer {
  public:
   /** The clock every mark is taken from. */
@@ -74,11 +65,11 @@ class FrameTimer {
   /** The presentation ring: the interval between presented frames. */
   const Samples& present() const { return m_present; }
 
-  /** NOT a frame rate: the rate the frame's work alone would allow, with
-   *  nothing said about presenting it or flushing it. A ceiling, which
-   *  stays high exactly when a stutter comes from outside the measured
-   *  work — so read it beside the end-to-end time, never instead of it.
-   *  0 when no work sample has landed. */
+  /** The rate the frame's WORK alone would allow; 0 when no work sample
+   *  has landed.
+   *  @trap NOT a frame rate. A ceiling, which stays high exactly when a
+   *  stutter comes from outside the measured work, so read it beside
+   *  the end-to-end time and never instead of it. */
   double headroomFps() const {
     const double avg = m_work.mean();
     return avg > 0 ? 1000.0 / avg : 0.0;

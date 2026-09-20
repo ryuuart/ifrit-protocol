@@ -17,18 +17,12 @@ namespace sigil::measure {
 
 /** Marks laid through one span of work, each named for the phase that
  *  just ended. `mark("layout")` returns the milliseconds since the
- *  previous mark (or since construction) and records them under that
- *  name, so consecutive laps tile the span exactly: the end of one is
- *  the start of the next, with no gap between. The recorded laps read
- *  back through `each()` in the order they were laid.
- *
- *  A NAME IS BORROWED, NOT COPIED, so the caller owns it and must outlive
- *  the timer: they are string literals in practice, and a lap timer that
- *  allocated a string per phase would be a cost inside the span it times.
- *  A name that is a temporary would be dangling by the time `each()` read
- *  it, so a `std::string` rvalue is REFUSED at compile time rather than
- *  stored: build the name into something that outlives the timer, or name
- *  the phase with a literal. */
+ *  previous mark, or since construction, and records them under that
+ *  name, so consecutive laps tile the span exactly with no gap between
+ *  them; `each()` reads them back in the order they were laid.
+ *  @trap A NAME IS BORROWED, NOT COPIED, so the caller owns it and must
+ *  outlive the timer. A `std::string` rvalue is refused at compile time
+ *  rather than left dangling. */
 class Laps {
  public:
   /** The clock every mark is taken from. */

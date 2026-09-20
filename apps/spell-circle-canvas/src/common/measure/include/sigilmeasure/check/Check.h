@@ -20,16 +20,12 @@
 
 namespace sigil::measure {
 
-/** WHAT A ROW'S VERDICT MEANS to the run it stands in.
- *
- *  A verification is not only claims. Beside them stand the measurements
- *  the claims were made from, the titles that group them, and claims
- *  about the SUBJECT rather than the construction — a published formula
- *  that does not hold, a plate whose legend its engraving contradicts —
- *  whose failing is the finding and not a defect in the run. Each is a
- *  row, and what it means is stated here rather than typed into its
- *  text, so a reader of the table and a build that counts its failures
- *  read the same thing. */
+/** WHAT A ROW'S VERDICT MEANS to the run it stands in. A verification
+ *  is not only claims: beside them stand the measurements they were
+ *  made from, the titles that group them, and claims about the SUBJECT
+ *  rather than the construction. What a row is, is stated here rather
+ *  than typed into its text, so a reader of the table and a build that
+ *  counts its failures read the same thing. */
 enum class Standing : uint8_t {
   /** A claim about the construction: its FAIL fails the run. */
   Claim,
@@ -43,14 +39,11 @@ enum class Standing : uint8_t {
   Heading,
 };
 
-/** One claim, its evidence, and its verdict.
- *
- *  The point is that the printed line is COMPUTED from the same two values
- *  it reports. A hand-formatted caption saying "RING GEOMETRY EXACT" reads
- *  identically whether the geometry is exact or not, because the sentence
- *  and the measurement are joined only by whoever typed them; here they
- *  cannot drift apart. And because the verdict is a value rather than a
- *  string, a set of them can fail a build — see `failures()`. */
+/** One claim, its evidence, and its verdict. The printed line is
+ *  COMPUTED from the same two values it reports, so the sentence and
+ *  the measurement cannot drift apart, and the verdict is a value
+ *  rather than a string, so a set of them can fail a build — see
+ *  `failures()`. */
 struct Check {
   std::string label;
   std::string expected, actual;  ///< already formatted, for printing
@@ -58,21 +51,11 @@ struct Check {
   Standing standing = Standing::Claim;
 
   /** `  <label padded> <actual, right-aligned>   PASS`, or
-   *  `… FAIL want <expected>` — the shape of `"  %-44s %8ld   %s"`. Values
-   *  right-align because a column of results is a table, and a ragged
-   *  number column is hard to scan at small type.
-   *
-   *  The `want` clause matters: a failure that prints only the computed
-   *  number says something is wrong without saying what would have been
-   *  right, which a reader cannot act on.
-   *
-   *  Long labels are NOT truncated — they push the value column right
-   *  instead. A clipped label silently loses the units or the qualifier at
-   *  the end of a claim, which is worse than a line that wraps.
-   *
-   *  A reading stops after its value, since it has no verdict to print;
-   *  a heading is its label alone, unindented, so it reads as the title of
-   *  the indented rows under it. */
+   *  `… FAIL want <expected>` — the shape of `"  %-44s %8ld   %s"`. A
+   *  reading stops after its value and a heading is its label alone,
+   *  unindented.
+   *  @trap A long label is NOT truncated: it pushes the value column
+   *  right rather than losing the qualifier at the end of a claim. */
   std::string line(int labelWidth = 44, int valueWidth = 8) const {
     if (standing == Standing::Heading) return label;
     std::string out = "  " + label;
@@ -105,24 +88,22 @@ inline std::string fmtDouble(double v) {
 }
 }  // namespace detail
 
-/** Integer identity — the conservation check, where two counts must agree
- *  exactly.
- *
- *  Constrained to integral types on purpose. A plain `long` parameter would
- *  swallow `check("r", 257.972, measured)` through an implicit truncation
- *  and report EXACT on two numbers that differ; requiring integers makes
- *  that a compile error and sends you to the tolerance overload, which is
- *  the only correct way to compare floats. */
+/** Integer identity — the conservation check, where two counts must
+ *  agree exactly.
+ *  @trap Constrained to integral types on purpose: a `long` parameter
+ *  would swallow a float through an implicit truncation and report
+ *  EXACT on two numbers that differ. A float pair is a compile error
+ *  here and belongs to the tolerance overload. */
 template <std::integral T, std::integral U>
 Check check(std::string label, T expected, U actual) {
   return {std::move(label), detail::fmtLong((long)expected),
           detail::fmtLong((long)actual), expected == actual};
 }
 
-/** Float agreement within @p tol. There is no default tolerance on purpose:
- *  how closely a measured value and a solved one must agree is a property
- *  of the construction being checked, and an epsilon picked here would be a
- *  claim this header is not entitled to make. */
+/** Float agreement within @p tol, in the values' own units.
+ *  @trap There is NO default tolerance: how closely a measured value
+ *  and a solved one must agree is a property of the construction being
+ *  checked, not of this header. */
 inline Check check(std::string label, double expected, double actual,
                    double tol) {
   Check c{std::move(label), detail::fmtDouble(expected),
@@ -176,10 +157,10 @@ inline Check heading(std::string title) {
   return {std::move(title), "", "", true, Standing::Heading};
 }
 
-/** How many CLAIMS in @p checks failed — an exit code for a verification
- *  run, and what makes the claims mean something away from the screen. A
- *  finding that fails is not among them: its failing is a statement about
- *  the subject, and is counted by `findings()`. */
+/** How many CLAIMS in @p checks failed — an exit code for a
+ *  verification run.
+ *  @trap A finding that fails is not among them: its failing is a
+ *  statement about the subject, and is counted by `findings()`. */
 inline int failures(std::span<const Check> checks) {
   int n = 0;
   for (const Check& c : checks)
@@ -222,13 +203,11 @@ struct CheckTable {
   }
 
   /** One string per row, then a final `  <n> checks, <m> failed` line
-   *  (`all passed` when none did), with `, 1 finding` or `, <k> findings`
-   *  after it when a finding did not hold — the noun agrees with the
-   *  count, since a summary that says "1 findings" reads as a defect in
-   *  the report rather than in what was reported. The readings and
-   *  headings are printed and not counted. Empty when there are no rows: a
-   *  table with nothing in it prints nothing rather than a summary of
-   *  nothing. */
+   *  (`all passed` when none did), with the findings after it when one
+   *  did not hold. The readings and headings are printed and not
+   *  counted.
+   *  @silent a table with no rows: it prints nothing rather than a
+   *  summary of nothing. */
   std::vector<std::string> lines(int labelWidth = 44, int valueWidth = 8) const;
 };
 

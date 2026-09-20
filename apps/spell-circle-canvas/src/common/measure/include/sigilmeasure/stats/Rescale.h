@@ -13,20 +13,11 @@
 
 namespace sigil::measure {
 
-/** A STRAIGHT-LINE MAP, AND ITS INVERSE.
- *
- *  Three numbers rather than a lambda, so it is a value that can be
- *  stored, compared and inverted: a caption that says "two deviations
- *  above the mean" and the mark it labels go through the same
- *  arithmetic, and a reading taken back off a drawing goes through it
- *  the other way.
- *
- *  IT IS A STATISTIC, NOT A DRAWING'S SCALE. What is here is DERIVED
- *  from a run of numbers — where its centre is, how wide it is — so that
- *  runs of different units can be compared. A drawing's scale is
- *  AUTHORED: a domain someone chose, a range in pixels, a transform, a
- *  tick ladder. Deriving one from the data and calling it a scale is
- *  what makes an axis move whenever a new point arrives. */
+/** A STRAIGHT-LINE MAP, AND ITS INVERSE. Three numbers rather than a
+ *  lambda, so it is a value that can be stored, compared and inverted.
+ *  @trap IT IS A STATISTIC, NOT A DRAWING'S SCALE: what is here is
+ *  DERIVED from a run of numbers, and deriving an axis from the data is
+ *  what makes it move whenever a new point arrives. */
 struct Rescale {
   /** Subtracted from the value first: where the run's own zero is. */
   double centre = 0.0;
@@ -48,15 +39,12 @@ struct Rescale {
   friend bool operator==(const Rescale&, const Rescale&) = default;
 };
 
-/** HOW FAR EACH VALUE STANDS FROM THE MEAN, IN DEVIATIONS.
- *
- *  What makes two runs in different units comparable at all: a frame
- *  time and a byte count both become "how unusual is this, for its own
- *  run". A run with no spread has no deviations to count and maps every
- *  value to zero.
- *
- *  The deviation is the whole population's, not a sample estimate's,
- *  because the run being standardised is the run in hand. */
+/** HOW FAR EACH VALUE STANDS FROM THE MEAN, IN DEVIATIONS — what makes
+ *  two runs in different units comparable at all. The deviation is the
+ *  whole population's, not a sample estimate's, because the run being
+ *  standardised is the run in hand.
+ *  @silent a run with no spread: it has no deviations to count and maps
+ *  every value to zero. */
 [[nodiscard]] inline Rescale zScore(std::span<const double> values) {
   const Moments moments = Moments::of(values);
   const double sd = moments.sd();
@@ -65,12 +53,9 @@ struct Rescale {
 
 /** THE RUN SQUEEZED INTO [@p low, @p high], its smallest value at the
  *  low end and its largest at the high one.
- *
- *  Sensitive to a single outlier by construction — one wild value pushes
- *  everything else into a corner — which is exactly why the ends are
- *  reported and not hidden: read `Moments::min` and `max` beside this
- *  when the squeeze looks wrong. A run that is all one value has no
- *  width to stretch and maps every value to @p low. */
+ *  @trap Sensitive to a single outlier by construction — one wild value
+ *  pushes everything else into a corner — so read `Moments::min` and
+ *  `max` beside this when the squeeze looks wrong. */
 [[nodiscard]] inline Rescale unitRange(std::span<const double> values,
                                        double low = 0.0, double high = 1.0) {
   const Moments moments = Moments::of(values);

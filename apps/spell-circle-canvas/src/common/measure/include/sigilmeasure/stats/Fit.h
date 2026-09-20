@@ -16,12 +16,9 @@
 namespace sigil::measure {
 
 /** A LINE FITTED BY LEAST SQUARES, and the residuals that say whether
- *  the claim it makes is worth printing.
- *
- *  The slope and the intercept are the answer; `r2`, `maxResidual` and
- *  `rmsResidual` are what turns a drawn line into evidence. A study that
- *  quotes a slope without a residual has stated a preference, not a
- *  measurement. */
+ *  the claim it makes is worth printing. The slope and the intercept
+ *  are the answer; `r2`, `maxResidual` and `rmsResidual` are what turns
+ *  a drawn line into evidence. */
 template <std::floating_point T>
 struct LineFit {
   T slope = 0;
@@ -35,12 +32,9 @@ struct LineFit {
   T rmsResidual = 0;
   size_t samples = 0;
 
-  /** HOW STRONGLY THE TWO RUN TOGETHER, -1 to 1: the correlation, which
-   *  is the square root of `r2` carrying the slope's sign. It says the
-   *  same thing `r2` says about how much was explained, and one thing
-   *  more that a drawing usually wants stated — the DIRECTION, so that
-   *  "they move together" and "one falls as the other rises" are told
-   *  apart without reading the slope in the ordinate's own units. */
+  /** HOW STRONGLY THE TWO RUN TOGETHER, -1 to 1: the square root of
+   *  `r2` carrying the slope's sign, so how much was explained and the
+   *  DIRECTION are read off one number. */
   [[nodiscard]] T correlation() const {
     const T magnitude = std::sqrt(r2);
     return slope < 0 ? -magnitude : magnitude;
@@ -52,32 +46,12 @@ struct LineFit {
   [[nodiscard]] constexpr T residual(T x, T y) const { return y - at(x); }
 };
 
-/** THE FIT OF @p ys AGAINST @p xs.
- *
- *  Ordinary least squares in the ARGUMENT'S OWN precision: the sums are
- *  accumulated in `T`, so a caller that has always fitted in float gets
- *  the float answer it had rather than a double one rounded back. Fit in
- *  double where the answer is the finding and in float where it feeds a
- *  drawing that must not move.
- *
- *  Fewer than two points, or every point at one abscissa, is not a line:
- *  the answer is a zero slope through the mean, with `r2` at 0, which
- *  reads as "nothing was explained" rather than as a divide by zero. The
- *  residuals are still measured, off that flat answer, so a run that has
- *  no slope still reports how far its ordinates stand apart.
- *
- *  The shorter of the two spans is what is read, so a caller with a
- *  ragged pair does not walk off the end of one of them.
- *
- *  THE SPREAD OF THE ABSCISSAE IS ACCUMULATED, NOT SUBTRACTED. The
- *  textbook denominator — n times the sum of the squares less the square
- *  of the sum — is two large numbers differing in their last digits, and
- *  for abscissae that are large and close together (a run of timestamps,
- *  a run of coordinates on a wide sheet) the difference is nearly all
- *  rounding, and in the caller's own float it can vanish or change sign
- *  where there is a real spread to divide by. Each point's deviation from
- *  the mean so far is folded in as it arrives instead, so the sum is of
- *  small numbers and is zero only when the run really is vertical. */
+/** THE FIT OF @p ys AGAINST @p xs: ordinary least squares in the
+ *  ARGUMENT'S OWN precision, the sums accumulated in `T`, reading the
+ *  shorter of the two spans. The spread of the abscissae is ACCUMULATED
+ *  and not subtracted, so large, close abscissae keep theirs.
+ *  @silent fewer than two points, or every point at one abscissa: a
+ *  zero slope through the mean, `r2` at 0, residuals still measured. */
 template <std::floating_point T>
 [[nodiscard]] LineFit<T> lineFit(std::span<const T> xs, std::span<const T> ys) {
   LineFit<T> fit;
