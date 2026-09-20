@@ -15,6 +15,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -218,6 +219,13 @@ TEST(SketchHost, TheStillIsPixelsAndTheCaptureIsThePng) {
   // not, so `still` hands back pixels and stops there.
   const Watched file("sigil_sketch_host_still");
   Host host(options(file.path), fonts());
+  const auto entriesIn = [](const std::filesystem::path& dir) {
+    return static_cast<size_t>(
+        std::distance(std::filesystem::directory_iterator(dir),
+                      std::filesystem::directory_iterator{}));
+  };
+  const size_t before = entriesIn(file.dir.path);
+
   const SkBitmap still = host.still(2.0f);
   ASSERT_FALSE(still.isNull());
   EXPECT_EQ(still.dimensions(), SkISize::Make(240, 180));
@@ -225,11 +233,15 @@ TEST(SketchHost, TheStillIsPixelsAndTheCaptureIsThePng) {
   // The pixels are safe to hand to another thread, which is what the
   // thumbnail store does with them.
   EXPECT_TRUE(still.isImmutable());
+  // And the half that moved off the drawing thread did not happen here:
+  // a still encodes nothing and writes nothing.
+  EXPECT_EQ(entriesIn(file.dir.path), before);
 
-  // And the old contract is unchanged: capture writes the PNG.
+  // The old contract is unchanged: capture writes the PNG.
   const std::filesystem::path out = file.dir.path / "still.png";
   EXPECT_TRUE(host.capture(out, 2.0f));
   EXPECT_TRUE(std::filesystem::exists(out));
+  EXPECT_EQ(entriesIn(file.dir.path), before + 1);
 }
 
 TEST(SketchHost, StillRefusesFailedReadback) {

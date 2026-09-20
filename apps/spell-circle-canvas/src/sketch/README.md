@@ -824,8 +824,16 @@ live; the montage adds no border, progress chrome, pulse, scan, or reveal wipe.
 Before the first selected session opens, Sketchbook preloads the stock shader
 directories through SigilIO and warms their SkSL programs concurrently. The
 montage, headless sweep, capture path and live browser all cross that loading
-barrier before they render, so compilation does not become a captured loading
-frame or the first interactive frame.
+barrier before they render, so no SkSL program is compiled inside a captured
+loading frame or the first interactive frame.
+
+The device program a draw runs through is a second compile, built per distinct
+draw out of the whole inlined paint tree, and warming the SkSL does not reach
+it. Every Graphite context is given a thread pool to build those programs on,
+so the stages of a scene wearing a chain of effects are built beside each
+other rather than one after another — but they are still built when the draw
+that needs them is first recorded, so the first frame of such a scene waits
+for the slowest of them. Nothing yet stands them up ahead of that frame.
 
 `--video-frames` changes each sketch's share of the edit, `--video-size`
 changes the even output dimensions, `--video-bitrate` sets H.264 bits per
