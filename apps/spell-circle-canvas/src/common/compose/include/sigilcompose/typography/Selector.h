@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-typography
+ *
  * SigilCompose typography — the two selector forms that address something
  * of THIS library: `selectors::style`, a run of a `weave::rich()` value written
  * under a name, and `selectors::inFrame`, one frame of a chain named by its

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-draw
+ *
  * The door between the tree and the pen, both ways: a node whose content
  * is a pen program, and a retained element painted inside a pen's loop.
  */

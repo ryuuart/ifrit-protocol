@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-video
+ *
  * SigilCompose integration for a streaming SigilVideo clip. The adapter is a
  * live custom leaf: the compose kernel retains no codec vocabulary and the
  * video owns its frame cache and device surfaces.
@@ -21,20 +23,37 @@
 
 namespace sigil::compose {
 
+/** HOW A FRAME IS FITTED into the leaf's box when the two do not share
+ *  an aspect ratio — CSS's `object-fit`, with the three names that mean
+ *  something for a rectangular frame. */
 enum class VideoFit {
-  Stretch,
-  Contain,
-  Cover,
+  Stretch,  ///< fill the box, distorting the frame to do it
+  Contain,  ///< fit the whole frame inside the box, letterboxing it
+  Cover,    ///< fill the box with the frame, cropping what overflows
 };
 
+/** WHAT A `video()` LEAF IS TOLD ABOUT ITS CLIP — where in the clip to
+ *  start, how fast to run, whether to wrap round, how to fit the frame,
+ *  and how to paint it. Every field has the value a leaf takes when it
+ *  is left alone, so `video(clip)` plays the whole clip from its
+ *  beginning at its own rate, looping, stretched to the node's box.
+ *
+ *  `startSeconds` and `playbackRate` are read against the scene's own
+ *  elapsed time, so the leaf never holds a clock of its own; `loop`
+ *  wraps that time round the clip's duration rather than clamping at
+ *  its end. `sampling` is how the frame is filtered into the box, and
+ *  `opacity` and `blend` are the leaf's own, applied as it paints
+ *  rather than through the node's paint verbs — a custom leaf paints
+ *  itself. */
 struct VideoOptions {
-  double startSeconds = 0.0;
-  double playbackRate = 1.0;
-  bool loop = true;
-  VideoFit fit = VideoFit::Stretch;
+  double startSeconds = 0.0;  ///< where in the clip time zero sits
+  double playbackRate = 1.0;  ///< clip seconds per scene second
+  bool loop = true;           ///< wrap past the end rather than stop on it
+  VideoFit fit = VideoFit::Stretch;  ///< how a frame fills the box
+  /// How a frame is filtered into the box; linear unless stated.
   SkSamplingOptions sampling = SkSamplingOptions(SkFilterMode::kLinear);
-  float opacity = 1.0f;
-  SkBlendMode blend = SkBlendMode::kSrcOver;
+  float opacity = 1.0f;                       ///< 0 clear to 1 solid
+  SkBlendMode blend = SkBlendMode::kSrcOver;  ///< how the frame combines
 };
 
 namespace detail {

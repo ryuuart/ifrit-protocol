@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose instanced leaf — thousands of repeated sprites as ONE leaf: an
  * ATLAS baked once from element trees, a user-owned struct-of-arrays POOL,
  * and one atlas draw per frame. Node-graph ports, inventory cells, confetti,
@@ -59,6 +61,21 @@
 #include <span>
 #include <vector>
 
+/** THOUSANDS OF REPEATED SPRITES AS ONE LEAF — node-graph ports,
+ *  inventory cells, confetti, tick arrays, radial menus: anything that
+ *  would otherwise be N layout subtrees.
+ *
+ *  Three parts. An ATLAS is a recipe — element trees registered as cells
+ *  and baked once into one oversampled sheet, held wherever assets are
+ *  held. A POOL is the caller's own parallel arrays of position,
+ *  rotation, scale, tint and frame, mutated directly with no registry
+ *  type crossing the seam. And the LEAF draws the pool against the
+ *  atlas in one call per frame.
+ *
+ *  `place::` holds the stock arrangements that fill a pool. Reach for
+ *  this when the count is large and every instance is the same handful
+ *  of pictures; a dozen distinct nodes are cheaper written as
+ *  children. */
 namespace sigil::compose::instancing {
 
 // ---------------------------------------------------------------------------
@@ -323,6 +340,7 @@ class Atlas {
 // ---------------------------------------------------------------------------
 // The component
 
+/** WHETHER THE LEAF READS THE POOL ONCE OR EVERY FRAME. */
 enum class Mode {
   /** Cached: mutate → commit() → render(). A pool mutated without
    *  commit() prunes and replays the old picture. */

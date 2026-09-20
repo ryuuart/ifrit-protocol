@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — pixel art: the grid a sprite is plotted on, the
  * palette it is coloured through, and the sheet many of them share.
  *

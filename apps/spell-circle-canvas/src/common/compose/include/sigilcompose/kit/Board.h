@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — the ground a plate stands on: the board a placed
  * drawing is laid out over, and the titled region a page divides itself
  * into.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-typography
+ *
  * SigilCompose typography — THE `fx::` CATALOGUE: the effects the runtime
  * evaluates by STRUCTURE rather than by calling a preset's body. The
  * substitution, the shader pass, the keyframe table, the hold, the two
@@ -28,6 +30,17 @@ namespace sigil::compose {
 // the combinators over whole effects. Their bodies are the engine's; the
 // presets that are plain values are the kit's, in kit/Kinetic.h.
 
+/** THE TEXT-EFFECT CATALOGUE: what one `fx()` track does to each glyph
+ *  it addresses — a substitution, a shader pass, a keyframe table, a
+ *  hold, the two combinators that compose whole effects, and the escape
+ *  hatch an ad-hoc body goes through.
+ *
+ *  Everything here is a shape the RUNTIME reads and evaluates by
+ *  structure. The presets that are plain values over the same seam —
+ *  the entrances, the loops, the tints — are the kit's, and the
+ *  difference is who evaluates: a preset is a body this library calls,
+ *  and one of these is a value it inspects. Both are the same
+ *  `TextEffect` type and compose in one track list. */
 namespace fx {
 
 /** THE DISPLAY SIZE A REACH IS DECLARED AGAINST when no effect knows the

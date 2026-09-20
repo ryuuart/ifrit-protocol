@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose tiles — slicing one baked picture into a run of tile-sized
  * rasters: the per-tile canvas transform, and the bounding-box re-record
  * that makes replaying the whole picture per tile cheap.

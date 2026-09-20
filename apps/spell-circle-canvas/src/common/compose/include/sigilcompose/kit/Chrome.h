@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * CHROME: the dressed edge of a control, as tokens.
  *
  * THE BEVEL is the whole of it. Every interface toolkit that made a

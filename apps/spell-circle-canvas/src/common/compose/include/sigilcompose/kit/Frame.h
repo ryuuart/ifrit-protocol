@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — a node placed by the numbers a plate was measured
  * in, and the one line every plate draws.
  *

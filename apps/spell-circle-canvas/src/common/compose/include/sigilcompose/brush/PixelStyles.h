@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose PIXEL STYLES — the hard-edged interface vocabulary a
  * bitmap-era panel is dressed with, as value decorations beside the
  * blurred ones in `LayerStyles.h`: the BEVEL PAIR (a light edge and a

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose brush — the feature umbrella: decorations and the two
  * adaptors that run one on another outline, the layered stack, the
  * geometry ops, the brush kinds, and the line, rail and hatch

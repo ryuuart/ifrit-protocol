@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — flourish: the STATIC pieces of a gilt border.
  *
  * Everything here is bake-safe — no bindings, no live leaves — so a
@@ -17,6 +19,15 @@
 #include <string>
 #include <vector>
 
+/** THE STATIC PIECES OF A GILT BORDER, as whole cards rather than as
+ *  the strokes they are drawn from: corner pieces, bands, medallions
+ *  and the sheets that assemble them.
+ *
+ *  Everything here is bake-safe — no bindings, no live leaves — so a
+ *  flourish records once and replays, or bakes into an atlas. What
+ *  moves (a spinning medallion, draw-on scrollwork, a shimmer) belongs
+ *  to the scene and not to a card. The strokes themselves are
+ *  `ornament::`'s. */
 namespace sigil::compose::kit::flourish {
 
 using ornament::Palette;

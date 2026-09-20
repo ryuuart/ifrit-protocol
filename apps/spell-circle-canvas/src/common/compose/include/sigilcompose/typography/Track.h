@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-typography
+ *
  * SigilCompose typography — the TRACK: one entry of a text leaf's `fx()`
  * list, which is which glyphs (`weave::Selector`), what deviation from rest
  * (`TextEffect`), how the beats spread (`motion::Spread`), what a unit is,

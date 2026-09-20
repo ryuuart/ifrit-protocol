@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-typography
+ *
  * SigilCompose typography — a READING set beside the type it reads:
  * `Annotation`, the value `Element::annotate` takes, of which furigana,
  * kenten and a gloss under a phrase are three spellings.

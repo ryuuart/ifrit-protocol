@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-typography
+ *
  * SigilCompose typography — `TextPath`, a run of type whose BASELINE is a
  * path: the value `Element::onPath` takes.
  */
@@ -50,8 +52,13 @@ struct TextPath {
    *  own box — so the node's recording is refused while the phase runs and
    *  taken again once it provably holds still. */
   motion::Animatable<float> at = 0.0f;
-  enum class Align { Start, Center, End };
-  Align align = Align::Start;
+  /** Where `at` pins the run on the curve. */
+  enum class Align {
+    Start,   ///< the run's beginning sits at `at`
+    Center,  ///< the run straddles `at`
+    End      ///< the run's end sits at `at`
+  };
+  Align align = Align::Start;  ///< what `at` pins on the curve
   /** Perpendicular offset in px, positive to the LEFT of travel — which on
    *  a clockwise circle is outward. The path is the baseline, so this is
    *  how far off it the type rides. */

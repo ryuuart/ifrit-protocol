@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * The connector routers — Router values for connector().
  *
  * A Router answers the routed path between two endpoint rects, and a
@@ -19,6 +21,19 @@
 
 #include "sigilcompose/Compose.h"
 
+/** THE STOCK ROUTES a connector or a rail may take: straight, arced,
+ *  orthogonal, octilinear, orbiting, manhattan.
+ *
+ *  A `Router` answers the path between two endpoint rects and a
+ *  `RailRouter` the path through an ordered run of anchors. There is no
+ *  enumeration of route kinds — these are values over those two seams,
+ *  and a caller's own value, or its own callable, is a peer of them.
+ *
+ *  Every value here COMPARES, so two routers built from the same
+ *  parameters are equal and a re-described connector keeps the
+ *  recording it already made; a raw callable is the escape hatch and
+ *  never prunes. The routed path arrives as the connector's outline, so
+ *  any brush or decoration dresses it. */
 namespace sigil::compose::routers {
 
 /** Where an orthogonal leg takes its turn. `MidX` is the Z every node

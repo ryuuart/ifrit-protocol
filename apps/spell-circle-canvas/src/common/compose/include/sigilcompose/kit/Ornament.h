@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — ornament: the pieces a manuscript border is made of.
  *
  * Everything here is a component over the public API, and colour arrives
@@ -24,16 +26,23 @@
 #include <cmath>
 #include <vector>
 
+/** THE PIECES A MANUSCRIPT BORDER IS MADE OF: calligraphic sweeps that
+ *  taper from a hairline and roll into spirals at both ends, sprigs,
+ *  diamond accents, dashed rules and carved frames.
+ *
+ *  Every one is a component over the public API, and colour arrives as
+ *  DATA — a `Palette` — so one sprig or frame renders in any tint. They
+ *  are the strokes; `flourish::` assembles them into whole cards. */
 namespace sigil::compose::kit::ornament {
 
 /** A manuscript palette — every ornament component below is driven by
  *  one of these, never by hard-coded colors. */
 struct Palette {
-  SkColor4f parchment;  // page/panel ground
-  SkColor4f ink;        // body text on that ground
-  SkColor4f stem;       // flourish strokes (the watercolor "cobalt")
-  SkColor4f leaf;       // sprig leaves (olive/ochre greens)
-  SkColor4f gold;       // gilded accents: diamonds, dots, trims
+  SkColor4f parchment;  ///< page/panel ground
+  SkColor4f ink;        ///< body text on that ground
+  SkColor4f stem;       ///< flourish strokes (the watercolor "cobalt")
+  SkColor4f leaf;       ///< sprig leaves (olive/ochre greens)
+  SkColor4f gold;       ///< gilded accents: diamonds, dots, trims
 };
 
 inline Palette azurePalette() {

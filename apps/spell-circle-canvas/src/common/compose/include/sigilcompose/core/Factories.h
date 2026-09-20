@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose factories — the functions that start an Element: `box`,
  * `stack`, `positioned`, `text` in its three content forms and `frame`
  * over a story, `image`, `picture`, `pathFigure`, `custom`, `layout`,
@@ -37,8 +39,16 @@ class Story;
 
 namespace sigil::compose {
 
-// ---- factories -----------------------------------------------------------
+/** @name Factories
+ *  What STARTS a node. Every description begins with one of these and
+ *  is shaped by the chaining verbs of `Element`; a factory decides only
+ *  what kind of thing the node is, never how it looks.
+ *  @{ */
 
+/** THE PLAIN NODE: a flex container with no content of its own, laying
+ *  its children out down the vertical axis until it is told `row()`.
+ *  The one to reach for by default — a box with a fill is a panel, a
+ *  box with a shape is a drawing, and a box with neither is layout. */
 Element box();
 /** Overlap container: children share the box, painted in (zIndex,
  *  declaration order). EVERY child is absolute — the container sets it
@@ -173,6 +183,12 @@ Element frame(sigil::weave::Story story);
  *  pointer means "content changed" and re-shapes. */
 Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
              sigil::weave::ParagraphLayoutOptions options = {});
+/** AN IMAGE LEAF over a decoded asset. Its intrinsic size is the
+ *  asset's own pixels, so a leaf given no size takes them; `fit()` says
+ *  what happens when it is given a box of another shape, `region()`
+ *  draws one sub-rect of an atlas, and `sampling()` — inherited from
+ *  any ancestor — says how the pixels are filtered. A null asset draws
+ *  nothing. */
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
 
 /** HOW A PICTURE MEETS THE BOX IT IS GIVEN, CSS's own three. */
@@ -344,5 +360,6 @@ Element memo(P properties, F fn) {
         return fn(std::any_cast<const P&>(p));
       });
 }
+/** @} */
 
 }  // namespace sigil::compose

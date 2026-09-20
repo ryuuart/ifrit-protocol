@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose stroke grammar — WHERE a stroke goes and HOW a composite
  * mark is built. Spans claims runs of a boundary by arc length and the
  * `spans::` factories spell the claims; Across names a band's width and
@@ -97,6 +99,9 @@ struct SpanInput {
  *  kinds, so the value stays trivially comparable and prunable. */
 class Spans {
  public:
+  /** How ONE term names its runs of the boundary, and therefore which of
+   *  a term's members it reads. A `Spans` value is the union of its
+   *  terms. */
   enum class Rule : uint8_t {
     Range,    ///< [begin, end] outright — and upTo(t) is range(0, t)
     Wrap,     ///< [begin, end] on the boundary read as a CYCLE (spans::wrap)
@@ -193,6 +198,12 @@ std::vector<geometry::path::Contour::Corner> cornersOrWarn(
 void warnIfNoCorners(const SkPath& path, float angleDeg);
 }  // namespace detail
 
+/** THE SPAN FACTORIES — the WHERE half of `.stroke(where, what)` and of
+ *  `by::spans(...)`. Each mints one term of a `Spans` value, naming runs
+ *  of a node's boundary by arc length, by its corners, by an even
+ *  division, or by what another pass left over. Terms combine with `|`
+ *  into one comparable value, so a span selection prunes like any other
+ *  description. */
 namespace spans {
 /** `[begin, end]` of the boundary's arc length. Both ends take the full
  *  Animatable treatment (constant, `animate(...)`, or a bound Output). */
@@ -280,6 +291,10 @@ struct Across {
  *  profile: `across()` is a brush verb, and a band drawn through it links
  *  SigilComposeBrush. */
 Across across(float px);
+/** A band width that VARIES along the spine, given as a profile over
+ *  arc length — a taper, a swell, a hand-drawn pressure curve. The
+ *  profile's maximum is what the paint cull grows by, so a band whose
+ *  width varies is never silently clipped. */
 Across across(geometry::path::Profile p);
 
 // ---------------------------------------------------------------------------
@@ -336,6 +351,7 @@ struct Around {
   std::string key;
   bool operator==(const Around&) const = default;
 };
+/** A spine borrowed from the element keyed @p key, for `band()`. */
 inline Around around(std::string_view key) { return Around{std::string(key)}; }
 
 // ---------------------------------------------------------------------------
@@ -360,7 +376,12 @@ inline Around around(std::string_view key) { return Around{std::string(key)}; }
  *  geometry, or as pure guide data in no tree. This is the third case. */
 class StrandPath {
  public:
-  enum class Source : uint8_t { Relative, Borrowed, Authored };
+  /** Where the strand's own geometry comes from. */
+  enum class Source : uint8_t {
+    Relative,  ///< a profile over the host boundary, offset from it
+    Borrowed,  ///< a keyed element's resolved path, read in the derive pass
+    Authored   ///< an explicit `SkPath`, which is a comparable value
+  };
 
   StrandPath() = default;
   StrandPath(geometry::path::Profile p)  // NOLINT: implicit by design (.path =
@@ -400,6 +421,10 @@ class StrandPath {
   SkPath m_path;
 };
 
+/** THE STRAND-PATH FACTORIES: where one strand of a composite stroke
+ *  gets its own geometry — a profile offset from the host boundary, a
+ *  keyed element's resolved path borrowed in the derive pass, or an
+ *  authored `SkPath`. A path is DATA here and never an element. */
 namespace strand {
 /** Borrow a keyed element's resolved path (derive phase, cycle-guarded
  *  like every other borrow). */

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose line patterns — the cartography/diagram stroke vocabulary
  * beyond dashes: parallel casings (double/triple rails, highway pairs),
  * terminal caps (arrows, dots, bars — the node-graph direction language),
@@ -32,6 +34,15 @@
 
 #include "sigilcompose/Compose.h"
 
+/** THE LINE VOCABULARY a map or a diagram needs beyond a dash: parallel
+ *  casings (double and triple rails, highway pairs), terminal caps
+ *  (arrows, dots, bars — the node-graph direction language), railway
+ *  ties, hatches, and wave and zigzag runs.
+ *
+ *  It is all one value, `lines::Line`, built from plain data, so a
+ *  patterned connector or rail prunes and caches like any static chrome.
+ *  Attach one with `Element::stroke()` to dress an outline, a rail or a
+ *  routed connector. `lines::presets::` holds the ready-made ones. */
 namespace sigil::compose::lines {
 
 /** Convert a path into its DASHED GEOMETRY — the dash segments as real

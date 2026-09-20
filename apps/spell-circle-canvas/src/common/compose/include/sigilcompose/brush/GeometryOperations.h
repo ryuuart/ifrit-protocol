@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose geometry ops — the one mechanism door for deviating an
  * outline: the GeometryOperation that a comparable shaper and a raw path
  * callable both convert to.

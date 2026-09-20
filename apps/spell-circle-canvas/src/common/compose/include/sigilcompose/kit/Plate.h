@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose kit — the plate several feeds usually sit on, and the style
  * set that colours their rows. Both are plain composition over the public
  * API: `plate` is a padded, bordered box with hairline dividers, `tinted` a

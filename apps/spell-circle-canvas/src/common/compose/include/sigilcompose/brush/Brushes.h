@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-brush
+ *
  * SigilCompose brushes — THE BRUSH AND ITS COMPOSITES. Everything in the
  * brush family paints `PaintContext::outline`, whatever produced it (a
  * node's shape, a rail's route, a connector's wire), and attaches with
@@ -59,6 +61,19 @@ namespace sigil::compose {
 //   kinds       brush::solid   brush::Pattern   brush::Scatter   brush::Art
 //   composites  brush::layers(…)                brush::weave(…)
 
+/** THE BRUSH CATALOGUE: what paints a mark along a boundary, as
+ *  comparable values.
+ *
+ *  Four KINDS are the leaf tools — `solid` a plain stroke, `Pattern` a
+ *  repeating motif, `Scatter` a spray of instances, `Art` a shape
+ *  swept along the path — and two COMPOSITES combine any brushes at
+ *  all, composites included: `layers()` stacks them and `weave()`
+ *  interleaves them. That is the whole taxonomy, and every other value
+ *  here is built out of it.
+ *
+ *  A brush is what `Element::stroke()`, `background()`, `foreground()`
+ *  and the band verbs take. Every value compares, so a re-described
+ *  node keeps the recording it already made. */
 namespace brush {
 
 /** THE plain stroke: a width, a paint, and an optional dash, stamp or path
@@ -337,7 +352,7 @@ namespace brush {
 struct Restyled {
   GeometryOperation operation;
   Decoration inner;
-  float extraBleed = 8.0f;  // the operation's own overhang (wave amplitude…)
+  float extraBleed = 8.0f;  ///< the operation's own overhang (wave amplitude…)
 
   bool isAnimated() const { return inner.isAnimated(); }
   /** Forwarded, for the reason a weave forwards it. */

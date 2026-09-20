@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose derive family — content that asks where a keyed node landed:
  * connector and rail, with Router and RailRouter as their pluggable seam;
  * Anchor, a normalized point on a keyed node's bounds; band, a shape swept
@@ -65,22 +67,6 @@ concept RouteScheme =
       { r.route(from, to) } -> std::convertible_to<SkPath>;
     };
 
-/** THE ROUTE BETWEEN TWO RECTS, type-erased: what `connector()` holds.
- *
- *  Two constructions, one value:
- *
- *  - a COMPARABLE scheme (any `routers::` value, or your own value with
- *    `route(from, to)` + `==`) — the node prunes while the value and the
- *    rects are unchanged;
- *  - a raw callable (`[](const SkRect&, const SkRect&) -> SkPath`) — the
- *    escape hatch. It never compares equal to a separately-constructed
- *    Router, so the node re-patches on every describe and can never
- *    prune. Copies of ONE Router do compare equal (they share state), so
- *    holding the Router and re-using it — rather than re-minting the
- *    lambda each describe — restores pruning.
- *
- *  Held as one shared immutable pointer, so a node carrying a router
- *  costs a pointer and a copy-on-write node copy is a refcount bump. */
 namespace detail {
 
 /** WHAT A ROUTE SEAM DOES: answer the path between two endpoint rects.
@@ -115,6 +101,22 @@ struct RouteFunction : RouteOperations {
 
 }  // namespace detail
 
+/** THE ROUTE BETWEEN TWO RECTS, type-erased: what `connector()` holds.
+ *
+ *  Two constructions, one value:
+ *
+ *  - a COMPARABLE scheme (any `routers::` value, or your own value with
+ *    `route(from, to)` + `==`) — the node prunes while the value and the
+ *    rects are unchanged;
+ *  - a raw callable (`[](const SkRect&, const SkRect&) -> SkPath`) — the
+ *    escape hatch. It never compares equal to a separately-constructed
+ *    Router, so the node re-patches on every describe and can never
+ *    prune. Copies of ONE Router do compare equal (they share state), so
+ *    holding the Router and re-using it — rather than re-minting the
+ *    lambda each describe — restores pruning.
+ *
+ *  Held as one shared immutable pointer, so a node carrying a router
+ *  costs a pointer and a copy-on-write node copy is a refcount bump. */
 class Router {
  public:
   Router() = default;
@@ -159,6 +161,12 @@ class Router {
   core::Erased<detail::RouteOperations> m_held;
 };
 
+/** AN EDGE BETWEEN TWO KEYED NODES, routed in the derive phase against
+ *  the rects they resolved to and re-routed whenever either moves. The
+ *  routed path becomes the node's own outline, so any brush or
+ *  decoration dresses it, and @p gap holds the route that many pixels
+ *  clear of each endpoint's box. A default router draws a straight
+ *  line; a key nothing carries draws nothing. */
 Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router = {}, float gap = 0.0f);
 
@@ -297,15 +305,6 @@ concept RailScheme = std::equality_comparable<R> &&
                        { r.route(anchors) } -> std::convertible_to<SkPath>;
                      };
 
-/** THE PATH THROUGH AN ORDERED RUN OF ANCHORS, type-erased: what
- *  `rail()` holds. Stock values in <sigilcompose/kit/Routers.h>
- *  (polyline, octilinear, orbit, manhattan); write your own for anything
- *  else, and a straight polyline is what an empty one draws.
- *
- *  Comparable exactly as `Router` is: a `routers::` value or your own
- *  value with `route(anchors)` + `==` prunes; a raw callable
- *  (`[](std::span<const SkPoint>) -> SkPath`) is the escape hatch that
- *  compares equal to nothing but its own copies. */
 namespace detail {
 
 /** WHAT A RAIL SEAM DOES: answer the path through an ordered anchor run.
@@ -337,6 +336,15 @@ struct RailFunction : RailOperations {
 
 }  // namespace detail
 
+/** THE PATH THROUGH AN ORDERED RUN OF ANCHORS, type-erased: what
+ *  `rail()` holds. Stock values in <sigilcompose/kit/Routers.h>
+ *  (polyline, octilinear, orbit, manhattan); write your own for anything
+ *  else, and a straight polyline is what an empty one draws.
+ *
+ *  Comparable exactly as `Router` is: a `routers::` value or your own
+ *  value with `route(anchors)` + `==` prunes; a raw callable
+ *  (`[](std::span<const SkPoint>) -> SkPath`) is the escape hatch that
+ *  compares equal to nothing but its own copies. */
 class RailRouter {
  public:
   RailRouter() = default;
@@ -421,6 +429,9 @@ Element rail(std::vector<Anchor> anchors, RailRouter router = {});
  *  The profile's `max()` is what the paint cull grows by, so a band whose
  *  width varies is never silently clipped. */
 Element band(Shape spine, Across width);
+/** The same band over a spine BORROWED from another keyed element,
+ *  resolved in the derive phase and re-swept whenever that element's
+ *  shape moves. */
 Element band(Around spine, Across width);
 
 /** The band's own (along, across) space, addressable: `along` is a

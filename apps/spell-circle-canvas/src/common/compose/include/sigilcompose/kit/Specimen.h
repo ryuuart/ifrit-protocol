@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — the furniture of a SPECIMEN SHEET: a captioned
  * cell (a label, a note and the thing they describe), the fixed well a
  * specimen is shown in, a run of cells along one axis with a hairline

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — things that stand BESIDE a text, one per unit it
  * addresses: `annotate`, which places a caller's element at every word,
  * cluster, line or sentence a selector names, and the two placements that
@@ -57,9 +59,18 @@ namespace sigil::compose::kit {
  *  to know its own extent to know where to start. A side that stands after
  *  the unit ignores it and lets the content decide. */
 struct Beside {
-  enum class Side { Before, After, Start, End };
-  Side side = Side::Before;
-  float gap = 2.0f;
+  /** Which side of the unit the annotation stands on, named by the
+   *  writing mode rather than by the screen. */
+  enum class Side {
+    Before,  ///< across the reading direction, on the leading side
+    After,   ///< across the reading direction, on the trailing side
+    Start,   ///< along the reading direction, before the unit
+    End      ///< along the reading direction, after the unit
+  };
+  Side side = Side::Before;  ///< which side of the unit to stand on
+  float gap = 2.0f;          ///< px of standoff from the unit's band
+  /// The annotation's own extent, which only a `Before` or `Start` side
+  /// needs; the others let the content decide.
   float measure = 0.0f;
 };
 

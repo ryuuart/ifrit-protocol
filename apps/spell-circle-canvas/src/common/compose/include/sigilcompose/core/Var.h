@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * A custom property's NAME as a value: `var("accent")` interns the name
  * once and answers the reference a length, a fill or an ink is written
  * with, to be resolved down the tree against the nearest ancestor that set

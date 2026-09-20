@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose kit — placers: arithmetic that fills an instancing::Pool with
  * a grid, a ring or a repeat chain. Data-level, O(count), no Yoga: each
  * writes only the lanes its parameters speak to and commits the pool, so a
@@ -31,6 +33,16 @@
 #include <cmath>
 #include <cstddef>
 
+/** THE ARRANGEMENTS THAT FILL AN INSTANCING POOL: a grid, a ring, a
+ *  repeat chain. Each is arithmetic over the pool's lanes — O(count),
+ *  no layout — and writes only the lanes its parameters speak to before
+ *  committing, so a pool filled by hand and then arranged here keeps
+ *  its tints and its frames.
+ *
+ *  Where item i of n falls on a ring, and which cell of a module grid
+ *  it occupies, are SigilGeometry's arithmetic and are stepped through
+ *  from here rather than spelled again: the same ring stamped as
+ *  sprites and laid out as children must land on the same pixels. */
 namespace sigil::compose::instancing::place {
 
 /** Row-major grid of cell-sized slots from @p origin. */

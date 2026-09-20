@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * SigilCompose KIT — the aliased bitmap-font bake.
  *
  * Shape a run with antialiasing off, rasterise it, threshold it to a 1-bit

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * SigilCompose Composer — the retained side: the tree that diffs each
  * described Element tree against the last, lays out, caches, animates and
  * paints into a canvas the host owns, and answers queries about what it
@@ -162,7 +164,11 @@ class Composer {
     LinearSRGB,   ///< linear-light sRGB — NOT compose's space; declaring warns
     DisplayP3,    ///< display-encoded Display P3 — NOT compose's space; warns
   };
+  /** States which colour space the colours in this tree's descriptions
+   *  are written in — see `InputSpace`, which says what declaring one
+   *  other than the default does and does not do. */
   void declareInputSpace(InputSpace space);
+  /** The space last declared, `EncodedSRGB` when none was. */
   InputSpace declaredInputSpace() const;
 
   /** THE DESCRIBE PATH: reconciles @p root against the retained tree,
@@ -201,7 +207,12 @@ class Composer {
    *  canvas. The retained tree, layout, and animations are untouched. */
   void purgeCaches();
 
-  // ---- queries (resolved side only) ----
+  /** @name Queries
+   *  What the RESOLVED side answers about the tree it laid out. Each is
+   *  valid after a `render()` — or after any call that runs layout —
+   *  and each addresses a node by its `Element::key()`, which is the
+   *  one identity the query side sees.
+   *  @{ */
   /** Layout rect of a keyed node, in the composer's coordinate space.
    *  Valid after a draw() (or any other call that runs layout). */
   std::optional<SkRect> bounds(std::string_view key) const;
@@ -321,8 +332,13 @@ class Composer {
    *  updates. Keyless routes are anchored but unaddressable, so they are
    *  omitted; give routes keys to see them here. Valid after render(). */
   std::vector<std::string> routesAt(std::string_view nodeKey) const;
+  /** @} */
 
-  // ---- introspection (cost verification; see the compose_bench target) --
+  /** @name Introspection
+   *  What the retained side is holding and what the last frame did to
+   *  it — read to verify that a description is being reused rather than
+   *  rebuilt, not to drive a picture.
+   *  @{ */
   /** What the retained tree currently holds and what the last frame
    *  did to it. Read for verifying that a description is being reused
    *  rather than rebuilt: describes skipped and nodes kept should
@@ -353,6 +369,8 @@ class Composer {
     double volatileMs = 0;   ///< computeVolatile() walk inside last draw()
     double paintMs = 0;      ///< paint traversal inside last draw()
   };
+  /** The counters as the last `render()` and `draw()` left them. Always
+   *  kept — nothing has to be switched on for these. */
   const Stats& stats() const;
 
   /** PER-NODE PAINT COST.
@@ -468,7 +486,11 @@ class Composer {
   };
   /** One short phrase for a Promotion, for printing next to a cost. */
   static const char* promotionReason(Promotion p);
+  /** Whether every draw() times its nodes and fills `profile()`. Off
+   *  when nothing said otherwise: the timing calls are cheap but not
+   *  free. */
   void setProfiling(bool on);
+  /** Whether per-node timing is on. */
   bool profiling() const;
   /** Rows from the last draw(), sorted by `selfMs` descending. Empty when
    *  profiling is off. */
@@ -496,19 +518,30 @@ class Composer {
    *  It costs a readback of every bake, so it is off unless asked for and
    *  a host asks for one draw rather than a run. */
   void setCompositeCounting(bool on);
+  /** Whether the next draw() will count composites. */
   bool compositeCounting() const;
   /** The plane the last counted draw() produced. Saturating, because a
    *  pixel under 255 composites is a fact no eighth bit refines. */
   struct CompositePlane {
-    int width = 0;
-    int height = 0;
-    std::vector<uint8_t> counts;
+    int width = 0;                ///< device pixels across, the canvas's own
+    int height = 0;               ///< device pixels down
+    std::vector<uint8_t> counts;  ///< row-major, one saturating count each
+    /** The count at a device pixel; zero outside the plane. */
     uint8_t at(int x, int y) const {
       if (x < 0 || y < 0 || x >= width || y >= height) return 0;
       return counts[(size_t)y * (size_t)width + (size_t)x];
     }
   };
+  /** The plane the last counted draw() produced; empty when counting was
+   *  never switched on. */
   const CompositePlane& compositePlane() const;
+  /** @} */
+
+  /** @name Settings
+   *  What the composer is told about the surface it draws onto and the
+   *  input arriving over it: how eagerly to bake, at what density, and
+   *  where the pointer and the keyboard are.
+   *  @{ */
 
   /** WHAT DECIDES A PROMOTION — never what a promotion is allowed to do.
    *
@@ -599,6 +632,8 @@ class Composer {
   void setAutoTexturePromotion(PromotionPolicy policy);
   /** The two-state form: false is `Off`, true is `ByCost`. */
   void setAutoTexturePromotion(bool on);
+  /** The policy in force, which is the surface's own default until a
+   *  host overrides it. */
   PromotionPolicy autoTexturePromotionPolicy() const;
   /** Whether anything may be promoted at all — the policy is not `Off`. */
   bool autoTexturePromotion() const;
@@ -627,6 +662,7 @@ class Composer {
    *
    *  Zero, the default, is the ladder. */
   void setBakeDensity(float devicePixelsPerUnit);
+  /** The density bakes are taken at; zero is the ladder. */
   float bakeDensity() const;
 
   /** WHERE THE POINTER STANDS over the scene, in the composer's own canvas
@@ -641,6 +677,7 @@ class Composer {
    *  code: what a pen program reads as `keyIsPressed`, `key`, `keyCode`
    *  and `keyIsDown`, and a paint program as `PaintContext::keys`. */
   void setKey(std::string_view name, int code, bool pressed);
+  /** @} */
 
   /** @private */
   struct Impl;

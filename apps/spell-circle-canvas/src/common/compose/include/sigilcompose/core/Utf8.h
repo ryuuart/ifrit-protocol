@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * Utf8 — the value a prop or a parameter that takes TEXT is declared as,
  * so the text may be written either way at the call site.
  */

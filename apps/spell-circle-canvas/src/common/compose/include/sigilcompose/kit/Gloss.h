@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-kit
+ *
  * THE SATIN BAND that follows the shape, and the two unit-space ramps a
  * chrome wordmark is filled with.
  *

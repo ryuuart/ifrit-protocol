@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-core
+ *
  * The grid: ONE layout value over the LayoutScheme seam that divides a
  * container into sized tracks, names rectangular regions of those tracks,
  * and places a child in a region by name.
@@ -20,6 +22,20 @@
 #include <string>
 #include <vector>
 
+/** THE PLACEMENT SCHEMES a container may be given instead of flex —
+ *  values over the `LayoutScheme` seam that `Element::layout()` takes.
+ *
+ *  `Grid` is the general one: it divides the container into sized
+ *  tracks, lets a picture of names claim rectangular regions of them,
+ *  and places a child by naming a region. Because a track carries a
+ *  SIZING FUNCTION rather than a width, it covers equal shares, unequal
+ *  columns sized by what is in them, a fixed rail beside a flexible
+ *  body, and a wrapped run of panels alike.
+ *
+ *  Beside it are the free-form schemes — rings, paths, sheared stacks,
+ *  baseline rhythms and seeded jitter — for arrangements no track grid
+ *  describes. A scheme places measured child boxes and nothing else,
+ *  so any of them may be written by a caller as a peer of these. */
 namespace sigil::compose::layouts {
 
 /** HOW ONE TRACK IS SIZED: a floor and a ceiling, each of which is a
@@ -41,14 +57,20 @@ namespace sigil::compose::layouts {
  *  A ceiling under the floor is no ceiling: the track resolves at the
  *  floor. */
 struct Track {
-  enum class Kind : uint8_t { Fixed, Content, Fraction };
+  /** How one END of a track's size is stated — its floor or its
+   *  ceiling. */
+  enum class Kind : uint8_t {
+    Fixed,    ///< `value` px outright
+    Content,  ///< the largest of what the track holds
+    Fraction  ///< `value` shares of what is left over
+  };
 
   /** The default is `fr(1)`, one equal share — what an unstated column of
    *  a page is. */
-  Kind minKind = Kind::Fixed;
-  float minValue = 0.0f;
-  Kind maxKind = Kind::Fraction;
-  float maxValue = 1.0f;
+  Kind minKind = Kind::Fixed;     ///< how the floor is stated
+  float minValue = 0.0f;          ///< the floor, read as `minKind` says
+  Kind maxKind = Kind::Fraction;  ///< how the ceiling is stated
+  float maxValue = 1.0f;          ///< the ceiling, read as `maxKind` says
 
   bool operator==(const Track&) const = default;
 
@@ -118,8 +140,9 @@ struct Track {
 struct Grid {
   std::vector<Track> columns;
   std::vector<Track> rows;
-  /** The picture: one string per row, one token per cell, `.` a cell no
-   *  name claims. Empty leaves the grid addressed by number alone. */
+  /** The picture, one string per row and one token per cell. A lone `.`
+   *  is a cell no name claims, and an empty list leaves the grid
+   *  addressed by number alone. */
   std::vector<std::string> areas;
   /** Between tracks: x across, y down. */
   SkSize gap = {0.0f, 0.0f};

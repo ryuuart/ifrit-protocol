@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup compose-typography
+ *
  * SigilCompose typography — ONE UNIT OF A LAID-OUT TEXT as everything
  * standing beside a passage reads it: `TextUnit`, what `Composer::units`
  * reports and what every annotation is placed from.
