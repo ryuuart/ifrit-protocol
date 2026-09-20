@@ -736,8 +736,9 @@ def main(argv: list) -> int:
     parser.add_argument(
         "--library",
         action="append",
-        help="with --manifest, write only this library's site (repeatable); "
-        "the landing page and the container files are left alone",
+        help="with --manifest, write only this library's Doxygen site "
+        "(repeatable); the landing page and the container files are left "
+        "alone, and the reference layer is written whole either way",
     )
     parser.add_argument(
         "--no-xml",
