@@ -85,14 +85,23 @@ constexpr int kMinSamples = 32;
 /** A strand as uniform arc-length samples with the length at each: the
  *  currency every question below is asked in. */
 struct Flat {
-  /** ONE FLATTENED CONTOUR'S SPAN of this strand's arc coordinate. A
-   *  strand may be several contours walked as one length, and where a
-   *  contour STOPS is where the strand stops: the chord to the next
-   *  contour is not part of the mark, and neither is anything past an
-   *  open contour's end. */
+  /** ONE FLATTENED CONTOUR'S SPAN of this strand's arc coordinate, and
+   *  the samples that span it. A strand may be several contours walked as
+   *  one length, and where a contour STOPS is where the strand stops: the
+   *  chord to the next contour is not part of the mark, and neither is
+   *  anything past an open contour's end.
+   *
+   *  The samples are named because the arc coordinate alone cannot find
+   *  them. THREE CONSECUTIVE SAMPLES CARRY A CONTOUR BOUNDARY — the
+   *  contour before it ends there, the break between the two repeats that
+   *  point, and the contour after it starts there — so a search through
+   *  the whole strand answers a boundary with the contour before it,
+   *  which is somewhere else in the figure entirely. */
   struct Run {
     float from = 0;
     float to = 0;
+    size_t firstSample = 0;
+    size_t lastSample = 0;
     bool closed = false;
   };
 
@@ -114,6 +123,7 @@ Flat flat(const SkPath& path) {
         resample(contour, contour.closed ? steps : steps + 1);
     if (samples.points.empty()) continue;
     f.step = std::min(f.step, len / (float)steps);
+    const size_t firstSample = f.points.size();
     for (int k = 0; k <= steps; ++k) {
       // A closed contour's samples stop one step short of its seam; the
       // seam edge is a strand like any other, so the walk comes back to
@@ -123,7 +133,8 @@ Flat flat(const SkPath& path) {
       f.at.push_back(f.length + len * (float)k / (float)steps);
     }
     f.length += len;
-    f.runs.push_back({f.length - len, f.length, contour.closed});
+    f.runs.push_back({f.length - len, f.length, firstSample,
+                      f.points.size() - 1, contour.closed});
     // A break between contours: repeat the last point so the segment loop
     // below can skip the join (a chord between two contours is not a
     // strand and must not manufacture crossings).
@@ -134,18 +145,21 @@ Flat flat(const SkPath& path) {
   return f;
 }
 
-/** The point on a flattened strand at arc length `s`. */
-SkPoint pointAtArc(const Flat& f, float s) {
-  if (f.points.empty()) return {0, 0};
-  s = std::clamp(s, 0.0f, f.length);
-  for (size_t k = 0; k + 1 < f.at.size(); ++k) {
+/** The point at arc length `s` ON ONE OF A STRAND'S CONTOURS, searched
+ *  among that contour's own samples and clamped to its own ends. Asking
+ *  the whole strand instead would answer a contour's first sample with
+ *  the previous contour's last, which shares its arc coordinate and is
+ *  found first. */
+SkPoint pointInRun(const Flat& f, const Flat::Run& run, float s) {
+  s = std::clamp(s, run.from, run.to);
+  for (size_t k = run.firstSample; k < run.lastSample; ++k) {
     if (s > f.at[k + 1]) continue;
     const float span = f.at[k + 1] - f.at[k];
-    const float w = span > 1e-6f ? (s - f.at[k]) / span : 0.0f;
-    return {f.points[k].fX + (f.points[k + 1].fX - f.points[k].fX) * w,
-            f.points[k].fY + (f.points[k + 1].fY - f.points[k].fY) * w};
+    const float fraction = span > 1e-6f ? (s - f.at[k]) / span : 0.0f;
+    return {f.points[k].fX + (f.points[k + 1].fX - f.points[k].fX) * fraction,
+            f.points[k].fY + (f.points[k + 1].fY - f.points[k].fY) * fraction};
   }
-  return f.points.back();
+  return f.points[run.lastSample];
 }
 
 /** The contour `s` falls in; the last one, for a distance past the end. */
@@ -160,10 +174,11 @@ const Flat::Run* runAt(const Flat& f, float s) {
  *  with a piece of ITSELF on each side of the meeting?
  *
  *  The probe is taken a step and a half either way ALONG THE CONTOUR the
- *  meeting falls in: less than one step and the two samples are the
- *  crossing itself, more and a strand that turns between them answers
- *  about the turn. A closed contour comes round its seam; an open one has
- *  nothing beyond its own end.
+ *  meeting falls in, and read off that contour's own samples: less than
+ *  one step and the two samples are the crossing itself, more and a
+ *  strand that turns between them answers about the turn. A closed
+ *  contour comes round its seam; an open one has nothing beyond its own
+ *  end, so the probe stops there.
  *
  *  A CONTOUR THAT STOPS AT THE MEETING TOUCHES RATHER THAN CROSSES, and
  *  that is read off the arc position rather than off a sample. A probe
@@ -196,8 +211,8 @@ bool changesSides(const Flat& other, float sOther, SkPoint hit, SkVector dir) {
     back = std::max(back, run->from);
     ahead = std::min(ahead, run->to);
   }
-  const SkPoint before = pointAtArc(other, back);
-  const SkPoint after = pointAtArc(other, ahead);
+  const SkPoint before = pointInRun(other, *run, back);
+  const SkPoint after = pointInRun(other, *run, ahead);
   const auto side = [&](SkPoint q) {
     return dir.x() * (q.fY - hit.fY) - dir.y() * (q.fX - hit.fX);
   };

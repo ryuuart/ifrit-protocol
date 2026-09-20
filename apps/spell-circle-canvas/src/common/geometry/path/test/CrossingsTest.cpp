@@ -229,6 +229,73 @@ TEST(Crossings, ThePlaitedStarHoldsItsSevenKnotsWhereverItIsDrawn) {
   }
 }
 
+// A STRAND IS SEVERAL CONTOURS WALKED AS ONE LENGTH, and where one of
+// them stops has to be answered inside that contour. A boundary's arc
+// coordinate is carried by three consecutive samples — the contour before
+// it ends there, the break between the two repeats the point, and the
+// contour after it starts there — so a probe reaching back past a later
+// contour's start, asked of the whole strand, answers with the PREVIOUS
+// contour's end, on an unrelated part of the figure. Multi-contour
+// strands are the ordinary case: a woven strand is an outline.
+TEST(Crossings, ACrossingOnALaterContourOfAStrandIsStillACrossing) {
+  SkPathBuilder outline;
+  outline.moveTo(0, 0);
+  outline.lineTo(102, 0);
+  outline.moveTo(100, 100);
+  outline.lineTo(300, 100);
+  const SkPath strand = outline.detach();
+  // Stepped across the window the probe behind a meeting reaches into —
+  // a step and a half, which is three pixels at this sampling — and out
+  // the far side of it. The chord crosses the second contour cleanly at
+  // every one of them, and clears the first contour and the break
+  // between them at all four.
+  for (const float x : {101.5f, 102.0f, 103.0f, 106.0f}) {
+    const std::vector<Crossing> knots =
+        discoverCrossings({strand, segment(x, 60, x, 140)});
+    EXPECT_EQ(knots.size(), 1u) << "chord at x " << x;
+  }
+}
+
+// A CLOSED CONTOUR HAS NO END, so the probe either side of a meeting at
+// its SEAM comes round it rather than stopping short. The seam is only
+// where the walk was started from, and a chord through it crosses there
+// exactly as it crosses anywhere else.
+TEST(Crossings, AChordThroughAClosedStrandsSeamCrossesItThere) {
+  // A square started HALFWAY UP ITS RIGHT SIDE, so the seam falls in the
+  // middle of an edge: on a corner it would be a turn under test rather
+  // than a seam.
+  SkPathBuilder ring;
+  ring.moveTo(300, 200);
+  ring.lineTo(300, 300);
+  ring.lineTo(100, 300);
+  ring.lineTo(100, 100);
+  ring.lineTo(300, 100);
+  ring.close();
+  const std::vector<Crossing> knots =
+      discoverCrossings({ring.detach(), segment(50, 200, 350, 200)});
+  ASSERT_EQ(knots.size(), 2u) << "a chord through a ring enters and leaves";
+  std::vector<float> across{knots[0].at.fX, knots[1].at.fX};
+  std::sort(across.begin(), across.end());
+  EXPECT_NEAR(across[0], 100.0f, 0.5f);
+  EXPECT_NEAR(across[1], 300.0f, 0.5f) << "the seam";
+}
+
+// A CROSSING NEARER AN OPEN CONTOUR'S END THAN HALF A SAMPLE STEP IS A
+// MEETING: below the flattening's own resolution a touch and a crossing
+// are not distinguishable, and an endpoint touch is a meeting. The
+// threshold is the strand's own sample spacing, so it is stepped here
+// from outside the window to inside it rather than named in pixels.
+TEST(Crossings, ACrossingNearerAnEndThanHalfASampleIsAMeeting) {
+  const SkPath rail = segment(0, 0, 100, 0);  // fifty samples, two apart
+  const auto chordAt = [](float x) { return segment(x, -20, x, 20); };
+  // A sample step in from either end: a crossing.
+  EXPECT_EQ(discoverCrossings({rail, chordAt(98.0f)}).size(), 1u);
+  EXPECT_EQ(discoverCrossings({rail, chordAt(2.0f)}).size(), 1u);
+  // A quarter of a step in from either end: a touch.
+  EXPECT_TRUE(discoverCrossings({rail, chordAt(99.5f)}).empty());
+  EXPECT_TRUE(discoverCrossings({rail, chordAt(0.5f)}).empty());
+}
+
 TEST(CrossingPatch, TheLensIsBoundedByTheKnotsOwnTerritory) {
   const SkPath a = segment(0, 50, 200, 50);
   const SkPath b = segment(100, 0, 100, 100);
