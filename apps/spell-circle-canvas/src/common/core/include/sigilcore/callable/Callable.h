@@ -76,6 +76,7 @@ auto answerOf(Fn& fn, Offer& offered, std::index_sequence<I...>)
 template <class Fn, class Signature>
 constexpr std::ptrdiff_t namedParameters = -1;
 
+/** The search itself, for a signature written as a function type. */
 template <class Fn, class Result, class... Offered>
 constexpr std::ptrdiff_t namedParameters<Fn, Result(Offered...)> =
     detail::prefixLength<Result, std::remove_reference_t<Fn>,

@@ -101,6 +101,7 @@ struct Vec2 {
   }
 };
 
+/** A scalar times a vector, so the factor may be written first. */
 inline constexpr Vec2 operator*(float scalar, const Vec2& v) {
   return v * scalar;
 }

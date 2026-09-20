@@ -34,11 +34,13 @@ enum class Where : uint8_t {
   /** Where a curve is bending hardest. */
   MaxCurvature = 4,
 };
+/** The union of two turn selections. */
 constexpr Where operator|(Where a, Where b) {
   // the type is a bit set; any union of enumerators is a valid value
   // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
   return Where(uint8_t(a) | uint8_t(b));
 }
+/** Whether @p mask selects the turn @p one names. */
 constexpr bool has(Where mask, Where one) {
   return (uint8_t(mask) & uint8_t(one)) != 0;
 }

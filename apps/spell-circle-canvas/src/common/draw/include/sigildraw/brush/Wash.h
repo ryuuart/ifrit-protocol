@@ -19,6 +19,8 @@ class Pen;
 
 namespace sigil::draw::brush {
 
+/** Which way a wash's pigment runs past the shape it fills: outward
+ *  past the boundary, or inward from it. */
 enum class BleedDirection { Out, In };
 
 /** A layered translucent pigment wash. Opacity is the pigment's load and

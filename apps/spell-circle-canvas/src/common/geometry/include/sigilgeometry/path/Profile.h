@@ -212,11 +212,19 @@ struct Spans {
   bool operator==(const Spans&) const = default;
 };
 
+/** The spine itself: a band of no width, which is the rail a stroke
+ *  already draws. */
 inline Profile self() { return Profile(Self{}); }
+/** A constant width of @p px across the whole spine; positive is left
+ *  of travel. */
 inline Profile offset(float px) { return Profile(Offset{px}); }
+/** A width running evenly from @p startPx at the start of the spine to
+ *  @p endPx at its end. */
 inline Profile taper(float startPx, float endPx) {
   return Profile(Taper{startPx, endPx});
 }
+/** A stepped width: @p widthsPx holds the width in each span, and
+ *  @p upTo the fraction of arc length each span ends at. */
 inline Profile spans(std::vector<float> upTo, std::vector<float> widthsPx) {
   return Profile(Spans{std::move(upTo), std::move(widthsPx)});
 }

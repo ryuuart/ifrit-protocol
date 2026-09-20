@@ -65,8 +65,11 @@ bool operator!=(const TypedHandle<A>&, const TypedHandle<B>&) = delete;
 struct TextureTag;
 struct BufferTag;
 struct FenceTag;
+/** The name a texture on a device is called by. */
 using TextureHandle = TypedHandle<TextureTag>;
+/** The name a buffer on a device is called by. */
 using BufferHandle = TypedHandle<BufferTag>;
+/** The name a fence timeline on a device is called by. */
 using FenceHandle = TypedHandle<FenceTag>;
 
 /**

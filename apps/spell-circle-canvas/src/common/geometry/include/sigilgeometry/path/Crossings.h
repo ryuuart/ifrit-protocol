@@ -244,6 +244,8 @@ namespace crossing {
 inline CrossingRule alternate() {
   return CrossingRule::sequence({Order::Over, Order::Under});
 }
+/** The orders of @p pattern repeated over the crossings in the order
+ *  they were discovered. */
 inline CrossingRule sequence(std::vector<Order> pattern) {
   return CrossingRule::sequence(std::move(pattern));
 }
@@ -286,6 +288,7 @@ inline CrossingRule alternateAlong() {
  *  endpoint touches, such as a shared polygon vertex, are meetings rather
  *  than crossings, and reporting them would put a knot at every corner. */
 std::vector<Crossing> discoverCrossings(std::span<const SkPath> strands);
+/** The same discovery over a brace list of strands. */
 inline std::vector<Crossing> discoverCrossings(
     std::initializer_list<SkPath> strands) {
   return discoverCrossings(

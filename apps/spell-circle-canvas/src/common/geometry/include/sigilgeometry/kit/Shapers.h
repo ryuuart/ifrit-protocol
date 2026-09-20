@@ -211,18 +211,29 @@ struct Zigzag {
 inline Wave wave(float amplitude, float wavelength, float phase = 0.0f) {
   return Wave{amplitude, wavelength, phase};
 }
+/** A sawtooth across the mark: @p amplitude px either side, one tooth
+ *  every @p wavelength px. */
 inline Zigzag zigzag(float amplitude = 4.0f, float wavelength = 24.0f) {
   return Zigzag{amplitude, wavelength};
 }
+/** Every corner of the mark rounded to @p radius px. */
 inline Rounded rounded(float radius = 6.0f) { return Rounded{radius}; }
+/** Every corner of the mark cut off @p cut px along each leg. */
 inline Chamfer chamfered(float cut = 6.0f) { return Chamfer{cut}; }
+/** A square wave across the mark: @p amplitude px either side, one
+ *  period every @p wavelength px. */
 inline Square square(float amplitude = 5.0f, float wavelength = 32.0f) {
   return Square{amplitude, wavelength};
 }
+/** The mark resampled every @p segmentLength px and each point pushed
+ *  up to @p deviation px off it, re-rolled by @p seed — the hand-drawn
+ *  line. */
 inline Jitter jitter(float segmentLength = 8.0f, float deviation = 2.0f,
                      uint32_t seed = 7) {
   return Jitter{segmentLength, deviation, seed};
 }
+/** The mark moved @p px sideways along its own normal, sampled every
+ *  @p step px. */
 inline Offset offset(float px, float step = 4.0f) { return Offset{px, step}; }
 
 }  // namespace sigil::geometry::shapers

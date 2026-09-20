@@ -30,8 +30,11 @@ namespace sigil::material::kit {
  *  end, which is what to reach for over a dark ground where a map that
  *  starts at black has nowhere to sit. */
 [[nodiscard]] Ramp viridis();
+/** Black through red to a pale top, the cooler of the pair. */
 [[nodiscard]] Ramp magma();
+/** The same climb run hotter. */
 [[nodiscard]] Ramp inferno();
+/** The same climb without the black end, for a dark ground. */
 [[nodiscard]] Ramp plasma();
 
 /** THE RAINBOW DONE PROPERLY: every hue, and no lightness cliff at the
@@ -55,6 +58,8 @@ namespace sigil::material::kit {
  *  swing is drawn in, and `brownTeal` is the pair that stays two colours
  *  for a reader who cannot tell red from green. */
 [[nodiscard]] Ramp redBlue();
+/** The diverging pair that stays two colours for a reader who cannot
+ *  tell red from green. */
 [[nodiscard]] Ramp brownTeal();
 
 /** WHAT A CUBEHELIX IS MADE OF: a helix walked through the colour cube,

@@ -250,6 +250,7 @@ Bound bind(const choreograph::Output<float>* source);
 inline Bound bind(std::shared_ptr<const choreograph::Output<float>> source) {
   return Bound(std::move(source));
 }
+/** The same for a mutable shared source. */
 inline Bound bind(std::shared_ptr<choreograph::Output<float>> source) {
   return Bound(std::move(source));
 }

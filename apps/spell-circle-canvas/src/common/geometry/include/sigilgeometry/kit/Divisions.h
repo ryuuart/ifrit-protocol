@@ -192,6 +192,9 @@ struct TicksShape {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** The tick marks @p t describes, as a shape value that takes its
+ *  centre and radius from the box it is asked for; @p conventions
+ *  supplies only the angle zero and sense. */
 inline TicksShape ticks(const Ticks& t, path::Frame conventions = {}) {
   return TicksShape{t, conventions};
 }
@@ -281,6 +284,9 @@ struct ArcsShape {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** The ring segments @p a describes, as a shape value that takes its
+ *  centre and radius from the box it is asked for; @p conventions
+ *  supplies only the angle zero and sense. */
 inline ArcsShape arcs(const Arcs& a, path::Frame conventions = {}) {
   return ArcsShape{a, conventions};
 }
@@ -331,6 +337,8 @@ struct Chords {
   bool operator==(const Chords&) const = default;
 };
 
+/** The chords @p c describes, drawn on @p frame: one open contour per
+ *  side, or joined into closed contours when @p c asks. */
 inline SkPath chords(const path::Frame& frame, const Chords& c) {
   SkPathBuilder b;
   const int n = std::max(2, c.sides);
@@ -392,6 +400,9 @@ struct ChordsShape {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** The same chords as a shape value that takes its centre and radius
+ *  from the box it is asked for; @p conventions supplies only the angle
+ *  zero and sense. */
 inline ChordsShape chords(const Chords& c, path::Frame conventions = {}) {
   return ChordsShape{c, conventions};
 }

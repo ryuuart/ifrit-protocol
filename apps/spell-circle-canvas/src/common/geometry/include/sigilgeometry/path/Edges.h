@@ -32,11 +32,13 @@ enum class Edge : uint8_t {
   Left = 8,
   All = 15,
 };
+/** The union of two edge selections. */
 constexpr Edge operator|(Edge a, Edge b) {
   // the type is a bit set; any union of enumerators is a valid value
   // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
   return Edge(uint8_t(a) | uint8_t(b));
 }
+/** Whether @p mask selects any edge @p e names. */
 constexpr bool has(Edge mask, Edge e) {
   return (uint8_t(mask) & uint8_t(e)) != 0;
 }

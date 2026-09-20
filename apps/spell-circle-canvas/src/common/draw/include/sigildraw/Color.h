@@ -47,6 +47,7 @@ inline SkColor4f colorFrom(const ColorMode& mode, float v1, float v2,
                            float v3) {
   return colorFrom(mode, v1, v2, v3, mode.maxA);
 }
+/** A grey at @p mode's own alpha maximum. */
 inline SkColor4f colorFrom(const ColorMode& mode, float gray) {
   return colorFrom(mode, gray, mode.maxA);
 }

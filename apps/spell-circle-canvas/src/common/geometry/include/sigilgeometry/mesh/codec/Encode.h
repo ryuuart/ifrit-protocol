@@ -100,6 +100,7 @@ bool ply(const std::filesystem::path& file, const Mesh& mesh,
          const PlyOptions& options = {});
 /** The `.geo` conveniences, declining on the same terms. */
 bool geo(const std::filesystem::path& file, const Cloud& cloud);
+/** The same for a mesh, whose vertices become the file's points. */
 bool geo(const std::filesystem::path& file, const Mesh& mesh);
 
 }  // namespace sigil::geometry::mesh::codec::encode

@@ -68,6 +68,7 @@ struct Polygon {
  *  islands. */
 void hatchArray(Pen& pen, const Tool& tool, std::span<const Polygon> polygons,
                 const Hatch& style);
+/** The same collection filled with mass rather than hatched. */
 void massArray(Pen& pen, const Tool& tool, std::span<const Polygon> polygons,
                const Mass& style);
 

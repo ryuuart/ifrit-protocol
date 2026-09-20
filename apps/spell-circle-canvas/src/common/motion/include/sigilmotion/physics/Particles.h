@@ -115,6 +115,7 @@ struct Attribute {
  *  them: `Particles::attribute` asked for one would add an attribute of
  *  that name which nothing reads. */
 inline constexpr std::string_view kAge = "age";
+/** The name of the vector a particle's total lifespan lives in. */
 inline constexpr std::string_view kLife = "life";
 
 /** A POINT SET THAT IS BORN, AGES AND DIES.

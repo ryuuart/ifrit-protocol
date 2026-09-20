@@ -180,6 +180,8 @@ Cloud cook(const Chain& chain, const Runtime& runtime = Runtime::cpu());
  *  cloud seeded into a chain and exported back out again comes home to
  *  the lanes it left from. A name outside the table maps to itself. */
 std::string_view attributeFor(std::string_view lane);
+/** The same table read the other way: a chain attribute's name back to
+ *  the cloud lane it came from. */
 std::string_view cloudLaneFor(std::string_view attribute);
 
 }  // namespace pop

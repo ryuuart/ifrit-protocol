@@ -118,9 +118,17 @@ struct Tool {
 /** Stock tools. Every field is public on the returned value, so a sketch
  *  tunes one or describes a tool of its own without a catalogue. */
 [[nodiscard]] Tool pencil(SkColor4f color, float width = 1.4f);
+/** Dry-media particles dispersed around the centreline — the smudging,
+ *  grainy stick. */
 [[nodiscard]] Tool charcoal(SkColor4f color, float width = 9.0f);
+/** One continuous pressure-width mark with a chisel tip — the flat,
+ *  saturated pen. */
 [[nodiscard]] Tool marker(SkColor4f color, float width = 16.0f);
+/** A wet, translucent load that pools and bleeds where the stroke
+ *  slows. */
 [[nodiscard]] Tool watercolor(SkColor4f color, float width = 22.0f);
+/** Particles scattered around each sample rather than laid on it — the
+ *  airbrush. */
 [[nodiscard]] Tool spray(SkColor4f color, float width = 18.0f);
 
 /** Rolls the stroke-wide randomness once — the pressure envelope's jitter

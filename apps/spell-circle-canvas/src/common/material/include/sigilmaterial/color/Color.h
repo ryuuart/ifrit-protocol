@@ -484,6 +484,9 @@ inline RampBracket rampBracket(std::span<const RampStop> stops, float t) {
   return {last, last, 0.0f};
 }
 
+/** The colour a run of @p stops answers at position @p t, mixed
+ *  straight in sRGB between the two the bracket names; an empty run
+ *  answers a fully transparent colour. */
 inline Color sampleRamp(std::span<const RampStop> stops, float t) {
   if (stops.empty()) return {0, 0, 0, 0};
   const RampBracket b = rampBracket(stops, t);

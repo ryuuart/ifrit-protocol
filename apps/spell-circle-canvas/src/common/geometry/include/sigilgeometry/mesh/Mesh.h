@@ -118,6 +118,8 @@ struct Mesh {
  *  borrows the nearest one that has. */
 Mesh grid(int nu, int nv,
           const core::Callable<glm::vec3(float u, float v)>& fn);
+/** The same sheet from a formula answering the position and its normal
+ *  together, which is taken at its word rather than differenced. */
 Mesh grid(int nu, int nv,
           const core::Callable<std::pair<glm::vec3, glm::vec3>(float u,
                                                                float v)>& fn);

@@ -65,6 +65,7 @@ namespace sigil::geometry::path {
 inline SkRect centred(SkPoint c, float w, float h) {
   return SkRect::MakeXYWH(c.fX - w * 0.5f, c.fY - h * 0.5f, w, h);
 }
+/** The same box from a size value. */
 inline SkRect centred(SkPoint c, SkSize s) {
   return centred(c, s.width(), s.height());
 }

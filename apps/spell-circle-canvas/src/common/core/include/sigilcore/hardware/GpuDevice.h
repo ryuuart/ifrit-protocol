@@ -90,10 +90,12 @@ enum class TextureUsage : uint32_t {
   ShaderWrite = 1u << 1u,
   RenderTarget = 1u << 2u,
 };
+/** The union of two usage selections. */
 constexpr TextureUsage operator|(TextureUsage a, TextureUsage b) {
   return static_cast<TextureUsage>(static_cast<uint32_t>(a) |
                                    static_cast<uint32_t>(b));
 }
+/** Whether @p set includes the usage @p flag names. */
 constexpr bool has(TextureUsage set, TextureUsage flag) {
   return (static_cast<uint32_t>(set) & static_cast<uint32_t>(flag)) != 0;
 }

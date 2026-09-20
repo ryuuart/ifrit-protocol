@@ -60,6 +60,7 @@ struct Rounded {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** @p shape with every sharp corner rounded to @p radius px. */
 template <typename Inner>
 Rounded<Inner> rounded(Inner shape, float radius) {
   return Rounded<Inner>{std::move(shape), radius};
@@ -96,6 +97,8 @@ struct Shaped {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** @p shape with @p shaper bending the outline it answers, applied once
+ *  where the shape is asked for. */
 template <typename Inner, typename S>
 Shaped<Inner, S> shaped(Inner shape, S shaper) {
   return Shaped<Inner, S>{std::move(shape), std::move(shaper)};
@@ -122,11 +125,13 @@ enum class Corner : uint8_t {
   Diagonal = 5,       // TopLeft | BottomRight
   AntiDiagonal = 10,  // TopRight | BottomLeft
 };
+/** The union of two corner selections. */
 constexpr Corner operator|(Corner a, Corner b) {
   // the type is a bit set; any union of enumerators is a valid value
   // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
   return Corner(uint8_t(a) | uint8_t(b));
 }
+/** Whether @p mask selects any corner @p c names. */
 constexpr bool has(Corner mask, Corner c) {
   return (uint8_t(mask) & uint8_t(c)) != 0;
 }
@@ -157,6 +162,8 @@ struct Chamfered {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** The box with each corner @p mask names replaced by a 45 degree cut
+ *  of @p cut px, and every other corner left square. */
 inline Chamfered chamfered(float cut, Corner mask = Corner::All) {
   return Chamfered{.cut = cut, .mask = mask};
 }
@@ -173,6 +180,8 @@ struct Notched {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** The box with a rectangular bite @p notchWidth wide and @p depth deep
+ *  taken out of each corner @p mask names. */
 inline Notched notched(float notchWidth, float depth,
                        Corner mask = Corner::All) {
   return Notched{notchWidth, depth, mask};

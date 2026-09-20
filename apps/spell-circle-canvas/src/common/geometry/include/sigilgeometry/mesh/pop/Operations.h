@@ -67,6 +67,8 @@ inline int32_t builtinIndex(const AttributeReference& attribute) {
   if (attribute.name == "Tex") return 5;
   return -1;
 }
+/** How many slots the table above names, so a chain numbers its own
+ *  attributes from here on and never collides with a built-in. */
 inline constexpr int32_t kBuiltinSlots = 6;
 /** Generator: scatter count points along a window of a closed
  *  loop — writes P, T, Dir (the tangent), Scale = 1. */
@@ -478,6 +480,7 @@ using Operation =
                  MeshScatter, Fill, Atlas, Promote, Lookup, Sort, Select,
                  Affine, Peak, Deform, Mix, PointSet, Delete, Normal, Relax,
                  Cluster, Transfer>;
+/** A run of operations applied to a cloud in order — the whole cook. */
 using Chain = std::vector<Operation>;
 
 /** The operator's own name — "Jitter", "Select", "PointSet" — for a

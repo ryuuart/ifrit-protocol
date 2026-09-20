@@ -60,6 +60,10 @@ struct Parametric {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** A curve traced by @p f over the parameter from @p t0 to @p t1, at
+ *  @p samples segments, optionally @p close d back to its first point.
+ *  The held callable cannot compare, so the value never prunes — key it
+ *  through the overload below once the curve has settled. */
 inline Parametric parametric(std::function<SkPoint(float)> f, float t0,
                              float t1, int samples = 512, bool close = false) {
   return Parametric{std::move(f), t0, t1, samples, close};
@@ -88,6 +92,8 @@ struct KeyedParametric {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** The same curve made comparable by a @p key the caller promises is
+ *  unique to that function and its parameters, so it prunes. */
 inline KeyedParametric parametric(std::string_view key,
                                   std::function<SkPoint(float)> f, float t0,
                                   float t1, int samples = 512,
@@ -112,6 +118,9 @@ struct Lissajous {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** The Lissajous figure at frequency ratio @p a : @p b and phase
+ *  @p deltaDeg, drawn for @p turns of the parameter at @p samples
+ *  segments. */
 inline Lissajous lissajous(float a, float b, float deltaDeg = 0.0f,
                            float turns = 1.0f, int samples = 720) {
   return Lissajous{a, b, deltaDeg, turns, samples};
@@ -135,6 +144,9 @@ struct Harmonograph {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** The decaying Lissajous a pen-and-pendulum figure draws: ratio @p a :
+ *  @p b at phase @p deltaDeg, amplitudes falling at @p damping per unit
+ *  of the parameter and the whole figure turning at @p precession. */
 inline Harmonograph harmonograph(float a, float b, float deltaDeg = 0.0f,
                                  float damping = 0.05f, float precession = 0.0f,
                                  float turns = 6.0f, int samples = 2000) {
@@ -152,6 +164,8 @@ struct Rose {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** The rhodonea at @p k: k petals for odd whole k, 2k for even, and the
+ *  multi-lobed forms for a fraction. */
 inline Rose rose(float k, float turns = 1.0f, int samples = 720) {
   return Rose{k, turns, samples};
 }
@@ -169,6 +183,9 @@ struct Spiral {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** A spiral of @p turns from the centre outward: evenly spaced by
+ *  default, or at a constant angle when @p logarithmic, with @p growth
+ *  setting how fast it opens. */
 inline Spiral spiral(float turns = 3.0f, bool logarithmic = false,
                      float growth = 0.25f, int samples = 720) {
   return Spiral{turns, logarithmic, growth, samples};
@@ -190,6 +207,9 @@ struct Trochoid {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
+/** The spirograph curve a circle of radius @p r rolling on one of
+ *  radius @p R draws with the pen @p d from its centre — outside unless
+ *  @p inside. */
 inline Trochoid trochoid(float R, float r, float d, bool inside = false,
                          float turns = 1.0f, int samples = 1440) {
   return Trochoid{R, r, d, inside, turns, samples};

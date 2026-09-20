@@ -131,8 +131,11 @@ struct BoardParameters {
 /** The recipes, defined once. None declares a slot: every field is
  *  computed from the parameters and the seed. */
 const std::shared_ptr<const Recipe>& stoneRecipe();
+/** The timber recipe. */
 const std::shared_ptr<const Recipe>& timberRecipe();
+/** The latten recipe. */
 const std::shared_ptr<const Recipe>& lattenRecipe();
+/** The board recipe. */
 const std::shared_ptr<const Recipe>& boardRecipe();
 
 /** A stone at @p parameters. */
