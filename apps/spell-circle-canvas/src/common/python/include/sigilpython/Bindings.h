@@ -9,6 +9,7 @@
 
 #include <include/core/SkColor.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/typing.h>
 #include <sigilmaterial/color/Color.h>
 
 #include <cstdint>
@@ -58,14 +59,20 @@ T keywordValue(pybind11::kwargs fields,
  *  value reaches no Python object twice. A model handed to `compose.memo`
  *  is snapshotted with `copy.deepcopy`, so a bound value without this
  *  protocol cannot stand in one. Bound records get it from `bindRecord`;
- *  a class registered by hand takes it in one call. */
+ *  a class registered by hand takes it in one call.
+ *
+ *  The memo is spelled as the mapping it is — the identity of each
+ *  object already copied against the copy made of it — rather than as a
+ *  bare dictionary, because every record in every library carries this
+ *  signature and a declaration without its two type arguments is an
+ *  untyped hole in all of them. */
 template <class T, class... Options>
 pybind11::class_<T, Options...>& copyProtocol(
     pybind11::class_<T, Options...>& type) {
+  using Memo = pybind11::typing::Dict<pybind11::int_, pybind11::object>;
   return type.def("__copy__", [](const T& value) { return value; })
       .def(
-          "__deepcopy__",
-          [](const T& value, const pybind11::dict&) { return value; },
+          "__deepcopy__", [](const T& value, const Memo&) { return value; },
           pybind11::arg("memo"));
 }
 
