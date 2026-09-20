@@ -1,5 +1,8 @@
 // The routers: how a derived route gets from one node to another, and
-// which layout scheme a router's own bends belong to.
+// which layout scheme a router's own bends belong to, and the
+// connector between two nodes: the route that tracks endpoints as they
+// move, the Manhattan and bowed variants, and the gap that pulls the
+// wire off both ends.
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Decorations.h>
@@ -316,4 +319,164 @@ TEST(ComposeRouters, FromPairwiseStitchesOneContourAndKeepsCurves) {
       dumpPath(routers::fromPairwise(routers::arc(0.3f))(std::span(stops, 3)));
   EXPECT_EQ(arc.moves, 1);
   EXPECT_GT(arc.curves, 0);
+}
+
+// -------------------------------------------------------------------------
+// The connector between two nodes: the route that tracks endpoints as
+// they move, the Manhattan and bowed variants, and the gap that pulls
+// the wire off both ends.
+
+TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
+  Host host;
+  PathFormat wire;
+  wire.width = 4;
+  wire.strokeFill = Fill::color({1, 1, 0, 1});
+
+  auto tree = [&](float bLeft) {
+    return stack().children(
+        {box()
+             .key("a")
+             .width(20)
+             .height(20)
+             .inset(10, 10, 170, 170)
+             .absolute()
+             .fill(red()),
+         box()
+             .key("b")
+             .width(20)
+             .height(20)
+             .inset(bLeft, 160, 180 - bLeft, 20)
+             .absolute()
+             .fill(green()),
+         connector("a", "b").inset(0).foreground(wire).zIndex(-1)});
+  };
+
+  host.composer.render(tree(10.0f));
+  host.frame();
+  // Vertical wire at x=20 between the stacked boxes.
+  EXPECT_EQ(host.pixel(20, 100), SK_ColorYELLOW);
+
+  host.composer.render(tree(160.0f));  // move b to the right
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 100), SK_ColorBLACK);  // old route gone
+  EXPECT_NE(host.pixel(95, 95), SK_ColorBLACK);   // new diagonal route
+}
+
+TEST(ComposeDerive, OrthogonalRouterRunsManhattan) {
+  Host host;
+  PathFormat wire;
+  wire.width = 4;
+  wire.strokeFill = Fill::color({1, 1, 0, 1});
+  host.composer.render(
+      stack().children({box()
+                            .key("a")
+                            .width(20)
+                            .height(20)
+                            .inset(10, 10, 170, 170)
+                            .absolute()
+                            .fill(red()),
+                        box()
+                            .key("b")
+                            .width(20)
+                            .height(20)
+                            .inset(160, 160, 20, 20)
+                            .absolute()
+                            .fill(green()),
+                        connector("a", "b", routers::orthogonal())
+                            .inset(0)
+                            .foreground(wire)
+                            .zIndex(-1)}));
+  host.frame();
+  // Centers (20,20) and (170,170); midX = 95: H leg at y=20, V leg at
+  // x=95, H leg at y=170.
+  EXPECT_EQ(host.pixel(60, 20), SK_ColorYELLOW);    // first horizontal leg
+  EXPECT_EQ(host.pixel(95, 100), SK_ColorYELLOW);   // vertical run
+  EXPECT_EQ(host.pixel(130, 170), SK_ColorYELLOW);  // final horizontal leg
+  EXPECT_EQ(host.pixel(60, 100), SK_ColorBLACK);    // nowhere near diagonal
+}
+
+TEST(ComposeDerive, ArcRouterBowsOffTheChord) {
+  Host host;
+  PathFormat wire;
+  wire.width = 4;
+  wire.strokeFill = Fill::color({1, 1, 0, 1});
+  host.composer.render(stack().children({box()
+                                             .key("a")
+                                             .width(10)
+                                             .height(10)
+                                             .inset(20, 95, 170, 95)
+                                             .absolute()
+                                             .fill(red()),
+                                         box()
+                                             .key("b")
+                                             .width(10)
+                                             .height(10)
+                                             .inset(170, 95, 20, 95)
+                                             .absolute()
+                                             .fill(green()),
+                                         connector("a", "b", routers::arc(0.3f))
+                                             .inset(0)
+                                             .foreground(wire)
+                                             .zIndex(-1)}));
+  host.frame();
+  // Horizontal chord from (25,100) to (175,100), bulge 0.3×150 = 45 px
+  // toward +normal (downward-left convention: normal of (+x,0) is
+  // (0,+y) → the bow lands at y ≈ 145).
+  EXPECT_EQ(host.pixel(100, 145), SK_ColorYELLOW);  // bowed midpoint
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);   // chord midpoint empty
+}
+
+TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
+  // A route runs to the node BOX's centre, and a box is often much larger
+  // than the shape drawn inside it — an sdf:: panel, for instance, reserves
+  // room for its glow. Without a terminal gap the wire is drawn straight
+  // through the visible terminal to a centre nobody can see. The gap is the
+  // same pull-back Anchor takes, spelled on connector().
+  const auto scene = [](float gap) {
+    PathFormat wire;
+    wire.width = 4;
+    wire.strokeFill = Fill::color({1, 1, 0, 1});
+    return stack().children(
+        {box()
+             .key("a")
+             .width(20)
+             .height(20)
+             .inset(10, 90, 170, 90)
+             .absolute()
+             .fill(red()),
+         box()
+             .key("b")
+             .width(20)
+             .height(20)
+             .inset(170, 90, 10, 90)
+             .absolute()
+             .fill(green()),
+         connector("a", "b", {}, gap).inset(0).foreground(wire).zIndex(1)});
+  };
+  // Control: with gap 0 the wire runs centre to centre, (20,100) → (180,100),
+  // and paints OVER both terminal boxes. Without this arm, "the gapped wire
+  // does not reach the terminal" would also pass on a wire that was never
+  // drawn.
+  Host flush;
+  flush.composer.render(scene(0.0f));
+  flush.frame();
+  EXPECT_EQ(flush.pixel(25, 100), SK_ColorYELLOW)
+      << "the gapless wire must still reach into its near terminal";
+  EXPECT_EQ(flush.pixel(175, 100), SK_ColorYELLOW)
+      << "…and pierce the far one (that IS the complaint)";
+  EXPECT_EQ(flush.pixel(100, 100), SK_ColorYELLOW);
+  // The gap: 30 px pulled back at EACH end — the wire now runs x ∈
+  // [50, 150], both terminals show their own fill, the middle survives.
+  Host gapped;
+  gapped.composer.render(scene(30.0f));
+  gapped.frame();
+  EXPECT_EQ(gapped.pixel(25, 100), SK_ColorRED)
+      << "the gap did not pull the wire off its near terminal";
+  EXPECT_EQ(gapped.pixel(175, 100), SK_ColorGREEN)
+      << "the gap did not pull the wire off its far terminal";
+  EXPECT_EQ(gapped.pixel(145, 100), SK_ColorYELLOW)
+      << "the wire ends before its gap says to";
+  EXPECT_EQ(gapped.pixel(160, 100), SK_ColorBLACK)
+      << "the wire overran its gap";
+  EXPECT_EQ(gapped.pixel(100, 100), SK_ColorYELLOW);  // the run survives
 }

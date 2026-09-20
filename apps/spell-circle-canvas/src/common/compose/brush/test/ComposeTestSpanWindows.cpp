@@ -1,6 +1,7 @@
 // The window a span claim runs over: the trim endpoints and their
 // arithmetic, the summed live offset, the wrap that carries a run across
-// the seam, and the pass door that claims exactly what the node gate does.
+// the seam — as a claim and as a mask — and the pass door that claims
+// exactly what the node gate does.
 
 #include "support/BrushTestSupport.h"
 
@@ -479,4 +480,65 @@ TEST(ComposeSpanWrap, RestIsTheComplementOfBothOfWrapsRuns) {
   // corner itself is claimed, which is what makes them one term rather
   // than two claims that happen to abut.
   EXPECT_EQ(host.pixel(20, 120), SK_ColorRED) << "the seam vertex itself";
+}
+
+// -------------------------------------------------------------------------
+// The window as a mask rather than a claim: the same wrap across the
+// seam, and the binding that marches it.
+
+TEST(ComposeMask, WrapWindowCrossesTheSeam) {
+  // A wrap window crossing the cycle seam must paint exactly the union of
+  // its two clamped pieces — direction-agnostic pixel containment.
+  auto strokedBox = [](Spans where) {
+    return box().children({box()
+                               .absolute()
+                               .inset(50, 50, 50, 50)
+                               .mask(by::spans(std::move(where)))
+                               .foreground(stroke(6, green()))});
+  };
+  Host wrap, pieceA, pieceB;
+  wrap.composer.render(strokedBox(spans::wrap(0.9f, 1.15f)));
+  pieceA.composer.render(strokedBox(spans::range(0.9f, 1.0f)));
+  pieceB.composer.render(strokedBox(spans::range(0.0f, 0.15f)));
+  wrap.frame();
+  pieceA.frame();
+  pieceB.frame();
+  int unionCount = 0, wrapCount = 0, missing = 0;
+  for (int y = 40; y < 160; y += 2)
+    for (int x = 40; x < 160; x += 2) {
+      const bool inUnion = pieceA.pixel(x, y) == SK_ColorGREEN ||
+                           pieceB.pixel(x, y) == SK_ColorGREEN;
+      const bool inWrap = wrap.pixel(x, y) == SK_ColorGREEN;
+      unionCount += inUnion;
+      wrapCount += inWrap;
+      missing += inUnion && !inWrap;
+    }
+  EXPECT_GT(unionCount, 50);  // the pieces really painted
+  EXPECT_LE(missing, 4);      // wrap covers the union (AA slack)
+  EXPECT_NEAR(wrapCount, unionCount, unionCount / 5.0 + 8);
+}
+
+TEST(ComposeMask, WrapOffsetBindingMarchesTheWindow) {
+  Host host;
+  choreograph::Output<float> phase{0.0f};
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(50, 50, 50, 50)
+           .mask(by::spans(spans::wrap(0.0f, 0.25f).offset(&phase)))
+           .foreground(stroke(6, green()))}));
+  host.frame();
+  std::vector<SkIPoint> lit0;
+  for (int y = 40; y < 160; y += 2)
+    for (int x = 40; x < 160; x += 2)
+      if (host.pixel(x, y) == SK_ColorGREEN) lit0.push_back({x, y});
+  ASSERT_GT(lit0.size(), 10u);
+
+  phase = 0.5f;  // march half the cycle — no render()
+  host.frame();
+  int still = 0;
+  for (const SkIPoint& p : lit0)
+    still += host.pixel(p.x(), p.y()) == SK_ColorGREEN;
+  // The window moved to the far side: (almost) none of the old pixels stay.
+  EXPECT_LT((float)still, 0.2f * (float)lit0.size());
 }

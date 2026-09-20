@@ -1,6 +1,7 @@
 // The band a stroke is painted into: the profile and formation that shape
 // it, the ribbon that dresses one, and the width profile that varies it
-// along its own spine.
+// along its own spine, and the comparable spine that lets the node
+// carrying one prune.
 
 #include "support/BrushTestSupport.h"
 
@@ -658,4 +659,25 @@ TEST(ComposeRibbon, WidthAlongSkipsTheCapsAndSeesTheCorner) {
   // across the band, which is a property of the measurement and not of
   // the band — so the audit is read as a run, never as one number.
   EXPECT_LT(audit.rmsError, 12.0f);
+}
+
+// -------------------------------------------------------------------------
+// A band whose spine is a comparable value, so the node carrying it
+// prunes.
+
+TEST(ComposeShapeValues, ABandWithAComparableSpinePrunes) {
+  // A band's authored spine is a Shape too, so deriveEqual must compare it
+  // rather than refusing any authored spine outright.
+  Host host;
+  auto tree = [] {
+    return box().children({band(geometry::shapes::circle(), across(8.0f))
+                               .width(100)
+                               .height(100)
+                               .fill(red())});
+  };
+  host.composer.render(tree());
+  host.frame();
+  host.composer.render(tree());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an identical authored band spine re-patched";
 }
