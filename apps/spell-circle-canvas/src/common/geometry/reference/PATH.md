@@ -500,8 +500,9 @@ in no header.
 - **`path/Crossings.h`** — where a set of paths cross each other and who
   is on top there. `discoverCrossings()` takes the strands as a span (or a
   brace list) and finds every PROPER crossing — coincident paths and
-  endpoint touches are meetings, not crossings — and numbers them along the
-  boundary. `CrossingRule` is the comparable
+  endpoint touches are meetings, not crossings, and a strand of several
+  contours is not walked along the chord between two of them — and
+  numbers them along the boundary. `CrossingRule` is the comparable
   answer: list order by default, `crossing::alternate()`,
   `crossing::alternateAlong()`, `crossing::sequence()`,
   `crossing::pairs()` for dominance (cycles

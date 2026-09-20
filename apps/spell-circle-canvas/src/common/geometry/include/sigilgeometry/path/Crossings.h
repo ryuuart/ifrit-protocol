@@ -10,7 +10,9 @@
  * the boundary. "Proper" is load-bearing — coincident paths and endpoint
  * touches, such as a shared polygon vertex, are meetings rather than
  * crossings, and reporting them would put a knot at every corner of every
- * rectangle.
+ * rectangle. A strand may be several contours — a whole outline is one
+ * strand — and the chord from one contour's last point to the next
+ * one's first is part of neither mark, so nothing crosses there either.
  *
  * `CrossingRule` is the comparable value that answers who passes over
  * whom, and `crossingPatch` is the region where two marks actually
