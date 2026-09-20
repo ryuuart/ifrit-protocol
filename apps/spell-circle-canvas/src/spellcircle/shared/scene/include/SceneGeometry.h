@@ -1,10 +1,12 @@
 #pragma once
 
-// Qt-free geometry resolution: turns a SceneDocument's author-space entities
-// into absolute, native-scaled canvas positions ready for drawing. This is
-// the only place scaling and point-on-circle math happens; both scene
-// backends (Skia and QCanvasPainter) and the native macOS app draw from the
-// ResolvedScene it produces.
+/** @file
+ * Qt-free geometry resolution: turns a SceneDocument's author-space
+ * entities into absolute, native-scaled canvas positions ready for
+ * drawing. This is the only place scaling and point-on-circle math
+ * happens; both scene backends (Skia and QCanvasPainter) and the native
+ * macOS app draw from the ResolvedScene it produces.
+ */
 
 #include <string>
 #include <vector>
@@ -64,6 +66,7 @@ struct ResolvedScene {
   // point isn't a box. `active` is unused here (Point has no fill concept).
   std::vector<ResolvedBox> pointLabels;
 
+  /** Empties every list, keeping the storage for the next resolve. */
   void clear();
 };
 

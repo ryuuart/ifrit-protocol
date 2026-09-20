@@ -1,4 +1,11 @@
 #pragma once
+
+/** @file
+ * The scene packets a receiver has taken, as the two things a window
+ * shows: a capped activity feed of timestamped entries, and the decoded
+ * scene document the canvas draws from.
+ */
+
 #include <QAbstractListModel>
 #include <QDateTime>
 #include <QList>
@@ -28,7 +35,8 @@ struct FeedItem {
  */
 class SpellCircleModel : public QAbstractListModel {
   Q_OBJECT
-  // Incoming valid scene packet rate (Hz), measured at transport receipt.
+  /** Incoming valid scene packet rate (Hz), measured at transport
+   *  receipt. */
   Q_PROPERTY(
       double scenesPerSecond READ scenesPerSecond NOTIFY scenesPerSecondChanged)
 

@@ -30,6 +30,14 @@
 #include <unordered_set>
 #include <vector>
 
+/** EVERY WIRE A SKETCH LISTENS ON, WATCHED FROM OUTSIDE IT. A wire is
+ *  one URI messages arrive on or leave by: this catalogue opens them,
+ *  reports what each is doing, keeps what came down one, writes one to
+ *  a file and plays a file back, sends a message the other way, and
+ *  makes a message readable several ways. Reach for it to build a tool
+ *  that looks at a wire. It knows no toolkit and no window, and what
+ *  the bytes MEAN is whoever is at the other end's business — a wire
+ *  whose format it has never heard of is still one it can watch. */
 namespace sigil::seer {
 
 /** WHAT ONE WIRE IS DOING, as of the tick that read it. A plain value:

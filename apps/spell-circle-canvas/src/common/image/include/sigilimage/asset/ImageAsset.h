@@ -38,10 +38,10 @@ struct ImageProbe {
   int width = 0;
   int height = 0;
   int channels = 4;
-  int frames = 1;              ///< >1 for animations
-  bool floatingPoint = false;  ///< HDR/float source (EXR, float TIFF…)
-  std::string format;          ///< "png", "openexr", "psd", …
-  std::vector<std::string> layers;        ///< EXR subimages/layer prefixes
+  int frames = 1;                   ///< >1 for animations
+  bool floatingPoint = false;       ///< HDR/float source (EXR, float TIFF…)
+  std::string format;               ///< "png", "openexr", "psd", …
+  std::vector<std::string> layers;  ///< EXR subimages/layer prefixes
   std::vector<std::string> channelNames;  ///< EXR channel names
 };
 
@@ -99,10 +99,11 @@ class ImageAsset {
   /** Sum of all frame durations; 0 for still images. */
   float totalDurationMs() const { return m_totalDurationMs; }
 
-  /** Number of times the animation plays, or kInfinite (the common case
-   *  for GIFs/stickers). Still images report kInfinite. */
+  /** The repetition count of an animation that never stops, which is
+   *  the common case for GIFs and stickers. */
   static constexpr int kInfinite = -1;
-  /** How many times the animation plays, or kInfinite. */
+  /** Number of times the animation plays, or kInfinite. Still images
+   *  report kInfinite. */
   int repetitionCount() const { return m_repetitionCount; }
 
   /**

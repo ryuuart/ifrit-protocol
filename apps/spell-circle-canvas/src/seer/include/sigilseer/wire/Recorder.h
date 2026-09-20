@@ -26,6 +26,8 @@ class Wires;
  *  that was made earlier. */
 class Recorder {
  public:
+  /** A recorder over @p wires, which must outlive it. Nothing is being
+   *  recorded until `record()` says so. */
   explicit Recorder(Wires& wires);
   ~Recorder();
 
@@ -42,6 +44,7 @@ class Recorder {
   /** Takes no more. What reached the file stays whole. */
   void stop();
 
+  /** Whether a wire is being written to a file right now. */
   bool recording() const;
 
   /** The file being written; empty when nothing is being recorded. */

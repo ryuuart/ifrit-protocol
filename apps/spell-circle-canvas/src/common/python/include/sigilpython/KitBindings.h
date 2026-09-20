@@ -1,5 +1,11 @@
 #pragma once
 
+/** @file
+ * Binding the component kit's records: the conversion every kit
+ * property goes through, the property registration that picks the
+ * right ownership for it, and the field lists the shared records use.
+ */
+
 #include <pybind11/stl.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilpython/Bindings.h>
@@ -12,23 +18,37 @@
 #include <vector>
 
 namespace sigil::python {
+/** Registers the component kit's records on @p module. */
 void bindComposeKit(pybind11::module_& module);
+/** Registers the document records on @p compose. */
 void bindDocument(pybind11::module_& compose);
 
 /** Conversions shared by native kit record registrations. */
 namespace kit {
 namespace py = pybind11;
+/** Whether T is an optional, which decides that None is a value it can
+ *  take and that a Python reader gets an owned copy. */
 template <class T>
 struct Optional : std::false_type {};
+/** The optional case, carrying what it holds as `Value`. */
 template <class T>
 struct Optional<std::optional<T>> : std::true_type {
+  /** What the optional holds. */
   using Value = T;
 };
+/** Whether T is a vector, which decides that a Python reader gets an
+ *  owned copy rather than a reference into storage that resizing would
+ *  invalidate. */
 template <class T>
 struct Vector : std::false_type {};
+/** The vector case. */
 template <class T, class Allocator>
 struct Vector<std::vector<T, Allocator>> : std::true_type {};
 
+/** @p value read as a T, through this library's own reading for the
+ *  types Python spells more loosely than C++ does — a colour, a point,
+ *  a size, a dimension, a fill, an alignment, a string — and pybind11's
+ *  cast for everything else. None is nothing, for an optional T. */
 template <class T>
 T converted(py::handle value) {
   if constexpr (Optional<T>::value) {
@@ -59,11 +79,16 @@ T converted(py::handle value) {
   }
 }
 
+/** Binds a kit record as @p name on @p module, so an unknown keyword
+ *  argument names itself as an unknown kit property. */
 template <class T>
 py::class_<T> record(py::module_& module, const char* name) {
   return bindRecord<T>(module, name, "Unknown kit property: ");
 }
 
+/** Registers @p member as the property @p name on @p type, read
+ *  through `converted` and handed back as a reference into the record
+ *  or as an owned copy, whichever the member's type can safely be. */
 template <class T, class M>
 void field(py::class_<T>& type, const char* name, M T::* member) {
   if constexpr (std::is_same_v<M, compose::Utf8>) {
@@ -94,6 +119,8 @@ void field(py::class_<T>& type, const char* name, M T::* member) {
   }
 }
 
+/** Registers every property a well-shaped record carries, so the
+ *  several records that share that shape are bound once each. */
 template <class Well>
 void wellFields(py::class_<Well>& type) {
   field(type, "width", &Well::width);
@@ -109,6 +136,7 @@ void wellFields(py::class_<Well>& type) {
   field(type, "content", &Well::content);
 }
 
+/** Binds a two-axis content record as @p name on @p module. */
 template <class Content>
 void contentType(py::module_& module, const char* name) {
   auto type = record<Content>(module, name);

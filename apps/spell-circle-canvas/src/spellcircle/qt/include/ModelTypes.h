@@ -1,4 +1,11 @@
 #pragma once
+
+/** @file
+ * The registrations that let QML tooling see the two objects the
+ * application owns rather than creates, so a property bound to one is
+ * typed rather than a bare QObject.
+ */
+
 #include <QObject>
 #include <QtQml/QtQml>
 
