@@ -33,7 +33,7 @@ and the ones that name nothing say so.
 | Initial letter: sink and raise | done — `sink` is lines below the first baseline, negative raising it above; unset drops the initial to the last line it spans | `InitialLetter::sink` | `Element::initialLetter` |
 | Initial letter: alphabetic / ideographic / hanging alignment | done — which reference metric the two alignments are made on: cap height, em box, or ascent | `InitialLetter::Align` | `Element::initialLetter` |
 | Initial letter: wrap the glyph | done — the notch is the initial's own contours band by band, so a line tucks under the diagonal of an A | `InitialLetter::Wrap` | `Element::initialLetter` |
-| Initial letter: an ORNAMENT instead of a letter | done as an ordinary exclusion — a keyed element with a silhouette, and a body that flows around that key | `ExclusionFlow` | `Element::key` with `Element::flowAround` |
+| Initial letter: an ORNAMENT instead of a letter | done as an ordinary exclusion — a keyed element with a flow shape, and a body that flows around that key | `ExclusionFlow` | `Element::key` with `Element::flowAround` |
 | Nested style | done as compose kit — the run stated in the text's own terms (words, a character count, or through a delimiter) and applied as a span restyle | `kit::NestedStyle`, `kit::nestedRun` | `kit::nestedRun` with `Element::spanStyle` |
 | Bullets and numbering | done as compose kit | `kit::bullets` | `kit::bullets` |
 | Tabs: position, leaders, alignment on a character | done | `TabStop` | `Element::block` (`Block::tabStops`); per block through `Element::paragraphs` |
@@ -60,9 +60,9 @@ and the ones that name nothing say so.
 | Frame: auto-size | exists | compose measure | a leaf given no width measures its own content |
 | Threading (in and out ports) | done | `Story`; `layoutParagraph`'s resume word; the chain also states the next frame's measure through `ParagraphLayoutOptions::nextMeasure` | `weave::Story`, `frame`, `Element::key` and `Element::thread` |
 | Story-wide addressing | done — a story's words, characters, sentences and named runs are the story's already, and the LINE is what a frame chain renumbers | `selectors::line` | `weave::selectors::line` addresses the story, compose's `selectors::inFrame` is the frame-local address beside it, and a cascade's beats span the chain on one master progress |
-| Text wrap: bounding box, object shape, offsets | done — one `Silhouette` seam with a rectangle, a circle, an ellipse, any filled path, an image's alpha and a caller's own as peers | `Silhouette`, `Exclusion`, `silhouette::` | `Element::flowAround`, over the target's own `Element::boundary` |
+| Text wrap: bounding box, object shape, offsets | done — one `FlowShape` seam with a rectangle, a circle, an ellipse, any filled path, an image's alpha and a caller's own as peers | `FlowShape`, `Exclusion`, `flowshape::` | `Element::flowAround`, over the target's own `Element::boundary` |
 | Text wrap: the standoff | done — `Exclusion::margin` is a DISC, so a diagonal edge stands off by exactly the margin and a corner rounds; measured off an exact Euclidean distance field where no analytic answer exists | `Exclusion::margin`, `image::distanceField` | the margin argument of `Element::flowAround` |
-| Text wrap: an image's own alpha, at a tolerance | done — inside where the alpha exceeds the threshold, so a soft edge admits words as the dial rises | `silhouette::coverage` | `Element::boundary(Boundary::Coverage)` with `Element::threshold` |
+| Text wrap: an image's own alpha, at a tolerance | done — inside where the alpha exceeds the threshold, so a soft edge admits words as the dial rises | `flowshape::coverage` | `Element::boundary(Boundary::Coverage)` with `Element::threshold` |
 | Text wrap: jump object, wrap to one side | **not started** | — | — |
 | Anchored objects: inline | exists | `Placeholder`, `RichText::slot` | `weave::rich().slot(name, size)` with a child keyed for that name |
 | Anchored objects: above line | done, for a READING — a band reserved above the line and filled with set text | compose `Element::annotate` | `Element::annotate` |
@@ -81,7 +81,7 @@ and the ones that name nothing say so.
 | CJK: warichu | done — the note is cut where its two lines come closest in length and stacked inside the slot the base reserved | `warichuSplit`, `layoutWarichu` | **weave only.** The slot has to be sized from the note's own split, which is a question for a font context, and a compose description is written before there is one — so no verb reserves it yet. A caller holding a `FontContext` calls the two functions directly |
 | Baseline grid | done | `Leading::grid` | `Leading::grid` through `Element::paragraphs` |
 | Frame grid (CJK cell grid) | **not started** | — | — |
-| What a decoration dresses | done — the node's shape, its glyph contours, or the silhouette it actually drew | — (a compose seam; weave supplies the glyph outlines) | `Element::boundary` |
+| What a decoration dresses | done — the node's shape, its glyph contours, or the outline it actually drew | — (a compose seam; weave supplies the glyph outlines) | `Element::boundary` |
 | Footnotes and endnotes | out of scope | — | — |
 | Tables | out of scope — a layout, not a text | — | — |
 | Text variables, cross-references, conditional text | out of scope — data, not typography | — | — |

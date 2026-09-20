@@ -170,7 +170,7 @@ TEST(Vertical, TateChuYokoCountsItsFontHeightDownTheColumn) {
 
 // ── Columns around an exclusion ──────────────────────────────────────────
 
-TEST(Vertical, ColumnsFlowAroundASilhouette) {
+TEST(Vertical, ColumnsFlowAroundAFlowShape) {
   // The whole breaker runs over a column flow the way it runs over a line
   // flow: a column an exclusion crosses hands out two intervals, and no
   // run may sit anywhere but inside one of them.
@@ -187,7 +187,7 @@ TEST(Vertical, ColumnsFlowAroundASilhouette) {
   constexpr float kPitch = 30;
   ExclusionFlow flow(SkRect::MakeWH(300, 400), FlowAxis::kColumns);
   flow.exclusions().push_back(
-      {silhouette::circle(SkRect::MakeXYWH(90, 140, 120, 120)), 6});
+      {flowshape::circle(SkRect::MakeXYWH(90, 140, 120, 120)), 6});
   ParagraphLayoutOptions options;
   options.lineMetrics.height = kPitch;
   ParagraphLayout layout =

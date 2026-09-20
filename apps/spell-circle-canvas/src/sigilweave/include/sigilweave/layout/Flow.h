@@ -8,7 +8,7 @@
  * direction, or spans of an SkPath contour — supplied one line at a time by
  * a FlowGeometry. Ready-made geometries below cover the common cases:
  *   - BlockFlow          a single rectangle.
- *   - ExclusionFlow      a rectangle minus moving Silhouettes (a rect, a
+ *   - ExclusionFlow      a rectangle minus moving flow shapes (a rect, a
  *                        circle, an ellipse, any filled SkPath, an image's
  *                        own alpha, or one a caller writes), in lines or in
  *                        columns.
@@ -194,7 +194,7 @@ class BlockFlow : public FlowGeometry {
   SkRect m_bounds;
 };
 
-/// ONE STRETCH OF A BAND a silhouette occupies, measured along the flow's
+/// ONE STRETCH OF A BAND a flow shape occupies, measured along the flow's
 /// own axis — the units a line's pen travels in, and a column's.
 struct Span {
   float start = 0;
@@ -209,7 +209,7 @@ struct Band {
   float end = 0;
 };
 
-/// A SILHOUETTE TEXT STANDS OFF. One question: which stretches of a band
+/// A SHAPE TEXT STANDS OFF. One question: which stretches of a band
 /// this shape occupies, along the flow axis — the same shape of answer for
 /// a rectangle, a photograph's alpha and anything a caller writes, which is
 /// why there is no kind to switch on.
@@ -220,12 +220,12 @@ struct Band {
 /// implementation owes that meaning, because a caller asking two shapes for
 /// six pixels of standoff is asking one question.
 ///
-/// A silhouette CACHES what answering costs it — a flattening, a raster, a
+/// A flow shape CACHES what answering costs it — a flattening, a raster, a
 /// distance field — so one belongs to one flow at a time, as an SkPath's
 /// own caches do.
-class Silhouette {
+class FlowShape {
  public:
-  virtual ~Silhouette() = default;
+  virtual ~FlowShape() = default;
   /** Appends the stretches of @p band that this shape occupies, dilated by
    * @p margin, which is never negative. The spans need not be sorted or
    * disjoint; the flow merges them. */
@@ -235,57 +235,57 @@ class Silhouette {
   virtual SkRect bounds() const = 0;
 };
 
-/// ONE AREA TEXT FLOWS AROUND: a silhouette, how far the text stands off
-/// it, and where it has moved to since. `offset` is rigid motion and costs
-/// the silhouette nothing — the marquee, the drifting figure, the parallax
+/// ONE AREA TEXT FLOWS AROUND: a shape, how far the text stands off it,
+/// and where it has moved to since. `offset` is rigid motion and costs the
+/// shape nothing — the marquee, the drifting figure, the parallax
 /// photograph — where a rebuilt shape re-answers from scratch.
 struct Exclusion {
-  std::shared_ptr<Silhouette> shape;
+  std::shared_ptr<FlowShape> shape;
   float margin = 0;         ///< the standoff, px, as a disc; never negative,
                             ///< and a negative one is read as none
   SkPoint offset = {0, 0};  ///< translation applied per layout pass
 };
 
-/// The stock silhouettes. A caller with a shape none of these describes
-/// implements Silhouette itself and stands beside them.
-namespace silhouette {
+/// The stock flow shapes. A caller with a shape none of these describes
+/// implements FlowShape itself and stands beside them.
+namespace flowshape {
 
 /** An axis-aligned rectangle. Its margin rounds the corners, exactly as a
  * disc offset does. */
-[[nodiscard]] std::shared_ptr<Silhouette> rectangle(const SkRect& bounds);
+[[nodiscard]] std::shared_ptr<FlowShape> rectangle(const SkRect& bounds);
 /** The circle INSCRIBED in `bounds`, answered analytically: one square root
  * a band, and the margin is simply a larger radius. */
-[[nodiscard]] std::shared_ptr<Silhouette> circle(const SkRect& bounds);
+[[nodiscard]] std::shared_ptr<FlowShape> circle(const SkRect& bounds);
 /** The oval inscribed in `bounds` — the circle above when it is round, and
  * otherwise the oval's own path, because a disc offset of an ellipse is not
  * an ellipse and only the path answer stays exact. */
-[[nodiscard]] std::shared_ptr<Silhouette> ellipse(const SkRect& bounds);
+[[nodiscard]] std::shared_ptr<FlowShape> ellipse(const SkRect& bounds);
 /** Any filled SkPath — several contours, curves, winding or even-odd fill,
  * so holes and concavities stay available to text. Flattened once and kept.
- * An inverse fill type is read as its own non-inverse self: a silhouette is
- * the region the path encloses.
+ * An inverse fill type is read as its own non-inverse self: a flow shape
+ * is the region the path encloses.
  *
  * The answer is read off a flattened outline exactly, at any margin: with a
  * standoff the outline is the path unioned with itself stroked at twice the
  * margin, round join and round cap, which is what a disc rolled around the
  * shape sweeps. */
-[[nodiscard]] std::shared_ptr<Silhouette> path(const SkPath& path);
+[[nodiscard]] std::shared_ptr<FlowShape> path(const SkPath& path);
 /** AN IMAGE'S OWN ALPHA, resolved inside `box` in flow coordinates: a pixel
  * is inside where its alpha is greater than `threshold`, a fraction of full
  * opacity. It is the answer for a photograph, a rendered node, a video
- * frame — a silhouette that is neither a shape nor a glyph run.
+ * frame — a flow shape that is neither an outline nor a glyph run.
  *
  * The tolerance is the dial: a soft edge admits words further in as it
  * rises. A new frame re-thresholds and re-measures; a still one costs that
  * once. */
-[[nodiscard]] std::shared_ptr<Silhouette> coverage(sk_sp<SkImage> image,
-                                                   const SkRect& box,
-                                                   float threshold = 0.5f);
+[[nodiscard]] std::shared_ptr<FlowShape> coverage(sk_sp<SkImage> image,
+                                                  const SkRect& box,
+                                                  float threshold = 0.5f);
 
-}  // namespace silhouette
+}  // namespace flowshape
 
 /// A rectangle with exclusions punched out (CSS float / shape-outside
-/// style). Each band subtracts every intersecting silhouette's extent
+/// style). Each band subtracts every intersecting flow shape's extent
 /// ACROSS the band, so a line — or a column — shortens, or splits into
 /// several intervals, around them. Exclusions are cheap to move: geometry
 /// is re-evaluated per layout pass.
@@ -293,7 +293,7 @@ namespace silhouette {
 /// A COLUMN IS A LINE TURNED A QUARTER TURN, and `FlowAxis` is the whole of
 /// the difference: `kColumns` makes each band a top-to-bottom column, the
 /// columns advancing right to left from the bounds' right edge, and reads
-/// every silhouette's extent down the column instead of across the line.
+/// every flow shape's extent down the column instead of across the line.
 /// Pair it with `Paragraph::setWritingMode(WritingMode::kVerticalRL)`,
 /// exactly as `VerticalBlockFlow` is paired.
 class ExclusionFlow : public FlowGeometry {

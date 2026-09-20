@@ -15,6 +15,7 @@ from _sigil.weave import (
     ExclusionFlow,
     FlowAxis,
     FlowGeometry,
+    FlowShape,
     FontContext,
     FontFeature,
     FontStats,
@@ -60,7 +61,6 @@ from _sigil.weave import (
     Rule,
     Selector,
     ShapingStyle,
-    Silhouette,
     Span,
     Story,
     Strut,
@@ -101,9 +101,9 @@ from _sigil.weave import (
 )
 
 from . import (
+    flowshape,
     kit,
     selectors,
-    silhouette,
 )
 
 __all__ = [
@@ -118,6 +118,7 @@ __all__ = [
     "ExclusionFlow",
     "FlowAxis",
     "FlowGeometry",
+    "FlowShape",
     "FontContext",
     "FontFeature",
     "FontStats",
@@ -163,7 +164,6 @@ __all__ = [
     "Rule",
     "Selector",
     "ShapingStyle",
-    "Silhouette",
     "Span",
     "Story",
     "Strut",
@@ -186,6 +186,7 @@ __all__ = [
     "em",
     "findAllOccurrences",
     "findRegexMatches",
+    "flowshape",
     "initialType",
     "kit",
     "layoutBeside",
@@ -198,7 +199,6 @@ __all__ = [
     "rule",
     "selectors",
     "shareOfReading",
-    "silhouette",
     "textStyle",
     "toParagraphStyle",
     "typeface",

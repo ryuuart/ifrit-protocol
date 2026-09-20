@@ -1,6 +1,6 @@
 // Scene I — arbitrary SkPath exclusions (star / heart / donut hole). Any
 // SkPath — concave stars, compound paths, cubic hearts — carves its exact
-// silhouette out of the line bands, and even-odd holes stay open to text.
+// region out of the line bands, and even-odd holes stay open to text.
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
@@ -27,7 +27,7 @@ void sceneShapes(FontContext& fontContext,
   Paragraph paragraph;
   for (int repetitionIndex = 0; repetitionIndex < 7; ++repetitionIndex)
     paragraph.appendText(
-        u8"Any SkPath carves its exact silhouette out of the line bands — "
+        u8"Any SkPath carves its exact region out of the line bands — "
         "concave stars, compound paths, cubic hearts — and even-odd holes "
         "stay open, so the paragraph pours right through the middle of the "
         "donut. ",
@@ -65,9 +65,9 @@ void sceneShapes(FontContext& fontContext,
   const SkPath starPath = star.detach();
   const SkPath heartPath = heart.detach();
   const SkPath donutPath = donut.detach();
-  flow.exclusions().push_back({silhouette::path(starPath), 10});
-  flow.exclusions().push_back({silhouette::path(heartPath), 10});
-  flow.exclusions().push_back({silhouette::path(donutPath), 8});
+  flow.exclusions().push_back({flowshape::path(starPath), 10});
+  flow.exclusions().push_back({flowshape::path(heartPath), 10});
+  flow.exclusions().push_back({flowshape::path(donutPath), 8});
   flow.setMinimumIntervalWidth(46);
 
   ParagraphLayoutOptions options;

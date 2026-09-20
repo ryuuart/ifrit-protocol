@@ -1,5 +1,5 @@
 /** @file
- * The stock silhouettes an exclusion flow subtracts: a rectangle and a
+ * The stock flow shapes an exclusion subtracts: a rectangle and a
  * circle answered analytically, a filled path answered off its flattened
  * outline — and, at a standoff, off the outline of everything within the
  * margin of it, which Skia's path ops give exactly — and an image answered
@@ -65,9 +65,9 @@ float acrossGap(float bandStart, float bandEnd, float near, float far) {
   return 0;
 }
 
-class RectangleSilhouette final : public Silhouette {
+class RectangleFlowShape final : public FlowShape {
  public:
-  explicit RectangleSilhouette(const SkRect& bounds) : m_bounds(bounds) {}
+  explicit RectangleFlowShape(const SkRect& bounds) : m_bounds(bounds) {}
   void bandSpans(FlowAxis axis, Band band, float margin,
                  std::vector<Span>& spans) override {
     const float near = acrossMin(axis, m_bounds);
@@ -85,9 +85,9 @@ class RectangleSilhouette final : public Silhouette {
   SkRect m_bounds;
 };
 
-class CircleSilhouette final : public Silhouette {
+class CircleFlowShape final : public FlowShape {
  public:
-  explicit CircleSilhouette(const SkRect& bounds)
+  explicit CircleFlowShape(const SkRect& bounds)
       : m_center{bounds.centerX(), bounds.centerY()},
         m_radius(std::min(bounds.width(), bounds.height()) * 0.5f) {}
   void bandSpans(FlowAxis axis, Band band, float margin,
@@ -122,7 +122,7 @@ class CircleSilhouette final : public Silhouette {
 /// An image's coverage has no outline to grow, so "within m of the ink"
 /// is the only meaning a standoff has here, and a field answers it
 /// deciding nothing. Anything that IS an outline takes the exact answer
-/// instead: see PathSilhouette.
+/// instead: see PathFlowShape.
 class DilatedCoverage {
  public:
   /// Rebuilds when the raster does not already cover this margin. The
@@ -207,7 +207,7 @@ class DilatedCoverage {
   float m_threshold = 0.5f;
 };
 
-/// A PATH'S SILHOUETTE, AT ANY STANDOFF, AS A PATH.
+/// A PATH'S OWN REGION, AT ANY STANDOFF, AS A PATH.
 ///
 /// The disc offset of a filled path is the union of the fill with its own
 /// outline stroked at twice the margin, round join and round cap — which
@@ -216,14 +216,14 @@ class DilatedCoverage {
 /// one flatten, and the band scan that already answers the zero-margin
 /// case answers every other one, corners rounded and holes kept.
 ///
-/// The distance field beside this class stays for a coverage silhouette,
+/// The distance field beside this class stays for a coverage shape,
 /// whose input is pixels: an image has no outline to stroke, and "within
 /// m of the ink" is the only meaning available there.
-class PathSilhouette final : public Silhouette {
+class PathFlowShape final : public FlowShape {
  public:
-  explicit PathSilhouette(const SkPath& path) : m_path(path) {
+  explicit PathFlowShape(const SkPath& path) : m_path(path) {
     // An inverse fill means everything the path does not enclose, which as
-    // a silhouette is the frame with a hole in it. One meaning is kept:
+    // a flow shape is the frame with a hole in it. One meaning is kept:
     // the enclosed region, which is what the band scan reads and what the
     // ink is drawn as.
     switch (m_path.getFillType()) {
@@ -305,9 +305,9 @@ class PathSilhouette final : public Silhouette {
   float m_dilatedMargin = -1;
 };
 
-class CoverageSilhouette final : public Silhouette {
+class CoverageFlowShape final : public FlowShape {
  public:
-  CoverageSilhouette(sk_sp<SkImage> image, const SkRect& box, float threshold)
+  CoverageFlowShape(sk_sp<SkImage> image, const SkRect& box, float threshold)
       : m_image(std::move(image)), m_box(box) {
     m_dilated.setThreshold(threshold);
   }
@@ -334,18 +334,19 @@ class CoverageSilhouette final : public Silhouette {
 
 }  // namespace
 
-namespace silhouette {
+namespace flowshape {
 
-std::shared_ptr<Silhouette> rectangle(const SkRect& bounds) {
-  return std::make_shared<RectangleSilhouette>(bounds);
+std::shared_ptr<FlowShape> rectangle(const SkRect& bounds) {
+  return std::make_shared<RectangleFlowShape>(bounds);
 }
 
-std::shared_ptr<Silhouette> circle(const SkRect& bounds) {
-  return std::make_shared<CircleSilhouette>(bounds);
+std::shared_ptr<FlowShape> circle(const SkRect& bounds) {
+  return std::make_shared<CircleFlowShape>(bounds);
 }
 
-std::shared_ptr<Silhouette> ellipse(const SkRect& bounds) {
-  if (std::abs(bounds.width() - bounds.height()) <= kBandEpsilon) return circle(bounds);
+std::shared_ptr<FlowShape> ellipse(const SkRect& bounds) {
+  if (std::abs(bounds.width() - bounds.height()) <= kBandEpsilon)
+    return circle(bounds);
   // A disc offset of an ellipse is not an ellipse, and scaling the axes to
   // fake one over- and under-shoots at different points of the curve. The
   // path answer is the exact one, so an oval that is not round takes it.
@@ -354,15 +355,15 @@ std::shared_ptr<Silhouette> ellipse(const SkRect& bounds) {
   return path(oval.detach());
 }
 
-std::shared_ptr<Silhouette> path(const SkPath& outline) {
-  return std::make_shared<PathSilhouette>(outline);
+std::shared_ptr<FlowShape> path(const SkPath& outline) {
+  return std::make_shared<PathFlowShape>(outline);
 }
 
-std::shared_ptr<Silhouette> coverage(sk_sp<SkImage> image, const SkRect& box,
-                                     float threshold) {
-  return std::make_shared<CoverageSilhouette>(std::move(image), box, threshold);
+std::shared_ptr<FlowShape> coverage(sk_sp<SkImage> image, const SkRect& box,
+                                    float threshold) {
+  return std::make_shared<CoverageFlowShape>(std::move(image), box, threshold);
 }
 
-}  // namespace silhouette
+}  // namespace flowshape
 
 }  // namespace sigil::weave

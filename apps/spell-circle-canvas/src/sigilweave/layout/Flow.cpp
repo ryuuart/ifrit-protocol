@@ -2,8 +2,8 @@
  * The ready-made flow geometries: the block, the rectangle minus its
  * exclusions in lines or in columns, the vertical block, the explicit line
  * set, one line per path contour, and the placement of a pen coordinate on
- * a contour interval with its tangent snapped. The silhouettes an
- * exclusion subtracts are beside this, in Silhouette.cpp.
+ * a contour interval with its tangent snapped. The shapes an
+ * exclusion subtracts are beside this, in FlowShape.cpp.
  */
 
 #include "sigilweave/layout/Flow.h"
@@ -161,7 +161,7 @@ bool ExclusionFlow::lineIntervals(const LineRequest& request,
   static thread_local std::vector<Span> occupiedSpans;
   for (const Exclusion& exclusion : m_exclusions) {
     if (!exclusion.shape) continue;
-    // Every silhouette answers in ITS OWN SPACE, so rigid motion is two
+    // Every flow shape answers in ITS OWN SPACE, so rigid motion is two
     // subtractions and a shift and never touches whatever the shape
     // cached: the band arrives moved back by the offset and the spans come
     // out moved forward by it.

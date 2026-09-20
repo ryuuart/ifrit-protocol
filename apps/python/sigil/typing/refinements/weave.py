@@ -45,7 +45,7 @@ def {field}(self, value: Length | float | int | None) -> None: ...
     for name in ("BlockFlow", "VerticalBlockFlow", "ExclusionFlow"):
         table.erased(f"_sigil.weave.{name}", "__init__", "_t.RectLike")
     table.erased(
-        "_sigil.weave.silhouette", "rectangle circle ellipse coverage", "_t.RectLike"
+        "_sigil.weave.flowshape", "rectangle circle ellipse coverage", "_t.RectLike"
     )
     table.erased("_sigil.weave.Beside", "base", "_t.RectLike")
     table.erased("_sigil.weave.Exclusion", "offset", "_t.PointLike")

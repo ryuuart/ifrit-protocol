@@ -72,7 +72,7 @@ void drawCaption(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
 // even-odd hole that stays open to text. Rebuilt every frame: each frame's
 // path carries a fresh generation ID, so unlike the drifting donut (cached
 // flattening + pathOffset) this shape exercises live re-flattening and the
-// layout adapts to the changing silhouette as it morphs.
+// layout adapts to the changing flow shape as it morphs.
 SkPath spikyRingPath(float elapsedSeconds, float radius);
 
 }  // namespace gallery

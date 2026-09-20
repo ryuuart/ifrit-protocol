@@ -37,26 +37,26 @@ The layout reads position and tangent through it, so "distance along" and
 that walks a path.
 
 Ready-made geometries cover the common cases: `BlockFlow` (a rectangle),
-`ExclusionFlow` (a rectangle minus moving `Silhouette`s), `VerticalBlockFlow`
+`ExclusionFlow` (a rectangle minus moving `FlowShape`s), `VerticalBlockFlow`
 (top-to-bottom columns advancing right to left), `LineSetFlow` (explicit
 intervals — any origin, direction, and count per line), and `PathFlow` (each
 contour of a path becomes a line).
 
-A `Silhouette` is the second virtual, and it has one question too: which
+A `FlowShape` is the second virtual, and it has one question too: which
 stretches of a band, along the flow axis, does this shape occupy. The stock
-ones — `silhouette::rectangle`, `circle`, `ellipse`, `path` (fill rule
+ones — `flowshape::rectangle`, `circle`, `ellipse`, `path` (fill rule
 honoured, so holes stay open to text) and `coverage` (an image's alpha above
 a threshold) — are peers of one a caller writes, and there is no kind to
-switch on. `Exclusion` pairs a silhouette with a margin and an offset: the
+switch on. `Exclusion` pairs a flow shape with a margin and an offset: the
 margin is a DISC, the set of points within that distance of the shape, so a
 diagonal edge stands the text off by exactly what was asked and a corner
-comes out round; the offset is rigid motion and costs the silhouette
+comes out round; the offset is rigid motion and costs the flow shape
 nothing.
 
 `ExclusionFlow` takes a `FlowAxis`, and that is the whole of what a column
 costs it: `FlowAxis::kColumns` makes each band a top-to-bottom column
 advancing right to left from the bounds' right edge, and reads every
-silhouette's extent DOWN the column instead of across the line. A column is
+flow shape's extent DOWN the column instead of across the line. A column is
 a line turned a quarter turn — a shape shortens one, or splits it in two,
 exactly as it shortens or splits the other — so the band scan, the fill
 rule, the disc offset and the sliver threshold are one implementation read
@@ -985,7 +985,7 @@ straight horizontal left-to-right intervals.
 
 **Geometry is re-queried on every layout pass and never cached between
 passes**, so an implementation may depend freely on animated state. For
-exclusion flows, animate through `Exclusion::offset`: a silhouette caches
+exclusion flows, animate through `Exclusion::offset`: a flow shape caches
 what answering costs it — a flattening, a grown outline, a distance field
 — and
 rigid motion reuses all of it, while a rebuilt shape (a morphing `SkPath`,

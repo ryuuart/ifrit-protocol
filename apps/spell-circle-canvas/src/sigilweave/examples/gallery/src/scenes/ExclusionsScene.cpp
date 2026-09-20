@@ -62,7 +62,7 @@ class ExclusionsScene final : public Scene {
             canvasHeight * 0.24f *
                 std::sin(static_cast<float>(elapsedSeconds) * 0.53f)};
     flow.exclusions().push_back(
-        {silhouette::circle(SkRect::MakeXYWH(
+        {flowshape::circle(SkRect::MakeXYWH(
              circleCenter.x() - circleRadius, circleCenter.y() - circleRadius,
              2 * circleRadius, 2 * circleRadius)),
          fontSize * 0.5f});
@@ -89,9 +89,9 @@ class ExclusionsScene final : public Scene {
             canvasHeight * 0.1f *
                 std::sin(static_cast<float>(elapsedSeconds) * 0.7f)};
     flow.exclusions().push_back(
-        {silhouette::path(spiky), fontSize * 0.4f, starOffset});
+        {flowshape::path(spiky), fontSize * 0.4f, starOffset});
     // The donut drifts too: an exclusion's offset is rigid motion, so its
-    // silhouette answers from what it already measured and every frame is
+    // flow shape answers from what it already measured and every frame is
     // still a full live relayout around it.
     const SkPoint donutOffset{
         canvasWidth * 0.05f *
@@ -99,7 +99,7 @@ class ExclusionsScene final : public Scene {
         canvasHeight * 0.06f *
             std::cos(static_cast<float>(elapsedSeconds) * 0.45f)};
     flow.exclusions().push_back(
-        {silhouette::path(donutPath), fontSize * 0.4f, donutOffset});
+        {flowshape::path(donutPath), fontSize * 0.4f, donutOffset});
     flow.setMinimumIntervalWidth(fontSize * 3);
 
     ParagraphLayoutOptions options;

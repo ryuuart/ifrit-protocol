@@ -34,7 +34,7 @@ namespace sigil::weave {
  *  set the same way whichever frame it happens to land in. Pitch, writing
  *  mode and block styles are the story's, and a frame cannot override them:
  *  a frame that wants a different pitch is a different story. What a frame
- *  decides is its own geometry — its box, its exclusions, a silhouette it
+ *  decides is its own geometry — its box, its exclusions, a shape it
  *  flows around — and whether it is the last one, which is the only one an
  *  ellipsis belongs on. Overflow on any other frame is the normal case and
  *  is what the next frame is for.

@@ -159,9 +159,9 @@ void BM_Update_MovingExclusions_300w(benchmark::State& state) {
   paragraph.appendText(makeText(300, /*mixed=*/true), basicStyle());
   ExclusionFlow flow(SkRect::MakeWH(700, 3000));
   flow.exclusions().push_back(
-      {silhouette::circle(SkRect::MakeXYWH(100, 100, 160, 160)), 8});
+      {flowshape::circle(SkRect::MakeXYWH(100, 100, 160, 160)), 8});
   flow.exclusions().push_back(
-      {silhouette::rectangle(SkRect::MakeXYWH(400, 600, 180, 120)), 8});
+      {flowshape::rectangle(SkRect::MakeXYWH(400, 600, 180, 120)), 8});
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
 
   ParagraphLayoutOptions options;
@@ -208,8 +208,8 @@ void BM_Update_MovingPathExclusions_300w(benchmark::State& state) {
   donut.setFillType(SkPathFillType::kEvenOdd);
 
   ExclusionFlow flow(SkRect::MakeWH(700, 3000));
-  flow.exclusions().push_back({silhouette::path(star.detach()), 8});
-  flow.exclusions().push_back({silhouette::path(donut.detach()), 8});
+  flow.exclusions().push_back({flowshape::path(star.detach()), 8});
+  flow.exclusions().push_back({flowshape::path(donut.detach()), 8});
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
 
   ParagraphLayoutOptions options;
@@ -258,8 +258,8 @@ void BM_Update_MovingColumnExclusions_300w(benchmark::State& state) {
   donut.setFillType(SkPathFillType::kEvenOdd);
 
   ExclusionFlow flow(SkRect::MakeWH(3000, 700), FlowAxis::kColumns);
-  flow.exclusions().push_back({silhouette::path(star.detach()), 8});
-  flow.exclusions().push_back({silhouette::path(donut.detach()), 8});
+  flow.exclusions().push_back({flowshape::path(star.detach()), 8});
+  flow.exclusions().push_back({flowshape::path(donut.detach()), 8});
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 26;  // column pitch
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);

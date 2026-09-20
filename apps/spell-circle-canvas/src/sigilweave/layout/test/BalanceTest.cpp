@@ -65,7 +65,7 @@ TEST(Balance, ABlockCutIntoUnequalLinesGivesUpAProportionOfEachOfThem) {
   const auto fillWith = [&](bool balance) {
     Paragraph paragraph = makeParagraph(text, 15.0f);
     ExclusionFlow flow(SkRect::MakeWH(kWholeWidth, 400));
-    flow.exclusions().push_back({silhouette::rectangle(
+    flow.exclusions().push_back({flowshape::rectangle(
         SkRect::MakeXYWH(kCutWidth, 0, kWholeWidth - kCutWidth, kCutBottom))});
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;

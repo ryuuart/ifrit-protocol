@@ -150,11 +150,11 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   const bool vertical =
       inst.paragraph &&
       inst.paragraph->writingMode() == sigil::weave::WritingMode::kVerticalRL;
-  // One weave silhouette per resolved target, in the form the derive pass
+  // One weave flow shape per resolved target, in the form the derive pass
   // resolved it to: an outline for a target whose boundary answered one, an
   // analytic circle for a round one, its box for a target that answered
   // none. The margin is the same DISC standoff in all three, and the
-  // silhouettes are the same in both writing modes — an exclusion cuts a
+  // shapes are the same in both writing modes — an exclusion cuts a
   // column exactly as it cuts a line, so only the flow's axis differs.
   const auto addExclusions = [&](sigil::weave::ExclusionFlow& flow) {
     const float flowMargin =
@@ -164,14 +164,13 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
     for (const detail::Exclusion& exclusion : inst.exclusionsLocal) {
       if (exclusion.circle)
         flow.exclusions().push_back(
-            {sigil::weave::silhouette::circle(exclusion.bounds), flowMargin});
+            {sigil::weave::flowshape::circle(exclusion.bounds), flowMargin});
       else if (!exclusion.path.isEmpty())
         flow.exclusions().push_back(
-            {sigil::weave::silhouette::path(exclusion.path), flowMargin});
+            {sigil::weave::flowshape::path(exclusion.path), flowMargin});
       else
         flow.exclusions().push_back(
-            {sigil::weave::silhouette::rectangle(exclusion.bounds),
-             flowMargin});
+            {sigil::weave::flowshape::rectangle(exclusion.bounds), flowMargin});
     }
   };
   const auto layOut = [&] {

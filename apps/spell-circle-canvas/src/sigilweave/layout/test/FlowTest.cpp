@@ -35,7 +35,7 @@ TEST(Flow, ABlockHandsOutOneFullWidthBandPerLineUntilItRunsOut) {
 TEST(Flow, ExclusionSplitsLineAroundCircle) {
   ExclusionFlow flow(SkRect::MakeWH(400, 200));
   flow.exclusions().push_back(
-      {silhouette::circle(SkRect::MakeXYWH(150, 50, 100, 100))});
+      {flowshape::circle(SkRect::MakeXYWH(150, 50, 100, 100))});
 
   std::vector<LineInterval> out;
   // A band through the circle's center: two intervals around x∈[100, 300].
@@ -54,7 +54,7 @@ TEST(Flow, ExclusionSplitsLineAroundCircle) {
 TEST(Flow, ExclusionRectBlocksWholeBand) {
   ExclusionFlow flow(SkRect::MakeWH(300, 100));
   flow.exclusions().push_back(
-      {silhouette::rectangle(SkRect::MakeXYWH(0, 30, 300, 20))});
+      {flowshape::rectangle(SkRect::MakeXYWH(0, 30, 300, 20))});
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(1, 25, 18, out));  // band [25,50] overlaps
   EXPECT_TRUE(out.empty());
@@ -89,7 +89,7 @@ TEST(Flow, PathExclusionRespectsFillRule) {
   auto centerIntervals = [&](SkPathFillType fillType) {
     ExclusionFlow flow(SkRect::MakeWH(400, 300));
     flow.exclusions().push_back(
-        {silhouette::path(pentagramPath(center, 100, fillType))});
+        {flowshape::path(pentagramPath(center, 100, fillType))});
     std::vector<LineInterval> out;
     // Line band [145, 155] straddles the star's centre.
     EXPECT_TRUE(flow.lineIntervals(29, 5, 4, out));
@@ -119,7 +119,7 @@ TEST(Flow, CompoundPathKeepsHoleAvailable) {
   builder.setFillType(SkPathFillType::kEvenOdd);
 
   ExclusionFlow flow(SkRect::MakeWH(400, 300));
-  flow.exclusions().push_back({silhouette::path(builder.detach())});
+  flow.exclusions().push_back({flowshape::path(builder.detach())});
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(14, 10, 8, out));  // band [140, 150]
   ASSERT_EQ(out.size(), 3u);
@@ -140,7 +140,7 @@ TEST(Flow, PathExclusionTipsBetweenScanlinesStillBlock) {
   builder.close();
 
   ExclusionFlow flow(SkRect::MakeWH(400, 300));
-  flow.exclusions().push_back({silhouette::path(builder.detach())});
+  flow.exclusions().push_back({flowshape::path(builder.detach())});
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(10, 10, 8, out));  // band [100, 110]
   ASSERT_FALSE(out.empty());
@@ -152,7 +152,7 @@ TEST(Flow, PathExclusionTipsBetweenScanlinesStillBlock) {
 TEST(Flow, PathExclusionOffsetMovesWithoutReflatten) {
   SkPath star = pentagramPath({200, 150}, 100, SkPathFillType::kWinding);
   ExclusionFlow flow(SkRect::MakeWH(800, 300));
-  flow.exclusions().push_back({silhouette::path(star)});
+  flow.exclusions().push_back({flowshape::path(star)});
 
   std::vector<LineInterval> at0, at300;
   ASSERT_TRUE(flow.lineIntervals(29, 5, 4, at0));
@@ -210,12 +210,12 @@ TEST_P(ExcludedFlow, NoRunEverSitsInsideAnExclusionShape) {
   for (int phase : {3, 4}) {
     ExclusionFlow flow(SkRect::MakeWH(760, 900));
     flow.exclusions().push_back(
-        {silhouette::path(donutPath),
+        {flowshape::path(donutPath),
          8,
          {60.0f * std::sin(static_cast<float>(phase) * 1.1f),
           70.0f * std::cos(static_cast<float>(phase) * 0.7f)}});
     flow.exclusions().push_back(
-        {silhouette::circle(SkRect::MakeXYWH(
+        {flowshape::circle(SkRect::MakeXYWH(
              80.0f + 20.0f * static_cast<float>(phase), 480, 180, 180)),
          8});
 
@@ -282,10 +282,10 @@ TEST(Flow, AnExclusionCutsAColumnExactlyAsItCutsALine) {
   const SkRect shape = SkRect::MakeXYWH(150, 50, 100, 60);
 
   ExclusionFlow lines(SkRect::MakeWH(kAlong, kAcross));
-  lines.exclusions().push_back({silhouette::rectangle(shape), 4});
+  lines.exclusions().push_back({flowshape::rectangle(shape), 4});
   ExclusionFlow columns(SkRect::MakeWH(kAcross, kAlong), FlowAxis::kColumns);
   columns.exclusions().push_back(
-      {silhouette::rectangle(turned(shape, kAcross)), 4});
+      {flowshape::rectangle(turned(shape, kAcross)), 4});
 
   bool sawASplit = false;
   for (int index = 0; index < 12; ++index) {
@@ -308,7 +308,7 @@ TEST(Flow, AnExclusionShortensTheColumnItCrosses) {
   // moves the pen down past it, and the column beside it runs clean.
   ExclusionFlow flow(SkRect::MakeWH(200, 300), FlowAxis::kColumns);
   flow.exclusions().push_back(
-      {silhouette::rectangle(SkRect::MakeXYWH(160, 0, 40, 120))});
+      {flowshape::rectangle(SkRect::MakeXYWH(160, 0, 40, 120))});
 
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(0, 20, 0, out));  // column x ∈ [180, 200]
@@ -329,8 +329,8 @@ TEST(Flow, AnExclusionShortensTheColumnItCrosses) {
   EXPECT_FALSE(flow.lineIntervals(10, 20, 0, out));
 }
 
-TEST(Flow, ASilhouetteSplitsAColumn) {
-  // The per-column twin of the silhouette scan: the same flattening and
+TEST(Flow, AFlowShapeSplitsAColumn) {
+  // The per-column twin of the flow shape scan: the same flattening and
   // the same fill rule, read DOWN the column. A donut standing in a
   // column's way leaves its head, its hole and its foot open.
   SkPathBuilder builder;
@@ -339,7 +339,7 @@ TEST(Flow, ASilhouetteSplitsAColumn) {
   builder.setFillType(SkPathFillType::kEvenOdd);
 
   ExclusionFlow flow(SkRect::MakeWH(300, 400), FlowAxis::kColumns);
-  flow.exclusions().push_back({silhouette::path(builder.detach())});
+  flow.exclusions().push_back({flowshape::path(builder.detach())});
 
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(7, 20, 0, out));  // column x ∈ [140, 160]
@@ -366,7 +366,7 @@ TEST(Flow, AnExclusionWiderThanTheFrameLeavesTheBandWithNothing) {
   // interval on it is gone, which is a different answer from "no band".
   ExclusionFlow flow(SkRect::MakeWH(300, 200));
   flow.exclusions().push_back(
-      {silhouette::rectangle(SkRect::MakeXYWH(-500, 40, 1300, 40)), 10});
+      {flowshape::rectangle(SkRect::MakeXYWH(-500, 40, 1300, 40)), 10});
 
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(2, 20, 15, out));  // band [40, 60]
@@ -378,7 +378,7 @@ TEST(Flow, AnExclusionWiderThanTheFrameLeavesTheBandWithNothing) {
 }
 
 TEST(Flow, AnImagesAlphaIsReadTheColumnsWayToo) {
-  // The same picture, the same silhouette, a quarter turn: an image's
+  // The same picture, the same shape, a quarter turn: an image's
   // coverage answers a column exactly as it answers a line.
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(20, 20));
@@ -393,7 +393,7 @@ TEST(Flow, AnImagesAlphaIsReadTheColumnsWayToo) {
   // column starts below it.
   ExclusionFlow columns(SkRect::MakeWH(200, 400), FlowAxis::kColumns);
   columns.exclusions().push_back(
-      {silhouette::coverage(half, SkRect::MakeXYWH(0, 0, 200, 200), 0.5f)});
+      {flowshape::coverage(half, SkRect::MakeXYWH(0, 0, 200, 200), 0.5f)});
 
   std::vector<LineInterval> out;
   ASSERT_TRUE(columns.lineIntervals(2, 20, 0, out));

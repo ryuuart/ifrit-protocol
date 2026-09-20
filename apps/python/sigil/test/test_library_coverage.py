@@ -169,7 +169,7 @@ class LibraryCoverage(unittest.TestCase):
         flow = weave.ExclusionFlow((0, 0, 280, 400))
         flow.exclusions = (
             weave.Exclusion(
-                shape=weave.silhouette.rectangle((0, 0, 100, 100)), margin=8
+                shape=weave.flowshape.rectangle((0, 0, 100, 100)), margin=8
             ),
         )
         layout = weave.layoutParagraph(fonts, paragraph, flow)

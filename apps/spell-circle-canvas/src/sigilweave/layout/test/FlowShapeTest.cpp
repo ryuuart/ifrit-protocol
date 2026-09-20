@@ -1,5 +1,5 @@
 /** @file
- * The silhouettes an exclusion flow subtracts: the margin as a disc rather
+ * The flow shapes an exclusion subtracts: the margin as a disc rather
  * than a square, an image's own alpha with the tolerance that decides what
  * counts as ink, and a shape that moves being re-answered every pass.
  */
@@ -51,7 +51,7 @@ sk_sp<SkImage> alphaRamp(int width, int height) {
       const uint8_t alpha =
           (uint8_t)std::lround(255.0 * x / std::max(width - 1, 1));
       // Premultiplied black: the colour is irrelevant, the alpha is the
-      // silhouette.
+      // flow shape.
       *bitmap.getAddr32(x, y) = (uint32_t)alpha << 24;
     }
   bitmap.setImmutable();
@@ -60,17 +60,15 @@ sk_sp<SkImage> alphaRamp(int width, int height) {
 
 }  // namespace
 
-TEST(Silhouette,
-     AMarginOnADiagonalEdgeIsTheDistanceItAsksForAndNotItsDiagonal) {
+TEST(FlowShape, AMarginOnADiagonalEdgeIsTheDistanceItAsksForAndNotItsDiagonal) {
   constexpr float kMargin = 20;
   constexpr float kPitch = 4;
   constexpr int kBand = 25;  // the band [100, 104]
 
   ExclusionFlow bare(SkRect::MakeWH(kSide, kSide));
-  bare.exclusions().push_back({silhouette::path(diagonalHalfPlane())});
+  bare.exclusions().push_back({flowshape::path(diagonalHalfPlane())});
   ExclusionFlow stood(SkRect::MakeWH(kSide, kSide));
-  stood.exclusions().push_back(
-      {silhouette::path(diagonalHalfPlane()), kMargin});
+  stood.exclusions().push_back({flowshape::path(diagonalHalfPlane()), kMargin});
 
   const float bareEnd = freeEndAt(bare, kBand, kPitch);
   const float stoodEnd = freeEndAt(stood, kBand, kPitch);
@@ -90,11 +88,11 @@ TEST(Silhouette,
          "two on this edge";
 }
 
-TEST(Silhouette, ARectanglesCornerIsRoundedByItsMargin) {
+TEST(FlowShape, ARectanglesCornerIsRoundedByItsMargin) {
   constexpr float kMargin = 30;
   const SkRect block = SkRect::MakeXYWH(200, 100, 100, 100);
   ExclusionFlow flow(SkRect::MakeWH(kSide, kSide));
-  flow.exclusions().push_back({silhouette::rectangle(block), kMargin});
+  flow.exclusions().push_back({flowshape::rectangle(block), kMargin});
 
   std::vector<LineInterval> out;
   // A band level with the rectangle: the whole margin stands beside it.
@@ -110,14 +108,14 @@ TEST(Silhouette, ARectanglesCornerIsRoundedByItsMargin) {
   EXPECT_LT(out.front().length, block.left());
 }
 
-TEST(Silhouette, ASoftAlphaEdgeAdmitsWordsUpToTheTolerance) {
+TEST(FlowShape, ASoftAlphaEdgeAdmitsWordsUpToTheTolerance) {
   const sk_sp<SkImage> ramp = alphaRamp(100, 100);
   ASSERT_TRUE(ramp);
   const SkRect box = SkRect::MakeXYWH(0, 0, 100, 100);
 
   const auto freeEndAtThreshold = [&](float threshold) {
     ExclusionFlow flow(SkRect::MakeWH(200, 100));
-    flow.exclusions().push_back({silhouette::coverage(ramp, box, threshold)});
+    flow.exclusions().push_back({flowshape::coverage(ramp, box, threshold)});
     return freeEndAt(flow, 10, 4);
   };
 
@@ -128,13 +126,13 @@ TEST(Silhouette, ASoftAlphaEdgeAdmitsWordsUpToTheTolerance) {
   EXPECT_NEAR(freeEndAtThreshold(0.75f), 75.0f, 3.0f);
 }
 
-TEST(Silhouette, AMovingShapeIsAnsweredWhereItStandsThisPass) {
+TEST(FlowShape, AMovingShapeIsAnsweredWhereItStandsThisPass) {
   ExclusionFlow flow(SkRect::MakeWH(kSide, kSide));
-  flow.exclusions().push_back({silhouette::path(diagonalHalfPlane()), 8});
+  flow.exclusions().push_back({flowshape::path(diagonalHalfPlane()), 8});
 
   const float atRest = freeEndAt(flow, 25, 4);
   ASSERT_GT(atRest, 0);
-  // Rigid motion: the silhouette keeps everything it measured and the flow
+  // Rigid motion: the flow shape keeps everything it measured and the flow
   // simply asks it about a band 40 further back.
   flow.exclusions()[0].offset = {40, 0};
   EXPECT_NEAR(freeEndAt(flow, 25, 4), atRest + 40.0f, 0.5f);
@@ -142,7 +140,7 @@ TEST(Silhouette, AMovingShapeIsAnsweredWhereItStandsThisPass) {
   EXPECT_NEAR(freeEndAt(flow, 25, 4), atRest - 30.0f, 0.5f);
 }
 
-TEST(Silhouette, ACirclesMarginIsExactHoweverLargeTheCircleIs) {
+TEST(FlowShape, ACirclesMarginIsExactHoweverLargeTheCircleIs) {
   // A circle answered as a path, against the same circle answered
   // analytically. The path answer is the union of the fill with its own
   // outline stroked at twice the margin, so it is exact at any size; an
@@ -157,12 +155,12 @@ TEST(Silhouette, ACirclesMarginIsExactHoweverLargeTheCircleIs) {
   round.addCircle(centre.x(), centre.y(), kRadius);
 
   ExclusionFlow exact(SkRect::MakeWH(kFrame, kFrame));
-  exact.exclusions().push_back({silhouette::circle(SkRect::MakeXYWH(
+  exact.exclusions().push_back({flowshape::circle(SkRect::MakeXYWH(
                                     centre.x() - kRadius, centre.y() - kRadius,
                                     kRadius * 2, kRadius * 2)),
                                 kMargin});
   ExclusionFlow drawn(SkRect::MakeWH(kFrame, kFrame));
-  drawn.exclusions().push_back({silhouette::path(round.detach()), kMargin});
+  drawn.exclusions().push_back({flowshape::path(round.detach()), kMargin});
 
   constexpr float kPitch = 40;
   for (int band = 40; band < 110; band += 10) {
@@ -173,14 +171,14 @@ TEST(Silhouette, ACirclesMarginIsExactHoweverLargeTheCircleIs) {
   }
 }
 
-TEST(Silhouette, AnOvalGrowsByTheMarginOnBothOfItsAxes) {
+TEST(FlowShape, AnOvalGrowsByTheMarginOnBothOfItsAxes) {
   // A disc offset of an oval is not an oval: scaling the two axes until
   // the long one has grown by the margin grows the short one by less.
   // Both have to grow by exactly the margin.
   constexpr float kMargin = 25;
   const SkRect oval = SkRect::MakeXYWH(100, 200, 400, 100);
   ExclusionFlow flow(SkRect::MakeWH(800, 600));
-  flow.exclusions().push_back({silhouette::ellipse(oval), kMargin});
+  flow.exclusions().push_back({flowshape::ellipse(oval), kMargin});
 
   std::vector<LineInterval> out;
   // The band through the oval's middle: the free room ahead of it is the
@@ -201,11 +199,11 @@ TEST(Silhouette, AnOvalGrowsByTheMarginOnBothOfItsAxes) {
   EXPECT_FALSE(takesFromTheBand(oval.top() - kMargin - 6));
 }
 
-TEST(Silhouette, ARectanglesFlatSideStandsOffByExactlyTheMargin) {
+TEST(FlowShape, ARectanglesFlatSideStandsOffByExactlyTheMargin) {
   constexpr float kMargin = 18;
   const SkRect block = SkRect::MakeXYWH(240, 100, 80, 120);
   ExclusionFlow flow(SkRect::MakeWH(kSide, kSide));
-  flow.exclusions().push_back({silhouette::rectangle(block), kMargin});
+  flow.exclusions().push_back({flowshape::rectangle(block), kMargin});
 
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(30, 5, 4, out));  // band [150, 155]

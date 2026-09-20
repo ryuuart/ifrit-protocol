@@ -41,7 +41,7 @@ TEST(Incremental, MovingAnExclusionCostsNoCallToTheShaper) {
       "reflow around it without any reshaping at all, just new positions");
   ExclusionFlow flow(SkRect::MakeWH(360, 400));
   flow.exclusions().push_back(
-      {silhouette::circle(SkRect::MakeXYWH(50, 30, 90, 90)), 4});
+      {flowshape::circle(SkRect::MakeXYWH(50, 30, 90, 90)), 4});
 
   ParagraphLayout first = layoutParagraph(fontContext, paragraph, flow);
   fontContext.resetStats();

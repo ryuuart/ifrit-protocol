@@ -194,7 +194,7 @@ TEST(LineClamp, WorksUnderKnuthPlassAndExclusions) {
       "the exclusion geometry the paragraph is allowed to travel at all");
   ExclusionFlow flow(SkRect::MakeWH(300, 1000));
   flow.exclusions().push_back(
-      {silhouette::circle(SkRect::MakeXYWH(100, 20, 90, 90)), 4});
+      {flowshape::circle(SkRect::MakeXYWH(100, 20, 90, 90)), 4});
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;

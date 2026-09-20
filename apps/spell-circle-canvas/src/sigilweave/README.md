@@ -57,13 +57,13 @@ builder.addText(u8"Glyphs flow ")
     .addText(u8" obstacles… 日本語も 한국어도 中文也");
 Paragraph paragraph = builder.build();
 
-// A rectangle with silhouettes punched out of it. They are cheap to move:
+// A rectangle with shapes punched out of it. They are cheap to move:
 // geometry is re-queried on every layout pass, and an offset costs a
-// silhouette nothing.
+// flow shape nothing.
 ExclusionFlow flow(SkRect::MakeWH(900, 700));
-flow.exclusions().push_back({silhouette::circle(circleBounds), 8});
-flow.exclusions().push_back({silhouette::path(anyPath), 8});
-flow.exclusions().push_back({silhouette::coverage(photo, photoBox, 0.35f), 8});
+flow.exclusions().push_back({flowshape::circle(circleBounds), 8});
+flow.exclusions().push_back({flowshape::path(anyPath), 8});
+flow.exclusions().push_back({flowshape::coverage(photo, photoBox, 0.35f), 8});
 
 ParagraphLayoutOptions options;
 options.alignment = TextAlignment::kJustify;
@@ -179,14 +179,14 @@ each one is, what a `LineRequest` carries, what a contour interval means,
 and what a column costs `ExclusionFlow` are in `FEATURES.md` under the
 flow geometries.
 
-### Silhouettes
+### Flow shapes
 
-`ExclusionFlow` subtracts `Exclusion` values — a `Silhouette`, a margin,
-and an offset — and the silhouette is one virtual with one question:
+`ExclusionFlow` subtracts `Exclusion` values — a `FlowShape`, a margin,
+and an offset — and the flow shape is one virtual with one question:
 which stretches of a band, along the flow axis, does this shape occupy.
-There is no kind to switch on, so `silhouette::rectangle`,
-`silhouette::circle`, `silhouette::ellipse`, `silhouette::path`,
-`silhouette::coverage` and one a caller writes are peers. A rectangle and
+There is no kind to switch on, so `flowshape::rectangle`,
+`flowshape::circle`, `flowshape::ellipse`, `flowshape::path`,
+`flowshape::coverage` and one a caller writes are peers. A rectangle and
 a circle are answered analytically; a path is read off its own flattened
 outline, fill rule honoured, so holes and concavities stay open to text;
 coverage is read off an image's alpha wherever it exceeds a threshold,
@@ -199,7 +199,7 @@ circle answer it in closed form; a path answers it exactly through Skia's
 path ops, as the union of its fill with its own outline stroked at twice
 the margin, round join and round cap — which is what a disc rolled around
 the shape sweeps — and the band scan then reads that outline as it reads
-any other. Coverage is the one silhouette with no outline to grow, so it
+any other. Coverage is the one flow shape with no outline to grow, so it
 measures an exact Euclidean distance field over its pixels and reads the
 answer off that — `image::distanceField`, in SigilImage, because a
 distance transform is a question about pixels and belongs where image
@@ -207,7 +207,7 @@ meaning lives.
 
 **Motion is the offset.** `Exclusion::offset` is rigid motion: the band
 arrives moved back by it and the spans come out moved forward by it, so
-nothing the silhouette measured is thrown away. A shape that is rebuilt —
+nothing the flow shape measured is thrown away. A shape that is rebuilt —
 a morphing path, a new video frame — re-measures, which is the honest
 per-frame cost of text reflowing around live pixels.
 
@@ -391,7 +391,7 @@ layer shapes a rich run's named runs through.
 | `SigilWeaveStyle` | the style vocabulary, with `Type` — the partial a call site names a style's numbers in, every field optional — the merges that resolve one, and the `TypeSheet` of named partials | — |
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
-| `SigilWeaveLayout` | flows and silhouettes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilImageField (the distance field a silhouette measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |
+| `SigilWeaveLayout` | flows and flow shapes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilImageField (the distance field a flow shape measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |
 | `SigilWeaveDecoration` | decoration bands | Boost.Unordered (the stir the skip-ink cache keys with) — private |
 | `SigilWeavePaint` | `draw()` and `drawBatched()`, `paint/Paint.h` | — |
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
@@ -406,7 +406,7 @@ paragraph, then layout, with decoration, paint, choreograph and query
 each resting on the one they need — so a consumer of one tier links
 that tier alone; `SigilWeave` is for a consumer of the whole engine. Skia
 and SigilGeometryPath are PUBLIC dependencies — the path a line of text
-follows is a geometry contour, and a path silhouette flattens through the
+follows is a geometry contour, and a path flow shape flattens through the
 same library; the Unicode leaf, SigilImageField, HarfBuzz, ICU and Boost
 are PRIVATE and appear in no public header. Pimpls hide the hash maps, and
 `Word::segments()` hands out a `std::span` over storage whose container
@@ -504,7 +504,7 @@ What each feature's `test/` holds:
   landed, one subject to a file: both breakers (`LayoutTest`,
   `KnuthPlassTest`) and the live composer over them
   (`LiveComposerTest`), the flows (`FlowTest`) and the shapes text stands
-  off inside them (`SilhouetteTest`), overflow and clamp
+  off inside them (`FlowShapeTest`), overflow and clamp
   (`OverflowTest`), vertical writing (`VerticalTest`), placeholders
   (`PlaceholderTest`), relayout locality (`IncrementalTest`), text set on a
   geometry of its own (`PathTextTest`), how a justified line is fitted

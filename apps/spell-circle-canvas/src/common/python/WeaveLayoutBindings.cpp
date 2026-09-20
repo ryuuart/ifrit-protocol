@@ -385,11 +385,11 @@ void bindWeaveLayout(py::module_& root) {
           [](LineSetFlow& x, std::vector<std::vector<LineInterval>> lines) {
             x.lines() = std::move(lines);
           });
-  py::class_<Silhouette, std::shared_ptr<Silhouette>>(module, "Silhouette")
-      .def("bounds", &Silhouette::bounds)
+  py::class_<FlowShape, std::shared_ptr<FlowShape>>(module, "FlowShape")
+      .def("bounds", &FlowShape::bounds)
       .def(
           "bandSpans",
-          [](Silhouette& s, FlowAxis axis, Band band, float margin) {
+          [](FlowShape& s, FlowAxis axis, Band band, float margin) {
             std::vector<Span> out;
             s.bandSpans(axis, band, margin, out);
             return out;
@@ -415,24 +415,24 @@ void bindWeaveLayout(py::module_& root) {
       .def("axis", &ExclusionFlow::axis)
       .def("setMinimumIntervalWidth", &ExclusionFlow::setMinimumIntervalWidth,
            py::arg("minimumWidth"));
-  auto silhouettes = module.def_submodule("silhouette");
-  silhouettes.def(
+  auto flowshapes = module.def_submodule("flowshape");
+  flowshapes.def(
       "rectangle",
-      [](py::handle bounds) { return silhouette::rectangle(rect(bounds)); },
+      [](py::handle bounds) { return flowshape::rectangle(rect(bounds)); },
       py::arg("bounds"));
-  silhouettes.def(
+  flowshapes.def(
       "circle",
-      [](py::handle bounds) { return silhouette::circle(rect(bounds)); },
+      [](py::handle bounds) { return flowshape::circle(rect(bounds)); },
       py::arg("bounds"));
-  silhouettes.def(
+  flowshapes.def(
       "ellipse",
-      [](py::handle bounds) { return silhouette::ellipse(rect(bounds)); },
+      [](py::handle bounds) { return flowshape::ellipse(rect(bounds)); },
       py::arg("bounds"));
-  silhouettes.def("path", &silhouette::path, py::arg("path"));
-  silhouettes.def(
+  flowshapes.def("path", &flowshape::path, py::arg("path"));
+  flowshapes.def(
       "coverage",
       [](sk_sp<SkImage> image, py::handle bounds, float threshold) {
-        return silhouette::coverage(image, rect(bounds), threshold);
+        return flowshape::coverage(image, rect(bounds), threshold);
       },
       py::arg("image"), py::arg("bounds"), py::arg("threshold") = 0.5f);
   auto layout = py::class_<OwnedLayout>(module, "ParagraphLayout");

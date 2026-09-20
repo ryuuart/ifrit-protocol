@@ -4,7 +4,7 @@
 # metrics derived from the placed runs, with Story — a text and the block
 # styles it is set under — the value a chain of frames is filled from.
 # SigilGeometryPath is public — a contour interval carries a
-# geometry::path::Contour. SigilImageField is private: a silhouette asked
+# geometry::path::Contour. SigilImageField is private: a flow shape asked
 # for a standoff measures an exact distance field over its own coverage,
 # and that primitive belongs where image meaning lives. The Unicode leaf is
 # private: a reading set beside its base is split at grapheme boundaries
@@ -19,7 +19,7 @@ sigil_library(SigilWeaveLayout
   SOURCES BandScan.cpp BandScan.h Beside.cpp Blobs.cpp Blobs.h Block.cpp Blocks.cpp
           Ellipsis.cpp Flow.cpp Greedy.cpp InitialLetter.cpp KnuthPlass.cpp
           LayoutMetrics.cpp LineBreak.cpp Placement.cpp PlacementMojikumi.cpp
-          PlacementSegments.cpp PlacementTabs.cpp Silhouette.cpp TextContext.cpp
+          PlacementSegments.cpp PlacementTabs.cpp FlowShape.cpp TextContext.cpp
           KnuthPlassPrefix.h ParagraphLayoutInternal.h
   HEADERS Beside.h Block.h Breaking.h Flow.h Frame.h InitialLetter.h Justification.h
           LayoutOptions.h Mojikumi.h Overflow.h ParagraphLayout.h
@@ -42,7 +42,7 @@ sigil_library(SigilWeaveLayout
 sigil_test(weave_test
   SOURCES test/BlockTest.cpp test/LayoutTest.cpp test/KnuthPlassTest.cpp
           test/LiveComposerTest.cpp test/OverflowTest.cpp
-          test/VerticalTest.cpp test/FlowTest.cpp test/SilhouetteTest.cpp test/PathTextTest.cpp
+          test/VerticalTest.cpp test/FlowTest.cpp test/FlowShapeTest.cpp test/PathTextTest.cpp
           test/PlaceholderTest.cpp test/IncrementalTest.cpp
           test/JustificationTest.cpp test/LeadingTest.cpp test/TabStopTest.cpp
           test/FrameTest.cpp test/HyphenationTest.cpp test/LineEdgesTest.cpp

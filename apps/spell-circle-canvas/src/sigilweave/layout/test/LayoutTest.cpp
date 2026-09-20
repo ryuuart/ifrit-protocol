@@ -130,7 +130,7 @@ TEST(ParagraphLayout, ExclusionShapeSplitsText) {
       "filling both fragments of every interrupted line with words");
   ExclusionFlow flow(SkRect::MakeWH(400, 300));
   flow.exclusions().push_back(
-      {silhouette::circle(SkRect::MakeXYWH(140, 40, 120, 120)), 6});
+      {flowshape::circle(SkRect::MakeXYWH(140, 40, 120, 120)), 6});
   flow.setMinimumIntervalWidth(40);
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
