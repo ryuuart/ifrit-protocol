@@ -21,6 +21,7 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/core/Registration.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Registration.h>
 #include <sigilpython/skia/Values.h>

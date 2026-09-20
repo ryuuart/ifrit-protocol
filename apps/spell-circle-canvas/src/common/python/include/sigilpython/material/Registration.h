@@ -12,6 +12,8 @@
 
 namespace sigil::python {
 
+/** Registers the one colour class Python sees on @p module. */
+void bindColor(pybind11::module_& module);
 /** Registers materials on @p module. */
 void bindMaterial(pybind11::module_& module);
 /** Registers the value model: Material, Recipe authoring, Schema,

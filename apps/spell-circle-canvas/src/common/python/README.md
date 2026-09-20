@@ -119,6 +119,22 @@ author sees when their line in the assembly sits above the registration
 they meant to extend. `registeredClass` is that check on its own, for a
 caller that wants the type object rather than a class handle.
 
+A borrowed class carries whichever holder the file that registered it
+gave the type, and the template cannot read that back, so the holder is
+the second template argument wherever it is not pybind11's own
+`std::unique_ptr`:
+
+```cpp
+extend<ImageAsset, std::shared_ptr<ImageAsset>>(module, "image.ImageAsset");
+```
+
+Adding methods and properties through the wrong one still works; adding
+a constructor or a factory through it allocates a holder the rest of the
+bindings do not expect. `submodule` refuses rather than replaces when a
+step of its path already names something that is not a module, because a
+silent replacement would unregister the class or function another package
+put there.
+
 ## Callback ownership
 
 * `Bindings.h` — `PythonValue`, `PythonCallback`, `CallbackLifetime`,
@@ -154,24 +170,16 @@ does not extend access to the borrowed pen.
 
 * `Bindings.h` — `color`
 * `skia/Values.h` — `point`, `rect`
-* `skia/Registration.h` — `bindCore`, `bindColor`, `bindValues`
 * `compose/Convert.h` — `dimension`, `fill`, `surfacePaint`, `alignment`,
   `justification`, `shape`, `elements`
 * `compose/Kit.h` — `converted`, `record`, `field`, `wellFields`,
   `contentType`
-* `compose/Registration.h` — `bindCompose`, `bindComposeKit`, `bindDocument`
 * `motion/Convert.h` — `motionAnimatable`, `motionInk`, `motionFill`,
   `motionEase`, `motionTransition`
 * `io/Hub.h` — `HubHandle`, `retainSessionFeed`
 * `data/Convert.h` — `dataDatabase`, `loadData`
-* `geometry/Registration.h` — `bindGeometry`, `bindGeometrySeams`
-* `weave/Registration.h` — `bindWeave`, `bindWeaveLayout`
-* `draw/Registration.h` — `bindPen`, `bindBrush`
-* `world/Registration.h` — `bindWorld`
-* `core/Registration.h` — `bindRecordProtocol`
-* `data/Registration.h` — `bindData`
-* `io/Registration.h` — `bindIO`
-* `material/Registration.h` — `bindMaterial`
+* `geometry/Casters.h` — the casters that let a Python sequence stand for
+  a glm vector, which declare no name of their own
 
 ONE COLOUR CLASS REACHES PYTHON. Skia's colour value and SigilMaterial's are
 the same four straight sRGB floats, so only `material::Color` is registered:
@@ -214,6 +222,69 @@ accept the same Element children as ordinary Compose containers; paragraphs
 accept plain strings or native rich text. Role rules and default properties
 remain native declarations resolved from the eventual parent tree. They do
 not read a Python theme or capture an authoring-time environment.
+
+## The registration index
+
+ONE HEADER PER LIBRARY, AND EVERY ONE OF ITS REGISTRATIONS IN IT. A
+registration header is the whole list of what that library's packages add
+to the extension module, so an author reads one file to see which
+subjects their library already plans and what each is called. Four
+libraries are declared only where their SDK is present, and the module
+assembly guards their calls the same way.
+
+* `core/Registration.h` — `bindCore`, `bindCoreCompute`, `bindCoreValues`,
+  `bindOptionalLibraries`, `bindRecordProtocol`
+* `skia/Registration.h` — `bindValues`, `bindSkiaEffects`, `bindSkiaFonts`,
+  `bindSkiaPaths`, `bindSkiaSurfaces`
+* `image/Registration.h` — `bindImageValues`, `bindImageMeaning`
+* `material/Registration.h` — `bindColor`, `bindMaterial`,
+  `bindMaterialCore`, `bindMaterialEnvironment`, `bindMaterialField`,
+  `bindMaterialKitGrained`, `bindMaterialKitText`,
+  `bindMaterialPaintEffect`, `bindMaterialPattern`, `bindMaterialShading`,
+  `bindMaterialSkiaDraw`, `bindMaterialTexture`, `bindMaterialTextureSets`
+* `geometry/Registration.h` — `bindGeometry`, `bindGeometryCharts`,
+  `bindGeometryDeviceHandle`, `bindGeometryFrames`, `bindGeometryMesh`,
+  `bindGeometryMeshCamera`, `bindGeometryMeshCodec`,
+  `bindGeometryMeshCurve`, `bindGeometryMeshPoints`,
+  `bindGeometryMeshRender`, `bindGeometryPathEditing`,
+  `bindGeometryPathOperations`, `bindGeometryPointBuilder`,
+  `bindGeometryPointKernels`, `bindGeometryPointOperations`,
+  `bindGeometryPolylines`, `bindGeometryProfiles`, `bindGeometryRegions`,
+  `bindGeometrySeams`, `bindGeometryShapes`, `bindGeometryStructures`
+* `motion/Registration.h` — `bindMotion`, `bindMotionAnimatableForms`,
+  `bindMotionClock`, `bindMotionLanes`, `bindMotionParticles`,
+  `bindMotionPhysics`, `bindMotionSchedule`, `bindMotionSignals`
+* `weave/Registration.h` — `bindWeave`, `bindWeaveCascade`,
+  `bindWeaveChoreography`, `bindWeaveFlows`, `bindWeaveFonts`,
+  `bindWeaveLayout`, `bindWeavePorts`, `bindWeaveSelectorUnicode`,
+  `bindWeaveShaping`, `bindWeaveTables`
+* `compose/Registration.h` — `bindCompose`, `bindComposeBrushComposites`,
+  `bindComposeBrushMarks`, `bindComposeComposer`,
+  `bindComposeDecorationPrimitives`, `bindComposeDecorationSeam`,
+  `bindComposeDerive`, `bindComposeFeed`, `bindComposeInstancing`,
+  `bindComposeKit`, `bindComposeKitAnnotations`, `bindComposeKitEras`,
+  `bindComposeKitKinetic`, `bindComposeKitLegibility`,
+  `bindComposeKitOrnament`, `bindComposeKitPixelType`,
+  `bindComposeKitRoutes`, `bindComposeKitRows`, `bindComposeKitSprites`,
+  `bindComposeKitStrokes`, `bindComposeKitTypeset`,
+  `bindComposeLayerStyles`, `bindComposeLines`, `bindComposeMasks`,
+  `bindComposeMediaLeaves`, `bindComposePaintPrograms`,
+  `bindComposePixelStyles`, `bindComposeSchemes`, `bindComposeSheets`,
+  `bindComposeTextEffects`, `bindComposeTextureScene`, `bindDocument`
+* `draw/Registration.h` — `bindPen`, `bindBrush`, `bindDrawCanvasSeam`,
+  `bindDrawStandalonePen`
+* `world/Registration.h` — `bindWorld`, `bindWorldDescription`,
+  `bindWorldDevice`, `bindWorldEnvironment`, `bindWorldGeometry`,
+  `bindWorldPasses`, `bindWorldPlan`, `bindWorldTargets`, `bindWorldView`
+* `io/Registration.h` — `bindIO`, `bindIOHubGrowth`, `bindIOPublish`,
+  `bindIOSources`
+* `data/Registration.h` — `bindData`, `bindDataConnection`,
+  `bindDataSchema`, `bindDataTables`
+* `measure/Registration.h` — `bindMeasure`
+* `video/Registration.h` — `bindVideo`
+* `scry/Registration.h` — `bindScry`
+* `substance/Registration.h` — `bindSubstance`
+* `usd/Registration.h` — `bindUsd`
 
 ## World ownership
 

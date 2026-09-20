@@ -22,15 +22,18 @@ py::module_ submodule(py::module_& root, const char* path) {
     const size_t stop = std::min(rest.find('.'), rest.size());
     const std::string name(rest.substr(0, stop));
     const py::object existing = step(found, name);
-    found = existing && py::isinstance<py::module_>(existing)
-                ? py::reinterpret_borrow<py::module_>(existing)
-                : found.def_submodule(name.c_str());
+    if (existing && !py::isinstance<py::module_>(existing))
+      throw std::runtime_error(
+          std::string("Cannot publish ") + path + ": " + name +
+          " is already registered, and not as a module.");
+    found = existing ? py::reinterpret_borrow<py::module_>(existing)
+                     : found.def_submodule(name.c_str());
     rest.remove_prefix(std::min(stop + 1, rest.size()));
   }
   return found;
 }
 
-py::handle registeredClass(py::module_& root, const char* path) {
+py::object registeredClass(py::module_& root, const char* path) {
   py::object found = root;
   std::string_view rest(path);
   while (!rest.empty()) {
@@ -46,7 +49,7 @@ py::handle registeredClass(py::module_& root, const char* path) {
   if (!py::isinstance<py::type>(found))
     throw std::runtime_error(std::string(path) +
                              " is registered, but not as a class.");
-  return found.release();
+  return found;
 }
 
 }  // namespace sigil::python

@@ -1,4 +1,4 @@
-"""Split ValueBindings.cpp so Skia, Image and Core own their own files.
+"""Give Skia, Image and Core each their own source of bound values.
 
 Input contracts for the erased signatures of the
 skia-image-core/value-split package, and nothing else: a fragment is one

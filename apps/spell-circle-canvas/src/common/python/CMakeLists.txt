@@ -100,9 +100,6 @@ if(TARGET SigilUsd)
   target_link_libraries(SigilPython PRIVATE SigilUsdRead SigilUsdRuntime SigilUsdWrite)
   target_compile_definitions(SigilPython PUBLIC SIGIL_PYTHON_HAS_USD)
 endif()
-if(TARGET SigilVideoDecode)
-  target_compile_definitions(SigilPython PUBLIC SIGIL_PYTHON_HAS_VIDEO)
-endif()
 
 target_include_directories(SigilPython SYSTEM PUBLIC ${Python3_INCLUDE_DIRS})
 # Executables embed Python; extension modules resolve Python symbols from

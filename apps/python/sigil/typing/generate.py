@@ -106,6 +106,21 @@ def registered_again(holder: object, published: str, registered: str) -> None:
             registered_again(value, published, registered)
 
 
+def unregistered(raw: str) -> KeyError:
+    """The table row this extension has no module behind, named.
+
+    A module the extension does not register is a binding that lost its
+    call, not a build without an SDK, unless the table says the library
+    behind it is one a build may not carry.
+    """
+    return KeyError(
+        f"{raw} has a row in PUBLIC_MODULES and this extension does not "
+        "register it. Register it, drop its row, or, if the library behind "
+        "it is a licensed SDK, name it in OPTIONAL_MODULES in "
+        "typing/surface.py."
+    )
+
+
 def restore_registered_modules() -> None:
     """Undo the extension's public naming for the length of this walk.
 
@@ -119,7 +134,13 @@ def restore_registered_modules() -> None:
     for raw, published in surface.PUBLIC_MODULES.items():
         if raw in surface.DECLARATION_ONLY:
             continue
-        registered_again(importlib.import_module(raw), published, raw)
+        try:
+            holder = importlib.import_module(raw)
+        except ModuleNotFoundError:
+            if raw in surface.OPTIONAL_MODULES:
+                continue
+            raise unregistered(raw) from None
+        registered_again(holder, published, raw)
 
 
 def generate_raw(destination: pathlib.Path) -> dict[str, str]:
@@ -348,10 +369,18 @@ def carried(texts: dict[str, str], public: str) -> list[str]:
     A library behind a licensed SDK is left out of builds that have no SDK,
     and the wheel deliberately builds without two of them. Its rows stay in
     the table either way, so the surface is one table and not a build
-    variant; a row this extension does not carry contributes nothing here,
-    and a row that is absent without being optional still fails by name.
+    variant; an optional row this extension does not carry contributes
+    nothing here, and a row that is absent without being optional still
+    fails by name, because an unregistered module is a binding that lost
+    its call and not a build without an SDK.
     """
-    return [raw for raw in surface.raw_modules(public) if raw in texts]
+    present = []
+    for raw in surface.raw_modules(public):
+        if raw in texts:
+            present.append(raw)
+        elif raw not in surface.OPTIONAL_MODULES:
+            raise unregistered(raw)
+    return present
 
 
 def skipped(texts: dict[str, str]) -> set[str]:

@@ -13,6 +13,9 @@
 
 namespace sigil::python {
 
+/** Registers the kernel values every binding is written in terms of on
+ *  @p module. */
+void bindCore(pybind11::module_& module);
 /** Registers distributions, shuffle, reservoir, the chance token, the
  *  noise field and mixers, the pinned hash folds, interval normal forms
  *  on @p module. */

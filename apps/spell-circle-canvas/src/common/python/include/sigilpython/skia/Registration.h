@@ -12,11 +12,6 @@
 
 namespace sigil::python {
 
-/** Registers the one colour class Python sees on @p module. */
-void bindColor(pybind11::module_& module);
-/** Registers the kernel values every binding is written in terms of on
- *  @p module. */
-void bindCore(pybind11::module_& module);
 /** Registers shaders, gradients, colour and image filters, mask
  *  filters, path effects, blenders on @p module. */
 void bindSkiaEffects(pybind11::module_& module);
