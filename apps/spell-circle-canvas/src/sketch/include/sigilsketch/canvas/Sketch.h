@@ -284,9 +284,10 @@ struct SketchContext {
  *      composer.render(...) and the reconciler diffs it. Do not
  *      re-render every frame out of habit — bindings are cheaper.
  *
- *  Keep state in members: every reload constructs a fresh instance,
- *  while the shared clock keeps running, so elapsed time is continuous
- *  across an edit. */
+ *  Keep state in members: every reload constructs a fresh instance and
+ *  opens a fresh session, which owns a fresh clock, so elapsed time
+ *  starts at zero again and the piece plays from its beginning — the
+ *  entrance being edited runs again on every save. */
 template <class SketchType>
 concept CanvasSketch =
     core::PrefixCallable<detail::SetupCall<SketchType>, void(SketchContext&)>;

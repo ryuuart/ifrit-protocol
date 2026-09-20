@@ -212,6 +212,35 @@ TEST(SketchHost, WritesACaptureAtTheScaleItIsAsked) {
   EXPECT_TRUE(std::filesystem::exists(out));
 }
 
+TEST(SketchHost, TheStillIsPixelsAndTheCaptureIsThePng) {
+  // THE SPLIT THE THUMBNAIL STORE LIVES IN. The repaint and the readback
+  // need the thread the frames are drawn on; the encode and the write do
+  // not, so `still` hands back pixels and stops there.
+  const Watched file("sigil_sketch_host_still");
+  Host host(options(file.path), fonts());
+  const SkBitmap still = host.still(2.0f);
+  ASSERT_FALSE(still.isNull());
+  EXPECT_EQ(still.dimensions(), SkISize::Make(240, 180));
+  EXPECT_EQ(still.getColor(5, 5), SK_ColorGREEN);
+  // The pixels are safe to hand to another thread, which is what the
+  // thumbnail store does with them.
+  EXPECT_TRUE(still.isImmutable());
+
+  // And the old contract is unchanged: capture writes the PNG.
+  const std::filesystem::path out = file.dir.path / "still.png";
+  EXPECT_TRUE(host.capture(out, 2.0f));
+  EXPECT_TRUE(std::filesystem::exists(out));
+}
+
+TEST(SketchHost, StillRefusesFailedReadback) {
+  const Watched file("sigil_sketch_still_readback");
+  Host host(options(file.path), fonts());
+  Host::CaptureBackend backend;
+  backend.readback = [](SkSurface&, const SkPixmap&) { return false; };
+  host.setCaptureBackend(std::move(backend));
+  EXPECT_TRUE(host.still().isNull());
+}
+
 struct CaptureClock {
   static inline std::vector<double> updates;
   static inline bool resize = false;
@@ -244,6 +273,31 @@ TEST(SketchHost, CaptureMomentIncludesZeroAndTheFractionalStep) {
   ASSERT_EQ(CaptureClock::updates.size(), 2u);
   EXPECT_DOUBLE_EQ(CaptureClock::updates.front(), 1.0 / 60.0);
   EXPECT_DOUBLE_EQ(CaptureClock::updates.back(), 0.025);
+}
+
+TEST(SketchHost, ReloadStartsElapsedTimeAtZero) {
+  const Watched file("sigil_sketch_host_reload_clock");
+  auto opts = options(file.path);
+  opts.compiledIn = &kCaptureClock;
+  Host host(std::move(opts), fonts());
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 90));
+  CaptureClock::updates.clear();
+  for (int frame = 0; frame < 6; ++frame)
+    ASSERT_TRUE(host.frame(*surface->getCanvas(), 1.0 / 60.0));
+  const double ran = CaptureClock::updates.back();
+  EXPECT_DOUBLE_EQ(ran, 6.0 / 60.0);
+
+  // A RELOAD OPENS A FRESH SESSION, WHICH OWNS A FRESH CLOCK, so the
+  // first frame after it is one step from zero rather than one step
+  // from where the session before it stood — which is what makes the
+  // entrance being edited play again on every save.
+  ASSERT_TRUE(host.restartSession());
+  CaptureClock::updates.clear();
+  ASSERT_TRUE(host.frame(*surface->getCanvas(), 1.0 / 60.0));
+  ASSERT_EQ(CaptureClock::updates.size(), 1u);
+  EXPECT_DOUBLE_EQ(CaptureClock::updates.front(), 1.0 / 60.0);
+  EXPECT_LT(CaptureClock::updates.front(), ran);
 }
 
 TEST(SketchHost, InvalidCaptureTimingDoesNotRunTheSketch) {
