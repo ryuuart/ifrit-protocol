@@ -92,7 +92,7 @@ TEST(ComposeBorders, ARoundedCornerIsNotACorner) {
   // single gap. Neither reports an error.
   Host host;
   host.composer.render(box().children(
-      {box().width(100).height(100).corners({30}).fill(blue()).stroke(
+      {box().width(100).height(100).borderRadius({30}).fill(blue()).stroke(
           spans::corners(20), brush::solid(6, white()))}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorBLUE);
@@ -101,7 +101,7 @@ TEST(ComposeBorders, ARoundedCornerIsNotACorner) {
 
   Host gapped;
   gapped.composer.render(box().children(
-      {box().width(100).height(100).corners({30}).fill(blue()).stroke(
+      {box().width(100).height(100).borderRadius({30}).fill(blue()).stroke(
           spans::edges(20), brush::solid(6, white()))}));
   gapped.frame();
   EXPECT_EQ(gapped.pixel(50, 1), SK_ColorWHITE);

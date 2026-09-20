@@ -427,7 +427,7 @@ Element marqueeStrip(float acrossPx, float alongPx) {
       row.children({box()
                         .width(6)
                         .height(28.0f + 134.0f * beat)
-                        .corners({3})
+                        .borderRadius({3})
                         .fill(Fill::color(
                             {0.455f, 0.878f, 0.745f, 0.45f + 0.5f * beat}))});
     }

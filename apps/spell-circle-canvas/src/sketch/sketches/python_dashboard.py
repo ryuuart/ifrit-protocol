@@ -44,7 +44,7 @@ def metric(label, value, detail, accent, level, index):
         .padding(23)
         .gap(15)
         .grow(1)
-        .corners(16)
+        .borderRadius(16)
         .fill(PANEL)
         .key(label)
         .opacity(entrance(0, 1, duration=0.6, delay=index * 0.1))
@@ -55,7 +55,7 @@ def metric(label, value, detail, accent, level, index):
                 .gap(8)
                 .alignItems("center")
                 .children(
-                    (box().width(7).height(7).corners(4).fill(accent)),
+                    (box().width(7).height(7).borderRadius(4).fill(accent)),
                     doc.label(label).fontSize(12).ink(MUTED),
                 )
             ),
@@ -88,7 +88,7 @@ def signal_panel():
         column()
         .padding(25)
         .gap(22)
-        .corners(16)
+        .borderRadius(16)
         .fill(PANEL)
         .children(
             (
@@ -120,7 +120,7 @@ def signal_panel():
                             box()
                             .height(124 * sample + 8)
                             .grow(1)
-                            .corners(3)
+                            .borderRadius(3)
                             .fill("#8bd0bd" if i < 32 else "#edbb83")
                             .key(f"sample.{i}")
                             .scaleY(
@@ -173,11 +173,11 @@ class Dashboard:
                             row()
                             .padding(14, 10)
                             .gap(8)
-                            .corners(14)
+                            .borderRadius(14)
                             .fill("#203d3b")
                             .alignItems("center")
                             .children(
-                                (box().width(6).height(6).corners(3).fill("#8bd0bd")),
+                                (box().width(6).height(6).borderRadius(3).fill("#8bd0bd")),
                                 doc.label("OBSERVING").fontSize(11).ink("#8bd0bd"),
                             )
                         ),

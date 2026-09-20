@@ -17,7 +17,7 @@ ASH = "#8ea0ad"
 def cell(caption: str, plate: compose.Element) -> compose.Element:
     return (
         compose.box(
-            plate.width(160).height(100).corners(12),
+            plate.width(160).height(100).borderRadius(12),
             compose.text(caption, size=12, color=ASH),
         )
         .column()

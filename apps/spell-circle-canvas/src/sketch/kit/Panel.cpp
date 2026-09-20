@@ -67,7 +67,7 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
   if (const float round =
           chrome.screenCorners.value_or(look.spacing.screenCorners);
       round > 0)
-    opening.corners(Corners{round});
+    opening.borderRadius(Corners{round});
   const Fill rule = chrome.keyline.value_or(Fill::color(look.palette.rule));
   if (rule.kind != Fill::Kind::None)
     opening.stroke(compose::stroke(1, rule, compose::PathFormat::Align::Inner));
@@ -79,7 +79,7 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
   if (chrome.height.unit != Dimension::Unit::Auto) shell.height(chrome.height);
   if (const float round = chrome.corners.value_or(look.spacing.panelCorners);
       round > 0)
-    shell.corners(Corners{round});
+    shell.borderRadius(Corners{round});
   shell.children({std::move(opening)});
   if (!chrome.plate.empty())
     shell.children({compose::document::eyebrow(chrome.plate)

@@ -24,7 +24,7 @@ auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
       .shrink(0)
       .padding(11)
       .gap(4)
-      .corners({5})
+      .borderRadius({5})
       .fill(kPanelBg)
       // Every line in a panel is set in the mono face and the type-2 ink
       // unless it says otherwise; a line names its size and, where it

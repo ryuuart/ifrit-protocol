@@ -34,4 +34,4 @@ path and clip against that.
 
 ## See also
 
-[`shape`](shape.md), [`corners`](corners.md), [`mask`](mask.md).
+[`shape`](shape.md), [`borderRadius`](borderRadius.md), [`mask`](mask.md).

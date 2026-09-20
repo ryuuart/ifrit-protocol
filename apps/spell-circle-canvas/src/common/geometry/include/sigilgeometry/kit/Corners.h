@@ -102,7 +102,7 @@ Shaped<Inner, S> shaped(Inner shape, S shaper) {
 // ---------------------------------------------------------------------------
 // Corner geometry — the shapes a frame is actually cut to
 //
-// `corners()` rounds, and rounding is the ONE corner treatment the kernel
+// `borderRadius()` rounds, and rounding is the ONE corner treatment the kernel
 // offers. The other two are the 45° CHAMFER — the cut corner that reads as
 // machined metal — and the rectangular NOTCH, the bitten corner that reads
 // as a stencil or a fixing lug. Both take a per-corner MASK rather than a

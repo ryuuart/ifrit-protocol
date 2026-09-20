@@ -233,7 +233,7 @@ inline Element panel(float height, std::string_view heading, int order) {
       .shrink(0)
       .padding(kPanelPad)
       .gap(7)
-      .corners({5})
+      .borderRadius({5})
       .fill(kPanel)
       .clip(true)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))

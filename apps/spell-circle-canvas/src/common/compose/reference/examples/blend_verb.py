@@ -22,7 +22,7 @@ def cell(caption: str, mode: skia.BlendMode) -> compose.Element:
                 compose.box()
                 .width(84)
                 .height(84)
-                .corners(42)
+                .borderRadius(42)
                 .fill(DISC)
                 .blend(mode)
                 .left(compose.pct(30))
@@ -30,7 +30,7 @@ def cell(caption: str, mode: skia.BlendMode) -> compose.Element:
             )
             .width(compose.pct(100))
             .height(120)
-            .corners(10)
+            .borderRadius(10)
             .clip(),
             compose.text(caption, size=12, color=ASH),
         )

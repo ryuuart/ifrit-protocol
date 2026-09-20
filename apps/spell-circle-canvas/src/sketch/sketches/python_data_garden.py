@@ -97,7 +97,7 @@ class DataGarden:
                         row()
                         .gap(7)
                         .children(
-                            (box().width(8).height(8).fill(ink).corners(4)),
+                            (box().width(8).height(8).fill(ink).borderRadius(4)),
                             label(f"ROOM {room}", 10, MUTED),
                         )
                     )
@@ -142,7 +142,7 @@ class DataGarden:
                             box()
                             .fill(INK)
                             .padding(17)
-                            .corners(3)
+                            .borderRadius(3)
                             .children(
                                 label("BOTANICAL\nTRIAL LEDGER", 11, "#f3f1e8"),
                             )

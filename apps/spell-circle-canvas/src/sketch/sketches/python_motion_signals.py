@@ -41,7 +41,7 @@ def signal_row(number, title, detail, signal, accent):
                 .width(30)
                 .height(30)
                 .fill(accent)
-                .corners(8)
+                .borderRadius(8)
                 .absolute()
                 .left(0)
                 .top(7)
@@ -57,7 +57,7 @@ def signal_row(number, title, detail, signal, accent):
         .padding(16, 20)
         .width(WIDTH)
         .fill("#162621" if number % 2 else "#13221e")
-        .corners(12)
+        .borderRadius(12)
         .children(
             (
                 column()
@@ -138,7 +138,7 @@ class MotionSignals:
                 (
                     box()
                     .padding(12)
-                    .corners(8)
+                    .borderRadius(8)
                     .fill("#1b3124")
                     .children(
                         doc.label("NATIVE\nCLOCK").fontSize(13).ink("#b7dd93"),

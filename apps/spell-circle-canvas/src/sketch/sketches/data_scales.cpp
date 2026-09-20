@@ -58,7 +58,7 @@ Element dot(const sketch::kit::Datum&, std::size_t) {
   return box()
       .width(14)
       .height(14)
-      .corners(Corners{7})
+      .borderRadius(Corners{7})
       .fill(Fill::currentInk());
 }
 

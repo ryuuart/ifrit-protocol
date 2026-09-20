@@ -68,7 +68,7 @@ TEST(ComposeShapeValues, PerCornerRadiiIndependent) {
   Host host;
   // Sharp top-left, heavily rounded top-right.
   host.composer.render(box().children(
-      {box().width(100).height(100).corners({0, 40, 0, 0}).fill(red())}));
+      {box().width(100).height(100).borderRadius({0, 40, 0, 0}).fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(2, 2), SK_ColorRED);     // sharp TL corner filled
   EXPECT_EQ(host.pixel(97, 2), SK_ColorBLACK);  // rounded TR corner empty

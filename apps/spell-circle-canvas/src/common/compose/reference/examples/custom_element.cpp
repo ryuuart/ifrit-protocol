@@ -60,7 +60,7 @@ struct CustomElement {
             custom("reference/rings", rings)
                 .width(pct(100))
                 .height(190)
-                .corners({10})
+                .borderRadius({10})
                 .fill(kCell)
                 .clip(),
             text("custom(key, program)").font({.size = 12, .color = kAsh}),

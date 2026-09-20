@@ -288,7 +288,7 @@ void GenesisFire::seedBench() {
   // ONE baked aspect. The paper's shape goes from elongated at ejection to
   // stubby at apogee; an atlas cell is one size and a Pool scale is one
   // float, so this cell is the compromise the middle two panels show.
-  abAtlas->cell(box().width(4.4f).height(2.3f).corners({1.0f}).fill(
+  abAtlas->cell(box().width(4.4f).height(2.3f).borderRadius({1.0f}).fill(
                     Paint::radialUnit({0.5f, 0.5f}, 1.05f,
                                       {{0.0f, {1, 1, 1, 1}},
                                        {0.42f, {1, 1, 1, 0.9f}},

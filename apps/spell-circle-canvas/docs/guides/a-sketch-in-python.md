@@ -35,7 +35,7 @@ ACCENT = "#e2714b"
 def chip(index: int, total: int) -> compose.Element:
     """One chip, tinted along a ramp by where it sits in the run."""
     tint = material.lerpOklab("#2f6f8f", ACCENT, index / (total - 1))
-    return compose.box().width(54).height(54).corners(10).fill(tint)
+    return compose.box().width(54).height(54).borderRadius(10).fill(tint)
 
 
 @sketch(size=(620, 260), background=GROUND, capture_at=1.0)

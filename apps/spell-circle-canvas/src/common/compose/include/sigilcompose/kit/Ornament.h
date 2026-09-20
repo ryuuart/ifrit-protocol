@@ -404,7 +404,7 @@ inline Element illuminatedPanel(const Palette& pal) {
   goldDash.strokeFill = Fill::color(pal.gold);
   goldDash.dashIntervals = {8, 5};
   return box()
-      .corners({8})
+      .borderRadius({8})
       .fill(parchmentFill(pal.parchment))
       .background(sigil::compose::shadow({0, 0, 0, 0.35f}, {2, 3}, 8))
       .foreground(sigil::compose::stroke(1.8f, Fill::color(pal.stem)))

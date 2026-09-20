@@ -60,7 +60,7 @@ auto Fallout2CharSheet::buildSurfaces() -> void {
 
 auto Fallout2CharSheet::well(fo::Rect r, float radius, bool rivets) -> Element {
   using namespace fo;
-  Element e = atR(box(), r).corners(Corners{n(radius)}).fill(wellMat);
+  Element e = atR(box(), r).borderRadius(Corners{n(radius)}).fill(wellMat);
   e.background(styles::dropShadow(hexColor(0x000000, 0.55f), {0, n(1)}, n(2)));
   e.stroke(
       stroke(n(1), Fill::color(hexColor(0x0A0E06)), PathFormat::Align::Inner));
@@ -86,7 +86,7 @@ auto Fallout2CharSheet::well(fo::Rect r, float radius, bool rivets) -> Element {
 
 auto Fallout2CharSheet::raised(fo::Rect r, float radius) -> Element {
   using namespace fo;
-  Element e = atR(box(), r).corners(Corners{n(radius)}).fill(tabMat);
+  Element e = atR(box(), r).borderRadius(Corners{n(radius)}).fill(tabMat);
   e.foreground(
       stamp(1.4f, 1.8f, hexColor(0xA08858, 0.60f), hexColor(0x0C0906, 0.65f)));
   e.stroke(stroke(n(1), Fill::color(hexColor(0x1A1610, 0.9f)),
@@ -156,7 +156,7 @@ auto Fallout2CharSheet::chrome() -> Element {
                   engravedRise(n(24.0f))),
               at(box(), 520, 226, 34, 28)
                   .fill(Fill::color(hexColor(0x120E08)))
-                  .corners(Corners{n(2)})
+                  .borderRadius(Corners{n(2)})
                   .foreground(fo::stamp(1.0f, 1.4f, hexColor(0x8A7448, 0.45f),
                                         hexColor(0x000000, 0.6f), 300)),
               box().at({0, 0}).children({slot("points")})});
@@ -168,7 +168,7 @@ auto Fallout2CharSheet::chrome() -> Element {
   const float textX[3] = {364, 477, 573};
   for (int i = 0; i < 3; ++i) {
     Element lamp = at(box(), lampX[i], 455, 12, 12)
-                       .corners(Corners{n(6)})
+                       .borderRadius(Corners{n(6)})
                        .fill(Paint::radialUnit({0.35f, 0.30f}, 1.1f,
                                                {{0.0f, hexColor(0xFF6A4A)},
                                                 {0.45f, kLampOn},
@@ -178,7 +178,7 @@ auto Fallout2CharSheet::chrome() -> Element {
     if (i == 1)  // DONE dims and returns as the `+` is pressed
       lamp.children({box()
                          .inset(0)
-                         .corners(Corners{n(6)})
+                         .borderRadius(Corners{n(6)})
                          .fill(Fill::color(kLampOff))
                          .opacity(&lampFlash)});
     g.children({lamp, ink(engravedText(btn[i], n(22.0f), 0.80f, 0.3f), textX[i],

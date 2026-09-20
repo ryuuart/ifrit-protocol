@@ -14,7 +14,7 @@ def card(label: str, accent: str) -> Element:
         .column()
         .gap(8)
         .padding(18)
-        .corners(12)
+        .borderRadius(12)
         .fill(accent)
         .ink("#ffffff")
         .children(
@@ -38,7 +38,7 @@ class ComposeStamps:
             .row()
             .gap(4)
             .padding(6)
-            .corners(6)
+            .borderRadius(6)
             .fill("#273d41")
             .ink("#ffffff")
             .children(text("Aa", size=18), text("01", size=10))

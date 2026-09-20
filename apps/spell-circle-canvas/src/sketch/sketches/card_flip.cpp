@@ -112,7 +112,7 @@ sketch::kit::Theme sheetTheme() {
 Element panel(const char* caption, Element content) {
   return kit::centred(std::move(content))
       .grow(1)
-      .corners({10})
+      .borderRadius({10})
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
       .children({text(caption)
@@ -157,7 +157,7 @@ struct CardFlip {
     const auto face = [](const char* title, const char* line, SkColor4f fill,
                          float turn) {
       return kit::at(0, 0, w, h)
-          .corners({16})
+          .borderRadius({16})
           .fill(Fill::color(fill))
           .foreground(stroke(1.5f, Fill::color(kEdge)))
           .column()
@@ -213,7 +213,7 @@ struct CardFlip {
     return box()
         .width(300)
         .height(250)
-        .corners({8})
+        .borderRadius({8})
         .fill(Fill::color(kPaper))
         .padding(22)
         .column()

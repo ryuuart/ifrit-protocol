@@ -47,7 +47,7 @@ auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
   // different stick lengths scales x per instance against a fixed y, so
   // round ends stretch into ellipses of whatever aspect that instance
   // asked for. Rounded corners on a bar tolerate that; caps do not.
-  cellBar = barAtlas->cell(box().corners({4}).fill(kBone), {32, 8});
+  cellBar = barAtlas->cell(box().borderRadius({4}).fill(kBone), {32, 8});
   barPool = std::make_shared<instancing::Pool>();
   (void)barPool->sizes();  // materialise the lane
 

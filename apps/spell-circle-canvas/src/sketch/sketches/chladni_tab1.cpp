@@ -814,16 +814,16 @@ struct ChladniTab1 {
 
     // The grain atlas: three engraved marks, baked once, stamped ~5900x.
     atlas = std::make_shared<instancing::CellSheet>(3.0f);
-    atlas->cell(box().width(8.6f).height(2.3f).corners({1.15f}).fill(
+    atlas->cell(box().width(8.6f).height(2.3f).borderRadius({1.15f}).fill(
                     Fill::color(hexColor(0x211c14, 0.94f))),
                 {10, 4});
-    atlas->cell(box().width(6.0f).height(1.7f).corners({0.85f}).fill(
+    atlas->cell(box().width(6.0f).height(1.7f).borderRadius({0.85f}).fill(
                     Fill::color(hexColor(0x2c2519, 0.88f))),
                 {8, 3});
-    atlas->cell(box().width(3.1f).height(3.1f).corners({1.55f}).fill(
+    atlas->cell(box().width(3.1f).height(3.1f).borderRadius({1.55f}).fill(
                     Fill::color(hexColor(0x211c14, 0.9f))),
                 {5, 5});
-    atlas->cell(box().width(15.0f).height(1.35f).corners({0.68f}).fill(
+    atlas->cell(box().width(15.0f).height(1.35f).borderRadius({0.68f}).fill(
                     Fill::color(hexColor(0x211c14, 0.82f))),
                 {17, 3});
     seedGrains();

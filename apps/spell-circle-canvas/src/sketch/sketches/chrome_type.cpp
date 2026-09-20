@@ -125,7 +125,7 @@ struct ChromeType {
     // sits inside it.
     Element onBox = sketch::kit::caption(
         0, "Boundary::Auto", "the node's rectangle",
-        box().padding(18).corners({6}).style(style).children(
+        box().padding(18).borderRadius({6}).style(style).children(
             {text(c::kWordmark, c::wordmark(letterInk))}));
     // The letters: the same value, the other boundary.
     Element onGlyphs = sketch::kit::caption(

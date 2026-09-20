@@ -166,7 +166,7 @@ void drawSigil(SkCanvas& canvas, float size) {
 Element note(std::u8string heading, std::u8string body) {
   return box()
       .width(236)
-      .corners({12})
+      .borderRadius({12})
       .padding(14)
       .fill(Fill::color(hexColor(0x121a2c, 0.86f)))
       .foreground(stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.22f))))
@@ -261,7 +261,7 @@ struct WebPanelSketch {
              // the box it is laid into, so nothing resamples.
              box()
                  .inset(40, 96, 300, 94)
-                 .corners({16})
+                 .borderRadius({16})
                  .clip()
                  .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
                  .children(
@@ -302,7 +302,7 @@ struct WebPanelSketch {
         .children(
             {box()
                  .inset(40, 40, 40, 40)
-                 .corners({16})
+                 .borderRadius({16})
                  .padding(28)
                  .fill(Fill::color(hexColor(0x121a2c, 0.9f)))
                  .foreground(

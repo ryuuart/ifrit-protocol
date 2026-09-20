@@ -30,8 +30,9 @@ Element cell(const char* caption, Element plate) {
       .basis(0)
       .grow(1)
       .alignItems(Align::Center)
-      .children({plate.width(pct(100)).height(120).corners({10}).fill(kPlate),
-                 text(caption).font({.size = 12, .color = kAsh})});
+      .children(
+          {plate.width(pct(100)).height(120).borderRadius({10}).fill(kPlate),
+           text(caption).font({.size = 12, .color = kAsh})});
 }
 
 }  // namespace

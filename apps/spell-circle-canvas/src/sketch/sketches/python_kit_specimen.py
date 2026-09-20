@@ -51,7 +51,7 @@ def bead(index, diameter=12):
         box()
         .width(diameter)
         .height(diameter)
-        .corners(diameter / 2)
+        .borderRadius(diameter / 2)
         .fill(colors[index % len(colors)])
         .shrink(0)
     )
@@ -152,7 +152,7 @@ def captured_palette(properties):
         row()
         .gap(10)
         .children(
-            [(box().width(72).height(84).fill(color).corners(3)) for color in colors]
+            [(box().width(72).height(84).fill(color).borderRadius(3)) for color in colors]
         )
     )
     return (

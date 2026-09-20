@@ -145,7 +145,7 @@ TEST(ComposeDecorations, ShadowSitsUnderTheFillAndAStrokeSitsOverIt) {
            .height(80)
            .inset(40, 40, 40, 40)
            .absolute()
-           .corners({10})
+           .borderRadius({10})
            .background(sigil::compose::shadow({0, 0, 1, 1}, {12, 12}, 0))
            .fill(red())
            .foreground(sigil::compose::stroke(4, green()))}));
@@ -169,7 +169,7 @@ TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
         {box()
              .width(40)
              .height(40)
-             .corners({6})
+             .borderRadius({6})
              .fill(red())
              .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {2, 2}, 4))
              .foreground(sigil::compose::stroke(2, green())),

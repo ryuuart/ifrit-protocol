@@ -100,7 +100,7 @@ Element card(float w, float h, SkColor4f accent) {
                .inset(16, 16, 16, 16)
                .children(
                    {// the header pill
-                    box().width(w - 32).height(14).corners({7}).fill(
+                    box().width(w - 32).height(14).borderRadius({7}).fill(
                         Fill::color({accent.fR, accent.fG, accent.fB, 0.9f})),
                     // the tick rows, each shorter than the one above it
                     box().column().gap(14).children(
@@ -109,7 +109,7 @@ Element card(float w, float h, SkColor4f accent) {
                                 return box()
                                     .width(w - 60 - (float)i * 40)
                                     .height(8)
-                                    .corners({4})
+                                    .borderRadius({4})
                                     .fill(Fill::color(ink));
                               })}),
                     // the bar row, standing on its own foot
@@ -127,7 +127,7 @@ Element card(float w, float h, SkColor4f accent) {
                                           34.0f *
                                               (0.5f + 0.5f * std::sin(t * 9.0f +
                                                                       1.7f)))
-                                  .corners({2})
+                                  .borderRadius({2})
                                   .fill(Fill::color({accent.fR, accent.fG,
                                                      accent.fB, 0.85f}));
                             })})}),

@@ -138,7 +138,7 @@ Element cardGrid(int count, float side, CardPaint paint) {
     } else {
       card.width(side)
           .height(side)
-          .corners({side * 0.2f})
+          .borderRadius({side * 0.2f})
           .fill(Fill::color(material::skia::toSkColor(style.fill)))
           .stroke(stroke(
               style.borderWidth,
@@ -189,7 +189,7 @@ Element shadowedCards(int count, Cache mode) {
              .key("s" + std::to_string(id))
              .width(120)
              .height(72)
-             .corners({8})
+             .borderRadius({8})
              .fill(Fill::color(hexColor(0x2a3140)))
              .background(styles::dropShadow({0, 0, 0, 0.55f}, {0, 4}, 10))
              .cache(mode)});

@@ -104,7 +104,7 @@ Element card(const Swatch& swatch) {
              image(swatch.asset)
                  .width(kCard)
                  .height(kCard)
-                 .corners({10})
+                 .borderRadius({10})
                  .clip()
                  .foreground(
                      stroke(1.0f, Fill::color(hexColor(0xffffff, 0.16f)))))
@@ -114,7 +114,7 @@ Element card(const Swatch& swatch) {
 Element notice(Utf8 heading, Utf8 detail) {
   return box()
       .inset(kMargin)
-      .corners({16})
+      .borderRadius({16})
       .padding(28)
       .fill(Fill::color(hexColor(0x241c14, 0.9f)))
       .foreground(stroke(1.0f, Fill::color(hexColor(0xffb46b, 0.24f))))

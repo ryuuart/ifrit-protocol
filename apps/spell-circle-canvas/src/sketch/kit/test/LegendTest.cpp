@@ -85,7 +85,7 @@ TEST(SketchKitLegend, AnEntryCanCarryItsOwnEdgeAndItsOwnInk) {
                                   .height(9)
                                   .fill(body)
                                   .shrink(0)
-                                  .corners(compose::Corners{1.5f})
+                                  .borderRadius(compose::Corners{1.5f})
                                   .foreground(compose::stroke(
                                       1.0f, Fill::color(rare)))})
                    .children({compose::text(
@@ -203,7 +203,7 @@ TEST(SketchKitLegend, AChipIsItsWordOnTheThemesFigureGround) {
       compose::box()
           .padding(house.spacing.chipPaddingX, house.spacing.chipPaddingY)
           .fill(Fill::color(house.palette.figure))
-          .corners(compose::Corners{2})
+          .borderRadius(compose::Corners{2})
           .children(
               {compose::text(u8"PINNED", house.style(house.type.eyebrow,
                                                      house.palette.ground))});

@@ -306,7 +306,7 @@ Layer banded(std::vector<Datum> data, double base, float corners, Axis along,
     for (std::size_t i = 0; i < data.size(); ++i) {
       Element one = part ? part(i, data[i].y)
                          : compose::box().fill(compose::Fill::currentInk());
-      if (corners > 0) one.corners(compose::Corners{corners});
+      if (corners > 0) one.borderRadius(compose::Corners{corners});
       if (frame.polar) {
         const double reach = frame.radiusFraction(data[i].y);
         const float inner =

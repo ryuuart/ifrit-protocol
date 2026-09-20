@@ -17,7 +17,7 @@ def swatch(square: compose.Element, spelling: str) -> compose.Element:
     """One labelled swatch: the square, and the spelling under it."""
     return (
         compose.box(
-            square.width(120).height(120).corners(12),
+            square.width(120).height(120).borderRadius(12),
             compose.text(spelling, size=13, color=LABEL),
         )
         .column()

@@ -24,7 +24,7 @@ Element swatch(bool hot) {
   return box()
       .width(220)
       .height(140)
-      .corners({16})
+      .borderRadius({16})
       .fill(animate(motion::to(Fill::color(hot ? kHot : kCool)), {220ms}));
 }
 ```
@@ -37,7 +37,7 @@ def swatch(hot: bool) -> compose.Element:
         compose.box()
         .width(220)
         .height(140)
-        .corners(16)
+        .borderRadius(16)
         .fill(motion.animate(motion.to(HOT if hot else COOL),
                              motion.Transition(duration=0.22)))
     )
@@ -77,7 +77,7 @@ struct Pulse {
 
   Element describe() const {
     return box().cover().justify(Justify::Center).alignItems(Align::Center)
-        .children({box().width(220).height(140).corners({16}).fill(&tint)});
+        .children({box().width(220).height(140).borderRadius({16}).fill(&tint)});
   }
 };
 ```
@@ -97,7 +97,7 @@ is what stops a cache freezing the first frame.
 ```cpp
 namespace skia = sigil::material::skia;
 
-box().width(220).height(140).corners({16})
+box().width(220).height(140).borderRadius({16})
     .fill(skia::Paint::sksl(effect).uniform("uPhase", &phase));
 ```
 

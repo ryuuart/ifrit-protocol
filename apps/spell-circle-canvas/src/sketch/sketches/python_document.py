@@ -37,7 +37,7 @@ def passage() -> Element:
         )
         .width(498)
         .padding(28)
-        .corners(5)
+        .borderRadius(5)
     )
 
 

@@ -239,7 +239,7 @@ inline Element panel(float height, int order) {
       .height(height)
       .shrink(0)
       .padding(12)
-      .corners({5})
+      .borderRadius({5})
       .font({.face = monoFace(), .track = 0.2f})
       .ink(kSteel)
       .fill(kPanel)

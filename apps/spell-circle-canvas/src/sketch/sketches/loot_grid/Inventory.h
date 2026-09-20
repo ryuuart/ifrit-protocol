@@ -342,7 +342,7 @@ inline Element panel(float w, float h) {
   return box()
       .width(w)
       .height(h)
-      .corners({4})
+      .borderRadius({4})
       .background(styles::dropShadow({0, 0, 0, 0.65f}, {0, 7}, 16))
       .fill(Paint::linear({0, 0}, {0, h}, {{0.0f, kStoneHi}, {1.0f, kStoneLo}}))
       .clip()
@@ -375,7 +375,7 @@ inline Element rivets(float w, float h, float inset = 11) {
     return box()
         .width(6.0f)
         .height(6.0f)
-        .corners({3})
+        .borderRadius({3})
         .at({x - 3, y - 3})
         .fill(Paint::radial(
             {3, 3}, 3.4f,

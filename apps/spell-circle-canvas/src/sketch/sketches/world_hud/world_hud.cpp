@@ -177,7 +177,7 @@ struct WorldHud {
              .at({wh::kBarX, wh::kBarY})
              .children({box()
                             .rect(SkRect::MakeWH(wh::kHealthW, wh::kHealthH))
-                            .corners({2})
+                            .borderRadius({2})
                             .fill(Paint::solid({wh::kCritHp.fR, wh::kCritHp.fG,
                                                 wh::kCritHp.fB, 0.55f}))
                             .opacity(&lowPulse)
@@ -301,7 +301,7 @@ struct WorldHud {
     const auto pin = [](float u, float v, SkColor4f ink) {
       return box()
           .rect(SkRect::MakeXYWH(d * u, d * v, 6.0f, 6.0f))
-          .corners({3})
+          .borderRadius({3})
           .fill(Paint::solid(ink));
     };
     const SkColor4f bone = wh::kBoneHi;
@@ -315,7 +315,7 @@ struct WorldHud {
         .children(
             {box()
                  .inset(0)
-                 .corners({d * 0.5f})
+                 .borderRadius({d * 0.5f})
                  .clip()
                  .fill(Paint::solid(hexColor(0x2E4A2A)))
                  .children({each(kBands,
@@ -368,7 +368,7 @@ struct WorldHud {
              // the ring
              box()
                  .inset(0)
-                 .corners({d * 0.5f})
+                 .borderRadius({d * 0.5f})
                  .foreground(stroke(
                      5.0f,
                      linearGradient({0, 0}, {0, d},
@@ -422,7 +422,7 @@ struct WorldHud {
           return box()
               .width(30.0f)
               .height(30.0f)
-              .corners({4})
+              .borderRadius({4})
               .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
               .translateY(animate(motion::from(-10.0f).to(0.0f), {380ms}))
               .fill(Paint::linear(
@@ -485,7 +485,7 @@ struct WorldHud {
               .children({box()
                              .width(16.0f)
                              .height(16.0f)
-                             .corners({2})
+                             .borderRadius({2})
                              .fill(Paint::solid({l.color.fR * 0.28f,
                                                  l.color.fG * 0.28f,
                                                  l.color.fB * 0.28f, 1}))

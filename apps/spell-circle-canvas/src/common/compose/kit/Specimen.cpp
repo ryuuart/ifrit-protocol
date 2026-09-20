@@ -26,7 +26,7 @@ Element well(const Well& spec, Element surface) {
   else if (spec.padding != 0.0f)
     surface.padding(Dimension(spec.padding));
   if (spec.clip) surface.clip();
-  if (spec.corners > 0.0f) surface.corners(Corners{spec.corners});
+  if (spec.corners > 0.0f) surface.borderRadius(Corners{spec.corners});
   // Inside its own box: a keyline centred on the boundary would put half
   // its width outside, and a plate that is not the width it was given is
   // the one thing a fixed surface may not be.

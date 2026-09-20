@@ -28,7 +28,7 @@ def cell(caption: str, plate: compose.Element) -> compose.Element:
         compose.box(
             plate.width(compose.pct(100))
             .height(120)
-            .corners(10)
+            .borderRadius(10)
             .fill(PLATE)
             .clip()
             .justify("center")

@@ -24,7 +24,7 @@ def panel(caption: str) -> compose.Element:
             compose.box()
             .height(30)
             .width(30)
-            .corners(4)
+            .borderRadius(4)
             .fill(compose.Fill.currentInk()),
         )
         .column()
@@ -32,7 +32,7 @@ def panel(caption: str) -> compose.Element:
         .padding(18)
         .basis(0)
         .grow(1)
-        .corners(10)
+        .borderRadius(10)
         .fill(PLATE)
         .stroke(compose.stroke(1.5))
     )

@@ -39,7 +39,7 @@ auto Fallout2CharSheet::describe() -> Element {
   // punches a hole through a fifth of the screen.
   {
     Element sp = atR(box(), kWellSpecial)
-                     .corners(Corners{n(4)})
+                     .borderRadius(Corners{n(4)})
                      .fill(Paint::linearUnit({0, 0}, {0.2f, 1},
                                              {{0.0f, hexColor(0x54462E)},
                                               {0.35f, kPlateLit},

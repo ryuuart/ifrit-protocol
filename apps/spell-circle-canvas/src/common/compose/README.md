@@ -166,7 +166,7 @@ Element meter(const Channel &c) {
       .row()
       .gap(10)
       .padding(12)
-      .corners({6})
+      .borderRadius({6})
       .fill(hexColor(0x0e1218))
       .alignItems(Align::Center)
       // A mark on part of the boundary: L-brackets at every tangent break.

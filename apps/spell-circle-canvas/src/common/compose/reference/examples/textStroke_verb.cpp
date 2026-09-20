@@ -33,7 +33,7 @@ Element cell(const char* caption, Element label) {
       .children({box()
                      .width(pct(100))
                      .height(120)
-                     .corners({10})
+                     .borderRadius({10})
                      .fill(kBusy)
                      .justify(Justify::Center)
                      .alignItems(Align::Center)

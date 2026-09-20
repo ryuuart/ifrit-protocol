@@ -159,7 +159,7 @@ inline Element flourishCard(const FlourishStyle& s, float w, float h,
   return box()
       .width(w)
       .height(h)
-      .corners({radius})
+      .borderRadius({radius})
       .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 4}, 10))
       .fill(flourishParchment(s))
       .foreground(sigil::compose::stroke(2.4f, Fill::color(s.gold)))

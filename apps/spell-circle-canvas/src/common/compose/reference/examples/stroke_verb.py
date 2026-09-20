@@ -18,7 +18,7 @@ HALO = "#2f5f6a"
 def cell(caption: str, plate: compose.Element) -> compose.Element:
     return (
         compose.box(
-            plate.width(compose.pct(100)).height(120).corners(10).fill(PLATE),
+            plate.width(compose.pct(100)).height(120).borderRadius(10).fill(PLATE),
             compose.text(caption, size=12, color=ASH),
         )
         .column()

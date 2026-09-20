@@ -5,7 +5,7 @@ is a member that returns the element by reference, so a node reads as one
 expression:
 
 ```cpp
-box().row().gap(12).padding(18).corners({10}).fill(Fill::color(ink))
+box().row().gap(12).padding(18).borderRadius({10}).fill(Fill::color(ink))
 ```
 
 One verb ends the chain rather than continuing it: `atRest` hands back a
@@ -117,8 +117,8 @@ The region the node occupies, and what is cut to it.
 
 | Verb | What it says |
 |---|---|
-| [`corners`](pages/verbs/corners.md) | The four corner radii of the node's box. |
-| [`shape`](pages/verbs/shape.md) | The node's outline as a path generator over its laid-out size; it overrides `corners`. |
+| [`borderRadius`](pages/verbs/borderRadius.md) | The four corner radii of the node's box. |
+| [`shape`](pages/verbs/shape.md) | The node's outline as a path generator over its laid-out size; it overrides `borderRadius`. |
 | [`clip`](pages/verbs/clip.md) | Cut the fill, the content and the children to that outline — the decorations keep their reach. |
 | [`mask`](pages/verbs/mask.md) | Gate what the node paints, by span, edge, shape or alpha; overlapping masks intersect. |
 | `centered` | A band straddles its spine — the default formation. |
@@ -275,7 +275,7 @@ spelling is the feature's.
 - `core/verbs/Placement.h` — the placement verbs `absolute`, `cover`,
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`,
   `cells`, `area`, `cellAlign`, `rect`, `at`.
-- `core/verbs/Shape.h` — the region verbs `corners`, `shape`, `clip`.
+- `core/verbs/Shape.h` — the region verbs `borderRadius`, `shape`, `clip`.
 - `core/Band.h` — the band formation `centered`, `outward`, `inward`.
 - `core/verbs/Mask.h` — `mask`.
 - `core/verbs/Cascade.h` — the cascade verbs `font`, `block`, `ink`,

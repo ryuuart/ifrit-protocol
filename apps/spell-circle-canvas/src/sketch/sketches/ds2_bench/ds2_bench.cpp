@@ -583,7 +583,7 @@ struct Ds2Bench {
                           {box()
                                .rect(
                                    SkRect::MakeXYWH(2.0f, 14.0f, 62.0f, 28.0f))
-                               .corners({14})
+                               .borderRadius({14})
                                .fill(Paint::linear({0, 0}, {0, 28},
                                                    {{0.0f, kBrassLo},
                                                     {0.45f, hexColor(0x7E6318)},

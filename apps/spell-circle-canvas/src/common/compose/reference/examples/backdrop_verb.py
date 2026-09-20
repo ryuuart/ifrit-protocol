@@ -37,7 +37,7 @@ def panel(caption: str, plate: compose.Element) -> compose.Element:
     return (
         plate.width(210)
         .height(120)
-        .corners(14)
+        .borderRadius(14)
         .fill(VEIL)
         .justify("center")
         .alignItems("center")

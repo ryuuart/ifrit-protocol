@@ -83,7 +83,7 @@ auto KspMapView::toolbar() -> Element {
       {each(doc["toolbar"].items(), [](const data::Json& glyph, std::size_t i) {
         return at(
             kit::centred()
-                .corners({5})
+                .borderRadius({5})
                 .fill(Paint::linearUnit({0, 0}, {0, 1},
                                         {{0.0f, mskia::lighten(kGun, 0.10f)},
                                          {1.0f, hexColor(0x3E4750)}}))
@@ -104,7 +104,7 @@ auto KspMapView::missionClock() -> Element {
   Element g = stack().inset(0);
   g.children(
       {at(kit::centred()
-              .corners({4})
+              .borderRadius({4})
 
               .fill(Paint::solid(hexColor(0x26282C, 0.94f)))
               .stroke(PathFormat{.width = 1.0f,
@@ -112,7 +112,7 @@ auto KspMapView::missionClock() -> Element {
               .children({text(doc["clock"], lcd(13, kLcd)).key("met")}),
           18, 14, 200, 28),
        at(kit::centred()
-              .corners({4})
+              .borderRadius({4})
 
               .fill(Paint::linearUnit({0, 0}, {0, 1},
                                       {{0.0f, mskia::lighten(kGun, 0.12f)},
@@ -122,7 +122,7 @@ auto KspMapView::missionClock() -> Element {
   static const char* kIcons[5] = {"◉", "▮▮", "▼", "◍", "◈"};
   g.children({each(kIcons, [](const char* icon, std::size_t i) {
     return at(kit::centred()
-                  .corners({3})
+                  .borderRadius({3})
 
                   .fill(hexColor(0x474F57))
                   .children({t(icon, body(10, hexColor(0x8CE07A)))}),

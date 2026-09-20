@@ -281,14 +281,14 @@ struct VolatilityCost {
     const auto card = [&rng](int i) {
       return kit::at(box()
                          .key("k" + std::to_string(i))
-                         .corners({4})
+                         .borderRadius({4})
                          .fill(Fill::color({0.09f, 0.10f, 0.16f, 1})),
                      (float)(rng() % 570), (float)(rng() % 532), 34, 22);
     };
     const auto mover = [this](int i) {
       return kit::at(box()
                          .key("m" + std::to_string(i))
-                         .corners({4})
+                         .borderRadius({4})
                          .translateX(movers[(size_t)i].get())
                          .fill(Fill::color({0.49f, 0.91f, 1.0f, 0.8f})),
                      0, 12.0f + 22.0f * (float)i, 46, 18);

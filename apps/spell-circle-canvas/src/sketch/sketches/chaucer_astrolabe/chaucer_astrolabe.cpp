@@ -34,12 +34,12 @@ auto ChaucerAstrolabe::describe(sketch::SketchContext&) -> Element {
            // the case: the object sits in a vitrine, not on the page
            kit::at(56, 140, 1132, 1258)
                .key("case")
-               .corners({3})
+               .borderRadius({3})
                .fill(Fill::color(kCase))
                .appear(ramp(tGround * 1000, 700)),
            kit::at(56, 140, 1132, 1258)
                .key("vignette")
-               .corners({3})
+               .borderRadius({3})
                .cache(Cache::Texture)
                .fill(Paint::glowUnit({0.50f, 0.46f}, 1.05f,
                                      {{0.0f, hexColor(0x33405a, 0.55f)},

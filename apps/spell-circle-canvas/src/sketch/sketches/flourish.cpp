@@ -164,7 +164,7 @@ struct Flourish {
 
     return box()
         .inset(kFrameInset)
-        .corners({22})
+        .borderRadius({22})
         .background(sigil::compose::shadow({0, 0, 0, 0.55f}, {0, 5}, 16))
         .foreground(sigil::compose::stroke(2.6f, Fill::color(st.gold)))
         .foreground(flourishVine(st, 17.0f, 24.0f, 17.0f))
@@ -173,7 +173,7 @@ struct Flourish {
         .cache(Cache::Texture)
         .children({box()
                        .inset(13)
-                       .corners({15})
+                       .borderRadius({15})
                        .foreground(beadChain(st.goldBright, 13.0f, 2.3f))
                        .foreground(giltDash(st.gold, 1.2f)),
                    box().inset(22).foreground(
@@ -198,7 +198,7 @@ struct Flourish {
     };
     return box()
         .inset(kFrameInset)
-        .corners({22})
+        .borderRadius({22})
         .foreground(glow)
         .blend(SkBlendMode::kPlus)
         .cache(Cache::None);
@@ -353,7 +353,7 @@ struct Flourish {
         .key("cartouche")
         .ink(st.ink)
         .inset(224, 188, 224, 188)  // ~452×264 centered box
-        .corners({16})
+        .borderRadius({16})
         .zIndex(3)
         .clip()
         .backdrop(sigil::material::skia::Effect::filter(

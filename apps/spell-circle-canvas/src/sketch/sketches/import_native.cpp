@@ -90,7 +90,7 @@ Element dial(float edge) {
     return box()
         .width(10)
         .height(14 + 74.0f * (0.5f + 0.5f * std::sin(t * 8.4f)))
-        .corners({3})
+        .borderRadius({3})
         .fill(Fill::color({0.30f, 0.86f, 1.0f, 0.9f}));
   };
   return stack()

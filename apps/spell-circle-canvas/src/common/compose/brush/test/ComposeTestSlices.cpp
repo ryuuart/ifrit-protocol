@@ -97,7 +97,7 @@ TEST(ComposeDecorations, EdgesSplitRoundedCornersDiagonally) {
   // top-left arc but none of the left flank.
   Host host;
   host.composer.render(box().children(
-      {box().width(100).height(100).corners({30}).fill(blue()).foreground(
+      {box().width(100).height(100).borderRadius({30}).fill(blue()).foreground(
           onEdges(geometry::path::Edge::Top,
                   stroke(8, Fill::color({1, 1, 1, 1}))))}));
   host.frame();

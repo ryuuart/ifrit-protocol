@@ -49,7 +49,7 @@ def component(model: Reading) -> Element:
         column()
         .gap(12)
         .padding(20, 16)
-        .corners(topLeft=8, topRight=8, bottomRight=4, bottomLeft=4)
+        .borderRadius(topLeft=8, topRight=8, bottomRight=4, bottomLeft=4)
         .alignItems(alignment="start")
         .opacity(entrance(0, 1, duration=0.5))
         .children(

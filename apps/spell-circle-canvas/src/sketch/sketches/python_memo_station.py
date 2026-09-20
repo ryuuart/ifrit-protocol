@@ -38,7 +38,7 @@ def instrument(reading):
         .gap(20)
         .padding(30)
         .fill("#10241e")
-        .corners(15)
+        .borderRadius(15)
         .opacity(animate(from_(0).to(1), Transition(0.4, ease.outQuad)))
         .children(
             doc.label(reading.label),
@@ -56,7 +56,7 @@ def instrument(reading):
                 .width(212)
                 .height(6)
                 .fill("#253e36")
-                .corners(3)
+                .borderRadius(3)
                 .clip(True)
                 .children(
                     (box().width(pct(reading.value)).height(6).fill(reading.accent)),

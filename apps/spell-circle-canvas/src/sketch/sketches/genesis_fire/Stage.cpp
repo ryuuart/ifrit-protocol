@@ -250,7 +250,7 @@ Element GenesisFire::planInset() {
 
   return kit::at(
              box()
-                 .corners({6})
+                 .borderRadius({6})
                  .fill(hexColor(0x0B0D14, 0.86f))
                  .stroke(stroke(1.5f, Fill::color(kKeyline),
                                 PathFormat::Align::Inner))

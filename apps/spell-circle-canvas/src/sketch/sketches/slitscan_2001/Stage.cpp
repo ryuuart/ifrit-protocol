@@ -189,7 +189,7 @@ auto SlitScan2001::rigStrip() -> Element {
       .children(
           {box()
                .rect(SkRect::MakeXYWH(18, 10, 264, 116))
-               .corners({4})
+               .borderRadius({4})
                .fill(al(kPanelBg, 0.92f))
                .stroke(stroke(1.0f, Fill::color(kRule)))
                .clip()

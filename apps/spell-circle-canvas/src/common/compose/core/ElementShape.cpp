@@ -8,7 +8,7 @@
 namespace sigil::compose {
 
 template <class Derived>
-Derived& ShapeVerbs<Derived>::corners(Corners c) {
+Derived& ShapeVerbs<Derived>::borderRadius(Corners c) {
   declarations()->corners = c;
   return self();
 }

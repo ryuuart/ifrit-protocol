@@ -276,7 +276,7 @@ Element decoratedRow(const Row& row) {
       .row()
       .gap(12)
       .padding(8)
-      .corners({6})
+      .borderRadius({6})
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
       .background(shadow({0, 0, 0, 0.5f}, {0, 2}, 6))
       .foreground(stroke(1.5f, Fill::color({0.5f, 0.5f, 0.6f, 1})))
@@ -371,7 +371,7 @@ static void BM_Draw_StampBorder_Cached(benchmark::State& state) {
                           .height(280)
                           .inset(100, 100, 300, 220)
                           .absolute()
-                          .corners({20})
+                          .borderRadius({20})
                           .fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
                           .foreground(starVine())}));
   host.draw();
@@ -411,7 +411,7 @@ BENCHMARK(BM_Draw_SpinningStamped_TransformReplay);
 static void BM_Draw_ArtWarp_Live(benchmark::State& state) {
   Host host(900, 640);
   brush::Art vine =
-      brush::artAlong(box().width(48).height(16).corners({8}).fill(
+      brush::artAlong(box().width(48).height(16).borderRadius({8}).fill(
                           Fill::color({0.5f, 0.8f, 0.5f, 1})),
                       14, 6);
   host.composer.render(

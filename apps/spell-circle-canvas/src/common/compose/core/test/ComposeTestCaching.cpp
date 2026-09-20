@@ -160,7 +160,7 @@ TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
                        .absolute()
                        .left(30)
                        .top(30)
-                       .corners({28.0f})
+                       .borderRadius({28.0f})
                        .hitTestable(false)
                        .fill(green())
                        .blend(SkBlendMode::kPlus);

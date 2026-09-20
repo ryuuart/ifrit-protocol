@@ -328,7 +328,7 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   // window strip
   for (int i = 0; i < 5; ++i)
     ship.children({rect(S(44 + i * 7.0f), S(29), S(4), S(4))
-                       .corners({S(1)})
+                       .borderRadius({S(1)})
                        .fill(Fill::color(gold))});
 
   return artBox(W, H).children(

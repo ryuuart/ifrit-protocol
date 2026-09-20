@@ -286,7 +286,7 @@ Element lanePanel(const Lane& lane) {
     return box()
         .width(5.2f)
         .height(5.2f)
-        .corners(Corners{2.6f})
+        .borderRadius(Corners{2.6f})
         .fill(Fill::currentInk());
   };
   const float lo = lane.lo, hi = lane.hi, rest = lane.rest;

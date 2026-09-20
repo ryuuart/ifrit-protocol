@@ -33,10 +33,10 @@ Element tile(const char* caption, Element plate) {
       .grow(1)
       .alignItems(Align::Center)
       .children(
-          {plate.width(pct(100)).height(120).corners({10}).children(
+          {plate.width(pct(100)).height(120).borderRadius({10}).children(
                {box()
                     .cover()
-                    .corners({10})
+                    .borderRadius({10})
                     .fill(kPlate)
                     .justify(Justify::Center)
                     .alignItems(Align::Center)

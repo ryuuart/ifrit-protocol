@@ -44,7 +44,7 @@ class CustomElement:
                 compose.pen("reference/rings", rings)
                 .width(compose.pct(100))
                 .height(190)
-                .corners(10)
+                .borderRadius(10)
                 .fill(CELL)
                 .clip(),
                 compose.text("compose.pen(key, program)", size=12, color=ASH),

@@ -189,7 +189,7 @@ auto KspMapView::navball() -> Element {
        // Readouts above and below.
        at(kit::centred()
               .column()
-              .corners({4})
+              .borderRadius({4})
               .fill(Paint::solid(kLcdBg))
               .stroke(PathFormat{.width = 1.2f,
                                  .strokeFill = Fill::color(hexColor(0x9AA2A6))})
@@ -200,7 +200,7 @@ auto KspMapView::navball() -> Element {
               .row()
               .gap(6)
 
-              .corners({4})
+              .borderRadius({4})
               .fill(Paint::solid(kLcdBg))
               .stroke(PathFormat{.width = 1.2f,
                                  .strokeFill = Fill::color(hexColor(0x9AA2A6))})
@@ -212,7 +212,7 @@ auto KspMapView::navball() -> Element {
   auto toggle = [&](const char* label, SkColor4f c, float x) {
     return at(
         kit::centred()
-            .corners({3})
+            .borderRadius({3})
 
             .fill(Paint::linearUnit(
                 {0, 0}, {0, 1}, {{0.0f, mskia::lighten(c, 0.14f)}, {1.0f, c}}))
@@ -237,7 +237,7 @@ auto KspMapView::navball() -> Element {
           kBall, (kBezelR + 16) * 2, (kBezelR + 16) * 2),
        at(kit::centred()
               .row()
-              .corners({3})
+              .borderRadius({3})
               .fill(Paint::linearUnit(
                   {0, 0}, {0, 1},
                   {{0.0f, hexColor(0xA0A6AA)}, {1.0f, hexColor(0x6E767B)}}))
@@ -247,7 +247,7 @@ auto KspMapView::navball() -> Element {
                    kit::centred()
                        .width(13)
                        .height(13)
-                       .corners({2})
+                       .borderRadius({2})
 
                        .fill(Paint::solid(kStageTab))
                        .children({t("×", bold(10, hexColor(0xFFFFFF)))})}),
@@ -275,7 +275,7 @@ auto KspMapView::staging() -> Element {
     return at(stack(), x, y, 58, 25)
         .children({box()
                        .inset(0)
-                       .corners({2})
+                       .borderRadius({2})
                        .fill(Paint::solid(kStageTab))
                        .foreground(lines::presets::hatch(
                            Fill::color(hexColor(0x101010, 0.45f)), 8.0f, 3.4f,
@@ -354,7 +354,8 @@ auto KspMapView::staging() -> Element {
   }
 
   // STAGE cluster: hazard header, green go-button, the ONE inverted LCD.
-  Element stage = at(box().column().corners({3}).clip(), x - 6, 756, 152, 38);
+  Element stage =
+      at(box().column().borderRadius({3}).clip(), x - 6, 756, 152, 38);
   stage.fill(Paint::solid(hexColor(0x2A2E31)))
       .stroke(PathFormat{.width = 1.0f,
                          .strokeFill = Fill::color(hexColor(0x4A5157)),
@@ -439,7 +440,7 @@ auto KspMapView::digitCell(const char* d) -> Element {
 auto KspMapView::altimeter() -> Element {
   using namespace ksp;
   const float X = 430, Y = 6, W = 356, H = 82;
-  Element g = at(stack().corners({4}).clip(), X, Y, W, H);
+  Element g = at(stack().borderRadius({4}).clip(), X, Y, W, H);
   g.fill(Paint::blend({{Paint::linearUnit({0, 0}, {0, 1},
                                           {{0.0f, hexColor(0xA8AFB4)},
                                            {0.45f, hexColor(0x848D93)},
@@ -568,7 +569,7 @@ auto KspMapView::altimeter() -> Element {
 auto KspMapView::crewPlate() -> Element {
   using namespace ksp;
   const float X = 986, Y = 594, W = 178, H = 186;
-  Element g = at(stack().corners({3}).clip(), X, Y, W, H);
+  Element g = at(stack().borderRadius({3}).clip(), X, Y, W, H);
   g.fill(Paint::linearUnit(
              {0, 0}, {0, 1},
              {{0.0f, hexColor(0x7F878C)}, {1.0f, hexColor(0x454D53)}}))
@@ -635,12 +636,12 @@ auto KspMapView::crewPlate() -> Element {
               .blend(SkBlendMode::kPlus),
           58, 44, 40, 34),
        // suit shoulders
-       at(box().corners({26}).fill(Paint::linearUnit(
+       at(box().borderRadius({26}).fill(Paint::linearUnit(
               {0, 0}, {0, 1},
               {{0.0f, hexColor(0xE7E8E4)}, {1.0f, hexColor(0x9AA0A2)}})),
           40, 124, 104, 40),
        at(kit::centred()
-              .corners({2})
+              .borderRadius({2})
 
               .fill(Paint::linearUnit(
                   {0, 0}, {0, 1},

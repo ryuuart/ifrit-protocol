@@ -255,9 +255,9 @@ struct Cosmati {
                                     {520ms, &ch::easeOutQuint, delay}));
     // the bed
     el.children(
-        {box().inset(0).corners({r}).fill(Paint::solid(cs::kMortar)),
+        {box().inset(0).borderRadius({r}).fill(Paint::solid(cs::kMortar)),
          // outer fillet
-         box().inset(0).corners({r}).foreground(
+         box().inset(0).borderRadius({r}).foreground(
              stroke(3.0f, Fill::color(cs::kMarble), PathFormat::Align::Inner)),
          // two ring courses of lozenges, counter-phased
          box()
@@ -273,7 +273,7 @@ struct Cosmati {
          // the eye
          box()
              .inset(r * 0.72f)
-             .corners({r * 0.28f})
+             .borderRadius({r * 0.28f})
              .fill(cs::stone(eyeHi, eyeLo, 60))
              .foreground(stroke(1.6f, Fill::color(cs::kMarble)))});
     return el;
@@ -317,7 +317,7 @@ struct Cosmati {
       const float cx = w * ((float)i + 0.5f) / (float)periods;
       band.children(
           {kit::at(box()
-                       .corners({h * 0.20f})
+                       .borderRadius({h * 0.20f})
                        .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 30))
                        .foreground(stroke(1.0f, Fill::color(cs::kMarble))),
                    cx - h * 0.20f, h * 0.30f, h * 0.40f, h * 0.40f)});

@@ -121,7 +121,7 @@ auto RotaConvocationis::sigillum(int k) -> Element {
        // that records once with the disc it sits on, which gives the seal
        // a lip of light without a second node and without a shader.
        layer(id + "-ground")
-           .corners({kSealR})
+           .borderRadius({kSealR})
            .fill(Fill::color(hexColor(0x0D0A16, 0.94f)))
            .overlay(styles::innerGlow(hexColor(0xE79A32, 0.30f), 8.0f))
            .opacity(beat(at, at + 0.4)),
@@ -136,12 +136,12 @@ auto RotaConvocationis::sigillum(int k) -> Element {
            .opacity(&litSeal[k]),
        // the rules, struck as sweeps
        layer(id + "-rule-out")
-           .corners({kSealR})
+           .borderRadius({kSealR})
            .fill(Fill::none())
            .stroke(spans::upTo(beat(at, at + 0.55)),
                    stroke(1.2f, Fill::color(kIron))),
        layer(id + "-rule-in", kSealR - kSealRing + 7.0f)
-           .corners({kSealRing - 7.0f})
+           .borderRadius({kSealRing - 7.0f})
            .fill(Fill::none())
            .stroke(spans::upTo(beat(at + 0.15, at + 0.7)),
                    stroke(0.7f, Fill::color(kIronDim))),

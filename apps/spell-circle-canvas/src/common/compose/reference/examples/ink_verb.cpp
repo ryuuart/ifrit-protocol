@@ -32,12 +32,12 @@ Element panel(const char* caption) {
       .padding(18)
       .basis(0)
       .grow(1)
-      .corners({10})
+      .borderRadius({10})
       .fill(kPlate)
       .stroke(stroke(1.5f))
-      .children(
-          {text(caption).font({.size = 15}),
-           box().height(30).width(30).corners({4}).fill(Fill::currentInk())});
+      .children({text(caption).font({.size = 15}),
+                 box().height(30).width(30).borderRadius({4}).fill(
+                     Fill::currentInk())});
 }
 
 }  // namespace

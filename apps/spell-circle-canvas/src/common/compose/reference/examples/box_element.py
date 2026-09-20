@@ -28,7 +28,7 @@ def card(title: str, body: str) -> compose.Element:
         .padding(18)
         .basis(0)
         .grow(1)
-        .corners(10)
+        .borderRadius(10)
         .fill(CARD)
     )
 

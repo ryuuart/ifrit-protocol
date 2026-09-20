@@ -20,11 +20,11 @@ def card(value: float, caption: str) -> compose.Element:
     return (
         compose.box(
             compose.stack(
-                compose.box().cover().corners(10).fill(PLATE),
+                compose.box().cover().borderRadius(10).fill(PLATE),
                 compose.box()
                 .width(64)
                 .height(64)
-                .corners(32)
+                .borderRadius(32)
                 .fill(DISC)
                 .left(20)
                 .top(28),

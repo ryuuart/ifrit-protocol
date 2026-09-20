@@ -30,16 +30,16 @@ Element card(float value, const char* caption) {
       .basis(0)
       .grow(1)
       .alignItems(Align::Center)
-      .children(
-          {stack().width(pct(100)).height(120).opacity(value).children(
-               {box().cover().corners({10}).fill(kPlate), box()
-                                                              .width(64)
-                                                              .height(64)
-                                                              .corners({32})
-                                                              .fill(kDisc)
-                                                              .left(20)
-                                                              .top(28)}),
-           text(caption).font({.size = 12, .color = kAsh})});
+      .children({stack().width(pct(100)).height(120).opacity(value).children(
+                     {box().cover().borderRadius({10}).fill(kPlate),
+                      box()
+                          .width(64)
+                          .height(64)
+                          .borderRadius({32})
+                          .fill(kDisc)
+                          .left(20)
+                          .top(28)}),
+                 text(caption).font({.size = 12, .color = kAsh})});
 }
 
 }  // namespace

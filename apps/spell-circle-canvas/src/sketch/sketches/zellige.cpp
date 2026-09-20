@@ -173,7 +173,7 @@ struct Zellige {
     return box().column().grow(1).gap(8).children(
         {box()
              .grow(1)
-             .corners({3})
+             .borderRadius({3})
              .fill(one.tile.material())
              // GLAZED, not carved. An inner shadow with an inner glow
              // is a bevel cut into plaster; a glazed tile is a hard

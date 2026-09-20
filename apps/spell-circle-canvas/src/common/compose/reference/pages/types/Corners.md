@@ -23,7 +23,7 @@ polygon, an outline you generated — rounds through
 question the paint stage asks before it builds a rounded path at all.
 
 Zero is a square corner, not an absent one: a node that says
-`.corners({0})` is stating the drafting-plate square, and compares equal
+`.borderRadius({0})` is stating the drafting-plate square, and compares equal
 to one that never named a radius.
 
 ## Make one
@@ -31,17 +31,17 @@ to one that never named a radius.
 | Spelling | Language | What it gives |
 | --- | --- | --- |
 | `Corners()` | C++ | four square corners |
-| `Corners(8)` | C++ | all four rounded by 8 px — implicit, so `.corners({8})` is the whole call |
+| `Corners(8)` | C++ | all four rounded by 8 px — implicit, so `.borderRadius({8})` is the whole call |
 | `Corners(8, 8, 0, 0)` | C++ | top-left, top-right, bottom-right, bottom-left |
 | `compose.Corners(8)` | Python | all four |
 | `compose.Corners(8, 8, 0, 0)` | Python | the four in the same clockwise order |
-| `element.corners(8)`, `element.corners(8, 8, 0, 0)` | Python | the verb takes the radii directly, so the value need not be named |
+| `element.borderRadius(8)`, `element.borderRadius(8, 8, 0, 0)` | Python | the verb takes the radii directly, so the value need not be named |
 
 ## Pass it to
 
 | Where | Kind | Library |
 | --- | --- | --- |
-| `Element::corners` | verb | SigilCompose |
+| `Element::borderRadius` | verb | SigilCompose |
 
 Several kit components carry a corner radius of their own as a plain
 number — `Rows::swatchCorners` and the wells and plates that round

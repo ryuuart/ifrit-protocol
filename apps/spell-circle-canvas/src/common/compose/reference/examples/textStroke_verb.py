@@ -23,7 +23,7 @@ def cell(caption: str, label: compose.Element) -> compose.Element:
             compose.box(label)
             .width(compose.pct(100))
             .height(120)
-            .corners(10)
+            .borderRadius(10)
             .fill(BUSY)
             .justify("center")
             .alignItems("center"),

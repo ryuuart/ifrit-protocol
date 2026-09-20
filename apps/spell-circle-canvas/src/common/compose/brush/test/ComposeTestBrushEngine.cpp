@@ -479,7 +479,7 @@ TEST(ComposeBrushTail, GlossContourRingIsWhereTheCoverageSaysNotTheAlpha) {
     return box()
         .absolute()
         .inset(50, 50, 50, 50)
-        .corners({24})
+        .borderRadius({24})
         .fill(Fill::color({0.2f, 0.3f, 0.5f, 1}));
   };
   plain.composer.render(box().children({shape()}));

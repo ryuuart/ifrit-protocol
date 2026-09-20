@@ -104,7 +104,7 @@ def metric(label: str, value: str, detail: str, accent: str) -> Element:
         .grow(1)
         .basis(0)
         .fill("#f8f9f2")
-        .corners(12)
+        .borderRadius(12)
         .ink(MUTED)
         .children(
             (
@@ -112,7 +112,7 @@ def metric(label: str, value: str, detail: str, accent: str) -> Element:
                 .gap(8)
                 .alignItems("center")
                 .children(
-                    (box().width(6).height(6).corners(3).fill(accent)),
+                    (box().width(6).height(6).borderRadius(3).fill(accent)),
                     doc.label(label).fontSize(11),
                 )
             ),
@@ -273,9 +273,9 @@ class LiveSignals:
                             .gap(9)
                             .padding(10, 15)
                             .fill("#f8f9f2")
-                            .corners(18)
+                            .borderRadius(18)
                             .children(
-                                (box().width(7).height(7).corners(4).fill(accent)),
+                                (box().width(7).height(7).borderRadius(4).fill(accent)),
                                 doc.label(status).fontSize(12).ink(accent),
                             )
                         ),
@@ -324,7 +324,7 @@ class LiveSignals:
                             .gap(14)
                             .padding(24)
                             .fill(PANEL)
-                            .corners(14)
+                            .borderRadius(14)
                             .width(654)
                             .children(
                                 (
@@ -379,7 +379,7 @@ class LiveSignals:
                             .gap(16)
                             .padding(24)
                             .fill("#e2e8dc")
-                            .corners(14)
+                            .borderRadius(14)
                             .width(334)
                             .children(
                                 doc.h2("A small contract.").fontSize(24).ink(INK),
@@ -407,7 +407,7 @@ class LiveSignals:
                     .gap(12)
                     .alignItems("center")
                     .children(
-                        (box().width(4).height(34).fill(accent).corners(2)),
+                        (box().width(4).height(34).fill(accent).borderRadius(2)),
                         (
                             column()
                             .gap(7)

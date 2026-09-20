@@ -33,7 +33,7 @@ struct FirstBox {
         .cover()
         .justify(Justify::Center)
         .alignItems(Align::Center)
-        .children({box().width(220).height(140).corners({16}).fill(kAccent)});
+        .children({box().width(220).height(140).borderRadius({16}).fill(kAccent)});
   }
 };
 
@@ -68,7 +68,7 @@ class FirstBox:
     def describe(self) -> compose.Element:
         return (
             compose.box(
-                compose.box().width(220).height(140).corners(16).fill(ACCENT)
+                compose.box().width(220).height(140).borderRadius(16).fill(ACCENT)
             )
             .cover()
             .justify("center")
@@ -89,7 +89,7 @@ and starts a tree. An element is a cheap value, built fresh every frame
 and thrown away — you do not keep one and mutate it. The other factories
 are on [the element index](/reference/SigilCompose/elements/index.html).
 
-**`.width`, `.corners`, `.fill`, `.justify`** are **verbs**: members that
+**`.width`, `.borderRadius`, `.fill`, `.justify`** are **verbs**: members that
 return the element by reference, so they chain. The order you say them
 in does not matter. They are grouped by concern on
 [the verb index](/reference/SigilCompose/verbs/index.html).
@@ -112,7 +112,7 @@ you are unsure which of the four colour-ish things to reach for, read
 the colour chapter on the [SigilCompose](doxygen:SigilCompose) site once
 and you will not have to ask again.
 
-`corners` takes a [`Corners`](value:sigil::compose::Corners) — one
+`borderRadius` takes a [`Corners`](value:sigil::compose::Corners) — one
 number rounds all four, four numbers dress each corner. The radius is a
 plain number and not a length, because a radius changes what is drawn
 and never what is measured.

@@ -132,7 +132,7 @@ inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
   return box()
       .width(w)
       .height(h)
-      .corners({h / 2})
+      .borderRadius({h / 2})
       .style(kit::aquaGel(tint))  // body + gloss + hairline, no .fill()
       .row()
       .alignItems(Align::Center)
@@ -144,7 +144,7 @@ inline Element gelOrb(float d = kOrbD) {
   return box()
       .width(d)
       .height(d)
-      .corners({d / 2})
+      .borderRadius({d / 2})
       .style(kit::aquaGel(hexColor(0x1E8FFF)))
       .clip()
       // The PS Gloss Contour proper (kit::gloss — blurred coverage
@@ -157,7 +157,7 @@ inline Element gelOrb(float d = kOrbD) {
       // preset's over-layer gloss, so the lens stays on top).
       .children({box()
                      .inset(d * 0.14f, d * 0.50f, d * 0.14f, d * 0.02f)
-                     .corners({d * 0.24f})
+                     .borderRadius({d * 0.24f})
                      .fill(Paint::radial({d * 0.36f, d * 0.55f}, d * 0.52f,
                                          {{0.00f, {0.72f, 0.92f, 1.0f, 0.90f}},
                                           {0.60f, {0.55f, 0.85f, 1.0f, 0.35f}},
@@ -190,7 +190,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
   return box()
       .width(w)
       .height(h)
-      .corners({r})
+      .borderRadius({r})
       // halo: rgba(66,140,240,.5) offset (0,10) blur 16 - under the fill
       .background(styles::dropShadow(t.halo, {0, 10}, 16))
       // body ramp: deep .82 -> mid .9 @0.9 -> light
@@ -203,7 +203,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
       // bottom glow: inset 2, fades out by 45% up from the bottom, screen
       .children({box()
                      .inset(2, h * 0.55f, 2, 2)
-                     .corners({r - 2})
+                     .borderRadius({r - 2})
                      .fill(Paint::linear(
                          {0, h * 0.45f - 4}, {0, 0},
                          {{0.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.85f}},
@@ -212,7 +212,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                  // the LENS: x in [5%,95%] y in [4%,52%], white .72->0
                  box()
                      .inset(w * 0.05f, h * 0.04f, w * 0.05f, h * 0.48f)
-                     .corners({h * 0.24f})
+                     .borderRadius({h * 0.24f})
                      .fill(Paint::linear(
                          {0, 0}, {0, h * 0.48f},
                          {{0.0f, {1, 1, 1, 0.72f}}, {1.0f, {1, 1, 1, 0.0f}}})),
@@ -362,7 +362,7 @@ struct Y2kChrome {
     Element plate =
         kit::centred()
             .height(plateH)
-            .corners({10})
+            .borderRadius({10})
             .style(kit::y2kChrome())
             .row()
 
@@ -484,7 +484,7 @@ struct Y2kChrome {
                      .row()
                      .gap(28)
                      .padding(16, 10)
-                     .corners({8})
+                     .borderRadius({8})
                      .fill(Fill::color({1, 1, 1, 0.13f}))
                      .stroke(stroke(1, Fill::color(hexColor(0x9AA1A9, 0.6f))))
                      .children(
@@ -540,7 +540,7 @@ struct Y2kChrome {
                                 {{0.00f, hexColor(0x16204A)},
                                  {0.48f, hexColor(0x0B1030)},
                                  {1.00f, hexColor(0x050817)}}))
-            .corners({6})
+            .borderRadius({6})
             .clip()
             .children(
                 {box()
@@ -572,7 +572,7 @@ struct Y2kChrome {
              box()
                  .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
                  .column()
-                 .corners({6})
+                 .borderRadius({6})
                  .clip()
                  .stroke(stroke(1, Fill::color(hexColor(0x70777E))))
                  .children(

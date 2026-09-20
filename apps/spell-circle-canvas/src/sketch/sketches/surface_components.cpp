@@ -42,9 +42,10 @@ struct Card {
 constexpr SkColor4f kInk{0.94f, 0.95f, 0.98f, 1};
 
 Element card(const Card& properties, Element content) {
-  return kit::well({.height = 204, .ground = properties.ground},
-                   box().column().padding(18).gap(12).corners({12}).children(
-                       {text(properties.title), std::move(content).grow(1)}));
+  return kit::well(
+      {.height = 204, .ground = properties.ground},
+      box().column().padding(18).gap(12).borderRadius({12}).children(
+          {text(properties.title), std::move(content).grow(1)}));
 }
 
 Element gel(float height) {
@@ -52,7 +53,7 @@ Element gel(float height) {
                           .key("gel")
                           .width(112)
                           .height(height)
-                          .corners({height / 2})
+                          .borderRadius({height / 2})
                           .style(kit::aquaGel({0.10f, 0.64f, 0.96f, 1}))
                           .cache(Cache::Texture));
 }

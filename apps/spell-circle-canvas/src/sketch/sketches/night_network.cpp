@@ -133,14 +133,14 @@ inline Element vineArt() {
         .width(13)
         .height(7)
         .inset(x, y, 48.0f - x - 13.0f, 16.0f - y - 7.0f)
-        .corners({6.5f, 0, 6.5f, 0})
+        .borderRadius({6.5f, 0, 6.5f, 0})
         .rotate(deg)
         .fill(Fill::color(c));
   };
   return stack().width(48).height(16).children(
       {box()
            .inset(0, 6.8f, 0, 6.8f)
-           .corners({1.2f})
+           .borderRadius({1.2f})
            .fill(Fill::color(kMossDeep)),
        leaf(4, 0, -28, kMoss), leaf(18, 9, 152, kMossDeep),
        leaf(31, 0, -24, kMoss)});
@@ -527,7 +527,7 @@ struct NightNetwork {
                  .inset(18, 92, 0, 0)
                  .width(430)
                  .height(276)
-                 .corners({10})
+                 .borderRadius({10})
                  .fill(Fill::color({0.043f, 0.051f, 0.11f, 0.82f}))
                  .zIndex(7),
              each(nn::kLegend, [](const nn::Legend& l, size_t i) {

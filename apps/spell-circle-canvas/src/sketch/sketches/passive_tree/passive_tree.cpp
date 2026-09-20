@@ -700,7 +700,7 @@ struct PassiveTree {
             .column()
             .padding(16, 13)
             .gap(0)
-            .corners({3})
+            .borderRadius({3})
             .fill(Paint::linear({0, 0}, {0, 170},
                                 {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
                                  {1.0f, {0.043f, 0.036f, 0.031f, 0.96f}}}))
@@ -738,7 +738,7 @@ struct PassiveTree {
                          .width(3.0f)
                          .height(3.0f)
                          .margin(0, 6, 0, 0)
-                         .corners({1.5f})
+                         .borderRadius({1.5f})
                          .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
                                              pt::kRimLit.fB, 0.9f})),
                      text(line)
@@ -819,7 +819,7 @@ struct PassiveTree {
              .left(38)
              .zIndex(8)
              .padding(10, 5)
-             .corners({3})
+             .borderRadius({3})
              .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
              .foreground(
                  stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,

@@ -508,11 +508,11 @@ struct CdeMotifSketch {
     const Set s = cde::ambient();
     Element face = stack().width(48).height(48);
     face.children(
-        {box().inset(0).corners({24}).fill(s.bg).foreground(
+        {box().inset(0).borderRadius({24}).fill(s.bg).foreground(
              PathFormat{.width = 2,
                         .strokeFill = Fill::color(cde::C(cde::kIconGray[6])),
                         .align = PathFormat::Align::Inner}),
-         box().inset(4).corners({20}).fill(cde::C(cde::kIconGray[0]))});
+         box().inset(4).borderRadius({20}).fill(cde::C(cde::kIconGray[0]))});
     // Twelve ticks, entered at twelve o'clock and swept the whole way
     // round. `arrange::onRing` is the ring arithmetic's origin; a sketch
     // that respells it with its own sin and cos rounds differently.
@@ -548,7 +548,7 @@ struct CdeMotifSketch {
              .fill(cde::C(cde::kIconColor[0]))
              .transformOrigin(pct(50), pct(100))
              .rotate(motion::bind(&clockT).quantize(61).scale(360)),
-         box().left(22).top(22).width(4).height(4).corners({2}).fill(
+         box().left(22).top(22).width(4).height(4).borderRadius({2}).fill(
              cde::C(cde::kIconColor[0]))});
     return face;
   }

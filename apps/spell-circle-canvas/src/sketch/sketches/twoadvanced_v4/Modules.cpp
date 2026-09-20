@@ -291,7 +291,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
                  .width(26)
                  .height(26)
                  .shrink(0)
-                 .corners({4})
+                 .borderRadius({4})
                  .fill(mskia::Paint::linearUnit(
                      {0, 0}, {0, 1},
                      {{0.0f, hexColor(0x8E2A2A)}, {1.0f, hexColor(0x3A0C0E)}}))
@@ -386,7 +386,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
     return kit::centred()
         .width(40)
         .height(40)
-        .corners({20})
+        .borderRadius({20})
         .fill(mskia::Paint::linearUnit(
             {0, 0}, {0, 1},
             {{0.0f, hexColor(0x6A1B21)}, {1.0f, hexColor(0x220608)}}))

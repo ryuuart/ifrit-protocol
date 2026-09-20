@@ -203,7 +203,7 @@ struct HitSlots {
     if (hitBounds)
       root.children({box()
                          .rect(hitBounds->makeOutset(10, 10))
-                         .corners({16})
+                         .borderRadius({16})
                          .foreground(stroke(2.5f, Fill::color(kLit)))
                          .hitTestable(false)});
     // The named routes, drawn again over their own dim selves.

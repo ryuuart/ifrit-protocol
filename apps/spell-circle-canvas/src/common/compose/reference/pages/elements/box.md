@@ -8,7 +8,7 @@ group: Containers
 python: sigil.compose.box
 status: stable
 example: box_element
-common_verbs: [row, column, gap, padding, fill, corners, children, grow]
+common_verbs: [row, column, gap, padding, fill, borderRadius, children, grow]
 ---
 
 # box

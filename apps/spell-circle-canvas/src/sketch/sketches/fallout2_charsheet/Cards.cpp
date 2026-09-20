@@ -78,7 +78,7 @@ auto Fallout2CharSheet::card() -> Element {
   Element c = at(box(), 345, 267, 277, 170)
                   .fill(parchMat)
                   .clip()
-                  .corners(Corners{n(1)})
+                  .borderRadius(Corners{n(1)})
                   .ink(kInk);
   c.overlay(styles::Overlay{parchTooth, SkBlendMode::kSoftLight, 0.55f});
   // creases: two diagonal slivers and one bottom-right scuff. The creases

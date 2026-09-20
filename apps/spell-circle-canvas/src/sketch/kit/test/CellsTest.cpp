@@ -133,7 +133,7 @@ TEST(SketchKitCells, APlateIsAGroundedWellWithCornersAndOneKeyline) {
       sameDrawing(compose::box()
                       .width(163)
                       .height(176)
-                      .corners(compose::Corners{8})
+                      .borderRadius(compose::Corners{8})
                       .padding(16)
                       .clip()
                       .fill(ground)

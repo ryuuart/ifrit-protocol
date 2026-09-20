@@ -141,7 +141,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
               {kit::centred()
                    .width(22)
                    .height(22)
-                   .corners({5})
+                   .borderRadius({5})
                    .fill(mskia::Paint::radialUnit({0.5f, 0.42f}, 1.15f,
                                                   {{0.0f, kCyanRing},
                                                    {0.55f, kTealBar},
@@ -149,7 +149,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                    .stroke(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.7f)),
                                   PathFormat::Align::Inner))
 
-                   .children({box().width(9).height(9).corners({5}).stroke(
+                   .children({box().width(9).height(9).borderRadius({5}).stroke(
                        stroke(2, Fill::color(kCyan)))}),
                // The teal segment's voice, verbatim from the interface
                // capture: the boot callsign, then the two region labels the

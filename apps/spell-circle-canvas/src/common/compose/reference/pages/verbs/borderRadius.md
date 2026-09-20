@@ -1,15 +1,15 @@
 ---
 kind: verb
 library: SigilCompose
-name: corners
-qualified: sigil::compose::Element::corners
+name: borderRadius
+qualified: sigil::compose::Element::borderRadius
 header: sigilcompose/core/verbs/Shape.h
 group: Shape, corners and clipping
-python: sigil.compose.Element.corners
+python: sigil.compose.Element.borderRadius
 status: stable
 ---
 
-# corners
+# borderRadius
 
 Round the node's corners, per corner, in pixels — CSS
 `border-radius`. Square when unstated.

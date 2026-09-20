@@ -154,14 +154,14 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
           .width(200)
           .height(120)
           .fill(Fill::color(house.palette.cellGround))
-          .corners(compose::Corners{6})
+          .borderRadius(compose::Corners{6})
           .children(
               {compose::box()
                    .column()
                    .grow(1)
                    .fill(Fill::color(house.palette.ground))
                    .clip()
-                   .corners(compose::Corners{2})
+                   .borderRadius(compose::Corners{2})
                    .stroke(compose::stroke(1, Fill::color(house.palette.rule),
                                            compose::PathFormat::Align::Inner))
                    .children({subject()})});
@@ -190,14 +190,14 @@ TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
           .width(200)
           .height(120)
           .fill(sigil::material::skia::Paint::recipe(purbeck))
-          .corners(compose::Corners{6})
+          .borderRadius(compose::Corners{6})
           .children(
               {compose::box()
                    .column()
                    .grow(1)
                    .fill(sigil::material::skia::Paint::recipe(mortar))
                    .clip()
-                   .corners(compose::Corners{2})
+                   .borderRadius(compose::Corners{2})
                    .stroke(compose::stroke(1, Fill::color(house.palette.rule),
                                            compose::PathFormat::Align::Inner))
                    .children({subject()})});

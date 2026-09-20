@@ -45,7 +45,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
     }
     // Idle beacon on the art's readout cluster: the one light that
     // never stops blinking.
-    art.children({at(box().corners({3}), kStageW - 116, kArtH - 62, 6, 6)
+    art.children({at(box().borderRadius({3}), kStageW - 116, kArtH - 62, 6, 6)
                       .fill(mskia::withAlpha(kSteelHi, 0.9f))
                       .opacity(&beaconAlpha)});
     return art;
@@ -215,7 +215,7 @@ Element TwoAdvancedV3::subData() {
   if (!discordSeq.empty())
     icon.children({slot("discord")});
   else
-    icon.corners({32}).fill(mskia::withAlpha(kSteel, 0.5f));
+    icon.borderRadius({32}).fill(mskia::withAlpha(kSteel, 0.5f));
   Element body =
       box()
           .column()
@@ -321,7 +321,7 @@ Element TwoAdvancedV3::follow2a() {
   } else {
     icons.row().gap(12);
     for (int i = 0; i < 7; ++i)
-      icons.children({box().width(16).height(16).corners({8}).fill(
+      icons.children({box().width(16).height(16).borderRadius({8}).fill(
           mskia::withAlpha(kSteelHi, 0.8f))});
   }
   Element body = kit::centred()

@@ -29,15 +29,19 @@ Element cell(const char* caption, SkBlendMode mode) {
       .grow(1)
       .alignItems(Align::Center)
       .children(
-          {stack().width(pct(100)).height(120).corners({10}).clip().children(
-               {box().cover().fill(kBed), box()
-                                              .width(84)
-                                              .height(84)
-                                              .corners({42})
-                                              .fill(kDisc)
-                                              .blend(mode)
-                                              .left(pct(30))
-                                              .top(18)}),
+          {stack()
+               .width(pct(100))
+               .height(120)
+               .borderRadius({10})
+               .clip()
+               .children({box().cover().fill(kBed), box()
+                                                        .width(84)
+                                                        .height(84)
+                                                        .borderRadius({42})
+                                                        .fill(kDisc)
+                                                        .blend(mode)
+                                                        .left(pct(30))
+                                                        .top(18)}),
            text(caption).font({.size = 12, .color = kAsh})});
 }
 

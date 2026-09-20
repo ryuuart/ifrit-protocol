@@ -32,7 +32,7 @@ struct StackElement {
 
   Element describe() const {
     return box().padding(26).children({
-        stack().grow(1).corners({12}).fill(kPlate).clip().children({
+        stack().grow(1).borderRadius({12}).fill(kPlate).clip().children({
             // The plate's own ground, filling the box it stands in.
             box().cover().fill(kPlate),
             // A scrim over it: a covering child painted after the
@@ -44,7 +44,7 @@ struct StackElement {
                 .top(14)
                 .right(14)
                 .padding(8, 5)
-                .corners({4})
+                .borderRadius({4})
                 .fill(kBadge)
                 .children({text("NEW").font({.size = 12, .color = kInk})}),
             // A caption pinned to the other three edges.

@@ -57,9 +57,9 @@ def run_figure(mode: int) -> Element:
         line.children(
             box()
             .key("signal-mark")
-            .corners(12)
+            .borderRadius(12)
             .fill(ORANGE)
-            .children(box().absolute().inset(7).corners(5).fill(INK))
+            .children(box().absolute().inset(7).borderRadius(5).fill(INK))
         )
     elif mode == 2:
         highlight = Decoration(kind=Decoration.Kind.Highlight, color="#31584f")

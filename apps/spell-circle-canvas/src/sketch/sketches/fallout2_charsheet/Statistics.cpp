@@ -40,7 +40,7 @@ auto Fallout2CharSheet::specialColumn() -> Element {
     // bottom-left. stat.msg 301-310, indexed by the VALUE.
     Element plaque = at(box(), kPlaqueX, y + 4, kPlaqueW, 17)
                          .fill(Fill::color(kWell))
-                         .corners(Corners{n(1.5f)});
+                         .borderRadius(Corners{n(1.5f)});
     plaque.background(
         styles::dropShadow(hexColor(0x000000, 0.6f), {0, n(1)}, n(2)));
     plaque.foreground(
@@ -67,7 +67,7 @@ auto Fallout2CharSheet::odometer(float x, float y, int value,
   using namespace fo;
   Element g = at(box(), x - 1, y - 1, kOdoW * 2 + 2, kOdoH + 2)
                   .fill(Fill::color(hexColor(0x000000)))
-                  .corners(Corners{n(2)});
+                  .borderRadius(Corners{n(2)});
   g.foreground(
       stroke(n(1), Fill::color(hexColor(0x0A0A0A)), PathFormat::Align::Inner));
   const std::string digits =
@@ -75,7 +75,7 @@ auto Fallout2CharSheet::odometer(float x, float y, int value,
   for (int c = 0; c < 2; ++c) {
     Element wheel = at(box(), 1 + kOdoW * (float)c, 1, kOdoW - 1, kOdoH)
                         .fill(wheelMat)
-                        .corners(Corners{n(2.5f)})
+                        .borderRadius(Corners{n(2.5f)})
                         .clip();
     std::string glyph(1, digits[(size_t)c]);
     if (c == 0 && !tensOverride.empty())
@@ -210,7 +210,7 @@ auto Fallout2CharSheet::folder() -> Element {
                     .fill(Paint::linearUnit({0, 0}, {0, 1},
                                             {{0.0f, hexColor(0x50432E)},
                                              {1.0f, hexColor(0x2C2418)}}))
-                    .corners(Corners{n(1)});
+                    .borderRadius(Corners{n(1)});
     a.foreground(stroke(n(0.8f), Fill::color(hexColor(0x1A1610)),
                         PathFormat::Align::Inner));
     // The arrowhead spans the whole cell, so it is not the inscribed
@@ -255,14 +255,14 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
   // its buttons at x = 614.
   const float sy = (float)selected * kRowPitch11 + 27 + 16;
   Element slider =
-      at(box(), 592, sy - 12, 36, 24).fill(tabMat).corners(Corners{n(2)});
+      at(box(), 592, sy - 12, 36, 24).fill(tabMat).borderRadius(Corners{n(2)});
   slider.foreground(fo::stamp(1.2f, 1.4f, hexColor(0xA08858, 0.5f),
                               hexColor(0x0C0906, 0.6f)));
   for (int k = 0; k < 2; ++k) {
     Element btn =
         at(box(), 22, 2 + 11.0f * (float)k, 12, 9)
             .fill(Fill::color(k == 0 ? hexColor(0x3A3020) : hexColor(0x2A2418)))
-            .corners(Corners{n(1.5f)});
+            .borderRadius(Corners{n(1.5f)});
     btn.foreground(stroke(n(0.8f), Fill::color(hexColor(0x8A7448, 0.7f)),
                           PathFormat::Align::Inner));
     if (k == 0)  // the `+` lamp flashes on each spend
@@ -270,7 +270,7 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
           {box()
                .inset(0)
                .fill(Fill::color(kLampOn))
-               .corners(Corners{n(1.5f)})
+               .borderRadius(Corners{n(1.5f)})
                .opacity(&plusFlash),
            kit::centred()
                .inset(0)
@@ -281,7 +281,7 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
   }
   slider.children({at(box(), 2, 6, 16, 12)
                        .fill(Fill::color(hexColor(0x141008)))
-                       .corners(Corners{n(1)})});
+                       .borderRadius(Corners{n(1)})});
   g.children({slider});
   return g;
 }

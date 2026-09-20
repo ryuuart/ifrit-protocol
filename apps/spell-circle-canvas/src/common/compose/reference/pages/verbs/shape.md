@@ -36,7 +36,7 @@ arguments when the path is the same whatever the box is.
 
 ## Description
 
-**It overrides [`corners`](corners.md) outright.** The fill surface,
+**It overrides [`borderRadius`](borderRadius.md) outright.** The fill surface,
 the clip, every stroke pass and every outline-following decoration —
 `PathFormat`, `ContourWalk` — trace this instead.
 
@@ -57,5 +57,5 @@ already cooked wants `shape(heldPath(p))`.
 
 ## See also
 
-[`corners`](corners.md), [`clip`](clip.md), [`stroke`](stroke.md),
+[`borderRadius`](borderRadius.md), [`clip`](clip.md), [`stroke`](stroke.md),
 `shapes::`, `KeyedShape`.

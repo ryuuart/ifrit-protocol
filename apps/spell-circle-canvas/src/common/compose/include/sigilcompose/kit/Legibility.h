@@ -178,7 +178,7 @@ inline Element scrim(Element run, const Scrim& s = {}) {
                       .padding(s.paddingX, s.paddingY)
                       .fill(s.fill)
                       .children({std::move(run)});
-  if (s.radius > 0) plate.corners({s.radius});
+  if (s.radius > 0) plate.borderRadius({s.radius});
   return plate;
 }
 

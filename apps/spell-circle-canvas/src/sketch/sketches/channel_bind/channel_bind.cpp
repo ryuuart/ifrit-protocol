@@ -298,7 +298,7 @@ struct ChannelBind {
         .rect(SkRect::MakeLTRB(kBladeAt, kFloor - kBladeTall,
                                kBladeAt + kBladeWide, kFloor))
         .fill(compose::Fill::color(look.palette.figure))
-        .corners(4)
+        .borderRadius(4)
         .transformOrigin(compose::pct(50), compose::pct(100))
         .scaleY(rise());
   }
@@ -313,7 +313,7 @@ struct ChannelBind {
         compose::box()
             .rect(SkRect::MakeLTRB(kWheelAt, kWheelTop, kWheelAt + kWheelSide,
                                    kWheelTop + kWheelSide))
-            .corners(kWheelSide * 0.5f)
+            .borderRadius(kWheelSide * 0.5f)
             .fill(material::skia::Paint::sweep(
                 SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}, hues()))
             .rotate(turn()));
@@ -326,13 +326,13 @@ struct ChannelBind {
                                    kWheelMiddleY - kHubSide * 0.5f,
                                    kWheelMiddleX + kHubSide * 0.5f,
                                    kWheelMiddleY + kHubSide * 0.5f))
-            .corners(kHubSide * 0.5f)
+            .borderRadius(kHubSide * 0.5f)
             .fill(compose::Fill::color(look.palette.cellGround)));
     pieces.push_back(
         compose::box()
             .rect(SkRect::MakeLTRB(kWheelMiddleX - 5, kWheelTop - 16,
                                    kWheelMiddleX + 5, kWheelTop + 14))
-            .corners(2)
+            .borderRadius(2)
             .fill(compose::Fill::color(look.palette.ink)));
     return pieces;
   }
@@ -359,13 +359,13 @@ struct ChannelBind {
                                kPlumbWide * 0.5f - kBobSide * 0.5f,
                                kPlumbLong - kBobSide,
                                kPlumbWide * 0.5f + kBobSide * 0.5f, kPlumbLong))
-                           .corners(kBobSide * 0.5f)
+                           .borderRadius(kBobSide * 0.5f)
                            .fill(compose::Fill::color(look.palette.figure))}));
     pieces.push_back(compose::box()
                          .rect(SkRect::MakeLTRB(
                              kPlumbAt + kPlumbWide * 0.5f - 7, kPlumbTop - 7,
                              kPlumbAt + kPlumbWide * 0.5f + 7, kPlumbTop + 7))
-                         .corners(7)
+                         .borderRadius(7)
                          .fill(compose::Fill::color(look.palette.ink)));
     return pieces;
   }

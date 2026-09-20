@@ -627,7 +627,7 @@ def metric(label, value, accent):
         .gap(10)
         .padding(24)
         .fill("#1b2735")
-        .corners(16)
+        .borderRadius(16)
         .grow(1)
         .opacity(entrance(0, 1, duration=0.6))
         .children(
@@ -862,7 +862,7 @@ def card(title, detail, accent):
         column()
         .gap(14)
         .padding(24)
-        .corners(16)
+        .borderRadius(16)
         .ink("#ffffff")
         .fill(wash(accent))
         .children(

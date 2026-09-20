@@ -434,7 +434,7 @@ struct ShippingForecast {
   [[nodiscard]] Element ringPanel() {
     const auto hair = [](float r, SkColor4f color, float width) {
       return kit::disc(kEye, r)
-          .corners({r})
+          .borderRadius({r})
           .fill(Fill::none())
           .stroke(stroke(width, Fill::color(color)));
     };
@@ -563,7 +563,7 @@ struct ShippingForecast {
         // names no colour takes it.
         .ink(kAmber)
         .children({
-            box().width(7).height(7).corners({4}).shrink(0).fill(
+            box().width(7).height(7).borderRadius({4}).shrink(0).fill(
                 Fill::currentInk()),
             text(doc["gale"])
                 .styleClass("warning")

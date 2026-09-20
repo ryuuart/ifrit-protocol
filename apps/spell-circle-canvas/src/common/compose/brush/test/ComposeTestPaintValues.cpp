@@ -379,7 +379,7 @@ TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
            .height(40)
            .inset(60, 60, 100, 100)
            .absolute()
-           .corners({8})
+           .borderRadius({8})
            .background(styles::OuterGlow{.color = {1, 1, 1, 1}, .size = 10})
            .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))}));
   host.frame();

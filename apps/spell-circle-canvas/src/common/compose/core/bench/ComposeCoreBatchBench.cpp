@@ -32,7 +32,7 @@ makeInstanceScene(size_t count) {
   using namespace instancing;
   auto atlas = std::make_shared<CellSheet>();
   for (int i = 0; i < 4; ++i)
-    atlas->cell(box().corners({6}).fill(
+    atlas->cell(box().borderRadius({6}).fill(
                     Fill::color({0.2f + 0.2f * (float)i, 0.5f, 0.8f, 1})),
                 {24, 24});
   auto pool = std::make_shared<Pool>();

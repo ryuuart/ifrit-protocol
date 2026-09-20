@@ -269,7 +269,7 @@ struct BoundLane {
       return box()
           .width(26)
           .height(26)
-          .corners({5})
+          .borderRadius({5})
           .fill(Fill::color(color))
           .left(left)
           .top(96)

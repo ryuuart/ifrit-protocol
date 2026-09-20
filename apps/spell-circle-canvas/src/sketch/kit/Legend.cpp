@@ -54,7 +54,7 @@ Element swatchOf(const Legend& key, const LegendEntry& entry, float side) {
   } else {
     entry.swatch.apply(mark);
   }
-  if (key.corners > 0) mark.corners(Corners{key.corners});
+  if (key.corners > 0) mark.borderRadius(Corners{key.corners});
   if (entry.keyline)
     mark.foreground(compose::stroke(key.keylineWidth, *entry.keyline));
   return mark;
@@ -102,7 +102,7 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
     strip.swatches[i].apply(patch);
     if (strip.width.unit != Dimension::Unit::Auto) patch.width(strip.width);
     if (strip.height.unit != Dimension::Unit::Auto) patch.height(strip.height);
-    if (strip.corners > 0) patch.corners(Corners{strip.corners});
+    if (strip.corners > 0) patch.borderRadius(Corners{strip.corners});
     const bool named = i < strip.labels.size() && !strip.labels[i].empty();
     if (!named) {
       if (strip.appear) patch.appear(*strip.appear);
@@ -140,7 +140,7 @@ compose::Element chip(const Chip& tag) {
   plate.children({std::move(label)});
   if (const float round = tag.corners.value_or(look.spacing.chipCorners);
       round > 0)
-    plate.corners(Corners{round});
+    plate.borderRadius(Corners{round});
   return plate;
 }
 

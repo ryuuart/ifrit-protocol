@@ -38,7 +38,7 @@ def cell(caption: str, leaf: compose.Element) -> compose.Element:
             compose.box(leaf.width(120).height(120))
             .height(140)
             .width(compose.pct(100))
-            .corners(8)
+            .borderRadius(8)
             .fill(CELL)
             .clip()
             .justify("center")

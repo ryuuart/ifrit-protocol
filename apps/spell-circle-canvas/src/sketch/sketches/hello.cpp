@@ -53,7 +53,7 @@ Element card(Utf8 step, Utf8 title, Utf8 note, SkColor4f color) {
       .grow()
       .height(150)
       .padding(24)
-      .corners({18})
+      .borderRadius({18})
       .fill(Fill::color(color))
       .children({document::eyebrow(std::move(step)),
                  text(std::move(title)).font({.size = 28}),
@@ -107,7 +107,7 @@ struct HelloSketch {
                          pen.endShape();
                        })
                            .height(174)
-                           .corners({18})
+                           .borderRadius({18})
                            .fill(Fill::color(hexColor(0x253b40)))
                            .clip(),
                        text("Draw every frame with the pen.")
@@ -118,7 +118,7 @@ struct HelloSketch {
                            .column()
                            .gap(8)
                            .height(174)
-                           .corners({18})
+                           .borderRadius({18})
                            .fill(Fill::color(hexColor(0xe5e9df)))
                            .children({text(std::to_string(score))
                                           .font({.size = 64})

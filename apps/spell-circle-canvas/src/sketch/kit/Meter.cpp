@@ -30,7 +30,7 @@ compose::Element meter(const Meter& bar) {
   rail.clip();
   if (bar.width.unit != Dimension::Unit::Auto) rail.width(bar.width);
   rail.height(bar.height.value_or(Dimension(look.spacing.barHeight)));
-  if (bar.corners > 0) rail.corners(Corners{bar.corners});
+  if (bar.corners > 0) rail.borderRadius(Corners{bar.corners});
   if (bar.keyline)
     rail.stroke(compose::stroke(bar.keylineWidth, *bar.keyline,
                                 compose::PathFormat::Align::Inner));
@@ -41,7 +41,7 @@ compose::Element meter(const Meter& bar) {
     Element run = box().absolute().inset(bar.inset.value_or(0.0f));
     barPaint.apply(run);
     run.transformOrigin(compose::pct(0), compose::pct(50)).scaleX(*bar.level);
-    if (bar.corners > 0) run.corners(Corners{bar.corners});
+    if (bar.corners > 0) run.borderRadius(Corners{bar.corners});
     rail.children({std::move(run)});
   } else if (filled > 0) {
     // The height is stated rather than left to the cross-axis stretch:
@@ -52,7 +52,7 @@ compose::Element meter(const Meter& bar) {
         box().width(compose::pct(filled * 100)).height(compose::pct(100));
     barPaint.apply(run);
     run.alignSelf(Align::Stretch);
-    if (bar.corners > 0) run.corners(Corners{bar.corners});
+    if (bar.corners > 0) run.borderRadius(Corners{bar.corners});
     rail.children({std::move(run)});
   }
 

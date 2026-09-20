@@ -22,7 +22,7 @@ Element shapedPanel(std::function<SkPath(SkSize)> outline, Decoration dec) {
 
 // ---------------------------------------------------------------------------
 // geometry::shapes::chamfered / geometry::shapes::notched — the two corner cuts
-// the kernel's corners() (which only rounds) could not express.
+// the kernel's borderRadius() (which only rounds) could not express.
 TEST(ComposeShapes, ChamferCutsTheCornerAtFortyFiveDegrees) {
   Host host;
   host.composer.render(

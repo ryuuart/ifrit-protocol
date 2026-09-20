@@ -303,7 +303,7 @@ shapes::KeyedParametric ringPath() {
  *  are what make a radial ramp read as an EYE rather than a vignette. */
 Element ring(float r, SkColor4f color, float width) {
   return kit::disc(kEye, r)
-      .corners({r})
+      .borderRadius({r})
       .fill(Fill::none())
       .stroke(stroke(width, Fill::color(color)));
 }
@@ -392,7 +392,7 @@ struct VertigoTitles {
                      .width(kPanelW)
                      .height(kPanelH)
                      .shrink(0)
-                     .corners({10})
+                     .borderRadius({10})
                      .clip(true)
                      .key("screen")
                      .fill(irisMat);
@@ -543,7 +543,7 @@ struct VertigoTitles {
          box()
              .key("bezel")
              .inset(0)
-             .corners({10})
+             .borderRadius({10})
              .fill(Fill::none())
              .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
                                          ramp(260, 480, ch::easeOutCubic))),
@@ -591,7 +591,7 @@ struct VertigoTitles {
                    .width(38)
                    .height(38)
                    .shrink(0)
-                   .corners({3})
+                   .borderRadius({3})
                    .fill(Fill::color(hexColor(0x080605)))
                    .stroke(stroke(1.0f, Fill::color(kKeyline),
                                   PathFormat::Align::Inner))

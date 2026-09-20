@@ -492,15 +492,15 @@ void bindCompose(py::module_& module) {
           },
           py::arg("weight"), fluent)
       .def(
-          "corners",
+          "borderRadius",
           [](Element& self, float all) -> Element& {
-            return self.corners({all});
+            return self.borderRadius({all});
           },
           py::arg("all"), fluent)
       .def(
-          "corners",
-          [](Element& self, float tl, float tr, float br,
-             float bl) -> Element& { return self.corners({tl, tr, br, bl}); },
+          "borderRadius",
+          [](Element& self, float tl, float tr, float br, float bl)
+              -> Element& { return self.borderRadius({tl, tr, br, bl}); },
           py::arg("topLeft"), py::arg("topRight"), py::arg("bottomRight"),
           py::arg("bottomLeft"), fluent)
       .def(
@@ -608,7 +608,7 @@ void bindCompose(py::module_& module) {
             return self.cellAlign(alignment(x), alignment(y));
           },
           py::arg("horizontal"), py::arg("vertical"), fluent)
-      .def("corners", py::overload_cast<Corners>(&Element::corners),
+      .def("borderRadius", py::overload_cast<Corners>(&Element::borderRadius),
            py::arg("radii"), fluent)
       .def(
           "shape",

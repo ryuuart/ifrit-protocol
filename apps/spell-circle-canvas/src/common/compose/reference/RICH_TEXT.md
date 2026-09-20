@@ -31,7 +31,7 @@ text(weave::rich(body)
          .add(u8"press ")
          .slot("key", {28, 18})
          .add(u8" to continue"))
-    .children({box().key("key").fill(ink).corners({4})});
+    .children({box().key("key").fill(ink).borderRadius({4})});
 ```
 
 The reserved box is one UNBREAKABLE word: no line breaks inside it, and a

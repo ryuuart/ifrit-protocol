@@ -58,7 +58,7 @@ Element cell(const char* caption, Element leaf) {
       .children({box()
                      .height(140)
                      .width(pct(100))
-                     .corners({8})
+                     .borderRadius({8})
                      .fill(kCell)
                      .clip()
                      .justify(Justify::Center)

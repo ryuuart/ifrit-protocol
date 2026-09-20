@@ -67,7 +67,7 @@ struct @NAME@ {
                    image(reference)
                        .width(240)
                        .height(240)
-                       .corners({18})
+                       .borderRadius({18})
                        .clip()
                        .inset(64, 150, 64, 0)});
   }

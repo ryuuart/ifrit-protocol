@@ -39,7 +39,7 @@ Element lattice() {
 Element panel(const char* caption, Element plate) {
   return plate.width(210)
       .height(120)
-      .corners({14})
+      .borderRadius({14})
       .fill(kVeil)
       .justify(Justify::Center)
       .alignItems(Align::Center)

@@ -34,7 +34,7 @@ class StackElement:
                 .top(14)
                 .right(14)
                 .padding(8, 5)
-                .corners(4)
+                .borderRadius(4)
                 .fill(BADGE),
                 # A caption pinned to the other three edges.
                 compose.text("Every child shares the box.", size=15, color=INK)
@@ -43,7 +43,7 @@ class StackElement:
                 .bottom(16),
             )
             .grow(1)
-            .corners(12)
+            .borderRadius(12)
             .fill(PLATE)
             .clip()
         ).padding(26)

@@ -144,7 +144,7 @@ struct UiParticles {
   }
   Element pill(const ChipTheme& t, std::u8string label) {
     return chip(t, {kSprite - 10, kSprite - 26}, std::move(label), 15)
-        .corners({14})
+        .borderRadius({14})
         .fill(Fill::color(t.fill));
   }
   Element shout(const ChipTheme& t, std::u8string label, int spikes) {
@@ -176,7 +176,7 @@ struct UiParticles {
     return box()
         .width(kSprite - 10)
         .height(kSprite - 18)
-        .corners({8})
+        .borderRadius({8})
         .fill(Fill::color(paper))
         .foreground(dashed)
         .column()
@@ -274,7 +274,7 @@ struct UiParticles {
     return box()
         .width(kPostW - 6)
         .height(kPostH - 6)
-        .corners({12})
+        .borderRadius({12})
         .fill(Fill::color({0.10f, 0.11f, 0.15f, 1}))
         .foreground(sigil::compose::stroke(1.4f, Fill::color(accent)))
         .column()

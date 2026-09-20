@@ -61,7 +61,7 @@ struct P5MixedForms {
         .column()
         .gap(4)
         .padding(14)
-        .corners({12})
+        .borderRadius({12})
         .fill(compose::Fill::color({0.16f, 0.20f, 0.34f, 0.92f}))
         .font({.size = 15})
         .children({compose::text(u8"a compose card, retained"),

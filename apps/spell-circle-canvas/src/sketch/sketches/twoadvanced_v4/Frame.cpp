@@ -435,7 +435,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
              .children({radarSweep(i, hexColor(0xB65050), 0.42f),
                         box()
                             .inset(26)
-                            .corners({16})
+                            .borderRadius({16})
                             .fill(mskia::withAlpha(kD1, 0.92f))
                             .stroke(stroke(1, Fill::color(kD4),
                                            PathFormat::Align::Inner)),

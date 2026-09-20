@@ -161,7 +161,7 @@ inline Element boneFrame(float w, float h, float radius = 3) {
       // reads through the highlight rather than over it.
       .children({box()
                      .inset(0)
-                     .corners({radius})
+                     .borderRadius({radius})
                      .fill(Paint::recipe(field::noise(0.36f, 3, 1.0f)))
                      .opacity(0.38f)
                      .blend(SkBlendMode::kMultiply)})

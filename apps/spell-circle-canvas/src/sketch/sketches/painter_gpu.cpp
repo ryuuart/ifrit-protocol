@@ -56,7 +56,7 @@ Element card(float w, float h, SkColor4f accent) {
     return box()
         .width(w - 44 - (float)i * 26)
         .height(6)
-        .corners({3})
+        .borderRadius({3})
         .fill(Fill::color(faint));
   };
   const auto bar = [accent](int i) {
@@ -64,7 +64,7 @@ Element card(float w, float h, SkColor4f accent) {
     return box()
         .width(8)
         .height(8 + 26.0f * (0.5f + 0.5f * std::sin(t * 8.0f + 1.1f)))
-        .corners({2})
+        .borderRadius({2})
         .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f}));
   };
   return box()
@@ -74,7 +74,7 @@ Element card(float w, float h, SkColor4f accent) {
       .column()
       .gap(12)
       .padding(12)
-      .children({box().width(w - 24).height(11).corners({5}).fill(
+      .children({box().width(w - 24).height(11).borderRadius({5}).fill(
                      Fill::color({accent.fR, accent.fG, accent.fB, 0.92f})),
                  box().column().gap(9).children({each(3, rule)}),
                  box()

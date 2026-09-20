@@ -136,7 +136,7 @@ struct LootGrid {
           box()
               .width(w)
               .height(h)
-              .corners({2})
+              .borderRadius({2})
               .at({lt::cellX(item.col), lt::cellY(item.row)})
               // THE CELL STAYS NEUTRAL. Diablo II reads an item's quality
               // off the NAME in its tooltip and off the glow a set or
@@ -186,7 +186,7 @@ struct LootGrid {
         {box()
              .width(dw)
              .height(dh)
-             .corners({2})
+             .borderRadius({2})
              .at({0, 0})
              .translateX(&dragX)
              .translateY(&dragY)
@@ -197,7 +197,7 @@ struct LootGrid {
          box()
              .width(dw)
              .height(dh)
-             .corners({2})
+             .borderRadius({2})
              .at({0, 0})
              .translateX(&dragX)
              .translateY(&dragY)
@@ -293,7 +293,7 @@ struct LootGrid {
         socket.children(
             {box()
                  .inset(2)
-                 .corners({2})
+                 .borderRadius({2})
                  // The same rule as the hoard's cells: the socket is a dark
                  // well whatever is worn in it, and quality is a hairline.
                  .fill(Paint::linear({0, 0}, {0, h},
@@ -406,7 +406,7 @@ struct LootGrid {
         .alignItems(Align::Center)
         .padding(14, 11)
         .gap(2)
-        .corners({2})
+        .borderRadius({2})
         .fill(Paint::solid({0.02f, 0.02f, 0.02f, 0.90f}))
         .foreground(stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.45f})))
         .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 5}, 12))
@@ -619,20 +619,21 @@ struct LootGrid {
              .right(30)
              .top(38)
              .padding(13, 7)
-             .corners({3})
+             .borderRadius({3})
              .fill(Paint::linear({0, 0}, {0, 32},
                                  {{0.0f, lt::kStoneHi}, {1.0f, lt::kStoneLo}}))
              .foreground(stroke(1.0f, Fill::color(lt::kBronzeDim)))
-             .children({box().width(13.0f).height(13.0f).corners({6.5f}).fill(
-                            Paint::radial({5, 4}, 9,
-                                          {{0.0f, hexColor(0xFFE9A8)},
-                                           {0.6f, hexColor(0xD8A93C)},
-                                           {1.0f, hexColor(0x7A5C15)}})),
-                        text(goldText).font({.size = 17,
-                                             .color = hexColor(0xD8B95C),
-                                             .track = 1.6f,
-                                             .weight = 620}),
-                        text("GOLD").font({.size = 10, .track = 2.2f})})});
+             .children(
+                 {box().width(13.0f).height(13.0f).borderRadius({6.5f}).fill(
+                      Paint::radial({5, 4}, 9,
+                                    {{0.0f, hexColor(0xFFE9A8)},
+                                     {0.6f, hexColor(0xD8A93C)},
+                                     {1.0f, hexColor(0x7A5C15)}})),
+                  text(goldText).font({.size = 17,
+                                       .color = hexColor(0xD8B95C),
+                                       .track = 1.6f,
+                                       .weight = 620}),
+                  text("GOLD").font({.size = 10, .track = 2.2f})})});
 
     // The two keys, bottom left and bottom right. Both are
     // `sketch::kit::legend` under the sheet's own theme: a dim body

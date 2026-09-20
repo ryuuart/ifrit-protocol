@@ -8,7 +8,7 @@ group: Containers
 python: sigil.compose.stack
 status: stable
 example: stack_element
-common_verbs: [cover, left, top, right, bottom, zIndex, clip, corners, fill]
+common_verbs: [cover, left, top, right, bottom, zIndex, clip, borderRadius, fill]
 ---
 
 # stack

@@ -26,13 +26,13 @@ def tile(caption: str, plate: compose.Element) -> compose.Element:
         compose.box(
             plate.width(compose.pct(100))
             .height(120)
-            .corners(10)
+            .borderRadius(10)
             .children(
                 compose.box(
                     compose.text("A FULL-BLEED CHILD", size=14, color=INK).fontTrack(2)
                 )
                 .cover()
-                .corners(10)
+                .borderRadius(10)
                 .fill(PLATE)
                 .justify("center")
                 .alignItems("center")

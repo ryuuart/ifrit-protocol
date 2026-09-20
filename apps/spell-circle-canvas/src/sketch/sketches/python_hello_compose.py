@@ -37,7 +37,7 @@ def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
         .height(172)
         .basis(0)
         .grow(1)
-        .corners(16)
+        .borderRadius(16)
         .ink("#ffffff")
         .fill(wash(accent))
         .opacity(entrance(0, 1, duration=0.6, delay=delay))

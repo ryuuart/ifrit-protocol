@@ -16,7 +16,7 @@ Element mark(const SurfacePaint& paint, float side, float corners) {
   Element patch = box().width(Dimension(side)).height(Dimension(side));
   paint.apply(patch);
   patch.shrink(0);
-  if (corners > 0.0f) patch.corners(Corners{corners});
+  if (corners > 0.0f) patch.borderRadius(Corners{corners});
   return patch;
 }
 

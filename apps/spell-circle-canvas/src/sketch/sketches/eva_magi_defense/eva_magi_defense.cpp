@@ -142,7 +142,7 @@ struct EvaMagiDefense {
       const SkRect r = module.cell(n);
       auto cell = box()
                       .rect(r)
-                      .corners({module.cellRadius})
+                      .borderRadius({module.cellRadius})
                       .fill(Fill::color(kCell))
                       .foreground(rimStroke(3.2f, rim))
                       .ink(kNumeral);

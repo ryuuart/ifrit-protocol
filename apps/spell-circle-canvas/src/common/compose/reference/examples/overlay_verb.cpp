@@ -40,7 +40,7 @@ Element cell(const char* caption, Element plate) {
       .alignItems(Align::Center)
       .children({plate.width(pct(100))
                      .height(120)
-                     .corners({10})
+                     .borderRadius({10})
                      .fill(kPlate)
                      .clip()
                      .justify(Justify::Center)

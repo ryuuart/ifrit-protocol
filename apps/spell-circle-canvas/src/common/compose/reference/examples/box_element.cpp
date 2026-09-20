@@ -31,7 +31,7 @@ Element card(const char* title, const char* body) {
       .padding(18)
       .basis(0)
       .grow(1)
-      .corners({10})
+      .borderRadius({10})
       .fill(kCard)
       .children({text(title).font({.size = 17, .color = kInk}),
                  box().height(2).width(36).fill(kAccent),

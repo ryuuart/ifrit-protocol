@@ -279,7 +279,7 @@ struct AeroDesktop {
     return box()
         .inset(10, 12, 10, 4)
         .fill(Fill::color({1, 1, 1, 0.95f}))
-        .corners({0.5f});
+        .borderRadius({0.5f});
   }
   Element buttonGlyphMaximize() {
     return box()
@@ -292,7 +292,7 @@ struct AeroDesktop {
       return box()
           .inset(cx - 5.5f, cy - 1.0f, w - cx - 5.5f, h - cy - 1.0f)
           .fill(Fill::color({1, 1, 1, 0.97f}))
-          .corners({1})
+          .borderRadius({1})
           .rotate(deg);
     };
     return stack().inset(0).children({bar(45), bar(-45)});
@@ -305,7 +305,7 @@ struct AeroDesktop {
     auto b = box()
                  .width(w)
                  .height(h)
-                 .corners(c)
+                 .borderRadius(c)
                  .clip()
                  .fill(ad::buttonBase(h))
                  .stroke(stroke(1, Fill::color({1, 1, 1, 0.30f}),
@@ -409,7 +409,7 @@ struct AeroDesktop {
              box()
                  .inset(162, 50, 12, 0)
                  .height(22)
-                 .corners({2})
+                 .borderRadius({2})
                  .fill(Paint::linear({0, 0}, {0, 22},
                                      {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
                                       {1.0f, {0.74f, 0.85f, 0.96f, 1}}}))
@@ -426,7 +426,7 @@ struct AeroDesktop {
     auto glass =
         box()
             .inset(0)
-            .corners({6, 6, 0, 0})
+            .borderRadius({6, 6, 0, 0})
             .clip()
             // The DWM pass blurs what's behind the pane -- and behind it
             // is only the wallpaper, static between its 10 Hz steps. A
@@ -474,7 +474,7 @@ struct AeroDesktop {
                  // window icon
                  box()
                      .inset(14, 8, ad::kWW - 30, ad::kWH - 24)
-                     .corners({3})
+                     .borderRadius({3})
                      .fill(Paint::linear({0, 0}, {0, 16},
                                          {{0.0f, {0.55f, 0.80f, 1.0f, 1}},
                                           {1.0f, {0.10f, 0.38f, 0.75f, 1}}}))
@@ -488,7 +488,7 @@ struct AeroDesktop {
     auto frame = box()
                      .inset(ad::kWX, ad::kWY, ad::kW - ad::kWX - ad::kWW,
                             ad::kH - ad::kWY - ad::kWH)
-                     .corners({6, 6, 0, 0})
+                     .borderRadius({6, 6, 0, 0})
                      .stroke(stroke(1, Fill::color({0, 0, 0, 0.65f}),
                                     PathFormat::Align::Outer))
                      .stroke(stroke(1, Fill::color({1, 1, 1, 0.55f}),
@@ -539,7 +539,7 @@ struct AeroDesktop {
         .children(
             {box()
                  .inset(0)
-                 .corners({d / 2})
+                 .borderRadius({d / 2})
                  .clip()
                  // the orb's radial base
                  .fill(Paint::radial(
@@ -560,13 +560,14 @@ struct AeroDesktop {
                                          [](const Pane& q) {
                                            return box()
                                                .inset(q.l, q.t, q.r, q.b)
-                                               .corners({1.5f})
+                                               .borderRadius({1.5f})
                                                .fill(Fill::color(q.ink));
                                          })),
                       // top lens
                       box()
                           .inset(4, 1.5f, 4, d * 0.52f)
-                          .corners({d * 0.36f, d * 0.36f, d * 0.20f, d * 0.20f})
+                          .borderRadius(
+                              {d * 0.36f, d * 0.36f, d * 0.20f, d * 0.20f})
                           .fill(Paint::linear({0, 0}, {0, d * 0.46f},
                                               {{0.0f, {1, 1, 1, 0.55f}},
                                                {1.0f, {1, 1, 1, 0.04f}}}))})});
@@ -585,7 +586,7 @@ struct AeroDesktop {
         .inset(ad::kWX + ad::kWW - 8 - wClose, ad::kWY + 1, 0, 0)
         .width(wClose)
         .height(bh)
-        .corners({0, 0, 4, 0})
+        .borderRadius({0, 0, 4, 0})
         .fill(ad::closeBloom(wClose, bh))
         .opacity(&bloom)
         .children({buttonGlyphClose(wClose, bh)});
@@ -652,7 +653,7 @@ struct AeroDesktop {
              box()
                  .inset(62, 4, 0, 4)
                  .width(54)
-                 .corners({3})
+                 .borderRadius({3})
                  .fill(Paint::linear({0, 0}, {0, th - 8},
                                      {{0.0f, {1, 1, 1, 0.26f}},
                                       {0.5f, {1, 1, 1, 0.08f}},
@@ -663,7 +664,7 @@ struct AeroDesktop {
                           .inset(19, 9, 0, 0)
                           .width(16)
                           .height(13)
-                          .corners({2})
+                          .borderRadius({2})
                           .fill(
                               Paint::linear({0, 0}, {0, 13},
                                             {{0.0f, {1.0f, 0.87f, 0.55f, 1}},
@@ -707,14 +708,14 @@ struct AeroDesktop {
     return stack().inset(0).children(
         {box()
              .inset(2, 6, 4, 8)
-             .corners({2, 2, 3, 3})
+             .borderRadius({2, 2, 3, 3})
              .fill(Paint::linear({0, 0}, {0, 30},
                                  {{0.0f, {1.00f, 0.88f, 0.55f, 1}},
                                   {1.0f, {0.86f, 0.62f, 0.20f, 1}}}))
              .stroke(stroke(1, Fill::color({0.45f, 0.32f, 0.08f, 0.7f}))),
          box()
              .inset(2, 2, 22, 34)
-             .corners({2, 2, 0, 0})
+             .borderRadius({2, 2, 0, 0})
              .fill(Fill::color({0.93f, 0.74f, 0.34f, 1}))});
   }
 
@@ -722,7 +723,7 @@ struct AeroDesktop {
     return stack().inset(0).children(
         {box()
              .inset(8, 10, 8, 4)
-             .corners({3, 3, 6, 6})
+             .borderRadius({3, 3, 6, 6})
              .fill(Paint::linear({0, 0}, {28, 0},
                                  {{0.00f, {0.75f, 0.88f, 0.97f, 0.55f}},
                                   {0.50f, {0.45f, 0.62f, 0.80f, 0.35f}},
@@ -730,7 +731,7 @@ struct AeroDesktop {
              .stroke(stroke(1, Fill::color({0.85f, 0.93f, 1.0f, 0.8f}))),
          box()
              .inset(5, 6, 5, 32)
-             .corners({2})
+             .borderRadius({2})
              .fill(Fill::color({0.60f, 0.76f, 0.90f, 0.7f}))
              .stroke(stroke(1, Fill::color({0.90f, 0.96f, 1.0f, 0.8f})))});
   }

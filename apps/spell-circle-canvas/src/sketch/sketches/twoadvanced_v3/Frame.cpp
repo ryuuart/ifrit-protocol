@@ -102,7 +102,7 @@ Element TwoAdvancedV3::wordmark() {
   if (logoMark) {
     mark.fill(kNear).mask(by::alpha(stretchFill(logoMark, 46, 46)));
   } else {
-    mark.corners({23})
+    mark.borderRadius({23})
         .stroke(stroke(3, Fill::color(kNear), PathFormat::Align::Inner))
         .alignItems(Align::Center)
         .justify(Justify::Center)
@@ -275,7 +275,7 @@ Element TwoAdvancedV3::footerRail() {
                             return one;
                           }),
                      box().grow(1), t(foot["hosting"], micro(9, kInk, 140)),
-                     box().width(12).height(12).corners({6}).fill(kHost)}),
+                     box().width(12).height(12).borderRadius({6}).fill(kHost)}),
             kStageX, 1045, kStageW, 20)
       .opacity(animate(motion::from(0.0f).to(1.0f),
                        {320ms, &ch::easeOutQuad, 2900ms}));

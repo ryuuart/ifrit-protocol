@@ -28,7 +28,7 @@ Element swatch(Element square, const char* spelling) {
       .column()
       .gap(10)
       .alignItems(Align::Center)
-      .children({square.width(120).height(120).corners({12}),
+      .children({square.width(120).height(120).borderRadius({12}),
                  text(spelling).font({.size = 13, .color = kLabel})});
 }
 

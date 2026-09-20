@@ -559,15 +559,16 @@ struct DaemonConsole {
                .progress = animate(motion::from(0.0f).to(1.0f),
                                    {750ms, &choreograph::easeNone})});
 
-    Element row = box()
-                      .row()
-                      .gap(8)
-                      .padding(6, 1)
-                      .corners({2})
-                      .alignItems(Align::Center)
-                      .children({box().width(3).height(12).corners({1.5f}).fill(
-                                     Fill::color(d.stripe)),
-                                 std::move(leaf)});
+    Element row =
+        box()
+            .row()
+            .gap(8)
+            .padding(6, 1)
+            .borderRadius({2})
+            .alignItems(Align::Center)
+            .children({box().width(3).height(12).borderRadius({1.5f}).fill(
+                           Fill::color(d.stripe)),
+                       std::move(leaf)});
     // Severity in form as well as ink: a breach line carries its own wash.
     if (r.sev == dc::kBreach)
       row.fill(Fill::color(mskia::withAlpha(dc::kCrit, 0.09f)));
@@ -595,11 +596,12 @@ struct DaemonConsole {
         .row()
         .gap(8)
         .alignItems(Align::Center)
-        .children(
-            {box().width(6).height(6).corners({1.5f}).fill(Fill::color(chip)),
-             text(label).font(chrome(10, dc::kChrome, 1.6f)), box().grow(1),
-             text(std::format("{}", n))
-                 .font(chrome(12, dc::kBone, 0, true, true))});
+        .children({box().width(6).height(6).borderRadius({1.5f}).fill(
+                       Fill::color(chip)),
+                   text(label).font(chrome(10, dc::kChrome, 1.6f)),
+                   box().grow(1),
+                   text(std::format("{}", n))
+                       .font(chrome(12, dc::kBone, 0, true, true))});
   }
 
   Element rule(float marginTop, float marginBottom) {
@@ -679,7 +681,7 @@ struct DaemonConsole {
             .gap(10)
             .alignItems(Align::Center)
             .children(
-                {box().width(9).height(9).corners({2}).rotate(45.0f).fill(
+                {box().width(9).height(9).borderRadius({2}).rotate(45.0f).fill(
                      Fill::color(dc::kAccent)),
                  text("WARDNET").font(chrome(15, dc::kBone, 3.5f, true)),
                  text("PERIMETER WATCH").font(chrome(10.5f, dc::kChrome, 3.5f)),
@@ -689,7 +691,7 @@ struct DaemonConsole {
                  box()
                      .width(6)
                      .height(6)
-                     .corners({3})
+                     .borderRadius({3})
                      .fill(Fill::color(dc::kOk))
                      .opacity(&lamp),
                  text(std::format("T+{:07.2f}", mission(clockNow)))

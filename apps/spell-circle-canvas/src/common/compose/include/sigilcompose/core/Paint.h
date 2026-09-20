@@ -145,7 +145,7 @@ struct Corners {
   float topLeft = 0.0f, topRight = 0.0f, bottomRight = 0.0f, bottomLeft = 0.0f;
 
   Corners() = default;
-  Corners(float all)  // NOLINT: implicit by design (.corners({8}))
+  Corners(float all)  // NOLINT: implicit by design (.borderRadius({8}))
       : topLeft(all), topRight(all), bottomRight(all), bottomLeft(all) {}
   Corners(float tl, float tr, float br, float bl)
       : topLeft(tl), topRight(tr), bottomRight(br), bottomLeft(bl) {}

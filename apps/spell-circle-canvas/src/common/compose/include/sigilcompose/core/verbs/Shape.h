@@ -28,9 +28,9 @@ class ShapeVerbs {
    *  `border-radius`. Square when unstated, and overridden outright by
    *  `shape()`. It is the cheap path: a rounded box clips and strokes
    *  as a round rect where a general shape has to build a path. */
-  Derived& corners(Corners c);
+  Derived& borderRadius(Corners c);
   /** THE NODE'S SHAPE: a path generator over its laid-out size, in
-   *  local coordinates. Overrides `corners()`. Every `shapes::`
+   *  local coordinates. Overrides `borderRadius()`. Every `shapes::`
    *  generator is a comparable value, so a shaped node prunes exactly
    *  like an unshaped one; a raw callable never compares equal and its
    *  node re-records on every describe. */
