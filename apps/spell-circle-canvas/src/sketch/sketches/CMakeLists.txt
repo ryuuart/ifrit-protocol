@@ -188,9 +188,23 @@ target_compile_definitions(SigilSketches PUBLIC
 # sketch lifts — so the saved entry compiles against the header the
 # build last wrote, a saved schema wants a build, and a schema added to
 # one sketch recompiles no other.
+#
+# A PYTHON ENTRY TAKES THE BINARY SCHEMA AND NOTHING ELSE. There is no
+# translation unit to give a header to: the sketch names its root
+# through `data::Schema::fromBinarySchema` while it runs, so all it
+# needs is the `.bfbs`. That one lands beside the entry rather than in
+# this tree, because a sketch reaches its own files through
+# `local("<stem>.bfbs")` and what that names is the directory the entry
+# stands in.
 file(GLOB SIGIL_SKETCH_SCHEMAS CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_LIST_DIR}/*/*.fbs)
+if(SIGIL_SKETCH_SCHEMAS)
+  # The compiler for every schema below, and the runtime the C++ ones
+  # are read back through.
+  find_package(flatbuffers CONFIG REQUIRED)
+endif()
 set(SIGIL_SKETCH_SCHEMA_HEADERS)
+set(SIGIL_SKETCH_PYTHON_SCHEMAS)
 foreach(schema IN LISTS SIGIL_SKETCH_SCHEMAS)
   get_filename_component(schema_dir ${schema} DIRECTORY)
   get_filename_component(schema_stem ${schema} NAME_WE)
@@ -200,6 +214,16 @@ foreach(schema IN LISTS SIGIL_SKETCH_SCHEMAS)
     continue()
   endif()
   if(NOT "${schema_dir}/${sketch_stem}.cpp" IN_LIST SIGIL_SKETCH_FILES)
+    if("${schema_dir}/${sketch_stem}.py" IN_LIST SIGIL_SKETCH_PYTHON_FILES)
+      set(schema_binary ${schema_dir}/${sketch_stem}.bfbs)
+      add_custom_command(
+        OUTPUT ${schema_binary}
+        COMMAND flatbuffers::flatc -b --schema -o ${schema_dir} ${schema}
+        DEPENDS ${schema}
+        COMMENT "Generating ${sketch_stem}.bfbs"
+        VERBATIM)
+      list(APPEND SIGIL_SKETCH_PYTHON_SCHEMAS ${schema_binary})
+    endif()
     continue()
   endif()
   set(schema_out ${CMAKE_CURRENT_BINARY_DIR}/schema/${sketch_stem})
@@ -239,9 +263,15 @@ endforeach()
 if(SIGIL_SKETCH_SCHEMA_HEADERS)
   # Listed as sources so the entries wait for their headers; the schema
   # parser a sketch reads its own files through is the runtime library.
-  find_package(flatbuffers CONFIG REQUIRED)
   target_sources(SigilSketches PRIVATE ${SIGIL_SKETCH_SCHEMA_HEADERS})
   target_link_libraries(SigilSketches PUBLIC flatbuffers::flatbuffers)
+endif()
+if(SIGIL_SKETCH_PYTHON_SCHEMAS)
+  # A target rather than a source list: the binary schema is read by the
+  # sketch at run time and compiled by nothing, so what the registry
+  # objects need is that it has been written before anything opens one.
+  add_custom_target(SigilSketchSchemas DEPENDS ${SIGIL_SKETCH_PYTHON_SCHEMAS})
+  add_dependencies(SigilSketchesPython SigilSketchSchemas)
 endif()
 
 # Where the Substance SDK stands, for the sketch that draws one of its
