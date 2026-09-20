@@ -564,7 +564,8 @@ void bindWeave(py::module_& module) {
       .value("Cluster", Unit::Cluster)
       .value("Word", Unit::Word)
       .value("Line", Unit::Line)
-      .value("Sentence", Unit::Sentence);
+      .value("Sentence", Unit::Sentence)
+      .value("Selection", Unit::Selection);
   py::class_<Selector>(text, "Selector")
       .def(py::init<>())
       .def("take", &Selector::take, py::arg("count"))

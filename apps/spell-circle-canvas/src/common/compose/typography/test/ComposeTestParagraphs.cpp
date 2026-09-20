@@ -53,6 +53,59 @@ std::u8string twoBlocks() {
          u8"Second block does the same and wraps as well over here.";
 }
 
+/** The box the green ink stands in inside `region` — empty when none. */
+SkIRect greenBoxIn(Host& host, SkIRect region) {
+  SkIRect box = SkIRect::MakeEmpty();
+  for (int y = region.top(); y < region.bottom(); ++y)
+    for (int x = region.left(); x < region.right(); ++x)
+      if (host.pixel(x, y) == SK_ColorGREEN)
+        box.join(SkIRect::MakeXYWH(x, y, 1, 1));
+  return box;
+}
+
+/** The band a reading stands in above `unit`: one line pitch deep and
+ *  exactly as wide as the unit, so what a neighbouring unit carries is
+ *  outside it. */
+SkIRect bandAbove(const TextUnit& unit) {
+  const int top = (int)unit.rect.top() - (int)std::ceil(unit.pitch);
+  return SkIRect::MakeLTRB((int)unit.rect.left(), std::max(top, 0),
+                           (int)std::ceil(unit.rect.right()),
+                           (int)unit.rect.top());
+}
+
+/** ONE GROUP READING OVER `alpha beta`, read back as the pieces that
+ *  selection was placed as and the green ink standing over each. The
+ *  measure is the caller's so one passage answers both the unbroken base
+ *  and the broken one. */
+struct GroupReading {
+  std::vector<SkRect> bases;
+  std::vector<SkIRect> ink;
+};
+
+GroupReading groupReading(sigil::weave::Unit unit, std::u8string reading,
+                          float measure) {
+  Host host(400, 280);
+  host.composer.render(box().children(
+      {text(u8"alpha beta gamma", whiteStyle(16))
+           .key("t")
+           .absolute()
+           .left(20.0f)
+           .top(70.0f)
+           .width(measure)
+           .annotate(kit::ruby(sigil::weave::selectors::text(u8"alpha beta"),
+                               unit, {std::move(reading)},
+                               colouredType(9, SK_ColorGREEN), 2.0f))}));
+  host.frame();
+  GroupReading out;
+  for (const TextUnit& piece :
+       host.composer.units("t", sigil::weave::selectors::text(u8"alpha beta"),
+                           sigil::weave::Unit::Selection)) {
+    out.bases.push_back(piece.rect);
+    out.ink.push_back(greenBoxIn(host, bandAbove(piece)));
+  }
+  return out;
+}
+
 /** Distinct baselines of a keyed text node's placed lines, ascending. */
 std::vector<float> baselinesOf(Host& host, const char* key) {
   std::vector<float> found;
@@ -197,6 +250,55 @@ TEST(ComposeUnits, AUnitReportsOnEveryLineItLandedOn) {
     EXPECT_GT(lines[i].axis, lines[i - 1].axis);
     EXPECT_EQ(lines[i].lineIndex, lines[i - 1].lineIndex + 1);
   }
+}
+
+TEST(ComposeUnits, ASelectionIsOneUnitHoweverManyWordsItCovers) {
+  // THE SELECTION IS ITS OWN UNIT. The same address answers two units at
+  // word granularity and one at selection granularity, because a
+  // selection is the extent the caller named and the breaker's opinion
+  // about where it may divide is not part of it.
+  Host host(400, 300);
+  host.composer.render(box().children(
+      {text(u8"alpha beta gamma", whiteStyle(16)).key("t").width(360.0f)}));
+  host.frame();
+  const std::vector<TextUnit> words =
+      host.composer.units("t", sigil::weave::selectors::text(u8"alpha beta"),
+                          sigil::weave::Unit::Word);
+  ASSERT_EQ(words.size(), 2u);
+  const std::vector<TextUnit> whole =
+      host.composer.units("t", sigil::weave::selectors::text(u8"alpha beta"),
+                          sigil::weave::Unit::Selection);
+  ASSERT_EQ(whole.size(), 1u);
+  EXPECT_EQ(whole.front().range.start, words.front().range.start);
+  EXPECT_EQ(whole.front().range.end, words.back().range.end);
+  EXPECT_NEAR(whole.front().rect.left(), words.front().rect.left(), 0.5f);
+  EXPECT_NEAR(whole.front().rect.right(), words.back().rect.right(), 0.5f);
+  // It covers the word it does NOT address no more than the word units do.
+  const std::vector<TextUnit> last =
+      host.composer.units("t", sigil::weave::selectors::text(u8"gamma"),
+                          sigil::weave::Unit::Selection);
+  ASSERT_EQ(last.size(), 1u);
+  EXPECT_GE(last.front().rect.left(), whole.front().rect.right());
+}
+
+TEST(ComposeUnits, EachOccurrenceOfASelectionIsItsOwnUnit) {
+  // One unit per stretch the selector addressed: the same phrase twice
+  // with other words between them is two units, in draw order, which is
+  // what pairs a list of readings off with the bases it names.
+  Host host(500, 300);
+  host.composer.render(
+      box().children({text(u8"alpha beta gamma alpha beta", whiteStyle(16))
+                          .key("t")
+                          .width(460.0f)}));
+  host.frame();
+  const std::vector<TextUnit> found =
+      host.composer.units("t", sigil::weave::selectors::text(u8"alpha beta"),
+                          sigil::weave::Unit::Selection);
+  ASSERT_EQ(found.size(), 2u);
+  EXPECT_LT(found[0].rect.right(), found[1].rect.left());
+  EXPECT_LT(found[0].range.end, found[1].range.start);
+  EXPECT_EQ(found[0].index, 0u);
+  EXPECT_EQ(found[1].index, 1u);
 }
 
 TEST(ComposeUnits, AnUnknownKeyAndAnEmptySelectionAnswerEmpty) {
@@ -519,6 +621,86 @@ TEST(ComposeAnnotate, ReserveIsWhatOpensTheBaseLineBox) {
 }
 
 // ── A story through a chain of frames ────────────────────────────────────
+
+TEST(ComposeAnnotate, OneReadingStandsOverTheWholeSelectedCompound) {
+  // GROUP RUBY: one reading over the compound the selector named. The
+  // reading is narrower than the base and centred on it, because it reads
+  // the whole of it once.
+  const GroupReading grouped =
+      groupReading(sigil::weave::Unit::Selection, u8"ab", 360.0f);
+  ASSERT_EQ(grouped.bases.size(), 1u);
+  ASSERT_FALSE(grouped.ink.front().isEmpty()) << "no reading was drawn";
+  const SkRect base = grouped.bases.front();
+  EXPECT_LT((float)grouped.ink.front().width(), base.width() * 0.5f);
+  EXPECT_NEAR(
+      (float)(grouped.ink.front().left() + grouped.ink.front().right()) / 2.0f,
+      (base.left() + base.right()) / 2.0f, 3.0f);
+
+  // Addressed by WORD, the same declaration is a reading over each word,
+  // whose ink together spans most of the base — which is what a compound
+  // the breaker divides used to look like, and the reason the selection
+  // is a unit of its own.
+  const GroupReading perWord =
+      groupReading(sigil::weave::Unit::Word, u8"ab", 360.0f);
+  ASSERT_FALSE(perWord.ink.empty());
+  ASSERT_FALSE(perWord.ink.front().isEmpty());
+  EXPECT_GT((float)perWord.ink.front().width(), base.width() * 0.5f);
+}
+
+TEST(ComposeAnnotate, ASelectionBrokenAcrossLinesPartitionsItsOneReading) {
+  const GroupReading whole =
+      groupReading(sigil::weave::Unit::Selection, u8"mnmnmn", 360.0f);
+  ASSERT_EQ(whole.bases.size(), 1u);
+  ASSERT_FALSE(whole.ink.front().isEmpty());
+  const int reading = whole.ink.front().width();
+
+  // A measure that holds the first word and not the second breaks the
+  // selection, which is then two pieces on two lines and still ONE base.
+  const GroupReading broken =
+      groupReading(sigil::weave::Unit::Selection, u8"mnmnmn", 56.0f);
+  ASSERT_EQ(broken.bases.size(), 2u) << "the selection did not break";
+  EXPECT_LT(broken.bases[0].bottom(), broken.bases[1].bottom());
+  ASSERT_FALSE(broken.ink[0].isEmpty()) << "the first piece carries nothing";
+  ASSERT_FALSE(broken.ink[1].isEmpty()) << "the second piece carries nothing";
+  // The pieces SHARE the one reading. Repeating it on each — which is what
+  // a list of one used to do — would make both of them as wide as the
+  // whole, and the two together twice as wide.
+  EXPECT_LT(broken.ink[0].width(), reading);
+  EXPECT_LT(broken.ink[1].width(), reading);
+  const int shared = broken.ink[0].width() + broken.ink[1].width();
+  EXPECT_GT(shared * 2, reading);
+  EXPECT_LT(shared * 2, reading * 3);
+}
+
+TEST(ComposeAnnotate, AListOfOneStillReadsEveryBaseAlike) {
+  // KENTEN'S SHAPE, which the share must not have cost: one mark, several
+  // bases, a mark over each. A list of one is read over every base it
+  // addresses — what it is never read twice over is ONE base.
+  Host host(400, 220);
+  host.composer.render(box().children(
+      {text(u8"alpha beta", whiteStyle(24))
+           .key("t")
+           .absolute()
+           .left(20.0f)
+           .top(80.0f)
+           .width(360.0f)
+           .annotate(kit::ruby(sigil::weave::selectors::text(u8"alpha"),
+                               sigil::weave::Unit::Cluster, {u8"o"},
+                               colouredType(9, SK_ColorGREEN), 2.0f))}));
+  host.frame();
+  const std::vector<TextUnit> clusters =
+      host.composer.units("t", sigil::weave::selectors::text(u8"alpha"),
+                          sigil::weave::Unit::Cluster);
+  ASSERT_EQ(clusters.size(), 5u);
+  for (size_t index = 0; index < clusters.size(); ++index)
+    EXPECT_FALSE(greenBoxIn(host, bandAbove(clusters[index])).isEmpty())
+        << "cluster " << index << " of the base carries no mark";
+  // …and nothing was read over the word the selector never named.
+  const std::vector<TextUnit> after = host.composer.units(
+      "t", sigil::weave::selectors::text(u8"beta"), sigil::weave::Unit::Word);
+  ASSERT_EQ(after.size(), 1u);
+  EXPECT_TRUE(greenBoxIn(host, bandAbove(after.front())).isEmpty());
+}
 
 TEST(ComposeStory, EachFrameFillsFromWhereTheOneBeforeItStopped) {
   sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))

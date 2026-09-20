@@ -9,10 +9,14 @@
  * geometry and nothing else can check it.
  */
 
+#include <sigilcompose/kit/Typeset.h>
 #include <sigilweave/kit/Features.h>
 
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <string>
+#include <vector>
 
 #include "support/TextTestSupport.h"
 
@@ -47,6 +51,31 @@ int countPixels(Host& host, SkIRect region, SkColor color) {
     for (int x = region.left(); x < region.right(); ++x)
       if (host.pixel(x, y) == color) ++hits;
   return hits;
+}
+
+/** The box the green ink stands in inside `region` — empty when none.
+ *  Green DOMINANT rather than exactly green: small type set in a machine
+ *  face is antialiased against the ground and may never reach the colour
+ *  it was asked for, and where the ink is is the question here. */
+SkIRect greenBoxIn(Host& host, SkIRect region) {
+  SkIRect box = SkIRect::MakeEmpty();
+  for (int y = region.top(); y < region.bottom(); ++y)
+    for (int x = region.left(); x < region.right(); ++x) {
+      const SkColor pixel = host.pixel(x, y);
+      if (SkColorGetG(pixel) > 64 && SkColorGetG(pixel) > SkColorGetR(pixel) &&
+          SkColorGetG(pixel) > SkColorGetB(pixel))
+        box.join(SkIRect::MakeXYWH(x, y, 1, 1));
+    }
+  return box;
+}
+
+/** The band a reading stands in beside a column's unit: one column pitch
+ *  wide, to the RIGHT, which is the side a vertical passage reads its
+ *  furniture on, and exactly as long as the unit it belongs to. */
+SkIRect bandRightOf(const TextUnit& unit) {
+  return SkIRect::MakeLTRB((int)unit.rect.right(), (int)unit.rect.top(),
+                           (int)std::ceil(unit.rect.right() + unit.pitch),
+                           (int)std::ceil(unit.rect.bottom()));
 }
 
 /** The x of each column's first run, in column order. A column's runs all
@@ -749,4 +778,65 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
   EXPECT_EQ(onTheLeft[2], 0) << "the swapped band stayed right of the axis";
   EXPECT_NEAR(onTheLeft[1], onTheRight[2], onTheRight[2] * 0.25)
       << "the same band, the other side: it must keep its length";
+}
+
+TEST(TextVertical, AGroupReadingSplitsWithItsCompoundDownTheColumns) {
+  // 国語辞典 is four ideographs, and the breaker may open an opportunity
+  // between any two of them — so the compound is a SELECTION and not a
+  // word, and one reading stands over the whole of it.
+  const std::u8string compound = u8"国語辞典";
+  const std::u8string prose = u8"国語辞典を買った";
+  const sigil::weave::Type furigana{
+      .size = 13.0f, .color = SkColor4f::FromColor(SK_ColorGREEN)};
+  const auto describe = [&](float columnLength) {
+    return box().padding(10).children(
+        {text(prose, jp(22, SK_ColorWHITE))
+             .key("t")
+             .width(220.0f)
+             .height(columnLength)
+             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+             .annotate(kit::ruby(sigil::weave::selectors::text(compound),
+                                 sigil::weave::Unit::Selection,
+                                 {u8"こくごじてん"}, furigana, 2.0f))});
+  };
+
+  // A column long enough for the whole compound: ONE unit, ONE reading.
+  Host tall(300, 320);
+  tall.composer.render(describe(280.0f));
+  tall.frame();
+  const std::vector<TextUnit> whole =
+      tall.composer.units("t", sigil::weave::selectors::text(compound),
+                          sigil::weave::Unit::Selection);
+  ASSERT_EQ(whole.size(), 1u);
+  const std::vector<TextUnit> characters =
+      tall.composer.units("t", sigil::weave::selectors::text(compound),
+                          sigil::weave::Unit::Cluster);
+  ASSERT_EQ(characters.size(), 4u);
+  const SkIRect unbroken = greenBoxIn(tall, bandRightOf(whole.front()));
+  ASSERT_FALSE(unbroken.isEmpty()) << "no reading stood beside the column";
+
+  // A column that ends inside the compound: TWO pieces, on two columns,
+  // and one reading still — shared between them in proportion to what
+  // each piece advances, never read again on the second.
+  const float step = characters[1].rect.top() - characters[0].rect.top();
+  ASSERT_GT(step, 1.0f);
+  Host cut(300, 320);
+  cut.composer.render(describe(step * 2.0f + 1.0f));
+  cut.frame();
+  const std::vector<TextUnit> pieces =
+      cut.composer.units("t", sigil::weave::selectors::text(compound),
+                         sigil::weave::Unit::Selection);
+  ASSERT_EQ(pieces.size(), 2u) << "the compound did not cross a column";
+  EXPECT_GT(pieces[0].rect.centerX(), pieces[1].rect.centerX())
+      << "columns advance right to left";
+  const SkIRect first = greenBoxIn(cut, bandRightOf(pieces[0]));
+  const SkIRect second = greenBoxIn(cut, bandRightOf(pieces[1]));
+  ASSERT_FALSE(first.isEmpty()) << "the first piece carries nothing";
+  ASSERT_FALSE(second.isEmpty()) << "the second piece carries nothing";
+  // A reading set down a column is measured along the column.
+  EXPECT_LT(first.height(), unbroken.height());
+  EXPECT_LT(second.height(), unbroken.height());
+  const int shared = first.height() + second.height();
+  EXPECT_GT(shared * 2, unbroken.height());
+  EXPECT_LT(shared * 2, unbroken.height() * 3);
 }

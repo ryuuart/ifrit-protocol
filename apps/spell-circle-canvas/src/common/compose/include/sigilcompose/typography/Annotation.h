@@ -33,11 +33,15 @@ namespace sigil::compose {
  *
  *  MONO, GROUP AND JUKUGO RUBY ARE THE UNIT CHOICE and nothing else.
  *  `weave::Unit::Cluster` gives one reading per character, which is mono ruby;
- *  `weave::Unit::Word` gives one per word, which is group ruby; and a base that
- *  BREAKS ACROSS A LINE OR A COLUMN reports its units on both, so its
- *  reading splits with it, in proportion to the base's advance either
- *  side. That is not a special case here — it is what reading the units off
- *  the placement means.
+ *  `weave::Unit::Selection` gives one over the whole of what the selector
+ *  matched, which is group ruby — a compound is a selection and not a
+ *  word, because the breaker may open an opportunity inside it, and CJK
+ *  gives it one between any two ideographs; and the compound addressed
+ *  per cluster with the readings its characters take is jukugo. A base
+ *  that BREAKS ACROSS A LINE OR A COLUMN reports its units on both, so
+ *  its reading splits with it, in proportion to the base's advance either
+ *  side — a list of one reading included. That is not a special case here
+ *  — it is what reading the units off the placement means.
  *
  *  THE SIZE IS THE ANNOTATION'S OWN. `style` is a whole TextStyle, and
  *  there is no fraction of the base's size anywhere in the library: a ruby
@@ -46,12 +50,15 @@ namespace sigil::compose {
 struct Annotation {
   /** Which of the base's units are annotated. */
   sigil::weave::Selector where;
-  /** The granularity the readings map to — cluster for mono ruby, word for
-   *  group ruby, sentence or line for a note over a passage. */
+  /** The granularity the readings map to — cluster for mono ruby,
+   *  selection for group ruby, sentence or line for a note over a
+   *  passage. */
   sigil::weave::Unit unit = sigil::weave::Unit::Cluster;
-  /** One reading per addressed unit, in draw order. A LIST OF ONE is used
-   *  for every unit, which is how a row of identical emphasis marks is
-   *  written; a list shorter than the units leaves the rest bare. */
+  /** One reading per addressed BASE, in draw order. A LIST OF ONE is used
+   *  for every base, which is how a row of identical emphasis marks is
+   *  written; a list shorter than the bases leaves the rest bare. Either
+   *  way a base that broke shares its one reading between its pieces
+   *  rather than repeating it on each. */
   std::vector<std::u8string> readings;
   /** The reading's own type. */
   /** What the reading is set in: a PARTIAL over the style the base is set

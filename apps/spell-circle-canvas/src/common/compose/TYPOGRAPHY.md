@@ -78,10 +78,14 @@ text(u8"ONE LINE, TWO MOVES", display)
 
 **Units.** `weave::Unit` is the granularity a selector slices and a cascade
 beats over: `weave::Unit::Glyph`, `weave::Unit::Cluster`,
-`weave::Unit::Word`, `weave::Unit::Line`, `weave::Unit::Sentence`.
-`weave::Unit::Cluster` is the default, and it is the one that keeps text
-correct — a base letter and its combining marks are one unit and never
-separate under a stagger.
+`weave::Unit::Word`, `weave::Unit::Line`, `weave::Unit::Sentence`,
+`weave::Unit::Selection`. `weave::Unit::Cluster` is the default, and it is
+the one that keeps text correct — a base letter and its combining marks
+are one unit and never separate under a stagger. `weave::Unit::Selection`
+is the odd one: not a size the text is divided into but the extent the
+selector named, one unit per stretch it addressed without interruption,
+which is what puts one reading over a compound the breaker is free to
+divide.
 
 **Selectors.** `weave::selectors::word`, `weave::selectors::words`, `weave::selectors::line`,
 `weave::selectors::sentence`, `weave::selectors::range`, `weave::selectors::text` and
@@ -1058,11 +1062,13 @@ question — does the annotation need ROOM?
   base's strut BEFORE the base is broken, so the pitch opens once and the
   reading is placed on the result; nothing chases anything. Ruby and
   kenten are `Annotation` values, and mono, group and jukugo ruby are the
-  UNIT choice and nothing else. `kit::ruby` and `kit::kenten` are the two
-  stock spellings. The PLACEMENT is SigilWeave's — the band a reading
-  needs, where it stands against its base, and how a broken base shares
-  it out over its pieces — and this tier only says which units are
-  annotated with what.
+  UNIT choice and nothing else — `weave::Unit::Cluster` for mono and for
+  jukugo, `weave::Unit::Selection` for group, because a compound is the
+  extent the selector named and not a break opportunity. `kit::ruby` and
+  `kit::kenten` are the two stock spellings. The PLACEMENT is
+  SigilWeave's — the band a reading needs, where it stands against its
+  base, and how a broken base shares it out over its pieces, one reading
+  or many — and this tier only says which units are annotated with what.
 - **`kit::annotate`** is a sibling that reserves nothing and stands beside
   the finished text — marginalia, word labels, callouts. It resolves at
   describe time from the layout the last draw left standing, on the same
@@ -1250,7 +1256,9 @@ a line: the band a reading needs goes into the base's strut before the
 base is broken, and the reading is then placed on the result, on the side
 the writing mode reads its furniture on — above a line, to the RIGHT of a
 column. `kit::ruby` and `kit::kenten` are the two stock spellings, and
-mono, group and jukugo ruby are the unit choice and nothing else. See
-"Beside the text".
+mono, group and jukugo ruby are the unit choice and nothing else —
+`weave::Unit::Selection` is the group one, and a group reading whose base
+runs off the foot of a column is shared between the two columns rather
+than read twice. See "Beside the text".
 
 ---

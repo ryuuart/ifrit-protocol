@@ -9,7 +9,10 @@
  *
  * None of these is a mechanism. Ruby and kenten are `Annotation` values —
  * a selector, a unit, a reading and a type — and the whole of what
- * distinguishes mono, group and jukugo ruby is which unit is named. A list
+ * distinguishes mono, group and jukugo ruby is which unit is named:
+ * `weave::Unit::Cluster` for mono and jukugo, `weave::Unit::Selection` for
+ * group, because a compound is the extent the selector named and not a
+ * break opportunity. A list
  * is a hanging indent with a marker in the hang. A rule is a box at the
  * extent `Composer::units` reports. A block's opening letter set large is
  * not here at all: it is `Element::initialLetter`, because the size that
@@ -58,13 +61,16 @@ namespace sigil::compose::kit {
  *
  *      text(passage, body)
  *          .annotate(kit::ruby(weave::selectors::text(u8"漢字"),
- * weave::Unit::Word, {u8"かんじ"}, furigana))
+ * weave::Unit::Selection, {u8"かんじ"}, furigana))
  *
  *  MONO, GROUP AND JUKUGO ARE THE UNIT: `weave::Unit::Cluster` gives one
- *  reading per character, `weave::Unit::Word` one per word, and a compound
- *  annotated per cluster with the readings its characters take is jukugo.
- *  A base that breaks across a line or a column carries its reading with it,
- *  split in proportion to the base's advance either side.
+ *  reading per character, which is mono; `weave::Unit::Selection` gives one
+ *  over the whole of what the selector matched, which is group — a compound
+ *  is a selection rather than a word, because the breaker opens an
+ *  opportunity between any two ideographs; and the compound annotated per
+ *  cluster with the readings its characters take is jukugo. A base that
+ *  breaks across a line or a column carries its reading with it, split in
+ *  proportion to the base's advance either side.
  *
  *  It RESERVES: the band the reading occupies goes into the base's strut
  *  before the base is broken, so the line pitch — or the column pitch —

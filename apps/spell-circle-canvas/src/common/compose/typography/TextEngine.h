@@ -12,6 +12,7 @@
 
 #include <sigilcore/compute/Intervals.h>
 #include <sigilweave/paragraph/Paragraph.h>
+#include <sigilweave/paragraph/Unit.h>
 
 #include <cstdint>
 #include <span>
@@ -48,7 +49,13 @@ namespace sigil::compose::detail {
  *  numbering the words and lines — do not depend on which track is asking.
  *  Reused across frames: build() keeps the allocations. */
 struct GlyphStructure {
-  static constexpr size_t kUnits = 5;  ///< one lane per weave::Unit enumerator
+  /// One lane per unit the WALK numbers. `weave::Unit::Selection` has none
+  /// here: the lanes below are facts about the placement and a selection
+  /// is a fact about the question, so it is numbered where the selector is
+  /// resolved (`buildSelectionLane`).
+  static constexpr size_t kUnits = 5;
+  static_assert((size_t)sigil::weave::Unit::Selection == kUnits,
+                "every unit the walk numbers stands below Selection");
 
   std::vector<GlyphInfo> glyphs;  ///< in draw order, structure filled in
   /** Per weave::Unit: glyph index → the unit it belongs to, numbered from 0 in
@@ -84,6 +91,19 @@ std::vector<uint8_t> resolveSelection(const sigil::weave::Selector& selector,
                                       const GlyphStructure& structure,
                                       const sigil::weave::Paragraph& paragraph,
                                       std::span<const NamedRun> named);
+/** THE LANE `weave::Unit::Selection` IS ADDRESSED BY: glyph index → the
+ *  unit it falls in, numbered from zero in draw order, filled into @p lane
+ *  and answering how many units that came to.
+ *
+ *  The number changes wherever the selection starts or stops, so every
+ *  stretch the selector addressed without interruption is one unit — and
+ *  so is every stretch between them, which is what makes the lane total
+ *  and lets a consumer number the whole walk from it. It is not read out
+ *  of the glyph structure because the structure's lanes are facts about
+ *  the walk and this one is a fact about the question: a compound the
+ *  breaker may divide is still one thing the caller pointed at. */
+uint32_t buildSelectionLane(std::span<const uint8_t> selected,
+                            std::vector<uint32_t>& lane);
 /** The once-per-pattern diagnostic behind an unresolvable selector. */
 void warnBadSelectorPattern(const std::u8string& pattern);
 /** The once-per-name diagnostic behind an `selectors::style` no run answers to.

@@ -43,6 +43,19 @@ void markRanges(const std::vector<sigil::weave::CharRange>& ranges,
         out[i] = 1;
 }
 
+/** Once per process: an `weave::selectors::each` asked to step over the
+ *  selection, which is the selector itself. */
+void warnSelectionIsNotAGranularity() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "compose: weave::selectors::each(weave::Unit::Selection) would have to "
+      "resolve itself — a selection is the extent a selector names, not a "
+      "size the text is divided into, so this selector addresses "
+      "everything\n");
+}
+
 /** The extents a named-run table gives one name, in declaration order —
  *  each caller puts them in the form it needs. Empty when no run answers to
  *  the name, which is the one case the callers warn about. */
@@ -129,6 +142,11 @@ void resolveInto(const sigil::weave::Selector& selector,
       // `drop(n)` and `take(n)` partition a unit exactly: the two answer
       // opposite sides of the same cut, so no glyph is in both and none is
       // in neither.
+      if (s->each == sigil::weave::Unit::Selection) {
+        warnSelectionIsNotAGranularity();
+        std::fill(out.begin(), out.end(), (uint8_t)1);
+        break;
+      }
       const std::vector<uint32_t>& units = structure.unitOf[(size_t)s->each];
       const int drop = std::max(s->drop, 0);
       int within = 0;

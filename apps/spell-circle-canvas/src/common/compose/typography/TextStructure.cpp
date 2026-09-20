@@ -13,6 +13,7 @@
 #include <sigilweave/query/Query.h>              // the unit granularities
 
 #include <algorithm>
+#include <span>
 #include <vector>
 
 #include "TextEngine.h"
@@ -49,10 +50,29 @@ bool startsUnit(sigil::weave::Unit granularity,
       return glyph.lineIndex != previous.lineIndex;
     case sigil::weave::Unit::Sentence:
       return glyph.sentenceIndex != previous.sentenceIndex;
+    case sigil::weave::Unit::Selection:
+      // The walk numbers no selection: a selection is the extent the
+      // question named, numbered where the question is resolved. The
+      // lanes below stop before it, so this case is never reached.
+      return true;
   }
   return true;
 }
 }  // namespace
+
+uint32_t buildSelectionLane(std::span<const uint8_t> selected,
+                            std::vector<uint32_t>& lane) {
+  lane.assign(selected.size(), 0);
+  uint32_t units = 0;
+  uint8_t previous = 0;
+  for (size_t index = 0; index < selected.size(); ++index) {
+    const uint8_t here = selected[index] ? (uint8_t)1 : (uint8_t)0;
+    if (index == 0 || here != previous) ++units;
+    previous = here;
+    lane[index] = units - 1;
+  }
+  return units;
+}
 
 void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
                            const sigil::weave::Paragraph& paragraph,

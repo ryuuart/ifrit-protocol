@@ -1019,7 +1019,7 @@ class Element {
    *      text(passage, body)
    *          .block({.writingMode = WritingMode::kVerticalRL})
    *          .annotate({.where = weave::selectors::text(u8"漢字"),
-   *                     .unit = weave::Unit::Word,          // group ruby
+   *                     .unit = weave::Unit::Selection,     // group ruby
    *                     .readings = {u8"かんじ"},
    *                     .style = furigana})
    *

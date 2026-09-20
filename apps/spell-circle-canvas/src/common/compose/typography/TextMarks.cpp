@@ -144,7 +144,16 @@ std::vector<TextUnit> detail::unitsOfText(
   const auto count = (uint32_t)structure.glyphs.size();
   const std::vector<uint8_t> selected = detail::resolveSelection(
       selector, structure, paragraph, inst.textNamedRuns);
-  const std::vector<uint32_t>& unitOf = structure.unitOf[(size_t)unit];
+  // THE SELECTION IS ITS OWN UNIT. The five walk lanes are numbered off
+  // the placement; this one is numbered off the question, so it is built
+  // beside the selection rather than read out of the structure — which is
+  // what lets one reading stand over a compound the breaker is free to
+  // divide.
+  static thread_local std::vector<uint32_t> selectionLane;
+  const bool bySelection = unit == sigil::weave::Unit::Selection;
+  if (bySelection) detail::buildSelectionLane(selected, selectionLane);
+  const std::vector<uint32_t>& unitOf =
+      bySelection ? selectionLane : structure.unitOf[(size_t)unit];
   const bool vertical =
       paragraph.writingMode() == sigil::weave::WritingMode::kVerticalRL;
 

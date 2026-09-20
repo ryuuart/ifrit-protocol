@@ -66,10 +66,11 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
     const std::vector<TextUnit> units =
         unitsOfText(impl, inst, annotation.where, annotation.unit, &sources);
     if (units.empty() || sources.size() != units.size()) continue;
-    // A LIST OF ONE reads every unit alike, which is how a row of identical
-    // emphasis marks is written — a broken base included, since the one
-    // reading is what each of its pieces is asked to carry. A list of many
-    // pairs off with the bases.
+    // A LIST OF ONE reads every BASE alike, which is how a row of
+    // identical emphasis marks is written. It is never read twice over ONE
+    // base: the pieces a broken base was placed as share it out below,
+    // exactly as a list of many does. A list of many pairs off with the
+    // bases.
     const bool alike = annotation.readings.size() == 1;
 
     auto place = [&](const TextUnit& unit, const std::u16string& text) {
@@ -114,9 +115,8 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
         continue;
       }
       std::u16string text = weave::unicode::toUtf16(*source);
-      if (alike || last == index) {
-        for (size_t piece = index; piece <= last; ++piece)
-          place(units[piece], text);
+      if (last == index) {
+        place(units[index], text);
         index = last + 1;
         continue;
       }
