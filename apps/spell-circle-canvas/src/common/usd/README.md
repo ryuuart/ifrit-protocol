@@ -180,51 +180,47 @@ was handed.
 
 ## Build and test
 
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`usd_test` over `write/test/` and `read/test/` and one `usd_bench`,
+ctest one entry per CASE, what a case may pin, and what a label
+promises. What is only true of SigilUsd:
+
 OpenUSD comes from vcpkg (`usd` with its default features off). When the
-package is not found the top-level configure warns and
-leaves every target here out.
+package is not found the top-level configure warns and leaves every
+target here out: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead` and
+the `SigilUsd` umbrella. **Every case carries the `usd` label**, because
+without the plugin registry all of them skip, with the reason, and every
+benchmark then registers nothing.
 
-Targets: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead`, the
-`SigilUsd` umbrella; `usd_test` (ctest, one binary over `write/test/` and
-`read/test/`); `usd_bench` (Google
-Benchmark, through the `benches` target and `scripts/sigil.py bench`).
-
-```sh
-ctest --test-dir build -C Release -R '^Usd' --output-on-failure
-```
-
-One test binary over both doors' cases — `UsdWrite` and `UsdRead`, with
-`UsdRuntime` beside them — sharing one fixture header at
-`test/Fixture.h`: the scratch path an authored stage is written to —
-the tree-wide `src/test/ScratchDir.h`, named for the process, so two
-runs never read each other's files and neither leaves one behind — the
-skip every case opens with, and the two-slot ring both doors are
-exercised over. Every case carries the `usd` ctest label, because
-without the plugin registry all of them skip. The runtime leaf carries no test file of its own; its
-claim, that the probe answers and answers the same way twice, is
-asserted in `read/test/` beside the cases that skip on it.
+Both doors' cases — `UsdWrite` and `UsdRead`, with `UsdRuntime` beside
+them — share one fixture header at `test/Fixture.h`: the scratch path an
+authored stage is written to, the skip every case opens with, and the
+two-slot ring both doors are exercised over. The runtime leaf carries no
+test file of its own; its claim, that the probe answers and answers the
+same way twice, is asserted in `read/test/` beside the cases that skip
+on it.
 
 The write test authors stages into that scratch directory and inspects
 them through USD's own API, one case per subject: the crate bytes and
 the stage metrics a consumer reads them by, a mesh's points with one
 bound subset per slot, the same material binding one prim and writing
 one image file, stamps as a point instancer over one prototype, the
-ascii a `.usda` extension asks for, the prim paths names are
-sanitized into, and the path it refuses to write. The `.usdz` case stands in the read test, because what
-a package is for is only visible from the far side of it: the archive's
-own magic bytes, nothing of the stage left standing beside it, and the
-model — the material's image included — read back out of the one file. The read test reads the hand-authored stages committed
-under `test/assets/` (an ASCII stage with a parent xform, a mixed
+ascii a `.usda` extension asks for, the prim paths names are sanitized
+into, and the path it refuses to write. **The `.usdz` case stands in the
+read test**, because what a package is for is only visible from the far
+side of it: the archive's own magic bytes, nothing of the stage left
+standing beside it, and the model — the material's image included —
+read back out of the one file.
+
+The read test reads the hand-authored stages committed under
+`test/assets/` (an ASCII stage with a parent xform, a mixed
 triangle-and-quad mesh with per-vertex `st` and `displayColor`, two
 subsets bound to two materials, a texture file beside it, and a point
 instancer, and a stage as another tool would author it: a sphere light
 with a shaping cone and no `sigil:` data, aimed by its own rotation
 under a translated parent, beside a camera with no focus distance) and
 round-trips stages the writer produced — its meshes, an instancer read
-as a faceless part, and one case each
-for the sun, the point light, the spot, the camera, and a dome light's
-panorama beside the stage and its orientation — beside what it refuses
-to open at all. Every case skips, with
-the reason, when the runtime probe says the plugins are absent, so a
-machine without them checks nothing here; every benchmark then registers
-nothing.
+as a faceless part, and one case each for the sun, the point light, the
+spot, the camera, and a dome light's panorama beside the stage and its
+orientation — beside what it refuses to open at all.
