@@ -779,64 +779,59 @@ optionals these functions answer.
 
 ## Build and test
 
-From `apps/spell-circle-canvas`:
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`data_test` over every feature's `test/` and one `data_bench`, ctest one
+entry per CASE, what a case may pin, and what a label promises. No case
+here carries one — nothing in this library needs a device, a font or a
+port. What is only true of SigilData:
 
-```sh
-python3 scripts/sigil.py setup --config Release
-cmake --build build --config Release --target data_test
-ctest --test-dir build -C Release -R '^Data' --output-on-failure
-```
+`SigilDataDecode` (`decode/`) reads the awkward parts of a real file — a
+quoted field holding the delimiter, a newline and a doubled quote; a
+short row and a long one; a thousands separator and a decimal comma —
+and puts the decoders on a real hub over a scratch directory, because
+one `registerDecoders()` call answering `load<Table>` is the whole of
+what that call promises. It judges the three codecs of the performance
+room against packets and messages spelled out byte by byte — a desk's
+among the first, every kind a cable carries read and then written back
+to the bytes it was read from among the second, and a universe of
+dimmers with the halves of its port address and the count the wire holds
+it to among the third — since the wire is the only thing a codec
+standing on its own answers to. One case of its own opens the schema
+header and the generated one and nothing else, so the day the schema
+token needs the reader under it that case stops compiling.
 
-Targets: `SigilDataDecode` (`decode/`) with `decode/test/`, which reads
-the awkward parts of a real file — a quoted field holding the delimiter,
-a newline and a doubled quote; a short row and a long one; a thousands
-separator and a decimal comma — and puts the decoders on a real hub over
-a scratch directory, because one `registerDecoders()` call answering
-`load<Table>` is the whole of what that call promises, and judges the
-three codecs of the performance room against packets and messages
-spelled out byte by byte — a desk's among the first, every kind a cable
-carries read and then written back to the bytes it was read from among
-the second, and a universe of dimmers with the halves of its port
-address and the count the wire holds it to among the third — since the
-wire is the only thing a codec standing on its own answers to,
-and which opens, in one case of its own, the schema header and the
-generated one and nothing else, so the day the schema token needs the
-reader under it that case stops compiling;
-`SigilDataValues` (`values/`) with `values/test/`, whose cases stand on
-a schema of its own carrying every shape a value has to say — a nested
-struct, a table field that may be absent, a vector of tables, a
-required string, an enum, a deprecated field and a union of three — and
-judge what the generator wrote against the wire rather than against
-itself: a value written and read back field for field, a union through
-each alternative and through none, the root's own JSON form both ways,
-bytes that are not that schema at all, and the decode feature's sheet
-read as a value beside the same sheet read in place;
-`SigilDataTable` (`table/`) with `table/test/`, which pins what
-each reshaping answers and what it leaves alone — a filtered table's
-source unchanged, a tie keeping its order, a missing cell last both ways
-— and `SigilDataScale` (`scale/`) with `scale/test/`, whose every
-case asserts one thing the header promises against a closed form worked
-out by hand — a half of an area is a half of a radius squared, a
-ladder's ends are the ends of a niced domain, a lone entry stands where
-its transform says it stands — rather than against whatever the code
-happens to answer; `SigilDataConnection` (`connection/`) with
-`connection/test/`, whose cases put a connection on a real hub behind a
-transport with no socket under it — what a case sends lands in a vector
-it owns, and what arrives it delivers into the feed itself — so which
-handler a message reaches, what `receive()` hands out, what an unreadable
-message costs, what goes out on either kind of door and how a recording
-replays are all judged on one thread with no port to be free, and
-whose schema cases put the decode feature's own test schema behind a
-door — the two conversions and what they refuse, an arrival in either
-form, one that does not fit, and the buffer a send writes — so the
-token and the door read through it are judged together; and
-`data_bench`, which times one mapping per call on each transform a
-per-mark loop runs through and the tick ladder a redraw rebuilds, the
-reshapings a redraw runs, and both formats read from bytes already in
-memory so no disk is inside a timed loop.
+`SigilDataValues` (`values/`) stands on a schema of its own carrying
+every shape a value has to say — a nested struct, a table field that may
+be absent, a vector of tables, a required string, an enum, a deprecated
+field and a union of three — and judges what the generator wrote against
+the wire rather than against itself: a value written and read back field
+for field, a union through each alternative and through none, the root's
+own JSON form both ways, bytes that are not that schema at all, and the
+decode feature's sheet read as a value beside the same sheet read in
+place.
 
-`data_test` takes its scratch directory from `src/test/ScratchDir.h`, the
-repository-level test support header: a directory named after the case
-and the process, emptied on the way in and removed on the way out. No
-benchmark here touches a disk at all, which is why none of them needs
-one.
+`SigilDataTable` (`table/`) pins what each reshaping answers and what it
+leaves alone — a filtered table's source unchanged, a tie keeping its
+order, a missing cell last both ways. `SigilDataScale` (`scale/`) holds
+every case to a closed form worked out by hand — a half of an area is a
+half of a radius squared, a ladder's ends are the ends of a niced
+domain, a lone entry stands where its transform says it stands — rather
+than to whatever the code happens to answer.
+
+`SigilDataConnection` (`connection/`) puts a connection on a real hub
+behind a transport with no socket under it: what a case sends lands in a
+vector it owns, and what arrives it delivers into the feed itself, so
+which handler a message reaches, what `receive()` hands out, what an
+unreadable message costs, what goes out on either kind of door and how a
+recording replays are all judged on one thread with no port to be free.
+Its schema cases put the decode feature's own test schema behind a door
+— the two conversions and what they refuse, an arrival in either form,
+one that does not fit, and the buffer a send writes — so the token and
+the door read through it are judged together.
+
+`data_bench` times one mapping per call on each transform a per-mark
+loop runs through and the tick ladder a redraw rebuilds, the reshapings
+a redraw runs, and both formats read from bytes already in memory, so no
+disk stands inside a timed loop and no benchmark here needs a scratch
+directory at all.
