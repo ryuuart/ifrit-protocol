@@ -111,9 +111,13 @@ sigil_test(compose_test
   LABELS fonts
   SUITES ComposeFaces)
 
-# The kernel: describe, reconcile, layout, query, caching, and the
-# whole-scene scoreboard, blur, instances and particle arms.
+# The kernel: describe, reconcile, layout, query and caching in the
+# first file, then one whole-scene file per subject — the scoreboard,
+# the effects, the batches that stand for many items, and the two scenes
+# that price a bake against drawing the same picture again.
 sigil_bench(compose_bench
-  SOURCES bench/ComposeCoreBench.cpp bench/ComposeCoreSceneBench.cpp
+  SOURCES bench/ComposeCoreBench.cpp bench/ComposeCoreScoreboardBench.cpp
+          bench/ComposeCoreEffectBench.cpp bench/ComposeCoreBatchBench.cpp
+          bench/ComposeCoreSceneBench.cpp
   LIBRARIES SigilComposeCore EnTT::EnTT SigilWeavePorts
   GPU_LIBRARIES SigilSkia)
