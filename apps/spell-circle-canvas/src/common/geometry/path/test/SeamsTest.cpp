@@ -251,6 +251,20 @@ TEST(Band, AVaryingRailJoinsAtTheRealVerticesInsteadOfLoopingAtACorner) {
   EXPECT_EQ(cornerLoops(profileOffset(hexagon, halfIn), step), 0)
       << "centered, inner rail";
 
+  // A RIGHT ANGLE, which is the corner this repair is named after and
+  // the sharpest one it closes: the miter reaches
+  // `radius / tan(half the interior angle)` past the vertex, which at 90°
+  // is exactly the radius — the width of the window of samples the join
+  // stands for.
+  SkPathBuilder box;
+  box.addRect(SkRect::MakeXYWH(0, 0, 300, 200));
+  const SkPath rectangle = box.detach();
+  ASSERT_GT(flatten(rectangle).front().signedArea(), 0.0f) << "clockwise";
+  EXPECT_EQ(
+      cornerLoops(profileOffset(rectangle, inward), railSampleStep(rectangle)),
+      0)
+      << "inside every rectangle";
+
   // …and the bands built from them still occupy the side they name.
   const SkPath inwardBand = bandRegion(hexagon, Swell{}, Formation::Inward);
   const SkPath centeredBand = bandRegion(hexagon, Swell{}, Formation::Centered);

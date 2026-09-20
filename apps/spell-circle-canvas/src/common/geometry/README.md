@@ -777,9 +777,11 @@ in no header.
   the kit's.
 - **`path/Band.h`** — `profileOffset()` walks one rail of a width law;
   `bandRegion()` walks both and closes them per contour, on
-  `Formation::Centered`, `Outward` or `Inward`. A constant profile
-  delegates to `parallel`, so corners get the real-vertex repair rather
-  than the spur a sample-and-displace walk leaves inside every rectangle.
+  `Formation::Centered`, `Outward` or `Inward`. Every rail takes the
+  real-vertex repair — arc outside a turn, miter inside — rather than the
+  spur a sample-and-displace walk leaves inside every rectangle, whether
+  the width is constant or varies; a constant one delegates to `parallel`,
+  which answers the same rail to the bit.
   `sweptRegion()` is the OTHER construction of the same band and the two
   differ at a hard turn: it builds no rail, unioning the band's
   cross-sections instead, so the inside of a bend is overlap rather than
