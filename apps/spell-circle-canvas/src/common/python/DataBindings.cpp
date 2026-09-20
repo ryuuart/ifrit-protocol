@@ -19,7 +19,9 @@
 #include <sigilpython/IOBindings.h>
 
 #include <cstring>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <unordered_set>
@@ -143,6 +145,27 @@ py::object cell(const data::Value& value) {
 
 py::object presentCell(const data::Column& column, size_t row) {
   return column.missing(row) ? py::none() : cell(column.at(row));
+}
+
+/** The flag a Python value stands for, if it stands for one. A native
+ *  `Flag` converts to and from `bool`, and a boolean cell read out of a
+ *  table arrives as a Python `bool`, so both answer a flag here. */
+std::optional<data::Flag> flagFrom(py::handle value) {
+  if (py::isinstance<data::Flag>(value)) return py::cast<data::Flag>(value);
+  if (py::isinstance<py::bool_>(value))
+    return data::Flag(py::cast<bool>(value));
+  return std::nullopt;
+}
+
+/** One `Flag` comparison against an arbitrary Python operand: the answer
+ *  where the operand is a flag, and `NotImplemented` where it is not, so
+ *  Python falls back to its own rule rather than raising from here. */
+template <class Comparison>
+py::object flagComparison(data::Flag value, py::handle other,
+                          Comparison comparison) {
+  const std::optional<data::Flag> compared = flagFrom(other);
+  if (!compared) return py::reinterpret_borrow<py::object>(Py_NotImplemented);
+  return py::cast(comparison(value, *compared));
 }
 
 data::ColumnType columnType(const py::list& values, py::handle explicitType) {
@@ -357,45 +380,88 @@ void bindData(py::module_& root) {
   // Both cell values order natively, so both order here: a column hands
   // them to Python code that sorts and compares them like any other value.
   // Each comparison is an explicit lambda with a named input, because the
-  // operator shorthand leaves the input unnamed in the declarations.
+  // operator shorthand leaves the input unnamed in the declarations. An
+  // Instant compares only with an Instant, having no native conversion
+  // from a number, and answers NotImplemented for anything else rather
+  // than raising; a Flag converts from bool natively, so it compares with
+  // a flag or a boolean, which is what a table's boolean cell reads as.
+  // Defining a comparison drops the hash a Python object is born with, so
+  // each value hashes by what it holds: a time cell is a group's key, and
+  // a grouping is read into a dictionary.
   py::class_<data::Instant>(module, "Instant")
       .def(py::init<double>(), py::arg("seconds") = 0)
       .def_readwrite("seconds", &data::Instant::seconds)
       .def("__float__", [](data::Instant value) { return value.seconds; })
+      .def("__hash__",
+           [](data::Instant value) {
+             return py::hash(py::float_(value.seconds));
+           })
       .def(
-          "__eq__", [](data::Instant a, data::Instant b) { return a == b; },
-          py::arg("other"))
-      .def(
-          "__lt__", [](data::Instant a, data::Instant b) { return a < b; },
+          "__eq__",
+          [](data::Instant value, data::Instant other) {
+            return value == other;
+          },
           py::arg("other"), py::is_operator())
       .def(
-          "__le__", [](data::Instant a, data::Instant b) { return a <= b; },
+          "__lt__",
+          [](data::Instant value, data::Instant other) {
+            return value < other;
+          },
           py::arg("other"), py::is_operator())
       .def(
-          "__gt__", [](data::Instant a, data::Instant b) { return a > b; },
+          "__le__",
+          [](data::Instant value, data::Instant other) {
+            return value <= other;
+          },
           py::arg("other"), py::is_operator())
       .def(
-          "__ge__", [](data::Instant a, data::Instant b) { return a >= b; },
+          "__gt__",
+          [](data::Instant value, data::Instant other) {
+            return value > other;
+          },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__ge__",
+          [](data::Instant value, data::Instant other) {
+            return value >= other;
+          },
           py::arg("other"), py::is_operator());
   py::class_<data::Flag>(module, "Flag")
       .def(py::init<bool>(), py::arg("set") = false)
       .def_readwrite("set", &data::Flag::set)
       .def("__bool__", [](data::Flag value) { return value.set; })
+      .def("__hash__",
+           [](data::Flag value) { return py::hash(py::bool_(value.set)); })
       .def(
-          "__eq__", [](data::Flag a, data::Flag b) { return a == b; },
-          py::arg("other"), py::is_operator())
+          "__eq__",
+          [](data::Flag value, py::handle other) {
+            return flagComparison(value, other, std::equal_to<>());
+          },
+          py::arg("other"))
       .def(
-          "__lt__", [](data::Flag a, data::Flag b) { return a < b; },
-          py::arg("other"), py::is_operator())
+          "__lt__",
+          [](data::Flag value, py::handle other) {
+            return flagComparison(value, other, std::less<>());
+          },
+          py::arg("other"))
       .def(
-          "__le__", [](data::Flag a, data::Flag b) { return a <= b; },
-          py::arg("other"), py::is_operator())
+          "__le__",
+          [](data::Flag value, py::handle other) {
+            return flagComparison(value, other, std::less_equal<>());
+          },
+          py::arg("other"))
       .def(
-          "__gt__", [](data::Flag a, data::Flag b) { return a > b; },
-          py::arg("other"), py::is_operator())
+          "__gt__",
+          [](data::Flag value, py::handle other) {
+            return flagComparison(value, other, std::greater<>());
+          },
+          py::arg("other"))
       .def(
-          "__ge__", [](data::Flag a, data::Flag b) { return a >= b; },
-          py::arg("other"), py::is_operator());
+          "__ge__",
+          [](data::Flag value, py::handle other) {
+            return flagComparison(value, other, std::greater_equal<>());
+          },
+          py::arg("other"));
   py::enum_<data::ColumnType>(module, "ColumnType")
       .value("Number", data::ColumnType::Number)
       .value("Text", data::ColumnType::Text)

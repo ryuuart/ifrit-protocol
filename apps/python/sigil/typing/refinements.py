@@ -339,6 +339,13 @@ PARAMETERS["_sigil.data.Column.__init__"] = {
 returns("_sigil.data.Column", "__getitem__ at", "_t.CellValue")
 returns("_sigil.data.Column", "values", "list[_t.CellValue]")
 returns("_sigil.data.Group", "key", "_t.CellValue")
+# A flag compares with a flag or with the boolean a table's boolean cell
+# reads as; anything else answers NotImplemented, which Python resolves
+# into an equality of identity or an ordering's TypeError, so every
+# comparison declares the boolean Python ends up with.
+returns("_sigil.data.Flag", "__eq__ __lt__ __le__ __gt__ __ge__", "bool")
+for name in ("__lt__", "__le__", "__gt__", "__ge__"):
+    PARAMETERS["_sigil.data.Flag." + name] = {"other": "Flag | bool"}
 returns("_sigil.data.Database", "fromBytes", "Database")
 erased("_sigil.data", "encodeOsc encodeMidi encodeArtNet", "_t.JsonInput")
 

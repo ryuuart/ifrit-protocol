@@ -925,7 +925,10 @@ independently of which native libraries are linked.
 query values. Ordinary Python dictionaries and lists can construct JSON;
 `to_python()` returns ordinary Python data. Native decoders read JSON and
 CSV, and a table's cells are Python numbers, strings, booleans or native
-`Instant` values. JSON members and table columns are detached native copies.
+`Instant` values. An `Instant` and a `Flag` compare, sort and hash as the
+value each holds, and a `Flag` compares with the Python `bool` a boolean
+cell reads as, so a group's key is a dictionary key and a column of times
+sorts. JSON members and table columns are detached native copies.
 
 ```python
 from sigil.data import Scale, decodeCsv

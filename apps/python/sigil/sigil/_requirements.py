@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 def declared_requirements(source):
-    """The module names @p source's REQUIRES names, in order, without
+    """The module names `source`'s REQUIRES names, in order, without
     repeats. A source with no REQUIRES declares none; one whose REQUIRES
     is not a literal list of module names raises ValueError, and one that
     does not parse answers none and leaves the error to whoever runs it."""

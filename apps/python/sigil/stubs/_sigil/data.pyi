@@ -209,7 +209,6 @@ class Engine:
         ...
 
 class Flag:
-    __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
     set: bool
 
     def __bool__(self) -> bool:
@@ -218,19 +217,22 @@ class Flag:
     def __eq__(self, other: builtins.object) -> bool:
         ...
 
-    def __ge__(self, other: Flag) -> bool:
+    def __ge__(self, other: Flag | bool) -> bool:
         ...
 
-    def __gt__(self, other: Flag) -> bool:
+    def __gt__(self, other: Flag | bool) -> bool:
+        ...
+
+    def __hash__(self) -> int:
         ...
 
     def __init__(self, set: bool=False) -> None:
         ...
 
-    def __le__(self, other: Flag) -> bool:
+    def __le__(self, other: Flag | bool) -> bool:
         ...
 
-    def __lt__(self, other: Flag) -> bool:
+    def __lt__(self, other: Flag | bool) -> bool:
         ...
 
 class Group:
@@ -244,7 +246,6 @@ class Group:
         ...
 
 class Instant:
-    __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
     def __eq__(self, other: builtins.object) -> bool:
         ...
@@ -256,6 +257,9 @@ class Instant:
         ...
 
     def __gt__(self, other: Instant) -> bool:
+        ...
+
+    def __hash__(self) -> int:
         ...
 
     def __init__(self, seconds: typing.SupportsFloat=0) -> None:

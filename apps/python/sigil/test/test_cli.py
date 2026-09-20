@@ -317,11 +317,17 @@ class RenderCommand(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name).resolve()
 
-    def write(self, declaration):
+    def write(self, *modules):
+        """A study that declares `modules` and imports them the way a real
+        one does, so a render that opens a host raises from the study's own
+        import line."""
         source = self.root / "scene.py"
+        declaration = "".join(f'"{module}",' for module in modules)
+        imports = "".join(f"import {module}\n" for module in modules)
         source.write_text(
             '"""A study that needs a module."""\n'
-            f"{declaration}\n"
+            f"REQUIRES = ({declaration})\n"
+            f"{imports}"
             "from sigil.compose import box\n"
             "from sigil.sketch import sketch\n"
             "\n\n"
@@ -333,18 +339,22 @@ class RenderCommand(unittest.TestCase):
         return source
 
     def test_a_declared_module_that_is_absent_is_named_and_fails(self):
-        source = self.write('REQUIRES = ("_sigil_absent_module_for_render",)')
+        source = self.write("_sigil_absent_module_for_render")
         output = self.root / "frame.png"
         stream = io.StringIO()
         with redirect_stderr(stream), self.assertRaises(SystemExit) as stopped:
             cli.main(["render", str(source), "-o", str(output)])
         self.assertNotEqual(stopped.exception.code, 0)
         self.assertIn("_sigil_absent_module_for_render", stream.getvalue())
-        self.assertNotIn("Traceback", stream.getvalue())
+        # The declaration is read before a host opens, so the study's own
+        # import line never runs: the report is the command's, and none of
+        # it comes from the failed import or the frames under it.
+        self.assertNotIn("ModuleNotFoundError", stream.getvalue())
+        self.assertNotIn(str(source), stream.getvalue())
         self.assertFalse(output.exists())
 
     def test_a_declared_module_this_interpreter_has_still_renders(self):
-        source = self.write('REQUIRES = ("math",)')
+        source = self.write("math")
         output = self.root / "frame.png"
         with redirect_stdout(io.StringIO()):
             self.assertEqual(cli.main(["render", str(source), "-o", str(output)]), 0)

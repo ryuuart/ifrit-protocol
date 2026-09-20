@@ -3294,10 +3294,13 @@ class Unit:
       Line
 
       Sentence
+
+      Selection
     """
     Cluster: typing.ClassVar[Unit]
     Glyph: typing.ClassVar[Unit]
     Line: typing.ClassVar[Unit]
+    Selection: typing.ClassVar[Unit]
     Sentence: typing.ClassVar[Unit]
     Word: typing.ClassVar[Unit]
     __members__: typing.ClassVar[dict[str, Unit]]

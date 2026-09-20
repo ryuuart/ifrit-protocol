@@ -264,6 +264,29 @@ class Cached:
         self.assertGreaterEqual(second, first)
         self.assertEqual(sorted([second, first]), [first, second])
 
+    def test_a_flag_compares_with_the_boolean_a_table_cell_reads_as(self):
+        table = data.Table([data.Column("ok", [True, False])])
+        self.assertEqual(table.cell("ok", 0), data.Flag(True))
+        self.assertEqual(data.Flag(False), table.cell("ok", 1))
+        self.assertNotEqual(data.Flag(True), table.cell("ok", 1))
+        self.assertLess(data.Flag(False), True)
+        self.assertNotEqual(data.Flag(True), "true")
+        with self.assertRaises(TypeError):
+            _ = data.Flag(True) < "true"
+
+    def test_cell_values_hash_by_what_they_hold(self):
+        self.assertEqual(
+            {data.Flag(True), data.Flag(True), data.Flag(False)},
+            {data.Flag(False), data.Flag(True)},
+        )
+        table = data.Table(
+            [data.Column("when", [data.Instant(0), data.Instant(60), data.Instant(0)])]
+        )
+        self.assertEqual(
+            {group.key: group.rows for group in table.group("when")},
+            {data.Instant(0): [0, 2], data.Instant(60): [1]},
+        )
+
     def test_asset_json_tables_and_queries_outlive_the_session(self):
         self.addCleanup(lambda: builtins.__dict__.pop("_sigil_data", None))
         with tempfile.TemporaryDirectory() as folder:
