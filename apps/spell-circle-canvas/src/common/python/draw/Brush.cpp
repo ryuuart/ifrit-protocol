@@ -419,190 +419,55 @@ void bindBrush(py::module_& root) {
            py::arg("start"), py::arg("end"));
   field(line, "from_", &brush::Line::from);
 
-  auto polygon =
-      py::class_<brush::Polygon>(module, "Polygon")
-          .def(py::init<>())
-          .def(py::init([](py::iterable vertices) {
-                 return brush::Polygon(points(vertices));
-               }),
-               py::arg("vertices"))
-          .def_property(
-              "vertices",
-              [](const brush::Polygon& value) { return value.vertices; },
-              [](brush::Polygon& value, py::iterable vertices) {
-                value.vertices = points(vertices);
-              })
-          .def("intersect", &brush::Polygon::intersect, py::arg("line"))
-          .def("translated", &brush::Polygon::translated, py::arg("x"),
-               py::arg("y"))
-          .def("empty", &brush::Polygon::empty)
-          .def("copy", [](const brush::Polygon& value) { return value; });
-  polygon.def(
-      "draw",
-      [](const brush::Polygon& value, BorrowedPen& pen,
-         const brush::Tool& tool) { value.draw(pen.get(), tool); },
-      py::arg("pen"), py::arg("tool"));
-  polygon.def(
-      "fill",
-      [](const brush::Polygon& value, BorrowedPen& pen,
-         const brush::Wash& style) { value.fill(pen.get(), style); },
-      py::arg("pen"), py::arg("style"));
-  polygon.def(
-      "wash",
-      [](const brush::Polygon& value, BorrowedPen& pen,
-         const brush::Wash& style) { value.wash(pen.get(), style); },
-      py::arg("pen"), py::arg("style"));
-  polygon.def(
-      "hatch",
-      [](const brush::Polygon& value, BorrowedPen& pen, const brush::Tool& tool,
-         const brush::Hatch& style) { value.hatch(pen.get(), tool, style); },
-      py::arg("pen"), py::arg("tool"), py::arg("style") = brush::Hatch{});
-  polygon.def(
-      "mass",
-      [](const brush::Polygon& value, BorrowedPen& pen, const brush::Tool& tool,
-         const brush::Mass& style) { value.mass(pen.get(), tool, style); },
-      py::arg("pen"), py::arg("tool"), py::arg("style") = brush::Mass{});
-  polygon.def(
-      "draw",
-      [](const brush::Polygon& value, BorrowedPen& pen,
-         const brush::Engine& engine) { value.draw(pen.get(), engine); },
-      py::arg("pen"), py::arg("engine"));
-  polygon.def(
-      "fill",
-      [](const brush::Polygon& value, BorrowedPen& pen,
-         const brush::Engine& engine) { value.fill(pen.get(), engine); },
-      py::arg("pen"), py::arg("engine"));
-  polygon.def(
-      "wash",
-      [](const brush::Polygon& value, BorrowedPen& pen,
-         const brush::Engine& engine) { value.wash(pen.get(), engine); },
-      py::arg("pen"), py::arg("engine"));
-  polygon.def(
-      "hatch",
-      [](const brush::Polygon& value, BorrowedPen& pen,
-         const brush::Engine& engine) { value.hatch(pen.get(), engine); },
-      py::arg("pen"), py::arg("engine"));
-  polygon.def(
-      "mass",
-      [](const brush::Polygon& value, BorrowedPen& pen,
-         const brush::Engine& engine) { value.mass(pen.get(), engine); },
-      py::arg("pen"), py::arg("engine"));
-  polygon.def(
-      "show",
-      [](const brush::Polygon& value, BorrowedPen& pen,
-         const brush::Engine& engine) { value.show(pen.get(), engine); },
-      py::arg("pen"), py::arg("engine"));
+  py::class_<brush::Polygon>(module, "Polygon")
+      .def(py::init<>())
+      .def(py::init([](py::iterable vertices) {
+             return brush::Polygon(points(vertices));
+           }),
+           py::arg("vertices"))
+      .def_property(
+          "vertices",
+          [](const brush::Polygon& value) { return value.vertices; },
+          [](brush::Polygon& value, py::iterable vertices) {
+            value.vertices = points(vertices);
+          })
+      .def("intersect", &brush::Polygon::intersect, py::arg("line"))
+      .def("translated", &brush::Polygon::translated, py::arg("x"),
+           py::arg("y"))
+      .def("empty", &brush::Polygon::empty)
+      .def("copy", [](const brush::Polygon& value) { return value; });
 
-  auto plot =
-      py::class_<brush::Plot>(module, "Plot")
-          .def(py::init<brush::PlotType>(),
-               py::arg("type") = brush::PlotType::Curve)
-          .def("type", &brush::Plot::type)
-          .def("addSegment", &brush::Plot::addSegment, py::arg("angle"),
-               py::arg("length"), py::arg("pressure") = 1.0f)
-          .def("endPlot", &brush::Plot::endPlot, py::arg("angle"),
-               py::arg("pressure") = 1.0f)
-          .def("rotate", &brush::Plot::rotate, py::arg("angle"))
-          .def("length", &brush::Plot::length)
-          .def("angle", &brush::Plot::angle, py::arg("distance"))
-          .def("pressure", &brush::Plot::pressure, py::arg("distance"))
-          .def("empty", &brush::Plot::empty)
-          .def("copy", [](const brush::Plot& value) { return value; })
-          .def(
-              "path",
-              [](const brush::Plot& value, py::handle origin, float spacing,
-                 float curvature, float scale) {
-                return value.path(point(origin), spacing, curvature, scale);
-              },
-              py::arg("origin") = py::make_tuple(0, 0),
-              py::arg("spacing") = 1.0f, py::arg("curvature") = 0.5f,
-              py::arg("scale") = 1.0f)
-          .def("polygon", &brush::Plot::polygon, py::arg("x") = 0.0f,
-               py::arg("y") = 0.0f, py::arg("spacing") = 1.0f,
-               py::arg("curvature") = 0.5f, py::arg("scale") = 1.0f)
-          .def_static(
-              "fromStroke",
-              [](py::iterable stroke, brush::PlotType type) {
-                return brush::Plot::fromStroke(samples(stroke), type);
-              },
-              py::arg("stroke"), py::arg("type") = brush::PlotType::Curve);
-  plot.def(
-      "draw",
-      [](const brush::Plot& value, BorrowedPen& pen, const brush::Tool& tool,
-         float x, float y,
-         float scale) { value.draw(pen.get(), tool, x, y, scale); },
-      py::arg("pen"), py::arg("tool"), py::arg("x") = 0.0f, py::arg("y") = 0.0f,
-      py::arg("scale") = 1.0f);
-  plot.def(
-      "fill",
-      [](const brush::Plot& value, BorrowedPen& pen, const brush::Wash& style,
-         float x, float y,
-         float scale) { value.fill(pen.get(), style, x, y, scale); },
-      py::arg("pen"), py::arg("style"), py::arg("x") = 0.0f,
-      py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
-  plot.def(
-      "wash",
-      [](const brush::Plot& value, BorrowedPen& pen, const brush::Wash& style,
-         float x, float y,
-         float scale) { value.wash(pen.get(), style, x, y, scale); },
-      py::arg("pen"), py::arg("style"), py::arg("x") = 0.0f,
-      py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
-  plot.def(
-      "hatch",
-      [](const brush::Plot& value, BorrowedPen& pen, const brush::Tool& tool,
-         const brush::Hatch& style, float x, float y,
-         float scale) { value.hatch(pen.get(), tool, style, x, y, scale); },
-      py::arg("pen"), py::arg("tool"), py::arg("style") = brush::Hatch{},
-      py::arg("x") = 0.0f, py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
-  plot.def(
-      "mass",
-      [](const brush::Plot& value, BorrowedPen& pen, const brush::Tool& tool,
-         const brush::Mass& style, float x, float y,
-         float scale) { value.mass(pen.get(), tool, style, x, y, scale); },
-      py::arg("pen"), py::arg("tool"), py::arg("style") = brush::Mass{},
-      py::arg("x") = 0.0f, py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
-  plot.def(
-      "draw",
-      [](const brush::Plot& value, BorrowedPen& pen,
-         const brush::Engine& engine, float x, float y,
-         float scale) { value.draw(pen.get(), engine, x, y, scale); },
-      py::arg("pen"), py::arg("engine"), py::arg("x") = 0.0f,
-      py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
-  plot.def(
-      "fill",
-      [](const brush::Plot& value, BorrowedPen& pen,
-         const brush::Engine& engine, float x, float y,
-         float scale) { value.fill(pen.get(), engine, x, y, scale); },
-      py::arg("pen"), py::arg("engine"), py::arg("x") = 0.0f,
-      py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
-  plot.def(
-      "wash",
-      [](const brush::Plot& value, BorrowedPen& pen,
-         const brush::Engine& engine, float x, float y,
-         float scale) { value.wash(pen.get(), engine, x, y, scale); },
-      py::arg("pen"), py::arg("engine"), py::arg("x") = 0.0f,
-      py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
-  plot.def(
-      "hatch",
-      [](const brush::Plot& value, BorrowedPen& pen,
-         const brush::Engine& engine, float x, float y,
-         float scale) { value.hatch(pen.get(), engine, x, y, scale); },
-      py::arg("pen"), py::arg("engine"), py::arg("x") = 0.0f,
-      py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
-  plot.def(
-      "mass",
-      [](const brush::Plot& value, BorrowedPen& pen,
-         const brush::Engine& engine, float x, float y,
-         float scale) { value.mass(pen.get(), engine, x, y, scale); },
-      py::arg("pen"), py::arg("engine"), py::arg("x") = 0.0f,
-      py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
-  plot.def(
-      "show",
-      [](const brush::Plot& value, BorrowedPen& pen,
-         const brush::Engine& engine, float x, float y,
-         float scale) { value.show(pen.get(), engine, x, y, scale); },
-      py::arg("pen"), py::arg("engine"), py::arg("x") = 0.0f,
-      py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
+  py::class_<brush::Plot>(module, "Plot")
+      .def(py::init<brush::PlotType>(),
+           py::arg("type") = brush::PlotType::Curve)
+      .def("type", &brush::Plot::type)
+      .def("addSegment", &brush::Plot::addSegment, py::arg("angle"),
+           py::arg("length"), py::arg("pressure") = 1.0f)
+      .def("endPlot", &brush::Plot::endPlot, py::arg("angle"),
+           py::arg("pressure") = 1.0f)
+      .def("rotate", &brush::Plot::rotate, py::arg("angle"))
+      .def("length", &brush::Plot::length)
+      .def("angle", &brush::Plot::angle, py::arg("distance"))
+      .def("pressure", &brush::Plot::pressure, py::arg("distance"))
+      .def("empty", &brush::Plot::empty)
+      .def("copy", [](const brush::Plot& value) { return value; })
+      .def(
+          "path",
+          [](const brush::Plot& value, py::handle origin, float spacing,
+             float curvature, float scale) {
+            return value.path(point(origin), spacing, curvature, scale);
+          },
+          py::arg("origin") = py::make_tuple(0, 0), py::arg("spacing") = 1.0f,
+          py::arg("curvature") = 0.5f, py::arg("scale") = 1.0f)
+      .def("polygon", &brush::Plot::polygon, py::arg("x") = 0.0f,
+           py::arg("y") = 0.0f, py::arg("spacing") = 1.0f,
+           py::arg("curvature") = 0.5f, py::arg("scale") = 1.0f)
+      .def_static(
+          "fromStroke",
+          [](py::iterable stroke, brush::PlotType type) {
+            return brush::Plot::fromStroke(samples(stroke), type);
+          },
+          py::arg("stroke"), py::arg("type") = brush::PlotType::Curve);
 
   auto placed = record<brush::PlacedPlot>(module, "PlacedPlot");
   field(placed, "plot", &brush::PlacedPlot::plot);
@@ -1014,27 +879,12 @@ void bindBrush(py::module_& root) {
           },
           py::arg("pen"), py::arg("polygons"))
       .def(
-          "hatchArray",
-          [](const brush::Engine& engine, BorrowedPen& pen,
-             const brush::Polygon& polygon) {
-            engine.hatchArray(pen.get(), polygon);
-          },
-          py::arg("pen"), py::arg("polygon"));
-  engine
-      .def(
           "massArray",
           [](const brush::Engine& engine, BorrowedPen& pen,
              const std::vector<brush::Polygon>& polygons) {
             engine.massArray(pen.get(), polygons);
           },
-          py::arg("pen"), py::arg("polygons"))
-      .def(
-          "massArray",
-          [](const brush::Engine& engine, BorrowedPen& pen,
-             const brush::Polygon& polygon) {
-            engine.massArray(pen.get(), polygon);
-          },
-          py::arg("pen"), py::arg("polygon"));
+          py::arg("pen"), py::arg("polygons"));
   module.def(
       "pencil",
       [](py::handle pigment, float width) {

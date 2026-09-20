@@ -148,7 +148,7 @@ class BotanicalStudy:
                         gradient=0.16 if index % 2 == 0 else -0.12,
                     )
                 )
-            polygon.show(pen, brushes)
+            brushes.polygon(pen, polygon)
             brushes.pop()
             veins(pen, at, edge)
 

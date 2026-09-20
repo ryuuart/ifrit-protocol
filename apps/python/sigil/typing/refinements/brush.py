@@ -54,9 +54,6 @@ def register(table: Table) -> None:
         table.parameters(
             BRUSH + "." + name, polygon="collections.abc.Iterable[_t.PointLike]"
         )
-    for name in ("draw", "fill", "hatch", "mass", "show", "wash"):
-        table.parameters(BRUSH + ".Polygon." + name, engine="Engine")
-        table.parameters(BRUSH + ".Plot." + name, engine="Engine")
     table.attribute(
         BRUSH + ".Tool.customTip",
         "collections.abc.Callable[[], None] | _t.DrawCallback | collections.abc.Callable[[_sigil.draw.Pen, Dab], None] | None",
