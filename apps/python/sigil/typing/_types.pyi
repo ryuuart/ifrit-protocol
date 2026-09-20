@@ -31,6 +31,7 @@ __all__ = [
     "JsonInput",
     "JsonValue",
     "JustifyLike",
+    "MotionCallback",
     "PointBatch",
     "PointLike",
     "RadianceFunction",
@@ -211,6 +212,11 @@ TickCallback: TypeAlias = (
     | Callable[[float], bool | None]
     | Callable[[float, float], bool | None]
 )
+MotionCallback: TypeAlias = Callable[[], None] | Callable[[float], None]
+"""WHAT A MOTION REPORTS TO when it starts, on each frame it writes, and
+when it finishes. A report that names a parameter is handed the value
+the motion has just written into its output; one that names none is
+simply called."""
 TileProgram: TypeAlias = Callable[[_sigil.draw.Canvas, Vec2, int], None]
 """THE DRAWING ONE TILE IS BAKED FROM: the canvas of the bake, the
 tile's size in pixels, and the seed the bake was asked for. The same
