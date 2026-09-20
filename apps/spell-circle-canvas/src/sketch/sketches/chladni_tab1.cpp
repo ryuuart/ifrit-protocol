@@ -122,7 +122,10 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/Animation.h>
+#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>

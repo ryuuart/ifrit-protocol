@@ -26,9 +26,10 @@
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilgeometry/path/Profile.h>
 #include <sigilgeometry/path/Shaper.h>
-#include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Animated.h>
+#include <sigilmotion/values/Keyframes.h>
 
 #include <any>
 #include <cmath>

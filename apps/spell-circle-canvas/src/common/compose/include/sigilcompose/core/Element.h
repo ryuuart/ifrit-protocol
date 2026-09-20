@@ -22,9 +22,11 @@
 #include <sigilcompose/core/Utf8.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Animated.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Transition.h>
 #include <sigilweave/layout/Block.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/layout/StyleSheet.h>

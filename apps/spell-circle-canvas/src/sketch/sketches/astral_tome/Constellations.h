@@ -16,7 +16,6 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>

@@ -25,7 +25,7 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
-#include <sigilmotion/Animation.h>
+#include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Document.h>

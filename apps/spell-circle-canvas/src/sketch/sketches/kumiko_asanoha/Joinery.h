@@ -12,7 +12,8 @@
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/Animation.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>

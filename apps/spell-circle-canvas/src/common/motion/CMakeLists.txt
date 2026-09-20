@@ -12,12 +12,12 @@
 # context stays with the consumer — SigilMotion ships the value, not a
 # resolve surface.
 #
-# <sigilmotion/Animation.h> is the umbrella header over the values and
-# bind features. Test fixtures every binary shares sit in test/support/;
+# Test fixtures every binary shares sit in test/support/;
 # a feature's test binary includes "support/<Name>.h".
 sigil_library_root(SigilMotion
   BRIEF "Animation timing, animatable values and schedules, with no renderer in them"
-  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/BIND.md
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
+       ${CMAKE_CURRENT_SOURCE_DIR}/BIND.md
        ${CMAKE_CURRENT_SOURCE_DIR}/CLOCK.md
        ${CMAKE_CURRENT_SOURCE_DIR}/PHYSICS.md
        ${CMAKE_CURRENT_SOURCE_DIR}/SCHEDULE.md

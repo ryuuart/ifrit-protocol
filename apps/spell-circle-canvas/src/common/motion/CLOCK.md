@@ -11,7 +11,7 @@ runs, `SCHEDULE.md` the spreads that read no clock at all and
 ## Using it
 
 ```cpp
-#include <sigilmotion/Animation.h>
+#include <sigilmotion/bind/Bound.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 

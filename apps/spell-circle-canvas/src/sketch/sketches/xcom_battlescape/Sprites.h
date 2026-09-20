@@ -24,7 +24,6 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Ramp.h>
 #include <sigilmeasure/check/Check.h>
-#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Rows.h>

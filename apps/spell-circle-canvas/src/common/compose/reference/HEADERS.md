@@ -201,7 +201,8 @@ sound model; nothing below them changes kernel semantics.
 `motion::Animatable` is the property slot every setter here takes,
 `motion::Transition` the eased change, `motion::animate` the keyframe
 builder, `motion::bind` the shaped binding of a live `Output`, and
-`motion::ease::` the curves — all from `<sigilmotion/Animation.h>`. The
+`motion::ease::` the curves — each from the SigilMotion header that
+declares it, under `<sigilmotion/values/>` and `<sigilmotion/bind/>`. The
 SCHEDULE is the same value wherever it runs: a cascade over glyphs, over
 a set's children or over a feed's rows is one `motion::Spread`, and what
 compose adds to it — what a unit IS — sits beside it on the track. The

@@ -1,10 +1,6 @@
-#pragma once
-
-/** @file
- * The whole describable side of motion in one include: the animation
- * values and the shaped bindings. A consumer of one feature includes
- * that feature's headers instead.
- */
+// The documentation groups whose members are spread over several of this
+// library's headers, declared where no header has to include another to
+// reach them.
 
 /** @defgroup motion-clock The clock
  *  Wall-clock time turned into well-behaved per-frame deltas, and the
@@ -29,13 +25,3 @@
  *  is, the forces and constraints over them, the grid that answers what
  *  is near what, the Verlet stepper, and particles that are born, age
  *  and die (physics/Physics.h). */
-
-#include "sigilmotion/bind/Bound.h"
-#include "sigilmotion/bind/BoundFloat.h"
-#include "sigilmotion/bind/WiggleNoise.h"
-#include "sigilmotion/values/Animatable.h"
-#include "sigilmotion/values/Keyframes.h"
-#include "sigilmotion/values/Oscillator.h"
-#include "sigilmotion/values/Sequence.h"
-#include "sigilmotion/values/Time.h"
-#include "sigilmotion/values/Transition.h"

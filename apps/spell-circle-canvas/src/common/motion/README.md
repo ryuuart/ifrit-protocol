@@ -18,15 +18,13 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/Curve.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all four | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; `ease::`, the animation's name for SigilCore's shaped curve value and its house shapes; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
-| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Oscillator.h`, `values/Sequence.h`, `values/Spring.h`, `values/Time.h`; `values/Values.h` includes all nine | `Transition`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propertyEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal; `Sequence`, `Step` and `Interpolation`, the keyed track |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Oscillator.h`, `values/Sequence.h`, `values/Spring.h`, `values/Time.h` | `Transition`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propertyEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal; `Sequence`, `Step` and `Interpolation`, the keyed track |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
 | `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h`; `schedule/Schedule.h` includes all three | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
 | `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Neighbourhood.h`, `physics/Constraints.h`, `physics/Verlet.h`, `physics/Particles.h`; `physics/Physics.h` includes all six | `Vec2` and `Points`, the lanes a simulation is; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Neighbourhood`, the grid a flock and everything else that reads more than one point at a time asks what is near what; `Constraint` with `distance()`, `stick()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper; `Particles` and `Attribute`, a point set that is born, ages and dies, with `Emitter`, `EmitFrom`, `Roughly`, `BirthAttribute` and `FixedAttribute`, what puts particles into one |
 
-`SigilMotion` is the umbrella target over all five, and
-`<sigilmotion/Animation.h>` is the umbrella header over every values and
-bind header, so a consumer that includes `Animation.h` and links
-`SigilMotion` sees every value and binding. Bind is the leaf: Values
+`SigilMotion` is the umbrella target over all five, so a consumer of
+every value and binding names one link. Bind is the leaf: Values
 links it because `Animatable<T>` can hold a shaped binding, Clock links
 it because `Ticker::derive` runs one, and Schedule links it because a
 spread's distribution curve compares under the same rule every other

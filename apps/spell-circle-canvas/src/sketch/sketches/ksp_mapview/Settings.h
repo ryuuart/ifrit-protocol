@@ -28,7 +28,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/Animation.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>

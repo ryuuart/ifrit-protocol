@@ -49,8 +49,9 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigildraw/Draw.h>
-#include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Cascade.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/ports/SystemFontManager.h>

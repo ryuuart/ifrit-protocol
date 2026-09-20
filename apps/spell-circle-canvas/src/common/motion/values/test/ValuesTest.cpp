@@ -8,7 +8,11 @@
 #include <sigilmotion/bind/Bind.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
-#include <sigilmotion/values/Values.h>
+#include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Sequence.h>
+#include <sigilmotion/values/Time.h>
+#include <sigilmotion/values/Transition.h>
 
 #include <algorithm>
 #include <cmath>

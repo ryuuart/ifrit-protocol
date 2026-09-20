@@ -11,8 +11,9 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImageInfo.h>
-#include <sigilmotion/Animation.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Transition.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>

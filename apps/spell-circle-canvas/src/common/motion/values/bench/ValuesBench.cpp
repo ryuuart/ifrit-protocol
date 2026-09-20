@@ -10,7 +10,10 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <sigilmotion/values/Values.h>
+#include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Oscillator.h>
+#include <sigilmotion/values/Sequence.h>
 
 #include <chrono>
 #include <vector>

@@ -5,12 +5,12 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Routers.h>
@@ -27,7 +27,8 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/Animation.h>
+#include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>

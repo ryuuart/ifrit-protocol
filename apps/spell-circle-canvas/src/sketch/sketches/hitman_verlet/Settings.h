@@ -16,9 +16,9 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/Animation.h>
 #include <sigilmotion/physics/Constraints.h>
 #include <sigilmotion/physics/Points.h>
+#include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilweave/ports/SystemFontManager.h>

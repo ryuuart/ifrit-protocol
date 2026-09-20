@@ -15,8 +15,8 @@
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcore/comparable/Erased.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Animated.h>
 
 #include <cassert>

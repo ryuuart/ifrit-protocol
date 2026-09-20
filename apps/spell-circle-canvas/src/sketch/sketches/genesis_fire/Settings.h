@@ -23,8 +23,8 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/Animation.h>
 #include <sigilmotion/physics/Physics.h>
+#include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Legend.h>
 #include <sigilsketch/kit/Meter.h>

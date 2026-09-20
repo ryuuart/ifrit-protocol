@@ -24,7 +24,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
-#include <sigilmotion/Animation.h>
+#include <sigilmotion/bind/Curve.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>

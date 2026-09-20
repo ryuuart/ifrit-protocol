@@ -135,7 +135,8 @@ the argument.
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilmotion/Animation.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Transition.h>
 
 #include <ranges>
 #include <vector>

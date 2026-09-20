@@ -55,7 +55,10 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilmotion/Animation.h>
+#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/bind/BoundFloat.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>

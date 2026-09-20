@@ -20,7 +20,6 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Faces.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>

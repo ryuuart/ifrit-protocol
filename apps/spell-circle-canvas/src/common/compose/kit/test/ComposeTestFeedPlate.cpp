@@ -4,7 +4,7 @@
 
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/kit/Plate.h>
-#include <sigilmotion/Animation.h>
+#include <sigilmotion/values/Keyframes.h>
 
 #include <algorithm>
 
