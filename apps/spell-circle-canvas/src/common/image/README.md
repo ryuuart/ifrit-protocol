@@ -264,50 +264,36 @@ in either direction: `encodeImage()` hands bytes back the way
 
 ## Build and test
 
-From `apps/spell-circle-canvas`:
-
-```sh
-python3 scripts/sigil.py setup --config Release
-cmake --build build --config Release --target image_test
-ctest --test-dir build -C Release --output-on-failure
-```
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`image_test` and one `image_bench`, ctest one entry per CASE, what a
+case may pin, and what a label promises. What is only true of
+SigilImage:
 
 Targets: `SigilImageAsset`, `SigilImageDecode`, `SigilImageEncode` and
-`SigilImageField` (static libraries, one per feature directory —
-`asset/`, `decode/`, `encode/` and `field/` — each holding its sources
+`SigilImageField` — static libraries, one per feature directory
+(`asset/`, `decode/`, `encode/` and `field/`), each holding its sources
 and its `test/`, and `decode/` and `encode/` a `bench/` besides; the
 decode and encode backends are one translation unit each behind the
-private `Backends.h` beside them), and `SigilImage` (the umbrella). The
-library has one test binary, `image_test`, built from `asset/test/`,
-`decode/test/`, `encode/test/` — which also reaches the decoder, because
-the claim a round trip makes is that what came back out is what went in
-— and `field/test/`; ctest discovers one entry per CASE out of it, so a
-suite or a case is selected by name with no target behind it
-(`ctest -R '^ImageDecode\.'`). One benchmark binary, `image_bench`,
-carries the decode and encode arms (Google Benchmark, built by the
-`benches` target and run from a Release build through
-`scripts/sigil.py bench`).
+private `Backends.h` beside them — and `SigilImage`, the umbrella.
+`encode/test/` reaches the decoder as well, because the claim a round
+trip makes is that what came back out is what went in.
 
 `test/Pixels.h` beside the fixtures is what the format suites read a
 picture by: where a committed file stands, one pixel out of a decoded
 frame unpremultiplied, and a per-channel comparison a lossy format can
 pass. A test target adds `test/` to its include path and spells
-`"Pixels.h"`.
-The encode cases ask the round trip as one parameterised case over
-`{format, quality, lossless}`, because what separates PNG from WebP at 80
-is those three values and not the shape of the question: a lossless
-subject is compared for equality on all four quadrants of the fixture, a
-lossy one at quadrant centres, away from the edge its chroma subsampling
-smears.
+`"Pixels.h"`. The encode cases ask the round trip as one parameterised
+case over `{format, quality, lossless}`, because what separates PNG from
+WebP at 80 is those three values and not the shape of the question: a
+lossless subject is compared for equality on all four quadrants of the
+fixture, a lossy one at quadrant centres, away from the edge its chroma
+subsampling smears.
 
 The optional decode backends are a build-time fact, so a case that wants
 one is compiled whatever this build has and skips naming the backend it
-wanted rather than vanishing from the run: the decode suites carry
-the `svg` and `oiio` labels for the SVG document cases and the DDS cube
-map. A case here asserts one thing a header promises and is named that
-promise as a sentence, and it pins only what editing this library could
-falsify — a routed format, a frame count, a channel value, a round trip —
-never an exact byte a codec chose.
+wanted rather than vanishing from the run: the decode suites carry the
+`svg` and `oiio` labels for the SVG document cases and the DDS cube map.
 
 The field suite needs no fixture at all, because a distance has a closed
 form: `CoverageMask` pins which alpha counts as ink at each end of the
@@ -318,14 +304,11 @@ rather than by that margin times root two, and a mask covering nothing
 answering `kOutside` everywhere. That is what "exact, not approximate"
 has to mean to be worth saying.
 
-The benchmarks:
-`image_bench`'s decode arms time `decodeImage` per megapixel over PNG and JPEG
-fixtures encoded in memory at several sizes, the committed 4x4 stills for
-the per-call floor, and `probeImage`; its encode arms time each
-format per megapixel over a generated gradient, and the SkImage door
-against the pixmap one so the readback's share is visible. The fixtures are
-committed 4x4 px files under `test/assets/` at the library root — one
-still per format plus a three-frame animation for each animated format —
-located through the `SIGIL_TEST_ASSET_DIR` compile definition, so
-the test and the benchmark that measures against them both run from any
-working directory.
+The fixtures are committed 4x4 px files under `test/assets/` at the
+library root — one still per format plus a three-frame animation for
+each animated format. `image_bench`'s decode arms time `decodeImage` per
+megapixel over PNG and JPEG fixtures encoded in memory at several sizes,
+those committed stills for the per-call floor, and `probeImage`; its
+encode arms time each format per megapixel over a generated gradient,
+and the SkImage door against the pixmap one so the readback's share is
+visible.
