@@ -17,6 +17,7 @@ from _sigil.sketch import (
 
 from . import (
     kit,
+    scry,
 )
 
 
@@ -112,5 +113,6 @@ __all__ = [
     "SketchContext",
     "kit",
     "render_file",
+    "scry",
     "sketch",
 ]

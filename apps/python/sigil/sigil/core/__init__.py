@@ -5,8 +5,16 @@
 
 from . import (
     chance,
+    hardware,
+    hash,
+    intervals,
+    noise,
 )
 
 __all__ = [
     "chance",
+    "hardware",
+    "hash",
+    "intervals",
+    "noise",
 ]

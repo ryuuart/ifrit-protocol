@@ -65,6 +65,7 @@ def main() -> int:
     options = parser.parse_args()
     failures: list[str] = []
     count = 0
+    optional = 0
 
     def inspect_members(
         native: object, tree: ast.Module | ast.ClassDef, path: str
@@ -137,7 +138,13 @@ def main() -> int:
         name = ".".join([surface.PUBLIC_ROOT, *parts])
         tree = ast.parse(path.read_text())
         if name not in {"sigil", "sigil._types"}:
-            inspect_members(public_object(name), tree, name)
+            try:
+                inspect_members(public_object(name), tree, name)
+            except ImportError:
+                if not any(raw in surface.OPTIONAL_MODULES
+                           for raw in surface.raw_modules(name)):
+                    raise
+                continue
         for node in ast.walk(tree):
             if isinstance(node, ast.AnnAssign):
                 annotation(node.annotation, f"{name}:{node.lineno}")
@@ -164,7 +171,15 @@ def main() -> int:
         if raw in surface.DECLARATION_ONLY:
             continue
         public = surface.public_module(raw)
-        native = importlib.import_module(raw)
+        try:
+            native = importlib.import_module(raw)
+        except ImportError:
+            # A library behind a licensed SDK this build does not carry
+            # registers nothing, so there is nothing here to check against.
+            if raw in surface.OPTIONAL_MODULES:
+                optional += 1
+                continue
+            raise
         holder = public_object(public)
         for exported in dir(native):
             if exported.startswith("_"):
@@ -190,7 +205,9 @@ def main() -> int:
         return 1
     print(
         f"Public surface passed: {count} exported members; named arguments, "
-        "no Any or bare collection signatures, nothing raw left over."
+        "no Any or bare collection signatures, nothing raw left over"
+        + (f"; {optional} optional modules this build does not carry." if optional
+           else ".")
     )
     return 0
 

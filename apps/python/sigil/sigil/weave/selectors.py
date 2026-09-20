@@ -4,10 +4,8 @@
 from _sigil.weave.selectors import (
     each,
     line,
-    lines,
     range,
     regex,
-    sentence,
     text,
     word,
     words,
@@ -16,10 +14,8 @@ from _sigil.weave.selectors import (
 __all__ = [
     "each",
     "line",
-    "lines",
     "range",
     "regex",
-    "sentence",
     "text",
     "word",
     "words",

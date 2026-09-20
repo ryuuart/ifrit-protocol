@@ -5,10 +5,20 @@
 
 from . import (
     arrange,
+    device,
     mesh,
+    path,
+    sections,
+    shapers,
+    shapes,
 )
 
 __all__ = [
     "arrange",
+    "device",
     "mesh",
+    "path",
+    "sections",
+    "shapers",
+    "shapes",
 ]

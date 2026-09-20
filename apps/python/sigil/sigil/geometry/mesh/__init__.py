@@ -18,6 +18,11 @@ from _sigil.geometry.mesh import (
 
 from . import (
     camera,
+    codec,
+    curve,
+    kernel,
+    points,
+    pop,
     render,
 )
 
@@ -27,10 +32,15 @@ __all__ = [
     "Platonic",
     "box",
     "camera",
+    "codec",
+    "curve",
     "cylinderPanel",
     "extrude",
     "grid",
+    "kernel",
     "platonic",
+    "points",
+    "pop",
     "quad",
     "render",
     "revolve",

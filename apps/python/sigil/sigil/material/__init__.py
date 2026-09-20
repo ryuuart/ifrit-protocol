@@ -4,6 +4,7 @@
 """Native materials, color calculations, palettes and paint factories."""
 
 from _sigil.material import (
+    Backface,
     Color,
     Dither,
     DitherKind,
@@ -63,10 +64,16 @@ from _sigil.material.skia import (
 from . import (
     field,
     kit,
+    ocio,
     pattern,
+    sdf,
+    slang,
+    stock,
+    texture,
 )
 
 __all__ = [
+    "Backface",
     "BloomParameters",
     "Color",
     "Dither",
@@ -107,6 +114,7 @@ __all__ = [
     "luminance",
     "mixLinear",
     "mixToward",
+    "ocio",
     "oklabOf",
     "oklchOf",
     "palette",
@@ -117,7 +125,11 @@ __all__ = [
     "rotateHue",
     "sampleRamp",
     "scale",
+    "sdf",
+    "slang",
     "srgbToLinear",
+    "stock",
+    "texture",
     "toLab",
     "toOklab",
     "toOklch",

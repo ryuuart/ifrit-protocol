@@ -53,6 +53,7 @@ from _sigil.motion import (
 
 from . import (
     ease,
+    physics,
 )
 
 __all__ = [
@@ -90,6 +91,7 @@ __all__ = [
     "flash",
     "from_",
     "phase",
+    "physics",
     "quantizeTime",
     "ramp",
     "stepIndex",

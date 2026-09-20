@@ -18,6 +18,32 @@ appends in order and returns the same element; all inputs are converted before
 any are appended. Container factories accept the same child forms; `layout`
 takes its scheme before its children.
 
+## Layout
+
+ONE DIRECTORY PER NATIVE LIBRARY, ONE FILE PER SUBJECT. Every binding
+source sits under the directory of the library it binds — `core/`,
+`skia/`, `image/`, `material/`, `geometry/`, `motion/`, `weave/`,
+`compose/`, `draw/`, `world/`, `data/`, `io/`, `measure/`, `video/`,
+`scry/`, `substance/`, `usd/` — and the four files at the root are the
+kernel every one of them is written out of: the module assembly, the
+conversions and callback ownership, the reach into another file's
+registration, and the public naming. The sketch adapter is laid out the
+same way under `src/sketch/python/`: `host/` is what a sketch is handed,
+`kit/` the specimen values it dresses with.
+
+A directory's headers live under `include/sigilpython/<library>/`, and a
+library has them only where another binding file needs what they carry: a
+conversion the whole tree shares, or the one registration header that
+declares every bind function the library's files define.
+
+One subject is one source file with one bind function in it, and that
+file has one author. An author fills in a file that already exists,
+adds rows to a table and writes their own refinement fragment; they do
+not add a source to a CMake list, a call to the module assembly or a
+declaration to a registration header, because all three already name
+every subject this library plans to bind. That is what lets a hundred
+subjects be written at once without two hands in one file.
+
 ## Module assembly
 
 * `Python.h` — `bindLibraries`
@@ -34,6 +60,16 @@ Register once per interpreter. This function installs the common submodules
 in dependency order, including neutral Compose kit and layout values. The host
 can then add its own checked service views and execution model. Registration
 does not create a sketch context or import a sketch loader.
+
+ORDER IS THE ONE RULE OF THE ASSEMBLY. A type has to be registered
+before any signature names it: pybind11 writes a parameter's spelling
+when the function carrying it is registered, so a signature naming a
+class that does not exist yet carries the C++ name instead of the Python
+one, and the generated declarations carry it too. `bindLibraries` is
+therefore one list in dependency order — the libraries in the order they
+depend on each other, and within a library the subjects in the order
+they do. Registration is the only thing that list does; a subject that
+must run late says so by where its line sits.
 
 The Python package, convenience functions, declarations and package tests
 belong to `apps/python/sigil`. Native callback signature adaptation imports
@@ -58,6 +94,30 @@ library followed by sketch context, session and specimen-kit bindings. An
 independent native host can link only `SigilPython` and assemble a different
 module. Each interpreter must load one copy of the binding implementation:
 registered types and callback ownership registries are shared state.
+
+## Reaching another file's registration
+
+* `Extend.h` — `submodule`, `extend`, `registeredClass`
+
+A subject publishes under a submodule and several subjects share one, so
+`submodule` answers the module a dotted path names and creates it where
+nothing has yet. It is idempotent: whichever registration reaches a path
+first makes the module, and the rest are handed the same one, so no
+subject owns a namespace its peers have to wait for.
+
+`extend` is the same courtesy for a class. A class belongs to the file
+that registered it, and a binding in another file adds a verb to it by
+borrowing the class object back out of the module rather than editing
+that file:
+
+```cpp
+extend<Element>(module, "compose.Element").def("ripple", &rippleOf);
+```
+
+It throws when nothing of that name is registered, which is what an
+author sees when their line in the assembly sits above the registration
+they meant to extend. `registeredClass` is that check on its own, for a
+caller that wants the type object rather than a class handle.
 
 ## Callback ownership
 
@@ -93,17 +153,25 @@ does not extend access to the borrowed pen.
 ## Conversion and resource seams
 
 * `Bindings.h` — `color`
-* `ValueBindings.h` — `point`, `rect`, `bindColor`
-* `ComposeBindings.h` — `dimension`, `fill`, `surfacePaint`, `alignment`,
+* `skia/Values.h` — `point`, `rect`
+* `skia/Registration.h` — `bindCore`, `bindColor`, `bindValues`
+* `compose/Convert.h` — `dimension`, `fill`, `surfacePaint`, `alignment`,
   `justification`, `shape`, `elements`
-* `MotionBindings.h` — `motionAnimatable`, `motionInk`, `motionFill`,
+* `compose/Kit.h` — `converted`, `record`, `field`, `wellFields`,
+  `contentType`
+* `compose/Registration.h` — `bindCompose`, `bindComposeKit`, `bindDocument`
+* `motion/Convert.h` — `motionAnimatable`, `motionInk`, `motionFill`,
   `motionEase`, `motionTransition`
-* `IOBindings.h` — `HubHandle`, `retainSessionFeed`
-* `DataBindings.h` — `dataDatabase`
-* `KitBindings.h` — `bindComposeKit`, `bindDocument`
-* `WeaveBindings.h` — `bindWeave`
-* `GeometryBindings.h` — `bindGeometry`
-* `WorldBindings.h` — `bindWorld`
+* `io/Hub.h` — `HubHandle`, `retainSessionFeed`
+* `data/Convert.h` — `dataDatabase`, `loadData`
+* `geometry/Registration.h` — `bindGeometry`, `bindGeometrySeams`
+* `weave/Registration.h` — `bindWeave`, `bindWeaveLayout`
+* `draw/Registration.h` — `bindPen`, `bindBrush`
+* `world/Registration.h` — `bindWorld`
+* `core/Registration.h` — `bindRecordProtocol`
+* `data/Registration.h` — `bindData`
+* `io/Registration.h` — `bindIO`
+* `material/Registration.h` — `bindMaterial`
 
 ONE COLOUR CLASS REACHES PYTHON. Skia's colour value and SigilMaterial's are
 the same four straight sRGB floats, so only `material::Color` is registered:
@@ -168,6 +236,19 @@ Python pass bodies or additional callback lifetime are introduced.
 carry Python development includes. Executable consumers link the matching
 embedding library. A module target sets `SIGIL_PYTHON_EXTENSION` so Python
 symbols resolve from the importing interpreter instead of another libpython.
+
+Every source is named in the one CMake list, so a subject nobody has
+written yet still compiles and links: its bind function has an empty
+body until its author fills it in. A library whose SDK is a licensed
+download may be absent from a build, and then its target does not exist,
+its sources are left out, and the definition that says it is there —
+`SIGIL_PYTHON_HAS_SCRY`, `SIGIL_PYTHON_HAS_SUBSTANCE`,
+`SIGIL_PYTHON_HAS_USD`, `SIGIL_PYTHON_HAS_WEB`, `SIGIL_PYTHON_HAS_VIDEO` —
+is not defined. The module those bindings would register is then not
+registered either, so a Python process asks `importlib.util.find_spec`
+whether it is there; the package's surface table names those modules as
+the ones a build may lack, and its generator leaves their declarations
+and modules alone instead of deleting them.
 
 `python_test` links this library without any sketch target. It checks common
 module registration, neutral Compose kit callbacks, explicit callback cleanup,

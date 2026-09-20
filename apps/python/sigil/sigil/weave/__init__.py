@@ -101,9 +101,13 @@ from _sigil.weave import (
 )
 
 from . import (
+    features,
     flowshape,
     kit,
+    paint,
+    ports,
     selectors,
+    unicode,
 )
 
 __all__ = [
@@ -184,6 +188,7 @@ __all__ = [
     "WritingMode",
     "bandBeside",
     "em",
+    "features",
     "findAllOccurrences",
     "findRegexMatches",
     "flowshape",
@@ -194,6 +199,8 @@ __all__ = [
     "layoutSingleLine",
     "layoutWarichu",
     "lh",
+    "paint",
+    "ports",
     "rem",
     "rich",
     "rule",
@@ -202,6 +209,7 @@ __all__ = [
     "textStyle",
     "toParagraphStyle",
     "typeface",
+    "unicode",
     "warichuSplit",
     "wordRanges",
 ]

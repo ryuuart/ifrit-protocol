@@ -4,7 +4,6 @@
 """Native retained 3D scenes and the CPU frame executor."""
 
 from _sigil.world import (
-    Backface,
     Element,
     Frame,
     Pass,
@@ -17,13 +16,14 @@ from _sigil.world import (
 )
 
 from . import (
+    diligent,
+    graph,
     kit,
     light,
     selectors,
 )
 
 __all__ = [
-    "Backface",
     "Element",
     "Frame",
     "Pass",
@@ -31,7 +31,9 @@ __all__ = [
     "SceneStats",
     "Selection",
     "Selector",
+    "diligent",
     "geometryPass",
+    "graph",
     "kit",
     "light",
     "postPass",

@@ -342,11 +342,34 @@ def member_names(raw: str, text: str) -> list[str]:
     return exported
 
 
+def carried(texts: dict[str, str], public: str) -> list[str]:
+    """Return the raw modules of one public module this build really has.
+
+    A library behind a licensed SDK is left out of builds that have no SDK,
+    and the wheel deliberately builds without two of them. Its rows stay in
+    the table either way, so the surface is one table and not a build
+    variant; a row this extension does not carry contributes nothing here,
+    and a row that is absent without being optional still fails by name.
+    """
+    return [raw for raw in surface.raw_modules(public) if raw in texts]
+
+
+def skipped(texts: dict[str, str]) -> set[str]:
+    """Return the public modules no module of this build contributes to."""
+    absent = set()
+    for public in set(surface.PUBLIC_MODULES.values()):
+        contributors = surface.raw_modules(public)
+        if contributors and not carried(texts, public):
+            absent.add(public)
+    return absent
+
+
 def public_declarations(raw_texts: dict[str, str]) -> dict[str, str]:
     """Write one declaration file per public module, with nothing raw in it."""
     texts = {raw_module_of(relative): text for relative, text in raw_texts.items()}
     outputs: dict[str, str] = {}
-    targets = set(surface.PUBLIC_MODULES.values()) | {surface.PUBLIC_ROOT}
+    targets = (set(surface.PUBLIC_MODULES.values()) | {surface.PUBLIC_ROOT}
+               ) - skipped(texts)
     for public in sorted(targets):
         docstring, addition = split_docstring(read_addition(public, ".pyi"))
         if not docstring:
@@ -358,7 +381,7 @@ def public_declarations(raw_texts: dict[str, str]) -> dict[str, str]:
         holders: set[str] = set()
         declared: dict[str, str] = {}
         body: list[str] = []
-        for raw in surface.raw_modules(public):
+        for raw in carried(texts, public):
             for statement in declaration_body(raw, public, texts[raw], holders):
                 names = top_level_names(statement)
                 if any(name in shadowed for name in names):
@@ -375,7 +398,9 @@ def public_declarations(raw_texts: dict[str, str]) -> dict[str, str]:
                             f"and {raw}; one public name, one declaration."
                         )
                 body.append(statement)
-        children = surface.child_modules(public) if surface.raw_modules(public) else []
+        children = [child for child in surface.child_modules(public)
+                    if surface.raw_modules(public)
+                    and child not in skipped(texts)]
         header = ["from __future__ import annotations", STANDARD_IMPORTS.strip()]
         if not any(
             raw in surface.DECLARATION_ONLY for raw in surface.raw_modules(public)
@@ -515,7 +540,7 @@ def public_runtime(raw_texts: dict[str, str]) -> dict[str, str]:
     outputs: dict[str, str] = {}
     texts = {raw_module_of(relative): text for relative, text in raw_texts.items()}
     for public in sorted(set(surface.PUBLIC_MODULES.values())):
-        contributors = surface.raw_modules(public)
+        contributors = carried(texts, public)
         if not contributors:
             continue
         if any(raw in surface.DECLARATION_ONLY for raw in contributors):
@@ -642,8 +667,13 @@ def report(old: dict[str, str], new: dict[str, str], label: str) -> bool:
     return old != new
 
 
-def write(root: pathlib.Path, old: dict[str, str], new: dict[str, str]) -> None:
-    for name in old.keys() - new.keys():
+def write(
+    root: pathlib.Path,
+    old: dict[str, str],
+    new: dict[str, str],
+    keep: frozenset[str] = frozenset(),
+) -> None:
+    for name in old.keys() - new.keys() - keep:
         (root / name).unlink()
     for name, text in new.items():
         path = root / name
@@ -689,11 +719,16 @@ def main() -> int:
         public = public_declarations(raw)
         write_declarations(args.declarations, public)
         print(f"Wrote {len(public)} declaration modules to {args.declarations}.")
+    absent = frozenset(runtime_file(public) for public in skipped(
+        {raw_module_of(relative): text for relative, text in raw.items()}))
     if args.check:
-        return int(report(existing(PACKAGE, (".py",), owned=True), runtime, "sigil"))
+        checked_in = existing(PACKAGE, (".py",), owned=True)
+        return int(report(
+            {name: text for name, text in checked_in.items()
+             if name not in absent}, runtime, "sigil"))
     if args.declarations or args.raw:
         return 0
-    write(PACKAGE, existing(PACKAGE, (".py",), owned=True), runtime)
+    write(PACKAGE, existing(PACKAGE, (".py",), owned=True), runtime, absent)
     print(f"Refreshed {len(runtime)} package modules under {PACKAGE}.")
     return 0
 
