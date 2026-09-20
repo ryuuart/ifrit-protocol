@@ -25,6 +25,12 @@ Those are the four forms it holds, discriminated by `index()`: `0` plain
 constant, `1` `Transitioned<T>`, `2` bare `Output<T>*`, `3` shaped
 binding. `BIND.md` is the chapter on the fourth.
 
+A number reaches the constant form whatever its type: the binding
+constructor takes a POINTER and nothing a pointer can be made from, so
+the literal `0` — which is a null-pointer constant as well as a number —
+is the number, and a consumer's numeric verb needs no integral overload
+of its own to say so.
+
 A raw Output pointer is borrowed and must outlive the description. An
 `Animatable<T>` constructed from a shared Output retains that source through
 description copies. A chain built by `bind(sharedOutput)` transfers the same

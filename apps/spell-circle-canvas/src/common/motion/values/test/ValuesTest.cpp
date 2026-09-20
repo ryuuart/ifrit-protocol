@@ -14,6 +14,7 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -75,6 +76,36 @@ TEST(Values, ANullSharedOutputIsAPlainValue) {
   EXPECT_EQ(empty.binding(), nullptr);
   ASSERT_NE(empty.plain(), nullptr);
   EXPECT_FLOAT_EQ(*empty.plain(), 0.0f);
+}
+
+TEST(Values, AnIntegerLiteralIsTheNumberAndNotANullBinding) {
+  // The claim is about OVERLOAD RESOLUTION, so the compiler makes it,
+  // and the LITERAL below is the whole test: a literal 0 is a
+  // null-pointer constant as well as a number, so it converts to the
+  // binding pointer and to the plain float at the same rank, and a
+  // binding constructor that took anything a pointer can be made from
+  // would leave `Animatable<float>(0)` ambiguous. A consumer would then
+  // need an integral overload of its own for every numeric property it
+  // has. The static assertions beside it say which spellings the
+  // binding form does and does not take.
+  static_assert(std::is_constructible_v<Animatable<float>, ch::Output<float>*>);
+  static_assert(
+      std::is_constructible_v<Animatable<float>, const ch::Output<float>*>);
+  static_assert(!std::is_constructible_v<Animatable<float>, void*>,
+                "a pointer to something else is not this slot's binding");
+
+  const Animatable<float> zero(0);
+  EXPECT_EQ(zero.index(), 0);
+  EXPECT_EQ(zero.binding(), nullptr);
+  ASSERT_NE(zero.plain(), nullptr);
+  EXPECT_FLOAT_EQ(*zero.plain(), 0.0f);
+
+  // A pointer that happens to be null is still the pointer spelling, and
+  // still answers as a plain value.
+  const ch::Output<float>* absent = nullptr;
+  const Animatable<float> unbound(absent);
+  EXPECT_EQ(unbound.index(), 0);
+  EXPECT_EQ(unbound.binding(), nullptr);
 }
 
 // ---------------------------------------------------------------------------

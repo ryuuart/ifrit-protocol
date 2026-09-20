@@ -13,9 +13,11 @@
 #include <choreograph/Choreograph.h>
 #include <sigilcore/comparable/Fields.h>
 
+#include <concepts>
 #include <cstdint>
 #include <memory>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 #include "sigilmotion/bind/Bound.h"
@@ -52,8 +54,19 @@ class Animatable {
   /** A NULL Output is not a binding: the slot holds its plain value
    *  instead. A caller passing one has nothing for the slot to read at
    *  paint, and the alternative — a slot that says it is bound and points
-   *  at nothing — has no value to answer with at all. */
-  Animatable(const choreograph::Output<T>* bound)
+   *  at nothing — has no value to answer with at all.
+   *
+   *  It takes a POINTER and nothing a pointer can be MADE from, which is
+   *  why it is constrained rather than written out. A literal `0` is a
+   *  null-pointer constant, so an unconstrained parameter here would tie
+   *  with the plain value above at the same conversion rank and
+   *  `Animatable<float>(0)` — the integer spelling of every numeric
+   *  property — would be ambiguous rather than the number it reads as.
+   *  A shared Output arrives through the overload below, not here. */
+  template <typename Pointer>
+    requires std::is_pointer_v<Pointer> &&
+             std::convertible_to<Pointer, const choreograph::Output<T>*>
+  Animatable(Pointer bound)
       : m_kind(bound ? Kind::kBound : Kind::kPlain), m_bound(bound) {}
   /** Retains the source for the lifetime of this description and its copies.
    *  The owner uses the existing out-of-line payload: plain values and raw
