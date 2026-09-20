@@ -150,6 +150,8 @@ class ACatalogueSortsEveryDeclarationIntoAKind(Tree):
         catalogue = self.catalogue(node=True)
         kinds = {entity.qualified: entity.kind for entity in catalogue.entities}
         self.assertEqual(kinds["sigil::paint::Brush::tint"], model.VERB)
+        # Handed back by value, the chain ends there; it is still a verb.
+        self.assertEqual(kinds["sigil::paint::Brush::dry"], model.VERB)
         self.assertEqual(kinds["sigil::paint::brush"], model.ELEMENT)
         self.assertEqual(kinds["sigil::paint::kit::hairline"], model.KIT)
         self.assertEqual(kinds["sigil::paint::hexInk"], model.FUNCTION)

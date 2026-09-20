@@ -199,7 +199,11 @@ class Catalogue:
             simple,
             compound.name,
         )
-        if node and returns_self and declaration.returns.endswith("&"):
+        # By reference the chain goes on; by value it ends there, with a
+        # second node to stand beside the first. Both are said TO a node
+        # and both hand one back, so both are verbs. A static member that
+        # hands one back is said to nothing, and is a way to make one.
+        if node and returns_self and not declaration.static:
             entity = self._entity(library, model.VERB, declaration)
             entity.owner = compound.name
             self._attach(entity, declaration)

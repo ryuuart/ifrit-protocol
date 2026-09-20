@@ -47,6 +47,17 @@ COMPOUND = """<?xml version='1.0' encoding='UTF-8' standalone='no'?>
         <detaileddescription/>
         <location file="sigilpaint/Brush.h" line="24" declfile="sigilpaint/Brush.h" declline="24"/>
       </memberdef>
+      <memberdef kind="function" id="classsigil_1_1paint_1_1_brush_1acd" prot="public"
+                 static="no" const="yes" explicit="no">
+        <type>Brush</type>
+        <definition>Brush sigil::paint::Brush::dry</definition>
+        <argsstring>() const</argsstring>
+        <name>dry</name>
+        <qualifiedname>sigil::paint::Brush::dry</qualifiedname>
+        <briefdescription><para>A second brush, as this one stands with no ink on it. </para></briefdescription>
+        <detaileddescription/>
+        <location file="sigilpaint/Brush.h" line="28" declfile="sigilpaint/Brush.h" declline="28"/>
+      </memberdef>
     </sectiondef>
     <location file="sigilpaint/Brush.h" line="12"/>
   </compounddef>

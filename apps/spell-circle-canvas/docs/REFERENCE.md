@@ -143,7 +143,7 @@ it catalogued with nothing registered by hand.
 | Kind | Rule |
 | --- | --- |
 | element | a free function returning the library's node type |
-| verb | a member of the node type that returns it by reference |
+| verb | a member of the node type that hands the node back: by reference, which continues the chain, or by value, which ends it |
 | type | a class, struct or union |
 | kit component | an element factory declared under a `kit/` header |
 | enumeration | an `enum` or `enum class` |
