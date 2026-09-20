@@ -25,7 +25,7 @@ namespace sigil::geometry::path {
 
 void CrossingRule::prepare(std::span<const Crossing> all) const {
   if (m_prepare) m_prepare(all);
-  if (m_kind != Kind::AlternatingAlong) return;
+  if (m_kind != Kind::AlternateAlong) return;
   m_walk.clear();
   if (all.empty()) return;
   // `m_walk` is read by binary search, so a pass puts its answer where

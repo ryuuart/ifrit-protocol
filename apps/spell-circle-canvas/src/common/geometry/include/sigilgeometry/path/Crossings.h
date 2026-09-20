@@ -128,9 +128,9 @@ class CrossingRule {
   /** THE ALTERNATING WEAVE, in the knot-theoretic sense: walk each
    *  strand from its start and the crossings you meet go over, under,
    *  over, under. See `crossing::alternateAlong`. */
-  static CrossingRule alternatingAlong() {
+  static CrossingRule alternateAlong() {
     CrossingRule r;
-    r.m_kind = Kind::AlternatingAlong;
+    r.m_kind = Kind::AlternateAlong;
     return r;
   }
 
@@ -182,7 +182,7 @@ class CrossingRule {
           if (over == (int)c.b && under == (int)c.a) return Order::Under;
         }
         break;
-      case Kind::AlternatingAlong: {
+      case Kind::AlternateAlong: {
         const auto found = std::lower_bound(
             m_walk.begin(), m_walk.end(), c.index,
             [](const std::pair<size_t, Order>& walked, size_t index) {
@@ -219,7 +219,7 @@ class CrossingRule {
     ListOrder,
     Sequence,
     Pairs,
-    AlternatingAlong,
+    AlternateAlong,
     Custom
   };
   Kind m_kind = Kind::ListOrder;
@@ -284,7 +284,7 @@ inline CrossingRule pairs(std::vector<std::pair<int, int>> dominance) {
  *  lower-indexed strand decides. Such a figure has no alternating weave
  *  at all, and this is where it shows. */
 inline CrossingRule alternateAlong() {
-  return CrossingRule::alternatingAlong();
+  return CrossingRule::alternateAlong();
 }
 }  // namespace crossing
 
