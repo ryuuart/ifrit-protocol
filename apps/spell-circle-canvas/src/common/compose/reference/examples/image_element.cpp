@@ -12,9 +12,11 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 namespace sketch = sigil::sketch;
+namespace skia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -82,11 +84,9 @@ struct ImageElement {
         .gap(16)
         .padding(22)
         .sampling(SkSamplingOptions(SkFilterMode::kNearest))
-        .children(
-            {cell("Fit::Contain", image(picture, material::skia::Fit::Contain)),
-             cell("Fit::Cover", image(picture, material::skia::Fit::Cover)),
-             cell("Fit::Stretch",
-                  image(picture, material::skia::Fit::Stretch))});
+        .children({cell("Fit::Contain", image(picture, skia::Fit::Contain)),
+                   cell("Fit::Cover", image(picture, skia::Fit::Cover)),
+                   cell("Fit::Stretch", image(picture, skia::Fit::Stretch))});
   }
 };
 
