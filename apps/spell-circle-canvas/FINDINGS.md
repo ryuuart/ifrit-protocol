@@ -91,6 +91,39 @@ MAGI screen is the one the `bloom` slot's executor fills — and that the
 screen each describes asks for that light, with `uBloom` above zero.
 The rebased plates are what hold the radius and strength chosen.
 
+## A surface is lit in light and presented as though it never was
+
+No body on either surface path applies a transfer function in either
+direction. `src/common/material/kit/shaders/Unlit.sksl` and
+`Surface.sksl` multiply `baseColor` by the sample of `baseColorMap` and
+return the product; the raster surfaces they are drawn onto carry no
+colour space, so Skia transforms neither the texel on the way in nor the
+product on the way out. `src/common/world/diligent/shaders/Surface.slang`
+multiplies by the same map, compresses the sum through
+`material::toneMap` on luminance, and writes to a UNORM target; no
+texture and no target in `src/common/world` or `src/common/geometry/device`
+is created in an sRGB format. Every number on the path is therefore the
+number an image stores and a display shows.
+
+Two things in the tree say the path was meant to carry light. `toneMap`
+states that what it takes is a radiance read at the set's exposure and
+compressed onto what a display can hold, and a radiance is linear;
+`SurfaceParameters::gold()` and `chrome()` carry measured reflectances,
+and gold's `(1.0, 0.766, 0.336)` is its linear value — the same colour
+encoded is near `(1.0, 0.894, 0.625)`. So a lit surface integrates a
+measured quantity against map samples that are display numbers and hands
+the result to a target that takes it for a display number, and the metals
+the kit ships read duller than the metals they were measured from.
+
+The bodies should linearise the samples they multiply and encode what
+they return, and the tone map should then stand between two quantities
+of light. A test should assert that a mid-grey texel over a white base
+colour comes back the mid-grey it went in as; that doubling a light moves
+a mid-grey by a stop rather than by doubling its code; and that gold's
+measured reflectance under a white environment presents at the code that
+colour presents at. Every plate carrying a lit or unlit surface moves,
+and a plate rebase names the cause.
+
 ## A stack's programs cannot be stood up before the sketch wearing it is read
 
 Sketchbook stands its device programs up before the canvas draws: every
