@@ -26,6 +26,18 @@ variable-font axis driven through `ParagraphLayout::LiveVariations` at
 draw time, which reuses the shaped positions precisely because the axis
 leaves advances alone.
 
+`TextStyle::variation` sets or replaces one variable-font axis, in place
+when the axis is already present, so styles built by the same call
+sequence share one varied-typeface memo entry. `TextStyle::weight` is the
+`wght` axis, fluently — `style.weight(650)` — beside
+`TextStyle::opticalSize` and `TextStyle::condense`. Every axis set this
+way lands in `ShapingStyle::variations` and so participates in shaping
+identity: animating one re-shapes the words it covers, which is required
+for `wght` because it moves advances on most faces. To animate weight
+without re-shaping, use a face with an advance-invariant axis (`GRAD` on
+the faces that have it) and drive it at draw time through
+`ParagraphLayout::LiveVariations` instead of setting it on the style.
+
 `TextStyle` holds the two halves together; `Type` is the PARTIAL a call
 site names a style's numbers in, every field optional, with `Length` for
 a size stated against one it does not carry; `TypeSheet` is a base style

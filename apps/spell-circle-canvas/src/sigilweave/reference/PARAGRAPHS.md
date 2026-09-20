@@ -7,6 +7,25 @@ and the language facts a hyphenator and a kinsoku table bring in from
 outside. `README.md` beside the library is the front page; the layout
 pass that consumes all of this is `reference/LAYOUT.md`.
 
+## What the engine is, and when it is the right tool
+
+THE TEXT ENGINE: shaping, line breaking and painting for styled text,
+built directly on HarfBuzz and ICU over Skia's drawing primitives.
+
+A passage is a `Paragraph` — UTF-16 text carrying normalized style
+spans — analysed into `Word`s and shaped through a per-thread
+`FontContext` whose cache is keyed on the shaping half of a style, so an
+edit reshapes only the words it touched. `layoutParagraph` breaks the
+shaped words into a `FlowGeometry` and answers a `ParagraphLayout`, which
+draws, measures and can be queried for the glyphs a `Selector` addresses.
+
+Reach for it when text must be set rather than merely drawn: mixed styles
+in one passage, justification, hyphenation, vertical writing, text
+flowing around a shape or along a path, ruby, columns filled from one
+story, or per-glyph animation. A single label on a canvas is cheaper
+through `kit::drawLabel`. The engine draws; it owns no window, no device
+and no document format.
+
 ## Paragraph: the document
 
 The document model is UTF-16 text carrying normalized style spans,
@@ -112,6 +131,10 @@ carry an empty `over` unless a partial reached them.
 `RichText::slot` reserves an INLINE SLOT: a box of blank space woven into
 the flow, and the name whatever is placed in that space answers to.
 
+Its size is LOGICAL: the width is the inline advance and the height is
+the band across the reading direction, so in a vertical passage the
+physical rectangle reported back is the two the other way round.
+
 The reserved box is ONE UNBREAKABLE WORD: a line never breaks inside it,
 and a box taller than the type opens the lines of its BLOCK. The room is
 in the strut before anything is broken, because bands are asked of the
@@ -120,7 +143,8 @@ afterwards would be a depth decided after the break it decides.
 
 `baselineDrop` is how far the box's BOTTOM sits below the baseline — 0
 stands it on the baseline like an inline image, and about the face's
-descent centres a pill on the x-height.
+descent centres a pill on the x-height. It applies only horizontally;
+a vertical object is centred across its column axis instead.
 
 The slot occupies one code point (U+FFFC), so it counts as a cluster,
 falls inside the ranges a selection names, and takes its turn in anything
@@ -185,15 +209,24 @@ nothing.
 
 Every question something asks of finished text — which glyphs a selection
 covers, what a stagger steps over, what an annotation stands beside — is
-asked at one of five sizes, and they are the sizes this engine already
+asked at one of these sizes. Five of them are sizes this engine already
 segments at: the shaper's clusters, the Unicode leaf's word and sentence
-breaks, the breaker's lines. Nothing in `Unit` names a size the engine
-would have to invent.
+breaks, the breaker's lines.
 
 `Unit::Cluster` is the one that keeps text correct: a base letter and its
 combining marks, or the several glyphs an emoji sequence shapes to, are
 ONE cluster and move together. `Unit::Glyph` is the raw shaping unit and
 will separate those marks from what they sit on.
+
+`Unit::Selection` is the sixth, and the odd one: not a size the engine
+segments at, but the extent the CALLER named — one unit per extent a
+selector addresses, however many clusters, words or lines that extent
+turns out to be made of, and one for each of two extents even where they
+touch and nothing divides them. It is what a reading over a compound is
+placed from, because a compound is a selection and not a break
+opportunity: a breaker may open an opportunity inside one. Nothing
+numbers it before the selector is resolved, so it is answered where the
+selection is and not off the placement.
 
 ## Hyphenation: where a word may break, asked outside the engine
 

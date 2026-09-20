@@ -194,9 +194,18 @@ to hand to any number of font contexts on any thread.
 manager resolves, at a given style. The list is the point: reconstructing
 a reference names a face that may not be installed on the machine running
 the code, so callers pass the face they want followed by the stand-ins
-they will accept. The last resort is the default family AT THE REQUESTED
-STYLE, not at the normal style — falling back to normal would silently
-drop the weight the caller asked for.
+they will accept. A family the chain leaves empty is passed over, so a
+chain assembled at run time may carry a blank where it found no name. The
+last resort is the default family AT THE REQUESTED STYLE, not at the
+normal style — falling back to normal would silently drop the weight the
+caller asked for.
+
+The call taking a span of views is the form a COMPUTED chain takes — one
+read out of a document, a settings file or a caller's own list, whose
+length is not known where the call is written. The call taking a braced
+list is the same call with the chain spelled out. The manager's own
+family match walks the system font list, so a chain asked for more than
+once goes through `ports::face`, which keeps the answer.
 
 `ports::face` is THE SAME RESOLUTION, HELD. `ports::pickTypeface` walks
 the installed font list on every call, so the answer is kept once per
@@ -218,6 +227,11 @@ everything keyed on them re-does its work. One holder gives one answer.
 It is safe from any thread: a describe runs on whichever thread the host
 calls on, and the holder is guarded. The face itself is immutable and
 shared, exactly as the font manager's is.
+
+`ports::face` takes a computed chain and a spelled-out one as
+`ports::pickTypeface` does. Both reach the one holder, so a chain
+assembled at run time and the same chain written as literals are one
+entry and one face.
 
 Both calls have an overload spelled with a weight and a slant, for the
 common case where the caller has those two numbers and not an

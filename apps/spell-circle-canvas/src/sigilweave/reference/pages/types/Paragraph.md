@@ -46,13 +46,15 @@ either half, so it is a different content-addressed shaping entry;
 toggling back finds both sets of entries warm.
 
 `Paragraph::setHyphenator` sets what is asked where INSIDE a word may
-break. Null (the default) leaves the soft hyphens the author typed as the
-only discretionary opportunities. A hyphenator is consulted once per word
-during analysis, in the shaping style's own language tag, and the offsets
-it names become break opportunities carrying a hyphen glyph exactly as a
-typed soft hyphen does. It has no effect while soft-hyphen breaks are
-off, because that setting is the switch for the whole discretionary idea.
-The pointer is borrowed: it must outlive every layout of this paragraph.
+break. Empty (the default) leaves the soft hyphens the author typed as
+the only discretionary opportunities. A hyphenator is consulted once per
+word during analysis, in the shaping style's own language tag, and the
+offsets it names become break opportunities carrying a hyphen glyph
+exactly as a typed soft hyphen does. It has no effect while soft-hyphen
+breaks are off, because that setting is the switch for the whole
+discretionary idea. The paragraph KEEPS the hyphenator: every re-analysis
+asks it again, and those happen for as long as the text is edited, so a
+hyphenator built for one document need not be kept alive by anyone else.
 
 `Paragraph::setKinsoku` sets which characters may not stand at a line's
 edge. A prohibition is a break opportunity that is never opened, so it is

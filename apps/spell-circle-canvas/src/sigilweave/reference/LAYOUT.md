@@ -157,6 +157,16 @@ layout and a caller who never asks pays nothing. Glyphs a face reports no
 path for — bitmap and colour glyphs — are absent, because they have no
 contour to give.
 
+`ParagraphLayout::ownedWords` is the shaped words this layout made and
+OWNS, rather than borrowed from the paragraph: the overflow marker, a tab
+leader, the glyphs an initial letter was cut from. No word of the text
+stands behind them, so nothing else is holding them.
+
+A caller that hands one of these on — to a run it re-places, to a cache,
+to a language whose values outlive the call — takes a copy of the handle
+it wants from there, which keeps the glyphs alive on its own. Reading the
+span is not enough: the span dies with the layout.
+
 ## PositionedRun: one draw call
 
 What a layout pass leaves behind, run by run: a `PositionedRun` is one
@@ -393,9 +403,19 @@ overflows whole, and the patterns are not consulted at all. Reaching the
 paragraph is what makes that happen, through
 `Paragraph::setSoftHyphenBreaks`, which `layoutParagraph` sets from here.
 
-`HyphenationOptions::patterns` is compared by identity, because two
-hyphenators that are not the same object cannot be shown to answer the
-same way.
+`HyphenationOptions::patterns` is where inside a word a break may fall,
+beyond the soft hyphens the author typed. Empty leaves discretionary
+hyphens the only opportunity, which is what a text that says nothing
+gets. It is compared by identity, because two hyphenators that are not
+the same object cannot be shown to answer the same way.
+
+It is HELD, NOT BORROWED: the analysis asks the hyphenator once per word
+and asks again whenever the text changes, which is long after the call
+that set it returned. A hyphenator built for one document — a table
+loaded from that document's own exception list, an implementation living
+in a scripting language — is therefore kept by the options and by the
+paragraph they reach, and one that outlives the process is handed over
+the same way.
 
 `HyphenationOptions::zone` is the band at the ragged edge inside which a
 line is already square enough, in pixels; 0 lifts it. A line whose last
