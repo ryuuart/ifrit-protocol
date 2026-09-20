@@ -12,3 +12,6 @@ from .table import Table
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
+    # The answer is a tuple the binding fills a name at a time, which
+    # pybind11 can only describe as a tuple of something.
+    table.returns("_sigil.core", "optionalLibraries", "tuple[str, ...]")
