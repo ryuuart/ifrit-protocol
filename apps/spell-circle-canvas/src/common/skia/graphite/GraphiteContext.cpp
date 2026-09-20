@@ -17,6 +17,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
+#include <algorithm>
 #include <atomic>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdint>
@@ -144,21 +145,31 @@ void GraphiteContext::reportPipelinesTo(PipelineReporter* reporter) {
   pipelineSink().store(reporter, std::memory_order_relaxed);
 }
 
-void GraphiteContext::registerRuntimeEffects(
+size_t GraphiteContext::runtimeEffectLimit() {
+  // Skia numbers a client's declared effects out of one reserved block
+  // and gives the rest of them unstable names, so a list longer than
+  // the block cannot be declared whole however it is offered.
+  return 100;
+}
+
+size_t GraphiteContext::registerRuntimeEffects(
     std::span<const sk_sp<SkRuntimeEffect>> effects) {
-  knownRuntimeEffects().assign(effects.begin(), effects.end());
+  const size_t taken = std::min(effects.size(), runtimeEffectLimit());
+  knownRuntimeEffects().assign(effects.begin(), effects.begin() + taken);
+  return taken;
+}
+
+std::unique_ptr<skgpu::graphite::PrecompileContext>
+GraphiteContext::makePrecompileContext() const {
+  if (!m_context) return nullptr;
+  const auto lock = lockContext();
+  return m_context->makePrecompileContext();
 }
 
 size_t GraphiteContext::precompile(std::span<const sk_sp<SkData>> keys) const {
-  if (!m_context || keys.empty()) return 0;
-  std::unique_ptr<skgpu::graphite::PrecompileContext> precompileContext;
-  {
-    const auto lock = lockContext();
-    precompileContext = m_context->makePrecompileContext();
-  }
-  // The helper is made where the context is and used here, which may be
-  // another thread: that is what it is for, and it holds the context's
-  // shared half rather than the context.
+  if (keys.empty()) return 0;
+  const std::unique_ptr<skgpu::graphite::PrecompileContext> precompileContext =
+      makePrecompileContext();
   if (!precompileContext) return 0;
   size_t built = 0;
   for (const sk_sp<SkData>& key : keys)

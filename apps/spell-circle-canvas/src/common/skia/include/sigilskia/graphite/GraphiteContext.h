@@ -24,6 +24,7 @@ class ShaderErrorHandler;
 
 namespace skgpu::graphite {
 class Context;
+class PrecompileContext;
 class Recorder;
 struct RecorderOptions;
 struct ContextOptions;
@@ -200,17 +201,38 @@ class GraphiteContext {
    *  them BEFORE the first one. Process-wide, and the list REPLACES
    *  whatever stood before it: a caller that keeps recorded keys on
    *  disk must throw them away whenever this list changes, because the
-   *  same effect at a different place in it is a different name. */
-  static void registerRuntimeEffects(
+   *  same effect at a different place in it is a different name.
+   *
+   *  The backend reserves a fixed block of names for a client's
+   *  effects, so a longer list is CUT at the block's length and the
+   *  effects past the cut keep the unstable names they had. The answer
+   *  is how many were taken, and it is what a caller keying stored keys
+   *  on the list must key them on: the list it offered and the list
+   *  that was declared are not the same one. */
+  static size_t registerRuntimeEffects(
       std::span<const sk_sp<SkRuntimeEffect>> effects);
+
+  /** HOW MANY EFFECTS A DECLARATION MAY CARRY: the size of the
+   *  backend's reserved block of client names, past which an effect
+   *  cannot be given one. */
+  static size_t runtimeEffectLimit();
+
+  /** THE HELPER A WARM-UP BUILDS PIPELINES THROUGH, made where the
+   *  context is and usable on ANOTHER THREAD — which is the point: a
+   *  warm-up run where frames are drawn would be the stall it exists to
+   *  remove. It holds the context's shared half rather than the
+   *  context, so the thread that draws keeps drawing while it stands.
+   *  Null when there is no context. */
+  [[nodiscard]] std::unique_ptr<skgpu::graphite::PrecompileContext>
+  makePrecompileContext() const;
 
   /** REBUILDS THE PIPELINES @p keys NAMES, on the calling thread.
    *
    *  A key this backend or this version of Skia cannot read is skipped;
-   *  the answer is how many pipelines were built. The helper it runs
-   *  through may be made here and used on another thread, which is the
-   *  point: a warm-up run where frames are drawn would be the stall it
-   *  exists to remove. */
+   *  the answer is how many pipelines were built. It goes through a
+   *  helper of its own, so a caller with several kinds of warming to do
+   *  takes one `makePrecompileContext()` and spends it on all of
+   *  them. */
   [[nodiscard]] size_t precompile(std::span<const sk_sp<SkData>> keys) const;
 
  private:

@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 using sigil::skia::GraphiteContext;
 
@@ -129,6 +130,26 @@ TEST(SkiaGraphiteOptions, DeclaredRuntimeEffectsTravelWithEveryLaterContext) {
   GraphiteContext::registerRuntimeEffects({});
   EXPECT_TRUE(GraphiteContext::makeContextOptions()
                   .fUserDefinedKnownRuntimeEffects.empty());
+}
+
+TEST(SkiaGraphiteOptions, ADeclarationIsCutAtTheBackendsReservedNames) {
+  // Past the reserved block an effect cannot be given a stable name at
+  // all, so a caller keying stored keys on what it declared has to be
+  // told what was taken rather than what it offered.
+  const size_t limit = GraphiteContext::runtimeEffectLimit();
+  ASSERT_GT(limit, size_t{0});
+  SkRuntimeEffect::Result compiled = SkRuntimeEffect::MakeForShader(
+      SkString("half4 main(float2 position) { return half4(1); }"));
+  ASSERT_NE(compiled.effect, nullptr);
+  const std::vector<sk_sp<SkRuntimeEffect>> offered(limit + 3, compiled.effect);
+  EXPECT_EQ(GraphiteContext::registerRuntimeEffects(offered), limit);
+  EXPECT_EQ(GraphiteContext::makeContextOptions()
+                .fUserDefinedKnownRuntimeEffects.size(),
+            limit);
+
+  const std::vector<sk_sp<SkRuntimeEffect>> few(2, compiled.effect);
+  EXPECT_EQ(GraphiteContext::registerRuntimeEffects(few), size_t{2});
+  GraphiteContext::registerRuntimeEffects({});
 }
 
 TEST(SkiaGraphiteOptions, EveryContextIsGivenAnExecutorForPipelineCompilation) {

@@ -354,7 +354,20 @@ second: a key naming an undeclared runtime effect is not serialisable at
 all, so without the declaration a recorded set holds everything except
 the stages an effect chain is made of. The list replaces rather than
 grows, and an effect's place in it is part of its name — so keys kept on
-disk are thrown away whenever the list changes.
+disk are thrown away whenever the list changes. The name is given to the
+EFFECT OBJECT, not to its source, so the objects declared must be the
+ones the draws go on to use; a second effect compiled from the same SkSL
+is a stranger to the declaration. The backend reserves a fixed block of
+these names, `GraphiteContext::runtimeEffectLimit`, and a longer list is
+cut at it — the answer says how many were taken, which is the list a
+caller keys its stored keys on rather than the one it offered.
+
+`GraphiteContext::makePrecompileContext` is the same standing-up without
+a recorded set: the helper it answers with holds the context's shared
+half rather than the context, so it is made where the context is and
+spent on another thread while the thread that draws keeps drawing. It is
+what `precompile` runs through, and what a caller hands to Graphite's
+own `Precompile` over a described paint when it has no keys to replay.
 
 ## The two draws Graphite does not implement
 
