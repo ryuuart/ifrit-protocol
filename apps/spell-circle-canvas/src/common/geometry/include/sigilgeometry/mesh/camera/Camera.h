@@ -17,7 +17,12 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkSize.h>
 
-#include <glm/glm.hpp>
+// A camera stores vectors and names matrices: the vectors are members,
+// so their definition is needed here, and every matrix is a return type
+// a declaration only has to name. A file that does arithmetic on one
+// includes the matrix header itself.
+#include <glm/fwd.hpp>
+#include <glm/vec3.hpp>
 #include <optional>
 
 /** THE CAMERA AND THE TRANSFORMS THAT PLACE THINGS IN FRONT OF IT: a
@@ -29,7 +34,7 @@ namespace sigil::geometry::mesh::camera {
 
 /** The glm -> Skia seam: both are column-major, so the conversion is a
  *  straight pour. */
-inline SkM44 toSkM44(const glm::mat4& m) { return SkM44::ColMajor(&m[0][0]); }
+SkM44 toSkM44(const glm::mat4& m);
 
 /** Right-handed, y-up camera. Field of view is vertical. */
 struct Camera {

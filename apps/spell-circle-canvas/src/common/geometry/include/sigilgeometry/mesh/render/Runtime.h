@@ -23,7 +23,10 @@
 #include <sigilcore/comparable/Erased.h>
 
 #include <functional>
-#include <glm/glm.hpp>
+// The seam names a matrix only by reference, so the declarations glm's
+// forward header carries are the whole of what this file needs; an
+// executor's own file includes the matrix it multiplies with.
+#include <glm/fwd.hpp>
 #include <utility>
 
 class SkCanvas;

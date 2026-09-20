@@ -27,6 +27,8 @@ glm::mat4 toGlm(const SkM44& m) {
 
 }  // namespace
 
+SkM44 toSkM44(const glm::mat4& m) { return SkM44::ColMajor(&m[0][0]); }
+
 glm::mat4 Camera::view() const {
   return toGlm(SkM44::LookAt({eye.x, eye.y, eye.z},
                              {target.x, target.y, target.z},
