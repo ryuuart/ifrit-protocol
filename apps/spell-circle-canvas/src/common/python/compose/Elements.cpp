@@ -591,8 +591,12 @@ void bindCompose(py::module_& module) {
              float bl) -> Element& { return self.corners({tl, tr, br, bl}); },
           py::arg("topLeft"), py::arg("topRight"), py::arg("bottomRight"),
           py::arg("bottomLeft"), fluent)
-      .def("inset", py::overload_cast<float>(&Element::inset), py::arg("all"),
-           fluent)
+      .def(
+          "inset",
+          [](Element& self, py::object all) -> Element& {
+            return self.inset(dimension(all));
+          },
+          py::arg("all"), fluent)
       .def("transformOrigin",
            py::overload_cast<float, float>(&Element::transformOrigin),
            py::arg("x"), py::arg("y"), fluent);
@@ -844,7 +848,6 @@ void bindCompose(py::module_& module) {
            {"skewY", &Element::skewY},
            {"rotateX", &Element::rotateX},
            {"rotateY", &Element::rotateY},
-           {"rotateZ", &Element::rotateZ},
            {"translateZ", &Element::translateZ},
            {"scaleZ", &Element::scaleZ},
            {"perspective", &Element::perspective}})

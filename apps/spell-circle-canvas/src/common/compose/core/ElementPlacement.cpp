@@ -19,19 +19,14 @@ Derived& PlacementVerbs<Derived>::absolute() {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::cover() {
-  inset(0.0f);
+  inset(Dimension(0.0f));
   declarations()->layout.covering = true;
   return self();
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::inset(float all) {
+Derived& PlacementVerbs<Derived>::inset(Dimension all) {
   return inset(all, all, all, all);
-}
-
-template <class Derived>
-Derived& PlacementVerbs<Derived>::inset(float l, float t, float r, float b) {
-  return inset(Dimension(l), Dimension(t), Dimension(r), Dimension(b));
 }
 
 template <class Derived>

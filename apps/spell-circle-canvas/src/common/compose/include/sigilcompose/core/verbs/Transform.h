@@ -11,8 +11,6 @@
 #include <sigilcompose/core/Shape.h>
 #include <sigilmotion/values/Animatable.h>
 
-#include <concepts>
-
 namespace sigil::compose {
 
 /** THE PAINT-PHASE LANES: translate, then rotate, then scale, then
@@ -67,43 +65,6 @@ class TransformVerbs {
    *  so siblings paint in declaration order. It reorders nothing
    *  outside this node's own parent, and it changes no layout. */
   Derived& zIndex(int z);
-  /** THE INTEGER-LITERAL SPELLING of these lanes — `rotate(-8)`,
-   *  `scale(2)` — which exists because a plain `int` does not convert
-   *  into the animatable variant on its own and the error when it does
-   *  not is unreadable. Constrained on `std::integral` so a float call
-   *  can never land here and recurse. */
-  template <std::integral T>
-  Derived& translateX(T v) {
-    return translateX(motion::Animatable<float>((float)v));
-  }
-  template <std::integral T>
-  Derived& translateY(T v) {
-    return translateY(motion::Animatable<float>((float)v));
-  }
-  template <std::integral T>
-  Derived& rotate(T deg) {
-    return rotate(motion::Animatable<float>((float)deg));
-  }
-  template <std::integral T>
-  Derived& scale(T f) {
-    return scale(motion::Animatable<float>((float)f));
-  }
-  template <std::integral T>
-  Derived& scaleX(T f) {
-    return scaleX(motion::Animatable<float>((float)f));
-  }
-  template <std::integral T>
-  Derived& scaleY(T f) {
-    return scaleY(motion::Animatable<float>((float)f));
-  }
-  template <std::integral T>
-  Derived& skewX(T deg) {
-    return skewX(motion::Animatable<float>((float)deg));
-  }
-  template <std::integral T>
-  Derived& skewY(T deg) {
-    return skewY(motion::Animatable<float>((float)deg));
-  }
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

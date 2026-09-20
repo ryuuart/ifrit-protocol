@@ -49,10 +49,18 @@ def children(self, *children: Element) -> Element: ...
         "_t.DimensionLike",
     )
     table.erased(ELEMENT, "size", "_t.DimensionLike", "_t.DimensionLike")
-    table.erased(ELEMENT, "inset", *(["_t.DimensionLike"] * 4))
+    table.declares(
+        ELEMENT,
+        "inset",
+        """@typing.overload
+def inset(self, all: _t.DimensionLike) -> Element: ...
+@typing.overload
+def inset(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike) -> Element: ...
+""",
+    )
     table.erased(
         ELEMENT,
-        "opacity rotate rotateX rotateY rotateZ scale scaleX scaleY scaleZ skewX skewY translateX translateY translateZ perspective",
+        "opacity rotate rotateX rotateY scale scaleX scaleY scaleZ skewX skewY translateX translateY translateZ perspective",
         "_t.ScalarLike",
     )
     table.erased(ELEMENT, "fontSize fontTrack", "_t.FloatLike | _sigil.weave.Length")

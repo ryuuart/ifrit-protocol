@@ -35,14 +35,11 @@ class PlacementVerbs {
    *  placement, and stands. */
   Derived& cover();
   /** HOW FAR IN FROM EACH EDGE of the parent's box this node's own
-   *  edges stand, in pixels. One value is all four sides; four are
-   *  left, top, right, bottom. */
-  Derived& inset(float all);
-  Derived& inset(float left, float top, float right, float bottom);
-  /** The same four distances as `Dimension`s — px, `pct()`, or
-   *  `autoDimension()` per side, which leaves that side unpinned so a
-   *  size or the opposite inset sizes the node instead of stretching
-   *  it. */
+   *  edges stand. One value is all four sides; four are left, top,
+   *  right, bottom. A bare number is pixels, `pct()` is of the parent,
+   *  and `autoDimension()` leaves a side unpinned, so a size or the
+   *  opposite inset sizes the node instead of stretching it. */
+  Derived& inset(Dimension all);
   Derived& inset(Dimension left, Dimension top, Dimension right,
                  Dimension bottom);
   /** Pin the node's LEFT edge @p d inside the parent's. The unpinned

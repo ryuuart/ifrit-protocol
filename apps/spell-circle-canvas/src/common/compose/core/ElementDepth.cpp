@@ -21,13 +21,6 @@ Derived& DepthVerbs<Derived>::rotateY(motion::Animatable<float> v) {
 }
 
 template <class Derived>
-Derived& DepthVerbs<Derived>::rotateZ(motion::Animatable<float> v) {
-  // ONE lane: the 2D rotation IS the rotation about the viewing axis, and
-  // a second field for the same turn would be two settings of one thing.
-  return self().rotate(std::move(v));
-}
-
-template <class Derived>
 Derived& DepthVerbs<Derived>::translateZ(motion::Animatable<float> v) {
   declarations()->depthData.ensure().translateZ = std::move(v);
   return self();

@@ -179,3 +179,35 @@ TEST(ComposeElement, CopiedValuesMutateIndependently) {
   EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
   EXPECT_EQ(host.pixel(150, 50), SK_ColorBLUE);
 }
+
+TEST(ComposeElement, AWholeNumberOnALaneIsTheNumberItSpells) {
+  // Every lane takes an animatable, which a pointer to an output also
+  // converts to: an integer literal, zero included, has to arrive as the
+  // plain value it reads as and never as a null binding.
+  Host host;
+  host.composer.render(box().children({box()
+                                           .key("mover")
+                                           .width(20)
+                                           .height(20)
+                                           .fill(red())
+                                           .opacity(1)
+                                           .translateX(40)
+                                           .translateY(0)
+                                           .rotate(0)
+                                           .scale(1)
+                                           .scaleX(2)
+                                           .scaleY(1)
+                                           .skewX(0)
+                                           .skewY(0)
+                                           .rotateX(0)
+                                           .rotateY(0)
+                                           .translateZ(0)
+                                           .scaleZ(1)
+                                           .perspective(0)}));
+  host.frame();
+  // Twice as wide about its centre, forty pixels to the right: x 30 to 70.
+  EXPECT_EQ(host.pixel(35, 10), SK_ColorRED);
+  EXPECT_EQ(host.pixel(65, 10), SK_ColorRED);
+  EXPECT_NE(host.pixel(25, 10), SK_ColorRED);
+  EXPECT_NE(host.pixel(75, 10), SK_ColorRED);
+}

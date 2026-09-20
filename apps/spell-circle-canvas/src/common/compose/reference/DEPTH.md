@@ -3,8 +3,8 @@
 A chapter of [SigilCompose's README](../README.md).
 
 A node is a **plane**. Five lanes turn it and move it in depth —
-`rotateX`, `rotateY`, `translateZ`, `scaleZ`, and `rotateZ`, which is
-`rotate` under its 3D name — and `perspective` on an ancestor is the
+`rotateX`, `rotateY`, `translateZ`, `scaleZ`, and `rotate`, which is
+the turn about z — and `perspective` on an ancestor is the
 view that ancestor's children are seen through: a viewer standing that
 many pixels in front of the ancestor's plane, over the point
 `Element::perspectiveOrigin` names (its centre by default). Every one of

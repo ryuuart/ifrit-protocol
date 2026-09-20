@@ -52,7 +52,7 @@ is placed.
 | `justify` | Where the children sit along the main axis, and how the slack is shared. |
 | `absolute` | Take this node out of the flow; its insets place it. |
 | [`cover`](pages/verbs/cover.md) | Fill the box it stands in — out of the flow and stretched to the parent. |
-| `inset` | The four distances from the parent's edges, in px or as dimensions. |
+| `inset` | How far in from the parent's edges this node's own stand: one length for all four, or four. |
 | `left` | Pin the left edge, implying `absolute`; the unpinned sides stay auto. |
 | `top` | Pin the top edge, implying `absolute`. |
 | `right` | Pin the right edge, implying `absolute`. |
@@ -161,7 +161,6 @@ its parent's. Paint-only, like the transforms.
 |---|---|
 | `rotateX` | Turn the plane about its horizontal axis; positive tips the bottom toward the viewer. |
 | `rotateY` | Turn it about its vertical axis — the card-flip lane. |
-| `rotateZ` | The rotation `rotate` already is, under its 3D name: one lane, not two. |
 | `translateZ` | Move the plane along the viewing axis; invisible without a `perspective` above it. |
 | `scaleZ` | Scale the depth of the children a shared space hosts. |
 | `perspective` | The view this node's CHILDREN are seen through, in px in front of the plane. |
@@ -290,7 +289,7 @@ spelling is the feature's.
   `skewX`, `skewY`, `transformOrigin`, `transformOriginPx`, and
   `zIndex`.
 - `core/verbs/Depth.h` — the depth lanes `rotateX`, `rotateY`,
-  `rotateZ`, `translateZ`, `scaleZ`, `perspective`,
+  `translateZ`, `scaleZ`, `perspective`,
   `perspectiveOrigin`, `transformOrigin3d`, `preserve3d`, `backface`.
 - `core/verbs/TextStyle.h` — the text properties `paragraphs`,
   `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,

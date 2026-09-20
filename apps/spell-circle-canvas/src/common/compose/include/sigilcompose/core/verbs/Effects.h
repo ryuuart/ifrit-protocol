@@ -13,8 +13,6 @@
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
 
-#include <concepts>
-
 namespace sigil::compose {
 
 /** HOW THE NODE'S LAYER MEETS THE PAGE. Each of these makes the node
@@ -42,15 +40,6 @@ class EffectVerbs {
    *  `Cache::Texture`, since the backdrop depends on the live
    *  destination; such nodes fall back to picture caching. */
   Derived& backdrop(material::skia::Effect e);
-  /** THE INTEGER-LITERAL SPELLING of the opacity lane — `opacity(1)` —
-   *  which exists because a plain `int` does not convert into the
-   *  animatable variant on its own and the error when it does not is
-   *  unreadable. Constrained on `std::integral` so a float call can
-   *  never land here and recurse. */
-  template <std::integral T>
-  Derived& opacity(T v) {
-    return opacity(motion::Animatable<float>((float)v));
-  }
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }
