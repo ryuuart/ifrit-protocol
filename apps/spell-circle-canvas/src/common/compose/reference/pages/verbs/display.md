@@ -43,6 +43,12 @@ reaches the children: its cascade (`font`, `ink`, `var`), its `key` for
 the hit test, its opacity. Give a transform to the children rather than
 to the wrapper, whose pivot has no box to be a fraction of.
 
+**A `layout()` scheme places its direct children and nothing deeper.**
+A `Display::None` child is skipped, so the cells close up as a flex line
+does. A `Display::Contents` child is still one child of the scheme: it
+is handed a cell it has no box to take, and its own children fall back
+into the container's flex flow. Hand a scheme the children themselves.
+
 **Python spells the first keyword `Display.None_`**, since `None` is the
 language's own word.
 

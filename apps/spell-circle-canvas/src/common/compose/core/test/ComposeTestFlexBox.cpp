@@ -189,6 +189,31 @@ TEST(ComposeBox, ANodeWithNoBoxTakesNoCellOfAScheme) {
   EXPECT_TRUE(boundsOf(host, "gone").isEmpty());
 }
 
+TEST(ComposeBox, ASchemePlacesItsDirectChildrenAndNothingDeeper) {
+  // A wrapper with no box of its own is still one child of the scheme: the
+  // cell it is handed has no box to take, and what it wraps is laid out by
+  // the container's flex flow rather than by the scheme.
+  Host host(200, 200);
+  host.composer.render(box().children(
+      {layout(TwoColumns{})
+           .width(200)
+           .height(200)
+           .children(
+               {box().key("a"),
+                box()
+                    .key("wrapper")
+                    .display(Display::Contents)
+                    .children({box().key("wrapped").width(30).height(30)}),
+                box().key("b")})}));
+  host.frame();
+  EXPECT_EQ(boundsOf(host, "a"), SkRect::MakeXYWH(0, 0, 100, 40));
+  // The wrapper counted for the second cell, so the third child has the
+  // third…
+  EXPECT_EQ(boundsOf(host, "b"), SkRect::MakeXYWH(0, 40, 100, 40));
+  // …and what it wraps stands where a column's first item does.
+  EXPECT_EQ(boundsOf(host, "wrapped"), SkRect::MakeXYWH(0, 0, 30, 30));
+}
+
 TEST(ComposeBox, ContentsHandsANodesChildrenToItsParentsLine) {
   Host host(200, 100);
   const auto line = [](Display wrapper) {
