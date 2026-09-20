@@ -261,8 +261,8 @@ inline CrossingRule pairs(std::vector<std::pair<int, int>> dominance) {
  *  then by arc length, and reading the parity of each pass.
  *
  *  A {7/2} heptagram is the smallest figure that tells them apart: seven
- *  chords, four crossings on each, and the plaited star everyone draws by
- *  hand is this rule and not the other.
+ *  chords, two crossings on each and seven in all, and the plaited star
+ *  everyone draws by hand is this rule and not the other.
  *
  *  Where a diagram is NOT alternable — a crossing whose two passes both
  *  come up even — the two strands cannot both go over and the pass on the

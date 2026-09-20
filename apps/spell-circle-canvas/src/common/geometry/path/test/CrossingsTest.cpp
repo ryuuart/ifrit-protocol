@@ -10,7 +10,9 @@
 #include <include/core/SkRect.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstddef>
 #include <utility>
 #include <vector>
 
@@ -29,6 +31,27 @@ SkPath segment(float x0, float y0, float x1, float y1) {
   b.moveTo(x0, y0);
   b.lineTo(x1, y1);
   return b.detach();
+}
+
+/** Walk every strand from its start: do the knots it meets run over,
+ *  under, over? That is what a plaited figure is, and the reading is the
+ *  same whichever figure is under test — so the two cases that ask it ask
+ *  it the same way. */
+bool walksAlternating(size_t strandCount, const std::vector<Crossing>& knots,
+                      const CrossingRule& rule) {
+  for (size_t strand = 0; strand < strandCount; ++strand) {
+    std::vector<std::pair<float, bool>> along;  // (arc length, this one over)
+    for (const Crossing& knot : knots) {
+      if (knot.a != strand && knot.b != strand) continue;
+      const bool firstIsOver = rule.decide(knot) == Order::Over;
+      along.push_back({knot.a == strand ? knot.alongA : knot.alongB,
+                       knot.a == strand ? firstIsOver : !firstIsOver});
+    }
+    std::sort(along.begin(), along.end());
+    for (size_t i = 1; i < along.size(); ++i)
+      if (along[i].second == along[i - 1].second) return false;
+  }
+  return true;
 }
 }  // namespace
 
@@ -98,10 +121,10 @@ TEST(CrossingRule, ListOrderDecidesUnlessAnotherRuleOrAPinDoes) {
 }
 
 TEST(CrossingRule, AlternateAlongPlaitsEveryStrandAndAlternateDoesNot) {
-  // A {7/2} HEPTAGRAM: seven chords, each skipping one vertex, four
-  // crossings on each. It is the smallest figure that tells the two
-  // alternating rules apart — with two strands they agree, and with
-  // three they can still agree by luck.
+  // A {7/2} HEPTAGRAM: seven chords, each skipping one vertex, two
+  // crossings on each and seven in all. It is the smallest figure that
+  // tells the two alternating rules apart — with two strands they agree,
+  // and with three they can still agree by luck.
   constexpr int kPoints = 7;
   constexpr int kStep = 2;
   std::vector<SkPath> chords;
@@ -120,29 +143,13 @@ TEST(CrossingRule, AlternateAlongPlaitsEveryStrandAndAlternateDoesNot) {
 
   // THE CLAIM: walk any chord from its start and the crossings you meet
   // run over, under, over, under. That is what a plaited star is.
-  const auto walksAlternating = [&](const CrossingRule& rule) {
-    for (size_t strand = 0; strand < chords.size(); ++strand) {
-      std::vector<std::pair<float, bool>> along;  // (arc length, this one over)
-      for (const Crossing& k : knots) {
-        if (k.a != strand && k.b != strand) continue;
-        const bool aIsOver = rule.decide(k) == Order::Over;
-        along.push_back({k.a == strand ? k.alongA : k.alongB,
-                         k.a == strand ? aIsOver : !aIsOver});
-      }
-      std::sort(along.begin(), along.end());
-      for (size_t i = 1; i < along.size(); ++i)
-        if (along[i].second == along[i - 1].second) return false;
-    }
-    return true;
-  };
-
   CrossingRule plaited = crossing::alternateAlong();
   plaited.prepare(knots);
-  EXPECT_TRUE(walksAlternating(plaited));
+  EXPECT_TRUE(walksAlternating(chords.size(), knots, plaited));
   // …and the ordinal rule does not, because it alternates along ONE
   // strand's numbering and every other strand meets that numbering in
   // whatever order it happens to.
-  EXPECT_FALSE(walksAlternating(crossing::alternate()));
+  EXPECT_FALSE(walksAlternating(chords.size(), knots, crossing::alternate()));
 
   // Unprepared it is list order, and preparing does not change what it
   // compares to: the table is a function of geometry, not of the author.
@@ -151,6 +158,75 @@ TEST(CrossingRule, AlternateAlongPlaitsEveryStrandAndAlternateDoesNot) {
   // A pin beats it, the way a pin beats every rule under it.
   plaited.except(knots.front().index, Order::Under);
   EXPECT_EQ(plaited.decide(knots.front()), Order::Under);
+}
+
+// THE SAME STAR, DRAWN THE WAY A FIGURE IS ACTUALLY TRAVERSED: seven open
+// chords in visiting order, so CONSECUTIVE strands share a vertex. The
+// case above indexes its chords by starting vertex, which puts the shared
+// vertices on non-adjacent index pairs and the genuine crossings on the
+// adjacent ones — the arrangement that never asks whether a strand which
+// STOPS at a meeting is passing through it. This one asks.
+//
+// A shared vertex has to be excluded BY RULE. Answering it from a sample
+// taken a step either way cannot: at the vertex the strand that stops
+// there has no sample past it, so the probe is the meeting itself, and
+// the side it comes out on is the sign of a rounding. The placements
+// below are the evidence — several of them are the arrangements where
+// that rounding used to come out the wrong way and manufacture an eighth
+// knot, which is why the case sweeps a figure rather than drawing one.
+TEST(Crossings, ThePlaitedStarHoldsItsSevenKnotsWhereverItIsDrawn) {
+  // The star as the sigil study builds it, down to the arithmetic: the
+  // angle in degrees of a turn, converted once, measured clockwise from
+  // twelve o'clock. Two roundings of one angle are two different figures
+  // at this scale, and it is the study's figure that is under test.
+  const auto star = [](float radius, SkPoint centre) {
+    const auto vertex = [&](int step) {
+      const float degToRad = 3.14159265358979f / 180.0f;
+      const float angle =
+          (float)((2 * step) % 7) * 360.0f / 7.0f * degToRad - 1.5707963f;
+      return SkPoint{centre.fX + radius * std::cos(angle),
+                     centre.fY + radius * std::sin(angle)};
+    };
+    std::vector<SkPath> strands;
+    for (int i = 0; i < 7; ++i) {
+      const SkPoint from = vertex(i), to = vertex((i + 1) % 7);
+      strands.push_back(segment(from.fX, from.fY, to.fX, to.fY));
+    }
+    return strands;
+  };
+  // A knot is a property of the figure, not of where the figure sits: the
+  // same star translated and scaled answers the same seven. The first is
+  // the study's own radius and centre, at pixel scale and already moved.
+  const std::pair<float, SkPoint> places[]{
+      {0.777f * 618.0f, {0.882f * 618.0f, 0.882f * 618.0f}},
+      {144.8f, {100.0f, 120.0f}},
+      {358.1f, {311.3f, 427.9f}},
+      {547.7f, {311.3f, 427.9f}},
+      {618.8f, {100.0f, 120.0f}},
+      {150.0f, {200.0f, 200.0f}}};
+  for (const auto& [radius, centre] : places) {
+    const std::vector<SkPath> strands = star(radius, centre);
+    const std::vector<Crossing> knots = discoverCrossings(strands);
+    ASSERT_EQ(knots.size(), 7u)
+        << "a {7/2} star meets itself once per point, and its seven shared "
+           "vertices are meetings rather than crossings; radius "
+        << radius;
+    // FOURTEEN PASSES: two per knot, and two on every strand.
+    std::array<int, 7> passes{};
+    for (const Crossing& knot : knots) {
+      ++passes[knot.a];
+      ++passes[knot.b];
+      // No knot sits at a vertex, on either strand.
+      EXPECT_GT(knot.alongA, 0.05f);
+      EXPECT_LT(knot.alongA, 0.95f);
+      EXPECT_GT(knot.alongB, 0.05f);
+      EXPECT_LT(knot.alongB, 0.95f);
+    }
+    for (int met : passes) EXPECT_EQ(met, 2);
+    CrossingRule plaited = crossing::alternateAlong();
+    plaited.prepare(knots);
+    EXPECT_TRUE(walksAlternating(strands.size(), knots, plaited));
+  }
 }
 
 TEST(CrossingPatch, TheLensIsBoundedByTheKnotsOwnTerritory) {

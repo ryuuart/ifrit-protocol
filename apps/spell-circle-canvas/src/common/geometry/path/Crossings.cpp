@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
 
@@ -84,8 +85,20 @@ constexpr int kMinSamples = 32;
 /** A strand as uniform arc-length samples with the length at each: the
  *  currency every question below is asked in. */
 struct Flat {
+  /** ONE FLATTENED CONTOUR'S SPAN of this strand's arc coordinate. A
+   *  strand may be several contours walked as one length, and where a
+   *  contour STOPS is where the strand stops: the chord to the next
+   *  contour is not part of the mark, and neither is anything past an
+   *  open contour's end. */
+  struct Run {
+    float from = 0;
+    float to = 0;
+    bool closed = false;
+  };
+
   std::vector<SkPoint> points;
   std::vector<float> at;  // cumulative arc length at each point
+  std::vector<Run> runs;
   float length = 0;
   float step = kSampleStep;             // the spacing the samples came out at
   SkRect bounds = SkRect::MakeEmpty();  // of `points` — the pair rejection
@@ -110,6 +123,7 @@ Flat flat(const SkPath& path) {
       f.at.push_back(f.length + len * (float)k / (float)steps);
     }
     f.length += len;
+    f.runs.push_back({f.length - len, f.length, contour.closed});
     // A break between contours: repeat the last point so the segment loop
     // below can skip the join (a chord between two contours is not a
     // strand and must not manufacture crossings).
@@ -134,14 +148,56 @@ SkPoint pointAtArc(const Flat& f, float s) {
   return f.points.back();
 }
 
-/** Does one strand change sides of the other's local direction at `hit`? */
+/** The contour `s` falls in; the last one, for a distance past the end. */
+const Flat::Run* runAt(const Flat& f, float s) {
+  if (f.runs.empty()) return nullptr;
+  for (const Flat::Run& run : f.runs)
+    if (s <= run.to) return &run;
+  return &f.runs.back();
+}
+
+/** Does one strand change sides of the other's local direction at `hit`,
+ *  with a piece of ITSELF on each side of the meeting?
+ *
+ *  The probe is taken a step and a half either way ALONG THE CONTOUR the
+ *  meeting falls in: less than one step and the two samples are the
+ *  crossing itself, more and a strand that turns between them answers
+ *  about the turn. A closed contour comes round its seam; an open one has
+ *  nothing beyond its own end.
+ *
+ *  A CONTOUR THAT STOPS AT THE MEETING TOUCHES RATHER THAN CROSSES, and
+ *  that is read off the arc position rather than off a sample. A probe
+ *  clamped back to the end IS the meeting, so the side it comes out on is
+ *  the sign of a rounding — the meeting is reconstructed from the two
+ *  segments that met and the endpoint from the resampled points, two
+ *  roundings of one place that disagree in the last bits. Asked that way
+ *  a shared polygon vertex is a coin flip, and a plaited star grows an
+ *  eighth knot wherever the flip lands wrong.
+ *
+ *  Nearer an end than half a sample step is the same answer, and for the
+ *  same reason: below the flattening's own resolution a touch and a
+ *  crossing are not distinguishable, and an endpoint touch is a meeting.
+ *  The threshold is the strand's own step, so it scales with the figure
+ *  rather than fixing a size in pixels. */
 bool changesSides(const Flat& other, float sOther, SkPoint hit, SkVector dir) {
-  // A step and a half either way along the strand being probed: less than
-  // one and the two samples are the crossing itself, more and a strand
-  // that turns between them answers about the turn.
+  const Flat::Run* run = runAt(other, sOther);
+  if (!run) return false;
+  const float span = run->to - run->from;
+  if (!(span > 0)) return false;
   const float delta = other.step * 1.5f;
-  const SkPoint before = pointAtArc(other, sOther - delta);
-  const SkPoint after = pointAtArc(other, sOther + delta);
+  float back = sOther - delta;
+  float ahead = sOther + delta;
+  if (run->closed) {
+    back = run->from + wrap(back - run->from, span);
+    ahead = run->from + wrap(ahead - run->from, span);
+  } else {
+    const float edge = other.step * 0.5f;
+    if (sOther - run->from < edge || run->to - sOther < edge) return false;
+    back = std::max(back, run->from);
+    ahead = std::min(ahead, run->to);
+  }
+  const SkPoint before = pointAtArc(other, back);
+  const SkPoint after = pointAtArc(other, ahead);
   const auto side = [&](SkPoint q) {
     return dir.x() * (q.fY - hit.fY) - dir.y() * (q.fX - hit.fX);
   };
@@ -156,9 +212,10 @@ bool changesSides(const Flat& other, float sOther, SkPoint hit, SkVector dir) {
  *  meeting classified two ways depending on which strand happened to be
  *  indexed first. A crossing is a symmetric property and is tested as one.
  *
- *  This is also what keeps a rectangle's corners from each becoming a knot:
- *  at a shared vertex the neighbours sit on one side (or collinear), so at
- *  least one of the two tests fails. */
+ *  A shared vertex is answered by the contour's own ends rather than by a
+ *  probe: a strand that stops at the meeting has no piece past it, so at
+ *  least one of the two tests fails whatever the rounding. That is what
+ *  keeps a knot off every corner of every rectangle. */
 bool crossesTransversally(const Flat& fa, float sA, const Flat& fb, float sB,
                           SkPoint hit, SkVector aDir, SkVector bDir) {
   return changesSides(fb, sB, hit, aDir) && changesSides(fa, sA, hit, bDir);
