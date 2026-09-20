@@ -280,49 +280,23 @@ A test should render, on a canvas scaled by two, a layer with
 to the layer with no effect, and assert that two bright passes with equal
 threshold and knee still compare equal.
 
-## A recipe can only read the layer it runs over, so the CRT fuses three passes into one gather
+## A study turns a screen's light off and builds it again outside the recipe
 
-`skia::Effect::recipe` fills exactly one slot, `content`, from the layer
-the effect runs over; a `Material`'s other slots take textures or paints
-bound in advance, never a derivation of that layer. A recipe that needs a
-blurred copy of its input therefore has to blur it itself, per pixel, and
-`field/shaders/Crt.sksl` does: 96 samples on a fixed spiral at
-`uBloomRadius` and three times it, 192 texture reads with a sine and
-cosine each, every pixel, every frame the screen changes. That gather is
-also why the bloom is narrow — `kit::crt` sets `uBloomRadius = 2.4`, and
-a wider reach at that tap count leaves copies of fine lettering — and why
-the shader fuses what it adapts from as one pass: the source it adapts
-runs a beam pass on flat coordinates (rasterisation, jitter, sync, noise,
-flicker), blurs that output separably at half resolution, and a glass
-pass then warps the coordinates once and reads both textures there,
-adding RGB shift, bloom and vignette. Its bloom is blurred flat and
-sampled through the curvature; ours is gathered through it. A study that
-animates under the recipe falls from about 115 to 66 presented frames a
-second at 1440×900 on a 2× display, and `eva_magi_interior/EvangelionUi.h`
-turns the recipe's gather off and adds the same two Gaussians as
-separable blurs after it.
+`eva_magi_interior/EvangelionUi.h` sets `uBloom` to zero on `kit::crt`
+and adds the tube's light itself — two Gaussians, two weighting matrices
+and a table holding the sum at half — because the recipe used to gather
+that light per pixel. It does not any more: the light is a slot an
+executor fills with the layer blurred once, at a cost that follows its
+own radius. The comment above the workaround states a tap count the
+shader no longer spends, and because a recipe's slots are read from its
+body text rather than from the strength of a uniform, the study still
+pays for one blur of the whole layer every frame that nothing reads.
 
-A recipe should be able to declare a slot that the executor fills from
-a filter of the layer — the blur of `content` at a stated radius, reduced
-by a divisor the executor derives from that radius as `phosphorBloom`'s
-gather already does — so a shader reads a pre-blurred input once and the
-cost of a bloom depends on its radius only, and mildly. `Effect::recipe`
-and the material's slot vocabulary are where that seam lives; the Skia
-filter graph beneath already takes several named inputs to one runtime
-shader. With it, the CRT should be three recipes of one subject each — a
-beam pass on flat coordinates, a blurred source, a glass pass with
-`content` and `bloom` slots that warps once — and `kit::crt` their
-composition under the uniforms it has now, so the barrel alone, the
-scanlines alone, or the bloom source alone serve other surfaces.
-
-Tests should assert that a recipe with a slot filled from a blur of the
-layer renders the same pixels as the layer blurred by `Effect::blur` and
-bound as a texture; that the glass pass at zero curvature and zero shift
-is the identity inside its bounds; that the beam pass with bloom and
-curvature off matches the current shader; that the kit's CRT shows light
-well beyond ten pixels from a thin bright line, fading smoothly with no
-secondary copies; and that the frame cost of the composed CRT at a
-64-pixel bloom radius is within a small factor of its cost at 2.
+The three MAGI studies should take the recipe's own light, at the radius
+and strength that match the look they have now, and drop the hand-built
+one. `uBloomRadius` is a Gaussian sigma rather than the reach of a
+fixed-tap gather, so the number is a fresh choice. A plate rebase names
+the cause.
 
 ## The thumbnail's PNG encode runs on the render thread
 
