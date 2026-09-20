@@ -64,15 +64,10 @@ struct Draw {
 };
 
 /** A TEXTURE AS A MESH SAMPLES IT: the image, where it is read at over
- *  the mesh's own uv coordinates, and whether it repeats outside
- *  them.
- *
- *  A mesh carries normalised uvs, and a `material::Texture` states its
- *  placement in the image's own pixels, so the matrix is carried across
- *  rather than copied: it is inverted (a texture's matrix puts the image
- *  INTO the sampled space, and a lookup goes the other way) and taken
- *  through the image's size, so `at()` and a scale mean the same thing
- *  and point the same way on a mesh as they do in a plane. */
+ *  the mesh's own uv coordinates, and whether it repeats outside them.
+ *  The matrix is carried across rather than copied — inverted and taken
+ *  through the image's size — so a placement and a scale mean the same
+ *  thing on a mesh as they do in a plane. */
 struct Sampling {
   sk_sp<SkImage> image;
   SkMatrix uv = SkMatrix::I();
@@ -120,12 +115,9 @@ void dress(::sigil::geometry::mesh::render::MeshStyle& style, const Draw& body);
     const Environment& environment, const glm::mat3& orientation);
 
 /** WHAT ONE FRAME EXTRACTED, handed to every pass that runs over it.
- *
- *  The bodies arrive sorted back to front by view depth — stably, so
- *  two at one depth stand in tree order — because that is the order a
- *  rasteriser with no depth buffer must draw them in, and sorting once
- *  per frame rather than once per pass is what keeps two passes over
- *  one view drawing the same picture. */
+ *  The bodies arrive sorted back to front by view depth, stably, so two
+ *  at one depth stand in tree order — the order a rasteriser with no
+ *  depth buffer must draw them in. */
 struct View {
   std::span<const Draw> draws;
   std::span<const light::Light> lights;

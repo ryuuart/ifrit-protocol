@@ -3,15 +3,12 @@
 /** @file
  * @ingroup material-stock
  *
- * EVERY RECIPE THIS LIBRARY SHIPS, and the one call that warms them.
- *
- * The primitives are enumerated by the features that own them — the
- * per-pixel fields, the signed-distance shapes — and the presets by the
- * kit. A host that wants the stock materials resident before its first
- * frame wants all three and has no reason to know how many catalogues
- * there are, which one reads its shaders from where, or that reading
- * them waits on a disk. So the composition is here: one list, and one
- * warm-up over it.
+ * EVERY RECIPE THIS LIBRARY SHIPS, and the one call that warms them. The
+ * primitives are enumerated by the features that own them and the
+ * presets by the kit; a host that wants the stock materials resident
+ * before its first frame wants all three and has no reason to know how
+ * many catalogues there are. So the composition is here: one list, and
+ * one warm-up over it.
  */
 
 #include <sigilmaterial/core/Material.h>

@@ -9,7 +9,8 @@
 # library's include path: nothing shipped may reach a fixture.
 sigil_library_root(SigilWorld
   BRIEF "3D scenes as values, executed on a GPU over a shared device"
-  DOCS docs/Groups.dox reference/DEVICE.md reference/STUDIES.md)
+  DOCS docs/Groups.dox reference/DEVICE.md reference/STUDIES.md
+       reference/ELEMENTS.md reference/FRAMES.md reference/PRESETS.md)
 
 # The light feature stands alone: emitter VALUES over glm, with no
 # device and no registry, so a consumer that only needs to say where the
@@ -67,6 +68,9 @@ sigil_doc_probes(world
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEVICE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/STUDIES.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/ELEMENTS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/FRAMES.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/PRESETS.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial
@@ -87,6 +91,6 @@ sigil_doc_probes(world
   EXCLUDE "geometry::device::MeshResidency=declared in SigilGeometry's device residency feature's private headers, which no consumer include path carries"
           "entt::entity=EnTT's own, named as the dependency the entity store is: its headers are not scanned"
           "entt::registry=EnTT's own, named as the dependency the entity store is: its headers are not scanned"
-  FLOORS 40,8,12,0,0
+  FLOORS 44,34,40,0,0
   LIBRARIES SigilWorld SigilGeometry SigilCoreReconcile SigilMotionSchedule
             SigilMaterial)

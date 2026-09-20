@@ -15,23 +15,17 @@ namespace sigil::draw::brush {
 struct Dab;
 
 /** What a curve reads. Every drive arrives as a unit value, which is
- *  what lets one curve type serve all three.
- *
- *  Pressure is the stylus pressure with the tool's envelope along the
- *  stroke already applied. Velocity is the dab's speed against the
- *  tool's reference speed, one at the reference and above. Tilt is zero
- *  for an upright stylus and one for a stylus flat against the
- *  surface. */
+ *  what lets one curve type serve all three: pressure with the tool's
+ *  envelope already applied, velocity against the tool's reference
+ *  speed, and tilt from upright at zero to flat at one. */
 enum class Drive { Pressure, Velocity, Tilt };
 
-/** A response curve over a unit input.
- *
- *  `minimum` is the answer at zero and `maximum` the answer at one;
- *  `bend` shapes the ramp between them — one is straight, above one
- *  holds near the minimum until late in the range, below one rises
- *  early. A `curve` of the caller's own replaces all three and is not
- *  clamped to the two ends. The answer is a MULTIPLIER on what the tool
- *  already says, so a flat curve at one changes nothing. */
+/** A response curve over a unit input: `minimum` at zero, `maximum` at
+ *  one, and `bend` shaping the ramp between them. The answer is a
+ *  MULTIPLIER on what the tool already says, so a flat curve at one
+ *  changes nothing.
+ *  @trap A `curve` of the caller's own replaces all three and is not
+ *  clamped to the two ends. */
 struct Curve {
   float minimum = 0.0f;
   float maximum = 1.0f;
@@ -58,15 +52,11 @@ struct Response {
                          float speedReference) const;
 };
 
-/** The responses a tool applies to what each dab deposits.
- *
- *  Each is a multiplier on the value the tool's own scalar responses
- *  have already produced, so a tool that sets none behaves exactly as a
- *  tool with no dynamics at all. Size scales the stamp; opacity scales
- *  the tool's load; flow scales the alpha of the one dab. There is no
- *  buffer between a dab and the canvas here, so the two alphas multiply
- *  into the same place; they are separate because one may follow the
- *  stylus while the other follows the hand. */
+/** The responses a tool applies to what each dab deposits, each a
+ *  multiplier on the value the tool's own scalar responses have already
+ *  produced: size scales the stamp, opacity the tool's load, and flow
+ *  the alpha of the one dab. A tool that sets none behaves exactly as a
+ *  tool with no dynamics at all. */
 struct Dynamics {
   std::optional<Response> size;
   std::optional<Response> opacity;

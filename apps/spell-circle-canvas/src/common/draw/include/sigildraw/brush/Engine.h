@@ -39,15 +39,11 @@ class Pen;
 namespace sigil::draw::brush {
 
 /** A brush engine owns its catalogue, its selection, its interiors, its
- *  field, its clip and its in-progress stroke. Two engines draw through
- *  one pen without sharing any mutable state.
- *
- *  Angles: a scalar angle passed beside a pen — `flowLine`, `arc`,
- *  `move`, `endStroke`, the scalar `hatch` — is in the pen's angle mode.
- *  An angle inside a value (`Hatch`, `Wash`, `Plot`, a field) is radians.
- *  All of them are clockwise-positive on the y-down canvas, as the pen's
- *  `rotate` is. Time: a field is read at the pen's clock, `millis()`, on
- *  every verb that takes a pen. */
+ *  field, its clip and its in-progress stroke, and two engines draw
+ *  through one pen without sharing any mutable state. A field is read at
+ *  the pen's clock on every verb that takes a pen.
+ *  @trap A scalar angle passed beside a pen is in the PEN'S angle mode;
+ *  an angle inside a value is radians. Both turn clockwise. */
 class Engine {
  public:
   Engine();

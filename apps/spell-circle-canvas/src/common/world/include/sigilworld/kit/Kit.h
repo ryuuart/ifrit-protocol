@@ -4,18 +4,10 @@
  * @ingroup world-kit
  * Presets: elements composed out of the verbs a tree is already written
  * in — a three-point rig, a turntable, and a set with both over a
- * ground plane — and the rails a body rides: the turntable's ring, a
- * loop that rises and falls, and a winding round a shell.
- *
- * NOTHING HERE DECIDES A LOOK. Each returns an ordinary `Element` whose
- * every field the caller can read, replace or ignore — or a plain
- * `Spline3` a tree rides — and the only constants in it are the
- * geometry of the arrangement — where a key light stands relative to a
- * subject, how a rail circles it — plus one neutral grey for a ground
- * plane that was given no surface. There is no shading model here, no
- * catalog of surfaces and no material of this library's own: a preset
- * is a shorthand for a tree someone could have written by hand, and it
- * is worth having only for as long as that stays true.
+ * ground plane — and the rails a body rides. NOTHING HERE DECIDES A
+ * LOOK: each returns an ordinary value whose every field the caller can
+ * read, replace or ignore, and the only constants in it are the geometry
+ * of the arrangement plus one neutral grey for an unsurfaced ground.
  */
 
 #include <sigilmaterial/core/Material.h>
@@ -32,13 +24,10 @@
  *  model does not already say. */
 namespace sigil::world::kit {
 
-/** WHERE THREE LIGHTS STAND ROUND A SUBJECT.
- *
- *  The arrangement is stated relative to the subject, so one rig serves
- *  a thumbnail and a room: `extent` is how far across the subject is and
- *  every distance is a multiple of it. `bearing` turns the whole rig
- *  about the subject's up axis, so a set is re-lit by turning one
- *  number. */
+/** WHERE THREE LIGHTS STAND ROUND A SUBJECT, stated relative to the
+ *  subject so one rig serves a thumbnail and a room: `extent` is how far
+ *  across the subject is and every distance is a multiple of it, and
+ *  `bearing` turns the whole rig about its up axis. */
 struct Rig {
   /** Where the subject stands, and how far across it is. */
   glm::vec3 at{0.0f, 0.0f, 0.0f};
@@ -76,10 +65,9 @@ struct Turntable {
    *  first station. */
   float period = 8.0f;
   float fovYDeg = 42.0f;
-  /** How many points the rail is drawn through. More is rounder; the
-   *  count is here because it decides the curve and therefore the
-   *  pixels, not because it is a dial worth turning. Fewer than three is
-   *  three, because a closed loop needs three points to be one. */
+  /** How many points the rail is drawn through; more is rounder. Fewer
+   *  than three is three, a closed loop needing three points to be
+   *  one. */
   int stations = 12;
 };
 
@@ -102,8 +90,7 @@ struct Wave {
   float low = -60.0f;
   /** Stations round the loop. An even count alternates cleanly all the
    *  way round; an odd one puts two outer stations side by side at the
-   *  seam. Fewer than three is three, because a closed loop needs three
-   *  points to be one. */
+   *  seam. Fewer than three is three. */
   int knots = 6;
 };
 
@@ -132,12 +119,9 @@ struct Winding {
 geometry::mesh::curve::Spline3 winding(const Winding& winding = {});
 
 /** THE CAMERA at scene time @p seconds, as one element riding that rail
- *  and looking at the subject from wherever it has reached.
- *
- *  The viewpoint is written in the rail's own moving frame, which is
- *  what makes the aim independent of how far the camera has travelled:
- *  the frame's first axis points inward at every station, so the subject
- *  is one radius along it and one height down, always. */
+ *  and looking at the subject from wherever it has reached. The
+ *  viewpoint is written in the rail's own moving frame, which makes the
+ *  aim independent of how far the camera has travelled. */
 Element turntable(const Turntable& table, float seconds);
 
 /** A LIT SET: a ground plane, a rig over it, a turntable round it, and

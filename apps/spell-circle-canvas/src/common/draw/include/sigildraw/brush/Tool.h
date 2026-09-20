@@ -52,28 +52,16 @@ enum class Rotation {
   Tilt,  ///< follows the azimuth of a tilted stylus
 };
 
-/** The full description of one tool.
- *
- *  Width, spacing and scatter are canvas units. Opacity is the tool's
- *  load, a unit value, and the colour's own alpha multiplies it. Density
- *  is how much a dry tip deposits: the probability a dust dab lands, the
- *  share of fibres and scatter particles that deposit, so above one it
- *  only lets a light pressure keep depositing. Bristles is the fibre or
- *  particle count. Sharpness moves particles toward the centreline; noise
- *  widens the per-stroke opacity roll. Speed responses take effect
- *  against `speedReference` units per second and act on live input only,
- *  since a stored path carries no clock. `markerTip` builds up pigment at
- *  the two ends of a nib, image or custom stroke.
- *
- *  `shape` is what a Tip::Image stamps and what states the stroke's
- *  spacing and scatter against the stamp — a tool carrying one takes its
- *  spacing and scatter from the SHAPE's fractions of the width and not
- *  from the two canvas-unit fields above, which is the one place the two
- *  spellings meet and what `spacingOf` answers; `grain` is the texture the
- *  whole mark is laid through, whatever the tip; `dynamics` are the
- *  curves the device drives, each multiplying the scalar responses above
- *  it. All three are what an imported brush arrives as, and all three are
- *  absent from a tool that has none. */
+/** The full description of one tool. Width, spacing and scatter are
+ *  canvas units; opacity is the tool's load, a unit value the colour's
+ *  own alpha multiplies; density is how much a dry tip deposits. The
+ *  shape, the grain and the dynamics are what an imported brush arrives
+ *  as, and all three are absent from a tool that has none.
+ *  @trap A tool carrying a `shape` takes its spacing and scatter from
+ *  that shape's FRACTIONS OF THE WIDTH and not from the canvas-unit
+ *  fields, which is what `spacingOf` answers.
+ *  @silent the input is a stored path: the speed responses act on live
+ *  input only, a stored path carrying no clock. */
 struct Tool {
   Tip tip = Tip::Dust;
   SkColor4f color{0, 0, 0, 1};

@@ -64,20 +64,11 @@ namespace sigil::draw {
 class Pen;
 class Graphics;
 
-/** THE PEN.
- *
- *  p5's surface, verbatim where C++ allows it: the same verbs, the same
- *  argument orders and counts, the same defaults — a white fill, a black
- *  one-pixel stroke, `rectMode(CORNER)`, `ellipseMode(CENTER)`,
- *  `angleMode(RADIANS)`, `colorMode(RGB)` over 255. A sketch pasted from
- *  p5 differs by `pen.` in front of each verb and nothing else it needs
- *  to think about; what is this library's own is an ADDED overload on
- *  the same verb, never a renamed one — a material as a fill, a
- *  silhouette as a shape, a `weave::Type` as the font, a retained guest.
- *
- *  Drawing happens between `begin` and `end`, which whoever holds the
- *  canvas calls around a frame. The style survives from frame to frame
- *  as it does in p5 — a `noStroke()` in setup holds — and the transform
+/** THE PEN: p5's surface, verbatim where C++ allows it — the same
+ *  verbs, the same argument orders and counts, the same defaults. What
+ *  is this library's own is an ADDED overload on the same verb, never a
+ *  renamed one. Drawing happens between `begin` and `end`; the style
+ *  survives from frame to frame as it does in p5, and the transform
  *  starts over at the canvas the frame was begun on. */
 class Pen {
  public:
@@ -96,44 +87,25 @@ class Pen {
   void begin(SkCanvas& canvas, const Frame& frame);
   /** Ends it, restoring the canvas to how `begin` found it. */
   void end();
-  /** THE CANVAS ITSELF, carrying the pen's current transform — every
-   *  `translate`, `rotate`, `scale` and open `push` this frame is
-   *  already on it, so a rect drawn here lands where `pen.rect` would
-   *  put it. Null between frames.
-   *
-   *  It is the DOOR OUT of p5's vocabulary: another library's drawing
-   *  takes an `SkCanvas&` and this is the one to hand it, alongside
-   *  `fillPaint()` and `strokePaint()` for the style the pen stands at
-   *  and `contentScale()` for the device pixels one canvas unit covers.
-   *  Whatever is drawn through it lands in the same place in the same
-   *  order as the pen's own verbs, since there is only one canvas.
-   *
-   *  Leave it as it was found: the pen's transform and clip carry into
-   *  the rest of the frame, so an unbalanced `save` here is an
+  /** THE CANVAS ITSELF, carrying the pen's current transform; null
+   *  between frames. It is the DOOR OUT of p5's vocabulary.
+   *  @trap Leave it as it was found: an unbalanced `save` here is an
    *  unbalanced transform for every verb after it. */
   [[nodiscard]] SkCanvas* canvas() const { return m_canvas; }
   [[nodiscard]] weave::FontContext* fonts() const { return m_fonts; }
   /** How many device pixels one canvas unit covered when the frame
-   *  began — one on a plate at the declared size, two on a doubled
-   *  screen. What a hairline, a dash period or a bake resolution
+   *  began — what a hairline, a dash period or a bake resolution
    *  computed outside the pen has to be scaled by. */
   [[nodiscard]] float contentScale() const { return m_contentScale; }
   /** THE INK AND THE FONT THE PEN BEGINS IN, which a host hands over
    *  after `begin` each frame: they seed the style for what the PROGRAM
-   *  has not set. The fill and the stroke take @p ink until a `fill` or a
-   *  `stroke` is called, and the text type takes @p font until a
-   *  `textFont`, a `textSize` or a `textStyle` is — after which that
-   *  verb's choice holds from frame to frame, as p5's does, and this
-   *  stops reaching it. Nothing else in the style is touched, so a
-   *  `noFill()` or a `noStroke()` still means what it says.
-   *
-   *  A PEN NOBODY CALLS THIS ON KEEPS p5's OWN DEFAULTS: a white fill, a
-   *  black stroke, text at twelve pixels. */
+   *  has not set, and nothing else in the style is touched. A pen nobody
+   *  calls this on keeps p5's own defaults.
+   *  @silent the program has called the verb itself: that choice then
+   *  holds from frame to frame and this stops reaching it. */
   void inherit(SkColor4f ink, const weave::Type& font);
   /** The pair the last `inherit` carried — black and
-   *  `weave::initialType()` on a pen that was never told one — so
-   *  whatever else is seeded from this pen reads the same values here
-   *  rather than keeping its own copy of them. */
+   *  `weave::initialType()` on a pen that was never told one. */
   [[nodiscard]] SkColor4f inheritedInk() const { return m_inheritedInk; }
   [[nodiscard]] const weave::Type& inheritedFont() const {
     return m_inheritedFont;
@@ -234,28 +206,11 @@ class Pen {
    *  is resolved against the pen's clock on every draw; a static one
    *  once, here. */
   void fill(const material::skia::Paint& paint);
-  /** THE SAME MATERIAL, FITTED TO WHAT IT PAINTS. `SHAPE` measures the
-   *  material against the BOUNDS OF EACH SHAPE the pen draws — the box's
-   *  top-left is the material's origin and the box is its unit square —
-   *  so `linearUnit`, `radialUnit`, `glowUnit` and anything else reading
-   *  `uResolution` land on the shape. `CANVAS`, the default, measures
-   *  against the frame, which is where a pen's coordinates otherwise
-   *  live.
-   *
-   *  A compose leaf has this and needs no word for it: a node paints
-   *  inside its own laid-out box, so a unit-space fill already has a box
-   *  to be a unit of. A pen has one canvas and many shapes, so which one
-   *  a material is a unit of has to be said — and it is said on the fill,
-   *  because it is a fact about that material and not about the pen.
-   *
-   *  Every verb that fills a shape wears it — a rect, an ellipse, an arc,
-   *  a triangle, a quad, a bezier, a curve, a silhouette, a `beginShape`
-   *  outline, a mesh — and so does a `line` and a `point` on the stroke
-   *  side. A box with no width or no height has no unit square, so a
-   *  horizontal line falls back to the canvas rather than dividing by
-   *  zero. Text, images and `background` are always the canvas: they are
-   *  not shapes and have no bounds the pen decides. It is style, so
-   *  `push` saves it and `pop` puts it back. */
+  /** THE SAME MATERIAL, FITTED TO WHAT IT PAINTS: `SHAPE` measures it
+   *  against the bounds of each shape the pen draws, `CANVAS` — the
+   *  default — against the frame. It is style, so `push` saves it.
+   *  @trap Text, images and `background` are always the canvas, being no
+   *  shape; a box with no width or no height falls back to it too. */
   void fill(const material::skia::Paint& paint, Constant fit);
   /** A recipe instance as the fill: a shader. */
   void fill(const material::Material& material);
@@ -278,27 +233,16 @@ class Pen {
   void strokeJoin(Constant join);
   void smooth();
   /** Jagged edges AND jagged pixels: antialiasing off on every shape,
-   *  and `image` sampled nearest-neighbour with no mipmap, so a small
-   *  source blown up is blocks rather than a blur. `smooth()` puts both
-   *  back. */
+   *  and `image` sampled nearest-neighbour with no mipmap. `smooth()`
+   *  puts both back. */
   void noSmooth();
-  /** THE PEN'S OWN STROKE VERB: a dashed stroke. p5 has no word for one
-   *  and reaches through to `drawingContext.setLineDash`, so this stands
-   *  beside `strokeWeight`, `strokeCap` and `strokeJoin` rather than
-   *  renaming any of them.
-   *
-   *  @p intervals is the run of lengths the stroke alternates along, on
-   *  first: `{6, 4}` is six drawn and four skipped, `{6}` is six and six
-   *  since an odd run repeats itself. @p phase starts the run partway
-   *  in, so an animated phase is a marching-ants line. It is measured in
-   *  the pen's own units, along the path, which means a dashed shape
-   *  under a `scale` dashes at the scaled length.
-   *
-   *  Every stroked verb wears it — a line, a rect, an ellipse, an arc, a
-   *  `beginShape` outline, a shaped glyph's stroke — except `point`,
-   *  which is a disc and not a stroke. A run with a negative length or
-   *  no length at all is no dash. It is style, so `push` saves it and
-   *  `pop` puts it back. */
+  /** THE PEN'S OWN STROKE VERB: a dashed stroke. @p intervals is the
+   *  run of lengths it alternates along, on first, an odd run repeating
+   *  itself; @p phase starts that run partway in. Both are the pen's own
+   *  units, along the path, so a dashed shape under a `scale` dashes at
+   *  the scaled length. It is style, so `push` saves it.
+   *  @silent the verb is `point`, which is a disc and not a stroke, or
+   *  the run has a negative length or no length at all. */
   void strokeDash(std::span<const float> intervals, float phase = 0);
   void strokeDash(std::initializer_list<float> intervals, float phase = 0) {
     strokeDash(std::span<const float>{intervals.begin(), intervals.size()},
@@ -311,19 +255,10 @@ class Pen {
    *  How what is drawn combines with what is already there. It is
    *  style, so `push` saves it and `pop` puts it back.
    *  @{ */
-  /** HOW WHAT IS DRAWN MEETS WHAT IS ALREADY THERE. `BLEND` lays the
-   *  source over the canvas by its alpha and is where a pen starts;
-   *  `ADD` adds the two and clamps, which is what light does; `REPLACE`
-   *  overwrites, alpha and all; `REMOVE` takes the source's alpha out of
-   *  the canvas; and `DARKEST`, `LIGHTEST`, `DIFFERENCE`, `EXCLUSION`,
-   *  `MULTIPLY`, `SCREEN`, `OVERLAY`, `HARD_LIGHT`, `SOFT_LIGHT`,
-   *  `DODGE`, `BURN` and `SUBTRACT` are the rest of the separable
-   *  functions.
-   *
-   *  It reaches every verb that puts pixels down — a fill, a stroke, a
-   *  glyph, an image, the triangle mesh a per-corner shape is drawn as,
-   *  and the ground a `background` lays — and it is style, so `push`
-   *  saves it and `pop` puts it back. */
+  /** HOW WHAT IS DRAWN MEETS WHAT IS ALREADY THERE: `BLEND` over by
+   *  alpha, where a pen starts; `ADD` clamped, which is what light does;
+   *  `REPLACE`, `REMOVE`, and the rest of the separable functions. It
+   *  reaches every verb that puts pixels down. */
   void blendMode(Constant mode);
   /** @} */
 
@@ -384,21 +319,12 @@ class Pen {
 
   void beginShape(Constant kind = POLYGON);
   /** A corner of the shape being built, WEARING THE FILL THAT STANDS
-   *  WHEN IT IS ADDED. Calling `fill` between two `vertex` calls
-   *  therefore colours the shape corner by corner, and the colour is
-   *  interpolated across each triangle of the mesh the kind describes —
-   *  which is how a ramp along a streak, a lit facet or a heat gradient
-   *  is drawn without one shape per band.
-   *
-   *  It costs nothing where nothing changes: a shape whose corners all
-   *  carry one colour is drawn as a path, filled and stroked exactly as
-   *  before. A shape whose corners differ is FILLED AS A TRIANGLE MESH,
-   *  so the fill must be a solid colour — a gradient or an effect
-   *  cannot also be interpolated per corner — while the stroke, if
-   *  there is one, still follows the shape's outline.
-   *
-   *  Only the triangle and quad kinds have a mesh; `POLYGON` is one
-   *  path with one fill, as p5 has it. */
+   *  WHEN IT IS ADDED, so a `fill` between two of them colours the shape
+   *  corner by corner. A shape whose corners all carry one colour is
+   *  drawn as a path exactly as before.
+   *  @trap A shape whose corners differ is FILLED AS A TRIANGLE MESH, so
+   *  its fill must be a solid colour; and only the triangle and quad
+   *  kinds have a mesh. */
   void vertex(float x, float y);
   void curveVertex(float x, float y);
   void bezierVertex(float x2, float y2, float x3, float y3, float x4, float y4);
@@ -407,7 +333,7 @@ class Pen {
   void endContour();
   void endShape(Constant mode = OPEN);
 
-  /** THE PEN'S OWN SHAPE VERB. A silhouette — a geometry kit value, or
+  /** THE PEN'S OWN SHAPE VERB: a silhouette — a geometry kit value, or
    *  any comparable value with `path(SkSize)` — fitted to the box the
    *  rect mode reads from the four numbers, filled and stroked as a
    *  rect is. The concept is the geometry kit's own, so a value written
@@ -421,25 +347,12 @@ class Pen {
   /** A path as it stands, filled and stroked with the current style. */
   void shape(const SkPath& path);
 
-  /** THE PEN'S OWN MESH VERB: an `SkVertices` built somewhere else — a
-   *  triangulated field, a lit strip, a deformed grid, a marching-squares
-   *  contour — drawn HERE, with the pen's fill, its blend, its clip and
-   *  its transform, so a mesh lands in the same place and the same order
-   *  as the pen's own shapes and nothing has to go through `canvas()` to
-   *  put one down.
-   *
-   *  The pen's FILL is what paints it. Where the mesh carries its own
-   *  corner colours and the fill is a plain colour, the corners paint it
-   *  and the fill's colour stands aside — which is the same rule
-   *  `vertex()` follows when the corners disagree. Where the fill is a
-   *  material, the material paints the whole mesh and the corner colours
-   *  are not read; fit it with `fill(paint, SHAPE)` and its unit square
-   *  is the mesh's own bounds.
-   *
-   *  A mesh has no outline, so it is not stroked and it adds nothing to a
-   *  clip mask being recorded — a `line` and an `image` add nothing for
-   *  the same reason. Building the mesh is Skia's business: this verb
-   *  takes one and asks no questions about how it was made. */
+  /** THE PEN'S OWN MESH VERB: an `SkVertices` built somewhere else,
+   *  drawn HERE with the pen's fill, blend, clip and transform. The
+   *  pen's FILL is what paints it, the mesh's own corner colours
+   *  standing aside for a material and standing in for a plain colour.
+   *  @silent the mesh is stroked or recorded into a clip: it has no
+   *  outline, as a `line` and an `image` have none. */
   void vertices(const sk_sp<SkVertices>& mesh);
   /** @} */
 
@@ -448,23 +361,12 @@ class Pen {
    *  until the matching `pop()`.
    *  @{ */
   /** p5's CLIP: @p shape draws the mask, and everything drawn after it
-   *  is confined to what @p shape covered.
-   *
-   *      pen.clip([&] { pen.circle(100, 100, 80); });
-   *      pen.image(photo, 60, 60);            // a round photo
-   *
-   *  NOTHING @p shape DRAWS LANDS ON THE CANVAS. Its shape verbs are
-   *  recorded into one path instead — a rect, an ellipse, an arc, a
-   *  triangle, a quad, a bezier, a curve, a silhouette, a `point`, and a
-   *  `beginShape` run of any kind — each in the space it was called in,
-   *  so a `translate` inside @p shape moves the mask with it. The verbs
-   *  that carry no outline add nothing: a `line`, an `image`, a `text`,
-   *  a `background`.
-   *
-   *  IT LASTS UNTIL THE MATCHING `pop()`, and to the end of the frame
-   *  when it was set outside any `push`, which is p5's own scoping — so
-   *  a masked passage is a `push`, a `clip`, the drawing, and a `pop`. A
-   *  clip inside a clip keeps only what falls in both. */
+   *  is confined to what @p shape covered. IT LASTS UNTIL THE MATCHING
+   *  `pop()`, and to the end of the frame when it was set outside any
+   *  `push`; a clip inside a clip keeps only what falls in both.
+   *  @trap NOTHING @p shape DRAWS LANDS ON THE CANVAS: its shape verbs
+   *  are recorded into one path instead, and a verb with no outline —
+   *  a `line`, an `image`, a `text`, a `background` — adds nothing. */
   template <class Shape>
   void clip(Shape&& shape, ClipOptions options = {}) {
     recordClip();
@@ -565,14 +467,11 @@ class Pen {
    *  Something another library keeps between frames, painted inside a
    *  box on this one and told apart by the call site that painted it.
    *  @{ */
-  /** THE OTHER WAY THROUGH THE DOOR. Something another library keeps
-   *  between frames, painted inside @p box on this frame: laid out,
-   *  reconciled and cached by its own library, with this pen lending it
-   *  the canvas, the transform above the box and the clock. The guest is
-   *  told apart by the call site, so a loop that paints several passes
-   *  @p index; the pen's clock is what the guest's clock is stepped by,
-   *  so a guest advances on the frames it is painted and stands still on
-   *  the frames it is not. */
+  /** THE OTHER WAY THROUGH THE DOOR: something another library keeps
+   *  between frames, painted inside @p box on this frame, with this pen
+   *  lending it the canvas, the transform above the box and the clock.
+   *  The guest is told apart by the call site and @p index, and it
+   *  advances only on the frames it is painted. */
   template <Retainable G>
   void element(const G& guest, const SkRect& box, int index = 0,
                std::source_location where = std::source_location::current()) {
@@ -586,20 +485,11 @@ class Pen {
    *  for a caller drawing through the canvas rather than through a
    *  verb.
    *  @{ */
-  /** The fill as an SkPaint, resolved against the CANVAS for this frame.
-   *
-   *  NULL UNDER `noFill()`, and that is the whole answer: `noFill()` means
-   *  there is no fill to hand over, not that the pen has a colourless one.
-   *  A caller through the canvas door therefore checks before it
-   *  dereferences — `if (const SkPaint* fill = pen.fillPaint())` — exactly
-   *  as every verb in this class does. The pen's blend, its antialiasing
-   *  and its dash live on these paints, so under `noFill()` there is
-   *  nowhere for them to be read from either; take them off
-   *  `strokePaint()`, or set a fill.
-   *
-   *  A material fitted with `fill(paint, SHAPE)` has no shape here — this
-   *  is the canvas-framed resolve, since a caller asking for the paint
-   *  has not named a box. */
+  /** The fill as an SkPaint, resolved against the CANVAS for this
+   *  frame, a material fitted to the shape having no shape here.
+   *  @trap NULL UNDER `noFill()`, which means there is no fill to hand
+   *  over rather than a colourless one — and the pen's blend, its
+   *  antialiasing and its dash go with it. */
   [[nodiscard]] const SkPaint* fillPaint();
   /** The stroke as an SkPaint, resolved for this frame; null when
    *  `noStroke()` holds or the weight is zero, on the same rule. */
@@ -742,24 +632,13 @@ class Pen {
   Retained m_retained;
 };
 
-/** ONE DRAWING ON A CANVAS SOMEBODY ELSE HOLDS: a pen begun over @p
- *  canvas at @p size, @p program run with it, and the frame ended — the
- *  five lines of `Frame` ceremony every bake into an offscreen surface
- *  otherwise writes, which is what made raw Skia the cheaper spelling
- *  there.
- *
- *      draw::on(*surface->getCanvas(), {120, 80}, [&](draw::Pen& pen) {
- *        pen.background(kPaper);
- *        pen.rect(8, 8, 40, 40);
- *      });
- *
- *  The pen lives for the call and no longer: nothing is kept between
- *  bakes, which is what separates this from `Graphics`. It has no clock —
- *  a picture drawn once has no time in it — so `millis()` and `deltaTime`
- *  read zero. `frameCount` is one, so first-frame setup runs on the bake.
- *  A drawing that moves is a node's program and not a bake.
- *  @p fonts is what text is shaped with; a bake with none
- *  sets none. */
+/** ONE DRAWING ON A CANVAS SOMEBODY ELSE HOLDS: a pen begun over
+ *  @p canvas at @p size, @p program run with it, and the frame ended.
+ *  The pen lives for the call and no longer, and it has no clock, so the
+ *  elapsed time reads zero and the frame count one. @p fonts is what
+ *  text is shaped with.
+ *  @trap Nothing is kept between bakes, which is what separates this
+ *  from `Graphics`. */
 void on(SkCanvas& canvas, SkSize size, const std::function<void(Pen&)>& program,
         weave::FontContext* fonts = nullptr);
 

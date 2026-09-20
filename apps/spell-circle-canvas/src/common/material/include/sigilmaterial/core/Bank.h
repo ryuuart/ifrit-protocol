@@ -5,16 +5,10 @@
  *
  * A bounded, seeded BANK of material instances: the N materials a paving
  * of a thousand pieces shares, keyed by the recipe, its parameters and
- * each piece's seed folded into one of N buckets.
- *
- * A field of setts, boards or tesserae wants every piece to differ and
- * cannot afford a material per piece — a material is a program and a
- * resolve, and a thousand of them is a thousand shaders. Folding the
- * seed to `seed % N` bounds the count at N per (recipe, parameters): more
- * variety than a field of two prototiles at ten orientations can show,
- * and a fixed cost whatever the field's size. Because the instance is
- * held here rather than re-minted per describe, its identity is stable,
- * which is what lets a consumer that compares materials prune.
+ * each piece's seed folded to `seed % N`. The fold bounds the count at N
+ * per (recipe, parameters), and holding the instance here rather than
+ * re-minting it per describe keeps its identity stable, which is what
+ * lets a consumer that compares materials prune.
  */
 
 #include <sigilmaterial/core/Material.h>

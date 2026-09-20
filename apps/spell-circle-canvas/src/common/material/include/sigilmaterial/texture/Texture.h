@@ -35,17 +35,12 @@ namespace sigil::material {
 
 /** WHERE A SOURCE'S PIXELS ALREADY LIVE, when they live on a GPU: the
  *  device that owns the texture, and the texture itself as the graphics
- *  API's own object bridged to opaque values — a pointer for one API's
- *  texture object, an integer for another's image handle, with the
- *  format and the layout it was left in.
- *
- *  Nothing in this library reads any of it. It is carried, unexamined,
- *  from a source that painted on a device to a renderer standing on the
- *  SAME device, which binds those pixels instead of uploading a copy of
- *  `image()`. A renderer holding another device — or none — compares
- *  `device` against its own, finds it different, and reads `image()`
- *  exactly as it reads every other source's. Empty unless a source was
- *  given a device to paint on, which most never are. */
+ *  API's own object bridged to opaque values, with its format and
+ *  layout. Nothing in this library reads any of it — it is carried
+ *  unexamined to a renderer standing on the SAME device, and a renderer
+ *  holding another reads `image()` instead.
+ *  @trap Empty unless a source was given a device to paint on, which
+ *  most never are. */
 struct DeviceImage {
   const void* device = nullptr;
   const void* pointer = nullptr;

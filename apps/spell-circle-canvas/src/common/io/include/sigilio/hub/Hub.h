@@ -3,64 +3,14 @@
 /** @file
  * @ingroup io-hub
  * The resource hub: game-engine-style mounted URIs over pluggable
- * decode backends.
- *
- * A Hub maps URI prefixes onto directories, so application code asks
- * for "res://ui/logo.png" and never touches the filesystem again. Resources are
- * cached, hot-reloadable (poll() re-checks everything previously loaded), and
- * typed:
- *
- *   hub.mount("res://", assetsDir);
- *   auto bytes = hub.fetch("res://data/table.bin");
- *   auto text  = hub.text("res://shaders/glow.sksl");
- *   auto img   = hub.image("res://ui/logo.png");            // stills+anim
- *   auto hdr   = hub.image("res://light/probe.exr",         // OIIO: EXR,
- *                          {.layer = "diffuse"});           //  PSD, TIFF…
- *   auto info  = hub.probe("res://light/probe.exr");        // size, path
- *   auto meta  = hub.probe<sigil::image::ImageProbe>(        // meaning,
- *       "res://light/probe.exr");                            //  from image
- *   hub.registerDecoder<Mesh>(parseMesh);                   // any T
- *   auto mesh  = hub.load<Mesh>("res://props/crate.obj");
- *
- * http:// and https:// URIs bypass mounts and fetch over the network
- * (libcurl: redirects followed, 20s timeout, HTTP errors fail).
- * Successful fetches persist in an on-disk cache (the platform cache
- * location / "SigilIO/network" — ~/Library/Caches on macOS,
- * $XDG_CACHE_HOME or ~/.cache elsewhere — so a fetch outlives the temp
- * directory's eviction policy; override via setNetworkCacheDirectory — point
- * it at an asset dir to keep downloads beside the assets). Under the
- * default CacheFirst policy a cache hit never touches the network, so
- * offline runs keep working with no flag to set; setNetworkPolicy
- * picks Refresh (network first, cache as the fallback) or Offline
- * (cache only) when a host wants the explicit behavior. file:// URIs
- * strip to plain local paths. poll() skips network entries: they
- * carry no mtime to watch.
- *
- * A resource that keeps ARRIVING is a feed rather than a fetch, and the
- * hub is the door on it too:
- *
- *   hub.setFeedTransport("udp", openUdpFeed);     // one per scheme
- *   auto scene = hub.feed("udp://:27020");        // the same feed per URI
- *   auto lease = hub.onDispatch(readTheScene);    // driven by that same call
- *   hub.dispatch();                               // once per frame
- *   if (auto bytes = scene->latest()) draw(*bytes);
- *
- * feed() hands back the one feed a URI names for as long as anybody
- * holds it. A URI that resolves through the mount table to a file is
- * played back from that recording as dispatch() moves time forward, so
- * the same code reads a live sender and a recorded session; anything
- * else opens through the transport registered for its scheme. That one
- * call also runs every callback registered through onDispatch(), so
- * something that reads feeds on the frame is driven by the call a host
- * already makes and no host code has to name it.
- *
- * SigilIO owns ACCESS: where bytes come from, caching, reload. A Hub
- * is a ByteSource: fetch() answers a URI with bytes, and every typed
- * view is a registered Decoder run over those bytes. What pixels mean
- * is SigilImage's concern — the Skia codecs plus, when built in, the
- * OpenImageIO backend (EXR with layer selection, PSD, TIFF, HDR; float
- * sources land as RGBA_F32) — and the hub registers those decoders by
- * default.
+ * decode backends. A Hub maps URI prefixes onto directories, so
+ * application code asks for "res://ui/logo.png" and never touches the
+ * filesystem again; results are cached per resource, poll() re-stats
+ * what has been loaded, and every typed view is a registered decoder
+ * run over the bytes it fetched. http(s):// bypasses the mounts and
+ * fetches over the network behind an on-disk cache. A resource that
+ * keeps ARRIVING is a feed rather than a fetch, and the hub is the door
+ * on that too.
  */
 
 #include <sigilcore/callable/Callable.h>
@@ -139,16 +89,10 @@ class ResourceLease {
   std::vector<std::string> m_uris;
 };
 
-/** A movable lease that keeps a callback on the hub's dispatch.
- *
- * Something that reads feeds on the frame — a reader draining one, a
- * decoder over what arrived — has to be driven, and the call a host
- * already makes once a frame is dispatch(). This is how that driving is
- * registered without the host naming the reader: the lease holds the
- * callback, and releasing it or destroying it takes the callback off
- * the hub. A lease may outlive its Hub, having then nothing left to
- * unregister from.
- */
+/** A movable lease that keeps a callback on the hub's dispatch: the
+ *  lease holds the callback, and releasing it or destroying it takes the
+ *  callback off the hub. A lease may outlive its Hub, having then
+ *  nothing left to unregister from. */
 class DispatchLease {
  public:
   /** What a dispatch hands a callback: the seconds it was given, which
@@ -198,19 +142,12 @@ struct ResourceInfo {
  * The resource hub: mount prefixes, ask for resources by URI.
  *
  * Each URI is cached as one entry whose bytes and decoded views are
- * independent: each populates the first time its accessor is asked, and
- * asking for one never affects another. A view is one decoded type —
- * image(), channels() and load<T>() each populate their own — and an
- * image() ask with a layer or an explicit size is a different decode
- * that gets its own entry. poll() re-stats every previously requested
- * resource and reloads the changed ones, returning true so hosts can
- * re-render (holders of old shared_ptrs keep the old data — swap by
- * re-asking). Failed lookups are NOT cached: a missing file loads as
- * soon as it appears.
- *
- * Calls on one Hub may overlap: mount, decoder, cache and retention state are
- * synchronized internally. A Hub satisfies ByteSource and
- * ResolvingByteSource.
+ * independent, each populated the first time its accessor is asked, and
+ * an image() ask with a layer or an explicit size is a different decode
+ * in an entry of its own. A failed lookup is NOT cached: a missing file
+ * loads as soon as it appears. Calls on one Hub may overlap — mount,
+ * decoder, cache and retention state are synchronized internally — and
+ * a Hub satisfies ByteSource and ResolvingByteSource.
  */
 class Hub {
  public:
@@ -256,14 +193,11 @@ class Hub {
   std::shared_ptr<const Bytes> fetch(std::string_view uri);
 
   /** Stores @p size bytes under @p uri, through the same mount table a
-   *  read resolves by, creating the directories above the file. What
-   *  the bytes MEAN is nobody's business here: a caller with an image
-   *  encodes it first and hands the result over.
-   *
-   *  Every cached view of that URI is dropped, so the next ask reads
-   *  the file back rather than serving what was there before the write.
-   *  A network URI cannot be written and answers false — a hub writes
-   *  where it mounts. */
+   *  read resolves by, creating the directories above the file. What the
+   *  bytes MEAN is nobody's business here. Every cached view of that URI
+   *  is dropped, so the next ask reads the file back.
+   *  @trap A network URI cannot be written and answers false — a hub
+   *  writes where it mounts. */
   bool write(std::string_view uri, const void* bytes, size_t size);
   /** The same, from a bytes value already in hand. */
   bool write(std::string_view uri, const Bytes& bytes) {
@@ -271,13 +205,11 @@ class Hub {
   }
 
   /** Registers how a T is decoded from bytes, so load<T>() can answer.
-   *  `hint` is the resource's local path when it has one (the disk
-   *  cache file for a network URI). Replaces the decoder later asks
-   *  use; a view already decoded keeps its value and the decoder that
-   *  made it, which is what poll() re-runs for it. ImageAsset and
-   *  ChannelData are registered by the constructor. The hint is OFFERED:
-   *  a decoder that reads the bytes alone takes `[](const Bytes& bytes)
-   *  {…}`. */
+   *  `hint` is the resource's local path when it has one, and is OFFERED:
+   *  a decoder reading the bytes alone takes `[](const Bytes& bytes) {…}`.
+   *  ImageAsset and ChannelData are registered by the constructor.
+   *  @trap Replacing a decoder leaves a view already decoded holding its
+   *  value and the decoder that made it, which is what poll() re-runs. */
   template <typename T>
   void registerDecoder(
       core::Callable<std::optional<T>(const Bytes&, std::string_view hint)>
@@ -325,15 +257,13 @@ class Hub {
   /** UTF-8 text convenience over fetch(). */
   std::optional<std::string> text(std::string_view uri);
 
-  /** The regular-file URIs named by @p selector, in lexical order.
-   *
-   *  An exact file selects itself. A directory URI selects every regular file
-   *  below it recursively. In a glob, `*` matches within one path segment,
-   *  `?` matches one non-separator character, and `**` crosses `/`; a
-   *  backslash quotes the next character. Selection enumerates local
-   *  filesystem resources (mounted URIs, file:// URLs and plain paths) without
-   *  reading file contents. A network selector without a star is one exact URL
-   *  and selects itself without a fetch; network globs cannot be enumerated. */
+  /** The regular-file URIs named by @p selector, in lexical order: an
+   *  exact file, a directory URI read recursively, or a glob in which
+   *  `*` matches within one path segment, `?` one non-separator
+   *  character and `**` across `/`, a backslash quoting what follows it.
+   *  @trap Only LOCAL resources are enumerated: a network selector
+   *  without a star is one exact URL and selects itself without a fetch,
+   *  and a network glob cannot be enumerated at all. */
   std::vector<std::string> select(std::string_view selector) const;
 
   /** Fetches the distinct @p uris concurrently into the byte cache and
@@ -380,22 +310,16 @@ class Hub {
 
   /** HOW MANY BYTES, AND WHERE: the size of the resource and the file
    *  it was read from; nullopt when the URI cannot be served.
-   *
-   *  const but neither cheap nor side-effect-free: every call performs
-   *  a full fetch of the resource and caches nothing in the hub. For a
-   *  network URI that can mean a network round trip and a write into
-   *  the disk cache directory. */
+   *  @trap const but neither cheap nor side-effect-free — every call
+   *  performs a full fetch and caches nothing, which for a network URI
+   *  is a round trip and a write into the disk cache directory. */
   std::optional<ResourceInfo> probe(std::string_view uri) const;
 
   /** WHAT THE BYTES MEAN, WITHOUT DECODING THEM: dimensions and layers
    *  for an image, and whatever the next kind of meaning turns out to
    *  need. The answer comes from T's own library through the `Probable`
-   *  seam, so this hub carries no opinion about any format —
-   *  `hub.probe<sigil::image::ImageProbe>(uri)` reads SigilImage's
-   *  prober, and a kind of meaning added tomorrow is one free function
-   *  in the library that owns it, with nothing to change here.
-   *
-   *  Fetches like `probe()` does, and caches nothing. */
+   *  seam, so this hub carries no opinion about any format. Fetches like
+   *  `probe()` does, and caches nothing. */
   template <Probable T>
   std::optional<T> probe(std::string_view uri) const {
     ResourceInfo info;
@@ -412,13 +336,11 @@ class Hub {
 
   /** The feed at @p uri: the same object for the same URI while anyone
    *  holds it. A URI that resolves through the mount table to a regular
-   *  file is replayed from that recording (a mount whose remainder is
-   *  empty resolves with a trailing separator; it is stripped, so
-   *  mounting a URI directly onto a recording file works); any other
-   *  URI opens through the transport registered for its scheme — the
-   *  part before "://" — called outside the hub's lock. No scheme, no
-   *  transport, or an unreadable recording: the feed exists and its
-   *  error() says why. */
+   *  file is replayed from that recording; any other opens through the
+   *  transport registered for its scheme — the part before "://" —
+   *  called outside the hub's lock.
+   *  @trap No scheme, no transport, or an unreadable recording is not a
+   *  failure to answer: the feed exists and its error() says why. */
   std::shared_ptr<Feed> feed(std::string_view uri, Feed::Policy policy = {});
 
   /** Installs the transport a scheme opens through; registering a
@@ -440,14 +362,12 @@ class Hub {
   /** The same, to @p seconds on the caller's own clock. */
   void dispatch(double seconds);
 
-  /** Runs @p callback on every dispatch for as long as the lease lives.
-   *  It is given the seconds that dispatch was given, and runs after
-   *  every replayed recording has been advanced to them, on the
-   *  dispatching thread, in the order the callbacks were registered —
-   *  so a callback sees what this same dispatch delivered. That is how
-   *  something reading feeds on the frame is driven by the call a host
-   *  already makes, with no host code naming it. A callback registered
-   *  from inside a dispatch runs from the next one. */
+  /** Runs @p callback on every dispatch for as long as the lease lives:
+   *  given the seconds that dispatch was given, after every replayed
+   *  recording has been advanced to them, on the dispatching thread and
+   *  in the order the callbacks were registered.
+   *  @trap A callback registered from inside a dispatch runs from the
+   *  NEXT one. */
   DispatchLease onDispatch(DispatchLease::Callback callback);
 
  private:

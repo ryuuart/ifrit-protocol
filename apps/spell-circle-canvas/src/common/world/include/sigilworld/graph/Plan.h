@@ -4,13 +4,9 @@
  * @ingroup world-graph
  * The frame graph: the order a frame's passes run in, derived from what
  * they declared they read and write; the surfaces two resources share
- * when their live ranges do not overlap; the barriers a backend needs
- * between them; and how each pass's selection is realised.
- *
- * Nothing here draws, and nothing here names a backend. A Plan is a
- * reading of the declarations, and the same reading whichever executor
- * performs it — which is what makes an ordering bug a test failure
- * rather than a picture.
+ * when their live ranges do not overlap; the barriers between them; and
+ * how each pass's selection is realised. Nothing here draws and nothing
+ * here names a backend.
  */
 
 #include <sigilworld/frame/Frame.h>
@@ -67,24 +63,13 @@ struct Resource {
   bool aliased = false;
 };
 
-/** THE ORDERING, READ OFF THE DECLARATIONS.
- *
- *  A plan points at the passes it was built from, so it stands only as
- *  long as they do; build it again when they change.
- *
- *  The rules, in full:
- *
- *  - a step runs after every step that WRITES what it reads; after
- *    every step that READS what it writes; and after every earlier
- *    declared step that writes what it writes;
- *  - `previous()` orders nothing, because it names last frame's copy —
- *    which is how a feedback loop is declared without a cycle;
- *  - among steps whose dependencies are all met, the one declared
- *    first runs first, so an order is a function of the declarations
- *    and never of the machine;
- *  - a cycle is an error naming the passes on it, and no plan is
- *    produced.
- */
+/** THE ORDERING, READ OFF THE DECLARATIONS: a step runs after every
+ *  step that writes what it reads, after every step that reads what it
+ *  writes, and after every earlier step that writes what it writes,
+ *  with ties going to the one declared first. A cycle is an error naming
+ *  the passes on it and produces no plan.
+ *  @trap A plan points at the passes it was built from, so it stands
+ *  only as long as they do; `Pass::previous` orders nothing. */
 class Plan {
  public:
   /** The passes in execution order, each with what the ordering decided

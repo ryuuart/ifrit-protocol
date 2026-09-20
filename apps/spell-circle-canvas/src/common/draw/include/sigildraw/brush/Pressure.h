@@ -11,15 +11,12 @@
 
 namespace sigil::draw::brush {
 
-/** How pressure runs from the start of a stroke to its end.
- *
- *  Three forms, tried in this order: a caller's `curve` over unit
- *  progress; a bell (`gaussian`) whose centre and width are re-rolled per
- *  stroke by their jitters; and the three-point envelope, which
- *  interpolates start to middle over the first half and middle to end
- *  over the second, re-rolled per stroke by `variation` — an offset, a
- *  scale, a warp along the stroke and a tilt from one end to the other.
- *  The re-roll is what makes two strokes with one tool differ. */
+/** How pressure runs from the start of a stroke to its end, in three
+ *  forms tried in this order: a caller's `curve` over unit progress; a
+ *  bell whose centre and width are re-rolled per stroke; and the
+ *  three-point envelope, start to middle over the first half and middle
+ *  to end over the second, re-rolled by `variation`. The re-roll is what
+ *  makes two strokes with one tool differ. */
 struct Pressure {
   /** A BELL ALONG THE STROKE: pressure rises to `maximum` at `center`
    *  and falls back toward `minimum`, with `sharpness` saying how

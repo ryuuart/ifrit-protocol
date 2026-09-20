@@ -28,14 +28,12 @@ struct DepositOptions {
   bool end = true;
 };
 
-/** Deposits already sampled dabs. This is the executor seam shared by
- *  stored paths, live stylus input, shape tips and caller-defined tips.
- *  The pen's style and transform are restored afterwards; the transform
- *  still applies to the mark. Round dust, nib and scatter dabs go down as
- *  one sprite batch per stroke; fibres, shape and custom tips and the
- *  SUBTRACT blend draw through the pen's verbs dab by dab. A grain that
- *  stands still puts the whole run of dabs in one layer and takes its
- *  coverage out of that. */
+/** Deposits already sampled dabs — THE EXECUTOR SEAM shared by stored
+ *  paths, live stylus input, shape tips and caller-defined tips. Round
+ *  dust, nib and scatter dabs go down as one sprite batch per stroke;
+ *  fibres, shape and custom tips and the SUBTRACT blend draw through the
+ *  pen's verbs dab by dab. The pen's style and transform are restored
+ *  afterwards, the transform still applying to the mark. */
 void deposit(Pen& pen, const Tool& tool, std::span<const Dab> dabs,
              DepositOptions options = {});
 

@@ -17,20 +17,11 @@ namespace sigil::draw::brush {
 enum class ImageMask { InvertedLuminance, Alpha };
 
 /** An imported tip: the artwork stamped at every dab, with the parts of
- *  a stroke a travelling brush states against the stamp rather than in
- *  canvas units.
- *
- *  These are FRACTIONS OF THE TOOL'S WIDTH, where the tool's own
- *  `spacing` and `scatter` are canvas units; a tool that carries a shape
- *  is spaced and scattered by these.
- *
- *  `spacing` is the distance between two stamps as a fraction of the
- *  tool's width — a tenth is a dense continuous mark, one is a chain of
- *  separate stamps — and it is what the tool's own `spacing` in canvas
- *  units means for a procedural tip. `scatter` moves each stamp off the
- *  centreline by up to that fraction of the width, in both axes.
- *  `angleJitter` turns each stamp by up to that many radians either way,
- *  on top of whatever the tool's rotation answers. */
+ *  a stroke a travelling brush states against the stamp. `spacing`,
+ *  `scatter` and `angleJitter` are FRACTIONS OF THE TOOL'S WIDTH — the
+ *  jitter in radians — where the tool's own spacing and scatter are
+ *  canvas units, and a tool carrying a shape is spaced and scattered by
+ *  these instead. */
 struct Shape {
   sk_sp<SkImage> image;
   ImageMask mask = ImageMask::InvertedLuminance;

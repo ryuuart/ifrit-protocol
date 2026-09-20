@@ -5,11 +5,10 @@
  * An image's pixels in the form a device texture takes them.
  *
  * A decoded HDR panorama lands as 32-bit float RGBA, which keeps the
- * range a sun needs and is NOT FILTERABLE on Apple GPUs: a sampler asked
- * to interpolate between two F32 texels there answers nothing. The copy
- * that makes such an image drawable is a half-float one, and it belongs
- * here rather than beside the decoder, because it is a property of the
- * hardware the pixels are going to and not of the file they came from.
+ * range a sun needs and is NOT FILTERABLE on Apple GPUs. The half-float
+ * copy that makes such an image drawable belongs here rather than beside
+ * the decoder, because it is a property of the hardware the pixels are
+ * going to and not of the file they came from.
  */
 
 #include <include/core/SkImage.h>

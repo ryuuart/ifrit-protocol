@@ -13,24 +13,11 @@ namespace sigil::draw {
 
 /** A SMOOTH RANDOM FIELD, sampled anywhere in one, two or three
  *  dimensions and always answering the same number at the same place
- *  for the same seed.
- *
- *  It has p5's shape — octaves layered at doubling frequency and a
- *  falloff between them, a value in [0, 1) — over this repository's own
- *  mixer rather than p5's permutation table: every corner of the base
- *  lattice is core's `lattice(seed, x, y, z)` word squeezed to a unit
- *  float, and the value between corners is a cosine blend of the eight
- *  around it, which is the blend p5 uses. So the pictures a pasted
- *  sketch draws with it have p5's character and not p5's exact pixels.
- *
- *  `geometry::path::valueNoise` is a DIFFERENT FIELD over the same
- *  lattice mixer, not a rounding of this one: it squeezes a corner from
- *  the whole word rather than from the low 24 bits, eases with a
- *  smoothstep rather than a cosine, and answers in [-1, 1]. Either one
- *  re-spelled as the other re-rolls every picture stored from it, which
- *  is why they stand side by side. Reach for that one where a
- *  displacement wants a signed field; reach for this one where a pasted
- *  sketch wants p5's. */
+ *  for the same seed. It has p5's shape — octaves at doubling frequency
+ *  with a falloff between them, a value in [0, 1) — over this
+ *  repository's own lattice mixer.
+ *  @trap `geometry::path::valueNoise` is a DIFFERENT FIELD over the same
+ *  mixer, signed and eased differently, not a rounding of this one. */
 class NoiseField {
  public:
   explicit NoiseField(uint32_t seed = 0) : m_seed(seed) {}

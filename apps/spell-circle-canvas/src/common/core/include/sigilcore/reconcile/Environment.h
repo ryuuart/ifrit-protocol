@@ -26,53 +26,14 @@ namespace sigil::core {
 // ---------------------------------------------------------------------------
 // environment — an INHERITED VALUE, read where a component is described
 //
-// A describe phase is an ordinary C++ call tree, evaluated eagerly and
-// bottom-up: `box().children({panel()})` calls `panel()` before the box
-// exists,
-// and every component is a plain function whose arguments are evaluated
-// inside the enclosing scope. So the describe-time call stack IS the
-// description tree, and the C++ answer to "inherit down a call stack" is
-// dynamic scope:
+// A describe phase is an ordinary C++ call tree, so the describe-time
+// call stack IS the description tree, and the C++ answer to "inherit
+// down a call stack" is dynamic scope: a `Provide` binds for its scope
+// and anything described inside it reads the value back.
 //
-//     environment::Provide<Palette> theme(dark);      // binds for this scope
-//     return box().children({panel()});      // panel() reads it
-//
-//     // …four levels down, in a component that was never handed it:
-//     const Palette *p = environment::inherited<Palette>();
-//
-// WHY THIS DOES NOT COST THE PRUNE. An inherited value is read DURING
-// DESCRIBE and lands in the reading node's own description, so the
-// reconciler's structural comparison is already an exact dependency
-// tracker: a node whose description came out identical prunes, whether or
-// not it read the environment, and a node whose value actually moved
-// re-patches. The description tree the reconciler sees is
-// environment-INDEPENDENT — the value is baked in by then — so no phase
-// learns a new concept and nothing invalidates a subtree wholesale.
-//
-// THE ONE PLACE THE KERNEL HAD TO LEARN IT is the memo, the only site
-// where a component function runs AFTER the author's scope has ended. A
-// memo therefore captures the ambient stack at construction, compares it
-// alongside its properties, and re-establishes it around the deferred call —
-// so a memo stays a pure function of (properties, environment) and cannot
-// serve a stale value. Anything else that takes a callable and runs it
-// later runs with NO scope: capture what such a lambda needs by value at
-// the call site, which is where the scope still exists.
-//
-// REQUIREMENTS ON AN INHERITED TYPE, and what its equality means: it is
-// copyable and equality-comparable, and two values are equal exactly when
-// describing anything under them yields descriptions that compare equal.
-// The comparison is therefore structural and exact — never perceptual
-// and never epsilon'd, because the consumer of the answer is the prune.
-//
-// MATERIALISE DERIVED VALUES INTO THE TYPE. A value that carries a
-// `std::function` derivation rule instead of the results it produces is
-// incomparable, so it never compares equal to itself and every memo below
-// it becomes a permanent miss. Run the function once and store the
-// results.
-//
-// Bindings are keyed by C++ TYPE, so this is a transport channel rather
-// than a design-token vocabulary: the key a component uses is its own
-// properties type.
+// An inherited value is read DURING DESCRIBE and lands in the reading
+// node's own description, so the prune is already an exact dependency
+// tracker and no phase learns a new concept.
 
 /** THE INHERITED-VALUE CHANNEL: a value bound for a scope of the
  *  description tree and read by anything described inside it, without
@@ -183,16 +144,12 @@ class Provide {
               }});
     m_depth = detail::environmentStack().size();
   }
-  /** Unbinds THIS scope's binding and no other. Destroying providers out
-   *  of LIFO order is misuse; when it happens, the destructor locates its
-   *  own entry by the held value's identity and removes exactly that one
-   *  — an unconditional pop would unbind a SIBLING that is still alive.
-   *  The misuse warns, unconditionally and with no switch: a scope
-   *  unbound out of order leaves the stack holding a binding nobody can
-   *  name, so the one line it prints is the only sign a sweep gets that
-   *  the process is wrong; a run that prints nothing is a run where the
-   *  scopes nested. The well-nested path stays a compare and a
-   *  pop_back, allocation-free. */
+  /** UNBINDS THIS SCOPE'S BINDING AND NO OTHER. The well-nested path is
+   *  a compare and a pop_back, allocation-free.
+   *  @trap Destroying providers out of LIFO order is misuse: the entry
+   *  is found by the held value's identity and removed, since an
+   *  unconditional pop would unbind a SIBLING that is still alive, and
+   *  the misuse warns unconditionally and with no switch. */
   ~Provide() {
     Snapshot& stack = detail::environmentStack();
     if (stack.size() == m_depth && stack.back().value.get() == m_self) {

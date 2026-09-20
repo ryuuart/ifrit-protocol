@@ -7,24 +7,13 @@
  *
  * Three integer mixers — a 64-bit avalanche, the PCG word and the
  * xorshift step — and the unit floats squeezed out of them. Every
- * function here is a bit-exact
- * function of its inputs on every platform, so anything seeded by them
- * re-rolls identically: a scattered brush stamp, a roughened outline, a
- * drifted point cloud, a jittered layout.
- * A shader that has to agree with a CPU preview to the bit reproduces
- * `pcgHash` and `pcgUnit` rather than inventing its own; the
- * point-operator compute kernel does exactly that.
+ * function here is a bit-exact function of its inputs on every
+ * platform, so anything seeded by them re-rolls identically.
  *
  * THE CONSTANTS AND THE SHIFT SCHEDULES ARE NOT TUNING KNOBS. Renders
  * stored as bytes are seeded through here, and a GPU kernel reproduces
  * `pcgAdvance`, `pcgMix` and `pcgHash` word for word. Changing a
- * constant does not fail a build — it re-rolls every stored render and
- * desynchronizes the two ends of every operator chain that runs on both.
- *
- * `hash`, `lattice`, `pcgHash`, `xorshiftNext` and `xorshift64Next` are
- * different mixers with different outputs, kept side by side because each
- * seeds work that is compared byte-for-byte against stored renders. Pick
- * by what the caller already uses; new code takes `pcgHash`.
+ * constant does not fail a build — it re-rolls every stored render.
  */
 
 #include <cstdint>
@@ -44,14 +33,12 @@ namespace sigil::core::noise {
  *  different. */
 inline constexpr uint64_t kMix64Gamma = 0x9e3779b97f4a7c15ull;
 
-/** The 64-bit avalanche: two xor-shift-multiply rounds and a final
+/** THE 64-BIT AVALANCHE: two xor-shift-multiply rounds and a final
  *  xor-shift, so a one-bit change anywhere in @p z changes about half
- *  the result. It is a bijection — every input maps to its own output —
- *  so a counter walked through it never repeats a value before the
- *  counter does.
- *
- *  The stateless form is `mix64(x + kMix64Gamma)`; a stream is a counter
- *  advanced by the gamma and read through here. */
+ *  the result. A bijection, so a counter walked through it never
+ *  repeats a value before the counter does. The stateless form is
+ *  `mix64(x + kMix64Gamma)`; a stream is a counter advanced by the
+ *  gamma and read through here. */
 inline constexpr uint64_t mix64(uint64_t z) {
   z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ull;
   z = (z ^ (z >> 27u)) * 0x94d049bb133111ebull;
@@ -59,19 +46,13 @@ inline constexpr uint64_t mix64(uint64_t z) {
 }
 
 /** A SPLITMIX64 STREAM: a 64-bit counter stepped by the gamma and read
- *  through `mix64`, with the unit floats squeezed out of it.
- *
- *  This is the stream form of `mix64`, and it is a different function
- *  from `pcgNext` and `xorshiftNext` in the way the top of this file
- *  states: seeded work compared byte-for-byte against a stored render
- *  cannot swap one for another. What this one buys over those two is the
- *  64-bit counter — a caller with two integers to fold into a seed (a
- *  glyph's index within its run, and the run's within its text) packs
- *  them into one word with no mixing of its own.
- *
- *  Every draw takes the HIGH half of the avalanche, which is the half a
- *  splitmix64 mixes best. Not a cryptographic generator and not a
- *  substitute for one. */
+ *  through `mix64`, with the unit floats squeezed out of it. What it
+ *  buys over the PCG and xorshift streams is the 64-bit counter — two
+ *  integers fold into one seed word with no mixing of the caller's own.
+ *  Every draw takes the HIGH half of the avalanche.
+ *  @trap A different function from `pcgNext` and `xorshiftNext`: work
+ *  compared byte-for-byte against a stored render cannot swap one for
+ *  another. Not a cryptographic generator. */
 class Mix64Stream {
  public:
   explicit Mix64Stream(uint64_t seed) : m_state(seed) {}
@@ -142,17 +123,12 @@ inline constexpr float pcgUnit(uint32_t x) {
   return (float)(pcgHash(x) & 0x00FFFFFFu) / 16777216.0f;
 }
 
-/** ONE XORSHIFT32 STEP, in the shift schedule 13 left, 17 right, 5 left:
- *  advances @p state in place and returns it.
- *
- *  A second stream beside the PCG one, for the same reason the constants
- *  above are fixed: a scatter already keyed to these three shifts draws
- *  a different sequence from `pcgNext`, so the two are not
- *  interchangeable in anything stored as bytes. New code takes
- *  `pcgUnitNext`.
- *
- *  Zero is the one state to keep out: all three shifts fix it, so a
- *  stream that reaches zero stays there. Seed with any other word. */
+/** ONE XORSHIFT32 STEP, in the shift schedule 13 left, 17 right, 5
+ *  left: advances @p state in place and returns it. A second stream
+ *  beside the PCG one, not interchangeable with it in anything stored
+ *  as bytes; new code takes `pcgUnitNext`.
+ *  @trap Zero is the one state to keep out — all three shifts fix it,
+ *  so a stream that reaches zero stays there. */
 inline constexpr uint32_t xorshiftNext(uint32_t& state) {
   state ^= state << 13u;
   state ^= state >> 17u;
@@ -189,18 +165,11 @@ inline constexpr float xorshift64UnitNext(uint64_t& state) {
 }
 
 /** THE LATTICE MIXER: three integer coordinates and a seed to one
- *  well-mixed word — what value noise asks at each corner of a cell, and
- *  what anything indexed by a grid position asks for a stable draw.
- *
+ *  well-mixed word — what value noise asks at each corner of a cell,
+ *  and what anything indexed by a grid position asks for a stable draw.
  *  The three coordinate weights are large odd words, so a step of one
- *  along any axis moves the sum far; the xor-shift-multiply and the
- *  final fold are what turn that sum into an avalanche. THE CONSTANTS
- *  AND THE SHIFTS ARE NOT TUNING KNOBS, for the reason stated at the top
- *  of this file.
- *
- *  The multiplies are meant to WRAP. Unsigned operands make that wrap
- *  the defined kind, where signed ones would overflow; the bits are the
- *  same either way. */
+ *  along any axis moves the sum far. The multiplies are meant to WRAP,
+ *  and unsigned operands make that wrap the defined kind. */
 [[nodiscard]] constexpr uint32_t lattice(uint32_t seed, int x, int y,
                                          int z) noexcept {
   uint32_t h = seed + (uint32_t)x * 374761393u + (uint32_t)y * 668265263u +

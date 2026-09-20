@@ -81,18 +81,12 @@ struct WarmupResult {
 
 /** THE program cache: every compiled program in the process, keyed by
  *  (recipe identity, target, variant), so a recipe compiles once per key
- *  however many materials instantiate it. Thread-safe.
- *
- *  A request that cannot be met — no compiler registered for the target,
- *  no body in the recipe for it, or a body that fails to compile — returns
- *  null and reports once per (recipe, target), naming both, so the error
- *  surfaces at the first describe and does not scroll past every frame.
- *
- *  A program that COMPILED is checked the same way and reported the same
- *  once: a parameter field the body never reads is discarded by the shader
- *  compiler and uploads nothing, so the field is dead weight in the ABI
- *  and every value written to it is lost in silence. The check names the
- *  recipe and each unread field. */
+ *  however many materials instantiate it. Thread-safe. A request it
+ *  cannot meet returns null and reports once per (recipe, target), and a
+ *  program that compiled is checked the same way for parameter fields no
+ *  body reads.
+ *  @trap A field the body never reads uploads nothing, so every value
+ *  written to it is lost in silence. */
 class ProgramCache {
  public:
   ProgramCache();

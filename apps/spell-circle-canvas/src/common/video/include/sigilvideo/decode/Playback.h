@@ -16,14 +16,10 @@
 namespace sigil::video {
 
 /** Many independent video clocks sharing a bounded decode queue.
- *
- *  A clip registers once: `add()` answers the handle a clip already holds,
- *  since one `Video` must never be decoded by two workers at once, and a
- *  clip may be added while presentation is running. `request()` coalesces
- *  repeated asks that fall inside the same source frame and newer times
- *  replace queued stale work. `frame()` is called on one render thread; it
- *  maps a completed native frame into that thread's Graphite recorder and
- *  never waits for a decoder. */
+ *  `add()` answers the handle a clip already holds, since one `Video`
+ *  must never be decoded by two workers at once; `request()` coalesces
+ *  repeated asks inside one source frame; `frame()` is called on one
+ *  render thread and never waits for a decoder. */
 class Playback {
  public:
   /** What `add()` answers and every other verb is addressed by. */

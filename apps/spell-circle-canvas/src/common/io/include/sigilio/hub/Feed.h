@@ -2,28 +2,13 @@
 
 /** @file
  * @ingroup io-hub
- * A FEED: a resource that keeps arriving.
- *
- * One door, keyed by URI, with a transport on one side and readers on
- * the other. The transport delivers byte messages from whatever thread
- * it runs on; a reader on any thread either takes the newest message —
- * latest() for its bytes and newest() for the whole arrival, with the
- * generation that says how many have come — or drains in order the ones
- * it has not seen yet through receive(). Neither ever waits for a
- * message: a reader that finds nothing is told so and gets on with its
- * frame.
- *
- * A feed keeps the last `Policy::capacity` arrivals for receive(). When
- * one more reaches a feed nobody has drained, the oldest falls off the
- * front and dropped() counts it, so a reader that cannot keep up loses
- * the oldest messages rather than the newest and can see that it
- * happened. What latest() and newest() answer is never dropped.
- *
- * The same door plays a recording back. record() appends every arrival
- * from then on to a file, and a feed the hub resolved to a recording
- * file delivers what that file holds as advance() moves its time
- * forward — so a scene that ran against a live sender runs again
- * against the file it wrote, arrival for arrival.
+ * A FEED: a resource that keeps arriving. One door, keyed by URI, with a
+ * transport on one side and readers on the other. A reader on any thread
+ * either takes the newest message — latest() for its bytes, newest() for
+ * the whole arrival — or drains in order the ones it has not seen
+ * through receive(), and neither ever waits for one. A feed holds the
+ * last `Policy::capacity` arrivals for receive(), and dropped() counts
+ * what fell off the front. The same door plays a recording back.
  */
 
 #include <chrono>
@@ -127,11 +112,9 @@ class Feed {
   /** Says what went wrong, which error() answers from then on; an empty
    *  reason is nothing wrong, and takes off what stood there. The feed
    *  stays open: a transport that lost one message still has a door.
-   *
-   *  A TRANSPORT THAT OPENED NOTHING SAYS SO HERE, before it hands back
-   *  the end it has none of, and the feed is then one that was never
-   *  opened rather than one with a door — which is what lets the next
-   *  ask for its URI open it again. */
+   *  @trap A TRANSPORT THAT OPENED NOTHING SAYS SO HERE, and the feed is
+   *  then one that was never OPENED rather than one with a door — which
+   *  is what lets the next ask for its URI open it again. */
   void fail(std::string why);
 
   /** No more arrivals are taken. What was received stays readable, and
@@ -195,16 +178,12 @@ class Feed {
 
   /** Hands the feed the end its transport opened. Once: a second end,
    *  and one handed to a feed that is already closed, is closed rather
-   *  than kept.
-   *
-   *  AN END WITH NOTHING IN IT, HANDED TO A FEED CARRYING A REASON, IS
-   *  NO END — a transport that could not open the URI says why through
-   *  fail() and has nothing to give back. The feed stays unopened with
-   *  that reason standing, so the next ask for its URI opens it again
-   *  into this same feed, and every reader holding it is reading the
-   *  door that opened. An end that stands is kept with whatever the
-   *  transport has said about it by then: the reason an earlier ask
-   *  left is taken off before the open that follows it, not after. */
+   *  than kept. An end that stands is kept with whatever the transport
+   *  has said about it by then.
+   *  @trap AN END WITH NOTHING IN IT, HANDED TO A FEED CARRYING A
+   *  REASON, IS NO END: the feed stays unopened with that reason
+   *  standing, so the next ask for its URI opens it again into this
+   *  same feed. */
   void opened(OpenedFeed opened);
 
   /** This feed reads @p recording instead of a transport: advance() is

@@ -15,23 +15,13 @@
 namespace sigil::material {
 
 /** A CALLER-OWNED UNIFORM BUFFER WITH A REVISION — the live form of an
- *  array uniform, for per-frame data no scalar `Output` can carry: a
- *  particle table, a per-bar spectrum, a set of rects a simulation moves.
- *
- *  Own it where you own your model, write `values()`, then `commit()` to
- *  publish. The binding (`Material::uniform` / `Effect::uniform` with a
- *  block) reads the CURRENT values at every paint and declares volatility
- *  the way a bound scalar `Output*` does, so the node paints live and no
- *  cache can freeze the table; the revision is what lets the resolve memo
- *  see that an uncommitted frame changed nothing and keep the built shader.
- *
- *  LIFETIME AND EQUALITY follow the bound-scalar rules exactly. The
- *  binding is a shared_ptr, so the buffer cannot dangle, but it compares
- *  by IDENTITY: a block recreated every describe reads as a new binding
- *  each time and re-patches its node — hold the block beside your model,
- *  not in the describe. The values belong to the system and never enter
- *  the prune comparison. Not thread-safe, deliberately: one owner, one
- *  writer. */
+ *  array uniform, for per-frame data no scalar output can carry. Own it
+ *  where you own your model, write `values()`, then `commit()` to
+ *  publish; the binding reads the CURRENT values at every paint, and the
+ *  revision is what lets a resolve memo keep its shader across an
+ *  uncommitted frame. Not thread-safe: one owner, one writer.
+ *  @trap It compares by IDENTITY, so a block recreated every describe
+ *  re-patches its node; hold it beside your model. */
 class UniformBlock {
  public:
   /** `floatCount` is the buffer's length in FLOATS, and it must equal the

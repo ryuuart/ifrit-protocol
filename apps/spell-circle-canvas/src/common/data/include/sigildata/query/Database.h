@@ -21,13 +21,11 @@
 
 namespace sigil::data {
 
-/** WHICH ENGINE STANDS BEHIND A DATABASE. Both answer the same calls; the
- *  difference is what each is for. SQLite is the file format that stays
- *  readable, one table at a time, and the engine a small store beside a
- *  sketch is written in. DuckDB is the columnar engine that aggregates a
- *  million rows in the time SQLite scans them, reads a CSV or a Parquet
- *  file straight from a query, and holds its store in memory or in a file
- *  of its own. */
+/** WHICH ENGINE STANDS BEHIND A DATABASE. Both answer the same calls;
+ *  the difference is what each is for. SQLite is the file format that
+ *  stays readable, one table at a time. DuckDB is the columnar engine
+ *  that aggregates where SQLite scans, and reads a CSV or a Parquet
+ *  file straight from a query. */
 enum class Engine { Sqlite, Duck };
 
 /** WHETHER A STORE ACCEPTS WRITES. A store opened for reading answers every
@@ -35,20 +33,13 @@ enum class Engine { Sqlite, Duck };
  *  what a cached resource several readers share has to be. */
 enum class Access { ReadWrite, ReadOnly };
 
-/** AN OPEN DATABASE, IN A FILE OR IN MEMORY.
- *
- *  `query()` answers a `Table`: every column of the result typed by what
- *  its cells hold — a number, a text, a flag, an instant — with a NULL
- *  cell marked missing, so a drawing walks it as it walks a decoded CSV.
- *  `execute()` runs a statement for its effect. `insert()` writes a
- *  `Table` in as a named table, typed from the columns, which is how a
- *  CSV a sketch already decoded becomes something a query can join, and
- *  how a store beside a sketch is built in the first place.
- *
- *  A file is opened by its extension — `.sqlite`, `.sqlite3` and `.db`
- *  are SQLite's, `.duckdb` is DuckDB's — and `memory()` opens an empty
- *  store of either engine that lives as long as the value does. The value
- *  is move-only: one connection, owned. */
+/** AN OPEN DATABASE, IN A FILE OR IN MEMORY. `query()` answers a
+ *  `Table`, `execute()` runs a statement for its effect, and `insert()`
+ *  writes a `Table` in as a named table. A file is opened by its
+ *  extension — `.sqlite`, `.sqlite3` and `.db` are SQLite's, `.duckdb`
+ *  is DuckDB's — and `memory()` opens an empty store of either engine
+ *  that lives as long as the value does. Move-only: one connection,
+ *  owned. */
 class Database {
  public:
   /** Takes over the moved-from store's connection, leaving it closed. */
@@ -85,21 +76,18 @@ class Database {
   /** The access this store was opened with. */
   [[nodiscard]] Access access() const;
 
-  /** Runs @p sql and answers its rows as a table; nullopt and `why` on an
-   *  error. A column's type is what its cells hold: an integer or a real
-   *  is a number, text is text, a boolean is a flag, a date or a
-   *  timestamp is an instant — SQLite's declared DATE and DATETIME and
-   *  ISO text included — and a NULL is a missing cell. */
+  /** Runs @p sql and answers its rows as a table; nullopt and `why` on
+   *  an error. A column's type is what its cells hold: an integer or a
+   *  real is a number, text is text, a boolean is a flag, a date or a
+   *  timestamp is an instant, and a NULL is a missing cell. */
   [[nodiscard]] std::optional<Table> query(std::string_view sql,
                                            std::string* why = nullptr) const;
-  /** WHETHER RUNNING @p sql WOULD WRITE. Every statement in the text is
-   *  examined, not only the first, because a holder that refuses writes
-   *  has to refuse a writing statement wherever it stands. A statement
-   *  the engine cannot parse answers nullopt and `why` names the error.
-   *
-   *  A transaction's own verbs and a reading statement that calls a
-   *  writing function answer false, so this is the message a caller shows
-   *  and `Access::ReadOnly` is what stops the write. */
+  /** WHETHER RUNNING @p sql WOULD WRITE — every statement in the text
+   *  and not only the first. A statement the engine cannot parse
+   *  answers nullopt and `why` names the error.
+   *  @trap A transaction's own verbs and a reading statement that calls
+   *  a writing function answer false, so this is the message a caller
+   *  shows and `Access::ReadOnly` is what stops the write. */
   [[nodiscard]] std::optional<bool> writes(std::string_view sql,
                                            std::string* why = nullptr) const;
   /** Runs @p sql for its effect. */
@@ -118,14 +106,13 @@ class Database {
   std::unique_ptr<Impl> m_impl;
 };
 
-/** DECODES A DATABASE FILE FOR A RESOURCE HUB: `hub.load<Database>(uri)`.
- *  A resource that is a file on disk is opened in place, by its path, so
- *  both engines answer and the store is read as the engine reads it; a
- *  resource that is bytes alone — a network cache with no file, a byte
- *  source — is a SQLite store deserialised from them, and a `.duckdb`
- *  from bytes alone is refused. Either way the store is `Access::ReadOnly`:
- *  a hub hands one cached resource to every reader, so no reader may
- *  change the file the others are reading. */
+/** DECODES A DATABASE FILE FOR A RESOURCE HUB:
+ *  `hub.load<Database>(uri)`. A resource that is a file on disk is
+ *  opened in place, by its path, so both engines answer. Either way the
+ *  store is `Access::ReadOnly`: a hub hands one cached resource to
+ *  every reader.
+ *  @trap A resource that is BYTES ALONE is a SQLite store deserialised
+ *  from them, and a `.duckdb` from bytes alone is refused. */
 struct DatabaseDecoder {
   /** Opens @p bytes as a store, @p hint naming the resource so the
    *  extension can choose the engine. */

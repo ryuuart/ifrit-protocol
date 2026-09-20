@@ -16,18 +16,14 @@
 
 namespace sigil::material::field {
 
-/** A screen in local coordinates. Distances are local pixels; strengths
- * are nonnegative. Zero strengths preserve the content inside the bounds.
- * Time is explicit: re-describe to advance noise, flicker and sync.
- * The screen is opaque; transparent source pixels read as black glass.
- *
- * THE SUPPLY IS THE BEAM'S. `uBrightness` and `uFlicker` modulate the
+/** A screen in local coordinates. Distances are local pixels, strengths
+ * are nonnegative, and zero strengths preserve the content inside the
+ * bounds. Time is explicit: re-describe to advance noise, flicker and
+ * sync. THE SUPPLY IS THE BEAM'S — brightness and flicker modulate the
  * picture the tube draws and nothing else, so the light over it holds
- * the strength `uBloom` names while the picture dims and stutters. And
- * the picture is finished before the glass reads it — rastered,
- * grained, and clamped to what a display can carry — so the light is
- * added to a highlight that already stands at white, and `uVignette`
- * then darkens the picture and the light over it together. */
+ * its own strength while the picture dims and stutters.
+ * @trap The screen is OPAQUE: a transparent source pixel reads as black
+ * glass. */
 struct CrtParameters {
   glm::vec4 uBounds{0, 0, 1, 1};  ///< left, top, width, height
   float uCurvature = 0;
@@ -92,19 +88,12 @@ struct CrtGlassParameters {
 /** THE WHOLE SCREEN: the beam's picture, read through the glass, lit by
  * the light it throws — one program, so the glass bends a coordinate
  * once and the beam is drawn at the coordinate it bent to. Bind the
- * picture to the `content` slot, or let a layer effect provide it.
- *
- * The light is a second slot, `bloom`, an EXECUTOR fills from the same
- * layer blurred at `uBloomRadius`, read once at the bent coordinate. The
- * blur is taken over the whole layer, so something bright outside the
- * bounds lights the glass near that edge, though the light itself lands
- * only inside them.
- *
- * The body spells that slot whatever `uBloom` is, so a fill — which has
- * no layer and no executor — must bind a source to `bloom` as well, at
- * every strength including none; unbound, the material is refused
- * rather than shaded with an empty child. Burn-in requires history and
- * is not part of this stateless recipe. */
+ * picture to the `content` slot, or let a layer effect provide it; the
+ * light is a second slot, `bloom`, an EXECUTOR fills from the same layer
+ * blurred, and the blur is taken over the whole layer.
+ * @trap The body spells `bloom` at every strength including none, so a
+ * fill — which has no layer and no executor — must bind a source to it
+ * or the material is refused rather than shaded with an empty child. */
 Material crt(const CrtParameters& parameters);
 const std::shared_ptr<const Recipe>& crtRecipe();
 /** Maximum source displacement for an image-filter executor: the glass's

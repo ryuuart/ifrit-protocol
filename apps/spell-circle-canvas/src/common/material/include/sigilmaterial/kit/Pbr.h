@@ -4,40 +4,12 @@
  * @ingroup material-kit
  *
  * The metallic-roughness surface — the shading model the authoring tools
- * export for and glTF, USD's preview surface and every scanned material
- * set are written against. One parameter struct is its ABI: base colour,
- * metallic, roughness, emission, the normal convention, the channel each
- * packed map is read from, the cutout threshold and the glass terms. One
- * slot per map, named for the role it fills, so a discovered
- * texture set drops straight in.
- *
- * Two recipes over that ABI, and the choice between them is what a
- * surface IS rather than a flag on it: `surface()` takes light,
- * `unlit()` is its own light — a screen, a decal that must not be shaded.
- *
- * The SkSL bodies are what a device-space shader can answer honestly:
- * there is no surface normal, no view vector and no light in a 2D paint.
- * `surface()` there reads `baseColor` and its map, `occlusionStrength`
- * with `occlusionChannel`, `emissive` with `emissiveStrength` and its
- * map, and `alphaCutoff` with `opacityChannel` — the albedo attenuated
- * by occlusion plus its emission, which is the ambient-only evaluation
- * of the model — and `unlit()` shades the albedo alone. Every other
- * param is Slang-only and has no effect on a 2D paint: `roughness`,
- * `metallic`, `normalScale` and `normalDirectX` with the normal map,
- * `transmission`, `ior`, `thickness` and `absorption`.
- *
- * The Slang bodies read the same parameters and the same slots, and say more
- * than a colour, because the renderer that compiles them shades. Every
- * lit body states its surface's whole PBR standing — roughness, metal,
- * and the three glass terms — so a renderer with an environment map to
- * sample has what it needs from a surface carrying no maps at all. A map
- * that VARIES the normal, the roughness or the metallic across a face
- * says one thing more, because that is the case a shading evaluated once
- * per vertex cannot carry, and the renderer re-evaluates the pixel where
- * it can be seen.
- *
- * The bodies are composed from the library's shading TERMS, so what a
- * surface does can be read off the terms it calls.
+ * export for. One parameter struct is its ABI and one slot per map, so a
+ * discovered texture set drops straight in, under two recipes: one takes
+ * light, the other is its own light. The bodies are composed from the
+ * library's shading TERMS. What a 2D paint can answer is bounded — no
+ * surface normal, no view vector, no light — so those parameters are
+ * Slang-only.
  */
 
 #include <sigilmaterial/color/Color.h>

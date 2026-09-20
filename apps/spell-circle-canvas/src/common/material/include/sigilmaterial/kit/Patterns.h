@@ -34,20 +34,11 @@ inline GirihPalette nasridPalette() {
 }
 
 /** The 8-fold star-and-cross panel — real polygons-in-contact on the
- *  4.8.8 tiling, in closed form: octagons of edge @p edge sit on a square
- *  lattice of spacing s = edge·(1+√2), and the octagon APOTHEM equals s/2
- *  exactly, so one s×s tile (octagon at centre, square fillers at the
- *  corners) repeats seamlessly. @p contactDeg is Hankin's CONTACT ANGLE
- *  θ, the one dial of the construction: two rays leave every edge
- *  midpoint at θ to the edge, and where neighbouring rays meet is a
- *  vertex of the star, so the star sharpens as θ grows. At the 45°
- *  default the rays through an octagon are collinear and the panel is
- *  the classic one — every octagon the {8/2} khatam, every filler square
- *  its inscribed square, the strapwork the two squares' interlace. At any
- *  other angle the straps run to first contact and, where θ is at least
- *  half the turn between edges, on through the crossing that makes the
- *  interlace. The crosses are the leftover ground. @p strapWidth 0 means
- *  0.12·edge. */
+ *  4.8.8 tiling, in closed form: octagons of edge @p edge on a square
+ *  lattice of spacing edge·(1+√2), whose one tile repeats seamlessly.
+ *  @p contactDeg is Hankin's CONTACT ANGLE in degrees, the one dial of
+ *  the construction, and the star sharpens as it grows; 45 is the
+ *  classic panel. @p strapWidth 0 means 0.12·edge. */
 pattern::Tile girih8(float edge, GirihPalette pal = fezPalette(),
                      float strapWidth = 0, float contactDeg = 45.0f);
 

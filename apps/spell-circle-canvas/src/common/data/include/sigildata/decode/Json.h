@@ -27,22 +27,12 @@
 
 namespace sigil::data {
 
-/** ONE JSON VALUE, whatever it is.
- *
- *  An object keeps its members in the order the document wrote them,
- *  because that order is the author's and a reader who prints the
- *  document back should not reorder it. Lookup by key is therefore a
- *  scan, which is what a record of a few fields wants. A document that
- *  writes one key twice keeps both members, and a lookup answers the
- *  first, since dropping one would be an edit to somebody else's
- *  document.
- *
- *  ```
- *  const Json doc = *decodeJson(text);
- *  for (const Json& node : doc["nodes"].items())
- *    place(node["x"].number(), node["y"].number(), node["name"].text());
- *  ```
- */
+/** ONE JSON VALUE, whatever it is. An object keeps its members in the
+ *  order the document wrote them, and lookup by key is therefore a
+ *  scan, which is what a record of a few fields wants.
+ *  @trap A document that writes one key twice keeps BOTH members and a
+ *  lookup answers the first, since dropping one would be an edit to
+ *  somebody else's document. */
 class Json {
  public:
   /** A list's members, in document order. */
@@ -117,46 +107,27 @@ class Json {
   Held m_held;
 };
 
-/** THE DOCUMENT IN @p text, or nothing when it is not JSON.
- *
- *  A lone number, string, boolean or null is a document, and so answers
- *  a value that is not a list or a record; it holds no rectangle, so
- *  `tableFromJson` answers nothing for it. Text that is not valid UTF-8,
- *  and text nested deeper than the parser reads, are not documents at
- *  all: nothing comes back rather than the part that parsed. */
+/** THE DOCUMENT IN @p text, or nothing when it is not JSON. A lone
+ *  number, string, boolean or null IS a document, and so answers a
+ *  value that is not a list or a record.
+ *  @trap Text that is not valid UTF-8, and text nested deeper than the
+ *  parser reads, answer nothing rather than the part that parsed. */
 std::optional<Json> decodeJson(std::string_view text);
 
 /** @p value AS JSON TEXT, which decodeJson reads back as the same
- *  value.
- *
- *  Compact: nothing stands between a member and the next, because what
- *  this writes goes on a wire or into a file rather than in front of an
- *  eye. A record keeps the order its members are in. Text is written as
- *  it stands, escaping only what JSON cannot hold raw, so text that
- *  arrived as UTF-8 leaves as the same UTF-8. A number is written with
- *  the fewest digits that read back as itself, so a whole number is
- *  written whole; a number that is not finite has no JSON spelling and
- *  is written null, which is the value a reader would get back for
- *  it. */
+ *  value. Compact, because what this writes goes on a wire or into a
+ *  file rather than in front of an eye; a record keeps the order its
+ *  members are in, and a number is written with the fewest digits that
+ *  read back as itself.
+ *  @trap A number that is not finite has no JSON spelling and is
+ *  written null, which is the value a reader gets back for it. */
 std::string encodeJson(const Json& value);
 
-/** THE RECTANGLE INSIDE @p document, in whichever of the three shapes it
- *  is published in, or nothing when it holds no rectangle:
- *
- *  - a LIST OF RECORDS — one row each, columns being the union of their
- *    keys in first-appearance order, a record missing a key giving a
- *    missing cell;
- *  - a RECORD OF LISTS — one column each, named by its key, a key
- *    written twice keeping both columns with the later one numbered by
- *    its occurrence (`name`, `name_2`);
- *  - a LIST OF LISTS — one row each, columns named by their 1-based
- *    position.
- *
- *  A column's type is the one every present value in it shares: numbers
- *  make a number column, booleans a boolean column, strings that are all
- *  instants a time column, and anything else a text column. A cell
- *  holding a list or a record of its own has no place in a rectangle and
- *  is missing; read that document as a `Json` instead. */
+/** THE RECTANGLE INSIDE @p document — a list of records, a record of
+ *  lists, or a list of lists — or nothing when it holds no rectangle. A
+ *  column's type is the one every present value in it shares.
+ *  @trap A cell holding a list or a record of its own has no place in a
+ *  rectangle and is MISSING; read that document as a `Json` instead. */
 std::optional<Table> tableFromJson(const Json& document);
 
 }  // namespace sigil::data

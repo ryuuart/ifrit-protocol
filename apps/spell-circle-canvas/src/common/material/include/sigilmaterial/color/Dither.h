@@ -4,15 +4,11 @@
  * @ingroup material-color
  *
  * THE THRESHOLD A PIXEL IS ROUNDED AGAINST: one dither value, read at a
- * pixel, answering whether a level is crossed there.
- *
- * Rounding every pixel the same way is what makes a shallow ramp band. A
- * dither varies the rounding across the picture instead, so the average
- * over a neighbourhood is the value that was asked for and the error is
- * a texture rather than a step. The two ways of varying it are the
- * `kind`: a repeating matrix, which is stable under motion and reads as a
- * weave, and a screen-space noise, which has no visible period and reads
- * as grain.
+ * pixel, answering whether a level is crossed there. A dither varies the
+ * rounding across the picture, so the average over a neighbourhood is
+ * the value that was asked for and the error is a texture rather than a
+ * step. The two ways of varying it are a repeating matrix, stable under
+ * motion, and a screen-space noise with no visible period.
  */
 
 #include <sigilmaterial/color/Color.h>

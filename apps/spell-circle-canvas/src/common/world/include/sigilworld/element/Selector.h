@@ -28,13 +28,10 @@ struct Subject {
   const ::sigil::material::Material* material = nullptr;
 };
 
-/** A SET OF NODES, described rather than enumerated.
- *
- *  A default-constructed Selector matches everything, which is what a
- *  caller that did not narrow anything means. The terms compose with
- *  `|`, `&` and `!`, and the result is a value: two selectors built the
- *  same way compare equal, so a description carrying one prunes like any
- *  other field. */
+/** A SET OF NODES, described rather than enumerated, composing with
+ *  `|`, `&` and `!`. A default-constructed one matches EVERYTHING, and
+ *  the result is a value: two selectors built the same way compare
+ *  equal, so a description carrying one prunes like any other field. */
 class Selector {
  public:
   /** Which question a term asks. */

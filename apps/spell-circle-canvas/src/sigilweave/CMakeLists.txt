@@ -14,7 +14,14 @@
 # faces under test/assets/ reach a binary through SIGIL_TEST_ASSET_DIR.
 sigil_library_root(SigilWeave
   BRIEF "Styled Unicode text shaped into positioned glyph runs ready for a Skia canvas"
-  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox)
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/PARAGRAPHS.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/TYPE.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/UNICODE.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/FONTS.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/FLOW.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/LAYOUT.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/GLYPHS.md)
 
 # Dependencies point down this list.
 add_subdirectory(unicode)
@@ -54,6 +61,14 @@ sigil_doc_probes(weave
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/FEATURES.md
           ${CMAKE_CURRENT_SOURCE_DIR}/kit/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/PARAGRAPHS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/TYPE.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/UNICODE.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/FONTS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/FLOW.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/LAYOUT.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/GLYPHS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Paragraph.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/geometry/include/sigilgeometry/path
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/image/include/sigilimage
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
@@ -67,7 +82,7 @@ sigil_doc_probes(weave
           "SkCanvas::saveLayer=Skia's own overloaded member: no requires-spelling can name an overload set, and this generator indexes only the libraries whose include roots it is given"
           "Element::live=SigilCompose stands on this library, so its worked example is named and not probed"
           "Composer::settling=SigilCompose stands on this library, so its worked example is named and not probed"
-  FLOORS 35,10,10,0,0
+  FLOORS 80,150,75,0,1
   LIBRARIES SigilWeave SigilGeometryPath SigilImageField SigilCoreCache)
 
 # Example programs: the headless PNG demo and the interactive Qt gallery.

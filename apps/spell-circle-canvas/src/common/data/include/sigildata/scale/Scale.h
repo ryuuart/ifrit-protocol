@@ -6,13 +6,8 @@
  * between them, and answers three questions about that one mapping:
  * where a domain value lands (`apply`), which domain value a range
  * position came from (`invert`), and which domain values deserve a
- * label (`ticks`).
- *
- * Everything that would otherwise be a family of functions — remapping,
- * normalising, constraining, wrapping, log and square-root axes, banded
- * categories, quantised bands — is a PROP on this one value, so a
- * drawing, its axis and a cursor readout all go through the same
- * arithmetic instead of three spellings of it that can drift apart.
+ * label (`ticks`). Everything that would otherwise be a family of
+ * functions is a PROP on this one value.
  *
  * Numbers only. A colour range is the caller's interpolator read at
  * `position()`, so a colour table plugs in without this file knowing
@@ -113,22 +108,12 @@ enum class Overflow {
   PingPong,
 };
 
-/** THE MAPPING.
- *
- *  Aggregate-initialised, compared by value and cheap to copy, so a
- *  scale can be a field on a description, bound into a context, or built
- *  fresh per frame.
- *
- *  ```
- *  Scale x{.domain = {0, 1000}, .range = {40, 760}};
- *  Scale r{.domain = {0, 1200}, .range = {0, 90},
- *          .transform = Transform::Sqrt};
- *  Scale month{.range = {0, 360}, .transform = Transform::Band,
- *              .steps = 12, .padding = 0.1};
- *  ```
- *
- *  Only the properties its transform reads matter; the rest keep their
- *  defaults and are ignored. */
+/** THE MAPPING. Aggregate-initialised, compared by value and cheap to
+ *  copy, so a scale can be a field on a description, bound into a
+ *  context, or built fresh per frame:
+ *  `Scale{.domain = {0, 1000}, .range = {40, 760}}`.
+ *  @silent every property the stated transform does not read: the rest
+ *  keep their defaults and are ignored. */
 struct Scale {
   /** The values coming in. For `Ordinal`, `Band` and `Point` the input
    *  is an index and this is not read. */
@@ -162,22 +147,20 @@ struct Scale {
   bool operator==(const Scale&) const = default;
 
   /** WHERE @p value LANDS, in range units.
-   *
-   *  A degenerate domain answers the middle of the range rather than
-   *  infinity, so an axis built before its data arrived draws a line
-   *  through the middle instead of nothing. */
+   *  @trap A degenerate domain answers the MIDDLE of the range rather
+   *  than infinity, so an axis built before its data arrived draws a
+   *  line through the middle instead of nothing. */
   [[nodiscard]] double apply(double value) const;
   /** Where @p value lands, so a scale reads as the function it is. */
   double operator()(double value) const { return apply(value); }
 
   /** WHICH DOMAIN VALUE @p position CAME FROM — a cursor readout, a
-   *  pick, an axis label placed by hand.
-   *
-   *  `Ordinal`, `Band` and `Point` answer the index of the entry whose
-   *  band holds @p position, held inside [0, steps). `Quantize` and
-   *  `Threshold` answer where their slot begins, and a `Threshold`
-   *  scale's first slot begins at negative infinity because nothing
-   *  bounds it below. */
+   *  pick, an axis label placed by hand. `Ordinal`, `Band` and `Point`
+   *  answer the INDEX of the entry whose band holds it, held inside
+   *  [0, steps), and `Quantize` and `Threshold` answer where their slot
+   *  begins.
+   *  @trap A `Threshold` scale's first slot begins at negative
+   *  infinity, nothing bounding it below. */
   [[nodiscard]] double invert(double position) const;
 
   /** WHERE @p value LANDS AS A UNIT NUMBER, before the range is applied
@@ -213,16 +196,12 @@ struct Scale {
    *  `Band`, `Point` and `Ordinal`; 0 for a continuous transform. */
   [[nodiscard]] double stepWidth() const;
 
-  /** DOMAIN VALUES WORTH A LABEL, ascending, about @p count of them.
-   *
-   *  About, not exactly: a readable ladder matters more than a count,
-   *  so the step is rounded to a readable one first and the ticks are
-   *  its multiples inside the domain. The count is therefore a request,
-   *  and the answer is commonly one or two either side of it.
-   *
-   *  A `Quantize` or `Threshold` scale answers the values where its
-   *  answer changes band, and a `Band`, `Point` or `Ordinal` scale
-   *  answers every index; @p count is not read in those four cases. */
+  /** DOMAIN VALUES WORTH A LABEL, ascending, ABOUT @p count of them: a
+   *  readable ladder matters more than a count, so the step is rounded
+   *  to a readable one first and the answer is commonly one or two
+   *  either side of what was asked for.
+   *  @silent @p count on the five discrete transforms, which answer the
+   *  values where a band changes, or every index. */
   [[nodiscard]] std::vector<double> ticks(int count = 10) const;
 
   /** THE READABLE STEP a ladder of about @p count ticks would use, in
@@ -236,9 +215,8 @@ struct Scale {
    *  are the ends of the axis and no data falls outside it. Rounding
    *  outward can coarsen the step, which is then rounded outward again,
    *  until the step stops changing.
-   *
-   *  A discrete transform has no interval to round and answers a copy of
-   *  itself. */
+   *  @silent a discrete transform, which has no interval to round and
+   *  answers a copy of itself. */
   [[nodiscard]] Scale nice(int count = 10) const;
 };
 

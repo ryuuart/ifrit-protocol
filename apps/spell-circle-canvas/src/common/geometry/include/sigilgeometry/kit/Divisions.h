@@ -9,27 +9,6 @@
  * rather than N drawn things. `ticks()` walks a division count around a
  * `PolarFrame`; `arcs()` walks the same count as CLOSED segments of the
  * ring itself; `chords()` walks a polygon's sides.
- *
- * ## Why one path and not N of them
- *
- * A divider ladder is static geometry with one style. As N drawn things it
- * costs N of everything a consumer spends per item, for a drawing that
- * never changes — and a radial mark's box is usually the full diameter of
- * the figure, so those are N items whose bounds are the whole plate. As
- * one path it is one recording, one stroke, and one arc-length coordinate
- * over all the marks.
- *
- * **The one case that must stay N nodes is per-mark animation.** Marks
- * that fade or move individually need their own keyed nodes, because one
- * path has one style and one reveal window. If every mark shares those,
- * use this; if each mark has its own phase, do not.
- *
- * ## What this is not
- *
- * Not a linear tick ladder along an edge: a consumer that stamps marks at
- * a pitch along any path already has the straight case. These two are the
- * radial and polygonal cases, where the mark positions come from an angle
- * convention rather than an arc length.
  */
 
 #include <include/core/SkPath.h>
@@ -50,21 +29,13 @@ struct Span {
   bool operator==(const Span&) const = default;
 };
 
-/** A radial division ladder.
- *
- *      // 72 divisions, every sixth reaching further in. One node
- *      // instead of a loop.
- *      box().rect(fig.box())
- *           .shape(shapes::ticks({.divisions = 72,
- *                                .mark = {.inner = 0.96f, .outer = 1.0f},
- *                                .longEvery = 6,
- *                                .longMark = {.inner = 0.91f, .outer = 1.0f}}))
- *           .stroke(stroke(1.0f, Fill::color(brass)));
- *
- *  Every angle is in the FRAME's units — `.from = 0` on a North/CW frame
- *  is 12 o'clock, on an East/CW frame it is 3 o'clock. That is the whole
- *  reason a `PolarFrame` exists: it carries where zero is and which way the
- *  angles run, so a ladder need not restate either. */
+/** A RADIAL DIVISION LADDER, emitted as one path with N contours rather
+ *  than N drawn things. Every angle is in the FRAME's units — `.from = 0`
+ *  on a North/CW frame is 12 o'clock, on an East/CW frame 3 o'clock —
+ *  which is the whole reason a `PolarFrame` exists: it carries where zero
+ *  is and which way the angles run, so a ladder need not restate either.
+ *  @trap One path has one style and one reveal window, so marks that fade
+ *  or move individually still want their own keyed nodes. */
 struct Ticks {
   /** How many marks. With `sweep = 360` and `closed = false` this is the
    *  division count and mark N would coincide with mark 0, so it is not
@@ -85,38 +56,22 @@ struct Ticks {
   int longEvery = 0;
   Span longMark{0.88f, 1.0f};
 
-  /** The escape hatch, for a ladder with more than two length classes —
-   *  three alternating lengths, say, which no long/short pair expresses.
-   *  Return the span for mark @p i; the second argument is what the fields
-   *  above would have given, so a classifier can defer to them.
-   *
-   *  **Return a degenerate span (`inner == outer`) to SKIP a mark.** That
-   *  is the only way to skip one, and it is what a ladder drawn in two
-   *  passes at two stroke weights needs: the light pass must leave a hole
-   *  where the heavy pass goes, or both passes stack on the same mark and
-   *  it prints darker than either weight.
-   *
-   *  Null (the default) means "use the fields". A `std::function` here has
-   *  no reconciler consequence through the SkPath overload — that path is
-   *  built immediately and never stored. Through the SHAPE overload it is
-   *  the one member equality cannot see, so a Ticks carrying a classifier
-   *  compares unequal to EVERYTHING, including a copy of itself: its node
-   *  never prunes and re-records on every describe. */
+  /** THE ESCAPE HATCH, for a ladder with more than two length classes.
+   *  Return the span for mark @p i; the second argument is what the
+   *  fields above would have given. A DEGENERATE span (`inner == outer`)
+   *  skips the mark, and is the only way to. Null — the default — means
+   *  "use the fields".
+   *  @trap Equality cannot see a callable, so a Ticks carrying one
+   *  compares unequal to everything and its node never prunes. */
   std::function<Span(int i, Span fromFields)> classify;
 
   /** HOW WIDE ONE MARK IS, in px across the radius. Zero — the default —
    *  emits the open radial LINE a ladder is stroked from; anything else
-   *  emits a CLOSED rectangle standing on the same radius, which is the
-   *  node, the lozenge and the bar of a ring that is filled rather than
-   *  stroked.
-   *
-   *  The difference is not a stroke width by another name. A stroked line
-   *  is a mark the paint decides the weight of; a closed mark is
-   *  GEOMETRY, so it fills, it takes a gradient across its own width, it
-   *  unions with its neighbours, and the ring it belongs to can be
-   *  clipped, offset or measured as the shape it is. Px rather than
-   *  degrees because a node ring reads as marks of one size, not as
-   *  wedges that fatten with radius — the wedge is `arcs()`. */
+   *  emits a CLOSED rectangle on the same radius, which is the node, the
+   *  lozenge and the bar of a ring that is filled. Px rather than
+   *  degrees, because the mark that fattens with radius is `arcs()`.
+   *  @trap Not a stroke width by another name: a closed mark is
+   *  GEOMETRY, so it fills, unions and is clipped as the shape it is. */
   float markPx = 0.0f;
 
   /** Field-wise, with the classifier conservative: any classify present
@@ -164,21 +119,14 @@ inline SkPath ticks(const path::PolarFrame& frame, const Ticks& t) {
   return b.detach();
 }
 
-/** The ladder as a SHAPE VALUE, with the frame taken from the node's own
- *  laid-out box: centre at the box centre, radius = half the SHORTER side.
- *
- *  `conventions` therefore supplies ONLY `zero`, `sense` and `originDeg`.
- *  Its `centre` and `radius` are overwritten, so a frame passed here does
- *  not place the ladder — the node's box does.
- *
- *  Half the shorter side, not half the width, so a ladder on a non-square
- *  box stays a circle instead of silently becoming an ellipse whose
- *  `PolarFrame::fraction()` no longer matches. Give it a square box
- *  (`PolarFrame::box()`, `kit::disc`) and the question does not arise.
- *
- *  Comparable, so the node prunes — unless the Ticks carries a `classify`
- *  callable, which equality cannot see and which therefore makes the whole
- *  value compare unequal to everything. */
+/** THE LADDER AS A SHAPE VALUE, with the frame taken from the node's own
+ *  laid-out box: centre at the box centre, radius half the SHORTER side.
+ *  `conventions` therefore supplies ONLY `zero`, `sense` and `originDeg`
+ *  — its `centre` and `radius` are overwritten, so a frame passed here
+ *  does not place the ladder. Comparable, so the node prunes, unless the
+ *  Ticks carries a `classify` callable.
+ *  @trap Half the shorter side keeps a ladder on an oblong box a circle
+ *  rather than an ellipse `PolarFrame::fraction()` no longer matches. */
 struct TicksShape {
   Ticks t;
   path::PolarFrame conventions;
@@ -202,23 +150,14 @@ inline TicksShape ticks(const Ticks& t, path::PolarFrame conventions = {}) {
 // ---------------------------------------------------------------------------
 // arcs — the ring's own divisions as N closed segments.
 
-/** A ring of CLOSED ARC SEGMENTS: N wedges of the annulus between two
+/** A RING OF CLOSED ARC SEGMENTS: N wedges of the annulus between two
  *  radii, each `spanDeg` wide, dealt round the frame the way `ticks()`
- *  deals its marks.
- *
- *  This is the curved sibling of a `Ticks` carrying a `markPx`, and the
- *  two answer different pictures. A tick's mark is a straight bar of one
- *  width — a node, dealt round a ring, reading as marks of one size. An
- *  arc's mark follows the ring, so its edges are the ring's own arcs and
- *  it fattens with radius the way a segment of a dial does. A segmented
- *  progress ring, a fan of sectors, a broken annulus: each is one path
- *  here rather than N drawn things.
- *
- *  Every angle is in the FRAME's units, exactly as `ticks()` reads them,
- *  and `spanDeg` is a WIDTH, so it takes the frame's sign but not its
- *  origin. A span wider than the pitch makes neighbours overlap, which
- *  a fill with a non-zero winding closes into a solid ring — say the
- *  pitch, not more, unless that is the drawing. */
+ *  deals its marks. The curved sibling of a `Ticks` carrying a `markPx`:
+ *  an arc's mark follows the ring, so it fattens with radius the way a
+ *  segment of a dial does. Every angle is in the FRAME's units, and
+ *  `spanDeg` is a WIDTH, taking the frame's sign but not its origin.
+ *  @trap A span wider than the pitch overlaps its neighbours, which a
+ *  non-zero winding fill closes into a solid ring. */
 struct Arcs {
   /** How many segments, dealt as `ticks()` deals marks: with a full
    *  sweep and `closed = false`, segment N would coincide with segment 0
@@ -294,28 +233,15 @@ inline ArcsShape arcs(const Arcs& a, path::PolarFrame conventions = {}) {
 // ---------------------------------------------------------------------------
 // chords — a polygon's sides (or a star polygon's) as N open contours.
 
-/** The n vertices of a regular n-gon on a frame, as chord endpoints, wound
- *  so that consecutive contours run the same way round.
- *
- *  **What it is for, and nothing else in the library does this.** With
- *  `step = 1` and `closed = false` the sides come out as *n separate open
- *  contours of one path*, and `TextPath` walks every contour of a baseline
- *  in order as ONE arc-length coordinate. So side *k*'s midpoint is at
- *  exactly `(k + 0.5) / n` of the whole run, and an inscription around a
- *  polygon becomes one text node on one outline instead of n runs a caller
- *  has to place. `shapes::polygon(n)` cannot do this: it emits one CLOSED
- *  contour, so a per-side coordinate does not exist.
- *
- *  The winding decides which way glyphs on that baseline face — clockwise
- *  on screen puts glyph-up radially outward, the engraver's convention,
- *  the same choice `shapes::circle` documents. It comes from the frame's
- *  `sense` rather than from an argument here.
- *
- *  @p inset shortens each chord by that many px at BOTH ends — the gap an
- *  engraver leaves at a vertex so the corner ornament reads. A chord
- *  shorter than twice the inset is dropped entirely. It reaches the OPEN
- *  form alone: a closed traversal joins the chords into one contour, and
- *  a contour has no chord ends to trim. */
+/** THE N VERTICES OF A REGULAR N-GON on a frame, as chord endpoints,
+ *  wound so that consecutive contours run the same way round. With
+ *  `step = 1` and `closed = false` the sides come out as n SEPARATE OPEN
+ *  contours of one path, which is the addressable-per-side form a text
+ *  baseline walks as one arc-length coordinate; `shapes::polygon(n)`
+ *  emits one closed contour and cannot say it. The winding, and so which
+ *  way glyphs on that baseline face, comes from the frame's `sense`.
+ *  @trap `inset` reaches the OPEN form alone: a closed traversal has no
+ *  chord ends to trim. */
 struct Chords {
   int sides = 7;
   /** 1 = the polygon's sides. 2 = a {n/2} star polygon's chords, and so

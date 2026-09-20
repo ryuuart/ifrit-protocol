@@ -70,13 +70,10 @@ class Readback {
 /** The resource @p name, handed back the frame after it was written. */
 Readback readback(std::string name);
 
-/** ONE FRAME, DECLARED.
- *
- *  A Frame is built fresh every frame and thrown away, the way an
- *  Element is: it holds no surfaces, no order and no device. A frame
- *  with no passes IS its scene — the bodies are drawn straight from the
- *  viewpoint the tree declared — so an author reaches for passes only
- *  when there is something to say about how the picture is made. */
+/** ONE FRAME, DECLARED: built fresh every frame and thrown away, the
+ *  way an Element is, holding no surfaces, no order and no device. A
+ *  frame with no passes IS its scene — the bodies are drawn straight
+ *  from the viewpoint the tree declared. */
 class Frame {
  public:
   Frame() = default;

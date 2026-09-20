@@ -3,22 +3,12 @@
 /** @file
  * @ingroup draw-brush
  *
- * Photoshop `.abr` brush libraries, read for their sampled tips.
- *
- * WHAT IS HONOURED: file versions 6, 7 and 10, and in them every SAMPLED
- * brush in the `samp` section — its bitmap, at its own dimensions, raw
+ * Photoshop `.abr` brush libraries, read for their sampled tips: file
+ * versions 6, 7 and 10, and in them every SAMPLED brush's bitmap, raw
  * or PackBits-compressed, 8 or 16 bits deep, taken as the stamp's
- * coverage. One `.abr` holds a library, so the answer is a list, in the
- * file's order.
- *
- * WHAT IS SKIPPED, and what the answer carries instead: a version 6 file
- * keeps its NAMES, spacing, scattering, shape dynamics, texture, dual
- * brush, transfer and the rest in a Photoshop DESCRIPTOR, a separately
- * typed object graph this reader does not parse, so every imported tool
- * takes the library's own defaults for all of them and only its shape is
- * the file's. COMPUTED brushes — the ones with no bitmap, described by a
- * diameter, hardness and roundness — are not sampled tips and are left
- * out entirely. Versions 1 and 2 are not read.
+ * coverage. The Photoshop DESCRIPTOR those files keep their names and
+ * numbers in is not parsed, computed brushes are left out, and versions
+ * 1 and 2 are not read.
  */
 
 #include <sigildraw/brush/Tool.h>

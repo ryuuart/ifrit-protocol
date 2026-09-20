@@ -4,15 +4,11 @@
  * @ingroup material-pattern
  *
  * Tile — a repeating texture baked once from a program: a recipe for one
- * tile plus a mapping (scale, rotation, offset). The tile bakes ONCE into
- * an image memoised on shared state; regeneration is explicit — `seed(n)`
- * drops the bake and the next `image()` re-renders. Scale, rotation and
- * offset act on the sampling matrix only, so a rotated repeat stays
- * seamless and costs no rebake.
- *
- * THE BAKE IS THE IDENTITY, and that decides where a Tile is stored. Hold
- * one where assets are held; re-minting a Tile each frame mints fresh
- * shared state with no bake in it, so every frame re-renders the tile.
+ * tile plus a mapping. The bake is memoised on shared state and
+ * regeneration is explicit; scale, rotation and offset act on the
+ * sampling matrix only, so a rotated repeat stays seamless and costs no
+ * rebake. THE BAKE IS THE IDENTITY, so hold a tile where assets are
+ * held: one re-minted each frame carries no bake and re-renders.
  */
 
 #include <include/core/SkCanvas.h>

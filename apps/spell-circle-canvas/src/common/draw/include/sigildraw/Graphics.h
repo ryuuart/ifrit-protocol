@@ -18,39 +18,11 @@ namespace sigil::draw {
 
 /** AN OFFSCREEN CANVAS AND THE PEN THAT DRAWS ON IT — p5's
  *  `createGraphics(w, h)`, spelled as the value it returns because it
- *  lives across frames: a sketch keeps one as a member and opens a
- *  frame on it whenever it has something to draw there.
- *
- *      draw::Graphics buffer{200, 200};       // a member of the sketch
- *
- *      void draw(Pen& pen) override {
- *        Pen& g = buffer.begin(pen);          // the buffer's own pen
- *        g.background(0);
- *        g.fill(255, 120, 80);
- *        g.circle(100, 100, 40);
- *        buffer.end();
- *        pen.image(buffer, 20, 20);           // and onto the frame
- *      }
- *
- *  ITS PIXELS ARE THE HOST'S. The buffer is formed at the host pen's
- *  own density, through the host's canvas, so it lives where the host
- *  draws — on the device when the host is on one — and falls back to
- *  raster where that canvas cannot make a surface. It is re-formed when
- *  the density changes and kept otherwise, so what was drawn on it
- *  stands until something draws over it, exactly as p5's does.
- *
- *  A RE-FORM KEEPS THE PICTURE. A surface that has to be replaced — the
- *  density moved, or `resize` gave the buffer another canvas size — is
- *  not handed over empty: what the old one held is drawn into it, scaled
- *  to the new extent. Changing how large a buffer is, or how many pixels
- *  a unit of it covers, must not erase what earlier frames accumulated
- *  on it.
- *
- *  ITS CLOCK IS THE HOST'S. `begin` reads the host pen's frame count,
- *  elapsed time, step and fonts onto the buffer's pen, so a material
- *  resolved there and a shaped line of text there agree with the frame
- *  around them. Its style is its own and holds between frames, as a
- *  pen's does. */
+ *  lives across frames. ITS PIXELS ARE THE HOST'S, formed at the host
+ *  pen's own density through the host's canvas, and a re-form keeps the
+ *  picture by drawing the old surface into the new one. ITS CLOCK IS THE
+ *  HOST'S, read onto the buffer's pen by `begin`; its style is its own
+ *  and holds between frames, as a pen's does. */
 class Graphics {
  public:
   /** @p width by @p height in canvas units — the units the buffer's pen

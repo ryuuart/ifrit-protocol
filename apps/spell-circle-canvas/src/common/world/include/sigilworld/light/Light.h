@@ -4,15 +4,8 @@
  * @ingroup world-light
  * Emitters as plain values: a sun, a point light and a spot, each a
  * comparable struct of where it is, which way it faces, what colour it
- * is and how far it reaches. Nothing here renders, uploads or holds a
- * device — a light is a value a renderer reads, a scene writes to a
- * stage, and a test compares.
- *
- * Colours are LINEAR. A SUN has a direction and no position: it is
- * infinitely far away and shines the same everywhere. A POINT light has
- * a position and a range. A SPOT is a point light narrowed to a cone
- * about its direction, full strength inside the inner angle and dark
- * outside the outer one.
+ * is and how far it reaches. Colours are LINEAR. Nothing here renders,
+ * uploads or holds a device.
  */
 
 #include <cstdint>
@@ -67,12 +60,9 @@ Light spot(glm::vec3 position, glm::vec3 direction, float outerDeg = 45,
            float intensity = 1, float range = 600);
 
 /** How much of @p light reaches @p at, in [0, 1], before any surface
- *  term. A sun reaches everything equally. A point light falls off on a
- *  window — (1 - (d/range)^2)^2 — rather than an inverse square, which
- *  keeps an authored intensity in the same small range as a sun's
- *  instead of running to thousands, and reaches exactly zero at its
- *  range rather than trailing off forever. A spot multiplies that by its
- *  cone. */
+ *  term. A sun reaches everything equally; a point light falls off on a
+ *  window rather than an inverse square, reaching exactly zero at its
+ *  range; a spot multiplies that by its cone. */
 float attenuation(const Light& light, const glm::vec3& at);
 
 /** The light's colour scaled by its intensity — what a renderer uploads

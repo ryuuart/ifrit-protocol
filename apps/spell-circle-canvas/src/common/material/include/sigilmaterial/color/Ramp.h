@@ -5,17 +5,10 @@
  *
  * ONE COLOUR RAMP AS A VALUE: the stops, the space they are walked in,
  * the shape of the walk, which way round it runs, and the numbers its
- * ends stand for. It answers a colour for a number, and it is callable,
- * so anything that takes an interpolator over a unit position takes a
- * ramp.
- *
- * `sampleRamp` in `Color.h` is the ladder underneath — stops read in
- * straight sRGB, which is what a renderer's gradient draws. This is that
- * ladder with the four decisions a caller otherwise re-spells at every
- * site: whether the walk is perceptual, whether it is eased, whether it
- * runs the other way, and what range of the caller's own numbers it
- * covers. A look chosen once for a whole sheet is one of these carried
- * as a token rather than a stop list plus four conventions repeated.
+ * ends stand for. It answers a colour for a number and is callable, so
+ * anything taking an interpolator over a unit position takes a ramp.
+ * `sampleRamp` is the ladder underneath; this is that ladder with the
+ * four decisions a caller otherwise re-spells at every site.
  */
 
 #include <sigilcore/compute/Curve.h>
@@ -25,19 +18,12 @@
 
 namespace sigil::material {
 
-/** WHICH SPACE THE COLOURS BETWEEN TWO STOPS ARE WALKED IN.
- *
- *  The four answer different questions and none of them is the default
- *  for every ramp. `Srgb` walks the numbers a file stores and is what a
- *  renderer's gradient does, so it is the space to pick when the ramp
- *  must match one drawn as a gradient. `Linear` walks the light the
- *  numbers stand for, which is the answer when the ramp means a quantity
- *  of light — an exposure, a falloff, an accumulation. `Oklab` walks
- *  what an eye reports: even steps, and no dark band where two
- *  saturated stops cross. `Oklch` walks the same space around the hue
- *  circle instead of across it, which is the difference between a red to
- *  green ramp passing through grey and one passing through orange and
- *  yellow. */
+/** WHICH SPACE THE COLOURS BETWEEN TWO STOPS ARE WALKED IN. `Srgb`
+ *  walks the numbers a file stores, which is what a renderer's gradient
+ *  does; `Linear` the light they stand for; `Oklab` what an eye reports;
+ *  `Oklch` the same space around the hue circle instead of across it.
+ *  @trap None of the four is the default for every ramp — the space is
+ *  the question the ramp is answering. */
 enum class RampSpace : uint8_t { Srgb, Linear, Oklab, Oklch };
 
 /** WHICH WAY ROUND THE HUE CIRCLE an `Oklch` walk goes.
@@ -51,20 +37,12 @@ enum class RampSpace : uint8_t { Srgb, Linear, Oklab, Oklch };
 enum class HueArc : uint8_t { Shorter, Longer, Increasing, Decreasing };
 
 /** THE RAMP: stops, and the five decisions about how they are read.
- *
- *  `at(v)` maps the caller's own number onto the stops and answers a
- *  colour; `operator()` is the same call, so a ramp IS an interpolator —
- *  a data scale hands its unit position straight to one, and a legend
- *  chip, a scatter's tint and a shader's gradient all read the same
- *  value.
- *
- *  Outside the domain it CLAMPS, exactly as `sampleRamp` clamps outside
- *  the stop list: a ramp carries no answer for what lies beyond its ends,
- *  and a flat band at the end keeps an out-of-range input visible instead
- *  of inventing a colour for it.
- *
- *  Every member is a plain number, a small enumeration or a stop list, so
- *  two ramps compare exactly and a memo keyed on one can be skipped. */
+ *  `Ramp::at` maps the caller's own number onto the stops and answers a
+ *  colour, and the call operator is the same call, so a ramp IS an
+ *  interpolator. Every member is a plain number, a small enumeration or
+ *  a stop list, so two ramps compare exactly.
+ *  @trap Outside the domain it CLAMPS: a ramp carries no answer for what
+ *  lies beyond its ends. */
 struct Ramp {
   /** The colours and where they sit, in [0, 1], in order. Two stops at
    *  one position are a hard edge — the band boundary a ramp says with no

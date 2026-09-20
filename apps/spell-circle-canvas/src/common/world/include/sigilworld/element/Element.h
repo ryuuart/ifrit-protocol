@@ -46,19 +46,13 @@ namespace sigil::world {
 
 struct ElementNode;
 
-/** ONE NODE OF A 3D SCENE, as a value.
- *
- *  An Element is built fresh every frame and thrown away: it holds no
- *  device resources, no entity and no running motion, and the retained
- *  tree behind it is the Scene's business. The chaining setters return
- *  `*this`, so a node reads as one expression, and the value is
- *  copy-on-write, so passing one around costs a refcount.
- *
- *  Where a concept exists in two dimensions this spells it the way
- *  SigilCompose spells it — `key`, `child`, `children`, `at`, `scale`,
- *  `fill`, `cache`, `bind`, `animate` — and the new spellings are the
- *  ones a plane does not have: the z lanes, the axis turn, the geometry
- *  slot, tags, emitters and viewpoints. */
+/** ONE NODE OF A 3D SCENE, as a value: built fresh every frame and
+ *  thrown away, holding no device resources, no entity and no running
+ *  motion. The chaining setters return the element, so a node reads as
+ *  one expression, and the value is copy-on-write, so passing one around
+ *  costs a refcount. Where a concept exists in two dimensions this
+ *  spells it the way SigilCompose spells it; the new spellings are the
+ *  ones a plane does not have. */
 class Element {
  public:
   Element();
@@ -123,12 +117,10 @@ class Element {
   Element& transform(const glm::mat4& matrix);
   /** Ride a curve: the node stands at @p distance along @p spline,
    *  turned onto the curve's own moving frame. The distance is in the
-   *  spline's units — `Spline3::length()` is the total — and it is a
-   *  lane like any other, so `bind()` tows the node along.
-   *
-   *  It replaces the translation lanes and the axis turn, and composes
-   *  with the rest: the three rotation lanes, the scales and the origin
-   *  still apply, inside the frame the curve put the node in. */
+   *  spline's units and it is a lane like any other, so a binding tows
+   *  the node along.
+   *  @trap It replaces the translation lanes and the axis turn; the
+   *  rotation lanes, the scales and the origin still apply. */
   Element& along(geometry::mesh::curve::Spline3 spline,
                  motion::Animatable<float> distance);
 
@@ -167,13 +159,12 @@ class Element {
   /** A value that builds its own mesh. */
   Element& generate(Generator g);
   /** A WINDOW INTO A LOOP: the leading edge and the length trailing it,
-   *  both in loop parameter and both bindable, so advancing `head` alone
-   *  tows the window round. It addresses the `chain()` in this node's
-   *  slot, whose first operator carries the loop; a slot holding
-   *  anything else ignores it.
-   *
-   *  A moving window is moving GEOMETRY: every distinct pair of values
-   *  is a different chain and cooks its own points. */
+   *  both in loop parameter and both bindable, so advancing @p head
+   *  alone tows the window round. It addresses the chain in this node's
+   *  slot, whose first operator carries the loop.
+   *  @trap A moving window is moving GEOMETRY: every distinct pair of
+   *  values is a different chain and cooks its own points.
+   *  @silent the slot holds anything but a chain. */
   Element& window(motion::Animatable<float> head,
                   motion::Animatable<float> span);
 
@@ -201,15 +192,12 @@ class Element {
                     motion::Animatable<float> green,
                     motion::Animatable<float> blue);
 
-  /** THE ENVIRONMENT MAP THIS SET STANDS IN: the panorama every lit body
-   *  samples by its normal for what falls on it from all around, and by
-   *  its reflected view vector for what it mirrors. The node's transform
-   *  ORIENTS it, the way a dome light is placed in every authoring tool,
-   *  so `rotateY()` turns the sky.
-   *
-   *  A frame holds ONE. A second one described is a warning naming both
-   *  keys, and the first in tree order is the one that shades — a silent
-   *  no-op would be a set lit by whichever node happened to come last. */
+  /** THE ENVIRONMENT MAP THIS SET STANDS IN: the panorama every lit
+   *  body samples by its normal for what falls on it from all around,
+   *  and by its reflected view vector for what it mirrors. The node's
+   *  transform ORIENTS it, so a turn about y turns the sky.
+   *  @trap A frame holds ONE: a second one described is a warning naming
+   *  both keys, and the first in tree order is the one that shades. */
   Element& environmentMap(Environment e);
   /** How much of the map reaches a surface as the light falling on it
    *  from everywhere, and how much of it a surface mirrors. Pushing one
@@ -254,12 +242,11 @@ class Element {
   Element& cache(core::Cache c);
   /** The node's default transition, for the plain constants on it. */
   Element& transition(const motion::Transition& t);
-  /** CASCADES THE ENTRANCES of this node's children as they mount, on the
-   *  schedule SigilMotion speaks — an even ladder, a fixed total divided
-   *  across however many children there are, a cue table, an origin and a
-   *  distribution curve. The delay compounds down the subtree, so a
-   *  grandchild enters after its parent did. Only children that actually
-   *  mount are delayed. */
+  /** CASCADES THE ENTRANCES of this node's children as they mount, on
+   *  the schedule SigilMotion speaks. The delay compounds down the
+   *  subtree, so a grandchild enters after its parent did.
+   *  @silent a child was already standing: only children that actually
+   *  MOUNT are delayed. */
   Element& staggerChildren(motion::Spread spread);
   /** @} */
 

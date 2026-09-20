@@ -104,14 +104,13 @@ class Video {
    *  the fact rather than the intent decodes one frame first. */
   bool hardwareDecoding() const;
 
-  /** The frame covering @p seconds, or the one before it when the frame
-   *  durations leave a gap there. Passing a Graphite recorder enables
-   *  direct device-plane composition when the decoder produced one.
-   *
-   *  A stream whose frames carry no presentation timestamps is placed by
-   *  decode order against the probed frame rate. No time inside such a
-   *  stream can be sought to, so an ask behind the playhead reads it
-   *  again from the beginning. */
+  /** The frame covering @p seconds, or the one before it when the
+   *  frame durations leave a gap there. Passing a Graphite recorder
+   *  enables direct device-plane composition when the decoder produced
+   *  one.
+   *  @trap A stream with no presentation timestamps is placed by decode
+   *  order and cannot be sought inside, so an ask behind the playhead
+   *  reads it again from the beginning. */
   VideoFrame frameAt(double seconds,
                      skgpu::graphite::Recorder* recorder = nullptr);
 

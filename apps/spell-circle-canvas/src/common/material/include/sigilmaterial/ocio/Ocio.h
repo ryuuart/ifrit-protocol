@@ -3,36 +3,13 @@
 /** @file
  * @ingroup material-ocio
  *
- * OpenColorIO view transforms as materials. In a build that found no
- * OpenColorIO the feature still links: `available()` is false and every
- * factory answers the empty LUT material a bad config would.
- * SIGILMATERIAL_ENABLE_OCIO says which build this is.
- *
- * OCIO's own GPU codegen emits GLSL, HLSL, MSL and OSL and never SkSL, so
- * it cannot shade here directly. Each factory builds a CPU processor for
- * the requested transform, bakes it once, holds the bake as a texture,
- * and applies it through a recipe whose one open slot, `content`, is the
- * layer being transformed: a renderer binds that slot to its output and
- * gets one sample per pixel and nothing of OCIO proper per frame.
- *
- * WHICH RECIPE depends on the transform. A transform whose channels are
- * INDEPENDENT — an exponent, a gamma, a contrast, a per-channel tone
- * curve — carries no more information than one response curve per
- * channel, and bakes to a single row through `responseRecipe()`; a
- * transform that mixes channels needs the volume and bakes to a 3D LUT
- * through `lutRecipe()`. Independence is established from the CPU
- * processor, not assumed from the transform's type. The row recipe is
- * declared channelwise, so a renderer on an eight-bit surface can drop
- * the program entirely and run a 256-entry per-channel table instead;
- * `lutSize` is therefore meaningless to a transform that bakes to a row.
- *
- * Colour contract: what the content carries is treated as the
- * transform's INPUT space. For a display/view transform, author in the
- * config's scene-linear role and the view maps linear to display.
- *
- * LUTs bake to F16 because F32 textures are not linearly filterable on
- * Apple GPUs — a trilinear sampler over an F32 LUT would fall back to
- * point sampling and band.
+ * OpenColorIO view transforms as materials: a transform baked once on
+ * the CPU, held as a texture, and applied through a recipe whose one
+ * open slot, `content`, is the layer being transformed. A transform
+ * whose channels are INDEPENDENT bakes to a row, one that mixes them to
+ * a 3D LUT, and independence is established from the processor rather
+ * than assumed. What the content carries is the transform's INPUT
+ * space. Without OpenColorIO the feature still links, empty.
  */
 
 #include <sigilmaterial/core/Material.h>

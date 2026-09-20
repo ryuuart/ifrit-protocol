@@ -2,23 +2,10 @@
 
 /** @file
  * SENDING DOWN A WIRE: the peer a message goes to, one message or the
- * same message again and again, driven by the caller's own clock, and
- * the messages a reader spells rather than types out byte by byte.
- *
- * A wire that speaks a format is answered in what it speaks. The
- * hexadecimal a reader would otherwise type is a header, a set of type
- * tags, a status byte or a run of padding all at once — which is a
- * message nobody spells twice without a mistake in it — so the three
- * wires that name their format carry the message a reader means instead:
- * an address with its arguments, a note played on a channel, a universe
- * of dimmers.
- *
- * The peer is a wire like any other — it is opened through Wires, it
- * stands in the same list, and what the peer sends back arrives on it —
- * so a reader watches the answer to what was just sent without opening
- * anything else. The repeat has no thread: `tick()` is what sends, so a
- * host that stops calling it stops sending, and nothing is in flight
- * once it returns.
+ * same message again and again driven by the caller's own clock, and
+ * the messages a reader spells rather than types out byte by byte. The
+ * peer is a wire like any other, so what it sends back arrives on it.
+ * The repeat has no thread: `tick()` is what sends.
  */
 
 #include <sigilio/hub/Feed.h>
@@ -34,39 +21,29 @@ namespace sigil::seer {
 
 class Wires;
 
-/** THE BYTES OF ONE OSC MESSAGE: @p address, and the arguments
- *  @p arguments spells as a JSON document — a list being the arguments
- *  in order, any other value the one argument it is, and nothing at all
- *  a message carrying none. Empty when the address is empty, when the
- *  arguments are not a document, and when the message will not fit one
- *  packet, so half a message never goes out.
- *
- *  An address is where on the instrument at the other end the message
- *  lands, and it is the one part of a packet that is not an argument. */
+/** THE BYTES OF ONE OSC MESSAGE: @p address — where on the instrument
+ *  at the other end the message lands — and the arguments
+ *  @p arguments spells as a JSON document, a list being them in order
+ *  and any other value the one argument it is.
+ *  @silent the address is empty, the arguments are not a document, or
+ *  the message will not fit one packet: half a message never goes
+ *  out. */
 io::Bytes oscMessage(std::string_view address, std::string_view arguments);
 
 /** THE BYTES OF ONE MIDI MESSAGE: @p kind — "NoteOn", "NoteOff",
  *  "PolyAftertouch", "ControlChange", "ProgramChange", "Aftertouch" or
- *  "PitchBend" — played on @p channel, 1 to 16, carrying @p first and
- *  @p second, which are the numbers that kind takes in the order the
- *  wire carries them: the note and how hard it was struck, the key and
- *  the weight leaned on it, the controller and where it now stands. A
- *  kind that takes one number — a program, a whole keyboard's weight, a
- *  wheel's distance from centre — takes @p first and leaves @p second
- *  off the wire.
- *
- *  Empty for a kind the wire has no status byte for, so half a message
- *  never goes out. A number past what its place on the wire holds is
- *  written at the nearer end of that place rather than wrapped, since a
- *  wrapped note is a note nobody played. */
+ *  "PitchBend" — played on @p channel, 1 to 16, carrying the numbers
+ *  that kind takes in the order the wire carries them. A kind that
+ *  takes one number leaves @p second off the wire.
+ *  @trap A number past what its place on the wire holds is written at
+ *  the nearer end of that place rather than wrapped. */
 io::Bytes midiMessage(std::string_view kind, int channel, int first,
                       int second);
 
-/** ONE MIDI MESSAGE WRITTEN IN WORDS: the kind, the channel it is played
- *  on, and the numbers that kind carries, which is the same message
- *  `midiMessage()` spells and is how it is said where there is no form
- *  to fill in. The second number stands at nothing for a kind that
- *  carries one, since the wire carries none for it. */
+/** ONE MIDI MESSAGE WRITTEN IN WORDS: the kind, the channel and the
+ *  numbers that kind carries — the same message `midiMessage()` spells,
+ *  said where there is no form to fill in. The second number stands at
+ *  nothing for a kind that carries one. */
 struct MidiWords {
   std::string kind;
   int channel = 1;
@@ -75,12 +52,10 @@ struct MidiWords {
 };
 
 /** WHAT @p words SAY: the kind, the channel and the numbers that kind
- *  carries, blanks between them and nothing else — "NoteOn 1 60 100" for
- *  a kind that carries two numbers and "ProgramChange 2 7" for a kind
- *  that carries one. Nothing when the first word is no kind a channel
- *  carries, when a number is not written out whole, and when there are
- *  more or fewer numbers than that kind takes, so a number nobody said
- *  is never played as one they did. */
+ *  carries, blanks between them and nothing else — "NoteOn 1 60 100",
+ *  "ProgramChange 2 7".
+ *  @silent the first word is no kind a channel carries, a number is not
+ *  written out whole, or the count is not the kind's. */
 std::optional<MidiWords> midiWords(std::string_view words);
 
 /** THE BYTES OF ONE ART-NET PACKET: a universe of dimmers for

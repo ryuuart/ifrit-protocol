@@ -5,14 +5,10 @@
  * The BYTE SOURCE foundation: the one vocabulary every resource path in
  * this library and its consumers speaks. A source answers a URI with
  * bytes; a decoder turns bytes into a value. Nothing here knows what a
- * URI resolves to or what a byte means — that is what lets a decoder be
- * written against a test fixture and run unchanged behind a hub, and a
- * hub be replaced by a pack file or an in-memory table without any
- * decoder noticing.
- *
- * `readBytes` is the local-filesystem end of it, the one place in this
- * tree where a file becomes a run of bytes, as `writeBytes` beside the
- * sink concept is the one place a run of bytes becomes a file.
+ * URI resolves to or what a byte means. `readBytes` is the
+ * local-filesystem end of it, the one place in this tree where a file
+ * becomes a run of bytes, as `writeBytes` beside the sink concept is
+ * the one place a run of bytes becomes a file.
  *
  * Standard library only, header only.
  */
@@ -90,11 +86,11 @@ concept ResolvingByteSource =
     };
 
 /** Turns bytes into a T, or nothing when the bytes are not one. `hint`
- *  is the resource's name (a path or URI); a decoder may use its
- *  extension to sharpen format detection but must never REQUIRE it —
- *  bytes arriving from memory carry no name. So the hint is OFFERED
- *  rather than demanded: a decoder that reads the bytes alone spells
- *  `decode(bytes)` and is as good a decoder as one that takes both. */
+ *  is the resource's name, a path or a URI, and is OFFERED rather than
+ *  demanded: a decoder that reads the bytes alone spells
+ *  `decode(bytes)` and is as good a decoder as one taking both.
+ *  @trap A decoder must never REQUIRE the hint — bytes arriving from
+ *  memory carry no name. */
 template <typename D, typename T>
 concept Decoder =
     requires(const D& decoder, const Bytes& bytes, std::string_view hint) {
@@ -105,21 +101,11 @@ concept Decoder =
 
 /** WHAT A KIND OF MEANING IS PROBED WITH: a free function found by
  *  argument-dependent lookup in T's own namespace, answering what @p
- *  bytes are without decoding them.
- *
- *      namespace sigil::image {
- *      std::optional<ImageProbe> probeResource(
- *          std::type_identity<ImageProbe>, std::span<const std::byte>,
- *          const std::filesystem::path& hint);
- *      }
- *
- *  The library that owns the meaning declares it, against nothing from
- *  here but the standard library — a span of bytes and a name. That is
- *  what lets a byte source answer `probe<T>()` for a T it has never
- *  heard of, and keeps deciding what a format is out of the code that
- *  only knows where bytes live. @p hint is the resource's name, which
- *  a prober may use to sharpen format detection and must never
- *  require. */
+ *  bytes are without decoding them. The library that owns the meaning
+ *  declares it against nothing from here but the standard library, so a
+ *  byte source answers `probe<T>()` for a T it has never heard of.
+ *  @trap @p hint is the resource's name, which a prober may use to
+ *  sharpen format detection and must never require. */
 template <typename T>
 concept Probable = requires(std::span<const std::byte> bytes,
                             const std::filesystem::path& hint) {

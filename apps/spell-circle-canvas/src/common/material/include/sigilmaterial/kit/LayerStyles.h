@@ -4,14 +4,10 @@
  * @ingroup material-kit
  *
  * The colour TABLES behind the gel and chrome looks an image editor
- * builds from ramps and blurs — the aqua body, halo and glow colours and
- * the two chrome palettes, each a list of stops a renderer turns into its
- * own gradient — and the contour table a satin band remaps blurred
- * coverage through.
- *
- * Data and nothing else. What a renderer's bundle EXPOSES — which
- * highlight, how deep a bevel, how hard a recess — is the renderer's own
- * value, because those are knobs on its decorations rather than colours.
+ * builds from ramps and blurs, and the contour table a satin band remaps
+ * blurred coverage through. Data and nothing else: what a renderer's
+ * bundle exposes is the renderer's own value, because those are knobs on
+ * its decorations rather than colours.
  */
 
 #include <sigilmaterial/color/Color.h>

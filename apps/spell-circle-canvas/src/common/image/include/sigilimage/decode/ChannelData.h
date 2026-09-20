@@ -20,16 +20,12 @@
 namespace sigil::image {
 
 /**
- * The raw decoded color data: every channel the source carries, as
+ * The raw decoded colour data: every channel the source carries, as
  * named interleaved float planes — the format-neutral bridge between
- * decoders and consumers (Skia, and any library that wants numbers
- * rather than an SkImage).
- *
- * LDR sources (PNG/JPEG/… via Skia codecs) arrive as premultiplied
- * R,G,B,A normalized to 0..1; float sources (EXR, float TIFF) keep
- * their full HDR range and channel names ("glow.R", "depth.Z"…).
- * Multi-part EXR parts matching the base dimensions merge in with
- * their part name as the prefix.
+ * decoders and consumers. LDR sources arrive as premultiplied R, G, B,
+ * A normalised to 0..1; float sources keep their full HDR range and
+ * their channel names. Multi-part EXR parts matching the base
+ * dimensions merge in with their part name as the prefix.
  */
 struct ChannelData {
   int width = 0;
@@ -41,24 +37,26 @@ struct ChannelData {
   /** Index of a channel by exact name; -1 when absent. */
   int index(std::string_view name) const;
 
-  /** One channel of one texel. The caller states a texel inside the
-   *  raster and a channel this data carries; anything else is a
-   *  programming error and is caught in a debug build. */
+  /** One channel of one texel.
+   *  @trap The caller states a texel inside the raster and a channel
+   *  this data carries; anything else is a programming error, caught in
+   *  a debug build. */
   float at(int x, int y, int channel) const {
     assert(x >= 0 && x < width && y >= 0 && y < height);
     assert(channel >= 0 && (size_t)channel < names.size());
     return data[((size_t)y * width + x) * names.size() + channel];
   }
 
-  /** Composites channels into an SkImage: `layer` selects a channel
-   *  group exactly like DecodeOptions::layer (empty = plain R/G/B/A,
-   *  luminance repeats, missing alpha = 1). Float data lands as
-   *  RGBA_F32, LDR as N32. Null when the layer names nothing. */
+  /** Composites channels into an SkImage. @p layer selects a channel
+   *  group exactly as DecodeOptions::layer does: empty is plain
+   *  R/G/B/A, a luminance channel repeats, a missing alpha is 1. Float
+   *  data lands as RGBA_F32 and LDR as N32; null when the layer names
+   *  nothing. */
   sk_sp<SkImage> makeImage(std::string_view layer = {}) const;
 
   /** Composites explicit channel indices. An index this data does not
-   *  carry — negative, or past the channels it holds — is missing:
-   *  alpha fills with 1, g and b repeat r. */
+   *  carry — negative, or past the channels it holds — is missing, so
+   *  alpha fills with 1 and green and blue repeat red. */
   sk_sp<SkImage> makeImage(int r, int g, int b, int a) const;
 };
 
