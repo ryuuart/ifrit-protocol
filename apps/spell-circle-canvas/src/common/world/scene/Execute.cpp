@@ -103,7 +103,7 @@ bool Scene::Impl::phaseGraph() {
   targets.extent(frame.extent());
   targets.unbind();
   for (const graph::Resource& resource : plan.resources()) {
-    if (resource.kind != graph::Kind::Image) continue;
+    if (resource.kind != graph::ResourceKind::Image) continue;
     targets.bind(resource.name, resource.slot);
   }
   for (const std::string& name : plan.kept()) targets.keep(name);
@@ -141,7 +141,7 @@ bool Scene::Impl::phaseExecute() {
     result.resource = back.name();
     result.frame = frameIndex;
     const graph::Resource* resource = plan.resource(back.name());
-    if (resource && resource->kind == graph::Kind::Points)
+    if (resource && resource->kind == graph::ResourceKind::Points)
       result.points = targets.points(back.name());
     else
       result.image = targets.image(back.name());

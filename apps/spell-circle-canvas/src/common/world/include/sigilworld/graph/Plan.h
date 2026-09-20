@@ -34,7 +34,7 @@ enum class Access : uint8_t { Read, Write };
 
 /** What a resource holds, taken from the stage that writes it: a
  *  compute pass writes points, and everything else writes pixels. */
-enum class Kind : uint8_t { Image, Points };
+enum class ResourceKind : uint8_t { Image, Points };
 
 /** ONE HAZARD between two steps over one resource, stated without
  *  naming a backend: what must finish, what may then begin, and which
@@ -52,7 +52,7 @@ struct Barrier {
 /** ONE RESOURCE the frame's passes named, and its life. */
 struct Resource {
   std::string name;
-  Kind kind = Kind::Image;
+  ResourceKind kind = ResourceKind::Image;
   /** The step that first writes it, and the last that touches it, in
    *  execution order. */
   size_t first = 0;

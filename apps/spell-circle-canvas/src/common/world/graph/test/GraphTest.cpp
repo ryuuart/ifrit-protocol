@@ -129,10 +129,10 @@ TEST(WorldGraph, AGeometryPassCarryingABodyMayWriteWhatWasWritten) {
   // A body runs INSTEAD of the stage and keeps only its declarations, so
   // it clears nothing: what it makes of what already stands in the
   // target is the body's own business and the rule does not reach it.
-  const Frame frame = framed()
-                          .pass(geometryPass("main").writes("colour"))
-                          .pass(geometryPass("hand").writes("colour").body(
-                              [] {}));
+  const Frame frame =
+      framed()
+          .pass(geometryPass("main").writes("colour"))
+          .pass(geometryPass("hand").writes("colour").body([] {}));
   const graph::Plan plan = graph::build(frame);
   ASSERT_TRUE((bool)plan) << plan.error();
   const std::vector<std::string> expected = {"main", "hand"};
@@ -413,9 +413,9 @@ TEST(WorldGraph, AComputePassWritesPointsAndEverythingElseWritesPixels) {
   const std::vector<std::string> expected = {"cook", "beads"};
   EXPECT_EQ(namesOf(plan), expected);
   ASSERT_NE(plan.resource("motes"), nullptr);
-  EXPECT_EQ(plan.resource("motes")->kind, graph::Kind::Points);
+  EXPECT_EQ(plan.resource("motes")->kind, graph::ResourceKind::Points);
   ASSERT_NE(plan.resource("colour"), nullptr);
-  EXPECT_EQ(plan.resource("colour")->kind, graph::Kind::Image);
+  EXPECT_EQ(plan.resource("colour")->kind, graph::ResourceKind::Image);
   // A point set holds no surface, so it never takes one.
   EXPECT_EQ(plan.resource("motes")->slot, -1);
   EXPECT_EQ(plan.present(), "colour");

@@ -30,8 +30,8 @@ void lives(std::span<const PassWork> steps, const Frame& frame,
            std::vector<Resource>& into, std::string& present,
            std::vector<std::string>& kept) {
   into.clear();
-  const auto touch = [&](const std::string& name, size_t step, Kind kind,
-                         bool written) {
+  const auto touch = [&](const std::string& name, size_t step,
+                         ResourceKind kind, bool written) {
     Resource* resource = find(into, name);
     if (!resource) {
       into.push_back(
@@ -46,8 +46,9 @@ void lives(std::span<const PassWork> steps, const Frame& frame,
 
   for (size_t step = 0; step < steps.size(); ++step) {
     const Touches touches = touchesOf(steps[step]);
-    const Kind kind = steps[step].pass->stage() == Stage::Compute ? Kind::Points
-                                                                  : Kind::Image;
+    const ResourceKind kind = steps[step].pass->stage() == Stage::Compute
+                                  ? ResourceKind::Points
+                                  : ResourceKind::Image;
     for (const std::string& name : touches.writes)
       touch(name, step, kind, /*written=*/true);
     for (const std::string& name : touches.reads)
@@ -90,7 +91,7 @@ int alias(std::vector<Resource>& resources) {
   std::vector<bool> used;
   std::vector<size_t> transients;
   for (size_t i = 0; i < resources.size(); ++i)
-    if (resources[i].kind == Kind::Image && !resources[i].persistent)
+    if (resources[i].kind == ResourceKind::Image && !resources[i].persistent)
       transients.push_back(i);
   std::stable_sort(transients.begin(), transients.end(),
                    [&resources](size_t a, size_t b) {
@@ -99,7 +100,7 @@ int alias(std::vector<Resource>& resources) {
 
   int own = 0;
   for (const Resource& resource : resources)
-    if (resource.kind == Kind::Image && resource.persistent) ++own;
+    if (resource.kind == ResourceKind::Image && resource.persistent) ++own;
 
   for (size_t index : transients) {
     Resource& resource = resources[index];
