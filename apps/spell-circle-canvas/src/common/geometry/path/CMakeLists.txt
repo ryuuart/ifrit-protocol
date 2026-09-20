@@ -39,11 +39,13 @@ sigil_library(SigilGeometryPath
           Scatter.h
           Segments.h Shaper.h Skia.h Stride.h Symmetry.h Tidy.h Trace.h
           Triangulate.h
-  PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute Boost::unordered
-  # CDT is the Delaunay triangulator, read in Triangulate.cpp alone: the
-  # answer crosses the boundary in this library's own points, indices and
-  # rings, so no consumer of a triangulation ever names it.
-  PRIVATE CDT::CDT)
+  PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute
+  # Boost's hash map buckets the nodes two of these files join strands by,
+  # and no header names one. CDT is the Delaunay triangulator, read in
+  # Triangulate.cpp alone: the answer crosses the boundary in this
+  # library's own points, indices and rings, so no consumer of a
+  # triangulation ever names it.
+  PRIVATE Boost::unordered CDT::CDT)
 
 # ONE BINARY over the leaf and the shape interpolation that stands on it.
 # Blend is not a boundary anyone reads: no consumer links it without Path,
