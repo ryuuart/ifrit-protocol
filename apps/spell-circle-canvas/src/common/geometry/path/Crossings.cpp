@@ -106,11 +106,13 @@ struct Flat {
    *  anything past an open contour's end.
    *
    *  The samples are named because the arc coordinate alone cannot find
-   *  them. THREE CONSECUTIVE SAMPLES CARRY A CONTOUR BOUNDARY — the
-   *  contour before it ends there, the break between the two repeats that
-   *  point, and the contour after it starts there — so a search through
-   *  the whole strand answers a boundary with the contour before it,
-   *  which is somewhere else in the figure entirely. */
+   *  them. TWO CONSECUTIVE SAMPLES CARRY A CONTOUR BOUNDARY, at one arc
+   *  coordinate and two places — the contour before it ends at the
+   *  first, the contour after it starts at the second — so a search
+   *  through the whole strand answers a boundary with the contour before
+   *  it, which is somewhere else in the figure entirely. Naming the
+   *  samples is also what lets the segment loop skip the chord between
+   *  those two places, which is part of neither mark. */
   struct Run {
     float from = 0;
     float to = 0;
@@ -122,6 +124,12 @@ struct Flat {
   std::vector<SkPoint> points;
   std::vector<float> at;  // cumulative arc length at each point
   std::vector<Run> runs;
+  /** True at each sample a contour ENDS at, so the segment starting
+   *  there is the chord to the next contour rather than a piece of the
+   *  mark. Answered per sample rather than by searching the runs,
+   *  because the segment loop below asks it once per pair of samples of
+   *  two strands. */
+  std::vector<bool> leaves;
   float length = 0;
   float step = kSampleStep;             // the spacing the samples came out at
   SkRect bounds = SkRect::MakeEmpty();  // of `points` — the pair rejection
@@ -149,12 +157,9 @@ Flat flat(const SkPath& path) {
     f.length += len;
     f.runs.push_back({f.length - len, f.length, firstSample,
                       f.points.size() - 1, contour.closed});
-    // A break between contours: repeat the last point so the segment loop
-    // below can skip the join (a chord between two contours is not a
-    // strand and must not manufacture crossings).
-    f.points.push_back(f.points.back());
-    f.at.push_back(f.length);
   }
+  f.leaves.assign(f.points.size(), false);
+  for (const Flat::Run& run : f.runs) f.leaves[run.lastSample] = true;
   if (!f.points.empty()) f.bounds.setBounds({f.points.data(), f.points.size()});
   return f;
 }
@@ -279,10 +284,20 @@ std::vector<Crossing> discoverCrossings(std::span<const SkPath> strands) {
       nearB.outset(0.5f, 0.5f);
       if (!SkRect::Intersects(nearA, nearB)) continue;
       for (size_t i = 0; i + 1 < fa.points.size(); ++i) {
+        // A CHORD BETWEEN TWO CONTOURS IS PART OF NEITHER MARK. Nothing
+        // is drawn from one contour's last point to the next one's
+        // first, so nothing can cross there, and the segment is not
+        // offered to the test at all — leaving it in leaned on the
+        // probe in `changesSides` to refuse it, which it does for an
+        // open contour by its own ends and for a closed one only by
+        // reading its seam, geometry that has nothing to do with the
+        // chord.
+        if (fa.leaves[i]) continue;
         const SkPoint p0 = fa.points[i], p1 = fa.points[i + 1];
         const SkVector r{p1.fX - p0.fX, p1.fY - p0.fY};
-        if (r.length() <= 1e-6f) continue;  // the contour join
+        if (r.length() <= 1e-6f) continue;  // a degenerate resampling
         for (size_t j = 0; j + 1 < fb.points.size(); ++j) {
+          if (fb.leaves[j]) continue;
           const SkPoint q0 = fb.points[j], q1 = fb.points[j + 1];
           const SkVector sv{q1.fX - q0.fX, q1.fY - q0.fY};
           if (sv.length() <= 1e-6f) continue;

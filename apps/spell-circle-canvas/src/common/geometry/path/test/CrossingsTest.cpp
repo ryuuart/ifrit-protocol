@@ -280,6 +280,34 @@ TEST(Crossings, AChordThroughAClosedStrandsSeamCrossesItThere) {
   EXPECT_NEAR(across[1], 300.0f, 0.5f) << "the seam";
 }
 
+// A CHORD BETWEEN TWO OF A STRAND'S CONTOURS IS PART OF NEITHER MARK:
+// nothing is drawn from one contour's last point to the next one's
+// first, so nothing can cross there. Where the contour before the break
+// is CLOSED there is no end for a probe to stop at, so the chord is only
+// refused if it is never offered.
+TEST(Crossings, TheChordBetweenTwoOfAStrandsContoursIsNotWalkedAsAStrand) {
+  // One strand, two closed rings: the chord runs from the first ring's
+  // seam to the second's, along y = x.
+  SkPathBuilder rings;
+  rings.addRect(SkRect::MakeXYWH(0, 0, 40, 40));
+  rings.addRect(SkRect::MakeXYWH(100, 100, 40, 40));
+  // A line that meets that chord at a shallow angle and crosses both
+  // rings: y = 0.8x + 2, which cuts the chord at (10, 10) — near enough
+  // the first ring's seam that the two samples either side of the seam
+  // sit on opposite sides of the line, which is what a probe taken round
+  // the seam reads instead of the chord.
+  const std::vector<Crossing> knots =
+      discoverCrossings({rings.detach(), segment(-20, -14, 170, 138)});
+  ASSERT_EQ(knots.size(), 4u) << "two on each ring, none on the chord";
+  std::vector<float> across;
+  for (const Crossing& knot : knots) across.push_back(knot.at.fX);
+  std::sort(across.begin(), across.end());
+  EXPECT_NEAR(across[0], 0.0f, 0.5f);    // the first ring, entering
+  EXPECT_NEAR(across[1], 40.0f, 0.5f);   // and leaving
+  EXPECT_NEAR(across[2], 122.5f, 0.5f);  // the second ring, entering
+  EXPECT_NEAR(across[3], 140.0f, 0.5f);  // and leaving
+}
+
 // A CROSSING NEARER AN OPEN CONTOUR'S END THAN HALF A SAMPLE STEP IS A
 // MEETING: below the flattening's own resolution a touch and a crossing
 // are not distinguishable, and an endpoint touch is a meeting. The
