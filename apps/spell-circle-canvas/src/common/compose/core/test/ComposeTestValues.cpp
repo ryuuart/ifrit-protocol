@@ -1,7 +1,8 @@
 // The kernel's small values, asked directly rather than through a draw:
 // what a cache mode says to the settled-subtree proof, what a paint
 // collapses to when nothing about it moves, what frame a paint is
-// resolved against, and the store a node keeps its stamp bakes in.
+// resolved against, the store a node keeps its stamp bakes in, and the
+// value semantics of an Element that has already been rendered.
 
 #include <memory>
 #include <string>
@@ -144,4 +145,37 @@ TEST(ComposeValues, ARunInterleavesTheSeparatorItIsGiven) {
                   std::vector<std::string>{},
                   [](const std::string& n) { return text(n); }, box())
                   .empty());
+}
+
+// -------------------------------------------------------------------------
+// Value semantics around Element itself: a rendered value mutated
+// detaches from the description, and a copy moves on its own.
+
+TEST(ComposeElement, MutatingRenderedValueDetachesDescription) {
+  Host host;
+  Element panel = box().width(100).height(100).fill(red());
+
+  host.composer.render(box().children({panel}));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+
+  // Composer retains the first description. Mutating the caller's value must
+  // create a new description so pointer-identity pruning cannot preserve the
+  // old cached picture.
+  panel.fill(blue());
+  host.composer.render(box().children({panel}));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);
+}
+
+TEST(ComposeElement, CopiedValuesMutateIndependently) {
+  Host host;
+  Element left = box().width(100).height(100).fill(red());
+  Element right = left;
+  right.fill(blue());
+
+  host.composer.render(box().row().children({left, right}));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+  EXPECT_EQ(host.pixel(150, 50), SK_ColorBLUE);
 }

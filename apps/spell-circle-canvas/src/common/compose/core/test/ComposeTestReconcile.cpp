@@ -1,7 +1,8 @@
 // What survives a re-describe: a memo that skips describe, keyed children
 // that keep their instances, a borrow that lands on the frame it is written,
 // the environment a component reads without being handed it, and the
-// parameters a wiggled binding has to match before it prunes.
+// parameters a wiggled binding has to match before it prunes, and the
+// structural prune that needs no memo to reach it.
 
 #include "support/CoreTestSupport.h"
 
@@ -455,4 +456,29 @@ TEST(ComposeReconcile, TwoSeedsShakeIndependentlyOnScreen) {
       << "two seeds produced the same displacement every frame — either the "
          "seed is not reaching the noise, or the second node pruned into the "
          "first";
+}
+
+// -------------------------------------------------------------------------
+// The structural prune, which needs no memo to reach it.
+
+TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
+  // memo() is an optimisation for expensive DESCRIBES, not the thing that
+  // makes pruning work. A subtree whose new description equals its old one
+  // is skipped wholesale either way, so plain boxes, text and images built
+  // from value-comparable properties re-render for free.
+  Host host;
+  auto tree = [] {
+    return box().row().gap(8).padding(12).children(
+        {box().width(40).height(40).corners({6}).fill(red()),
+         text(u8"static", styleAt(18)).key("t"),
+         box().grow(1).fill(blue()).opacity(0.9f)});
+  };
+  host.composer.render(tree());
+  host.frame();
+
+  host.composer.render(tree());  // brand-new Elements, identical values
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  EXPECT_FALSE(host.composer.dirty());  // hosts may skip the redraw
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
 }

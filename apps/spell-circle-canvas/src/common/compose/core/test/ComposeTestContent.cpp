@@ -2,7 +2,8 @@
 // undisturbed siblings, the declared input colour space, and the content
 // kinds a leaf draws from — a held path, a keyed shape, a replayed picture,
 // a figure with its own box, a keyed custom whose key must stay honest,
-// and the sampling an image leaf is magnified with.
+// the sampling an image leaf is magnified with, the box a picture and
+// an atlas region meet, and what a paint program is handed.
 
 #include <cstring>  // memcmp — for the no-conversion control
 #include <utility>
@@ -365,4 +366,140 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
 
   EXPECT_GT(magnified(SkSamplingOptions(SkFilterMode::kLinear)), 3);
   EXPECT_LE(magnified(SkSamplingOptions(SkFilterMode::kNearest)), 1);
+}
+
+// -------------------------------------------------------------------------
+// What a picture and an atlas region meet their box as, and what a
+// paint program is handed: the parameters it named, the host scale,
+// and the ticker's state.
+
+TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
+  // A raw picture is a leaf with the wrap written once, and the FIT is
+  // said where the picture is rather than as a matrix the caller builds.
+  SkBitmap wide;
+  wide.allocN32Pixels(40, 10);
+  wide.eraseColor(SK_ColorRED);
+  const sk_sp<SkImage> picture = wide.asImage();
+  const auto shown = [&](Fit fit) {
+    Host host;
+    host.composer.render(
+        box().children({box()
+                            .width(100)
+                            .height(100)
+                            .alignItems(Align::Center)
+                            .justify(Justify::Center)
+                            .children({image(picture, fit).key("fig")})}));
+    host.frame();
+    const std::optional<SkRect> fig = host.composer.bounds("fig");
+    return fig.value_or(SkRect::MakeEmpty());
+  };
+  // Both axes independently: the picture's proportions are the box's.
+  EXPECT_EQ(shown(Fit::Stretch), SkRect::MakeWH(100, 100));
+  // As large as fits, the slack on the long axis: 4:1 in a square box.
+  const SkRect held = shown(Fit::Contain);
+  EXPECT_FLOAT_EQ(held.width(), 100);
+  EXPECT_FLOAT_EQ(held.height(), 25);
+  // No slack at all: the short axis fills and the long one overflows.
+  const SkRect filled = shown(Fit::Cover);
+  EXPECT_FLOAT_EQ(filled.height(), 100);
+  EXPECT_FLOAT_EQ(filled.width(), 400);
+  // A picture that is not there draws nothing and takes no room.
+  Host bare;
+  bare.composer.render(box().children({image(sk_sp<SkImage>()).key("none")}));
+  bare.frame();
+  const std::optional<SkRect> empty = bare.composer.bounds("none");
+  ASSERT_TRUE(empty.has_value());
+  EXPECT_FLOAT_EQ(empty->height(), 0);
+}
+
+TEST(ComposeContent, ImageRegionDrawsAtlasCell) {
+  Host host;
+  auto atlas = twoCellAtlas();
+  host.composer.render(
+      box().row().children({image(atlas)
+                                .region(SkRect::MakeXYWH(16, 0, 16, 16))
+                                .width(50)
+                                .height(50),
+                            image(atlas).width(50).height(50)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(25, 25), SK_ColorGREEN);  // region: right cell only
+  EXPECT_EQ(host.pixel(60, 25), SK_ColorRED);    // whole atlas: left half
+}
+
+TEST(ComposePaint, APaintProgramNamesOnlyTheParametersItReads) {
+  // The canvas and the context are both offered, and a program takes the
+  // prefix it reads: the canvas alone, both, or neither. All three paint,
+  // so no caller spells a parameter in order to ignore it.
+  Host host;
+  int nullaryRuns = 0;
+  const auto square = [](SkCanvas& canvas, SkColor color) {
+    SkPaint paint;
+    paint.setColor(color);
+    paint.setAntiAlias(false);
+    canvas.drawRect(SkRect::MakeWH(20, 20), paint);
+  };
+  SkSize offered = SkSize::MakeEmpty();
+  host.composer.render(box().row().children(
+      {custom([&](SkCanvas& canvas) { square(canvas, SK_ColorGREEN); })
+           .width(20)
+           .height(20)
+           .cache(Cache::None),
+       custom([&](SkCanvas& canvas, const PaintContext& ctx) {
+         offered = ctx.size;
+         square(canvas, SK_ColorRED);
+       })
+           .width(20)
+           .height(20)
+           .cache(Cache::None),
+       custom([&] { ++nullaryRuns; })
+           .width(20)
+           .height(20)
+           .cache(Cache::None)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(30, 10), SK_ColorRED);
+  EXPECT_EQ(offered, SkSize::Make(20, 20));
+  EXPECT_EQ(nullaryRuns, 1) << "a program that reads neither still runs";
+}
+
+TEST(ComposePaint, ContentScaleReportsHostScale) {
+  Host host;
+  float seen = 0.0f;
+  host.composer.render(
+      box().children({custom([&seen](SkCanvas&, const PaintContext& ctx) {
+                        seen = ctx.contentScale;
+                      })
+                          .width(50)
+                          .height(50)
+                          .cache(Cache::None)}));
+  SkCanvas& canvas = *host.surface->getCanvas();
+  canvas.save();
+  canvas.scale(2.0f, 2.0f);
+  host.composer.draw(canvas);
+  canvas.restore();
+  EXPECT_FLOAT_EQ(seen, 2.0f);
+}
+
+TEST(ComposePaint, AnimatingReportsTheTickersState) {
+  // `PaintContext::animating` looks dead from inside the library: the painter
+  // assigns it from `ticker.active()` (and the Brushes.h wrappers copy that
+  // forward rather than a constant), but nothing in the library ever reads
+  // it back. Its only consumer is a paint program written by a caller, so
+  // this test is the only thing keeping the field wired up.
+  Host host;
+  bool seen = false;
+  host.composer.render(
+      box().children({box().width(40).height(40).fill(red()).opacity(
+                          animate(motion::from(0.0f).to(1.0f), {400ms})),
+                      custom([&seen](SkCanvas&, const PaintContext& ctx) {
+                        seen = ctx.animating;
+                      })
+                          .width(10)
+                          .height(10)
+                          .cache(Cache::None)}));
+  host.frame(0.016);
+  EXPECT_TRUE(seen) << "an entrance is running: the ticker is active";
+  for (int i = 0; i < 40; ++i)
+    host.frame(0.016);  // 640 ms — well past the 400 ms entrance
+  EXPECT_FALSE(seen) << "and false again once nothing is moving";
 }

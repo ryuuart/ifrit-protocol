@@ -4,7 +4,8 @@
 // a child slot sampling an index texture through a palette, a declared bleed
 // growing the recording cull, a blend layer's amount, and a buffer that
 // changes between commits without re-describing — and where a unit
-// ramp's falloff reaches, over however many stops it carries.
+// ramp's falloff reaches over however many stops it carries, and what
+// a uniform name the effect never declared does.
 
 #include "support/CoreTestSupport.h"
 
@@ -777,4 +778,23 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
           {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))}));
   one.frame();
   EXPECT_GT(SkColorGetR(one.pixel(32, 32)), 200);
+}
+
+// -------------------------------------------------------------------------
+// What a uniform name the effect does not declare does.
+
+TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
+  // A typo'd uniform name must never abort (SkDEBUGFAIL kills the sketch
+  // host in debug): unknown names are warned and dropped, at sksl() and at
+  // uniform(), constant and bound alike.
+  material::skia::Paint m =
+      material::skia::Paint::sksl(ukEffect(), {{"uTypo", 1.0f}});
+  choreograph::Output<float> o{1.0f};
+  m.uniform("uAlsoMissing", &o);  // dropped → still not live
+  EXPECT_FALSE(m.isAnimated());
+  Host host;
+  host.composer.render(box().children(
+      {box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)}));
+  host.frame();  // paints with uK at its SkSL default (0) — and does not crash
+  EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 40u);
 }

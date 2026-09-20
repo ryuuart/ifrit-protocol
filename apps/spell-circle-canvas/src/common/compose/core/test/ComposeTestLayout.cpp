@@ -2,7 +2,9 @@
 // fills, a user layout scheme placing its own cells, z-index and the
 // composite an opacity or blend implies, per-axis scale about a transform
 // origin, the child-bounds union a parent reports, and the placement
-// longhand beside the two shorthands that must describe the same node.
+// longhand beside the two shorthands that must describe the same node,
+// the wrap, the per-edge spacing and the Dimension literals a box is
+// sized by, and the hit test that follows paint order and skew.
 
 #include "support/CoreTestSupport.h"
 
@@ -477,4 +479,136 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
       << "if this is still 0 then .absolute() alone is ALSO redundant and "
          "the sweep's predicate is over-cautious; if it is 60 the predicate "
          "is exactly right";
+}
+
+// -------------------------------------------------------------------------
+// Wrapping, per-edge spacing and Dimension literals; the hit test
+// under paint order and keys; and the skew that leans both the paint
+// and the hits.
+
+TEST(ComposeLayout, WrapLinesFlowsToSecondRow) {
+  Host host;
+  host.composer.render(box().children(
+      {box()
+           .row()
+           .wrapLines()
+           .width(200)
+           .children({box().width(80).height(40).fill(red())})
+           .children({box().width(80).height(40).fill(green())})
+           .children({box().width(80).height(40).fill(blue())})}));
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 20), SK_ColorRED);
+  EXPECT_EQ(host.pixel(120, 20), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(40, 60), SK_ColorBLUE);  // wrapped to the next line
+}
+
+TEST(ComposeLayout, PerEdgePaddingAndMargin) {
+  Host host;
+  host.composer.render(box().children(
+      {box()
+           .padding(10, 20, 30, 40)
+           .key("outer")
+           .children(
+               {box().margin(5, 6, 7, 8).width(50).height(50).key("inner")})}));
+  host.frame();
+  auto inner = host.composer.bounds("inner");
+  ASSERT_TRUE(inner.has_value());
+  EXPECT_FLOAT_EQ(inner->left(), 10 + 5);  // padding.left + margin.left
+  EXPECT_FLOAT_EQ(inner->top(), 20 + 6);   // padding.top + margin.top
+}
+
+TEST(ComposeLayout, DimLiteralsResolvePercent) {
+  Host host;
+  host.composer.render(box().children(
+      {box().width(50_pct).height(25_pct).fill(red()).key("half")}));
+  host.frame();
+  auto rect = host.composer.bounds("half");
+  ASSERT_TRUE(rect.has_value());
+  EXPECT_FLOAT_EQ(rect->width(), 100.0f);  // 50% of the 200px host
+  EXPECT_FLOAT_EQ(rect->height(), 50.0f);  // 25% of 200px
+}
+
+TEST(ComposeQueries, HitTestRespectsPaintOrderAndKeys) {
+  Host host;
+  host.composer.render(
+      stack().children({box().key("under").inset(0).fill(red()),
+                        box()
+                            .key("over")
+                            .width(60)
+                            .height(60)
+                            .inset(20, 20, 120, 120)
+                            .absolute()
+                            .fill(green()),
+                        box()
+                            .width(30)
+                            .height(30)
+                            .inset(150, 150, 20, 20)
+                            .absolute()
+                            .fill(blue())}));  // keyless → falls to root
+  host.frame();
+  EXPECT_EQ(host.composer.hitTest({50, 50}).value_or(""), "over");
+  EXPECT_EQ(host.composer.hitTest({120, 120}).value_or(""), "under");
+  // Keyless box resolves to its nearest keyed ancestor (none here above
+  // the stack root, which is keyless) — the "under" sibling is NOT an
+  // ancestor, so the keyless box hits nothing of its own and the point
+  // falls through to "under".
+  EXPECT_EQ(host.composer.hitTest({160, 160}).value_or(""), "under");
+  EXPECT_FALSE(host.composer.hitTest({500, 500}).has_value());
+}
+
+TEST(ComposeTransform, SkewLeansPaintAndHits) {
+  // skewX(−12°) leans the card's top to the right about its centre. The
+  // point of the case is the second half: hit-testing must walk the shear
+  // backwards, so a point that is inside the leaning card but outside its
+  // unsheared box still hits it.
+  Host host;
+  host.composer.render(box().children({box()
+                                           .key("card")
+                                           .width(40)
+                                           .height(40)
+                                           .inset(60, 60, 100, 100)
+                                           .absolute()
+                                           .fill(red())
+                                           .skewX(-12.0f)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(101, 64), SK_ColorRED);   // top leaned right
+  EXPECT_EQ(host.pixel(61, 64), SK_ColorBLACK);  // vacated top-left
+  EXPECT_EQ(host.pixel(58, 97), SK_ColorRED);    // bottom leaned left
+  EXPECT_EQ(host.pixel(98, 97), SK_ColorBLACK);  // vacated bottom-right
+  auto hit = host.composer.hitTest({101, 64});
+  ASSERT_TRUE(hit.has_value());
+  EXPECT_EQ(*hit, "card");  // transform-aware hit through the shear
+  EXPECT_FALSE(host.composer.hitTest({61, 64}).has_value());
+}
+
+TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
+  // THE SIGN PIN. skewX shears about the box centre in screen space, y
+  // down, by tan(skewX degrees): a POSITIVE angle displaces the top edge
+  // toward NEGATIVE x relative to the bottom edge — the top leans left.
+  // The sign is easy to state backwards, so the runtime's answer is
+  // pinned here in pixels.
+  Host host;
+  host.composer.render(box().children({box()
+                                           .key("card")
+                                           .width(40)
+                                           .height(40)
+                                           .inset(60, 60, 100, 100)
+                                           .absolute()
+                                           .fill(red())
+                                           .skewX(30.0f)}));
+  host.frame();
+  // The unsheared box is x in [60, 100], y in [60, 100], centre (80, 80).
+  // At y = 64 (16 above centre) the shift is tan(30) * -16 ~ -9.2, so the
+  // top row spans about [50.8, 90.8]; at y = 97 (17 below) the shift is
+  // +9.8, spanning about [69.8, 109.8].
+  EXPECT_EQ(host.pixel(54, 64), SK_ColorRED);    // top edge left of the box
+  EXPECT_EQ(host.pixel(97, 64), SK_ColorBLACK);  // vacated top-right
+  EXPECT_EQ(host.pixel(106, 97), SK_ColorRED);   // bottom edge leaned right
+  EXPECT_EQ(host.pixel(63, 97), SK_ColorBLACK);  // vacated bottom-left
+  // And hit-testing walks the same shear: the leaned top-left corner is
+  // inside the card, the vacated top-right is not.
+  auto hit = host.composer.hitTest({54, 64});
+  ASSERT_TRUE(hit.has_value());
+  EXPECT_EQ(*hit, "card");
+  EXPECT_FALSE(host.composer.hitTest({97, 64}).has_value());
 }

@@ -2,7 +2,8 @@
 // subtree recorded once, a relayout and a reconcile invalidating what was
 // recorded, an effect baked into the texture it sits on, a bound opacity
 // kept out of the recording, a declared bake density holding one bake across
-// view scales, and a texture-cached node blending on its blit.
+// view scales, a texture-cached node blending on its blit, and a child
+// overflowing its parent's box under each of the three.
 
 #include <sigilgeometry/kit/Generators.h>
 
@@ -681,4 +682,55 @@ TEST(ComposeCaching, DecorationOverflowFollowsResizeAndCachedReplay) {
       EXPECT_NE(host.pixel(110, 100 - (int)(height / 2) - 2), SK_ColorRED);
     }
   }
+}
+
+// -------------------------------------------------------------------------
+// A child overflowing its parent's box, under each of the three things
+// that record or bake one.
+
+TEST(ComposeCache, OverflowingChildSurvivesPictureCaching) {
+  // A child translated beyond its parent's box must not be quick-rejected
+  // by the parent's recording cull (the recordBounds fix).
+  Host host(300, 200);
+  host.composer.render(
+      box().children({box().width(100).height(100).fill(blue()).children(
+          {box().width(40).height(40).fill(red()).translateX(150.0f)})}));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);  // fully outside parent's box
+  host.frame();                                 // cached replay path
+  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+}
+
+TEST(ComposeCache, OverflowingChildSurvivesGroupOpacityLayer) {
+  // The clip that actually bites: a group opacity opens a saveLayer
+  // BOUNDED by recordBounds, and saveLayer bounds are a real clip. Drop
+  // the child union from recordBounds and the overflowing child is gone.
+  Host host(300, 200);
+  host.composer.render(box().children(
+      {box().width(100).height(100).fill(blue()).opacity(0.5f).children(
+          {box().width(40).height(40).fill(red()).translateX(150.0f)})}));
+  host.frame();
+  EXPECT_GT(SkColorGetB(host.pixel(50, 20)), 100u);   // sanity: the parent
+  EXPECT_GT(SkColorGetR(host.pixel(170, 20)), 100u);  // the escaped child
+}
+
+TEST(ComposeCache, OverflowingChildSurvivesTextureBake) {
+  // The second real clip: Cache::Texture bakes into a surface sized from
+  // recordBounds mapped to device, so anything the rect misses is
+  // truncated by the surface itself — no picture cull involved.
+  Host host(300, 200);
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(100)
+           .fill(blue())
+           .cache(Cache::Texture)
+           .children(
+               {box().width(40).height(40).fill(red()).translateX(150.0f)})}));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+  host.frame();  // cached blit path
+  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
 }
