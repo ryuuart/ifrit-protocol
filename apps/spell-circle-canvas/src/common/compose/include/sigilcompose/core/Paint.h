@@ -20,7 +20,6 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
-#include <include/core/SkTypes.h>
 #include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/callable/Callable.h>

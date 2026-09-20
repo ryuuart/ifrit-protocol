@@ -7,7 +7,6 @@
  * with, and the header that names one section inside a page.
  */
 
-#include <include/core/SkColor.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>

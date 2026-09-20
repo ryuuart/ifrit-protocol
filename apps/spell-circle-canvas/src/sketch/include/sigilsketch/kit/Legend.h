@@ -8,7 +8,6 @@
  * word is set inside.
  */
 
-#include <include/core/SkColor.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>

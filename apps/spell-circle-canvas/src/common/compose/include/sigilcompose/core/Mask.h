@@ -10,7 +10,6 @@
 
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
-#include <include/core/SkSize.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>

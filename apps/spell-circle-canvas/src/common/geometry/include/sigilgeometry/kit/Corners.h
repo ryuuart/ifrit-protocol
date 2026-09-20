@@ -8,7 +8,6 @@
  * to: chamfered and notched.
  */
 
-#include <include/core/SkPathBuilder.h>
 
 #include <concepts>
 #include <cstdint>

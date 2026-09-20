@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
+#include <include/core/SkShader.h>
 #include <include/core/SkSurface.h>
 #include <sigilskia/draw/Direct.h>
 

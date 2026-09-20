@@ -26,7 +26,6 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
-#include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Paint.h>

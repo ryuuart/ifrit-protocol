@@ -9,7 +9,6 @@
  * `slot` and `memo`.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkRect.h>

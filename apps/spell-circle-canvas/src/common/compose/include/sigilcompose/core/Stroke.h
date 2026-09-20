@@ -19,7 +19,6 @@
  */
 
 #include <include/core/SkPath.h>
-#include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <sigilcore/comparable/Erased.h>
 #include <sigilgeometry/path/Band.h>

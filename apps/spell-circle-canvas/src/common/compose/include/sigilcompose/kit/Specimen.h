@@ -18,7 +18,6 @@
  * `weave::StyleSheet` where the component lands styles that role.
  */
 
-#include <include/core/SkColor.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>

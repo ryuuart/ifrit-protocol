@@ -44,7 +44,6 @@
  */
 
 #include <include/core/SkBlendMode.h>
-#include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <sigilcompose/core/Element.h>

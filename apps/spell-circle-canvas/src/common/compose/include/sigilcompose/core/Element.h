@@ -11,10 +11,7 @@
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
-#include <include/core/SkMatrix.h>
 #include <include/core/SkPath.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Mask.h>

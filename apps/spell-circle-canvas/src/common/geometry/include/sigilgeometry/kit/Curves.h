@@ -8,7 +8,6 @@
  * spiral and trochoid.
  */
 
-#include <include/core/SkPathBuilder.h>
 
 #include <cstdint>
 #include <string>

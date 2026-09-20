@@ -30,7 +30,6 @@
 
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
-#include <include/core/SkRefCnt.h>
 
 #include <cstdint>
 #include <vector>

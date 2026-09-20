@@ -6,7 +6,6 @@
  * A field-aware cursor that walks the canvas.
  */
 
-#include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <sigildraw/brush/Field.h>
 #include <sigildraw/brush/Stroke.h>

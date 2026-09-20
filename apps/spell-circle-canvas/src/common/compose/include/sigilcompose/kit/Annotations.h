@@ -24,7 +24,6 @@
  * the finished result.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Derive.h>

@@ -25,7 +25,6 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkSamplingOptions.h>
-#include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkVertices.h>
 #include <include/gpu/graphite/Image.h>

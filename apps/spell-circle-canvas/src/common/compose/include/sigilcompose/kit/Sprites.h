@@ -42,7 +42,6 @@
  *   handed back the rectangle it occupies.
  */
 
-#include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>

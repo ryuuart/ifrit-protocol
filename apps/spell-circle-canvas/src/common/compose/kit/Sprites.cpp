@@ -3,6 +3,7 @@
  * is presented, and the sheet many of them are packed onto.
  */
 
+#include <include/core/SkBitmap.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkTileMode.h>

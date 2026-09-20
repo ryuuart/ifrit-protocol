@@ -12,6 +12,7 @@
  */
 
 #include <include/core/SkPathBuilder.h>
+#include <include/effects/SkPerlinNoiseShader.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilgeometry/kit/Silhouettes.h>

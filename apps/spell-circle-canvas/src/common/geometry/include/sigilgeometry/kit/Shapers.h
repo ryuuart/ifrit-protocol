@@ -19,7 +19,6 @@
 
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkPoint.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <include/effects/SkDiscretePathEffect.h>

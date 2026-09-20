@@ -47,9 +47,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h>  // sk_sp<SkShader> data member
-#include <include/core/SkString.h>
 #include <include/core/SkTileMode.h>
-#include <include/effects/SkGradient.h>       // the gradient Fills
 #include <include/effects/SkRuntimeEffect.h>  // the unit-space ramps
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Pass.h>

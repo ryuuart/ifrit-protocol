@@ -10,10 +10,8 @@
  * reflective 2D surface is shaded from, beside an EnvironmentMap.
  */
 
-#include <include/core/SkImage.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
-#include <include/core/SkRefCnt.h>
 #include <sigilmaterial/texture/Texture.h>
 
 namespace sigil::material {
