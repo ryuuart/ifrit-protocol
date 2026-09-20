@@ -298,6 +298,12 @@ one. `uBloomRadius` is a Gaussian sigma rather than the reach of a
 fixed-tap gather, so the number is a fresh choice. A plate rebase names
 the cause.
 
+A test should describe each of the three studies and assert that no
+scene under them builds a blur of its own — the only Gaussian beneath a
+MAGI screen is the one the `bloom` slot's executor fills — and that the
+screen each describes asks for that light, with `uBloom` above zero.
+The rebased plates are what hold the radius and strength chosen.
+
 ## The thumbnail's PNG encode runs on the render thread
 
 `SketchbookRenderer::render` calls `refreshThumbnail()` once a sketch has
