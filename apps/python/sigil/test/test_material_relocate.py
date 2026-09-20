@@ -265,9 +265,9 @@ class MovedInventories(unittest.TestCase):
     def test_a_material_is_still_one_kind_of_paint(self):
         # The conversion that lets a recipe stand where a paint is asked
         # for is registered beside the paint, and the recipe class it
-        # names is registered in a file ahead of it: the order the one
-        # dispatcher runs the subjects in is what keeps this a material
-        # a slot accepts rather than a type error.
+        # names is registered by a file that runs ahead of it: the order
+        # the subjects are registered in is what keeps a recipe a value
+        # these two take rather than a type error.
         recipe = material.field.noise(0.02)
         self.assertIsInstance(material.Effect.blur(recipe, 4.0), material.Effect)
         self.assertIsInstance(
@@ -275,9 +275,10 @@ class MovedInventories(unittest.TestCase):
         )
 
     def test_a_surface_colour_goes_back_out_the_way_it_came_in(self):
-        # The surface's colour fields hold light, and the field the move
-        # brought across converts once on the way in and once on the way
-        # back, so the parameter answers the colour it was written with.
+        # The surface's colour fields hold light, and the property the
+        # move brought across converts once on the way in and once on
+        # the way back, so the parameter answers the colour it was
+        # written with.
         parameters = material.kit.SurfaceParameters(baseColor="#e75a31")
         read = parameters.baseColor
         self.assertIsInstance(read, material.Color)
