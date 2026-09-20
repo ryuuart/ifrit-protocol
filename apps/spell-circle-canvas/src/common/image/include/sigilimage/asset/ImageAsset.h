@@ -1,11 +1,18 @@
 #pragma once
 
 /** @file
+ * @ingroup image-asset
  * The decoded image document: ImageProbe, the metadata read without a
  * pixel decode; Frame, one premultiplied SkImage with its duration; and
  * ImageAsset, the frames with their playback, decoded from SkData
  * through Skia's own codecs.
  */
+
+/** @defgroup image-asset Assets
+ *  The decoded image document a caller draws: its frames, their timing,
+ *  and the metadata that can be read without decoding any of them.
+ *  @{ */
+/** @} */
 
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
@@ -16,6 +23,14 @@
 
 class SkData;
 
+/** What a picture MEANS, for a caller that already has its bytes: the
+ *  decoded document and its frames, the metadata a probe reads, the
+ *  encoders that write pixels back out, and the coverage and distance
+ *  answers a silhouette question needs. Reach for it to turn encoded
+ *  bytes into something drawable, to ask what a file is without paying
+ *  for its pixels, or to write pixels out again. Where those bytes come
+ *  from — a path, a URI, a mount, a cache — belongs to whoever fetched
+ *  them; nothing here opens a file. */
 namespace sigil::image {
 
 /** Cheap metadata from encoded bytes, no pixel decode. */
@@ -23,11 +38,11 @@ struct ImageProbe {
   int width = 0;
   int height = 0;
   int channels = 4;
-  int frames = 1;                         // >1 for animations
-  bool floatingPoint = false;             // HDR/float source (EXR, float TIFF…)
-  std::string format;                     // "png", "openexr", "psd", …
-  std::vector<std::string> layers;        // EXR subimages/layer prefixes
-  std::vector<std::string> channelNames;  // EXR channel names
+  int frames = 1;              ///< >1 for animations
+  bool floatingPoint = false;  ///< HDR/float source (EXR, float TIFF…)
+  std::string format;          ///< "png", "openexr", "psd", …
+  std::vector<std::string> layers;        ///< EXR subimages/layer prefixes
+  std::vector<std::string> channelNames;  ///< EXR channel names
 };
 
 /** One decoded frame: a premultiplied, immutable, raster-backed SkImage
@@ -71,10 +86,14 @@ class ImageAsset {
    *  an empty asset. */
   static ImageAsset wrap(sk_sp<SkImage> image);
 
+  /** Width of every frame, in pixels; 0 for an empty asset. */
   int width() const { return m_width; }
+  /** Height of every frame, in pixels; 0 for an empty asset. */
   int height() const { return m_height; }
 
+  /** Whether the asset carries more than one frame. */
   bool animated() const { return m_frames.size() > 1; }
+  /** Every frame in playback order, already composited. */
   const std::vector<Frame>& frames() const { return m_frames; }
 
   /** Sum of all frame durations; 0 for still images. */
@@ -83,6 +102,7 @@ class ImageAsset {
   /** Number of times the animation plays, or kInfinite (the common case
    *  for GIFs/stickers). Still images report kInfinite. */
   static constexpr int kInfinite = -1;
+  /** How many times the animation plays, or kInfinite. */
   int repetitionCount() const { return m_repetitionCount; }
 
   /**

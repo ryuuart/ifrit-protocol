@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-stats
  * A rolling ring of samples with the summary statistics a frame-time HUD
  * reads, and the one quantile definition every ring and every one-off
  * sample list shares.
@@ -74,18 +75,25 @@ namespace detail {
  *  percentile costs a sort. Sized for a HUD, not for a histogram. */
 class Samples {
  public:
+  /** A ring holding @p capacity samples; a capacity of zero holds one,
+   *  since a ring that can hold nothing has nothing to summarise. */
   explicit Samples(size_t capacity = 120)
       : m_samples(capacity > 0 ? capacity : 1) {}
 
+  /** Adds @p sample, dropping the oldest once the ring is full. */
   void add(double sample) {
     m_samples[m_next] = sample;
     m_next = (m_next + 1) % m_samples.size();
     if (m_count < m_samples.size()) ++m_count;
   }
+  /** Forgets every sample, keeping the capacity. */
   void clear() { m_count = m_next = 0; }
 
+  /** How many samples are held. */
   [[nodiscard]] size_t size() const { return m_count; }
+  /** How many the ring holds before the oldest starts falling off. */
   [[nodiscard]] size_t capacity() const { return m_samples.size(); }
+  /** Whether no sample has been added since the last clear. */
   [[nodiscard]] bool empty() const { return m_count == 0; }
 
   /** Arithmetic mean; 0 when empty. */
@@ -99,11 +107,13 @@ class Samples {
   [[nodiscard]] double percentile(double p) const {
     return quantile(std::span<const double>(m_samples.data(), m_count), p);
   }
+  /** The smallest sample held; 0 when empty. */
   [[nodiscard]] double min() const {
     return m_count == 0 ? 0.0
                         : *std::min_element(m_samples.begin(),
                                             m_samples.begin() + (long)m_count);
   }
+  /** The largest sample held; 0 when empty. */
   [[nodiscard]] double max() const {
     return m_count == 0 ? 0.0
                         : *std::max_element(m_samples.begin(),

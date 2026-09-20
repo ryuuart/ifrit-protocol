@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-values
  * WHAT A GENERATED VALUE HEADER STANDS ON: the readings and the
  * writings every schema needs, with no schema in any of them.
  *
@@ -49,6 +50,13 @@
 #include <utility>
 #include <vector>
 
+/** THE READINGS AND WRITINGS A GENERATED VALUE HEADER STANDS ON: a
+ *  pointer a generated accessor answers turned into something a caller
+ *  can own — a string, a vector, a struct read out by value — and the
+ *  same conversions the other way for a value being written back. Reach
+ *  for it when writing or reading the value type beside a schema; a
+ *  consumer of that value type never names this catalogue. Nothing here
+ *  knows any schema. */
 namespace sigil::data::values {
 
 /** THE ROOT @p bytes CARRY, verified before a byte of it is read; null

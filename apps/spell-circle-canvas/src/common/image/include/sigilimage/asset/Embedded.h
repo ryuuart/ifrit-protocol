@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup image-asset
  * IMAGES CARRIED INSIDE ANOTHER FILE'S BYTES, found by their own
  * signature rather than by the container's index.
  *
@@ -35,8 +36,8 @@ namespace sigil::image {
  *  caller usually wants only a few of the images a container holds, and
  *  decoding the rest to find out which is the whole cost of the read. */
 struct EmbeddedImage {
-  size_t offset = 0;
-  size_t length = 0;
+  size_t offset = 0;  ///< Where the encoded image begins in the blob.
+  size_t length = 0;  ///< How many bytes of the blob it occupies.
   /** The last printable-ASCII run of at least `minimumNameLength` bytes
    *  standing between the previous image's end and this one's start.
    *  Empty where there was none. */

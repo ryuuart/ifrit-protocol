@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-connection
  * A CONNECTION: a feed read as values.
  *
  * A feed is bytes that keep arriving. A connection is that same door
@@ -135,7 +136,9 @@ class Connection {
   Connection(io::Hub& hub, std::string_view uri, Schema schema,
              io::FeedPolicy policy = {});
 
+  /** Takes over the moved-from door, leaving it closed. */
   Connection(Connection&&) noexcept = default;
+  /** Takes over the moved-from door, closing this one. */
   Connection& operator=(Connection&&) noexcept = default;
   Connection(const Connection&) = delete;
   Connection& operator=(const Connection&) = delete;

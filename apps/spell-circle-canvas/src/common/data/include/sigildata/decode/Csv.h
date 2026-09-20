@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-decode
  * DELIMITER-SEPARATED TEXT INTO A TABLE — the format a spreadsheet, a
  * gazetteer and a published dataset all leave the building in.
  *

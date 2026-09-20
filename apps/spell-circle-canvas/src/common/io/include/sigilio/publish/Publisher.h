@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-publish
  * The door a drawn frame leaves by: the seam a host offers its texture
  * over, and the one factory that answers with whatever this build can
  * publish through.
@@ -10,6 +11,12 @@
 #include <string>
 #include <string_view>
 
+/** A TEXTURE SHARED WITH ANOTHER APPLICATION ON THIS MACHINE, in both
+ *  directions: a frame this process has drawn offered under a name, and
+ *  a frame another process is publishing taken as a texture of one's
+ *  own. Reach for it to send a drawing into a video mixer, a projection
+ *  tool or a compositor, or to bring one of theirs in. The handles are
+ *  the graphics API's own and nothing here is anybody's toolkit. */
 namespace sigil::io::publish {
 
 /** The graphics API whose native handles a publisher consumes. */

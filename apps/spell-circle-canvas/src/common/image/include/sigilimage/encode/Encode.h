@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup image-encode
  * The encode surface of SigilImage: Format, EncodeOptions, and
  * encodeImage(), which routes pixels — or named channel planes — to the
  * encoder for a format and hands back the encoded bytes. Skia's own encoders
@@ -13,6 +14,12 @@
  * mount — is SigilIO's concern; this header only ever hands bytes
  * back.
  */
+
+/** @defgroup image-encode Encoding
+ *  Pixels and named channel planes written back out as the bytes of a
+ *  format, and the extension that names each format.
+ *  @{ */
+/** @} */
 
 #include <include/core/SkRefCnt.h>
 

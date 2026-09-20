@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup video-decode
  * Asynchronous presentation over a bounded decoder worker pool. Decode work
  * never blocks the render thread; the last complete frame remains available
  * while a newer presentation time is in flight.
@@ -25,8 +26,11 @@ namespace sigil::video {
  *  never waits for a decoder. */
 class Playback {
  public:
+  /** What `add()` answers and every other verb is addressed by. */
   using Handle = size_t;
 
+  /** What a presentation pool is constructed with. Left alone it sizes its
+   *  worker pool from the host and composes on the system device. */
   struct Options {
     /** Unset chooses a bounded count from the host's hardware concurrency.
      *  Zero runs no worker at all: `request()` decodes on the calling
@@ -38,6 +42,7 @@ class Playback {
   };
 
   Playback();
+  /** Opens a pool under @p options. */
   explicit Playback(const Options& options);
   ~Playback();
   Playback(const Playback&) = delete;
@@ -45,10 +50,17 @@ class Playback {
 
   /** Registers @p video, or answers the handle it was registered under. */
   Handle add(std::shared_ptr<Video> video);
+  /** Asks for the frame covering @p seconds on @p handle's clip and
+   *  returns without waiting for it. */
   void request(Handle handle, double seconds);
   /** Whether @p handle has produced at least one presentation frame. */
   bool ready(Handle handle) const;
+  /** The newest complete frame for @p handle, bound to @p recorder when the
+   *  decoder produced a native surface. Never waits: while newer work is in
+   *  flight this is the frame before it, and it is empty until the first
+   *  one completes. */
   VideoFrame frame(Handle handle, skgpu::graphite::Recorder* recorder);
+  /** How many clips are registered. */
   size_t size() const;
 
  private:

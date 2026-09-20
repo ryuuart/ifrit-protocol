@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-decode
  * AN OSC PACKET AS THE ONE DYNAMIC VALUE, and back out again.
  *
  * Open Sound Control is what the performance tools speak to one

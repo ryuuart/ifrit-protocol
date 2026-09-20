@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-stats
  * The summary of a run of numbers that costs one pass and holds no
  * copies: how many, how large, how spread, how lopsided, and the two
  * ends.
@@ -42,6 +43,7 @@ class Moments {
     return moments;
   }
 
+  /** Folds @p value into the summary, keeping none of it. */
   void add(double value) {
     const double previous = (double)m_count;
     m_count += 1;
@@ -56,6 +58,7 @@ class Moments {
     if (value > m_max) m_max = value;
   }
 
+  /** Forgets everything seen so far. */
   void clear() { *this = Moments(); }
 
   /** EVERYTHING @p other SAW, FOLDED IN. Two halves of a run summarised
@@ -83,7 +86,9 @@ class Moments {
     if (other.m_max > m_max) m_max = other.m_max;
   }
 
+  /** How many values were folded in. */
   [[nodiscard]] size_t count() const { return m_count; }
+  /** Whether nothing has been folded in. */
   [[nodiscard]] bool empty() const { return m_count == 0; }
   /** The arithmetic mean; 0 over nothing. */
   [[nodiscard]] double mean() const { return m_mean; }
@@ -103,7 +108,11 @@ class Moments {
   [[nodiscard]] double sampleVariance() const {
     return m_count > 1 ? m_second / (double)(m_count - 1) : 0.0;
   }
+  /** The population spread in the values' own units: the root of
+   *  `variance()`. */
   [[nodiscard]] double sd() const { return std::sqrt(variance()); }
+  /** The sample spread in the values' own units: the root of
+   *  `sampleVariance()`. */
   [[nodiscard]] double sampleSd() const { return std::sqrt(sampleVariance()); }
 
   /** HOW LOPSIDED THE RUN IS: zero for anything symmetric about its
@@ -120,6 +129,7 @@ class Moments {
   /** The smallest and largest seen; 0 over nothing, so that an empty
    *  summary reads as empty rather than as an infinite span. */
   [[nodiscard]] double min() const { return m_count > 0 ? m_min : 0.0; }
+  /** The largest value seen; 0 over nothing. */
   [[nodiscard]] double max() const { return m_count > 0 ? m_max : 0.0; }
   /** How far apart the two ends are. */
   [[nodiscard]] double range() const { return max() - min(); }

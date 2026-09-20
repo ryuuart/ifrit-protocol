@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-stats
  * One steady-state frame timing sample — the numbers a frame-budget gate
  * judges a scene by.
  */

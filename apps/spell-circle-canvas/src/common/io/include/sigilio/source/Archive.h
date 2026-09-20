@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-source
  * AN ARCHIVE READ AS A BYTE SOURCE: a zip held in memory, whole, whose
  * files answer to their names the way any other source's resources do.
  *
@@ -72,7 +73,9 @@ class ArchiveSource {
   [[nodiscard]] std::span<const ArchiveEntry> entries() const {
     return m_entries;
   }
+  /** Whether the archive lists no entry. */
   [[nodiscard]] bool empty() const { return m_entries.empty(); }
+  /** How many entries the archive lists. */
   [[nodiscard]] size_t size() const { return m_entries.size(); }
 
  private:

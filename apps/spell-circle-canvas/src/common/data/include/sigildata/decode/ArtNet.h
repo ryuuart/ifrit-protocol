@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-decode
  * AN ART-NET PACKET AS THE ONE DYNAMIC VALUE, and back out again.
  *
  * Art-Net is what the lighting desks say over the network: a universe

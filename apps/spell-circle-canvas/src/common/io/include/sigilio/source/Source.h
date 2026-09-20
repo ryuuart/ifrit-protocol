@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-source
  * The BYTE SOURCE foundation: the one vocabulary every resource path in
  * this library and its consumers speaks. A source answers a URI with
  * bytes; a decoder turns bytes into a value. Nothing here knows what a
@@ -29,12 +30,22 @@
 #include <utility>
 #include <vector>
 
+/** RESOURCE ACCESS: the bytes of a thing, and the doors they come
+ *  through. A URI resolved against a mount table, fetched, cached,
+ *  decoded into the type asked for and reloaded when it changes; the
+ *  byte source seam every one of those doors is written to; sinks for
+ *  bytes going out; feeds for bytes that keep arriving; and native
+ *  frame sharing with another application. Reach for it whenever code
+ *  needs something that is not already in memory. What those bytes MEAN
+ *  is never decided here: a decoder registered by the library that owns
+ *  the format is what turns them into a value. */
 namespace sigil::io {
 
 /** Raw bytes of a resource. */
 struct Bytes {
   std::vector<std::byte> bytes;
 
+  /** The same bytes read as text, with no copy and no validation. */
   std::string_view asText() const {
     return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
   }
@@ -129,6 +140,7 @@ class AnyByteSource {
  public:
   AnyByteSource() = default;
 
+  /** Borrows @p source, which must outlive this value. */
   template <ByteSource S>
   explicit AnyByteSource(S& source)
       : m_fetch([&source](std::string_view uri) {
@@ -140,6 +152,7 @@ class AnyByteSource {
       };
   }
 
+  /** Shares ownership of @p source, so this value keeps it alive. */
   template <ByteSource S>
   explicit AnyByteSource(const std::shared_ptr<S>& source)
       : m_owner(source), m_fetch([source](std::string_view uri) {
@@ -151,12 +164,17 @@ class AnyByteSource {
       };
   }
 
+  /** Whether a source is held at all. */
   explicit operator bool() const { return static_cast<bool>(m_fetch); }
 
+  /** The bytes of @p uri from the held source; null when it holds none
+   *  or the source answers none. */
   std::shared_ptr<const Bytes> fetch(std::string_view uri) {
     return m_fetch ? m_fetch(uri) : nullptr;
   }
 
+  /** The file @p uri stands for, or an empty path when the held source
+   *  resolves nothing. */
   std::filesystem::path resolve(std::string_view uri) const {
     return m_resolve ? m_resolve(uri) : std::filesystem::path{};
   }

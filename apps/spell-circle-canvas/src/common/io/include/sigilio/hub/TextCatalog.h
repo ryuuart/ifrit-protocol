@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-hub
  * One directory of text resources mounted at one URI prefix — the shape
  * a directory of AUTHORED shaders takes: a consumer keeps its `.sksl` or
  * `.slang` files wherever it likes, asks for each by name, and may warm
@@ -50,7 +51,10 @@ class TextCatalog {
    *  concurrently and returns how many are ready. */
   size_t preload() { return m_hub.preload(m_prefix); }
 
+  /** The directory URI every name is read beneath. */
   std::string_view prefix() const { return m_prefix; }
+  /** The hub underneath, for a caller that wants a resource this
+   *  catalogue does not name. */
   Hub& hub() { return m_hub; }
 
  private:

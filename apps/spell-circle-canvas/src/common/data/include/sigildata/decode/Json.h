@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-decode
  * A JSON DOCUMENT AS A VALUE, and the rectangle inside one.
  *
  * `Json` is the whole document: nested, ordered, comparable, copyable —
@@ -44,8 +45,11 @@ namespace sigil::data {
  */
 class Json {
  public:
+  /** A list's members, in document order. */
   using Array = std::vector<Json>;
+  /** A record's members, keyed and in document order. */
   using Object = std::vector<std::pair<std::string, Json>>;
+  /** Everything a value can be, in the order `Kind` names them. */
   using Held =
       std::variant<std::nullptr_t, bool, double, std::string, Array, Object>;
 
@@ -53,8 +57,11 @@ class Json {
   enum class Kind { Null, Boolean, Number, Text, List, Record };
 
   Json() = default;
+  /** The null value, written out. */
   Json(std::nullptr_t) {}
+  /** A boolean value. */
   Json(bool value) : m_held(value) {}
+  /** A number. */
   Json(double value) : m_held(value) {}
   /** A whole number is a number. Without this one `Json(1)` is
    *  ambiguous: an int converts to bool and to double at the same
@@ -62,17 +69,23 @@ class Json {
   template <std::integral T>
     requires(!std::same_as<T, bool>)
   Json(T value) : m_held(static_cast<double>(value)) {}
+  /** Text. */
   Json(std::string value) : m_held(std::move(value)) {}
   /** A literal is text. Without this one a `const char*` would pick the
    *  boolean constructor and a name would become `true`. */
   Json(const char* value) : m_held(std::string(value)) {}
+  /** A list of values. */
   Json(Array value) : m_held(std::move(value)) {}
+  /** A record of keyed values, in the order given. */
   Json(Object value) : m_held(std::move(value)) {}
 
   bool operator==(const Json&) const = default;
 
+  /** Which of the six things this value is. */
   Kind kind() const { return static_cast<Kind>(m_held.index()); }
+  /** Whether this is the null value. */
   bool null() const { return kind() == Kind::Null; }
+  /** What is held, for a caller that dispatches on the type. */
   const Held& held() const { return m_held; }
 
   /** THE VALUE, or @p fallback when this is something else. Reading the
@@ -80,7 +93,9 @@ class Json {
    *  reader that asked for a number where a string stands wants its own
    *  default, not a throw. */
   bool boolean(bool fallback = false) const;
+  /** The number, or @p fallback when this is something else. */
   double number(double fallback = 0.0) const;
+  /** The text, or @p fallback when this is something else. */
   std::string_view text(std::string_view fallback = {}) const;
 
   /** The members of a list, or nothing when this is not one. */

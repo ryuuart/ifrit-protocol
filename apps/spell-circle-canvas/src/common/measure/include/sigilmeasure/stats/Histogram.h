@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-stats
  * How a run of numbers is distributed across the range it covers: equal
  * bins, what fell in each, and what fell outside.
  */
@@ -55,6 +56,8 @@ class Histogram {
     return histogram;
   }
 
+  /** Adds @p weight to the bin @p value falls in, or to the count
+   *  outside the range when it falls beyond an edge. */
   void add(double value, double weight = 1.0) {
     if (value < m_low) {
       m_below += weight;
@@ -68,6 +71,7 @@ class Histogram {
     m_inside += weight;
   }
 
+  /** Empties every bin, keeping the range and the bin count. */
   void clear() {
     std::fill(m_counts.begin(), m_counts.end(), 0.0);
     m_inside = m_below = m_above = 0.0;
@@ -85,8 +89,11 @@ class Histogram {
     return bin < m_counts.size() ? bin : m_counts.size() - 1;
   }
 
+  /** How many bins the range is cut into. */
   [[nodiscard]] size_t bins() const { return m_counts.size(); }
+  /** The low edge of the range. */
   [[nodiscard]] double low() const { return m_low; }
+  /** The high edge of the range. */
   [[nodiscard]] double high() const { return m_high; }
   /** How wide one bin is. */
   [[nodiscard]] double binWidth() const {
@@ -103,7 +110,9 @@ class Histogram {
     return edge(bin) + binWidth() * 0.5;
   }
 
+  /** The weight in every bin, low edge first. */
   [[nodiscard]] std::span<const double> counts() const { return m_counts; }
+  /** The weight in bin @p bin; 0 for a bin that is not there. */
   [[nodiscard]] double count(size_t bin) const {
     return bin < m_counts.size() ? m_counts[bin] : 0.0;
   }
@@ -125,12 +134,14 @@ class Histogram {
   [[nodiscard]] double total() const { return m_inside; }
   /** The weight that fell below the low edge, and above the high one. */
   [[nodiscard]] double below() const { return m_below; }
+  /** The weight that fell above the high edge. */
   [[nodiscard]] double above() const { return m_above; }
   /** The heaviest bin, and how heavy it is. The first of a tie. */
   [[nodiscard]] size_t mode() const {
     return (size_t)std::distance(
         m_counts.begin(), std::max_element(m_counts.begin(), m_counts.end()));
   }
+  /** The weight in the heaviest bin. */
   [[nodiscard]] double peak() const { return count(mode()); }
 
  private:

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-stats
  * The straight-line map that puts a run of numbers on a common footing,
  * DERIVED FROM THE NUMBERS THEMSELVES — a z-score, or the run squeezed
  * into a chosen span.
@@ -35,6 +36,7 @@ struct Rescale {
   /** Added last: where the answer's zero is. */
   double origin = 0.0;
 
+  /** Where @p value lands under the map. */
   [[nodiscard]] double operator()(double value) const {
     return origin + (value - centre) * scale;
   }

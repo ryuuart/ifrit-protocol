@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-hub
  * THE RECORDING FORMAT: a feed's arrivals as a file, written as they
  * come and read back as a list.
  *
@@ -39,6 +40,7 @@ namespace sigil::io {
  *  every arrival is appended to it as it comes. */
 class RecordingWriter {
  public:
+  /** Opens @p path for writing, emptying whatever stood there. */
   explicit RecordingWriter(const std::filesystem::path& path);
 
   /** Appends one frame and puts it on the disk. False when the file

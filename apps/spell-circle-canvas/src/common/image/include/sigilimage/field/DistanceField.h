@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup image-field
  * The two image-domain answers a silhouette question needs: WHICH PIXELS A
  * PICTURE COVERS, and HOW FAR EVERY OTHER PIXEL IS FROM THEM.
  *
@@ -20,6 +21,13 @@
  * a margin is measured in nor a raster that is not a glyph.
  */
 
+/** @defgroup image-field Distance fields
+ *  Which pixels a picture covers, and how far every other pixel is from
+ *  them — the two rasters a margin, an outline or a dilation is measured
+ *  against.
+ *  @{ */
+/** @} */
+
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkRefCnt.h>
@@ -36,7 +44,10 @@ struct Mask {
   int height = 0;
   std::vector<uint8_t> covered;  ///< row-major, w*h, 0 or 1
 
+  /// Whether the mask covers no raster at all.
   [[nodiscard]] bool empty() const { return width <= 0 || height <= 0; }
+  /// Whether the pixel at @p x, @p y is covered. A pixel off the raster
+  /// is not.
   [[nodiscard]] bool at(int x, int y) const {
     return x >= 0 && y >= 0 && x < width && y < height &&
            covered[(size_t)y * width + x] != 0;
@@ -51,7 +62,9 @@ struct DistanceField {
   int height = 0;
   std::vector<float> distance;  ///< row-major, w*h, px
 
+  /// Whether the field covers no raster at all.
   [[nodiscard]] bool empty() const { return width <= 0 || height <= 0; }
+  /// The distance in pixels at @p x, @p y, or kOutside off the raster.
   [[nodiscard]] float at(int x, int y) const {
     if (x < 0 || y < 0 || x >= width || y >= height) return kOutside;
     return distance[(size_t)y * width + x];

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-source
  * The BYTE SINK half of the resource vocabulary: where bytes go, told
  * the same way a `ByteSource` says where they come from. A sink answers
  * a URI and a run of bytes with a verdict; nothing here knows what a

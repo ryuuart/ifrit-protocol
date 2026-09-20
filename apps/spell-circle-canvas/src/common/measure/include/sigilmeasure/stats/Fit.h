@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-stats
  * The straight line a run of points is closest to, and how far they stand
  * off it — the fit a study reports when it claims one quantity is
  * proportional to another.

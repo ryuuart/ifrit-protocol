@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-source
  * The two places a process can only learn from the platform: where its
  * own binary stands, and where it may leave files nobody will miss.
  *

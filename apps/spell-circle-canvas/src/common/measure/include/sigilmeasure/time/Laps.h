@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-time
  * A lap timer: named marks laid through one span, each reading the
  * milliseconds since the mark before it.
  */
@@ -30,6 +31,7 @@ namespace sigil::measure {
  *  the phase with a literal. */
 class Laps {
  public:
+  /** The clock every mark is taken from. */
   using Clock = std::chrono::steady_clock;
 
   Laps() : m_mark(Clock::now()) {}
@@ -52,6 +54,7 @@ class Laps {
   void each(const std::function<void(std::string_view, double)>& fn) const {
     for (const auto& [name, ms] : m_laps) fn(name, ms);
   }
+  /** How many marks have been laid. */
   size_t size() const { return m_laps.size(); }
   /** The sum of every lap — the span from construction (or the last
    *  reset()) to the last mark. */

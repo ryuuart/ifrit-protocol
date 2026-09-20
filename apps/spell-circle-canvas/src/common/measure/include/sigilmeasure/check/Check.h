@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-check
  * A verified claim — its label, the value it expected, the value it got
  * and a verdict — the overloads that produce one from two numbers, the
  * rows that stand beside claims without judging anything, and the table
@@ -201,12 +202,17 @@ inline int findings(std::span<const Check> checks) {
 struct Table {
   std::vector<Check> rows;
 
+  /** Appends @p c as the next row and answers this table, so rows chain. */
   Table& add(Check c) {
     rows.push_back(std::move(c));
     return *this;
   }
+  /** How many claims in the table did not hold. */
   int failures() const { return measure::failures(rows); }
+  /** How many findings in the table did not hold. */
   int findings() const { return measure::findings(rows); }
+  /** Whether every claim held; a finding that did not hold is not a
+   *  failure. */
   bool pass() const { return failures() == 0; }
   /** How many rows carry a verdict — the claims and the findings. */
   int checks() const {
