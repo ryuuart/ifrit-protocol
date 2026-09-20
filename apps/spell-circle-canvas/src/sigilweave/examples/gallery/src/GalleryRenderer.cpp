@@ -27,6 +27,7 @@ using namespace gallery;
 #include "GalleryView.h"
 
 void GalleryViewRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
+  m_presentsYUp = rhi() && rhi()->isYUpInFramebuffer();
 #ifdef TEXTFLOW_GALLERY_GPU
   if (!m_graphiteInitializationAttempted) {
     m_graphiteInitializationAttempted = true;
@@ -40,6 +41,15 @@ void GalleryViewRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
 
 void GalleryViewRenderer::synchronize(QQuickRhiItem* item) {
   auto* view = static_cast<GalleryView*>(item);
+  // THIS ITEM'S TEXTURE IS WRITTEN TOP DOWN WHATEVER THE BACKEND: Skia's
+  // surfaces have their origin at the top left, and the raster fallback
+  // uploads its rows in that order into a subresource whose destination
+  // is the texture's top left. Qt mirrors the textured quad on a backend
+  // whose framebuffers are y-up, which compensates a render pass — and
+  // this item makes none, so unless the mirror is asked for a second
+  // time the two do not cancel and the scene presents upside down.
+  if (view->isMirrorVerticallyEnabled() != m_presentsYUp)
+    view->setMirrorVertically(m_presentsYUp);
   if (m_scenes.empty()) {
     m_scenes.reserve(sceneRegistry().size());
     for (const SceneDescriptor& descriptor : sceneRegistry())

@@ -27,6 +27,7 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/plate/ThumbnailWriter.h>
 #include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/python/Python.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -41,8 +42,8 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 #include <string>
-#include <system_error>
 #include <thread>
 #include <utility>
 
@@ -108,6 +109,7 @@ void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   g_backend.store(2);
 #endif
   m_rhi = currentRhi;
+  m_presentsYUp = currentRhi && currentRhi->isYUpInFramebuffer();
   m_initialized = true;
   m_index = -1;
   m_frameCount = 0;
@@ -126,6 +128,17 @@ void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
 void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   auto* view = static_cast<SketchbookView*>(item);
   m_view = view;
+  // THIS ITEM'S TEXTURE IS WRITTEN TOP DOWN WHATEVER THE BACKEND: Skia's
+  // surfaces have their origin at the top left, and the raster path
+  // uploads its rows in that order into a subresource whose destination
+  // is the texture's top left. Qt mirrors the textured quad on a backend
+  // whose framebuffers are y-up, which compensates a render pass — and
+  // this item makes none, so unless the mirror is asked for a second
+  // time the two do not cancel and the sketch presents upside down.
+  // Asked for here rather than in the item's constructor because which
+  // backend is behind it is only known once the QRhi is.
+  if (view->isMirrorVerticallyEnabled() != m_presentsYUp)
+    view->setMirrorVertically(m_presentsYUp);
   const bool pauseStarted = !m_paused && view->m_paused;
   m_paused = view->m_paused;
   m_timeScale = view->m_timeScale;
@@ -439,16 +452,39 @@ void SketchbookRenderer::refreshThumbnail() {
   const float longest = std::max(size.width(), size.height());
   if (!(longest > 0)) return;
   const float scale = std::min(1.0f, (float)sketch::kThumbnailWidth / longest);
-  std::error_code code;
-  std::filesystem::create_directories(out.parent_path(), code);
-  if (!host->capture(out, scale)) return;
-  sketch::pruneThumbnails(SketchCatalog::thumbnailDirectory, entry.name, out);
-  if (m_view)
+  // ONLY THE REPAINT AND THE READBACK NEED THIS THREAD. The pixels that
+  // come back name no device; the PNG over them and the walk that
+  // removes the spent stills are pure CPU work over memory nobody else
+  // can see, and for a still full of grain they are most of the cost.
+  // Inside a frame they are a hitch on exactly the sketches worth
+  // looking at, so they go to a worker and this frame carries on.
+  SkBitmap pixels = host->still(scale);
+  if (pixels.isNull()) return;
+  if (!m_thumbnailWriter)
+    m_thumbnailWriter =
+        std::make_unique<sketch::ThumbnailWriter>([this](int index) {
+          // ON THE WORKER, which this renderer outlives: its destructor
+          // finishes the write in flight. The report is left here for
+          // the render thread to pass on, because the view it is passed
+          // to is the render thread's to name — this thread holds no
+          // claim that the item still stands.
+          const std::lock_guard lock(m_writtenMutex);
+          m_written.push_back(index);
+        });
+  m_thumbnailWriter->write(m_index, std::move(pixels), out,
+                           SketchCatalog::thumbnailDirectory, entry.name);
+}
+
+void SketchbookRenderer::reportWrittenThumbnails() {
+  std::vector<int> written;
+  {
+    const std::lock_guard lock(m_writtenMutex);
+    written.swap(m_written);
+  }
+  if (written.empty() || !m_view) return;
+  for (int index : written)
     QMetaObject::invokeMethod(
-        m_view,
-        [view = m_view, index = m_index] {
-          emit view->thumbnailCaptured(index);
-        },
+        m_view, [view = m_view, index] { emit view->thumbnailCaptured(index); },
         Qt::QueuedConnection);
 }
 
@@ -642,6 +678,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
                                 ? submitMs
                                 : m_submitMsAverage * 0.95 + submitMs * 0.05;
         refreshThumbnail();
+        reportWrittenThumbnails();
         runPendingCaptures();
         if (m_metricsDirty) {
           m_metricsDirty = false;
@@ -701,6 +738,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
     evicted = updateSession();
     drawSketch(*surface->getCanvas(), pixelSize);
     refreshThumbnail();
+    reportWrittenThumbnails();
     runPendingCaptures();
     if (m_metricsDirty) {
       m_metricsDirty = false;

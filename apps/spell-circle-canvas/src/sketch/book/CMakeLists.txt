@@ -309,6 +309,22 @@ add_test(NAME sketch_capture_viewport
     --frame ${CMAKE_BINARY_DIR}/sketch_capture_viewport.png
     --frames 3 --scale 1.6666667 --at 0.05)
 
+# WHICH WAY UP THE CANVAS IS PRESENTED, which only a window can say.
+# The item never runs a QRhi render pass, so the mirror Qt applies for a
+# y-up backend compensates nothing and has to be asked for a second time
+# — and no still can catch it, because `--frame` opens no window. This
+# photographs one on the backend that is y-up, with the still of the same
+# probe as its control. It wants a window server and an OpenGL RHI, hence
+# the label.
+add_test(NAME sketch_window_orientation
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/window_orientation.py
+    --sketchbook $<TARGET_FILE:Sketchbook>
+    --probe ${CMAKE_CURRENT_LIST_DIR}/test/orientation_probe.cpp
+    --work ${CMAKE_BINARY_DIR}/sketch_window_orientation)
+set_tests_properties(sketch_window_orientation PROPERTIES
+  LABELS window TIMEOUT 300)
+
 # THE CATALOG SEAM, without a window. `--catalog` prints the browser's
 # rows as the model would hand them to QML, and the script asserts what
 # a row says before anything is opened: a compiled-in sketch names the

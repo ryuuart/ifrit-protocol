@@ -13,6 +13,7 @@
 #include <QtQuick/QQuickRhiItem>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 class SkCanvas;
@@ -22,6 +23,7 @@ class SketchbookView;
 
 namespace sigil::sketch {
 class Host;
+class ThumbnailWriter;
 }  // namespace sigil::sketch
 
 namespace sigil::io::publish {
@@ -48,6 +50,10 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   void drawSketch(SkCanvas& canvas, QSize pixelSize);
   void runPendingCaptures();  // hostMutex must be held
   void refreshThumbnail();    // hostMutex must be held
+  /** Passes on the stills the writer has finished, which it reports on
+   *  its own thread. The view is the render thread's to name, so the
+   *  crossing to the GUI thread is made from here. */
+  void reportWrittenThumbnails();
   /** hostMutex must be held. Hands back the session evicted to make
    *  room, for the caller to let go of once the lock is released:
    *  ~Host waits on the build it may be in the middle of. */
@@ -89,6 +95,12 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   SketchbookView* m_view = nullptr;
   QRhi* m_rhi = nullptr;
   bool m_initialized = false;
+  /** WHETHER QT WILL MIRROR THE TEXTURED QUAD unless the item says
+   *  otherwise: true on a backend whose framebuffers are y-up, which is
+   *  the compensation a render pass needs and this item never makes.
+   *  Read off the QRhi where reading it is legal — inside initialize()
+   *  — and applied to the item on the synchronize that follows it. */
+  bool m_presentsYUp = false;
   std::vector<uint32_t> m_rasterPixels;
   /** THE ITEM'S OWN RECTANGLE, in its own units and not rounded to
    *  them: what the texture will be stretched over, which is only the
@@ -122,4 +134,13 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  frame instead of jumping every animation forward by the length of
    *  the pause. */
   sigil::motion::FrameClock m_clock;
+  /** WHICH STILLS HAVE LANDED, written by the writer's worker and drained
+   *  by the render thread on the frame after. */
+  std::mutex m_writtenMutex;
+  std::vector<int> m_written;
+  /** THE ENCODE AND THE WRITE OF A STILL, off this thread. Stood up by
+   *  the first sketch that reaches its moment, and declared last so it
+   *  is the first thing this renderer lets go of: its destructor is
+   *  what joins the worker that reports into the two above. */
+  std::unique_ptr<sigil::sketch::ThumbnailWriter> m_thumbnailWriter;
 };

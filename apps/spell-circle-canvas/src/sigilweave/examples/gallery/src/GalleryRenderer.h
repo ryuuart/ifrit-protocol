@@ -59,6 +59,10 @@ class GalleryViewRenderer : public QQuickRhiItemRenderer {
   bool m_graphiteInitializationAttempted = false;
 #endif
   std::vector<uint32_t> m_rasterPixels;  // CPU fallback framebuffer.
+  // Whether Qt will mirror the textured quad unless the item says
+  // otherwise: true on a backend whose framebuffers are y-up. Read off
+  // the QRhi inside initialize(), where reading it is legal.
+  bool m_presentsYUp = false;
 
   SceneParameters m_sceneParameters;
   uint64_t m_sceneParameterRevision = std::numeric_limits<uint64_t>::max();
