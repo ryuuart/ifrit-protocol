@@ -178,93 +178,61 @@ every term stay on its side of the seam.
 
 ## Build and test
 
-From `apps/spell-circle-canvas`:
-
-```sh
-python3 scripts/sigil.py setup --config Release
-cmake --build build --config Release --target core_test
-ctest --test-dir build -C Release --output-on-failure
-```
-
-The library has one test binary, `core_test`, built from every feature's
-`test/` directory; ctest discovers one entry per CASE out of it, so a suite
-or a case is selected by name with no target behind it —
-`-R '^Reconciler\.'` for the reconciler's cases, `-R '^Field\.'` for the
-field's:
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`core_test` over every feature's `test/` and one `core_bench` over every
+feature's `bench/`, ctest one entry per CASE, what a case may pin, and
+what a label promises. What is only true of SigilCore:
 
 | directory | suites | what they prove |
 |---|---|---|
 | `callable/test/` | `CoreCallable` | which callables a signature accepts and which it refuses, answered at compile time; that the parameters a callable did not name are still evaluated and dropped; that every accepted spelling of one drawing answers the same; and that an empty holder is false |
 | `comparable/test/` | `Erased`, `Fields` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes |
-| `compute/test/` | `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `ChanceStream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field`, `NoiseField`, `Curve` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points; the curve, held to what makes it a value — two of the same shape at the same numbers are equal, two shapes at the same numbers are not, and a caller's own body compares by the same rule — and to the character each house shape is chosen for |
+| `compute/test/` | `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `ChanceStream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field`, `NoiseField`, `Curve` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points; the curve, held to what makes it a value and to the character each house shape is chosen for |
 | `schedule/test/` | `ScheduleParallel`, `ScheduleConcurrentIo` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once and joining every thread even when one item fails |
 | `reconcile/test/` | `Reconciler`, `Environment`, `Phases`, `Reads` | the reconciler over a fake host, the inherited-value channel and restored scope identities, the phase runner and the read ordering |
 | `cache/test/` | `CacheProof`, `Volatility`, `CacheHost`, `CacheSettle`, `CacheBake`, `RebuildGuard`, `CachedValue`, `QuantizeKey` | the settled-subtree proof, the stability release and the bake seam over a fake host, and the keyed rebuild guard with the quantized key a continuous input is bucketed by |
 | `hardware/test/` | `HardwareHandle`, `MipChain` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows |
 | `hardware/test/DeviceTest.mm` | `HardwareDevice` (`gpu`) | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, and the levels a texture is built with |
 
-The `HardwareDevice` suite exists on Apple alone and every case in it skips
-where there is no GPU, which is why it carries a label: a case that skips is
-not coverage on the machine it skipped on, and the label is how a runner is
-told. The same questions on the Vulkan backend are asked in SigilGeometry's
-`Device` suite, since that is where a Vulkan device exists to ask them of.
+The `HardwareDevice` suite exists on Apple alone and every case in it
+skips where there is no GPU. The same questions on the Vulkan backend
+are asked in SigilGeometry's `Device` suite, since that is where a
+Vulkan device exists to ask them of. Nothing else here needs a device, a
+font or a network.
 
-One file per subject, named for what it asserts: `HashTest`,
-`IntervalsTest`, `NoiseTest`, `ChanceTest`, `FieldTest` and `CurveTest` in
-`compute/test/`; `ErasedTest` in `comparable/test/` (the erasure and the
-field pin are one subject — what a value needs before anything can decide
-it did not change — and a consumer takes both or neither); `ParallelTest`
-and `ConcurrentIoTest` in `schedule/test/`; `ReconcilerTest`, `EnvironmentTest`,
-`PhasesTest` and `ReadsTest` in `reconcile/test/`; `VolatilityTest`,
-`SettleTest`, `BakeTest` and `RebuildTest` in `cache/test/`; `HandleTest`,
-`MipChainTest` and `DeviceTest` in `hardware/test/`.
-
-A case asserts one thing a public header promises and is named that promise
-as a sentence, so a failure line reads as the claim that broke. It pins only
-what editing this library could falsify. The exact words and floats in
-`compute/test/` are exactly that: these bodies exist so a second
-implementation of one of them agrees to the bit — a GPU kernel reproduces
-the PCG three word for word, and a jitter, a point cook and a shader's CPU
-twin all have to draw the same number for the same index — and no property
-catches a drifted mixer, because "in range", "the same twice" and
-"different for different seeds" are all still true of the wrong stream. A
-claim made N times with one thing varying is one `TEST_P` whose parameter
-is that thing, with its rows named: the FNV folds are one over seven
-inputs, and the ranges the headers state for their draws are one over six
-draws.
+**The exact words and floats in `compute/test/` are the one place this
+library pins a number rather than a property.** These bodies exist so a
+second implementation of one of them agrees to the bit — a GPU kernel
+reproduces the PCG three word for word, and a jitter, a point cook and a
+shader's CPU twin all have to draw the same number for the same index —
+and no property catches a drifted mixer, because "in range", "the same
+twice" and "different for different seeds" are all still true of the
+wrong stream.
 
 Each kernel is exercised over a fake host: `reconcile/test/FakeHost.h`, a
-host with nothing behind it that records every operation the reconciler asks
-of it as a structured event — the operation, whose key, and that operation's
-own arguments — so a claim about what was asked and in what order survives
-any rewording of what a host would print; and `cache/test/FakeCacheHost.h`,
-whose nodes declare volatility, hold a numbered artefact instead of pixels
-and count every operation asked of them. A fake host is the subject of a
-measurement as much as of a test, so each feature's benchmark compiles with
-its own `test/` on its include path and drives the host defined there — one
-definition, and the two binaries cannot disagree about what they are
-exercising. Each fake lives in its own `sigil::core::test` namespace under
-the feature it serves, which is what lets every one of them spell the
-plainest name for what it is — `FakeHost`, `FakeNode` — with no feature's
-test reaching into another's directory to find out.
+host with nothing behind it that records every operation the reconciler
+asks of it as a structured event — the operation, whose key, and that
+operation's own arguments — so a claim about what was asked and in what
+order survives any rewording of what a host would print; and
+`cache/test/FakeCacheHost.h`, whose nodes declare volatility, hold a
+numbered artefact instead of pixels and count every operation asked of
+them. A fake host is the subject of a measurement as much as of a test,
+so each feature's benchmark compiles with its own `test/` on its include
+path and drives the host defined there — one definition, and the two
+binaries cannot disagree about what they are exercising. Each fake lives
+in its own `sigil::core::test` namespace under the feature it serves,
+which is what lets every one of them spell the plainest name for what it
+is — `FakeHost`, `FakeNode` — with no feature's test reaching into
+another's directory to find out.
 
-Every API name these documents spell is compiled against the headers that
-own it: a generated translation unit inside `core_test` turns every
-qualified name in `README.md` and in the six chapters into a probe, and the
-generator fails on a documented name no header declares. Prose nobody
-compiles is prose that goes stale, and a chapter is the same canon as the
-page that links it.
-
-The benchmarks are executables, not tests, and all of them are arms of one
-binary, `core_bench`. The comparable arms time each erased comparison
-against the same question asked of the model directly, so what erasure costs
-is the difference between two arms; the compute arms time each mixer one
-call at a time, which is how they are spent, and the stream, its
-distributions and the field the same way, so what a source or an octave
-costs is one arm beside another; the schedule arms time a divided range over
-a body that does nothing but touch its item, at three sizes, so what is
-measured is the split rather than any consumer's arithmetic; the reconcile
-and cache arms time the reconciler and the proof over the fake hosts at
-several node counts; and the hardware arms time the device. They build
-through the `benches` target and run through `scripts/sigil.py bench`, which
-is where any number about them belongs.
+The benchmark arms are shaped so each one's cost is read as a difference
+against its neighbour: the comparable arms time each erased comparison
+against the same question asked of the model directly, so what erasure
+costs is one arm beside another; the compute arms time each mixer, the
+stream, its distributions and the field one call at a time, which is how
+they are spent; the schedule arms time a divided range over a body that
+does nothing but touch its item, at three sizes, so what is measured is
+the split rather than any consumer's arithmetic; the reconcile and cache
+arms time the reconciler and the proof over the fake hosts at several
+node counts; and the hardware arms time the device.
