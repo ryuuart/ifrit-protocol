@@ -1,8 +1,15 @@
 #pragma once
+#include <include/core/SkRefCnt.h>
 #include <sigilcore/hardware/GpuDevice.h>
 
+#include <cstdint>
 #include <memory>
 #include <mutex>
+#include <span>
+#include <string>
+
+class SkData;
+class SkRuntimeEffect;
 
 namespace skgpu {
 class ShaderErrorHandler;
@@ -103,7 +110,15 @@ class GraphiteContext {
   static skgpu::graphite::RecorderOptions makeRecorderOptions();
   /** One funnel for ContextOptions too (both backends). Reads
    *  SIGILSKIA_GLYPH_ATLAS_BYTES to cap the Graphite glyph-atlas
-   *  texture budget; unset leaves Skia's own default in place. */
+   *  texture budget; unset leaves Skia's own default in place.
+   *
+   *  Every context is given one process-wide thread pool to build its
+   *  device pipelines on. Without it Graphite compiles each one
+   *  serially on the thread that recorded the draw, which for a scene
+   *  wearing a chain of runtime shaders is a dozen compiles inside its
+   *  first frame. The pool is never released: Skia requires it to
+   *  outlive every context built over it, and the last context goes
+   *  during static teardown. */
   static skgpu::graphite::ContextOptions makeContextOptions();
 
   /** WHERE A SHADER THAT WOULD NOT COMPILE IS REPORTED. Graphite builds
@@ -120,6 +135,58 @@ class GraphiteContext {
    *  the caller keeps ownership and must outlive the contexts. Null
    *  restores Skia's own reporting. */
   static void reportShaderErrorsTo(skgpu::ShaderErrorHandler* handler);
+
+  /** WHAT GRAPHITE DID WITH A PIPELINE, as it did it.
+   *
+   *  A backend builds one device program per distinct draw and the
+   *  thread that recorded the draw waits for it, so a scene wearing a
+   *  chain of runtime shaders pays one program per stage the first time
+   *  it is drawn. Which pipelines a scene needs, and which of them were
+   *  already standing, is the whole of what a warm-up can act on, and
+   *  nothing else reports it. */
+  class PipelineReporter {
+   public:
+    virtual ~PipelineReporter() = default;
+    /** A pipeline Graphite has just built. @p key is what a later run
+     *  rebuilds it from through `precompile`, and is null for a
+     *  pipeline this backend cannot serialise. @p fromPrecompile says
+     *  it was built ahead of a draw rather than for one. */
+    virtual void added(const std::string& label, std::uint32_t uniqueHash,
+                       bool fromPrecompile, sk_sp<SkData> key) = 0;
+    /** A pipeline a draw asked for and found already built. */
+    virtual void found(const std::string& label, std::uint32_t uniqueHash,
+                       bool fromPrecompile) = 0;
+  };
+
+  /** Given to every context this factory builds afterwards, so set it
+   *  BEFORE the context is created. Process-wide; the caller keeps
+   *  ownership and must outlive the contexts. Called on whichever
+   *  thread recorded the draw. Null reports nothing. */
+  static void reportPipelinesTo(PipelineReporter* reporter);
+
+  /** THE RUNTIME EFFECTS A SERIALISED PIPELINE KEY MAY NAME.
+   *
+   *  A pipeline's key describes the whole inlined paint tree, and a
+   *  runtime effect in that tree has no name a later run would
+   *  recognise unless it was declared here: without the declaration the
+   *  key for such a pipeline is absent, and precompiling a recorded set
+   *  skips exactly the stages a chain of effects is made of. The effects
+   *  are copied and given to every context built afterwards, so declare
+   *  them BEFORE the first one. Process-wide, and the list REPLACES
+   *  whatever stood before it: a caller that keeps recorded keys on
+   *  disk must throw them away whenever this list changes, because the
+   *  same effect at a different place in it is a different name. */
+  static void registerRuntimeEffects(
+      std::span<const sk_sp<SkRuntimeEffect>> effects);
+
+  /** REBUILDS THE PIPELINES @p keys NAMES, on the calling thread.
+   *
+   *  A key this backend or this version of Skia cannot read is skipped;
+   *  the answer is how many pipelines were built. The helper it runs
+   *  through may be made here and used on another thread, which is the
+   *  point: a warm-up run where frames are drawn would be the stall it
+   *  exists to remove. */
+  [[nodiscard]] size_t precompile(std::span<const sk_sp<SkData>> keys) const;
 
  private:
   /** Wraps a context and the one recorder made from it; the backend

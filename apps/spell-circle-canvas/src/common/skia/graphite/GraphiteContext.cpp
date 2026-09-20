@@ -8,14 +8,21 @@
 #include <gpu/graphite/ContextOptions.h>
 #include <gpu/graphite/Image.h>
 #include <gpu/graphite/ImageProvider.h>
+#include <gpu/graphite/PrecompileContext.h>
 #include <gpu/graphite/Recorder.h>
 #include <include/core/SkBitmap.h>
+#include <include/core/SkData.h>
+#include <include/core/SkExecutor.h>
+#include <include/core/SkSpan.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <atomic>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdint>
 #include <cstdlib>
+#include <utility>
+#include <vector>
 
 namespace sigil::skia {
 
@@ -75,10 +82,85 @@ std::atomic<skgpu::ShaderErrorHandler*>& shaderErrorSink() {
   return sink;
 }
 
+/** Where a pipeline Graphite builds or finds is reported, for every
+ *  context built after it is set. Atomic for the same reason as the
+ *  handler above, and read on whichever thread recorded the draw. */
+std::atomic<GraphiteContext::PipelineReporter*>& pipelineSink() {
+  static std::atomic<GraphiteContext::PipelineReporter*> sink{nullptr};
+  return sink;
+}
+
+/** The shape Graphite calls back with. Skia's callback carries a client
+ *  context pointer; the sink here is the static above, so the context
+ *  stays null and one trampoline serves every context. */
+void reportPipeline(skgpu::graphite::ContextOptions::PipelineCallbackContext,
+                    skgpu::graphite::ContextOptions::PipelineCacheOp operation,
+                    const std::string& label, std::uint32_t uniqueKeyHash,
+                    bool fromPrecompile, sk_sp<SkData> pipelineData) {
+  GraphiteContext::PipelineReporter* reporter =
+      pipelineSink().load(std::memory_order_relaxed);
+  if (!reporter) return;
+  using Operation = skgpu::graphite::ContextOptions::PipelineCacheOp;
+  if (operation == Operation::kAddingPipeline)
+    reporter->added(label, uniqueKeyHash, fromPrecompile,
+                    std::move(pipelineData));
+  else
+    reporter->found(label, uniqueKeyHash, fromPrecompile);
+}
+
+/** THE THREAD POOL EVERY CONTEXT COMPILES ITS PIPELINES ON.
+ *
+ *  Skia requires the executor to stay valid for the whole life of every
+ *  context given it, and the last context in a process goes during
+ *  static teardown — so this is made once, on first ask, and never
+ *  released. One pool, not one per context: several contexts in a
+ *  process are several windows over one machine, and a pool each would
+ *  be that many thread sets competing for the same cores. */
+SkExecutor& pipelineExecutor() {
+  static SkExecutor* executor = SkExecutor::MakeFIFOThreadPool().release();
+  return *executor;
+}
+
+/** The runtime effects every context built after them is told about, in
+ *  the order they were declared — which is part of the name each one
+ *  gets, so the order is the list. Never destroyed: a context refs each
+ *  effect, but the span the options carry points here, and the last
+ *  context goes during static teardown. */
+std::vector<sk_sp<SkRuntimeEffect>>& knownRuntimeEffects() {
+  static auto* effects = new std::vector<sk_sp<SkRuntimeEffect>>;
+  return *effects;
+}
+
 }  // namespace
 
 void GraphiteContext::reportShaderErrorsTo(skgpu::ShaderErrorHandler* handler) {
   shaderErrorSink().store(handler, std::memory_order_relaxed);
+}
+
+void GraphiteContext::reportPipelinesTo(PipelineReporter* reporter) {
+  pipelineSink().store(reporter, std::memory_order_relaxed);
+}
+
+void GraphiteContext::registerRuntimeEffects(
+    std::span<const sk_sp<SkRuntimeEffect>> effects) {
+  knownRuntimeEffects().assign(effects.begin(), effects.end());
+}
+
+size_t GraphiteContext::precompile(std::span<const sk_sp<SkData>> keys) const {
+  if (!m_context || keys.empty()) return 0;
+  std::unique_ptr<skgpu::graphite::PrecompileContext> precompileContext;
+  {
+    const auto lock = lockContext();
+    precompileContext = m_context->makePrecompileContext();
+  }
+  // The helper is made where the context is and used here, which may be
+  // another thread: that is what it is for, and it holds the context's
+  // shared half rather than the context.
+  if (!precompileContext) return 0;
+  size_t built = 0;
+  for (const sk_sp<SkData>& key : keys)
+    if (key && precompileContext->precompile(key)) ++built;
+  return built;
 }
 
 skgpu::graphite::ContextOptions GraphiteContext::makeContextOptions() {
@@ -86,6 +168,22 @@ skgpu::graphite::ContextOptions GraphiteContext::makeContextOptions() {
   // Null leaves Skia's own handler in place, which prints to stderr.
   options.fShaderErrorHandler =
       shaderErrorSink().load(std::memory_order_relaxed);
+  // PIPELINES OFF THE THREAD THAT RECORDED THE DRAW. Graphite builds a
+  // device program per distinct draw and the recording thread waits on
+  // it; with no executor it builds them one after another on that
+  // thread, so a scene wearing a chain of runtime shaders pays every
+  // one of them inside its first frame.
+  options.fExecutor = &pipelineExecutor();
+  // Only where someone is listening: an add serialises the pipeline's
+  // key for the callback, which is work a context nobody is watching
+  // has no reason to do.
+  if (pipelineSink().load(std::memory_order_relaxed))
+    options.fPipelineCachingCallback = &reportPipeline;
+  // A key naming a runtime effect is only serialisable while the effect
+  // is one of these, so the declared list travels with the context.
+  if (!knownRuntimeEffects().empty())
+    options.fUserDefinedKnownRuntimeEffects =
+        SkSpan<sk_sp<SkRuntimeEffect>>(knownRuntimeEffects());
   // The glyph-atlas texture budget, overridable from the environment so
   // it can be varied under a benchmark without a rebuild. Unparseable or
   // non-positive values are ignored, so an unset or malformed variable

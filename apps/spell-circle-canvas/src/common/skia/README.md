@@ -323,6 +323,32 @@ created, so install it first. Unset, Skia prints the generated shader and
 the compiler's errors to stderr. SigilMaterial's device sweep is built on
 this.
 
+## The pipeline a draw waits for
+
+A device program is built per distinct draw, out of the whole inlined
+paint tree, and the thread that recorded the draw waits for it — so a
+scene wearing a chain of runtime shaders pays one program per stage on
+the frame it first appears in, and an edit to any shader is a fresh
+chain. Warming the SkSL is a different compile and does not reach it.
+
+Every context this library builds is given one process-wide thread pool
+for that work, so the stages are built beside each other rather than one
+after another. Two entry points make the rest addressable:
+`GraphiteContext::reportPipelinesTo` installs a
+`GraphiteContext::PipelineReporter`, which is told of every pipeline a
+context builds or finds, with a serialised key for each it can
+serialise; `GraphiteContext::precompile` rebuilds a set of those keys,
+on whichever thread calls it, so a launch that recorded what the last
+one needed can stand the programs up before anything draws. Both are
+read when the context is created, so install the reporter first.
+
+`GraphiteContext::registerRuntimeEffects` is the precondition on the
+second: a key naming an undeclared runtime effect is not serialisable at
+all, so without the declaration a recorded set holds everything except
+the stages an effect chain is made of. The list replaces rather than
+grows, and an effect's place in it is part of its name — so keys kept on
+disk are thrown away whenever the list changes.
+
 ## The two draws Graphite does not implement
 
 `graphite::Device` overrides `drawImageLattice` and `drawAtlas` with
@@ -349,7 +375,12 @@ picture recorded on a raster canvas must be able to replay on a Graphite
 one, and a recorded native lattice or atlas op vanishes there. The
 canvas's recorder gates only TEXTURE PROMOTION — `draw::ready` asks that
 recorder's image provider for a texture, so direct draws share the cache
-that ordinary image draws use. Each recorder created by `GraphiteContext`
+that ordinary image draws use. It asks for the properties the draw needs
+of that texture, which is the mip chain the sampling wants: a sheet
+sampled with mipmaps promotes with them, so a minified sprite reads the
+same on a Graphite canvas as it does on a raster one, and the provider's
+key carries the request so the two promotions do not displace each
+other. Each recorder created by `GraphiteContext`
 owns its provider; replacing a recorder also replaces its retained images.
 Callers hand over the canvas and image without any cache storage. An
 image provider that cannot supply a texture falls back to an uncached
