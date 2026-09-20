@@ -21,6 +21,14 @@ baseline alignment, layered with explicit z-order and blending, cached
 like a display list, animated at scene rate, and refreshed from data
 without rebuilding the world.
 
+**`reference/` is the catalogue.** This page is the model — the phases,
+the caching, the cascade, the boundaries. Beside it,
+`reference/ELEMENTS.md` lists every factory that starts a tree,
+`reference/VERBS.md` every verb an Element takes in fourteen concern
+groups, and `reference/VALUES.md` what those verbs accept and where one
+comes from, with a page and a drawn example per entity under
+`reference/pages/`.
+
 **`TYPOGRAPHY.md` is the type chapter.** Everything a passage of type can
 be told past `text(utf8, style)` — the per-glyph fx tracks, a run on a
 path, span restyling, the paragraph controls, threaded frames over a
