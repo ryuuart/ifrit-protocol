@@ -98,6 +98,8 @@ sigil_test(compose_test
           test/ComposeTestPromotion.cpp test/ComposeTestMotion.cpp
           test/ComposeTestBakeReuse.cpp test/ComposeTestFeed.cpp
           test/ComposeTestFlowAroundCore.cpp test/ComposeTestEdgeStore.cpp
+          test/ComposeTestPromotionBounds.cpp
+          test/ComposeTestPromotionGate.cpp
           test/StandardExceptionsTest.cpp
           test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp
           test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp
