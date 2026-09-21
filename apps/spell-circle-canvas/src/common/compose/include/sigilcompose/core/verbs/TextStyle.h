@@ -66,9 +66,9 @@ class TextStyleVerbs {
   Derived& live(bool on = true, int candidates = 0);
   /** The marker appended to the last line when the text overflows its
    *  geometry. Empty disables it. */
-  Derived& ellipsis(Utf8 marker);
+  Derived& textOverflow(Utf8 marker);
   /** Use at most this many lines — CSS line-clamp. The rest reports as
-   *  overflow, and `ellipsis()`, when set, lands on the clamped line.
+   *  overflow, and `textOverflow()`, when set, lands on the clamped line.
    *  0 is unclamped. */
   Derived& maxTextLines(int lines);
   /** Paint the GLYPHS with this material, mapped to TEXT-METRIC space:

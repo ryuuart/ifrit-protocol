@@ -57,15 +57,15 @@ track with `.unit = weave::Unit::Line` beats column by column and
 `weave::selectors::line(0)` addresses the rightmost one; `weave::Unit::Cluster`
 runs down a column in reading order. `spanPaint`, `spanStyle`, the block's
 alignment (start is the top of the column), `maxTextLines` (which clamps
-COLUMNS) with `ellipsis` at the clamped column's foot, `contentFlowAround`, the
-block's last line and breaking strategy, `textStroke`, `variationDrive`
-and `feed()`'s text tier all work as they do across a line. `mark()` anchors as it does anywhere — its
-rect is the union of the advance boxes its selector addressed, and in a
-column those stack downward, so a phrase's mark is a tall box standing in
-that phrase's column. `Element::textFill` maps its unit square onto the
-COLUMN BLOCK rather than onto a cap band — a column's glyphs centre across
-its axis instead of standing on a baseline, so there is no cap band to hang
-a ramp on — which means a gradient authored in [0,1]² crosses the type
+COLUMNS) with `textOverflow` at the clamped column's foot, `contentFlowAround`,
+the block's last line and breaking strategy, `textStroke`, `variationDrive` and
+`feed()`'s text tier all work as they do across a line. `mark()` anchors as it
+does anywhere — its rect is the union of the advance boxes its selector
+addressed, and in a column those stack downward, so a phrase's mark is a tall
+box standing in that phrase's column. `Element::textFill` maps its unit square
+onto the COLUMN BLOCK rather than onto a cap band — a column's glyphs centre
+across its axis instead of standing on a baseline, so there is no cap band to
+hang a ramp on — which means a gradient authored in [0,1]² crosses the type
 reading DOWN the page.
 
 **Track deviations apply in the frame the layout placed the glyph in**, the
@@ -77,7 +77,7 @@ baseline, across the column. A glyph's pivot moves too: an upright glyph
 turns and scales about the point on the COLUMN AXIS its pen reached, not
 about a point half a column pitch to its right.
 
-**`contentFlowAround`, the initial letter and `ellipsis` follow the type
+**`contentFlowAround`, the initial letter and `textOverflow` follow the type
 down the page.** An exclusion cuts a COLUMN exactly as it cuts a line: the
 column a target crosses hands back a head above it and a foot below it, and
 the same silhouette is subtracted — a `shape()` outline, an analytic circle,

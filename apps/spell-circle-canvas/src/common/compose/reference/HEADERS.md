@@ -110,7 +110,7 @@ sound model; nothing below them changes kernel semantics.
   `preserve3d`, `backface`.
 - `core/verbs/TextStyle.h` — `TextStyleVerbs`: `paragraphs`,
   `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,
-  `ellipsis`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
+  `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `mark`,
   `annotate`, `thread`, `balanceChain`, `onPath`, `spanPaint`,
   `spanStyle`, `atRest`.
@@ -136,7 +136,7 @@ sound model; nothing below them changes kernel semantics.
   re-based into its own bounds), `custom`, `slot`, `layout`, `memo`.
   `text` takes `Utf8`, so `text("…")`, `text(u8"…")`, `text(std::string)`
   and `text(std::u8string)` are one factory and nothing widens a string to
-  reach it; `Element::ellipsis` takes the same value. `each(range, make)`
+  reach it; `Element::textOverflow` takes the same value. `each(range, make)`
   is the children a range describes, `each(count, make)` the children a
   COUNT describes — one per index, for the run whose items are their own
   place in it — and `each(range, make, between)`

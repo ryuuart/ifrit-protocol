@@ -256,7 +256,7 @@ struct NestedStyle {
     if (index + 1 < count)
       column.thread(keyPrefix + std::to_string(index + 1));
     else if (!ellipsis.empty())
-      column.ellipsis(ellipsis);
+      column.textOverflow(ellipsis);
     row.children({std::move(column)});
   }
   return row;
@@ -345,7 +345,7 @@ struct ColumnSet {
       if (index + 1 < rows * set.count)
         column.thread(keyAt(index + 1));
       else if (!set.ellipsis.empty())
-        column.ellipsis(set.ellipsis);
+        column.textOverflow(set.ellipsis);
       row.children({std::move(column)});
     }
     stack.children({std::move(row)});

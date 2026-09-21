@@ -8,7 +8,7 @@ group: Leaves
 python: sigil.compose.text
 status: stable
 example: text_element
-common_verbs: [font, ink, block, maxTextLines, ellipsis, textFill, textStroke, paragraphs]
+common_verbs: [font, ink, block, maxTextLines, textOverflow, textFill, textStroke, paragraphs]
 ---
 
 # text

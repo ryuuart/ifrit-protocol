@@ -296,7 +296,7 @@ TEST(TextOptionSetters, MaxLinesAndEllipsisClampTheText) {
   host.composer.render(box().padding(10).children({text(body, base)
                                                        .width(180)
                                                        .maxTextLines(2)
-                                                       .ellipsis(u8"...")
+                                                       .textOverflow(u8"...")
                                                        .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");

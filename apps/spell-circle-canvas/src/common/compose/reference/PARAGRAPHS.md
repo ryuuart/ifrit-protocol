@@ -89,7 +89,7 @@ article.paragraphs({headingStyle, bodyStyle, bodyStyle});
 
 root.children({
     frame(article).key("a").thread("b").width(Dimension(300.0f)),
-    frame(article).key("b").width(Dimension(300.0f)).ellipsis(u8"…"),
+    frame(article).key("b").width(Dimension(300.0f)).textOverflow(u8"…"),
 });
 ```
 

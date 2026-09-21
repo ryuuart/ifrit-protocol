@@ -666,9 +666,9 @@ void bindCompose(py::module_& module) {
       .def("live", &Element::live, py::arg("enabled") = true,
            py::arg("candidates") = 0, fluent)
       .def(
-          "ellipsis",
+          "textOverflow",
           [](Element& self, const std::string& marker) -> Element& {
-            return self.ellipsis(marker);
+            return self.textOverflow(marker);
           },
           py::arg("marker"), fluent)
       .def("maxTextLines", &Element::maxTextLines, py::arg("lines"), fluent)

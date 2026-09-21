@@ -90,7 +90,7 @@ Derived& TextStyleVerbs<Derived>::live(bool on, int candidates) {
 }
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::ellipsis(Utf8 marker) {
+Derived& TextStyleVerbs<Derived>::textOverflow(Utf8 marker) {
   detail::TextOptions& options = declarations()->textData.ensure().options;
   options.ellipsis = weave::unicode::toUtf16(marker.bytes());
   options.set |= detail::TextOptions::kEllipsis;

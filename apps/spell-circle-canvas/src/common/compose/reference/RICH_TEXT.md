@@ -19,7 +19,7 @@ text(p)
     .spanPaint(weave::selectors::regex(u8"[0-9]+"),
                sigil::weave::PaintStyle(SK_ColorRED))
     .maxTextLines(3)
-    .ellipsis(u8"…");
+    .textOverflow(u8"…");
 ```
 
 `weave::RichText::slot` reserves an INLINE SLOT in the run stream — a box of
@@ -152,7 +152,7 @@ justification, its tab stops, the three tables a house's own setting is
 stated in (`Block::kinsoku`, `Block::hanging`, `Block::mojikumi` with
 `Block::tsume`), and the tailoring the segmentation runs under
 (`Block::lineBreakLocale`), which belongs to the Paragraph and lands
-there the way `Block::writingMode` does. `Element::ellipsis`,
+there the way `Block::writingMode` does. `Element::textOverflow`,
 `Element::maxTextLines`, `Element::reserve` and `Element::live` are the
 leaf's own, set on any content form. The rest of that struct — Knuth-Plass tolerance,
 line-metric overrides — stays behind the paragraph overload, which takes

@@ -258,7 +258,7 @@ struct TextData {
   // Full-control overload: identity (the pointer) is the change signal.
   std::shared_ptr<sigil::weave::Paragraph> paragraphOverride;
   sigil::weave::ParagraphLayoutOptions layoutOptions;
-  // The fluent setters (textAlign, lineBreak, hyphenation, ellipsis,
+  // The fluent setters (textAlign, lineBreak, hyphenation, textOverflow,
   // maxTextLines, lastLine), which override `layoutOptions` field by field.
   TextOptions options;
   // spanPaint()/spanStyle(): the type treatment, addressed by selector and

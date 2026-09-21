@@ -27,7 +27,7 @@ namespace sigil::compose {
  *  underneath takes, and `bytes()` is the ONE way to read it out: there
  *  is no implicit conversion out, so a sink spells `value.bytes()` and
  *  every use is visible where it stands. A sink in this library takes THIS
- *  type rather than the bytes — `text`, `ellipsis`, every kit prop — so
+ *  type rather than the bytes — `text`, `textOverflow`, every kit prop — so
  *  `bytes()` at a call site means the caller is reading the bytes
  *  themselves, not fitting a signature.
  *
