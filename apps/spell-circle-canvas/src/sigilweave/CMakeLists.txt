@@ -80,7 +80,7 @@ sigil_doc_probes(weave
   SKIP_HEADERS SigilWeaveQt.h
   EXCLUDE "sigil::weave::SigilWeaveKit=the exported CMake target's namespaced name, not a C++ name"
           "SkCanvas::saveLayer=Skia's own overloaded member: no requires-spelling can name an overload set, and this generator indexes only the libraries whose include roots it is given"
-          "Element::textWillChange=SigilCompose stands on this library, so its worked example is named and not probed"
+          "Text::textWillChange=SigilCompose stands on this library, so its worked example is named and not probed"
           "Composer::settling=SigilCompose stands on this library, so its worked example is named and not probed"
   FLOORS 80,150,75,0,1
   LIBRARIES SigilWeave SigilGeometryPath SigilImageField SigilCoreCache)
