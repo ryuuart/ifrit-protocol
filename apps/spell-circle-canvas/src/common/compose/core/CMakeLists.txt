@@ -45,8 +45,9 @@ sigil_library(SigilComposeCore
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
     ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
     ElementCascade.cpp
-    # which elements a rule speaks about, and the CSS text that says so
-    Selector.cpp SelectorParse.cpp
+    # which elements a rule speaks about, the CSS text that says so,
+    # and the rules a sheet states about them
+    Selector.cpp SelectorParse.cpp StyleSheet.cpp
     # the composer and its phases
     Composer.cpp Measure.cpp Tiles.cpp Cascade.cpp
     Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
@@ -80,7 +81,7 @@ sigil_library(SigilComposeCore
           Factories.h Feed.h Grid.h Image.h Instances.h Layout.h Mask.h
           Measure.h
           Paint.h Pattern.h Selector.h Shape.h Shelf.h Stroke.h
-          SurfacePaint.h Table.h
+          StyleSheet.h SurfacePaint.h Table.h
           Text.h TextPainter.h Tiles.h Utf8.h Var.h
           verbs/Box.h verbs/Cascade.h verbs/Decoration.h verbs/Depth.h
           verbs/Effects.h verbs/Flex.h verbs/Mask.h verbs/Paint.h
@@ -122,7 +123,7 @@ sigil_test(compose_test
           test/ComposeTestShelf.cpp test/ComposeTestTable.cpp
           test/ComposeTestValues.cpp test/ComposeTestBlockLane.cpp test/ComposeTestCascade.cpp
           test/ComposeTestRoles.cpp test/ComposeTestFlexBox.cpp
-          test/ComposeTestSelector.cpp
+          test/ComposeTestSelector.cpp test/ComposeTestStyleSheet.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore

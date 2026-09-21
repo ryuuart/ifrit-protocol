@@ -24,6 +24,7 @@
 #include "sigilcompose/core/Shape.h"
 #include "sigilcompose/core/Shelf.h"
 #include "sigilcompose/core/Stroke.h"
+#include "sigilcompose/core/StyleSheet.h"
 #include "sigilcompose/core/Table.h"
 #include "sigilcompose/core/TextPainter.h"
 #include "sigilcompose/core/Tiles.h"
