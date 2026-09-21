@@ -558,10 +558,10 @@ using MemoData = core::Memo<Element>;
 
 struct ElementNode {
   Kind kind = Kind::Box;
-  // Element::boundary(): what this node's decorations dress — its own
+  // Element::decorationOutline(): what this node's decorations dress — its own
   // shape, the outline of its glyphs on a text leaf, or the silhouette of
   // what it DREW — and, under Coverage, how much paint counts as ink:
-  // Element::threshold() as a fraction of full opacity, defaulting to the
+  // the verb's second argument, a fraction of full opacity, defaulting to the
   // rule an unantialiased rasteriser uses, the paint reaching at least
   // half the pixel. Anything that borrows this node's edge reads the same
   // pair. Both stand at the head of the struct because the kind enum

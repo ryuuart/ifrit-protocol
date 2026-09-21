@@ -54,10 +54,10 @@ bool Composer::Impl::deriveFlow(Instance& inst) {
       // its glyph outlines on a text leaf under `Boundary::Glyphs`, the
       // silhouette of what it DREW under `Boundary::Coverage` (a cut-out,
       // a clip, a mask, a photograph's alpha, at the tolerance
-      // `Element::threshold` set), its declared shape otherwise, and its
-      // box when it declares none. The margin means the same thing in
-      // every case — a disc of that radius round whatever edge is being
-      // subtracted — so a truer edge is never a second rule.
+      // `Element::decorationOutline` stated), its declared shape otherwise, and
+      // its box when it declares none. The margin means the same thing in every
+      // case — a disc of that radius round whatever edge is being subtracted —
+      // so a truer edge is never a second rule.
       SkPath boundaryPath =
           boundaryOutlineOf(target, box.width(), box.height());
       if (!boundaryPath.isEmpty()) {

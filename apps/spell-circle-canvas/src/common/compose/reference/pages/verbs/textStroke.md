@@ -68,5 +68,5 @@ so it costs no rectangle and survives whatever is underneath.
 ## See also
 
 [`textFill`](textFill.md), [`stroke`](stroke.md) for the node's
-boundary, `boundary` for dressing a node with the outline of its glyphs,
+boundary, `decorationOutline` for dressing a node with the outline of its glyphs,
 and [`text`](../elements/text.md).

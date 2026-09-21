@@ -24,7 +24,7 @@ an annulus.
 **A target that declares none is subtracted by its BOX**, which is the
 whole of what it occupies. Corner radii round the fill rather than the
 outline and do not count as a silhouette; a coverage
-[`boundary`](boundary.md) does, and [`threshold`](threshold.md) is the
+[`decorationOutline`](decorationOutline.md) does, and that verb's coverage is the
 tolerance it is cut at.
 
 **The margin is the same standoff from whichever edge is being
@@ -37,5 +37,5 @@ elements.
 
 ## See also
 
-[`boundary`](boundary.md), [`threshold`](threshold.md), `key`,
+[`decorationOutline`](decorationOutline.md), `key`,
 `Composer::bounds`.

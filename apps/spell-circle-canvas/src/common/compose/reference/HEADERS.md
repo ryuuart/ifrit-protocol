@@ -99,8 +99,7 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/Paint.h` — `PaintVerbs`: `fill`, in every form a surface
   can be painted with.
 - `core/verbs/Decoration.h` — `DecorationVerbs`: `background`,
-  `overlay`, `foreground`, `stroke`, `layerStyle`, `echo`, `boundary`,
-  `threshold`.
+  `overlay`, `foreground`, `stroke`, `layerStyle`, `echo`, `decorationOutline`.
 - `core/verbs/Effects.h` — `EffectVerbs`: `opacity`, `appear`, `blendMode`,
   `filter`, `backdropFilter`.
 - `core/verbs/Transform.h` — `TransformVerbs`: `translateX`,

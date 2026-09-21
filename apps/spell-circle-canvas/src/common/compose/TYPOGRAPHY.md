@@ -15,7 +15,7 @@ each control.
 - [Beside the text](reference/BESIDE_TEXT.md) — `Composer::units`, annotations, and the kit over them
 - [Vertical CJK](reference/VERTICAL_TEXT.md)
 
-What a decoration dresses — `Element::boundary`, and the three
+What a decoration dresses — `Element::decorationOutline`, and the three
 mechanisms behind it — stays in the README, because a glyph boundary is
 one of three answers and the other two are about shapes and images.
 

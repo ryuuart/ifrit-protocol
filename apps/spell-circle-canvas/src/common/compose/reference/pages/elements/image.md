@@ -8,7 +8,7 @@ group: Leaves
 python: sigil.compose.image
 status: stable
 example: image_element
-common_verbs: [imageRendering, region, width, height, borderRadius, overflow, boundary]
+common_verbs: [imageRendering, region, width, height, borderRadius, overflow, decorationOutline]
 ---
 
 # image
@@ -63,7 +63,7 @@ that holds them and every image leaf under it takes it, as CSS inherits
 **`region` draws one sub-rect of the source** — an atlas cell, a sprite
 frame — strictly constrained, so neighbouring cells never bleed in.
 
-A node whose `boundary` is `Boundary::Coverage` hands its decorations
+A node whose `decorationOutline` is `Boundary::Coverage` hands its decorations
 the silhouette of what it drew rather than its box, which is what dresses
 a cut-out and what text flows around.
 

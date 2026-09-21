@@ -81,7 +81,7 @@ Element haloedBand(Boundary boundary, const choreograph::Output<float>* turn) {
                      .width(side)
                      .height(side)
                      .cache(Cache::Texture)
-                     .boundary(boundary)
+                     .decorationOutline(boundary)
                      .transformOrigin(pct(50), pct(50))
                      .rotate(sigil::motion::bind(turn).target(0.0f, 360.0f))
                      .filter(sigil::material::skia::Effect::glow(

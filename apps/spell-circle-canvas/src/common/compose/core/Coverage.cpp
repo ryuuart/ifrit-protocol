@@ -43,7 +43,7 @@ constexpr int kMaxTraceRaster = 2048;
 
 /** THE ALPHA, AS A REGION, at the tolerance the node declared: a pixel is
  *  inside when its coverage reaches `covered`, which
- *  `Element::threshold` states as a fraction of full opacity and which
+ *  `Element::decorationOutline` states as a fraction of full opacity and which
  *  defaults to the rule an unantialiased rasteriser uses — the paint
  *  reached at least half the pixel, so the traced edge is where the drawn
  *  edge is rather than half a pixel outside it. Raise it and a wash or a

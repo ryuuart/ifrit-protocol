@@ -54,15 +54,14 @@ class DecorationVerbs {
    *  claims that overlap are reported out loud, naming both passes and
    *  the run. */
   Derived& stroke(Spans where, Decoration what, std::string name = {});
-  /** WHAT THIS NODE'S DECORATIONS DRESS — its own shape (the default),
-   *  the outline of its GLYPHS on a text leaf, or the silhouette of
-   *  what it DREW. */
-  Derived& boundary(Boundary source);
-  /** HOW MUCH PAINT COUNTS AS INK under `Boundary::Coverage` — the
-   *  tolerance the silhouette is cut at, as a fraction of full
-   *  opacity, clamped to [0, 1]. Half by default, which is the rule an
-   *  unantialiased rasteriser uses. */
-  Derived& threshold(float coverage);
+  /** WHICH OUTLINE THIS NODE'S DECORATIONS FOLLOW — its own shape (the
+   *  default, as CSS `box-shadow` follows the box), the outline of its
+   *  GLYPHS on a text leaf (`text-shadow`), or the silhouette of what it
+   *  DREW (`filter: drop-shadow`). @p coverage is read under
+   *  `Boundary::Coverage` alone: how much paint counts as ink, as a
+   *  fraction of full opacity clamped to [0, 1]. Half when unstated,
+   *  which is the rule an unantialiased rasteriser uses. */
+  Derived& decorationOutline(Boundary source, float coverage = 0.5f);
   /** Apply a whole `LayerStyle`: its `under` layers append as
    *  backgrounds and its `over` layers as foregrounds, so one call
    *  dresses the node in a bundled treatment. */

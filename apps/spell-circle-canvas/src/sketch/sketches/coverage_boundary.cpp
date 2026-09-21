@@ -2,7 +2,7 @@
  * coverage_boundary — what a decoration dresses when the visible thing
  * is not the node's shape.
  *
- * `boundary()` names the outline a node's marks are drawn across.
+ * `decorationOutline()` names the outline a node's marks are drawn across.
  * `Auto` is the node's own shape, `Glyphs` is the contours a text
  * placement produced, and `Coverage` is the silhouette of WHAT THE NODE
  * DREW — read off its rendered layer rather than off any description of
@@ -167,7 +167,7 @@ struct CoverageBoundary {
                                  "Coverage boundary: the visible star and its "
                                  "hole receive the same style.",
                                  art(cut)
-                                     .boundary(Boundary::Coverage)
+                                     .decorationOutline(Boundary::Coverage)
                                      .layerStyle(halo()))},
                   .measure = 1020,
                   .gap = 18}),
@@ -187,7 +187,8 @@ struct CoverageBoundary {
                                                "the tracing threshold; the box "
                                                "is the fallback.",
                                                art(cut, kWash)
-                                                   .boundary(Boundary::Coverage)
+                                                   .decorationOutline(
+                                                       Boundary::Coverage)
                                                    .layerStyle(halo())),
                                           cell(
                                               "CHILDREN AS ONE OUTLINE",
@@ -199,7 +200,8 @@ struct CoverageBoundary {
                                               box()
                                                   .width(kArt)
                                                   .height(kArt)
-                                                  .boundary(Boundary::Coverage)
+                                                  .decorationOutline(
+                                                      Boundary::Coverage)
                                                   .layerStyle(halo())
                                                   .children({disc({37, 53}, 31),
                                                              disc({79, 39}, 35),

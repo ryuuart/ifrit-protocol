@@ -425,7 +425,7 @@ Element haloedNode(bool past, bool reserving) {
                      .width(80)
                      .height(80)
                      .fill(Fill::color({1, 0, 0, 1}))
-                     .boundary(Boundary::Coverage)
+                     .decorationOutline(Boundary::Coverage)
                      .background(Halo{});
   if (past) node.shape(discPastTheBox());
   if (reserving) node.background(Reserve{});

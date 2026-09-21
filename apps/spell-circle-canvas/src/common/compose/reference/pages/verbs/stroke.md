@@ -99,5 +99,5 @@ A mark that names no colour is painted in the [`ink`](ink.md) in force.
 
 [`background`](background.md) for the same grammar in the other z-half,
 [`foreground`](foreground.md) and [`overlay`](overlay.md) for the slots,
-`boundary` for WHICH outline is dressed, `mask` for gating what is
+`decorationOutline` for WHICH outline is dressed, `mask` for gating what is
 painted, and [`fill`](fill.md) for the region inside the line.

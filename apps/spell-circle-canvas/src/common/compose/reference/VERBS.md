@@ -108,8 +108,7 @@ content and children, then foregrounds and the unqualified strokes.
 | `echo` | A misprint echo: the fill shape and the text re-stamped offset and flat beneath the real pass. |
 | [`textFill`](pages/verbs/textFill.md) | Paint the GLYPHS with a material mapped to text-metric space. |
 | [`textStroke`](pages/verbs/textStroke.md) | Stroke the glyphs, under their fill. |
-| [`boundary`](pages/verbs/boundary.md) | WHICH outline the decorations dress: the node's shape, its glyphs, or what it drew. |
-| [`threshold`](pages/verbs/threshold.md) | How much paint counts as ink when the boundary is traced off coverage. |
+| [`decorationOutline`](pages/verbs/decorationOutline.md) | WHICH outline the decorations follow: the node's shape, its glyphs, or what it drew — and, for that last, how much paint counts as ink. |
 
 ## Shape, corners and clipping
 
@@ -283,7 +282,7 @@ spelling is the feature's.
 - `core/verbs/Paint.h` — `fill`.
 - `core/verbs/Decoration.h` — the decoration slots `stroke`,
   `background`, `overlay`, `foreground`, `layerStyle`, `echo`, and what they
-  dress: `boundary`, `threshold`.
+  dress: `decorationOutline`.
 - `core/verbs/Effects.h` — `filter`, `backdropFilter`, `blendMode`, `opacity`,
   `appear`.
 - `core/verbs/Transform.h` — the transform lanes `translateX`,

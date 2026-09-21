@@ -236,7 +236,7 @@ TEST(ComposeDepth, AGroupingPropertyFlattensTheSpaceItStandsOn) {
   flattened("a blend mode",
             [](Element& e) { e.blendMode(SkBlendMode::kPlus); });
   flattened("a coverage boundary",
-            [](Element& e) { e.boundary(Boundary::Coverage); });
+            [](Element& e) { e.decorationOutline(Boundary::Coverage); });
   flattened("Cache::Texture", [](Element& e) { e.cache(Cache::Texture); });
   flattened("Cache::Group", [](Element& e) { e.cache(Cache::Group); });
   // Opacity is read as the frame resolves it, so anything under 1 is a

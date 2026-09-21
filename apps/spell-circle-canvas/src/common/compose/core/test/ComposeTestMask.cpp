@@ -307,7 +307,7 @@ TEST(ComposeBoundary, CoverageDressesWhatTheSubtreeDrewAndNotTheNodesBox) {
             .height(100)
             .children({box().left(0).top(0).width(100).height(40).fill(red())})
             .foreground(flooding(SK_ColorGREEN));
-    if (boundary != Boundary::Auto) node.boundary(boundary);
+    if (boundary != Boundary::Auto) node.decorationOutline(boundary);
     return positioned().inset(0, 0, 0, 0).children({std::move(node)});
   };
   Host boxed, drawn;
@@ -334,7 +334,7 @@ TEST(ComposeBoundary, CoverageFollowsAnImagesAlphaCutOut) {
                        .width(100)
                        .height(100)
                        .foreground(flooding(SK_ColorGREEN));
-    if (boundary != Boundary::Auto) node.boundary(boundary);
+    if (boundary != Boundary::Auto) node.decorationOutline(boundary);
     return positioned().inset(0, 0, 0, 0).children({std::move(node)});
   };
   Host boxed, drawn;
@@ -368,8 +368,8 @@ TEST(ComposeBoundary, TheThresholdIsHowMuchPaintCountsAsInk) {
                            .fill(red())
                            .opacity(0.3f)})
             .foreground(flooding(SK_ColorGREEN))
-            .boundary(Boundary::Coverage);
-    if (threshold > 0) node.threshold(threshold);
+            .decorationOutline(Boundary::Coverage,
+                               threshold > 0 ? threshold : 0.5f);
     return positioned().inset(0, 0, 0, 0).children({std::move(node)});
   };
   Host strict, lenient;
@@ -401,8 +401,7 @@ TEST(ComposeBoundary, AZeroThresholdIsAnyInkAndNotTheWholeBox) {
                          .top(20)
                          .width(100)
                          .height(100)
-                         .threshold(0.0f)
-                         .boundary(Boundary::Coverage)
+                         .decorationOutline(Boundary::Coverage, 0.0f)
                          // Half the box drawn, at an alpha well
                          // under the default tolerance: ink under
                          // this threshold and under no other.
@@ -434,7 +433,7 @@ TEST(ComposeBoundary, ANodeThatDrewNothingKeepsItsShapeUnderCoverage) {
                          .top(20)
                          .width(100)
                          .height(100)
-                         .boundary(Boundary::Coverage)
+                         .decorationOutline(Boundary::Coverage)
                          .foreground(flooding(SK_ColorGREEN))}));
   host.frame();
   EXPECT_EQ(host.pixel(70, 70), SK_ColorGREEN);

@@ -702,8 +702,8 @@ void bindCompose(py::module_& module) {
       .def("imageRendering", &Element::imageRendering, py::arg("sampling"),
            fluent)
       .def("hitTestable", &Element::hitTestable, py::arg("enabled"), fluent)
-      .def("boundary", &Element::boundary, py::arg("boundary"), fluent)
-      .def("threshold", &Element::threshold, py::arg("threshold"), fluent)
+      .def("decorationOutline", &Element::decorationOutline, py::arg("source"),
+           py::arg("coverage") = 0.5f, fluent)
       .def("layerStyle", &Element::layerStyle, py::arg("style"), fluent)
       .def(
           "echo",

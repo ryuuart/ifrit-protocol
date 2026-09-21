@@ -162,7 +162,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/balanceChain.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/blendMode.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/block.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/boundary.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/decorationOutline.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/gridCells.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/children.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/overflow.md
@@ -194,7 +194,6 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textFill.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textStroke.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/thread.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/threshold.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/transformOrigin.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/travel.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/variationDrive.md

@@ -316,9 +316,9 @@ Recordings whose baked geometry moved are invalidated. Derive resolves text
 exclusions and connector/rail routing over flat edge lists, cycle-guarded.
 `Element::flowAround` subtracts WHAT THE TARGET SAYS ITS EDGE IS, which is
 the one property the target already carries for its own decorations:
-`Element::boundary`. Its glyph outlines under `Boundary::Glyphs`, so text
+`Element::decorationOutline`. Its glyph outlines under `Boundary::Glyphs`, so text
 flows around a word; the silhouette of what it DREW under
-`Boundary::Coverage`, at the tolerance `Element::threshold` set, so text
+`Boundary::Coverage`, at the coverage the same verb stated, so text
 flows around a photograph's alpha, a clipped subtree or a masked node; its
 `shape()`, routed connector or rail otherwise, so text runs into a star's
 notches and through an annulus; and its BOX when it declares none. One
@@ -392,10 +392,10 @@ layout setters beside it, which map onto
 Every decoration is drawn ACROSS AN OUTLINE, and the outline a node hands
 its decorations has always been its own shape — which on a text leaf is a
 rectangle, and is why a chrome style on a word bevelled a slab behind the
-word. `Element::boundary` says otherwise:
+word. `Element::decorationOutline` says otherwise:
 
 ```cpp
-text(u8"CHROME", display).boundary(Boundary::Glyphs).layerStyle(kit::y2kChrome());
+text(u8"CHROME", display).decorationOutline(Boundary::Glyphs).layerStyle(kit::y2kChrome());
 ```
 
 `Boundary::Glyphs` hands them the glyph contours the placement produced,
@@ -414,8 +414,8 @@ knows about an image's alpha cut-out, a clipped or masked subtree, or
 anything else whose visible silhouette is neither a shape nor a glyph run.
 
 ```cpp
-image(logo).boundary(Boundary::Coverage).layerStyle(kit::y2kChrome());
-image(photo).key("fig").boundary(Boundary::Coverage).threshold(0.35f);
+image(logo).decorationOutline(Boundary::Coverage).layerStyle(kit::y2kChrome());
+image(photo).key("fig").decorationOutline(Boundary::Coverage, 0.35f);
 text(body, bodyStyle).flowAround("fig", 12);
 ```
 
@@ -440,8 +440,8 @@ Tracing a raster has three consequences and all three show:
   blit is remade when its matrix moves. A trace narrows that window to a
   point, because one step per device pixel is as fine as a grid gets.
 - **How much paint counts as ink is a dial.** A pixel joins the boundary
-  when the node's paint reached `Element::threshold` of it, a fraction of
-  full opacity. The default is half — the rule an unantialiased rasteriser
+  when the node's paint reached the coverage `Element::decorationOutline` stated, a
+  fraction of full opacity. The default is half — the rule an unantialiased rasteriser
   uses, which puts the traced edge where the drawn edge is — so a 30% wash
   traces to nothing and its decorations have nothing to dress. Lower it and
   the wash becomes silhouette; raise it and only the solid core does. It is

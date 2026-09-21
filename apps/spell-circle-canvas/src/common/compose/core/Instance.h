@@ -681,12 +681,12 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // Resolved custom-outline cache: generators (blobs, rounded stars) can be
   // arbitrarily expensive — resolve once per (description, size). Description
   // pointer identity keys invalidation: every patch swaps the description.
-  // Element::boundary(Boundary::Glyphs): the union of this text's glyph
-  // outlines at the placement its layout produced, resolved once per
+  // Element::decorationOutline(Boundary::Glyphs): the union of this text's
+  // glyph outlines at the placement its layout produced, resolved once per
   // layout because a decoration asked for it and never otherwise.
   SkPath glyphOutline;
   uint32_t glyphOutlineRev = ~0u;
-  // Element::boundary(Boundary::Coverage): the silhouette of what this
+  // Element::decorationOutline(Boundary::Coverage): the silhouette of what this
   // node's layer drew, traced off that layer's alpha, in the node's own
   // space. Re-traced when the layer that produced it is invalidated —
   // `paintDirty`, which every content, prop and layout change raises on

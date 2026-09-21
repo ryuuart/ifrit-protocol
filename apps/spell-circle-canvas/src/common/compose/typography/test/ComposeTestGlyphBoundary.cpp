@@ -22,7 +22,7 @@ TEST(ComposeBoundary, GlyphsHandTheDecorationsTheLettersInsteadOfTheBox) {
                              paint.setAntiAlias(false);
                              canvas.drawPath(ctx.outline, paint);
                            })));
-    if (boundary != Boundary::Auto) leaf.boundary(boundary);
+    if (boundary != Boundary::Auto) leaf.decorationOutline(boundary);
     return box().children({std::move(leaf)});
   };
   Host boxed(300, 200), lettered(300, 200);

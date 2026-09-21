@@ -10,8 +10,8 @@
 // its rectangle, which bevels a slab behind the word, or the glyph
 // contours the placement produced.
 //
-// `boundary(Boundary::Glyphs)` is what asks for the second. Nothing else
-// changes: no new preset, no second code path, no per-style special case
+// `decorationOutline(Boundary::Glyphs)` is what asks for the second. Nothing
+// else changes: no new preset, no second code path, no per-style special case
 // for text. The rows on this page are
 // pairs — the same style value, once on the box and once on the letters —
 // so the difference is the boundary and nothing else.
@@ -132,7 +132,7 @@ struct ChromeType {
         0, "Boundary::Glyphs", "the contours the placement produced",
         box().padding(18).children(
             {text(c::kWordmark, c::wordmark({0, 0, 0, 0}))
-                 .boundary(Boundary::Glyphs)
+                 .decorationOutline(Boundary::Glyphs)
                  .layerStyle(style)}));
     // The pair's own name stands wider and larger than a cell's call, so
     // its label is this cell's own leaf — the register, this size over it
