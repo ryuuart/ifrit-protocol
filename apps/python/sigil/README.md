@@ -127,12 +127,12 @@ Annotate the parameters of your own callbacks so an editor knows which
 native service you receive:
 
 ```python
-from sigil.compose import Element, text
+from sigil.compose import Text, text
 from sigil.draw import Pen
 from sigil.sketch import SketchContext, sketch
 
 
-def caption(label: str) -> Element:
+def caption(label: str) -> Text:
     return text(label, size=18, color="#e8eef2")
 
 
