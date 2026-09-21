@@ -1053,7 +1053,7 @@ address named runs and story frames. Selector ranges use native UTF-16 offsets.
 stops, CJK line tables and writing mode. `ParagraphStyle` adds per-paragraph
 spacing, indents, keeps, reservations and an initial letter. Give
 `paragraphStyles` a list or tuple of those styles, or of stylesheet names.
-`Story(passage)` with `frame(story).key(...).thread(...)` flows that same
+`Story(passage)` with `frame(story).key(...).textThreadTo(...)` flows that same
 content through several frames. `textFirstBaseline`, `textVerticalAlign`,
 `initialLetter`, `textLineMargin`, `textWillChange`, `maxTextLines` and
 `textOverflow` use the native layout controls.

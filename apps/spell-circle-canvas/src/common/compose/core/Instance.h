@@ -106,7 +106,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   float measuredForHeight = -1.0f;
   YGSize measuredSize{0, 0};
   float measuredBaseline = 0.0f;  // first character's baseline, from the top
-  // thread(): the word this frame's fill begins at — 0 for the head of a
+  // textThreadTo(): the word this frame's fill begins at — 0 for the head of a
   // chain, and whatever the frame before it left unplaced for every other.
   uint32_t threadCursor = 0;
   // …and the LINE this frame's first line is, counted from the story's
@@ -128,7 +128,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // link of a chain a frame rather than an ordinary text leaf. A leaf's
   // height is an answer and it grows down the page; a FRAME is bounded by
   // its own depth. The links before the last are known by their own
-  // thread(), and the last is known only by this.
+  // textThreadTo(), and the last is known only by this.
   bool threadedInto = false;
   // Which axes a layout SCHEME sized on this container, so that it keeps
   // sizing an axis it once sized. Remembered rather than read back off

@@ -174,10 +174,11 @@ Element text(Utf8 utf8, sigil::weave::TextStyle style);
  *  the pointer overload below. */
 Element text(sigil::weave::RichText spans);
 /** ONE FRAME OF A STORY — a text leaf over `story`'s content and block
- *  styles, which `key()` names and `thread()` links to the next.
+ *  styles, which `key()` names and `textThreadTo()` links to the next.
  *
  *  Every frame of a chain declares the same story, and the chain decides
- *  which part of it each one holds. See `weave::Story` and `Element::thread`.
+ *  which part of it each one holds. See `weave::Story` and
+ *  `Element::textThreadTo`.
  */
 Element frame(sigil::weave::Story story);
 

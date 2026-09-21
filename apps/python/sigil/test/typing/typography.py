@@ -66,5 +66,5 @@ curved: Element = text(passage).textOnPath(
 )
 article = Story(passage).paragraphs((heading,))
 page: Element = (
-    box().row().children(frame(article).key("a").thread("b"), frame(article).key("b"))
+    box().row().children(frame(article).key("a").textThreadTo("b"), frame(article).key("b"))
 )

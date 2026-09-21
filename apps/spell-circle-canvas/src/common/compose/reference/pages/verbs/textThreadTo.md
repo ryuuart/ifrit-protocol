@@ -1,15 +1,15 @@
 ---
 kind: verb
 library: SigilCompose
-name: thread
-qualified: sigil::compose::Element::thread
+name: textThreadTo
+qualified: sigil::compose::Element::textThreadTo
 header: sigilcompose/core/Text.h
 group: Content
-python: sigil.compose.Element.thread
+python: sigil.compose.Element.textThreadTo
 status: stable
 ---
 
-# thread
+# textThreadTo
 
 The frame this one fills into — the next link of a chain over one
 `weave::Story`.
@@ -17,8 +17,8 @@ The frame this one fills into — the next link of a chain over one
 ## Description
 
 ```cpp
-root.children({frame(article).key("a").thread("b").width(Dimension(280))})
-    .children({frame(article).key("b").thread("c").width(Dimension(280))})
+root.children({frame(article).key("a").textThreadTo("b").width(Dimension(280))})
+    .children({frame(article).key("b").textThreadTo("c").width(Dimension(280))})
     .children({frame(article).key("c").width(Dimension(280))});
 ```
 

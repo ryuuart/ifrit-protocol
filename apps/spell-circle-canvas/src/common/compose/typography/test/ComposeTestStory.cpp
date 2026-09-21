@@ -18,7 +18,7 @@ void twoFrames(Host& host, float measure = 160.0f) {
   sigil::weave::Story article(
       sigil::weave::rich(whiteStyle(13)).add(longPassage()));
   host.composer.render(box().row().children(
-      {frame(article).key("a").thread("b").width(measure).height(70.0f),
+      {frame(article).key("a").textThreadTo("b").width(measure).height(70.0f),
        frame(article).key("b").width(measure).height(400.0f)}));
   host.frame();
 }
@@ -32,7 +32,7 @@ TEST(ComposeStory, EachFrameFillsFromWhereTheOneBeforeItStopped) {
                                   .add(passage()));
   Host host(500, 300);
   host.composer.render(box().row().children(
-      {frame(article).key("a").thread("b").width(160.0f).height(60.0f),
+      {frame(article).key("a").textThreadTo("b").width(160.0f).height(60.0f),
        frame(article).key("b").width(160.0f).height(200.0f)}));
   host.frame();
   const std::vector<TextUnit> first = host.composer.units(
@@ -62,7 +62,7 @@ TEST(ComposeStory, ANarrowerFirstFrameMovesTheCut) {
                                     .add(passage()));
     Host host(500, 300);
     host.composer.render(box().row().children(
-        {frame(article).key("a").thread("b").width(measure).height(60.0f),
+        {frame(article).key("a").textThreadTo("b").width(measure).height(60.0f),
          frame(article).key("b").width(160.0f).height(200.0f)}));
     host.frame();
     const std::vector<TextUnit> second = host.composer.units(
@@ -120,11 +120,11 @@ TEST(ComposeStory, ABalancedRunHoldsTheStoryDownToTheLineItWasGiven) {
   host.composer.render(box().row().children(
       {frame(article)
            .key("a")
-           .thread("b")
+           .textThreadTo("b")
            .width(120.0f)
            .height(200.0f)
            .textThreadBalance(through),
-       frame(article).key("b").thread("c").width(120.0f).height(200.0f),
+       frame(article).key("b").textThreadTo("c").width(120.0f).height(200.0f),
        frame(article)
            .key("c")
            .width(120.0f)
@@ -231,7 +231,7 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
     return track;
   };
   host.composer.render(box().row().children(
-      {frame(article).key("a").thread("b").width(160.0f).height(70.0f).fx(
+      {frame(article).key("a").textThreadTo("b").width(160.0f).height(70.0f).fx(
            reveal()),
        frame(article).key("b").width(160.0f).height(400.0f).fx(reveal())}));
   host.frame();

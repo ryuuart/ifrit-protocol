@@ -45,4 +45,4 @@ text(caption, body).width(Dimension(slider)).textWillChange(true, 6000);
 
 ## See also
 
-`Composer::settling`, [`thread`](thread.md), `maxTextLines`.
+`Composer::settling`, [`textThreadTo`](textThreadTo.md), `maxTextLines`.

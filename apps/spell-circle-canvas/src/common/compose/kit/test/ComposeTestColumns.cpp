@@ -135,7 +135,7 @@ TEST(KitColumns, ARunWhoseFramesStateNoDepthInPixelsIsLeftAlone) {
            .gap(20)
            .children({frame(article())
                           .key("a")
-                          .thread("b")
+                          .textThreadTo("b")
                           .width(170.0f)
                           .textThreadBalance()})
            .children({frame(article()).key("b").width(170.0f)})}));

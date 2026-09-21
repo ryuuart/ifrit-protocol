@@ -161,7 +161,7 @@ from sigil.weave import Story, Type, rich, textStyle
 class Scene:
     def setup(self, ctx):
         article = Story(rich(textStyle(Type(size=20, color="#ffffff"))).add("One two three four five six seven eight nine ten eleven twelve thirteen fourteen."))
-        ctx.render(box().row().gap(20).children(frame(article).key("a").thread("b").width(130).height(60), frame(article).key("b").width(130).height(100)))
+        ctx.render(box().row().gap(20).children(frame(article).key("a").textThreadTo("b").width(130).height(60), frame(article).key("b").width(130).height(100)))
 """)
 
         def ink(left, right):

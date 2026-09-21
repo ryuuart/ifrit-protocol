@@ -82,14 +82,14 @@ below the top of the box, and what becomes of the room left over down it.
 **A story fills as many frames as it is given.** `weave::Story` is content plus
 its block styles and nothing else — no layout, no cursor, no frame — and
 `frame(story)` is one text leaf over it, which `Element::key` names and
-`Element::thread` links to the next:
+`Element::textThreadTo` links to the next:
 
 ```cpp
 weave::Story article(weave::rich(body).add(u8"…"));
 article.paragraphStyles({headingStyle, bodyStyle, bodyStyle});
 
 root.children({
-    frame(article).key("a").thread("b").width(Dimension(300.0f)),
+    frame(article).key("a").textThreadTo("b").width(Dimension(300.0f)),
     frame(article).key("b").width(Dimension(300.0f)).textOverflow(u8"…"),
 });
 ```

@@ -58,7 +58,7 @@ Element TextContentVerbs<Derived>::atRest() const {
 }
 
 template <class Derived>
-Derived& TextContentVerbs<Derived>::thread(std::string_view key) {
+Derived& TextContentVerbs<Derived>::textThreadTo(std::string_view key) {
   detail::ElementNode* node = declarations();
   node->textData.ensure().threadTo = std::string(key);
   // A frame is cut where the frame before it stopped, so it reads the

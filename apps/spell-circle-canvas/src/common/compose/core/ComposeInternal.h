@@ -284,7 +284,7 @@ struct TextData {
   // text is broken — and the placed readings live on the Instance, because
   // where each one landed is an answer of the layout.
   std::vector<Annotation> annotations;
-  // thread(): the key of the frame this one fills INTO. A chain of frames
+  // textThreadTo(): the key of the frame this one fills INTO. A chain of frames
   // over one story; the cursor each frame starts at lives on the Instance,
   // because where a fill stopped is an answer of the layout.
   std::string threadTo;

@@ -254,7 +254,7 @@ struct NestedStyle {
                          .width(Dimension(measure))
                          .height(Dimension(height));
     if (index + 1 < count)
-      column.thread(keyPrefix + std::to_string(index + 1));
+      column.textThreadTo(keyPrefix + std::to_string(index + 1));
     else if (!ellipsis.empty())
       column.textOverflow(ellipsis);
     row.children({std::move(column)});
@@ -344,7 +344,7 @@ struct ColumnSet {
       if (i == 0 && r + 1 < rows)
         column.textThreadBalance(breakLine[(size_t)r]);
       if (index + 1 < rows * set.count)
-        column.thread(keyAt(index + 1));
+        column.textThreadTo(keyAt(index + 1));
       else if (!set.ellipsis.empty())
         column.textOverflow(set.ellipsis);
       row.children({std::move(column)});

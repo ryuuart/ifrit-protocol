@@ -65,7 +65,7 @@ Element chain(const std::string& key, const weave::Story& story,
                        .key(key + std::to_string(index))
                        .width(168)
                        .height(height - 24);
-    if (index == 1) body.thread(key + "2");
+    if (index == 1) body.textThreadTo(key + "2");
     return box().column().gap(10).children(
         {document::caption(index == 1 ? "FRAME 1" : "FRAME 2"),
          sketch::kit::well({.width = 192, .height = height, .padding = 12})

@@ -17,7 +17,7 @@ after it up to the next frame that opens one, or the chain's end.
 ## Description
 
 ```cpp
-frame(article).key("a").thread("b").textThreadBalance();
+frame(article).key("a").textThreadTo("b").textThreadBalance();
 ```
 
 **The run is filled to the SHALLOWEST DEPTH that still holds what it was
@@ -38,4 +38,4 @@ else is left alone.
 
 ## See also
 
-[`thread`](thread.md), `frame`, `weave::Story`.
+[`textThreadTo`](textThreadTo.md), `frame`, `weave::Story`.

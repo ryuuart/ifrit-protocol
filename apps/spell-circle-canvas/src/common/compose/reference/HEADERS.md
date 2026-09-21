@@ -113,8 +113,8 @@ sound model; nothing below them changes kernel semantics.
   `textLineMargin`, `textWillChange`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `textAttach`,
-  `textAnnotation`, `thread`, `textThreadBalance`, `textOnPath`, `spanPaint`,
-  `spanStyle`, `atRest`.
+  `textAnnotation`, `textThreadTo`, `textThreadBalance`, `textOnPath`,
+  `spanPaint`, `spanStyle`, `atRest`.
 - `core/Image.h` — `ImageVerbs`: `imageRegion`.
 - `core/Element.h` — `Element` and its builders: the verb mixins it
   inherits, the cascade it NAMES with `styleSheet`, `role` and

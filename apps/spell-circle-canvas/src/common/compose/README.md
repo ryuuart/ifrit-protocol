@@ -333,9 +333,9 @@ line is shortened beside it.
 
 Every derivation DECLARES WHAT IT READS, in the same statement that stores the
 key: `contentFlowAround`, `spans::fit`, `strand::from`, `band` around a key,
-`connector`, `rail` and `thread` each record a `sigil::core::Read` — the node
-waited for, and which `sigil::core::Facet` of it is needed (a box, an outline,
-or the units a text produces). `sigil::core::orderByReads` turns those
+`connector`, `rail` and `textThreadTo` each record a `sigil::core::Read` — the
+node waited for, and which `sigil::core::Facet` of it is needed (a box, an
+outline, or the units a text produces). `sigil::core::orderByReads` turns those
 declarations into the order the derived nodes are resolved in, so a rail
 anchored on a connector written after it, or a frame threaded from a frame
 written later, settles in the same pass instead of one behind. It is stable:

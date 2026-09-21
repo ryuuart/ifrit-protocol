@@ -189,7 +189,7 @@ struct ThreadedStory {
                             .key(stone),
                         frame(article)
                             .key(head)
-                            .thread(column + "0")
+                            .textThreadTo(column + "0")
                             .width(measure)
                             .height(s::kFrameH - 28)
                             .contentFlowAround(stone, 9.0f)}),

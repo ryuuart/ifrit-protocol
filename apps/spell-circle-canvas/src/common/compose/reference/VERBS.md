@@ -216,7 +216,7 @@ once and do nothing.
 | `maxTextLines` | Use at most this many lines; the rest reports as overflow. |
 | `textOverflow` | The marker appended to the last line when the text overflows its geometry. |
 | [`textWillChange`](pages/verbs/textWillChange.md) | An input of this passage is moving, so the layout is one of a run rather than an answer. |
-| [`thread`](pages/verbs/thread.md) | The frame this one fills into — the next link of a chain over one story. |
+| [`textThreadTo`](pages/verbs/textThreadTo.md) | The frame this one fills into — the next link of a chain over one story. |
 | [`textThreadBalance`](pages/verbs/textThreadBalance.md) | This frame opens a balanced run: every frame of it resolves to one shallowest depth. |
 | [`contentFlowAround`](pages/verbs/contentFlowAround.md) | Flow this paragraph around the keyed node, by its silhouette or its box. |
 | [`textAnnotation`](pages/verbs/textAnnotation.md) | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
@@ -295,8 +295,8 @@ spelling is the feature's.
   `textLineMargin`, `textWillChange`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
-  `textAttach`, `textAnnotation`, `thread`, `textThreadBalance`, `textOnPath`,
-  `spanPaint`, `spanStyle`, `atRest`.
+  `textAttach`, `textAnnotation`, `textThreadTo`, `textThreadBalance`,
+  `textOnPath`, `spanPaint`, `spanStyle`, `atRest`.
 - `core/Image.h` — `imageRegion`.
 - `core/Element.h` — the cascade a node names, `styleSheet`,
   `styleClass` and `role`; `tether`, `key`, `hitTestable`, `cache`,

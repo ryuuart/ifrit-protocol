@@ -64,7 +64,7 @@ class TextContentVerbs {
    *  stopped. A frame that threads somewhere has a remainder by design
    *  and draws no overflow marker; the last frame of a chain keeps
    *  its. Last-wins. */
-  Derived& thread(std::string_view key);
+  Derived& textThreadTo(std::string_view key);
   /** THIS FRAME OPENS A BALANCED RUN of its chain — itself and every
    *  frame after it up to the next frame that opens one, or the chain's
    *  end. @p throughLine is what the run must hold, as a story-relative

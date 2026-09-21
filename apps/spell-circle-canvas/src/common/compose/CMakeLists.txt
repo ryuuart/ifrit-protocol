@@ -195,7 +195,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/tether.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textFill.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textStroke.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/thread.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textThreadTo.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/transformOrigin.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/travel.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/variationDrive.md

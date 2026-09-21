@@ -145,7 +145,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // re-lays the small paragraph it is set in AND, where it reserves, the
   // base whose strut its band is in.
   if (ta.annotations != tb.annotations) return false;
-  // thread(): the key of the next frame. A chain that re-describes the
+  // textThreadTo(): the key of the next frame. A chain that re-describes the
   // same links prunes; one that names a different frame re-fills from
   // there.
   if (ta.threadTo != tb.threadTo) return false;

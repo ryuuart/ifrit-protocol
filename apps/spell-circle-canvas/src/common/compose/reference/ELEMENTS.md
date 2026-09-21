@@ -28,7 +28,7 @@ its own; nothing on this page needs it.
 | [`stack`](pages/elements/stack.md) | An overlap container: every child shares the box. | Absolute, painted in zIndex then declaration order. |
 | `positioned` | A container whose children carry their own rects and skip flexbox entirely. | Placed by their own insets, Yoga-free. |
 | [`text`](pages/elements/text.md) | A text leaf, in four content forms. | Its marks and its slot mounts. |
-| `frame` | One frame of a story, which `key` names and `thread` links to the next. | The same. |
+| `frame` | One frame of a story, which `key` names and `textThreadTo` links to the next. | The same. |
 | [`image`](pages/elements/image.md) | An image asset, or a picture already rendered, under one of three fits. | None. |
 | `picture` | A recorded picture as a leaf — the door out of a bake. | None. |
 | `pathFigure` | A leaf the shape of a path already in canvas coordinates. | None. |
