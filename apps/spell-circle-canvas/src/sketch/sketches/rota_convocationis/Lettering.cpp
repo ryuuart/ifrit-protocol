@@ -14,11 +14,11 @@ Element onRing(Element run, const char* key, float r,
   return run.key(key)
       .rect(sigil::geometry::path::centred(kEye, {2 * r, 2 * r}))
       .hitTestable(false)
-      .onPath({.path = shapes::circle(),
-               .at = std::move(at),
-               .align = TextPath::Align::Start,
-               .offset = lift,
-               .autoFlip = false});
+      .textOnPath({.path = shapes::circle(),
+                   .at = std::move(at),
+                   .align = TextPath::Align::Start,
+                   .offset = lift,
+                   .autoFlip = false});
 }
 
 }  // namespace
@@ -216,11 +216,11 @@ auto RotaConvocationis::nomina() -> Element {
           // re-rasterizes the whole band on every frame.
           .rotate(motion::bind(&nomDrift).target(0.0f, 360.0f))
           .cache(Cache::Texture)
-          .onPath({.path = shapes::circle(),
-                   .at = 0.0f,
-                   .align = TextPath::Align::Start,
-                   .offset = -nomSize * 0.34f,
-                   .autoFlip = false})
+          .textOnPath({.path = shapes::circle(),
+                       .at = 0.0f,
+                       .align = TextPath::Align::Start,
+                       .offset = -nomSize * 0.34f,
+                       .autoFlip = false})
           .fx({.effect = fx::hold(fx::rise(nomSize * 0.8f)),
                .stagger = form,
                .unit = weave::Unit::Word,

@@ -269,10 +269,10 @@ Element GenesisFire::planInset() {
           {kit::at(text("IMPACT · KETI BANDAR · ε INDI")
                        .font({.face = monoFace(), .size = 8.0f, .track = 1.4f})
                        .ink(kCyan)
-                       .onPath(TextPath{.path = shapes::circle(),
-                                        .at = 0.75f,
-                                        .align = TextPath::Align::Center,
-                                        .offset = 8.0f}),
+                       .textOnPath(TextPath{.path = shapes::circle(),
+                                            .at = 0.75f,
+                                            .align = TextPath::Align::Center,
+                                            .offset = 8.0f}),
                    12, 12, 184, 184)});
 }
 

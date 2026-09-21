@@ -251,7 +251,7 @@ warns once. The rect is the **rest** rect — where the layout put those
 glyphs, not where a track has thrown them this frame — so a mark follows a
 reflow and stands still under a cascade; read `Composer::beatsOf` and drive
 the mark's own transform for one that must ride the motion. On a path run
-(`onPath`) the rect is on the curve, at the run's *resting* placement — a
+(`textOnPath`) the rect is on the curve, at the run's *resting* placement — a
 run driven along its baseline is a paint-time deviation like any track's.
 A mark needs no
 `reach`, being a child: the recording cull already grows by the union of a
@@ -405,7 +405,7 @@ carrying a material instead of a body.
 pass-through at those unit phases. When every addressed unit's resolved
 local time sits on a declared phase the runtime skips the layer and the
 shader and draws the glyphs directly — so a settled pass on a node that
-repaints for unrelated reasons (an orbiting `onPath` ring) stops paying
+repaints for unrelated reasons (an orbiting `textOnPath` ring) stops paying
 for a shader that changes nothing. The promise is unverifiable, in the
 family of `reach` and `bleed()`: declare a phase where the shader is not
 a pass-through and the picture pops at the seam, with no diagnostic. The

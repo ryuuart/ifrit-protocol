@@ -68,7 +68,7 @@
 // semitones where Chladni gives one (higher pitch bounces the sand into
 // place faster) and to n where he does not.
 //
-// NO CURVED LETTERING, DELIBERATELY. Element::onPath() would be the obvious
+// NO CURVED LETTERING, DELIBERATELY. Element::textOnPath() would be the obvious
 // choice for the rim labels, and the crops say no: every one of the 62
 // reference letters on this plate is UPRIGHT, never rotated to the tangent,
 // on both halves of every circle. Bending them would be a nicer sketch and a

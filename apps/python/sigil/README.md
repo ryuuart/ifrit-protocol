@@ -993,8 +993,8 @@ partial `Type`. `PaintLayer` accepts a configured Skia paint and an offset;
 `Decoration` describes an underline, overline, strike or highlight. Optional
 records and array properties are copies: edit and assign them back. A rich
 value's `runs()` and a story's `blocks()` return independent snapshots.
-`TextPath` and `onPath` place text on a native shape and accept shared motion
-values for progress.
+`TextPath` and `textOnPath` place text on a native shape and accept shared
+motion values for progress.
 
 Direct editable paragraphs, font contexts, native flow geometry and annotation
 values are available. Per-glyph effect tracks and custom Python implementations

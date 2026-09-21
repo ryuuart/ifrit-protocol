@@ -1,6 +1,6 @@
 /** @file
  * The text painter — the value a text verb installs on a description, and
- * the verbs themselves. `fx()`, `onPath()`, `mark()`, `spanStyle()`,
+ * the verbs themselves. `fx()`, `textOnPath()`, `mark()`, `spanStyle()`,
  * `spanPaint()` and `variationDrive()` are declared on Element by the
  * kernel and defined here, so an element that dresses its type links this
  * tier and carries the engine that draws it; the kernel reaches the engine
@@ -104,7 +104,7 @@ TextData& dressedText(TextData& text) {
 // The verbs
 
 template <class Derived>
-Derived& TextContentVerbs<Derived>::onPath(TextPath spec) {
+Derived& TextContentVerbs<Derived>::textOnPath(TextPath spec) {
   dressedText(declarations()->textData.ensure()).onPath = std::move(spec);
   return self();
 }
@@ -225,7 +225,7 @@ Derived& TextContentVerbs<Derived>::spanStyle(sigil::weave::Selector where,
 // The seven members of the text-content family this tier defines, named
 // one by one: the family's other members are instantiated where they are
 // defined, in the kernel.
-template Element& TextContentVerbs<Element>::onPath(TextPath);
+template Element& TextContentVerbs<Element>::textOnPath(TextPath);
 template Element& TextContentVerbs<Element>::fx(Track);
 template Element& TextContentVerbs<Element>::annotate(Annotation);
 template Element& TextContentVerbs<Element>::mark(sigil::weave::Selector,

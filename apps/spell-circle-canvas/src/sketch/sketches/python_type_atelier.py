@@ -78,7 +78,7 @@ def curved_figure() -> Element:
         .font(Type(size=23, color=ORANGE, track=0))
         .absolute()
         .inset(0)
-        .onPath(
+        .textOnPath(
             TextPath(path=curve, at=0.5, align=TextPath.Align.Center, exactTangent=True)
         )
     )

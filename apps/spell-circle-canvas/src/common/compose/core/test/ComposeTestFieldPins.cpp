@@ -327,7 +327,7 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   // the field's own default value.
   cd::ElementNode node;
   node.motionData.ensure();                 // travel(): carries kMotionT
-  node.textData.ensure().onPath.emplace();  // onPath(): carries kTextPathAt
+  node.textData.ensure().onPath.emplace();  // textOnPath(): carries kTextPathAt
   node.depthData.ensure();  // the depth lanes: kRotateX … kPerspective
 
   std::vector<const sigil::motion::Animatable<float>*> seen;

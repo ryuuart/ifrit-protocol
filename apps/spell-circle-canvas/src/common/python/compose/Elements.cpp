@@ -677,7 +677,7 @@ void bindCompose(py::module_& module) {
            fluent)
       .def("contentFlowAround", &Element::contentFlowAround, py::arg("key"),
            py::arg("margin") = 0.0f, fluent)
-      .def("onPath", &Element::onPath, py::arg("path"), fluent)
+      .def("textOnPath", &Element::textOnPath, py::arg("path"), fluent)
       .def("spanPaint", &Element::spanPaint, py::arg("where"), py::arg("paint"),
            fluent)
       .def("spanStyle",

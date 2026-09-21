@@ -385,12 +385,12 @@ auto ChaucerAstrolabe::limb() -> Element {
                     .height(2 * rr)
                     .centerAt({kCx, kCy})
                     .key("degnum" + std::to_string(i))
-                    .onPath(TextPath{.path = shapes::circle(),
-                                     .at = f,
-                                     .align = TextPath::Align::Center,
-                                     .offset = 0.0f,
-                                     .autoFlip = false,
-                                     .orient = TextPath::Orient::Radial})
+                    .textOnPath(TextPath{.path = shapes::circle(),
+                                         .at = f,
+                                         .align = TextPath::Align::Center,
+                                         .offset = 0.0f,
+                                         .autoFlip = false,
+                                         .orient = TextPath::Orient::Radial})
                     .appear(ramp(tTicks * 1000 + 300 + (float)i * 25, 400))});
   }
 
@@ -412,12 +412,12 @@ auto ChaucerAstrolabe::limb() -> Element {
                     .height(2 * rr)
                     .centerAt({kCx, kCy})
                     .key("hl" + std::to_string(n))
-                    .onPath(TextPath{.path = shapes::circle(),
-                                     .at = f,
-                                     .align = TextPath::Align::Center,
-                                     .offset = 0.0f,
-                                     .autoFlip = false,
-                                     .orient = TextPath::Orient::Radial})
+                    .textOnPath(TextPath{.path = shapes::circle(),
+                                         .at = f,
+                                         .align = TextPath::Align::Center,
+                                         .offset = 0.0f,
+                                         .autoFlip = false,
+                                         .orient = TextPath::Orient::Radial})
                     .appear(ramp(tLetters * 1000 + (float)n * 12, 380))});
     // the letter under the label lights as it passes
     const SkPoint glow = arrange::onEllipse({0, 0}, {1.044f, 1.044f}, psi * kD);

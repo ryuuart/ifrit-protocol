@@ -225,7 +225,7 @@ once and do nothing.
 | `fx` | Append a text-fx track: which glyphs, what deviation, how the beats spread, what drives it. |
 | [`variationDrive`](pages/verbs/variationDrive.md) | Drive a variable-font axis from a bound output at draw time, with no reshape. |
 | [`mark`](pages/verbs/mark.md) | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |
-| `onPath` | Lay the run out along a path instead of a line. |
+| `textOnPath` | Lay the run out along a path instead of a line. |
 | [`atRest`](pages/verbs/atRest.md) | This leaf as it stands at rest, RETURNED BY VALUE as a second element that can stand beside it — the one verb that does not chain. |
 
 ## Content
@@ -294,7 +294,7 @@ spelling is the feature's.
   `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
-  `mark`, `annotate`, `thread`, `balanceChain`, `onPath`, `spanPaint`,
+  `mark`, `annotate`, `thread`, `balanceChain`, `textOnPath`, `spanPaint`,
   `spanStyle`, `atRest`.
 - `core/Image.h` — `region`.
 - `core/Element.h` — the cascade a node names, `styleSheet`,

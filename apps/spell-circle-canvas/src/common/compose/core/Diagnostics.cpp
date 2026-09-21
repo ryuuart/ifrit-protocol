@@ -86,7 +86,7 @@ void warnWritingModeOnPath() {
   if (warned) return;
   warned = true;
   SkDebugf(
-      "compose: onPath() and writingMode() on one text leaf — a path run's "
+      "compose: textOnPath() and writingMode() on one text leaf — a path run's "
       "baseline IS its geometry and has no columns to advance, so the path "
       "stands and the writing mode is dropped\n");
 }

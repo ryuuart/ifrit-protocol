@@ -283,7 +283,7 @@ weave::TextStyle hollow(sk_sp<SkTypeface> face, float size, SkColor4f color,
   return s;
 }
 
-/** THE RING BASELINE for the onPath() legends: a clockwise circle
+/** THE RING BASELINE for the textOnPath() legends: a clockwise circle
  *  starting at 9 o'clock, so fraction 0.25 is 12 o'clock and 0.75 is 6
  *  o'clock. The radius is the node's own half-extent, as everywhere else
  *  a curve is sampled here.
@@ -469,7 +469,7 @@ struct VertigoTitles {
              .translateY(animate(from(10.0f).to(0.0f), ramp(1550, 300)))});
 
     // the instrument-dial legend, set on the limbus itself with
-    // Element::onPath() — one text leaf where hand-placing curved
+    // Element::textOnPath() — one text leaf where hand-placing curved
     // lettering would have been one leaf and one measure() per glyph.
     const weave::Type legend{
         .size = 11, .color = hexColor(0xEDE6D8, 0.42f), .track = 3.4f};
@@ -480,11 +480,11 @@ struct VertigoTitles {
              .width(544)
              .height(544)
              .centerAt(kEye)
-             .onPath({.path = ringPath(),
-                      .at = 0.25f,
-                      .align = TextPath::Align::Center,
-                      .offset = 3.0f,
-                      .autoFlip = false})
+             .textOnPath({.path = ringPath(),
+                          .at = 0.25f,
+                          .align = TextPath::Align::Center,
+                          .offset = 3.0f,
+                          .autoFlip = false})
              .appear(ramp(1000, 500)),
          text("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR")
              .font(legend)
@@ -496,11 +496,11 @@ struct VertigoTitles {
              // round. autoFlip turns the whole run over so it reads right
              // way up on the underside of the ring; glyph order and glyph
              // orientation both follow, so the text is not mirrored.
-             .onPath({.path = ringPath(),
-                      .at = 0.75f,
-                      .align = TextPath::Align::Center,
-                      .offset = 3.0f,
-                      .autoFlip = true})
+             .textOnPath({.path = ringPath(),
+                          .at = 0.75f,
+                          .align = TextPath::Align::Center,
+                          .offset = 3.0f,
+                          .autoFlip = true})
              .appear(ramp(1120, 500))});
 
     // the card slug: four of them stacked in the same corner, each riding

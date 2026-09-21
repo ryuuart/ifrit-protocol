@@ -73,10 +73,10 @@ Element run(const char* word, float size, SkColor4f colour, bool exact,
       .styleClass("inscription")
       .font({.size = size, .color = colour})
       .inset(inset)
-      .onPath({.path = shapes::spiral(kTurns),
-               .at = 0.42f,
-               .align = TextPath::Align::Center,
-               .exactTangent = exact});
+      .textOnPath({.path = shapes::spiral(kTurns),
+                   .at = 0.42f,
+                   .align = TextPath::Align::Center,
+                   .exactTangent = exact});
 }
 
 /** A run on the inscribed oval — the large-size cells. `offset` rides
@@ -87,11 +87,11 @@ Element arcRun(const char* word, float size, SkColor4f colour, bool exact,
       .styleClass("inscription")
       .font({.size = size, .color = colour})
       .inset(inset)
-      .onPath({.path = shapes::circle(),
-               .at = at,
-               .align = TextPath::Align::Center,
-               .offset = offset,
-               .exactTangent = exact});
+      .textOnPath({.path = shapes::circle(),
+                   .at = at,
+                   .align = TextPath::Align::Center,
+                   .offset = offset,
+                   .exactTangent = exact});
 }
 
 SkBitmap coverage(weave::FontContext& fonts, bool exact) {

@@ -25,9 +25,9 @@ TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
              .absolute()
              .left(0)
              .top(0)
-             .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
-                      .at = at,
-                      .align = TextPath::Align::Center})});
+             .textOnPath({.path = geometry::shapes::arc(180.0f, 359.9f),
+                          .at = at,
+                          .align = TextPath::Align::Center})});
   };
   auto lit = [&](int y0, int y1) {
     int count = 0;
@@ -75,7 +75,7 @@ TEST(ComposeText, OnPathFillsEveryContourNotJustTheFirst) {
                           .absolute()
                           .left(0)
                           .top(0)
-                          .onPath({.path = twoSegments, .at = 0.0f})}));
+                          .textOnPath({.path = twoSegments, .at = 0.0f})}));
   host.frame();
   EXPECT_GT(lit(host, 20, 60), 200);    // ink on the first contour…
   EXPECT_GT(lit(host, 140, 180), 200);  // …and on the second, which a
@@ -108,7 +108,7 @@ TEST(ComposeText, OnPathBreaksAtWordsBetweenContours) {
                           .absolute()
                           .left(0)
                           .top(0)
-                          .onPath({.path = twoSegments, .at = 0.0f})}));
+                          .textOnPath({.path = twoSegments, .at = 0.0f})}));
   host.frame();
   EXPECT_GT(lit(host, 20, 60), 100);    // the short word on contour 1…
   EXPECT_GT(lit(host, 140, 180), 200);  // …the long one whole on contour 2
@@ -132,11 +132,11 @@ TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
                                .absolute()
                                .left(0)
                                .top(0)
-                               .onPath({.path = geometry::shapes::circle(),
-                                        .at = at,
-                                        .align = TextPath::Align::Center,
-                                        .offset = 4.0f,
-                                        .autoFlip = flip})});
+                               .textOnPath({.path = geometry::shapes::circle(),
+                                            .at = at,
+                                            .align = TextPath::Align::Center,
+                                            .offset = 4.0f,
+                                            .autoFlip = flip})});
   };
   auto snap = [](Host& host) {
     SkBitmap bm;
@@ -170,11 +170,11 @@ TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
 }
 
 TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
-  // onPath rotates glyphs to the TANGENT, which is running lettering — a
+  // textOnPath rotates glyphs to the TANGENT, which is running lettering — a
   // motto, a ring inscription. An astrolabe limb, a compass rose and a
   // radial axis want the other one: type RADIATING like a spoke, read by
   // turning the instrument. Without it each numeral costs one rotated
-  // Element, which is precisely the per-glyph cost onPath exists to
+  // Element, which is precisely the per-glyph cost textOnPath exists to
   // abolish.
   //
   // (Tangent already gives "up points outward" on a circle — that is why
@@ -190,17 +190,18 @@ TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
     // ONE tall glyph: a run spread along the arc keeps a wide footprint
     // whichever way its glyphs face, so a multi-glyph run cannot see the
     // per-glyph rotation at all.
-    return box().children({text(u8"I", whiteStyle(64))
-                               .width(240)
-                               .height(240)
-                               .absolute()
-                               .left(0)
-                               .top(0)
-                               .onPath({.path = circle,
-                                        .at = 0.25f,  // the bottom of the ring
-                                        .align = TextPath::Align::Center,
-                                        .offset = -50.0f,
-                                        .orient = orient})});
+    return box().children(
+        {text(u8"I", whiteStyle(64))
+             .width(240)
+             .height(240)
+             .absolute()
+             .left(0)
+             .top(0)
+             .textOnPath({.path = circle,
+                          .at = 0.25f,  // the bottom of the ring
+                          .align = TextPath::Align::Center,
+                          .offset = -50.0f,
+                          .orient = orient})});
   };
   auto footprint = [](Host& host) {
     int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
@@ -249,11 +250,11 @@ TEST(ComposeText, OnPathCanLeaveEveryGlyphLevelForACalendarRing) {
              .absolute()
              .left(0)
              .top(0)
-             .onPath({.path = circle,
-                      .at = 0.5f,  // 9 o'clock: tangent upward
-                      .align = TextPath::Align::Center,
-                      .offset = -50.0f,
-                      .orient = orient})});
+             .textOnPath({.path = circle,
+                          .at = 0.5f,  // 9 o'clock: tangent upward
+                          .align = TextPath::Align::Center,
+                          .offset = -50.0f,
+                          .orient = orient})});
   };
   auto footprint = [](Host& host) {
     int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
@@ -718,7 +719,7 @@ TEST(ComposeText, TheCondenseClosesOnlyWhatTheSizeFloorLeftOver) {
 // draws.
 
 TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
-  // Direction is not a detail on a text baseline. onPath orients to the
+  // Direction is not a detail on a text baseline. textOnPath orients to the
   // tangent, so a clockwise ring puts glyph-up radially OUTWARD
   // (Nightingale's 1858 plate) and a counter-clockwise one puts it INWARD
   // (Chevreul's 1864 limb) — both uniform engraver's conventions,
@@ -740,10 +741,10 @@ TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
                             .absolute()
                             .left(30)
                             .top(30)
-                            .onPath({.path = std::move(path),
-                                     .at = 0.25f,
-                                     .align = TextPath::Align::Center,
-                                     .offset = 0.0f})}));
+                            .textOnPath({.path = std::move(path),
+                                         .at = 0.25f,
+                                         .align = TextPath::Align::Center,
+                                         .offset = 0.0f})}));
     host->frame();
     return host;
   };

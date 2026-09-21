@@ -107,7 +107,7 @@ auto ChevreulCircle::update(double, sketch::SketchContext& ctx) -> void {
   // Cost, measured rather than guessed: CHEVREUL_STATS=1 dumps the
   // composer's own per-phase timings for a few frames. The two numbers
   // this piece cares about are picturesLive (72 static flat fills plus
-  // 78 onPath runs) and paintMs, since a TextPath carries no operator==
+  // 78 textOnPath runs) and paintMs, since a TextPath carries no operator==
   // and therefore cannot prune.
   // kRedescribe re-describes the whole plate every frame, which is what
   // prices the un-prunable nodes: TextPath has no operator== by design,

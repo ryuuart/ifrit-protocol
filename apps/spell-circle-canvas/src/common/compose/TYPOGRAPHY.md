@@ -40,5 +40,5 @@ fill on the leaf is then the scrim the reading stands ON, which is why a
 run needing air around it takes padding directly rather than a box around
 it. The first baseline the leaf reports to `Align::Baseline` stands below
 the padding with the letters. A run riding a curve is the exception: its
-glyphs stand on the baseline `Element::onPath` resolves against the
+glyphs stand on the baseline `Element::textOnPath` resolves against the
 node's box, and nothing insets that.

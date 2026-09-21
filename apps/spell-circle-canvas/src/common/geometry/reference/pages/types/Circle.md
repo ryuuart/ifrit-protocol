@@ -16,7 +16,7 @@ that also has an element form for a disc keeps that separately.
 
 ## The winding decides which way glyphs face
 
-Direction is not a detail on a text baseline. `onPath` orients to the
+Direction is not a detail on a text baseline. `textOnPath` orients to the
 tangent, so a clockwise ring puts glyph-up radially OUTWARD and a
 counter-clockwise one puts it INWARD. Both are uniform engraver's
 conventions, and they are opposite in sign, so a ring inscription that

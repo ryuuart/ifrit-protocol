@@ -159,12 +159,12 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                .height(2 * kEclR * kR)
                .centerAt(PL(0, kEclCy))
                .key("sign" + std::to_string(i))
-               .onPath(TextPath{.path = shapes::circle(),
-                                .at = f,
-                                .align = TextPath::Align::Center,
-                                .offset = -0.030f * kR,
-                                .autoFlip = false,
-                                .orient = TextPath::Orient::Tangent})
+               .textOnPath(TextPath{.path = shapes::circle(),
+                                    .at = f,
+                                    .align = TextPath::Align::Center,
+                                    .offset = -0.030f * kR,
+                                    .autoFlip = false,
+                                    .orient = TextPath::Orient::Tangent})
                .appear(ramp(tRete * 1000 + 1200 + (float)i * 45, 400))});
     }
     g.children({std::move(clipped)});
@@ -233,12 +233,12 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                     .height(2 * kR * (1.0f - kRingW * 0.5f))
                     .centerAt(PL(0, 0))
                     .key("sname" + std::to_string(i))
-                    .onPath(TextPath{.path = shapes::circle(),
-                                     .at = f,
-                                     .align = TextPath::Align::Center,
-                                     .offset = 0.0f,
-                                     .autoFlip = false,
-                                     .orient = TextPath::Orient::Tangent})
+                    .textOnPath(TextPath{.path = shapes::circle(),
+                                         .at = f,
+                                         .align = TextPath::Align::Center,
+                                         .offset = 0.0f,
+                                         .autoFlip = false,
+                                         .orient = TextPath::Orient::Tangent})
                     .appear(ramp(tRete * 1000 + 1600 + (float)i * 90, 400))});
   }
 

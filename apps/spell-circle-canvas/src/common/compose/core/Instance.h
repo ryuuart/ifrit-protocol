@@ -540,7 +540,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
      *  Instance::resolvePatternOffset(), so the guard cannot drift between
      *  the volatility walk, the released scan and the paint probe. */
     std::array<float, 2> pattern{};
-    /** onPath()'s resolved phase — WHERE ALONG the baseline the run sits
+    /** textOnPath()'s resolved phase — WHERE ALONG the baseline the run sits
      *  this frame. The recording bakes the glyph positions that phase
      *  produced, so it is a content input exactly as a gate fraction is.
      *  Zero when the node carries no path baseline. */
@@ -759,7 +759,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
    *  ContentScalars::tracks stores them). Empty when the node carries no
    *  tracks. */
   std::vector<float> resolveTrackValues() const;
-  /** The same resolution over onPath()'s `at` phase — one float, or zero
+  /** The same resolution over textOnPath()'s `at` phase — one float, or zero
    *  when the node carries no path baseline. Every compare site reads this
    *  one body, so the volatility walk, the released scan and the paint
    *  probe cannot drift apart. */

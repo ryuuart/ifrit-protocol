@@ -167,7 +167,7 @@ auto KspMapView::orbits(sketch::SketchContext& ctx) -> Element {
   // Escape / flyby hyperbola — open, not a closed shape. The window is
   // hand-fitted to the part that crosses the frame rather than run out
   // to the asymptote at esc.asymptoteDeg(): a span held to a reach
-  // BREAKS where it leaves it, and onPath treats each contour as its own
+  // BREAKS where it leaves it, and textOnPath treats each contour as its own
   // stretch of baseline that a word may not straddle.
   const float nuA = -104.0f, nuB = 98.0f;
   g.children(
@@ -180,11 +180,11 @@ auto KspMapView::orbits(sketch::SketchContext& ctx) -> Element {
                                      .speed = 0.55f})),
        full(t("ESCAPE  ·  KERBIN SOI EXIT  T+ 1h 12m",
               body(8.5f, mskia::withAlpha(kEscape, 0.6f), 1.3f))
-                .onPath(TextPath{.path = trajectory(esc, {nuA, nuB, 260}),
-                                 .at = 0.80f,
-                                 .align = TextPath::Align::Center,
-                                 .offset = 8.0f,
-                                 .autoFlip = true})),
+                .textOnPath(TextPath{.path = trajectory(esc, {nuA, nuB, 260}),
+                                     .at = 0.80f,
+                                     .align = TextPath::Align::Center,
+                                     .offset = 8.0f,
+                                     .autoFlip = true})),
        // The hero: the current orbit, drawn on with a trim reveal and dressed
        // in the organic 4-layer additive glow (a LayeredBrush, not a
        // frame-level filter()).
@@ -196,14 +196,14 @@ auto KspMapView::orbits(sketch::SketchContext& ctx) -> Element {
                        brush::presets::filament(mskia::withAlpha(kOrbit, 0.30f),
                                                 kOrbitCore, 0.26f))),
        // One arc label riding the orbit itself — shaped once, placed by arc
-       // length, per-glyph tangent rotation. (Element::onPath.)
+       // length, per-glyph tangent rotation. (Element::textOnPath.)
        full(t("KERBIN  ·  Ap 213,904 m  ·  Pe 88,012 m",
               body(9.5f, mskia::withAlpha(kOrbit, 0.9f), 1.6f))
-                .onPath(TextPath{.path = trajectory(cur, {0, 360, 360}),
-                                 .at = 0.855f,
-                                 .align = TextPath::Align::Center,
-                                 .offset = 8.0f,
-                                 .autoFlip = true}))});
+                .textOnPath(TextPath{.path = trajectory(cur, {0, 360, 360}),
+                                     .at = 0.855f,
+                                     .align = TextPath::Align::Center,
+                                     .offset = 8.0f,
+                                     .autoFlip = true}))});
   return g;
 }
 
@@ -212,11 +212,11 @@ auto KspMapView::targetLabel(sketch::SketchContext& ctx) -> Element {
   const Conic tgt = targetOrbit();
   return t("TGT · MUN TRANSFER",
            body(8.5f, mskia::withAlpha(kTarget, 0.85f), 1.4f))
-      .onPath(TextPath{.path = trajectory(tgt, {-118, 118, 260}),
-                       .at = 0.30f,
-                       .align = TextPath::Align::Center,
-                       .offset = -9.0f,
-                       .autoFlip = true})
+      .textOnPath(TextPath{.path = trajectory(tgt, {-118, 118, 260}),
+                           .at = 0.30f,
+                           .align = TextPath::Align::Center,
+                           .offset = -9.0f,
+                           .autoFlip = true})
       .inset(0)
       .width(ctx.size.width())
       .height(ctx.size.height());

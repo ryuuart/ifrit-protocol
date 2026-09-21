@@ -132,7 +132,7 @@ class Typography(unittest.TestCase):
         progress.set(0.75)
         del progress
         self.assertAlmostEqual(retained.value, 0.75)
-        self.assertIs(node.onPath(path=path), node)
+        self.assertIs(node.textOnPath(path=path), node)
         self.assertIs(node.paragraphs(names=("heading", "body")), node)
         self.assertIs(node.paragraphs(blocks=(weave.ParagraphStyle(),)), node)
 

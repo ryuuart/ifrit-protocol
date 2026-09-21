@@ -166,7 +166,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  input pixels untouched. When every addressed unit's resolved local time
  *  sits on a declared phase, the runtime skips the layer and the shader
  *  and draws the batches directly, so a pass on a node that repaints for
- *  unrelated reasons (an orbiting `onPath` ring under a settled pass)
+ *  unrelated reasons (an orbiting `textOnPath` ring under a settled pass)
  *  stops paying for a shader that is changing nothing. The promise is
  *  UNVERIFIABLE, in the same family as `Track::reach` and a material's
  *  `bleed()`: declare a phase where the shader is not a pass-through and

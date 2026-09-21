@@ -142,7 +142,7 @@ inline constexpr SlotSpec kSlotSpecs[] = {
        return n.motionData ? &n.motionData->t : nullptr;
      },
      0.0f, nullptr},
-    // onPath(): `at` is WHERE ALONG the baseline the run sits, so moving it
+    // textOnPath(): `at` is WHERE ALONG the baseline the run sits, so moving it
     // re-places every glyph INSIDE the node's own box and leaves the box
     // where it was. That is the CONTENT half, not the geometric one — the
     // recording is rebuilt, the device rect is not — and the resolved value

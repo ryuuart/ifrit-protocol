@@ -46,7 +46,7 @@
 //   Paint::blend()     wash + stipple + blot + density, one fill value
 //   fx::typeOn()          the pen writing the title and the legend
 //   spans::upTo / scale / animate  the whole 13.6 s reading order
-//   Element::onPath       every label — ONE LEAF EACH, shaped once with
+//   Element::textOnPath       every label — ONE LEAF EACH, shaped once with
 //                         real kerning and placed by arc length. The months
 //                         ride a clockwise ring beginning at 12 o'clock, so
 //                         a label's bearing over 360 IS the fraction it
@@ -342,11 +342,11 @@ struct NightingaleCoxcomb {
         .width(2 * radius)
         .height(2 * radius)
         .centerAt(centre)
-        .onPath(TextPath{.path = rimBaseline(),
-                         .at = bearingDeg / 360.0f,
-                         .align = TextPath::Align::Center,
-                         .autoFlip = false,
-                         .orient = TextPath::Orient::Tangent})
+        .textOnPath(TextPath{.path = rimBaseline(),
+                             .at = bearingDeg / 360.0f,
+                             .align = TextPath::Align::Center,
+                             .autoFlip = false,
+                             .orient = TextPath::Orient::Tangent})
         .appear(ramp(delayMs, 260.0f));
   }
 
@@ -362,7 +362,7 @@ struct NightingaleCoxcomb {
         .width(2 * box)
         .height(2 * box)
         .centerAt(centre)
-        .onPath(
+        .textOnPath(
             TextPath{.path = spokeBaseline(bearingDeg, (radius - half) / box,
                                            (radius + half) / box),
                      .at = 0.5f,

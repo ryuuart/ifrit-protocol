@@ -4,7 +4,7 @@
  * @ingroup compose-typography
  *
  * SigilCompose typography — `TextPath`, a run of type whose BASELINE is a
- * path: the value `Element::onPath` takes.
+ * path: the value `Element::textOnPath` takes.
  */
 
 #include <sigilcompose/core/Shape.h>
@@ -12,7 +12,7 @@
 
 namespace sigil::compose {
 
-/** Text whose BASELINE is a path (`Element::onPath`).
+/** Text whose BASELINE is a path (`Element::textOnPath`).
  *
  *  The run is shaped once — real kerning, real ligatures, real advances —
  *  and then every glyph is placed by arc length along the resolved path
@@ -30,8 +30,8 @@ struct TextPath {
    *  frame cut into several contours still carries its whole run.
    *
    *  "The node's box" means the TEXT NODE'S OWN box, not a parent's. The
-   *  tempting `disc(c, R).children({text(...).onPath(...)})` resolves the ring
-   *  against the text's intrinsic size and silently collapses every label
+   *  tempting `disc(c, R).children({text(...).textOnPath(...)})` resolves the
+   * ring against the text's intrinsic size and silently collapses every label
    *  into a blob. Give the TEXT node the disc's width and height instead
    *  — the text leaf is the disc. */
   Shape path;
@@ -81,7 +81,7 @@ struct TextPath {
    *  radiates like a spoke — which is how an astrolabe limb, a compass
    *  rose and a radial axis label their divisions: you turn the
    *  instrument to read them. Without it each numeral costs one rotated
-   *  Element, which is the same per-element cost onPath exists to avoid.
+   *  Element, which is the same per-element cost textOnPath exists to avoid.
    *
    *  `Upright` leaves every glyph level regardless of where it sits —
    *  the convention a calendar ring or a modern gauge uses, and the one

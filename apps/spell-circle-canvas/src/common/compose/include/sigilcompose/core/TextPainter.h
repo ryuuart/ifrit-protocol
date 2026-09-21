@@ -97,11 +97,11 @@ struct TextScope {
  *  a run carrying fx() tracks, riding a path, anchoring marks, or restyled
  *  by selector. The kernel holds the paragraph, lays it out and draws it at
  *  rest by itself; everything below is answered by the value a text verb
- *  installs on the description (`fx()`, `onPath()`, `mark()`, `spanStyle()`,
- *  `spanPaint()`, `variationDrive()`). A text node carrying none of those
- *  has no painter, and the kernel then draws its paragraph at rest, resolves
- *  no marks and restyles nothing — the same picture a painter would draw for
- *  a description with nothing to dress.
+ *  installs on the description (`fx()`, `textOnPath()`, `mark()`,
+ *  `spanStyle()`, `spanPaint()`, `variationDrive()`). A text node carrying
+ *  none of those has no painter, and the kernel then draws its paragraph at
+ *  rest, resolves no marks and restyles nothing — the same picture a painter
+ *  would draw for a description with nothing to dress.
  *
  *  The instance handed in is the kernel's retained node for the text; the
  *  painter reads its paragraph and layout and keeps its own engine state on

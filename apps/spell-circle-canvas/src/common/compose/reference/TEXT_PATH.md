@@ -3,7 +3,7 @@
 A chapter of [TYPOGRAPHY.md](../TYPOGRAPHY.md), the type chapter of
 [SigilCompose](../README.md).
 
-`Element::onPath` makes a `TextPath` the run's BASELINE. The run is shaped
+`Element::textOnPath` makes a `TextPath` the run's BASELINE. The run is shaped
 once — real kerning, real ligatures, real advances — and then laid out
 through SigilWeave's own contour geometry: every contour of the resolved
 `TextPath::path` is one interval of the run's one line, and the words fill
@@ -12,7 +12,7 @@ them in order.
 ```cpp
 text(u8"SIGILLVM · DEI · AEMETH", inscription)
     .width(320).height(320)
-    .onPath({.path = geometry::shapes::circle(),
+    .textOnPath({.path = geometry::shapes::circle(),
              .at = &phase,                       // the marquee
              .align = TextPath::Align::Center,
              .orient = TextPath::Orient::Tangent})
@@ -37,7 +37,7 @@ disconnected curves. A run that outlasts the last contour simply stops, and a
 run pushed off the end of an open baseline by its phase drops the glyphs that
 ran off rather than piling them on the last point.
 
-**`fx()` and `onPath()` compose; neither wins.** THE BASELINE PLACES THE
+**`fx()` and `textOnPath()` compose; neither wins.** THE BASELINE PLACES THE
 GLYPH, THEN THE TRACKS DEVIATE FROM THAT PLACEMENT, IN THE FRAME THE BASELINE
 PUT IT IN. On a curve that means `fx::rise` lifts a letter off the CURVE
 along its own local perpendicular rather than straight up the canvas, a

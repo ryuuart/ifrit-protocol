@@ -122,7 +122,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   if (ta.paragraphOverride != tb.paragraphOverride) return false;
   if (ta.paragraphOverride)
     return false;  // layoutOptions aren't comparable — memo these
-  // onPath(): the baseline is a Shape, so a run laid on a comparable
+  // textOnPath(): the baseline is a Shape, so a run laid on a comparable
   // generator prunes like any other static description — which matters
   // because a ring of labels is one text node per label, all re-recording
   // together. A raw-callable baseline makes the Shape compare false and

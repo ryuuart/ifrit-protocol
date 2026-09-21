@@ -126,8 +126,8 @@ TEST(ComposeVariationDrive, TheAxisDrivesOnAPathRunToo) {
                           .absolute()
                           .left(20)
                           .top(20)
-                          .onPath({.path = geometry::shapes::circle(),
-                                   .align = TextPath::Align::Center})
+                          .textOnPath({.path = geometry::shapes::circle(),
+                                       .align = TextPath::Align::Center})
                           .variationDrive("GRAD", &grade)}));
   host.frame();
   SkBitmap lo;

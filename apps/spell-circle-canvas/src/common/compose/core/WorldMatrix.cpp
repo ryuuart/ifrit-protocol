@@ -93,7 +93,7 @@ void Composer::Impl::scanReleasedScalars() {
     // The bound tile pan: same argument, so a parked scroll re-declares
     // before its parked phase replays.
     now.pattern = inst->resolvePatternOffset();
-    // …and onPath()'s phase: a released marquee whose output is driven
+    // …and textOnPath()'s phase: a released marquee whose output is driven
     // again must re-declare before its parked frame replays.
     now.pathAt = inst->resolvePathAt();
     // The hold's rescan side: it restarts the warmup from the new reading

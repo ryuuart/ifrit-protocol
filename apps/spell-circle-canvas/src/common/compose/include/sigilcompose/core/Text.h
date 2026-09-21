@@ -74,7 +74,7 @@ class TextContentVerbs {
   /** Lay the run out along a PATH instead of a line. Single-line runs;
    *  the node's own box still sizes the path, so give it the box the
    *  curve should be inscribed in. */
-  Derived& onPath(TextPath spec);
+  Derived& textOnPath(TextPath spec);
   /** Repaint the range this selector finds — a colour, a shader, an
    *  underline, an added glow pass. PAINT ONLY: it never re-shapes, so
    *  the glyphs are exactly the glyphs the unrestyled text shaped. */

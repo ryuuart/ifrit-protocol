@@ -91,7 +91,7 @@ make room for it. The marker stands for the text it cut and is set the way
 that text was set: upright after upright glyphs, in the face's own vertical
 form when it has one, and turned with the column after a rotated Latin run.
 
-**What does not follow the type down the page.** `onPath` ignores the
+**What does not follow the type down the page.** `textOnPath` ignores the
 writing mode entirely — a path run's baseline is its own geometry and has
 no columns to advance — and setting both warns once and keeps the path. A
 decoration on a span DOES follow the type down the page — an underline runs beside the

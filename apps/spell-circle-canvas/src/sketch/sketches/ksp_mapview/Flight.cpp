@@ -94,7 +94,7 @@ auto KspMapView::navball() -> Element {
 
   // Curved dial tapes on the bezel annulus — THROTTLE left, G FORCE right,
   // exactly as the reference draws them. sector() gives the closed,
-  // fillable annular segment; onPath gives the curved lettering.
+  // fillable annular segment; textOnPath gives the curved lettering.
   auto tape = [&](float startDeg, float sweep, SkColor4f fillC) {
     return at(
         box()
@@ -151,11 +151,11 @@ auto KspMapView::navball() -> Element {
   auto arcLabel = [&](const char* s, float atFrac, float sz, SkColor4f c,
                       float off) {
     return at(t(s, body(sz, c, 1.1f))
-                  .onPath(TextPath{.path = shapes::circle(),
-                                   .at = atFrac,
-                                   .align = TextPath::Align::Center,
-                                   .offset = off,
-                                   .autoFlip = true}),
+                  .textOnPath(TextPath{.path = shapes::circle(),
+                                       .at = atFrac,
+                                       .align = TextPath::Align::Center,
+                                       .offset = off,
+                                       .autoFlip = true}),
               kBall, kBezelR * 1.88f, kBezelR * 1.88f);
   };
   g.children({arcLabel("THROTTLE", 0.5f, 8.5f, hexColor(0xE8EDEF), 3),
@@ -166,7 +166,7 @@ auto KspMapView::navball() -> Element {
               arcLabel("0", 0.925f, 7.0f, hexColor(0xB9C2C6), -8)});
 
   // A heading ring of numerals inside the bezel, rotating with the ball —
-  // eight onPath runs sharing one rotating container.
+  // eight textOnPath runs sharing one rotating container.
   Element ring = at(box().rotate(&ringSpin).transformOrigin(pct(50), pct(50)),
                     kBall, kBallR * 1.66f, kBallR * 1.66f);
   static const char* kHdg[4] = {"N", "E", "S", "W"};
@@ -175,11 +175,11 @@ auto KspMapView::navball() -> Element {
         {t(kHdg[i],
            bold(9.0f, mskia::withAlpha(hexColor(0xEAF4F8), 0.85f), 0.6f))
              .inset(0)
-             .onPath(TextPath{.path = shapes::circle(),
-                              .at = 0.75f + (float)i / 4.0f,
-                              .align = TextPath::Align::Center,
-                              .offset = 2.0f,
-                              .autoFlip = true})});
+             .textOnPath(TextPath{.path = shapes::circle(),
+                                  .at = 0.75f + (float)i / 4.0f,
+                                  .align = TextPath::Align::Center,
+                                  .offset = 2.0f,
+                                  .autoFlip = true})});
   g.children(
       {std::move(ring),
        // The gold level chevron — screen-locked while everything under it

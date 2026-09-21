@@ -26,7 +26,7 @@ namespace sigil::compose::detail {
  *  kernel itself reads one field, the folded axis tracks, because they are
  *  tracks the painter draws and volatility counts. */
 struct TextState {
-  // onPath(): the run broken across the baseline's contours, and the
+  // textOnPath(): the run broken across the baseline's contours, and the
   // geometry it was broken across. A SECOND layout beside `textLayout`
   // rather than a replacement for it — `textLayout` is still the node's
   // MEASURE, the run laid straight, and the box it measures is what the

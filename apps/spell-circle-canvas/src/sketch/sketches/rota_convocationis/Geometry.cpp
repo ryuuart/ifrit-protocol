@@ -87,11 +87,11 @@ auto RotaConvocationis::limina() -> Element {
             .key("limen" + std::to_string(k))
             .cover()
             .hitTestable(false)
-            .onPath({.path = chordPath,
-                     .at = ((float)(k * 2) + 0.5f) / (float)kStations,
-                     .align = TextPath::Align::Center,
-                     .offset = 5.0f,
-                     .autoFlip = true})
+            .textOnPath({.path = chordPath,
+                         .at = ((float)(k * 2) + 0.5f) / (float)kStations,
+                         .align = TextPath::Align::Center,
+                         .offset = 5.0f,
+                         .autoFlip = true})
             .fx({.effect = fx::typeOn(),
                  .stagger = {.eachMs = 30, .durationMs = 120},
                  .progress = beat(limenAt[k], limenAt[k] + limenSpanS)});
@@ -179,11 +179,11 @@ auto RotaConvocationis::sigillum(int k) -> Element {
                     .inset(kSealR - kSealRing)
                     .hitTestable(false)
                     .cache(Cache::Texture)
-                    .onPath({.path = shapes::circle(),
-                             .at = (float)k / (float)kSeals,
-                             .align = TextPath::Align::Start,
-                             .offset = -sealSize[k] * 0.34f,
-                             .autoFlip = false})
+                    .textOnPath({.path = shapes::circle(),
+                                 .at = (float)k / (float)kSeals,
+                                 .align = TextPath::Align::Start,
+                                 .offset = -sealSize[k] * 0.34f,
+                                 .autoFlip = false})
                     .fx({.effect = fx::hold(fx::spinIn(70.0f, 9.0f)),
                          .stagger = {.eachMs = 30, .durationMs = 480},
                          .progress = beat(at + 0.25, at + 0.25 + sealSpanS)})}),
@@ -236,16 +236,16 @@ auto RotaConvocationis::emblema() -> Element {
                      .key("hub-ring")
                      .cover()
                      .hitTestable(false)
-                     .onPath({.path = shapes::chords(
-                                  {.sides = 6,
-                                   .step = 2,
-                                   .radius = rHexagram * kR /
-                                             (std::min(kW, kH) * 0.5f),
-                                   .inset = 14.0f}),
-                              .at = 0.0f,
-                              .align = TextPath::Align::Start,
-                              .offset = 4.0f,
-                              .autoFlip = true})
+                     .textOnPath({.path = shapes::chords(
+                                      {.sides = 6,
+                                       .step = 2,
+                                       .radius = rHexagram * kR /
+                                                 (std::min(kW, kH) * 0.5f),
+                                       .inset = 14.0f}),
+                                  .at = 0.0f,
+                                  .align = TextPath::Align::Start,
+                                  .offset = 4.0f,
+                                  .autoFlip = true})
                      .fx({.effect = fx::hold(fx::typeOn()),
                           .stagger = {.eachMs = 26, .durationMs = 260},
                           .progress = beat(tHub - 0.3, tHub + 0.9)})});

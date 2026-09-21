@@ -108,7 +108,7 @@ void Composer::Impl::layoutTextInBox(Instance& inst, float boxWidth,
 
 void Composer::Impl::layoutText(Instance& inst, float constraint,
                                 float downConstraint) {
-  // onPath: the PATH is the measure, not the box. Laying the run out to
+  // textOnPath: the PATH is the measure, not the box. Laying the run out to
   // the node's width would wrap it, and every line after the first would
   // then be placed along the path from the start again — the glyphs pile
   // up on each other. The box still sizes the path; it does not bound the

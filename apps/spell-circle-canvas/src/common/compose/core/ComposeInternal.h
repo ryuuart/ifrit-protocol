@@ -272,7 +272,7 @@ struct TextData {
   // Resolved at paint from the line metrics; live materials re-resolve per
   // frame; static ones compare by recipe for the prune.
   std::optional<material::skia::Paint> metricFill;
-  // onPath(): the run's baseline IS a path. Resolved at paint against the
+  // textOnPath(): the run's baseline IS a path. Resolved at paint against the
   // node's box, walked with SkContourMeasure, one RSXform per glyph.
   std::optional<TextPath> onPath;
   // mark(): a child of this text node whose box is the rect a selector
@@ -296,7 +296,7 @@ struct TextData {
   bool balanceChain = false;
   uint32_t balanceThroughLine = ~0u;
   // THE TEXT ENGINE, as the description carries it: installed by the verbs
-  // that dress type (fx, onPath, mark, spanStyle, spanPaint,
+  // that dress type (fx, textOnPath, mark, spanStyle, spanPaint,
   // variationDrive), read by the kernel wherever it needs more than the
   // paragraph drawn at rest. Excluded from structural equality — it is the
   // same engine on every text that has one — so a field pin names it and
@@ -639,7 +639,7 @@ struct ElementNode {
 inline uint64_t mix64Value(uint64_t z) {
   return core::noise::mix64(z + core::noise::kMix64Gamma);
 }
-/** The once-per-process diagnostic behind `onPath` plus a vertical
+/** The once-per-process diagnostic behind `textOnPath` plus a vertical
  *  `writingMode`: a path run's baseline is its own geometry, so there are
  *  no columns to advance and the path wins. */
 void warnWritingModeOnPath();

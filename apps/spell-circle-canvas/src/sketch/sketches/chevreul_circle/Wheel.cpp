@@ -166,12 +166,12 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
                       .width(2 * rMid)
                       .height(2 * rMid)
                       .centerAt(kC)
-                      .onPath(TextPath{.path = rimBaseline(),
-                                       .at = f,
-                                       .align = TextPath::Align::Center,
-                                       .offset = offset,
-                                       .autoFlip = false,
-                                       .orient = TextPath::Orient::Tangent})
+                      .textOnPath(TextPath{.path = rimBaseline(),
+                                           .at = f,
+                                           .align = TextPath::Align::Center,
+                                           .offset = offset,
+                                           .autoFlip = false,
+                                           .orient = TextPath::Orient::Tangent})
                       .opacity(bind(&demo).window(lo, lo + 0.02f))});
     };
     if (n % 6 == 0) {
@@ -221,12 +221,12 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
                     .width(2 * (kRSweepOut + 11))
                     .height(2 * (kRSweepOut + 11))
                     .centerAt(kC)
-                    .onPath(TextPath{.path = rimBaseline(),
-                                     .at = (float)n / 72.0f,
-                                     .align = TextPath::Align::Center,
-                                     .offset = 0.0f,
-                                     .autoFlip = false,
-                                     .orient = TextPath::Orient::Radial})
+                    .textOnPath(TextPath{.path = rimBaseline(),
+                                         .at = (float)n / 72.0f,
+                                         .align = TextPath::Align::Center,
+                                         .offset = 0.0f,
+                                         .autoFlip = false,
+                                         .orient = TextPath::Orient::Radial})
                     .opacity(bind(&demo).window(0.24f, 0.27f))});
   }
 

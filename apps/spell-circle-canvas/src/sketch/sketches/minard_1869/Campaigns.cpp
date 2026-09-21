@@ -461,12 +461,12 @@ auto Minard1869::bandNumber(SkPoint at, SkVector tangent, float men, float size,
   const SkPoint b{at.x() + n.x() * half, at.y() + n.y() * half};
   return text(french(men), style)
       .rect(SkRect::MakeXYWH(0, 0, kSheetW, kSheetH))
-      .onPath(TextPath{.path = segFn(a, b),
-                       .at = 0.5f,
-                       .align = TextPath::Align::Center,
-                       .offset = 0.0f,
-                       .autoFlip = false,
-                       .orient = TextPath::Orient::Tangent})
+      .textOnPath(TextPath{.path = segFn(a, b),
+                           .at = 0.5f,
+                           .align = TextPath::Align::Center,
+                           .offset = 0.0f,
+                           .autoFlip = false,
+                           .orient = TextPath::Orient::Tangent})
       .key(key)
       .opacity(beat(t0, t0 + 0.3f));
 }

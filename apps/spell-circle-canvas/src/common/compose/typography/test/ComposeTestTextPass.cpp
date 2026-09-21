@@ -390,7 +390,7 @@ TEST(TextPass, ThePassFollowsAPathBaseline) {
            .key("ring")
            .width(180)
            .height(180)
-           .onPath({.path = geometry::shapes::circle()})
+           .textOnPath({.path = geometry::shapes::circle()})
            .fx({.effect = fx::pass(passOver(kIdentitySksl))})}));
   host.frame();
   // The identity pass hands back the curved lettering it was given.

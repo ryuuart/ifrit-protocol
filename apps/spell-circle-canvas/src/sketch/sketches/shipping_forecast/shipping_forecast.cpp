@@ -514,11 +514,11 @@ struct ShippingForecast {
                    .styleClass("area")
                    .key(std::string("area") + std::to_string(i))
                    .inset(kRingBox * 0.5f - radius)
-                   .onPath({.path = shapes::circle(),
-                            .at = frac,
-                            .align = TextPath::Align::Center,
-                            .offset = 7.0f,
-                            .autoFlip = false})
+                   .textOnPath({.path = shapes::circle(),
+                                .at = frac,
+                                .align = TextPath::Align::Center,
+                                .offset = 7.0f,
+                                .autoFlip = false})
                    .fx({.effect = fx::rise(13.0f),
                         .stagger = ringCascade(),
                         .progress = beat(start, start + 0.62f)});

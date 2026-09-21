@@ -9,12 +9,12 @@ Element onCircle(Utf8 words, SkPoint centre, float r, float thDeg,
                  TextPath::Orient orient) {
   return text(std::move(words))
       .rect(path::centred(centre, {2 * r, 2 * r}))
-      .onPath(TextPath{.path = shapes::circle(),
-                       .at = frac(thDeg),
-                       .align = TextPath::Align::Center,
-                       .offset = 0.0f,
-                       .autoFlip = false,
-                       .orient = orient});
+      .textOnPath(TextPath{.path = shapes::circle(),
+                           .at = frac(thDeg),
+                           .align = TextPath::Align::Center,
+                           .offset = 0.0f,
+                           .autoFlip = false,
+                           .orient = orient});
 }
 
 /** ONE RUN SET ALONG SIDE @p k of the heptagon at radius @p r, centred on
@@ -22,12 +22,12 @@ Element onCircle(Utf8 words, SkPoint centre, float r, float thDeg,
 Element onSide(Utf8 words, int k, float r) {
   return text(std::move(words))
       .cover()
-      .onPath(TextPath{.path = heptChords(r, 0.0f),
-                       .at = ((float)k + 0.5f) / 7.0f,
-                       .align = TextPath::Align::Center,
-                       .offset = 0.0f,
-                       .autoFlip = false,
-                       .orient = TextPath::Orient::Tangent});
+      .textOnPath(TextPath{.path = heptChords(r, 0.0f),
+                           .at = ((float)k + 0.5f) / 7.0f,
+                           .align = TextPath::Align::Center,
+                           .offset = 0.0f,
+                           .autoFlip = false,
+                           .orient = TextPath::Orient::Tangent});
 }
 
 }  // namespace

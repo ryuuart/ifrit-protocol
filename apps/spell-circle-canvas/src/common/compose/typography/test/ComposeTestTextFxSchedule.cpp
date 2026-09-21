@@ -283,7 +283,7 @@ TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
            .key("ring")
            .width(100)
            .height(100)
-           .onPath({.path = BeatRing{}})
+           .textOnPath({.path = BeatRing{}})
            .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Cluster})}));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);

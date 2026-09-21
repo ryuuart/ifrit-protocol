@@ -47,4 +47,4 @@ both warns once and the path wins.
 
 ## See also
 
-[`font`](font.md), `weave::Block`, `paragraphs`, `onPath`.
+[`font`](font.md), `weave::Block`, `paragraphs`, `textOnPath`.

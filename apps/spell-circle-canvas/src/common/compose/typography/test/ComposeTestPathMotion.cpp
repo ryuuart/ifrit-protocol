@@ -75,9 +75,9 @@ Element ringAt(sigil::motion::Animatable<float> at, float pixelSize) {
                              .absolute()
                              .left(0)
                              .top(0)
-                             .onPath({.path = geometry::shapes::circle(),
-                                      .at = std::move(at),
-                                      .align = TextPath::Align::Center})});
+                             .textOnPath({.path = geometry::shapes::circle(),
+                                          .at = std::move(at),
+                                          .align = TextPath::Align::Center})});
 }
 
 /// ONE LETTER riding a ring whose phase is BOUND — the marquee's own
@@ -108,9 +108,9 @@ Element ringWith(float at, float pixelSize, Track track) {
                              .absolute()
                              .left(0)
                              .top(0)
-                             .onPath({.path = geometry::shapes::circle(),
-                                      .at = at,
-                                      .align = TextPath::Align::Center})
+                             .textOnPath({.path = geometry::shapes::circle(),
+                                          .at = at,
+                                          .align = TextPath::Align::Center})
                              .fx(std::move(track))});
 }
 
@@ -419,9 +419,9 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
                               .absolute()
                               .left(0)
                               .top(0)
-                              .onPath({.path = geometry::shapes::circle(),
-                                       .at = &phase,
-                                       .align = TextPath::Align::Center})
+                              .textOnPath({.path = geometry::shapes::circle(),
+                                           .at = &phase,
+                                           .align = TextPath::Align::Center})
                               .fx({.effect = turn, .progress = &progress})}));
       host.frame();
       SkBitmap bm;
@@ -470,10 +470,10 @@ TEST(ComposePathMotion, ExactTangentTurnsAGlyphTheLadderSnaps) {
                             .absolute()
                             .left(0)
                             .top(0)
-                            .onPath({.path = path,
-                                     .at = phase,
-                                     .align = TextPath::Align::Center,
-                                     .exactTangent = exact})}));
+                            .textOnPath({.path = path,
+                                         .at = phase,
+                                         .align = TextPath::Align::Center,
+                                         .exactTangent = exact})}));
     host.frame();
     SkBitmap bm;
     bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));

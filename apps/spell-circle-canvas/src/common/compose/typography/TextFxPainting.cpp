@@ -54,7 +54,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // means a rise lifts a letter off the curve along its own local
   // perpendicular rather than straight up the canvas, and a track's
   // rotation adds to the tangent it was already turned to. The two are not
-  // alternatives and neither wins: `fx()` and `onPath()` compose.
+  // alternatives and neither wins: `fx()` and `textOnPath()` compose.
   if (onPath) ensurePathLayout(impl, inst, *onPath, size);
   const bool ridesPath = onPath && textStateOf(inst).pathValid;
   if (onPath && !ridesPath) return;  // no measurable baseline: nothing rides

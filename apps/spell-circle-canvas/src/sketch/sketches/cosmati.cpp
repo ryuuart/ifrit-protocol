@@ -455,7 +455,7 @@ struct Cosmati {
         {roundel({c, c}, big, cs::kOnyx, cs::kGialloLo, 0),
          // The circular inscription these pavements carry round their centre
          // roundel. Real Cosmati work sets it in the ring itself; this is one
-         // shaped run on a circular baseline — onPath, not 40 hand-placed
+         // shaped run on a circular baseline — textOnPath, not 40 hand-placed
          // glyphs — and it does NOT auto-flip, because the letter-cutters
          // didn't: glyph-up points outward the whole way round.
          text("· SPHERICVM · ARCHETYPVM "
@@ -468,10 +468,10 @@ struct Cosmati {
              .width(big * 1.50f)
              .height(big * 1.50f)
              .centerAt({c, c})
-             .onPath({.path = shapes::arc(-90.0f, 359.9f),
-                      .at = 0.0f,
-                      .align = TextPath::Align::Start,
-                      .offset = 0.0f})
+             .textOnPath({.path = shapes::arc(-90.0f, 359.9f),
+                          .at = 0.0f,
+                          .align = TextPath::Align::Start,
+                          .offset = 0.0f})
              .zIndex(6),
          // the raking light: a soft band crossing the polished floor
          kit::at(box()

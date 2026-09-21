@@ -197,7 +197,7 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
            .key("ring")
            .width(180)
            .height(180)
-           .onPath({.path = geometry::shapes::circle()})
+           .textOnPath({.path = geometry::shapes::circle()})
            .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
            .mark(sigil::weave::selectors::word(2),
                  box().key("caret").fill(green()))}));
@@ -338,7 +338,7 @@ TEST(ComposeCache, TextOnAPathOutsideItsBoxSurvivesTheCull) {
         box().children({text(u8"CIRCVMFERENTIA", whiteStyle(18))
                             .width(100)
                             .height(100)
-                            .onPath({.path = RingBesideTheBox{}})
+                            .textOnPath({.path = RingBesideTheBox{}})
                             .cache(cache)
                             .key("ring")}));
     for (int i = 0; i < 4; ++i) host->frame(1.0 / 60.0);
@@ -366,9 +366,9 @@ TEST(ComposeShapeValues, TextOnAComparableBaselinePrunes) {
         .absolute()
         .left(0)
         .top(0)
-        .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
-                 .at = at,
-                 .align = TextPath::Align::Center});
+        .textOnPath({.path = geometry::shapes::arc(180.0f, 359.9f),
+                     .at = at,
+                     .align = TextPath::Align::Center});
   };
   host.composer.render(box().children({ring(0.25f)}));
   host.frame();

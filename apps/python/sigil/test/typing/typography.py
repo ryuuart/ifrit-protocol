@@ -61,7 +61,7 @@ node: Element = (
     .children(box().key("marker").fill("#ffffff"))
 )
 progress = Output(0.75)
-curved: Element = text(passage).onPath(
+curved: Element = text(passage).textOnPath(
     TextPath(path=Path.Circle(60, 60, 50), at=progress)
 )
 article = Story(passage).paragraphs((heading,))

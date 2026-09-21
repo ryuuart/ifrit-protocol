@@ -123,7 +123,7 @@ TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
 
 TEST(ComposeText, OnPathRidesTheBaselineItIsGiven) {
   // Placing curved lettering by hand costs one Element and one layout PER
-  // GLYPH: a ring of labels is hundreds of each. onPath shapes the run
+  // GLYPH: a ring of labels is hundreds of each. textOnPath shapes the run
   // ONCE and places every glyph by arc length.
   //
   // A run on the TOP half of a circle must paint above the centre and
@@ -137,9 +137,9 @@ TEST(ComposeText, OnPathRidesTheBaselineItIsGiven) {
         .absolute()
         .left(0)
         .top(0)
-        .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
-                 .at = at,
-                 .align = TextPath::Align::Center});
+        .textOnPath({.path = geometry::shapes::arc(180.0f, 359.9f),
+                     .at = at,
+                     .align = TextPath::Align::Center});
   };
   auto lit = [](Host& host, int y0, int y1) {
     int count = 0;
@@ -190,9 +190,9 @@ TEST(ComposeText, OnPathWrapsTheSeamAndTheFlippedRunKeepsItsHalf) {
            .absolute()
            .left(0)
            .top(0)
-           .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
-                    .at = 0.0f,
-                    .align = TextPath::Align::Center})}));
+           .textOnPath({.path = geometry::shapes::arc(180.0f, 359.9f),
+                        .at = 0.0f,
+                        .align = TextPath::Align::Center})}));
   seam.frame();
   // at=0 on this arc is 9 o'clock, so a centred run straddles it: ink on
   // BOTH sides of the horizontal midline, near the left edge.
@@ -210,10 +210,10 @@ TEST(ComposeText, OnPathWrapsTheSeamAndTheFlippedRunKeepsItsHalf) {
         .absolute()
         .left(0)
         .top(0)
-        .onPath({.path = geometry::shapes::arc(0.0f, 359.9f),
-                 .at = 0.30f,
-                 .align = TextPath::Align::Start,
-                 .autoFlip = flip});
+        .textOnPath({.path = geometry::shapes::arc(0.0f, 359.9f),
+                     .at = 0.30f,
+                     .align = TextPath::Align::Start,
+                     .autoFlip = flip});
   };
   Host plain(260, 260), flipped(260, 260);
   plain.composer.render(box().children({lopsided(false)}));
@@ -412,9 +412,9 @@ TEST(ComposeTextPath, ABoundPhaseWalksTheRunRoundAClosedBaseline) {
                           .absolute()
                           .left((kHost - kRing) / 2)
                           .top((kHost - kRing) / 2)
-                          .onPath({.path = geometry::shapes::circle(),
-                                   .at = &phase,
-                                   .align = TextPath::Align::Center})}));
+                          .textOnPath({.path = geometry::shapes::circle(),
+                                       .at = &phase,
+                                       .align = TextPath::Align::Center})}));
   host.frame();
   const SkPoint centre{kHost / 2.0f, kHost / 2.0f};
   const RingInk atZero = ringInk(host, kHost, centre);
@@ -449,9 +449,9 @@ TEST(ComposeTextPath, ThePhaseWrapsAcrossTheSeamWithNothingLost) {
                           .absolute()
                           .left(0)
                           .top(0)
-                          .onPath({.path = geometry::shapes::circle(),
-                                   .at = &phase,
-                                   .align = TextPath::Align::Center})}));
+                          .textOnPath({.path = geometry::shapes::circle(),
+                                       .at = &phase,
+                                       .align = TextPath::Align::Center})}));
   host.frame();
   const SkPoint centre{120, 120};
   const RingInk before = ringInk(host, 240, centre);
@@ -482,7 +482,7 @@ TEST(ComposeTextPath, ASettledPhaseStopsPaintingLiveAndCaches) {
            .absolute()
            .left(0)
            .top(0)
-           .onPath({.path = geometry::shapes::circle(), .at = &phase})}));
+           .textOnPath({.path = geometry::shapes::circle(), .at = &phase})}));
   for (int frame = 0; frame < 20; ++frame) host.frame();
   EXPECT_FALSE(host.composer.dirty())
       << "a phase that never moves keeps repainting";
@@ -528,7 +528,7 @@ TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
                     // reason that has nothing to do with the frame.
                     .top(onPath ? 0.0f : 90.0f)
                     .fx({.effect = lift, .progress = progress});
-    if (onPath) t.onPath({.path = downward});
+    if (onPath) t.textOnPath({.path = downward});
     return box().children({std::move(t)});
   };
   auto inkCentroid = [](Host& host) {
@@ -587,8 +587,8 @@ TEST(ComposeTextPath, ATrackAndABaselineBothRunRatherThanOneWinning) {
                     .absolute()
                     .left(40)
                     .top(40)
-                    .onPath({.path = geometry::shapes::circle(),
-                             .align = TextPath::Align::Center});
+                    .textOnPath({.path = geometry::shapes::circle(),
+                                 .align = TextPath::Align::Center});
     if (withTrack)
       t.fx({.effect = fx::effect(
                 "test.pathframe.out",

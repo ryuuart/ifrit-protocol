@@ -309,11 +309,11 @@ TEST(TextVertical, OnPathIgnoresWritingModeAndSaysSoOnce) {
            .height(200)
            .centerAt({120, 120})
            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .onPath({.path = geometry::shapes::circle()})
+           .textOnPath({.path = geometry::shapes::circle()})
            .key("t")}));
   host.frame();
   const std::string first = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(first.find("onPath"), std::string::npos)
+  EXPECT_NE(first.find("textOnPath"), std::string::npos)
       << "the conflict must be diagnosed, not silently resolved";
 
   const auto* layout = host.composer.paragraphLayout("t");

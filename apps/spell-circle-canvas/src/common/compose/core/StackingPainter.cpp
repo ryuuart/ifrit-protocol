@@ -274,7 +274,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // the fill shader translated by exactly this read, so the memo compares
     // the pan it was baked with.
     scalarsNow.pattern = inst.resolvePatternOffset();
-    // …and onPath()'s phase, on the same rule: the recording bakes the
+    // …and textOnPath()'s phase, on the same rule: the recording bakes the
     // glyph positions this phase produced.
     scalarsNow.pathAt = inst.resolvePathAt();
   }
