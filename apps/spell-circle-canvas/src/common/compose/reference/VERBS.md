@@ -210,7 +210,7 @@ once and do nothing.
 |---|---|
 | [`paragraphs`](pages/verbs/paragraphs.md) | How each BLOCK of the passage is set, one entry per block, by value or by name. |
 | [`initialLetter`](pages/verbs/initialLetter.md) | The passage opens on a versal sized to span the lines it is given. |
-| `firstBaseline` | Where the first baseline sits below the top of the leaf's box. |
+| `textFirstBaseline` | Where the first baseline sits below the top of the leaf's box. |
 | `distribute` | What becomes of the room left over down the box — nothing, split, above, or between the lines. |
 | `reserve` | Room beside every line, over and above the leading, taken in the strut before breaking. |
 | `maxTextLines` | Use at most this many lines; the rest reports as overflow. |
@@ -291,7 +291,7 @@ spelling is the feature's.
   `translateZ`, `scaleZ`, `perspective`,
   `perspectiveOrigin`, `preserve3d`, `backface`.
 - `core/verbs/TextStyle.h` — the text properties `paragraphs`,
-  `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,
+  `initialLetter`, `textFirstBaseline`, `distribute`, `reserve`, `live`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
   `mark`, `annotate`, `thread`, `balanceChain`, `textOnPath`, `spanPaint`,

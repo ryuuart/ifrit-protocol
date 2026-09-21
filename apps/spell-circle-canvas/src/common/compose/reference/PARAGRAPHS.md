@@ -54,7 +54,7 @@ per block in block order:
 text(weave::rich(body).add(u8"A heading\nand its body, which runs on\nand on"))
     .width(Dimension(360.0f))
     .paragraphs({headingStyle, bodyStyle})
-    .firstBaseline(sigil::weave::FrameOptions::FirstBaseline::kCapHeight)
+    .textFirstBaseline(sigil::weave::FrameOptions::FirstBaseline::kCapHeight)
     .distribute(sigil::weave::FrameOptions::Distribute::kJustify);
 ```
 
@@ -74,7 +74,7 @@ follows for character styles. A name no sheet in force carries WARNS ONCE and ch
 nothing about its block, because a block quietly set in a default nobody
 asked for looks exactly like a style that did not take.
 
-`Element::firstBaseline` and `Element::distribute` are the two decisions a
+`Element::textFirstBaseline` and `Element::distribute` are the two decisions a
 FRAME makes that no line makes for itself: where baseline 0 sits below the
 top of the box, and what becomes of the room left over down it.
 

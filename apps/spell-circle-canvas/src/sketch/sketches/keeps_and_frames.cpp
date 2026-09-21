@@ -94,7 +94,7 @@ Element seating(const char* key, weave::FrameOptions::FirstBaseline first,
                .key(key)
                .width(205.5f)
                .height(124)
-               .firstBaseline(first)
+               .textFirstBaseline(first)
                .distribute(distribute)})});
 }
 }  // namespace

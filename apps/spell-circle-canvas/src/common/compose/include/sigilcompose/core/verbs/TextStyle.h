@@ -45,8 +45,8 @@ class TextStyleVerbs {
    *  the first line's own ascent (the default), its cap height, its
    *  x-height, its whole pitch, or @p offset outright. Every later
    *  baseline follows at its own block's pitch. */
-  Derived& firstBaseline(sigil::weave::FrameOptions::FirstBaseline rule,
-                         float offset = 0);
+  Derived& textFirstBaseline(sigil::weave::FrameOptions::FirstBaseline rule,
+                             float offset = 0);
   /** What becomes of the room left over down this leaf's box — nothing
    *  (the default), half above and half below, all above, or spread
    *  BETWEEN the lines as extra leading, at most

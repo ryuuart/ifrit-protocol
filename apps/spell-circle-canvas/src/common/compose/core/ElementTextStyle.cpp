@@ -52,7 +52,7 @@ Derived& TextStyleVerbs<Derived>::initialLetter(
 }
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::firstBaseline(
+Derived& TextStyleVerbs<Derived>::textFirstBaseline(
     sigil::weave::FrameOptions::FirstBaseline rule, float offset) {
   detail::TextOptions& options = declarations()->textData.ensure().options;
   options.frame.firstBaseline = rule;

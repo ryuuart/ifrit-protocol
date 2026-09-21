@@ -57,7 +57,7 @@ node: Element = (
     .block(layout)
     .paragraphs((heading,))
     .spanStyle(selection, Type(weight=700))
-    .firstBaseline(FrameOptions.FirstBaseline.CapHeight)
+    .textFirstBaseline(FrameOptions.FirstBaseline.CapHeight)
     .children(box().key("marker").fill("#ffffff"))
 )
 progress = Output(0.75)
