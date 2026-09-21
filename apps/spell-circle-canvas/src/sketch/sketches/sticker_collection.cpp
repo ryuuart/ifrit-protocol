@@ -194,7 +194,7 @@ struct StickerCollection {
         {std::move(stage),
          text(u8"SIGIL STICKERS / GIF · WEBP · AVIFS · WEBM", title)
              .absolute()
-             .inset(52, 58, 52, 1190)}));
+             .inset(58, 52, 1190, 52)}));
   }
 };
 

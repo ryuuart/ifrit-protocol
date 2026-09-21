@@ -205,7 +205,7 @@ struct ShapeworksLab {
                  if (cooked) material::skia::fill(canvas, cookedPath, *cooked);
                  canvas.restore();
                })
-            .inset(30, 50, 690, 350)
+            .inset(50, 690, 350, 30)
             .cache(Cache::Texture);
 
     // SURFACES — the literal recipes (materials prebuilt in setup), and
@@ -219,7 +219,7 @@ struct ShapeworksLab {
                  if (chrome) material::skia::fill(canvas, chromePath, *chrome);
                  if (glass) material::skia::fill(canvas, glassPath, *glass);
                })
-            .inset(30, 440, 710, 40)
+            .inset(440, 710, 40, 30)
             .cache(Cache::Texture);
 
     // WIRE — one curve, four sinks. A steel tube swept over it, its own
@@ -283,7 +283,7 @@ struct ShapeworksLab {
               canvas, sparks, camera, viewport,
               {.size = 11, .sizeLane = "size", .tintLane = "tint"});
         })
-            .inset(600, 50, 30, 40)
+            .inset(50, 30, 40, 600)
             .overflow(Overflow::Clip)
             .cache(Cache::None);
 
