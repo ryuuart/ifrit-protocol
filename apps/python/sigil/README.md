@@ -110,12 +110,23 @@ install take them from there. `typing/surface.py` is the one table saying
 which module of the extension surfaces where, and which of its names an
 author spells differently; the same table writes the package's own modules,
 so the surface an editor reads and the surface an import finds cannot
-disagree. Builders return native
-`Element` values; material factories return native paints or materials.
+disagree. A container returns a native `Element`, and a leaf factory returns
+that leaf's own class — `Text`, `Image` or `Band` — so the verbs only that
+leaf states stay in reach along the chain; material factories return native
+paints or materials.
 Supported input forms use unions and overloads. Fluent
 methods retain their native signatures,
 and memo builders preserve the type of their model. Decorating a sketch retains
 its class type.
+
+A leaf is a class of its own rather than a subclass of `Element`, because
+each shared verb hands the leaf's own type back. It converts into an
+element wherever one is taken, so every slot that holds a node — one child,
+a container's arguments, a kit piece's or a document component's content,
+a memo builder's answer, the tree an instance recipe or a feed row makes —
+is declared as `NodeLike`, the union of the four, beside `ColorLike`,
+`FillLike` and the other conversion unions. Annotate a helper of your own
+that hands a leaf back with the leaf's class, not `Element`.
 
 Bound callables name their inputs in both runtime help and editor signatures:
 for example, `pen.line(x1, y1, x2, y2)` and

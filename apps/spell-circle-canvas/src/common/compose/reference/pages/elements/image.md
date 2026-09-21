@@ -28,7 +28,7 @@ Element image(sk_sp<SkImage> picture,
 
 ```python
 def image(image: skia.Image,
-          fit: material.Fit = material.Fit.Contain) -> Element: ...
+          fit: material.Fit = material.Fit.Contain) -> Image: ...
 ```
 
 ## Parameters
