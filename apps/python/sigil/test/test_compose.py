@@ -89,6 +89,40 @@ class Edges:
         # A margin stands outside the box, so the pair keeps the child's width.
         self.assertEqual(pair.width(), 10)
 
+    def test_at_and_rect_take_lengths_in_any_unit(self):
+        self.render("""import builtins
+from sigil.compose import box, pct
+from sigil.sketch import sketch
+
+
+@sketch(size=(200, 100), capture_at=0)
+class Placed:
+    def setup(self, ctx):
+        ctx.render(
+            box().size(200, 100).children(
+                [
+                    box().key("pinned").size(10, 10).at(pct(50), 20),
+                    box().key("boxed").rect(pct(10), 30, pct(25), 40),
+                    box().key("point").size(10, 10).at((5, 6)),
+                ]
+            )
+        )
+
+    def update(self, elapsed, ctx):
+        if elapsed > 1 / 60:
+            builtins._sigil_compose_contract = [
+                ctx.composer.bounds(key) for key in ("pinned", "boxed", "point")
+            ]
+""")
+        pinned, boxed, point = builtins._sigil_compose_contract
+        # A percent is of the parent's box, as it is for left() and width().
+        self.assertEqual((pinned.left(), pinned.top()), (100, 20))
+        self.assertEqual(
+            (boxed.left(), boxed.top(), boxed.width(), boxed.height()), (20, 30, 50, 40)
+        )
+        # The point in hand is still pixels.
+        self.assertEqual((point.left(), point.top()), (5, 6))
+
     def test_flex_and_box_keywords_lay_out_as_css_says(self):
         for element in (
             box().flexDirection(raw.FlexDirection.ColumnReverse),

@@ -418,6 +418,45 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   EXPECT_EQ(require(host.composer.bounds("plate")).fLeft, 41.0f);
 }
 
+TEST(ComposePlacement, RectAndAtTakeLengthsInAnyUnit) {
+  // The two shorthands take what the longhand takes: a percent of the
+  // parent's box is one re-describe away from the four setters, and prunes
+  // against them like the pixel forms do.
+  Host host(200, 100);
+  auto longhand = [] {
+    return box().width(200).height(100).children(
+        {box()
+             .key("plate")
+             .left(pct(10))
+             .top(30)
+             .width(pct(25))
+             .height(40)
+             .fill(red()),
+         box().key("pin").width(10).height(10).left(pct(50)).top(pct(20))});
+  };
+  auto terse = [] {
+    return box().width(200).height(100).children(
+        {box().key("plate").rect(pct(10), 30, pct(25), 40).fill(red()),
+         box().key("pin").width(10).height(10).at(pct(50), pct(20))});
+  };
+
+  host.composer.render(longhand());
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("plate")),
+            SkRect::MakeXYWH(20, 30, 50, 40));
+  EXPECT_EQ(require(host.composer.bounds("pin")),
+            SkRect::MakeXYWH(100, 20, 10, 10));
+
+  host.composer.render(terse());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "rect(x, y, width, height) or at(x, y) is not the longhand";
+  EXPECT_EQ(require(host.composer.bounds("plate")),
+            SkRect::MakeXYWH(20, 30, 50, 40));
+  EXPECT_EQ(require(host.composer.bounds("pin")),
+            SkRect::MakeXYWH(100, 20, 10, 10));
+}
+
 TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
   // The 187-site half of the longhand that carries no box: .left().top()
   // on a node that measures itself from its content.

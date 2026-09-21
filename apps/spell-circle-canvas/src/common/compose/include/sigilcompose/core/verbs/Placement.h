@@ -72,13 +72,18 @@ class PlacementVerbs {
    *  `Align::Stretch` sizes it to the box instead of placing it in
    *  one. */
   Derived& gridCellAlign(Align across, Align down);
-  /** Place this node on a parent-space RECT — exactly
-   *  `left().top().width().height()`, so it writes the same four fields
-   *  as the longhand and prunes identically. Pixels only; right and
+  /** Place this node on a parent-space BOX — exactly
+   *  `left(x).top(y).width(width).height(height)`, so it writes the same
+   *  four fields as the longhand and prunes identically. Each length is
+   *  a `Dimension`, so a percent is of the parent's box. Right and
    *  bottom stay unpinned. */
+  Derived& rect(Dimension x, Dimension y, Dimension width, Dimension height);
+  /** The same box, from a rect already in hand, in pixels. */
   Derived& rect(const SkRect& r);
   /** Pin this node's top-left to a parent-space POINT and leave it to
-   *  size itself — exactly `left().top()`. Pixels only. */
+   *  size itself — exactly `left(x).top(y)`, in any unit. */
+  Derived& at(Dimension x, Dimension y);
+  /** The same pin, from a point already in hand, in pixels. */
   Derived& at(SkPoint topLeft);
 
  private:

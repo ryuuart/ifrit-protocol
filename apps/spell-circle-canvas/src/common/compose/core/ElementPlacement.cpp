@@ -138,19 +138,31 @@ Derived& PlacementVerbs<Derived>::gridCellAlign(Align across, Align down) {
 // `hasInsets`), so a shortcut that wrote the fields directly would produce a
 // node the longhand can never produce.
 template <class Derived>
+Derived& PlacementVerbs<Derived>::rect(Dimension x, Dimension y,
+                                       Dimension width, Dimension height) {
+  left(x);
+  top(y);
+  self().width(width);
+  self().height(height);
+  return self();
+}
+
+template <class Derived>
 Derived& PlacementVerbs<Derived>::rect(const SkRect& r) {
-  left(Dimension(r.fLeft));
-  top(Dimension(r.fTop));
-  self().width(Dimension(r.width()));
-  self().height(Dimension(r.height()));
+  return rect(Dimension(r.fLeft), Dimension(r.fTop), Dimension(r.width()),
+              Dimension(r.height()));
+}
+
+template <class Derived>
+Derived& PlacementVerbs<Derived>::at(Dimension x, Dimension y) {
+  left(x);
+  top(y);
   return self();
 }
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::at(SkPoint topLeft) {
-  left(Dimension(topLeft.fX));
-  top(Dimension(topLeft.fY));
-  return self();
+  return at(Dimension(topLeft.fX), Dimension(topLeft.fY));
 }
 
 template class PlacementVerbs<Element>;

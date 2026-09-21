@@ -69,7 +69,27 @@ def inset(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.Dimensi
     table.erased(ELEMENT, "alignItems alignSelf", "_t.AlignLike")
     table.erased(ELEMENT, "justifyContent", "_t.JustifyLike")
     table.erased(ELEMENT, "gridCellAlign", "_t.AlignLike", "_t.AlignLike")
-    table.erased(ELEMENT, "at centerAt", "_t.PointLike")
+    table.erased(ELEMENT, "centerAt", "_t.PointLike")
+    # A point in hand, in pixels, or the two lengths in any unit; a rect in
+    # hand, or its four lengths.
+    table.declares(
+        ELEMENT,
+        "at",
+        """@typing.overload
+def at(self, point: _t.PointLike) -> Element: ...
+@typing.overload
+def at(self, x: _t.DimensionLike, y: _t.DimensionLike) -> Element: ...
+""",
+    )
+    table.declares(
+        ELEMENT,
+        "rect",
+        """@typing.overload
+def rect(self, rect: _t.RectLike) -> Element: ...
+@typing.overload
+def rect(self, x: _t.DimensionLike, y: _t.DimensionLike, width: _t.DimensionLike, height: _t.DimensionLike) -> Element: ...
+""",
+    )
     # An origin takes a length that carries its unit, so the bare number every
     # other dimension accepts as pixels is left out of what these accept.
     origin = "str | Dimension | _sigil.weave.Length | VarRef"
@@ -83,7 +103,7 @@ def inset(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.Dimensi
         "perspectiveOrigin",
         f"def perspectiveOrigin(self, x: {origin}, y: {origin}) -> Element: ...",
     )
-    table.erased(ELEMENT, "rect region", "_t.RectLike")
+    table.erased(ELEMENT, "region", "_t.RectLike")
     table.erased(ELEMENT, "shape", "_t.ShapeLike")
     table.erased(ELEMENT, "background foreground overlay stroke", "_t.DecorationLike")
     table.erased(ELEMENT, "textFill", "_t.SurfacePaintLike")

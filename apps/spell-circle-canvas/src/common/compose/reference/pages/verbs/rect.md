@@ -16,10 +16,15 @@ for when the box is already known.
 
 ## Description
 
-**Exactly `left(r.fLeft).top(r.fTop).width(r.width()).height(r.height())`.**
-It calls those four setters, so it writes the same four layout fields,
-prunes identically, and cannot drift from the longhand. Right and bottom
-stay unpinned.
+**Exactly `left(x).top(y).width(width).height(height)`.** It calls those
+four setters, so it writes the same four layout fields, prunes
+identically, and cannot drift from the longhand. Right and bottom stay
+unpinned.
+
+**Four lengths in any unit, or a rect in hand.** `rect(x, y, width,
+height)` takes what the four setters take, so a percent is of the
+parent's box; `rect(SkRect)` is the same box for coordinates already
+measured, in pixels.
 
 **A primitive for placing content whose coordinates you already have**,
 typically because they were measured off a reference. When a position is
@@ -31,10 +36,10 @@ g.children({box().rect(panelBox).fill(ink)});
 g.children({text(u8"…", st).at({panelBox.fLeft + 16, panelBox.fTop})});
 ```
 
-**Pixels only, and no right or bottom pin.** Percentage insets,
-`autoDimension()` sides and right/bottom pinning are different intents
-and keep the longhand. `geometry::path::centred()` builds the rect for
-the centre-and-size case.
+**No right or bottom pin.** `autoDimension()` sides and right/bottom
+pinning are different intents and keep the longhand.
+`geometry::path::centred()` builds the rect for the centre-and-size
+case.
 
 ## See also
 

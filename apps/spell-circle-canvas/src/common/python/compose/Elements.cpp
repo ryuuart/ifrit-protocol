@@ -600,11 +600,26 @@ void bindCompose(py::module_& module) {
           },
           py::arg("point"), fluent)
       .def(
+          "at",
+          [](Element& self, py::object x, py::object y) -> Element& {
+            return self.at(dimension(x), dimension(y));
+          },
+          py::arg("x"), py::arg("y"), fluent)
+      .def(
           "rect",
           [](Element& self, py::object value) -> Element& {
             return self.rect(rect(value));
           },
           py::arg("rect"), fluent)
+      .def(
+          "rect",
+          [](Element& self, py::object x, py::object y, py::object width,
+             py::object height) -> Element& {
+            return self.rect(dimension(x), dimension(y), dimension(width),
+                             dimension(height));
+          },
+          py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"),
+          fluent)
       .def("gridCells",
            py::overload_cast<int, int, int, int>(&Element::gridCells),
            py::arg("column"), py::arg("row"), py::arg("columns") = 1,
