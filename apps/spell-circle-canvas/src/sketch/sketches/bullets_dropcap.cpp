@@ -142,7 +142,7 @@ struct BulletsDropCap {
                   .gap = 18}),
              sketch::kit::comparison(
                  {.cases = {{.title = "A SHAPED OPENING",
-                             .control = "One silhouette · contentFlowAround",
+                             .control = "One silhouette · flowAround",
                              .figure = ornament(),
                              .note = "The lines enter the star's notches; the "
                                      "body responds to its contour."},
