@@ -150,7 +150,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // produced. A key that resolved no glyphs is absent, and its child places
   // nothing.
   std::vector<std::pair<std::string, SkRect>> textMarkRects;
-  // annotate(): every reading, laid out where the base's units put it, in
+  // textAnnotation(): every reading, laid out where the base's units put it, in
   // this node's own space. Each is a small paragraph of its own with its own
   // placement, so the kernel draws it exactly as it draws the base.
   struct PlacedAnnotation {

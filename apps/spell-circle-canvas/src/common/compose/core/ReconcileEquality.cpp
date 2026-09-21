@@ -140,7 +140,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // declaration order — so a re-described mark list prunes, and a mark
   // pointed at a different unit re-resolves its rect.
   if (ta.marks != tb.marks) return false;
-  // annotate(): comparable selectors, readings and styles in declaration
+  // textAnnotation(): comparable selectors, readings and styles in declaration
   // order — so a re-described reading list prunes, and a changed reading
   // re-lays the small paragraph it is set in AND, where it reserves, the
   // base whose strut its band is in.

@@ -62,7 +62,7 @@ namespace sigil::compose::kit {
 /** FURIGANA: a reading set over the base it reads.
  *
  *      text(passage, body)
- *          .annotate(kit::ruby(weave::selectors::text(u8"漢字"),
+ *          .textAnnotation(kit::ruby(weave::selectors::text(u8"漢字"),
  * weave::Unit::Selection, {u8"かんじ"}, furigana))
  *
  *  MONO, GROUP AND JUKUGO ARE THE UNIT: `weave::Unit::Cluster` gives one

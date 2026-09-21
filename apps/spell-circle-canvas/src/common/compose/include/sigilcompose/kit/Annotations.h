@@ -20,7 +20,7 @@
  * A marginal note, a word label, a callout, a pronunciation guide beside a
  * phrase: all of them are this. RUBY AND KENTEN ARE NOT — those reserve
  * space in the line they annotate, which is a layout input and belongs on
- * the text leaf itself (`Element::annotate`), not on a sibling that reads
+ * the text leaf itself (`Element::textAnnotation`), not on a sibling that reads
  * the finished result.
  */
 

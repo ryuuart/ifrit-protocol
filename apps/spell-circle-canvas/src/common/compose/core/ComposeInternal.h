@@ -279,7 +279,7 @@ struct TextData {
   // resolves to, in declaration order. The rects themselves live on the
   // Instance (textMarkRects) because they are an answer of the layout.
   std::vector<MarkAnchor> marks;
-  // annotate(): readings set beside the type, in declaration order. A
+  // textAnnotation(): readings set beside the type, in declaration order. A
   // reserving one is a LAYOUT INPUT — its band reaches the strut before the
   // text is broken — and the placed readings live on the Instance, because
   // where each one landed is an answer of the layout.

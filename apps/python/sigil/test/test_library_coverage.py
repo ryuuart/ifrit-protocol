@@ -183,7 +183,7 @@ class LibraryCoverage(unittest.TestCase):
             readings=("かん", "じ"), style=weave.Type(size=weave.em(0.5))
         )
         self.assertEqual(annotation.readings, ["かん", "じ"])
-        self.assertIsNotNone(text("漢字").annotate(annotation))
+        self.assertIsNotNone(text("漢字").textAnnotation(annotation))
 
     def test_bound_values_name_the_module_an_author_imports_them_from(self):
         from sigil import compose, draw, geometry, motion, skia, world

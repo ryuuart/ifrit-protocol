@@ -68,5 +68,5 @@ the advance boxes where the baseline placed them, the same placement
 
 ## See also
 
-`fx`, [`annotate`](annotate.md), `Composer::beatsOf`,
+`fx`, [`textAnnotation`](textAnnotation.md), `Composer::beatsOf`,
 `weave::selectors::`.

@@ -58,7 +58,7 @@ class TextContentVerbs {
    *  emphasis dots down a column, a gloss under a phrase. A reading is
    *  PART OF THE TEXT: where it reserves, its band goes into the base's
    *  strut before the base is broken. */
-  Derived& annotate(Annotation reading);
+  Derived& textAnnotation(Annotation reading);
   /** THE FRAME THIS ONE FILLS INTO — the next link of a chain over one
    *  `weave::Story`. Each frame fills from where the one before it
    *  stopped. A frame that threads somewhere has a remainder by design

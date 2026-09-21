@@ -154,7 +154,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/image.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/stack.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/text.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/annotate.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textAnnotation.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/gridArea.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/at.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/atRest.md

@@ -117,7 +117,7 @@ Derived& TextContentVerbs<Derived>::fx(Track track) {
 }
 
 template <class Derived>
-Derived& TextContentVerbs<Derived>::annotate(Annotation reading) {
+Derived& TextContentVerbs<Derived>::textAnnotation(Annotation reading) {
   detail::TextData& text = dressedText(declarations()->textData.ensure());
   text.annotations.push_back(std::move(reading));
   return self();
@@ -227,7 +227,7 @@ Derived& TextContentVerbs<Derived>::spanStyle(sigil::weave::Selector where,
 // defined, in the kernel.
 template Element& TextContentVerbs<Element>::textOnPath(TextPath);
 template Element& TextContentVerbs<Element>::fx(Track);
-template Element& TextContentVerbs<Element>::annotate(Annotation);
+template Element& TextContentVerbs<Element>::textAnnotation(Annotation);
 template Element& TextContentVerbs<Element>::mark(sigil::weave::Selector,
                                                   Element);
 template Element& TextContentVerbs<Element>::variationDrive(

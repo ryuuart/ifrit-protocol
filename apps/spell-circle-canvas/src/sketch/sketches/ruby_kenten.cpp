@@ -137,26 +137,26 @@ struct RubyKenten {
         passage(
             u8"日本語の"
             u8"書物。")
-            .annotate(kit::ruby(weave::selectors::text(u8"日本語"),
-                                weave::Unit::Cluster, {u8"に", u8"ほ", u8"ご"},
-                                rubyType(), 1.0f));
+            .textAnnotation(kit::ruby(
+                weave::selectors::text(u8"日本語"), weave::Unit::Cluster,
+                {u8"に", u8"ほ", u8"ご"}, rubyType(), 1.0f));
 
     // GROUP — one reading over the whole compound.
     Element group = passage(
                         u8"日本語の"
                         u8"書物。")
-                        .annotate(kit::ruby(weave::selectors::text(u8"書物"),
-                                            weave::Unit::Word,
-                                            {u8"しょ"
-                                             u8"もつ"},
-                                            rubyType(), 1.0f));
+                        .textAnnotation(kit::ruby(
+                            weave::selectors::text(u8"書物"), weave::Unit::Word,
+                            {u8"しょ"
+                             u8"もつ"},
+                            rubyType(), 1.0f));
 
     // JUKUGO — the compound per cluster, each character its own reading.
     Element jukugo =
         passage(
             u8"国語辞典"
             u8"を引く。")
-            .annotate(kit::ruby(
+            .textAnnotation(kit::ruby(
                 weave::selectors::text(u8"国語辞典"), weave::Unit::Cluster,
                 {u8"こく", u8"ご", u8"じ", u8"てん"}, rubyType(), 1.0f));
 
@@ -169,11 +169,11 @@ struct RubyKenten {
             u8"が立つ。",
             f::kSplitHeight)
             .width(f::kColumnW * 2.2f)
-            .annotate(kit::ruby(weave::selectors::text(u8"国語辞典"),
-                                weave::Unit::Word,
-                                {u8"こくごじ"
-                                 u8"てん"},
-                                rubyType(), 1.0f));
+            .textAnnotation(kit::ruby(weave::selectors::text(u8"国語辞典"),
+                                      weave::Unit::Word,
+                                      {u8"こくごじ"
+                                       u8"てん"},
+                                      rubyType(), 1.0f));
 
     // KENTEN — one sesame beside each character, reserving nothing.
     Element kenten =
@@ -181,8 +181,8 @@ struct RubyKenten {
             u8"ここだけ"
             u8"は見逃す"
             u8"な。")
-            .annotate(kit::kenten(weave::selectors::text(u8"見逃す"), marks,
-                                  u8"﹅", 1.0f));
+            .textAnnotation(kit::kenten(weave::selectors::text(u8"見逃す"),
+                                        marks, u8"﹅", 1.0f));
 
     // The wide caption under the split setting states its remark a size
     // larger than a column's, so it carries a sheet of its own.

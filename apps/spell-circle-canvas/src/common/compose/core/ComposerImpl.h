@@ -714,8 +714,8 @@ struct Composer::Impl {
     else
       inst.textMarkRects.clear();
   }
-  /** Lays out the node's annotate() readings against the layout its letters
-   *  are drawn from. The engine answers even for a passage that dresses
+  /** Lays out the node's textAnnotation() readings against the layout its
+   * letters are drawn from. The engine answers even for a passage that dresses
    *  nothing else, because a reading IS the dressing and the base may
    *  carry no other. */
   void resolveTextAnnotations(detail::Instance& inst) {

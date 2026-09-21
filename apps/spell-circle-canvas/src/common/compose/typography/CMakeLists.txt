@@ -16,7 +16,7 @@
 # folded into axis tracks, and the schedule read back — reached by the
 # kernel through the TextPainter value the text verbs install on a
 # description, which is why those verbs (`fx`, `textOnPath`, `mark`,
-# `spanStyle`, `spanPaint`, `variationDrive`, `annotate`) are defined here
+# `spanStyle`, `spanPaint`, `variationDrive`, `textAnnotation`) are defined here
 # though the kernel declares them. With it the kit's legibility helpers
 # (kit/Legibility.h), spelled in this tier's types.
 #

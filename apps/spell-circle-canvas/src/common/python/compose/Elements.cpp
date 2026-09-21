@@ -726,7 +726,8 @@ void bindCompose(py::module_& module) {
       .def("decorationOutline", &Element::decorationOutline, py::arg("source"),
            py::arg("coverage") = 0.5f, fluent)
       .def("layerStyle", &Element::layerStyle, py::arg("style"), fluent)
-      .def("annotate", &Element::annotate, py::arg("reading"), fluent)
+      .def("textAnnotation", &Element::textAnnotation, py::arg("reading"),
+           fluent)
       .def("filter", &Element::filter, py::arg("effect"), fluent)
       .def("backdropFilter", &Element::backdropFilter, py::arg("effect"),
            fluent)

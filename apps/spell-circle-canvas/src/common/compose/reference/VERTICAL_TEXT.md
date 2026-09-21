@@ -114,7 +114,7 @@ band, which dresses a whole run rather than one letter. Type on a path
 carries no band either way: a turned run's band would have to follow the
 curve it rides.
 
-**Ruby and kenten are `Element::annotate`**, in a column exactly as along
+**Ruby and kenten are `Element::textAnnotation`**, in a column exactly as along
 a line: the band a reading needs goes into the base's strut before the
 base is broken, and the reading is then placed on the result, on the side
 the writing mode reads its furniture on — above a line, to the RIGHT of a

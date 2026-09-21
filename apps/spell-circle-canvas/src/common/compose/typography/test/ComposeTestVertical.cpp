@@ -796,9 +796,9 @@ TEST(TextVertical, AGroupReadingSplitsWithItsCompoundDownTheColumns) {
              .width(220.0f)
              .height(columnLength)
              .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-             .annotate(kit::ruby(sigil::weave::selectors::text(compound),
-                                 sigil::weave::Unit::Selection,
-                                 {u8"こくごじてん"}, furigana, 2.0f))});
+             .textAnnotation(kit::ruby(sigil::weave::selectors::text(compound),
+                                       sigil::weave::Unit::Selection,
+                                       {u8"こくごじてん"}, furigana, 2.0f))});
   };
 
   // A column long enough for the whole compound: ONE unit, ONE reading.

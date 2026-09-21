@@ -219,7 +219,7 @@ once and do nothing.
 | [`thread`](pages/verbs/thread.md) | The frame this one fills into — the next link of a chain over one story. |
 | [`balanceChain`](pages/verbs/balanceChain.md) | This frame opens a balanced run: every frame of it resolves to one shallowest depth. |
 | [`contentFlowAround`](pages/verbs/contentFlowAround.md) | Flow this paragraph around the keyed node, by its silhouette or its box. |
-| [`annotate`](pages/verbs/annotate.md) | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
+| [`textAnnotation`](pages/verbs/textAnnotation.md) | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
 | [`spanPaint`](pages/verbs/spanPaint.md) | Repaint the range a selector finds; never re-shapes. |
 | [`spanStyle`](pages/verbs/spanStyle.md) | Restyle that range with a whole style or a partial; re-shapes only the words it covers. |
 | `fx` | Append a text-fx track: which glyphs, what deviation, how the beats spread, what drives it. |
@@ -294,7 +294,7 @@ spelling is the feature's.
   `initialLetter`, `textFirstBaseline`, `distribute`, `reserve`, `live`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
-  `mark`, `annotate`, `thread`, `balanceChain`, `textOnPath`, `spanPaint`,
+  `mark`, `textAnnotation`, `thread`, `balanceChain`, `textOnPath`, `spanPaint`,
   `spanStyle`, `atRest`.
 - `core/Image.h` — `region`.
 - `core/Element.h` — the cascade a node names, `styleSheet`,

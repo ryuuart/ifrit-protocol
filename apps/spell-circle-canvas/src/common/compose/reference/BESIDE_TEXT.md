@@ -27,7 +27,7 @@ the break.
 Two things are built on it, and which one a case wants is decided by one
 question — does the annotation need ROOM?
 
-- **`Element::annotate`** is part of the text. Its band is put into the
+- **`Element::textAnnotation`** is part of the text. Its band is put into the
   base's strut BEFORE the base is broken, so the pitch opens once and the
   reading is placed on the result; nothing chases anything. Ruby and
   kenten are `Annotation` values, and mono, group and jukugo ruby are the

@@ -58,9 +58,9 @@ GroupReading groupReading(sigil::weave::Unit unit, std::u8string reading,
            .left(20.0f)
            .top(70.0f)
            .width(measure)
-           .annotate(kit::ruby(sigil::weave::selectors::text(u8"alpha beta"),
-                               unit, {std::move(reading)},
-                               colouredType(9, SK_ColorGREEN), 2.0f))}));
+           .textAnnotation(kit::ruby(
+               sigil::weave::selectors::text(u8"alpha beta"), unit,
+               {std::move(reading)}, colouredType(9, SK_ColorGREEN), 2.0f))}));
   host.frame();
   GroupReading out;
   for (const TextUnit& piece :
@@ -91,9 +91,9 @@ TEST(ComposeAnnotate, AReservingReadingOpensThePitchBeforeTheBaseIsBroken) {
       {text(passage(), whiteStyle(16))
            .key("t")
            .width(220.0f)
-           .annotate(kit::ruby(sigil::weave::selectors::text(u8"three"),
-                               sigil::weave::Unit::Word, {u8"iii"},
-                               {.size = 8.0f}, 1.0f))}));
+           .textAnnotation(kit::ruby(sigil::weave::selectors::text(u8"three"),
+                                     sigil::weave::Unit::Word, {u8"iii"},
+                                     {.size = 8.0f}, 1.0f))}));
   read.frame();
 
   EXPECT_GT(pitchOf(read), pitchOf(bare) + 4.0f);
@@ -116,8 +116,8 @@ TEST(ComposeAnnotate, AReadingThatReservesNothingLeavesThePitchAlone) {
       {text(passage(), whiteStyle(16))
            .key("t")
            .width(220.0f)
-           .annotate(kit::kenten(sigil::weave::selectors::text(u8"three"),
-                                 {.size = 6.0f}, u8".", 1.0f))}));
+           .textAnnotation(kit::kenten(sigil::weave::selectors::text(u8"three"),
+                                       {.size = 6.0f}, u8".", 1.0f))}));
   marked.frame();
 
   EXPECT_NEAR(pitchOf(marked), pitchOf(bare), 0.01f);
@@ -145,10 +145,11 @@ TEST(ComposeAnnotate, ReserveIsWhatOpensTheBaseLineBox) {
                       .reserve = reserve};
   };
   const auto pitchWith = [&](Host& host, bool reserve) {
-    host.composer.render(box().children({text(passage(), whiteStyle(16))
-                                             .key("t")
-                                             .width(220.0f)
-                                             .annotate(reading(reserve))}));
+    host.composer.render(
+        box().children({text(passage(), whiteStyle(16))
+                            .key("t")
+                            .width(220.0f)
+                            .textAnnotation(reading(reserve))}));
     host.frame();
     return pitchOf(host);
   };
@@ -225,9 +226,9 @@ TEST(ComposeAnnotate, AListOfOneStillReadsEveryBaseAlike) {
            .left(20.0f)
            .top(80.0f)
            .width(360.0f)
-           .annotate(kit::ruby(sigil::weave::selectors::text(u8"alpha"),
-                               sigil::weave::Unit::Cluster, {u8"o"},
-                               colouredType(9, SK_ColorGREEN), 2.0f))}));
+           .textAnnotation(kit::ruby(sigil::weave::selectors::text(u8"alpha"),
+                                     sigil::weave::Unit::Cluster, {u8"o"},
+                                     colouredType(9, SK_ColorGREEN), 2.0f))}));
   host.frame();
   const std::vector<TextUnit> clusters =
       host.composer.units("t", sigil::weave::selectors::text(u8"alpha"),
@@ -259,7 +260,7 @@ TEST(ComposeAnnotate, ABrokenBaseSharesOneReadingAndShiftsNothingAfterIt) {
            .left(20.0f)
            .top(40.0f)
            .width(150.0f)
-           .annotate(kit::ruby(
+           .textAnnotation(kit::ruby(
                sigil::weave::selectors::each(sigil::weave::Unit::Sentence),
                sigil::weave::Unit::Sentence,
                {u8"one", u8"two two two", u8"three"}, reading, 2.0f))}));
