@@ -172,5 +172,12 @@ and a guest tree it paints through `paintRetained` inherits from the tree
 the pen stands in. `PaintContext::vars` is the same node's properties,
 for a decoration that resolves a fill by hand through `resolveRef`.
 
-Which elements a rule speaks about, rather than what one states, is
-CSS's selector grammar as a value: [selectors](SELECTORS.md).
+**A rule a selector chose stands between the classes and the node's
+own verbs.** `Element::applyStyleSheet` puts a `compose::StyleSheet` in
+force at a node and everything under it, and a rule of it whose
+selector matched folds over the role, its sheet rule and the classes,
+and under the node's own `font`, `block`, `ink` and `var` — into the
+same partial, so a relative size is still laid over the parent's font
+at one point. Which elements a rule speaks about, how heavily it
+weighs and which of two matched rules wins is CSS's selector grammar
+as a value: [selectors](SELECTORS.md).

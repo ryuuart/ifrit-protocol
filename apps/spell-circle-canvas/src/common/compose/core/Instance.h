@@ -14,6 +14,7 @@
 #include <yoga/Yoga.h>
 
 #include "ComposeInternal.h"
+#include "SelectorMatch.h"
 #include "TextState.h"
 
 // markPaintDirtyUp() calls sk_sp::reset() inline, so the ref-counted payload
@@ -200,6 +201,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // or a copy of the parent's with this node's rules set over it by name.
   // A class this node names resolves against it.
   std::shared_ptr<const sigil::weave::StyleSheet> sheet;
+  // WHERE THIS NODE STANDS AMONG ITS SIBLINGS, by position and by role,
+  // written by the cascade pass when its parent's children are resolved
+  // and read by the structural pseudo-classes of a selector. The root
+  // keeps the default: the only child of nothing.
+  SiblingPlace place;
   // Whether the pass has resolved this node at least once — before that,
   // `font` and `vars` are whatever the constructor left and nothing may
   // read them as the truth.

@@ -100,14 +100,89 @@ actually matched.
 | `:is(.a, heading)` | 1 | 0 |
 | `:where(.a, .b.c)` | 0 | 0 |
 
+## What a rule states
+
+A RULE is a selector and what it states about the elements that
+selector speaks about: `compose::Rule`, which `compose::rule` builds
+from either front door.
+
+```cpp
+const StyleSheet house{
+    rule(".card").font({.size = 18}),
+    rule(".card > .title").ink(SkColor4f{0, 0, 0, 1}),
+    rule("heading:first-of-type").var("gutter", 24.0f),
+};
+```
+
+`Rule::font` and `Rule::block` take the partials `Element::font` and
+`Element::block` take and fold them the same way — later wins field by
+field — so a property is spelled once whichever side says it.
+`Rule::ink` takes a colour or a custom property exactly as
+`Element::ink` does, and `Rule::var` sets a property on every element
+the rule matches, for that element and everything under it. What a
+rule leaves unsaid the element inherits. A rule holds STATIC values: a
+live binding, an entrance and an animation stay verbs on the element.
+
+## The sheet, and applying it
+
+`compose::StyleSheet` is those rules in order, as one immutable value:
+declared once, applied at as many subtrees as the author likes. Copies
+share one stored form and compare by pointer before they compare by
+value. A literal may hold another sheet where a rule would stand,
+whose rules then stand in its place in order, and `+` joins two sheets
+the same way — `house + darkTheme + local`.
+
+`Element::applyStyleSheet` puts a sheet in force at a node and
+everything under it. Calling it again applies another, later in order;
+nothing removes one, because a tree that should stop applying a sheet
+is described without it. `StyleSheet::rules` reads back what a sheet
+holds.
+
+A rule's SUBJECT — the last compound of its chain — must land inside
+the subtree the sheet was applied at. The ancestors the selector names
+need not: a sheet applied deep in a page may say `.page .swatch`, and
+the `.page` it names may stand above the node that applied it.
+
+## Which rule wins
+
+At every element the cascade folds these layers, each over the one
+before:
+
+1. the defaults of its role (`Element::role`),
+2. the rule the name-keyed `weave::StyleSheet` in force carries under
+   that role's name,
+3. the classes that sheet carries under the names `Element::styleClass`
+   lists,
+4. the rules of the applied sheets whose selectors matched, and
+5. the node's own `font`, `block`, `ink` and `var`.
+
+Among the matched rules the order is CSS's: the heavier
+`ElementSelector::specificity` first; then scope proximity, the nearer
+applying node winning; then the order the sheets were applied in; then
+the order the rules stand in their sheet. A rule weighs the
+ALTERNATIVE that matched it, so `rule(".a, heading")` weighs one class
+where `.a` matched and one role where `heading` did.
+
+A relative size still resolves ONCE against the parent's font: the
+matched rules fold into the same partial the classes and the node's
+own verbs fold into, and that partial is laid over the parent's font
+at one point, so `1.5_em` in a rule means what it means on a verb.
+
+Where a node stands among its siblings is counted once per parent,
+each time its children are resolved — by position and by role — so a
+structural pseudo-class is a lookup, and a changed child list
+re-resolves that parent's children.
+
 ## Where it stands
 
 - `sigilcompose/core/Selector.h` — `ElementSelector`, `Specificity`,
   `selector`, and the builders `styleClass`, `role`, `any`, `is`,
   `where`, `notAnyOf`.
+- `sigilcompose/core/StyleSheet.h` — `compose::Rule`,
+  `compose::StyleSheet`, `compose::rule`.
 
-Nothing matches against the tree with a selector yet: the cascade pass
-still resolves a node against its role and its class names alone, as
-[the cascade](CASCADE.md) describes, and `Element::styleSheet` still
-takes the name-keyed `weave::StyleSheet`. This value is what the rule
-and the sheet that do the matching are written in.
+`Element::applyStyleSheet` is the verb that puts a sheet in force, and
+[the cascade](CASCADE.md) is where the matched rules are folded in.
+The name-keyed `weave::StyleSheet` stands beside them, unchanged:
+`Element::styleSheet` still states it, and a class still resolves
+through it.

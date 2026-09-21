@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "ComposeRuntime.h"
+#include "SelectorMatch.h"
 
 namespace sigil::compose {
 
@@ -203,8 +204,10 @@ void Composer::Impl::runCascade() {
   if (!root) return;
   inkAnimating = false;
   if (rootLineHeight <= 0.0f) rootLineHeight = lineHeightAt(rootFont);
+  indexRoot(*root);
+  const SheetChain none;
   resolveCascade(*root, rootFont, rootLineHeight, nullptr, rootBlock,
-                 rootSampling, rootSheet);
+                 rootSampling, rootSheet, none);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
   // says otherwise.
@@ -216,43 +219,67 @@ void Composer::Impl::resolveCascade(
     float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars,
     const sigil::weave::Block& parentBlock,
     const std::optional<SkSamplingOptions>& parentSampling,
-    const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet) {
+    const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet,
+    const SheetChain& parentSheets) {
   const ElementNode& node = *inst.description;
   sigil::weave::Type font = parentFont;
   std::shared_ptr<const VarTable> vars = parentVars;
   sigil::weave::Block block = parentBlock;
   std::optional<SkSamplingOptions> sampling = parentSampling;
   std::shared_ptr<const sigil::weave::StyleSheet> sheet = parentSheet;
-  if (node.cascadeData) {
-    const CascadeData& cascade = *node.cascadeData;
+  const CascadeData* const cascade =
+      node.cascadeData ? &*node.cascadeData : nullptr;
+  // THE SELECTOR SHEETS IN FORCE HERE: the ones the ancestors applied,
+  // then the ones this node applies, which speak about this node too.
+  // The chain is extended only where a node applies one, so a tree that
+  // applies none shares the root's empty chain all the way down.
+  SheetChain extended;
+  const SheetChain* sheets = &parentSheets;
+  if (cascade != nullptr && !cascade->appliedSheets.empty()) {
+    extended = parentSheets;
+    for (const StyleSheet& applied : cascade->appliedSheets)
+      extended.push_back(&applied);
+    sheets = &extended;
+  }
+  // The rules that speak about this node, weakest first. A rule's
+  // SUBJECT is this node, which lies in the applying node's subtree by
+  // construction; the ancestors its selector names may stand anywhere
+  // above it, inside that subtree or over it.
+  const std::vector<MatchedRule> matched =
+      sheets->empty() ? std::vector<MatchedRule>{} : matchRules(*sheets, inst);
+  if (cascade != nullptr || !matched.empty()) {
     // The sheet this node states: its rules over the inherited ones by
     // name, its base standing, the result shared with everything under it.
-    if (cascade.sheet) {
+    if (cascade != nullptr && cascade->sheet) {
       auto own = std::make_shared<sigil::weave::StyleSheet>(
           parentSheet ? *parentSheet : sigil::weave::StyleSheet{});
-      own->base(cascade.sheet->base());
-      for (const sigil::weave::Rule& r : cascade.sheet->rules()) own->set(r);
+      own->base(cascade->sheet->base());
+      for (const sigil::weave::Rule& r : cascade->sheet->rules()) own->set(r);
       sheet = std::move(own);
     }
-    // The role defaults, its matching sheet rule, ordinary classes, then
-    // direct declarations. A role stays below every ordinary class,
-    // regardless of sheet order. Merge partials first so relative sizes
-    // resolve once against the parent's font rather than compounding.
+    // The role defaults, its matching sheet rule, ordinary classes, the
+    // rules that matched a selector, then direct declarations. A role
+    // stays below every ordinary class, regardless of sheet order. Merge
+    // partials first so relative sizes resolve once against the parent's
+    // font rather than compounding.
     sigil::weave::Type ownFont;
     sigil::weave::Block ownBlock;
-    if (cascade.role) {
-      sigil::weave::merge(ownFont, cascade.role->type());
-      sigil::weave::merge(ownBlock, cascade.role->block());
+    // The property the ink reads, from whichever layer last said so.
+    std::optional<VarRef> inkVar;
+    VarTable ruleVars;
+    if (cascade != nullptr && cascade->role) {
+      sigil::weave::merge(ownFont, cascade->role->type());
+      sigil::weave::merge(ownBlock, cascade->role->block());
       if (const sigil::weave::Rule* rule =
-              sheet ? sheet->find(cascade.role->name()) : nullptr) {
+              sheet ? sheet->find(cascade->role->name()) : nullptr) {
         sigil::weave::merge(ownFont, rule->type());
         sigil::weave::merge(ownBlock, rule->block());
       }
     }
-    if (!cascade.classes.empty()) {
+    if (cascade != nullptr && !cascade->classes.empty()) {
       const auto named = [&](std::string_view name) {
-        return std::find(cascade.classes.begin(), cascade.classes.end(),
-                         name) != cascade.classes.end();
+        return std::find(cascade->classes.begin(), cascade->classes.end(),
+                         name) != cascade->classes.end();
       };
       if (sheet)
         for (const sigil::weave::Rule& r : sheet->rules())
@@ -260,18 +287,49 @@ void Composer::Impl::resolveCascade(
             sigil::weave::merge(ownFont, r.type());
             sigil::weave::merge(ownBlock, r.block());
           }
-      for (const std::string& name : cascade.classes)
-        if (!(sheet && sheet->contains(name)))
-          warnNoSuchClass(name, sheet != nullptr);
+      // A name is unknown only where NEITHER kind of sheet carries it:
+      // a class a selector rule names is registered, whether that rule
+      // matched this node or not.
+      for (const std::string& name : cascade->classes)
+        if (!(sheet && sheet->contains(name)) &&
+            !namesStyleClass(*sheets, name))
+          warnNoSuchClass(name, sheet != nullptr || !sheets->empty());
     }
-    if (cascade.font) sigil::weave::merge(ownFont, *cascade.font);
-    if (cascade.block) sigil::weave::merge(ownBlock, *cascade.block);
+    // Weakest first, so the strongest rule is the one left standing,
+    // and every one of them under the node's own verbs.
+    for (const MatchedRule& one : matched) {
+      const Rule& rule = *one.rule;
+      sigil::weave::merge(ownFont, rule.type());
+      sigil::weave::merge(ownBlock, rule.block());
+      if (rule.inkVar()) {
+        inkVar = rule.inkVar();
+        ownFont.color.reset();
+      } else if (rule.type().color) {
+        inkVar.reset();
+      }
+      if (!rule.vars().empty()) ruleVars.overlay(rule.vars());
+    }
+    if (cascade != nullptr) {
+      if (cascade->font) {
+        sigil::weave::merge(ownFont, *cascade->font);
+        if (cascade->font->color) inkVar.reset();
+      }
+      if (cascade->block) sigil::weave::merge(ownBlock, *cascade->block);
+      if (cascade->inkVar) inkVar = cascade->inkVar;
+    }
     sigil::weave::merge(block, ownBlock);
-    if (cascade.sampling) sampling = cascade.sampling;
-    if (!cascade.varDefaults.empty() || !cascade.vars.empty()) {
-      auto own = std::make_shared<VarTable>(cascade.varDefaults);
+    if (cascade != nullptr && cascade->sampling) sampling = cascade->sampling;
+    const bool anyOwnVars =
+        cascade != nullptr &&
+        (!cascade->varDefaults.empty() || !cascade->vars.empty());
+    if (anyOwnVars || !ruleVars.empty()) {
+      auto own = std::make_shared<VarTable>(
+          cascade != nullptr ? cascade->varDefaults : VarTable{});
       if (parentVars) own->overlay(*parentVars);
-      own->overlay(cascade.vars);
+      // A rule sets a property over what the node inherits and under
+      // what the node itself sets, exactly where its other lanes sit.
+      own->overlay(ruleVars);
+      if (cascade != nullptr) own->overlay(cascade->vars);
       vars = std::move(own);
     }
     // The node's partial over the parent's font. A relative size in it is
@@ -280,13 +338,13 @@ void Composer::Impl::resolveCascade(
     if (!ownFont.empty())
       font = sigil::weave::overlay(parentFont, ownFont, fontSizePx(rootFont),
                                    parentLineHeight);
-    if (cascade.inkVar) {
-      const VarValue* value = vars ? vars->find(*cascade.inkVar) : nullptr;
+    if (inkVar) {
+      const VarValue* value = vars ? vars->find(*inkVar) : nullptr;
       const SkColor4f* colour = value ? std::get_if<SkColor4f>(value) : nullptr;
       if (colour)
         font.color = *colour;
       else
-        warnNoSuchVar(*cascade.inkVar, true);
+        warnNoSuchVar(*inkVar, true);
     }
   }
   // The kInkLerp row: the ink this node declares, easing from one colour
@@ -371,8 +429,14 @@ void Composer::Impl::resolveCascade(
     inst.markPaintDirtyUp();
     contentDirty = true;
   }
+  // Where each child stands among its siblings, counted once here so a
+  // structural pseudo-class is a lookup — and counted whether or not a
+  // sheet is in force at this node, because a rule applied further down
+  // may still name an ancestor by its position.
+  indexSiblings(inst);
   for (auto& child : inst.children)
-    resolveCascade(*child, font, inst.lineHeight, vars, block, sampling, sheet);
+    resolveCascade(*child, font, inst.lineHeight, vars, block, sampling, sheet,
+                   *sheets);
 }
 
 void Composer::Impl::refreshInheritedInk(Instance& inst) {

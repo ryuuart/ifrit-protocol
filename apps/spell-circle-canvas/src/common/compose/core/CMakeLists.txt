@@ -47,7 +47,7 @@ sigil_library(SigilComposeCore
     ElementCascade.cpp
     # which elements a rule speaks about, the CSS text that says so,
     # and the rules a sheet states about them
-    Selector.cpp SelectorParse.cpp StyleSheet.cpp
+    Selector.cpp SelectorParse.cpp StyleSheet.cpp SelectorMatch.cpp
     # the composer and its phases
     Composer.cpp Measure.cpp Tiles.cpp Cascade.cpp
     Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
@@ -70,7 +70,7 @@ sigil_library(SigilComposeCore
     Fills.cpp
     # internal headers
     ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
-    SelectorInternal.h
+    SelectorInternal.h SelectorMatch.h
     TextState.h SlotSpecs.h
     Lanes.h
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
@@ -124,6 +124,7 @@ sigil_test(compose_test
           test/ComposeTestValues.cpp test/ComposeTestBlockLane.cpp test/ComposeTestCascade.cpp
           test/ComposeTestRoles.cpp test/ComposeTestFlexBox.cpp
           test/ComposeTestSelector.cpp test/ComposeTestStyleSheet.cpp
+          test/ComposeTestMatching.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore
