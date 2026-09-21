@@ -1,6 +1,6 @@
 /** @file
- * flowAround: what a node says its edge is, and the exclusions a text node
- * takes from the keyed nodes it flows around — plumbed into SigilWeave,
+ * contentFlowAround: what a node says its edge is, and the exclusions a text
+ * node takes from the keyed nodes it flows around — plumbed into SigilWeave,
  * and answered as a request for another round of the layout loop when one
  * changes.
  */

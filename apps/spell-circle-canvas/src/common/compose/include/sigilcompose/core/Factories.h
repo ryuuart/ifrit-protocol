@@ -82,7 +82,7 @@ Element stack();
  *  The container ITSELF is an ordinary box in its parent's flow: size it
  *  with dims or insets, because it does NOT auto-size from its children.
  *  NOT SUPPORTED INSIDE, and ignored silently when written: flex properties,
- *  centerAt, layout() schemes, flowAround text. Those need the flex
+ *  centerAt, layout() schemes, contentFlowAround text. Those need the flex
  *  world. */
 Element positioned();
 /** THE CHILDREN A RANGE DESCRIBES, one per item in the range's order, for a

@@ -10,9 +10,9 @@
 //   PathFormat rule weights + bead stamps, a ContourWalk acanthus vine
 //   (element stamp, recursion L2) + an animatedWalk glow, a Slice
 //   nine-slice, onEdges crests, AlongPath/Radial/Scatter layouts, arc +
-//   orthogonal connectors, flowAround, Blur/backdrop effects + SkSL fills,
-//   image().region(), a timeline draw-on entrance, with() transitions, and
-//   the Texture/Picture/None cache partition kept honest (every bound node
+//   orthogonal connectors, contentFlowAround, Blur/backdrop effects + SkSL
+//   fills, image().region(), a timeline draw-on entrance, with() transitions,
+//   and the Texture/Picture/None cache partition kept honest (every bound node
 //   is a sibling of the bake, never inside it).
 //
 // The live layers are the ones that carry the piece: spinning medallions,
@@ -399,7 +399,7 @@ struct Flourish {
                   u8"this seal.")
                  .font({.size = 12.5f})
                  .key("motto")
-                 .flowAround("seal", 7),
+                 .contentFlowAround("seal", 7),
              box()
                  .row()
                  .gap(2)

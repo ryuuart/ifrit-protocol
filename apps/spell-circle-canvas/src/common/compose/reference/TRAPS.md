@@ -31,9 +31,9 @@ exactly like a layout bug.
   it keeps the outer look — while its text still takes the inner ink,
   because the font, the ink and the properties are carried by the tree.
 - **An unknown key resolves to nothing, everywhere in the derive family.**
-`flowAround("typo")`, `spans::fit("typo")`, `around("typo")`, a `connector`
-to a node not in the tree, a `strand::from` on a missing key — every one
-draws nothing and says nothing. Check your keys first. (A
+`contentFlowAround("typo")`, `spans::fit("typo")`, `around("typo")`, a
+`connector` to a node not in the tree, a `strand::from` on a missing key —
+every one draws nothing and says nothing. Check your keys first. (A
 `weave::rich().slot()` name is the one that is LOUD, once: it names a mount
 point the author typed, not a geometry source.)
 - **Hit testing returns any keyed node whose box contains the point,

@@ -63,11 +63,11 @@ def register(table: Table) -> None:
     # replaced whole.
     table.declares(
         DERIVE,
-        "flowAround",
-        f"def flowAround(element: {MODULE}.Element, key: str, "
+        "contentFlowAround",
+        f"def contentFlowAround(element: {MODULE}.Element, key: str, "
         f"margin: typing.SupportsFloat = 0.0) -> {MODULE}.Element:\n"
         '    """A copy of `element` whose text flows around the keyed node, as\n'
-        '    Element.flowAround sets on the element itself."""\n'
+        '    Element.contentFlowAround sets on the element itself."""\n'
         f"around = {MODULE}.around\n"
         f"connector = {MODULE}.connector\n"
         f"rail = {MODULE}.rail\n",

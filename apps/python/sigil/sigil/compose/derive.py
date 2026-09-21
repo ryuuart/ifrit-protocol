@@ -4,13 +4,13 @@
 from _sigil.compose.derive import (
     around,
     connector,
-    flowAround,
+    contentFlowAround,
     rail,
 )
 
 __all__ = [
     "around",
     "connector",
-    "flowAround",
+    "contentFlowAround",
     "rail",
 ]

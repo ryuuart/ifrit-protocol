@@ -47,12 +47,13 @@ const std::u8string& flowBody() {
 /** One paragraph flowing around one keyed target of the caller's making. */
 Element flowScene(Element target, float margin) {
   return stack().children(
-      {std::move(target), box()
-                              .inset(0)
-                              .children({text(flowBody(), whiteStyle(15))
-                                             .key("body")
-                                             .flowAround("obstacle", margin)})
-                              .zIndex(1)});
+      {std::move(target),
+       box()
+           .inset(0)
+           .children({text(flowBody(), whiteStyle(15))
+                          .key("body")
+                          .contentFlowAround("obstacle", margin)})
+           .zIndex(1)});
 }
 
 Element obstacleBox(Shape silhouette) {
@@ -123,20 +124,21 @@ TEST(ComposeDerive, FlowAroundMarginHoldsOffTheSilhouette) {
 TEST(ComposeDerive, FlowAroundSilhouetteTracksAMovingTarget) {
   // Moving targets already re-derive; a silhouette target must too.
   auto scene = [](float left) {
-    return stack().children({box()
-                                 .key("obstacle")
-                                 .width(160)
-                                 .height(160)
-                                 .left(left)
-                                 .top(40)
-                                 .shape(geometry::shapes::circle())
-                                 .fill(Fill::color({0, 0.4f, 0, 1})),
-                             box()
-                                 .inset(0)
-                                 .children({text(flowBody(), whiteStyle(15))
-                                                .key("body")
-                                                .flowAround("obstacle", 6)})
-                                 .zIndex(1)});
+    return stack().children(
+        {box()
+             .key("obstacle")
+             .width(160)
+             .height(160)
+             .left(left)
+             .top(40)
+             .shape(geometry::shapes::circle())
+             .fill(Fill::color({0, 0.4f, 0, 1})),
+         box()
+             .inset(0)
+             .children({text(flowBody(), whiteStyle(15))
+                            .key("body")
+                            .contentFlowAround("obstacle", 6)})
+             .zIndex(1)});
   };
   Host host(360, 460);
   host.composer.render(scene(100));

@@ -257,7 +257,7 @@ Spans every(int count, float duty = 1.0f);
 Spans at(int index, int count);
 /** The run the KEYED element covers, grown by `margin` px: a gap sized
  *  from content, resolved in the derive phase against that element's
- *  resolved box (the flowAround pattern, applied to a boundary). */
+ *  resolved box (the contentFlowAround pattern, applied to a boundary). */
 Spans fit(std::string_view key, float margin = 0.0f);
 /** Everything this element's other CLAIMING passes left over. */
 Spans rest();

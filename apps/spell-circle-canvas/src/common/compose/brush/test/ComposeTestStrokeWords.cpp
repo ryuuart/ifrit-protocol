@@ -196,9 +196,9 @@ TEST(ComposeDeriveWords, TheFreeFlowAroundVerbIsTheMethod) {
         u8"eleven twelve thirteen fourteen",
         whiteStyle(16));
     if (freeVerb)
-      para = derive::flowAround(std::move(para), "cut", 6.0f);
+      para = derive::contentFlowAround(std::move(para), "cut", 6.0f);
     else
-      para.flowAround("cut", 6.0f);
+      para.contentFlowAround("cut", 6.0f);
     host.composer.render(stack().children(
         {box().key("cut").rect(SkRect::MakeXYWH(10, 10, 90, 60)),
          box().absolute().inset(0).children({std::move(para)})}));

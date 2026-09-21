@@ -103,7 +103,7 @@ Element shapePassage() {
           u8"continues without a special text mode.")
           .key("shape-passage")
           .width(kMeasure)
-          .flowAround("central-star", kWrapMargin)
+          .contentFlowAround("central-star", kWrapMargin)
           .zIndex(1);
 
   return box().width(kMeasure).height(350).children(
@@ -131,7 +131,7 @@ Element droppedPassage() {
            u8"same relationship.")
            .key("drop-passage")
            .width(kMeasure)
-           .flowAround("illuminated-h", kWrapMargin)});
+           .contentFlowAround("illuminated-h", kWrapMargin)});
 }
 
 Element panel(float left, const char* title, const char* note, Element body) {

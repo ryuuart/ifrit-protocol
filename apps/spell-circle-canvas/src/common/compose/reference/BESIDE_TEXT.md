@@ -84,7 +84,7 @@ lines follow that outline rather than its box.
 text(passage, bodyType).initialLetter({.lines = 3, .margin = 6.0f});
 
 ornament.key("versal").absolute().left(Dimension(0.0f)).top(Dimension(0.0f));
-text(rest, bodyType).flowAround("versal", 6.0f);
+text(rest, bodyType).contentFlowAround("versal", 6.0f);
 ```
 
 A NESTED STYLE — the opening of a paragraph set differently from the rest

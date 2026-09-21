@@ -57,7 +57,7 @@ track with `.unit = weave::Unit::Line` beats column by column and
 `weave::selectors::line(0)` addresses the rightmost one; `weave::Unit::Cluster`
 runs down a column in reading order. `spanPaint`, `spanStyle`, the block's
 alignment (start is the top of the column), `maxLines` (which clamps
-COLUMNS) with `ellipsis` at the clamped column's foot, `flowAround`, the
+COLUMNS) with `ellipsis` at the clamped column's foot, `contentFlowAround`, the
 block's last line and breaking strategy, `textStroke`, `variationDrive`
 and `feed()`'s text tier all work as they do across a line. `mark()` anchors as it does anywhere — its
 rect is the union of the advance boxes its selector addressed, and in a
@@ -77,19 +77,19 @@ baseline, across the column. A glyph's pivot moves too: an upright glyph
 turns and scales about the point on the COLUMN AXIS its pen reached, not
 about a point half a column pitch to its right.
 
-**`flowAround`, the initial letter and `ellipsis` follow the type down the
-page.** An exclusion cuts a COLUMN exactly as it cuts a line: the column a
-target crosses hands back a head above it and a foot below it, and the same
-silhouette is subtracted — a `shape()` outline, an analytic circle, the
-target's traced coverage, or the box a target that declared none stands in —
-with the margin the same disc standoff in all of them. An initial letter cuts
-its notch out of the head of the columns it stands in, for the same reason
-and by the same means: the notch is pen travel taken off a band, and a column
-is a band. And a clamped column ends in its marker, at the column's FOOT,
-measured against the column's length so the cut moves up to make room for
-it. The marker stands for the text it cut and is set the way that text was
-set: upright after upright glyphs, in the face's own vertical form when it
-has one, and turned with the column after a rotated Latin run.
+**`contentFlowAround`, the initial letter and `ellipsis` follow the type
+down the page.** An exclusion cuts a COLUMN exactly as it cuts a line: the
+column a target crosses hands back a head above it and a foot below it, and
+the same silhouette is subtracted — a `shape()` outline, an analytic circle,
+the target's traced coverage, or the box a target that declared none stands
+in — with the margin the same disc standoff in all of them. An initial
+letter cuts its notch out of the head of the columns it stands in, for the
+same reason and by the same means: the notch is pen travel taken off a band,
+and a column is a band. And a clamped column ends in its marker, at the
+column's FOOT, measured against the column's length so the cut moves up to
+make room for it. The marker stands for the text it cut and is set the way
+that text was set: upright after upright glyphs, in the face's own vertical
+form when it has one, and turned with the column after a rotated Latin run.
 
 **What does not follow the type down the page.** `onPath` ignores the
 writing mode entirely — a path run's baseline is its own geometry and has

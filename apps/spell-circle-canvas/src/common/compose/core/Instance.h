@@ -61,7 +61,7 @@ inline bool childrenCarryYoga(const Instance& inst);
  *  moving animatable is the motion library's business. */
 using AnimatedFloat = motion::AnimatedFloat;
 
-/** ONE RESOLVED `flowAround` TARGET, in the text node's own space.
+/** ONE RESOLVED `contentFlowAround` TARGET, in the text node's own space.
  *
  *  A target that resolves a SILHOUETTE of its own — a `shape()`, a routed
  *  connector or rail — is subtracted by that outline, concavities and holes
@@ -286,7 +286,8 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkColor4f inkFrom{0, 0, 0, 1}, inkTo{0, 0, 0, 1};  // endpoints for kInkLerp
 
   // Derive-phase state
-  std::vector<Exclusion> exclusionsLocal;  // flowAround targets, text-local
+  std::vector<Exclusion>
+      exclusionsLocal;   // contentFlowAround targets, text-local
   SkPath connectorPath;  // routed path (connector OR rail), local
   SkRect connectorFrom = SkRect::MakeEmpty(), connectorTo = SkRect::MakeEmpty();
   std::vector<SkPoint> railPoints;  // last resolved rail waypoints

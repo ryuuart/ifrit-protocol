@@ -238,7 +238,7 @@ struct Fallout2CharSheet {
   //     extra   = max(inkLeft - 8, 0)
   //     wrap    = 136 + extra
   // With inkLeft = 39 that is 167, so the column runs 348..515 and stops 8 px
-  // short of the first ink. flowAround(key, margin) is the library's
+  // short of the first ink. contentFlowAround(key, margin) is the library's
   // equivalent: it excludes the keyed node's resolved BOX, so the keyed node
   // here is sized to the INK, not to the illustration — and then the two rules
   // agree EXACTLY, because Fallout's scan takes a single global minimum and

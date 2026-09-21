@@ -1,15 +1,15 @@
 ---
 kind: verb
 library: SigilCompose
-name: flowAround
-qualified: sigil::compose::Element::flowAround
+name: contentFlowAround
+qualified: sigil::compose::Element::contentFlowAround
 header: sigilcompose/core/verbs/TextStyle.h
 group: The text leaf
-python: sigil.compose.Element.flowAround
+python: sigil.compose.Element.contentFlowAround
 status: stable
 ---
 
-# flowAround
+# contentFlowAround
 
 Flow this paragraph around the keyed node, with `margin` px of
 standoff.

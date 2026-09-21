@@ -173,7 +173,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/display.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/filter.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/fill.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/flowAround.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/contentFlowAround.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/font.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/foreground.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/initialLetter.md

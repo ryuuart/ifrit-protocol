@@ -12,7 +12,7 @@ TEST(ComposeDerive, FlowAroundWrapsTextAroundFrame) {
 
   auto tree = [&](bool flow) {
     auto t = text(body, whiteStyle(18)).key("body");
-    if (flow) t.flowAround("frame", 6);
+    if (flow) t.contentFlowAround("frame", 6);
     return stack().children(
         {box()
              .key("frame")
@@ -65,12 +65,13 @@ const std::u8string& flowBody() {
 /** One paragraph flowing around one keyed target of the caller's making. */
 Element flowScene(Element target, float margin) {
   return stack().children(
-      {std::move(target), box()
-                              .inset(0)
-                              .children({text(flowBody(), whiteStyle(15))
-                                             .key("body")
-                                             .flowAround("obstacle", margin)})
-                              .zIndex(1)});
+      {std::move(target),
+       box()
+           .inset(0)
+           .children({text(flowBody(), whiteStyle(15))
+                          .key("body")
+                          .contentFlowAround("obstacle", margin)})
+           .zIndex(1)});
 }
 
 Element obstacleBox(Shape silhouette) {
@@ -101,7 +102,7 @@ TEST(ComposeDerive, FlowAroundCycleIsIgnored) {
   Host host;
   host.composer.render(box().children({text(u8"self reference", whiteStyle(16))
                                            .key("self")
-                                           .flowAround("self")}));
+                                           .contentFlowAround("self")}));
   host.frame();  // must not hang or exclude itself into nothing
   EXPECT_NE(host.composer.paragraphLayout("self"), nullptr);
 }

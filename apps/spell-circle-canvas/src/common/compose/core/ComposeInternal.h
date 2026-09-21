@@ -367,7 +367,7 @@ struct DeriveData {
   std::optional<Across> bandWidth;
   geometry::path::Formation bandFormation = geometry::path::Formation::Center;
   // spans::fit(key): the keyed boxes a stroke pass sizes its gap from,
-  // resolved to this node's local space per frame (the flowAround
+  // resolved to this node's local space per frame (the contentFlowAround
   // pattern applied to a boundary). Declared here rather than beside the
   // passes so the ONE derive registration walk sees them.
   std::vector<std::string> spanFitKeys;

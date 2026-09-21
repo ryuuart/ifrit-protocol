@@ -44,7 +44,7 @@ NAMES = (
 )
 
 # The members the derive module gathers under one name.
-FAMILY = ("around", "connector", "flowAround", "rail")
+FAMILY = ("around", "connector", "contentFlowAround", "rail")
 
 
 def segment(from_, to):
@@ -560,14 +560,14 @@ class Descriptions(unittest.TestCase):
 
     def test_the_text_member_is_a_free_verb_over_a_copy(self):
         words = native.text("words")
-        flowed = native.derive.flowAround(words, "figure", 8)
+        flowed = native.derive.contentFlowAround(words, "figure", 8)
         self.assertIsInstance(flowed, native.Element)
         self.assertIsNot(flowed, words)
-        flowed = native.derive.flowAround(element=words, key="figure", margin=8)
+        flowed = native.derive.contentFlowAround(element=words, key="figure", margin=8)
         self.assertIsInstance(flowed, native.Element)
-        self.assertIsInstance(native.derive.flowAround(words, "figure"), native.Element)
+        self.assertIsInstance(native.derive.contentFlowAround(words, "figure"), native.Element)
         with self.assertRaises(TypeError):
-            native.derive.flowAround("words", "figure")
+            native.derive.contentFlowAround("words", "figure")
 
 
 class Session(unittest.TestCase):

@@ -137,8 +137,8 @@ Derived& TextStyleVerbs<Derived>::textStroke(float width,
 }
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::flowAround(std::string_view key,
-                                             float margin) {
+Derived& TextStyleVerbs<Derived>::contentFlowAround(std::string_view key,
+                                                    float margin) {
   detail::DeriveData& derive = declarations()->deriveData.ensure();
   derive.flowAroundKeys.emplace_back(key);
   derive.flowAroundMargin = margin;

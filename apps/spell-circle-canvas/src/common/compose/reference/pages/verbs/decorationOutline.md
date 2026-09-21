@@ -23,7 +23,7 @@ much paint counts as ink.
 text(u8"CHROME", heavy).decorationOutline(Boundary::Glyphs).layerStyle(kit::y2kChrome());
 image(cutOut).decorationOutline(Boundary::Coverage).layerStyle(kit::y2kChrome());
 image(photo).key("fig").decorationOutline(Boundary::Coverage, 0.35f);
-text(body, bodyStyle).flowAround("fig", 12);
+text(body, bodyStyle).contentFlowAround("fig", 12);
 ```
 
 **A decoration was never about a box.** It is drawn across an outline,
@@ -57,4 +57,4 @@ number** — its own decorations, and any text flowing around it.
 ## See also
 
 [`stroke`](stroke.md), [`shape`](shape.md),
-[`flowAround`](flowAround.md), `Boundary`.
+[`contentFlowAround`](contentFlowAround.md), `Boundary`.

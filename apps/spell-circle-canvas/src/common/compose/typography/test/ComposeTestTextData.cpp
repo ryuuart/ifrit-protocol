@@ -778,7 +778,7 @@ TEST(ComposeText, AliasedTextHasHardEdges) {
   // Without a field on the shaping style there is no way to ask for aliased
   // type at all, and the only recourse is a raw kAlias SkFont drawn inside a
   // decoration on a hand-measured box — which forfeits shaping, bidi,
-  // fallback and flowAround. One field buys it back; this is not a
+  // fallback and contentFlowAround. One field buys it back; this is not a
   // bitmap-font path, just an edging switch.
   // 33 px in the instrument face puts every letter's stems at 3.3 and 16.5
   // px into its cell and its top at 23.1 px, so no edge lies on the pixel

@@ -14,7 +14,7 @@ namespace sigil::compose {
 using namespace detail;
 
 /** The derive pass over the flat instance lists the key index rebuilds each
- *  render: flowAround text nodes first, then routed nodes, both in tree
+ *  render: contentFlowAround text nodes first, then routed nodes, both in tree
  *  order — no tree recursion here. Returns true when a text exclusion
  *  changed, which means the geometry the caller just laid out is stale and
  *  layout must run again. */

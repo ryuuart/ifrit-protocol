@@ -283,7 +283,7 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   else
     applyMountTransitions(inst, next);  // animate(from().to()) entrances
 
-  // flowAround changes (margin or key set) re-derive too: exclusions are
+  // contentFlowAround changes (margin or key set) re-derive too: exclusions are
   // cached per instance and the derive guards compare geometry, not the
   // description.
   const auto flowKeys =

@@ -192,7 +192,7 @@ struct ThreadedStory {
                             .thread(column + "0")
                             .width(measure)
                             .height(s::kFrameH - 28)
-                            .flowAround(stone, 9.0f)}),
+                            .contentFlowAround(stone, 9.0f)}),
          plate(s::kFrameH + 96, false)
              .children({kit::columns(article, 2, s::kColumnGutter, measure,
                                      s::kFrameH + 68, column, u8"\u2026")})});

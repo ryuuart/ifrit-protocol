@@ -664,13 +664,14 @@ void bindRoutes(py::module_& module, py::module_& composition) {
   derive.attr("rail") = composition.attr("rail");
   derive.attr("around") = composition.attr("around");
   derive.def(
-      "flowAround",
+      "contentFlowAround",
       [](Element element, const std::string& key, float margin) {
-        return compose::derive::flowAround(std::move(element), key, margin);
+        return compose::derive::contentFlowAround(std::move(element), key,
+                                                  margin);
       },
       py::arg("element"), py::arg("key"), py::arg("margin") = 0.0f,
       "A copy of `element` whose text flows around the keyed node, as "
-      "Element.flowAround sets on the element itself.");
+      "Element.contentFlowAround sets on the element itself.");
 }
 
 }  // namespace

@@ -218,7 +218,7 @@ struct PaintContext {
    *  A decoration declares what it borrows (see BorrowingDecoration
    *  below) so the element can register the keys without introspecting a
    *  type-erased value; the derive pass then resolves them on the same
-   *  flat edge-store walk connectors and flowAround ride. */
+   *  flat edge-store walk connectors and contentFlowAround ride. */
   const std::vector<std::pair<std::string, SkPath>>* borrowed = nullptr;
 
   /** The borrowed path for `key`, or an empty path. */

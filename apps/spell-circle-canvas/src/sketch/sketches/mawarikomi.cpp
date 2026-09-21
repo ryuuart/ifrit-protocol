@@ -134,8 +134,8 @@ struct Mawarikomi {
                      .font(mw::bodyType(21)),
                  mw::kBlockLeft, mw::kBlockTop, mw::kBlockW, mw::kBlockH)
                  .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-                 .flowAround("hinomaru", 11)
-                 .flowAround("in", 9)
+                 .contentFlowAround("hinomaru", 11)
+                 .contentFlowAround("in", 9)
                  .zIndex(1),
              // The plate names itself in the other writing mode.
              box().at({64, 84}).column().gap(10).children(

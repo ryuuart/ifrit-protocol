@@ -209,7 +209,7 @@ Derived& DecorationVerbs<Derived>::addSpanPass(Spans where, Decoration what,
   detail::ElementNode* node = declarations();
   // A fit() term borrows another element's resolved box, so the keys ride
   // into DeriveData where the ONE derive-registration walk finds them —
-  // the flowAround pattern, not a second phase.
+  // the contentFlowAround pattern, not a second phase.
   for (const Spans::Term& t : where.terms)
     if (t.rule == Spans::Rule::Fit && !t.key.empty()) {
       detail::DeriveData& derive = node->deriveData.ensure();

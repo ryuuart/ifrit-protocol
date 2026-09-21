@@ -233,7 +233,7 @@ struct Manuscript {
                                    .style = capitals};
     Element prose = document::paragraph(rest)
                         .font(body(kBodySize, pal.ink))
-                        .flowAround("versal", px(2.4f))
+                        .contentFlowAround("versal", px(2.4f))
                         .spanStyle(kit::nestedRun(opening), opening.style);
 
     // The versal is a PANEL: a square field of cobalt with the letter
@@ -277,8 +277,8 @@ struct Manuscript {
                      .block({.hyphenation =
                                  sigil::weave::HyphenationOptions{
                                      .patterns = hyphenator()}})
-                     .flowAround("note", px(3.0f))
-                     .flowAround("sprig", px(2.4f)),
+                     .contentFlowAround("note", px(3.0f))
+                     .contentFlowAround("sprig", px(2.4f)),
                  kit::at(illuminatedPanel(rubric),
                          px(kMeasure - kForeEdge * 0.30f), px(kPitch * 12.0f),
                          px(kForeEdge * 0.78f), px(kPitch * 6.0f))

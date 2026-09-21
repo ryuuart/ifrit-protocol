@@ -23,7 +23,7 @@ TEST(KitOrnament, AnOrnamentKeepsItsSilhouetteAsTheOpeningExclusion) {
         {std::move(ornament), text(passage, pixelStyle(12))
                                   .key("body")
                                   .width(220)
-                                  .flowAround("ornament", 4)});
+                                  .contentFlowAround("ornament", 4)});
   };
 
   Host boxed(220, 260), round(220, 260);

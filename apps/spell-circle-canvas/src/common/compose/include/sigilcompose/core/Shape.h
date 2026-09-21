@@ -454,7 +454,7 @@ concept BlendingDecoration = requires(const D& d) {
  *  decoration needs (a weave's `strand::from(key)`). The element collects
  *  them at build time and the derive pass answers them into
  *  `PaintContext::borrowed`, on the same flat walk that resolves
- *  flowAround and connector/rail borrows.
+ *  contentFlowAround and connector/rail borrows.
  *
  *  Declared rather than introspected, for the same reason isAnimated() is:
  *  the element cannot look inside a type-erased value. A composite

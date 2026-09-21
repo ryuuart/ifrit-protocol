@@ -84,7 +84,7 @@ class TextStyleVerbs {
    *  standoff. A target that declares a silhouette is subtracted by
    *  that outline; one that declares none is subtracted by its box.
    *  Call repeatedly to weave around several. */
-  Derived& flowAround(std::string_view key, float margin = 0.0f);
+  Derived& contentFlowAround(std::string_view key, float margin = 0.0f);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

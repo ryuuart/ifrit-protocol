@@ -445,7 +445,7 @@ inline sigil::measure::CheckTable audit() {
 // pose: head radius, shoulder span, arm swing, leg spread, prop. Three poses
 // with three different INK insets (48 / 31 / 39 original px) so the card's
 // computed wrap width visibly changes between selections — that is the moving
-// flowAround test.
+// contentFlowAround test.
 
 struct Pose {
   float inkLeft;   // original px from the illustration blit x to first ink

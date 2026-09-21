@@ -675,7 +675,7 @@ void bindCompose(py::module_& module) {
       .def("thread", &Element::thread, py::arg("key"), fluent)
       .def("balanceChain", &Element::balanceChain, py::arg("throughLine") = ~0u,
            fluent)
-      .def("flowAround", &Element::flowAround, py::arg("key"),
+      .def("contentFlowAround", &Element::contentFlowAround, py::arg("key"),
            py::arg("margin") = 0.0f, fluent)
       .def("onPath", &Element::onPath, py::arg("path"), fluent)
       .def("spanPaint", &Element::spanPaint, py::arg("where"), py::arg("paint"),

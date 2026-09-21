@@ -67,7 +67,7 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   g.children({text(cardPara, opts)
                   .at({n(348 - 345), n(315 - 267) - n(1.5f)})
                   .width(n(613 - 348))
-                  .flowAround("card-ink", n(8))});
+                  .contentFlowAround("card-ink", n(8))});
   return g;
 }
 

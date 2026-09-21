@@ -136,7 +136,8 @@ struct Composer::Impl {
   // lists instead of recursing the whole tree, and routesAt() answers graph
   // queries ("which edges touch this node") in O(routes-at-node).
   std::vector<detail::Instance*> routedInstances;
-  std::vector<detail::Instance*> flowInstances;      // flowAround() text nodes
+  std::vector<detail::Instance*>
+      flowInstances;  // contentFlowAround() text nodes
   std::vector<detail::Instance*> tetheredInstances;  // tether() nodes
   // Text nodes carrying mark() on a path-laid run. Their curve resolves
   // against the node's FINAL box, which measurement never sees, so their
@@ -172,7 +173,7 @@ struct Composer::Impl {
   void scanReleasedScalars();  // defined in Volatility.cpp beside the memos
   // Recomputed with the key index, so unmounting the last derived or pinned
   // node clears them rather than latching them on forever.
-  bool hasDerived = false;  // any flowAround/connector/rail in the tree
+  bool hasDerived = false;  // any contentFlowAround/connector/rail in the tree
   bool hasCustomLayout = false;
   bool hasCenterPins = false;  // any centerAt() in the tree
   bool liveOnly = false;       // snapshot(): skip per-node caches
@@ -540,9 +541,9 @@ struct Composer::Impl {
   bool phasePathMarks();      ///< mark() on path-laid runs
   bool phaseSyncRects();      ///< invalidate recordings whose rect moved
   /** The runner's list: Yoga, the converging group, then the post-layout
-   *  passes. The derive family (connector, rail, band, flowAround) reaches
-   *  the schedule ONLY as the `derive` entry of the converging group — the
-   *  registration IS its seam — and the runner's settle step re-runs it
+   *  passes. The derive family (connector, rail, band, contentFlowAround)
+   * reaches the schedule ONLY as the `derive` entry of the converging group —
+   * the registration IS its seam — and the runner's settle step re-runs it
    *  after every relayout so a routed plate is drawn against settled
    *  geometry. */
   static constexpr core::Phase<Impl> phases[] = {

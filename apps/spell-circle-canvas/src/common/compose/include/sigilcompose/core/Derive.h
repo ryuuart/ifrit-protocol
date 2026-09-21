@@ -455,18 +455,20 @@ SkPoint bandPointAt(const SkPath& spine, float along, float acrossPx);
 /** Everything that asks "where did that keyed node land, and give me more
  *  content because of it" — the DERIVE phase.
  *
- *  Its members are `flowAround`, `connector` and `rail` (with `routers::`
- *  as their pluggable seam), `band(around(key))`, `spans::fit(key)` and a
- *  decoration's `strand::from(key)`. Six spellings, one mechanism; the
- *  aliases below exist so it can be found under one name.
+ *  Its members are `contentFlowAround`, `connector` and `rail` (with
+ *  `routers::` as their pluggable seam), `band(around(key))`,
+ *  `spans::fit(key)` and a decoration's `strand::from(key)`. Six
+ *  spellings, one mechanism; the aliases below exist so it can be found
+ *  under one name.
  *
  *  THE RULES THEY SHARE — one flat edge store, walked once per render:
  *
  *   1. **AN UNKNOWN KEY IS SILENT, across the whole family.**
- *      `flowAround("typo")`, `spans::fit("typo")`, `around("typo")`, a
- *      connector naming a node that is not in the tree — each resolves to
- *      nothing and draws nothing, with no diagnostic. A misspelled key
- *      looks exactly like a feature you did not write.
+ *      `contentFlowAround("typo")`, `spans::fit("typo")`,
+ *      `around("typo")`, a connector naming a node that is not in the
+ *      tree — each resolves to nothing and draws nothing, with no
+ *      diagnostic. A misspelled key looks exactly like a feature you did
+ *      not write.
  *   2. **ONE SECOND PASS, cycle-guarded.** Backward influence inside a
  *      frame is this declared exception and nothing else: derive answers
  *      are computed from the FIRST layout and fed to at most one more
@@ -487,13 +489,14 @@ using sigil::compose::rail;
 /** A spine borrowed from a keyed element — `band(derive::around("dial"),
  *  across(14))`. */
 using sigil::compose::around;
-/** The family's text member as a free verb: `derive::flowAround(el,
- *  "fig", 8)` == `el.flowAround("fig", 8)`. The method is the ergonomic
- *  form, since it chains; this exists so the whole family can be found
- *  under one name. */
-inline Element flowAround(Element el, std::string_view key,
-                          float margin = 0.0f) {
-  el.flowAround(key, margin);
+/** The family's text member as a free verb:
+ *  `derive::contentFlowAround(el, "fig", 8)` ==
+ *  `el.contentFlowAround("fig", 8)`. The method is the ergonomic form,
+ *  since it chains; this exists so the whole family can be found under
+ *  one name. */
+inline Element contentFlowAround(Element el, std::string_view key,
+                                 float margin = 0.0f) {
+  el.contentFlowAround(key, margin);
   return el;
 }
 }  // namespace derive

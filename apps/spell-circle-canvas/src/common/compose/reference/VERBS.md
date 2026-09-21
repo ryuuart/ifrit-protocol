@@ -218,7 +218,7 @@ once and do nothing.
 | [`live`](pages/verbs/live.md) | An input of this passage is moving, so the layout is one of a run rather than an answer. |
 | [`thread`](pages/verbs/thread.md) | The frame this one fills into — the next link of a chain over one story. |
 | [`balanceChain`](pages/verbs/balanceChain.md) | This frame opens a balanced run: every frame of it resolves to one shallowest depth. |
-| [`flowAround`](pages/verbs/flowAround.md) | Flow this paragraph around the keyed node, by its silhouette or its box. |
+| [`contentFlowAround`](pages/verbs/contentFlowAround.md) | Flow this paragraph around the keyed node, by its silhouette or its box. |
 | [`annotate`](pages/verbs/annotate.md) | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
 | [`spanPaint`](pages/verbs/spanPaint.md) | Repaint the range a selector finds; never re-shapes. |
 | [`spanStyle`](pages/verbs/spanStyle.md) | Restyle that range with a whole style or a partial; re-shapes only the words it covers. |
@@ -292,7 +292,7 @@ spelling is the feature's.
   `perspectiveOrigin`, `preserve3d`, `backface`.
 - `core/verbs/TextStyle.h` — the text properties `paragraphs`,
   `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,
-  `ellipsis`, `maxLines`, `textFill`, `textStroke`, `flowAround`.
+  `ellipsis`, `maxLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
   `mark`, `annotate`, `thread`, `balanceChain`, `onPath`, `spanPaint`,
   `spanStyle`, `atRest`.
