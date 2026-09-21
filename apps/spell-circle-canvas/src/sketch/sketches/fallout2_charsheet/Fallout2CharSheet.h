@@ -162,7 +162,7 @@ struct Fallout2CharSheet {
   Element engravedText(const std::string& s, float size, float condense = 0.95f,
                        float track = 0.5f) {
     return fo::t(s, engravedType(size, condense, track))
-        .echo({fo::n(1.0f), fo::n(1.0f)}, fo::kGoldDim);
+        .layerStyle(LayerStyle::echo({fo::n(1.0f), fo::n(1.0f)}, fo::kGoldDim));
   }
 
   Element centred(fo::Rect r, Element child);

@@ -16,6 +16,7 @@
 
 #include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
+#include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigilmotion/values/Animatable.h>
@@ -586,12 +587,21 @@ class Decoration {
 
 /** A named bundle of decorations applied together — the Photoshop "layer
  *  style" as a value. Presets (kit::aquaGel(), kit::y2kChrome())
- *  return one; Element::layerStyle() splices it in: `under` layers paint below
- *  the fill/content (drop shadows, body ramps), `over` layers above
- *  (gloss lenses, bevels, keylines). One call dresses the node. */
+ *  return one; Element::layerStyle() splices it in: `under` layers paint
+ *  below the fill/content (drop shadows, body ramps), `over` layers above
+ *  (gloss lenses, bevels, keylines), and `echoes` re-stamp the fill shape
+ *  and the text beneath the real pass. One call dresses the node. */
 struct LayerStyle {
   std::vector<Decoration> under;
   std::vector<Decoration> over;
+  std::vector<Echo> echoes;
+
+  /** THE MISPRINT PRESET: one echo at @p offset in a flat @p color.
+   *  Applied again, it stacks another beneath the real pass, bottom
+   *  first. */
+  static LayerStyle echo(SkVector offset, SkColor4f color) {
+    return LayerStyle{.echoes = {Echo{offset, color}}};
+  }
 };
 
 }  // namespace sigil::compose

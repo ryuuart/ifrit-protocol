@@ -1,8 +1,8 @@
 /** @file
  * The decoration slots — the backgrounds, overlays, foregrounds and
- * strokes that dress the outline, a layer style's bundle of them, the
- * misprint echo, what outline they all dress, and the local labels and
- * derive borrows a mark declares as it is appended.
+ * strokes that dress the outline, a layer style's bundle of them with
+ * its misprint echoes, what outline they all dress, and the local labels
+ * and derive borrows a mark declares as it is appended.
  */
 
 #include <algorithm>
@@ -86,12 +86,6 @@ Derived& DecorationVerbs<Derived>::decorationOutline(Boundary source,
 }
 
 template <class Derived>
-Derived& DecorationVerbs<Derived>::echo(SkVector offset, SkColor4f color) {
-  declarations()->fxData.ensure().echoes.push_back(Echo{offset, color});
-  return self();
-}
-
-template <class Derived>
 Derived& DecorationVerbs<Derived>::layerStyle(LayerStyle s) {
   for (Decoration& d : s.under) {
     claimBorrows(d);
@@ -100,6 +94,10 @@ Derived& DecorationVerbs<Derived>::layerStyle(LayerStyle s) {
   for (Decoration& d : s.over) {
     claimBorrows(d);
     declarations()->foregrounds.push_back(std::move(d));
+  }
+  if (!s.echoes.empty()) {
+    std::vector<Echo>& echoes = declarations()->fxData.ensure().echoes;
+    echoes.insert(echoes.end(), s.echoes.begin(), s.echoes.end());
   }
   return self();
 }

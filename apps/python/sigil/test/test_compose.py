@@ -334,6 +334,12 @@ class Scene:
         style.variations = []
         del style
         self.assertEqual(saved.value, 600)
+        # The misprint preset is a layer style like any other, applied through
+        # the same verb, and the verb it replaced is gone.
+        self.assertIsInstance(
+            box().layerStyle(raw.LayerStyle.echo((6, -8), "#ff0000")), raw.Element
+        )
+        self.assertFalse(hasattr(raw.Element, "echo"))
         layers = raw.LayerStyle()
         layers.over = [raw.Decoration(stroke(2, "#ffaa88"))]
         mark = layers.over[0]

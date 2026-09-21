@@ -90,7 +90,7 @@ def inset(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.Dimensi
     # The glyph OUTLINE is one comparable Fill on the node, measured with no
     # frame in hand, so it takes the flat-mark set and not the surface one.
     table.erased(ELEMENT, "textStroke", "_t.FillLike")
-    table.erased(ELEMENT, "echo", "_t.PointLike", "_t.ColorLike")
+    table.erased("_sigil.compose.LayerStyle", "echo", "_t.PointLike", "_t.ColorLike")
     table.erased(ELEMENT, "var", "_t.DimensionLike | _t.ColorLike")
     # Three arities, each with its own names, and each name usable as a keyword.
     for edge in ("padding", "margin"):

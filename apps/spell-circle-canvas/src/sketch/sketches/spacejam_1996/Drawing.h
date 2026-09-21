@@ -117,8 +117,10 @@ inline sigil::weave::Type ty(const sk_sp<SkTypeface>& tf, float size,
 inline Element& outlineText(Element& e, float r) {
   const float d[8][2] = {{-1, 0},  {1, 0},  {0, -1}, {0, 1},
                          {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
-  for (auto& v : d) e.echo({v[0] * r, v[1] * r}, kLabelInk);
-  e.echo({2 * r, 2 * r}, kLabelInk);  // the offset shadow
+  for (auto& v : d)
+    e.layerStyle(LayerStyle::echo({v[0] * r, v[1] * r}, kLabelInk));
+  e.layerStyle(
+      LayerStyle::echo({2 * r, 2 * r}, kLabelInk));  // the offset shadow
   return e;
 }
 

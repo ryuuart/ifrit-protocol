@@ -391,7 +391,8 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
     const float r = S(2.2f);
     const float d[8][2] = {{-1, 0},  {1, 0},  {0, -1}, {0, 1},
                            {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
-    for (auto& v : d) t.echo({v[0] * r, v[1] * r}, C5(0x101831));
+    for (auto& v : d)
+      t.layerStyle(LayerStyle::echo({v[0] * r, v[1] * r}, C5(0x101831)));
     const SkSize m =
         intrinsicSize(text(s).font(ty(display(), size, kLabel, 0)), fonts);
     const float sx = m.width() > 1 ? targetW / m.width() : 1.0f;
@@ -448,7 +449,7 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
   float sx = 1.0f;
   if (m.width() > target && m.width() > 1) sx = target / m.width();
   Element t = text(s).font(styleAt(size));
-  t.echo({kScale, kScale}, C5(0x8C0000));
+  t.layerStyle(LayerStyle::echo({kScale, kScale}, C5(0x8C0000)));
   t.left(rightAlign ? w - target : 0).top(-h * 0.22f).width(m.width() + 4.0f);
   if (sx < 0.999f) t.scaleX(sx).transformOrigin(pct(0), pct(50));
   return stack()

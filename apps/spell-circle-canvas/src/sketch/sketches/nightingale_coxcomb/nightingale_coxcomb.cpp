@@ -593,7 +593,8 @@ struct NightingaleCoxcomb {
     root.children({text("DIAGRAM of the CAUSES of MORTALITY", title1)
                        .key("title1")
                        .fx(std::move(t1))
-                       .echo({0.8f, 0.5f}, hexColor(0x241c15, 0.8f))
+                       .layerStyle(LayerStyle::echo({0.8f, 0.5f},
+                                                    hexColor(0x241c15, 0.8f)))
                        .centerAt({968, 38})});
 
     Track t2{.effect = fx::typeOn(),
@@ -603,7 +604,8 @@ struct NightingaleCoxcomb {
     root.children({text("in the ARMY in the EAST.", title2)
                        .key("title2")
                        .fx(std::move(t2))
-                       .echo({0.6f, 0.4f}, hexColor(0x241c15, 0.7f))
+                       .layerStyle(LayerStyle::echo({0.6f, 0.4f},
+                                                    hexColor(0x241c15, 0.7f)))
                        .centerAt({945, 84})});
 
     // the double hairline under the title

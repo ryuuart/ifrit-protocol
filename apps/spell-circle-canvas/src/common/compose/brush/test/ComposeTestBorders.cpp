@@ -144,11 +144,12 @@ TEST(ComposeBorders, DoubleBorderStacksTwoIndependentInsets) {
 // Echo misprints, stagger origin, quantized time.
 TEST(ComposePaint, EchoStampsShapeUnderTheFill) {
   Host host;
-  host.composer.render(box().children({box()
-                                           .absolute()
-                                           .inset(50, 50, 90, 90)
-                                           .fill(red())
-                                           .echo({10, 10}, {0, 1, 0, 1})}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(50, 50, 90, 90)
+           .fill(red())
+           .layerStyle(LayerStyle::echo({10, 10}, {0, 1, 0, 1}))}));
   host.frame();
   EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);      // real fill on top
   EXPECT_EQ(host.pixel(115, 115), SK_ColorGREEN);  // echo peeking past it
@@ -163,13 +164,14 @@ TEST(ComposePaint, EchoesAppendSoRegistrationDoublingIsTwoCalls) {
   // behind it) is two calls, not a missing feature. This pins that, and the
   // ordering: stamps paint in declaration order beneath the real pass.
   Host host;
-  host.composer.render(box().children({box()
-                                           .absolute()
-                                           .inset(60, 60, 100, 100)
-                                           .fill(red())
-                                           .echo({-14, -14}, {0, 0, 1, 1})
-                                           .echo({14, 14}, {0, 1, 0, 1})
-                                           .echo({20, 20}, {1, 1, 0, 1})}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(60, 60, 100, 100)
+           .fill(red())
+           .layerStyle(LayerStyle::echo({-14, -14}, {0, 0, 1, 1}))
+           .layerStyle(LayerStyle::echo({14, 14}, {0, 1, 0, 1}))
+           .layerStyle(LayerStyle::echo({20, 20}, {1, 1, 0, 1}))}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 90), SK_ColorRED);     // the real pass, on top
   EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);    // one stamp up-left…
@@ -183,7 +185,8 @@ TEST(ComposePaint, EchoesAppendSoRegistrationDoublingIsTwoCalls) {
 TEST(ComposeText, EchoStampsTextUnderThePass) {
   Host host(300, 120);
   host.composer.render(box().padding(20).children(
-      {text(u8"ECHO", whiteStyle(48)).echo({6, -8}, {1, 0, 0, 1})}));
+      {text(u8"ECHO", whiteStyle(48))
+           .layerStyle(LayerStyle::echo({6, -8}, {1, 0, 0, 1}))}));
   host.frame();
   int redCount = 0, whiteCount = 0;
   for (int y = 0; y < 120; y += 2)

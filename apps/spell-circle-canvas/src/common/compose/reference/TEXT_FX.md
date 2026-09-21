@@ -525,5 +525,5 @@ it wants a `Track::reach` of its own.
 
 `Element::textFill` and `Element::textStroke` combine with tracks and with a
 path baseline alike: a letter in flight, and a letter on a curve, are painted
-with the same glyph paint a resting one is. `Element::echo` skips fx text by
-contract.
+with the same glyph paint a resting one is. A layer style's echo, stated
+through `Element::layerStyle`, skips fx text by contract.

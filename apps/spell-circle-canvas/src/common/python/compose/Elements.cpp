@@ -345,7 +345,13 @@ void bindCompose(py::module_& module) {
           "over", [](const LayerStyle& self) { return self.over; },
           [](LayerStyle& self, std::vector<Decoration> value) {
             self.over = std::move(value);
-          });
+          })
+      .def_static(
+          "echo",
+          [](py::object offset, py::object ink) {
+            return LayerStyle::echo(point(offset), color(ink));
+          },
+          py::arg("offset"), py::arg("ink"));
   py::class_<Spans>(composition, "Spans")
       .def(
           "__or__", [](const Spans& a, const Spans& b) { return a | b; },
@@ -705,12 +711,6 @@ void bindCompose(py::module_& module) {
       .def("decorationOutline", &Element::decorationOutline, py::arg("source"),
            py::arg("coverage") = 0.5f, fluent)
       .def("layerStyle", &Element::layerStyle, py::arg("style"), fluent)
-      .def(
-          "echo",
-          [](Element& self, py::object offset, py::object ink) -> Element& {
-            return self.echo(point(offset), color(ink));
-          },
-          py::arg("offset"), py::arg("ink"), fluent)
       .def("annotate", &Element::annotate, py::arg("reading"), fluent)
       .def("filter", &Element::filter, py::arg("effect"), fluent)
       .def("backdropFilter", &Element::backdropFilter, py::arg("effect"),

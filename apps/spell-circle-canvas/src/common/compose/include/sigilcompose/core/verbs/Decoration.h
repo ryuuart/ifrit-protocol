@@ -63,13 +63,11 @@ class DecorationVerbs {
    *  which is the rule an unantialiased rasteriser uses. */
   Derived& decorationOutline(Boundary source, float coverage = 0.5f);
   /** Apply a whole `LayerStyle`: its `under` layers append as
-   *  backgrounds and its `over` layers as foregrounds, so one call
-   *  dresses the node in a bundled treatment. */
+   *  backgrounds, its `over` layers as foregrounds and its `echoes` as
+   *  misprint re-stamps beneath the real pass, so one call dresses the
+   *  node in a bundled treatment. An echo is not applied to text
+   *  carrying `fx()` tracks, nor to image or custom content. */
   Derived& layerStyle(LayerStyle s);
-  /** Append a misprint echo: the node's fill shape and text re-stamped
-   *  offset and flat-coloured beneath the real pass. Not applied to
-   *  text carrying `fx()` tracks, nor to image or custom content. */
-  Derived& echo(SkVector offset, SkColor4f color);
 
  private:
   /** Register whatever a decoration says it borrows so the derive pass
