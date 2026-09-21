@@ -21,7 +21,6 @@ transition, or a live binding.
 
 ```cpp
 Element& opacity(motion::Animatable<float> o);
-template <std::integral T> Element& opacity(T v);
 ```
 
 ```python
@@ -34,10 +33,10 @@ def opacity(self, value: ScalarLike) -> Element: ...
 |---|---|---|
 | `motion::Animatable<float>` | A number at rest, a number in transition, or a number bound to a live output. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) — `motion::animate`, `motion::bind`, or the bare number |
 
-The integral overload is there so `opacity(1)` compiles: a plain `int`
-does not convert into the animatable on its own, and the error it would
-otherwise give is unreadable. In Python the parameter is `ScalarLike`: a
-number, an animatable, a transition, or a bound output.
+`opacity(1)` compiles: the animatable takes a plain number, and an
+integer reaches it the same way a float does. In Python the parameter
+is `ScalarLike`: a number, an animatable, a transition, or a bound
+output.
 
 ## Description
 
@@ -53,10 +52,12 @@ forms the same stacking context an effect or a blend does.
 **Paint-only.** Animating it never relayouts: the content's recording
 replays under the new alpha.
 
-**A mount entrance has its own word.** `appear(how)` is
-`opacity(animate(from(0).to(1), how))` written once, because that
-sentence is what every card, panel and strip says as it arrives. Use
-this verb for a fade the node does at some other moment.
+**A mount entrance is this verb over an entering value.** The fade
+every card, panel and strip says as it arrives is
+`opacity(animate(from(0).to(1), how))`: the node is clear the frame it
+mounts and ramps to solid over `how`. A staggered container adds its
+own share of delay in front of that ramp, so the entrance is written
+once per node and dealt by the container.
 
 ## Examples
 
@@ -66,6 +67,7 @@ this verb for a fade the node does at some other moment.
 
 ## See also
 
-`appear` for the mount entrance, `transition` for the node's default
-easing, [`blendMode`](blendMode.md), [`filter`](filter.md), and `mask` for a
+`transition` for the node's default easing, `staggerChildren` for the
+delay a container deals its entering children,
+[`blendMode`](blendMode.md), [`filter`](filter.md), and `mask` for a
 reveal that is a shape rather than a level.

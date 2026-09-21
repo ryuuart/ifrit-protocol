@@ -1,6 +1,6 @@
 /** @file
- * The compositing lanes — the opacity, the mount entrance written over
- * it, the blend, and the two filters over a node's layer.
+ * The compositing lanes — the opacity, the blend, and the two filters
+ * over a node's layer.
  */
 
 #include "ComposeInternal.h"
@@ -11,11 +11,6 @@ template <class Derived>
 Derived& EffectVerbs<Derived>::opacity(motion::Animatable<float> o) {
   declarations()->paint.opacity = std::move(o);
   return self();
-}
-
-template <class Derived>
-Derived& EffectVerbs<Derived>::appear(motion::Transition how) {
-  return opacity(motion::animate(motion::from(0.0f).to(1.0f), std::move(how)));
 }
 
 template <class Derived>

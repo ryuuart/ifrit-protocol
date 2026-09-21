@@ -33,33 +33,30 @@ TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
   EXPECT_FALSE(host.ticker.active());  // motion removed on finish
 }
 
-TEST(ComposeTransitions, AppearIsTheMountEntranceWrittenOnce) {
-  // The one sentence a card, a panel and a pass all say as they arrive,
-  // and the longhand it stands for: the two draw the same frames.
-  const auto plate = [](bool longhand) {
-    Element node = box().key("card").width(50).height(50).fill(red());
-    if (longhand)
-      node.opacity(animate(sigil::motion::from(0.0f).to(1.0f),
-                           {400ms, &choreograph::easeNone}));
-    else
-      node.appear({400ms, &choreograph::easeNone});
-    return box().children({std::move(node)});
+TEST(ComposeTransitions, AStaggerLeadsAnEntranceBeforeItsOwnDelay) {
+  // The fade a card says as it arrives is the entrance value at the lane
+  // it moves — opacity — and a staggered container LEADS it rather than
+  // replacing what it declared: child i holds its `from` for its own
+  // delay PLUS i times the container's step. The second card here would
+  // be whole by 0.3s on its own delay alone; it is not.
+  Host host;
+  auto card = [](std::string_view key) {
+    return box().width(50).height(20).fill(red()).key(key).opacity(
+        animate(sigil::motion::from(0.0f).to(1.0f),
+                {100ms, &choreograph::easeNone, 200ms}));
   };
-  Host writ;
-  Host said;
-  writ.composer.render(plate(true));
-  said.composer.render(plate(false));
-  writ.frame(0.2);
-  said.frame(0.2);
-  // Half way through a linear entrance, and the same half way.
-  const SkColor half = said.pixel(25, 25);
-  EXPECT_EQ(half, writ.pixel(25, 25));
-  EXPECT_NE(half, SK_ColorRED);
-  EXPECT_NE(half, SK_ColorBLACK);
-  writ.frame(1.0);
-  said.frame(1.0);
-  EXPECT_EQ(said.pixel(25, 25), SK_ColorRED);
-  EXPECT_EQ(writ.pixel(25, 25), SK_ColorRED);
+  host.composer.render(box().column().gap(10).staggerChildren(400ms).children(
+      {card("a"), card("b")}));
+  host.frame(0.15);  // inside the declared delay: neither has started
+  EXPECT_EQ(host.pixel(25, 10), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(25, 40), SK_ColorBLACK);
+  host.frame(0.2);  // 0.35s: the first card's own delay elapsed and it ramped
+  EXPECT_EQ(host.pixel(25, 10), SK_ColorRED);
+  EXPECT_EQ(host.pixel(25, 40), SK_ColorBLACK);
+  host.frame(0.2);  // 0.55s: still held — the carry is added, not substituted
+  EXPECT_EQ(host.pixel(25, 40), SK_ColorBLACK);
+  host.frame(0.25);  // 0.8s: 200ms delay + 400ms carry + 100ms ramp, in
+  EXPECT_EQ(host.pixel(25, 40), SK_ColorRED);
 }
 
 TEST(ComposeTransitions, UnmountCancelsMotions) {

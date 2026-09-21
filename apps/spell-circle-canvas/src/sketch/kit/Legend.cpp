@@ -1,6 +1,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Document.h>
+#include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/kit/Legend.h>
 
 #include <cstddef>
@@ -105,7 +106,9 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
     if (strip.corners > 0) patch.borderRadius(Corners{strip.corners});
     const bool named = i < strip.labels.size() && !strip.labels[i].empty();
     if (!named) {
-      if (strip.appear) patch.appear(*strip.appear);
+      if (strip.appear)
+        patch.opacity(
+            motion::animate(motion::from(0.0f).to(1.0f), *strip.appear));
       run.children({std::move(patch)});
       continue;
     }
@@ -124,7 +127,8 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
             .children({std::move(patch)})
             .children(
                 {std::move(label.margin(look.spacing.captionNoteGap, 0, 0, 0))});
-    if (strip.appear) step.appear(*strip.appear);
+    if (strip.appear)
+      step.opacity(motion::animate(motion::from(0.0f).to(1.0f), *strip.appear));
     run.children({std::move(step)});
   }
   return run;

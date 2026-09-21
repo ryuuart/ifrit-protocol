@@ -581,7 +581,7 @@ inline PathFormat groove(float rad, float w, float darkA, float liteA) {
 
 /** FROM NOTHING TO WHOLE over @p spec, for the one property that is not
  *  opacity: the zodiac's bars grow out of their own base. Everything on
- *  this plate that FADES in says `Element::appear` instead. */
+ *  this plate that FADES in writes the same entrance at `opacity`. */
 inline Transitioned<float> rise(Transition spec) {
   return animate(from(0.0f).to(1.0f), std::move(spec));
 }

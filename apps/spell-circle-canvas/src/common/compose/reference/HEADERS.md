@@ -100,7 +100,7 @@ sound model; nothing below them changes kernel semantics.
   can be painted with.
 - `core/verbs/Decoration.h` — `DecorationVerbs`: `background`,
   `overlay`, `foreground`, `stroke`, `layerStyle`, `decorationOutline`.
-- `core/verbs/Effects.h` — `EffectVerbs`: `opacity`, `appear`, `blendMode`,
+- `core/verbs/Effects.h` — `EffectVerbs`: `opacity`, `blendMode`,
   `filter`, `backdropFilter`.
 - `core/verbs/Transform.h` — `TransformVerbs`: `translateX`,
   `translateY`, `travel`, `rotate`, `scale`, `scaleX`, `scaleY`,
@@ -262,14 +262,12 @@ moving": `motion::isLive`, declared in
 in this library asks, and what it can and cannot say is stated in that
 library's README.
 
-**ONE ENTRANCE HAS A VERB OF ITS OWN.** `Element::appear` is
-`opacity(animate(from(0).to(1), how))` — the sentence every card, panel,
-strip and pass on a plate says as it arrives, whose three values never
-vary. It is the mount entrance and nothing else: after it the node is
-opaque and behaves as an unstated opacity does, and a node that also fades
-on some later condition says that with `opacity`. Every other entrance —
-a scale out of a base, a slide, a spin — is `animate(from(a).to(b))` at
-the property it moves, because those DO vary.
+**NO ENTRANCE HAS A VERB OF ITS OWN.** Every one of them — a fade, a
+scale out of a base, a slide, a spin — is `animate(from(a).to(b), how)`
+at the property it moves, so the fade every card, panel and strip says
+as it arrives is `opacity(animate(from(0).to(1), how))` and reads the
+same way as the rest. A property with an entrance is at `b` once the
+ramp lands and behaves from then on as any other stated value does.
 
 What compose OWNS is resolution, not the value. An `Animatable` is
 resolved against a `PaintContext`, taking node transitions, stagger,

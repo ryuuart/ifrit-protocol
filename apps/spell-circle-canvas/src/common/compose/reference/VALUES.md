@@ -56,7 +56,7 @@ read before the four rows under *The surface*.
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
 | `motion::Animatable` | A value at rest, a value in transition, or a value bound to a live output. | Implicitly from the value; `motion::animate`, `motion::bind` | `Element::fill`, `Element::opacity`, every transform lane |
-| `motion::Transition` | How a change is eased: a duration, a curve, a delay. | SigilMotion's own vocabulary | `Element::transition`, `Element::appear` |
+| `motion::Transition` | How a change is eased: a duration, a curve, a delay. | SigilMotion's own vocabulary | `Element::transition`, the second argument of `motion::animate` |
 
 ## The custom properties
 

@@ -172,9 +172,13 @@ its parent's. Paint-only, like the transforms.
 
 ## Entrances and transitions
 
+An entrance is not a verb. A property enters by being set to
+`animate(from(a).to(b), how)`, which plays `a → b` the frame the node
+mounts — a fade is that at `opacity`, a rise is that at `translateY`.
+The two verbs here say WHEN an entrance runs, never what it moves.
+
 | Verb | What it says |
 |---|---|
-| `appear` | The node fades in when it mounts, over the stated transition. |
 | `transition` | The node's default transition for the plain constants set on it. |
 | `staggerChildren` | Child *i*'s subtree enters with an extra delay, compounding through nested containers. |
 
@@ -286,8 +290,8 @@ spelling is the feature's.
 - `core/verbs/Decoration.h` — the decoration slots `stroke`,
   `background`, `overlay`, `foreground`, `layerStyle`, and what they
   dress: `decorationOutline`.
-- `core/verbs/Effects.h` — `filter`, `backdropFilter`, `blendMode`, `opacity`,
-  `appear`.
+- `core/verbs/Effects.h` — `filter`, `backdropFilter`, `blendMode`,
+  `opacity`.
 - `core/verbs/Transform.h` — the transform lanes `translateX`,
   `translateY`, `travel`, `rotate`, `scale`, `scaleX`, `scaleY`,
   `skewX`, `skewY`, `transformOrigin`, and `zIndex`.

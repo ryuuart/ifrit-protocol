@@ -11,7 +11,6 @@
 #include <sigilcompose/core/Declarations.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Transition.h>
 
 namespace sigil::compose {
 
@@ -25,10 +24,6 @@ class EffectVerbs {
   /** HOW OPAQUE THE WHOLE NODE IS, 0 clear to 1 solid, multiplying
    *  everything it and its children paint. 1 when unstated. */
   Derived& opacity(motion::Animatable<float> o);
-  /** THE NODE FADES IN WHEN IT MOUNTS, over @p how. It is the mount
-   *  entrance and nothing else: after it the node is opaque and behaves
-   *  as an unstated opacity does. */
-  Derived& appear(motion::Transition how);
   /** HOW THE NODE'S PAINT COMBINES with what is already beneath it —
    *  CSS `mix-blend-mode`, over any Skia blend mode.
    *  `SkBlendMode::kSrcOver` when unstated. */
