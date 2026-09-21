@@ -110,7 +110,7 @@ sound model; nothing below them changes kernel semantics.
   `preserve3d`, `backface`.
 - `core/verbs/TextStyle.h` — `TextStyleVerbs`: `paragraphs`,
   `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,
-  `ellipsis`, `maxLines`, `textFill`, `textStroke`, `contentFlowAround`.
+  `ellipsis`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `mark`,
   `annotate`, `thread`, `balanceChain`, `onPath`, `spanPaint`,
   `spanStyle`, `atRest`.

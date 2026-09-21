@@ -293,8 +293,11 @@ TEST(TextOptionSetters, MaxLinesAndEllipsisClampTheText) {
   const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
   const std::u8string body =
       u8"one two three four five six seven eight nine ten eleven twelve";
-  host.composer.render(box().padding(10).children(
-      {text(body, base).width(180).maxLines(2).ellipsis(u8"...").key("t")}));
+  host.composer.render(box().padding(10).children({text(body, base)
+                                                       .width(180)
+                                                       .maxTextLines(2)
+                                                       .ellipsis(u8"...")
+                                                       .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
@@ -346,7 +349,7 @@ TEST(TextOptionSetters, SettersOverrideAPassedOptionsValueFieldByField) {
   // At 20 px in the instrument face the first line is "one two three four"
   // at 198 px, so a centred line starts 11 px in.
   host.composer.render(
-      box().children({text(para, passed).width(220).maxLines(2).key("t")}));
+      box().children({text(para, passed).width(220).maxTextLines(2).key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);

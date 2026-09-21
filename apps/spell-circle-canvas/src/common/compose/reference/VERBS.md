@@ -213,7 +213,7 @@ once and do nothing.
 | `firstBaseline` | Where the first baseline sits below the top of the leaf's box. |
 | `distribute` | What becomes of the room left over down the box — nothing, split, above, or between the lines. |
 | `reserve` | Room beside every line, over and above the leading, taken in the strut before breaking. |
-| `maxLines` | Use at most this many lines; the rest reports as overflow. |
+| `maxTextLines` | Use at most this many lines; the rest reports as overflow. |
 | `ellipsis` | The marker appended to the last line when the text overflows its geometry. |
 | [`live`](pages/verbs/live.md) | An input of this passage is moving, so the layout is one of a run rather than an answer. |
 | [`thread`](pages/verbs/thread.md) | The frame this one fills into — the next link of a chain over one story. |
@@ -292,7 +292,7 @@ spelling is the feature's.
   `perspectiveOrigin`, `preserve3d`, `backface`.
 - `core/verbs/TextStyle.h` — the text properties `paragraphs`,
   `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,
-  `ellipsis`, `maxLines`, `textFill`, `textStroke`, `contentFlowAround`.
+  `ellipsis`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
   `mark`, `annotate`, `thread`, `balanceChain`, `onPath`, `spanPaint`,
   `spanStyle`, `atRest`.

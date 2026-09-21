@@ -70,7 +70,7 @@ class TextStyleVerbs {
   /** Use at most this many lines — CSS line-clamp. The rest reports as
    *  overflow, and `ellipsis()`, when set, lands on the clamped line.
    *  0 is unclamped. */
-  Derived& maxLines(int lines);
+  Derived& maxTextLines(int lines);
   /** Paint the GLYPHS with this material, mapped to TEXT-METRIC space:
    *  the material's unit square lands with x across the widest line and
    *  y from the first line's cap top to the last line's baseline. An

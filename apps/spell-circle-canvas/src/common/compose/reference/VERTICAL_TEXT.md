@@ -56,7 +56,7 @@ there too.
 track with `.unit = weave::Unit::Line` beats column by column and
 `weave::selectors::line(0)` addresses the rightmost one; `weave::Unit::Cluster`
 runs down a column in reading order. `spanPaint`, `spanStyle`, the block's
-alignment (start is the top of the column), `maxLines` (which clamps
+alignment (start is the top of the column), `maxTextLines` (which clamps
 COLUMNS) with `ellipsis` at the clamped column's foot, `contentFlowAround`, the
 block's last line and breaking strategy, `textStroke`, `variationDrive`
 and `feed()`'s text tier all work as they do across a line. `mark()` anchors as it does anywhere — its

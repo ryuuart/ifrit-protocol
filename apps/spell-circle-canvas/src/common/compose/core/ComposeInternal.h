@@ -259,7 +259,7 @@ struct TextData {
   std::shared_ptr<sigil::weave::Paragraph> paragraphOverride;
   sigil::weave::ParagraphLayoutOptions layoutOptions;
   // The fluent setters (textAlign, lineBreak, hyphenation, ellipsis,
-  // maxLines, lastLine), which override `layoutOptions` field by field.
+  // maxTextLines, lastLine), which override `layoutOptions` field by field.
   TextOptions options;
   // spanPaint()/spanStyle(): the type treatment, addressed by selector and
   // applied to the materialized paragraph in declaration order.

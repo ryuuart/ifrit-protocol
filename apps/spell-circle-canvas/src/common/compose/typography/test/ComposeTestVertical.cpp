@@ -153,12 +153,13 @@ TEST(TextVertical, MaxLinesClampsColumns) {
            .width(300)
            .height(120)
            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .maxLines(2)
+           .maxTextLines(2)
            .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
-  EXPECT_EQ(layout->lineCount, 2) << "maxLines clamps COLUMNS in vertical text";
+  EXPECT_EQ(layout->lineCount, 2)
+      << "maxTextLines clamps COLUMNS in vertical text";
   EXPECT_TRUE(layout->overflowed());
 }
 

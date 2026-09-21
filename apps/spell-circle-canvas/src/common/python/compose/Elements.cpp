@@ -671,7 +671,7 @@ void bindCompose(py::module_& module) {
             return self.ellipsis(marker);
           },
           py::arg("marker"), fluent)
-      .def("maxLines", &Element::maxLines, py::arg("lines"), fluent)
+      .def("maxTextLines", &Element::maxTextLines, py::arg("lines"), fluent)
       .def("thread", &Element::thread, py::arg("key"), fluent)
       .def("balanceChain", &Element::balanceChain, py::arg("throughLine") = ~0u,
            fluent)

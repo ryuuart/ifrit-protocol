@@ -98,7 +98,7 @@ Derived& TextStyleVerbs<Derived>::ellipsis(Utf8 marker) {
 }
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::maxLines(int lines) {
+Derived& TextStyleVerbs<Derived>::maxTextLines(int lines) {
   detail::TextOptions& options = declarations()->textData.ensure().options;
   options.maxLines = lines;
   options.set |= detail::TextOptions::kMaxLines;

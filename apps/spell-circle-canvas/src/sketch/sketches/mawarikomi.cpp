@@ -89,7 +89,7 @@ struct Mawarikomi {
             .width(46.0f)
             .height(216.0f)
             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-            .maxLines(1)
+            .maxTextLines(1)
             .ellipsis(u8"…"),
         150.0f, 8.0f);
   }
