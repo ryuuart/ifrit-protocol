@@ -398,7 +398,8 @@ Element rail(std::vector<Anchor> anchors, RailRouter router = {});
 
 /** A BAND: the shape a spine sweeps out at a given width across it.
  *
- *      band(shapes::circle(), across(22)).inward().fill(brass)
+ *      band(shapes::circle(), across(22))
+ *          .bandAlignment(geometry::path::Formation::Inner).fill(brass)
  *      band(around("dial"), across(14)).stroke(spans::edges(6), rule)
  *
  *  It is an ordinary element in every way that matters — it lays out,
@@ -420,8 +421,9 @@ Element rail(std::vector<Anchor> anchors, RailRouter router = {});
  *  hold the Shape value stable, to prune it. A borrowed spine
  *  (`around(key)`) is a comparable value and prunes on its own.
  *
- *  Formation is explicit: `.centered()` (the default) straddles the
- *  spine, `.outward()` and `.inward()` take one side. The spine is guide
+ *  Formation is explicit: `bandAlignment()` takes `Formation::Center`
+ *  (the default), which straddles the spine, or `Outer` or `Inner`,
+ *  which take one side of it. The spine is guide
  *  DATA, never an element — a path participates as an element's shape, as
  *  borrowed geometry (`around(key)`, resolved in the derive phase), or as
  *  pure guide data in no tree, and this is the third case.
@@ -439,7 +441,7 @@ Element band(Around spine, Across width);
  *
  *  **Positive `across` is to the LEFT of travel**, which in screen space
  *  (y down) is OUTSIDE a clockwise path — SkPath's own direction for rects
- *  and circles, so `.outward()` exits the shape.
+ *  and circles, so `Formation::Outer` exits the shape.
  *
  *  THIS IS THE ONE STATEMENT OF THAT CONVENTION for the whole library.
  *  `Profile::across`, `strand::offset`, `geometry::parallel`,

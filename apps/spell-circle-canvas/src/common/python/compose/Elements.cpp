@@ -635,9 +635,8 @@ void bindCompose(py::module_& module) {
             return self.shape(shape(value));
           },
           py::arg("value"), fluent)
-      .def("centered", &Element::centered, fluent)
-      .def("inward", &Element::inward, fluent)
-      .def("outward", &Element::outward, fluent)
+      .def("bandAlignment", &Element::bandAlignment, py::arg("formation"),
+           fluent)
       .def("overflow", &Element::overflow, py::arg("overflow"), fluent)
       .def("block", &Element::block, py::arg("block"), fluent)
       .def("paragraphStyles",

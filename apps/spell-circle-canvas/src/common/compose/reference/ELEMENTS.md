@@ -52,7 +52,7 @@ after layout, by the keys they name.
 |---|---|
 | `connector` | A line from one keyed node to another, routed after both are placed. |
 | `rail` | A line through a list of anchors, routed the same way. |
-| `band` | A ribbon of stated width along a spine, formed by `centered`, `outward` or `inward`. |
+| `band` | A ribbon of stated width along a spine, placed on it by `bandAlignment`. |
 
 ## Fields, feeds and the other leaves
 

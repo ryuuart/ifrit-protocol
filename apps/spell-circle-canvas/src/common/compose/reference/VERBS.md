@@ -121,9 +121,7 @@ The region the node occupies, and what is cut to it.
 | [`shape`](pages/verbs/shape.md) | The node's outline as a path generator over its laid-out size; it overrides `borderRadius`. |
 | [`overflow`](pages/verbs/overflow.md) | What becomes of paint that leaves that outline: `Overflow::Clip` cuts the fill, the content and the children to it — the decorations keep their reach. |
 | [`mask`](pages/verbs/mask.md) | Gate what the node paints, by span, edge, shape or alpha; overlapping masks intersect. |
-| `centered` | A band straddles its spine — the default formation. |
-| `outward` | A band takes the outer side of its spine. |
-| `inward` | A band takes the inner side. |
+| `bandAlignment` | Which side of its spine a band occupies: straddling it, or one side of it. |
 
 ## Effects, blending and opacity
 
@@ -282,7 +280,7 @@ spelling is the feature's.
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`,
   `gridCells`, `gridArea`, `gridCellAlign`, `rect`, `at`.
 - `core/verbs/Shape.h` — the region verbs `borderRadius`, `shape`, `overflow`.
-- `core/Band.h` — the band formation `centered`, `outward`, `inward`.
+- `core/Band.h` — the band leaf's own `bandAlignment`.
 - `core/verbs/Mask.h` — `mask`.
 - `core/verbs/Cascade.h` — the cascade verbs `font`, `block`, `ink`,
   `var`, `varDefaults`, `imageRendering`.

@@ -43,12 +43,7 @@ TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
     Host host(200, 200);
     Element b =
         band(rectSpine(), across(10)).rect(SkRect::MakeXYWH(20, 20, 100, 100));
-    if (f == geometry::path::Formation::Outer)
-      b.outward();
-    else if (f == geometry::path::Formation::Inner)
-      b.inward();
-    else
-      b.centered();
+    b.bandAlignment(f);
     host.composer.render(stack().children({b.fill(red())}));
     host.frame();
     return std::pair<SkColor, SkColor>{host.pixel(70, 16), host.pixel(70, 24)};
@@ -113,7 +108,7 @@ TEST(ComposeBand, ProfileMaxKeepsTheReachOutOfTheCull) {
   Host host(200, 200);
   host.composer.render(
       stack().children({band(rectSpine(), across(20))
-                            .outward()
+                            .bandAlignment(geometry::path::Formation::Outer)
                             .rect(SkRect::MakeXYWH(60, 60, 40, 40))
                             .cache(Cache::Picture)
                             .fill(red())}));

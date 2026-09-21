@@ -91,7 +91,7 @@ sound model; nothing below them changes kernel semantics.
   node FILLS the box it stands in, which `absolute` and `inset` said
   between them.
 - `core/verbs/Shape.h` — `ShapeVerbs`: `borderRadius`, `shape`, `overflow`.
-- `core/Band.h` — `BandVerbs`: `centered`, `outward`, `inward`.
+- `core/Band.h` — `BandVerbs`: `bandAlignment`.
 - `core/verbs/Mask.h` — `MaskVerbs`: `mask`, in both its forms.
 - `core/verbs/Cascade.h` — `CascadeVerbs`: `font`, `block`, `ink`,
   `var`, `varDefaults`, `imageRendering` — what a node declares to everything
