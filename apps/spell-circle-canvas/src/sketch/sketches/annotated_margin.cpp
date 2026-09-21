@@ -152,7 +152,8 @@ struct AnnotatedMargin {
                  .left(m::kTextLeft)
                  .top(m::kTextTop)
                  .width(m::kMeasure)
-                 .paragraphs({{.leading = weave::Leading::multiple(1.55f)}}),
+                 .paragraphStyles(
+                     {{.leading = weave::Leading::multiple(1.55f)}}),
              // The same text again, lower, under a cascade — the playhead
              // below rides its beats.
              document::paragraph("A marker placed from a beat agrees with the "

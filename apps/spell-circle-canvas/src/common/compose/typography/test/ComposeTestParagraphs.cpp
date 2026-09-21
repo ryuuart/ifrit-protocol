@@ -84,7 +84,8 @@ TEST(ComposeParagraphs, ABlockStyleOpensThePitchTheLeafSetsIt) {
       {text(passage(), whiteStyle(14))
            .key("t")
            .width(200.0f)
-           .paragraphs({{.leading = sigil::weave::Leading::multiple(2.0f)}})}));
+           .paragraphStyles(
+               {{.leading = sigil::weave::Leading::multiple(2.0f)}})}));
   led.frame();
   const std::vector<float> loose = baselinesOf(led, "t");
 
@@ -106,7 +107,7 @@ TEST(ComposeParagraphs, OneEntryStylesTheFirstBlockAndLeavesTheRestPlain) {
   host.composer.render(box().children({text(twoBlocks(), whiteStyle(13))
                                            .key("t")
                                            .width(300.0f)
-                                           .paragraphs({heading})}));
+                                           .paragraphStyles({heading})}));
   host.frame();
   const std::vector<TextUnit> lines = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Line),

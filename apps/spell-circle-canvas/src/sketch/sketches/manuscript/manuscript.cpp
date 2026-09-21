@@ -271,7 +271,7 @@ struct Manuscript {
                 {std::move(initial),
                  prose.key("block")
                      .width(px(kMeasure))
-                     .paragraphs({block})
+                     .paragraphStyles({block})
                      .block(
                          {.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
                      .block({.hyphenation =

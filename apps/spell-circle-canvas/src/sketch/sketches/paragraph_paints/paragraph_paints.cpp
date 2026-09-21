@@ -53,7 +53,7 @@ Element passage(std::u8string_view words, float size, float width,
              .track = 0,
              .language = "en-US"})
       .width(width)
-      .paragraphs({paragraph})
+      .paragraphStyles({paragraph})
       .block(
           {.alignment = weave::TextAlignment::kJustify,
            .hyphenation = weave::HyphenationOptions{.patterns = hyphenator()},

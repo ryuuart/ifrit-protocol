@@ -55,7 +55,7 @@ node: Element = (
     text(passage)
     .font(voice)
     .block(layout)
-    .paragraphs((heading,))
+    .paragraphStyles((heading,))
     .spanStyle(selection, Type(weight=700))
     .textFirstBaseline(FrameOptions.FirstBaseline.CapHeight)
     .children(box().key("marker").fill("#ffffff"))

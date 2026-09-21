@@ -30,12 +30,12 @@ class TextStyleVerbs {
    *  block order, a block being the text between two hard breaks. A
    *  block past the end of the list is set by the leaf's own fields
    *  alone. */
-  Derived& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks);
+  Derived& paragraphStyles(std::vector<sigil::weave::ParagraphStyle> blocks);
   /** The same, by NAME: one class per block, resolved through the block
    *  half of the sheet in force where the leaf LANDS and laid over the
    *  block in force there. The two spellings are alternatives, and the
    *  last one written stands. */
-  Derived& paragraphs(std::span<const std::string_view> names);
+  Derived& paragraphStyles(std::span<const std::string_view> names);
   /** THIS PASSAGE'S OPENING SET LARGE — a versal sized so its cap
    *  height spans the lines it is given, seated on the baseline it
    *  sinks to, with the lines under it wrapping the notch it cuts. It

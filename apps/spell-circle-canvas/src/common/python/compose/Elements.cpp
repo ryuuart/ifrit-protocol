@@ -646,15 +646,15 @@ void bindCompose(py::module_& module) {
       .def("outward", &Element::outward, fluent)
       .def("overflow", &Element::overflow, py::arg("overflow"), fluent)
       .def("block", &Element::block, py::arg("block"), fluent)
-      .def("paragraphs",
+      .def("paragraphStyles",
            py::overload_cast<std::vector<weave::ParagraphStyle>>(
-               &Element::paragraphs),
+               &Element::paragraphStyles),
            py::arg("blocks"), fluent)
       .def(
-          "paragraphs",
+          "paragraphStyles",
           [](Element& self, const std::vector<std::string>& names) -> Element& {
             std::vector<std::string_view> views(names.begin(), names.end());
-            return self.paragraphs(views);
+            return self.paragraphStyles(views);
           },
           py::arg("names"), fluent)
       .def("initialLetter", &Element::initialLetter, py::arg("initial"), fluent)

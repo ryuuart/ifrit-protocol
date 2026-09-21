@@ -183,7 +183,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/mask.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/opacity.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/overlay.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/paragraphs.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/paragraphStyles.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/preserve3d.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/rect.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/imageRendering.md

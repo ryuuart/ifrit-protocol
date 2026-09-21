@@ -13,7 +13,7 @@
 namespace sigil::compose {
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::paragraphs(
+Derived& TextStyleVerbs<Derived>::paragraphStyles(
     std::vector<sigil::weave::ParagraphStyle> blocks) {
   detail::TextOptions& options = declarations()->textData.ensure().options;
   options.blocks = std::move(blocks);
@@ -25,7 +25,7 @@ Derived& TextStyleVerbs<Derived>::paragraphs(
 }
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::paragraphs(
+Derived& TextStyleVerbs<Derived>::paragraphStyles(
     std::span<const std::string_view> names) {
   // The names are kept; they resolve against the block sheet in force
   // where the leaf lands, when it lays out, and lie over the block in

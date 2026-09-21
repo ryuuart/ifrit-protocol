@@ -108,7 +108,7 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/Depth.h` — `DepthVerbs`: `rotateX`, `rotateY`,
   `translateZ`, `scaleZ`, `perspective`, `perspectiveOrigin`,
   `preserve3d`, `backface`.
-- `core/verbs/TextStyle.h` — `TextStyleVerbs`: `paragraphs`,
+- `core/verbs/TextStyle.h` — `TextStyleVerbs`: `paragraphStyles`,
   `initialLetter`, `textFirstBaseline`, `distribute`, `reserve`, `live`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `mark`,

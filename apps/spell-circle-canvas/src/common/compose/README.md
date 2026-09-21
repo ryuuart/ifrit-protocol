@@ -382,7 +382,7 @@ The shape of it in one paragraph: a text leaf holds an ordered list of
 glyphs, what deviation from rest, how their start times spread, what
 drives it — and the same `selectors::` vocabulary addresses glyphs for a track,
 characters for a `spanStyle`, and units for anything standing beside the
-passage. What a passage is SET like is `Element::paragraphs` and the
+passage. What a passage is SET like is `Element::paragraphStyles` and the
 layout setters beside it, which map onto
 `sigil::weave::ParagraphLayoutOptions` field by field.
 

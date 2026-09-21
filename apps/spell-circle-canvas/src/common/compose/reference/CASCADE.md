@@ -65,8 +65,8 @@ breaking strategy, the writing mode, the line-break locale and the line
 tables CJK text is set by, CSS's inherited block properties — and every
 text leaf under it sets its paragraphs in the block in force, a partial
 on the leaf itself included. A whole `weave::ParagraphStyle` the leaf
-wrote through `paragraphs` inherits nothing, as a whole text style does,
-and a block named through `paragraphs(names)` is that name's partial laid
+wrote through `paragraphStyles` inherits nothing, as a whole text style does,
+and a block named through `paragraphStyles(names)` is that name's partial laid
 over the block in force when the leaf lays out. `block()` is the ONE
 spelling of every one of those fields — `block({.alignment =
 TextAlignment::kCenter})` on any node centres every line under it,
@@ -126,7 +126,7 @@ unless the value names a `weave::TypeSheet` of its own.
 is an inheriting passage: a run added with a partial keeps the inherited
 face and size in every field it does not name, and only a run added with
 a whole style keeps the style it was written with. Blocks have the same
-discipline through the block half of the sheet and `Element::paragraphs`.
+discipline through the block half of the sheet and `Element::paragraphStyles`.
 
 **A custom property is set on a node and read by anything under it.**
 `Element::var` sets one; `var(name)` reads it as a `Dimension`,

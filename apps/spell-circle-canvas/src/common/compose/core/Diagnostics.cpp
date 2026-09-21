@@ -108,7 +108,8 @@ void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   if (!seen.insert(std::string(name)).second) return;
   SkDebugf(
-      "compose: paragraphs(\"%.*s\") — %s, so this block is set in what it "
+      "compose: paragraphStyles(\"%.*s\") — %s, so this block is set in what "
+      "it "
       "inherits and nothing more. Register it on the StyleSheet stated with "
       "styleSheet() on this element or on a node above it, or "
       "pass the style itself.\n",

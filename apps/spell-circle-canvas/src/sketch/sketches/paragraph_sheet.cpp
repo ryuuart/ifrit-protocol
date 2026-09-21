@@ -186,7 +186,7 @@ Element leadingSpecimen(const char* caption, weave::Leading leading) {
                        .styleClass("body")
                        .font({.size = 11.5f})
                        .width(kMeasure * 0.48f)
-                       .paragraphs({style}))
+                       .paragraphStyles({style}))
       .styleSheet(callClasses())
       .width(kMeasure * 0.48f);
 }
@@ -221,7 +221,7 @@ struct ParagraphSheet {
                          .font({.size = 11.5f})
                          .inset(0)
                          .width(s::kMeasure * 0.48f)
-                         .paragraphs({weave::ParagraphStyle{
+                         .paragraphStyles({weave::ParagraphStyle{
                              .leading = weave::Leading::grid(s::kGrid)}})}))
             .styleSheet(s::callClasses())
             .width(s::kMeasure * 0.48f);
@@ -274,7 +274,7 @@ struct ParagraphSheet {
             u8"twenty-four, so twenty-four stands.")
             .styleClass("body")
             .width(s::kMeasure)
-            .paragraphs({first, second, third}));
+            .paragraphStyles({first, second, third}));
   }
 
   Element indentPanel() {
@@ -305,7 +305,7 @@ struct ParagraphSheet {
             u8"the fit that decides which line that is.")
             .styleClass("body")
             .width(s::kMeasure)
-            .paragraphs({firstLine, hanging, bothEnds, lastLine}));
+            .paragraphStyles({firstLine, hanging, bothEnds, lastLine}));
   }
 
   Element justifiedPanel() {
@@ -399,7 +399,7 @@ struct ParagraphSheet {
             .width(210.0f)
             .height(250.0f)
             .block({.writingMode = weave::WritingMode::kVerticalRL})
-            .paragraphs({heading, verse}));
+            .paragraphStyles({heading, verse}));
   }
 
   /// One column of panels, ruled apart the way the sheet rules its

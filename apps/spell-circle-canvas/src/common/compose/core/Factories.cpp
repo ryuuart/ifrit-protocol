@@ -85,8 +85,8 @@ Element frame(sigil::weave::Story story) {
   Element e = text(story.content());
   const std::span<const sigil::weave::ParagraphStyle> blocks = story.blocks();
   if (!blocks.empty())
-    e.paragraphs(std::vector<sigil::weave::ParagraphStyle>(blocks.begin(),
-                                                           blocks.end()));
+    e.paragraphStyles(std::vector<sigil::weave::ParagraphStyle>(blocks.begin(),
+                                                                blocks.end()));
   return e;
 }
 

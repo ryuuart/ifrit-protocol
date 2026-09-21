@@ -210,12 +210,12 @@ struct TextOptions {
 
   std::u16string ellipsis;
   int maxLines = 0;
-  /// paragraphs(): one entry per BLOCK — the text between two hard breaks
+  /// paragraphStyles(): one entry per BLOCK — the text between two hard breaks
   /// — in block order. A block past the end of the list is set by the
   /// layout-wide fields alone, so one style here sets the first block and
   /// leaves the rest plain, which is what a heading over a body wants.
   std::vector<sigil::weave::ParagraphStyle> blocks;
-  /// paragraphs(names): one name per block, resolved against the block
+  /// paragraphStyles(names): one name per block, resolved against the block
   /// sheet in force where the leaf lands and laid over the block in force
   /// when the leaf lays out — so a named block keeps the leading it
   /// inherits and changes only what its name says.

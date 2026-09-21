@@ -88,7 +88,7 @@ TEST(ComposeBlockLane, AWholeParagraphStyleInheritsNothing) {
   Host plain, whole;
   plain.composer.render(box().padding(10).children({leaf()}));
   whole.composer.render(box().padding(10).block(wide).children(
-      {leaf().paragraphs({sigil::weave::ParagraphStyle{}})}));
+      {leaf().paragraphStyles({sigil::weave::ParagraphStyle{}})}));
   EXPECT_NEAR(boxOf(plain, "t").height(), boxOf(whole, "t").height(), 0.5f);
 }
 
@@ -119,7 +119,7 @@ TEST(ComposeBlockLane, AClassCarriesBothHalves) {
 }
 
 TEST(ComposeBlockLane, ANamedBlockIsLaidOverTheBlockInForce) {
-  // paragraphs({"lead"}) under double leading: the named block takes its
+  // paragraphStyles({"lead"}) under double leading: the named block takes its
   // alignment from the name and its leading from the lane.
   Block centred;
   centred.alignment = TextAlignment::kCenter;
@@ -131,7 +131,7 @@ TEST(ComposeBlockLane, ANamedBlockIsLaidOverTheBlockInForce) {
   const std::array<std::string_view, 1> names{"lead"};
   named.composer.render(
       box().padding(10).block(wide).styleSheet(blocks).children(
-          {leaf().paragraphs(names)}));
+          {leaf().paragraphStyles(names)}));
   const SkRect a = boxOf(start, "t");
   const SkRect b = boxOf(named, "t");
   EXPECT_NEAR(a.height(), b.height(), 0.5f);

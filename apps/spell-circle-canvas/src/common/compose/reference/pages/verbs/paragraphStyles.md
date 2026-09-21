@@ -1,15 +1,15 @@
 ---
 kind: verb
 library: SigilCompose
-name: paragraphs
-qualified: sigil::compose::Element::paragraphs
+name: paragraphStyles
+qualified: sigil::compose::Element::paragraphStyles
 header: sigilcompose/core/verbs/TextStyle.h
 group: The text leaf
-python: sigil.compose.Element.paragraphs
+python: sigil.compose.Element.paragraphStyles
 status: stable
 ---
 
-# paragraphs
+# paragraphStyles
 
 How each BLOCK of this passage is set — one entry per block, in block
 order, a block being the text between two hard breaks.
@@ -18,7 +18,7 @@ order, a block being the text between two hard breaks.
 
 ```cpp
 text(weave::rich(body).add(u8"A heading\nand its body text\nand more"))
-    .paragraphs({headingStyle, bodyStyle});
+    .paragraphStyles({headingStyle, bodyStyle});
 ```
 
 **A block past the end of the list is set by this leaf's own fields

@@ -46,33 +46,33 @@ frame before it, and caches.
 
 ## Paragraphs, frames and stories
 
-A hard break inside a passage separates **blocks** — the paragraphs a
-reader sees — and `Element::paragraphs` says how each one is set, one entry
-per block in block order:
+A hard break inside a passage separates **blocks** — the paragraphs a reader
+sees — and `Element::paragraphStyles` says how each one is set, one entry per
+block in block order:
 
 ```cpp
 text(weave::rich(body).add(u8"A heading\nand its body, which runs on\nand on"))
     .width(Dimension(360.0f))
-    .paragraphs({headingStyle, bodyStyle})
+    .paragraphStyles({headingStyle, bodyStyle})
     .textFirstBaseline(sigil::weave::FrameOptions::FirstBaseline::kCapHeight)
     .distribute(sigil::weave::FrameOptions::Distribute::kJustify);
 ```
 
-`sigil::weave::ParagraphStyle` carries the leading, the air before and
-after, the four indents, the keeps and whichever of the leaf's own
-alignment, justification, hyphenation and tab stops the block overrides;
-SigilWeave's README is the canon for what each one means. A block past the
-end of the list is set in THE BLOCK IN FORCE where the leaf stands — the
-`weave::Block` partials its ancestors declared through `Element::block`,
-folded down the tree — so ONE entry styles the first block and leaves the
-rest to the passage. `Element::paragraphs` with whole styles sets every block alike and
-inherits nothing, and `Element::paragraphs` also takes NAMES, resolved
-through the block half of the `sigil::weave::StyleSheet` in force where
-the leaf lands into partials that are laid over the block in force when
-the leaf lays out — the same discipline `weave::rich().add(text, name)`
-follows for character styles. A name no sheet in force carries WARNS ONCE and changes
-nothing about its block, because a block quietly set in a default nobody
-asked for looks exactly like a style that did not take.
+`sigil::weave::ParagraphStyle` carries the leading, the air before and after,
+the four indents, the keeps and whichever of the leaf's own alignment,
+justification, hyphenation and tab stops the block overrides; SigilWeave's
+README is the canon for what each one means. A block past the end of the list
+is set in THE BLOCK IN FORCE where the leaf stands — the `weave::Block`
+partials its ancestors declared through `Element::block`, folded down the tree
+— so ONE entry styles the first block and leaves the rest to the passage.
+`Element::paragraphStyles` with whole styles sets every block alike and
+inherits nothing, and `Element::paragraphStyles` also takes NAMES, resolved
+through the block half of the `sigil::weave::StyleSheet` in force where the
+leaf lands into partials that are laid over the block in force when the leaf
+lays out — the same discipline `weave::rich().add(text, name)` follows for
+character styles. A name no sheet in force carries WARNS ONCE and changes
+nothing about its block, because a block quietly set in a default nobody asked
+for looks exactly like a style that did not take.
 
 `Element::textFirstBaseline` and `Element::distribute` are the two decisions a
 FRAME makes that no line makes for itself: where baseline 0 sits below the
@@ -85,7 +85,7 @@ its block styles and nothing else — no layout, no cursor, no frame — and
 
 ```cpp
 weave::Story article(weave::rich(body).add(u8"…"));
-article.paragraphs({headingStyle, bodyStyle, bodyStyle});
+article.paragraphStyles({headingStyle, bodyStyle, bodyStyle});
 
 root.children({
     frame(article).key("a").thread("b").width(Dimension(300.0f)),

@@ -208,7 +208,7 @@ once and do nothing.
 
 | Verb | What it says |
 |---|---|
-| [`paragraphs`](pages/verbs/paragraphs.md) | How each BLOCK of the passage is set, one entry per block, by value or by name. |
+| [`paragraphStyles`](pages/verbs/paragraphStyles.md) | How each BLOCK of the passage is set, one entry per block, by value or by name. |
 | [`initialLetter`](pages/verbs/initialLetter.md) | The passage opens on a versal sized to span the lines it is given. |
 | `textFirstBaseline` | Where the first baseline sits below the top of the leaf's box. |
 | `distribute` | What becomes of the room left over down the box — nothing, split, above, or between the lines. |
@@ -290,7 +290,7 @@ spelling is the feature's.
 - `core/verbs/Depth.h` — the depth lanes `rotateX`, `rotateY`,
   `translateZ`, `scaleZ`, `perspective`,
   `perspectiveOrigin`, `preserve3d`, `backface`.
-- `core/verbs/TextStyle.h` — the text properties `paragraphs`,
+- `core/verbs/TextStyle.h` — the text properties `paragraphStyles`,
   `initialLetter`, `textFirstBaseline`, `distribute`, `reserve`, `live`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,

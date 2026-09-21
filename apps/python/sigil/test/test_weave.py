@@ -133,8 +133,8 @@ class Typography(unittest.TestCase):
         del progress
         self.assertAlmostEqual(retained.value, 0.75)
         self.assertIs(node.textOnPath(path=path), node)
-        self.assertIs(node.paragraphs(names=("heading", "body")), node)
-        self.assertIs(node.paragraphs(blocks=(weave.ParagraphStyle(),)), node)
+        self.assertIs(node.paragraphStyles(names=("heading", "body")), node)
+        self.assertIs(node.paragraphStyles(blocks=(weave.ParagraphStyle(),)), node)
 
     def test_mixed_runs_and_inline_slot_render_in_inherited_type(self):
         pixels = self.render("""from sigil.compose import box, text

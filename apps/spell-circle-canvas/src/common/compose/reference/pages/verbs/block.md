@@ -33,7 +33,7 @@ inherit**, exactly as the font does, and it cascades from wherever it
 is written.
 
 **A leaf that wrote a whole `weave::ParagraphStyle` inherits nothing**
-for that block; a block named through `paragraphs(names)` is that
+for that block; a block named through `paragraphStyles(names)` is that
 name's partial laid over the block in force.
 
 **A VERTICAL leaf measures on the other axis.** Its main extent is its
@@ -47,4 +47,4 @@ both warns once and the path wins.
 
 ## See also
 
-[`font`](font.md), `weave::Block`, `paragraphs`, `textOnPath`.
+[`font`](font.md), `weave::Block`, `paragraphStyles`, `textOnPath`.

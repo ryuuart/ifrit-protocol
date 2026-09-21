@@ -208,7 +208,7 @@ struct NestedStyle {
                        .children({document::paragraph(items[index])
                                       .font(style)
                                       .width(Dimension(measure))
-                                      .paragraphs({hanging})})
+                                      .paragraphStyles({hanging})})
                        .children({document::paragraph(marker)
                                       .role("marker")
                                       .font(style)
