@@ -138,10 +138,23 @@ nothing removes one, because a tree that should stop applying a sheet
 is described without it. `StyleSheet::rules` reads back what a sheet
 holds.
 
-A rule's SUBJECT — the last compound of its chain — must land inside
-the subtree the sheet was applied at. The ancestors the selector names
-need not: a sheet applied deep in a page may say `.page .swatch`, and
-the `.page` it names may stand above the node that applied it.
+**An applied sheet sees ONLY ITS OWN SUBTREE.** Every compound of a
+selector — the subject, which is the last one, and every ancestor or
+sibling named before it — must match the applying node itself or an
+element below it. Nothing above that node and nothing beside it, its
+parent and its siblings included, can satisfy any part of a rule of
+that sheet: a sheet applied deep in a page that says `.page .swatch`
+reaches a `.swatch` only where the `.page` it names is the applying
+node or stands under it. A sheet that must see an outer element is
+applied at or above that element instead. Custom properties still
+inherit across the boundary, as everything inherited does.
+
+The applying node is INSIDE the sheet it applies, and is the root of
+the only tree that sheet sees. `rule(".card")` in a sheet applied on
+the `.card` node styles that node, and `.card .swatch` reaches the
+swatches under it. Its own siblings and its parent stand outside, so
+for that sheet it is the only child of nothing and it is the `:root`,
+exactly as the tree's own root is.
 
 ## Which rule wins
 

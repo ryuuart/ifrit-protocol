@@ -249,11 +249,11 @@ TEST(ComposeMatching, TheHeavierRuleWinsHoweverEarlyItStands) {
   EXPECT_EQ(inkOf(host, 0), kBlue);
 }
 
-TEST(ComposeMatching, ASheetReachesItsOwnSubtreeAndNamesAncestorsAboveIt) {
+TEST(ComposeMatching, ASheetSeesOnlyTheSubtreeItWasAppliedAt) {
   Host host;
-  // The sheet is applied on the left branch alone. Its rule names an
-  // ancestor that stands ABOVE the applying node, which is allowed —
-  // only the SUBJECT has to land inside the subtree.
+  // The sheet is applied on the left branch alone, and its rule names
+  // an ancestor standing ABOVE the applying node. That `.page` is
+  // outside everything the sheet sees, so the rule reaches nothing.
   const StyleSheet sheet{rule(".page .swatch").ink(kRedInk)};
   host.composer.render(
       box()
@@ -264,8 +264,22 @@ TEST(ComposeMatching, ASheetReachesItsOwnSubtreeAndNamesAncestorsAboveIt) {
                          {swatch().styleClass("swatch")}),
                      box().children({swatch().styleClass("swatch")})}));
   host.frame();
-  EXPECT_EQ(inkOf(host, 0), kRed);   // inside the subtree it was applied at
+  EXPECT_EQ(inkOf(host, 0), kWhite);  // the `.page` above is out of reach
   EXPECT_EQ(inkOf(host, 1), kWhite);  // the other branch never sees it
+  // Applied AT the `.page` instead, the same sheet does see it: the
+  // applying node answers the outer compound and both swatches are
+  // inside the subtree.
+  host.composer.render(
+      box()
+          .key("root")
+          .ink(kWhiteInk)
+          .styleClass("page")
+          .applyStyleSheet(sheet)
+          .children({box().children({swatch().styleClass("swatch")}),
+                     box().children({swatch().styleClass("swatch")})}));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kRed);
+  EXPECT_EQ(inkOf(host, 1), kRed);
   // A nearer application wins a tie of equal weight over a farther one.
   host.composer.render(
       box()
@@ -279,6 +293,60 @@ TEST(ComposeMatching, ASheetReachesItsOwnSubtreeAndNamesAncestorsAboveIt) {
   host.frame();
   EXPECT_EQ(inkOf(host, 0), kRed);
   EXPECT_EQ(inkOf(host, 1), kBlue);
+}
+
+TEST(ComposeMatching, TheApplyingNodeIsInsideTheSheetItApplies) {
+  Host host;
+  // The node that applies a sheet is the root of what that sheet sees,
+  // not a fence outside it: a rule naming it takes it as its subject.
+  host.composer.render(
+      box().key("root").ink(kWhiteInk).children(
+          {swatch().styleClass("card").applyStyleSheet(
+              StyleSheet{rule(".card").ink(kRedInk)})}));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kRed);
+  // And it answers the ancestor compound of a chain whose subject
+  // stands under it.
+  host.composer.render(
+      box().key("root").ink(kWhiteInk).children(
+          {box()
+               .styleClass("card")
+               .applyStyleSheet(StyleSheet{rule(".card .swatch").ink(kBlueInk)})
+               .children({swatch().styleClass("swatch")})}));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kBlue);
+  // Being that root, it is the only child of nothing for its own
+  // sheet, however many siblings it has in the tree.
+  host.composer.render(
+      box().key("root").ink(kWhiteInk).children(
+          {swatch(), swatch().applyStyleSheet(
+                         StyleSheet{rule(":only-child").ink(kGreenInk)})}));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kWhite);
+  EXPECT_EQ(inkOf(host, 1), kGreen);
+}
+
+TEST(ComposeMatching, ASiblingOfTheApplyingNodeSatisfiesNeitherSiblingCombinator) {
+  Host host;
+  // The `.head` swatch stands BESIDE the node that applied the sheet,
+  // so it is outside what that sheet sees and no combinator reaches it.
+  const auto beside = [](const StyleSheet& sheet) {
+    return box().key("root").ink(kWhiteInk).children(
+        {swatch().styleClass("head"), swatch().applyStyleSheet(sheet)});
+  };
+  host.composer.render(beside(StyleSheet{rule(".head + *").ink(kRedInk)}));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 1), kWhite);
+  host.composer.render(beside(StyleSheet{rule(".head ~ *").ink(kRedInk)}));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 1), kWhite);
+  // Applied one node up, the same rule does reach it: both swatches
+  // are inside then, and one stands after the other.
+  host.composer.render(column(StyleSheet{rule(".head + *").ink(kRedInk)},
+                              {swatch().styleClass("head"), swatch()}));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kWhite);
+  EXPECT_EQ(inkOf(host, 1), kRed);
 }
 
 TEST(ComposeMatching, AMatchedRuleStandsOverAClassAndUnderTheNodesOwnVerbs) {

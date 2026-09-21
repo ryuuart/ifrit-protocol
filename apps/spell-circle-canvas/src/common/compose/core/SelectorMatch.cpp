@@ -2,7 +2,8 @@
  * Which rules of the sheets in force speak about a node: the sibling
  * index a structural pseudo-class reads, one element against one
  * compound, a chain matched RIGHT TO LEFT with backtracking over the
- * loose combinators, and the order the matches fold in.
+ * loose combinators and FENCED at the node that applied the sheet, and
+ * the order the matches fold in.
  */
 
 #include "SelectorMatch.h"
@@ -45,19 +46,20 @@ bool countReaches(int position, int step, int offset) {
 }
 
 bool matchesComplex(const std::vector<Step>& steps, size_t at,
-                    const Instance& inst);
+                    const Instance& inst, const Instance* scope);
 
 /** Whether @p selector speaks about @p inst, reading the WEIGHT of the
  *  alternative that matched — a list weighs what matched it, not its
- *  heaviest alternative. */
+ *  heaviest alternative. @p scope is the node that applied the sheet
+ *  the selector stands in, past which no compound may reach. */
 bool matchesSelector(const ElementSelector& selector, const Instance& inst,
-                     Specificity* weight) {
+                     const Instance* scope, Specificity* weight) {
   bool any = false;
   for (const ElementSelector& alternative :
        SelectorAccess::alternatives(selector)) {
     const std::vector<Step> steps = SelectorAccess::asSteps(alternative);
     if (steps.empty()) continue;
-    if (!matchesComplex(steps, steps.size() - 1, inst)) continue;
+    if (!matchesComplex(steps, steps.size() - 1, inst, scope)) continue;
     any = true;
     if (weight == nullptr) return true;
     *weight = std::max(*weight, alternative.specificity());
@@ -66,10 +68,19 @@ bool matchesSelector(const ElementSelector& selector, const Instance& inst,
 }
 
 bool matchesAny(const std::vector<ElementSelector>& alternatives,
-                const Instance& inst) {
+                const Instance& inst, const Instance* scope) {
   for (const ElementSelector& one : alternatives)
-    if (matchesSelector(one, inst, nullptr)) return true;
+    if (matchesSelector(one, inst, scope, nullptr)) return true;
   return false;
+}
+
+/** WHERE A NODE STANDS AMONG ITS SIBLINGS AS ITS SHEET SEES IT. The
+ *  node that applied the sheet is the root of the only tree that sheet
+ *  sees: its own siblings stand outside it, so it counts as the only
+ *  child of nothing, exactly as the tree's root does. */
+SiblingPlace placeIn(const Instance& inst, const Instance* scope) {
+  if (&inst != scope) return inst.place;
+  return SiblingPlace{0, 1, 0, roleOf(inst).empty() ? 0 : 1};
 }
 
 /** The 1-based position of @p inst among the siblings matching @p
@@ -77,24 +88,25 @@ bool matchesAny(const std::vector<ElementSelector>& alternatives,
  *  the filter itself — CSS's `of S`. */
 int filteredPosition(const Instance& inst,
                      const std::vector<ElementSelector>& filter,
-                     int* matchingCount) {
+                     const Instance* scope, int* matchingCount) {
   *matchingCount = 0;
-  if (!matchesAny(filter, inst)) return 0;
-  if (inst.parent == nullptr) {
+  if (!matchesAny(filter, inst, scope)) return 0;
+  if (inst.parent == nullptr || &inst == scope) {
     *matchingCount = 1;
     return 1;
   }
   int position = 0;
   for (const auto& sibling : inst.parent->children) {
-    if (!matchesAny(filter, *sibling)) continue;
+    if (!matchesAny(filter, *sibling, scope)) continue;
     ++*matchingCount;
     if (sibling.get() == &inst) position = *matchingCount;
   }
   return position;
 }
 
-bool matchesSimple(const Simple& simple, const Instance& inst) {
-  const SiblingPlace& place = inst.place;
+bool matchesSimple(const Simple& simple, const Instance& inst,
+                   const Instance* scope) {
+  const SiblingPlace place = placeIn(inst, scope);
   switch (simple.kind) {
     case SimpleKind::Universal:
       return true;
@@ -117,7 +129,8 @@ bool matchesSimple(const Simple& simple, const Instance& inst) {
         return countReaches(position, simple.step, simple.offset);
       }
       int matching = 0;
-      const int position = filteredPosition(inst, simple.arguments, &matching);
+      const int position =
+          filteredPosition(inst, simple.arguments, scope, &matching);
       if (position == 0) return false;
       return countReaches(fromLast ? matching - position + 1 : position,
                           simple.step, simple.offset);
@@ -138,19 +151,22 @@ bool matchesSimple(const Simple& simple, const Instance& inst) {
     case SimpleKind::Empty:
       return inst.children.empty();
     case SimpleKind::Root:
-      return inst.parent == nullptr;
+      // The root of the tree the sheet sees, which is the node that
+      // applied it where that node is not the tree's own root.
+      return inst.parent == nullptr || &inst == scope;
     case SimpleKind::Is:
     case SimpleKind::Where:
-      return matchesAny(simple.arguments, inst);
+      return matchesAny(simple.arguments, inst, scope);
     case SimpleKind::Not:
-      return !matchesAny(simple.arguments, inst);
+      return !matchesAny(simple.arguments, inst, scope);
   }
   return false;
 }
 
-bool matchesCompound(const Compound& compound, const Instance& inst) {
+bool matchesCompound(const Compound& compound, const Instance& inst,
+                     const Instance* scope) {
   for (const Simple& simple : compound.simples)
-    if (!matchesSimple(simple, inst)) return false;
+    if (!matchesSimple(simple, inst, scope)) return false;
   return true;
 }
 
@@ -158,28 +174,35 @@ bool matchesCompound(const Compound& compound, const Instance& inst) {
  *  ancestors, right to left. The loose combinators — a descendant and
  *  a later sibling — try every candidate and BACK TRACK, because a
  *  nearer one matching the compound does not mean the rest of the
- *  chain matches above it. */
+ *  chain matches above it. Every walk stops at @p scope, the node that
+ *  applied the sheet: a compound satisfied above it or beside it would
+ *  be read outside the only subtree that sheet sees. */
 bool matchesComplex(const std::vector<Step>& steps, size_t at,
-                    const Instance& inst) {
-  if (!matchesCompound(steps[at].compound, inst)) return false;
+                    const Instance& inst, const Instance* scope) {
+  if (!matchesCompound(steps[at].compound, inst, scope)) return false;
   if (at == 0) return true;
+  // The applying node has neither a parent nor a sibling inside the
+  // subtree, so every combinator leaving it leaves the sheet's reach.
+  if (&inst == scope) return false;
   const Instance* const parent = inst.parent;
   switch (steps[at].combinator) {
     case Combinator::Child:
-      return parent != nullptr && matchesComplex(steps, at - 1, *parent);
+      return parent != nullptr && matchesComplex(steps, at - 1, *parent, scope);
     case Combinator::Descendant:
       for (const Instance* above = parent; above != nullptr;
-           above = above->parent)
-        if (matchesComplex(steps, at - 1, *above)) return true;
+           above = above->parent) {
+        if (matchesComplex(steps, at - 1, *above, scope)) return true;
+        if (above == scope) break;
+      }
       return false;
     case Combinator::Next:
       if (parent == nullptr || inst.place.index == 0) return false;
       return matchesComplex(steps, at - 1,
-                            *parent->children[inst.place.index - 1]);
+                            *parent->children[inst.place.index - 1], scope);
     case Combinator::Sibling:
       if (parent == nullptr) return false;
       for (int before = inst.place.index - 1; before >= 0; --before)
-        if (matchesComplex(steps, at - 1, *parent->children[before]))
+        if (matchesComplex(steps, at - 1, *parent->children[before], scope))
           return true;
       return false;
   }
@@ -253,8 +276,8 @@ bool selectorNamesClass(const ElementSelector& selector,
 }  // namespace
 
 bool namesStyleClass(const SheetChain& chain, std::string_view name) {
-  for (const StyleSheet* sheet : chain)
-    for (const Rule& rule : sheet->rules())
+  for (const ScopedSheet& applied : chain)
+    for (const Rule& rule : applied.sheet->rules())
       if (selectorNamesClass(rule.selector(), name)) return true;
   return false;
 }
@@ -263,10 +286,13 @@ std::vector<MatchedRule> matchRules(const SheetChain& chain,
                                     const Instance& inst) {
   std::vector<MatchedRule> matched;
   for (size_t sheetAt = 0; sheetAt < chain.size(); ++sheetAt) {
-    const std::vector<Rule>& rules = chain[sheetAt]->rules();
+    const ScopedSheet& applied = chain[sheetAt];
+    const std::vector<Rule>& rules = applied.sheet->rules();
     for (size_t ruleAt = 0; ruleAt < rules.size(); ++ruleAt) {
       Specificity weight;
-      if (!matchesSelector(rules[ruleAt].selector(), inst, &weight)) continue;
+      if (!matchesSelector(rules[ruleAt].selector(), inst, applied.scope,
+                           &weight))
+        continue;
       matched.push_back(MatchedRule{&rules[ruleAt], weight, (int)sheetAt,
                                     (int)ruleAt});
     }
