@@ -231,20 +231,23 @@ void Composer::Impl::resolveCascade(
       node.cascadeData ? &*node.cascadeData : nullptr;
   // THE SELECTOR SHEETS IN FORCE HERE: the ones the ancestors applied,
   // then the ones this node applies, which speak about this node too.
-  // The chain is extended only where a node applies one, so a tree that
-  // applies none shares the root's empty chain all the way down.
+  // Each carries the node that applied it, because that node bounds
+  // what its sheet can see. The chain is extended only where a node
+  // applies one, so a tree that applies none shares the root's empty
+  // chain all the way down.
   SheetChain extended;
   const SheetChain* sheets = &parentSheets;
   if (cascade != nullptr && !cascade->appliedSheets.empty()) {
     extended = parentSheets;
     for (const StyleSheet& applied : cascade->appliedSheets)
-      extended.push_back(&applied);
+      extended.push_back(ScopedSheet{&applied, &inst});
     sheets = &extended;
   }
   // The rules that speak about this node, weakest first. A rule's
   // SUBJECT is this node, which lies in the applying node's subtree by
-  // construction; the ancestors its selector names may stand anywhere
-  // above it, inside that subtree or over it.
+  // construction; every other compound of its selector is matched
+  // inside that subtree too, so nothing above or beside the applying
+  // node can satisfy one.
   const std::vector<MatchedRule> matched =
       sheets->empty() ? std::vector<MatchedRule>{} : matchRules(*sheets, inst);
   if (cascade != nullptr || !matched.empty()) {

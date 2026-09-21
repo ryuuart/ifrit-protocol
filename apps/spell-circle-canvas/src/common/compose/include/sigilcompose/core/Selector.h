@@ -94,7 +94,9 @@ class ElementSelector {
 
   /** The subject only where it has no children at all. */
   [[nodiscard]] ElementSelector empty() const;
-  /** The subject only where it is the tree's root. */
+  /** The subject only where it is the root of the tree its sheet sees:
+   *  the node that applied the sheet, or the tree's own root where the
+   *  sheet stands on it. */
   [[nodiscard]] ElementSelector root() const;
 
   /** CSS's weight for this selector: the heaviest alternative where it

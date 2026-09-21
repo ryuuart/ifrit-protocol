@@ -170,8 +170,12 @@ class Element : public BoxVerbs<Element>,
    *  selectors name rather than about a class by name. Calling this
    *  again applies another sheet, later in order; nothing is removed,
    *  because a tree that should stop applying one is described without
-   *  it. A rule's subject must land in this subtree, while the
-   *  ancestors its selector names may stand above it. */
+   *  it. THE SHEET SEES ONLY THIS SUBTREE: every compound of a
+   *  selector — the subject, and every ancestor or sibling it names —
+   *  must match this node or one below it, so a sheet that must name
+   *  an outer element is applied at or above that element. This node
+   *  is the root of what the sheet sees, so it matches `:root` and
+   *  stands as the only child of nothing for these rules. */
   Element& applyStyleSheet(StyleSheet sheet);
   /** A SEMANTIC ROLE with default typography. The rule's name selects a
    *  rule from the sheet where this node lands; that rule overrides these

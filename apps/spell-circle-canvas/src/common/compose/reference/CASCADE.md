@@ -178,6 +178,8 @@ force at a node and everything under it, and a rule of it whose
 selector matched folds over the role, its sheet rule and the classes,
 and under the node's own `font`, `block`, `ink` and `var` — into the
 same partial, so a relative size is still laid over the parent's font
-at one point. Which elements a rule speaks about, how heavily it
+at one point. That sheet sees only that subtree: every compound of a
+selector must match the applying node or one below it, so nothing
+above or beside it answers any part of a rule. Which elements a rule speaks about, how heavily it
 weighs and which of two matched rules wins is CSS's selector grammar
 as a value: [selectors](SELECTORS.md).
