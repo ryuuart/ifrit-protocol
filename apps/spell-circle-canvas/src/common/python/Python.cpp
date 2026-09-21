@@ -91,6 +91,7 @@ void bindLibraries(pybind11::module_& module) {
   bindGeometryCharts(module);
   bindGeometrySeams(module);
   bindCompose(module);
+  bindComposeSelectors(module);
   bindComposeMasks(module);
   bindComposeTextEffects(module);
   bindComposeDerive(module);

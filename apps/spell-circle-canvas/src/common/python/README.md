@@ -302,8 +302,9 @@ assembly guards their calls the same way.
   `bindComposeKitStrokes`, `bindComposeKitTypeset`,
   `bindComposeLayerStyles`, `bindComposeLines`, `bindComposeMasks`,
   `bindComposeMediaLeaves`, `bindComposePaintPrograms`,
-  `bindComposePixelStyles`, `bindComposeSchemes`, `bindComposeSheets`,
-  `bindComposeTextEffects`, `bindComposeTextureScene`, `bindDocument`
+  `bindComposePixelStyles`, `bindComposeSchemes`, `bindComposeSelectors`,
+  `bindComposeSheets`, `bindComposeTextEffects`,
+  `bindComposeTextureScene`, `bindDocument`
 * `draw/Registration.h` — `bindPen`, `bindBrush`, `bindDrawCanvasSeam`,
   `bindDrawStandalonePen`
 * `world/Registration.h` — `bindWorld`, `bindWorldDescription`,
