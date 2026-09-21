@@ -437,7 +437,8 @@ struct Bg3DiceRoll {
       // the row, never the canvas.
       Element row =
           kit::at(stack()
-                      .appear({260ms, choreograph::easeOutQuad})
+                      .opacity(animate(from(0.0f).to(1.0f),
+                                       {260ms, choreograph::easeOutQuad}))
                       .translateX(animate(from(18.0f).to(0.0f),
                                           {300ms, choreograph::easeOutQuad})),
                   kX - 96.0f, y - 10.0f, kRowW, 44.0f)
@@ -498,7 +499,8 @@ struct Bg3DiceRoll {
                 {label("SUCCESS", 34.0f, 12.0f, 30.0f, bg3::kViridian, 8.0f),
                  label("RollCritical.None 0  ·  Total 20 ≥ DC 15", 34.0f, 44.0f,
                        9.0f, mskia::withAlpha(bg3::kInk, 0.55f), 0.9f, true)})
-            .appear({380ms, choreograph::easeOutQuad}),
+            .opacity(animate(from(0.0f).to(1.0f),
+                             {380ms, choreograph::easeOutQuad})),
         636.0f, 1094.0f, 452.0f, 64.0f);
   }
 

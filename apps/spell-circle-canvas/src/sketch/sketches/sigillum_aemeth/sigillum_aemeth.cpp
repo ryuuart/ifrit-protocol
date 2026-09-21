@@ -25,7 +25,8 @@ auto SigillumAemeth::describe(sketch::SketchContext&) -> Element {
                           .inset(0)
                           .transformOrigin(pct(50), pct(50))
                           .rotate(bind(&settle).target(0.0f, -360.0f / 7.0f))
-                          .appear(ramp(tInner * 1000, 900))
+                          .opacity(animate(from(0.0f).to(1.0f),
+                                           ramp(tInner * 1000, 900)))
                           .cache(Cache::Texture)
                           .children({angles(), heptagonNames(), heptagram(),
                                      inner()}),

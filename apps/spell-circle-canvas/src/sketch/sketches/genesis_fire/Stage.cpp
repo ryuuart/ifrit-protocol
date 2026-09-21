@@ -47,7 +47,8 @@ void GenesisFire::seedStars() {
 Element GenesisFire::starField() {
   return box()
       .inset(0)
-      .appear({.duration = 700ms, .delay = 340ms})
+      .opacity(
+          animate(from(0.0f).to(1.0f), {.duration = 700ms, .delay = 340ms}))
       .children({instancing::instances(
           starAtlas, starPool, instancing::Mode::Data, SkBlendMode::kPlus)});
 }
@@ -106,13 +107,15 @@ Element GenesisFire::dipper() {
                                      : hexColor(0xD9E4FF, 0.85f)},
                          {1.0f, {1, 1, 1, 0}}}))
                     .blendMode(SkBlendMode::kPlus)
-                    .appear({.duration = 500ms, .delay = 1200ms})});
+                    .opacity(animate(from(0.0f).to(1.0f),
+                                     {.duration = 500ms, .delay = 1200ms}))});
     g.children({text(kStars[i].name)
                     .font({.size = 7.0f, .track = 1.1f})
                     .ink(sol ? kCyan : hexColor(0x9FB0CC, 0.85f))
                     .left(p.fX + rad + 5.0f)
                     .top(p.fY - 5.0f)
-                    .appear({.duration = 400ms, .delay = 1500ms})});
+                    .opacity(animate(from(0.0f).to(1.0f),
+                                     {.duration = 400ms, .delay = 1500ms}))});
   }
   // Smith's joke, verified in the header block.
   const SkPoint s = at(7);
@@ -124,7 +127,8 @@ Element GenesisFire::dipper() {
                   .column()
                   .gap(1)
                   .font({.size = 7.0f, .track = 0.9f})
-                  .appear({.duration = 400ms, .delay = 1600ms})
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   {.duration = 400ms, .delay = 1600ms}))
                   .children({text("m = 2.63 FROM ε INDI (3.64 pc)")})
                   .children({text("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\"")
                                  .ink(hexColor(0x4FB8D8, 0.7f))})});
@@ -153,7 +157,8 @@ Element GenesisFire::regolith() {
       .shape(limbOutline())
       .overflow(Overflow::Clip)
       .fill(std::move(ground))
-      .appear({.duration = 520ms, .delay = 420ms})
+      .opacity(
+          animate(from(0.0f).to(1.0f), {.duration = 520ms, .delay = 420ms}))
       .translateY(animate(
           from(12.0f).to(0.0f),
           {.duration = 520ms, .ease = &ch::easeOutCubic, .delay = 420ms}))
@@ -254,7 +259,8 @@ Element GenesisFire::planInset() {
                  .fill(hexColor(0x0B0D14, 0.86f))
                  .stroke(stroke(1.5f, Fill::color(kKeyline),
                                 PathFormat::Align::Inner))
-                 .appear({.duration = 340ms, .delay = 900ms})
+                 .opacity(animate(from(0.0f).to(1.0f),
+                                  {.duration = 340ms, .delay = 900ms}))
                  .scale(animate(from(0.94f).to(1.0f), {.duration = 340ms,
                                                        .ease = ease::outBack(),
                                                        .delay = 900ms}))
@@ -289,7 +295,8 @@ Element GenesisFire::stageAbove() {
                      .left(24)
                      .top(236)
                      .width(300)
-                     .appear({.duration = 300ms, .delay = 1050ms})});
+                     .opacity(animate(from(0.0f).to(1.0f),
+                                      {.duration = 300ms, .delay = 1050ms}))});
 }
 
 void GenesisFire::blurCallout(Pen& pen, float x0, float y0, float w, float h,

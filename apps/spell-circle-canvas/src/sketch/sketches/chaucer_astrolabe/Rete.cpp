@@ -47,7 +47,7 @@ auto ChaucerAstrolabe::reteShadow() -> Element {
       .key("reteshadow")
       .translateX(7.0f)
       .translateY(9.0f)
-      .appear(ramp(tRete * 1000 + 200, 900))
+      .opacity(animate(from(0.0f).to(1.0f), ramp(tRete * 1000 + 200, 900)))
       .children({std::move(inner)});
 }
 
@@ -96,7 +96,8 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                                      .angleDeg = 125,
                                      .highlight = hexColor(0xffe9b0, 0.55f),
                                      .shadow = hexColor(0x2a1d08, 0.5f)})
-             .appear(ramp(tRete * 1000 + 620, 700))});
+             .opacity(
+                 animate(from(0.0f).to(1.0f), ramp(tRete * 1000 + 620, 700)))});
 
     // the 360 degree divisions INSIDE the signs, at the projection's own
     // non-uniform spacing — they visibly bunch toward Cancer, and that is
@@ -118,7 +119,9 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                .fill(Fill::none())
                .stroke(stroke((d % 5 == 0) ? 1.2f : 0.8f,
                               Fill::color(hexColor(0x4a3410, 0.62f))))
-               .appear(ramp(tRete * 1000 + 900 + (float)d * 0.6f, 300))});
+               .opacity(
+                   animate(from(0.0f).to(1.0f),
+                           ramp(tRete * 1000 + 900 + (float)d * 0.6f, 300)))});
     }
 
     // the band's own two edges, engraved: β = +6° and β = −6°, Chaucer's
@@ -165,7 +168,9 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                                     .offset = -0.030f * kR,
                                     .autoFlip = false,
                                     .orient = TextPath::Orient::Tangent})
-               .appear(ramp(tRete * 1000 + 1200 + (float)i * 45, 400))});
+               .opacity(
+                   animate(from(0.0f).to(1.0f),
+                           ramp(tRete * 1000 + 1200 + (float)i * 45, 400)))});
     }
     g.children({std::move(clipped)});
   }
@@ -201,7 +206,8 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                                       Fill::color(hexColor(0x3d2b0c, 0.85f))))
             .foreground(brush::presets::taper(0.032f * kR, 1.0f,
                                               brassStroke(bb, 0.66f)))
-            .appear(ramp(delay, 420, ease::outBack()));
+            .opacity(animate(from(0.0f).to(1.0f),
+                             ramp(delay, 420, ease::outBack())));
       } else {
         // a milled edge on both sides of every bar: the keyline is what makes
         // the sheet read as a sheet rather than as a stroke on a diagram
@@ -239,7 +245,9 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                                          .offset = 0.0f,
                                          .autoFlip = false,
                                          .orient = TextPath::Orient::Tangent})
-                    .appear(ramp(tRete * 1000 + 1600 + (float)i * 90, 400))});
+                    .opacity(animate(
+                        from(0.0f).to(1.0f),
+                        ramp(tRete * 1000 + 1600 + (float)i * 90, 400)))});
   }
 
   // --- the star tips, and the dog's head for Sirius --------------------
@@ -250,34 +258,35 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
     if (i == 3) {
       // ALHABOR — the dog-star. The 1326 maker gave it a dog's head, and
       // it is the joke he built into the object.
-      g.children({kit::disc(c, 0.030f * kR)
-                      .key("dog")
-                      .shape(shapes::blob(7u, 0.30f, 7))
-                      .fill(Fill::color(kBrassP70))
-                      .foreground(styles::BevelEmboss{
-                          .depth = 2,
-                          .size = 2,
-                          .angleDeg = 125,
-                          .highlight = hexColor(0xffe9b0, 0.6f),
-                          .shadow = hexColor(0x2a1d08, 0.55f)})
-                      .rotate(-40.0f)
-                      .appear(ramp(delay, 420)),
-                  // the ear and the muzzle
-                  kit::disc(SkPoint{c.fX - 0.020f * kR, c.fY - 0.020f * kR},
-                            0.011f * kR)
-                      .key("dogear")
-                      .shape(shapes::polygon(3, 20))
-                      .fill(Fill::color(kBrassP70))
-                      .appear(ramp(delay, 420)),
-                  dot(c, 3.0f, Fill::color(hexColor(0x2a1d08, 0.8f)))
-                      .key("dogeye")
-                      .appear(ramp(delay + 120, 300))});
+      g.children(
+          {kit::disc(c, 0.030f * kR)
+               .key("dog")
+               .shape(shapes::blob(7u, 0.30f, 7))
+               .fill(Fill::color(kBrassP70))
+               .foreground(
+                   styles::BevelEmboss{.depth = 2,
+                                       .size = 2,
+                                       .angleDeg = 125,
+                                       .highlight = hexColor(0xffe9b0, 0.6f),
+                                       .shadow = hexColor(0x2a1d08, 0.55f)})
+               .rotate(-40.0f)
+               .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 420))),
+           // the ear and the muzzle
+           kit::disc(SkPoint{c.fX - 0.020f * kR, c.fY - 0.020f * kR},
+                     0.011f * kR)
+               .key("dogear")
+               .shape(shapes::polygon(3, 20))
+               .fill(Fill::color(kBrassP70))
+               .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 420))),
+           dot(c, 3.0f, Fill::color(hexColor(0x2a1d08, 0.8f)))
+               .key("dogeye")
+               .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 120, 300)))});
     } else {
       g.children(
           {dot(c, 4.2f, Fill::color(kBrassP90))
                .key("tip" + std::to_string(i))
                .foreground(stroke(1.0f, Fill::color(hexColor(0x2a1d08, 0.6f))))
-               .appear(ramp(delay, 380))});
+               .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 380)))});
     }
   }
 
@@ -293,17 +302,21 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
     SkPathBuilder pb;
     pb.moveTo(a);
     pb.lineTo(b);
-    g.children({pathFigure(pb.detach(), 3)
-                    .key("prec" + std::to_string(i))
-                    .fill(Fill::none())
-                    .stroke(PathFormat{
-                        .width = 1.0f,
-                        .strokeFill = Fill::color(hexColor(0x2a1d08, 0.4f)),
-                        .dashIntervals = {2.5f, 3.5f}})
-                    .appear(ramp(tRete * 1000 + 2400 + (float)i * 30, 500)),
-                dot(b, 2.6f, Fill::color(hexColor(0x2a1d08, 0.45f)))
-                    .key("ghost" + std::to_string(i))
-                    .appear(ramp(tRete * 1000 + 2400 + (float)i * 30, 500))});
+    g.children(
+        {pathFigure(pb.detach(), 3)
+             .key("prec" + std::to_string(i))
+             .fill(Fill::none())
+             .stroke(
+                 PathFormat{.width = 1.0f,
+                            .strokeFill = Fill::color(hexColor(0x2a1d08, 0.4f)),
+                            .dashIntervals = {2.5f, 3.5f}})
+             .opacity(animate(from(0.0f).to(1.0f),
+                              ramp(tRete * 1000 + 2400 + (float)i * 30, 500))),
+         dot(b, 2.6f, Fill::color(hexColor(0x2a1d08, 0.45f)))
+             .key("ghost" + std::to_string(i))
+             .opacity(
+                 animate(from(0.0f).to(1.0f),
+                         ramp(tRete * 1000 + 2400 + (float)i * 30, 500)))});
   }
 
   // --- the quatrefoil above, the trefoil below (MHS 45133) -------------
@@ -343,7 +356,8 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                                         .angleDeg = 125,
                                         .highlight = hexColor(0xffe9b0, 0.55f),
                                         .shadow = hexColor(0x2a1d08, 0.55f)})
-        .appear(ramp(delay, 520, ease::outBack()));
+        .opacity(
+            animate(from(0.0f).to(1.0f), ramp(delay, 520, ease::outBack())));
   };
   g.children(
       {foil(4, 0.100f * kR, PL(0, 0.72f), "quatrefoil", tRete * 1000 + 1000),
@@ -359,13 +373,14 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                                    .angleDeg = 125,
                                    .highlight = hexColor(0xffe9b0, 0.6f),
                                    .shadow = hexColor(0x2a1d08, 0.6f)})
-           .appear(ramp(tRete * 1000 + 900, 500, ease::outBack())),
+           .opacity(animate(from(0.0f).to(1.0f),
+                            ramp(tRete * 1000 + 900, 500, ease::outBack()))),
        // --- the almury: "the Denticle of Capricorne" (I.23), at 0° Capricorn -
        kit::disc(PL(0, -1.0f + 0.055f), 0.048f * kR)
            .key("almury")
            .shape(shapes::polygon(3, 180))
            .fill(brass(0.68f))
-           .appear(ramp(tPin * 1000, 420))});
+           .opacity(animate(from(0.0f).to(1.0f), ramp(tPin * 1000, 420)))});
 
   return g;
 }

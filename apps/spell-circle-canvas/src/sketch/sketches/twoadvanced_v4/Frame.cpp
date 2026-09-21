@@ -79,7 +79,8 @@ auto TwoAdvancedV4::navBar() -> Element {
             .gap(3)
             .translateY(animate(motion::from(16.0f).to(0.0f),
                                 {240ms, &ch::easeOutQuint, 2250ms}))
-            .appear({240ms, &ch::easeOutQuad, 2250ms})
+            .opacity(animate(motion::from(0.0f).to(1.0f),
+                             {240ms, &ch::easeOutQuad, 2250ms}))
             .children(
                 {t(name, label(13, kNear, 80)),
                  box().width(8).height(2).fill(mskia::withAlpha(kDust, 0.6f))});

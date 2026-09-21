@@ -282,15 +282,17 @@ auto HitmanVerlet::header() -> Element {
   const sigil::data::Json& head = doc()["header"];
   return box().column().height(kHeaderH).flexShrink(0).gap(3).children(
       {t(head["eyebrow"], ui(10.0f, kSteel, 2.6f))
-           .appear({.duration = 260ms})
+           .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
            .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
        t(head["title"], faced(heavyFace(), 42, kBone, -0.3f))
            .key("title")
            .fx(std::move(rise)),
        t(head["credit"], ui(10.5f, kSteel, 0.1f))
-           .appear({.duration = 240ms, .delay = 400ms}),
+           .opacity(animate(from(0.0f).to(1.0f),
+                            {.duration = 240ms, .delay = 400ms})),
        box().flexGrow(1),
        kit::line({.fill = Fill::color(kKeyline)})
            .flexShrink(0)
-           .appear({.duration = 400ms, .delay = 320ms})});
+           .opacity(animate(from(0.0f).to(1.0f),
+                            {.duration = 400ms, .delay = 320ms}))});
 }

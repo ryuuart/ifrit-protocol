@@ -16,7 +16,7 @@ auto SlitScan2001::header() -> Element {
           {t("TIME AS AN AXIS OF THE IMAGE",
              {.size = 10, .color = kType2, .track = 2.6f})
                .key("eyebrow")
-               .appear({260ms, ch::easeOutQuad})
+               .opacity(animate(from(0.0f).to(1.0f), {260ms, ch::easeOutQuad}))
                .translateY(
                    animate(from(8.0f).to(0.0f), {260ms, ch::easeOutQuad})),
            t("THE SLIT-SCAN MACHINE, 1966–68",
@@ -31,7 +31,8 @@ auto SlitScan2001::header() -> Element {
              "2.20:1, 24 fps, f/1.8",
              {.size = 11, .color = kType2})
                .key("cite")
-               .appear({240ms, ch::easeOutQuad, 400ms})});
+               .opacity(animate(from(0.0f).to(1.0f),
+                                {240ms, ch::easeOutQuad, 400ms}))});
 }
 
 auto SlitScan2001::filmFrame() -> Element {

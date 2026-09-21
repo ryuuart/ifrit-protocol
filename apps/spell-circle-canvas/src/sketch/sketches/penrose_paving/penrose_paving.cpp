@@ -220,7 +220,8 @@ struct PenrosePaving {
                // diagram that shows gaps is saying the opposite of
                // what it is for. The enclosing group takes the
                // entrance transform instead.
-               .appear(Transition{260ms, choreograph::easeOutQuad})});
+               .opacity(animate(from(0.0f).to(1.0f),
+                                Transition{260ms, choreograph::easeOutQuad}))});
     }
 
     // The rhomb outlines: every triangle is run b→a→c and left OPEN, so the

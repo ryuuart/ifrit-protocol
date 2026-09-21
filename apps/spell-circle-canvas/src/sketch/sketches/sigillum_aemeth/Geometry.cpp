@@ -117,7 +117,7 @@ auto SigillumAemeth::circumferenceRules() -> Element {
                .rings = 0,
                .width = 0.8f,
                .holeFraction = rBandIn / rGreat})
-           .appear(ramp(tCells * 1000, 700))
+           .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 700)))
            .key("bandhatch"),
        rule(rGreat, 5.6f, 1.2f, 11.0f, "great", false),
        rule(rBandIn, 3.4f, 0.9f, -8.0f, "second", true),
@@ -167,29 +167,29 @@ auto SigillumAemeth::circumferenceCells() -> Element {
       .styleSheet(weaveNs::StyleSheet{
           {"cellNumber", weaveNs::Type{.size = 0.031f * kR,
                                        .color = hexColor(0x4a3210, 1.0f)}}})
-      .children({box()
-                     .inset(0)
-                     .shape(keyedShape(std::string_view("band-dividers"),
-                                       [] {
-                                         SkPathBuilder b;
-                                         for (int i = 0; i < 40; ++i) {
-                                           const float th =
-                                               (float)i * 9.0f - 4.5f;
-                                           b.moveTo(P(th, rBandIn));
-                                           b.lineTo(P(th, rGreat));
-                                         }
-                                         return b.detach();
-                                       }))
-                     .fill(Fill::none())
-                     .stroke(PathFormat{
-                         .width = 1.9f,
-                         .strokeFill = Fill::color(hexColor(0x2c1c06, 1.0f)),
-                         .cap = SkPaint::kRound_Cap,
-                         .trimStart = 0.09f,
-                         .trimEnd = 0.91f})
-                     .appear(ramp(tCells * 1000, 620))
-                     .key("dividers"),
-                 cells});
+      .children(
+          {box()
+               .inset(0)
+               .shape(keyedShape(std::string_view("band-dividers"),
+                                 [] {
+                                   SkPathBuilder b;
+                                   for (int i = 0; i < 40; ++i) {
+                                     const float th = (float)i * 9.0f - 4.5f;
+                                     b.moveTo(P(th, rBandIn));
+                                     b.lineTo(P(th, rGreat));
+                                   }
+                                   return b.detach();
+                                 }))
+               .fill(Fill::none())
+               .stroke(PathFormat{
+                   .width = 1.9f,
+                   .strokeFill = Fill::color(hexColor(0x2c1c06, 1.0f)),
+                   .cap = SkPaint::kRound_Cap,
+                   .trimStart = 0.09f,
+                   .trimEnd = 0.91f})
+               .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 620)))
+               .key("dividers"),
+           cells});
 }
 
 auto SigillumAemeth::angles() -> Element {
@@ -298,7 +298,8 @@ auto SigillumAemeth::angles() -> Element {
                  .fill(Fill::none())
                  .stroke(stroke(2.2f, Fill::color(hexColor(0x402c10, 0.85f)),
                                 PathFormat::Align::Inner))
-                 .appear(ramp(tBirds * 1000 + (float)k * 260, 420))
+                 .opacity(animate(from(0.0f).to(1.0f),
+                                  ramp(tBirds * 1000 + (float)k * 260, 420)))
                  .key("birdlit" + std::to_string(k));
            })});
 }
@@ -659,6 +660,7 @@ auto SigillumAemeth::centreCross() -> Element {
              return onCircle(a.s, {kHc, kHc}, a.r * kR, a.th,
                              TextPath::Orient::Upright)
                  .key("lev" + std::to_string(i))
-                 .appear(ramp(tInner * 1000 + 1200, 500));
+                 .opacity(animate(from(0.0f).to(1.0f),
+                                  ramp(tInner * 1000 + 1200, 500)));
            })});
 }

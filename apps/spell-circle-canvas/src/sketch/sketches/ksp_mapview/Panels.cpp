@@ -34,7 +34,7 @@ auto KspMapView::infoCard() -> Element {
           .overflow(Overflow::Clip)
           .padding(0, 0, 8, 0)
           .translateX(animate(from(46.0f).to(0.0f), {380ms, ch::easeOutQuad}))
-          .appear({380ms})
+          .opacity(animate(from(0.0f).to(1.0f), {380ms}))
           .children(
               {box()
                    .height(26)
@@ -53,24 +53,20 @@ auto KspMapView::infoCard() -> Element {
                                          .color = hexColor(0xE8E8EA)})}),
                infoHead(page["classification"]),
                // the part icon, and the three readings that name the ship
-               box()
-                   .row()
-                   .padding(0, 4)
-                   .gap(8)
-                   .children({box()
-                                  .width(34)
-                                  .height(40)
-                                  .shape(shapes::polygon(7, 12))
-                                  .fill(Paint::linearUnit(
-                                      {0, 0}, {1, 1},
-                                      {{0.0f, hexColor(0xF7F7F8)},
-                                       {1.0f, hexColor(0xB9BCC1)}}))
-                                  .stroke(PathFormat{.width = 1.0f,
-                                                     .strokeFill = Fill::color(
-                                                         hexColor(0x8A8E93))}),
-                              kit::readout(readings(page["ship"]),
-                                           {.measure = 176, .gap = 7})
-                                  .flexGrow(1)}),
+               box().row().padding(0, 4).gap(8).children(
+                   {box()
+                        .width(34)
+                        .height(40)
+                        .shape(shapes::polygon(7, 12))
+                        .fill(Paint::linearUnit({0, 0}, {1, 1},
+                                                {{0.0f, hexColor(0xF7F7F8)},
+                                                 {1.0f, hexColor(0xB9BCC1)}}))
+                        .stroke(PathFormat{
+                            .width = 1.0f,
+                            .strokeFill = Fill::color(hexColor(0x8A8E93))}),
+                    kit::readout(readings(page["ship"]),
+                                 {.measure = 176, .gap = 7})
+                        .flexGrow(1)}),
                each(page["sections"].items(), section), box().flexGrow(1),
                box().height(6).fill(hexColor(0x9DA1A6))}),
       906, 40, 240, 318);
@@ -92,7 +88,7 @@ auto KspMapView::toolbar() -> Element {
                                .strokeFill = Fill::color(hexColor(0x22282D)),
                                .align = PathFormat::Align::Inner})
 
-                .appear({260ms})
+                .opacity(animate(from(0.0f).to(1.0f), {260ms}))
                 .scale(animate(from(0.7f).to(1.0f), {320ms, ease::outBack()}))
                 .children({text(glyph, body(13, hexColor(0xD3DBE0)))}),
             1156, 34.0f + (float)i * 46.0f, 38, 38);
