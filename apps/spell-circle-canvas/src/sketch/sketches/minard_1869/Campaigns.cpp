@@ -191,9 +191,9 @@ auto Minard1869::hannibalSea() -> Element {
       geometry::path::displace(smooth(coast), 0.9f, 90.0f, false);
   // The sea as a CLOSED region: the coast, then round the panel's own
   // south-east corner. Built by hand because there are no boolean path
-  // ops here — `panelRect − land` is the natural spelling, and `.clip()`
-  // only intersects, which would keep the land instead of dropping it.
-  // Having the polygon, the hachures are one clipPath.
+  // ops here — `panelRect − land` is the natural spelling, and
+  // `.overflow(Overflow::Clip)` only intersects, which would keep the land
+  // instead of dropping it. Having the polygon, the hachures are one clipPath.
   SkPathBuilder seab;
   seab.addPath(line);
   seab.lineTo(kFrameR - 2, kDivHN - 2);

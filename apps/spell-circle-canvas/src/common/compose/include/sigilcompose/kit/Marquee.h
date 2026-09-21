@@ -46,14 +46,16 @@ inline Element marquee(const Element& content, MarqueeOptions how) {
                      .children({content})
                : content;
   };
-  return box().clip(true).children({box()
-                                        .row()
-                                        .gap(how.gap)
-                                        .flexShrink(0)
-                                        .alignSelf(Align::Start)
-                                        .translateX(std::move(how.phase))
-                                        .children({copy()})
-                                        .children({copy()})});
+  return box()
+      .overflow(Overflow::Clip)
+      .children({box()
+                     .row()
+                     .gap(how.gap)
+                     .flexShrink(0)
+                     .alignSelf(Align::Start)
+                     .translateX(std::move(how.phase))
+                     .children({copy()})
+                     .children({copy()})});
 }
 
 }  // namespace sigil::compose::kit

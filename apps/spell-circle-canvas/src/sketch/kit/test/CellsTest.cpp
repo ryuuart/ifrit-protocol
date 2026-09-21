@@ -135,7 +135,7 @@ TEST(SketchKitCells, APlateIsAGroundedWellWithCornersAndOneKeyline) {
                       .height(176)
                       .borderRadius(compose::Corners{8})
                       .padding(16)
-                      .clip()
+                      .overflow(compose::Overflow::Clip)
                       .fill(ground)
                       .stroke(compose::stroke(
                           1.0f, edge, compose::PathFormat::Align::Inner))
@@ -160,7 +160,7 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
       compose::box()
           .width(140)
           .height(90)
-          .clip()
+          .overflow(compose::Overflow::Clip)
           .fill(ground)
           .foreground(compose::styles::InnerShadow{hole.shade.colorValue,
                                                    hole.offset, hole.blur})
@@ -188,7 +188,7 @@ TEST(SketchKitCells, APaddingDownOfItsOwn) {
                               .width(163)
                               .height(176)
                               .padding(13, 10)
-                              .clip()
+                              .overflow(compose::Overflow::Clip)
                               .fill(ground)
                               .children({subject()}),
                           kit::well({.width = compose::Dimension(163),
@@ -211,7 +211,7 @@ TEST(SketchKitCells, AWellGroundedInAMaterialIsTheHandSpelledFill) {
       sameDrawing(compose::box()
                       .width(163)
                       .height(176)
-                      .clip()
+                      .overflow(compose::Overflow::Clip)
                       .fill(sigil::material::skia::Paint::recipe(quarry))
                       .children({subject()}),
                   kit::well({.width = compose::Dimension(163),

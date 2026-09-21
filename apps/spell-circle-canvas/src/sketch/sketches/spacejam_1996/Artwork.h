@@ -58,7 +58,7 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
                                                  {0.30f, C5(0x8418CE)},
                                                  {0.62f, C5(0x7B10C6)},
                                                  {1.0f, C5(0x630894)}}))
-                      .clip(true)
+                      .overflow(Overflow::Clip)
                       .stroke(stroke(S(1.5f), Fill::color(C5(0x9400DE)),
                                      PathFormat::Align::Inner));
   // Six landmasses, seeded blobs clipped to the disc. Their coordinates are
@@ -89,7 +89,7 @@ inline Element gasGiant(SkPoint c, float r, SkColor4f body, SkColor4f limb,
                         SkColor4f hi, Bands bands) {
   Element d =
       sphere(c, r, mskia::Paint::solid(body))
-          .clip(true)
+          .overflow(Overflow::Clip)
           .overlay(std::move(bands))
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
   d.children({box().inset(0).fill(
@@ -180,7 +180,7 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
            .zIndex(1),
        // the front half: the same ellipse, clipped to below the sphere's centre
        rect(0, c.fY, W, H - c.fY)
-           .clip(true)
+           .overflow(Overflow::Clip)
            .zIndex(2)
            .children({ring({c.fX, -S(0)}, S(47), S(16), -20, 0.62f, ringMat())
                           .top(-c.fY)}),
@@ -210,7 +210,7 @@ inline Element artLineup(sigil::weave::FontContext& f) {
                           PathFormat::Align::Inner))
            .zIndex(1),
        rect(0, S(34), W, H - S(34))
-           .clip(true)
+           .overflow(Overflow::Clip)
            .zIndex(2)
            .children({ring({c.fX, 0}, S(29), S(15), -22, 0.60f, ringMat())
                           .top(c.fY - S(34) - S(15))}),
@@ -451,7 +451,11 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
   t.echo({kScale, kScale}, C5(0x8C0000));
   t.left(rightAlign ? w - target : 0).top(-h * 0.22f).width(m.width() + 4.0f);
   if (sx < 0.999f) t.scaleX(sx).transformOrigin(pct(0), pct(50));
-  return stack().width(w).height(h).clip(true).children({std::move(t)});
+  return stack()
+      .width(w)
+      .height(h)
+      .overflow(Overflow::Clip)
+      .children({std::move(t)});
 }
 
 // ---------------------------------------------------------------------------

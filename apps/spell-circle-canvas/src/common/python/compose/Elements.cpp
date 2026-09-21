@@ -166,6 +166,9 @@ void bindCompose(py::module_& module) {
   py::enum_<BoxSizing>(composition, "BoxSizing")
       .value("BorderBox", BoxSizing::BorderBox)
       .value("ContentBox", BoxSizing::ContentBox);
+  py::enum_<Overflow>(composition, "Overflow")
+      .value("Visible", Overflow::Visible)
+      .value("Clip", Overflow::Clip);
   py::enum_<Align>(composition, "Align")
       .value("Auto", Align::Auto)
       .value("Start", Align::Start)
@@ -620,7 +623,7 @@ void bindCompose(py::module_& module) {
       .def("centered", &Element::centered, fluent)
       .def("inward", &Element::inward, fluent)
       .def("outward", &Element::outward, fluent)
-      .def("clip", &Element::clip, py::arg("clip") = true, fluent)
+      .def("overflow", &Element::overflow, py::arg("overflow"), fluent)
       .def("block", &Element::block, py::arg("block"), fluent)
       .def("paragraphs",
            py::overload_cast<std::vector<weave::ParagraphStyle>>(

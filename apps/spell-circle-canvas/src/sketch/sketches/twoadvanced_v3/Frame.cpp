@@ -73,7 +73,7 @@ Element TwoAdvancedV3::bevelBar() {
 
 Element TwoAdvancedV3::headerStrip() {
   using namespace tv3;
-  Element strip = at(box().clip(), kStageX, 8, kStageW, 74);
+  Element strip = at(box().overflow(Overflow::Clip), kStageX, 8, kStageW, 74);
   if (topHeader) {
     // Drawn at the bitmap's own half-res size and CROPPED at the stage
     // edge, exactly as the page shows it — squeezing it to fit reads
@@ -151,7 +151,7 @@ Element TwoAdvancedV3::navBar() {
   if (navbarBg)
     // Half-res native size, cropped at the stage edge (see the header
     // strip note — squeezing lightens the render).
-    bar.clip().fill(stretchFill(navbarBg, 1338, 33));
+    bar.overflow(Overflow::Clip).fill(stretchFill(navbarBg, 1338, 33));
   else
     bar.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                       {{0.0f, hexColor(0x5A6A88)},

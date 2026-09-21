@@ -85,9 +85,11 @@ auto KspMapView::navball() -> Element {
                        .width(kBallR * 1.84f)
                        .height(2.8f)
                        .fill(Paint::solid(hexColor(0xFFFFFF)))});
-    g.children(
-        {at(box().shape(shapes::circle()).clip().children({std::move(deck)}),
-            kBall, kBallR * 2, kBallR * 2)});
+    g.children({at(box()
+                       .shape(shapes::circle())
+                       .overflow(Overflow::Clip)
+                       .children({std::move(deck)}),
+                   kBall, kBallR * 2, kBallR * 2)});
   }
 
   // Curved dial tapes on the bezel annulus — THROTTLE left, G FORCE right,
@@ -319,7 +321,7 @@ auto KspMapView::staging() -> Element {
             .stroke(PathFormat{.width = 1.0f,
                                .strokeFill = Fill::color(hexColor(0x3B4147)),
                                .align = PathFormat::Align::Inner})
-            .clip()
+            .overflow(Overflow::Clip)
             // scaleX + transformOrigin: the drain is a transform,
             // not a re-laid-out width
             .children(
@@ -354,8 +356,8 @@ auto KspMapView::staging() -> Element {
   }
 
   // STAGE cluster: hazard header, green go-button, the ONE inverted LCD.
-  Element stage =
-      at(box().column().borderRadius({3}).clip(), x - 6, 756, 152, 38);
+  Element stage = at(box().column().borderRadius({3}).overflow(Overflow::Clip),
+                     x - 6, 756, 152, 38);
   stage.fill(Paint::solid(hexColor(0x2A2E31)))
       .stroke(PathFormat{.width = 1.0f,
                          .strokeFill = Fill::color(hexColor(0x4A5157)),
@@ -441,7 +443,8 @@ auto KspMapView::digitCell(const char* d) -> Element {
 auto KspMapView::altimeter() -> Element {
   using namespace ksp;
   const float X = 430, Y = 6, W = 356, H = 82;
-  Element g = at(stack().borderRadius({4}).clip(), X, Y, W, H);
+  Element g =
+      at(stack().borderRadius({4}).overflow(Overflow::Clip), X, Y, W, H);
   g.fill(Paint::blend({{Paint::linearUnit({0, 0}, {0, 1},
                                           {{0.0f, hexColor(0xA8AFB4)},
                                            {0.45f, hexColor(0x848D93)},
@@ -496,7 +499,7 @@ auto KspMapView::altimeter() -> Element {
               .stroke(PathFormat{.width = 1.0f,
                                  .strokeFill = Fill::color(hexColor(0x18333F)),
                                  .align = PathFormat::Align::Inner})
-              .clip()
+              .overflow(Overflow::Clip)
               .children(
                   {box()
                        .inset(0)
@@ -570,7 +573,8 @@ auto KspMapView::altimeter() -> Element {
 auto KspMapView::crewPlate() -> Element {
   using namespace ksp;
   const float X = 986, Y = 594, W = 178, H = 186;
-  Element g = at(stack().borderRadius({3}).clip(), X, Y, W, H);
+  Element g =
+      at(stack().borderRadius({3}).overflow(Overflow::Clip), X, Y, W, H);
   g.fill(Paint::linearUnit(
              {0, 0}, {0, 1},
              {{0.0f, hexColor(0x7F878C)}, {1.0f, hexColor(0x454D53)}}))

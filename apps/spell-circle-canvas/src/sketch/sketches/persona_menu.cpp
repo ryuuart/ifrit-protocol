@@ -494,7 +494,7 @@ struct PersonaMenu {
          kit::at(0, -6, wW, wH)
              .shape(nn::sliverWedge())
              .rotate(8)
-             .clip(true)
+             .overflow(Overflow::Clip)
              .fill(Paint::solid(nn::kPaper))
              .scale(&wedgePulse)
              .children({text(r.label)

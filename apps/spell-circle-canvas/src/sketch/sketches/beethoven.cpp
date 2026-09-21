@@ -226,7 +226,7 @@ struct Beethoven {
     return stack()
         .fill(Fill::color(bp::kPaper))
         .background(styles::dropShadow({0, 0, 0, 0.45f}, {0, 8}, 22))
-        .clip()
+        .overflow(Overflow::Clip)
         .font({.size = 11.5f * bp::kScale, .track = 0.2f * bp::kScale})
         .ink(bp::kInk)
         .children({

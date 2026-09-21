@@ -66,8 +66,11 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
   {
     const float cyO = bandCy(-6.0f), rO = bandR(-6.0f);
     const float cyI = bandCy(6.0f), rI = bandR(6.0f);
-    auto clipped =
-        box().inset(0).key("bandclip").shape(shapes::circle()).clip(true);
+    auto clipped = box()
+                       .inset(0)
+                       .key("bandclip")
+                       .shape(shapes::circle())
+                       .overflow(Overflow::Clip);
     const SkPoint c = PL(0, cyO);
     const float ro = rO * kR, ri = rI * kR;
     const SkPoint ci = PL(0, cyI);

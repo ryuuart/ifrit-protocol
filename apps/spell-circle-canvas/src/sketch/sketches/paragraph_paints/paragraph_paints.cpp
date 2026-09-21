@@ -93,8 +93,11 @@ struct ParagraphPaints {
                    document::eyebrow("02 · A COMPLETE PARAGRAPH / 13 PX"),
                    passage(kExcerpt, 13, 453, ink),
                    document::eyebrow("03 · THE TOP OF A LONG RUN / 9 PX"),
-                   box().width(453).height(170).clip().children(
-                       {passage(prose, 9, 453, ink)}),
+                   box()
+                       .width(453)
+                       .height(170)
+                       .overflow(Overflow::Clip)
+                       .children({passage(prose, 9, 453, ink)}),
                    document::caption(kit::formatted(
                        "170 px viewport · %.0f px complete run", fullDepth))});
   }

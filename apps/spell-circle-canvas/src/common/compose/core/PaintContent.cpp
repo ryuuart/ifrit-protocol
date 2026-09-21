@@ -340,9 +340,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     outlinePath = outlineBuilder.detach();
   }
 
-  // (clip() applies AFTER the decorations' outline is settled — see below:
-  // decorations dress the outline and stay unclipped; fill/content/children
-  // clip. The clip keeps the UNMASKED shape — a mask is a paint reveal.)
+  // (overflow(Overflow::Clip) applies AFTER the decorations' outline is settled
+  // — see below: decorations dress the outline and stay unclipped;
+  // fill/content/children clip. The clip keeps the UNMASKED shape — a mask is a
+  // paint reveal.)
   const SkPath clipShape = outlinePath;
 
   // ---- the masking family, part 1: the BOUNDARY gates ---------------------
@@ -774,8 +775,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     paintSpanHalf(detail::StrokePass::Half::Background);
   }
 
-  // clip() bounds the fill, the content, and the children — not the
-  // decorations (above and below), which trace the outline itself.
+  // overflow(Overflow::Clip) bounds the fill, the content, and the children —
+  // not the decorations (above and below), which trace the outline itself.
   if (node.clipContent) {
     canvas.save();
     if (customShape || routed)

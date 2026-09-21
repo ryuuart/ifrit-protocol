@@ -77,7 +77,7 @@ auto Fallout2CharSheet::card() -> Element {
   // slot's content inherits it from where the slot stands.
   Element c = at(box(), 345, 267, 277, 170)
                   .fill(parchMat)
-                  .clip()
+                  .overflow(Overflow::Clip)
                   .borderRadius(Corners{n(1)})
                   .ink(kInk);
   c.overlay(styles::Overlay{parchTooth, SkBlendMode::kSoftLight, 0.55f});

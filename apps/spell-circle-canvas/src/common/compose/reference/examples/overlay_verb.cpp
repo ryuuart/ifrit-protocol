@@ -42,7 +42,7 @@ Element cell(const char* caption, Element plate) {
                      .height(120)
                      .borderRadius({10})
                      .fill(kPlate)
-                     .clip()
+                     .overflow(Overflow::Clip)
                      .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({text("47").font({.size = 52, .color = kInk})}),

@@ -165,7 +165,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/boundary.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/gridCells.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/children.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/clip.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/overflow.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/borderRadius.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cover.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/display.md

@@ -217,9 +217,12 @@ struct SpaceJam1996 {
     for (const Job& j : jobs) {
       artW[j.ix] = j.w;
       artH[j.ix] = j.h;
-      pic[j.ix] =
-          snapshot(box().width(j.w).height(j.h).clip(true).children({j.tree}),
-                   f, {j.w, j.h});
+      pic[j.ix] = snapshot(box()
+                               .width(j.w)
+                               .height(j.h)
+                               .overflow(Overflow::Clip)
+                               .children({j.tree}),
+                           f, {j.w, j.h});
     }
     artW[kStars] = artH[kStars] = 0;
   }

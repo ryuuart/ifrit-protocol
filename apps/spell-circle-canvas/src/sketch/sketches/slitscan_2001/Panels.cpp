@@ -32,7 +32,7 @@ auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
       .font({.face = monoFace()})
       .ink(kType2)
       .stroke(stroke(1.0f, Fill::color(kRule)))
-      .clip()
+      .overflow(Overflow::Clip)
       .key(kit::formatted("panel%d", order))
       .appear({300ms, ch::easeOutQuad})
       .translateX(animate(from(14.0f).to(0.0f), {300ms, ch::easeOutQuad}))
@@ -134,7 +134,7 @@ auto SlitScan2001::s4Sampling() -> Element {
                        .height(18)
                        .flexShrink(0)
                        .fill(kBlack)
-                       .clip()
+                       .overflow(Overflow::Clip)
                        .key(kit::formatted("s4_%d", (int)idx))
                        .scaleX(animate(from(0.0f).to(1.0f),
                                        {220ms, ease::outBack()}))

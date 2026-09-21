@@ -53,7 +53,7 @@ TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {
                        .width(220)
                        .height(house.spacing.barHeight)
                        .fill(Fill::color(house.palette.cellGround))
-                       .clip()
+                       .overflow(compose::Overflow::Clip)
                        .children({compose::box()
                                       .width(compose::pct(40))
                                       .height(compose::pct(100))

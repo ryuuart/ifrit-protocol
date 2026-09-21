@@ -235,7 +235,7 @@ inline Element panel(float height, std::string_view heading, int order) {
       .gap(7)
       .borderRadius({5})
       .fill(kPanel)
-      .clip(true)
+      .overflow(Overflow::Clip)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
       .appear({.duration = 300ms, .delay = delay})
       .translateX(

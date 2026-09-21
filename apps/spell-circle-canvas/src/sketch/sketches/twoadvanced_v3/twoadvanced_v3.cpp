@@ -22,7 +22,8 @@ Element TwoAdvancedV3::describe() {
                  stageArt(), scrollStrip()});
 
   // The poly-textured ground every lower module sits on.
-  Element ground = at(box().clip(), kStageX, 640, kStageW, 400);
+  Element ground =
+      at(box().overflow(Overflow::Clip), kStageX, 640, kStageW, 400);
   if (lowerPanelBg)
     ground.fill(stretchFill(lowerPanelBg, kStageW, 400));
   else

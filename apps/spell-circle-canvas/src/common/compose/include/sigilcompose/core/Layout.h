@@ -167,6 +167,12 @@ enum class BoxSizing : uint8_t {
   BorderBox,  ///< the whole box, padding included; the default
   ContentBox  ///< the content alone, so padding is added outside it
 };
+/** WHAT BECOMES OF PAINT THAT LEAVES A NODE'S SHAPE — CSS's `overflow`, as
+ *  far as a tree that never scrolls has one. */
+enum class Overflow : uint8_t {
+  Visible,  ///< the fill, the content and the children paint past it; the default
+  Clip      ///< they are cut to the shape; the decorations keep their reach
+};
 
 /** WHERE A CHILD SITS ACROSS the container's main axis — down a row,
  *  across a column — which is CSS's `align-items` on the container and

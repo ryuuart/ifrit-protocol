@@ -316,7 +316,7 @@ struct WorldHud {
             {box()
                  .inset(0)
                  .borderRadius({d * 0.5f})
-                 .clip()
+                 .overflow(Overflow::Clip)
                  .fill(Paint::solid(hexColor(0x2E4A2A)))
                  .children({each(kBands,
                                  [](const Band& b) {

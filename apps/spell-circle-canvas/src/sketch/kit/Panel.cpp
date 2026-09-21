@@ -63,7 +63,7 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
   const Theme& look = theme();
   Element opening = compose::box().column().flexGrow(1);
   chrome.screen.value_or(Fill::color(look.palette.ground)).apply(opening);
-  opening.clip().children({std::move(screen)});
+  opening.overflow(compose::Overflow::Clip).children({std::move(screen)});
   if (const float round =
           chrome.screenCorners.value_or(look.spacing.screenCorners);
       round > 0)

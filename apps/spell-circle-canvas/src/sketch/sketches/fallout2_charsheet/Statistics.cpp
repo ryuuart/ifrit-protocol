@@ -76,7 +76,7 @@ auto Fallout2CharSheet::odometer(float x, float y, int value,
     Element wheel = at(box(), 1 + kOdoW * (float)c, 1, kOdoW - 1, kOdoH)
                         .fill(wheelMat)
                         .borderRadius(Corners{n(2.5f)})
-                        .clip();
+                        .overflow(Overflow::Clip);
     std::string glyph(1, digits[(size_t)c]);
     if (c == 0 && !tensOverride.empty())
       glyph = tensOverride == " " ? "" : tensOverride;

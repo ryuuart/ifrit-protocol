@@ -60,7 +60,7 @@ Element cell(const char* caption, Element leaf) {
                      .width(pct(100))
                      .borderRadius({8})
                      .fill(kCell)
-                     .clip()
+                     .overflow(Overflow::Clip)
                      .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({std::move(leaf)}),

@@ -50,7 +50,7 @@ their own list after it.
 
 **Repeated calls APPEND**, in declaration order.
 
-**Decorations dress the outline, and `clip` does not clip them**, so an
+**Decorations dress the outline, and `overflow` does not clip them**, so an
 outer keyline on a clipped node keeps its reach.
 
 ## Examples

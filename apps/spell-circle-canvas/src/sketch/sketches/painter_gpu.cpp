@@ -140,7 +140,7 @@ struct PainterGpu {
                   [this, runtime](SkCanvas& canvas) { draw(canvas, runtime); })
         .width(kCell.width())
         .height(kCell.height())
-        .clip()
+        .overflow(Overflow::Clip)
         .fill(Fill::color(kCellGround));
   }
 

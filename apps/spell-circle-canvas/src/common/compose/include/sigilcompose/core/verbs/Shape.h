@@ -10,6 +10,7 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Declarations.h>
+#include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 
@@ -43,11 +44,13 @@ class ShapeVerbs {
   Derived& shape(K key, F fn) {
     return shape(Shape(keyedShape(std::move(key), std::move(fn))));
   }
-  /** Clip fill, content and children to the node's shape. Decorations
-   *  are NOT clipped — they dress the outline, so outer strokes,
-   *  shadows and glows keep their reach — and hit-testing still bounds
-   *  the subtree. */
-  Derived& clip(bool on = true);
+  /** WHAT BECOMES OF PAINT THAT LEAVES THE NODE'S SHAPE — CSS
+   *  `overflow`. `Overflow::Visible` when unstated. `Overflow::Clip`
+   *  cuts the fill, the content and the children to the shape, and a
+   *  hit outside it misses the subtree. Decorations are NOT clipped:
+   *  they dress the outline, so outer strokes, shadows and glows keep
+   *  their reach. */
+  Derived& overflow(Overflow overflow);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

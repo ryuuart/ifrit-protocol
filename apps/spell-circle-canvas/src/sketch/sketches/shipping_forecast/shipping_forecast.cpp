@@ -403,21 +403,24 @@ struct ShippingForecast {
         .progress =
             motion::bind(&secs).source(0.0f, (float)kBreathPeriod).cosine()};
 
-    return box().clip().width(pct(100)).children({
-        text(line)
-            .styleClass("hero")
-            .key(key)
-            .width(pct(100))
-            .block({.alignment = sigil::weave::TextAlignment::kCenter})
-            // The ramp is pinned to the line's METRIC BAND, not to
-            // the glyphs — so a letter still under the mask is
-            // painted with the bottom of the ramp and arrives into
-            // the top of it. The gradient does not travel with the
-            // letter; the letter travels through the gradient.
-            .textFill(heroInk)
-            .fx(std::move(rise))
-            .fx(std::move(swell)),
-    });
+    return box()
+        .overflow(Overflow::Clip)
+        .width(pct(100))
+        .children({
+            text(line)
+                .styleClass("hero")
+                .key(key)
+                .width(pct(100))
+                .block({.alignment = sigil::weave::TextAlignment::kCenter})
+                // The ramp is pinned to the line's METRIC BAND, not to
+                // the glyphs — so a letter still under the mask is
+                // painted with the bottom of the ramp and arrives into
+                // the top of it. The gradient does not travel with the
+                // letter; the letter travels through the gradient.
+                .textFill(heroInk)
+                .fx(std::move(rise))
+                .fx(std::move(swell)),
+        });
   }
 
   // ------------------------------------------------------------------

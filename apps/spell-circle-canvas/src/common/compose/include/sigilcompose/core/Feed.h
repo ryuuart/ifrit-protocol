@@ -151,7 +151,7 @@ template <class T, class RowFunction>
   requires std::invocable<RowFunction, const T&>
 [[nodiscard]] Element feed(const Ring<T>& ring, const Options& options,
                            RowFunction&& row) {
-  Element column = box().column().gap(options.gap).clip();
+  Element column = box().column().gap(options.gap).overflow(Overflow::Clip);
   if (options.entrance.eachMs > 0)
     column.staggerChildren(
         std::chrono::milliseconds(std::lroundf(options.entrance.eachMs)),

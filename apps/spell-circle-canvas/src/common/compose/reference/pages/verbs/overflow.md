@@ -1,17 +1,21 @@
 ---
 kind: verb
 library: SigilCompose
-name: clip
-qualified: sigil::compose::Element::clip
+name: overflow
+qualified: sigil::compose::Element::overflow
 header: sigilcompose/core/verbs/Shape.h
 group: Shape, corners and clipping
-python: sigil.compose.Element.clip
+python: sigil.compose.Element.overflow
 status: stable
 ---
 
-# clip
+# overflow
 
-Clip the fill, the content and the children to the node's own shape.
+What becomes of paint that leaves the node's own shape — CSS's
+`overflow`, as far as a tree that never scrolls has one.
+`Overflow::Visible` lets it through and is what a node that says nothing
+gets; `Overflow::Clip` cuts the fill, the content and the children to
+the shape.
 
 ## Description
 
@@ -20,10 +24,11 @@ strokes, shadows and glows keep their reach on a clipped node. What the
 clip bounds is the fill, the content and the children; hit-testing
 still bounds the subtree.
 
-**It is exactly one mask, so the two spellings are one machine.**
+**`Overflow::Clip` is exactly one mask, so the two spellings are one
+machine.**
 
 ```cpp
-element.clip();
+element.overflow(Overflow::Clip);
 element.mask(parts::surface() | parts::content() | parts::children(),
              by::shape(Region::own()));
 ```

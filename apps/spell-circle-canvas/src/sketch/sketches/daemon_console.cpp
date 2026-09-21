@@ -663,7 +663,7 @@ struct DaemonConsole {
     Element well =
         box()
             .flexGrow(1)
-            .clip()
+            .overflow(Overflow::Clip)
             // The scrollback's voice, stated once: every row is set in it
             // and its named runs are partials over it.
             .font({.face = faceMono, .size = 12.5f, .color = dc::kBody})
@@ -781,23 +781,27 @@ struct DaemonConsole {
         .styleSheet(classes())
         .fill(Paint::linear({0, 0}, {0, dc::kH},
                             {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}}))
-        .children(
-            {box()
-                 .column()
-                 .inset(26, 22, 26, 22)
-                 .fill(panel)
-                 .clip()
-                 .padding(padX, padY)
-                 // The enclosure's face, inherited by every chrome line;
-                 // the well and the prompt root their own monospaced
-                 // voice under it.
-                 .font({.face = faceChrome})
-                 .children({header, rule(9, 8),
-                            box().row().flexGrow(1).gap(16).clip().children(
-                                {std::move(well),
-                                 box().width(1).fill(Fill::color(dc::kRule)),
-                                 std::move(rail)}),
-                            rule(8, 7), promptLine})})
+        .children({box()
+                       .column()
+                       .inset(26, 22, 26, 22)
+                       .fill(panel)
+                       .overflow(Overflow::Clip)
+                       .padding(padX, padY)
+                       // The enclosure's face, inherited by every chrome line;
+                       // the well and the prompt root their own monospaced
+                       // voice under it.
+                       .font({.face = faceChrome})
+                       .children({header, rule(9, 8),
+                                  box()
+                                      .row()
+                                      .flexGrow(1)
+                                      .gap(16)
+                                      .overflow(Overflow::Clip)
+                                      .children({std::move(well),
+                                                 box().width(1).fill(
+                                                     Fill::color(dc::kRule)),
+                                                 std::move(rail)}),
+                                  rule(8, 7), promptLine})})
         // the living surface: the scanline tile, crept by its bound pan
         .children({box()
                        .inset(0)

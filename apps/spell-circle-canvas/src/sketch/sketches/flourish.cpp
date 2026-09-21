@@ -355,7 +355,7 @@ struct Flourish {
         .inset(224, 188, 224, 188)  // ~452×264 centered box
         .borderRadius({16})
         .zIndex(3)
-        .clip()
+        .overflow(Overflow::Clip)
         .backdropFilter(sigil::material::skia::Effect::filter(
             SkImageFilters::Blur(8, 8, nullptr)))
         .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))

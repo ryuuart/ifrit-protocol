@@ -31,7 +31,7 @@ auto KspMapView::infoCard() -> Element {
           .ink(kCardInk)
           .styleSheet(cardLook)
           .fill(kCardBody)
-          .clip()
+          .overflow(Overflow::Clip)
           .padding(0, 0, 0, 8)
           .translateX(animate(from(46.0f).to(0.0f), {380ms, ch::easeOutQuad}))
           .appear({380ms})

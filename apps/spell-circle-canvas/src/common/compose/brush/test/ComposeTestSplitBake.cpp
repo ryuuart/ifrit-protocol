@@ -103,7 +103,7 @@ Element splitPlane(bool clipped, SkBlendMode childBlend) {
           .fill(material::skia::Paint::sksl(sharedHeavyEffect()))
           .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
           .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})));
-  if (clipped) plane.clip(true);
+  if (clipped) plane.overflow(Overflow::Clip);
   plane.children({box()
                       .absolute()
                       .left(10)
@@ -288,22 +288,27 @@ TEST(ComposeCache, ARefusalNamesEveryReasonAndNotJustTheFirst) {
   // so every assertion elsewhere that reads it still means what it meant.
   //
   // The tree here is refused three ways at once: a bound child (Volatile),
-  // a rotation (Transformed) and clip(true) (Filtered). Composited is
-  // deliberately NOT in the set — opacity only reaches that refusal through
-  // the childless-leaf fast path, which a clipped node with children can
-  // never take, so including it would make this test unfalsifiable.
+  // a rotation (Transformed) and overflow(Overflow::Clip) (Filtered).
+  // Composited is deliberately NOT in the set — opacity only reaches that
+  // refusal through the childless-leaf fast path, which a clipped node with
+  // children can never take, so including it would make this test
+  // unfalsifiable.
   Host host(220, 220);
   host.composer.setProfiling(true);
   host.composer.render(profiledUnder(
-      expensivePanel().key("many").clip(true).rotate(30.0f).children(
-          {box()
-               .absolute()
-               .left(4)
-               .top(4)
-               .width(20)
-               .height(20)
-               .fill(red())
-               .translateX(motion::bind(&splitSweep()).scale(40.0f))})));
+      expensivePanel()
+          .key("many")
+          .overflow(Overflow::Clip)
+          .rotate(30.0f)
+          .children(
+              {box()
+                   .absolute()
+                   .left(4)
+                   .top(4)
+                   .width(20)
+                   .height(20)
+                   .fill(red())
+                   .translateX(motion::bind(&splitSweep()).scale(40.0f))})));
   for (int i = 0; i < 24; ++i) {
     splitSweep() = (float)i / 24.0f;
     host.frame();

@@ -8,7 +8,7 @@ group: Leaves
 python: sigil.compose.image
 status: stable
 example: image_element
-common_verbs: [imageRendering, region, width, height, borderRadius, clip, boundary]
+common_verbs: [imageRendering, region, width, height, borderRadius, overflow, boundary]
 ---
 
 # image

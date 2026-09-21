@@ -135,7 +135,7 @@ auto WinampBase::mainWindow() -> Element {
                   hexColor(0x08080E))
                .children(
                    {at(box(), 2, 1, 154, 9)
-                        .clip()
+                        .overflow(Overflow::Clip)
                         .children({kit::marquee(t(marqueeText(), pix(5)),
                                                 {.phase = &marqueePhase,
                                                  .gap = n(40),

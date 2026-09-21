@@ -414,7 +414,7 @@ struct MatrixRain {
             .font(plane)
             .key(f.key)
             .inset(0)
-            .clip()
+            .overflow(Overflow::Clip)
             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
             .opacity(f.alpha)
             .fx({.effect = streak(),
@@ -444,7 +444,7 @@ struct MatrixRain {
                          .font({.size = kBedSize, .color = kBedInk})
                          .key("rain-bed")
                          .inset(0)
-                         .clip()
+                         .overflow(Overflow::Clip)
                          .block({.writingMode =
                                      sigil::weave::WritingMode::kVerticalRL}),
                      &bedChurn),

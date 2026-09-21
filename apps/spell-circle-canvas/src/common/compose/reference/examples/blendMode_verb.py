@@ -31,7 +31,7 @@ def cell(caption: str, mode: skia.BlendMode) -> compose.Element:
             .width(compose.pct(100))
             .height(120)
             .borderRadius(10)
-            .clip(),
+            .overflow(compose.Overflow.Clip),
             compose.text(caption, size=12, color=ASH),
         )
         .column()

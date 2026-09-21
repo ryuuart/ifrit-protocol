@@ -198,7 +198,7 @@ TEST(ComposeCache, AClipIsRefusedSeparatelyFromABlendingSubtree) {
   Host host(220, 220);
   host.composer.setProfiling(true);
   host.composer.render(
-      profiledUnder(expensivePanel().key("clipped").clip(true)));
+      profiledUnder(expensivePanel().key("clipped").overflow(Overflow::Clip)));
   for (int i = 0; i < 24; ++i) host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "clipped");
   ASSERT_NE(row, nullptr);
@@ -303,7 +303,9 @@ namespace {
  *  make an arc settle while its neighbours are still moving. */
 Element arcTable() {
   Element page = stack().fill(Fill::color({0.235f, 0.230f, 0.222f, 1}));
-  Element plate = stack().fill(Fill::color({0.96f, 0.95f, 0.93f, 1})).clip();
+  Element plate = stack()
+                      .fill(Fill::color({0.96f, 0.95f, 0.93f, 1}))
+                      .overflow(Overflow::Clip);
   struct Run {
     float rInner, rOuter, endDeg;
     int ring;

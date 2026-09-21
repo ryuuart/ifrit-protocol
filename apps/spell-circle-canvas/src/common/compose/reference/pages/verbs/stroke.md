@@ -83,7 +83,7 @@ is how reticle brackets light up as a sweep reaches them. The one thing
 the pass form does that the mask spelling does not is claim its run and
 join the overlap check.
 
-**Decorations dress the outline, and `clip` does not clip them.** A clip
+**Decorations dress the outline, and `overflow` does not clip them.** A clip
 cuts the fill, the content and the children; an outer stroke, a glow and
 a shadow keep their reach on a clipped node.
 

@@ -27,7 +27,7 @@ compose::Element meter(const Meter& bar) {
 
   Element rail = box();
   trackPaint.apply(rail);
-  rail.clip();
+  rail.overflow(compose::Overflow::Clip);
   if (bar.width.unit != Dimension::Unit::Auto) rail.width(bar.width);
   rail.height(bar.height.value_or(Dimension(look.spacing.barHeight)));
   if (bar.corners > 0) rail.borderRadius(Corners{bar.corners});

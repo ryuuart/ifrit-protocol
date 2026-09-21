@@ -55,5 +55,5 @@ blinks in and out partway through a transition.
 
 ## See also
 
-[`clip`](clip.md), which is one of these written short;
+[`overflow`](overflow.md), which is one of these written short;
 [`stroke`](stroke.md) for the pass form; `Gate`, `Parts`, `Region`.

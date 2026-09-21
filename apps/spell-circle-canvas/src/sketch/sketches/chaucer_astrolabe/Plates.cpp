@@ -51,7 +51,7 @@ auto ChaucerAstrolabe::plate() -> Element {
                .rect(SkRect::MakeXYWH(kCx - kR, kCy - kR, 2 * kR, 2 * kR))
                .key("plate")
                .shape(shapes::circle())
-               .clip(true)
+               .overflow(Overflow::Clip)
                // The plate is lifted off the bottom of the ramp: a
                // recessed disc drawn at a quarter of the range put the
                // engraved circle family on the darkest brass on the
@@ -113,8 +113,8 @@ auto ChaucerAstrolabe::plate() -> Element {
   // Every azimuth passes through BOTH the zenith and the nadir — a coaxal
   // family through two fixed points. They are clipped to inside the horizon
   // AND inside the Capricorn disc, which is an intersection, so a nested
-  // clip() is exactly right. (The seasonal hours below are the case where
-  // it is not.)
+  // overflow(Overflow::Clip) is exactly right. (The seasonal hours below are
+  // the case where it is not.)
   {
     const SkPoint hc = PL(0, almCy(0.0f));
     const float hr = almR(0.0f) * kR;
@@ -123,7 +123,7 @@ auto ChaucerAstrolabe::plate() -> Element {
             .rect(SkRect::MakeXYWH(hc.fX - hr, hc.fY - hr, 2 * hr, 2 * hr))
             .key("sky")
             .shape(shapes::circle())
-            .clip(true);
+            .overflow(Overflow::Clip);
     auto local = [&](float mx, float my) {
       const SkPoint p = PL(mx, my);
       return SkPoint{p.fX - (hc.fX - hr), p.fY - (hc.fY - hr)};
@@ -174,9 +174,9 @@ auto ChaucerAstrolabe::plate() -> Element {
 
   // --- 12 unequal-hour lines, "twelve devisiouns embelif" (I.20) --------
   // THE REGION IS A SET DIFFERENCE: these live only inside Capricorn AND
-  // OUTSIDE the horizon. clip() intersects and nesting intersects more;
-  // there is no clipOut() and no shapes::subtract, so the region is built
-  // with a raw SkPathOp below the Compose seam.
+  // OUTSIDE the horizon. overflow(Overflow::Clip) intersects and nesting
+  // intersects more; there is no clipOut() and no shapes::subtract, so the
+  // region is built with a raw SkPathOp below the Compose seam.
   {
     const SkPoint hc = PL(0, almCy(0.0f));
     const float hr = almR(0.0f) * kR;
@@ -187,7 +187,11 @@ auto ChaucerAstrolabe::plate() -> Element {
     const SkPath capDisc = cb.detach(), horDisc = hb.detach();
     SkPath region;
     Op(capDisc, horDisc, kDifference_SkPathOp, &region);
-    auto night = box().inset(0).key("night").shape(heldPath(region)).clip(true);
+    auto night = box()
+                     .inset(0)
+                     .key("night")
+                     .shape(heldPath(region))
+                     .overflow(Overflow::Clip);
     for (int k = 1; k <= 11; ++k) {
       const std::optional<path::PlaneCircle> c = seasonalLine(k);
       const float delay = tHours * 1000 + (float)std::abs(k - 6) * 105.0f;
@@ -245,7 +249,7 @@ auto ChaucerAstrolabe::construction() -> Element {
                .rect(SkRect::MakeXYWH(kCx - kR, kCy - kR, 2 * kR, 2 * kR))
                .key("trace")
                .shape(shapes::circle())
-               .clip(true)
+               .overflow(Overflow::Clip)
                .opacity(&trace);
 
   const float lam = 1.0f, h = 25.5f;

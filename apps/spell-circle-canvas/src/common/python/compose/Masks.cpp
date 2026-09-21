@@ -49,7 +49,7 @@ void bindRegion(py::module_& composition) {
 
   region.def(py::init<>(), "The node's own shape, as `own` answers it.")
       .def_static("own", &Region::own,
-                  "The node's own silhouette, which is the region `clip` "
+                  "The node's own silhouette, which is the region `overflow` "
                   "uses.")
       .def_static(
           "rect", [](py::handle bounds) { return Region::rect(rect(bounds)); },

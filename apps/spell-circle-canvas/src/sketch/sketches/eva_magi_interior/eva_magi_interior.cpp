@@ -249,7 +249,7 @@ struct EvaMagiInterior {
     g.children(
         {box()
              .rect(SkRect::MakeXYWH(968, 778, kMemoryWidth, kMemoryHeight))
-             .clip(true)
+             .overflow(Overflow::Clip)
              .fill(Fill::color(hexColor(0x183128)))
              .foreground(decorations::border(1.5f, Fill::color(kOrange)))
              .children({box().inset(0).fill(paint)})});

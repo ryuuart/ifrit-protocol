@@ -295,7 +295,7 @@ struct BlackWatch {
 
   Element theCloth() {
     Element panel = at(kClothX, kClothY, kClothW, kClothH)
-                        .clip(true)
+                        .overflow(Overflow::Clip)
                         .background(styles::dropShadow(
                             hexColor(0x3E3A33, 0.55f), {3, 4}, 10))
                         .fill(kWell);
@@ -629,7 +629,7 @@ struct BlackWatch {
           arrange::cellRect({i, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft;
       // the SAME crop of the SAME cloth, four times over
       g.children({at(x, y0, sw, sh)
-                      .clip(true)
+                      .overflow(Overflow::Clip)
                       .background(styles::dropShadow(hexColor(0x3E3A33, 0.45f),
                                                      {2, 3}, 7))
                       .fill(swatchMat)
@@ -657,7 +657,7 @@ struct BlackWatch {
         arrange::cellRect({4, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft + 12;
     g.children(
         {at(ax, y0, sw, sh)
-             .clip(true)
+             .overflow(Overflow::Clip)
              .background(
                  styles::dropShadow(hexColor(0x3E3A33, 0.45f), {2, 3}, 7))
              .fill(argyllMat)

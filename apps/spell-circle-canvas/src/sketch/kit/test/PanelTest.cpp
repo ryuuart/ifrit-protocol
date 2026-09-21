@@ -34,7 +34,8 @@ TEST(SketchKitPanel, AKeylineOfNoneDrawsNoKeyline) {
   const Fill screen = Fill::color({0.86f, 0.84f, 0.78f, 1});
   EXPECT_TRUE(sameDrawing(
       compose::box().width(220).height(180).padding(20).fill(shell).children(
-          {compose::box().column().flexGrow(1).fill(screen).clip()}),
+          {compose::box().column().flexGrow(1).fill(screen).overflow(
+              compose::Overflow::Clip)}),
       kit::frame({.width = compose::Dimension(220),
                   .height = compose::Dimension(180),
                   .shell = shell,
@@ -156,7 +157,7 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
                    .column()
                    .flexGrow(1)
                    .fill(Fill::color(house.palette.ground))
-                   .clip()
+                   .overflow(compose::Overflow::Clip)
                    .borderRadius(compose::Corners{2})
                    .stroke(compose::stroke(1, Fill::color(house.palette.rule),
                                            compose::PathFormat::Align::Inner))
@@ -192,7 +193,7 @@ TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
                    .column()
                    .flexGrow(1)
                    .fill(sigil::material::skia::Paint::recipe(mortar))
-                   .clip()
+                   .overflow(compose::Overflow::Clip)
                    .borderRadius(compose::Corners{2})
                    .stroke(compose::stroke(1, Fill::color(house.palette.rule),
                                            compose::PathFormat::Align::Inner))

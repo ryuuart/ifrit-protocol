@@ -170,7 +170,8 @@ namespace {
 Element revealedPage(float reveal) {
   Element page = box().width(240).height(240).fill(Fill::color({0, 0, 0, 1}));
   Element window =
-      box().absolute().left(0).top(0).width(240).height(reveal).clip();
+      box().absolute().left(0).top(0).width(240).height(reveal).overflow(
+          Overflow::Clip);
   window.children({box()
                        .absolute()
                        .left(20)

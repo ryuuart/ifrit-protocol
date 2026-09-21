@@ -33,7 +33,7 @@ Element cell(const char* caption, SkBlendMode mode) {
                .width(pct(100))
                .height(120)
                .borderRadius({10})
-               .clip()
+               .overflow(Overflow::Clip)
                .children({box().cover().fill(kBed), box()
                                                         .width(84)
                                                         .height(84)

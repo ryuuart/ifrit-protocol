@@ -8,7 +8,7 @@ group: Leaves
 python: none
 status: cpp-only
 example: custom_element
-common_verbs: [cache, width, height, borderRadius, clip, cover]
+common_verbs: [cache, width, height, borderRadius, overflow, cover]
 ---
 
 # custom

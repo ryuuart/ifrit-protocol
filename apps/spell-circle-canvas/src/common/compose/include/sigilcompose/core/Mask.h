@@ -71,8 +71,8 @@ struct Instance;
  *  by one still qualifies for the memo that lets an animated-scalar node
  *  hold its recording between ticks.
  *
- *  `own()` is the node's own shape — the region `clip()` uses, and the
- *  reason clip() survives as sugar over this. */
+ *  `own()` is the node's own shape — the region `overflow(Overflow::Clip)`
+ * uses, and the reason overflow(Overflow::Clip) survives as sugar over this. */
 class Region {
  public:
   /** Which shape the region is, and therefore which of the members
@@ -84,7 +84,8 @@ class Region {
     Path,  ///< an explicit local path (SkPath is a comparable value)
   };
 
-  /** The node's own silhouette — clip()'s region, as a value. */
+  /** The node's own silhouette — overflow(Overflow::Clip)'s region, as a value.
+   */
   static Region own();
   static Region rect(const SkRect& r);
   static Region oval(const SkRect& bounds);
@@ -222,7 +223,7 @@ Gate spans(Spans where);
  *  reveal. */
 Gate edge(float angleDeg, motion::Animatable<float> fraction);
 /** A REGION of the node's local space, kept. `by::shape(Region::own())` is
- *  what `clip()` does. */
+ *  what `overflow(Overflow::Clip)` does. */
 Gate shape(Region r);
 /** …and its complement: everything OUTSIDE the region. Two masks
  *  intersect, so a set difference is `by::shape(a)` and `by::outside(b)`

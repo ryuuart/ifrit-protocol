@@ -46,7 +46,7 @@ class CustomElement:
                 .height(190)
                 .borderRadius(10)
                 .fill(CELL)
-                .clip(),
+                .overflow(compose.Overflow.Clip),
                 compose.text("compose.pen(key, program)", size=12, color=ASH),
             )
             .column()

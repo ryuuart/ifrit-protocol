@@ -345,7 +345,7 @@ inline Element panel(float w, float h) {
       .borderRadius({4})
       .background(styles::dropShadow({0, 0, 0, 0.65f}, {0, 7}, 16))
       .fill(Paint::linear({0, 0}, {0, h}, {{0.0f, kStoneHi}, {1.0f, kStoneLo}}))
-      .clip()
+      .overflow(Overflow::Clip)
       // quarried, not smooth: the grain is generated, never a texture file
       .children({box()
                      .inset(0)

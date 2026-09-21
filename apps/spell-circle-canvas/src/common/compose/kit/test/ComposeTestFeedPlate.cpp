@@ -189,7 +189,7 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   host.composer.render(box().children({feed::feed(ring, st)}));
   host.frame();
   auto byHand = [&](bool staggered) {
-    auto column = box().column().gap(st.window.gap).clip();
+    auto column = box().column().gap(st.window.gap).overflow(Overflow::Clip);
     if (staggered) column.staggerChildren(400ms);
     for (const feed::Row<feed::TextRow>& r : ring.rows()) {
       Element row = feed::textRow(r.value, st.styles);

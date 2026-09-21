@@ -13,7 +13,7 @@ auto Fallout2CharSheet::describe() -> Element {
   // every row that names no style of its own is set in where it lands.
   Element screen = box()
                        .rect(SkRect::MakeXYWH(0, 0, kScreenW, kScreenH))
-                       .clip()
+                       .overflow(Overflow::Clip)
                        .fill(plateMat)
                        .font(bodyType())
                        .ink(kGreen);

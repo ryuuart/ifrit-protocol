@@ -112,7 +112,7 @@ struct KumikoAsanoha {
     const SkRect& open = kRegOuter;  // the frame's opening
     return box()
         .rect(open)
-        .clip(true)
+        .overflow(Overflow::Clip)
         .opacity(&glow)
         .background(styles::OuterGlow{hexColor(0xF4E3B8, 0.34f), 70, 6})
         // A SHOJI DIFFUSES. Paper over a lamp is a lit field, not a point
@@ -310,7 +310,7 @@ struct KumikoAsanoha {
         .children(
             {box()
                  .rect(kRegOuter)
-                 .clip(true)
+                 .overflow(Overflow::Clip)
                  .opacity(&glow)
                  .blendMode(SkBlendMode::kPlus)
                  .fill(Paint::radial(

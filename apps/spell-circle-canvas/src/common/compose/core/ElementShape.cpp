@@ -20,8 +20,8 @@ Derived& ShapeVerbs<Derived>::shape(Shape path) {
 }
 
 template <class Derived>
-Derived& ShapeVerbs<Derived>::clip(bool on) {
-  declarations()->clipContent = on;
+Derived& ShapeVerbs<Derived>::overflow(Overflow overflow) {
+  declarations()->clipContent = overflow == Overflow::Clip;
   return self();
 }
 

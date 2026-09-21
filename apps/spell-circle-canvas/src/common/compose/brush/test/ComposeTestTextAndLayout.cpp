@@ -280,14 +280,14 @@ TEST(ComposeMotion, DelayStaggersTheEntrance) {
 }
 
 TEST(ComposePaint, ClipSparesDecorations) {
-  // clip() bounds fill/content/children; decorations dress the outline —
-  // an Outer stroke and a shadow survive on a clipped node.
+  // overflow(Overflow::Clip) bounds fill/content/children; decorations dress
+  // the outline — an Outer stroke and a shadow survive on a clipped node.
   Host host;
   host.composer.render(box().children(
       {box()
            .absolute()
            .inset(60, 60, 60, 60)
-           .clip(true)
+           .overflow(Overflow::Clip)
            .fill(blue())
            .stroke(stroke(10, green(), PathFormat::Align::Outer))
            .children({box().width(200).height(10).fill(red())})}));

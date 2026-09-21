@@ -119,7 +119,7 @@ The region the node occupies, and what is cut to it.
 |---|---|
 | [`borderRadius`](pages/verbs/borderRadius.md) | The four corner radii of the node's box. |
 | [`shape`](pages/verbs/shape.md) | The node's outline as a path generator over its laid-out size; it overrides `borderRadius`. |
-| [`clip`](pages/verbs/clip.md) | Cut the fill, the content and the children to that outline — the decorations keep their reach. |
+| [`overflow`](pages/verbs/overflow.md) | Cut the fill, the content and the children to that outline — the decorations keep their reach. |
 | [`mask`](pages/verbs/mask.md) | Gate what the node paints, by span, edge, shape or alpha; overlapping masks intersect. |
 | `centered` | A band straddles its spine — the default formation. |
 | `outward` | A band takes the outer side of its spine. |
@@ -275,7 +275,7 @@ spelling is the feature's.
 - `core/verbs/Placement.h` — the placement verbs `absolute`, `cover`,
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`,
   `gridCells`, `gridArea`, `gridCellAlign`, `rect`, `at`.
-- `core/verbs/Shape.h` — the region verbs `borderRadius`, `shape`, `clip`.
+- `core/verbs/Shape.h` — the region verbs `borderRadius`, `shape`, `overflow`.
 - `core/Band.h` — the band formation `centered`, `outward`, `inward`.
 - `core/verbs/Mask.h` — `mask`.
 - `core/verbs/Cascade.h` — the cascade verbs `font`, `block`, `ink`,

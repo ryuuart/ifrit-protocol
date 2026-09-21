@@ -105,7 +105,7 @@ Element card(const Swatch& swatch) {
                  .width(kCard)
                  .height(kCard)
                  .borderRadius({10})
-                 .clip()
+                 .overflow(Overflow::Clip)
                  .foreground(
                      stroke(1.0f, Fill::color(hexColor(0xffffff, 0.16f)))))
       .width(kCard);

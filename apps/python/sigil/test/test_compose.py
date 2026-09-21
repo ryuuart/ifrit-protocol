@@ -96,11 +96,16 @@ class Edges:
             box().flexWrap(raw.FlexWrap.WrapReverse),
             box().display(raw.Display.Contents),
             box().boxSizing(raw.BoxSizing.BorderBox),
+            box().overflow(raw.Overflow.Clip),
+            box().overflow(raw.Overflow.Visible),
         ):
             self.assertIsInstance(element, raw.Element)
-        # A keyword is its enumeration: the boolean the wrap once took is not one.
+        # A keyword is its enumeration: the boolean the wrap once took is not
+        # one, and neither is the boolean the clip did.
         with self.assertRaises(TypeError):
             box().flexWrap(True)
+        with self.assertRaises(TypeError):
+            box().overflow(True)
         self.render("""import builtins
 from sigil.compose import BoxSizing, Display, FlexDirection, box
 from sigil.sketch import sketch

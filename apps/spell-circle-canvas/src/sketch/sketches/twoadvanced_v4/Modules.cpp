@@ -219,7 +219,7 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
       {box().flexGrow(1).row().gap(8).children(
            {box()
                 .flexGrow(1)
-                .clip()
+                .overflow(Overflow::Clip)
                 .padding(9)
                 .fill(dither.material())
                 .foreground(

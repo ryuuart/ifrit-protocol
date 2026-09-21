@@ -109,7 +109,7 @@ struct HelloSketch {
                            .height(174)
                            .borderRadius({18})
                            .fill(Fill::color(hexColor(0x253b40)))
-                           .clip(),
+                           .overflow(Overflow::Clip),
                        text("Draw every frame with the pen.")
                            .ink(hexColor(0x63777a))}),
                   box().column().width(240).gap(12).children(

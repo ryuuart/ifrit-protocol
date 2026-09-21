@@ -267,7 +267,7 @@ struct GerstnerGrid {
               .fill(Fill::color({g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.045f}))
               // The field's foot is the page's foot: the copy that does not
               // fit is cut there, as it is in a magazine.
-              .clip();
+              .overflow(Overflow::Clip);
       // THE COPY RUNS THE MEASURE. A programme that generates a page
       // generates a FULL one: a column that stops a third of the way down
       // is a layout abandoned, not a configuration.

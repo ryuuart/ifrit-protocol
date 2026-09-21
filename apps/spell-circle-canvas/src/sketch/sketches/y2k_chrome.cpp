@@ -146,7 +146,7 @@ inline Element gelOrb(float d = kOrbD) {
       .height(d)
       .borderRadius({d / 2})
       .layerStyle(kit::aquaGel(hexColor(0x1E8FFF)))
-      .clip()
+      .overflow(Overflow::Clip)
       // The PS Gloss Contour proper (kit::gloss — blurred coverage
       // through a ring table): a shape-following light band the preset's
       // axis-aligned lens can't produce on a sphere.
@@ -541,7 +541,7 @@ struct Y2kChrome {
                                  {0.48f, hexColor(0x0B1030)},
                                  {1.00f, hexColor(0x050817)}}))
             .borderRadius({6})
-            .clip()
+            .overflow(Overflow::Clip)
             .children(
                 {box()
                      .inset(0)
@@ -573,7 +573,7 @@ struct Y2kChrome {
                  .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
                  .column()
                  .borderRadius({6})
-                 .clip()
+                 .overflow(Overflow::Clip)
                  .stroke(stroke(1, Fill::color(hexColor(0x70777E))))
                  .children(
                      {titleBar,

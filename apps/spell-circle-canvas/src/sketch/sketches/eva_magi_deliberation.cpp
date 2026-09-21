@@ -126,7 +126,7 @@ struct EvaMagiDeliberation {
                    rect.left(), rect.top(), side, side)
         // The module's ink is its label colour; the inner rule is drawn in it.
         .ink(kInk)
-        .clip(true)
+        .overflow(Overflow::Clip)
         .layerStyle(decorations::doubleBorder(
             decorations::border(6.0f, Fill::color(kOrange), 0.0f),
             decorations::border(3.0f, Fill::currentInk(), 9.0f)))

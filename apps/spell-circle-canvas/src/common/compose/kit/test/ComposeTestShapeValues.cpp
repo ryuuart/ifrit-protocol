@@ -22,8 +22,13 @@ TEST(ComposeShapeValues, CustomOutlineShapesFillAndClip) {
     return b.detach();
   };
   host.composer.render(
-      box().width(100).height(100).clip().shape(diamond).fill(red()).children(
-          {box().inset(0).absolute().fill(green())}));
+      box()
+          .width(100)
+          .height(100)
+          .overflow(Overflow::Clip)
+          .shape(diamond)
+          .fill(red())
+          .children({box().inset(0).absolute().fill(green())}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorGREEN);  // clipped child inside
   EXPECT_EQ(host.pixel(3, 3), SK_ColorBLACK);    // box corner outside shape

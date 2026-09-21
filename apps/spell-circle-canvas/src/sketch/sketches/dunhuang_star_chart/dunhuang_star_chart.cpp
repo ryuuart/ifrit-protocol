@@ -53,7 +53,7 @@ auto DunhuangStarChart::segment(int seg) -> Element {
   const auto maps = std::views::iota(1, 13);
   return box()
       .rect(SkRect::MakeLTRB(segLo(seg), kSegTop, segHi(seg), kSegTop + kSegH))
-      .clip(true)
+      .overflow(Overflow::Clip)
       .key(seg ? "segR" : "segL")
       .children({each(maps, [this, seg](int k) { return mapFrame(k, seg); }),
                  each(maps, [this, seg](int k) { return columnBand(k, seg); }),

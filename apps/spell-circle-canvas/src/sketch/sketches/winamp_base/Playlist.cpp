@@ -41,7 +41,10 @@ auto WinampBase::playlistWindow() -> Element {
                   hexColor(0x06060A))
                .children({box().inset(0).children({instancing::instances(
                               rowAtlas, rowPool, instancing::Mode::Live)}),
-                          box().inset(0).clip().children({slot("tracks")})}),
+                          box()
+                              .inset(0)
+                              .overflow(Overflow::Clip)
+                              .children({slot("tracks")})}),
            // the rail, and the grip — a skin's sprite at the one size the skin
            // cut it, so it is not a reading of how much list is showing
            sunken(at(box(), W - 20, 20, 20, 319).fill(hexColor(0x1A1A2A)),

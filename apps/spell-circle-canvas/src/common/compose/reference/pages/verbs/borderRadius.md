@@ -30,5 +30,5 @@ radii round the fill.
 
 ## See also
 
-[`shape`](shape.md), [`clip`](clip.md), the
+[`shape`](shape.md), [`overflow`](overflow.md), the
 [`Corners`](../types/Corners.md) value.

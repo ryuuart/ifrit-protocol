@@ -77,7 +77,7 @@ auto KspMapView::planet() -> Element {
                                    {0.34f, kOceanLit},
                                    {0.72f, hexColor(0x1B4260)},
                                    {1.0f, kOceanDark}}))
-              .clip(),
+              .overflow(Overflow::Clip),
           kKerbin, d, d)
            .children(
                {box()

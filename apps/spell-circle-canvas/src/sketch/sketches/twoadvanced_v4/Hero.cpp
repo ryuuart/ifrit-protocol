@@ -146,7 +146,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   const float horizon = std::round(h * 0.66f);
   const float cx = w * 0.50f;
 
-  Element scene = stack().width(w).height(h).clip();
+  Element scene = stack().width(w).height(h).overflow(Overflow::Clip);
 
   // THE BAKED RENDER: sky, city, water and pods in one image, sized to
   // the panel. A null bake (no raster surface) leaves the gradient
@@ -220,7 +220,8 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // The water is the RENDER's water; what compose adds over it is the
   // light on it. A fill here would paint out the one surface the bake
   // reflects the halo in.
-  Element water = at(box().clip(), 0, horizon, w, h - horizon);
+  Element water =
+      at(box().overflow(Overflow::Clip), 0, horizon, w, h - horizon);
   if (!still)
     water.children({box()
                         .inset(0)
@@ -271,7 +272,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
 
 auto TwoAdvancedV4::hero(float w, float h) -> Element {
   using namespace tav;
-  Element s = stack().width(w).height(h).clip();
+  Element s = stack().width(w).height(h).overflow(Overflow::Clip);
   s.children(
       {heroScene(w, h, false),
        // the atmospheric bloom pass: the same composite, blurred, screened
@@ -363,8 +364,11 @@ auto TwoAdvancedV4::mainframe() -> Element {
                                                 10, 2, 3, shapes::Corner::All})
 
                    .children({slot("mfload")})});
-  Element body = box().flexGrow(1).clip().children(
-      {hero(1178, 316), each(6, slat), std::move(accessing)});
+  Element body =
+      box()
+          .flexGrow(1)
+          .overflow(Overflow::Clip)
+          .children({hero(1178, 316), each(6, slat), std::move(accessing)});
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("mainframe")

@@ -357,7 +357,7 @@ backgrounds · background span passes │ fill · echoes │ overlays │
 content leaf │ children │ foregrounds · foreground span passes
 ```
 
-Decorations dress the node's *outline*, so `clip()` does not clip them —
+Decorations dress the node's *outline*, so `overflow(Overflow::Clip)` does not clip them —
 it bounds the fill, the content leaf and the children. A stacking context
 forms on `zIndex`, opacity below 1, a blend mode, a transform, a clip, or a
 layer effect, and children cannot interleave outside it: a component cannot

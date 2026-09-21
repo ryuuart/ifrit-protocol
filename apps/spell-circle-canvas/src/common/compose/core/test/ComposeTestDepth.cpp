@@ -218,7 +218,8 @@ TEST(ComposeDepth, AGroupingPropertyFlattensTheSpaceItStandsOn) {
   // The control: nothing grouping, and the space stands.
   EXPECT_EQ(centreOf([](Element&) {}), SK_ColorRED);
 
-  flattened("clip()", [](Element& e) { e.clip(true); });
+  flattened("overflow(Overflow::Clip)",
+            [](Element& e) { e.overflow(Overflow::Clip); });
   flattened("a mask", [](Element& e) {
     e.mask(by::shape(Region::rect(SkRect::MakeWH(200, 200))));
   });

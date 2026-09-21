@@ -151,7 +151,7 @@ Element GenesisFire::regolith() {
   return box()
       .inset(0)
       .shape(limbOutline())
-      .clip(true)
+      .overflow(Overflow::Clip)
       .fill(std::move(ground))
       .appear({.duration = 520ms, .delay = 420ms})
       .translateY(animate(
@@ -217,7 +217,7 @@ Element GenesisFire::stageBelow() {
   return stack()
       .width(kStageW)
       .height(kStageH)
-      .clip()
+      .overflow(Overflow::Clip)
       .fill(Paint::linearUnit({0.5f, 0.0f}, {0.5f, 0.85f},
                               {{0.0f, hexColor(0x03040A)},
                                {0.55f, hexColor(0x05060D)},
@@ -232,7 +232,7 @@ Element GenesisFire::planInset() {
   Element inner =
       kit::at(box()
                   .shape(shapes::circle())
-                  .clip(true)
+                  .overflow(Overflow::Clip)
                   .stroke(stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.55f)),
                                  PathFormat::Align::Inner)),
               12, 12, 184, 184)
@@ -277,15 +277,19 @@ Element GenesisFire::planInset() {
 }
 
 Element GenesisFire::stageAbove() {
-  return stack().width(kStageW).height(kStageH).clip().children(
-      {planInset(), text("FIG. 2 — DISTRIBUTION OF PARTICLE SYSTEMS "
-                         "ON THE PLANET'S SURFACE")
-                        .font({.face = monoFace(), .size = 8.5f, .track = 0.6f})
-                        .ink(kSteel)
-                        .left(24)
-                        .top(236)
-                        .width(300)
-                        .appear({.duration = 300ms, .delay = 1050ms})});
+  return stack()
+      .width(kStageW)
+      .height(kStageH)
+      .overflow(Overflow::Clip)
+      .children({planInset(),
+                 text("FIG. 2 — DISTRIBUTION OF PARTICLE SYSTEMS "
+                      "ON THE PLANET'S SURFACE")
+                     .font({.face = monoFace(), .size = 8.5f, .track = 0.6f})
+                     .ink(kSteel)
+                     .left(24)
+                     .top(236)
+                     .width(300)
+                     .appear({.duration = 300ms, .delay = 1050ms})});
 }
 
 void GenesisFire::blurCallout(Pen& pen, float x0, float y0, float w, float h,

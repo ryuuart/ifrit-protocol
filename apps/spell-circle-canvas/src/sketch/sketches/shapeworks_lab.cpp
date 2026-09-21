@@ -284,7 +284,7 @@ struct ShapeworksLab {
               {.size = 11, .sizeLane = "size", .tintLane = "tint"});
         })
             .inset(600, 50, 30, 40)
-            .clip()
+            .overflow(Overflow::Clip)
             .cache(Cache::None);
 
     return stack().children(

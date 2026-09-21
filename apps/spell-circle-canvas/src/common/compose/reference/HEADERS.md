@@ -90,7 +90,7 @@ sound model; nothing below them changes kernel semantics.
   `gridArea`, `gridCellAlign`, `rect`, `at`. `cover` is the one that says a
   node FILLS the box it stands in, which `absolute` and `inset` said
   between them.
-- `core/verbs/Shape.h` — `ShapeVerbs`: `borderRadius`, `shape`, `clip`.
+- `core/verbs/Shape.h` — `ShapeVerbs`: `borderRadius`, `shape`, `overflow`.
 - `core/Band.h` — `BandVerbs`: `centered`, `outward`, `inward`.
 - `core/verbs/Mask.h` — `MaskVerbs`: `mask`, in both its forms.
 - `core/verbs/Cascade.h` — `CascadeVerbs`: `font`, `block`, `ink`,

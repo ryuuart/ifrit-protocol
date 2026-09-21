@@ -575,7 +575,7 @@ struct Thaumonomicon {
                         .top(g(kStartY - 2))
                         .width(g(kScreenX + 4))
                         .height(g(kScreenY + 4))
-                        .clip();
+                        .overflow(Overflow::Clip);
     plate.children({backdropBase()
                         .cache(Cache::Texture)
                         .translateX(bind(&driftX).scale(-U / 2.0f))

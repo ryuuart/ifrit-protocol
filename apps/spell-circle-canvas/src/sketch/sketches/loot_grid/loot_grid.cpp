@@ -162,18 +162,22 @@ struct LootGrid {
             styles::dropShadow({rc.fR, rc.fG, rc.fB, 0.62f}, {0, 0}, 13));
       // uniques catch a light band that sweeps them
       if (item.rarity == lt::Rarity::Unique)
-        cell.children({box().inset(1).clip().children(
+        cell.children(
             {box()
-                 .width(w * 0.30f)
-                 .height(h * 1.8f)
-                 .at({-w * 0.4f, -h * 0.4f})
-                 .translateX(motion::bind(&shimmer).target(-70, 170))
-                 .rotate(18.0f)
-                 .fill(Paint::linear({0, 0}, {w * 0.35f, 0},
-                                     {{0.0f, {1, 1, 1, 0.0f}},
-                                      {0.5f, {1, 1, 1, 0.30f}},
-                                      {1.0f, {1, 1, 1, 0.0f}}}))
-                 .blendMode(SkBlendMode::kPlus)})});
+                 .inset(1)
+                 .overflow(Overflow::Clip)
+                 .children(
+                     {box()
+                          .width(w * 0.30f)
+                          .height(h * 1.8f)
+                          .at({-w * 0.4f, -h * 0.4f})
+                          .translateX(motion::bind(&shimmer).target(-70, 170))
+                          .rotate(18.0f)
+                          .fill(Paint::linear({0, 0}, {w * 0.35f, 0},
+                                              {{0.0f, {1, 1, 1, 0.0f}},
+                                               {0.5f, {1, 1, 1, 0.30f}},
+                                               {1.0f, {1, 1, 1, 0.0f}}}))
+                          .blendMode(SkBlendMode::kPlus)})});
       grid.children({std::move(cell)});
     }
 

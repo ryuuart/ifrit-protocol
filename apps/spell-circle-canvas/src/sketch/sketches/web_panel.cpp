@@ -262,7 +262,7 @@ struct WebPanelSketch {
              box()
                  .inset(40, 96, 300, 94)
                  .borderRadius({16})
-                 .clip()
+                 .overflow(Overflow::Clip)
                  .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
                  .children(
                      {m_page && m_page->painted()

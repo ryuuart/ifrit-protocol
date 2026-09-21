@@ -393,7 +393,7 @@ struct VertigoTitles {
                      .height(kPanelH)
                      .flexShrink(0)
                      .borderRadius({10})
-                     .clip(true)
+                     .overflow(Overflow::Clip)
                      .key("screen")
                      .fill(irisMat);
 

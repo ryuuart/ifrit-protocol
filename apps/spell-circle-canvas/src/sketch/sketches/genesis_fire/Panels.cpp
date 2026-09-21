@@ -121,7 +121,7 @@ Element GenesisFire::benchCell(Element content, const Utf8& caption,
            .width(130)
            .height(52)
            .flexShrink(0)
-           .clip(true)
+           .overflow(Overflow::Clip)
            .fill(hexColor(0x05060A))
            .stroke(stroke(1.0f, Fill::color(hexColor(0x1B2029)),
                           PathFormat::Align::Inner))

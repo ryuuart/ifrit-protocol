@@ -6,7 +6,7 @@ TAGS: Typography/Interface, Motion/Animation, Drawing/Generative
 from dataclasses import dataclass
 from math import sin
 
-from sigil.compose import box, column, memo, pct, row, stroke, text
+from sigil.compose import Overflow, box, column, memo, pct, row, stroke, text
 from sigil.compose import document as doc
 from sigil.motion import Transition, animate, ease, from_
 from sigil.sketch import SketchContext, sketch
@@ -57,7 +57,7 @@ def instrument(reading):
                 .height(6)
                 .fill("#253e36")
                 .borderRadius(3)
-                .clip(True)
+                .overflow(Overflow.Clip)
                 .children(
                     (box().width(pct(reading.value)).height(6).fill(reading.accent)),
                 )

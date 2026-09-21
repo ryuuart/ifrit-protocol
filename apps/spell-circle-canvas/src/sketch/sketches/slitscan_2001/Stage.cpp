@@ -109,7 +109,7 @@ auto SlitScan2001::filmFrame() -> Element {
       .flexShrink(0)
       .font({.face = monoFace(), .size = 8, .track = 0.6f})
       .fill(kBlack)
-      .clip()
+      .overflow(Overflow::Clip)
       .stroke(stroke(1.0f, Fill::color(kRule)))
       .key("film")
       .mask(by::edge(
@@ -177,7 +177,7 @@ auto SlitScan2001::rigStrip() -> Element {
       .children(
           {pen([this](Pen& p, const PaintContext& ctx) { drawRig(p, ctx); })
                .rect(SkRect::MakeXYWH(0, 0, kElevW, kRigH))
-               .clip(),
+               .overflow(Overflow::Clip),
            pen([this](Pen& p, const PaintContext& ctx) {
              drawArtworkPanel(p, ctx);
            })
@@ -192,7 +192,7 @@ auto SlitScan2001::rigStrip() -> Element {
                .borderRadius({4})
                .fill(al(kPanelBg, 0.92f))
                .stroke(stroke(1.0f, Fill::color(kRule)))
-               .clip()
+               .overflow(Overflow::Clip)
                .children(
                    {box()
                         .inset(0)

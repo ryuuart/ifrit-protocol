@@ -236,8 +236,10 @@ struct CdeMotifSketch {
                              .row()
                              .overlay(cde::bevel(2, true, false))
                              .padding(2)
-                             .children({box().flexGrow(1).clip().children(
-                                            {std::move(grid)}),
+                             .children({box()
+                                            .flexGrow(1)
+                                            .overflow(Overflow::Clip)
+                                            .children({std::move(grid)}),
                                         std::move(scrollbar)}),
                          box().height(2).margin(2, 3).overlay(
                              cde::bevel(2, true, true)),

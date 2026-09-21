@@ -122,7 +122,7 @@ auto ChaucerAstrolabe::familiesPanel() -> Element {
             .width(2 * r)
             .height(2 * r)
             .shape(shapes::circle())
-            .clip(true)
+            .overflow(Overflow::Clip)
             .fill(Fill::color(hexColor(0xf6efdd)))
             .stroke(stroke(1.2f, Fill::color(hexColor(0x241c15, 0.5f)),
                            PathFormat::Align::Inner));

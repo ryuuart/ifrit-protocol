@@ -57,5 +57,5 @@ already cooked wants `shape(heldPath(p))`.
 
 ## See also
 
-[`borderRadius`](borderRadius.md), [`clip`](clip.md), [`stroke`](stroke.md),
+[`borderRadius`](borderRadius.md), [`overflow`](overflow.md), [`stroke`](stroke.md),
 `shapes::`, `KeyedShape`.

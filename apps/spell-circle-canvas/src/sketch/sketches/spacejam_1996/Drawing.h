@@ -416,8 +416,8 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
   outlineText(t, kScale);
   // scaleX is PAINT-only, so a condensed run still MEASURES at its natural
   // width and wraps against the image box. Pinning the node to that natural
-  // width is what keeps it one line; the artBox's clip() takes the
-  // overhang, and the paint-time condense brings it back inside.
+  // width is what keeps it one line; the artBox's overflow(Overflow::Clip)
+  // takes the overhang, and the paint-time condense brings it back inside.
   t.left(x).top(y).width(m.width() + 4.0f);
   if (sx < 0.999f) t.scaleX(sx).transformOrigin(pct(0), pct(50));
   return t;
@@ -433,7 +433,7 @@ inline Element ring(SkPoint c, float rx, float ry, float rotDeg,
 }
 
 inline Element artBox(float w, float h) {
-  return stack().width(w).height(h).clip(true);
+  return stack().width(w).height(h).overflow(Overflow::Clip);
 }
 
 // --- p-souvenirs.gif, 83x83 — the CENTRED glow, and half of the controlled

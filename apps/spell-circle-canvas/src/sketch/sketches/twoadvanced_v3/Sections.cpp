@@ -4,8 +4,8 @@
 
 Element TwoAdvancedV3::stageArt() {
   using namespace tv3;
-  return at(box().clip().children({slot("stage")}), kStageX, kArtY, kStageW,
-            kArtH)
+  return at(box().overflow(Overflow::Clip).children({slot("stage")}), kStageX,
+            kArtY, kStageW, kArtH)
       .mask(by::edge(0, animate(motion::from(0.0f).to(1.0f),
                                 {650ms, &ch::easeOutQuint, 1900ms})));
 }
@@ -17,7 +17,8 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   // leaf patched onto a container trips the layout engine.
   const std::string key =
       kit::formatted("sec:%d:%d", sec, settle >= 1.0f ? 1 : (int)(settle * 14));
-  Element art = box().key(key).width(kStageW).height(kArtH).clip();
+  Element art =
+      box().key(key).width(kStageW).height(kArtH).overflow(Overflow::Clip);
   const ImagePtr& bg = sec < 0 ? homeBg : sectionBg[(size_t)sec];
   if (bg)
     art.fill(stretchFill(bg, kStageW, kArtH));
@@ -32,16 +33,18 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
       // drawn behind the structure through the feathered opening
       // coverage, slightly desaturated and dimmed so the footage
       // sits in the plate's own exposure.
-      art.children({box()
-                        .inset(0)
-                        .children({at(box().clip().children({slot("clouds")}),
-                                      415, 35, 310, 255)})
-                        .mask(by::alpha(mskia::Paint::image(
-                            gapMask, SkTileMode::kClamp, SkTileMode::kClamp,
-                            SkMatrix::Scale(kStageW / (float)gapMask->width(),
-                                            kArtH / (float)gapMask->height()))))
-                        .filter(mskia::Effect::filter(cloudLook))
-                        .opacity(0.95f)});
+      art.children(
+          {box()
+               .inset(0)
+               .children({at(
+                   box().overflow(Overflow::Clip).children({slot("clouds")}),
+                   415, 35, 310, 255)})
+               .mask(by::alpha(mskia::Paint::image(
+                   gapMask, SkTileMode::kClamp, SkTileMode::kClamp,
+                   SkMatrix::Scale(kStageW / (float)gapMask->width(),
+                                   kArtH / (float)gapMask->height()))))
+               .filter(mskia::Effect::filter(cloudLook))
+               .opacity(0.95f)});
     }
     // Idle beacon on the art's readout cluster: the one light that
     // never stops blinking.
@@ -105,7 +108,8 @@ Element TwoAdvancedV3::transitionArt(int fromSec, int toSec, int step) {
   using namespace tv3;
   const float f = (float)step / 14.0f;
   const std::string key = kit::formatted("trans:%d:%d", fromSec, toSec);
-  Element out = box().key(key).width(kStageW).height(kArtH).clip();
+  Element out =
+      box().key(key).width(kStageW).height(kArtH).overflow(Overflow::Clip);
   out.children(
       {box().inset(0).children({sectionArt(fromSec, 1.0f)}),
        box().inset(0).children({sectionArt(toSec, f)}).mask(by::edge(0, f))});

@@ -30,7 +30,7 @@ def cell(caption: str, plate: compose.Element) -> compose.Element:
             .height(120)
             .borderRadius(10)
             .fill(PLATE)
-            .clip()
+            .overflow(compose.Overflow.Clip)
             .justifyContent("center")
             .alignItems("center")
             .children(compose.text("47", size=52, color=INK)),

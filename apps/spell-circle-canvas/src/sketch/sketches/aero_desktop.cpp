@@ -302,12 +302,12 @@ struct AeroDesktop {
   Element captionButton(float w, float h, Corners c, Element glyph) {
     namespace ad = aero_desktop;
     // Inner-aligned edge, so the full 1 px lands inside the clip: a Center
-    // stroke under clip() keeps only its inner half.
+    // stroke under overflow(Overflow::Clip) keeps only its inner half.
     auto b = box()
                  .width(w)
                  .height(h)
                  .borderRadius(c)
-                 .clip()
+                 .overflow(Overflow::Clip)
                  .fill(ad::buttonBase(h))
                  .stroke(stroke(1, Fill::color({1, 1, 1, 0.30f}),
                                 PathFormat::Align::Inner));
@@ -380,7 +380,7 @@ struct AeroDesktop {
     return box()
         .inset(ad::kCL, ad::kCT, ad::kCR, ad::kCB)
         .fill(Fill::color({1, 1, 1, 1}))
-        .clip()
+        .overflow(Overflow::Clip)
         .font({.size = 12})
         .children(
             {// toolbar strip
@@ -428,7 +428,7 @@ struct AeroDesktop {
         box()
             .inset(0)
             .borderRadius({6, 6, 0, 0})
-            .clip()
+            .overflow(Overflow::Clip)
             // The DWM pass blurs what's behind the pane -- and behind it
             // is only the wallpaper, static between its 10 Hz steps. A
             // live backdropFilter() samples the destination, which keeps this
@@ -484,8 +484,8 @@ struct AeroDesktop {
 
     // The frame wrapper is UNclipped and carries both 1px edges on one
     // outline: black a.65 silhouette Outer, white a.55 glass edge Inner.
-    // (clip() clips foreground decorations too, so the Outer stroke must
-    // live on this wrapper, not on the clipped glass node.)
+    // (overflow(Overflow::Clip) clips foreground decorations too, so the Outer
+    // stroke must live on this wrapper, not on the clipped glass node.)
     auto frame = box()
                      .inset(ad::kWX, ad::kWY, ad::kW - ad::kWX - ad::kWW,
                             ad::kH - ad::kWY - ad::kWH)
@@ -541,7 +541,7 @@ struct AeroDesktop {
             {box()
                  .inset(0)
                  .borderRadius({d / 2})
-                 .clip()
+                 .overflow(Overflow::Clip)
                  // the orb's radial base
                  .fill(Paint::radial(
                      {d * 0.5f, d * 0.42f}, d * 0.62f,
@@ -620,7 +620,7 @@ struct AeroDesktop {
     const float th = ad::kTaskbarH;
     return box()
         .inset(0, ad::kH - th, 0, 0)
-        .clip()
+        .overflow(Overflow::Clip)
         // same fake-backdrop trade as the window glass: blur a frozen
         // canvas-aligned aurora copy instead of a live destination
         // readback, so the whole strip can bake to one texture

@@ -232,7 +232,7 @@ struct TwoAdvancedEquipment {
 
   Element topFrame() {
     using namespace teq;
-    Element f = at(box(), 0, 0, kPageW, kTopH).clip();
+    Element f = at(box(), 0, 0, kPageW, kTopH).overflow(Overflow::Clip);
     f.children({at(img("ecom-topbar.gif", 790, 19), 0, 0, 790, 19),
                 at(img("ecom-logo.gif", 262, 78), 0, 19, 262, 78),
                 at(img("ecom-titleheader.gif", 511, 63), 262, 19, 511, 63)});
@@ -263,7 +263,7 @@ struct TwoAdvancedEquipment {
   Element leftFrame() {
     using namespace teq;
     return at(box().fill(kWhite), 0, kTopH, kLeftW, kContentH)
-        .clip()
+        .overflow(Overflow::Clip)
         .children(
             {at(img("ecom-productselectimage.jpg", 262, 266), 0, 0, 262, 266)});
   }
@@ -368,9 +368,10 @@ struct TwoAdvancedEquipment {
             .width(kSbW);
 
     return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
-        .clip()
+        .overflow(Overflow::Clip)
         .row()
-        .children({box().flexGrow(1).clip().children({list}), scrollbar});
+        .children({box().flexGrow(1).overflow(Overflow::Clip).children({list}),
+                   scrollbar});
   }
 
   Element bottomFrame() {

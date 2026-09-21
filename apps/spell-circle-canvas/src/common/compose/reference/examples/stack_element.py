@@ -45,5 +45,5 @@ class StackElement:
             .flexGrow(1)
             .borderRadius(12)
             .fill(PLATE)
-            .clip()
+            .overflow(compose.Overflow.Clip)
         ).padding(26)
