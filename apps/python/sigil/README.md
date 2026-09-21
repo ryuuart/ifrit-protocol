@@ -65,6 +65,60 @@ instead name `apps/spell-circle-canvas/build/python` as an extra analysis
 path: the application's build writes the package and its declarations
 there whenever `sigil_python` links.
 
+## Quick start: a sketch project whose editor stays current
+
+Two things read a sketch, and they take `sigil` from different places.
+**Sketchbook runs it** with the bindings compiled into the application, so
+a sketch is as current as the Sketchbook that opens it, whatever the
+project's environment holds. **The editor and a standalone `uv run` type
+and import it** from the `sigil-sketch` installed in the project's `.venv`,
+so that copy is the one to keep in step with the checkout.
+
+Make the project and install `sigil-sketch` editable from the checkout:
+
+```sh
+uv init --package my_sketches
+cd my_sketches
+uv python pin 3.14
+uv add --editable /path/to/ifrit-protocol/apps/python/sigil
+```
+
+`uv add --editable` writes the source into `pyproject.toml`; a relative
+path works as well as an absolute one:
+
+```toml
+[tool.uv.sources]
+sigil-sketch = { path = "/path/to/ifrit-protocol/apps/python/sigil", editable = true }
+```
+
+The first install compiles the extension, which takes minutes; later ones
+are incremental, because the native build settings in the user's uv
+configuration under `[config-settings-package.sigil-sketch]` name one
+persistent build tree that every editable install shares. Point the
+editor's interpreter at the project's `.venv/bin/python`.
+
+What to run after a change:
+
+| What changed | Running side (Sketchbook) | Editor side (the project's `.venv`) |
+| --- | --- | --- |
+| The sketch or its helpers | nothing: saving hot reloads | nothing |
+| Python files of the `sigil` package | reopen the sketch: a build from this checkout imports the package from `apps/python/sigil` | nothing: an editable install reads them from the checkout |
+| C++ bindings | `mise run python:native` refreshes the package's own modules, which are committed; then rebuild Sketchbook | `uv sync --reinstall-package sigil-sketch` in the project, then restart the language server |
+
+`uv sync` alone never picks up a binding change: the package's version did
+not move, so uv sees nothing to install. The same holds for a project
+pinned to a wheel file, which also has to be rebuilt first
+(`uv build --package sigil-sketch --wheel` from `apps/python`); pin a wheel
+once the surface an author uses has stopped moving, and stay editable until
+then. `mise run python` and `mise run python:native` do for the workspace
+environment at `apps/python/.venv` what the two `uv sync` spellings above do
+for a project.
+
+An editor that only needs declarations, with no environment at all, can
+instead name `apps/spell-circle-canvas/build/python` as an extra analysis
+path: the application's build writes the package and its declarations
+there whenever `sigil_python` links.
+
 ## Direct bindings and convenient authorship
 
 There is one importable package, `sigil`, and its library modules are the
