@@ -301,7 +301,14 @@ the publisher returns and preserves the last received image while waiting.
 The preview uses the window's Metal device and imports the received native
 texture directly into Qt's scene graph. Fit, actual-size, wheel zoom and pan
 inspect the image over a transparency checkerboard. **Pause** holds a frame;
-**Save PNG** reads that frame back at its original resolution. Texture reception
+**Save PNG** reads that frame back at its original resolution.
+
+**A frame arrives the other way up and is turned over here.** The surface a
+publication is carried on holds its first row at the image's BOTTOM, which is
+the order every application sharing textures on this machine writes and reads;
+a window and a PNG both put their first row at the top. So the preview samples
+the received texture mirrored — nothing is copied to do it — and a written file
+walks the rows backwards. What is on screen and what is on disk are upright. Texture reception
 currently requires macOS and Metal. Other platforms explain its unavailability
 without affecting Messages or Scenes.
 
