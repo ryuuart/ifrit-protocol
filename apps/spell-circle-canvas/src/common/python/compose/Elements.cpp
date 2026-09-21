@@ -513,12 +513,6 @@ void bindCompose(py::module_& module) {
           py::arg("topLeft"), py::arg("topRight"), py::arg("bottomRight"),
           py::arg("bottomLeft"), fluent)
       .def(
-          "inset",
-          [](Element& self, py::object all) -> Element& {
-            return self.inset(dimension(all));
-          },
-          py::arg("all"), fluent)
-      .def(
           "transformOrigin",
           [](Element& self, py::object x, py::object y,
              py::object z) -> Element& {
@@ -554,14 +548,6 @@ void bindCompose(py::module_& module) {
   dimensionMethod("top", &Element::top);
   dimensionMethod("right", &Element::right);
   dimensionMethod("bottom", &Element::bottom);
-  dimensionMethod("paddingTop", &Element::paddingTop);
-  dimensionMethod("paddingRight", &Element::paddingRight);
-  dimensionMethod("paddingBottom", &Element::paddingBottom);
-  dimensionMethod("paddingLeft", &Element::paddingLeft);
-  dimensionMethod("marginTop", &Element::marginTop);
-  dimensionMethod("marginRight", &Element::marginRight);
-  dimensionMethod("marginBottom", &Element::marginBottom);
-  dimensionMethod("marginLeft", &Element::marginLeft);
 
   element
       .def("flexDirection", &Element::flexDirection, py::arg("direction"),
@@ -807,68 +793,6 @@ void bindCompose(py::module_& module) {
           return (self.*setter)(motionAnimatable(value));
         },
         py::arg("value"), fluent);
-  // One, two, three and four lengths are four arities, so each is its own
-  // overload with its own named inputs, and each runs in CSS's order: a
-  // keyword call reads the same as `inset` next door, and pybind names
-  // every form when none matches.
-  for (const char* name : {"padding", "margin"}) {
-    const bool padding = std::string_view{name} == "padding";
-    const auto write = [padding](Element& self,
-                                 const compose::Edges& edges) -> Element& {
-      return padding ? self.padding(edges) : self.margin(edges);
-    };
-    element.def(
-        name,
-        [padding](Element& self, py::object all) -> Element& {
-          return padding ? self.padding(dimension(all))
-                         : self.margin(dimension(all));
-        },
-        py::arg("all"), fluent);
-    element.def(
-        name,
-        [write](Element& self, py::object vertical,
-                py::object horizontal) -> Element& {
-          const compose::Dimension down = dimension(vertical);
-          const compose::Dimension across = dimension(horizontal);
-          return write(self, {down, across, down, across});
-        },
-        py::arg("vertical"), py::arg("horizontal"), fluent);
-    element.def(
-        name,
-        [write](Element& self, py::object top, py::object horizontal,
-                py::object bottom) -> Element& {
-          const compose::Dimension across = dimension(horizontal);
-          return write(self,
-                       {dimension(top), across, dimension(bottom), across});
-        },
-        py::arg("top"), py::arg("horizontal"), py::arg("bottom"), fluent);
-    element.def(
-        name,
-        [write](Element& self, py::object top, py::object right,
-                py::object bottom, py::object left) -> Element& {
-          return write(self, {dimension(top), dimension(right),
-                              dimension(bottom), dimension(left)});
-        },
-        py::arg("top"), py::arg("right"), py::arg("bottom"), py::arg("left"),
-        fluent);
-    // The named-sides form: any subset of the four, each side saying which
-    // it is, and a side left out staying zero.
-    element.def(
-        name,
-        [padding](Element& self, py::object top, py::object right,
-                  py::object bottom, py::object left) -> Element& {
-          const auto side = [](py::object value) {
-            return value.is_none() ? compose::Dimension(0.0f)
-                                   : dimension(value);
-          };
-          const compose::Edges edges{side(top), side(right), side(bottom),
-                                     side(left)};
-          return padding ? self.padding(edges) : self.margin(edges);
-        },
-        py::kw_only(), py::arg("top") = py::none(),
-        py::arg("right") = py::none(), py::arg("bottom") = py::none(),
-        py::arg("left") = py::none(), fluent);
-  }
   element.def(
       "staggerChildren",
       [](Element& self, double seconds, const std::string& origin) -> Element& {
@@ -884,44 +808,6 @@ void bindCompose(py::module_& module) {
             from);
       },
       py::arg("seconds"), py::arg("from_") = "start", fluent);
-  element.def(
-      "inset",
-      [](Element& self, py::object vertical, py::object horizontal)
-          -> Element& {
-        return self.inset(dimension(vertical), dimension(horizontal));
-      },
-      py::arg("vertical"), py::arg("horizontal"), fluent);
-  element.def(
-      "inset",
-      [](Element& self, py::object top, py::object horizontal,
-         py::object bottom) -> Element& {
-        return self.inset(dimension(top), dimension(horizontal),
-                          dimension(bottom));
-      },
-      py::arg("top"), py::arg("horizontal"), py::arg("bottom"), fluent);
-  element.def(
-      "inset",
-      [](Element& self, py::object top, py::object right, py::object bottom,
-         py::object left) -> Element& {
-        return self.inset(dimension(top), dimension(right), dimension(bottom),
-                          dimension(left));
-      },
-      py::arg("top"), py::arg("right"), py::arg("bottom"), py::arg("left"),
-      fluent);
-  // The named-sides form: any subset of the four, and a side left out
-  // stays unpinned, so the node's own size or the opposite inset sizes it.
-  element.def(
-      "inset",
-      [](Element& self, py::object top, py::object right, py::object bottom,
-         py::object left) -> Element& {
-        const auto side = [](py::object value) {
-          return value.is_none() ? compose::autoDimension() : dimension(value);
-        };
-        return self.inset(compose::Edges{side(top), side(right), side(bottom),
-                                         side(left)});
-      },
-      py::kw_only(), py::arg("top") = py::none(), py::arg("right") = py::none(),
-      py::arg("bottom") = py::none(), py::arg("left") = py::none(), fluent);
   for (const auto& [name, setter] : std::initializer_list<std::pair<
            const char*, Element& (Element::*)(Decoration, std::string)>>{
            {"overlay", &Element::overlay},

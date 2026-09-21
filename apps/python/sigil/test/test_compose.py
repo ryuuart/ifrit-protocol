@@ -59,13 +59,17 @@ class Compose(unittest.TestCase):
         # One, two, three and four lengths are the whole vocabulary.
         with self.assertRaises(TypeError):
             box().padding(1, 2, 3, 4, 5)
+        # Every side is read back as a coordinate, never as one arrangement
+        # compared with another: a keyword call and a positional call of the
+        # same arity reach the SAME binding, so agreeing with each other
+        # would prove nothing about which side is which.
         self.render("""import builtins
-from sigil.compose import box, row
+from sigil.compose import Align, box, row
 from sigil.sketch import sketch
 
 
 def bar(key, element):
-    return element.key(key).children([box().width(10).height(10)])
+    return element.key(key).children([box().key(key + "In").width(10).height(10)])
 
 
 @sketch(size=(200, 60), capture_at=0)
@@ -77,25 +81,44 @@ class Edges:
                 bar("placed", box().padding(5, 7, 9, 3)),
                 bar("pair", box().margin(horizontal=4, vertical=2)),
                 bar("both", box().margin(2, 4)),
-            )
+                bar("subset", box().padding(left=6, bottom=11)),
+            ).alignItems(Align.Start)
         )
 
     def update(self, elapsed, ctx):
         if elapsed > 1 / 60:
             builtins._sigil_compose_contract = [
                 ctx.composer.bounds(key)
-                for key in ("named", "placed", "pair", "both")
+                for key in (
+                    "named", "namedIn", "placed", "placedIn",
+                    "pair", "both", "subset", "subsetIn",
+                )
             ]
 """)
-        named, placed, pair, both = builtins._sigil_compose_contract
-        self.assertEqual(
-            (named.width(), named.height()), (placed.width(), placed.height())
+        (named, namedIn, placed, placedIn, pair, both, subset, subsetIn) = (
+            builtins._sigil_compose_contract
         )
-        self.assertEqual((pair.width(), pair.height()), (both.width(), both.height()))
-        # The left and right dimensions reach the measured width: 3 + 10 + 7.
-        self.assertEqual(named.width(), 20)
-        # A margin stands outside the box, so the pair keeps the child's width.
-        self.assertEqual(pair.width(), 10)
+
+        def frame(bounds):
+            return (bounds.left(), bounds.top(), bounds.width(), bounds.height())
+
+        # The four-length form, said by name: the child stands 3 in from the
+        # left and 5 down from the top, and the box measures 3 + 10 + 7 by
+        # 5 + 10 + 9. A left/right or top/bottom transposition moves it.
+        self.assertEqual(frame(named), (0, 0, 20, 24))
+        self.assertEqual((namedIn.left(), namedIn.top()), (3, 5))
+        # The same four lengths written positionally, in CSS's order, land on
+        # the same sides — read as coordinates, not compared with the above.
+        self.assertEqual(frame(placed), (20, 0, 20, 24))
+        self.assertEqual((placedIn.left(), placedIn.top()), (23, 5))
+        # A margin stands outside the box, so the pair keeps the child's size
+        # and pushes it 4 across and 2 down.
+        self.assertEqual(frame(pair), (44, 2, 10, 10))
+        self.assertEqual(frame(both), (62, 2, 10, 10))
+        # A subset of the sides reaches the named-sides form alone, since the
+        # four-length one has no defaults: 6 on the left, 11 below, 0 above.
+        self.assertEqual(frame(subset), (76, 0, 16, 21))
+        self.assertEqual((subsetIn.left(), subsetIn.top()), (82, 0))
 
     def test_at_and_rect_take_lengths_in_any_unit(self):
         self.render("""import builtins

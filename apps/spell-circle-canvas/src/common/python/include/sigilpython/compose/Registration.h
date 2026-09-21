@@ -23,6 +23,9 @@ void bindComposeBrushMarks(pybind11::module_& module);
 /** Registers the composer surface: queries, dials, profiling and a
  *  standalone composer on @p module. */
 void bindComposeComposer(pybind11::module_& module);
+/** Registers the four sides around a node — padding, margin and inset in
+ *  every arity, and the eight per-side verbs — on @p module. */
+void bindComposeElementEdges(pybind11::module_& module);
 /** Registers slice, ContourWalk, Wash, Border and Skia path effects on
  *  @p module. */
 void bindComposeDecorationPrimitives(pybind11::module_& module);

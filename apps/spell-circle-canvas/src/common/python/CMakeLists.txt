@@ -9,7 +9,8 @@ sigil_library(SigilPython
     Python.cpp Bindings.cpp Extend.cpp PublicNames.cpp
     compose/BrushComposites.cpp compose/BrushMarks.cpp compose/Composer.cpp
     compose/DecorationPrimitives.cpp compose/DecorationSeam.cpp
-    compose/Derive.cpp compose/Feed.cpp compose/Instancing.cpp
+    compose/Derive.cpp compose/ElementEdges.cpp compose/Feed.cpp
+    compose/Instancing.cpp
     compose/KitAnnotations.cpp compose/KitEras.cpp compose/KitKinetic.cpp
     compose/KitLegibility.cpp compose/KitOrnament.cpp
     compose/KitPixelType.cpp compose/KitRoutes.cpp compose/KitRows.cpp
