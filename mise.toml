@@ -142,35 +142,6 @@ exec build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook
 '''
 
 # ---------------------------------------------------------------------------
-# Python
-#
-# The workspace environment at apps/python/.venv holds sigil-sketch as an
-# editable install: its .py files are read from the checkout, while the
-# extension and the declarations generated beside it are installed. An
-# editor pointed at that interpreter types sketches against those.
-#
-# The native build settings — a persistent build directory, the vcpkg
-# toolchain and installed tree, Qt — live in the user's uv configuration
-# under [config-settings-package.sigil-sketch], because uv also rebuilds
-# the package by itself whenever one of its files changes, and a build
-# without them would configure a manifest install from nothing.
-
-[tasks.python]
-description = "Sync the Python workspace, rebuilding sigil-sketch when its sources changed"
-dir = "apps/python"
-run = "uv sync --all-packages --all-groups"
-
-[tasks."python:native"]
-description = "After a C++ binding change: rebuild the extension, refresh the package modules it re-exports, reinstall"
-dir = "apps/python"
-run = '''
-set -e
-uv sync --all-packages --all-groups --reinstall-package sigil-sketch
-.venv/bin/python sigil/typing/generate.py
-uv sync --all-packages --all-groups
-'''
-
-# ---------------------------------------------------------------------------
 # Documentation, generated files and assets
 
 [tasks.docs]
