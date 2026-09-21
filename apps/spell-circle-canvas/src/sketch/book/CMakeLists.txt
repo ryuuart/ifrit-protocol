@@ -213,6 +213,32 @@ add_test(NAME sketch_reload_runs_the_file
     --source ${SIGIL_SKETCH_DIR}/crossing_rule.cpp
     --work ${CMAKE_BINARY_DIR}/sketch_reload_runs_the_file)
 
+# A GROUND WITH NO COVERAGE, which nothing else here can catch. Every
+# other sketch grounds itself in an opaque colour, so a clear that
+# dropped the ground's alpha — or a surface allocated without one —
+# would draw exactly the same picture as a correct one everywhere but
+# here. It is also what a publication carries, at the level a window is
+# not needed to reach it: the still is the declared canvas at one pixel
+# per canvas unit, and its untouched pixels carry no colour and no
+# coverage. Twice, because the raster path and the device path allocate
+# and clear their own surfaces.
+add_test(NAME sketch_transparent_ground
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/transparent_ground.py
+    --sketchbook $<TARGET_FILE:Sketchbook>
+    --sketch alpha_ground
+    --work ${CMAKE_BINARY_DIR}/sketch_transparent_ground)
+
+add_test(NAME sketch_transparent_ground_device
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/transparent_ground.py
+    --sketchbook $<TARGET_FILE:Sketchbook>
+    --sketch alpha_ground
+    --work ${CMAKE_BINARY_DIR}/sketch_transparent_ground_device
+    --gpu)
+set_tests_properties(sketch_transparent_ground_device PROPERTIES
+  LABELS gpu TIMEOUT 300)
+
 # Paints one of every stock material, so a material that cannot compile
 # or draw fails here rather than in someone's sketch.
 add_test(NAME sketch_reload_materials
