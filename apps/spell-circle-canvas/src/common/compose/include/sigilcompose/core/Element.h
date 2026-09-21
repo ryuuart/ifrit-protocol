@@ -21,6 +21,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Text.h>
 #include <sigilcompose/core/Utf8.h>
@@ -164,6 +165,14 @@ class Element : public BoxVerbs<Element>,
    *  is a value on the description, so a subtree carries its own and
    *  nothing is bound around the code that builds it. */
   Element& styleSheet(sigil::weave::StyleSheet sheet);
+  /** APPLIES @p sheet to this node and everything under it: a value
+   *  declared once, whose rules speak about the elements their
+   *  selectors name rather than about a class by name. Calling this
+   *  again applies another sheet, later in order; nothing is removed,
+   *  because a tree that should stop applying one is described without
+   *  it. A rule's subject must land in this subtree, while the
+   *  ancestors its selector names may stand above it. */
+  Element& applyStyleSheet(StyleSheet sheet);
   /** A SEMANTIC ROLE with default typography. The rule's name selects a
    *  rule from the sheet where this node lands; that rule overrides these
    *  defaults, ordinary classes override the role, and the node's own

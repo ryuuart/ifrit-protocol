@@ -16,8 +16,10 @@ using namespace sigil::weave::literals;
 namespace {
 
 using sigil::weave::Leading;
-using sigil::weave::Rule;
-using sigil::weave::StyleSheet;
+// Spelled apart: `Rule` and `StyleSheet` are names SigilCompose carries
+// too, over selectors rather than over class names.
+using WeaveRule = sigil::weave::Rule;
+using WeaveSheet = sigil::weave::StyleSheet;
 
 Element page(Element content) {
   return box()
@@ -34,7 +36,7 @@ SkRect contentRect(Host& host) {
 
 Element heading() {
   return text("AAAA\nAAAA")
-      .role(Rule("heading")
+      .role(WeaveRule("heading")
                 .font({.size = 36})
                 .block({.leading = Leading::multiple(1.0f)}));
 }
@@ -53,10 +55,10 @@ TEST(ComposeRoles, AStandaloneRoleSuppliesTypeAndBlockDefaults) {
 }
 
 TEST(ComposeRoles, ClassesAndDirectDeclarationsBeatRolesInEitherSheetOrder) {
-  const Rule selected = Rule("heading")
+  const WeaveRule selected = WeaveRule("heading")
                             .font({.size = 24})
                             .block({.leading = Leading::multiple(1.5f)});
-  const Rule authored = Rule("authored")
+  const WeaveRule authored = WeaveRule("authored")
                             .font({.size = 18})
                             .block({.leading = Leading::multiple(2.0f)});
   Host expectedRole, expectedClass, expectedDirect;
@@ -71,8 +73,8 @@ TEST(ComposeRoles, ClassesAndDirectDeclarationsBeatRolesInEitherSheetOrder) {
   const SkRect roleRect = contentRect(expectedRole);
   const SkRect classRect = contentRect(expectedClass);
   const SkRect directRect = contentRect(expectedDirect);
-  for (const StyleSheet& sheet : std::array{StyleSheet{selected, authored},
-                                            StyleSheet{authored, selected}}) {
+  for (const WeaveSheet& sheet : std::array{WeaveSheet{selected, authored},
+                                            WeaveSheet{authored, selected}}) {
     Host role, classed, direct;
     role.composer.render(page(heading()).styleSheet(sheet));
     classed.composer.render(
@@ -82,7 +84,7 @@ TEST(ComposeRoles, ClassesAndDirectDeclarationsBeatRolesInEitherSheetOrder) {
                  .font({.size = 14})
                  .block({.leading = Leading::multiple(1.25f)})
                  .styleClass("authored")
-                 .role(Rule("heading").font({.size = 36})))
+                 .role(WeaveRule("heading").font({.size = 36})))
             .styleSheet(sheet));
     EXPECT_EQ(contentRect(role), roleRect);
     EXPECT_EQ(contentRect(classed), classRect);
@@ -91,10 +93,10 @@ TEST(ComposeRoles, ClassesAndDirectDeclarationsBeatRolesInEitherSheetOrder) {
 }
 
 TEST(ComposeRoles, ANearerRoleRuleChangesOnlyItsDeclaredFields) {
-  const StyleSheet outer{Rule("heading")
+  const WeaveSheet outer{WeaveRule("heading")
                              .font({.size = 24})
                              .block({.leading = Leading::multiple(2.0f)})};
-  const StyleSheet inner{{"heading", {.size = 18}}};
+  const WeaveSheet inner{{"heading", {.size = 18}}};
   Element adopted = heading().styleSheet(inner);
   Host role, direct;
   role.composer.render(page(std::move(adopted)).styleSheet(outer));
@@ -142,11 +144,11 @@ TEST(ComposeRoles, AReparentedRoleResolvesAgainstItsNewDocument) {
 }
 
 TEST(ComposeRoles, RelativeSizesResolveOnceAfterRoleClassAndDirectOverrides) {
-  const StyleSheet sheet{{"authored", {.size = 1.25_em}},
+  const WeaveSheet sheet{{"authored", {.size = 1.25_em}},
                          {"heading", {.size = 1.5_em}}};
   for (int level = 0; level < 4; ++level) {
     Element content = box()
-                          .role(Rule("heading").font({.size = 2_em}))
+                          .role(WeaveRule("heading").font({.size = 2_em}))
                           .width(2_em)
                           .height(1_em)
                           .key("content");
@@ -169,7 +171,7 @@ TEST(ComposeRoles, FallbackVariablesYieldToInheritedAndDirectZeroValues) {
   defaults.set(var("accent"), SkColor4f{1, 0, 0, 1});
   const auto component = [&] {
     return box()
-        .role(Rule("panel").font({.size = 1.5_em}))
+        .role(WeaveRule("panel").font({.size = 1.5_em}))
         .varDefaults(defaults)
         .padding(var("gutter"))
         .children({box()
@@ -204,7 +206,7 @@ TEST(ComposeRoles, ChangingRoleAndVariableDefaultsInvalidatesTheNode) {
     VarTable defaults;
     defaults.set(var("gutter"), Dimension(gutter));
     return box()
-        .role(Rule("panel").font({.size = size}))
+        .role(WeaveRule("panel").font({.size = size}))
         .varDefaults(defaults)
         .padding(var("gutter"))
         .children({box().width(1_em).height(1_em).key("content")});

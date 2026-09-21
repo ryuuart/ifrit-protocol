@@ -435,7 +435,8 @@ struct Composer::Impl {
       float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars,
       const sigil::weave::Block& parentBlock,
       const std::optional<SkSamplingOptions>& parentSampling,
-      const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet);
+      const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet,
+      const detail::SheetChain& parentSheets);
   /** An inheriting text leaf whose ink alone changed: the new colour set
    *  on its inherited ranges in place, the restyles replayed over them,
    *  and nothing re-shaped or re-broken. */

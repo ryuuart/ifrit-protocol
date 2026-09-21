@@ -77,10 +77,11 @@ Derived& CascadeVerbs<Derived>::imageRendering(SkSamplingOptions options) {
 
 template class CascadeVerbs<Element>;
 
-// The cascade a node NAMES rather than states: the sheet its classes
-// resolve through, the role that stands under them, and the classes
-// themselves. They are the node's identity in the cascade, not a
-// property a rule could restate, so they stay on Element.
+// The cascade a node NAMES rather than states: the sheets its classes
+// resolve through and the sheets it applies to its subtree, the role
+// that stands under them, and the classes themselves. They are the
+// node's identity in the cascade, not a property a rule could restate,
+// so they stay on Element.
 
 Element& Element::styleClass(std::string_view names) {
   // The names are KEPT, and resolved by the cascade pass against the
@@ -99,6 +100,14 @@ Element& Element::styleClass(std::string_view names) {
 
 Element& Element::styleSheet(sigil::weave::StyleSheet sheet) {
   m_node->cascadeData.ensure().sheet = std::move(sheet);
+  return *this;
+}
+
+Element& Element::applyStyleSheet(StyleSheet sheet) {
+  // Applications ADD rather than replace, so a node may stand under a
+  // house sheet and a local one at once, and the order they were
+  // applied in is the last tiebreak between two rules of equal weight.
+  m_node->cascadeData.ensure().appliedSheets.push_back(std::move(sheet));
   return *this;
 }
 

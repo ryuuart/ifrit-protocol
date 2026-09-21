@@ -27,6 +27,7 @@
 #include "ComposeCompare.h"
 #include "sigilcompose/Compose.h"
 #include "sigilcompose/core/Cascade.h"
+#include "sigilcompose/core/StyleSheet.h"
 // The text leaf's description is spelled in the typography vocabulary —
 // its tracks, its runs, its readings, its restyles' selectors, its
 // baseline path — which the kernel stores, compares and lays out without
@@ -534,6 +535,13 @@ struct CascadeData {
    *  (Element::styleSheet). Its rules lie over the inherited sheet's, by
    *  name. */
   std::optional<sigil::weave::StyleSheet> sheet;
+  /** The selector sheets this node APPLIES to its subtree
+   *  (Element::applyStyleSheet), in the order they were applied: each
+   *  one's rules speak about this node and the elements under it, and a
+   *  later application is the later tiebreak. A sheet is a shared
+   *  value, so the equality reconcile makes over this list is a run of
+   *  pointer compares. */
+  std::vector<StyleSheet> appliedSheets;
   /** The block partial this node declares for everything under it:
    *  Element::block, and the block half of a class. */
   std::optional<sigil::weave::Block> block;
