@@ -696,7 +696,8 @@ void bindCompose(py::module_& module) {
             return self.varDefaults(std::move(table));
           },
           py::arg("defaults"), fluent)
-      .def("sampling", &Element::sampling, py::arg("sampling"), fluent)
+      .def("imageRendering", &Element::imageRendering, py::arg("sampling"),
+           fluent)
       .def("hitTestable", &Element::hitTestable, py::arg("enabled"), fluent)
       .def("boundary", &Element::boundary, py::arg("boundary"), fluent)
       .def("threshold", &Element::threshold, py::arg("threshold"), fluent)

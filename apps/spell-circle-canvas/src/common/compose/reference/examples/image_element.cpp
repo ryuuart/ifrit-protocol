@@ -83,7 +83,7 @@ struct ImageElement {
         .row()
         .gap(16)
         .padding(22)
-        .sampling(SkSamplingOptions(SkFilterMode::kNearest))
+        .imageRendering(SkSamplingOptions(SkFilterMode::kNearest))
         .children({cell("Fit::Contain", image(picture, skia::Fit::Contain)),
                    cell("Fit::Cover", image(picture, skia::Fit::Cover)),
                    cell("Fit::Stretch", image(picture, skia::Fit::Stretch))});

@@ -538,7 +538,7 @@ struct CascadeData {
    *  Element::block, and the block half of a class. */
   std::optional<sigil::weave::Block> block;
   /** How image leaves under this node sample their source
-   *  (Element::sampling), inherited as CSS's image-rendering is. */
+   *  (Element::imageRendering), inherited as CSS's image-rendering is. */
   std::optional<SkSamplingOptions> sampling;
   /** ink(var(...)): the property the ink reads. Exclusive with a colour in
    *  `font->color` — whichever was written last stands. */

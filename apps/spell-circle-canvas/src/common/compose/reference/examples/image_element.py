@@ -72,5 +72,5 @@ class ImageElement:
             .row()
             .gap(16)
             .padding(22)
-            .sampling(skia.SamplingOptions(skia.FilterMode.Nearest))
+            .imageRendering(skia.SamplingOptions(skia.FilterMode.Nearest))
         )

@@ -501,12 +501,12 @@ struct BlackWatch {
     // drawdown — the cloth itself, at kDrawCell px per thread, kNearest
     g.children(
         {at(x0, bodyY, (float)kDrawN * c, (float)kDrawN * c)
-             .children(
-                 {image(drawdownAsset)
-                      .inset(0)
-                      .sampling(SkSamplingOptions(SkFilterMode::kNearest)),
-                  at(0, 0, (float)kDrawN * c, (float)kDrawN * c)
-                      .fill(drawGrid)})
+             .children({image(drawdownAsset)
+                            .inset(0)
+                            .imageRendering(
+                                SkSamplingOptions(SkFilterMode::kNearest)),
+                        at(0, 0, (float)kDrawN * c, (float)kDrawN * c)
+                            .fill(drawGrid)})
              .foreground(
                  stroke(1, Fill::color(kInk), PathFormat::Align::Outer)),
          label(kit::formatted(

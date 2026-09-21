@@ -94,7 +94,7 @@ sound model; nothing below them changes kernel semantics.
 - `core/Band.h` — `BandVerbs`: `centered`, `outward`, `inward`.
 - `core/verbs/Mask.h` — `MaskVerbs`: `mask`, in both its forms.
 - `core/verbs/Cascade.h` — `CascadeVerbs`: `font`, `block`, `ink`,
-  `var`, `varDefaults`, `sampling` — what a node declares to everything
+  `var`, `varDefaults`, `imageRendering` — what a node declares to everything
   under it.
 - `core/verbs/Paint.h` — `PaintVerbs`: `fill`, in every form a surface
   can be painted with.

@@ -79,7 +79,7 @@ distribution, its reservation, its threading, its exclusions, its initial
 letter, and a whole style — and, on a whole style, the block's air before
 and after, its keeps with the next block and its every-line insets, as a
 margin is a box's own. Image sampling inherits the same way, as CSS's
-`image-rendering` does: `Element::sampling` on any node reaches every
+`image-rendering` does: `Element::imageRendering` on any node reaches every
 image leaf under it.
 
 **A range and a reading take the same partial.** `Element::spanStyle`

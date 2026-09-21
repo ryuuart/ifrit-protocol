@@ -65,7 +65,7 @@ class CascadeVerbs {
    *  nothing states it, which is right for photographs and wrong for
    *  every pixel grid, and inherited as CSS inherits `image-rendering`,
    *  so a panel of pixel art states nearest once. */
-  Derived& sampling(SkSamplingOptions options);
+  Derived& imageRendering(SkSamplingOptions options);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

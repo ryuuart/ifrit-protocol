@@ -64,7 +64,7 @@ Element frameFigure(const sk_sp<SkImage>& frame, float w, float h,
       sigil::compose::image(frame, mskia::Fit::Contain)
           .width(w)
           .height(h)
-          .sampling(SkSamplingOptions(SkFilterMode::kNearest)));
+          .imageRendering(SkSamplingOptions(SkFilterMode::kNearest)));
 }
 
 }  // namespace

@@ -235,7 +235,7 @@ once and do nothing.
 | Verb | What it says |
 |---|---|
 | `region` | Image leaves: draw this sub-rect of the asset instead of the whole picture. |
-| [`sampling`](pages/verbs/sampling.md) | How image leaves under this node sample their source. Inherits. |
+| [`imageRendering`](pages/verbs/imageRendering.md) | How image leaves under this node sample their source. Inherits. |
 
 ## Identity, layering and hit testing
 
@@ -279,7 +279,7 @@ spelling is the feature's.
 - `core/Band.h` — the band formation `centered`, `outward`, `inward`.
 - `core/verbs/Mask.h` — `mask`.
 - `core/verbs/Cascade.h` — the cascade verbs `font`, `block`, `ink`,
-  `var`, `varDefaults`, `sampling`.
+  `var`, `varDefaults`, `imageRendering`.
 - `core/verbs/Paint.h` — `fill`.
 - `core/verbs/Decoration.h` — the decoration slots `stroke`,
   `background`, `overlay`, `foreground`, `style`, `echo`, and what they

@@ -1,15 +1,15 @@
 ---
 kind: verb
 library: SigilCompose
-name: sampling
-qualified: sigil::compose::Element::sampling
+name: imageRendering
+qualified: sigil::compose::Element::imageRendering
 header: sigilcompose/core/verbs/Cascade.h
 group: The cascade
-python: sigil.compose.Element.sampling
+python: sigil.compose.Element.imageRendering
 status: stable
 ---
 
-# sampling
+# imageRendering
 
 How image leaves under this node sample their source — CSS's
 `image-rendering`, and inherited exactly as that is.
@@ -21,7 +21,7 @@ wrong for every pixel grid: art, tilemaps, fonts baked as sprites,
 simulation buffers.
 
 ```cpp
-element.image(tileset).sampling(SkSamplingOptions(SkFilterMode::kNearest));
+element.image(tileset).imageRendering(SkSamplingOptions(SkFilterMode::kNearest));
 ```
 
 **It is set on any node and inherited by every image leaf under it**,

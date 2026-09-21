@@ -8,7 +8,7 @@ group: Leaves
 python: sigil.compose.image
 status: stable
 example: image_element
-common_verbs: [sampling, region, width, height, borderRadius, clip, boundary]
+common_verbs: [imageRendering, region, width, height, borderRadius, clip, boundary]
 ---
 
 # image
@@ -56,7 +56,7 @@ box.
 **Sampling is inherited, and the default is wrong for pixels.** Linear
 is right for a photograph and wrong for every grid of pixels — art,
 tilemaps, fonts baked as sprites, simulation buffers. State
-`sampling(SkSamplingOptions(SkFilterMode::kNearest))` once on the panel
+`imageRendering(SkSamplingOptions(SkFilterMode::kNearest))` once on the panel
 that holds them and every image leaf under it takes it, as CSS inherits
 `image-rendering`.
 

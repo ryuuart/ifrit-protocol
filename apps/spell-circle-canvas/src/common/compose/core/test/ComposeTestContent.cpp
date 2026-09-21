@@ -345,7 +345,7 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
   auto magnified = [&](SkSamplingOptions options) {
     Host host(200, 200);
     host.composer.render(box().children({image(atlas)
-                                             .sampling(options)
+                                             .imageRendering(options)
                                              .absolute()
                                              .left(0)
                                              .top(0)

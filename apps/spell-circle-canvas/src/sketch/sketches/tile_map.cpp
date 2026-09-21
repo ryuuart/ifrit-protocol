@@ -278,7 +278,7 @@ struct TileMap {
                .region(SkRect::MakeXYWH((float)i * 16, 0, 16, 16))
                .width(80)
                .height(80)
-               .sampling(SkSamplingOptions(SkFilterMode::kNearest)),
+               .imageRendering(SkSamplingOptions(SkFilterMode::kNearest)),
            document::label(names[i])});
     })});
     Element labels = box().row().children({each(kChunks, [this](int i) {

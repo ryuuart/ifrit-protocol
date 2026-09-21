@@ -203,10 +203,11 @@ TEST(ComposeBlockLane, ImageSamplingSetOnAnAncestorReachesTheImageUnderIt) {
   const SkSamplingOptions nearest(SkFilterMode::kNearest);
   EXPECT_GT(mixed(box().children({picture()})), 2)
       << "linear when nothing states it";
-  EXPECT_LE(mixed(box().children({picture().sampling(nearest)})), 1)
+  EXPECT_LE(mixed(box().children({picture().imageRendering(nearest)})), 1)
       << "on the leaf";
-  EXPECT_LE(
-      mixed(box().sampling(nearest).children({box().children({picture()})})), 1)
+  EXPECT_LE(mixed(box().imageRendering(nearest).children(
+                {box().children({picture()})})),
+            1)
       << "on an ancestor, through a box that says nothing";
 }
 

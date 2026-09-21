@@ -349,10 +349,10 @@ Verdict verify(const std::vector<Run>& bwRuns, const std::vector<uint8_t>& S,
 
 // ---------------------------------------------------------------------------
 // Baking. One pixel per thread, written straight into a bitmap, then sampled
-// with kNearest at an INTEGER magnification. Element::sampling() is what makes
-// the filter choice reachable at all; the magnification must additionally stay
-// integer, because 2 px threads on a 4 px interlacement period minified by any
-// non-integer factor is a moire generator whatever the filter is.
+// with kNearest at an INTEGER magnification. Element::imageRendering() is what
+// makes the filter choice reachable at all; the magnification must additionally
+// stay integer, because 2 px threads on a 4 px interlacement period minified by
+// any non-integer factor is a moire generator whatever the filter is.
 
 /** A window of the cloth, taken at (originX, originY). `rib` darkens the
  *  cells where the WEFT is on top, which is what makes the twill legible

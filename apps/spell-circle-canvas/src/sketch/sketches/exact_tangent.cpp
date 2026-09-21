@@ -179,7 +179,7 @@ Element tangentDetail(weave::FontContext& fonts) {
        document::label("EDGE DETAIL \u00b7 8\u00d7 RASTER").padding(10, 0),
        image(pixels, mskia::Fit::Stretch)
            .region(crop)
-           .sampling(SkSamplingOptions(SkFilterMode::kNearest))
+           .imageRendering(SkSamplingOptions(SkFilterMode::kNearest))
            .width(kCrop.width() * kMagnification)
            .height(kCrop.height() * kMagnification)});
 }

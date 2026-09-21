@@ -191,7 +191,7 @@ Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
 /** AN IMAGE LEAF over a decoded asset. Its intrinsic size is the
  *  asset's own pixels, so a leaf given no size takes them; `fit()` says
  *  what happens when it is given a box of another shape, `region()`
- *  draws one sub-rect of an atlas, and `sampling()` — inherited from
+ *  draws one sub-rect of an atlas, and `imageRendering()` — inherited from
  *  any ancestor — says how the pixels are filtered. A null asset draws
  *  nothing. */
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);

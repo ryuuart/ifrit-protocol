@@ -70,7 +70,7 @@ Derived& CascadeVerbs<Derived>::varDefaults(VarTable defaults) {
 }
 
 template <class Derived>
-Derived& CascadeVerbs<Derived>::sampling(SkSamplingOptions options) {
+Derived& CascadeVerbs<Derived>::imageRendering(SkSamplingOptions options) {
   declarations()->cascadeData.ensure().sampling = options;
   return self();
 }
