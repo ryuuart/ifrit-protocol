@@ -400,7 +400,7 @@ struct PersonaMenu {
         .children({box()
                        .inset(0)
                        .cache(Cache::Texture)
-                       .bakeScale(0.5f)
+                       .cacheScale(0.5f)
                        .fill(dualCaustic())})
         // static over-plane: the framing gradients, one blit
         .children({box()

@@ -288,7 +288,7 @@ bool paintTextureBake(PaintPass& pass) {
                    : scale * perHost;
     }
   }
-  // bakeScale(): opt-in reduced raster scale — the bake evaluates fewer
+  // cacheScale(): opt-in reduced raster scale — the bake evaluates fewer
   // pixels and the blit below linear-upscales through the same dst rect.
   scale = std::max(0.1f, scale * node.bakeScale);
   // THE STATIC EFFECT IS LIFTED OFF THE CONTENT HERE. The bake is taken

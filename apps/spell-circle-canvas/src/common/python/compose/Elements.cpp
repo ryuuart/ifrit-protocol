@@ -720,7 +720,7 @@ void bindCompose(py::module_& module) {
            fluent)
       .def("backface", &Element::backface, py::arg("visibility"), fluent)
       .def("atRest", &Element::atRest)
-      .def("bakeScale", &Element::bakeScale, py::arg("scale"), fluent)
+      .def("cacheScale", &Element::cacheScale, py::arg("scale"), fluent)
       .def("transition", &Element::transition, py::arg("transition"), fluent)
 
       .def(

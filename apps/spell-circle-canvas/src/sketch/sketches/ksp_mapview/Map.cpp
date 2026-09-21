@@ -27,7 +27,7 @@ auto KspMapView::backdrop(sketch::SketchContext& ctx) -> Element {
                   .rotate(rot),
               x, y, w, h)
         .cache(Cache::Texture)
-        .bakeScale(0.4f);
+        .cacheScale(0.4f);
   };
   // Two broad grounds at almost nothing, then a MOTTLE of small blobs
   // along the band. One big soft radial reads as fog; the reference's

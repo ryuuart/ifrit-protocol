@@ -657,7 +657,7 @@ class Composer {
    *  because that is a change of what the picture IS.
    *
    *  A node that needs more resolution than the canvas carries says so
-   *  with `Element::bakeScale`, which multiplies this density as it
+   *  with `Element::cacheScale`, which multiplies this density as it
    *  multiplies the ladder's rung.
    *
    *  Zero, the default, is the ladder. */

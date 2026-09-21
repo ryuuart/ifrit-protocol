@@ -446,7 +446,7 @@ struct AeroDesktop {
                      .inset(-ad::kWX, -ad::kWY, -(ad::kW - ad::kWX - ad::kWW),
                             -(ad::kH - ad::kWY - ad::kWH))
                      .cache(Cache::Texture)
-                     .bakeScale(0.5f)
+                     .cacheScale(0.5f)
                      .children(
                          {box()
                               .inset(0)
@@ -628,7 +628,7 @@ struct AeroDesktop {
             {box()
                  .inset(0, -(ad::kH - th), 0, 0)
                  .cache(Cache::Texture)
-                 .bakeScale(0.5f)
+                 .cacheScale(0.5f)
                  .children(
                      {box()
                           .inset(0)

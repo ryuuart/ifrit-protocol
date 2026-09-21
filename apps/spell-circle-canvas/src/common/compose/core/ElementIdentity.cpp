@@ -79,7 +79,7 @@ Element& Element::cache(Cache c) {
   return *this;
 }
 
-Element& Element::bakeScale(float factor) {
+Element& Element::cacheScale(float factor) {
   m_node->bakeScale = std::clamp(factor, 0.1f, 1.0f);
   return *this;
 }

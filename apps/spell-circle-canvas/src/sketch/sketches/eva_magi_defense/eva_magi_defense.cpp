@@ -257,7 +257,7 @@ struct EvaMagiDefense {
             {{mskia::Paint::image(ribbonHalo), SkBlendMode::kSrc},
              {field(haloStrip), SkBlendMode::kSrcIn}}))
         .cache(Cache::Texture)
-        .bakeScale(0.5f)
+        .cacheScale(0.5f)
         .key("ribbonglow");
   }
 

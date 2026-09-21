@@ -118,7 +118,7 @@ pixel bake is taken at instead, whatever matrix the frame is drawn
 under. The bake is then taken ONCE and blitted through the view's
 transform ever after — exactly as an image node's pixels are: sharp at
 the density it was baked for, magnified beyond it, and never re-taken
-for a change of view scale. `Element::bakeScale` still multiplies it, so
+for a change of view scale. `Element::cacheScale` still multiplies it, so
 a node that needs more resolution than the canvas carries asks for it and
 gets it once. Content that changes still re-bakes, because that is a
 change of what the picture IS, not of how big it is being shown.

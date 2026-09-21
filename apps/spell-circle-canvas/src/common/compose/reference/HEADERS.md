@@ -119,7 +119,7 @@ sound model; nothing below them changes kernel semantics.
 - `core/Element.h` — `Element` and its builders: the verb mixins it
   inherits, the cascade it NAMES with `styleSheet`, `role` and
   `styleClass`, the anchor it hangs off with `tether`, its identity
-  with `key`, `hitTestable`, `cache`, `bakeScale`, `transition` and
+  with `key`, `hitTestable`, `cache`, `cacheScale`, `transition` and
   `staggerChildren`, and `children` with the `Children` value its runs
   are. This is the header a consumer includes: it brings every verb
   family with it, and a family's own header is for a value that

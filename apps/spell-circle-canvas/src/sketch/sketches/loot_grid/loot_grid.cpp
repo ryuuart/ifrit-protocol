@@ -583,7 +583,7 @@ struct LootGrid {
              .key("ground")
              .inset(0)
              .cache(Cache::Texture)
-             .bakeScale(0.34f)
+             .cacheScale(0.34f)
              .children(
                  {box()
                       .inset(0)

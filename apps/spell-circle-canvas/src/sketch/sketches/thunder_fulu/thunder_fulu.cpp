@@ -141,7 +141,7 @@ SIGIL_SKETCH(ThunderFulu, "Study · Esoteric",
 // layer composites, since a node's box is what those two are charged for.
 //
 // Two shapes to know before trying them:
-//   1. `bakeScale(0.5f)` on the full-plate grain wash trades a half-area
+//   1. `cacheScale(0.5f)` on the full-plate grain wash trades a half-area
 //      bake for an upscale resample at every composite, and a large soft
 //      wash is already the cheapest thing a texture bake can hold.
 //   2. removing the plate group's BOUND OPACITY would remove a full-plate

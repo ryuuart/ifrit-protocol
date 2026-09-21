@@ -66,7 +66,7 @@ void staleWorldSpaceBelow(Instance& inst) {
 }
 
 /** A property set on a memo's SHELL — the element memo() returned, after
- *  `.key()`, `.cache()` and `.bakeScale()` — that describes nothing: the
+ *  `.key()`, `.cache()` and `.cacheScale()` — that describes nothing: the
  *  produced element is the node's whole look, and the reconciler retains
  *  the produce as the description. Said once per property, because a
  *  description is rebuilt every frame and a call that silently takes no
@@ -112,7 +112,7 @@ void warnIgnoredMemoShellProps(const ElementNode& shell) {
     if (!probe.set || !warned.insert(probe.what).second) continue;
     SkDebugf(
         "[compose] memo(...) shell carries %s — ignored. A memo shell "
-        "takes .key(), .cache() and .bakeScale() only; its look is what "
+        "takes .key(), .cache() and .cacheScale() only; its look is what "
         "the deferred describe produces, so set this on the element "
         "produced inside it. (warned once)\n",
         probe.what);

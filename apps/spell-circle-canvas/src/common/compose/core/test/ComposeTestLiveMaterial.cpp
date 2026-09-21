@@ -307,7 +307,7 @@ TEST(ComposeMaterial, BoundUniformOwnsItsSlotOverInjection) {
 }
 
 TEST(ComposeMaterial, BakeScaleUpscalesThroughTheSameRect) {
-  // bakeScale(0.5) rasterizes the texture bake at half resolution; the
+  // cacheScale(0.5) rasterizes the texture bake at half resolution; the
   // blit stretches it back through the same dst rect — same coverage,
   // same color, a quarter of the evaluated pixels.
   Host host;
@@ -317,7 +317,7 @@ TEST(ComposeMaterial, BakeScaleUpscalesThroughTheSameRect) {
                                            .width(100)
                                            .height(100)
                                            .cache(Cache::Texture)
-                                           .bakeScale(0.5f)
+                                           .cacheScale(0.5f)
                                            .fill(red())}));
   host.frame();  // bake at half scale
   host.frame();  // blit

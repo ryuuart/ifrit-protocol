@@ -183,7 +183,7 @@ its parent's. Paint-only, like the transforms.
 | Verb | What it says |
 |---|---|
 | `cache` | How the node's paint is held: a picture, a texture, a group, or nothing. |
-| [`bakeScale`](pages/verbs/bakeScale.md) | The texture bake's resolution multiplier — it cheapens the bake and taxes every blit. |
+| [`cacheScale`](pages/verbs/cacheScale.md) | The texture bake's resolution multiplier — it cheapens the bake and taxes every blit. |
 
 ## The cascade
 
@@ -301,5 +301,5 @@ spelling is the feature's.
 - `core/Image.h` — `region`.
 - `core/Element.h` — the cascade a node names, `styleSheet`,
   `styleClass` and `role`; `tether`, `key`, `hitTestable`, `cache`,
-  `bakeScale`, `transition`, `staggerChildren`; and `children`, whose
+  `cacheScale`, `transition`, `staggerChildren`; and `children`, whose
   runs are the `Children` value.

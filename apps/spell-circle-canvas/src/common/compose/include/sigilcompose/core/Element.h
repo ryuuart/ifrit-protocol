@@ -219,7 +219,7 @@ class Element : public BoxVerbs<Element>,
    *  device scale and every blit scales it back up. Almost always the
    *  wrong lever — it cheapens what happens once and taxes what happens
    *  forever. */
-  Element& bakeScale(float factor);
+  Element& cacheScale(float factor);
   /** HOW THIS NODE'S PLAIN CONSTANTS CHANGE when a later describe gives
    *  them a new value: the duration, easing and delay that every
    *  animatable lane on the node — its transforms, its opacity, its

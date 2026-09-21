@@ -282,7 +282,7 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
            .opacity(0.34f)
            .blendMode(SkBlendMode::kPlus)
            .cache(Cache::Texture)
-           .bakeScale(0.5f),
+           .cacheScale(0.5f),
        box().inset(0).fill(
            mskia::Paint::radialUnit({0.5f, 0.5f}, 1.0f,
                                     {{0.00f, {0, 0, 0, 0}},

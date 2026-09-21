@@ -908,6 +908,6 @@ SIGIL_SKETCH(Bg3DiceRoll, "Study · Game UI",
 //
 // One deliberate cost: the bezel and the rosette are `Cache::Texture` nodes
 // that ROTATE, so each frame resamples a large baked texture. That is the price
-// of the slowly turning ring and it is paid on purpose. `bakeScale` is NOT
+// of the slowly turning ring and it is paid on purpose. `cacheScale` is NOT
 // used — it softens gilt hairlines, and the hairlines are the subject.
 // -----------------------------------------------------------------------------

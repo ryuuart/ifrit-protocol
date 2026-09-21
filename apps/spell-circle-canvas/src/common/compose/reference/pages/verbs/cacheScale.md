@@ -1,15 +1,15 @@
 ---
 kind: verb
 library: SigilCompose
-name: bakeScale
-qualified: sigil::compose::Element::bakeScale
+name: cacheScale
+qualified: sigil::compose::Element::cacheScale
 header: sigilcompose/core/Element.h
 group: Caching
-python: sigil.compose.Element.bakeScale
+python: sigil.compose.Element.cacheScale
 status: stable
 ---
 
-# bakeScale
+# cacheScale
 
 Texture-bake resolution multiplier, `Cache::Texture` only: the bake
 rasterizes at `factor` times the device scale and the blit scales it
