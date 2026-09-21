@@ -183,5 +183,8 @@ Derived& PlacementVerbs<Derived>::at(SkPoint topLeft) {
 }
 
 template class PlacementVerbs<Element>;
+template class PlacementVerbs<Text>;
+template class PlacementVerbs<Image>;
+template class PlacementVerbs<Band>;
 
 }  // namespace sigil::compose

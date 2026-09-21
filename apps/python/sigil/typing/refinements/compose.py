@@ -5,30 +5,49 @@ from __future__ import annotations
 from .table import Table
 
 ELEMENT = "_sigil.compose.Element"
+TEXT = "_sigil.compose.Text"
+IMAGE = "_sigil.compose.Image"
+# Every kind of node states the same verbs and hands ITSELF back, so the
+# refinements are written once and registered for each of them with the
+# return type its chain keeps.
+NODES = (ELEMENT, TEXT, IMAGE, "_sigil.compose.Band")
 
 
 def register(table: Table) -> None:
-    table.erased("_sigil.compose.TextPath", "path", "_t.ShapeLike")
-    table.erased("_sigil.compose.TextPath", "at", "_t.ScalarLike")
-    for factory in ("box", "stack", "positioned"):
-        table.declares(
-            "_sigil.compose",
-            factory,
-            f"""@typing.overload
-def {factory}(children: collections.abc.Iterable[Element], /) -> Element: ...
-@typing.overload
-def {factory}(*children: Element) -> Element: ...
-""",
-        )
-    table.declares(
-        "_sigil.compose",
-        "layout",
-        """@typing.overload
-def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, *children: Element) -> Element: ...
-@typing.overload
-def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, children: collections.abc.Iterable[Element], /) -> Element: ...
-""",
-    )
+    for node in NODES:
+        registerNode(table, node)
+    # A glyph paint and a glyph outline are the text leaf's alone, and the
+    # region of a source is the image leaf's.
+    table.erased(TEXT, "textFill", "_t.SurfacePaintLike")
+    # The glyph OUTLINE is one comparable Fill on the node, measured with no
+    # frame in hand, so it takes the flat-mark set and not the surface one.
+    table.erased(TEXT, "textStroke", "_t.FillLike")
+    table.erased(IMAGE, "imageRegion", "_t.RectLike")
+    registerValues(table)
+
+
+class _Returning:
+    """The table, with every declaration's return type read as the node's.
+
+    A verb hands back the value it was called on, so the one text these
+    refinements are written in says `-> Element` and each node's own
+    registration reads its own name there.
+    """
+
+    def __init__(self, table: Table, node: str) -> None:
+        self._table = table
+        self._node = node.rsplit(".", 1)[1]
+
+    def erased(self, prefix: str, names: str, *types: str) -> None:
+        self._table.erased(prefix, names, *types)
+
+    def declares(self, prefix: str, name: str, text: str) -> None:
+        self._table.declares(prefix, name, text.replace("-> Element:", f"-> {self._node}:"))
+
+
+def registerNode(shared: Table, ELEMENT: str) -> None:
+    """The verbs every node states, over the node that states them."""
+    table = _Returning(shared, ELEMENT)
     table.declares(
         ELEMENT,
         "varDefaults",
@@ -109,14 +128,8 @@ def rect(self, x: _t.DimensionLike, y: _t.DimensionLike, width: _t.DimensionLike
         "perspectiveOrigin",
         f"def perspectiveOrigin(self, x: {origin}, y: {origin}) -> Element: ...",
     )
-    table.erased(ELEMENT, "imageRegion", "_t.RectLike")
     table.erased(ELEMENT, "shape", "_t.ShapeLike")
     table.erased(ELEMENT, "background foreground overlay stroke", "_t.DecorationLike")
-    table.erased(ELEMENT, "textFill", "_t.SurfacePaintLike")
-    # The glyph OUTLINE is one comparable Fill on the node, measured with no
-    # frame in hand, so it takes the flat-mark set and not the surface one.
-    table.erased(ELEMENT, "textStroke", "_t.FillLike")
-    table.erased("_sigil.compose.LayerStyle", "echo", "_t.PointLike", "_t.ColorLike")
     table.erased(ELEMENT, "var", "_t.DimensionLike | _t.ColorLike")
     # Four arities in CSS's order, each with its own names, and each name
     # usable as a keyword; beside them the named-sides form, any subset.
@@ -142,6 +155,32 @@ def {edge}(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike 
         "marginTop marginRight marginBottom marginLeft",
         "_t.DimensionLike",
     )
+
+
+def registerValues(table: Table) -> None:
+    """The refinements that speak about a value rather than a node."""
+    table.erased("_sigil.compose.TextPath", "path", "_t.ShapeLike")
+    table.erased("_sigil.compose.TextPath", "at", "_t.ScalarLike")
+    for factory in ("box", "stack", "positioned"):
+        table.declares(
+            "_sigil.compose",
+            factory,
+            f"""@typing.overload
+def {factory}(children: collections.abc.Iterable[Element], /) -> Element: ...
+@typing.overload
+def {factory}(*children: Element) -> Element: ...
+""",
+        )
+    table.declares(
+        "_sigil.compose",
+        "layout",
+        """@typing.overload
+def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, *children: Element) -> Element: ...
+@typing.overload
+def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, children: collections.abc.Iterable[Element], /) -> Element: ...
+""",
+    )
+    table.erased("_sigil.compose.LayerStyle", "echo", "_t.PointLike", "_t.ColorLike")
     table.erased("_sigil.compose.Composer", "hitTest", "_t.PointLike")
     table.erased("_sigil.compose.Decoration", "__init__", "_t.DecorationLike")
     table.erased("_sigil.compose.Dimension", "__init__", "_t.DimensionLike")

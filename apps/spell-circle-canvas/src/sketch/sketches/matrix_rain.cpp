@@ -301,7 +301,7 @@ TextEffect westLift() {
  *  digits lifted alone — each class substituting within its own charset off
  *  one wrapping clock. A plane that also FALLS states its streak before
  *  this, since the track algebra reads them in the order they are written. */
-Element churning(Element plane, ch::Output<float>* progress) {
+Element churning(Text plane, ch::Output<float>* progress) {
   return plane.fx({.where = !westCells(), .effect = mirrorLift()})
       .fx({.where = westCells(), .effect = westLift()})
       .fx({.where = !westCells(),

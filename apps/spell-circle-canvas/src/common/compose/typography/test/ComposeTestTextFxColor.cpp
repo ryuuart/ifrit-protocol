@@ -69,7 +69,7 @@ std::vector<uint8_t> renderColorTracks(
     std::vector<std::pair<std::string, GlyphModifier>> tracks,
     float greyLevel = 0.25f, bool continuous = false) {
   Host host(140, 140);
-  Element leaf = text(u8"I", greyStyle(52, greyLevel)).key("k");
+  Text leaf = text(u8"I", greyStyle(52, greyLevel)).key("k");
   for (auto& [key, mod] : tracks)
     leaf.fx({.effect = fixed(key, mod), .continuous = continuous});
   host.composer.render(box().padding(10).children({std::move(leaf)}));

@@ -76,6 +76,9 @@ Derived& CascadeVerbs<Derived>::imageRendering(SkSamplingOptions options) {
 }
 
 template class CascadeVerbs<Element>;
+template class CascadeVerbs<Text>;
+template class CascadeVerbs<Image>;
+template class CascadeVerbs<Band>;
 
 // The cascade a node NAMES rather than states: the sheets its classes
 // resolve through and the sheets it applies to its subtree, the role
@@ -127,13 +130,19 @@ Derived& StructureVerbs<Derived>::role(std::string name) {
 }
 
 // The five members of the structure family this file defines, named one
-// by one: the family's other members are instantiated where they are
-// defined, beside the rest of a node's identity.
-template Element& StructureVerbs<Element>::styleClass(std::string_view);
-template Element& StructureVerbs<Element>::styleSheet(
-    sigil::weave::StyleSheet);
-template Element& StructureVerbs<Element>::applyStyleSheet(StyleSheet);
-template Element& StructureVerbs<Element>::role(sigil::weave::Rule);
-template Element& StructureVerbs<Element>::role(std::string);
+// by one for each kind of node: the family's other members are
+// instantiated where they are defined, beside the rest of a node's
+// identity.
+#define SIGIL_COMPOSE_CASCADE_NAMES(Node)                                  \
+  template Node& StructureVerbs<Node>::styleClass(std::string_view);       \
+  template Node& StructureVerbs<Node>::styleSheet(sigil::weave::StyleSheet); \
+  template Node& StructureVerbs<Node>::applyStyleSheet(StyleSheet);        \
+  template Node& StructureVerbs<Node>::role(sigil::weave::Rule);           \
+  template Node& StructureVerbs<Node>::role(std::string);
+SIGIL_COMPOSE_CASCADE_NAMES(Element)
+SIGIL_COMPOSE_CASCADE_NAMES(Text)
+SIGIL_COMPOSE_CASCADE_NAMES(Image)
+SIGIL_COMPOSE_CASCADE_NAMES(Band)
+#undef SIGIL_COMPOSE_CASCADE_NAMES
 
 }  // namespace sigil::compose

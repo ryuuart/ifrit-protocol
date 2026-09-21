@@ -39,7 +39,7 @@ TextSettling sweptSettling(bool live, int candidates, float endAt) {
     // Said twice: the floor is tested once per break position, so a block
     // has to carry enough of them for the search to be still running at
     // the second one.
-    Element leaf =
+    Text leaf =
         text(
             u8"A measure that animates is one input of a run of layouts "
             u8"rather than a question somebody asked once, and the block "
@@ -142,7 +142,7 @@ TEST(ComposeLiveText, AnInheritingPassageSettlesExactlyAsATotalOneDoes) {
     Host host(600, 500);
     std::vector<TextSettling> answers;
     for (const float measure : {320.0f, 340.0f, 360.0f, 340.0f, 320.0f}) {
-      Element leaf =
+      Text leaf =
           inherits ? text(longPassage())
                          .font({.size = 13, .color = SkColor4f{1, 1, 1, 1}})
                    : text(longPassage(),

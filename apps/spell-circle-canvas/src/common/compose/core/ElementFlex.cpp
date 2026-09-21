@@ -67,5 +67,8 @@ Derived& FlexVerbs<Derived>::justifyContent(Justify j) {
 }
 
 template class FlexVerbs<Element>;
+template class FlexVerbs<Text>;
+template class FlexVerbs<Image>;
+template class FlexVerbs<Band>;
 
 }  // namespace sigil::compose

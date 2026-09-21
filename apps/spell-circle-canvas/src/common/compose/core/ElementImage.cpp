@@ -12,6 +12,6 @@ Derived& ImageVerbs<Derived>::imageRegion(SkRect sourceRect) {
   return self();
 }
 
-template class ImageVerbs<Element>;
+template class ImageVerbs<Image>;
 
 }  // namespace sigil::compose

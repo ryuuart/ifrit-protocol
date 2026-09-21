@@ -502,7 +502,7 @@ struct DaemonConsole {
                     .add(r.body, d.bodyStyle);
     if (!r.cipher.empty()) line.add("  " + r.cipher, "cipher");
 
-    Element leaf = text(std::move(line));
+    Text leaf = text(std::move(line));
     switch (r.sev) {
       case dc::kTrace:
         // A trace merely surfaces: one quiet fade, no cascade.

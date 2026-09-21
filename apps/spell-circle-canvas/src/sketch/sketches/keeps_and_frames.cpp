@@ -61,7 +61,7 @@ weave::Story article(bool shortBody, weave::KeepOptions keep,
 Element chain(const std::string& key, const weave::Story& story,
               float height = 214) {
   const auto leaf = [&](int index) {
-    Element body = frame(story)
+    Text body = frame(story)
                        .key(key + std::to_string(index))
                        .width(168)
                        .height(height - 24);

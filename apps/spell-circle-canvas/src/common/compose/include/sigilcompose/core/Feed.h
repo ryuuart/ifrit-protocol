@@ -242,13 +242,13 @@ struct TextOptions {
   bool operator==(const TextOptions&) const = default;
 };
 
-/** ONE text row as an element — the exact thing `feed(const TextRing&, …)`
+/** ONE text row as a leaf — the exact thing `feed(const TextRing&, …)`
  *  builds for each row, minus the key `feed()` puts on it.
  *
  *  Exposed so a caller can build the column by hand when the rows need
  *  something the options do not carry, keying each row with `rowKey()`. */
-[[nodiscard]] inline Element textRow(const TextRow& row,
-                                     const sigil::weave::StyleSheet& styles) {
+[[nodiscard]] inline Text textRow(const TextRow& row,
+                                  const sigil::weave::StyleSheet& styles) {
   return text(row.text, styles[row.style]);
 }
 

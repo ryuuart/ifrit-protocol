@@ -430,11 +430,11 @@ Element rail(std::vector<Anchor> anchors, RailRouter router = {});
  *
  *  The profile's `max()` is what the paint cull grows by, so a band whose
  *  width varies is never silently clipped. */
-Element band(Shape spine, Across width);
+Band band(Shape spine, Across width);
 /** The same band over a spine BORROWED from another keyed element,
  *  resolved in the derive phase and re-swept whenever that element's
  *  shape moves. */
-Element band(Around spine, Across width);
+Band band(Around spine, Across width);
 
 /** The band's own (along, across) space, addressable: `along` is a
  *  fraction of the spine's total arc length, `across` is px on the normal.
@@ -496,8 +496,8 @@ using sigil::compose::around;
  *  `el.contentFlowAround("fig", 8)`. The method is the ergonomic form,
  *  since it chains; this exists so the whole family can be found under
  *  one name. */
-inline Element contentFlowAround(Element el, std::string_view key,
-                                 float margin = 0.0f) {
+inline Text contentFlowAround(Text el, std::string_view key,
+                              float margin = 0.0f) {
   el.contentFlowAround(key, margin);
   return el;
 }

@@ -31,5 +31,8 @@ Derived& MaskVerbs<Derived>::mask(Parts what, Gate with) {
 }
 
 template class MaskVerbs<Element>;
+template class MaskVerbs<Text>;
+template class MaskVerbs<Image>;
+template class MaskVerbs<Band>;
 
 }  // namespace sigil::compose

@@ -1,9 +1,16 @@
 # The elements
 
 Every factory that starts a tree. An element is a free function
-returning an `Element` — a cheap value built fresh every frame and
-thrown away — and everything else in this library is either something
-you SAY to one (a verb) or something you PASS to a verb (a value).
+returning a node — a cheap value built fresh every frame and thrown
+away — and everything else in this library is either something you SAY
+to one (a verb) or something you PASS to a verb (a value).
+
+Most factories return an `Element`. The three that make a LEAF with
+verbs of its own return that leaf's own type — `text` and `frame` a
+`Text`, `image` an `Image`, `band` a `Band` — which is a node plus what
+only that leaf can be told, and which CONVERTS to an `Element` wherever
+a node is wanted. Hold the leaf's own type for as long as its own verbs
+are still to be written; a wrong-kind verb on a box does not compile.
 
 ```cpp
 box().column().gap(12).children({
@@ -27,9 +34,9 @@ its own; nothing on this page needs it.
 | [`box`](pages/elements/box.md) | A flex container, and a leaf when it has no children. | Laid out in a row or a column. |
 | [`stack`](pages/elements/stack.md) | An overlap container: every child shares the box. | Absolute, painted in zIndex then declaration order. |
 | `positioned` | A container whose children carry their own rects and skip flexbox entirely. | Placed by their own insets, Yoga-free. |
-| [`text`](pages/elements/text.md) | A text leaf, in four content forms. | Its marks and its slot mounts. |
-| `frame` | One frame of a story, which `key` names and `textThreadTo` links to the next. | The same. |
-| [`image`](pages/elements/image.md) | An image asset, or a picture already rendered, under one of three fits. | None. |
+| [`text`](pages/elements/text.md) | A text leaf, in four content forms, as a `Text`. | Its marks and its slot mounts. |
+| `frame` | One frame of a story, as a `Text`, which `key` names and `textThreadTo` links to the next. | The same. |
+| [`image`](pages/elements/image.md) | An image asset, or a picture already rendered under one of three fits, as an `Image`. | None. |
 | `picture` | A recorded picture as a leaf — the door out of a bake. | None. |
 | `pathFigure` | A leaf the shape of a path already in canvas coordinates. | None. |
 | [`custom`](pages/elements/custom.md) | A box whose content is one paint program, keyed or not. | None; it sizes like an empty box. |
@@ -52,7 +59,7 @@ after layout, by the keys they name.
 |---|---|
 | `connector` | A line from one keyed node to another, routed after both are placed. |
 | `rail` | A line through a list of anchors, routed the same way. |
-| `band` | A ribbon of stated width along a spine, placed on it by `bandAlignment`. |
+| `band` | A ribbon of stated width along a spine, as a `Band`, placed on it by `bandAlignment`. |
 
 ## Fields, feeds and the other leaves
 

@@ -271,7 +271,7 @@ struct AxisRipple {
                           .color = kInk,
                           .track = kProofTrack * 0.6f});
     style.variation(tag, value);
-    Element run = text(kProof, style);
+    Text run = text(kProof, style);
     // THE RULE IS ANCHORED TO THE RUN, not fitted to it. An unsliced
     // selector resolves to the union of every glyph's box, so pct(100) of
     // that rect is the last letter's trailing edge — which moves with the

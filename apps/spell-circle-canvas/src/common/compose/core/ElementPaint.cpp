@@ -41,5 +41,8 @@ Derived& PaintVerbs<Derived>::fill(material::skia::Paint m) {
 }
 
 template class PaintVerbs<Element>;
+template class PaintVerbs<Text>;
+template class PaintVerbs<Image>;
+template class PaintVerbs<Band>;
 
 }  // namespace sigil::compose

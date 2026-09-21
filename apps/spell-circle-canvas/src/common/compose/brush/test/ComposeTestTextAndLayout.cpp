@@ -517,7 +517,7 @@ TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
                    return mod;
                  });
   auto scene = [&](bool onPath, float progress) {
-    Element t = text(u8"LIFT", whiteStyle(18))
+    Text t = text(u8"LIFT", whiteStyle(18))
                     .key("t")
                     .width(200)
                     .height(200)
@@ -580,7 +580,7 @@ TEST(ComposeTextPath, ATrackAndABaselineBothRunRatherThanOneWinning) {
   auto ring = [](bool withTrack) {
     // A ring well inside the frame: a track that throws glyphs OUTWARD off
     // a ring already touching the edges would be measuring the clip.
-    Element t = text(u8"BOTH RUN", whiteStyle(18))
+    Text t = text(u8"BOTH RUN", whiteStyle(18))
                     .key("ring")
                     .width(160)
                     .height(160)

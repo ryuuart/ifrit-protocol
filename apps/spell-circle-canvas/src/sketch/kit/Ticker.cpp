@@ -15,6 +15,7 @@ using compose::Align;
 using compose::box;
 using compose::Dimension;
 using compose::Element;
+using compose::Text;
 using compose::Fill;
 
 compose::Element ticker(Ticker strip) {
@@ -69,7 +70,7 @@ compose::Element timeline(const Timeline& scale) {
   for (const Timeline::Mark& mark : scale.marks) {
     if (!mark.major || mark.label.empty()) continue;
     any = true;
-    Element label = compose::document::eyebrow(mark.label)
+    Text label = compose::document::eyebrow(mark.label)
                         .role(weave::rule("eyebrow").font(
                             look.font(look.type.eyebrow, look.palette.ash)));
     if (mark.ink)

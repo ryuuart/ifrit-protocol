@@ -104,10 +104,6 @@ Derived& StructureVerbs<Derived>::staggerChildren(
   return self();
 }
 
-void Element::append(Element e) {
-  m_node->children.push_back(std::move(e));
-}
-
 template <class Derived>
 Derived& StructureVerbs<Derived>::children(
     std::initializer_list<Children> runs) {
@@ -117,5 +113,8 @@ Derived& StructureVerbs<Derived>::children(
 }
 
 template class StructureVerbs<Element>;
+template class StructureVerbs<Text>;
+template class StructureVerbs<Image>;
+template class StructureVerbs<Band>;
 
 }  // namespace sigil::compose

@@ -41,7 +41,7 @@ weave::Type serif(float size, SkColor4f color, float tracking = 0) {
 }
 
 Element opening(std::optional<kit::NestedStyle> nested) {
-  Element body =
+  Text body =
       document::paragraph(kPassage)
           .font(serif(kBodySize, kBody))
           .width(kMeasure)

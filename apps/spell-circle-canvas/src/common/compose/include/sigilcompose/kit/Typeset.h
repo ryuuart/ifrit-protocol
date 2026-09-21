@@ -249,11 +249,11 @@ struct NestedStyle {
   const float measure = (width - gutter * static_cast<float>(count - 1)) /
                         static_cast<float>(count);
   for (int index = 0; index < count; ++index) {
-    Element column = frame(story)
-                         .role("paragraph")
-                         .key(keyPrefix + std::to_string(index))
-                         .width(Dimension(measure))
-                         .height(Dimension(height));
+    Text column = frame(story)
+                       .role("paragraph")
+                       .key(keyPrefix + std::to_string(index))
+                       .width(Dimension(measure))
+                       .height(Dimension(height));
     if (index + 1 < count)
       column.textThreadTo(keyPrefix + std::to_string(index + 1));
     else if (!ellipsis.empty())
@@ -335,10 +335,10 @@ struct ColumnSet {
   for (int r = 0; r < rows; ++r) {
     Element row = box().row().gap(set.gutter);
     for (int i = 0; i < set.count; ++i, ++index) {
-      Element column = frame(set.story)
-                           .key(keyAt(index))
-                           .width(Dimension(measure))
-                           .height(Dimension(set.height));
+      Text column = frame(set.story)
+                        .key(keyAt(index))
+                        .width(Dimension(measure))
+                        .height(Dimension(set.height));
       // Every row but the last opens a balanced run that must reach the
       // line its spanner breaks after; the last row is the remainder and
       // keeps the depth it was given.

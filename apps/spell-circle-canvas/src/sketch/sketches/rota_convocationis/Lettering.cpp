@@ -9,7 +9,7 @@ namespace {
  *  off that circle by @p lift — which is what puts a letter's body inside the
  *  pair of rules that fences it. The TEXT node is the ring; a ring given to a
  *  parent resolves against the run's intrinsic size and collapses. */
-Element onRing(Element run, const char* key, float r,
+Text onRing(Text run, const char* key, float r,
                motion::Animatable<float> at, float lift) {
   return run.key(key)
       .rect(sigil::geometry::path::centred(kEye, {2 * r, 2 * r}))
@@ -198,7 +198,7 @@ auto RotaConvocationis::nomina() -> Element {
   // wash spreads around each name's rect. Over-reporting is safe;
   // under-reporting shears the outer halves off at the layer's edge.
   constexpr float kReach = 90.0f;
-  Element names =
+  Text names =
       text(nomText)
           .styleClass("ring")
           .font({.size = nomSize, .color = kGold, .track = 4.2f})

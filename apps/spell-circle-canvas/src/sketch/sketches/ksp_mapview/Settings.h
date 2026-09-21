@@ -162,12 +162,12 @@ inline weave::TextStyle bold(float sz, SkColor4f c, float tr = 0) {
 inline weave::TextStyle lcd(float sz, SkColor4f c, float tr = 0) {
   return ty(mono(), sz, c, tr);
 }
-inline Element t(const char* s, weave::TextStyle st) {
+inline Text t(const char* s, weave::TextStyle st) {
   return text(s, std::move(st));
 }
 /** The same line as a PARTIAL over the font in force where it lands —
  *  the info card's sans 11 in the card ink — naming only what differs. */
-inline Element t(const char* s, weave::Type partial) {
+inline Text t(const char* s, weave::Type partial) {
   return text(s).font(std::move(partial));
 }
 
@@ -180,9 +180,10 @@ inline std::vector<kit::Reading> readings(const data::Json& node) {
 }
 
 /** A node centred on a canvas point — the marker/gizmo idiom. */
-inline Element at(Element e, SkPoint c, float w, float h) {
-  e.width(w).height(h).centerAt(c);
-  return e;
+template <class Node>
+Node at(Node node, SkPoint c, float w, float h) {
+  node.width(w).height(h).centerAt(c);
+  return node;
 }
 
 // ---------------------------------------------------------------------------

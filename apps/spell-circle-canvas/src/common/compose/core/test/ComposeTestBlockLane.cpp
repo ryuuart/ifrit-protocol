@@ -39,7 +39,7 @@ int inkStartIn(Host& host, SkRect rect) {
   return -1;
 }
 
-Element leaf() {
+Text leaf() {
   return text(kLines)
       .font({.face = sigil::test::instrument::sans(), .size = 12})
       .ink({1, 1, 1, 1})

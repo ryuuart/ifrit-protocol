@@ -77,8 +77,9 @@ sound model; nothing below them changes kernel semantics.
 - `core/Cascade.h` — `VarValue`, what a custom property holds, and
   `VarTable`, the properties in force at a node.
 - `core/Declarations.h` — `NodeHandle`, the copy-on-write handle a
-  description value is, and `NodeAccess`, the one door the verb mixins
-  reach it through.
+  description value is, `Declaring`, what every value that declares a
+  node holds, and `NodeAccess`, the one door the verb mixins reach it
+  through.
 - `core/verbs/Box.h` — `BoxVerbs`: `gap`, `padding`, `margin`, `width`,
   `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `aspectRatio`,
   `boxSizing`, `display`.
@@ -91,7 +92,8 @@ sound model; nothing below them changes kernel semantics.
   node FILLS the box it stands in, which `absolute` and `inset` said
   between them.
 - `core/verbs/Shape.h` — `ShapeVerbs`: `borderRadius`, `shape`, `overflow`.
-- `core/Band.h` — `BandVerbs`: `bandAlignment`.
+- `core/Band.h` — `BandVerbs`: `bandAlignment`, and `Band`, the leaf
+  that has it.
 - `core/verbs/Mask.h` — `MaskVerbs`: `mask`, in both its forms.
 - `core/verbs/Cascade.h` — `CascadeVerbs`: `font`, `block`, `ink`,
   `var`, `varDefaults`, `imageRendering` — what a node declares to everything
@@ -114,17 +116,23 @@ sound model; nothing below them changes kernel semantics.
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `textAttach`,
   `textAnnotation`, `textThreadTo`, `textThreadBalance`, `textOnPath`,
-  `spanPaint`, `spanStyle`, `atRest`.
-- `core/Image.h` — `ImageVerbs`: `imageRegion`.
+  `spanPaint`, `spanStyle`, `atRest`; and `Text`, the leaf that has them
+  and the text properties both.
+- `core/Image.h` — `ImageVerbs`: `imageRegion`, and `Image`, the leaf
+  that has them.
 - `core/verbs/Structure.h` — `StructureVerbs`: what a node IS rather
   than how it looks — the cascade it NAMES with `styleSheet`,
   `applyStyleSheet`, `role` and `styleClass`, the anchor it hangs off
   with `tether`, its identity with `key`, `hitTestable`, `cache`,
   `cacheScale`, `transition` and `staggerChildren`, and `children`.
-- `core/Element.h` — `Element`: the verb mixins it inherits, and the
-  `Children` value a `children({…})` run is. This is the header a
-  consumer includes: it brings every verb family with it, and a
-  family's own header is for a value that inherits the family.
+- `core/verbs/Node.h` — `NodeVerbs`: the verb families EVERY node has,
+  gathered so the list is stated once. A kind of node with verbs of its
+  own inherits this and adds them.
+- `core/Element.h` — `Element`: `NodeVerbs` and nothing more, and the
+  `Children` value a `children({…})` run is — which takes an element or
+  any typed leaf. This is the header a consumer includes: it brings
+  every verb family and every kind of node with it, and a family's own
+  header is for a value that inherits the family.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image` (an `image::ImageAsset`, or a
   raw `SkImage` with a `material::skia::Fit` — `Stretch`, `Contain`,

@@ -26,5 +26,8 @@ Derived& ShapeVerbs<Derived>::overflow(Overflow overflow) {
 }
 
 template class ShapeVerbs<Element>;
+template class ShapeVerbs<Text>;
+template class ShapeVerbs<Image>;
+template class ShapeVerbs<Band>;
 
 }  // namespace sigil::compose

@@ -5,35 +5,16 @@
  * and defined by the typography tier.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf — the rest-of-non-text diagnostic
-
 #include <algorithm>
 
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
 
-namespace {
-void warnAtRestOfNonText() {
-  static thread_local bool warned = false;
-  if (warned) return;
-  warned = true;
-  SkDebugf(
-      "[compose] atRest() on an element that is not text() hands back a "
-      "plain copy: a rest pose is what an fx() track's per-glyph deviation "
-      "is measured against, and every other element already draws where "
-      "its layout put it.\n");
-}
-}  // namespace
-
 template <class Derived>
-Element TextContentVerbs<Derived>::atRest() const {
+Derived TextContentVerbs<Derived>::atRest() const {
   const std::shared_ptr<detail::ElementNode>& source =
       detail::NodeAccess::node(self());
-  if (source->kind != detail::Kind::Text || !source->textData) {
-    warnAtRestOfNonText();
-    return Element{source};
-  }
   // A COPY OF THE DESCRIPTION, not a re-description: the copy has to be
   // the same paragraph, laid out the same way, at the same width, or the
   // two disagree about where a letter belongs and a comparison against it
@@ -54,7 +35,7 @@ Element TextContentVerbs<Derived>::atRest() const {
   rest->children.clear();
   text.marks.clear();
   if (!rest->key.empty()) rest->key += "-rest";
-  return Element{std::move(rest)};
+  return Derived{std::move(rest)};
 }
 
 template <class Derived>
@@ -82,6 +63,6 @@ Derived& TextContentVerbs<Derived>::textThreadBalance(uint32_t throughLine) {
   return self();
 }
 
-template class TextContentVerbs<Element>;
+template class TextContentVerbs<Text>;
 
 }  // namespace sigil::compose

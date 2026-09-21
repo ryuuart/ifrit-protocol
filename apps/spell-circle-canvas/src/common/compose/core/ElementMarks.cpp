@@ -103,5 +103,8 @@ Derived& DecorationVerbs<Derived>::layerStyle(LayerStyle s) {
 }
 
 template class DecorationVerbs<Element>;
+template class DecorationVerbs<Text>;
+template class DecorationVerbs<Image>;
+template class DecorationVerbs<Band>;
 
 }  // namespace sigil::compose

@@ -28,11 +28,17 @@ bool SurfacePaint::none() const {
   return std::get<material::skia::Paint>(m_value).isNone();
 }
 
-Element& SurfacePaint::apply(Element& element) const {
+template <class Node>
+Node& SurfacePaint::apply(Node& node) const {
   if (!none())
-    std::visit([&](const auto& paint) { element.fill(paint); }, m_value);
-  return element;
+    std::visit([&](const auto& paint) { node.fill(paint); }, m_value);
+  return node;
 }
+
+template Element& SurfacePaint::apply(Element&) const;
+template Text& SurfacePaint::apply(Text&) const;
+template Image& SurfacePaint::apply(Image&) const;
+template Band& SurfacePaint::apply(Band&) const;
 
 Fill SurfacePaint::resolve(const PaintContext& context) const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {

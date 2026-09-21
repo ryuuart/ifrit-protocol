@@ -59,5 +59,8 @@ Derived& DepthVerbs<Derived>::backface(material::Backface facing) {
 }
 
 template class DepthVerbs<Element>;
+template class DepthVerbs<Text>;
+template class DepthVerbs<Image>;
+template class DepthVerbs<Band>;
 
 }  // namespace sigil::compose

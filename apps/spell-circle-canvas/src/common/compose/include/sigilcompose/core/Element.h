@@ -25,19 +25,7 @@
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Text.h>
 #include <sigilcompose/core/Utf8.h>
-#include <sigilcompose/core/verbs/Box.h>
-#include <sigilcompose/core/verbs/Cascade.h>
-#include <sigilcompose/core/verbs/Decoration.h>
-#include <sigilcompose/core/verbs/Depth.h>
-#include <sigilcompose/core/verbs/Effects.h>
-#include <sigilcompose/core/verbs/Flex.h>
-#include <sigilcompose/core/verbs/Mask.h>
-#include <sigilcompose/core/verbs/Paint.h>
-#include <sigilcompose/core/verbs/Placement.h>
-#include <sigilcompose/core/verbs/Shape.h>
-#include <sigilcompose/core/verbs/Structure.h>
-#include <sigilcompose/core/verbs/TextStyle.h>
-#include <sigilcompose/core/verbs/Transform.h>
+#include <sigilcompose/core/verbs/Node.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Schedule.h>
@@ -52,12 +40,14 @@
 
 #include <any>
 #include <chrono>
+#include <concepts>
 #include <functional>
 #include <memory>
 #include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 /** DATA-DRIVEN DRAWING: a scene described as a tree of values, diffed
@@ -102,73 +92,51 @@ namespace sigil::compose {
  *  the children under it. An Element is a VALUE built fresh every frame
  *  and thrown away — it holds no GPU or layout state, and the retained
  *  tree behind it is the composer's business. The chaining setters
- *  return `*this`, so a node reads as one expression.
+ *  return the value they were called on, so a node reads as one
+ *  expression.
  *
  *  A node is STARTED by a factory — `box()`, `row()`, `column()`,
- *  `text()`, `image()`, `custom()` and the rest in Factories.h — and
- *  SHAPED by the verb families it inherits, one mixin per family of
- *  properties: the box, the flex factors, the placement, the shape, the
- *  mask, the cascade it declares, its paint, its decorations, the
- *  compositing lanes, the two transform stacks, the text properties and
- *  the text content, the image region and the band's formation. What is
- *  declared HERE is what no other value could state: the node's place
- *  in the cascade, its identity, what the painter may keep of it, and
- *  what is under it.
+ *  `custom()` and the rest in Factories.h — and SHAPED by the verb
+ *  families `NodeVerbs` gathers. The factories that make a LEAF hand
+ *  back its own kind — `text()` a `Text`, `image()` an `Image`,
+ *  `band()` a `Band` — which is a node plus the verbs only that leaf
+ *  can use, and which converts to an Element wherever a node is wanted.
  *
  *  A VERB WHOSE VALUE THIS NODE CANNOT USE IS SILENTLY IGNORED rather
- *  than an error: the text verbs do nothing on a box, `region()` does
- *  nothing off an image leaf, and a `gridCells()` claim is read only by a
- *  grid-shaped scheme. That is what lets one kit component say
- *  everything it might mean and let each node take its share.
+ *  than an error where the value is one any node may state: a
+ *  `gridCells()` claim is read only by a grid-shaped scheme, and a
+ *  `gridArea()` naming a region no scheme carries places nothing. What
+ *  belongs to one kind of leaf is not on Element at all, so writing it
+ *  on a box does not compile.
  *
  *  THE NODE'S IDENTITY FOR CACHING IS `key()`. The reconciler matches a
  *  child across describes by it, and `Composer::bounds` and `hitTest`
  *  answer for it; a keyless node is matched by its position among its
  *  siblings. Names given to marks and passes are LOCAL to the node and
  *  are not keys. */
-class Element : public BoxVerbs<Element>,
-                public FlexVerbs<Element>,
-                public PlacementVerbs<Element>,
-                public ShapeVerbs<Element>,
-                public MaskVerbs<Element>,
-                public CascadeVerbs<Element>,
-                public PaintVerbs<Element>,
-                public DecorationVerbs<Element>,
-                public EffectVerbs<Element>,
-                public TransformVerbs<Element>,
-                public DepthVerbs<Element>,
-                public TextStyleVerbs<Element>,
-                public TextContentVerbs<Element>,
-                public ImageVerbs<Element>,
-                public BandVerbs<Element>,
-                public StructureVerbs<Element> {
+class Element : public detail::Declaring, public NodeVerbs<Element> {
  public:
   Element();  ///< An empty box: no size, no fill, no children.
 
-  /** @private reconciler access */
-  const std::shared_ptr<detail::ElementNode>& node() const {
-    return m_node.value;
-  }
+  /** @private the factories' door */
   explicit Element(std::shared_ptr<detail::ElementNode> n)
-      : m_node(std::move(n)) {}
+      : detail::Declaring(std::move(n)) {}
 
  private:
-  /** One more child at the end, which both `children()` forms go through. */
-  void append(Element e);
-
-  // The verb mixins hold no state and reach this handle through the one
-  // door a declaring value grants them.
   friend struct detail::NodeAccess;
-
-  detail::NodeHandle m_node;
 };
 
-/** ONE RUN OF A `children({…})` BLOCK: an element, or the list `each()`
- *  made, so the block mixes both. */
+/** ONE RUN OF A `children({…})` BLOCK: a node — an element or any typed
+ *  leaf — or the list `each()` made, so the block mixes both. */
 struct Children {
   std::vector<Element> items;
-  Children(Element one) { items.push_back(std::move(one)); }
-  Children(std::vector<Element> many) : items(std::move(many)) {}
+  template <class Node>
+    requires std::convertible_to<Node&&, Element>
+  Children(Node&& one) {  // NOLINT: implicit by design (a children block)
+    items.push_back(Element(std::forward<Node>(one)));
+  }
+  Children(std::vector<Element> many)  // NOLINT: implicit by design
+      : items(std::move(many)) {}
 };
 
 }  // namespace sigil::compose

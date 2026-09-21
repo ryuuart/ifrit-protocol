@@ -241,7 +241,7 @@ TEST(TextVertical, SpanPaintRecolorsAColumnWithoutReshaping) {
   };
 
   const auto describe = [&](bool restyled) {
-    Element t =
+    Text t =
         text(body, jp(24, SK_ColorWHITE))
             .width(200)
             .height(220)
@@ -339,7 +339,7 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
   // quarter of a line height rather than a rounding error.
   Host host(240, 300);
   const auto describe = [&](bool shrunk) {
-    Element t =
+    Text t =
         text(u8"一二三四五", jp(28, SK_ColorWHITE))
             .width(60)
             .height(260)
@@ -573,7 +573,7 @@ TEST(TextVertical, ASpanStyleReshapesOnlyTheRunItNames) {
   // pen steps DOWN.
   Host host(300, 300);
   const auto describe = [&](bool dressed) {
-    Element t =
+    Text t =
         text(u8"縦組みの文章", jp(24, SK_ColorWHITE))
             .width(80)
             .height(260)

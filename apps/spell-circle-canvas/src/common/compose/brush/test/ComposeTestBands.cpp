@@ -41,7 +41,7 @@ TEST(ComposeBand, ProfilesAreComparableAndReflexive) {
 TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
   auto draw = [](geometry::path::Formation f) {
     Host host(200, 200);
-    Element b =
+    Band b =
         band(rectSpine(), across(10)).rect(SkRect::MakeXYWH(20, 20, 100, 100));
     b.bandAlignment(f);
     host.composer.render(stack().children({b.fill(red())}));

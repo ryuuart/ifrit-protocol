@@ -1,10 +1,12 @@
 /** @file
  * The readings the compose bindings share: a dimension, a fill, a paint,
- * an alignment, a justification, a shape and a list of children, each
- * taken from the forms Python spells it in.
+ * an alignment, a justification, a shape, a decoration, an origin
+ * length, a custom property's value and a list of children, each taken
+ * from the forms Python spells it in.
  */
 
 #include <pybind11/stl.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
@@ -118,15 +120,49 @@ compose::Shape shape(py::handle value) {
   return compose::heldPath(value.cast<SkPath>());
 }
 
+compose::Decoration decoration(py::handle value) {
+  if (py::isinstance<compose::Decoration>(value))
+    return value.cast<compose::Decoration>();
+  if (py::isinstance<compose::PathFormat>(value))
+    return value.cast<compose::PathFormat>();
+  if (py::isinstance<compose::Shadow>(value))
+    return value.cast<compose::Shadow>();
+  throw py::type_error("A decoration is a Decoration, PathFormat, or Shadow.");
+}
+
+compose::Dimension originLength(py::handle value) {
+  if (py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value))
+    throw py::type_error(
+        "An origin is written with its unit: pct(50) or '50%' of the node's "
+        "box, Dimension(12) for pixels, a Length or a custom property. A "
+        "bare number is refused.");
+  return dimension(value);
+}
+
+compose::VarValue variable(py::handle value) {
+  if (py::isinstance<py::str>(value)) {
+    const auto text = value.cast<std::string>();
+    if (text != "auto" && !text.ends_with("%")) return color(value);
+  }
+  if (py::isinstance<material::Color>(value) ||
+      py::isinstance<py::tuple>(value) || py::isinstance<py::list>(value))
+    return color(value);
+  return dimension(value);
+}
+
 std::vector<compose::Element> elements(py::args values) {
   try {
     if (values.size() == 1 && (py::isinstance<py::str>(values[0]) ||
                                py::isinstance<py::bytes>(values[0])))
       throw py::cast_error();
-    const auto children =
-        values.size() == 1 && !py::isinstance<compose::Element>(values[0])
-            ? py::tuple(values[0])
-            : py::tuple(values);
+    // A typed leaf is one child, exactly as an element is: only a
+    // genuine sequence is flattened.
+    const bool one = py::isinstance<compose::Element>(values[0]) ||
+                     py::isinstance<compose::Text>(values[0]) ||
+                     py::isinstance<compose::Image>(values[0]) ||
+                     py::isinstance<compose::Band>(values[0]);
+    const auto children = values.size() == 1 && !one ? py::tuple(values[0])
+                                                     : py::tuple(values);
     return children.cast<std::vector<compose::Element>>();
   } catch (const py::cast_error&) {
     throw py::type_error(

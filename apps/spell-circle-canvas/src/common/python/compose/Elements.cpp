@@ -10,6 +10,7 @@
 #include <sigilcompose/typography/TextPath.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
+#include <sigilpython/compose/Nodes.h>
 #include <sigilpython/compose/Registration.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
@@ -31,27 +32,6 @@ namespace {
 constexpr auto fluent = py::return_value_policy::reference_internal;
 using compose::Element;
 using Model = std::shared_ptr<PythonValue>;
-
-compose::VarValue variable(py::handle value) {
-  if (py::isinstance<py::str>(value)) {
-    const auto text = value.cast<std::string>();
-    if (text != "auto" && !text.ends_with("%")) return color(value);
-  }
-  if (py::isinstance<material::Color>(value) ||
-      py::isinstance<py::tuple>(value) || py::isinstance<py::list>(value))
-    return color(value);
-  return dimension(value);
-}
-
-compose::Decoration decoration(py::handle value) {
-  if (py::isinstance<compose::Decoration>(value))
-    return value.cast<compose::Decoration>();
-  if (py::isinstance<compose::PathFormat>(value))
-    return value.cast<compose::PathFormat>();
-  if (py::isinstance<compose::Shadow>(value))
-    return value.cast<compose::Shadow>();
-  throw py::type_error("A decoration is a Decoration, PathFormat, or Shadow.");
-}
 
 Element memo(py::object properties, py::function describe) {
   // Capture a model value, rather than an alias whose mutation would make
@@ -86,17 +66,6 @@ Element memo(py::object properties, py::function describe) {
         }
       });
 }
-/** One length of a transform or perspective origin. A bare number is
- *  refused as the native verb refuses it: it reads as a fraction of the
- *  box as readily as a pixel count. */
-compose::Dimension originLength(py::handle value) {
-  if (py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value))
-    throw py::type_error(
-        "An origin is written with its unit: pct(50) or '50%' of the node's "
-        "box, Dimension(12) for pixels, a Length or a custom property. A "
-        "bare number is refused.");
-  return dimension(value);
-}
 }  // namespace
 
 void bindCompose(py::module_& module) {
@@ -122,6 +91,20 @@ void bindCompose(py::module_& module) {
       .value("Group", compose::Cache::Group)
       .value("None_", compose::Cache::None);
   py::class_<Element> element(composition, "Element");
+  // The typed leaves: a node, plus what only that leaf can say. Each
+  // converts to an Element, so a leaf drops into any children list.
+  py::class_<compose::Text> textLeaf(composition, "Text");
+  py::class_<compose::Image> imageLeaf(composition, "Image");
+  py::class_<compose::Band> bandLeaf(composition, "Band");
+  element.def(py::init([](const compose::Text& leaf) { return Element(leaf); }),
+              py::arg("leaf"))
+      .def(py::init([](const compose::Image& leaf) { return Element(leaf); }),
+           py::arg("leaf"))
+      .def(py::init([](const compose::Band& leaf) { return Element(leaf); }),
+           py::arg("leaf"));
+  py::implicitly_convertible<compose::Text, Element>();
+  py::implicitly_convertible<compose::Image, Element>();
+  py::implicitly_convertible<compose::Band, Element>();
   using namespace compose;
   py::class_<VarRef>(composition, "VarRef")
       .def_readonly("id", &VarRef::id)
@@ -425,412 +408,13 @@ void bindCompose(py::module_& module) {
   textSelections.def("style", &selectors::style, py::arg("name"))
       .def("inFrame", &selectors::inFrame, py::arg("key"));
 
-  element.def("copy", [](const Element& value) { return value; })
-      .def("__copy__", [](const Element& value) { return value; })
-      .def("row", &Element::row, fluent)
-      .def("column", &Element::column, fluent)
-      .def("flexGrow", &Element::flexGrow, py::arg("factor") = 1.0f, fluent)
-      .def("flexShrink", &Element::flexShrink, py::arg("factor"), fluent)
-      .def("absolute", &Element::absolute, fluent)
-      .def("cover", &Element::cover, fluent)
-      .def("key", &Element::key, py::arg("key"), fluent)
-      .def("cache", &Element::cache, py::arg("policy"), fluent)
-      .def(
-          "children",
-          [](Element& self, const std::vector<Element>& values) -> Element& {
-            return self.children(values);
-          },
-          py::arg("children"), py::pos_only(), fluent)
-      .def(
-          "children",
-          [](Element& self, py::args values) -> Element& {
-            return self.children(elements(values));
-          },
-          fluent)
-      .def(
-          "size",
-          [](Element& self, py::object width, py::object height) -> Element& {
-            return self.width(dimension(width)).height(dimension(height));
-          },
-          py::arg("width"), py::arg("height"), fluent)
-      .def(
-          "fill",
-          [](Element& self, py::object value) -> Element& {
-            // One conversion for every surface-colouring parameter, so a
-            // material reaches the node's fill exactly as it reaches a
-            // stroke's or a kit ground's. Empty is STATED rather than
-            // applied, because applying nothing leaves a standing fill
-            // where it is — and all three spellings of nothing, None, an
-            // empty Fill and an empty paint, must clear the same way.
-            const compose::SurfacePaint paint = surfacePaint(value);
-            if (paint.none()) return self.fill(compose::Fill::none());
-            return paint.apply(self);
-          },
-          py::arg("value"), fluent)
-      .def(
-          "ink",
-          [](Element& self, py::object value) -> Element& {
-            if (py::isinstance<compose::VarRef>(value))
-              return self.ink(value.cast<compose::VarRef>());
-            return self.ink(color(value));
-          },
-          py::arg("value"), fluent)
-      .def("font", &Element::font, py::arg("type"), fluent)
-      .def(
-          "fontTrack",
-          [](Element& self, py::object value) -> Element& {
-            return self.font(
-                {.track = py::isinstance<weave::Length>(value)
-                              ? value.cast<weave::Length>()
-                              : weave::Length{value.cast<float>()}});
-          },
-          py::arg("tracking"), fluent)
-      .def(
-          "fontSize",
-          [](Element& self, py::object value) -> Element& {
-            return self.font(
-                {.size = py::isinstance<weave::Length>(value)
-                             ? value.cast<weave::Length>()
-                             : weave::Length{value.cast<float>()}});
-          },
-          py::arg("size"), fluent)
-      .def(
-          "fontWeight",
-          [](Element& self, float value) -> Element& {
-            return self.font({.weight = value});
-          },
-          py::arg("weight"), fluent)
-      .def(
-          "borderRadius",
-          [](Element& self, float all) -> Element& {
-            return self.borderRadius({all});
-          },
-          py::arg("all"), fluent)
-      .def(
-          "borderRadius",
-          [](Element& self, float tl, float tr, float br, float bl)
-              -> Element& { return self.borderRadius({tl, tr, br, bl}); },
-          py::arg("topLeft"), py::arg("topRight"), py::arg("bottomRight"),
-          py::arg("bottomLeft"), fluent)
-      .def(
-          "transformOrigin",
-          [](Element& self, py::object x, py::object y,
-             py::object z) -> Element& {
-            return self.transformOrigin(
-                originLength(x), originLength(y),
-                z.is_none() ? compose::Dimension(0.0f) : originLength(z));
-          },
-          py::arg("x"), py::arg("y"), py::arg("z") = py::none(), fluent)
-      .def(
-          "perspectiveOrigin",
-          [](Element& self, py::object x, py::object y) -> Element& {
-            return self.perspectiveOrigin(originLength(x), originLength(y));
-          },
-          py::arg("x"), py::arg("y"), fluent);
-
-  const auto dimensionMethod =
-      [&](const char* name, Element& (Element::*setter)(compose::Dimension)) {
-        element.def(
-            name,
-            [setter](Element& self, py::object value) -> Element& {
-              return (self.*setter)(dimension(value));
-            },
-            py::arg("value"), fluent);
-      };
-  dimensionMethod("width", &Element::width);
-  dimensionMethod("height", &Element::height);
-  dimensionMethod("minWidth", &Element::minWidth);
-  dimensionMethod("minHeight", &Element::minHeight);
-  dimensionMethod("maxWidth", &Element::maxWidth);
-  dimensionMethod("maxHeight", &Element::maxHeight);
-  dimensionMethod("gap", &Element::gap);
-  dimensionMethod("left", &Element::left);
-  dimensionMethod("top", &Element::top);
-  dimensionMethod("right", &Element::right);
-  dimensionMethod("bottom", &Element::bottom);
-
-  element
-      .def("flexDirection", &Element::flexDirection, py::arg("direction"),
-           fluent)
-      .def("flexWrap", &Element::flexWrap,
-           py::arg("wrap") = compose::FlexWrap::Wrap, fluent)
-      .def("boxSizing", &Element::boxSizing, py::arg("sizing"), fluent)
-      .def("display", &Element::display, py::arg("display"), fluent)
-      .def("aspectRatio", &Element::aspectRatio, py::arg("ratio"), fluent)
-      .def(
-          "flexBasis",
-          [](Element& self, py::object value) -> Element& {
-            return self.flexBasis(dimension(value));
-          },
-          py::arg("value"), fluent)
-      .def(
-          "alignItems",
-          [](Element& self, py::object value) -> Element& {
-            return self.alignItems(alignment(value));
-          },
-          py::arg("alignment"), fluent)
-      .def(
-          "alignSelf",
-          [](Element& self, py::object value) -> Element& {
-            return self.alignSelf(alignment(value));
-          },
-          py::arg("alignment"), fluent)
-      .def(
-          "justifyContent",
-          [](Element& self, py::object value) -> Element& {
-            return self.justifyContent(justification(value));
-          },
-          py::arg("alignment"), fluent)
-      .def(
-          "centerAt",
-          [](Element& self, py::object value) -> Element& {
-            return self.centerAt(point(value));
-          },
-          py::arg("point"), fluent)
-      .def(
-          "at",
-          [](Element& self, py::object value) -> Element& {
-            return self.at(point(value));
-          },
-          py::arg("point"), fluent)
-      .def(
-          "at",
-          [](Element& self, py::object x, py::object y) -> Element& {
-            return self.at(dimension(x), dimension(y));
-          },
-          py::arg("x"), py::arg("y"), fluent)
-      .def(
-          "rect",
-          [](Element& self, py::object value) -> Element& {
-            return self.rect(rect(value));
-          },
-          py::arg("rect"), fluent)
-      .def(
-          "rect",
-          [](Element& self, py::object x, py::object y, py::object width,
-             py::object height) -> Element& {
-            return self.rect(dimension(x), dimension(y), dimension(width),
-                             dimension(height));
-          },
-          py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"),
-          fluent)
-      .def("gridCells",
-           py::overload_cast<int, int, int, int>(&Element::gridCells),
-           py::arg("column"), py::arg("row"), py::arg("columns") = 1,
-           py::arg("rows") = 1, fluent)
-      .def("gridCells", py::overload_cast<CellSpan>(&Element::gridCells),
-           py::arg("span"), fluent)
-      .def("gridArea", &Element::gridArea, py::arg("name"), fluent)
-      .def(
-          "gridCellAlign",
-          [](Element& self, py::object x, py::object y) -> Element& {
-            return self.gridCellAlign(alignment(x), alignment(y));
-          },
-          py::arg("horizontal"), py::arg("vertical"), fluent)
-      .def("borderRadius", py::overload_cast<Corners>(&Element::borderRadius),
-           py::arg("radii"), fluent)
-      .def(
-          "shape",
-          [](Element& self, py::object value) -> Element& {
-            return self.shape(shape(value));
-          },
-          py::arg("value"), fluent)
-      .def("bandAlignment", &Element::bandAlignment, py::arg("formation"),
-           fluent)
-      .def("overflow", &Element::overflow, py::arg("overflow"), fluent)
-      .def("block", &Element::block, py::arg("block"), fluent)
-      .def("paragraphStyles",
-           py::overload_cast<std::vector<weave::ParagraphStyle>>(
-               &Element::paragraphStyles),
-           py::arg("blocks"), fluent)
-      .def(
-          "paragraphStyles",
-          [](Element& self, const std::vector<std::string>& names) -> Element& {
-            std::vector<std::string_view> views(names.begin(), names.end());
-            return self.paragraphStyles(views);
-          },
-          py::arg("names"), fluent)
-      .def("initialLetter", &Element::initialLetter, py::arg("initial"), fluent)
-      .def("textFirstBaseline", &Element::textFirstBaseline, py::arg("rule"),
-           py::arg("offset") = 0.0f, fluent)
-      .def("textVerticalAlign", &Element::textVerticalAlign, py::arg("rule"),
-           py::arg("maximumInterlineSpacing") = 0.0f, fluent)
-      .def("textLineMargin", &Element::textLineMargin, py::arg("band"), fluent)
-      .def("textWillChange", &Element::textWillChange,
-           py::arg("enabled") = true, py::arg("candidates") = 0, fluent)
-      .def(
-          "textOverflow",
-          [](Element& self, const std::string& marker) -> Element& {
-            return self.textOverflow(marker);
-          },
-          py::arg("marker"), fluent)
-      .def("maxTextLines", &Element::maxTextLines, py::arg("lines"), fluent)
-      .def("textThreadTo", &Element::textThreadTo, py::arg("key"), fluent)
-      .def("textThreadBalance", &Element::textThreadBalance,
-           py::arg("throughLine") = ~0u, fluent)
-      .def("contentFlowAround", &Element::contentFlowAround, py::arg("key"),
-           py::arg("margin") = 0.0f, fluent)
-      .def("textOnPath", &Element::textOnPath, py::arg("path"), fluent)
-      .def("spanPaint", &Element::spanPaint, py::arg("where"), py::arg("paint"),
-           fluent)
-      .def("spanStyle",
-           py::overload_cast<weave::Selector, weave::TextStyle>(
-               &Element::spanStyle),
-           py::arg("where"), py::arg("style"), fluent)
-      .def("spanStyle",
-           py::overload_cast<weave::Selector, weave::Type>(&Element::spanStyle),
-           py::arg("where"), py::arg("type"), fluent)
-      .def("styleSheet", &Element::styleSheet, py::arg("sheet"), fluent)
-      .def("styleClass", &Element::styleClass, py::arg("name"), fluent)
-      .def("role", py::overload_cast<weave::Rule>(&Element::role),
-           py::arg("defaults"), fluent)
-      .def("role", py::overload_cast<std::string>(&Element::role),
-           py::arg("name"), fluent)
-      .def(
-          "var",
-          [](Element& self, const std::string& name,
-             py::object value) -> Element& {
-            return std::visit(
-                [&](const auto& converted) -> Element& {
-                  return self.var(name, converted);
-                },
-                variable(value));
-          },
-          py::arg("name"), py::arg("value"), fluent)
-      .def(
-          "varDefaults",
-          [](Element& self, const py::dict& defaults) -> Element& {
-            compose::VarTable table;
-            try {
-              for (auto [name, value] : defaults)
-                table.set(compose::var(name.cast<std::string>()),
-                          variable(value));
-            } catch (const py::cast_error&) {
-              throw py::type_error(
-                  "Default properties require string names and color or "
-                  "dimension values");
-            }
-            return self.varDefaults(std::move(table));
-          },
-          py::arg("defaults"), fluent)
-      .def("imageRendering", &Element::imageRendering, py::arg("sampling"),
-           fluent)
-      .def("hitTestable", &Element::hitTestable, py::arg("enabled"), fluent)
-      .def("decorationOutline", &Element::decorationOutline, py::arg("source"),
-           py::arg("coverage") = 0.5f, fluent)
-      .def("layerStyle", &Element::layerStyle, py::arg("style"), fluent)
-      .def("textAnnotation", &Element::textAnnotation, py::arg("reading"),
-           fluent)
-      .def("filter", &Element::filter, py::arg("effect"), fluent)
-      .def("backdropFilter", &Element::backdropFilter, py::arg("effect"),
-           fluent)
-      .def("blendMode", &Element::blendMode, py::arg("mode"), fluent)
-      .def("travel", &Element::travel, py::arg("path"), fluent)
-      .def("zIndex", &Element::zIndex, py::arg("index"), fluent)
-      .def("preserve3d", &Element::preserve3d, py::arg("preserve") = true,
-           fluent)
-      .def("backface", &Element::backface, py::arg("visibility"), fluent)
-      .def("atRest", &Element::atRest)
-      .def("cacheScale", &Element::cacheScale, py::arg("scale"), fluent)
-      .def("transition", &Element::transition, py::arg("transition"), fluent)
-
-      .def(
-          "imageRegion",
-          [](Element& self, py::object value) -> Element& {
-            return self.imageRegion(rect(value));
-          },
-          py::arg("rect"), fluent)
-      .def(
-          "textFill",
-          [](Element& self, py::object value) -> Element& {
-            // A glyph paint is stored as one paint and resolved without
-            // the tree, so the spellings it cannot store say so here
-            // rather than leaving a standing override untouched and the
-            // author guessing why.
-            const compose::SurfacePaint paint = surfacePaint(value);
-            if (!paint.none() && !paint.collapsedPaint())
-              throw py::type_error(
-                  "A glyph paint is stored as one paint and resolved without "
-                  "the tree, so the ink in force, a custom property and a "
-                  "bound fill have no paint to give it. The glyphs already "
-                  "take the ink in force where no glyph paint reaches; clear "
-                  "one with None.");
-            return self.textFill(paint);
-          },
-          py::arg("paint"), fluent)
-      .def(
-          "textStroke",
-          [](Element& self, float width, py::object value) -> Element& {
-            // The outline is one comparable Fill on the node, so the
-            // flat-mark reading is the widest set it can honour: a
-            // static paint collapses onto it and a live or
-            // geometry-dependent one raises, naming the verb that does
-            // resolve against the frame.
-            return self.textStroke(width, fill(value));
-          },
-          py::arg("width"), py::arg("paint"), fluent);
-  for (const auto& [name, setter] : std::initializer_list<std::pair<
-           const char*, Element& (Element::*)(motion::Animatable<float>)>>{
-           {"opacity", &Element::opacity},
-           {"rotate", &Element::rotate},
-           {"scale", &Element::scale},
-           {"scaleX", &Element::scaleX},
-           {"scaleY", &Element::scaleY},
-           {"translateX", &Element::translateX},
-           {"translateY", &Element::translateY},
-           {"skewX", &Element::skewX},
-           {"skewY", &Element::skewY},
-           {"rotateX", &Element::rotateX},
-           {"rotateY", &Element::rotateY},
-           {"translateZ", &Element::translateZ},
-           {"scaleZ", &Element::scaleZ},
-           {"perspective", &Element::perspective}})
-    element.def(
-        name,
-        [setter](Element& self, py::object value) -> Element& {
-          return (self.*setter)(motionAnimatable(value));
-        },
-        py::arg("value"), fluent);
-  element.def(
-      "staggerChildren",
-      [](Element& self, double seconds, const std::string& origin) -> Element& {
-        if (!std::isfinite(seconds) || seconds < 0 || seconds > 1e12)
-          throw py::value_error("Stagger needs nonnegative finite seconds.");
-        const auto from = origin == "start" ? motion::Spread::From::Start
-                          : origin == "end" ? motion::Spread::From::End
-                                            : motion::Spread::From::Center;
-        if (origin != "start" && origin != "end" && origin != "center")
-          throw py::value_error("Stagger origin is start, center, or end.");
-        return self.staggerChildren(
-            std::chrono::milliseconds{static_cast<int64_t>(seconds * 1000)},
-            from);
-      },
-      py::arg("seconds"), py::arg("from_") = "start", fluent);
-  for (const auto& [name, setter] : std::initializer_list<std::pair<
-           const char*, Element& (Element::*)(Decoration, std::string)>>{
-           {"overlay", &Element::overlay},
-           {"background", &Element::background},
-           {"foreground", &Element::foreground},
-           {"stroke", &Element::stroke}})
-    element.def(
-        name,
-        [setter](Element& self, py::object value, const std::string& name)
-            -> Element& { return (self.*setter)(decoration(value), name); },
-        py::arg("decoration"), py::arg("name") = "", fluent);
-  element.def(
-      "stroke",
-      [](Element& self, Spans spans, py::object value,
-         const std::string& name) -> Element& {
-        return self.stroke(std::move(spans), decoration(value), name);
-      },
-      py::arg("spans"), py::arg("decoration"), py::arg("name") = "", fluent);
-  element.def(
-      "background",
-      [](Element& self, Spans spans, py::object value,
-         const std::string& name) -> Element& {
-        return self.background(std::move(spans), decoration(value), name);
-      },
-      py::arg("spans"), py::arg("decoration"), py::arg("name") = "", fluent);
+  bindNodeVerbs(element);
+  bindNodeVerbs(textLeaf);
+  bindNodeVerbs(imageLeaf);
+  bindNodeVerbs(bandLeaf);
+  bindTextVerbs(textLeaf);
+  bindImageVerbs(imageLeaf);
+  bindBandVerbs(bandLeaf);
 
   composition.def("text", py::overload_cast<weave::RichText>(&compose::text),
                   py::arg("content"));

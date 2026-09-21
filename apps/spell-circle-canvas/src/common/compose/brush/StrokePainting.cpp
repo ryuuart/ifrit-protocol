@@ -227,13 +227,19 @@ Derived& DecorationVerbs<Derived>::addSpanPass(Spans where, Decoration what,
 }
 
 // The three members of the decoration family this tier defines, named one
-// by one: the family's other members are instantiated where they are
-// defined, in the kernel.
-template Element& DecorationVerbs<Element>::stroke(Spans, Decoration,
-                                                   std::string);
-template Element& DecorationVerbs<Element>::background(Spans, Decoration,
-                                                       std::string);
-template Element& DecorationVerbs<Element>::addSpanPass(Spans, Decoration,
-                                                        std::string, int);
+// by one for each kind of node that states them: the family's other
+// members are instantiated where they are defined, in the kernel.
+#define SIGIL_COMPOSE_STROKE_TIER(Node)                                    \
+  template Node& DecorationVerbs<Node>::stroke(Spans, Decoration,          \
+                                               std::string);               \
+  template Node& DecorationVerbs<Node>::background(Spans, Decoration,      \
+                                                   std::string);           \
+  template Node& DecorationVerbs<Node>::addSpanPass(Spans, Decoration,     \
+                                                    std::string, int);
+SIGIL_COMPOSE_STROKE_TIER(Element)
+SIGIL_COMPOSE_STROKE_TIER(Text)
+SIGIL_COMPOSE_STROKE_TIER(Image)
+SIGIL_COMPOSE_STROKE_TIER(Band)
+#undef SIGIL_COMPOSE_STROKE_TIER
 
 }  // namespace sigil::compose

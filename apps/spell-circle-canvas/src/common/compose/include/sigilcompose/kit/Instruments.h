@@ -119,7 +119,7 @@ struct MeterPlacement {
  *  A track's deviation is per glyph and lives only in the draw, so the
  *  undeformed letter is nowhere on screen to compare with: a squash reads
  *  as a squash only beside the shape it squashed. This returns a box
- *  holding two copies of @p moving — `Element::atRest`'s copy set in
+ *  holding two copies of @p moving — `Text::atRest`'s copy set in
  *  @p colour and pinned at the box's origin, and @p moving itself in the
  *  flow, which is what sizes the box. Drop it in where the text was:
  *
@@ -128,13 +128,11 @@ struct MeterPlacement {
  *
  *  What the rest copy is — the same content, style, width and layout with
  *  no tracks, no span restyles and none of the moving copy's children,
- *  keyed `-rest` after the original — is `Element::atRest`'s statement;
+ *  keyed `-rest` after the original — is `Text::atRest`'s statement;
  *  this adds the one ink, over whatever the style paints, and drops any
- *  glyph stroke so the ghost reads as one flat colour. Anything but text
- *  comes back as a plain copy beside the original, with the warning that
- *  verb gives. */
-[[nodiscard]] inline Element restGhost(Element moving, SkColor4f colour) {
-  Element ghost = moving.atRest();
+ *  glyph stroke so the ghost reads as one flat colour. */
+[[nodiscard]] inline Element restGhost(Text moving, SkColor4f colour) {
+  Text ghost = moving.atRest();
   ghost.textFill(material::skia::Paint::solid(colour))
       .textStroke(0.0f, Fill{})
       // Pinned at the origin so the two copies share one origin, and

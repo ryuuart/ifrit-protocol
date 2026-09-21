@@ -191,7 +191,7 @@ TEST(ComposeDeriveWords, TheFreeFlowAroundVerbIsTheMethod) {
     // host's ground, so with the default style both arms would compare two
     // blank grids and agree perfectly. The liveness bound at the end is the
     // second guard against that.
-    Element para = text(
+    Text para = text(
         u8"one two three four five six seven eight nine ten "
         u8"eleven twelve thirteen fourteen",
         whiteStyle(16));

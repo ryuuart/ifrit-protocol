@@ -165,14 +165,14 @@ template <std::ranges::input_range R, class Fn, class Between>
  *  or after it is adopted, wherever the code that built it ran, it takes
  *  the style of the node it ends up under, which is what a dark panel
  *  needs to recolour content handed to it already made. */
-Element text(Utf8 utf8);
+Text text(Utf8 utf8);
 /** A text leaf set in @p style ALONE. A `TextStyle` is total, so the leaf
  *  inherits nothing: whatever its ancestors set, it draws exactly this. */
-Element text(Utf8 utf8, sigil::weave::TextStyle style);
+Text text(Utf8 utf8, sigil::weave::TextStyle style);
 /** Mixed-style text as a COMPARABLE VALUE — see weave::RichText. A re-described
  *  identical value prunes, which is the whole difference between this and
  *  the pointer overload below. */
-Element text(sigil::weave::RichText spans);
+Text text(sigil::weave::RichText spans);
 /** ONE FRAME OF A STORY — a text leaf over `story`'s content and block
  *  styles, which `key()` names and `textThreadTo()` links to the next.
  *
@@ -180,22 +180,22 @@ Element text(sigil::weave::RichText spans);
  *  which part of it each one holds. See `weave::Story` and
  *  `Element::textThreadTo`.
  */
-Element frame(sigil::weave::Story story);
+Text frame(sigil::weave::Story story);
 
 /** Full-control text: a prebuilt Paragraph (spans, mixed styles) plus
  *  ParagraphLayoutOptions (justification, hyphenation, Knuth–Plass,
  *  overflow…). The paragraph is shared by reference: reuse one
  *  shared_ptr across renders to keep shaping caches warm; a fresh
  *  pointer means "content changed" and re-shapes. */
-Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
-             sigil::weave::ParagraphLayoutOptions options = {});
+Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
+          sigil::weave::ParagraphLayoutOptions options = {});
 /** AN IMAGE LEAF over a decoded asset. Its intrinsic size is the
- *  asset's own pixels, so a leaf given no size takes them; `fit()` says
- *  what happens when it is given a box of another shape, `region()`
- *  draws one sub-rect of an atlas, and `imageRendering()` — inherited from
- *  any ancestor — says how the pixels are filtered. A null asset draws
- *  nothing. */
-Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
+ *  asset's own pixels, so a leaf given no size takes them; the `Fit`
+ *  overload below says what happens when it is given a box of another
+ *  shape, `imageRegion()` draws one sub-rect of an atlas, and
+ *  `imageRendering()` — inherited from any ancestor — says how the
+ *  pixels are filtered. A null asset draws nothing. */
+Image image(std::shared_ptr<const sigil::image::ImageAsset> asset);
 
 /** A PLATE WEARING A PICTURE THAT IS ALREADY RENDERED: a bake taken on an
  *  intermediate surface, a frame decoded out of a file, a texture a
@@ -213,8 +213,8 @@ Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
  *  the picture's own pixels. THE LEAF TAKES THE BOX IT STANDS IN under
  *  the first three, and under `Contain` and `Cover` the node itself
  *  carries the picture's proportions, so what is painted is the whole of
- *  the node. A null picture is an empty box. */
-[[nodiscard]] Element image(
+ *  the node. A null picture draws nothing. */
+[[nodiscard]] Image image(
     sk_sp<SkImage> picture,
     material::skia::Fit fit = material::skia::Fit::Contain);
 /** A box whose content is one paint program (≡ box().background(p)).

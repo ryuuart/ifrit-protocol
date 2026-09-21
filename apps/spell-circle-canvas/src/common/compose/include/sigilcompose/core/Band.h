@@ -7,7 +7,11 @@
  */
 
 #include <sigilcompose/core/Declarations.h>
+#include <sigilcompose/core/verbs/Node.h>
 #include <sigilgeometry/path/Band.h>
+
+#include <memory>
+#include <utility>
 
 namespace sigil::compose {
 
@@ -27,6 +31,24 @@ class BandVerbs {
   detail::ElementNode* declarations() {
     return detail::NodeAccess::declarations(self());
   }
+};
+
+/** A BAND: the ribbon a spine sweeps out at a stated width across it.
+ *  It lays out, fills, clips and takes stroke passes like any other
+ *  node, and it alone says which side of its spine it takes. It
+ *  CONVERTS to `Element`, so it drops into any `children({…})` block. */
+class Band : public detail::Declaring,
+             public NodeVerbs<Band>,
+             public BandVerbs<Band> {
+ public:
+  /** @private the factories' door */
+  explicit Band(std::shared_ptr<detail::ElementNode> n)
+      : detail::Declaring(std::move(n)) {}
+
+  operator Element() const;  // NOLINT: implicit by design (a leaf is a node)
+
+ private:
+  friend struct detail::NodeAccess;
 };
 
 }  // namespace sigil::compose

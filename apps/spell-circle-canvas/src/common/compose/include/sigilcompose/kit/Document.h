@@ -36,31 +36,31 @@ inline constexpr std::string_view quoteInset = "document.quoteInset";
 /** Heading levels 1 through 6. Their roles are `h1` through `h6` and their
  *  fallback sizes are 2, 1.5, 1.25, 1.1, 1 and 0.875 times the inherited
  *  type size. An invalid level throws std::out_of_range. */
-[[nodiscard]] Element heading(int level, Utf8 words);
-[[nodiscard]] Element h1(Utf8 words);
-[[nodiscard]] Element h2(Utf8 words);
-[[nodiscard]] Element h3(Utf8 words);
-[[nodiscard]] Element h4(Utf8 words);
-[[nodiscard]] Element h5(Utf8 words);
-[[nodiscard]] Element h6(Utf8 words);
+[[nodiscard]] Text heading(int level, Utf8 words);
+[[nodiscard]] Text h1(Utf8 words);
+[[nodiscard]] Text h2(Utf8 words);
+[[nodiscard]] Text h3(Utf8 words);
+[[nodiscard]] Text h4(Utf8 words);
+[[nodiscard]] Text h5(Utf8 words);
+[[nodiscard]] Text h6(Utf8 words);
 
 /** Prose in the inherited font and block, with role `paragraph`. Rich text
  *  stays one shaped passage; inline styles retain their own precedence. */
-[[nodiscard]] Element paragraph(Utf8 words);
-[[nodiscard]] Element paragraph(const weave::RichText& words);
+[[nodiscard]] Text paragraph(Utf8 words);
+[[nodiscard]] Text paragraph(const weave::RichText& words);
 /** Introductory prose at 1.125 em, role `lead`. */
-[[nodiscard]] Element lead(Utf8 words);
+[[nodiscard]] Text lead(Utf8 words);
 /** Supporting prose at 0.875 em, role `caption`. */
-[[nodiscard]] Element caption(Utf8 words);
+[[nodiscard]] Text caption(Utf8 words);
 /** A short identifying line at 0.875 em, role `label`. */
-[[nodiscard]] Element label(Utf8 words);
+[[nodiscard]] Text label(Utf8 words);
 /** An introductory label at 0.75 em with light tracking, role `eyebrow`. */
-[[nodiscard]] Element eyebrow(Utf8 words);
+[[nodiscard]] Text eyebrow(Utf8 words);
 /** A closing note at 0.875 em, role `footer`. */
-[[nodiscard]] Element footer(Utf8 words);
+[[nodiscard]] Text footer(Utf8 words);
 /** Literal text in a monospace face, role `code`. Line breaks stay in the
  *  passage; its font, block and measure are ordinary fluent overrides. */
-[[nodiscard]] Element code(Utf8 words);
+[[nodiscard]] Text code(Utf8 words);
 
 /** An indented content group, role `quote`. */
 [[nodiscard]] Element quote(std::initializer_list<Children> children = {});

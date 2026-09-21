@@ -231,7 +231,7 @@ struct Manuscript {
     const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Delimiter,
                                    .delimiter = u8".",
                                    .style = capitals};
-    Element prose = document::paragraph(rest)
+    Text prose = document::paragraph(rest)
                         .font(body(kBodySize, pal.ink))
                         .contentFlowAround("versal", px(2.4f))
                         .spanStyle(kit::nestedRun(opening), opening.style);

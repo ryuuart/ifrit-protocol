@@ -168,7 +168,7 @@ void expectFastPathLineUntouched(GlyphModifier lean) {
   const auto tree = [&](bool shearSecondLine) {
     GlyphModifier lift;
     lift.dy = -4;
-    Element t = text(u8"AAAA BBBB", style)
+    Text t = text(u8"AAAA BBBB", style)
                     .key("k")
                     .width(70)
                     .fx({.effect = fixed("lift", lift)});

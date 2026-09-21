@@ -21,6 +21,15 @@ namespace sigil::compose {
 
 using detail::Kind;
 
+namespace {
+/** A fresh text leaf, which every `text()` form and `frame()` shape. */
+Text textLeaf() {
+  Text leaf{std::make_shared<detail::ElementNode>()};
+  leaf.node()->kind = Kind::Text;
+  return leaf;
+}
+}  // namespace
+
 Element box() { return {}; }
 
 Element stack() {
@@ -35,9 +44,8 @@ Element positioned() {
   return e;
 }
 
-Element text(Utf8 utf8) {
-  Element e;
-  e.node()->kind = Kind::Text;
+Text text(Utf8 utf8) {
+  Text e = textLeaf();
   detail::TextData& text = e.node()->textData.ensure();
   text.utf8 = utf8.bytes();
   // Set in the font and ink in force where the leaf lands in the tree:
@@ -47,9 +55,8 @@ Element text(Utf8 utf8) {
   return e;
 }
 
-Element text(Utf8 utf8, sigil::weave::TextStyle style) {
-  Element e;
-  e.node()->kind = Kind::Text;
+Text text(Utf8 utf8, sigil::weave::TextStyle style) {
+  Text e = textLeaf();
   detail::TextData& text = e.node()->textData.ensure();
   text.utf8 = utf8.bytes();
   text.style = std::move(style);
@@ -61,12 +68,11 @@ Element text(Utf8 utf8, sigil::weave::TextStyle style) {
   return e;
 }
 
-Element text(sigil::weave::RichText spans) {
+Text text(sigil::weave::RichText spans) {
   // A run written with a NAME and no sheet on the value resolves through
   // the sheet in force where the leaf lands, when the leaf is shaped; a
   // value that names its own sheet keeps it.
-  Element e;
-  e.node()->kind = Kind::Text;
+  Text e = textLeaf();
   detail::TextData& text = e.node()->textData.ensure();
   // A rich text started with no base is set in the font in force where it
   // lands, exactly as a plain leaf that names no style is; one started
@@ -81,8 +87,8 @@ Element text(sigil::weave::RichText spans) {
   return e;
 }
 
-Element frame(sigil::weave::Story story) {
-  Element e = text(story.content());
+Text frame(sigil::weave::Story story) {
+  Text e = text(story.content());
   const std::span<const sigil::weave::ParagraphStyle> blocks = story.blocks();
   if (!blocks.empty())
     e.paragraphStyles(std::vector<sigil::weave::ParagraphStyle>(blocks.begin(),
@@ -90,28 +96,27 @@ Element frame(sigil::weave::Story story) {
   return e;
 }
 
-Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
-             sigil::weave::ParagraphLayoutOptions options) {
-  Element e;
-  e.node()->kind = Kind::Text;
+Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
+          sigil::weave::ParagraphLayoutOptions options) {
+  Text e = textLeaf();
   detail::TextData& text = e.node()->textData.ensure();
   text.paragraphOverride = std::move(paragraph);
   text.layoutOptions = std::move(options);
   return e;
 }
 
-Element image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
-  Element e;
+Image image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
+  Image e{std::make_shared<detail::ElementNode>()};
   e.node()->kind = Kind::Image;
   e.node()->imageData.ensure().asset = std::move(asset);
   return e;
 }
 
-Element image(sk_sp<SkImage> picture, material::skia::Fit fit) {
-  if (!picture) return box();
+Image image(sk_sp<SkImage> picture, material::skia::Fit fit) {
+  if (!picture) return image(std::shared_ptr<const sigil::image::ImageAsset>());
   const float w = (float)picture->width();
   const float h = (float)picture->height();
-  Element leaf = image(std::make_shared<const sigil::image::ImageAsset>(
+  Image leaf = image(std::make_shared<const sigil::image::ImageAsset>(
       sigil::image::ImageAsset::wrap(std::move(picture))));
   // Native asks nothing of the box, and the leaf already measures the
   // picture's own pixels.

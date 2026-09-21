@@ -75,8 +75,8 @@ sketch::kit::ComparisonCase encoded(const char* title, const char* control,
               {.width = kCell,
                .height = kPicture,
                .content = sketch::kit::Well::Content{}},
-              picture ? image(picture).width(kSide).height(kSide)
-                      : text("Encoder unavailable").width(kCell - 24)),
+              picture ? Element(image(picture).width(kSide).height(kSide))
+                      : Element(text("Encoder unavailable").width(kCell - 24))),
           .note = kit::formatted("%zu bytes", bytes)};
 }
 

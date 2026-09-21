@@ -32,5 +32,8 @@ Derived& EffectVerbs<Derived>::backdropFilter(material::skia::Effect e) {
 }
 
 template class EffectVerbs<Element>;
+template class EffectVerbs<Text>;
+template class EffectVerbs<Image>;
+template class EffectVerbs<Band>;
 
 }  // namespace sigil::compose

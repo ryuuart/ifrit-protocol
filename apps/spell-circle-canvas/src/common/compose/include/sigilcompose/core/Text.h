@@ -10,11 +10,15 @@
  */
 
 #include <sigilcompose/core/Declarations.h>
+#include <sigilcompose/core/verbs/Node.h>
+#include <sigilcompose/core/verbs/TextStyle.h>
 #include <sigilmotion/values/Animatable.h>  // choreograph::Output
 #include <sigilweave/style/Style.h>
 
 #include <cstdint>
+#include <memory>
 #include <string_view>
+#include <utility>
 
 namespace sigil::weave {
 class Selector;
@@ -89,11 +93,11 @@ class TextContentVerbs {
    *  style the range is set in, the rest standing. One naming no
    *  shaping field is a repaint and never re-shapes. */
   Derived& spanStyle(sigil::weave::Selector where, sigil::weave::Type partial);
-  /** THIS LEAF AS IT STANDS AT REST, as a second element that can
-   *  stand beside it in one tree: the same content, style, measure and
+  /** THIS LEAF AS IT STANDS AT REST, as a second leaf that can stand
+   *  beside it in one tree: the same content, style, measure and
    *  layout, carrying nothing that deviates or restyles a glyph at
    *  paint time. The key takes `-rest` after it. */
-  [[nodiscard]] Element atRest() const;
+  [[nodiscard]] Derived atRest() const;
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }
@@ -101,6 +105,28 @@ class TextContentVerbs {
   detail::ElementNode* declarations() {
     return detail::NodeAccess::declarations(self());
   }
+};
+
+/** A TEXT LEAF: a passage, and everything a passage alone can say. It
+ *  is a node like any other — it lays out, takes a fill, a mask and a
+ *  transform — and it adds the text properties a rule could restate
+ *  and the content verbs nothing else could. It CONVERTS to `Element`,
+ *  so a leaf drops into any `children({…})` block and any container
+ *  that takes a node; hold it as a `Text` for as long as the text
+ *  verbs are still to be written. */
+class Text : public detail::Declaring,
+             public NodeVerbs<Text>,
+             public TextStyleVerbs<Text>,
+             public TextContentVerbs<Text> {
+ public:
+  /** @private the factories' door */
+  explicit Text(std::shared_ptr<detail::ElementNode> n)
+      : detail::Declaring(std::move(n)) {}
+
+  operator Element() const;  // NOLINT: implicit by design (a leaf is a node)
+
+ private:
+  friend struct detail::NodeAccess;
 };
 
 }  // namespace sigil::compose

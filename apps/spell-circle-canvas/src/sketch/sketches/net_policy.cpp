@@ -129,8 +129,9 @@ struct NetPolicy {
                       {.width = 260,
                        .height = 200,
                        .content = sketch::kit::Well::Content{}},
-                      cacheFirst ? image(cacheFirst).width(225).height(150)
-                                 : text("Seed unavailable")),
+                      cacheFirst
+                          ? Element(image(cacheFirst).width(225).height(150))
+                          : Element(text("Seed unavailable"))),
                   text("plate.png  ·  seeded\nabsent.png ·  missing")
                       .styleClass("readout"),
                   text("Each row creates a fresh hub. The policy and the "

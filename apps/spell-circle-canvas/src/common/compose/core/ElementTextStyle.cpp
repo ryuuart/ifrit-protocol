@@ -149,7 +149,7 @@ Derived& TextStyleVerbs<Derived>::contentFlowAround(std::string_view key,
   return self();
 }
 
-template class TextStyleVerbs<Element>;
+template class TextStyleVerbs<Text>;
 
 void detail::TextOptions::applyTo(
     sigil::weave::ParagraphLayoutOptions& options) const {

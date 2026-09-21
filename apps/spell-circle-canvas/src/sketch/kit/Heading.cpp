@@ -14,13 +14,14 @@ using compose::Align;
 using compose::box;
 using compose::Dimension;
 using compose::Element;
+using compose::Text;
 using compose::Fill;
 namespace document = compose::document;
 
 namespace {
 
 /** A document line wearing the caller's explicit ink, key and beat. */
-Element spoken(const Line& line, Element el, const std::string& key) {
+Element spoken(const Line& line, Text el, const std::string& key) {
   if (line.ink) detail::documentInk(el, *line.ink);
   if (!key.empty()) el.key(key);
   if (line.opacity) el.opacity(*line.opacity);
@@ -47,7 +48,7 @@ compose::Element titleCard(const TitleCard& card) {
   const auto named = [&](const char* which) {
     return card.key.empty() ? std::string() : card.key + "-" + which;
   };
-  const auto say = [&](const Line& line, Element leaf, const char* which,
+  const auto say = [&](const Line& line, Text leaf, const char* which,
                        float before) {
     if (line.words.empty()) return;
     place(spoken(line, std::move(leaf), named(which)), before);

@@ -8,6 +8,10 @@
 
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Declarations.h>
+#include <sigilcompose/core/verbs/Node.h>
+
+#include <memory>
+#include <utility>
 
 namespace sigil::compose {
 
@@ -27,6 +31,24 @@ class ImageVerbs {
   detail::ElementNode* declarations() {
     return detail::NodeAccess::declarations(self());
   }
+};
+
+/** AN IMAGE LEAF: a picture, and the one thing only a picture says.
+ *  Everything else about it — the box it takes, how it is filtered,
+ *  what dresses it — is an ordinary node's. It CONVERTS to `Element`,
+ *  so it drops into any `children({…})` block. */
+class Image : public detail::Declaring,
+              public NodeVerbs<Image>,
+              public ImageVerbs<Image> {
+ public:
+  /** @private the factories' door */
+  explicit Image(std::shared_ptr<detail::ElementNode> n)
+      : detail::Declaring(std::move(n)) {}
+
+  operator Element() const;  // NOLINT: implicit by design (a leaf is a node)
+
+ private:
+  friend struct detail::NodeAccess;
 };
 
 }  // namespace sigil::compose

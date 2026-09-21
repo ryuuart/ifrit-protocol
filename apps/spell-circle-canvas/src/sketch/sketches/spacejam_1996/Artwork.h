@@ -381,7 +381,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
   auto letters = [&](const char* s, float capPx, float targetW, float x,
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;
-    Element t = text(s).font(ty(display(), size, C5(0x2FA9A0), 0));
+    Text t = text(s).font(ty(display(), size, C5(0x2FA9A0), 0));
     t.textFill(mskia::Paint::linear({0, 0}, {0, 1},
                                     {{0.0f, C5(0x006BA5)},
                                      {0.22f, C5(0x007BAD)},

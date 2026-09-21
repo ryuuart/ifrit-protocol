@@ -264,22 +264,22 @@ TEST(TextSpanAxis, ALaterDeclarationWinsOnOverlap) {
   Host host(400, 120);
   sigil::weave::TextStyle base = coloredStyle(46, SK_ColorWHITE);
   base.shaping.typeface = face;
-  const auto drawn = [&](const std::function<Element(Element)>& dress) {
+  const auto drawn = [&](const std::function<Element(Text)>& dress) {
     host.composer.render(
         box().padding(10).children({dress(text(u8"GRADE", base).key("t"))}));
     host.frame();
     return grab(host, 400, 120);
   };
-  const SkBitmap light = drawn([&](Element t) {
+  const SkBitmap light = drawn([&](Text t) {
     return t.spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", lo));
   });
-  const SkBitmap heavy = drawn([&](Element t) {
+  const SkBitmap heavy = drawn([&](Text t) {
     return t.spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", hi));
   });
   ASSERT_GT(pixelsDiffering(light, heavy, 400, 120), 20)
       << "the two ends of the axis draw the same, so nothing below is a test";
 
-  const SkBitmap both = drawn([&](Element t) {
+  const SkBitmap both = drawn([&](Text t) {
     return t.spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", lo))
         .spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", hi));
   });

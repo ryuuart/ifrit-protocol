@@ -1,17 +1,23 @@
 # The verbs
 
-Everything an `Element` can be told, grouped by what it is about. A verb
-is a member that returns the element by reference, so a node reads as one
-expression:
+Everything a node can be told, grouped by what it is about. A verb is a
+member that returns the node by reference — in the node's OWN type, so a
+chain on a typed leaf is still that leaf at the end of it — and a node
+reads as one expression:
 
 ```cpp
 box().row().gap(12).padding(18).borderRadius({10}).fill(Fill::color(ink))
 ```
 
 One verb ends the chain rather than continuing it: `atRest` hands back a
-SECOND element by value, because a rest pose is something to place
-beside the moving copy rather than a state of it. Its row below says so,
-and it is the only row that does.
+SECOND leaf by value, because a rest pose is something to place beside
+the moving copy rather than a state of it. Its row below says so, and it
+is the only row that does.
+
+Most verbs are on every node. The ones grouped under a leaf — the text
+properties and the text content, `imageRegion`, `bandAlignment` — are on
+that leaf ALONE, so writing one on a box does not compile rather than
+doing nothing.
 
 One hundred and twelve of them, in fourteen concerns. Each row says
 what the verb SAYS, in one line; the page behind a linked name says what
@@ -280,7 +286,8 @@ spelling is the feature's.
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`,
   `gridCells`, `gridArea`, `gridCellAlign`, `rect`, `at`.
 - `core/verbs/Shape.h` — the region verbs `borderRadius`, `shape`, `overflow`.
-- `core/Band.h` — the band leaf's own `bandAlignment`.
+- `core/Band.h` — the band's own `bandAlignment`, and the `Band` leaf
+  that has it.
 - `core/verbs/Mask.h` — `mask`.
 - `core/verbs/Cascade.h` — the cascade verbs `font`, `block`, `ink`,
   `var`, `varDefaults`, `imageRendering`.
@@ -302,8 +309,9 @@ spelling is the feature's.
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
   `textAttach`, `textAnnotation`, `textThreadTo`, `textThreadBalance`,
-  `textOnPath`, `spanPaint`, `spanStyle`, `atRest`.
-- `core/Image.h` — `imageRegion`.
+  `textOnPath`, `spanPaint`, `spanStyle`, `atRest`, and the `Text` leaf
+  that has both these and the text properties.
+- `core/Image.h` — `imageRegion`, and the `Image` leaf that has it.
 - `core/verbs/Structure.h` — the cascade a node names, `styleSheet`,
   `applyStyleSheet`, `styleClass` and `role`; `tether`, `key`,
   `hitTestable`, `cache`, `cacheScale`, `transition`,

@@ -34,7 +34,7 @@ Element flow(std::string role, std::initializer_list<Children> children,
       .children(children);
 }
 
-Element line(Utf8 words, std::string role, float scale) {
+Text line(Utf8 words, std::string role, float scale) {
   return text(std::move(words))
       .role(weave::rule(std::move(role)).font({.size = weave::em(scale)}));
 }
@@ -53,38 +53,38 @@ Element section(std::initializer_list<Children> children) {
   return flow("section", children);
 }
 
-Element heading(int level, Utf8 words) {
+Text heading(int level, Utf8 words) {
   static constexpr std::array sizes{2.0f, 1.5f, 1.25f, 1.1f, 1.0f, 0.875f};
   if (level < 1 || level > static_cast<int>(sizes.size()))
     throw std::out_of_range("Document heading level must be between 1 and 6");
   return line(std::move(words), "h" + std::to_string(level), sizes[level - 1]);
 }
 
-Element h1(Utf8 words) { return heading(1, std::move(words)); }
-Element h2(Utf8 words) { return heading(2, std::move(words)); }
-Element h3(Utf8 words) { return heading(3, std::move(words)); }
-Element h4(Utf8 words) { return heading(4, std::move(words)); }
-Element h5(Utf8 words) { return heading(5, std::move(words)); }
-Element h6(Utf8 words) { return heading(6, std::move(words)); }
+Text h1(Utf8 words) { return heading(1, std::move(words)); }
+Text h2(Utf8 words) { return heading(2, std::move(words)); }
+Text h3(Utf8 words) { return heading(3, std::move(words)); }
+Text h4(Utf8 words) { return heading(4, std::move(words)); }
+Text h5(Utf8 words) { return heading(5, std::move(words)); }
+Text h6(Utf8 words) { return heading(6, std::move(words)); }
 
-Element paragraph(Utf8 words) {
+Text paragraph(Utf8 words) {
   return text(std::move(words)).role("paragraph");
 }
-Element paragraph(const weave::RichText& words) {
+Text paragraph(const weave::RichText& words) {
   return text(words).role("paragraph");
 }
-Element lead(Utf8 words) { return line(std::move(words), "lead", 1.125f); }
-Element caption(Utf8 words) {
+Text lead(Utf8 words) { return line(std::move(words), "lead", 1.125f); }
+Text caption(Utf8 words) {
   return line(std::move(words), "caption", 0.875f);
 }
-Element label(Utf8 words) { return line(std::move(words), "label", 0.875f); }
-Element eyebrow(Utf8 words) {
+Text label(Utf8 words) { return line(std::move(words), "label", 0.875f); }
+Text eyebrow(Utf8 words) {
   return text(std::move(words))
       .role(weave::rule("eyebrow").font(
           {.size = weave::em(0.75f), .track = weave::em(0.08f)}));
 }
-Element footer(Utf8 words) { return line(std::move(words), "footer", 0.875f); }
-Element code(Utf8 words) {
+Text footer(Utf8 words) { return line(std::move(words), "footer", 0.875f); }
+Text code(Utf8 words) {
   static const auto mono =
       weave::ports::face({"Menlo", "Consolas", "monospace"});
   return text(std::move(words)).role(weave::rule("code").font({.face = mono}));

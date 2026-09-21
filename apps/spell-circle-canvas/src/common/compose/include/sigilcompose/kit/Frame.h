@@ -64,15 +64,17 @@ inline Element at(float x, float y, float w, float h) {
       .width(Dimension(w))
       .height(Dimension(h));
 }
-/** The same, onto an element that already exists — the overload a caller
+/** The same, onto a node that already exists — the overload a caller
  *  reaches for when the node is built elsewhere and only its position is
- *  the plate's business. */
-inline Element at(Element e, float x, float y, float w, float h) {
-  e.left(Dimension(x))
+ *  the plate's business. It hands back what it was given, so a typed
+ *  leaf pinned this way is still that leaf. */
+template <class Node>
+Node at(Node node, float x, float y, float w, float h) {
+  node.left(Dimension(x))
       .top(Dimension(y))
       .width(Dimension(w))
       .height(Dimension(h));
-  return e;
+  return node;
 }
 /** The same two with the size stated as `Dimension`s — a height of
  *  `1.7_em` beside a width in px — for a pinned box measured in the font
@@ -80,9 +82,10 @@ inline Element at(Element e, float x, float y, float w, float h) {
 inline Element at(float x, float y, Dimension w, Dimension h) {
   return box().left(Dimension(x)).top(Dimension(y)).width(w).height(h);
 }
-inline Element at(Element e, float x, float y, Dimension w, Dimension h) {
-  e.left(Dimension(x)).top(Dimension(y)).width(w).height(h);
-  return e;
+template <class Node>
+Node at(Node node, float x, float y, Dimension w, Dimension h) {
+  node.left(Dimension(x)).top(Dimension(y)).width(w).height(h);
+  return node;
 }
 
 /** `disc` at @p frame: an Element sized and centred for a

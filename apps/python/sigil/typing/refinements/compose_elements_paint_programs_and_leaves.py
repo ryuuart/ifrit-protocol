@@ -20,9 +20,10 @@ def register(table: Table) -> None:
     # The key is declared as an object by the binding itself; only the
     # generator beside it is erased.
     table.parameters("_sigil.compose.keyedShape", function="_t.KeyedShapeFunction")
-    table.parameters(
-        "_sigil.compose.Element.shape", function="_t.KeyedShapeFunction"
-    )
+    for node in ("Element", "Text", "Image", "Band"):
+        table.parameters(
+            f"_sigil.compose.{node}.shape", function="_t.KeyedShapeFunction"
+        )
     table.erased(
         "_sigil.compose", "linearGradient", "_t.PointLike", "_t.PointLike"
     )

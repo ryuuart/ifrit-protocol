@@ -225,19 +225,19 @@ Derived& TextContentVerbs<Derived>::spanStyle(sigil::weave::Selector where,
 // The seven members of the text-content family this tier defines, named
 // one by one: the family's other members are instantiated where they are
 // defined, in the kernel.
-template Element& TextContentVerbs<Element>::textOnPath(TextPath);
-template Element& TextContentVerbs<Element>::fx(Track);
-template Element& TextContentVerbs<Element>::textAnnotation(Annotation);
-template Element& TextContentVerbs<Element>::textAttach(sigil::weave::Selector,
-                                                        Element);
-template Element& TextContentVerbs<Element>::variationDrive(
+template Text& TextContentVerbs<Text>::textOnPath(TextPath);
+template Text& TextContentVerbs<Text>::fx(Track);
+template Text& TextContentVerbs<Text>::textAnnotation(Annotation);
+template Text& TextContentVerbs<Text>::textAttach(sigil::weave::Selector,
+                                                  Element);
+template Text& TextContentVerbs<Text>::variationDrive(
     const char (&)[5], const choreograph::Output<float>*);
-template Element& TextContentVerbs<Element>::spanPaint(
-    sigil::weave::Selector, sigil::weave::PaintStyle);
-template Element& TextContentVerbs<Element>::spanStyle(
-    sigil::weave::Selector, sigil::weave::TextStyle);
-template Element& TextContentVerbs<Element>::spanStyle(sigil::weave::Selector,
-                                                       sigil::weave::Type);
+template Text& TextContentVerbs<Text>::spanPaint(sigil::weave::Selector,
+                                                 sigil::weave::PaintStyle);
+template Text& TextContentVerbs<Text>::spanStyle(sigil::weave::Selector,
+                                                 sigil::weave::TextStyle);
+template Text& TextContentVerbs<Text>::spanStyle(sigil::weave::Selector,
+                                                 sigil::weave::Type);
 
 // ---------------------------------------------------------------------------
 // The fold

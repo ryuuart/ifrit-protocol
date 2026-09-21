@@ -115,7 +115,7 @@ struct RubyKenten {
   }
 
   /** A vertical column of the body type, at the plate's own measure. */
-  Element passage(Utf8 utf8, float height = furigana::kColumnH) {
+  Text passage(Utf8 utf8, float height = furigana::kColumnH) {
     namespace f = furigana;
     return text(std::move(utf8), f::body(f::kBodySize, f::kSumi))
         .width(f::kColumnW)

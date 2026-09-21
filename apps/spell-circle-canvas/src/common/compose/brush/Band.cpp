@@ -53,16 +53,16 @@ Across across(geometry::path::Profile p) {
   return out;
 }
 
-Element band(Shape spine, Across width) {
-  Element e;
+Band band(Shape spine, Across width) {
+  Band e{std::make_shared<detail::ElementNode>()};
   detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.bandSpine = std::move(spine);
   derive.bandWidth = std::move(width);
   return e;
 }
 
-Element band(Around spine, Across width) {
-  Element e;
+Band band(Around spine, Across width) {
+  Band e{std::make_shared<detail::ElementNode>()};
   detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.bandAround = std::move(spine.key);
   derive.bandWidth = std::move(width);

@@ -14,6 +14,6 @@ Derived& BandVerbs<Derived>::bandAlignment(
   return self();
 }
 
-template class BandVerbs<Element>;
+template class BandVerbs<Band>;
 
 }  // namespace sigil::compose

@@ -54,7 +54,11 @@ class SurfacePaint {
   // NOLINTEND(google-explicit-constructor)
 
   [[nodiscard]] bool none() const;
-  Element& apply(Element& element) const;
+  /** PAINTS @p node's surface with this, in whichever of the forms the
+   *  value holds, and hands the node back so a chain carries on in its
+   *  own type. An empty paint leaves whatever fill the node has. */
+  template <class Node>
+  Node& apply(Node& node) const;
   /** A decoration reads live outputs and materials at paint. Node-owned
    *  transitions are applied by Element; decorations read their target. */
   [[nodiscard]] Fill resolve(const PaintContext& context) const;

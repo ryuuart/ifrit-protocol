@@ -213,5 +213,8 @@ Derived& BoxVerbs<Derived>::display(Display display) {
 }
 
 template class BoxVerbs<Element>;
+template class BoxVerbs<Text>;
+template class BoxVerbs<Image>;
+template class BoxVerbs<Band>;
 
 }  // namespace sigil::compose

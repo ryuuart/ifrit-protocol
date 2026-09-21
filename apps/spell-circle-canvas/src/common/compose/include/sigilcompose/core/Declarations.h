@@ -17,6 +17,8 @@
 
 namespace sigil::compose {
 
+class Element;
+
 namespace detail {
 struct ElementNode;
 
@@ -56,6 +58,28 @@ struct NodeAccess {
   static void append(T& value, Child&& child) {
     value.append(std::forward<Child>(child));
   }
+};
+
+/** WHAT EVERY VALUE THAT DECLARES A NODE IS: the handle, and nothing
+ *  else. A description stays one shared pointer wide however many verb
+ *  families the value inherits, and the kinds of node that carry verbs
+ *  of their own share this one statement of what they hold. */
+class Declaring {
+ public:
+  /** @private reconciler access */
+  const std::shared_ptr<ElementNode>& node() const { return m_node.value; }
+
+ protected:
+  Declaring();  ///< A fresh node of its own.
+  explicit Declaring(std::shared_ptr<ElementNode> n) : m_node(std::move(n)) {}
+
+  /** One more child at the end, which `children()` and every verb that
+   *  takes a node go through. */
+  void append(Element child);
+
+  friend struct NodeAccess;
+
+  NodeHandle m_node;
 };
 
 }  // namespace detail
