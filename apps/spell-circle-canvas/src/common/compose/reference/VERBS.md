@@ -13,7 +13,7 @@ SECOND element by value, because a rest pose is something to place
 beside the moving copy rather than a state of it. Its row below says so,
 and it is the only row that does.
 
-One hundred and fourteen of them, in fourteen concerns. Each row says
+One hundred and twelve of them, in fourteen concerns. Each row says
 what the verb SAYS, in one line; the page behind a linked name says what
 it takes, what Python spells, and shows it drawn. An unlinked name has no
 page yet, and its line here is the whole of what this reference claims
@@ -117,7 +117,7 @@ The region the node occupies, and what is cut to it.
 |---|---|
 | [`borderRadius`](pages/verbs/borderRadius.md) | The four corner radii of the node's box. |
 | [`shape`](pages/verbs/shape.md) | The node's outline as a path generator over its laid-out size; it overrides `borderRadius`. |
-| [`overflow`](pages/verbs/overflow.md) | Cut the fill, the content and the children to that outline — the decorations keep their reach. |
+| [`overflow`](pages/verbs/overflow.md) | What becomes of paint that leaves that outline: `Overflow::Clip` cuts the fill, the content and the children to it — the decorations keep their reach. |
 | [`mask`](pages/verbs/mask.md) | Gate what the node paints, by span, edge, shape or alpha; overlapping masks intersect. |
 | `centered` | A band straddles its spine — the default formation. |
 | `outward` | A band takes the outer side of its spine. |
