@@ -40,12 +40,12 @@ std::vector<float> depths(Host& host, int count) {
 TEST(KitColumns, ABalancedRunIsShallowerThanTheDepthItWasGiven) {
   Host host(400, 600);
   host.composer.render(box().absolute().inset(0).children(
-      {kit::columns({.story = article(),
-                     .count = 3,
-                     .gutter = 20,
-                     .width = 360,
-                     .height = 400,
-                     .composer = &host.composer})
+      {kit::textColumns({.story = article(),
+                         .count = 3,
+                         .gutter = 20,
+                         .width = 360,
+                         .height = 400,
+                         .composer = &host.composer})
            .children({box()})}));
   host.frame();
   // Nothing is balanced without a spanner to balance against: one row is
@@ -56,19 +56,15 @@ TEST(KitColumns, ABalancedRunIsShallowerThanTheDepthItWasGiven) {
 TEST(KitColumns, ASpannerBreaksTheChainAndTheRunAboveItIsBalanced) {
   Host host(400, 900);
   const auto draw = [&] {
-    host.composer.render(box().absolute().inset(0).children(
-        {kit::columns({.story = article(),
-                       .count = 3,
-                       .gutter = 20,
-                       .width = 360,
-                       .height = 300,
-                       .spanners = {{sigil::weave::selectors::line(11),
-                                     box()
-                                         .key("plate")
-                                         .width(360)
-                                         .height(24)
-                                         .fill(red())}},
-                       .composer = &host.composer})}));
+    host.composer.render(box().absolute().inset(0).children({kit::textColumns(
+        {.story = article(),
+         .count = 3,
+         .gutter = 20,
+         .width = 360,
+         .height = 300,
+         .spanners = {{sigil::weave::selectors::line(11),
+                       box().key("plate").width(360).height(24).fill(red())}},
+         .composer = &host.composer})}));
     host.frame();
   };
   draw();  // the first draw has no layout to read the selector off
@@ -93,15 +89,14 @@ TEST(KitColumns, ASpannerBreaksTheChainAndTheRunAboveItIsBalanced) {
 TEST(KitColumns, TheRunBelowTheSpannerResumesWhereTheOneAboveRanOut) {
   Host host(400, 900);
   const auto draw = [&] {
-    host.composer.render(box().absolute().inset(0).children({kit::columns(
+    host.composer.render(box().absolute().inset(0).children({kit::textColumns(
         {.story = article(),
          .count = 3,
          .gutter = 20,
          .width = 360,
          .height = 300,
-         .spanners =
-             {{sigil::weave::selectors::line(11),
-               box().key("plate").width(360).height(24)}},
+         .spanners = {{sigil::weave::selectors::line(11),
+                       box().key("plate").width(360).height(24)}},
          .composer = &host.composer})}));
     host.frame();
   };

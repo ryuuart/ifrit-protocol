@@ -123,7 +123,7 @@ Overflow on any frame but the last is the normal case and draws no marker,
 whatever ellipsis the leaf asked for; the last frame is the one that
 threads nowhere. A frame's own geometry is its business: it may flow
 around a silhouette or carry exclusions like any other text leaf.
-`kit::columns` is N frames side by side threaded in order, which is what a
+`kit::textColumns` is N frames side by side threaded in order, which is what a
 Western multi-column measure is — the vertical writing mode keeps the word
 column for the thing it already meant. It is spelled either positionally,
 for a plain run of columns, or as a `kit::ColumnSet`, which is the same
@@ -157,7 +157,7 @@ columns closed on nothing. The argument says what the run must hold, as a
 story-relative line number; the default is all of it.
 
 **A SPANNER BREAKS THE CHAIN**, and that is `column-span: all` stated in
-the story's own terms. `kit::columns` takes a `kit::ColumnSet` with a list
+the story's own terms. `kit::textColumns` takes a `kit::ColumnSet` with a list
 of `kit::Spanner`s, each of which is a `weave::Selector` and an element:
 the copy down to the unit the selector names sets in one balanced run of
 columns, the element runs the full measure under it, and what is left

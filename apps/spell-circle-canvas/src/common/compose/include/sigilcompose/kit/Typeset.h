@@ -221,7 +221,7 @@ struct NestedStyle {
 
 /** N COLUMNS OF ONE STORY, threaded left to right.
  *
- *      root.children({kit::columns(article, 3, 28, 760, 420)});
+ *      root.children({kit::textColumns(article, 3, 28, 760, 420)});
  *
  *  There is no column geometry under this and there does not need to be: a
  *  Western column is a FRAME, and three of them side by side threaded in
@@ -239,10 +239,11 @@ struct NestedStyle {
  *  read as three separate texts rather than one story threaded through
  *  three frames. Empty (the default) is the run-on, for a caller who
  *  clips the chain or knows the story fits. */
-[[nodiscard]] inline Element columns(sigil::weave::Story story, int count,
-                                     float gutter, float width, float height,
-                                     std::string keyPrefix = "column",
-                                     Utf8 ellipsis = {}) {
+[[nodiscard]] inline Element textColumns(sigil::weave::Story story, int count,
+                                         float gutter, float width,
+                                         float height,
+                                         std::string keyPrefix = "column",
+                                         Utf8 ellipsis = {}) {
   Element row = box().row().gap(gutter);
   if (count < 1) return row;
   const float measure = (width - gutter * static_cast<float>(count - 1)) /
@@ -277,7 +278,7 @@ struct Spanner {
 
 /** N COLUMNS OF ONE STORY, WITH THE THINGS THAT SPAN THEM.
  *
- *      root.children({kit::columns({.story = article, .count = 3,
+ *      root.children({kit::textColumns({.story = article, .count = 3,
  *                               .gutter = 28, .width = 760, .height = 420,
  *                               .spanners = {{weave::selectors::line(11),
  * plate()}}, .composer = &composer})});
@@ -310,7 +311,7 @@ struct ColumnSet {
   Utf8 ellipsis;
 };
 
-[[nodiscard]] inline Element columns(ColumnSet set) {
+[[nodiscard]] inline Element textColumns(ColumnSet set) {
   Element stack = box().column();
   if (set.count < 1) return stack;
   const float measure =

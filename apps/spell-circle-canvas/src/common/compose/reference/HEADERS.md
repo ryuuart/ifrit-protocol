@@ -887,7 +887,7 @@ carries in `kit/Typeset.h` (`kit::ruby` and `kit::kenten`, the two stock
 `Annotation`s; `kit::bullets`, whose markers hang in the indent;
 `kit::rules`, cut to the extent a block's lines occupy;
 `kit::NestedStyle` with `kit::nestedRun`, where a block's opening words
-stop; and `kit::columns` over a `kit::ColumnSet`, N frames of one story
+stop; and `kit::textColumns` over a `kit::ColumnSet`, N frames of one story
 threaded in order, with the `kit::Spanner`s that break the chain),
 what stands BESIDE that text in `kit/Annotations.h` (`kit::annotate`
 under `kit::Beside`, which does the arithmetic of the reading direction,

@@ -16,10 +16,10 @@
 //     exclusion shortens its lines exactly as it shortens any other
 //     text's, and what it could not hold is what the columns get.
 //   · the columns — two more frames side by side, threaded in order
-//     (kit::columns writes them). Every frame but the last stops where
+//     (kit::textColumns writes them). Every frame but the last stops where
 //     its geometry stops and hands the remainder on, drawing no marker,
 //     which is what makes the cut invisible. THE LAST FRAME THREADS
-//     NOWHERE, so what it cannot hold has nowhere to go: kit::columns'
+//     NOWHERE, so what it cannot hold has nowhere to go: kit::textColumns'
 //     last argument is the ellipsis that ends the chain, and it lands on
 //     that column's last line only. A marker at every cut would read as
 //     three separate texts rather than one story threaded through three
@@ -194,8 +194,9 @@ struct ThreadedStory {
                             .height(s::kFrameH - 28)
                             .contentFlowAround(stone, 9.0f)}),
          plate(s::kFrameH + 96, false)
-             .children({kit::columns(article, 2, s::kColumnGutter, measure,
-                                     s::kFrameH + 68, column, u8"\u2026")})});
+             .children(
+                 {kit::textColumns(article, 2, s::kColumnGutter, measure,
+                                   s::kFrameH + 68, column, u8"\u2026")})});
   }
 
   Element describe() {

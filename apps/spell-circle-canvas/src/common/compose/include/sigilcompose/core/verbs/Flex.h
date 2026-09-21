@@ -21,13 +21,25 @@ class FlexVerbs {
  public:
   /** WHICH WAY THE MAIN AXIS RUNS and from which end the children are
    *  placed — CSS `flex-direction`. `FlexDirection::Column` when
-   *  unstated. */
+   *  unstated.
+   *
+   *  @trap PHYSICAL, NOT LOGICAL. `Row` is horizontal and `Column`
+   *  vertical whatever writing mode the text under this node is set in:
+   *  a vertical passage does not turn its parent's flex axis. */
   Derived& flexDirection(FlexDirection direction);
   /** `flexDirection(FlexDirection::Row)`: the children run left to
-   *  right. */
+   *  right.
+   *
+   *  @trap HORIZONTAL ALWAYS — it does not turn under a vertical writing
+   *  mode. */
   Derived& row();
   /** `flexDirection(FlexDirection::Column)`: the children run top to
-   *  bottom, which is what a node does when it says nothing. */
+   *  bottom, which is what a node does when it says nothing.
+   *
+   *  @trap VERTICAL ALWAYS — it does not turn under a vertical writing
+   *  mode, and it is not a column of TEXT: N frames of one story side by
+   *  side are `kit::textColumns`, and the columns a vertical passage sets
+   *  in are the passage's own. */
   Derived& column();
   /** WHAT BECOMES OF CHILDREN THAT OVERFLOW the main axis — CSS
    *  `flex-wrap`. `FlexWrap::NoWrap` when unstated; the bare call

@@ -84,7 +84,7 @@ TEST(ComposeStory, TheMarkerEndsTheChainAndNoCutInsideIt) {
                                     .add(passage())
                                     .add(u8" ")
                                     .add(passage()));
-    host.composer.render(box().children({kit::columns(
+    host.composer.render(box().children({kit::textColumns(
         article, 3, 12.0f, 240.0f, 32.0f, "col", std::move(marker))}));
     host.frame();
     return std::array{host.composer.paragraphLayout("col0"),
