@@ -16,15 +16,17 @@ on every side when unstated.
 
 ## Description
 
-**The same four spellings as [`padding`](padding.md).** One length is all
-four sides; two are one length across and one down; four are a length
-per side, clockwise from the left; an [`Edges`](../types/Edges.md) names
-the sides, and a side it leaves unnamed is zero.
+**The same five spellings as [`padding`](padding.md), in CSS's order.**
+One length is all four sides; two are vertical then horizontal; three
+are top, both sides, bottom; four run clockwise from the top; an
+[`Edges`](../types/Edges.md) names the sides, and a side it leaves
+unnamed is zero.
 
 ```cpp
 box().margin(12);
-box().margin(12, 6);
-box().margin(1, 2, 3, 4);
+box().margin(6, 12);
+box().margin(2, 3, 4);
+box().margin(2, 3, 4, 1);
 box().margin({.top = 2, .left = 1});
 ```
 

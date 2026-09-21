@@ -26,11 +26,15 @@ class BoxVerbs {
   /** The air INSIDE the node's box, between its edge and its content,
    *  the same on all four sides. Zero when unstated. */
   Derived& padding(Dimension all);
-  /** The air inside it, one length across and one down. */
-  Derived& padding(Dimension horizontal, Dimension vertical);
-  /** The air inside it, a length per side, clockwise from the left. */
-  Derived& padding(Dimension left, Dimension top, Dimension right,
-                   Dimension bottom);
+  /** The air inside it, one length down and one across — CSS's two-value
+   *  shorthand, so the VERTICAL one comes first. */
+  Derived& padding(Dimension vertical, Dimension horizontal);
+  /** The air inside it, top, then both sides, then bottom. */
+  Derived& padding(Dimension top, Dimension horizontal, Dimension bottom);
+  /** The air inside it, a length per side, clockwise from the TOP — CSS's
+   *  order. An `Edges` says the same thing with the sides named. */
+  Derived& padding(Dimension top, Dimension right, Dimension bottom,
+                   Dimension left);
   /** The air inside it, per side, each side saying which it is. A side
    *  left unnamed is zero. */
   Derived& padding(Edges edges);
@@ -46,11 +50,14 @@ class BoxVerbs {
   /** The air OUTSIDE the node's box, between its edge and its siblings,
    *  the same on all four sides. Zero when unstated. */
   Derived& margin(Dimension all);
-  /** The air outside it, one length across and one down. */
-  Derived& margin(Dimension horizontal, Dimension vertical);
-  /** The air outside it, a length per side, clockwise from the left. */
-  Derived& margin(Dimension left, Dimension top, Dimension right,
-                  Dimension bottom);
+  /** The air outside it, one length down and one across, the vertical one
+   *  first. */
+  Derived& margin(Dimension vertical, Dimension horizontal);
+  /** The air outside it, top, then both sides, then bottom. */
+  Derived& margin(Dimension top, Dimension horizontal, Dimension bottom);
+  /** The air outside it, a length per side, clockwise from the TOP. */
+  Derived& margin(Dimension top, Dimension right, Dimension bottom,
+                  Dimension left);
   /** The air outside it, per side, each side saying which it is. A side
    *  left unnamed is zero. */
   Derived& margin(Edges edges);

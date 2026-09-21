@@ -16,17 +16,24 @@ every side when unstated.
 
 ## Description
 
-**Four spellings, one field.** One length is all four sides. Two are one
-length across and one down. Four are a length per side, clockwise from
-the left. An [`Edges`](../types/Edges.md) names the sides instead, and a
-side it leaves unnamed is zero.
+**Five spellings, one field, and the lengths run in CSS's order.** One
+is all four sides. Two are vertical then horizontal. Three are top, both
+sides, bottom. Four run clockwise from the TOP. An
+[`Edges`](../types/Edges.md) names the sides instead, and a side it
+leaves unnamed is zero.
 
 ```cpp
-box().padding(12);                              // all four
-box().padding(12, 6);                           // across, down
-box().padding(1, 2, 3, 4);                      // left, top, right, bottom
-box().padding({.top = 2, .left = 1});           // by name; the rest zero
+box().padding(12);                        // all four
+box().padding(6, 12);                     // down, across
+box().padding(2, 3, 4);                   // top, both sides, bottom
+box().padding(2, 3, 4, 1);                // top, right, bottom, left
+box().padding({.top = 2, .left = 1});     // by name; the rest zero
 ```
+
+**Coming from CSS**, `padding: 2px 3px 4px 1px` is `padding(2, 3, 4, 1)`
+and reads the same way round. What CSS writes as a longhand —
+`padding-left` — is `paddingLeft`, and what CSS has no syntax for —
+naming two sides and leaving the others — is the `Edges` form.
 
 **The per-side verbs write ONE side and leave the other three as they
 stand**, so `padding(5).paddingLeft(40)` is five on three sides and forty

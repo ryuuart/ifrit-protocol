@@ -21,15 +21,22 @@ Derived& BoxVerbs<Derived>::padding(Dimension all) {
 }
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::padding(Dimension h, Dimension v) {
-  declarations()->layout.padding = {h, v, h, v};
+Derived& BoxVerbs<Derived>::padding(Dimension vertical, Dimension horizontal) {
+  declarations()->layout.padding = {horizontal, vertical, horizontal, vertical};
   return self();
 }
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::padding(Dimension l, Dimension t, Dimension r,
-                                    Dimension b) {
-  declarations()->layout.padding = {l, t, r, b};
+Derived& BoxVerbs<Derived>::padding(Dimension top, Dimension horizontal,
+                                    Dimension bottom) {
+  declarations()->layout.padding = {horizontal, top, horizontal, bottom};
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::padding(Dimension top, Dimension right,
+                                    Dimension bottom, Dimension left) {
+  declarations()->layout.padding = {left, top, right, bottom};
   return self();
 }
 
@@ -81,15 +88,22 @@ Derived& BoxVerbs<Derived>::margin(Dimension all) {
 }
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::margin(Dimension h, Dimension v) {
-  declarations()->layout.margin = {h, v, h, v};
+Derived& BoxVerbs<Derived>::margin(Dimension vertical, Dimension horizontal) {
+  declarations()->layout.margin = {horizontal, vertical, horizontal, vertical};
   return self();
 }
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::margin(Dimension l, Dimension t, Dimension r,
-                                   Dimension b) {
-  declarations()->layout.margin = {l, t, r, b};
+Derived& BoxVerbs<Derived>::margin(Dimension top, Dimension horizontal,
+                                   Dimension bottom) {
+  declarations()->layout.margin = {horizontal, top, horizontal, bottom};
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::margin(Dimension top, Dimension right,
+                                   Dimension bottom, Dimension left) {
+  declarations()->layout.margin = {left, top, right, bottom};
   return self();
 }
 

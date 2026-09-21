@@ -807,11 +807,16 @@ void bindCompose(py::module_& module) {
           return (self.*setter)(motionAnimatable(value));
         },
         py::arg("value"), fluent);
-  // One, two and four dimensions are three arities, so each is its own
-  // overload with its own named inputs: a keyword call reads the same as
-  // `inset` next door, and pybind names the three forms when none matches.
+  // One, two, three and four lengths are four arities, so each is its own
+  // overload with its own named inputs, and each runs in CSS's order: a
+  // keyword call reads the same as `inset` next door, and pybind names
+  // every form when none matches.
   for (const char* name : {"padding", "margin"}) {
     const bool padding = std::string_view{name} == "padding";
+    const auto write = [padding](Element& self,
+                                 const compose::Edges& edges) -> Element& {
+      return padding ? self.padding(edges) : self.margin(edges);
+    };
     element.def(
         name,
         [padding](Element& self, py::object all) -> Element& {
@@ -821,28 +826,30 @@ void bindCompose(py::module_& module) {
         py::arg("all"), fluent);
     element.def(
         name,
-        [padding](Element& self, py::object horizontal,
-                  py::object vertical) -> Element& {
-          const compose::Dimension across = dimension(horizontal);
+        [write](Element& self, py::object vertical,
+                py::object horizontal) -> Element& {
           const compose::Dimension down = dimension(vertical);
-          const compose::Edges edges{down, across, down, across};
-          return padding ? self.padding(edges) : self.margin(edges);
+          const compose::Dimension across = dimension(horizontal);
+          return write(self, {down, across, down, across});
         },
-        py::arg("horizontal"), py::arg("vertical"), fluent);
+        py::arg("vertical"), py::arg("horizontal"), fluent);
     element.def(
         name,
-        [padding](Element& self, py::object left, py::object top,
-                  py::object right, py::object bottom) -> Element& {
-          return padding ? self.padding({.top = dimension(top),
-                                         .right = dimension(right),
-                                         .bottom = dimension(bottom),
-                                         .left = dimension(left)})
-                         : self.margin({.top = dimension(top),
-                                        .right = dimension(right),
-                                        .bottom = dimension(bottom),
-                                        .left = dimension(left)});
+        [write](Element& self, py::object top, py::object horizontal,
+                py::object bottom) -> Element& {
+          const compose::Dimension across = dimension(horizontal);
+          return write(self,
+                       {dimension(top), across, dimension(bottom), across});
         },
-        py::arg("left"), py::arg("top"), py::arg("right"), py::arg("bottom"),
+        py::arg("top"), py::arg("horizontal"), py::arg("bottom"), fluent);
+    element.def(
+        name,
+        [write](Element& self, py::object top, py::object right,
+                py::object bottom, py::object left) -> Element& {
+          return write(self, {dimension(top), dimension(right),
+                              dimension(bottom), dimension(left)});
+        },
+        py::arg("top"), py::arg("right"), py::arg("bottom"), py::arg("left"),
         fluent);
     // The named-sides form: any subset of the four, each side saying which
     // it is, and a side left out staying zero.
@@ -879,14 +886,27 @@ void bindCompose(py::module_& module) {
       py::arg("seconds"), py::arg("from_") = "start", fluent);
   element.def(
       "inset",
-      [](Element& self, py::object l, py::object t, py::object r,
-         py::object b) -> Element& {
-        return self.inset({.top = dimension(t),
-                           .right = dimension(r),
-                           .bottom = dimension(b),
-                           .left = dimension(l)});
+      [](Element& self, py::object vertical, py::object horizontal)
+          -> Element& {
+        return self.inset(dimension(vertical), dimension(horizontal));
       },
-      py::arg("left"), py::arg("top"), py::arg("right"), py::arg("bottom"),
+      py::arg("vertical"), py::arg("horizontal"), fluent);
+  element.def(
+      "inset",
+      [](Element& self, py::object top, py::object horizontal,
+         py::object bottom) -> Element& {
+        return self.inset(dimension(top), dimension(horizontal),
+                          dimension(bottom));
+      },
+      py::arg("top"), py::arg("horizontal"), py::arg("bottom"), fluent);
+  element.def(
+      "inset",
+      [](Element& self, py::object top, py::object right, py::object bottom,
+         py::object left) -> Element& {
+        return self.inset(dimension(top), dimension(right), dimension(bottom),
+                          dimension(left));
+      },
+      py::arg("top"), py::arg("right"), py::arg("bottom"), py::arg("left"),
       fluent);
   // The named-sides form: any subset of the four, and a side left out
   // stays unpinned, so the node's own size or the opposite inset sizes it.

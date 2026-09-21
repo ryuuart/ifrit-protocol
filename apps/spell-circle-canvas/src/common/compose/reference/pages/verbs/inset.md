@@ -16,13 +16,16 @@ stand. Stating it takes the node OUT OF THE FLOW, as `absolute()` does.
 
 ## Description
 
-**One length, four, or named sides.** One is all four edges; four are
-left, top, right, bottom; an [`Edges`](../types/Edges.md) names them.
+**The same lengths as `padding`, in the same CSS order.** One is all
+four edges; two are vertical then horizontal; three are top, both sides,
+bottom; four run clockwise from the top; an
+[`Edges`](../types/Edges.md) names them.
 
 ```cpp
-box().inset(0);                                  // fill the parent
-box().inset(1, 2, 3, 4);                         // left, top, right, bottom
-box().inset({.top = 6, .left = 8});              // by name
+box().inset(0);                            // fill the parent
+box().inset(20, 10);                       // down, across
+box().inset(2, 3, 4, 1);                   // top, right, bottom, left
+box().inset({.top = 6, .left = 8});        // by name; the rest unpinned
 ```
 
 **An unpinned side is not a zero side.** `autoDimension()` — and a side

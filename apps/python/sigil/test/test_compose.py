@@ -44,8 +44,9 @@ class Compose(unittest.TestCase):
     def test_edge_dimensions_take_their_names_at_every_arity(self):
         for element in (
             box().padding(all=12),
-            box().margin(horizontal=12, vertical=6),
-            box().margin(left=1, top=2, right=3, bottom=4),
+            box().margin(vertical=6, horizontal=12),
+            box().margin(top=2, right=3, bottom=4, left=1),
+            box().padding(2, 4, 6),
             # The named-sides form takes any subset of the four, and the
             # per-side verbs write one side and leave the other three.
             box().padding(left=12),
@@ -55,9 +56,9 @@ class Compose(unittest.TestCase):
             box().marginBottom(9).marginRight(7),
         ):
             self.assertIsInstance(element, raw.Element)
-        # One, two and four dimensions are the whole vocabulary.
+        # One, two, three and four lengths are the whole vocabulary.
         with self.assertRaises(TypeError):
-            box().padding(1, 2, 3)
+            box().padding(1, 2, 3, 4, 5)
         self.render("""import builtins
 from sigil.compose import box, row
 from sigil.sketch import sketch
@@ -73,9 +74,9 @@ class Edges:
         ctx.render(
             row(
                 bar("named", box().padding(left=3, top=5, right=7, bottom=9)),
-                bar("placed", box().padding(3, 5, 7, 9)),
+                bar("placed", box().padding(5, 7, 9, 3)),
                 bar("pair", box().margin(horizontal=4, vertical=2)),
-                bar("both", box().margin(4, 2)),
+                bar("both", box().margin(2, 4)),
             )
         )
 

@@ -30,19 +30,31 @@ Derived& PlacementVerbs<Derived>::inset(Dimension all) {
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::inset(Dimension l, Dimension t, Dimension r,
-                                        Dimension b) {
+Derived& PlacementVerbs<Derived>::inset(Dimension vertical,
+                                        Dimension horizontal) {
+  return inset(vertical, horizontal, vertical, horizontal);
+}
+
+template <class Derived>
+Derived& PlacementVerbs<Derived>::inset(Dimension top, Dimension horizontal,
+                                        Dimension bottom) {
+  return inset(top, horizontal, bottom, horizontal);
+}
+
+template <class Derived>
+Derived& PlacementVerbs<Derived>::inset(Dimension top, Dimension right,
+                                        Dimension bottom, Dimension left) {
   detail::ElementNode* node = declarations();
   node->layout.absolute = true;
   node->layout.covering = false;
   node->layout.hasInsets = true;
-  node->layout.insets = {l, t, r, b};
+  node->layout.insets = {left, top, right, bottom};
   return self();
 }
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::inset(Edges edges) {
-  return inset(edges.left, edges.top, edges.right, edges.bottom);
+  return inset(edges.top, edges.right, edges.bottom, edges.left);
 }
 
 template <class Derived>

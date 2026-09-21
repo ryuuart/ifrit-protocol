@@ -1,6 +1,7 @@
 // The four edges around a node, in each spelling the box and placement
-// verbs accept: the shorthands, the named sides of an `Edges`, and the
-// per-side verbs that write one side and leave the other three.
+// verbs accept: the CSS shorthands, whose lengths run clockwise from the
+// top, the named sides of an `Edges`, and the per-side verbs that write
+// one side and leave the other three.
 
 #include <memory>
 #include <string>
@@ -27,22 +28,25 @@ SkRect childUnder(Element padded) {
 
 }  // namespace
 
-TEST(ComposeEdges, PaddingTakesOneTwoOrFourLengths) {
-  // One length is all four sides; two are one across and one down; four
-  // are a length per side, clockwise from the left.
+TEST(ComposeEdges, PaddingTakesItsLengthsInCssOrder) {
+  // One length is all four sides. Two are vertical then horizontal.
+  // Three are top, both sides, bottom. Four run clockwise from the top.
   EXPECT_EQ(childUnder(box().padding(10)), SkRect::MakeXYWH(10, 10, 180, 180));
-  EXPECT_EQ(childUnder(box().padding(10, 20)),
+  EXPECT_EQ(childUnder(box().padding(20, 10)),
             SkRect::MakeXYWH(10, 20, 180, 160));
-  EXPECT_EQ(childUnder(box().padding(1, 2, 3, 4)),
+  EXPECT_EQ(childUnder(box().padding(2, 3, 4)),
+            SkRect::MakeXYWH(3, 2, 194, 194));
+  EXPECT_EQ(childUnder(box().padding(2, 3, 4, 1)),
             SkRect::MakeXYWH(1, 2, 196, 194));
 }
 
 TEST(ComposeEdges, PaddingNamesItsSides) {
   // The same four lengths, each saying which side it is. A designated
-  // initialiser follows the declaration order, which is CSS's.
-  EXPECT_EQ(childUnder(box().padding({.top = 2, .right = 3, .bottom = 4,
-                                      .left = 1})),
-            SkRect::MakeXYWH(1, 2, 196, 194));
+  // initialiser follows the declaration order, which is CSS's, so the
+  // named form and the four-length form read in the same sequence.
+  EXPECT_EQ(
+      childUnder(box().padding({.top = 2, .right = 3, .bottom = 4, .left = 1})),
+      SkRect::MakeXYWH(1, 2, 196, 194));
   // A side left unnamed is zero, not the side beside it.
   EXPECT_EQ(childUnder(box().padding({.left = 12})),
             SkRect::MakeXYWH(12, 0, 188, 200));
@@ -59,7 +63,7 @@ TEST(ComposeEdges, APerSidePaddingVerbLeavesTheOtherThree) {
             SkRect::MakeXYWH(4, 1, 194, 196));
 }
 
-TEST(ComposeEdges, MarginTakesTheSameThreeSpellings) {
+TEST(ComposeEdges, MarginTakesTheSameSpellings) {
   Host host{200, 200};
   const auto placed = [&host](Element child) {
     host.composer.render(box().width(200).height(200).children(
@@ -68,15 +72,16 @@ TEST(ComposeEdges, MarginTakesTheSameThreeSpellings) {
     return boundsOf(host, "child");
   };
   EXPECT_EQ(placed(box().margin(10)), SkRect::MakeXYWH(10, 10, 50, 50));
-  EXPECT_EQ(placed(box().margin(10, 20)), SkRect::MakeXYWH(10, 20, 50, 50));
-  EXPECT_EQ(placed(box().margin(1, 2, 3, 4)), SkRect::MakeXYWH(1, 2, 50, 50));
+  EXPECT_EQ(placed(box().margin(20, 10)), SkRect::MakeXYWH(10, 20, 50, 50));
+  EXPECT_EQ(placed(box().margin(2, 3, 4)), SkRect::MakeXYWH(3, 2, 50, 50));
+  EXPECT_EQ(placed(box().margin(2, 3, 4, 1)), SkRect::MakeXYWH(1, 2, 50, 50));
   EXPECT_EQ(placed(box().margin({.top = 2, .left = 1})),
             SkRect::MakeXYWH(1, 2, 50, 50));
   EXPECT_EQ(placed(box().marginTop(7).marginLeft(9)),
             SkRect::MakeXYWH(9, 7, 50, 50));
 }
 
-TEST(ComposeEdges, InsetTakesOneLengthFourLengthsOrNamedSides) {
+TEST(ComposeEdges, InsetTakesTheSameSpellings) {
   Host host{200, 200};
   const auto placed = [&host](Element child) {
     host.composer.render(
@@ -85,7 +90,9 @@ TEST(ComposeEdges, InsetTakesOneLengthFourLengthsOrNamedSides) {
     return boundsOf(host, "child");
   };
   EXPECT_EQ(placed(box().inset(10)), SkRect::MakeXYWH(10, 10, 180, 180));
-  EXPECT_EQ(placed(box().inset(1, 2, 3, 4)), SkRect::MakeXYWH(1, 2, 196, 194));
+  EXPECT_EQ(placed(box().inset(20, 10)), SkRect::MakeXYWH(10, 20, 180, 160));
+  EXPECT_EQ(placed(box().inset(2, 3, 4)), SkRect::MakeXYWH(3, 2, 194, 194));
+  EXPECT_EQ(placed(box().inset(2, 3, 4, 1)), SkRect::MakeXYWH(1, 2, 196, 194));
   EXPECT_EQ(placed(box().inset({.top = 2, .right = 3, .bottom = 4, .left = 1})),
             SkRect::MakeXYWH(1, 2, 196, 194));
   // A side an inset leaves unnamed is UNPINNED, not zero, so the node's
