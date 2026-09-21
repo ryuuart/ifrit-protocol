@@ -21,6 +21,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <rhi/qrhi.h>
 #include <sigilmeasure/time/Stopwatch.h>
@@ -35,6 +36,7 @@
 
 #include <QtCore/QByteArray>
 #include <QtCore/QMetaObject>
+#include <QtCore/QString>
 #include <QtCore/QMutexLocker>
 #include <QtQuick/QQuickWindow>
 #include <algorithm>
@@ -151,7 +153,9 @@ void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   // A REPLACEMENT QRhi IS A REPLACEMENT DEVICE: the server stands on the
   // device its textures come from, so the old one goes with the context
   // above and a new one is stood up here for the run that asked to
-  // publish.
+  // publish. The canvas it was offering belonged to the old device too.
+  m_publishedCanvas.reset();
+  m_publishedSize = QSize();
   m_publisher.reset();
   if (m_publishing) startPublishing();
 }
@@ -394,7 +398,88 @@ void SketchbookRenderer::publishMetrics() {
         Qt::QueuedConnection);
 }
 
-void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
+void SketchbookRenderer::paintFrame(SkCanvas& canvas, sketch::Host& host) {
+  // The ground as the sketch stated it, ALPHA AND ALL. A sketch may
+  // ground itself in nothing at all, and the pixels it does not draw on
+  // then carry no colour and no coverage — which is what a subscriber
+  // composites the sketch over its own scene by.
+  canvas.clear(host.background());
+  // Wall time, scaled, pausable and stall-clamped: the frame the reader
+  // sees advances by what actually elapsed, not by a nominal step.
+  // Bakes belong to the canvas the sketch declared, not to how far this
+  // window has magnified it: taken at the screen's density, once.
+  if (sketch::Session* session = host.session())
+    session->setBakeDensity(m_deviceRatio);
+  const double step = m_clock.tick();
+  host.frame(canvas, step);
+  m_sceneSeconds += step;
+}
+
+sk_sp<SkImage> SketchbookRenderer::renderPublication(
+    [[maybe_unused]] const QRhiTexture& window) {
+#ifdef SIGILSKETCH_BOOK_GPU
+  if (!m_publisher || !m_graphiteContext || !m_rhi) return nullptr;
+  sketch::Host* host = SketchbookView::host;
+  if (!host || !host->live()) return nullptr;
+  const SkSize canvas = host->canvasSize();
+  if (!(canvas.width() > 0) || !(canvas.height() > 0)) return nullptr;
+  // ONE TEXTURE PIXEL PER CANVAS UNIT: what a subscriber receives is the
+  // size the sketch declared, so a scene built around a 1920x1080 canvas
+  // arrives as 1920x1080 however large or small this window happens to
+  // be. A fractional extent is rounded UP, because a canvas offered
+  // smaller than it declared is missing a strip of itself.
+  const QSize pixels((int)std::ceil(canvas.width()),
+                     (int)std::ceil(canvas.height()));
+  if (!m_publishedCanvas || m_publishedSize != pixels) {
+    m_publishedCanvas.reset();
+    m_publishedSize = QSize();
+    std::unique_ptr<QRhiTexture> made(m_rhi->newTexture(
+        window.format(), pixels, 1, QRhiTexture::RenderTarget));
+    if (!made || !made->create()) {
+      stopPublishing();
+      refusePublishing(
+          QStringLiteral("This canvas is too large for a publication texture "
+                         "on this graphics backend."));
+      return nullptr;
+    }
+    m_publishedCanvas = std::move(made);
+    m_publishedSize = pixels;
+  }
+  sigil::skia::OffscreenSurface surface = sigil::skia::wrapTexture(
+      *m_graphiteContext, m_publishedCanvas.get(), pixels);
+  SkCanvas* into = surface.canvas();
+  if (!into) {
+    stopPublishing();
+    refusePublishing(QStringLiteral(
+        "The sketch's canvas could not be drawn into a texture of its own."));
+    return nullptr;
+  }
+  // ASKED FOR BEFORE ANYTHING IS DRAWN, and the frame is abandoned when
+  // the answer is null: the texture is offered AND shown, so a texture
+  // this backend will not let the window sample is one the sketch has
+  // not been stepped for — leaving the tick to the ordinary path rather
+  // than spending it on a frame nobody can see.
+  sk_sp<SkImage> shown = SkSurfaces::AsImage(sk_ref_sp(surface.surface()));
+  if (!shown) {
+    stopPublishing();
+    refusePublishing(QStringLiteral(
+        "A published canvas cannot be sampled back on this graphics "
+        "backend."));
+    return nullptr;
+  }
+  paintFrame(*into, *host);
+  // Submitted HERE, before the window records the draw that samples it:
+  // Graphite rides the queue this window presents on, and work on one
+  // queue runs in the order it was committed.
+  surface.submit();
+  return shown;
+#else
+  return nullptr;
+#endif
+}
+
+void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize,
+                                    const SkImage* published) {
   sketch::Host* host = SketchbookView::host;
   // WHAT THE SCENE GRAPH WILL DO TO THIS TEXTURE, UNDONE IN ADVANCE. The
   // texture is stretched over the item whatever resolution it stands at,
@@ -433,16 +518,17 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   canvas.translate(fit.x, fit.y);
   canvas.scale(fit.scale, fit.scale);
   canvas.clipRect(SkRect::MakeWH(size.width(), size.height()));
-  canvas.clear(host->background().toSkColor());
-  // Wall time, scaled, pausable and stall-clamped: the frame the reader
-  // sees advances by what actually elapsed, not by a nominal step.
-  // Bakes belong to the canvas the sketch declared, not to how far this
-  // window has magnified it: taken at the screen's density, once.
-  if (sketch::Session* session = host->session())
-    session->setBakeDensity(m_deviceRatio);
-  const double step = m_clock.tick();
-  host->frame(canvas, step);
-  m_sceneSeconds += step;
+  if (published)
+    // THE FRAME THAT HAS ALREADY LEFT, shown rather than drawn again.
+    // It stands at the canvas's own pixels and the fit above magnifies
+    // it, which is the one difference a publishing window shows. Over
+    // the matte and not in place of it, so a sketch grounded in nothing
+    // reads against this window's own dark instead of against whatever
+    // the texture last held.
+    canvas.drawImage(published, 0, 0,
+                     SkSamplingOptions(SkFilterMode::kLinear));
+  else
+    paintFrame(canvas, *host);
   canvas.restore();
   host->markPresented();
   if (++m_frameCount % 15 == 0) m_metricsDirty = true;
@@ -613,11 +699,6 @@ void SketchbookRenderer::startPublishing() {
                  SketchbookView::publishName.c_str());
     return;
   }
-  // Initialization can precede synchronization with the view. Leave the
-  // request pending until its refusal can reach the window.
-  SketchbookView* view = m_view;
-  if (!view) return;
-  m_publishing = false;
   QString reason = QStringLiteral(
       "This window uses CPU rendering. Frame publishing requires a supported "
       "GPU renderer.");
@@ -626,12 +707,21 @@ void SketchbookRenderer::startPublishing() {
     reason = QStringLiteral(
         "A frame publisher could not be opened for this graphics backend.");
 #endif
+  refusePublishing(std::move(reason));
+}
+
+void SketchbookRenderer::refusePublishing(QString reason) {
+  // Initialization can precede synchronization with the view. Leave the
+  // request pending until its refusal can reach the window.
+  SketchbookView* view = m_view;
+  if (!view) return;
+  m_publishing = false;
   std::fprintf(stderr, "[sketchbook] publish: %s\n",
                reason.toUtf8().constData());
   const auto request = m_publicationRequest;
   QMetaObject::invokeMethod(
       view,
-      [view, request, reason] {
+      [view, request, reason = std::move(reason)] {
         if (request != view->m_publicationRequest || !view->m_publishing)
           return;
         view->m_publishing = false;
@@ -642,6 +732,11 @@ void SketchbookRenderer::startPublishing() {
 }
 
 void SketchbookRenderer::stopPublishing() {
+  // The canvas texture goes with the publication it was standing for:
+  // nothing is offering frames, so nothing needs a frame's worth of the
+  // device held open.
+  m_publishedCanvas.reset();
+  m_publishedSize = QSize();
   if (!m_publisher) return;
   std::fprintf(stderr, "[sketchbook] publishing stopped\n");
   m_publisher.reset();
@@ -720,13 +815,19 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
     // build it may be in the middle of, which is a compiler run, and
     // this lock is the one every frame and every poll takes.
     std::unique_ptr<sketch::Host> evicted;
+    bool offered = false;
     {
       sigil::skia::OffscreenSurface surface =
           sigil::skia::wrapTexture(*m_graphiteContext, texture, pixelSize);
       if (SkCanvas* canvas = surface.canvas()) {
         QMutexLocker lock(&SketchbookView::hostMutex);
         evicted = updateSession();
-        drawSketch(*canvas, pixelSize);
+        // THE SKETCH IS DRAWN ONCE, and where a subscriber is waiting it
+        // is drawn into its own canvas first — the window then shows
+        // that frame instead of stepping the sketch a second time.
+        const sk_sp<SkImage> published = renderPublication(*texture);
+        offered = published != nullptr;
+        drawSketch(*canvas, pixelSize, published.get());
         const sigil::measure::Stopwatch submitWatch;
         surface.submit();
         const double submitMs = submitWatch.elapsedMs();
@@ -745,10 +846,12 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
     }
     evicted.reset();
     if (rendered) {
-      // THE TEXTURE IS WRAPPED AFRESH EVERY FRAME above, so what is
-      // offered here is whatever this frame was actually drawn into —
-      // a resize that reallocated it leaves nothing to keep in step.
-      publishFrame(texture, commandBuffer, pixelSize);
+      // WHAT LEAVES IS THE SKETCH'S OWN CANVAS. A frame that could not
+      // be drawn into one is not offered at all: a subscriber handed
+      // this window's texture instead would receive the matte around
+      // the sketch, and a size that follows the window and its zoom.
+      if (offered)
+        publishFrame(m_publishedCanvas.get(), commandBuffer, m_publishedSize);
       update();
       return;
     }
@@ -792,7 +895,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
   {
     QMutexLocker lock(&SketchbookView::hostMutex);
     evicted = updateSession();
-    drawSketch(*surface->getCanvas(), pixelSize);
+    drawSketch(*surface->getCanvas(), pixelSize, nullptr);
     refreshThumbnail();
     reportWrittenThumbnails();
     runPendingCaptures();

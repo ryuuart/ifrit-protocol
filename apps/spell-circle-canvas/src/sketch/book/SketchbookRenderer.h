@@ -6,6 +6,7 @@
  * the raster path that stands beside it.
  */
 
+#include <include/core/SkRefCnt.h>
 #include <sigilmotion/clock/FrameClock.h>
 
 #include <QtCore/QSize>
@@ -18,6 +19,7 @@
 #include <vector>
 
 class SkCanvas;
+class SkImage;
 class SkPixmap;
 class SkSurface;
 class SketchbookView;
@@ -48,7 +50,34 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   ~SketchbookRenderer() override;
 
  private:
-  void drawSketch(SkCanvas& canvas, QSize pixelSize);
+  /** Draws the window's own view of the presented sketch into @p canvas:
+   *  the dark matte, the sketch letterboxed into it at the resolution
+   *  the item stands at, and the zoom that magnifies both. @p published
+   *  is the frame that has ALREADY left by the publication door this
+   *  tick, drawn here in place of the sketch — a sketch is stateful, so
+   *  one tick is one frame and the window shows the same one its
+   *  subscribers received. Null draws the sketch itself. */
+  void drawSketch(SkCanvas& canvas, QSize pixelSize, const SkImage* published);
+  /** Clears @p canvas to the ground the running sketch declared — the
+   *  alpha with it, so a sketch grounded in a translucent or fully
+   *  transparent colour leaves the pixels under it translucent — and
+   *  draws one frame of it, advancing the presented clock by the step it
+   *  took. It is THE tick: whoever calls it is the only one that may,
+   *  because a second call in the same frame would step the sketch
+   *  twice. hostMutex must be held, and the host must be live. */
+  void paintFrame(SkCanvas& canvas, sigil::sketch::Host& host);
+  /** Draws the frame a subscriber receives — the sketch's own canvas, at
+   *  the pixel size the sketch declared, over the ground it declared and
+   *  with nothing of this window around it — and hands back that texture
+   *  as an image for the window to show. Null while this window is
+   *  publishing nothing, and null without drawing anything at all when
+   *  the canvas could not be offered, which leaves the tick to
+   *  `drawSketch`. hostMutex must be held.
+   *  @p window is the texture this frame is presented through, and says
+   *  what a pixel of this window looks like: the canvas is offered in
+   *  the same format, so nothing about a channel differs between what is
+   *  on screen and what leaves. */
+  [[nodiscard]] sk_sp<SkImage> renderPublication(const QRhiTexture& window);
   void runPendingCaptures();  // hostMutex must be held
   void refreshThumbnail();    // hostMutex must be held
   /** Passes on the stills the writer has finished, which it reports on
@@ -68,6 +97,12 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  offer and leaves publishing off. */
   void startPublishing();
   void stopPublishing();
+  /** Turns publishing off and says why, on the console and on the
+   *  window's own button. A publication that cannot offer the sketch's
+   *  canvas offers NOTHING: a subscriber handed this window instead
+   *  would be composited a matte, a letterbox and whatever the zoom
+   *  stood at. */
+  void refusePublishing(QString reason);
   /** Hands the frame just drawn to whoever is subscribed, on the
    *  command buffer Qt commits after `render()` returns. Nothing at all
    *  while this window is not publishing. */
@@ -104,6 +139,15 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  the publisher stands only while it is true, because a publication
    *  that exists is one other applications can already see. */
   std::unique_ptr<sigil::io::publish::Publisher> m_publisher;
+  /** THE SKETCH'S OWN CANVAS, IN A TEXTURE OF ITS OWN. What leaves by
+   *  the publication door is this and not the window's: the declared
+   *  canvas at one texture pixel per canvas unit, cleared to the
+   *  declared ground, with no matte around it and no zoom over it, so a
+   *  subscriber composites the sketch rather than a picture of this
+   *  window. It stands only while something is publishing, and is made
+   *  again whenever the declared canvas changes size. */
+  std::unique_ptr<QRhiTexture> m_publishedCanvas;
+  QSize m_publishedSize;
   bool m_publishing = false;
   std::uint64_t m_publicationRequest = 0;
   SketchbookView* m_view = nullptr;
