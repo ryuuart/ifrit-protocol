@@ -660,7 +660,7 @@ void bindCompose(py::module_& module) {
       .def("initialLetter", &Element::initialLetter, py::arg("initial"), fluent)
       .def("textFirstBaseline", &Element::textFirstBaseline, py::arg("rule"),
            py::arg("offset") = 0.0f, fluent)
-      .def("distribute", &Element::distribute, py::arg("rule"),
+      .def("textVerticalAlign", &Element::textVerticalAlign, py::arg("rule"),
            py::arg("maximumInterlineSpacing") = 0.0f, fluent)
       .def("reserve", &Element::reserve, py::arg("band"), fluent)
       .def("live", &Element::live, py::arg("enabled") = true,

@@ -51,8 +51,8 @@ class TextStyleVerbs {
    *  (the default), half above and half below, all above, or spread
    *  BETWEEN the lines as extra leading, at most
    *  @p maximumInterlineSpacing per gap. */
-  Derived& distribute(sigil::weave::FrameOptions::Distribute rule,
-                      float maximumInterlineSpacing = 0);
+  Derived& textVerticalAlign(sigil::weave::FrameOptions::Distribute rule,
+                             float maximumInterlineSpacing = 0);
   /** ROOM BESIDE EVERY LINE of this passage, over and above the
    *  leading — `before` above a line and right of a column, `after`
    *  below one and left. It is a layout input: the room is in the strut

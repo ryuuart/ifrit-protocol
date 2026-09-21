@@ -1108,7 +1108,7 @@ stops, CJK line tables and writing mode. `ParagraphStyle` adds per-paragraph
 spacing, indents, keeps, reservations and an initial letter. Give
 `paragraphStyles` a list or tuple of those styles, or of stylesheet names.
 `Story(passage)` with `frame(story).key(...).thread(...)` flows that same
-content through several frames. `textFirstBaseline`, `distribute`,
+content through several frames. `textFirstBaseline`, `textVerticalAlign`,
 `initialLetter`, `reserve`, `live`, `maxTextLines` and `textOverflow` use the
 native layout controls.
 

@@ -55,7 +55,7 @@ text(weave::rich(body).add(u8"A heading\nand its body, which runs on\nand on"))
     .width(Dimension(360.0f))
     .paragraphStyles({headingStyle, bodyStyle})
     .textFirstBaseline(sigil::weave::FrameOptions::FirstBaseline::kCapHeight)
-    .distribute(sigil::weave::FrameOptions::Distribute::kJustify);
+    .textVerticalAlign(sigil::weave::FrameOptions::Distribute::kJustify);
 ```
 
 `sigil::weave::ParagraphStyle` carries the leading, the air before and after,
@@ -74,9 +74,9 @@ character styles. A name no sheet in force carries WARNS ONCE and changes
 nothing about its block, because a block quietly set in a default nobody asked
 for looks exactly like a style that did not take.
 
-`Element::textFirstBaseline` and `Element::distribute` are the two decisions a
-FRAME makes that no line makes for itself: where baseline 0 sits below the
-top of the box, and what becomes of the room left over down it.
+`Element::textFirstBaseline` and `Element::textVerticalAlign` are the two
+decisions a FRAME makes that no line makes for itself: where baseline 0 sits
+below the top of the box, and what becomes of the room left over down it.
 
 **A story fills as many frames as it is given.** `weave::Story` is content plus
 its block styles and nothing else — no layout, no cursor, no frame — and

@@ -304,8 +304,8 @@ struct TextData {
   TextPainter painter;
 
   /** WHETHER THIS LEAF SPENDS THE ROOM LEFT OVER DOWN ITS BOX — the rule
-   *  `distribute()` wrote, otherwise whatever the full-control overload's
-   *  options carry.
+   *  `textVerticalAlign()` wrote, otherwise whatever the full-control
+   * overload's options carry.
    *
    *  Only the resolved box knows how much room there is, so a leaf that
    *  answers true must be laid out at its RESOLVED DEPTH and not at an

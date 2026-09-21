@@ -899,7 +899,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           // RESOLVED DEPTH for the same reason an aligned leaf needs the
           // resolved width: a box of a stated height never reaches the
           // measure callback at all, so this is the only place the depth
-          // `distribute` spends is known.
+          // `textVerticalAlign` spends is known.
           const bool distributesRoom =
               node.textData && node.textData->distributesRoom();
           // The alignment the leaf lays out under is the block in force —

@@ -62,7 +62,7 @@ Derived& TextStyleVerbs<Derived>::textFirstBaseline(
 }
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::distribute(
+Derived& TextStyleVerbs<Derived>::textVerticalAlign(
     sigil::weave::FrameOptions::Distribute rule,
     float maximumInterlineSpacing) {
   detail::TextOptions& options = declarations()->textData.ensure().options;

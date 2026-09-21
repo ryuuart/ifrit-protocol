@@ -142,7 +142,7 @@ TEST(ComposeLineTables, TsumeClosesTheGapsBetweenFullWidthCharacters) {
 
 TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownTheBox) {
   // A leaf of a STATED height taller than its lines has room left over,
-  // and `distribute` says what becomes of it. kStart leaves it past the
+  // and `textVerticalAlign` says what becomes of it. kStart leaves it past the
   // last line; kCenter puts half of it above; kEnd puts all of it above;
   // kJustify spreads it BETWEEN the lines as extra leading, which moves
   // the last line to the foot and leaves the first where it stood.
@@ -152,7 +152,7 @@ TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownTheBox) {
                                              .key("t")
                                              .width(200.0f)
                                              .height(300.0f)
-                                             .distribute(rule)}));
+                                             .textVerticalAlign(rule)}));
     host.frame();
     return baselinesOf(host, "t");
   };
@@ -190,7 +190,7 @@ TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownAStoryFrame) {
     sigil::weave::Story article(
         sigil::weave::rich(whiteStyle(14)).add(passage()));
     host.composer.render(box().children(
-        {frame(article).key("t").width(200.0f).height(300.0f).distribute(
+        {frame(article).key("t").width(200.0f).height(300.0f).textVerticalAlign(
             rule)}));
     host.frame();
     return baselinesOf(host, "t");
