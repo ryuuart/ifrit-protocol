@@ -701,7 +701,7 @@ void bindCompose(py::module_& module) {
       .def("hitTestable", &Element::hitTestable, py::arg("enabled"), fluent)
       .def("boundary", &Element::boundary, py::arg("boundary"), fluent)
       .def("threshold", &Element::threshold, py::arg("threshold"), fluent)
-      .def("style", &Element::style, py::arg("style"), fluent)
+      .def("layerStyle", &Element::layerStyle, py::arg("style"), fluent)
       .def(
           "echo",
           [](Element& self, py::object offset, py::object ink) -> Element& {

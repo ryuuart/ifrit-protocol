@@ -125,7 +125,7 @@ struct ChromeType {
     // sits inside it.
     Element onBox = sketch::kit::caption(
         0, "Boundary::Auto", "the node's rectangle",
-        box().padding(18).borderRadius({6}).style(style).children(
+        box().padding(18).borderRadius({6}).layerStyle(style).children(
             {text(c::kWordmark, c::wordmark(letterInk))}));
     // The letters: the same value, the other boundary.
     Element onGlyphs = sketch::kit::caption(
@@ -133,7 +133,7 @@ struct ChromeType {
         box().padding(18).children(
             {text(c::kWordmark, c::wordmark({0, 0, 0, 0}))
                  .boundary(Boundary::Glyphs)
-                 .style(style)}));
+                 .layerStyle(style)}));
     // The pair's own name stands wider and larger than a cell's call, so
     // its label is this cell's own leaf — the register, this size over it
     // — and the two captions under it keep the register as it is.

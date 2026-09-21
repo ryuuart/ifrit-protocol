@@ -399,7 +399,7 @@ inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
 /** The cartographic railway: a dark line under a white dash overlay at
  *  about a third of its width, on a 50% duty cycle — the map convention,
  *  which uses no ties at all. Two decorations as one LayerStyle, so attach
- *  with `Element::style()`. */
+ *  with `Element::layerStyle()`. */
 inline LayerStyle railwayCarto(float scale = 1.0f,
                                SkColor4f dark = {0.439f, 0.439f, 0.439f, 1},
                                SkColor4f light = {1, 1, 1, 1}) {

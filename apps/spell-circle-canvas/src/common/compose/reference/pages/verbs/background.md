@@ -75,5 +75,5 @@ which is how a bare drop shadow, a glow or a ground texture is written.
 
 [`fill`](fill.md), [`overlay`](overlay.md),
 [`foreground`](foreground.md) and [`stroke`](stroke.md) for the rest of
-the stacking order, and `style` for a whole bundle of decorations at
+the stacking order, and `layerStyle` for a whole bundle of decorations at
 once.

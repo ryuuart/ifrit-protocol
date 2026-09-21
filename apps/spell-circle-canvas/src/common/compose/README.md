@@ -395,7 +395,7 @@ rectangle, and is why a chrome style on a word bevelled a slab behind the
 word. `Element::boundary` says otherwise:
 
 ```cpp
-text(u8"CHROME", display).boundary(Boundary::Glyphs).style(kit::y2kChrome());
+text(u8"CHROME", display).boundary(Boundary::Glyphs).layerStyle(kit::y2kChrome());
 ```
 
 `Boundary::Glyphs` hands them the glyph contours the placement produced,
@@ -414,7 +414,7 @@ knows about an image's alpha cut-out, a clipped or masked subtree, or
 anything else whose visible silhouette is neither a shape nor a glyph run.
 
 ```cpp
-image(logo).boundary(Boundary::Coverage).style(kit::y2kChrome());
+image(logo).boundary(Boundary::Coverage).layerStyle(kit::y2kChrome());
 image(photo).key("fig").boundary(Boundary::Coverage).threshold(0.35f);
 text(body, bodyStyle).flowAround("fig", 12);
 ```

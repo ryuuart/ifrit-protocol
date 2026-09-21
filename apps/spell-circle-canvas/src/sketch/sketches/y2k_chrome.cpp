@@ -133,7 +133,7 @@ inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
       .width(w)
       .height(h)
       .borderRadius({h / 2})
-      .style(kit::aquaGel(tint))  // body + gloss + hairline, no .fill()
+      .layerStyle(kit::aquaGel(tint))  // body + gloss + hairline, no .fill()
       .row()
       .alignItems(Align::Center)
       .justifyContent(Justify::Center)
@@ -145,7 +145,7 @@ inline Element gelOrb(float d = kOrbD) {
       .width(d)
       .height(d)
       .borderRadius({d / 2})
-      .style(kit::aquaGel(hexColor(0x1E8FFF)))
+      .layerStyle(kit::aquaGel(hexColor(0x1E8FFF)))
       .clip()
       // The PS Gloss Contour proper (kit::gloss — blurred coverage
       // through a ring table): a shape-following light band the preset's
@@ -338,7 +338,7 @@ struct Y2kChrome {
             // No horizon sliver on a caption bar: at 12px type
             // the full-width sheen line reads as strikethrough
             // (real Y2K bars carry the top-edge highlight only).
-            .style(kit::y2kChrome({.horizonSliver = false}))
+            .layerStyle(kit::y2kChrome({.horizonSliver = false}))
             .row()
             .alignItems(Align::Center)
             .padding(12, 0)
@@ -363,7 +363,7 @@ struct Y2kChrome {
         kit::centred()
             .height(plateH)
             .borderRadius({10})
-            .style(kit::y2kChrome())
+            .layerStyle(kit::y2kChrome())
             .row()
 
             .padding(34, 0)

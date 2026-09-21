@@ -19,7 +19,7 @@
  *  brushes and their stamps, ribbons, lines and rails, hatches,
  *  decorations, and the Photoshop-shaped layer and pixel styles
  *  (brush/). What a node's `stroke`, `background`, `foreground` and
- *  `style` verbs take. */
+ *  `layerStyle` verbs take. */
 /** @defgroup compose-typography Type
  *  Everything a text leaf says beyond its words: the per-glyph fx tracks
  *  and their beats, the text effects, the selector vocabulary compose

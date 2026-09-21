@@ -84,7 +84,7 @@ struct AquaGloss {
 };
 
 /** The drop-in gel bundle: body, gloss and a hairline keyline. Use it on a
- *  pill — `box().borderRadius({h/2}).style(kit::aquaGel(tint))` — and give
+ *  pill — `box().borderRadius({h/2}).layerStyle(kit::aquaGel(tint))` — and give
  *  the node NO fill: the body decoration paints the surface, and a fill
  *  would cover it. Pass options to retune the lens, the glow and the
  *  recess: `AquaGelOptions{.topBand = 1.0f}` is the deep cut,

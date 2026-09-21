@@ -47,7 +47,7 @@
  *  Each is built from gradients, blurs and blend modes rather than from
  *  a shader, and each is a comparable decoration value, so a node
  *  dressed in one prunes and caches like any static chrome. A whole
- *  bundle of them is a `LayerStyle`, which `Element::style()` takes in
+ *  bundle of them is a `LayerStyle`, which `Element::layerStyle()` takes in
  *  one call.
  *
  *  These are MECHANISMS. The LOOKS built out of them — aqua gel, y2k

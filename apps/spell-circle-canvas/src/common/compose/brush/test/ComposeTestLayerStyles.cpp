@@ -7,8 +7,9 @@ TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
   Host host(300, 120);
   auto tree = [] {
     return box().row().gap(20).padding(20).children(
-        {box().width(120).height(44).borderRadius({22}).style(kit::aquaGel()),
-         box().width(120).height(44).borderRadius({8}).style(
+        {box().width(120).height(44).borderRadius({22}).layerStyle(
+             kit::aquaGel()),
+         box().width(120).height(44).borderRadius({8}).layerStyle(
              kit::y2kChrome())});
   };
   host.composer.render(tree());
@@ -40,7 +41,7 @@ TEST(ComposeStyles, AquaGelEdgesRunFromNoneToTheDeepCut) {
   // 90x44 pills at y 20..64 that differ in one option and nothing else.
   const kit::AquaGelOptions preset;
   auto pill = [](const char* key, kit::AquaGelOptions opts) {
-    return box().key(key).width(90).height(44).borderRadius({22}).style(
+    return box().key(key).width(90).height(44).borderRadius({22}).layerStyle(
         kit::aquaGel({0.118f, 0.561f, 1.0f, 1.0f}, opts));
   };
   auto withTopBand = [&](const char* key, float v) {

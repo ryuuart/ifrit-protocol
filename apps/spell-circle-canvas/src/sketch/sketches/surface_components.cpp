@@ -54,7 +54,7 @@ Element gel(float height) {
                           .width(112)
                           .height(height)
                           .borderRadius({height / 2})
-                          .style(kit::aquaGel({0.10f, 0.64f, 0.96f, 1}))
+                          .layerStyle(kit::aquaGel({0.10f, 0.64f, 0.96f, 1}))
                           .cache(Cache::Texture));
 }
 

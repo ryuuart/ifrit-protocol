@@ -131,7 +131,7 @@ TEST(ComposeBorders, WeightedCornersThickenWhereTheRuleTurns) {
 TEST(ComposeBorders, DoubleBorderStacksTwoIndependentInsets) {
   Host host;
   host.composer.render(
-      box().children({box().width(100).height(100).fill(blue()).style(
+      box().children({box().width(100).height(100).fill(blue()).layerStyle(
           decorations::doubleBorder(decorations::border(3, white()),
                                     decorations::border(3, white(), 12)))}));
   host.frame();

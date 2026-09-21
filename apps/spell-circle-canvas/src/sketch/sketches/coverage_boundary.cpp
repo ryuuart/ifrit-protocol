@@ -160,7 +160,7 @@ struct CoverageBoundary {
                                  ".style(halo)",
                                  "Automatic boundary: the image rectangle "
                                  "receives the style.",
-                                 art(cut).style(halo())),
+                                 art(cut).layerStyle(halo())),
                             cell("THE DRAWN SILHOUETTE",
                                  "…"
                                  ".boundary(Coverage).style(halo)",
@@ -168,7 +168,7 @@ struct CoverageBoundary {
                                  "hole receive the same style.",
                                  art(cut)
                                      .boundary(Boundary::Coverage)
-                                     .style(halo()))},
+                                     .layerStyle(halo()))},
                   .measure = 1020,
                   .gap = 18}),
              box()
@@ -188,7 +188,7 @@ struct CoverageBoundary {
                                                "is the fallback.",
                                                art(cut, kWash)
                                                    .boundary(Boundary::Coverage)
-                                                   .style(halo())),
+                                                   .layerStyle(halo())),
                                           cell(
                                               "CHILDREN AS ONE OUTLINE",
                                               "children only · "
@@ -200,7 +200,7 @@ struct CoverageBoundary {
                                                   .width(kArt)
                                                   .height(kArt)
                                                   .boundary(Boundary::Coverage)
-                                                  .style(halo())
+                                                  .layerStyle(halo())
                                                   .children({disc({37, 53}, 31),
                                                              disc({79, 39}, 35),
                                                              disc({68, 98},

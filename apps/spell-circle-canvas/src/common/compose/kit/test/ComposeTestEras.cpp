@@ -79,7 +79,7 @@ TEST(KitEras, TheSliverLightsTheHorizonAndFadesAtBothEnds) {
 TEST(KitEras, TheKeylineIsStrokedOutsideTheSilhouetteAndZeroWidthDropsIt) {
   auto barWith = [](kit::ChromeOptions opts) {
     return box().padding(20).children(
-        {box().width(160).height(100).style(kit::y2kChrome(opts))});
+        {box().width(160).height(100).layerStyle(kit::y2kChrome(opts))});
   };
   Host wide(200, 140), none(200, 140);
   wide.composer.render(barWith({.keylineWidth = 4.0f}));

@@ -323,7 +323,7 @@ struct Bg3DiceRoll {
                  .shape(shapes::notched(30.0f, 13.0f, shapes::Corner::All))
                  .fill(mskia::withAlpha(bg3::kVellumDeep, 0.96f))
                  .background(shadow({0.1f, 0.07f, 0.04f, 0.30f}, {0, 4}, 12))
-                 .style(decorations::doubleBorder(
+                 .layerStyle(decorations::doubleBorder(
                      decorations::border(1.9f, bg3::ink(0.9f), 5.0f),
                      decorations::border(0.7f, bg3::giltDark(), 10.0f))),
              flourish(false), flourish(true),
@@ -510,7 +510,7 @@ struct Bg3DiceRoll {
             .shape(shapes::chamfered(10.0f))
             .fill(mskia::withAlpha(bg3::kVellumDeep, 0.95f))
             .background(shadow({0.1f, 0.07f, 0.04f, 0.32f}, {0, 3}, 10))
-            .style(decorations::doubleBorder(
+            .layerStyle(decorations::doubleBorder(
                 decorations::border(1.8f, bg3::ink(0.9f)),
                 decorations::border(0.7f, bg3::giltDark(), 5.0f)))
             .children({box()
@@ -669,7 +669,7 @@ struct Bg3DiceRoll {
   Element outerRing() const {
     return kit::at(box()
                        .shape(shapes::polygon(40, 4.5f))
-                       .style(decorations::doubleBorder(
+                       .layerStyle(decorations::doubleBorder(
                            decorations::border(2.6f, bg3::giltDark(0.42f)),
                            decorations::border(0.9f, bg3::ink(0.3f), 16.0f)))
                        .background(lines::presets::concentric(

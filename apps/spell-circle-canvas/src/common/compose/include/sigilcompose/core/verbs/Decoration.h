@@ -65,7 +65,7 @@ class DecorationVerbs {
   /** Apply a whole `LayerStyle`: its `under` layers append as
    *  backgrounds and its `over` layers as foregrounds, so one call
    *  dresses the node in a bundled treatment. */
-  Derived& style(LayerStyle s);
+  Derived& layerStyle(LayerStyle s);
   /** Append a misprint echo: the node's fill shape and text re-stamped
    *  offset and flat-coloured beneath the real pass. Not applied to
    *  text carrying `fx()` tracks, nor to image or custom content. */

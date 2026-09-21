@@ -402,8 +402,8 @@ struct NightNetwork {
                   routers::octilinear(14))
                  .inset(0)
                  .mask(by::spans(spans::upTo(&railReveal)))
-                 .style(brush::presets::railwayCarto(1.6f, nn::kSteel,
-                                                     {0.95f, 0.94f, 0.90f, 1}))
+                 .layerStyle(brush::presets::railwayCarto(
+                     1.6f, nn::kSteel, {0.95f, 0.94f, 0.90f, 1}))
                  .zIndex(3),
              // ---- the cased metro pair ----
              rail({{"em_w"}, {"em1"}, {"hub"}, {"em2"}, {"em_e"}},

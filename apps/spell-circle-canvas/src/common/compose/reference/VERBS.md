@@ -104,7 +104,7 @@ content and children, then foregrounds and the unqualified strokes.
 | [`background`](pages/verbs/background.md) | A decoration painted BENEATH the fill. |
 | [`overlay`](pages/verbs/overlay.md) | A decoration painted over the fill and under the content and children. |
 | [`foreground`](pages/verbs/foreground.md) | A decoration painted OVER the children. |
-| `style` | A whole `LayerStyle` at once: its under layers become backgrounds, its over layers foregrounds. |
+| `layerStyle` | A whole `LayerStyle` at once: its under layers become backgrounds, its over layers foregrounds. |
 | `echo` | A misprint echo: the fill shape and the text re-stamped offset and flat beneath the real pass. |
 | [`textFill`](pages/verbs/textFill.md) | Paint the GLYPHS with a material mapped to text-metric space. |
 | [`textStroke`](pages/verbs/textStroke.md) | Stroke the glyphs, under their fill. |
@@ -282,7 +282,7 @@ spelling is the feature's.
   `var`, `varDefaults`, `imageRendering`.
 - `core/verbs/Paint.h` — `fill`.
 - `core/verbs/Decoration.h` — the decoration slots `stroke`,
-  `background`, `overlay`, `foreground`, `style`, `echo`, and what they
+  `background`, `overlay`, `foreground`, `layerStyle`, `echo`, and what they
   dress: `boundary`, `threshold`.
 - `core/verbs/Effects.h` — `filter`, `backdropFilter`, `blendMode`, `opacity`,
   `appear`.

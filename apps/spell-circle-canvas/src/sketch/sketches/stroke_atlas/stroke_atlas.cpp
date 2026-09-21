@@ -427,7 +427,7 @@ struct StrokeAtlasSketch {
                             .shape(frames[i].shape);
         const Frame& spec = frames[i];
         if (spec.style.has_value())
-          frame.style(spec.style.value());
+          frame.layerStyle(spec.style.value());
         else if (spec.where.has_value())
           frame.stroke(spec.where.value(), spec.dec);
         else

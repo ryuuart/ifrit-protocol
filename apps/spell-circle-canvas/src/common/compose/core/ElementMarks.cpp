@@ -96,7 +96,7 @@ Derived& DecorationVerbs<Derived>::echo(SkVector offset, SkColor4f color) {
 }
 
 template <class Derived>
-Derived& DecorationVerbs<Derived>::style(LayerStyle s) {
+Derived& DecorationVerbs<Derived>::layerStyle(LayerStyle s) {
   for (Decoration& d : s.under) {
     claimBorrows(d);
     declarations()->backgrounds.push_back(std::move(d));

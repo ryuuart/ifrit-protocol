@@ -500,7 +500,7 @@ inline Border weightedCorners(float width, float cornerWidth, Fill fill,
  *  value, so both attach and prune together. The inner rule is often the
  *  dotted or lighter one; pass whatever you like.
  *
- *      .style(decorations::doubleBorder(
+ *      .layerStyle(decorations::doubleBorder(
  *          decorations::border(1.6f, ink),
  *          decorations::border(0.8f, ink, 6)))
  */

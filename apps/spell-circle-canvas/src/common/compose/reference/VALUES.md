@@ -38,7 +38,7 @@ read before the four rows under *The surface*.
 | `Decoration` | A type-erased mark: anything answering `paint(canvas, PaintContext)`. | Implicitly from `PathFormat`, `Shadow`, `Slice`, any scheme of your own, or a bare `PaintProgram` | `Element::background`, `Element::overlay`, `Element::foreground`, `Element::stroke` |
 | [`PathFormat`](pages/types/PathFormat.md) | A stroke of the outline, formatted by data: width, paint, alignment, dashes, stamps. | `stroke(width, fill)`, `stroke(width)` for the ink in force, or the struct outright | The four decoration slots |
 | [`Shadow`](pages/types/Shadow.md) | A soft drop shadow behind the outline, with an optional knockout. | `shadow(colour, offset, blur)` | The same slots, `background` first among them |
-| `LayerStyle` | A named bundle of decorations applied together: `under` below the fill, `over` above. | The kit's presets, or the struct outright | `Element::style` |
+| `LayerStyle` | A named bundle of decorations applied together: `under` below the fill, `over` above. | The kit's presets, or the struct outright | `Element::layerStyle` |
 | `Boundary` | Which outline a node hands its decorations: `Auto`, `Outline`, `Glyphs`, `Coverage`. | The enumeration itself | `Element::boundary` |
 | `Spans` | Which runs of the boundary a pass claims. | `spans::range`, `spans::upTo`, `spans::corners`, `spans::edges`, `spans::every`, `spans::at`, `spans::fit`, `spans::rest`, and `|` between any of them | `Element::stroke`, `Element::background` |
 

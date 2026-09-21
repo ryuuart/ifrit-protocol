@@ -17,8 +17,8 @@ GLYPHS on a text leaf, or the silhouette of what it DREW.
 ## Description
 
 ```cpp
-text(u8"CHROME", heavy).boundary(Boundary::Glyphs).style(kit::y2kChrome());
-image(cutOut).boundary(Boundary::Coverage).style(kit::y2kChrome());
+text(u8"CHROME", heavy).boundary(Boundary::Glyphs).layerStyle(kit::y2kChrome());
+image(cutOut).boundary(Boundary::Coverage).layerStyle(kit::y2kChrome());
 ```
 
 **A decoration was never about a box.** It is drawn across an outline,

@@ -63,5 +63,5 @@ outer keyline on a clipped node keeps its reach.
 
 [`overlay`](overlay.md) for the slot under the content,
 [`background`](background.md) for the one under the fill,
-[`stroke`](stroke.md), and `style` for a bundle that fills both halves
+[`stroke`](stroke.md), and `layerStyle` for a bundle that fills both halves
 at once.

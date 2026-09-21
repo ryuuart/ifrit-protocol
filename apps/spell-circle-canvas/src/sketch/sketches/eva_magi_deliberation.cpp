@@ -127,7 +127,7 @@ struct EvaMagiDeliberation {
         // The module's ink is its label colour; the inner rule is drawn in it.
         .ink(kInk)
         .clip(true)
-        .style(decorations::doubleBorder(
+        .layerStyle(decorations::doubleBorder(
             decorations::border(6.0f, Fill::color(kOrange), 0.0f),
             decorations::border(3.0f, Fill::currentInk(), 9.0f)))
         .children(
@@ -174,7 +174,7 @@ struct EvaMagiDeliberation {
          kit::at(
              box()
                  .fill(mskia::Paint::solid(hexColor(0x150103)))
-                 .style(decorations::doubleBorder(
+                 .layerStyle(decorations::doubleBorder(
                      decorations::border(7.0f, Fill::color(kRed), 0.0f),
                      decorations::border(3.0f, Fill::color(kRedHot), 14.0f)))
                  .children(
