@@ -729,7 +729,7 @@ filed name or its file stem, which is the loop for visual iteration.
 `--shot <png>` captures the app window rather than a sketch, which is
 the only way to look at the browser and the inspector.
 
-**`--publish` offers the live window's frames to other applications.**
+**`--publish` offers the sketch's own canvas to other applications.**
 A program on this machine subscribes to a name and receives every frame
 this canvas draws, composited live in its own scene — a VJ program, a
 projection mapper, a recorder. The name is the one given, or the stem of
@@ -742,6 +742,25 @@ or active publisher and reports failures.
 If publication cannot start, the button returns to off and the canvas shows
 the reason until the next attempt; CPU rendering cannot publish frames.
 
+**WHAT LEAVES IS THE CANVAS, NOT THE WINDOW.** A publishing window draws
+the sketch once into a texture of its own — the declared canvas, at one
+texture pixel per canvas unit, cleared to the declared ground — and
+offers that. So a subscriber receives the size the sketch declared
+however large the window is and however far it is zoomed, receives no
+matte around the picture, and receives THE GROUND'S ALPHA: a sketch that
+declares `.background = {0, 0, 0, 0}` publishes a fully transparent
+ground and one that declares a translucent colour publishes it
+translucent, premultiplied as drawn, so another application composites
+the sketch over its own scene. The window keeps showing what it showed
+before — the matte, the letterbox and the zoom — with that one frame
+magnified into it rather than the sketch drawn a second time, because a
+sketch is stateful and one tick is one frame. A frame that cannot be
+drawn into a canvas of its own is not offered at all and publishing
+stops with the reason on the button: a subscriber handed the window
+instead would be composited the matte. `alpha_ground` and
+`python_alpha_ground` are the sketches that declare a transparent ground
+and say what to do with one.
+
 `Receiver`, the subscriber in the same feature, is what to check it
 with: `Receiver --list` says what is being offered, `Receiver <name>`
 opens a window on it and `Receiver <name> --grab <png>` writes its newest
@@ -753,11 +772,14 @@ a sketch: made from the context a sketch was handed — a page's
 `SketchContext` or a set's `SetContext` — and the name a publication
 announces, it answers with the newest frame two ways.
 `sigil::sketch::Guest::frame` is the frame as an image on the recorder
-the canvas is being drawn on, one wrap per frame that arrived and null
-while nothing is publishing; `guest_picture` is the page that wears one,
-and nothing is copied on the way in. It takes the `SkCanvas` as well as
-the recorder, so a caller inside a paint program asks with what it is
-already holding and names Graphite nowhere.
+the canvas is being drawn on, one per frame that arrived and null while
+nothing is publishing; `guest_picture` is the page that wears one. The
+frame arrives with its first row at the image's BOTTOM — the order the
+surface a publication is carried on is written and read — so it is drawn
+once into a target of its own on that recorder and what comes back is
+upright, which is the one thing done to it on the way in. It takes the
+`SkCanvas` as well as the recorder, so a caller inside a paint program
+asks with what it is already holding and names Graphite nowhere.
 `sigil::sketch::Guest::texture` is the same frame as a
 `material::Texture`, which is what a surface's base-colour slot takes, so
 a body in a set wears the publication the way it wears any other picture;
@@ -773,11 +795,10 @@ another application happens to be offering while a still is taken is not
 a function of the sketch that took it, so a plate of such a scene is what
 it draws with nobody publishing.
 
-What travels is the texture the frame was drawn into, so publishing
-wants the window on Graphite. On the CPU raster fallback there is no
-texture of this window's to offer, and the flag is REFUSED rather than
-answered with something else: the console says so and publishing stays
-off. Every lane that renders without a window — a sweep, a still, a
+What travels is a texture, so publishing wants the window on Graphite.
+On the CPU raster fallback there is no texture to offer, and the flag is
+REFUSED rather than answered with something else: the console says so
+and publishing stays off. Every lane that renders without a window — a sweep, a still, a
 montage, a measurement, the warm command — refuses the flag outright.
 
 `--catalog` prints the browser's rows without opening a window, one JSON

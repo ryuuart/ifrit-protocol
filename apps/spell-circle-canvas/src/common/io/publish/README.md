@@ -86,8 +86,9 @@ So the two ends are not symmetrical, and each says which way round it is:
   turns it over as it draws: a scene-graph node mirrors vertically, a canvas
   draws through a flipped transform, a readback walks the rows backwards.
 
-Seer's capture and preview, and `sigil::sketch::Guest`, each do that turn, so
-what a reader of this repository's own tools looks at is upright.
+Seer's capture and preview, and the door a sketch wears a publication through,
+each do that turn, so what a reader of this repository's own tools looks at is
+upright.
 
 On Metal the publication is appended to the caller's open command buffer and
 not submitted: it runs when the caller commits, and work on one queue runs in

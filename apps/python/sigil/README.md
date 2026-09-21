@@ -600,10 +600,25 @@ uv run sigil open sketch.py --publish "Live Sketch"
 ```
 
 On macOS, a Syphon client such as Receiver subscribes to `Live Sketch` and
-receives the canvas directly from Sketchbook's rendered GPU texture.
-`--publish` without a name publishes under the sketch file's stem. Ctrl-P toggles output
-in the window, and the status line shows the publication name. Drawing with
-either Python or C++ uses this same path.
+receives THE SKETCH'S OWN CANVAS: the size the sketch declared, at one texture
+pixel per canvas unit, over the ground it declared and with none of the window
+around it. `--publish` without a name publishes under the sketch file's stem.
+Ctrl-P toggles output in the window, and the status line shows the publication
+name. Drawing with either Python or C++ uses this same path.
+
+A ground with alpha below one publishes as it reads, so a sketch meant to be
+composited over another application's scene declares one:
+
+```python
+@sketch(size=(640, 360), background=(0, 0, 0, 0))
+class Overlay:
+    ...
+```
+
+`background` takes a `Color`, a CSS string, or a sequence of three or four
+channels between zero and one; the fourth is the ground's alpha, and zero
+publishes a fully transparent ground. `python_alpha_ground` in the sketch
+directory is the example.
 
 Frame publication belongs to the host that owns the GPU. SigilIO handles
 resource and data bytes; it does not turn image bytes into a Syphon stream.
