@@ -165,8 +165,8 @@ inline material::skia::Effect textGlow(SkColor4f color, float sigma) {
  *  displacement field — y shifted by a sine of x, or with `vertical`, x by
  *  a sine of y. Water reads convincingly at an amplitude of a few percent
  *  of the node's height with only a couple of waves across it. Attach with
- *  `.filter()` to warp the node's own layer, or `.backdropFilter()` to warp
- * what is beneath it.
+ *  `.filter()` to warp the node's own layer, or `.backdropFilter()` to
+ *  warp what is beneath it.
  *
  *  An Effect is a STATIC value, so animating this means re-describing with
  *  a moving `phase`, and the node re-records on every change. Keep it for

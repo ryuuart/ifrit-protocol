@@ -72,7 +72,7 @@ struct Instance;
  *  hold its recording between ticks.
  *
  *  `own()` is the node's own shape — the region `overflow(Overflow::Clip)`
- * uses, and the reason overflow(Overflow::Clip) survives as sugar over this. */
+ *  uses, and the reason that keyword survives as sugar over this. */
 class Region {
  public:
   /** Which shape the region is, and therefore which of the members
@@ -84,8 +84,8 @@ class Region {
     Path,  ///< an explicit local path (SkPath is a comparable value)
   };
 
-  /** The node's own silhouette — overflow(Overflow::Clip)'s region, as a value.
-   */
+  /** The node's own silhouette — the region `overflow(Overflow::Clip)`
+   *  cuts to, as a value. */
   static Region own();
   static Region rect(const SkRect& r);
   static Region oval(const SkRect& bounds);

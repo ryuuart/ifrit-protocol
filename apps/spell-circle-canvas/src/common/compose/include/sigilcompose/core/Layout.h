@@ -170,7 +170,7 @@ enum class BoxSizing : uint8_t {
 /** WHAT BECOMES OF PAINT THAT LEAVES A NODE'S SHAPE — CSS's `overflow`, as
  *  far as a tree that never scrolls has one. */
 enum class Overflow : uint8_t {
-  Visible,  ///< the fill, the content and the children paint past it; the default
+  Visible,  ///< fill, content and children paint past the shape; the default
   Clip      ///< they are cut to the shape; the decorations keep their reach
 };
 

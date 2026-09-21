@@ -25,8 +25,8 @@ namespace sigil::compose {
  *  Repeated calls APPEND — two `stroke()` calls are two rings — and
  *  every slot takes an optional LOCAL name, which is what
  *  `mask(parts::named(name), …)` addresses and is never a query key.
- *  Decorations dress the OUTLINE, so `overflow(Overflow::Clip)` does not clip
- * them. */
+ *  Decorations dress the OUTLINE, so `overflow(Overflow::Clip)` does not
+ *  clip them. */
 template <class Derived>
 class DecorationVerbs {
  public:

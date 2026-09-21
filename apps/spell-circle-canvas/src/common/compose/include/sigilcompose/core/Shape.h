@@ -343,11 +343,11 @@ struct MotionPath {
  *    scale is traced smaller, and its steps grow to whatever that took.
  *  - PAINT UNDER THE THRESHOLD IS NOT A SILHOUETTE. A pixel joins the
  *    boundary when the node's paint reaches the coverage
- *    `Element::decorationOutline` stated, a fraction of full opacity there,
- * which defaults to half — the rule an unantialiased rasteriser uses — so a 30%
- * wash over the whole box traces to nothing and its decorations have nothing to
- * dress. Lowering the threshold is what makes a wash, a feathered cut-out or a
- * glow a silhouette.
+ *    `Element::decorationOutline` stated, a fraction of full opacity
+ *    there, which defaults to half — the rule an unantialiased rasteriser
+ *    uses — so a 30% wash over the whole box traces to nothing and its
+ *    decorations have nothing to dress. Lowering the threshold is what
+ *    makes a wash, a feathered cut-out or a glow a silhouette.
  *
  *  The node's OWN decorations are not in the trace — they are what dresses
  *  it, and a mark that dressed itself would have no fixed point. Its fill,
