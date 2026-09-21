@@ -77,6 +77,69 @@ class Scene:
         )
         self.assertEqual(struct.unpack(">II", output.read_bytes()[16:24]), (96, 64))
 
+    def test_the_host_binds_its_own_module_ahead_of_a_copy_in_the_sketch_local_venv(
+        self,
+    ):
+        # An editable install of the package puts a finder for its own compiled
+        # copy of the module ahead of the built-in importer. The host's copy is
+        # the one its sketches must build with, whatever the environment holds.
+        environment = self.root / ".venv"
+        venv.EnvBuilder(with_pip=False, symlinks=True).create(environment)
+        python = environment / "bin/python"
+        site = Path(
+            subprocess.check_output(
+                [
+                    str(python),
+                    "-I",
+                    "-c",
+                    "import sysconfig; print(sysconfig.get_path('purelib'))",
+                ],
+                text=True,
+            ).strip()
+        )
+        (site / "decoy_sigil.py").write_text("DECOY = True\n")
+        (site / "decoy_finder.py").write_text(
+            """import importlib.util
+import sys
+from pathlib import Path
+
+class Finder:
+    def find_spec(self, name, path=None, target=None):
+        if name != "_sigil":
+            return None
+        return importlib.util.spec_from_file_location(
+            name, Path(__file__).with_name("decoy_sigil.py")
+        )
+
+sys.meta_path.insert(0, Finder())
+"""
+        )
+        (site / "decoy_finder.pth").write_text("import decoy_finder\n")
+        source = self.root / "scene.py"
+        source.write_text("""import json
+import sys
+from pathlib import Path
+import _sigil
+from sigil.sketch import sketch
+
+@sketch(size=(96, 64), background='#8bd0bd', capture_at=0)
+class Scene:
+    def setup(self, ctx):
+        Path(__file__).with_suffix(".json").write_text(json.dumps({
+            "prefix": sys.prefix,
+            "decoy": hasattr(_sigil, "DECOY"),
+            "finders": [type(finder).__name__ for finder in sys.meta_path],
+        }))
+""")
+        output = self.root / "frame.png"
+        result = self.run_host(source, "--frame", output)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = json.loads(source.with_suffix(".json").read_text())
+        self.assertEqual(report["prefix"], str(environment))
+        self.assertIn("Finder", report["finders"], "the decoy finder was installed")
+        self.assertFalse(report["decoy"], "the sketch built against the host's module")
+        self.assertEqual(struct.unpack(">II", output.read_bytes()[16:24]), (96, 64))
+
     def test_workspace_catalogue_includes_entries_but_skips_helpers_and_nested_projects(
         self,
     ):

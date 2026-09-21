@@ -75,6 +75,30 @@ void initializeInterpreter(const std::filesystem::path& executable) {
   py::initialize_interpreter(&config, 0, nullptr, false);
 }
 
+/** Binds the name `_sigil` to the module compiled into this process
+ *  before any import can resolve it elsewhere. The environment a sketch
+ *  project selects may hold a compiled copy of the same module — an
+ *  editable install of the package puts a finder for its own copy ahead
+ *  of the built-in importer — and that copy carries a second set of the
+ *  native libraries: its nodes, paints and contexts are laid out by
+ *  whatever build produced it, and the host cannot read them. The host's
+ *  own copy is the one every sketch it runs must build with. */
+void bindBuiltinModule() {
+  try {
+    const py::object spec = py::module_::import("importlib.machinery")
+                                .attr("BuiltinImporter")
+                                .attr("find_spec")("_sigil");
+    if (spec.is_none())
+      throw std::runtime_error("The Sigil Python module is not built in");
+    const py::object module =
+        py::module_::import("importlib.util").attr("module_from_spec")(spec);
+    spec.attr("loader").attr("exec_module")(module);
+    py::module_::import("sys").attr("modules")["_sigil"] = module;
+  } catch (const py::error_already_set& error) {
+    throw std::runtime_error(error.what());
+  }
+}
+
 void interpreter() {
   // Retained callbacks can be destroyed on worker threads. The embedded
   // interpreter belongs to the process and outlives all such callbacks.
@@ -89,6 +113,7 @@ void interpreter() {
         throw std::runtime_error("Could not register the Sigil Python module");
       initializeInterpreter(configuration.executable);
       embedded = true;
+      bindBuiltinModule();
       PyEval_SaveThread();
     }
   });
