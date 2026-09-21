@@ -43,7 +43,7 @@ TEST(ComposeMaterial, LinearGradientFillPaints) {
       {box()
            .width(100)
            .height(20)
-           .inset({.top = 0, .right = 100, .bottom = 180, .left = 0})
+           .inset(0, 100, 180, 0)
            .absolute()
            .fill(material::skia::Paint::linear(
                {0, 0}, {100, 0},
@@ -68,7 +68,7 @@ TEST(ComposeMaterial, ConicalMovesTheHighlightWithoutMovingTheFalloff) {
         {box()
              .width(120)
              .height(120)
-             .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+             .inset(40)
              .absolute()
              .fill(material::skia::Paint::conical(
                  focus, 0.0f, {60, 60}, 60.0f,
@@ -153,7 +153,7 @@ TEST(ComposeMaterial, BlendStackCompositesToOneShader) {
       {box()
            .width(40)
            .height(40)
-           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .inset(0, 160, 160, 0)
            .absolute()
            .fill(material::skia::Paint::blend({
                {material::skia::Paint::solid({1, 0, 0, 1}),
@@ -552,7 +552,7 @@ TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {
         {box()
              .width(60)
              .height(60)
-             .inset({.top = 0, .right = 140, .bottom = 140, .left = 0})
+             .inset(0, 140, 140, 0)
              .absolute()
              .fill(material::skia::Paint::blend(
                  {{material::skia::Paint::solid({1, 0, 0, 1}),
@@ -598,7 +598,7 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
         {box()
              .width(100)
              .height(100)
-             .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+             .inset(0, 100, 100, 0)
              .absolute()
              .fill(material::skia::Paint::buffer(src))});
   };
@@ -798,7 +798,7 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
       {box()
            .width(40)
            .height(40)
-           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .inset(0, 160, 160, 0)
            .absolute()
            .fill(m)}));
   host.frame();  // paints with uK at its SkSL default (0) — and does not crash

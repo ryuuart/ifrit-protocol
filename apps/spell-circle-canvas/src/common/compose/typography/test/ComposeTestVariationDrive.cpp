@@ -80,7 +80,7 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
              .key("t")
              .variationDrive("GRAD", &grade)
              .absolute()
-             .inset({.top = 60, .right = 20, .bottom = 60, .left = 20})});
+             .inset(60, 20)});
   };
   host.composer.render(describe());
   host.frame();
@@ -192,7 +192,7 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
            .key("t")
            .variationDrive("wght", &weight)
            .absolute()
-           .inset({.top = 60, .right = 20, .bottom = 60, .left = 20})}));
+           .inset(60, 20)}));
   host.frame();
   SkBitmap base;
   base.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
@@ -237,7 +237,7 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
            .key("t")
            .variationDrive("GRAD", &grade)
            .absolute()
-           .inset({.top = 60, .right = 20, .bottom = 60, .left = 20})}));
+           .inset(60, 20)}));
   verb.frame();
 
   Host byHand;
@@ -246,7 +246,7 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
            .key("t")
            .fx({.effect = TextEffect::variableAxis("GRAD", gradeMax)})
            .absolute()
-           .inset({.top = 60, .right = 20, .bottom = 60, .left = 20})}));
+           .inset(60, 20)}));
   byHand.frame();
 
   SkBitmap fromVerb, fromTrack;
@@ -270,7 +270,7 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
            .variationDrive("GRAD", &grade)
            .fx({.effect = fx::rise(0)})
            .absolute()
-           .inset({.top = 60, .right = 20, .bottom = 60, .left = 20})}));
+           .inset(60, 20)}));
   stacked.frame();
   SkBitmap composed;
   composed.allocPixels(SkImageInfo::MakeN32Premul(200, 200));

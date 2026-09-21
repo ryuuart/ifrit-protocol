@@ -14,7 +14,7 @@ TEST(ComposePositioned, RectsAreHonoredAndYogaFree) {
   Host host;
   host.composer.render(
       positioned()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           .children({box().key("a").left(10).top(20).width(50).height(30).fill(
                          green()),
                      box().key("b").left(70).top(90).width(40).height(40).fill(
@@ -38,7 +38,7 @@ TEST(ComposePositioned, NestedRectsComposeYogaFreeAllTheWayDown) {
   Host host;
   host.composer.render(
       positioned()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           .children(
               {box()
                    .key("outer")
@@ -62,7 +62,7 @@ TEST(ComposePositioned, PctAndOpposingInsetsResolve) {
   Host host;  // 200x200 canvas; container fills it
   host.composer.render(
       positioned()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           // pct dims resolve against the container's rect
           .children(
               {box().key("half").left(0).top(0).width(pct(50)).height(pct(25))})
@@ -84,7 +84,7 @@ TEST(ComposePositioned, TextMeasuresAgainstItsSuppliedWidth) {
   style.paint.foreground.setColor(SK_ColorWHITE);
   host.composer.render(
       positioned()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           .children({text(u8"wrap me across a narrow measure", style)
                          .key("t")
                          .left(10)
@@ -104,7 +104,7 @@ TEST(ComposePositioned, StructuralPruneAndMovesStillWork) {
   Host host;
   auto tree = [](float x) {
     return positioned()
-        .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+        .inset(0)
         .children({box().key("m").left(x).top(10).width(40).height(40).fill(
             green())});
   };
@@ -126,7 +126,7 @@ TEST(ComposePositioned, HitTestAndZOrderSeeChildren) {
   Host host;
   host.composer.render(
       positioned()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           .children({box()
                          .key("under")
                          .left(20)
@@ -160,14 +160,14 @@ TEST(ComposePositioned, TogglingPositionedRemountsCleanly) {
   };
   host.composer.render(
       positioned()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           .children({child()}));
   host.frame();
   EXPECT_EQ(host.composer.stats().yogaNodes, 1u);
   // The same child under a plain box: rejoins the Yoga world.
   host.composer.render(
       box()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           .children({child()}));
   host.frame();
   EXPECT_EQ(host.composer.stats().yogaNodes, 2u);
@@ -175,7 +175,7 @@ TEST(ComposePositioned, TogglingPositionedRemountsCleanly) {
   // And back again.
   host.composer.render(
       positioned()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           .children({child()}));
   host.frame();
   EXPECT_EQ(host.composer.stats().yogaNodes, 1u);
@@ -319,7 +319,7 @@ TEST(ComposeBoundary, CoverageDressesWhatTheSubtreeDrewAndNotTheNodesBox) {
             .foreground(flooding(SK_ColorGREEN));
     if (boundary != Boundary::Auto) node.decorationOutline(boundary);
     return positioned()
-        .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+        .inset(0)
         .children({std::move(node)});
   };
   Host boxed, drawn;
@@ -348,7 +348,7 @@ TEST(ComposeBoundary, CoverageFollowsAnImagesAlphaCutOut) {
                        .foreground(flooding(SK_ColorGREEN));
     if (boundary != Boundary::Auto) node.decorationOutline(boundary);
     return positioned()
-        .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+        .inset(0)
         .children({std::move(node)});
   };
   Host boxed, drawn;
@@ -385,7 +385,7 @@ TEST(ComposeBoundary, TheThresholdIsHowMuchPaintCountsAsInk) {
             .decorationOutline(Boundary::Coverage,
                                threshold > 0 ? threshold : 0.5f);
     return positioned()
-        .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+        .inset(0)
         .children({std::move(node)});
   };
   Host strict, lenient;
@@ -411,7 +411,7 @@ TEST(ComposeBoundary, AZeroThresholdIsAnyInkAndNotTheWholeBox) {
   Host host;
   host.composer.render(
       positioned()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           .children({positioned()
                          .left(20)
                          .top(20)
@@ -443,7 +443,7 @@ TEST(ComposeBoundary, ANodeThatDrewNothingKeepsItsShapeUnderCoverage) {
   Host host;
   host.composer.render(
       positioned()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           .children({positioned()
                          .left(20)
                          .top(20)

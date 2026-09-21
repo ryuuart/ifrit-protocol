@@ -513,7 +513,7 @@ struct WorldHud {
              text("Lv 27")
                  .font(wh::line(10, 1.4f))
                  .ink(wh::kInkDim)
-                 .margin({.top = 2, .right = 0, .bottom = 4, .left = 0}),
+                 .margin(2, 0, 4, 0),
              box()
                  .width(168.0f)
                  .height(9.0f)
@@ -546,7 +546,7 @@ struct WorldHud {
                   text("LEVEL 34  ·  CLEAR, LIGHT WIND")
                       .font(wh::line(11, 0.9f))
                       .ink(wh::kInkDim)
-                      .margin({.top = 5, .right = 0, .bottom = 0, .left = 0})}),
+                      .margin(5, 0, 0, 0)}),
              buffRow(), minimap(), targetPlate(), lootFeed(), barStack(),
              hotbar()});
   }

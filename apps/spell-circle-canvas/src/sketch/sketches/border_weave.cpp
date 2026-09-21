@@ -92,11 +92,7 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
   return {.title = title,
           .control = call,
           .figure = sketch::kit::cell(kSpecimen, "", "",
-                                      std::move(body).absolute().inset(
-                                          {.top = (kPicture - kPlaque) / 2,
-                                           .right = (kCell - kPlaque) / 2,
-                                           .bottom = (kPicture - kPlaque) / 2,
-                                           .left = (kCell - kPlaque) / 2})),
+                                      std::move(body).absolute().inset((kPicture - kPlaque) / 2, (kCell - kPlaque) / 2)),
           .note = note};
 }
 

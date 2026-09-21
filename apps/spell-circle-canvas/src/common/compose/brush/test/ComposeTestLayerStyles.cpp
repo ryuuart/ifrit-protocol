@@ -59,7 +59,7 @@ TEST(ComposeStyles, AquaGelEdgesRunFromNoneToTheDeepCut) {
       box()
           .row()
           .gap(8)
-          .padding({.top = 20, .right = 8, .bottom = 20, .left = 8})
+          .padding(20, 8)
           .children({withTopBand("none", 0.0f),
                      withTopBand("default", preset.topBand),
                      withTopBand("deep", 1.0f), pill("nolens", noLens),
@@ -144,7 +144,7 @@ TEST(ComposeStyles, RippleDisplacesTheLayer) {
   auto bar = [](bool warped) {
     Element e = box()
                     .absolute()
-                    .inset({.top = 96, .right = 20, .bottom = 96, .left = 20})
+                    .inset(96, 20)
                     .fill(Fill::color({1, 0, 0, 1}));
     if (warped) e.filter(styles::ripple(10, 60));
     return box().children({std::move(e)});

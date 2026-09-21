@@ -204,7 +204,7 @@ struct Zellige {
             {box().inset(0).fill(grain.material()),
              box()
                  .column()
-                 .inset({.top = 44, .right = 50, .bottom = 44, .left = 50})
+                 .inset(44, 50)
                  .gap(14)
                  .children({box()
                                 .row()

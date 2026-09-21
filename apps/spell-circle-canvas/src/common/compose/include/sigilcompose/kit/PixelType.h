@@ -187,10 +187,7 @@ inline Coverage coverage(std::u8string_view run,
     // that case no matter how large the pad got.
     SkBitmap plane =
         detail::rasterize(box()
-                              .padding({.top = (float)std::max(0, pad.y),
-                                        .right = (float)std::max(0, pad.x),
-                                        .bottom = (float)std::max(0, pad.y),
-                                        .left = (float)std::max(0, pad.x)})
+                              .padding((float)std::max(0, pad.y), (float)std::max(0, pad.x))
                               .children({text(text8, style)}),
                           fonts, {w, h});
     if (plane.isNull()) return out;

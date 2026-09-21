@@ -175,10 +175,7 @@ struct Scrim {
  *  for this one when the plate has to stand off the type. */
 inline Element scrim(Element run, const Scrim& s = {}) {
   Element plate = box()
-                      .padding({.top = s.paddingY,
-                                .right = s.paddingX,
-                                .bottom = s.paddingY,
-                                .left = s.paddingX})
+                      .padding(s.paddingY, s.paddingX)
                       .fill(s.fill)
                       .children({std::move(run)});
   if (s.radius > 0) plate.borderRadius({s.radius});

@@ -12,7 +12,7 @@ TEST(ComposeStroke, StrokeAlignInnerAndOuter) {
     return box().children(
         {box()
              .absolute()
-             .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+             .inset(50)
              .stroke(stroke(20, green(), align))});
   };
   Host inner, outer;
@@ -40,7 +40,7 @@ TEST(ComposeDecorations, BoundShadowOffsetSlides) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 60, .right = 80, .bottom = 80, .left = 60})
+           .inset(60, 80, 80, 60)
            .background(shadow)}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 90), SK_ColorGREEN);   // at rest: under the box
@@ -60,7 +60,7 @@ TEST(ComposeDecorations, KnockoutShadowLeavesTheFootprintClear) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 60, .right = 80, .bottom = 80, .left = 60})
+           .inset(60, 80, 80, 60)
            .background(s)}));
   host.frame();
   EXPECT_EQ(host.pixel(130, 90), SK_ColorGREEN);  // shadow right of the box
@@ -83,7 +83,7 @@ TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+           .inset(50)
            .stroke(band)
            .stroke(sliver)}));
   host.frame();
@@ -173,7 +173,7 @@ Element corneredRun(lines::Line style) {
   return box().children(
       {box()
            .absolute()
-           .inset({.top = 20, .right = 20, .bottom = 20, .left = 20})
+           .inset(20)
            .shape([] {
              SkPathBuilder b;
              b.moveTo(0, 120);
@@ -230,7 +230,7 @@ TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
     return box().children(
         {box()
              .absolute()
-             .inset({.top = 20, .right = 20, .bottom = 20, .left = 20})
+             .inset(20)
              .shape(geometry::shapes::circle())
              .stroke(std::move(hatch))});
   };
@@ -347,7 +347,7 @@ Element circleRun(Decoration style, float radius) {
   return box().children(
       {box()
            .absolute()
-           .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+           .inset(0)
            .shape([radius](SkSize s) {
              SkPathBuilder b;
              b.addCircle(s.width() / 2, s.height() / 2, radius);
@@ -641,14 +641,14 @@ TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
              .key("a")
              .width(20)
              .height(20)
-             .inset({.top = 90, .right = 170, .bottom = 90, .left = 10})
+             .inset(90, 170, 90, 10)
              .absolute()
              .fill(red()),
          box()
              .key("b")
              .width(20)
              .height(20)
-             .inset({.top = 90, .right = 10, .bottom = 90, .left = 170})
+             .inset(90, 10, 90, 170)
              .absolute()
              .fill(green()),
          std::move(route)});

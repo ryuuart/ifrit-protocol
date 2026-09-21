@@ -365,7 +365,7 @@ struct ElasticType {
   [[nodiscard]] Element describe() {
     return box()
         .column()
-        .padding({.top = 42, .right = 48, .bottom = 42, .left = 48})
+        .padding(42, 48)
         .gap(26)
         .fill(linearGradient({0, 0}, {0, kH},
                              {kPaper, hexColor(0x15151B), kPaper},

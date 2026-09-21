@@ -132,7 +132,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                      .shape(shapes::chamfered(40, shapes::Corner::BottomRight))
                      .row()
                      .alignItems(Align::Center)
-                     .padding({.top = 0, .right = 10, .bottom = 0, .left = 10})
+                     .padding(0, 10)
                      .gap(8),
                  kTealBar)
           .translateY(animate(motion::from(-46.0f).to(0.0f),
@@ -175,7 +175,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                      .shape(shapes::chamfered(40, shapes::Corner::TopLeft))
                      .row()
                      .alignItems(Align::Center)
-                     .padding({.top = 0, .right = 14, .bottom = 0, .left = 58})
+                     .padding(0, 14, 0, 58)
                      .gap(10),
                  kChrome)
           .translateY(animate(motion::from(-46.0f).to(0.0f),
@@ -188,7 +188,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                // is boxed rather than bare.
                box()
                    .height(24)
-                   .padding({.top = 0, .right = 9, .bottom = 0, .left = 9})
+                   .padding(0, 9)
                    .stroke(stroke(1,
                                   Fill::color(mskia::withAlpha(kNear, 0.75f)),
                                   PathFormat::Align::Inner))
@@ -209,7 +209,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
         .height(23)
         .row()
         .alignItems(Align::Center)
-        .padding({.top = 0, .right = 6, .bottom = 0, .left = 6})
+        .padding(0, 6)
         .gap(6)
         .fill(playing ? kChromeHi : mskia::withAlpha(hexColor(0x2A0A0C), 0.85f))
         .foreground(onEdges(
@@ -291,7 +291,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
                .height(18)
                .row()
                .alignItems(Align::Center)
-               .padding({.top = 0, .right = 6, .bottom = 0, .left = 6})
+               .padding(0, 6)
                .fill(mskia::withAlpha(kChrome, 0.9f))
                .children(
                    {t("AUDIO PREFERENCES", micro(11, kDust, 240)),

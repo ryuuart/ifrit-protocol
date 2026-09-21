@@ -46,7 +46,7 @@ TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
       {box()
            .width(100)
            .height(100)
-           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+           .inset(0, 100, 100, 0)
            .absolute()
            .fill(m)}));
   host.frame();
@@ -62,7 +62,7 @@ TEST(ComposeSdf, AStarFillsItsCentreAndMissesTheBoxCorners) {
       {box()
            .width(100)
            .height(100)
-           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+           .inset(0, 100, 100, 0)
            .absolute()
            .fill(material::skia::Paint::recipe(material::sdf::material(
                material::sdf::star(5, 2.4f), {.fill = {1, 0, 0, 1}})))}));
@@ -123,7 +123,7 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
       {box()
            .width(100)
            .height(100)
-           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+           .inset(0, 100, 100, 0)
            .absolute()
            .fill(material::skia::Paint::recipe(
                      material::sdf::material(material::sdf::circle(), style))
@@ -186,7 +186,7 @@ TEST(ComposePattern, CheckerTilesSeamlessly) {
       {box()
            .width(60)
            .height(20)
-           .inset({.top = 0, .right = 140, .bottom = 180, .left = 0})
+           .inset(0, 140, 180, 0)
            .absolute()
            .fill(bg.material())}));
   host.frame();
@@ -256,7 +256,7 @@ TEST(ComposePattern, AnElementTreeIsATile) {
       {box()
            .width(40)
            .height(10)
-           .inset({.top = 0, .right = 160, .bottom = 190, .left = 0})
+           .inset(0, 160, 190, 0)
            .absolute()
            .fill(duo.material(fonts()))}));
   host.frame();
@@ -279,7 +279,7 @@ TEST(ComposePattern, TheGirihEightTileIsAStarAndACross) {
       {box()
            .width(120)
            .height(120)
-           .inset({.top = 0, .right = 80, .bottom = 80, .left = 0})
+           .inset(0, 80, 80, 0)
            .absolute()
            .fill(zellige.material())}));
   host.frame();
@@ -305,7 +305,7 @@ TEST(ComposeStyles, BevelLightsAndShadesOpposedEdges) {
       {box()
            .width(60)
            .height(60)
-           .inset({.top = 0, .right = 140, .bottom = 140, .left = 0})
+           .inset(0, 140, 140, 0)
            .absolute()
            .fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))
            .foreground(styles::BevelEmboss{.depth = 4, .size = 3})}));
@@ -325,7 +325,7 @@ TEST(ComposeStyles, AnOverlaySitsOverTheFillAndAStrokeOverBoth) {
       {box()
            .width(60)
            .height(60)
-           .inset({.top = 0, .right = 140, .bottom = 140, .left = 0})
+           .inset(0, 140, 140, 0)
            .absolute()
            .fill(Fill::color({0, 0, 1, 1}))
            .foreground(
@@ -385,7 +385,7 @@ TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
       {box()
            .width(40)
            .height(40)
-           .inset({.top = 60, .right = 100, .bottom = 100, .left = 60})
+           .inset(60, 100, 100, 60)
            .absolute()
            .borderRadius({8})
            .background(styles::OuterGlow{.color = {1, 1, 1, 1}, .size = 10})
@@ -405,7 +405,7 @@ TEST(ComposePatterns, APatternFillReachesThePixels) {
       {box()
            .width(120)
            .height(40)
-           .inset({.top = 0, .right = 80, .bottom = 160, .left = 0})
+           .inset(0, 80, 160, 0)
            .absolute()
            .fill(Pattern(material::pattern::sequence({{10, {1, 0, 0, 1}},
                                                       {10, {0, 1, 0, 1}},

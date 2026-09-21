@@ -146,8 +146,7 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
   host.composer.render(box().children(
       {box()
            .key("panel")
-           .padding(
-               {.top = padY, .right = 12.0f, .bottom = padY, .left = 12.0f})
+           .padding(padY, 12.0f)
            .column()
            .gap(gap)
            .children({feed::feed(a, st).key("feedA")})

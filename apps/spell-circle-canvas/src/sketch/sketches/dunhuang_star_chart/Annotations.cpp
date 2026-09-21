@@ -438,7 +438,7 @@ auto DunhuangStarChart::consolePanel() -> Element {
       .key("console")
       .column()
       .gap(6)
-      .padding({.top = 9, .right = 12, .bottom = 9, .left = 12})
+      .padding(9, 12)
       .children({feed::feed(logA, logStyle()), hairline(0.16f),
                  feed::feed(logB, logStyle()), hairline(0.16f),
                  feed::feed(logC, logStyle())});

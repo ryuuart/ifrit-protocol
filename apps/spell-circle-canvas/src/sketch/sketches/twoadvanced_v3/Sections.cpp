@@ -79,7 +79,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
         tabs.children(
             {kit::centred()
                  .height(17)
-                 .padding({.top = 0, .right = 10, .bottom = 0, .left = 10})
+                 .padding(0, 10)
                  .fill(mskia::withAlpha(kSeam, 0.92f))
                  .stroke(stroke(1,
                                 Fill::color(mskia::withAlpha(kSteelHi, 0.45f)),
@@ -158,7 +158,7 @@ Element TwoAdvancedV3::thumbPlate(Element content, const Utf8& btn) {
                .fill(hexColor(0x2A3550))
                .row()
                .alignItems(Align::Center)
-               .padding({.top = 0, .right = 3, .bottom = 0, .left = 3})
+               .padding(0, 3)
                .children({box().width(28).height(4).fill(
                    mskia::withAlpha(kSteelHi, 0.85f))}),
            kit::centred()
@@ -268,7 +268,7 @@ Element TwoAdvancedV3::mailingList() {
   const data::Json& page = doc["modules"]["mailing"];
   Element body =
       box()
-          .padding({.top = 8, .right = 12, .bottom = 8, .left = 12})
+          .padding(8, 12)
           .gap(6)
           .children(
               {t(page["prompt"], micro(11, hexColor(0xC7D0DD), 100)),
@@ -286,8 +286,7 @@ Element TwoAdvancedV3::mailingList() {
                                 PathFormat::Align::Inner))
                             .row()
                             .alignItems(Align::Center)
-                            .padding(
-                                {.top = 0, .right = 7, .bottom = 0, .left = 7})
+                            .padding(0, 7)
                             .children({t(
                                 page["placeholder"],
                                 micro(9, mskia::withAlpha(kBody, 0.7f), 100))}),
@@ -318,7 +317,7 @@ Element TwoAdvancedV3::support2a() {
   };
   Element body = box()
                      .row()
-                     .padding({.top = 4, .right = 12, .bottom = 4, .left = 12})
+                     .padding(4, 12)
                      .gap(14)
                      .children({each(page["halves"].items(), half)});
   return module(page["glyph"], page["bar"], std::move(body), 4);
@@ -340,7 +339,7 @@ Element TwoAdvancedV3::follow2a() {
   }
   Element body = kit::centred()
                      .column()
-                     .padding({.top = 8, .right = 12, .bottom = 8, .left = 12})
+                     .padding(8, 12)
 
                      .children({icons});
   return module(page["glyph"], page["bar"], std::move(body), 5);

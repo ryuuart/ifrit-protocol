@@ -18,7 +18,7 @@ TEST(ComposeDerive, FlowAroundWrapsTextAroundFrame) {
              .key("frame")
              .width(150)
              .height(140)
-             .inset({.top = 10, .right = 10, .bottom = 210, .left = 200})
+             .inset(10, 10, 210, 200)
              .absolute()
              .fill(Fill::color({0, 0.4f, 0, 1})),
          box().inset(0).children({std::move(t)}).zIndex(1)});

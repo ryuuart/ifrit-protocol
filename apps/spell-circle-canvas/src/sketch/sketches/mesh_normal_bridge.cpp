@@ -188,10 +188,7 @@ struct MeshNormalBridge {
           .gap(4)
           .width(300)
           .absolute()
-          .inset({.top = kCanvas.height() - 92,
-                  .right = 0,
-                  .bottom = 0,
-                  .left = kCanvas.width() * 0.5f + x - 150})
+          .inset(kCanvas.height() - 92, 0, 0, kCanvas.width() * 0.5f + x - 150)
           .children({text(call).font({.size = 12.5f, .track = 0.4f}),
                      text(note).font({.size = 10.5f}).ink(kDim).width(300)});
     };

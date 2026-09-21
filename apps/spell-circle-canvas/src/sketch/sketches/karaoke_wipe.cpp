@@ -292,8 +292,7 @@ struct KaraokeWipe {
                                     .translateX(&ballX)
                                     .translateY(&ballY)}),
                  lyricLine(),
-                 ruler().margin(
-                     {.top = 12, .right = 0, .bottom = 0, .left = 0}),
+                 ruler().margin(12, 0, 0, 0),
                  text(kLine2)
                      .font({.size = kLyricSize * 0.78f,
                             .color = kNext,
@@ -301,11 +300,11 @@ struct KaraokeWipe {
                             .aliased = kAliased,
                             .antiAlias = false})
                      .key("line2")
-                     .margin({.top = 22, .right = 0, .bottom = 0, .left = 0})});
+                     .margin(22, 0, 0, 0)});
 
     return box()
         .column()
-        .padding({.top = 38, .right = 46, .bottom = 38, .left = 46})
+        .padding(38, 46)
         .gap(26)
         .fill(linearGradient({0, 0}, {0, kH}, {kStage, kBand, kStage},
                              {0.0f, 0.5f, 1.0f}))

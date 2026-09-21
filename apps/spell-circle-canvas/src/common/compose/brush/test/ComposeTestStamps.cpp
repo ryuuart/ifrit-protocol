@@ -35,7 +35,7 @@ TEST(ComposeStamps, StampRecordsOnceReplaysPerSample) {
       {box()
            .width(100)
            .height(100)
-           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+           .inset(50)
            .absolute()
            .fill(blue())
            .foreground(vine)}));
@@ -72,7 +72,7 @@ TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
       {box()
            .width(120)
            .height(120)
-           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+           .inset(40)
            .absolute()
            .foreground(outer)}));
   host.frame();

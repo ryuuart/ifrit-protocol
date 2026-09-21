@@ -167,7 +167,7 @@ struct Tategaki {
                            &ch::easeNone, 180ms})}),
              box()
                  .absolute()
-                 .inset({.top = 88, .right = 0, .bottom = 0, .left = 64})
+                 .inset(88, 0, 0, 64)
                  .column()
                  .gap(10)
                  .children(

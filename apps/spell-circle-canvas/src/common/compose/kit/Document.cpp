@@ -92,10 +92,7 @@ Element code(Utf8 words) {
 
 Element quote(std::initializer_list<Children> children) {
   return flow("quote", children)
-      .padding({.top = 0,
-                .right = var(quoteInset),
-                .bottom = 0,
-                .left = var(quoteInset)});
+      .padding(0, var(quoteInset));
 }
 Element quote(Utf8 words) { return quote({paragraph(std::move(words))}); }
 Element list(std::initializer_list<Children> children) {

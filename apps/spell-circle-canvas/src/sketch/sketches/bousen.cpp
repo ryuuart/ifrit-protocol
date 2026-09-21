@@ -244,7 +244,7 @@ struct Bousen {
              // stand side by side.
              box()
                  .absolute()
-                 .inset({.top = 92, .right = 0, .bottom = 0, .left = 64})
+                 .inset(92, 0, 0, 64)
                  .column()
                  .gap(10)
                  .children(
@@ -277,7 +277,7 @@ struct Bousen {
              // letters travel into it.
              text(u8"列ごとに文字が現れる。右から左へ。", bs::body(21, bs::kAi))
                  .absolute()
-                 .inset({.top = 150, .right = 0, .bottom = 0, .left = 352})
+                 .inset(150, 0, 0, 352)
                  .width(120.0f)
                  .height(300.0f)
                  .block(bs::kColumn)
@@ -296,13 +296,13 @@ struct Bousen {
                   "weave::Unit::Line — one COLUMN a beat,\n"
                   "and its band stands at rest")
                  .absolute()
-                 .inset({.top = 466, .right = 0, .bottom = 0, .left = 300})
+                 .inset(466, 0, 0, 300)
                  .width(180.0f),
              // The three conventions, each on a column of its own, so the page
              // shows them side by side instead of naming them in a footer.
              box()
                  .absolute()
-                 .inset({.top = 512, .right = 0, .bottom = 0, .left = 64})
+                 .inset(512, 0, 0, 64)
                  .row()
                  .gap(26)
                  .children({bandSpecimen("UNDERLINE · RIGHT",
@@ -318,10 +318,7 @@ struct Bousen {
                                  "beside the column, never beneath a line")
                  .font({.size = 12})
                  .absolute()
-                 .inset({.top = bs::kH - 44,
-                         .right = 0,
-                         .bottom = 0,
-                         .left = 64})});
+                 .inset(bs::kH - 44, 0, 0, 64)});
   }
 };
 

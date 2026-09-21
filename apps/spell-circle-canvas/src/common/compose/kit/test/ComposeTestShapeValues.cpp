@@ -296,7 +296,7 @@ TEST(ComposeQueries, HitTestHonorsShapeAndRotation) {
            .key("spun")
            .width(80)
            .height(20)
-           .inset({.top = 140, .right = 60, .bottom = 40, .left = 60})
+           .inset(140, 60, 40, 60)
            .absolute()
            .rotate(90.0f)
            .fill(green())}));

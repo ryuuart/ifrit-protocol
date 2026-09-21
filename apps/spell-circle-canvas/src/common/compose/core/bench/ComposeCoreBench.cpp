@@ -50,7 +50,7 @@ Element flexGrid(int count, int changed = -1, int phase = 0,
 
 Element positionedGrid(int count) {
   auto root =
-      positioned().inset({.top = 0, .right = 0, .bottom = 0, .left = 0});
+      positioned().inset(0);
   constexpr int kColumns = 50;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
@@ -409,7 +409,7 @@ Element marqueeStrip(float acrossPx, float alongPx) {
                   .column()
                   .width(acrossPx)
                   .height(alongPx)
-                  .padding({.top = 110, .right = 52, .bottom = 110, .left = 52})
+                  .padding(110, 52)
                   .children({box().left(10).top(0).bottom(0).width(6).fill(
                                  Fill::color({0.455f, 0.878f, 0.745f, 0.95f})),
                              box().right(10).top(0).bottom(0).width(4).fill(

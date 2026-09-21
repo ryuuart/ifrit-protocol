@@ -530,7 +530,7 @@ inline Element pushButton(std::string_view t, bool armed = false,
           .height(25)
           .children(
               {kit::centred()
-                   .padding({.top = 2, .right = 6, .bottom = 2, .left = 6})
+                   .padding(2, 6)
 
                    .children({label(t)})});
   if (insensitive) inner.foreground(stipple());
@@ -549,7 +549,7 @@ inline Element textField(const Utf8& t, float w, bool caret = false,
                       .row()
                       .alignItems(Align::Center)
                       .flexGrow(1)
-                      .padding({.top = 0, .right = 3, .bottom = 0, .left = 3})
+                      .padding(0, 3)
                       .children({label(t)});
   if (caret && caretOut)
     inner.children({box().width(1).height(13).fill(s.fg).opacity(

@@ -20,10 +20,7 @@ TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
 TEST(ComposeLayout, DimInsetsAcceptPercent) {
   Host host(200, 100);
   host.composer.render(box().children({box()
-                                           .inset({.top = pct(10),
-                                                   .right = pct(10),
-                                                   .bottom = pct(10),
-                                                   .left = pct(10)})
+                                           .inset(pct(10))
                                            .fill(red())
                                            .key("panel")}));
   host.frame();
@@ -288,7 +285,7 @@ TEST(ComposePaint, ClipSparesDecorations) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 60, .right = 60, .bottom = 60, .left = 60})
+           .inset(60)
            .overflow(Overflow::Clip)
            .fill(blue())
            .stroke(stroke(10, green(), PathFormat::Align::Outer))
@@ -307,13 +304,13 @@ TEST(ComposeTransform, PixelOriginPivotsWhereTold) {
   frac.composer.render(
       tree(box()
                .absolute()
-               .inset({.top = 80, .right = 80, .bottom = 80, .left = 80})
+               .inset(80)
                .fill(red())
                .rotate(90.0f)));  // pivots on its center
   px.composer.render(tree(
       box()
           .absolute()
-          .inset({.top = 80, .right = 80, .bottom = 80, .left = 80})
+          .inset(80)
           .fill(red())
           .rotate(90.0f)
           .transformOrigin(Dimension(0), Dimension(0))));  // pivots top-left

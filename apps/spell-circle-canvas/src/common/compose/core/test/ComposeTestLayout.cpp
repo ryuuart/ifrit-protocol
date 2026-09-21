@@ -564,11 +564,11 @@ TEST(ComposeLayout, PerEdgePaddingAndMargin) {
   Host host;
   host.composer.render(box().children(
       {box()
-           .padding({.top = 20, .right = 30, .bottom = 40, .left = 10})
+           .padding(20, 30, 40, 10)
            .key("outer")
            .children(
                {box()
-                    .margin({.top = 6, .right = 7, .bottom = 8, .left = 5})
+                    .margin(6, 7, 8, 5)
                     .width(50)
                     .height(50)
                     .key("inner")})}));
@@ -598,13 +598,13 @@ TEST(ComposeQueries, HitTestRespectsPaintOrderAndKeys) {
            .key("over")
            .width(60)
            .height(60)
-           .inset({.top = 20, .right = 120, .bottom = 120, .left = 20})
+           .inset(20, 120, 120, 20)
            .absolute()
            .fill(green()),
        box()
            .width(30)
            .height(30)
-           .inset({.top = 150, .right = 20, .bottom = 20, .left = 150})
+           .inset(150, 20, 20, 150)
            .absolute()
            .fill(blue())}));  // keyless → falls to root
   host.frame();
@@ -629,7 +629,7 @@ TEST(ComposeTransform, SkewLeansPaintAndHits) {
            .key("card")
            .width(40)
            .height(40)
-           .inset({.top = 60, .right = 100, .bottom = 100, .left = 60})
+           .inset(60, 100, 100, 60)
            .absolute()
            .fill(red())
            .skewX(-12.0f)}));
@@ -656,7 +656,7 @@ TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
            .key("card")
            .width(40)
            .height(40)
-           .inset({.top = 60, .right = 100, .bottom = 100, .left = 60})
+           .inset(60, 100, 100, 60)
            .absolute()
            .fill(red())
            .skewX(30.0f)}));

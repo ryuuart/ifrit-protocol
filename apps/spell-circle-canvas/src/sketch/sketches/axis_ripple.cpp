@@ -347,7 +347,7 @@ struct AxisRipple {
   [[nodiscard]] Element describe() {
     return box()
         .column()
-        .padding({.top = kPadY, .right = kPadX, .bottom = kPadY, .left = kPadX})
+        .padding(kPadY, kPadX)
         .gap(30)
         .fill(linearGradient({0, 0}, {0, kH},
                              {kPaper, hexColor(0x111116), kPaper},

@@ -111,7 +111,7 @@ struct CdeMotifSketch {
         .overlay(cde::bevel(1, false, false))
         .row()
         .alignItems(Align::Center)
-        .padding({.top = 1, .right = 2, .bottom = 1, .left = 2})
+        .padding(1, 2)
         .children({furniture(std::move(menuGlyph)),
                    kit::centred()
                        .flexGrow(1)
@@ -131,12 +131,12 @@ struct CdeMotifSketch {
             .overlay(cde::bevel(1, false, false))
             .row()
             .alignItems(Align::Center)
-            .padding({.top = 1, .right = 10, .bottom = 1, .left = 10});
+            .padding(1, 10);
     for (int i = 0; i < (int)items.size(); ++i) {
       if (i == rightFrom) bar.children({box().flexGrow(1)});
       bar.children(
           {box()
-               .padding({.top = 4, .right = 8, .bottom = 4, .left = 8})
+               .padding(4, 8)
                .children({cde::mnemonicLabel(items[(size_t)i], s.fg, 0)})});
     }
     return bar;
@@ -173,7 +173,7 @@ struct CdeMotifSketch {
               .row()
               .flexWrap()
               .gap(4)
-              .padding({.top = 8, .right = 8, .bottom = 8, .left = 8})
+              .padding(8)
               .children(
                   {each(page["folders"].items(), [](const data::Json& name) {
                     return box()
@@ -225,7 +225,7 @@ struct CdeMotifSketch {
           box()
               .row()
               .alignItems(Align::Center)
-              .padding({.top = 6, .right = 8, .bottom = 6, .left = 8})
+              .padding(6, 8)
               .gap(8)
               .children({cde::label(page["path"])});
       {
@@ -244,7 +244,7 @@ struct CdeMotifSketch {
               .children(
                   {box()
                        .flexGrow(1)
-                       .margin({.top = 0, .right = 6, .bottom = 0, .left = 6})
+                       .margin(0, 6)
                        .row()
                        .overlay(cde::bevel(2, true, false))
                        .padding(2)
@@ -255,13 +255,13 @@ struct CdeMotifSketch {
                                   std::move(scrollbar)}),
                    box()
                        .height(2)
-                       .margin({.top = 3, .right = 2, .bottom = 3, .left = 2})
+                       .margin(3, 2)
                        .overlay(cde::bevel(2, true, true)),
                    box()
                        .height(22)
                        .row()
                        .alignItems(Align::Center)
-                       .padding({.top = 2, .right = 8, .bottom = 2, .left = 8})
+                       .padding(2, 8)
                        .children({cde::label(page["status"])})});
 
       window = box().flexGrow(1).column().children(
@@ -293,7 +293,7 @@ struct CdeMotifSketch {
               .row()
               .alignItems(Align::Center)
               .height(20)
-              .padding({.top = 0, .right = 6, .bottom = 0, .left = 6})
+              .padding(0, 6)
               .children({cde::label(cde::kPalettes[(size_t)i]->name)});
       if (current) rowBox.fill(c6.sel);
       list.children({std::move(rowBox)});
@@ -303,7 +303,7 @@ struct CdeMotifSketch {
           .row()
           .alignItems(Align::Center)
           .height(20)
-          .padding({.top = 0, .right = 6, .bottom = 0, .left = 6})
+          .padding(0, 6)
           .children({cde::label(n)});
     })});
 
@@ -376,7 +376,7 @@ struct CdeMotifSketch {
               .row()
               .alignItems(Align::Center)
               .height(24)
-              .padding({.top = 0, .right = 14, .bottom = 0, .left = 14})
+              .padding(0, 14)
               .children({cde::label(t), box().flexGrow(1)});
       if (cascade)
         row.children({box().width(9).height(9).fill(s.bg).overlay(
@@ -451,13 +451,13 @@ struct CdeMotifSketch {
         .padding(2)
         .column()
         .children({box()
-                       .padding({.top = 6, .right = 8, .bottom = 6, .left = 8})
+                       .padding(6, 8)
                        .children({cde::mnemonicLabel(doc["derivation"].text(),
                                                      s.fg, 0)}),
                    box()
                        .row()
                        .gap(18)
-                       .padding({.top = 0, .right = 8, .bottom = 0, .left = 8})
+                       .padding(0, 8)
                        .children({box().row().gap(6).children(
                            {swatch("bg", d.bg), swatch("topShadow", d.ts),
                             swatch("botShadow", d.bs), swatch("select", d.sel),
@@ -467,7 +467,7 @@ struct CdeMotifSketch {
                        // computed from the two values rather than written.
                        .children({std::move(proof)}),
                    box()
-                       .padding({.top = 8, .right = 8, .bottom = 8, .left = 8})
+                       .padding(8)
                        .children({cde::label(line)})});
   }
 
@@ -579,7 +579,7 @@ struct CdeMotifSketch {
     const Set s = cde::ambient();
     return stack().width(48).height(48).ink(s.fg).children(
         {box()
-             .inset({.top = 2, .right = 3, .bottom = 2, .left = 3})
+             .inset(2, 3)
              .fill(cde::C(cde::kIconColor[1]))
              .overlay(cde::bevel(2, false, false)),
          kit::centred()
@@ -620,7 +620,7 @@ struct CdeMotifSketch {
                  .overlay(cde::bevel(2, false, false))
                  .row()
                  .alignItems(Align::Center)
-                 .padding({.top = 0, .right = 7, .bottom = 0, .left = 7})
+                 .padding(0, 7)
                  .children({cde::label(i < (int)names.size() ? names[(size_t)i]
                                                              : "")})});
       }
@@ -744,7 +744,7 @@ struct CdeMotifSketch {
                        .children({cde::art(pixmap, 2.0f)}),
                    cde::surface(s)
                        .overlay(cde::bevel(1, false, false))
-                       .padding({.top = 1, .right = 4, .bottom = 1, .left = 4})
+                       .padding(1, 4)
                        .children({cde::label(title)})});
   }
 

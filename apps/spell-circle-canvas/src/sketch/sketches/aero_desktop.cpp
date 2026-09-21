@@ -278,23 +278,20 @@ struct AeroDesktop {
   // ---- caption buttons -----------------------------------------------
   Element buttonGlyphMinimize() {
     return box()
-        .inset({.top = 12, .right = 10, .bottom = 4, .left = 10})
+        .inset(12, 10, 4, 10)
         .fill(Fill::color({1, 1, 1, 0.95f}))
         .borderRadius({0.5f});
   }
   Element buttonGlyphMaximize() {
     return box()
-        .inset({.top = 5, .right = 9, .bottom = 5, .left = 9})
+        .inset(5, 9)
         .stroke(stroke(1.2f, Fill::color({1, 1, 1, 0.95f})));
   }
   Element buttonGlyphClose(float w, float h) {
     const float cx = w * 0.5f, cy = h * 0.5f;
     auto bar = [&](float deg) {
       return box()
-          .inset({.top = cy - 1.0f,
-                  .right = w - cx - 5.5f,
-                  .bottom = h - cy - 1.0f,
-                  .left = cx - 5.5f})
+          .inset(cy - 1.0f, w - cx - 5.5f, h - cy - 1.0f, cx - 5.5f)
           .fill(Fill::color({1, 1, 1, 0.97f}))
           .borderRadius({1})
           .rotate(deg);
@@ -320,7 +317,7 @@ struct AeroDesktop {
     // outside it.
     // faint inner top light
     b.children({box()
-                    .inset({.top = 1, .right = 1, .bottom = h - 2, .left = 1})
+                    .inset(1, 1, h - 2, 1)
                     .fill(Fill::color({1, 1, 1, 0.22f})),
                 std::move(glyph)});
     return b;
@@ -347,15 +344,12 @@ struct AeroDesktop {
     // textGlow re-emits the glyph layer blurred beneath itself, so chaining a
     // tight pass and a wide one gives the dense core with a soft falloff.
     return box()
-        .inset({.top = 8,
-                .right = 130,
-                .bottom = ad::kWH - ad::kCaption,
-                .left = 36})
+        .inset(8, 130, ad::kWH - ad::kCaption, 36)
         .children(
             {text("Aurora Borealis — Aero Glass")
                  .font({.size = 12.5f,
                         .color = SkColor4f{0.05f, 0.05f, 0.05f, 1}})
-                 .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+                 .inset(0)
                  .filter(styles::textGlow({1, 1, 1, 0.90f}, 2.2f)
                              .then(styles::textGlow({1, 1, 1, 0.50f}, 4.5f)))});
   }
@@ -385,45 +379,40 @@ struct AeroDesktop {
     const auto entry = [gray](const Entry& e) {
       return text(e.words)
           .ink(gray(e.grey))
-          .inset({.top = e.y, .right = 0, .bottom = 0, .left = e.x});
+          .inset(e.y, 0, 0, e.x);
     };
     return box()
-        .inset({.top = ad::kCT,
-                .right = ad::kCR,
-                .bottom = ad::kCB,
-                .left = ad::kCL})
+        .inset(ad::kCT, ad::kCR, ad::kCB, ad::kCL)
         .fill(Fill::color({1, 1, 1, 1}))
         .overflow(Overflow::Clip)
         .font({.size = 12})
         .children(
             {// toolbar strip
              box()
-                 .inset(
-                     {.top = 0, .right = 0, .bottom = clientH - 34, .left = 0})
+                 .inset(0, 0, clientH - 34, 0)
                  .fill(Paint::linear({0, 0}, {0, 34},
                                      {{0.0f, {0.937f, 0.957f, 0.980f, 1}},
                                       {1.0f, {0.867f, 0.906f, 0.949f, 1}}})),
              box()
-                 .inset(
-                     {.top = 34, .right = 0, .bottom = clientH - 35, .left = 0})
+                 .inset(34, 0, clientH - 35, 0)
                  .fill(Fill::color({0.71f, 0.76f, 0.82f, 1})),
              text("Organize ▾      "
                   "Share with ▾      Burn")
                  .ink(gray(0.28f))
-                 .inset({.top = 9, .right = 0, .bottom = 0, .left = 14}),
+                 .inset(9, 0, 0, 14),
              // left navigation pane, and the hairline that ends it
              box()
-                 .inset({.top = 35, .right = 0, .bottom = 0, .left = 0})
+                 .inset(35, 0, 0, 0)
                  .width(150)
                  .fill(Fill::color({0.965f, 0.973f, 0.984f, 1})),
              box()
-                 .inset({.top = 35, .right = 0, .bottom = 0, .left = 150})
+                 .inset(35, 0, 0, 150)
                  .width(1)
                  .fill(Fill::color({0.88f, 0.90f, 0.93f, 1})),
              each(kNav, entry),
              // main pane: a selected row over the file rows
              box()
-                 .inset({.top = 50, .right = 12, .bottom = 0, .left = 162})
+                 .inset(50, 12, 0, 162)
                  .height(22)
                  .borderRadius({2})
                  .fill(Paint::linear({0, 0}, {0, 22},
@@ -458,10 +447,7 @@ struct AeroDesktop {
             // half raster scale — it's about to be blurred anyway.
             .children(
                 {box()
-                     .inset({.top = -ad::kWY,
-                             .right = -(ad::kW - ad::kWX - ad::kWW),
-                             .bottom = -(ad::kH - ad::kWY - ad::kWH),
-                             .left = -ad::kWX})
+                     .inset(-ad::kWY, -(ad::kW - ad::kWX - ad::kWW), -(ad::kH - ad::kWY - ad::kWH), -ad::kWX)
                      .cache(Cache::Texture)
                      .cacheScale(0.5f)
                      .children(
@@ -474,25 +460,16 @@ struct AeroDesktop {
                  box().inset(0).fill(ad::glassTint(ad::kWW, ad::kWH)),
                  // top-corner radial glows
                  box()
-                     .inset({.top = 0,
-                             .right = ad::kWW - 70,
-                             .bottom = ad::kWH - 46,
-                             .left = 0})
+                     .inset(0, ad::kWW - 70, ad::kWH - 46, 0)
                      .fill(ad::cornerGlow({0, 0})),
                  box()
-                     .inset({.top = 0,
-                             .right = 0,
-                             .bottom = ad::kWH - 46,
-                             .left = ad::kWW - 70})
+                     .inset(0, 0, ad::kWH - 46, ad::kWW - 70)
                      .fill(ad::cornerGlow({70, 0})),
                  // client hole rings on ONE box: 1px black a.35 outside its
                  // outline, 1px white a.45 inside it (stroke align does the
                  // -2/-1 inset bookkeeping)
                  box()
-                     .inset({.top = ad::kCT - 1,
-                             .right = ad::kCR - 1,
-                             .bottom = ad::kCB - 1,
-                             .left = ad::kCL - 1})
+                     .inset(ad::kCT - 1, ad::kCR - 1, ad::kCB - 1, ad::kCL - 1)
                      .stroke(stroke(1, Fill::color({0, 0, 0, 0.35f}),
                                     PathFormat::Align::Outer))
                      .stroke(stroke(1, Fill::color({1, 1, 1, 0.45f}),
@@ -500,10 +477,7 @@ struct AeroDesktop {
                  clientArea(),
                  // window icon
                  box()
-                     .inset({.top = 8,
-                             .right = ad::kWW - 30,
-                             .bottom = ad::kWH - 24,
-                             .left = 14})
+                     .inset(8, ad::kWW - 30, ad::kWH - 24, 14)
                      .borderRadius({3})
                      .fill(Paint::linear({0, 0}, {0, 16},
                                          {{0.0f, {0.55f, 0.80f, 1.0f, 1}},
@@ -516,10 +490,7 @@ struct AeroDesktop {
     // (overflow(Overflow::Clip) clips foreground decorations too, so the Outer
     // stroke must live on this wrapper, not on the clipped glass node.)
     auto frame = box()
-                     .inset({.top = ad::kWY,
-                             .right = ad::kW - ad::kWX - ad::kWW,
-                             .bottom = ad::kH - ad::kWY - ad::kWH,
-                             .left = ad::kWX})
+                     .inset(ad::kWY, ad::kW - ad::kWX - ad::kWW, ad::kH - ad::kWY - ad::kWH, ad::kWX)
                      .borderRadius({6, 6, 0, 0})
                      .stroke(stroke(1, Fill::color({0, 0, 0, 0.65f}),
                                     PathFormat::Align::Outer))
@@ -538,10 +509,7 @@ struct AeroDesktop {
         // the DWM soft drop shadow (SDF ring -- no filter, no overflow)
         .children(
             {box()
-                 .inset({.top = ad::kWY - 30,
-                         .right = ad::kW - ad::kWX - ad::kWW - 34,
-                         .bottom = ad::kH - ad::kWY - ad::kWH - 40,
-                         .left = ad::kWX - 34})
+                 .inset(ad::kWY - 30, ad::kW - ad::kWX - ad::kWW - 34, ad::kH - ad::kWY - ad::kWH - 40, ad::kWX - 34)
                  .cache(Cache::Texture)  // static SDF shadow: bake once
                  .fill(Paint::sksl(windowShadow)
                            .uniform("uMargins", SkColor4f{34, 30, 34, 40})),
@@ -566,7 +534,7 @@ struct AeroDesktop {
     // is bound to &orbGlow, and a binding anywhere in this subtree would mark
     // the whole taskbar volatile and stop it caching as one texture.
     return box()
-        .inset({.top = 3, .right = 0, .bottom = 0, .left = 14})
+        .inset(3, 0, 0, 14)
         .width(d)
         .height(d)
         .children(
@@ -585,29 +553,20 @@ struct AeroDesktop {
                  // the four-pane flag, gently rotated
                  .children(
                      {box()
-                          .inset({.top = d / 2 - 7,
-                                  .right = 0,
-                                  .bottom = 0,
-                                  .left = d / 2 - 8})
+                          .inset(d / 2 - 7, 0, 0, d / 2 - 8)
                           .width(16)
                           .height(14)
                           .rotate(-8.0f)
                           .children(each(kFlag,
                                          [](const Pane& q) {
                                            return box()
-                                               .inset({.top = q.t,
-                                                       .right = q.r,
-                                                       .bottom = q.b,
-                                                       .left = q.l})
+                                               .inset(q.t, q.r, q.b, q.l)
                                                .borderRadius({1.5f})
                                                .fill(Fill::color(q.ink));
                                          })),
                       // top lens
                       box()
-                          .inset({.top = 1.5f,
-                                  .right = 4,
-                                  .bottom = d * 0.52f,
-                                  .left = 4})
+                          .inset(1.5f, 4, d * 0.52f, 4)
                           .borderRadius(
                               {d * 0.36f, d * 0.36f, d * 0.20f, d * 0.20f})
                           .fill(Paint::linear({0, 0}, {0, d * 0.46f},
@@ -625,10 +584,7 @@ struct AeroDesktop {
     namespace ad = aero_desktop;
     const float bh = 19, wClose = 47;
     return box()
-        .inset({.top = ad::kWY + 1,
-                .right = 0,
-                .bottom = 0,
-                .left = ad::kWX + ad::kWW - 8 - wClose})
+        .inset(ad::kWY + 1, 0, 0, ad::kWX + ad::kWW - 8 - wClose)
         .width(wClose)
         .height(bh)
         .borderRadius({0, 0, 4, 0})
@@ -648,10 +604,7 @@ struct AeroDesktop {
     const float d = 34, pad = 8;
     const float r = d / 2 + pad;  // 25
     return box()
-        .inset({.top = ad::kH - ad::kTaskbarH + 3 - pad,
-                .right = 0,
-                .bottom = 0,
-                .left = 14 - pad})
+        .inset(ad::kH - ad::kTaskbarH + 3 - pad, 0, 0, 14 - pad)
         .width(2 * r)
         .height(2 * r)
         .fill(Paint::radial({r, r}, r,
@@ -666,17 +619,14 @@ struct AeroDesktop {
     namespace ad = aero_desktop;
     const float th = ad::kTaskbarH;
     return box()
-        .inset({.top = ad::kH - th, .right = 0, .bottom = 0, .left = 0})
+        .inset(ad::kH - th, 0, 0, 0)
         .overflow(Overflow::Clip)
         // same fake-backdrop trade as the window glass: blur a frozen
         // canvas-aligned aurora copy instead of a live destination
         // readback, so the whole strip can bake to one texture
         .children(
             {box()
-                 .inset({.top = -(ad::kH - th),
-                         .right = 0,
-                         .bottom = 0,
-                         .left = 0})
+                 .inset(-(ad::kH - th), 0, 0, 0)
                  .cache(Cache::Texture)
                  .cacheScale(0.5f)
                  .children(
@@ -699,12 +649,12 @@ struct AeroDesktop {
              })),
              // 1px light top edge over a dark seam
              box()
-                 .inset({.top = 0, .right = 0, .bottom = th - 1, .left = 0})
+                 .inset(0, 0, th - 1, 0)
                  .fill(Fill::color({1, 1, 1, 0.30f})),
              startOrb(),
              // one running-app glass button
              box()
-                 .inset({.top = 4, .right = 0, .bottom = 4, .left = 62})
+                 .inset(4, 0, 4, 62)
                  .width(54)
                  .borderRadius({3})
                  .fill(Paint::linear({0, 0}, {0, th - 8},
@@ -714,8 +664,7 @@ struct AeroDesktop {
                  .stroke(stroke(1, Fill::color({1, 1, 1, 0.35f})))
                  .children(
                      {box()
-                          .inset(
-                              {.top = 9, .right = 0, .bottom = 0, .left = 19})
+                          .inset(9, 0, 0, 19)
                           .width(16)
                           .height(13)
                           .borderRadius({2})
@@ -741,18 +690,18 @@ struct AeroDesktop {
     namespace ad = aero_desktop;
     auto lbl = [&](SkColor4f c) {
       return box()
-          .inset({.top = 52, .right = 0, .bottom = 0, .left = 0})
+          .inset(52, 0, 0, 0)
           .row()
           .justifyContent(Justify::Center)
           .children({text(label).ink(c)});
     };
     return box()
-        .inset({.top = y, .right = 0, .bottom = 0, .left = x})
+        .inset(y, 0, 0, x)
         .width(92)
         .height(72)
         .font({.size = 11.5f})
         .children({box()
-                       .inset({.top = 2, .right = 24, .bottom = 26, .left = 24})
+                       .inset(2, 24, 26, 24)
                        .children({std::move(glyph)}),
                    lbl({0, 0, 0, 0.85f})
                        .filter(sigil::material::skia::Effect::filter(
@@ -763,14 +712,14 @@ struct AeroDesktop {
   Element folderGlyph() {
     return stack().inset(0).children(
         {box()
-             .inset({.top = 6, .right = 4, .bottom = 8, .left = 2})
+             .inset(6, 4, 8, 2)
              .borderRadius({2, 2, 3, 3})
              .fill(Paint::linear({0, 0}, {0, 30},
                                  {{0.0f, {1.00f, 0.88f, 0.55f, 1}},
                                   {1.0f, {0.86f, 0.62f, 0.20f, 1}}}))
              .stroke(stroke(1, Fill::color({0.45f, 0.32f, 0.08f, 0.7f}))),
          box()
-             .inset({.top = 2, .right = 22, .bottom = 34, .left = 2})
+             .inset(2, 22, 34, 2)
              .borderRadius({2, 2, 0, 0})
              .fill(Fill::color({0.93f, 0.74f, 0.34f, 1}))});
   }
@@ -778,7 +727,7 @@ struct AeroDesktop {
   Element binGlyph() {
     return stack().inset(0).children(
         {box()
-             .inset({.top = 10, .right = 8, .bottom = 4, .left = 8})
+             .inset(10, 8, 4, 8)
              .borderRadius({3, 3, 6, 6})
              .fill(Paint::linear({0, 0}, {28, 0},
                                  {{0.00f, {0.75f, 0.88f, 0.97f, 0.55f}},
@@ -786,7 +735,7 @@ struct AeroDesktop {
                                   {1.00f, {0.75f, 0.88f, 0.97f, 0.55f}}}))
              .stroke(stroke(1, Fill::color({0.85f, 0.93f, 1.0f, 0.8f}))),
          box()
-             .inset({.top = 6, .right = 5, .bottom = 32, .left = 5})
+             .inset(6, 5, 32, 5)
              .borderRadius({2})
              .fill(Fill::color({0.60f, 0.76f, 0.90f, 0.7f}))
              .stroke(stroke(1, Fill::color({0.90f, 0.96f, 1.0f, 0.8f})))});

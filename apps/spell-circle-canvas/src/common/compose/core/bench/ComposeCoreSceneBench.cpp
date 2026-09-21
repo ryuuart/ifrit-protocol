@@ -54,10 +54,7 @@ Element benchChunk(const ChunkProps& p) {
                         .imageRegion(SkRect::MakeXYWH(
                             (float)(p.ids[(size_t)i] % 4) * 16, 0, 16, 16))
                         .absolute()
-                        .inset({.top = (float)row * kTile,
-                                .right = 0,
-                                .bottom = 0,
-                                .left = (float)(i % 10) * kTile})
+                        .inset((float)row * kTile, 0, 0, (float)(i % 10) * kTile)
                         .width(kTile)
                         .height(kTile)});
   }

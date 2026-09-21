@@ -16,7 +16,7 @@ TEST(TextLayout, FullyConstrainedAbsoluteTextPaints) {
   host.composer.render(stack().children(
       {text(u8"WWWW", style)
            .absolute()
-           .inset({.top = 10, .right = 10, .bottom = 120, .left = 10})}));
+           .inset(10, 10, 120, 10)}));
   host.frame();
   int lit = 0;
   for (int x = 10; x < 190; x += 4)
@@ -79,7 +79,7 @@ TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
       {box()
            .column()
            .absolute()
-           .inset({.top = 10, .right = 10, .bottom = 10, .left = 10})
+           .inset(10)
            .children(
                {layout(layouts::BaselineGrid{.rhythm = 24})
                     .width(pct(100))

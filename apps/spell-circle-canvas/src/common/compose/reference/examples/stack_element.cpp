@@ -48,7 +48,7 @@ struct StackElement {
                 box()
                     .top(14)
                     .right(14)
-                    .padding({.top = 5, .right = 8, .bottom = 5, .left = 8})
+                    .padding(5, 8)
                     .borderRadius({4})
                     .fill(kBadge)
                     .children({text("NEW").font({.size = 12, .color = kInk})}),

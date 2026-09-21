@@ -82,15 +82,14 @@ TEST(ComposeDerive, ABorrowOfAConnectorWrittenAfterItLandsOnTheFirstFrame) {
   Host host;
   host.composer.render(
       positioned()
-          .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+          .inset(0)
           .children({box()
                          .absolute()
-                         .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+                         .inset(0)
                          .foreground(Decoration(BorrowedStroke{"wire"})),
                      box().key("a").left(20).top(90).width(20).height(20),
                      box().key("b").left(160).top(90).width(20).height(20),
-                     connector("a", "b").key("wire").absolute().inset(
-                         {.top = 0, .right = 0, .bottom = 0, .left = 0})}));
+                     connector("a", "b").key("wire").absolute().inset(0)}));
   host.frame();  // THE FIRST frame — a pass behind is visible only here
   // The route runs centre to centre along y=100, and the borrowed stroke
   // is on it. An unrouted borrow dresses the connector's own box instead,

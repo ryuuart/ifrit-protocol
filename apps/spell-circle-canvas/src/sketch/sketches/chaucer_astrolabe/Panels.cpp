@@ -397,7 +397,7 @@ auto ChaucerAstrolabe::chaucerBody() -> Element {
        text(doc["chaucer"]["verdict"])
            .styleClass("gloss")
            .ink(kInk)
-           .margin({.top = 6, .right = 0, .bottom = 0, .left = 0})});
+           .margin(6, 0, 0, 0)});
 }
 
 auto ChaucerAstrolabe::zodiacPanel() -> Element {

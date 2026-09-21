@@ -503,11 +503,11 @@ struct Cosmati {
                   text("Cosmatesque · Westminster "
                        "1268")
                       .font({.size = 11, .track = 1.4f})
-                      .margin({.top = 6, .right = 0, .bottom = 0, .left = 0}),
+                      .margin(6, 0, 0, 0),
                   box()
                       .width(190.0f)
                       .height(1.0f)
-                      .margin({.top = 12, .right = 0, .bottom = 12, .left = 0})
+                      .margin(12, 0)
                       .fill(Paint::linear({0, 0}, {190, 0},
                                           {{0.0f,
                                             {cs::kGiallo.fR, cs::kGiallo.fG,

@@ -123,10 +123,7 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
             .alignItems(Align::Center)
             .children({std::move(patch)})
             .children(
-                {std::move(label.margin({.top = look.spacing.captionNoteGap,
-                                         .right = 0,
-                                         .bottom = 0,
-                                         .left = 0}))});
+                {std::move(label.margin(look.spacing.captionNoteGap, 0, 0, 0))});
     if (strip.appear) step.appear(*strip.appear);
     run.children({std::move(step)});
   }
@@ -135,10 +132,7 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
 
 compose::Element chip(const Chip& tag) {
   const Theme& look = theme();
-  Element plate = box().padding({.top = look.spacing.chipPaddingY,
-                                 .right = look.spacing.chipPaddingX,
-                                 .bottom = look.spacing.chipPaddingY,
-                                 .left = look.spacing.chipPaddingX});
+  Element plate = box().padding(look.spacing.chipPaddingY, look.spacing.chipPaddingX);
   tag.ground.value_or(Fill::color(look.palette.figure)).apply(plate);
   Element label = document::eyebrow(tag.label).role(weave::rule("eyebrow").font(
       look.font(look.type.eyebrow, look.palette.ground)));

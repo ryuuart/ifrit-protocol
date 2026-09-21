@@ -338,17 +338,14 @@ TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
              .key("a")
              .width(20)
              .height(20)
-             .inset({.top = 10, .right = 170, .bottom = 170, .left = 10})
+             .inset(10, 170, 170, 10)
              .absolute()
              .fill(red()),
          box()
              .key("b")
              .width(20)
              .height(20)
-             .inset({.top = 160,
-                     .right = 180 - bLeft,
-                     .bottom = 20,
-                     .left = bLeft})
+             .inset(160, 180 - bLeft, 20, bLeft)
              .absolute()
              .fill(green()),
          connector("a", "b").inset(0).foreground(wire).zIndex(-1)});
@@ -375,14 +372,14 @@ TEST(ComposeDerive, OrthogonalRouterRunsManhattan) {
            .key("a")
            .width(20)
            .height(20)
-           .inset({.top = 10, .right = 170, .bottom = 170, .left = 10})
+           .inset(10, 170, 170, 10)
            .absolute()
            .fill(red()),
        box()
            .key("b")
            .width(20)
            .height(20)
-           .inset({.top = 160, .right = 20, .bottom = 20, .left = 160})
+           .inset(160, 20, 20, 160)
            .absolute()
            .fill(green()),
        connector("a", "b", routers::orthogonal())
@@ -408,14 +405,14 @@ TEST(ComposeDerive, ArcRouterBowsOffTheChord) {
            .key("a")
            .width(10)
            .height(10)
-           .inset({.top = 95, .right = 170, .bottom = 95, .left = 20})
+           .inset(95, 170, 95, 20)
            .absolute()
            .fill(red()),
        box()
            .key("b")
            .width(10)
            .height(10)
-           .inset({.top = 95, .right = 20, .bottom = 95, .left = 170})
+           .inset(95, 20, 95, 170)
            .absolute()
            .fill(green()),
        connector("a", "b", routers::arc(0.3f))
@@ -445,14 +442,14 @@ TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
              .key("a")
              .width(20)
              .height(20)
-             .inset({.top = 90, .right = 170, .bottom = 90, .left = 10})
+             .inset(90, 170, 90, 10)
              .absolute()
              .fill(red()),
          box()
              .key("b")
              .width(20)
              .height(20)
-             .inset({.top = 90, .right = 10, .bottom = 90, .left = 170})
+             .inset(90, 10, 90, 170)
              .absolute()
              .fill(green()),
          connector("a", "b", {}, gap).inset(0).foreground(wire).zIndex(1)});

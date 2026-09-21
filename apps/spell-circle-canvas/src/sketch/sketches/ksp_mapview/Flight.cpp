@@ -333,7 +333,7 @@ auto KspMapView::staging() -> Element {
                      .scaleX(fill)
                      .transformOrigin(pct(0), pct(50)),
                  box()
-                     .inset({.top = 0, .right = 0, .bottom = 0, .left = 4})
+                     .inset(0, 0, 0, 4)
                      .alignItems(Align::Center)
                      .children(
                          {t("LiquidFuel", body(9, hexColor(0xF0F3F0)))})}),
@@ -372,7 +372,7 @@ auto KspMapView::staging() -> Element {
            .row()
            .flexGrow(1)
            .gap(5)
-           .padding({.top = 6, .right = 0, .bottom = 6, .left = 0})
+           .padding(6, 0)
            .alignItems(Align::Center)
            .children({box()
                           .width(15)

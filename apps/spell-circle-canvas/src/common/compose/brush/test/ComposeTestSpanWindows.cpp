@@ -493,7 +493,7 @@ TEST(ComposeMask, WrapWindowCrossesTheSeam) {
     return box().children(
         {box()
              .absolute()
-             .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+             .inset(50)
              .mask(by::spans(std::move(where)))
              .foreground(stroke(6, green()))});
   };
@@ -525,7 +525,7 @@ TEST(ComposeMask, WrapOffsetBindingMarchesTheWindow) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+           .inset(50)
            .mask(by::spans(spans::wrap(0.0f, 0.25f).offset(&phase)))
            .foreground(stroke(6, green()))}));
   host.frame();

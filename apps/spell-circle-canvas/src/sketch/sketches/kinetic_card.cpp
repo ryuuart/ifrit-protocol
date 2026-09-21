@@ -188,7 +188,7 @@ struct KineticCard {
         .figure = box()
                       .width(width)
                       .height(kBodyH)
-                      .padding({.top = 22, .right = 4, .bottom = 22, .left = 4})
+                      .padding(22, 4)
                       .children({text(row.word)
                                      .styleClass("specimen")
                                      .font(row.over)

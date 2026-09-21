@@ -122,7 +122,7 @@ inline Element station(const char* key, float x, float y, float size = 16) {
 inline Element label(const char* s, float x, float y) {
   return text(s)
       .font({.size = 13, .track = 1.5f})
-      .inset({.top = y, .right = 0, .bottom = 0, .left = x})
+      .inset(y, 0, 0, x)
       .zIndex(8);
 }
 
@@ -135,17 +135,14 @@ inline Element vineArt() {
     return box()
         .width(13)
         .height(7)
-        .inset({.top = y,
-                .right = 48.0f - x - 13.0f,
-                .bottom = 16.0f - y - 7.0f,
-                .left = x})
+        .inset(y, 48.0f - x - 13.0f, 16.0f - y - 7.0f, x)
         .borderRadius({6.5f, 0, 6.5f, 0})
         .rotate(deg)
         .fill(Fill::color(c));
   };
   return stack().width(48).height(16).children(
       {box()
-           .inset({.top = 6.8f, .right = 0, .bottom = 6.8f, .left = 0})
+           .inset(6.8f, 0)
            .borderRadius({1.2f})
            .fill(Fill::color(kMossDeep)),
        leaf(4, 0, -28, kMoss), leaf(18, 9, 152, kMossDeep),
@@ -184,13 +181,13 @@ inline Element legendRow(const char* name, const char* what, SkColor4f c,
                          float y) {
   return box()
       .row()
-      .inset({.top = y, .right = 0, .bottom = 0, .left = 30})
+      .inset(y, 0, 0, 30)
       .zIndex(8)
       .font({.size = 12.5f})
       .children({text(name).font({.track = 1.4f}).ink(c),
                  text(what)
                      .font({.track = 0.4f})
-                     .margin({.top = 0, .right = 0, .bottom = 0, .left = 10})});
+                     .margin(0, 0, 0, 10)});
 }
 
 }  // namespace night_network
@@ -354,10 +351,7 @@ struct NightNetwork {
     auto demoRow = [demoPath](int row, Brush run) {
       const float y = 554.0f + 26.0f * (float)row;
       return box()
-          .inset({.top = y,
-                  .right = nn::kW - 232,
-                  .bottom = nn::kH - y - 27.0f,
-                  .left = 49})
+          .inset(y, nn::kW - 232, nn::kH - y - 27.0f, 49)
           .shape(demoPath)
           .stroke(std::move(run))
           .zIndex(3);
@@ -456,10 +450,7 @@ struct NightNetwork {
              // leaf-vine cell stretched and BENT along the S-curve; rigid
              // stamps can't follow this curvature continuously ----
              box()
-                 .inset({.top = 452,
-                         .right = nn::kW - 430,
-                         .bottom = nn::kH - 548,
-                         .left = 58})
+                 .inset(452, nn::kW - 430, nn::kH - 548, 58)
                  .shape(keyedShape(
                      std::string_view("vine"),
                      [](SkSize sz) {
@@ -526,7 +517,7 @@ struct NightNetwork {
              // ---- title + legend ----
              box()
                  .column()
-                 .inset({.top = 27, .right = 0, .bottom = 0, .left = 28})
+                 .inset(27, 0, 0, 28)
                  .zIndex(8)
                  .children(
                      {text("NIGHT NETWORK")
@@ -535,12 +526,11 @@ struct NightNetwork {
                       text("the brush engine — twelve"
                            " constructions")
                           .font({.size = 14, .track = 1})
-                          .margin(
-                              {.top = 6, .right = 0, .bottom = 0, .left = 0})}),
+                          .margin(6, 0, 0, 0)}),
              // Ten rows reach into the map now — a feathered ink backing keeps
              // the routes from striking through the legend type.
              box()
-                 .inset({.top = 92, .right = 0, .bottom = 0, .left = 18})
+                 .inset(92, 0, 0, 18)
                  .width(430)
                  .height(276)
                  .borderRadius({10})

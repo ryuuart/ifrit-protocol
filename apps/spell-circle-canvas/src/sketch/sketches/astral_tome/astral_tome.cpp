@@ -34,7 +34,7 @@ struct AstralTome {
   Element leather() const {
     Element e =
         box()
-            .inset({.top = 0, .right = 0, .bottom = at::kBandH, .left = 0})
+            .inset(0, 0, at::kBandH, 0)
             .key("leather")
             .cache(Cache::Texture)
             .fill(Paint::blend({{Paint::radialUnit({0.5f, 0.5f}, 0.95f,
@@ -301,8 +301,7 @@ struct AstralTome {
             .height(at::kBandH)
             .column()
             .justifyContent(Justify::Center)
-            .padding(
-                {.top = 0.0f, .right = 34.0f, .bottom = 0.0f, .left = 34.0f})
+            .padding(0.0f, 34.0f)
             .gap(5.0f)
             .zIndex(20)
             .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}))

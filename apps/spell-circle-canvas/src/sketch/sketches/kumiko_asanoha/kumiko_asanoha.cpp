@@ -26,7 +26,7 @@ struct KumikoAsanoha {
               {stripElement(panel.strips[i], bank, &fade[i], &pop[i])});
     };
     auto group = box()
-                     .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+                     .inset(0)
                      .cache(Cache::Group);
     add(group, kRoleDiagonal);
     add(group, kRoleFiller);
@@ -64,7 +64,7 @@ struct KumikoAsanoha {
     // the largest single boards on the canvas, so replaying their timber
     // shader per frame would cost more than their count suggests.
     auto group = box()
-                     .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+                     .inset(0)
                      .cache(Cache::Group);
     for (size_t i = 0; i < panel.strips.size(); ++i)
       if (panel.strips[i].role == kRoleFrame)
@@ -105,11 +105,11 @@ struct KumikoAsanoha {
       }
     };
     auto group = stack()
-                     .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+                     .inset(0)
                      .opacity(&seat);
     group.children(
         {custom(std::string_view("joinery"), marks)
-             .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})});
+             .inset(0)});
     for (const Strip& n : panel.nubs)
       group.children({stripElement(n, bank, nullptr, nullptr)});
     return group;
@@ -130,7 +130,7 @@ struct KumikoAsanoha {
         // the corner cells in the dark, which loses the field at both ends
         // at once. The outer radius is the opening's diagonal.
         .children({box()
-                       .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+                       .inset(0)
                        .fill(Paint::radial(
                            {open.width() * 0.5f, open.height() * 0.5f}, 585,
                            {{0.00f, hexColor(0xF7E8C6, 0.88f)},

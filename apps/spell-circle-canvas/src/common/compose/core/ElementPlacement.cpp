@@ -26,7 +26,7 @@ Derived& PlacementVerbs<Derived>::cover() {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::inset(Dimension all) {
-  return inset({.top = all, .right = all, .bottom = all, .left = all});
+  return inset(all, all, all, all);
 }
 
 template <class Derived>

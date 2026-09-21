@@ -211,7 +211,7 @@ struct VideoCompositing {
         {std::move(stage),
          text(u8"SKY / SIGNAL", title)
              .absolute()
-             .inset({.top = 88, .right = 72, .bottom = 1720, .left = 72})}));
+             .inset(88, 72, 1720, 72)}));
   }
 };
 

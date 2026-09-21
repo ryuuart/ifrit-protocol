@@ -51,10 +51,7 @@ struct Probe {
     ctx.composer.render(box()
                             .width(10)
                             .height(10)
-                            .inset({.top = 0,
-                                    .right = 0,
-                                    .bottom = 0,
-                                    .left = (float)elapsed * 20.0f})
+                            .inset(0, 0, 0, (float)elapsed * 20.0f)
                             .fill(Fill::color({1, 0, 0, 1})));
   }
 };

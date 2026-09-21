@@ -43,7 +43,7 @@ enum class MaskKind { Spans, Edge };
 Element maskedGrid(int count, MaskKind kind,
                    choreograph::Output<float>* reveal) {
   auto root =
-      positioned().inset({.top = 0, .right = 0, .bottom = 0, .left = 0});
+      positioned().inset(0);
   constexpr int kColumns = 32;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
@@ -116,7 +116,7 @@ struct WaveWidth {
 
 Element profiledRibbonGrid(int count) {
   auto root =
-      positioned().inset({.top = 0, .right = 0, .bottom = 0, .left = 0});
+      positioned().inset(0);
   constexpr int kColumns = 16;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
@@ -150,7 +150,7 @@ Element profiledRibbonGrid(int count) {
  *  measured against. */
 Element spanStrokeGrid(int passCount, choreograph::Output<float>& phase) {
   auto root =
-      positioned().inset({.top = 0, .right = 0, .bottom = 0, .left = 0});
+      positioned().inset(0);
   constexpr int kColumns = 4;
   constexpr int kNodes = 16;
   const float slot = 1.0f / (float)passCount;
@@ -372,7 +372,7 @@ static void BM_Draw_StampBorder_Cached(benchmark::State& state) {
       {box()
            .width(400)
            .height(280)
-           .inset({.top = 100, .right = 300, .bottom = 220, .left = 100})
+           .inset(100, 300, 220, 100)
            .absolute()
            .borderRadius({20})
            .fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
@@ -392,7 +392,7 @@ static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State& state) {
       {box()
            .width(300)
            .height(300)
-           .inset({.top = 150, .right = 250, .bottom = 150, .left = 250})
+           .inset(150, 250)
            .absolute()
            .shape(
                geometry::shapes::rounded(geometry::shapes::star(7, 0.6f), 10))
@@ -420,7 +420,7 @@ static void BM_Draw_ArtWarp_Live(benchmark::State& state) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 20, .right = 20, .bottom = 20, .left = 20})
+           .inset(20)
            .shape([](SkSize s) {
              SkPathBuilder b;
              b.moveTo(0, s.height() / 2);

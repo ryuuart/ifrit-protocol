@@ -17,7 +17,7 @@ Element straightRun(Decoration style) {
   return box().children(
       {box()
            .absolute()
-           .inset({.top = 80, .right = 20, .bottom = 80, .left = 20})
+           .inset(80, 20)
            .shape([](SkSize s) {
              SkPathBuilder b;
              b.moveTo(0, s.height() / 2);

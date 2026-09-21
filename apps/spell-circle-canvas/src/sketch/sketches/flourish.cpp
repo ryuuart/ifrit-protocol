@@ -234,10 +234,7 @@ struct Flourish {
 
     return box()
         .key("med" + std::to_string(q))
-        .inset({.top = cy - kMedD / 2,
-                .right = kW - (cx + kMedD / 2),
-                .bottom = kH - (cy + kMedD / 2),
-                .left = cx - kMedD / 2})
+        .inset(cy - kMedD / 2, kW - (cx + kMedD / 2), kH - (cy + kMedD / 2), cx - kMedD / 2)
         .width(kMedD)
         .height(kMedD)
         .transformOrigin(pct(50), pct(50))
@@ -256,10 +253,7 @@ struct Flourish {
                  .inset(0)
                  .children(std::move(petals)),
              box()
-                 .inset({.top = kMedD / 2 - 9,
-                         .right = kMedD / 2 - 9,
-                         .bottom = kMedD / 2 - 9,
-                         .left = kMedD / 2 - 9})
+                 .inset(kMedD / 2 - 9)
                  .shape(shapes::star(8, 0.5f))
                  .fill(Fill::color(mp.accent ? st.goldBright : st.gold))
                  .opacity(&flare)});
@@ -356,10 +350,7 @@ struct Flourish {
     return box()
         .key("cartouche")
         .ink(st.ink)
-        .inset({.top = 188,
-                .right = 224,
-                .bottom = 188,
-                .left = 224})  // ~452×264 centered box
+        .inset(188, 224)  // ~452×264 centered box
         .borderRadius({16})
         .zIndex(3)
         .overflow(Overflow::Clip)
@@ -370,7 +361,7 @@ struct Flourish {
         .background(hatchDeco)
         .background(carved)
         .column()
-        .padding({.top = 26, .right = 30, .bottom = 26, .left = 30})
+        .padding(26, 30)
         .gap(9)
         .alignItems(Align::Center)
         .children(

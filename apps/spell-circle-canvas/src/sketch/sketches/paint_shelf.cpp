@@ -144,7 +144,7 @@ struct PaintShelf {
     const auto pair = [&](bool world) {
       return box()
           .row()
-          .padding({.top = 34, .right = 18, .bottom = 34, .left = 18})
+          .padding(34, 18)
           .gap(16)
           .children({each(2, [&](int) {
             return box()

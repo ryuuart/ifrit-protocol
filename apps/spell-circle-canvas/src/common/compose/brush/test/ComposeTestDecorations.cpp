@@ -43,7 +43,7 @@ TEST(ComposeDecorations, ContourWalkVisitsSamplesPositioned) {
       {box()
            .width(100)
            .height(100)
-           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+           .inset(50)
            .absolute()
            .foreground(walk)}));
   host.frame();
@@ -96,7 +96,7 @@ TEST(ComposeDecorations, ContourWalkStampAtSequencesPerSampleArt) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 80, .right = 20, .bottom = 80, .left = 20})
+           .inset(80, 20)
            .shape([](SkSize s) {
              SkPathBuilder b;
              b.moveTo(0, s.height() / 2);
@@ -144,7 +144,7 @@ TEST(ComposeDecorations, ShadowSitsUnderTheFillAndAStrokeSitsOverIt) {
       {box()
            .width(80)
            .height(80)
-           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+           .inset(40)
            .absolute()
            .borderRadius({10})
            .background(sigil::compose::shadow({0, 0, 1, 1}, {12, 12}, 0))
@@ -208,8 +208,7 @@ Element station(const char* key, float left, float top) {
       .key(key)
       .width(20)
       .height(20)
-      .inset(
-          {.top = top, .right = 180 - left, .bottom = 160 - top, .left = left})
+      .inset(top, 180 - left, 160 - top, left)
       .absolute()
       .fill(blue());
 }
@@ -412,7 +411,7 @@ TEST(ComposeMask, PartialOutlineStrokesOnlyRevealedStretch) {
       {box()
            .width(100)
            .height(100)
-           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+           .inset(0, 100, 100, 0)
            .absolute()
            .mask(by::spans(spans::upTo(0.2f)))
            .foreground(sigil::compose::stroke(4, green()))}));
@@ -435,7 +434,7 @@ TEST(ComposeMask, TransitionDrawsOn) {
              .key("b")
              .width(100)
              .height(100)
-             .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+             .inset(0, 100, 100, 0)
              .absolute()
              .mask(by::spans(spans::upTo(std::move(end))))
              .foreground(sigil::compose::stroke(4, green()))});
@@ -461,7 +460,7 @@ TEST(ComposeMask, BoundGateRevealsWithoutRender) {
       {box()
            .width(100)
            .height(100)
-           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+           .inset(0, 100, 100, 0)
            .absolute()
            .mask(by::spans(spans::upTo(&end)))
            .foreground(sigil::compose::stroke(4, green()))}));

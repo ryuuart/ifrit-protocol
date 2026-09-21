@@ -156,10 +156,7 @@ inline Element gelOrb(float d = kOrbD) {
       // sphere: a screen-blended bottom rim glow (child rides under the
       // preset's over-layer gloss, so the lens stays on top).
       .children({box()
-                     .inset({.top = d * 0.50f,
-                             .right = d * 0.14f,
-                             .bottom = d * 0.02f,
-                             .left = d * 0.14f})
+                     .inset(d * 0.50f, d * 0.14f, d * 0.02f, d * 0.14f)
                      .borderRadius({d * 0.24f})
                      .fill(Paint::radial({d * 0.36f, d * 0.55f}, d * 0.52f,
                                          {{0.00f, {0.72f, 0.92f, 1.0f, 0.90f}},
@@ -206,7 +203,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
       // bottom glow: inset 2, fades out by 45% up from the bottom, screen
       .children(
           {box()
-               .inset({.top = h * 0.55f, .right = 2, .bottom = 2, .left = 2})
+               .inset(h * 0.55f, 2, 2, 2)
                .borderRadius({r - 2})
                .fill(Paint::linear(
                    {0, h * 0.45f - 4}, {0, 0},
@@ -215,10 +212,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                .blendMode(SkBlendMode::kScreen),
            // the LENS: x in [5%,95%] y in [4%,52%], white .72->0
            box()
-               .inset({.top = h * 0.04f,
-                       .right = w * 0.05f,
-                       .bottom = h * 0.48f,
-                       .left = w * 0.05f})
+               .inset(h * 0.04f, w * 0.05f, h * 0.48f, w * 0.05f)
                .borderRadius({h * 0.24f})
                .fill(Paint::linear(
                    {0, 0}, {0, h * 0.48f},
@@ -348,7 +342,7 @@ struct Y2kChrome {
             .layerStyle(kit::y2kChrome({.horizonSliver = false}))
             .row()
             .alignItems(Align::Center)
-            .padding({.top = 0, .right = 12, .bottom = 0, .left = 12})
+            .padding(0, 12)
             .gap(5)
             .children({text("SIGILNET 2000 — hyperportal v4.2")
                            .font({.size = 12,
@@ -373,7 +367,7 @@ struct Y2kChrome {
             .layerStyle(kit::y2kChrome())
             .row()
 
-            .padding({.top = 0, .right = 34, .bottom = 0, .left = 34})
+            .padding(0, 34)
             .children({text("MILLENNIUM",
                             [] {
                               namespace yc = y2k_chrome;
@@ -421,21 +415,15 @@ struct Y2kChrome {
                  // strikethrough. Starburst glints riding the horizon,
                  // plus one on a cap top.
                  box()
-                     .inset({.top = horizonY - 12,
-                             .right = 0,
-                             .bottom = 0,
-                             .left = 22})
+                     .inset(horizonY - 12, 0, 0, 22)
                      .children({yc::glint(24, 0)}),
                  box()
-                     .inset({.top = horizonY - 9,
-                             .right = 26,
-                             .bottom = 0,
-                             .left = 0})
+                     .inset(horizonY - 9, 26, 0, 0)
                      .row()
                      .justifyContent(Justify::End)
                      .children({yc::glint(18, 18, 0.9f)}),
                  box()
-                     .inset({.top = 4, .right = 110, .bottom = 0, .left = 0})
+                     .inset(4, 110, 0, 0)
                      .row()
                      .justifyContent(Justify::End)
                      .children({yc::glint(13, 12, 0.85f)})});
@@ -449,8 +437,8 @@ struct Y2kChrome {
         box()
             .row()
             .justifyContent(Justify::Center)
-            .padding({.top = 24, .right = 0, .bottom = 24, .left = 0})
-            .margin({.top = -12, .right = 0, .bottom = -24, .left = 0})
+            .padding(24, 0)
+            .margin(-12, 0, -24, 0)
             .cache(Cache::Texture)
             .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
             .children(
@@ -467,7 +455,7 @@ struct Y2kChrome {
             .row()
             .justifyContent(Justify::Center)
             .gap(22)
-            .margin({.top = 18, .right = 0, .bottom = 0, .left = 0})
+            .margin(18, 0, 0, 0)
             .key("pills")
             .translateY(animate(motion::from(12.0f).to(0.0f),
                                 {550ms, &ch::easeOutQuint}))
@@ -491,14 +479,13 @@ struct Y2kChrome {
         box()
             .row()
             .justifyContent(Justify::Center)
-            .margin({.top = 16, .right = 0, .bottom = 0, .left = 0})
+            .margin(16, 0, 0, 0)
             .opacity(animate(motion::from(0.0f).to(1.0f), {500ms}))
             .children(
                 {box()
                      .row()
                      .gap(28)
-                     .padding(
-                         {.top = 10, .right = 16, .bottom = 10, .left = 16})
+                     .padding(10, 16)
                      .borderRadius({8})
                      .fill(Fill::color({1, 1, 1, 0.13f}))
                      .stroke(stroke(1, Fill::color(hexColor(0x9AA1A9, 0.6f))))
@@ -525,7 +512,7 @@ struct Y2kChrome {
                                 stroke(1, Fill::color(hexColor(0x8F969D)))))
             .row()
             .alignItems(Align::Center)
-            .padding({.top = 0, .right = 10, .bottom = 0, .left = 10})
+            .padding(0, 10)
             .gap(8)
             .children(
                 {strip,
@@ -549,10 +536,7 @@ struct Y2kChrome {
     // and its specular band on opposite sides of a real value range.
     Element windowBackplate =
         box()
-            .inset({.top = yc::kWindowY,
-                    .right = yc::kWindowX,
-                    .bottom = yc::kWindowY,
-                    .left = yc::kWindowX})
+            .inset(yc::kWindowY, yc::kWindowX)
             .background(styles::dropShadow({0, 0, 0, 0.38f}, {0, 7}, 18))
             .fill(Paint::linear({0, 0}, {0, yc::kH},
                                 {{0.00f, hexColor(0x16204A)},
@@ -588,10 +572,7 @@ struct Y2kChrome {
             {box().inset(0).fill(check), windowBackplate,
              // the window
              box()
-                 .inset({.top = yc::kWindowY,
-                         .right = yc::kWindowX,
-                         .bottom = yc::kWindowY,
-                         .left = yc::kWindowX})
+                 .inset(yc::kWindowY, yc::kWindowX)
                  .column()
                  .borderRadius({6})
                  .overflow(Overflow::Clip)
@@ -601,10 +582,7 @@ struct Y2kChrome {
                       box()
                           .column()
                           .flexGrow(1)
-                          .padding({.top = 12,
-                                    .right = 28,
-                                    .bottom = 12,
-                                    .left = 28})
+                          .padding(12, 28)
                           .children(
                               {box().flexGrow(0.55f),
                                box()
@@ -615,10 +593,7 @@ struct Y2kChrome {
                                // 3D groove rule - the <hr> of the period
                                box()
                                    .height(2)
-                                   .margin({.top = 0,
-                                            .right = 4,
-                                            .bottom = 10,
-                                            .left = 4})
+                                   .margin(0, 4, 10, 4)
                                    .opacity(animate(motion::from(0.0f).to(1.0f),
                                                     {500ms}))
                                    .fill(Paint::linear(
@@ -639,10 +614,7 @@ struct Y2kChrome {
                                        {yc::gelOrb(),
                                         box()
                                             .column()
-                                            .margin({.top = 0,
-                                                     .right = 0,
-                                                     .bottom = 4,
-                                                     .left = 14})
+                                            .margin(0, 0, 4, 14)
                                             .gap(3)
                                             .children(
                                                 {text(
@@ -659,10 +631,7 @@ struct Y2kChrome {
                                             .column()
                                             .alignItems(Align::End)
                                             .gap(5)
-                                            .margin({.top = 0,
-                                                     .right = 0,
-                                                     .bottom = 2,
-                                                     .left = 0})
+                                            .margin(0, 0, 2, 0)
                                             .children(
                                                 {yc::plasticButton(
                                                      "ENTER SITE >>"),

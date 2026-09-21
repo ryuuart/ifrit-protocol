@@ -44,16 +44,10 @@ TEST(SketchKitHeading, TitleCardDrawsTheHandSpelledColumn) {
                                    line(house.type.eyebrow, house.palette.ash)),
                      compose::text(u8"THE STROKE ATLAS",
                                    line(house.type.title, house.palette.ink))
-                         .margin({.top = house.spacing.subtitleGap,
-                                  .right = 0,
-                                  .bottom = 0,
-                                  .left = 0}),
+                         .margin(house.spacing.subtitleGap, 0, 0, 0),
                      compose::text(u8"every rail, at one width",
                                    line(house.type.subtitle, house.palette.ash))
-                         .margin({.top = house.spacing.subtitleGap,
-                                  .right = 0,
-                                  .bottom = 0,
-                                  .left = 0})});
+                         .margin(house.spacing.subtitleGap, 0, 0, 0)});
   Element byKit = kit::titleCard({.eyebrow = {u8"SIGIL · COMPOSE"},
                                   .title = {u8"THE STROKE ATLAS"},
                                   .subtitle = {u8"every rail, at one width"}});
@@ -74,10 +68,7 @@ TEST(SketchKitHeading, AMissingLineSpendsNoGap) {
                      compose::text(u8"S", kit::houseTheme().style(
                                               kit::houseTheme().type.subtitle,
                                               kit::houseTheme().palette.ash))
-                         .margin({.top = kit::houseTheme().spacing.subtitleGap,
-                                  .right = 0,
-                                  .bottom = 0,
-                                  .left = 0})})));
+                         .margin(kit::houseTheme().spacing.subtitleGap, 0, 0, 0)})));
 }
 
 /** THE MASTHEAD: a card at the left and a stack of ranged notes at the
@@ -102,10 +93,7 @@ TEST(SketchKitHeading, ACardWithNotesIsTheHandSpelledRow) {
                    .children(
                        {compose::text(u8"THE SHIPPING FORECAST",
                                       line(house.type.title, house.palette.ink))
-                            .margin({.top = house.spacing.subtitleGap,
-                                     .right = 0,
-                                     .bottom = 0,
-                                     .left = 0})})
+                            .margin(house.spacing.subtitleGap, 0, 0, 0)})
                    .flexGrow(1),
                compose::box()
                    .column()
@@ -221,10 +209,7 @@ TEST(SketchKitHeading, DocumentRulesSetASectionHeadingAndItsCaption) {
                {compose::text("AAAA", house.style(heading, SkColors::kRed))}),
        compose::text("BBBB", house.style(note, SkColors::kGreen))
            .maxWidth(house.type.captionNote.size * 36)
-           .margin({.top = house.spacing.captionNoteGap,
-                    .right = 0,
-                    .bottom = 0,
-                    .left = 0})});
+           .margin(house.spacing.captionNoteGap, 0, 0, 0)});
   EXPECT_TRUE(sameDrawing(
       compose::box()
           .styleSheet({{"h2", {.size = 24, .color = SkColors::kRed}},

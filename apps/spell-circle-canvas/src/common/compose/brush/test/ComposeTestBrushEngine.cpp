@@ -40,7 +40,7 @@ TEST(ComposeBrushEngine, BrushPrunesAsOneValue) {
     return box().children(
         {box()
              .absolute()
-             .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+             .inset(40)
              .stroke(std::move(b))});
   };
   host.composer.render(tree());
@@ -118,7 +118,7 @@ TEST(ComposeBrushEngine, AnExplicitIntervalIsNotOverriddenBySpacing) {
     host.composer.render(box().children(
         {box()
              .absolute()
-             .inset({.top = 20, .right = 20, .bottom = 20, .left = 20})
+             .inset(20)
              .shape([](SkSize s) {
                SkPathBuilder p;
                p.moveTo(0, 0);
@@ -153,7 +153,7 @@ TEST(ComposeBrushEngine, PlacementGrammarLandsOnRealVertices) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+           .inset(40)
            .shape([](SkSize s) {
              SkPathBuilder p;  // three segments, two bends
              p.moveTo(0, s.height());
@@ -176,7 +176,7 @@ TEST(ComposeBrushEngine, PlacementGrammarLandsOnRealVertices) {
   centers.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+           .inset(40)
            .shape([](SkSize s) {
              SkPathBuilder p;
              p.moveTo(0, 0);
@@ -236,7 +236,7 @@ TEST(ComposeBrushTail, BrushArtWarpsArtAlongTheOutline) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 60, .right = 20, .bottom = 60, .left = 20})
+           .inset(60, 20)
            .shape(lineOutline)
            .foreground(brush)}));
   host.frame();
@@ -249,7 +249,7 @@ TEST(ComposeBrushTail, HatchFillsInteriorSparsely) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+           .inset(50)
            .background(lines::presets::hatch(Fill::color({1, 1, 1, 1}), 8, 1.5f,
                                              45))}));
   host.frame();
@@ -484,7 +484,7 @@ TEST(ComposeBrushTail, GlossContourRingIsWhereTheCoverageSaysNotTheAlpha) {
   auto shape = [] {
     return box()
         .absolute()
-        .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+        .inset(50)
         .borderRadius({24})
         .fill(Fill::color({0.2f, 0.3f, 0.5f, 1}));
   };
@@ -534,7 +534,7 @@ TEST(ComposeBrushEngine, AStepThatCannotAdvanceSkipsItsContour) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 80, .right = 20, .bottom = 80, .left = 20})
+           .inset(80, 20)
            .shape([](SkSize s) {
              SkPathBuilder b;
              b.moveTo(0, s.height() / 2);

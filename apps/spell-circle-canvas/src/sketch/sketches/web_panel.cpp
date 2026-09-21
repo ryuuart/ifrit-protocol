@@ -260,7 +260,7 @@ struct WebPanelSketch {
              // The page at its own pixel size: the view is created at exactly
              // the box it is laid into, so nothing resamples.
              box()
-                 .inset({.top = 96, .right = 300, .bottom = 94, .left = 40})
+                 .inset(96, 300, 94, 40)
                  .borderRadius({16})
                  .overflow(Overflow::Clip)
                  .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
@@ -301,7 +301,7 @@ struct WebPanelSketch {
         .ink(kInk)
         .children(
             {box()
-                 .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+                 .inset(40)
                  .borderRadius({16})
                  .padding(28)
                  .fill(Fill::color(hexColor(0x121a2c, 0.9f)))

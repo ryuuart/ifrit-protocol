@@ -74,7 +74,7 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
               {.plate = {.width = kCell, .height = kPicture, .clip = false}},
               "", "",
               box()
-                  .inset({.top = 22, .right = 30, .bottom = 22, .left = 30})
+                  .inset(22, 30)
                   .shape(std::move(cut))
                   .fill(Fill::color(kPlate))
                   .stroke(stroke(1.6f, Fill::color(kEdge)))),

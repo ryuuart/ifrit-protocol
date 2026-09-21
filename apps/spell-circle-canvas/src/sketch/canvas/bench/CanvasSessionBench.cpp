@@ -38,10 +38,7 @@ struct Grid {
       root = root.children({box()
                                 .width(60)
                                 .height(40)
-                                .inset({.top = (float)row * 58.0f,
-                                        .right = 0,
-                                        .bottom = 0,
-                                        .left = (float)column * 78.0f})
+                                .inset((float)row * 58.0f, 0, 0, (float)column * 78.0f)
                                 .fill(Fill::color({0.2f, 0.4f, 0.8f, 1}))});
     }
     ctx.composer.render(root);

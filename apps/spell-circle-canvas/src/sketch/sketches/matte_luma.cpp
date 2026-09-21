@@ -228,7 +228,7 @@ struct MatteLuma {
               "matte ↓ each pair reads the SAME")
              .font({.track = 0})
              .ink(kDim)
-             .margin({.top = 6, .right = 0, .bottom = 0, .left = 0}),
+             .margin(6, 0, 0, 0),
          cell(stripW, 64, std::move(bandMatted))});
 
     ctx.composer.render(sketch::kit::page(

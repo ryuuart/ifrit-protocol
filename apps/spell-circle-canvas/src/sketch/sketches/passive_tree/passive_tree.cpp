@@ -698,7 +698,7 @@ struct PassiveTree {
             .width(kCardW)
             .at({kCardX, kCardY})
             .column()
-            .padding({.top = 13, .right = 16, .bottom = 13, .left = 16})
+            .padding(13, 16)
             .gap(0)
             .borderRadius({3})
             .fill(Paint::linear({0, 0}, {0, 170},
@@ -715,11 +715,11 @@ struct PassiveTree {
                      .font({.size = 17, .color = pt::kHalo, .track = 2.4f}),
                  text(detail->kind)
                      .font({.size = 9.5f, .track = 3.2f})
-                     .margin({.top = 3, .right = 0, .bottom = 0, .left = 0}),
+                     .margin(3, 0, 0, 0),
                  box()
                      .width(kCardW - 32)
                      .height(1.0f)
-                     .margin({.top = 9, .right = 0, .bottom = 9, .left = 0})
+                     .margin(9, 0)
                      .fill(Paint::linear(
                          {0, 0}, {kCardW - 32, 0},
                          {{0.0f,
@@ -733,11 +733,11 @@ struct PassiveTree {
       return box()
           .row()
           .gap(7)
-          .margin({.top = 0, .right = 0, .bottom = 5, .left = 0})
+          .margin(0, 0, 5, 0)
           .children({box()
                          .width(3.0f)
                          .height(3.0f)
-                         .margin({.top = 6, .right = 0, .bottom = 0, .left = 0})
+                         .margin(6, 0, 0, 0)
                          .borderRadius({1.5f})
                          .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
                                              pt::kRimLit.fB, 0.9f})),
@@ -754,7 +754,7 @@ struct PassiveTree {
                       .color = SkColor4f{0.42f, 0.38f, 0.32f, 1},
                       .track = 0.3f,
                       .slant = -10.0f})
-               .margin({.top = 9, .right = 0, .bottom = 0, .left = 0})});
+               .margin(9, 0, 0, 0)});
     // the leader from the card back to the node it describes
     root.children(
         {rail({{"detail"}, {nodeKey(sel)}})
@@ -812,7 +812,7 @@ struct PassiveTree {
                       {.size = 21, .color = pt::kGold, .track = 2}),
                   text("passive points")
                       .font({.size = 10.5f, .track = 1.5f})
-                      .margin({.top = 4, .right = 0, .bottom = 0, .left = 0})}),
+                      .margin(4, 0, 0, 0)}),
          box()
              .row()
              .alignItems(Align::Center)
@@ -820,7 +820,7 @@ struct PassiveTree {
              .bottom(28)
              .left(38)
              .zIndex(8)
-             .padding({.top = 5, .right = 10, .bottom = 5, .left = 10})
+             .padding(5, 10)
              .borderRadius({3})
              .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
              .foreground(

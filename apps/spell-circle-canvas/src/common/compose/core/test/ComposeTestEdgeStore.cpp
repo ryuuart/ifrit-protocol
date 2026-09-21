@@ -9,10 +9,8 @@ TEST(ComposeEdgeStore, RoutesAtReturnsAnchoredRoutesInTreeOrder) {
   Host host;
   auto describe = [] {
     return box().children(
-        {box().key("a").width(30).height(30).absolute().inset(
-             {.top = 10, .right = 160, .bottom = 160, .left = 10}),
-         box().key("b").width(30).height(30).absolute().inset(
-             {.top = 160, .right = 10, .bottom = 10, .left = 160}),
+        {box().key("a").width(30).height(30).absolute().inset(10, 160, 160, 10),
+         box().key("b").width(30).height(30).absolute().inset(160, 10, 10, 160),
          connector("a", "b").key("edge1"),
          rail({{"a", {0.5f, 0.5f}}, {"b", {0.5f, 0.5f}}}).key("edge2"),
          connector("a", "b")});  // keyless: anchored but unaddressable
@@ -98,10 +96,8 @@ TEST(ComposeEdgeStore, IndexClearsWhenRoutesUnmount) {
   bool withRoute = true;
   auto describe = [&] {
     auto tree = box().children(
-        {box().key("a").width(30).height(30).absolute().inset(
-             {.top = 10, .right = 160, .bottom = 160, .left = 10}),
-         box().key("b").width(30).height(30).absolute().inset(
-             {.top = 160, .right = 10, .bottom = 10, .left = 160})});
+        {box().key("a").width(30).height(30).absolute().inset(10, 160, 160, 10),
+         box().key("b").width(30).height(30).absolute().inset(160, 10, 10, 160)});
     if (withRoute) tree.children({connector("a", "b").key("edge")});
     return tree;
   };

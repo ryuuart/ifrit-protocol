@@ -757,7 +757,7 @@ struct ShippingForecast {
     rule.strokeFill = Fill::color(kKeyline);
     return box().column().gap(0).children({
         eyebrow(page["eyebrow"], "st-eyebrow", 2.66f, 3.16f)
-            .margin({.top = 0, .right = 0, .bottom = 8, .left = 0}),
+            .margin(0, 0, 8, 0),
         each(page["rows"].items(),
              [&](const data::Json& r, size_t i) {
                return box()
@@ -913,7 +913,7 @@ struct ShippingForecast {
             spine().opacity(envelope()),
             box()
                 .column()
-                .inset({.top = 40, .right = 44, .bottom = 38, .left = 112})
+                .inset(40, 44, 38, 112)
                 .gap(26)
                 // The whole performance under one envelope: it rises once
                 // at the head of the bulletin and leaves before the wrap,

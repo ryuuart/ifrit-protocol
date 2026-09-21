@@ -563,7 +563,7 @@ struct DaemonConsole {
         box()
             .row()
             .gap(8)
-            .padding({.top = 1, .right = 6, .bottom = 1, .left = 6})
+            .padding(1, 6)
             .borderRadius({2})
             .alignItems(Align::Center)
             .children({box().width(3).height(12).borderRadius({1.5f}).fill(
@@ -607,8 +607,7 @@ struct DaemonConsole {
   Element rule(float marginTop, float marginBottom) {
     return box()
         .height(1)
-        .margin(
-            {.top = marginTop, .right = 0, .bottom = marginBottom, .left = 0})
+        .margin(marginTop, 0, marginBottom, 0)
         .fill(Fill::color(daemon_console::kRule));
   }
 
@@ -763,7 +762,7 @@ struct DaemonConsole {
                  box()
                      .width(7)
                      .height(13)
-                     .margin({.top = 0, .right = 0, .bottom = 0, .left = 3})
+                     .margin(0, 0, 0, 3)
                      .fill(Fill::color(dc::kAccent))
                      // The blink is the pulse waveform itself: on for
                      // 0.62 s of every 1.06 s cycle, resting dim rather
@@ -786,11 +785,10 @@ struct DaemonConsole {
         .children(
             {box()
                  .column()
-                 .inset({.top = 22, .right = 26, .bottom = 22, .left = 26})
+                 .inset(22, 26)
                  .fill(panel)
                  .overflow(Overflow::Clip)
-                 .padding(
-                     {.top = padY, .right = padX, .bottom = padY, .left = padX})
+                 .padding(padY, padX)
                  // The enclosure's face, inherited by every chrome line;
                  // the well and the prompt root their own monospaced
                  // voice under it.

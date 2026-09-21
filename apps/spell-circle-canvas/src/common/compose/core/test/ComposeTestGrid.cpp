@@ -491,13 +491,13 @@ TEST(ComposeGrid, AParentsMaximumLeavesRoomForItsPaddingAndTheGridMargin) {
            .key("row")
            .row()
            .maxHeight(100)
-           .padding({.top = 10, .right = 0, .bottom = 10, .left = 0})
+           .padding(10, 0)
            .children(
                {layout(Grid{.columns = {layouts::fr()},
                             .rows = {layouts::px(240)}})
                     .key("grid")
                     .width(300)
-                    .margin({.top = 5, .right = 0, .bottom = 5, .left = 0})
+                    .margin(5, 0)
                     .children({box().key("figure").fill(red())}),
                 box().width(100).height(60)}),
        box().key("following").height(20)}));
@@ -542,12 +542,12 @@ TEST(ComposeGrid, AMaximumPassesThroughNestedStretchedRows) {
            .key("outer")
            .row()
            .maxHeight(100)
-           .padding({.top = 10, .right = 0, .bottom = 10, .left = 0})
+           .padding(10, 0)
            .children(
                {box()
                     .key("inner")
                     .row()
-                    .padding({.top = 5, .right = 0, .bottom = 5, .left = 0})
+                    .padding(5, 0)
                     .children({layout(Grid{.columns = {layouts::fr()},
                                            .rows = {layouts::px(240)}})
                                    .key("grid")

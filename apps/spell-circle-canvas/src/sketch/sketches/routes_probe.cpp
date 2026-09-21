@@ -118,8 +118,7 @@ struct RoutesProbe {
     return kit::at(x, y, kNode, 34)
         .key(key)
         .fill(Fill::color(sheet.palette.cellGround))
-        .children({text(key).styleClass("readout").absolute().inset(
-            {.top = 9, .right = 0, .bottom = 0, .left = 9})});
+        .children({text(key).styleClass("readout").absolute().inset(9, 0, 0, 9)});
   }
 
   Element diagram() const {
@@ -151,10 +150,7 @@ struct RoutesProbe {
                                           3);
                                     })
                                     .absolute()
-                                    .inset({.top = 26,
-                                            .right = 0,
-                                            .bottom = 0,
-                                            .left = 0})})});
+                                    .inset(26, 0, 0, 0)})});
 
     // KEYED ROUTES: only a keyed route is addressable, and routesAt lists
     // exactly these three.

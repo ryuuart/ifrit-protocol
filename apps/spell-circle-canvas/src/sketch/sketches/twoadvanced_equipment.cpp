@@ -285,7 +285,7 @@ struct TwoAdvancedEquipment {
                   .fill(kMaroon)
                   .row()
                   .alignItems(Align::Center)
-                  .padding({.top = 0, .right = 4, .bottom = 0, .left = 4})
+                  .padding(0, 4)
                   .children({t(p.name, {.color = kWhite})}),
               kit::centred()
                   .width(17)

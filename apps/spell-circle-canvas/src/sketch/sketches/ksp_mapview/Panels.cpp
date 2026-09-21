@@ -8,7 +8,7 @@ auto KspMapView::infoHead(const Utf8& label) -> Element {
   return box()
       .height(19)
       .justifyContent(Justify::Center)
-      .padding({.top = 0, .right = 0, .bottom = 8, .left = 0})
+      .padding(0, 0, 8, 0)
       .fill(ksp::kCardStrip)
       .children({kit::section(label)});
 }
@@ -32,7 +32,7 @@ auto KspMapView::infoCard() -> Element {
           .styleSheet(cardLook)
           .fill(kCardBody)
           .overflow(Overflow::Clip)
-          .padding({.top = 0, .right = 0, .bottom = 8, .left = 0})
+          .padding(0, 0, 8, 0)
           .translateX(animate(from(46.0f).to(0.0f), {380ms, ch::easeOutQuad}))
           .appear({380ms})
           .children(
@@ -55,7 +55,7 @@ auto KspMapView::infoCard() -> Element {
                // the part icon, and the three readings that name the ship
                box()
                    .row()
-                   .padding({.top = 0, .right = 4, .bottom = 0, .left = 4})
+                   .padding(0, 4)
                    .gap(8)
                    .children({box()
                                   .width(34)

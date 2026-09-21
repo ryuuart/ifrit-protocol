@@ -157,7 +157,7 @@ struct HubReload {
              .height(96)
              .column()
              .gap(10)
-             .padding({.top = 16, .right = 0, .bottom = 16, .left = 0})
+             .padding(16, 0)
              .children({document::label("TEXT"),
                         text("notes.txt").styleClass("readout"),
                         document::caption("hub.text(uri)")}),
@@ -165,7 +165,7 @@ struct HubReload {
              .height(130)
              .column()
              .gap(10)
-             .padding({.top = 16, .right = 0, .bottom = 16, .left = 0})
+             .padding(16, 0)
              .children({document::label("CALLER-DEFINED TYPE"),
                         text("cloud.pts").styleClass("readout"),
                         document::caption(
@@ -174,7 +174,7 @@ struct HubReload {
              .height(130)
              .column()
              .gap(10)
-             .padding({.top = 16, .right = 0, .bottom = 16, .left = 0})
+             .padding(16, 0)
              .children({document::label("IMAGE"),
                         text("chart.png").styleClass("readout"),
                         document::caption("hub.image(uri)")})});

@@ -10,7 +10,7 @@ Element TwoAdvancedV3::moduleBar(const Utf8& glyph, const Utf8& label,
       .height(26)
       .row()
       .alignItems(Align::Center)
-      .padding({.top = 0, .right = 7, .bottom = 0, .left = 7})
+      .padding(0, 7)
       .gap(8)
       .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                      {{0.0f, hexColor(0x8B98B2)},
@@ -114,7 +114,7 @@ Element TwoAdvancedV3::wordmark() {
       at(box()
              .row()
              .alignItems(Align::Center)
-             .padding({.top = 0, .right = 30, .bottom = 0, .left = 30})
+             .padding(0, 30)
              .gap(16),
          kStageX, 82, kStageW, 86)
           .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
@@ -168,7 +168,7 @@ Element TwoAdvancedV3::navBar() {
                     .height(33)
                     .row()
                     .alignItems(Align::Center)
-                    .padding({.top = 0, .right = 12, .bottom = 0, .left = 12})
+                    .padding(0, 12)
                     .gap(7)
                     .fill(mskia::withAlpha(hexColor(0x39445C), 0.92f))
                     .foreground(onEdges(
@@ -236,7 +236,7 @@ Element TwoAdvancedV3::scrollStrip() {
   return at(box()
                 .row()
                 .alignItems(Align::Center)
-                .padding({.top = 0, .right = 10, .bottom = 0, .left = 10})
+                .padding(0, 10)
                 .gap(6)
                 .fill(hexColor(0x4B5870))
                 .foreground(onEdges(
@@ -260,7 +260,7 @@ Element TwoAdvancedV3::footerRail() {
   return at(box()
                 .row()
                 .alignItems(Align::Center)
-                .padding({.top = 0, .right = 10, .bottom = 0, .left = 10})
+                .padding(0, 10)
                 .gap(8)
                 .fill(mskia::Paint::linearUnit(
                     {0, 0}, {0, 1},

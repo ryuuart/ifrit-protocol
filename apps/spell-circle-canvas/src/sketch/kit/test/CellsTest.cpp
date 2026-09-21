@@ -188,7 +188,7 @@ TEST(SketchKitCells, APaddingDownOfItsOwn) {
       compose::box()
           .width(163)
           .height(176)
-          .padding({.top = 10, .right = 13, .bottom = 10, .left = 13})
+          .padding(10, 13)
           .overflow(compose::Overflow::Clip)
           .fill(ground)
           .children({subject()}),

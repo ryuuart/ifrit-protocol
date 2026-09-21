@@ -82,7 +82,7 @@ Element figure(float width, const char* key, Track track) {
                      .key(key)
                      .width(width - 88)
                      .absolute()
-                     .inset({.top = 48, .right = 44, .bottom = 20, .left = 44})
+                     .inset(48, 44, 20, 44)
                      .fx(std::move(track))});
 }
 

@@ -586,21 +586,17 @@ struct PersonaMenu {
                           .filter(styles::textGlow({0, 0, 0, 0.45f}, 3)),
                       box()
                           .column()
-                          .margin(
-                              {.top = 0, .right = 0, .bottom = 5, .left = 11})
+                          .margin(0, 0, 5, 11)
                           .children(
                               {text("SUNDAY").font(
                                    nn::smallType(11, nn::kCyanC, 2.6f)),
                                text("EVENING")
                                    .font(nn::smallType(11, nn::kCyanB, 2.6f))
-                                   .margin({.top = 3,
-                                            .right = 0,
-                                            .bottom = 0,
-                                            .left = 0})})}),
+                                   .margin(3, 0, 0, 0)})}),
              box()
                  .width(168)
                  .height(2)
-                 .margin({.top = 7, .right = 0, .bottom = 5, .left = 0})
+                 .margin(7, 0, 5, 0)
                  .fill(Paint::linear(
                      {0, 0}, {168, 0},
                      {{0.0f, {1, 1, 1, 0.85f}}, {1.0f, {1, 1, 1, 0.0f}}})),
@@ -684,7 +680,7 @@ struct PersonaMenu {
                                {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
           .stroke(stroke(1.4f, Fill::color({1, 1, 1, 0.55f})))
           .column()
-          .padding({.top = 7, .right = 17, .bottom = 7, .left = 17})
+          .padding(7, 17)
           .gap(2)
           .children(
               {box()
@@ -777,18 +773,14 @@ struct PersonaMenu {
                       box()
                           .row()
                           .alignItems(Align::Center)
-                          .margin(
-                              {.top = 6, .right = 0, .bottom = 0, .left = 0})
+                          .margin(6, 0, 0, 0)
                           .children({text("COMMAND").font(
                                          nn::smallType(12, nn::kCyanB, 2)),
                                      box()
                                          .width(120)
                                          .height(2)
                                          .fill(SkColor4f{1, 1, 1, 0.8f})
-                                         .margin({.top = 0,
-                                                  .right = 0,
-                                                  .bottom = 0,
-                                                  .left = 8})})})})
+                                         .margin(0, 0, 0, 8)})})})
         // ---- button prompts, bottom-right ----
         .children(
             {box()
@@ -804,15 +796,11 @@ struct PersonaMenu {
                      {promptCircle("O"),
                       text("CONFIRM")
                           .font(nn::smallType(11, nn::kCyanB, 1.5f))
-                          .margin(
-                              {.top = 0, .right = 22, .bottom = 0, .left = 8}),
+                          .margin(0, 22, 0, 8),
                       promptCircle("X"),
                       text("BACK")
                           .font(nn::smallType(11, nn::kCyanB, 1.5f))
-                          .margin({.top = 0,
-                                   .right = 0,
-                                   .bottom = 0,
-                                   .left = 8})})});
+                          .margin(0, 0, 0, 8)})});
   }
 };
 

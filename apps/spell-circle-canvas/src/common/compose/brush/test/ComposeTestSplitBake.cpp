@@ -15,12 +15,12 @@ TEST(ComposeCache, ConnectorWireSurvivesParentCaching) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 90, .right = 160, .bottom = 90, .left = 20})
+           .inset(90, 160, 90, 20)
            .fill(red())
            .key("a"),
        box()
            .absolute()
-           .inset({.top = 90, .right = 20, .bottom = 90, .left = 160})
+           .inset(90, 20, 90, 160)
            .fill(red())
            .key("b"),
        connector("a", "b").stroke(stroke(4, green()))}));
@@ -38,7 +38,7 @@ TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset({.top = 70, .right = 70, .bottom = 70, .left = 70})
+           .inset(70)
            .cache(Cache::Texture)
            .background(Shadow{{0, 1, 0, 1}, {30, 0}, 0})
            .fill(red())}));

@@ -24,7 +24,7 @@ TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
       {box()
            .width(40)
            .height(40)
-           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .inset(0, 160, 160, 0)
            .absolute()
            .fill(material::skia::Paint::sksl(effect).uniform("uK", &k))}));
   host.frame();
@@ -66,13 +66,13 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
       {box()
            .width(40)
            .height(40)
-           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .inset(0, 160, 160, 0)
            .absolute()
            .fill(a),
        box()
            .width(40)
            .height(40)
-           .inset({.top = 0, .right = 100, .bottom = 160, .left = 60})
+           .inset(0, 100, 160, 60)
            .absolute()
            .fill(b)}));
   host.frame();
@@ -91,7 +91,7 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
       {box()
            .width(40)
            .height(40)
-           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .inset(0, 160, 160, 0)
            .absolute()
            .fill(material::skia::Paint::sksl(ukEffect())
                      .uniform("uK", &k))         // live red
@@ -119,7 +119,7 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
       {box()
            .width(40)
            .height(40)
-           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .inset(0, 160, 160, 0)
            .absolute()
            .fill(m)}));
   host.frame();
@@ -195,7 +195,7 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
       {box()
            .width(40)
            .height(40)
-           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .inset(0, 160, 160, 0)
            .absolute()
            .fill(m)}));
   host.frame();
@@ -219,14 +219,14 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
               {box()
                    .width(40)
                    .height(40)
-                   .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+                   .inset(0, 160, 160, 0)
                    .absolute()
                    .fill(Fill::color({0, 1, 0, 1}))})  // green under
           .children(
               {box()
                    .width(40)
                    .height(40)
-                   .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+                   .inset(0, 160, 160, 0)
                    .absolute()
                    .fill(material::skia::Paint::sksl(ukEffect())
                              .uniform("uK", &k))

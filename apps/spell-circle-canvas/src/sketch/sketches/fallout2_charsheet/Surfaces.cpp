@@ -141,10 +141,7 @@ auto Fallout2CharSheet::chrome() -> Element {
     // that rise puts the CAPS' own band in the middle of the plaque, which
     // is the only band on a run of capitals anyone reads as centred.
     p.children({engravedText(plaqueText[i], n(26.0f), engravedCondense, 0.6f)
-                    .margin({.top = -engravedRise(n(26.0f)) / 3.0f,
-                             .right = 0,
-                             .bottom = 0,
-                             .left = 0})});
+                    .margin(-engravedRise(n(26.0f)) / 3.0f, 0, 0, 0)});
     g.children({p});
   }
 
