@@ -56,6 +56,8 @@ def children(self, *children: Element) -> Element: ...
 def inset(self, all: _t.DimensionLike) -> Element: ...
 @typing.overload
 def inset(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike) -> Element: ...
+@typing.overload
+def inset(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike | None = ..., bottom: _t.DimensionLike | None = ..., left: _t.DimensionLike | None = ...) -> Element: ...
 """,
     )
     table.erased(
@@ -112,7 +114,8 @@ def rect(self, x: _t.DimensionLike, y: _t.DimensionLike, width: _t.DimensionLike
     table.erased(ELEMENT, "textStroke", "_t.FillLike")
     table.erased("_sigil.compose.LayerStyle", "echo", "_t.PointLike", "_t.ColorLike")
     table.erased(ELEMENT, "var", "_t.DimensionLike | _t.ColorLike")
-    # Three arities, each with its own names, and each name usable as a keyword.
+    # Three arities, each with its own names, and each name usable as a
+    # keyword; beside them the named-sides form, which takes any subset.
     for edge in ("padding", "margin"):
         table.declares(
             ELEMENT,
@@ -123,8 +126,16 @@ def {edge}(self, all: _t.DimensionLike) -> Element: ...
 def {edge}(self, horizontal: _t.DimensionLike, vertical: _t.DimensionLike) -> Element: ...
 @typing.overload
 def {edge}(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike) -> Element: ...
+@typing.overload
+def {edge}(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike | None = ..., bottom: _t.DimensionLike | None = ..., left: _t.DimensionLike | None = ...) -> Element: ...
 """,
         )
+    table.erased(
+        ELEMENT,
+        "paddingTop paddingRight paddingBottom paddingLeft "
+        "marginTop marginRight marginBottom marginLeft",
+        "_t.DimensionLike",
+    )
     table.erased("_sigil.compose.Composer", "hitTest", "_t.PointLike")
     table.erased("_sigil.compose.Decoration", "__init__", "_t.DecorationLike")
     table.erased("_sigil.compose.Dimension", "__init__", "_t.DimensionLike")

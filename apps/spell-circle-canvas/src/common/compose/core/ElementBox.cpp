@@ -33,6 +33,47 @@ Derived& BoxVerbs<Derived>::padding(Dimension l, Dimension t, Dimension r,
   return self();
 }
 
+namespace {
+
+/** A side an `Edges` leaves unnamed is unstated, and for the air around
+ *  a node unstated is zero. */
+Dimension orZero(Dimension side) {
+  return side.unit == Dimension::Unit::Auto ? Dimension(0.0f) : side;
+}
+
+}  // namespace
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::padding(Edges edges) {
+  declarations()->layout.padding = {orZero(edges.left), orZero(edges.top),
+                                    orZero(edges.right), orZero(edges.bottom)};
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::paddingTop(Dimension length) {
+  declarations()->layout.padding.top = length;
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::paddingRight(Dimension length) {
+  declarations()->layout.padding.right = length;
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::paddingBottom(Dimension length) {
+  declarations()->layout.padding.bottom = length;
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::paddingLeft(Dimension length) {
+  declarations()->layout.padding.left = length;
+  return self();
+}
+
 template <class Derived>
 Derived& BoxVerbs<Derived>::margin(Dimension all) {
   declarations()->layout.margin = {all, all, all, all};
@@ -49,6 +90,37 @@ template <class Derived>
 Derived& BoxVerbs<Derived>::margin(Dimension l, Dimension t, Dimension r,
                                    Dimension b) {
   declarations()->layout.margin = {l, t, r, b};
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::margin(Edges edges) {
+  declarations()->layout.margin = {orZero(edges.left), orZero(edges.top),
+                                   orZero(edges.right), orZero(edges.bottom)};
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::marginTop(Dimension length) {
+  declarations()->layout.margin.top = length;
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::marginRight(Dimension length) {
+  declarations()->layout.margin.right = length;
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::marginBottom(Dimension length) {
+  declarations()->layout.margin.bottom = length;
+  return self();
+}
+
+template <class Derived>
+Derived& BoxVerbs<Derived>::marginLeft(Dimension length) {
+  declarations()->layout.margin.left = length;
   return self();
 }
 

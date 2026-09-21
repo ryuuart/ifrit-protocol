@@ -42,6 +42,9 @@ class PlacementVerbs {
   Derived& inset(Dimension all);
   Derived& inset(Dimension left, Dimension top, Dimension right,
                  Dimension bottom);
+  /** The same insets, per side, each side saying which it is. A side
+   *  left unnamed is unpinned. */
+  Derived& inset(Edges edges);
   /** Pin the node's LEFT edge @p d inside the parent's. The unpinned
    *  sides stay auto, which is what makes `.top(12).right(12)` a corner
    *  badge rather than a stretch. */

@@ -140,6 +140,20 @@ constexpr Dimension operator""_ph(long double v) { return ph((float)v); }
 constexpr Dimension operator""_ph(unsigned long long v) { return ph((float)v); }
 }  // namespace literals
 
+/** FOUR LENGTHS, ONE PER SIDE, EACH SAYING WHICH SIDE IT IS —
+ *  `padding({.top = 8, .left = 12})`, `inset({.right = 0, .bottom = 0})`.
+ *  The positional shorthands beside it run in CSS's order, and so do
+ *  these fields, because a designated initialiser must follow the
+ *  declaration order: top, right, bottom, left.
+ *
+ *  A SIDE LEFT UNNAMED IS UNSTATED, and each verb reads that as its own
+ *  default: zero for `padding` and `margin`, unpinned for `inset`, which
+ *  is what `autoDimension()` says. */
+struct Edges {
+  Dimension top, right, bottom, left;
+  bool operator==(const Edges&) const = default;
+};
+
 /** WHICH WAY A CONTAINER'S MAIN AXIS RUNS, and from which end its
  *  children are placed — CSS's `flex-direction`. */
 enum class FlexDirection : uint8_t {

@@ -31,6 +31,18 @@ class BoxVerbs {
   /** The air inside it, a length per side, clockwise from the left. */
   Derived& padding(Dimension left, Dimension top, Dimension right,
                    Dimension bottom);
+  /** The air inside it, per side, each side saying which it is. A side
+   *  left unnamed is zero. */
+  Derived& padding(Edges edges);
+  /** The air inside it against its TOP edge alone, leaving the other
+   *  three as they stand. */
+  Derived& paddingTop(Dimension length);
+  /** The air inside it against its RIGHT edge alone. */
+  Derived& paddingRight(Dimension length);
+  /** The air inside it against its BOTTOM edge alone. */
+  Derived& paddingBottom(Dimension length);
+  /** The air inside it against its LEFT edge alone. */
+  Derived& paddingLeft(Dimension length);
   /** The air OUTSIDE the node's box, between its edge and its siblings,
    *  the same on all four sides. Zero when unstated. */
   Derived& margin(Dimension all);
@@ -39,6 +51,18 @@ class BoxVerbs {
   /** The air outside it, a length per side, clockwise from the left. */
   Derived& margin(Dimension left, Dimension top, Dimension right,
                   Dimension bottom);
+  /** The air outside it, per side, each side saying which it is. A side
+   *  left unnamed is zero. */
+  Derived& margin(Edges edges);
+  /** The air outside it above its TOP edge alone, leaving the other
+   *  three as they stand. */
+  Derived& marginTop(Dimension length);
+  /** The air outside it beyond its RIGHT edge alone. */
+  Derived& marginRight(Dimension length);
+  /** The air outside it below its BOTTOM edge alone. */
+  Derived& marginBottom(Dimension length);
+  /** The air outside it beyond its LEFT edge alone. */
+  Derived& marginLeft(Dimension length);
   /** The node's width, as a flex BASIS and not a guarantee: `flexShrink`
    *  defaults to 1, faithful to Yoga and CSS, so a stated width gives
    *  room back when the line it is on overflows. `flexShrink(0)` is what

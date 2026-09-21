@@ -46,6 +46,13 @@ class Compose(unittest.TestCase):
             box().padding(all=12),
             box().margin(horizontal=12, vertical=6),
             box().margin(left=1, top=2, right=3, bottom=4),
+            # The named-sides form takes any subset of the four, and the
+            # per-side verbs write one side and leave the other three.
+            box().padding(left=12),
+            box().margin(top=2, bottom=4),
+            box().inset(right=0, bottom=0),
+            box().paddingLeft(3).paddingTop(5),
+            box().marginBottom(9).marginRight(7),
         ):
             self.assertIsInstance(element, raw.Element)
         # One, two and four dimensions are the whole vocabulary.

@@ -41,6 +41,11 @@ Derived& PlacementVerbs<Derived>::inset(Dimension l, Dimension t, Dimension r,
 }
 
 template <class Derived>
+Derived& PlacementVerbs<Derived>::inset(Edges edges) {
+  return inset(edges.left, edges.top, edges.right, edges.bottom);
+}
+
+template <class Derived>
 Derived& PlacementVerbs<Derived>::left(Dimension d) {
   detail::ElementNode* node = declarations();
   node->layout.absolute = true;

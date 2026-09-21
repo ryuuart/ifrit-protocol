@@ -145,6 +145,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERTICAL_TEXT.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Corners.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Dimension.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Edges.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Fill.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/PathFormat.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Shadow.md
@@ -168,6 +169,9 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/gridCells.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/children.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/overflow.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/padding.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/margin.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/inset.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/borderRadius.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cover.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/display.md

@@ -53,7 +53,7 @@ is placed.
 | `justifyContent` | Where the children sit along the main axis, and how the slack is shared. |
 | `absolute` | Take this node out of the flow; its insets place it. |
 | [`cover`](pages/verbs/cover.md) | Fill the box it stands in — out of the flow and stretched to the parent. |
-| `inset` | How far in from the parent's edges this node's own stand: one length for all four, or four. |
+| [`inset`](pages/verbs/inset.md) | How far in from the parent's edges this node's own stand: one length for all four, four, or an `Edges` naming its sides. |
 | `left` | Pin the left edge, implying `absolute`; the unpinned sides stay auto. |
 | `top` | Pin the top edge, implying `absolute`. |
 | `right` | Pin the right edge, implying `absolute`. |
@@ -87,8 +87,10 @@ parent, and a font-relative length measures against the type in force.
 | `flexGrow` | The share of the leftover main-axis room this child takes. |
 | `flexShrink` | The share of the overflow this child gives back; 1 unless stated. |
 | `gap` | The air BETWEEN the children, on the main axis. |
-| `padding` | The air inside the node, on one, two or four sides. |
-| `margin` | The air outside it, on one, two or four sides. |
+| [`padding`](pages/verbs/padding.md) | The air inside the node: one length, two, four, or an `Edges` naming its sides. |
+| `paddingTop` `paddingRight` `paddingBottom` `paddingLeft` | One side of it, leaving the other three. |
+| [`margin`](pages/verbs/margin.md) | The air outside it, in the same four spellings. |
+| `marginTop` `marginRight` `marginBottom` `marginLeft` | One side of it, leaving the other three. |
 
 ## Paint
 
@@ -267,9 +269,11 @@ spelling is the feature's.
 - `core/verbs/Flex.h` — the flex verbs `flexDirection`, `row`, `column`,
   `flexWrap`, `flexGrow`, `flexShrink`, `flexBasis`, `alignItems`, `alignSelf`,
   `justifyContent`.
-- `core/verbs/Box.h` — the box verbs `gap`, `padding`, `margin`,
-  `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`,
-  `aspectRatio`, `boxSizing`, `display`.
+- `core/verbs/Box.h` — the box verbs `gap`, `padding`, `paddingTop`,
+  `paddingRight`, `paddingBottom`, `paddingLeft`, `margin`, `marginTop`,
+  `marginRight`, `marginBottom`, `marginLeft`, `width`, `height`,
+  `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `aspectRatio`,
+  `boxSizing`, `display`.
 - `core/verbs/Placement.h` — the placement verbs `absolute`, `cover`,
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`,
   `gridCells`, `gridArea`, `gridCellAlign`, `rect`, `at`.

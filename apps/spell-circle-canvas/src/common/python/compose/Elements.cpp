@@ -554,6 +554,14 @@ void bindCompose(py::module_& module) {
   dimensionMethod("top", &Element::top);
   dimensionMethod("right", &Element::right);
   dimensionMethod("bottom", &Element::bottom);
+  dimensionMethod("paddingTop", &Element::paddingTop);
+  dimensionMethod("paddingRight", &Element::paddingRight);
+  dimensionMethod("paddingBottom", &Element::paddingBottom);
+  dimensionMethod("paddingLeft", &Element::paddingLeft);
+  dimensionMethod("marginTop", &Element::marginTop);
+  dimensionMethod("marginRight", &Element::marginRight);
+  dimensionMethod("marginBottom", &Element::marginBottom);
+  dimensionMethod("marginLeft", &Element::marginLeft);
 
   element
       .def("flexDirection", &Element::flexDirection, py::arg("direction"),
@@ -831,6 +839,23 @@ void bindCompose(py::module_& module) {
         },
         py::arg("left"), py::arg("top"), py::arg("right"), py::arg("bottom"),
         fluent);
+    // The named-sides form: any subset of the four, each side saying which
+    // it is, and a side left out staying zero.
+    element.def(
+        name,
+        [padding](Element& self, py::object top, py::object right,
+                  py::object bottom, py::object left) -> Element& {
+          const auto side = [](py::object value) {
+            return value.is_none() ? compose::Dimension(0.0f)
+                                   : dimension(value);
+          };
+          const compose::Edges edges{side(top), side(right), side(bottom),
+                                     side(left)};
+          return padding ? self.padding(edges) : self.margin(edges);
+        },
+        py::kw_only(), py::arg("top") = py::none(),
+        py::arg("right") = py::none(), py::arg("bottom") = py::none(),
+        py::arg("left") = py::none(), fluent);
   }
   element.def(
       "staggerChildren",
@@ -856,6 +881,20 @@ void bindCompose(py::module_& module) {
       },
       py::arg("left"), py::arg("top"), py::arg("right"), py::arg("bottom"),
       fluent);
+  // The named-sides form: any subset of the four, and a side left out
+  // stays unpinned, so the node's own size or the opposite inset sizes it.
+  element.def(
+      "inset",
+      [](Element& self, py::object top, py::object right, py::object bottom,
+         py::object left) -> Element& {
+        const auto side = [](py::object value) {
+          return value.is_none() ? compose::autoDimension() : dimension(value);
+        };
+        return self.inset(compose::Edges{side(top), side(right), side(bottom),
+                                         side(left)});
+      },
+      py::kw_only(), py::arg("top") = py::none(), py::arg("right") = py::none(),
+      py::arg("bottom") = py::none(), py::arg("left") = py::none(), fluent);
   for (const auto& [name, setter] : std::initializer_list<std::pair<
            const char*, Element& (Element::*)(Decoration, std::string)>>{
            {"overlay", &Element::overlay},

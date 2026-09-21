@@ -123,6 +123,7 @@ sigil_test(compose_test
           test/ComposeTestShelf.cpp test/ComposeTestTable.cpp
           test/ComposeTestValues.cpp test/ComposeTestBlockLane.cpp test/ComposeTestCascade.cpp
           test/ComposeTestRoles.cpp test/ComposeTestFlexBox.cpp
+          test/ComposeTestEdges.cpp
           test/ComposeTestSelector.cpp test/ComposeTestStyleSheet.cpp
           test/ComposeTestMatching.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
