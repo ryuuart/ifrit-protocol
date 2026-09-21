@@ -1,5 +1,5 @@
 /** @file
- * Element's identity and retained behaviour — the anchor it hangs off,
+ * A node's identity and retained behaviour — the anchor it hangs off,
  * the key, whether the node answers a hit, the cache policy and bake
  * scale, the node transition, the child stagger, and the children
  * themselves.
@@ -16,8 +16,9 @@ namespace sigil::compose {
 
 using detail::Kind;
 
-Element& Element::tether(Tether t) {
-  detail::ElementNode* node = m_node.operator->();
+template <class Derived>
+Derived& StructureVerbs<Derived>::tether(Tether t) {
+  detail::ElementNode* node = declarations();
   node->layout.absolute = true;
   node->layout.covering = false;
   detail::DeriveData& derive = node->deriveData.ensure();
@@ -44,65 +45,77 @@ Element& Element::tether(Tether t) {
   for (const Tether& fallback : t.fallbacks)
     derive.reads.push_back({fallback.key, sigil::core::Facet::Bounds});
   derive.tether = std::move(t);
-  return *this;
+  return self();
 }
 
-
-Element& Element::hitTestable(bool enabled) {
-  m_node->hitTestable = enabled;
-  return *this;
+template <class Derived>
+Derived& StructureVerbs<Derived>::hitTestable(bool enabled) {
+  declarations()->hitTestable = enabled;
+  return self();
 }
 
-Element& Element::key(std::string_view k) {
+template <class Derived>
+Derived& StructureVerbs<Derived>::key(std::string_view k) {
   // A slot's NAME is its key — one field, two spellings — so this call
   // RENAMES the mount, and renderSlot() on the original name then finds
   // nothing and leaves the slot laying out at zero on its content axis.
   // renderSlot warns about the same trap from the other side; this warning
   // fires where the caller still has BOTH names in hand, which is what
   // makes it actionable.
-  if (m_node->kind == Kind::Slot && !m_node->key.empty() && m_node->key != k) {
+  detail::ElementNode* node = declarations();
+  if (node->kind == Kind::Slot && !node->key.empty() && node->key != k) {
     static thread_local boost::unordered_flat_set<std::string> warned;
-    if (warned.insert(m_node->key + "->" + std::string(k)).second)
+    if (warned.insert(node->key + "->" + std::string(k)).second)
       SkDebugf(
           "[compose] .key(\"%.*s\") on slot(\"%s\") RENAMES the slot: "
           "renderSlot(\"%s\") will no longer find it and the mount will "
           "lay out at zero on its content axis. A slot is named once, "
           "by slot().\n",
-          (int)k.size(), k.data(), m_node->key.c_str(), m_node->key.c_str());
+          (int)k.size(), k.data(), node->key.c_str(), node->key.c_str());
   }
-  m_node->key = std::string(k);
-  return *this;
+  node->key = std::string(k);
+  return self();
 }
 
-Element& Element::cache(Cache c) {
-  m_node->cacheMode = c;
-  return *this;
+template <class Derived>
+Derived& StructureVerbs<Derived>::cache(Cache c) {
+  declarations()->cacheMode = c;
+  return self();
 }
 
-Element& Element::cacheScale(float factor) {
-  m_node->bakeScale = std::clamp(factor, 0.1f, 1.0f);
-  return *this;
+template <class Derived>
+Derived& StructureVerbs<Derived>::cacheScale(float factor) {
+  declarations()->bakeScale = std::clamp(factor, 0.1f, 1.0f);
+  return self();
 }
 
-Element& Element::transition(motion::Transition t) {
-  m_node->nodeTransition = std::move(t);
-  return *this;
+template <class Derived>
+Derived& StructureVerbs<Derived>::transition(motion::Transition t) {
+  declarations()->nodeTransition = std::move(t);
+  return self();
 }
 
-Element& Element::staggerChildren(std::chrono::milliseconds each,
-                                  motion::Spread::From from) {
-  detail::FxData& fx = m_node->fxData.ensure();
+template <class Derived>
+Derived& StructureVerbs<Derived>::staggerChildren(
+    std::chrono::milliseconds each, motion::Spread::From from) {
+  detail::FxData& fx = declarations()->fxData.ensure();
   fx.staggerChildrenMs = (float)each.count();
   fx.staggerFrom = from;
-  return *this;
+  return self();
 }
 
-void Element::append(Element e) { m_node->children.push_back(std::move(e)); }
+void Element::append(Element e) {
+  m_node->children.push_back(std::move(e));
+}
 
-Element& Element::children(std::initializer_list<Children> runs) {
+template <class Derived>
+Derived& StructureVerbs<Derived>::children(
+    std::initializer_list<Children> runs) {
   for (const Children& run : runs)
-    for (const Element& e : run.items) append(e);
-  return *this;
+    for (const Element& e : run.items) detail::NodeAccess::append(self(), e);
+  return self();
 }
+
+template class StructureVerbs<Element>;
 
 }  // namespace sigil::compose

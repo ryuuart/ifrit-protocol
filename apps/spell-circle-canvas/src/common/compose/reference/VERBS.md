@@ -304,7 +304,8 @@ spelling is the feature's.
   `textAttach`, `textAnnotation`, `textThreadTo`, `textThreadBalance`,
   `textOnPath`, `spanPaint`, `spanStyle`, `atRest`.
 - `core/Image.h` — `imageRegion`.
-- `core/Element.h` — the cascade a node names, `styleSheet`,
-  `styleClass` and `role`; `tether`, `key`, `hitTestable`, `cache`,
-  `cacheScale`, `transition`, `staggerChildren`; and `children`, whose
-  runs are the `Children` value.
+- `core/verbs/Structure.h` — the cascade a node names, `styleSheet`,
+  `applyStyleSheet`, `styleClass` and `role`; `tether`, `key`,
+  `hitTestable`, `cache`, `cacheScale`, `transition`,
+  `staggerChildren`; and `children`.
+- `core/Element.h` — `Children`, the value a `children({…})` run is.

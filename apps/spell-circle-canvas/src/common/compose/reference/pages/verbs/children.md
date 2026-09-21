@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: children
 qualified: sigil::compose::Element::children
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/Structure.h
 group: Children
 python: sigil.compose.Element.children
 status: stable

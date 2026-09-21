@@ -116,14 +116,15 @@ sound model; nothing below them changes kernel semantics.
   `textAnnotation`, `textThreadTo`, `textThreadBalance`, `textOnPath`,
   `spanPaint`, `spanStyle`, `atRest`.
 - `core/Image.h` — `ImageVerbs`: `imageRegion`.
-- `core/Element.h` — `Element` and its builders: the verb mixins it
-  inherits, the cascade it NAMES with `styleSheet`, `role` and
-  `styleClass`, the anchor it hangs off with `tether`, its identity
-  with `key`, `hitTestable`, `cache`, `cacheScale`, `transition` and
-  `staggerChildren`, and `children` with the `Children` value its runs
-  are. This is the header a consumer includes: it brings every verb
-  family with it, and a family's own header is for a value that
-  inherits the family.
+- `core/verbs/Structure.h` — `StructureVerbs`: what a node IS rather
+  than how it looks — the cascade it NAMES with `styleSheet`,
+  `applyStyleSheet`, `role` and `styleClass`, the anchor it hangs off
+  with `tether`, its identity with `key`, `hitTestable`, `cache`,
+  `cacheScale`, `transition` and `staggerChildren`, and `children`.
+- `core/Element.h` — `Element`: the verb mixins it inherits, and the
+  `Children` value a `children({…})` run is. This is the header a
+  consumer includes: it brings every verb family with it, and a
+  family's own header is for a value that inherits the family.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image` (an `image::ImageAsset`, or a
   raw `SkImage` with a `material::skia::Fit` — `Stretch`, `Contain`,

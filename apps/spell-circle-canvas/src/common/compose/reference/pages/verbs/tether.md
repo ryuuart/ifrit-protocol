@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: tether
 qualified: sigil::compose::Element::tether
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/Structure.h
 group: Flow and placement
 status: stable
 ---

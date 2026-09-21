@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: cacheScale
 qualified: sigil::compose::Element::cacheScale
-header: sigilcompose/core/Element.h
+header: sigilcompose/core/verbs/Structure.h
 group: Caching
 python: sigil.compose.Element.cacheScale
 status: stable

@@ -81,43 +81,59 @@ template class CascadeVerbs<Element>;
 // resolve through and the sheets it applies to its subtree, the role
 // that stands under them, and the classes themselves. They are the
 // node's identity in the cascade, not a property a rule could restate,
-// so they stay on Element.
+// so they stand with the rest of what a node IS.
 
-Element& Element::styleClass(std::string_view names) {
+template <class Derived>
+Derived& StructureVerbs<Derived>::styleClass(std::string_view names) {
   // The names are KEPT, and resolved by the cascade pass against the
   // sheets in force where this node lands: one name, two halves — the
   // text sheet's partial and the block sheet's, whichever carries it —
   // several names folding in the order they are written.
-  detail::CascadeData& cascade = m_node->cascadeData.ensure();
+  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
   for (size_t at = 0; at < names.size();) {
     const size_t end = std::min(names.find(' ', at), names.size());
     const std::string_view name = names.substr(at, end - at);
     at = end + 1;
     if (!name.empty()) cascade.classes.emplace_back(name);
   }
-  return *this;
+  return self();
 }
 
-Element& Element::styleSheet(sigil::weave::StyleSheet sheet) {
-  m_node->cascadeData.ensure().sheet = std::move(sheet);
-  return *this;
+template <class Derived>
+Derived& StructureVerbs<Derived>::styleSheet(sigil::weave::StyleSheet sheet) {
+  declarations()->cascadeData.ensure().sheet = std::move(sheet);
+  return self();
 }
 
-Element& Element::applyStyleSheet(StyleSheet sheet) {
+template <class Derived>
+Derived& StructureVerbs<Derived>::applyStyleSheet(StyleSheet sheet) {
   // Applications ADD rather than replace, so a node may stand under a
   // house sheet and a local one at once, and the order they were
   // applied in is the last tiebreak between two rules of equal weight.
-  m_node->cascadeData.ensure().appliedSheets.push_back(std::move(sheet));
-  return *this;
+  declarations()->cascadeData.ensure().appliedSheets.push_back(
+      std::move(sheet));
+  return self();
 }
 
-Element& Element::role(sigil::weave::Rule defaults) {
-  m_node->cascadeData.ensure().role = std::move(defaults);
-  return *this;
+template <class Derived>
+Derived& StructureVerbs<Derived>::role(sigil::weave::Rule defaults) {
+  declarations()->cascadeData.ensure().role = std::move(defaults);
+  return self();
 }
 
-Element& Element::role(std::string name) {
+template <class Derived>
+Derived& StructureVerbs<Derived>::role(std::string name) {
   return role(sigil::weave::Rule(std::move(name)));
 }
+
+// The five members of the structure family this file defines, named one
+// by one: the family's other members are instantiated where they are
+// defined, beside the rest of a node's identity.
+template Element& StructureVerbs<Element>::styleClass(std::string_view);
+template Element& StructureVerbs<Element>::styleSheet(
+    sigil::weave::StyleSheet);
+template Element& StructureVerbs<Element>::applyStyleSheet(StyleSheet);
+template Element& StructureVerbs<Element>::role(sigil::weave::Rule);
+template Element& StructureVerbs<Element>::role(std::string);
 
 }  // namespace sigil::compose
