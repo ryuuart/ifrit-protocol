@@ -33,6 +33,7 @@ __all__ = [
     "JustifyLike",
     "KeyedShapeFunction",
     "MotionCallback",
+    "NodeLike",
     "PaintProgram",
     "PenProgram",
     "PointBatch",
@@ -135,8 +136,19 @@ JustifyLike: TypeAlias = (
 )
 ShapeFunction: TypeAlias = Callable[[float, float], _sigil.skia.Path]
 ShapeLike: TypeAlias = _sigil.compose.Shape | _sigil.skia.Path | ShapeFunction
-ChildLike: TypeAlias = _sigil.compose.Element | str | None | Iterable[ChildLike]
-"""WHAT A CONTAINER TAKES AS ONE CHILD. An element, words that become a
+NodeLike: TypeAlias = (
+    _sigil.compose.Element
+    | _sigil.compose.Text
+    | _sigil.compose.Image
+    | _sigil.compose.Band
+)
+"""ANY NODE OF THE ELEMENT TREE. The element, and the three typed leaves
+a factory hands back. A leaf is a class of its own rather than a subclass
+of the element, so that the verbs it shares with the element can hand
+back the leaf's own type; a slot that holds a node therefore names all
+four, and reads whichever arrives as the element it describes."""
+ChildLike: TypeAlias = NodeLike | str | None | Iterable[ChildLike]
+"""WHAT A CONTAINER TAKES AS ONE CHILD. A node, words that become a
 text element, None for nothing at all, or an ordered iterable of those,
 nested as deeply as the author nests it. A mapping or a set is not a
 child: the order children are laid out in has to be the order they were

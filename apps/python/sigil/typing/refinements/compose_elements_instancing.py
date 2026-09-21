@@ -23,11 +23,13 @@ FLIGHT = POOL + ".Flight"
 SHEET = INSTANCING + ".CellSheet"
 
 BUFFER = "collections.abc.Buffer"
-ELEMENT = "_sigil.compose.Element"
+# A recipe answers a node of any kind, so what it hands back is the union
+# every other node slot takes rather than the element alone.
+NODE = "_t.NodeLike"
 TREE = (
     "collections.abc.Callable[[], {answer}] | collections.abc.Callable[[int], {answer}]"
 )
-SIZED = f"tuple[{ELEMENT}, _t.SizeLike]"
+SIZED = f"tuple[{NODE}, _t.SizeLike]"
 
 # Each lane class, with what one item reads back as, what a single
 # assignment accepts where pybind11 erased it, what an item of an assigned
@@ -108,7 +110,7 @@ def register(table: Table) -> None:
         "variants",
         "@typing.overload\n"
         "def variants(self, count: typing.SupportsInt, logicalSize: _t.SizeLike, "
-        f"make: {TREE.format(answer=f'{ELEMENT} | {SIZED}')}) -> int:\n"
+        f"make: {TREE.format(answer=f'{NODE} | {SIZED}')}) -> int:\n"
         '    """Several bakes of one recipe, answering the first frame. A recipe\n'
         "    that answers a tree is registered at the shared size, and one that\n"
         '    answers a tree and a size brings its own."""\n'

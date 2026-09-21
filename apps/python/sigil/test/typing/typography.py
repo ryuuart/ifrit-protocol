@@ -1,6 +1,6 @@
 """Typed authoring through the native typography vocabulary."""
 
-from sigil.compose import Element, TextPath, box, frame, text
+from sigil.compose import Element, Text, TextPath, box, frame, text
 from sigil.compose import selectors as compose_selectors
 from sigil.motion import Output
 from sigil.skia import Paint, Path
@@ -51,7 +51,7 @@ voice = Type(
     underlays=(PaintLayer(paint=paint, offset=(2, 2)),),
 )
 selection = selectors.each(Unit.Word).take(1) | compose_selectors.style("accent")
-node: Element = (
+node: Text = (
     text(passage)
     .font(voice)
     .block(layout)
@@ -61,10 +61,12 @@ node: Element = (
     .children(box().key("marker").fill("#ffffff"))
 )
 progress = Output(0.75)
-curved: Element = text(passage).textOnPath(
+curved: Text = text(passage).textOnPath(
     TextPath(path=Path.Circle(60, 60, 50), at=progress)
 )
 article = Story(passage).paragraphs((heading,))
 page: Element = (
-    box().row().children(frame(article).key("a").textThreadTo("b"), frame(article).key("b"))
+    box()
+    .row()
+    .children(frame(article).key("a").textThreadTo("b"), frame(article).key("b"))
 )

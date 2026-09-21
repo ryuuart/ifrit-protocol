@@ -47,14 +47,14 @@ class _CellProperties(typing.TypedDict, total=False):
     measure: float | None
 
 class _RunProperties(typing.TypedDict, total=False):
-    cells: collections.abc.Sequence[sigil.compose.Element]
+    cells: collections.abc.Sequence[_t.NodeLike]
     column: bool
     gap: float | None
     ruled: bool
     align: _t.AlignLike
 
 class _PanelGridProperties(typing.TypedDict, total=False):
-    cells: collections.abc.Sequence[sigil.compose.Element]
+    cells: collections.abc.Sequence[_t.NodeLike]
     columns: int
     gap: float | None
     row_gap: float | None
@@ -81,24 +81,24 @@ def stage(
     **properties: typing.Unpack[_StageProperties],
 ) -> None: ...
 def page(
-    content: sigil.compose.Element,
+    content: _t.NodeLike,
     props: Page | None = ...,
     **properties: typing.Unpack[_PageProperties],
 ) -> sigil.compose.Element: ...
 def well(
-    surface: sigil.compose.Element | None = ...,
+    surface: _t.NodeLike | None = ...,
     props: Well | None = ...,
     **properties: typing.Unpack[_WellProperties],
 ) -> sigil.compose.Element: ...
 def caption(
-    body: sigil.compose.Element,
+    body: _t.NodeLike,
     *,
     label: str = ...,
     note: str = ...,
     measure: float = ...,
 ) -> sigil.compose.Element: ...
 def cell(
-    picture: sigil.compose.Element,
+    picture: _t.NodeLike,
     props: Cell | None = ...,
     *,
     label: str = ...,

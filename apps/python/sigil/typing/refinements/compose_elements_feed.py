@@ -35,10 +35,10 @@ def feed(ring: TextRing, options: TextOptions) -> {ELEMENT}:
 def feed(ring: TextRing) -> {ELEMENT}:
     \"\"\"The text feed under the options a native scope provides, or the default ones.\"\"\"
 @typing.overload
-def feed(ring: TextRing, options: Options, row: collections.abc.Callable[[TextRow], {ELEMENT}]) -> {ELEMENT}:
+def feed(ring: TextRing, options: Options, row: collections.abc.Callable[[TextRow], _t.NodeLike]) -> {ELEMENT}:
     \"\"\"The newest rows of a text ring, each built by the row function.\"\"\"
 @typing.overload
-def feed[Value](ring: Ring, options: Options, row: collections.abc.Callable[[Value], {ELEMENT}]) -> {ELEMENT}:
+def feed[Value](ring: Ring, options: Options, row: collections.abc.Callable[[Value], _t.NodeLike]) -> {ELEMENT}:
     \"\"\"The newest rows of a ring, each built by the row function from the value appended.\"\"\"
 """,
     )

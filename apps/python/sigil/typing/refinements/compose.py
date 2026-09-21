@@ -48,7 +48,13 @@ class _Returning:
 
 
 def registerNode(shared: Table, node: str) -> None:
-    """The verbs every node states, over the node that states them."""
+    """The verbs every node states, over the node that states them.
+
+    Every path written here names the node this call is registering, not
+    the element: the table is keyed by path, so a path spelling one class
+    would be written four times over and only the last registration would
+    survive, leaving that class's verbs answering another class.
+    """
     table = _Returning(shared, node)
     table.declares(
         node,
@@ -59,19 +65,19 @@ def registerNode(shared: Table, node: str) -> None:
         node,
         "children",
         """@typing.overload
-def children(self, children: collections.abc.Iterable[Element], /) -> Element: ...
+def children(self, children: collections.abc.Iterable[_t.NodeLike], /) -> Element: ...
 @typing.overload
-def children(self, *children: Element) -> Element: ...
+def children(self, *children: _t.NodeLike) -> Element: ...
 """,
     )
     table.erased(
-        ELEMENT,
+        node,
         "width height minWidth minHeight maxWidth maxHeight flexBasis left top right bottom gap",
         "_t.DimensionLike",
     )
-    table.erased(ELEMENT, "size", "_t.DimensionLike", "_t.DimensionLike")
+    table.erased(node, "size", "_t.DimensionLike", "_t.DimensionLike")
     table.declares(
-        ELEMENT,
+        node,
         "inset",
         """@typing.overload
 def inset(self, all: _t.DimensionLike) -> Element: ...
@@ -86,21 +92,21 @@ def inset(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike |
 """,
     )
     table.erased(
-        ELEMENT,
+        node,
         "opacity rotate rotateX rotateY scale scaleX scaleY scaleZ skewX skewY translateX translateY translateZ perspective",
         "_t.ScalarLike",
     )
-    table.erased(ELEMENT, "fontSize fontTrack", "_t.FloatLike | _sigil.weave.Length")
-    table.erased(ELEMENT, "fill", "_t.SurfacePaintLike")
-    table.erased(ELEMENT, "ink", "_t.ElementInkLike")
-    table.erased(ELEMENT, "alignItems alignSelf", "_t.AlignLike")
-    table.erased(ELEMENT, "justifyContent", "_t.JustifyLike")
-    table.erased(ELEMENT, "gridCellAlign", "_t.AlignLike", "_t.AlignLike")
-    table.erased(ELEMENT, "centerAt", "_t.PointLike")
+    table.erased(node, "fontSize fontTrack", "_t.FloatLike | _sigil.weave.Length")
+    table.erased(node, "fill", "_t.SurfacePaintLike")
+    table.erased(node, "ink", "_t.ElementInkLike")
+    table.erased(node, "alignItems alignSelf", "_t.AlignLike")
+    table.erased(node, "justifyContent", "_t.JustifyLike")
+    table.erased(node, "gridCellAlign", "_t.AlignLike", "_t.AlignLike")
+    table.erased(node, "centerAt", "_t.PointLike")
     # A point in hand, in pixels, or the two lengths in any unit; a rect in
     # hand, or its four lengths.
     table.declares(
-        ELEMENT,
+        node,
         "at",
         """@typing.overload
 def at(self, point: _t.PointLike) -> Element: ...
@@ -109,7 +115,7 @@ def at(self, x: _t.DimensionLike, y: _t.DimensionLike) -> Element: ...
 """,
     )
     table.declares(
-        ELEMENT,
+        node,
         "rect",
         """@typing.overload
 def rect(self, rect: _t.RectLike) -> Element: ...
@@ -121,23 +127,23 @@ def rect(self, x: _t.DimensionLike, y: _t.DimensionLike, width: _t.DimensionLike
     # other dimension accepts as pixels is left out of what these accept.
     origin = "str | Dimension | _sigil.weave.Length | VarRef"
     table.declares(
-        ELEMENT,
+        node,
         "transformOrigin",
         f"def transformOrigin(self, x: {origin}, y: {origin}, z: {origin} | None = None) -> Element: ...",
     )
     table.declares(
-        ELEMENT,
+        node,
         "perspectiveOrigin",
         f"def perspectiveOrigin(self, x: {origin}, y: {origin}) -> Element: ...",
     )
-    table.erased(ELEMENT, "shape", "_t.ShapeLike")
-    table.erased(ELEMENT, "background foreground overlay stroke", "_t.DecorationLike")
-    table.erased(ELEMENT, "var", "_t.DimensionLike | _t.ColorLike")
+    table.erased(node, "shape", "_t.ShapeLike")
+    table.erased(node, "background foreground overlay stroke", "_t.DecorationLike")
+    table.erased(node, "var", "_t.DimensionLike | _t.ColorLike")
     # Four arities in CSS's order, each with its own names, and each name
     # usable as a keyword; beside them the named-sides form, any subset.
     for edge in ("padding", "margin"):
         table.declares(
-            ELEMENT,
+            node,
             edge,
             f"""@typing.overload
 def {edge}(self, all: _t.DimensionLike) -> Element: ...
@@ -152,7 +158,7 @@ def {edge}(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike 
 """,
         )
     table.erased(
-        ELEMENT,
+        node,
         "paddingTop paddingRight paddingBottom paddingLeft "
         "marginTop marginRight marginBottom marginLeft",
         "_t.DimensionLike",
@@ -168,18 +174,18 @@ def registerValues(table: Table) -> None:
             "_sigil.compose",
             factory,
             f"""@typing.overload
-def {factory}(children: collections.abc.Iterable[Element], /) -> Element: ...
+def {factory}(children: collections.abc.Iterable[_t.NodeLike], /) -> Element: ...
 @typing.overload
-def {factory}(*children: Element) -> Element: ...
+def {factory}(*children: _t.NodeLike) -> Element: ...
 """,
         )
     table.declares(
         "_sigil.compose",
         "layout",
         """@typing.overload
-def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, *children: Element) -> Element: ...
+def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, *children: _t.NodeLike) -> Element: ...
 @typing.overload
-def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, children: collections.abc.Iterable[Element], /) -> Element: ...
+def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, children: collections.abc.Iterable[_t.NodeLike], /) -> Element: ...
 """,
     )
     table.erased("_sigil.compose.LayerStyle", "echo", "_t.PointLike", "_t.ColorLike")
@@ -214,7 +220,7 @@ def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.Ba
     table.declares(
         "_sigil.compose",
         "memo",
-        "def memo[Model](properties: Model, describe: collections.abc.Callable[[Model], Element]) -> Element: ...",
+        "def memo[Model](properties: Model, describe: collections.abc.Callable[[Model], _t.NodeLike]) -> Element: ...",
     )
     table.erased("_sigil.compose.spans", "upTo", "_t.ScalarLike")
     table.erased("_sigil.compose.spans", "range wrap", "_t.ScalarLike", "_t.ScalarLike")

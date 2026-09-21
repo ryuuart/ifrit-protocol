@@ -23,18 +23,21 @@ class Model:
     count: int
 
 
-def describe(model: Model) -> compose.Element:
+def describe(model: Model) -> compose.Text:
     return compose.text(str(model.count)).fontSize(weave.em(1.2))
 
 
-tree = compose.memo(Model(3), describe).width("100%").padding(horizontal=12, vertical=16)
+tree = (
+    compose.memo(Model(3), describe).width("100%").padding(horizontal=12, vertical=16)
+)
 assert_type(tree, compose.Element)
 assert_type(
     tree.padding(all=8).margin(left=1, top=2, right=3, bottom=4), compose.Element
 )
 assert_type(tree.alignItems("auto").justifyContent("space_between"), compose.Element)
 assert_type(
-    tree.alignItems(compose.Align.Auto).justifyContent(compose.Justify.End), compose.Element
+    tree.alignItems(compose.Align.Auto).justifyContent(compose.Justify.End),
+    compose.Element,
 )
 assert_type(motion.from_(0).to(1), motion.FromTo)
 assert_type(motion.animate(motion.from_(0).to(1)), motion.Transitioned)

@@ -6,9 +6,9 @@ import sigil.compose
 
 _Props = typing.TypeVar("_Props")
 _Part: typing.TypeAlias = (
-    collections.abc.Callable[[], sigil.compose.Element]
-    | collections.abc.Callable[[str], sigil.compose.Element]
-    | collections.abc.Callable[[str, _Props], sigil.compose.Element]
+    collections.abc.Callable[[], _t.NodeLike]
+    | collections.abc.Callable[[str], _t.NodeLike]
+    | collections.abc.Callable[[str, _Props], _t.NodeLike]
     | None
 )
 
@@ -43,7 +43,7 @@ class _CaptionProperties(typing.TypedDict, total=False):
     readingLine: _Part[Caption]
 
 class _CellsProperties(typing.TypedDict, total=False):
-    cells: collections.abc.Sequence[sigil.compose.Element]
+    cells: collections.abc.Sequence[_t.NodeLike]
     column: bool
     gap: float
     divider: _t.FillLike
@@ -52,7 +52,7 @@ class _CellsProperties(typing.TypedDict, total=False):
     align: _t.AlignLike
 
 class _PanelGridProperties(typing.TypedDict, total=False):
-    cells: collections.abc.Sequence[sigil.compose.Element]
+    cells: collections.abc.Sequence[_t.NodeLike]
     columns: int
     gap: float
     row_gap: float | None
@@ -127,12 +127,12 @@ class _LadderProperties(typing.TypedDict, total=False):
     fill: _t.SurfacePaintLike
 
 def well(
-    surface: sigil.compose.Element | None = ...,
+    surface: _t.NodeLike | None = ...,
     props: Well | None = ...,
     **properties: typing.Unpack[_WellProperties],
 ) -> sigil.compose.Element: ...
 def cell(
-    body: sigil.compose.Element,
+    body: _t.NodeLike,
     props: Caption | None = ...,
     *,
     label: str = ...,
@@ -150,7 +150,7 @@ def panel_grid(
     **properties: typing.Unpack[_PanelGridProperties],
 ) -> sigil.compose.Element: ...
 def sheet(
-    content: sigil.compose.Element,
+    content: _t.NodeLike,
     props: Sheet | None = ...,
     **properties: typing.Unpack[_SheetProperties],
 ) -> sigil.compose.Element: ...
@@ -160,7 +160,7 @@ def board(
     **properties: typing.Unpack[_BoardProperties],
 ) -> sigil.compose.Element: ...
 def panel(
-    content: sigil.compose.Element,
+    content: _t.NodeLike,
     props: Panel | None = ...,
     **properties: typing.Unpack[_PanelProperties],
 ) -> sigil.compose.Element: ...

@@ -13,6 +13,15 @@ import re
 
 from .table import COLOR, MATERIAL, PAINT, Table
 
+# The element, spelled every way the generated declarations spell it: bare
+# inside the module that registers it, through the submodule's name inside
+# the extension root above it, and by its whole path everywhere else.
+ELEMENT_SPELLINGS = {
+    "_sigil.compose": re.compile(r"(?<![\w.])Element(?![\w])"),
+    "_sigil": re.compile(r"(?<![\w.])compose\.Element(?![\w])"),
+}
+QUALIFIED_ELEMENT = re.compile(r"(?<![\w.])_sigil\.compose\.Element(?![\w])")
+
 
 def expression(text: str) -> ast.expr:
     return ast.parse(text, mode="eval").body
@@ -80,6 +89,19 @@ def refine(table: Table, seen: set[str], module: str, tree: ast.Module) -> None:
     paint_name = "Paint" if module == "_sigil.material.skia" else PAINT
     if module == "_sigil.skia":
         paint_name = ""
+
+    def node_widened(text: str) -> str:
+        """Widen every element this annotation names to any kind of node.
+
+        A text, an image and a band each convert into an element at the
+        call, and none of them is a subclass of one, so a slot written as
+        the element takes all four. The short spellings are read only in
+        the module that carries them, because the world's own Element is a
+        different class and spells itself bare in a module of its own.
+        """
+        widened = QUALIFIED_ELEMENT.sub("_t.NodeLike", text)
+        short = ELEMENT_SPELLINGS.get(module)
+        return short.sub("_t.NodeLike", widened) if short else widened
 
     def visit(body: list[ast.stmt], path: str, class_name: str | None = None) -> None:
         getters = {
@@ -230,6 +252,12 @@ def refine(table: Table, seen: set[str], module: str, tree: ast.Module) -> None:
                         arg.annotation = expression(
                             text.replace(paint_name, f"({paint_name} | {MATERIAL})")
                         )
+                for arg in all_args:
+                    if arg.annotation is None:
+                        continue
+                    widened = node_widened(show(arg.annotation))
+                    if widened != show(arg.annotation):
+                        arg.annotation = expression(widened)
                 if full in returns and not any(
                     show(d).endswith(".setter") for d in node.decorator_list
                 ):
