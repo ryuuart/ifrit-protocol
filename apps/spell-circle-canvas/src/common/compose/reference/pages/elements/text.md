@@ -5,7 +5,6 @@ name: text
 qualified: sigil::compose::text
 header: sigilcompose/core/Factories.h
 group: Leaves
-python: sigil.compose.text
 status: stable
 example: text_element
 common_verbs: [font, ink, block, maxTextLines, textOverflow, textFill, textStroke, paragraphStyles]
@@ -71,10 +70,12 @@ paragraph overload takes a pointer instead: reuse one pointer across
 renders to keep the shaping caches warm, and hand over a fresh one to
 say the content changed.
 
-A text leaf reads the whole *text leaf* group of verbs — the paragraph
-styling, the threading, the annotations, the span restyles, the fx
-tracks — and ignores them, with one warning, on any other node. Its
-children are its marks and its slot mounts.
+A text leaf declares the whole *text leaf* group of verbs — the
+paragraph styling, the threading, the annotations, the span restyles,
+the fx tracks — and no other node declares them, so writing one on
+anything else does not compile. Hold the leaf as a `Text` for as long as
+those verbs are still to be written; it converts to `Element` wherever a
+node is wanted. Its children are its marks and its slot mounts.
 
 ## Examples
 

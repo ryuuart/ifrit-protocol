@@ -5,7 +5,6 @@ name: textThreadBalance
 qualified: sigil::compose::Text::textThreadBalance
 header: sigilcompose/core/Text.h
 group: Content
-python: sigil.compose.Element.textThreadBalance
 status: stable
 ---
 

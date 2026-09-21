@@ -5,7 +5,6 @@ name: imageRendering
 qualified: sigil::compose::Element::imageRendering
 header: sigilcompose/core/verbs/Cascade.h
 group: The cascade
-python: sigil.compose.Element.imageRendering
 status: stable
 ---
 

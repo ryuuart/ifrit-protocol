@@ -15,8 +15,8 @@ using compose::box;
 using compose::Corners;
 using compose::Dimension;
 using compose::Element;
-using compose::Text;
 using compose::Fill;
+using compose::Text;
 namespace document = compose::document;
 
 namespace {
@@ -27,8 +27,8 @@ void words(Element& line, const LegendEntry& entry) {
   const Theme& look = theme();
   if (!entry.label.empty()) {
     Text label = document::label(entry.label)
-                        .role(weave::rule("label").font(look.font(
-                            look.type.captionNote, look.palette.ink)));
+                     .role(weave::rule("label").font(
+                         look.font(look.type.captionNote, look.palette.ink)));
     if (entry.ink) detail::documentInk(label, *entry.ink);
     line.children({std::move(label)});
   }
@@ -114,17 +114,16 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
     // so a strip that names only its ends keeps its steps butted; a step
     // whose number is the measurement says so with its own ink.
     Text label = document::eyebrow(strip.labels[i])
-                        .role(weave::rule("eyebrow").font(
-                            look.font(look.type.eyebrow, look.palette.ash)));
+                     .role(weave::rule("eyebrow").font(
+                         look.font(look.type.eyebrow, look.palette.ash)));
     if (i < strip.inks.size() && strip.inks[i].kind != Fill::Kind::None)
       detail::documentInk(label, strip.inks[i]);
-    Element step =
-        box()
-            .column()
-            .alignItems(Align::Center)
-            .children({std::move(patch)})
-            .children(
-                {std::move(label.margin(look.spacing.captionNoteGap, 0, 0, 0))});
+    Element step = box()
+                       .column()
+                       .alignItems(Align::Center)
+                       .children({std::move(patch)})
+                       .children({std::move(label.margin(
+                           look.spacing.captionNoteGap, 0, 0, 0))});
     if (strip.opacity) step.opacity(*strip.opacity);
     run.children({std::move(step)});
   }
@@ -133,7 +132,8 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
 
 compose::Element chip(const Chip& tag) {
   const Theme& look = theme();
-  Element plate = box().padding(look.spacing.chipPaddingY, look.spacing.chipPaddingX);
+  Element plate =
+      box().padding(look.spacing.chipPaddingY, look.spacing.chipPaddingX);
   tag.ground.value_or(Fill::color(look.palette.figure)).apply(plate);
   Text label = document::eyebrow(tag.label).role(weave::rule("eyebrow").font(
       look.font(look.type.eyebrow, look.palette.ground)));

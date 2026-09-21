@@ -69,6 +69,7 @@ inline Element at(float x, float y, float w, float h) {
  *  the plate's business. It hands back what it was given, so a typed
  *  leaf pinned this way is still that leaf. */
 template <class Node>
+  requires std::convertible_to<Node, Element>
 Node at(Node node, float x, float y, float w, float h) {
   node.left(Dimension(x))
       .top(Dimension(y))
@@ -83,6 +84,7 @@ inline Element at(float x, float y, Dimension w, Dimension h) {
   return box().left(Dimension(x)).top(Dimension(y)).width(w).height(h);
 }
 template <class Node>
+  requires std::convertible_to<Node, Element>
 Node at(Node node, float x, float y, Dimension w, Dimension h) {
   node.left(Dimension(x)).top(Dimension(y)).width(w).height(h);
   return node;

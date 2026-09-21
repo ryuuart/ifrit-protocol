@@ -46,7 +46,7 @@
 //   Paint::blend()     wash + stipple + blot + density, one fill value
 //   fx::typeOn()          the pen writing the title and the legend
 //   spans::upTo / scale / animate  the whole 13.6 s reading order
-//   Element::textOnPath       every label — ONE LEAF EACH, shaped once with
+//   Text::textOnPath       every label — ONE LEAF EACH, shaped once with
 //                         real kerning and placed by arc length. The months
 //                         ride a clockwise ring beginning at 12 o'clock, so
 //                         a label's bearing over 360 IS the fraction it

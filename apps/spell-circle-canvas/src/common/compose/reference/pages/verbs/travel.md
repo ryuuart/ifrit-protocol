@@ -5,7 +5,6 @@ name: travel
 qualified: sigil::compose::Element::travel
 header: sigilcompose/core/verbs/Transform.h
 group: Transform
-python: sigil.compose.Element.travel
 status: stable
 ---
 

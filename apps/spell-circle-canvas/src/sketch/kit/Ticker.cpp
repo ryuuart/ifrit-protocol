@@ -15,8 +15,8 @@ using compose::Align;
 using compose::box;
 using compose::Dimension;
 using compose::Element;
-using compose::Text;
 using compose::Fill;
+using compose::Text;
 
 compose::Element ticker(Ticker strip) {
   const Theme& look = theme();
@@ -71,8 +71,8 @@ compose::Element timeline(const Timeline& scale) {
     if (!mark.major || mark.label.empty()) continue;
     any = true;
     Text label = compose::document::eyebrow(mark.label)
-                        .role(weave::rule("eyebrow").font(
-                            look.font(look.type.eyebrow, look.palette.ash)));
+                     .role(weave::rule("eyebrow").font(
+                         look.font(look.type.eyebrow, look.palette.ash)));
     if (mark.ink)
       detail::documentInk(label, *mark.ink);
     else if (scale.ink)
@@ -87,15 +87,12 @@ compose::Element timeline(const Timeline& scale) {
              .children({std::move(label.flexShrink(0))})});
   }
   if (!scale.below && any) {
-    column.children({std::move(
-        words.margin(0, 0, reachOf, 0))});
+    column.children({std::move(words.margin(0, 0, reachOf, 0))});
     column.children({std::move(rail)});
     return column;
   }
   column.children({std::move(rail)});
-  if (any)
-    column.children({std::move(
-        words.margin(reachOf, 0, 0, 0))});
+  if (any) column.children({std::move(words.margin(reachOf, 0, 0, 0))});
   return column;
 }
 

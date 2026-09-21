@@ -241,12 +241,11 @@ TEST(TextVertical, SpanPaintRecolorsAColumnWithoutReshaping) {
   };
 
   const auto describe = [&](bool restyled) {
-    Text t =
-        text(body, jp(24, SK_ColorWHITE))
-            .width(200)
-            .height(220)
-            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-            .key("t");
+    Text t = text(body, jp(24, SK_ColorWHITE))
+                 .width(200)
+                 .height(220)
+                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 .key("t");
     if (restyled)
       t.spanPaint(sigil::weave::selectors::text(u8"赤い"),
                   sigil::weave::PaintStyle(SK_ColorRED));
@@ -339,12 +338,11 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
   // quarter of a line height rather than a rounding error.
   Host host(240, 300);
   const auto describe = [&](bool shrunk) {
-    Text t =
-        text(u8"一二三四五", jp(28, SK_ColorWHITE))
-            .width(60)
-            .height(260)
-            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-            .key("t");
+    Text t = text(u8"一二三四五", jp(28, SK_ColorWHITE))
+                 .width(60)
+                 .height(260)
+                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 .key("t");
     if (shrunk)
       t.fx({.effect = fx::effect(
                 "quarter",
@@ -573,12 +571,11 @@ TEST(TextVertical, ASpanStyleReshapesOnlyTheRunItNames) {
   // pen steps DOWN.
   Host host(300, 300);
   const auto describe = [&](bool dressed) {
-    Text t =
-        text(u8"縦組みの文章", jp(24, SK_ColorWHITE))
-            .width(80)
-            .height(260)
-            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-            .key("t");
+    Text t = text(u8"縦組みの文章", jp(24, SK_ColorWHITE))
+                 .width(80)
+                 .height(260)
+                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 .key("t");
     if (dressed) {
       sigil::weave::TextStyle big = jp(40, SK_ColorWHITE);
       t.spanStyle(sigil::weave::selectors::text(u8"文章"), big);

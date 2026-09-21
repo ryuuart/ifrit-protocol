@@ -5,7 +5,6 @@ name: custom
 qualified: sigil::compose::custom
 header: sigilcompose/core/Factories.h
 group: Leaves
-python: none
 status: cpp-only
 example: custom_element
 common_verbs: [cache, width, height, borderRadius, overflow, cover]

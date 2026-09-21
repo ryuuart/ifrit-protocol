@@ -6,7 +6,7 @@ from pathlib import Path
 
 from _sigil import weave as native_weave
 from sigil import image, skia, weave
-from sigil.compose import Text, TextPath, box, frame, text
+from sigil.compose import Text, TextPath, frame, text
 from sigil.compose import selectors as composition_selectors
 from sigil.motion import Output
 from sigil.sketch import render_file

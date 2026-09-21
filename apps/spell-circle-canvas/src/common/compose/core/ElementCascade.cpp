@@ -133,11 +133,11 @@ Derived& StructureVerbs<Derived>::role(std::string name) {
 // by one for each kind of node: the family's other members are
 // instantiated where they are defined, beside the rest of a node's
 // identity.
-#define SIGIL_COMPOSE_CASCADE_NAMES(Node)                                  \
-  template Node& StructureVerbs<Node>::styleClass(std::string_view);       \
+#define SIGIL_COMPOSE_CASCADE_NAMES(Node)                                    \
+  template Node& StructureVerbs<Node>::styleClass(std::string_view);         \
   template Node& StructureVerbs<Node>::styleSheet(sigil::weave::StyleSheet); \
-  template Node& StructureVerbs<Node>::applyStyleSheet(StyleSheet);        \
-  template Node& StructureVerbs<Node>::role(sigil::weave::Rule);           \
+  template Node& StructureVerbs<Node>::applyStyleSheet(StyleSheet);          \
+  template Node& StructureVerbs<Node>::role(sigil::weave::Rule);             \
   template Node& StructureVerbs<Node>::role(std::string);
 SIGIL_COMPOSE_CASCADE_NAMES(Element)
 SIGIL_COMPOSE_CASCADE_NAMES(Text)

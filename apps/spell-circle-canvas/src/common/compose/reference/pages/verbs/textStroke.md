@@ -5,7 +5,6 @@ name: textStroke
 qualified: sigil::compose::Text::textStroke
 header: sigilcompose/core/verbs/TextStyle.h
 group: Paint
-python: sigil.compose.Element.textStroke
 status: stable
 example: textStroke_verb
 ---

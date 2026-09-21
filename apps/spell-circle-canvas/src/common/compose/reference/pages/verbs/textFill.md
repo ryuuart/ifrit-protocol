@@ -5,7 +5,6 @@ name: textFill
 qualified: sigil::compose::Text::textFill
 header: sigilcompose/core/verbs/TextStyle.h
 group: Paint
-python: sigil.compose.Element.textFill
 status: stable
 example: textFill_verb
 ---

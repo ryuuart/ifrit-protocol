@@ -5,7 +5,6 @@ name: blendMode
 qualified: sigil::compose::Element::blendMode
 header: sigilcompose/core/verbs/Effects.h
 group: Effects
-python: sigil.compose.Element.blendMode
 status: stable
 example: blendMode_verb
 ---

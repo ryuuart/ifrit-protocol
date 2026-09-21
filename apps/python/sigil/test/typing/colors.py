@@ -60,7 +60,9 @@ assert compose.Fill(solid) == compose.Fill.color("#b34a2f")
 # The glyph OUTLINE is one such fill on the node, so it is written with
 # the flat-mark set rather than the surface one.
 assert_type(compose.text("words").textStroke(1, "#6e99bb"), compose.Text)
-assert_type(compose.text("words").textStroke(1, compose.Fill.currentInk()), compose.Text)
+assert_type(
+    compose.text("words").textStroke(1, compose.Fill.currentInk()), compose.Text
+)
 assert_type(compose.text("words").textStroke(1, accent), compose.Text)
 assert_type(compose.text("words").textStroke(1, solid), compose.Text)
 assert_type(compose.text("words").textStroke(1, None), compose.Text)

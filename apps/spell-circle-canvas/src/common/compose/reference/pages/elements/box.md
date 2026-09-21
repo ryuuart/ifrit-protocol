@@ -5,7 +5,6 @@ name: box
 qualified: sigil::compose::box
 header: sigilcompose/core/Factories.h
 group: Containers
-python: sigil.compose.box
 status: stable
 example: box_element
 common_verbs: [row, column, gap, padding, fill, borderRadius, children, flexGrow]

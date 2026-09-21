@@ -5,7 +5,6 @@ name: overlay
 qualified: sigil::compose::Element::overlay
 header: sigilcompose/core/verbs/Decoration.h
 group: Paint
-python: sigil.compose.Element.overlay
 status: stable
 example: overlay_verb
 ---

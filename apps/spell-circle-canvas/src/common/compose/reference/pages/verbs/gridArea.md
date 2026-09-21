@@ -5,7 +5,6 @@ name: gridArea
 qualified: sigil::compose::Element::gridArea
 header: sigilcompose/core/verbs/Placement.h
 group: Flow and placement
-python: sigil.compose.Element.gridArea
 status: stable
 ---
 

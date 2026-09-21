@@ -5,7 +5,6 @@ name: preserve3d
 qualified: sigil::compose::Element::preserve3d
 header: sigilcompose/core/verbs/Depth.h
 group: Depth
-python: sigil.compose.Element.preserve3d
 status: stable
 ---
 

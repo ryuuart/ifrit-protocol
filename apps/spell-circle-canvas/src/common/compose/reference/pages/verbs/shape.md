@@ -5,7 +5,6 @@ name: shape
 qualified: sigil::compose::Element::shape
 header: sigilcompose/core/verbs/Shape.h
 group: Shape, corners and clipping
-python: sigil.compose.Element.shape
 status: stable
 ---
 

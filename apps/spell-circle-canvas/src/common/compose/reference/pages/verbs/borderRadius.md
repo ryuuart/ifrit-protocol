@@ -5,7 +5,6 @@ name: borderRadius
 qualified: sigil::compose::Element::borderRadius
 header: sigilcompose/core/verbs/Shape.h
 group: Shape, corners and clipping
-python: sigil.compose.Element.borderRadius
 status: stable
 ---
 

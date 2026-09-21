@@ -5,7 +5,6 @@ name: paragraphStyles
 qualified: sigil::compose::Text::paragraphStyles
 header: sigilcompose/core/verbs/TextStyle.h
 group: The text leaf
-python: sigil.compose.Element.paragraphStyles
 status: stable
 ---
 

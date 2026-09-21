@@ -5,7 +5,6 @@ name: inset
 qualified: sigil::compose::Element::inset
 header: sigilcompose/core/verbs/Placement.h
 group: Flow and placement
-python: sigil.compose.Element.inset
 status: stable
 ---
 

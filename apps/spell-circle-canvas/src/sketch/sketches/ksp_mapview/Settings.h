@@ -39,6 +39,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <concepts>
 #include <cstdio>
 #include <ranges>
 #include <string>
@@ -181,6 +182,7 @@ inline std::vector<kit::Reading> readings(const data::Json& node) {
 
 /** A node centred on a canvas point — the marker/gizmo idiom. */
 template <class Node>
+  requires std::convertible_to<Node, Element>
 Node at(Node node, SkPoint c, float w, float h) {
   node.width(w).height(h).centerAt(c);
   return node;

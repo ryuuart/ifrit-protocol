@@ -62,9 +62,9 @@ Element chain(const std::string& key, const weave::Story& story,
               float height = 214) {
   const auto leaf = [&](int index) {
     Text body = frame(story)
-                       .key(key + std::to_string(index))
-                       .width(168)
-                       .height(height - 24);
+                    .key(key + std::to_string(index))
+                    .width(168)
+                    .height(height - 24);
     if (index == 1) body.textThreadTo(key + "2");
     return box().column().gap(10).children(
         {document::caption(index == 1 ? "FRAME 1" : "FRAME 2"),

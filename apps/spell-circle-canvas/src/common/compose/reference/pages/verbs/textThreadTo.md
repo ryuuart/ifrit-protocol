@@ -5,7 +5,6 @@ name: textThreadTo
 qualified: sigil::compose::Text::textThreadTo
 header: sigilcompose/core/Text.h
 group: Content
-python: sigil.compose.Element.textThreadTo
 status: stable
 ---
 

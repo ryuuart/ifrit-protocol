@@ -23,7 +23,11 @@ class BandVerbs {
   /** WHICH SIDE OF THE SPINE the band occupies: `Center` straddles it
    *  (the default), `Outer` takes the LEFT of travel — outside a
    *  clockwise spine in screen space, so it exits a `shapes::` rect or
-   *  circle — and `Inner` takes the right. */
+   *  circle — and `Inner` takes the right. The formation is the
+   *  geometry spine's own, because that is what sweeps the ribbon; a
+   *  stroke's `PathFormat::Align` says the same three words about a
+   *  stroke on a node's outline, which is a different thing on a
+   *  different outline. */
   Derived& bandAlignment(geometry::path::Formation formation);
 
  private:

@@ -96,8 +96,9 @@ void bindCompose(py::module_& module) {
   py::class_<compose::Text> textLeaf(composition, "Text");
   py::class_<compose::Image> imageLeaf(composition, "Image");
   py::class_<compose::Band> bandLeaf(composition, "Band");
-  element.def(py::init([](const compose::Text& leaf) { return Element(leaf); }),
-              py::arg("leaf"))
+  element
+      .def(py::init([](const compose::Text& leaf) { return Element(leaf); }),
+           py::arg("leaf"))
       .def(py::init([](const compose::Image& leaf) { return Element(leaf); }),
            py::arg("leaf"))
       .def(py::init([](const compose::Band& leaf) { return Element(leaf); }),

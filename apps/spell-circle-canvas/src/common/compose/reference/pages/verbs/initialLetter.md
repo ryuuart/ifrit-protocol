@@ -5,7 +5,6 @@ name: initialLetter
 qualified: sigil::compose::Text::initialLetter
 header: sigilcompose/core/verbs/TextStyle.h
 group: The text leaf
-python: sigil.compose.Element.initialLetter
 status: stable
 ---
 

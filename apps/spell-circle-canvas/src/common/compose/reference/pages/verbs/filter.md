@@ -5,7 +5,6 @@ name: filter
 qualified: sigil::compose::Element::filter
 header: sigilcompose/core/verbs/Effects.h
 group: Effects
-python: sigil.compose.Element.filter
 status: stable
 example: filter_verb
 ---

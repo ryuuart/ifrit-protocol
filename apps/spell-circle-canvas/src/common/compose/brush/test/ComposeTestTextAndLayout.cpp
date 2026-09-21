@@ -19,10 +19,8 @@ TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
 
 TEST(ComposeLayout, DimInsetsAcceptPercent) {
   Host host(200, 100);
-  host.composer.render(box().children({box()
-                                           .inset(pct(10))
-                                           .fill(red())
-                                           .key("panel")}));
+  host.composer.render(
+      box().children({box().inset(pct(10)).fill(red()).key("panel")}));
   host.frame();
   auto b = host.composer.bounds("panel");
   ASSERT_TRUE(b.has_value());
@@ -301,19 +299,11 @@ TEST(ComposeTransform, PixelOriginPivotsWhereTold) {
   // top-left corner; rotate 90° and the box lands in different places.
   Host frac, px;
   auto tree = [](Element inner) { return box().children({std::move(inner)}); };
-  frac.composer.render(
-      tree(box()
-               .absolute()
-               .inset(80)
-               .fill(red())
-               .rotate(90.0f)));  // pivots on its center
-  px.composer.render(tree(
-      box()
-          .absolute()
-          .inset(80)
-          .fill(red())
-          .rotate(90.0f)
-          .transformOrigin(Dimension(0), Dimension(0))));  // pivots top-left
+  frac.composer.render(tree(box().absolute().inset(80).fill(red()).rotate(
+      90.0f)));  // pivots on its center
+  px.composer.render(
+      tree(box().absolute().inset(80).fill(red()).rotate(90.0f).transformOrigin(
+          Dimension(0), Dimension(0))));  // pivots top-left
   frac.frame();
   px.frame();
   EXPECT_EQ(frac.pixel(100, 100), SK_ColorRED);  // unchanged footprint
@@ -518,16 +508,16 @@ TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
                  });
   auto scene = [&](bool onPath, float progress) {
     Text t = text(u8"LIFT", whiteStyle(18))
-                    .key("t")
-                    .width(200)
-                    .height(200)
-                    .absolute()
-                    .left(0)
-                    // Room above the run for the control's lift to land in:
-                    // ink clipped off the top would move the centroid for a
-                    // reason that has nothing to do with the frame.
-                    .top(onPath ? 0.0f : 90.0f)
-                    .fx({.effect = lift, .progress = progress});
+                 .key("t")
+                 .width(200)
+                 .height(200)
+                 .absolute()
+                 .left(0)
+                 // Room above the run for the control's lift to land in:
+                 // ink clipped off the top would move the centroid for a
+                 // reason that has nothing to do with the frame.
+                 .top(onPath ? 0.0f : 90.0f)
+                 .fx({.effect = lift, .progress = progress});
     if (onPath) t.textOnPath({.path = downward});
     return box().children({std::move(t)});
   };
@@ -581,14 +571,14 @@ TEST(ComposeTextPath, ATrackAndABaselineBothRunRatherThanOneWinning) {
     // A ring well inside the frame: a track that throws glyphs OUTWARD off
     // a ring already touching the edges would be measuring the clip.
     Text t = text(u8"BOTH RUN", whiteStyle(18))
-                    .key("ring")
-                    .width(160)
-                    .height(160)
-                    .absolute()
-                    .left(40)
-                    .top(40)
-                    .textOnPath({.path = geometry::shapes::circle(),
-                                 .align = TextPath::Align::Center});
+                 .key("ring")
+                 .width(160)
+                 .height(160)
+                 .absolute()
+                 .left(40)
+                 .top(40)
+                 .textOnPath({.path = geometry::shapes::circle(),
+                              .align = TextPath::Align::Center});
     if (withTrack)
       t.fx({.effect = fx::effect(
                 "test.pathframe.out",

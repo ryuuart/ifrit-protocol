@@ -169,9 +169,9 @@ void expectFastPathLineUntouched(GlyphModifier lean) {
     GlyphModifier lift;
     lift.dy = -4;
     Text t = text(u8"AAAA BBBB", style)
-                    .key("k")
-                    .width(70)
-                    .fx({.effect = fixed("lift", lift)});
+                 .key("k")
+                 .width(70)
+                 .fx({.effect = fixed("lift", lift)});
     if (shearSecondLine)
       t.fx({.where = sigil::weave::selectors::line(1),
             .effect = fixed("lean", lean)});

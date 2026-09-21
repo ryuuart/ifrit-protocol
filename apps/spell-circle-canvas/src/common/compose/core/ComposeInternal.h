@@ -160,7 +160,7 @@ class Box {
 // caps sizeof(ElementNode) with a static assertion, which is the rule that
 // keeps a rare field from being added inline.
 
-/** One Element::spanPaint() / Element::spanStyle() declaration: a selector
+/** One Text::spanPaint() / Text::spanStyle() declaration: a selector
  *  and what it does to the range it finds. Ordered — later declarations win
  *  on overlap — and comparable, so a re-described list prunes. */
 struct SpanRestyle {
@@ -182,7 +182,7 @@ struct SpanRestyle {
   }
 };
 
-/** One Element::textAttach() declaration: which unit the mark anchors to, and
+/** One Text::textAttach() declaration: which unit the mark anchors to, and
  * the key of the child that anchors there. The child itself is an ordinary
  *  child of the text node — this is only the back-index the layout reads to
  *  learn which rect that child's box is. Comparable, so a re-described mark
@@ -245,7 +245,7 @@ struct TextOptions {
 };
 
 struct TextData {
-  // Element::textStroke(): a stroke pass on the GLYPHS, under the fill.
+  // Text::textStroke(): a stroke pass on the GLYPHS, under the fill.
   bool hasTextStroke = false;
   float textStrokeWidth = 0.0f;
   Fill textStrokeFill;
@@ -269,8 +269,8 @@ struct TextData {
   // spanPaint()/spanStyle(): the type treatment, addressed by selector and
   // applied to the materialized paragraph in declaration order.
   std::vector<SpanRestyle> spanRestyles;
-  // Element::fx(): the ordered track list. Empty on ordinary text.
-  // Element::variationDrive() appends one of these too — a driven axis is a
+  // Text::fx(): the ordered track list. Empty on ordinary text.
+  // Text::variationDrive() appends one of these too — a driven axis is a
   // per-glyph deviation like any other, and has no plumbing of its own.
   std::vector<Track> tracks;
   // textFill(): glyph paint in text-metric space (unit square → cap band).

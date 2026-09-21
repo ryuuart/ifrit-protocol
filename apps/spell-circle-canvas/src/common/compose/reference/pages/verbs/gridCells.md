@@ -5,7 +5,6 @@ name: gridCells
 qualified: sigil::compose::Element::gridCells
 header: sigilcompose/core/verbs/Placement.h
 group: Flow and placement
-python: sigil.compose.Element.gridCells
 status: stable
 ---
 

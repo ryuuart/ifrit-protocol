@@ -5,7 +5,6 @@ name: foreground
 qualified: sigil::compose::Element::foreground
 header: sigilcompose/core/verbs/Decoration.h
 group: Paint
-python: sigil.compose.Element.foreground
 status: stable
 example: foreground_verb
 ---

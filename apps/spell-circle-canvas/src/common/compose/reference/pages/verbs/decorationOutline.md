@@ -5,7 +5,6 @@ name: decorationOutline
 qualified: sigil::compose::Element::decorationOutline
 header: sigilcompose/core/verbs/Decoration.h
 group: Paint
-python: sigil.compose.Element.decorationOutline
 status: stable
 ---
 

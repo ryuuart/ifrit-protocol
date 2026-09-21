@@ -5,7 +5,6 @@ name: image
 qualified: sigil::compose::image
 header: sigilcompose/core/Factories.h
 group: Leaves
-python: sigil.compose.image
 status: stable
 example: image_element
 common_verbs: [imageRendering, imageRegion, width, height, borderRadius, overflow, decorationOutline]

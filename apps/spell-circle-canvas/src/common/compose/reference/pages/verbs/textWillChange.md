@@ -5,7 +5,6 @@ name: textWillChange
 qualified: sigil::compose::Text::textWillChange
 header: sigilcompose/core/verbs/TextStyle.h
 group: The text leaf
-python: sigil.compose.Element.textWillChange
 status: stable
 ---
 

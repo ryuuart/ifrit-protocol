@@ -5,7 +5,6 @@ name: backdropFilter
 qualified: sigil::compose::Element::backdropFilter
 header: sigilcompose/core/verbs/Effects.h
 group: Effects
-python: sigil.compose.Element.backdropFilter
 status: stable
 example: backdropFilter_verb
 ---

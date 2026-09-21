@@ -565,7 +565,9 @@ class Descriptions(unittest.TestCase):
         self.assertIsNot(flowed, words)
         flowed = native.derive.contentFlowAround(text=words, key="figure", margin=8)
         self.assertIsInstance(flowed, native.Text)
-        self.assertIsInstance(native.derive.contentFlowAround(words, "figure"), native.Text)
+        self.assertIsInstance(
+            native.derive.contentFlowAround(words, "figure"), native.Text
+        )
         with self.assertRaises(TypeError):
             native.derive.contentFlowAround("words", "figure")
 

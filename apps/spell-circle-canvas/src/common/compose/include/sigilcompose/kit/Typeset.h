@@ -17,7 +17,7 @@
  * break opportunity. A list
  * is a hanging indent with a marker in the hang. A rule is a box at the
  * extent `Composer::units` reports. A block's opening letter set large is
- * not here at all: it is `Element::initialLetter`, because the size that
+ * not here at all: it is `Text::initialLetter`, because the size that
  * makes a cap span three lines is answerable only where the block's pitch
  * and the face's own metrics are.
  *
@@ -154,7 +154,7 @@ struct NestedStyle {
  *  There is no nested-style mechanism under this and there does not need
  *  to be: a nested style is a span restyle over a range the selector
  *  vocabulary can already name, so this answers the selector and
- *  `Element::spanStyle` does the work. A delimiter becomes an anchored
+ *  `Text::spanStyle` does the work. A delimiter becomes an anchored
  *  non-greedy regular expression — literal-quoted, so a mark that is also
  *  a regex operator (`*`, `.`, `(`) means itself — which is the one of the
  *  three that has no counting selector of its own.
@@ -250,10 +250,10 @@ struct NestedStyle {
                         static_cast<float>(count);
   for (int index = 0; index < count; ++index) {
     Text column = frame(story)
-                       .role("paragraph")
-                       .key(keyPrefix + std::to_string(index))
-                       .width(Dimension(measure))
-                       .height(Dimension(height));
+                      .role("paragraph")
+                      .key(keyPrefix + std::to_string(index))
+                      .width(Dimension(measure))
+                      .height(Dimension(height));
     if (index + 1 < count)
       column.textThreadTo(keyPrefix + std::to_string(index + 1));
     else if (!ellipsis.empty())

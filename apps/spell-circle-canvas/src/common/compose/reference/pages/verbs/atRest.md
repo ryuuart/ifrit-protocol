@@ -5,16 +5,16 @@ name: atRest
 qualified: sigil::compose::Text::atRest
 header: sigilcompose/core/Text.h
 group: Content
-python: sigil.compose.Element.atRest
 status: stable
 ---
 
 # atRest
 
-This leaf as it stands at rest, as a SECOND element that can stand
-beside it in one tree. It is the one verb that ends a chain rather than
-continuing it: it hands back an element by value, because a rest pose is
-something to place beside the moving copy rather than a state of it.
+This leaf as it stands at rest, as a SECOND leaf that can stand beside
+it in one tree. It is the one verb that ends a chain rather than
+continuing it: it hands back a leaf of the same kind by value, because a
+rest pose is something to place beside the moving copy rather than a
+state of it.
 
 ## Description
 
@@ -32,8 +32,7 @@ prune; a keyless original leaves the copy keyless. The ink is left to
 the caller, which is what [`textFill`](textFill.md) is for.
 
 A rest pose is what a track's per-glyph deviation is measured against,
-and `kit::restGhost` draws it under the moving copy. Anything but text
-warns once and comes back as a plain copy.
+and `kit::restGhost` draws it under the moving copy.
 
 ## See also
 

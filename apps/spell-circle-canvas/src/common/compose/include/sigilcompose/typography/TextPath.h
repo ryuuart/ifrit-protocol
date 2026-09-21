@@ -4,7 +4,7 @@
  * @ingroup compose-typography
  *
  * SigilCompose typography — `TextPath`, a run of type whose BASELINE is a
- * path: the value `Element::textOnPath` takes.
+ * path: the value `Text::textOnPath` takes.
  */
 
 #include <sigilcompose/core/Shape.h>
@@ -12,7 +12,7 @@
 
 namespace sigil::compose {
 
-/** Text whose BASELINE is a path (`Element::textOnPath`).
+/** Text whose BASELINE is a path (`Text::textOnPath`).
  *
  *  The run is shaped once — real kerning, real ligatures, real advances —
  *  and then every glyph is placed by arc length along the resolved path

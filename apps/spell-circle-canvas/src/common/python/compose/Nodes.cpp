@@ -129,14 +129,14 @@ void bindNodeVerbs(py::class_<Node>& element) {
           py::arg("all"), fluent)
       .def(
           "borderRadius",
-          [](Node& self, float tl, float tr, float br, float bl)
-              -> Node& { return self.borderRadius({tl, tr, br, bl}); },
+          [](Node& self, float tl, float tr, float br, float bl) -> Node& {
+            return self.borderRadius({tl, tr, br, bl});
+          },
           py::arg("topLeft"), py::arg("topRight"), py::arg("bottomRight"),
           py::arg("bottomLeft"), fluent)
       .def(
           "transformOrigin",
-          [](Node& self, py::object x, py::object y,
-             py::object z) -> Node& {
+          [](Node& self, py::object x, py::object y, py::object z) -> Node& {
             return self.transformOrigin(
                 originLength(x), originLength(y),
                 z.is_none() ? compose::Dimension(0.0f) : originLength(z));
@@ -149,15 +149,15 @@ void bindNodeVerbs(py::class_<Node>& element) {
           },
           py::arg("x"), py::arg("y"), fluent);
 
-  const auto dimensionMethod =
-      [&](const char* name, Node& (Node::*setter)(compose::Dimension)) {
-        element.def(
-            name,
-            [setter](Node& self, py::object value) -> Node& {
-              return (self.*setter)(dimension(value));
-            },
-            py::arg("value"), fluent);
-      };
+  const auto dimensionMethod = [&](const char* name,
+                                   Node& (Node::*setter)(compose::Dimension)) {
+    element.def(
+        name,
+        [setter](Node& self, py::object value) -> Node& {
+          return (self.*setter)(dimension(value));
+        },
+        py::arg("value"), fluent);
+  };
   dimensionMethod("width", &Node::width);
   dimensionMethod("height", &Node::height);
   dimensionMethod("minWidth", &Node::minWidth);
@@ -171,8 +171,7 @@ void bindNodeVerbs(py::class_<Node>& element) {
   dimensionMethod("bottom", &Node::bottom);
 
   element
-      .def("flexDirection", &Node::flexDirection, py::arg("direction"),
-           fluent)
+      .def("flexDirection", &Node::flexDirection, py::arg("direction"), fluent)
       .def("flexWrap", &Node::flexWrap,
            py::arg("wrap") = compose::FlexWrap::Wrap, fluent)
       .def("boxSizing", &Node::boxSizing, py::arg("sizing"), fluent)
@@ -235,8 +234,7 @@ void bindNodeVerbs(py::class_<Node>& element) {
           },
           py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"),
           fluent)
-      .def("gridCells",
-           py::overload_cast<int, int, int, int>(&Node::gridCells),
+      .def("gridCells", py::overload_cast<int, int, int, int>(&Node::gridCells),
            py::arg("column"), py::arg("row"), py::arg("columns") = 1,
            py::arg("rows") = 1, fluent)
       .def("gridCells", py::overload_cast<CellSpan>(&Node::gridCells),
@@ -262,12 +260,11 @@ void bindNodeVerbs(py::class_<Node>& element) {
       .def("styleClass", &Node::styleClass, py::arg("name"), fluent)
       .def("role", py::overload_cast<weave::Rule>(&Node::role),
            py::arg("defaults"), fluent)
-      .def("role", py::overload_cast<std::string>(&Node::role),
-           py::arg("name"), fluent)
+      .def("role", py::overload_cast<std::string>(&Node::role), py::arg("name"),
+           fluent)
       .def(
           "var",
-          [](Node& self, const std::string& name,
-             py::object value) -> Node& {
+          [](Node& self, const std::string& name, py::object value) -> Node& {
             return std::visit(
                 [&](const auto& converted) -> Node& {
                   return self.var(name, converted);
@@ -291,27 +288,24 @@ void bindNodeVerbs(py::class_<Node>& element) {
             return self.varDefaults(std::move(table));
           },
           py::arg("defaults"), fluent)
-      .def("imageRendering", &Node::imageRendering, py::arg("sampling"),
-           fluent)
+      .def("imageRendering", &Node::imageRendering, py::arg("sampling"), fluent)
       .def("hitTestable", &Node::hitTestable, py::arg("enabled"), fluent)
       .def("decorationOutline", &Node::decorationOutline, py::arg("source"),
            py::arg("coverage") = 0.5f, fluent)
       .def("layerStyle", &Node::layerStyle, py::arg("style"), fluent)
       .def("filter", &Node::filter, py::arg("effect"), fluent)
-      .def("backdropFilter", &Node::backdropFilter, py::arg("effect"),
-           fluent)
+      .def("backdropFilter", &Node::backdropFilter, py::arg("effect"), fluent)
       .def("blendMode", &Node::blendMode, py::arg("mode"), fluent)
       .def("travel", &Node::travel, py::arg("path"), fluent)
       .def("zIndex", &Node::zIndex, py::arg("index"), fluent)
-      .def("preserve3d", &Node::preserve3d, py::arg("preserve") = true,
-           fluent)
+      .def("preserve3d", &Node::preserve3d, py::arg("preserve") = true, fluent)
       .def("backface", &Node::backface, py::arg("visibility"), fluent)
       .def("cacheScale", &Node::cacheScale, py::arg("scale"), fluent)
       .def("transition", &Node::transition, py::arg("transition"), fluent)
 
-;
-  for (const auto& [name, setter] : std::initializer_list<std::pair<
-           const char*, Node& (Node::*)(motion::Animatable<float>)>>{
+      ;
+  for (const auto& [name, setter] : std::initializer_list<
+           std::pair<const char*, Node& (Node::*)(motion::Animatable<float>)>>{
            {"opacity", &Node::opacity},
            {"rotate", &Node::rotate},
            {"scale", &Node::scale},
@@ -347,8 +341,8 @@ void bindNodeVerbs(py::class_<Node>& element) {
             from);
       },
       py::arg("seconds"), py::arg("from_") = "start", fluent);
-  for (const auto& [name, setter] : std::initializer_list<std::pair<
-           const char*, Node& (Node::*)(Decoration, std::string)>>{
+  for (const auto& [name, setter] : std::initializer_list<
+           std::pair<const char*, Node& (Node::*)(Decoration, std::string)>>{
            {"overlay", &Node::overlay},
            {"background", &Node::background},
            {"foreground", &Node::foreground},
@@ -398,8 +392,8 @@ void bindTextVerbs(py::class_<Text>& element) {
       .def("textVerticalAlign", &Text::textVerticalAlign, py::arg("rule"),
            py::arg("maximumInterlineSpacing") = 0.0f, fluent)
       .def("textLineMargin", &Text::textLineMargin, py::arg("band"), fluent)
-      .def("textWillChange", &Text::textWillChange,
-           py::arg("enabled") = true, py::arg("candidates") = 0, fluent)
+      .def("textWillChange", &Text::textWillChange, py::arg("enabled") = true,
+           py::arg("candidates") = 0, fluent)
       .def(
           "textOverflow",
           [](Text& self, const std::string& marker) -> Text& {
@@ -422,8 +416,7 @@ void bindTextVerbs(py::class_<Text>& element) {
       .def("spanStyle",
            py::overload_cast<weave::Selector, weave::Type>(&Text::spanStyle),
            py::arg("where"), py::arg("type"), fluent)
-      .def("textAnnotation", &Text::textAnnotation, py::arg("reading"),
-           fluent)
+      .def("textAnnotation", &Text::textAnnotation, py::arg("reading"), fluent)
       .def("atRest", &Text::atRest)
       .def(
           "textFill",
@@ -457,19 +450,17 @@ void bindTextVerbs(py::class_<Text>& element) {
 }
 
 void bindImageVerbs(py::class_<Image>& element) {
-  element
-      .def(
-          "imageRegion",
-          [](Image& self, py::object value) -> Image& {
-            return self.imageRegion(rect(value));
-          },
-          py::arg("rect"), fluent);
+  element.def(
+      "imageRegion",
+      [](Image& self, py::object value) -> Image& {
+        return self.imageRegion(rect(value));
+      },
+      py::arg("rect"), fluent);
 }
 
 void bindBandVerbs(py::class_<Band>& element) {
-  element
-      .def("bandAlignment", &Band::bandAlignment, py::arg("formation"),
-           fluent);
+  element.def("bandAlignment", &Band::bandAlignment, py::arg("formation"),
+              fluent);
 }
 
 }  // namespace sigil::python

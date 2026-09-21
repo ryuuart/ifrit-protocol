@@ -79,8 +79,8 @@ void bindEdges(Class& element) {
         py::arg("top"), py::arg("horizontal"), py::arg("bottom"), fluent);
     element.def(
         name,
-        [write](Node& self, py::object top, py::object right,
-                py::object bottom, py::object left) -> Node& {
+        [write](Node& self, py::object top, py::object right, py::object bottom,
+                py::object left) -> Node& {
           return write(self, {dimension(top), dimension(right),
                               dimension(bottom), dimension(left)});
         },
@@ -114,8 +114,7 @@ void bindEdges(Class& element) {
       py::arg("all"), fluent);
   element.def(
       "inset",
-      [](Node& self, py::object vertical,
-         py::object horizontal) -> Node& {
+      [](Node& self, py::object vertical, py::object horizontal) -> Node& {
         return self.inset(dimension(vertical), dimension(horizontal));
       },
       py::arg("vertical"), py::arg("horizontal"), fluent);

@@ -5,7 +5,6 @@ name: padding
 qualified: sigil::compose::Element::padding
 header: sigilcompose/core/verbs/Box.h
 group: Size and spacing
-python: sigil.compose.Element.padding
 status: stable
 ---
 

@@ -196,7 +196,7 @@ auto KspMapView::orbits(sketch::SketchContext& ctx) -> Element {
                        brush::presets::filament(mskia::withAlpha(kOrbit, 0.30f),
                                                 kOrbitCore, 0.26f))),
        // One arc label riding the orbit itself — shaped once, placed by arc
-       // length, per-glyph tangent rotation. (Element::textOnPath.)
+       // length, per-glyph tangent rotation. (Text::textOnPath.)
        full(t("KERBIN  ·  Ap 213,904 m  ·  Pe 88,012 m",
               body(9.5f, mskia::withAlpha(kOrbit, 0.9f), 1.6f))
                 .textOnPath(TextPath{.path = trajectory(cur, {0, 360, 360}),

@@ -5,7 +5,6 @@ name: scaleX
 qualified: sigil::compose::Element::scaleX
 header: sigilcompose/core/verbs/Transform.h
 group: Transform
-python: sigil.compose.Element.scaleX
 status: stable
 ---
 

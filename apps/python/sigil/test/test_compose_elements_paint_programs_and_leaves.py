@@ -202,7 +202,8 @@ class PaintProgramRenders(unittest.TestCase):
             "from sigil.sketch import sketch\n"
             f"results = builtins.{RESULTS}\n"
             f"@sketch(size={size!r}, background='#000000', capture_at=0)\n"
-            "class Scene:\n" + textwrap.indent(textwrap.dedent(body).strip("\n"), "    ")
+            "class Scene:\n"
+            + textwrap.indent(textwrap.dedent(body).strip("\n"), "    ")
             + "\n"
         )
         render_file(source, output, at=at)

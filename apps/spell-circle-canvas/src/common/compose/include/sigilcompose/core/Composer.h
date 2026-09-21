@@ -61,7 +61,7 @@ struct Beat;
  *  node — the runtime holds one proof that a node has settled, and folds
  *  this into it beside everything else the node reads. */
 struct TextSettling {
-  /// The leaf declared its input moving (`Element::textWillChange`). A settled
+  /// The leaf declared its input moving (`Text::textWillChange`). A settled
   /// passage reports nothing here and answers `reused == 0`: it decided
   /// its breaks once, and no later frame asks it again.
   bool live = false;
@@ -70,7 +70,7 @@ struct TextSettling {
   /// composing at all.
   int reused = 0;
   /// Blocks the floor forced to the greedy breaker — the count of break
-  /// candidates `Element::textWillChange` carries. A degrade drops the whole
+  /// candidates `Text::textWillChange` carries. A degrade drops the whole
   /// setting — the hyphens, the justification passes past the word gaps,
   /// the widow rule — for that frame alone, and the leaf lays out again so
   /// the setting comes back the frame the floor is met.
@@ -223,7 +223,7 @@ class Composer {
   /** WHAT A LIVE PASSAGE'S LAST LAYOUT COST — the report a host folds into
    *  its own proof that a node is holding still.
    *
-   *  A text told its input is moving (`Element::textWillChange`) keeps its
+   *  A text told its input is moving (`Text::textWillChange`) keeps its
    * break decisions and reuses them: `reused` is how many blocks this frame
    *  answered from decisions it already had, and `degraded` how many the
    *  budget forced to the greedy breaker. A frame that reused every block

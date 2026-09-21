@@ -5,7 +5,6 @@ name: block
 qualified: sigil::compose::Element::block
 header: sigilcompose/core/verbs/Cascade.h
 group: The cascade
-python: sigil.compose.Element.block
 status: stable
 ---
 

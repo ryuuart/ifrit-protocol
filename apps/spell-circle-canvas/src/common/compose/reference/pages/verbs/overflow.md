@@ -5,7 +5,6 @@ name: overflow
 qualified: sigil::compose::Element::overflow
 header: sigilcompose/core/verbs/Shape.h
 group: Shape, corners and clipping
-python: sigil.compose.Element.overflow
 status: stable
 ---
 

@@ -5,7 +5,6 @@ name: fill
 qualified: sigil::compose::Element::fill
 header: sigilcompose/core/verbs/Paint.h
 group: Paint
-python: sigil.compose.Element.fill
 status: stable
 example: fill_verb
 ---

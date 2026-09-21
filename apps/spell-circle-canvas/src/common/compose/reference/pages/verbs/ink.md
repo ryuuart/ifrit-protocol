@@ -5,7 +5,6 @@ name: ink
 qualified: sigil::compose::Element::ink
 header: sigilcompose/core/verbs/Cascade.h
 group: Paint
-python: sigil.compose.Element.ink
 status: stable
 example: ink_verb
 ---

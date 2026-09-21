@@ -164,8 +164,8 @@ TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
   Host host(220, 140);
   const auto tree = [](bool moving) {
     Text t = text(u8"II", whiteStyle(48))
-                    .key("k")
-                    .textFill(material::skia::Paint::solid({0, 1, 0, 1}));
+                 .key("k")
+                 .textFill(material::skia::Paint::solid({0, 1, 0, 1}));
     if (moving)
       t.fx({.effect = fx::effect("still", [](const GlyphInfo&, float,
                                              sigil::core::noise::Mix64Stream&) {

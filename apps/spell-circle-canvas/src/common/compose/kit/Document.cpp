@@ -67,16 +67,12 @@ Text h4(Utf8 words) { return heading(4, std::move(words)); }
 Text h5(Utf8 words) { return heading(5, std::move(words)); }
 Text h6(Utf8 words) { return heading(6, std::move(words)); }
 
-Text paragraph(Utf8 words) {
-  return text(std::move(words)).role("paragraph");
-}
+Text paragraph(Utf8 words) { return text(std::move(words)).role("paragraph"); }
 Text paragraph(const weave::RichText& words) {
   return text(words).role("paragraph");
 }
 Text lead(Utf8 words) { return line(std::move(words), "lead", 1.125f); }
-Text caption(Utf8 words) {
-  return line(std::move(words), "caption", 0.875f);
-}
+Text caption(Utf8 words) { return line(std::move(words), "caption", 0.875f); }
 Text label(Utf8 words) { return line(std::move(words), "label", 0.875f); }
 Text eyebrow(Utf8 words) {
   return text(std::move(words))
@@ -91,8 +87,7 @@ Text code(Utf8 words) {
 }
 
 Element quote(std::initializer_list<Children> children) {
-  return flow("quote", children)
-      .padding(0, var(quoteInset));
+  return flow("quote", children).padding(0, var(quoteInset));
 }
 Element quote(Utf8 words) { return quote({paragraph(std::move(words))}); }
 Element list(std::initializer_list<Children> children) {

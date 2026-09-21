@@ -232,9 +232,9 @@ struct Manuscript {
                                    .delimiter = u8".",
                                    .style = capitals};
     Text prose = document::paragraph(rest)
-                        .font(body(kBodySize, pal.ink))
-                        .contentFlowAround("versal", px(2.4f))
-                        .spanStyle(kit::nestedRun(opening), opening.style);
+                     .font(body(kBodySize, pal.ink))
+                     .contentFlowAround("versal", px(2.4f))
+                     .spanStyle(kit::nestedRun(opening), opening.style);
 
     // The versal is a PANEL: a square field of cobalt with the letter
     // reserved in gold in the middle of it and a gold fillet round it. Six

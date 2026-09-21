@@ -5,7 +5,6 @@ name: display
 qualified: sigil::compose::Element::display
 header: sigilcompose/core/verbs/Box.h
 group: Size and spacing
-python: sigil.compose.Element.display
 status: stable
 ---
 

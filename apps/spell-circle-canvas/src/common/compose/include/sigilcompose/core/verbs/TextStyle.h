@@ -21,8 +21,10 @@
 namespace sigil::compose {
 
 /** THE TEXT PROPERTIES. Each is a property of the SETTING rather than
- *  of the words, which is why a style sheet may state one and why a
- *  node that holds no text quietly has nothing to apply it to. */
+ *  of the words, which is why a style sheet may state one and a node
+ *  that holds no text simply never reads it. The text leaf is the one
+ *  node that declares them, so writing one anywhere else does not
+ *  compile. */
 template <class Derived>
 class TextStyleVerbs {
  public:

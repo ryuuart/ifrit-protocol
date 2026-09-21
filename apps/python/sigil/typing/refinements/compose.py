@@ -42,19 +42,21 @@ class _Returning:
         self._table.erased(prefix, names, *types)
 
     def declares(self, prefix: str, name: str, text: str) -> None:
-        self._table.declares(prefix, name, text.replace("-> Element:", f"-> {self._node}:"))
+        self._table.declares(
+            prefix, name, text.replace("-> Element:", f"-> {self._node}:")
+        )
 
 
-def registerNode(shared: Table, ELEMENT: str) -> None:
+def registerNode(shared: Table, node: str) -> None:
     """The verbs every node states, over the node that states them."""
-    table = _Returning(shared, ELEMENT)
+    table = _Returning(shared, node)
     table.declares(
-        ELEMENT,
+        node,
         "varDefaults",
         "def varDefaults(self, defaults: dict[str, _t.DimensionLike | _t.ColorLike]) -> Element: ...",
     )
     table.declares(
-        ELEMENT,
+        node,
         "children",
         """@typing.overload
 def children(self, children: collections.abc.Iterable[Element], /) -> Element: ...

@@ -5,7 +5,6 @@ name: children
 qualified: sigil::compose::Element::children
 header: sigilcompose/core/verbs/Structure.h
 group: Children
-python: sigil.compose.Element.children
 status: stable
 ---
 

@@ -5,7 +5,6 @@ name: stroke
 qualified: sigil::compose::Element::stroke
 header: sigilcompose/core/verbs/Decoration.h
 group: Paint
-python: sigil.compose.Element.stroke
 status: stable
 example: stroke_verb
 ---

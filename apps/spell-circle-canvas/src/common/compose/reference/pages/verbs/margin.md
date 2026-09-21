@@ -5,7 +5,6 @@ name: margin
 qualified: sigil::compose::Element::margin
 header: sigilcompose/core/verbs/Box.h
 group: Size and spacing
-python: sigil.compose.Element.margin
 status: stable
 ---
 

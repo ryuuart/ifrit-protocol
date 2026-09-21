@@ -5,7 +5,6 @@ name: transformOrigin
 qualified: sigil::compose::Element::transformOrigin
 header: sigilcompose/core/verbs/Transform.h
 group: Transform
-python: sigil.compose.Element.transformOrigin
 status: stable
 ---
 

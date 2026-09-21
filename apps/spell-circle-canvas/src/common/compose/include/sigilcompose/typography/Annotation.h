@@ -4,7 +4,7 @@
  * @ingroup compose-typography
  *
  * SigilCompose typography — a READING set beside the type it reads:
- * `Annotation`, the value `Element::textAnnotation` takes, of which furigana,
+ * `Annotation`, the value `Text::textAnnotation` takes, of which furigana,
  * kenten and a gloss under a phrase are three spellings.
  */
 

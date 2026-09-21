@@ -5,7 +5,6 @@ name: at
 qualified: sigil::compose::Element::at
 header: sigilcompose/core/verbs/Placement.h
 group: Flow and placement
-python: sigil.compose.Element.at
 status: stable
 ---
 

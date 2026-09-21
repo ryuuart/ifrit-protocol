@@ -5,7 +5,6 @@ name: rect
 qualified: sigil::compose::Element::rect
 header: sigilcompose/core/verbs/Placement.h
 group: Flow and placement
-python: sigil.compose.Element.rect
 status: stable
 ---
 

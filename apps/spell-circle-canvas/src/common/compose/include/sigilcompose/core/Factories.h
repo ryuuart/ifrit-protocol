@@ -178,7 +178,7 @@ Text text(sigil::weave::RichText spans);
  *
  *  Every frame of a chain declares the same story, and the chain decides
  *  which part of it each one holds. See `weave::Story` and
- *  `Element::textThreadTo`.
+ *  `Text::textThreadTo`.
  */
 Text frame(sigil::weave::Story story);
 

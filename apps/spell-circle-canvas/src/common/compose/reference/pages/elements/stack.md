@@ -5,7 +5,6 @@ name: stack
 qualified: sigil::compose::stack
 header: sigilcompose/core/Factories.h
 group: Containers
-python: sigil.compose.stack
 status: stable
 example: stack_element
 common_verbs: [cover, left, top, right, bottom, zIndex, overflow, borderRadius, fill]

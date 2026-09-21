@@ -5,7 +5,6 @@ name: background
 qualified: sigil::compose::Element::background
 header: sigilcompose/core/verbs/Decoration.h
 group: Paint
-python: sigil.compose.Element.background
 status: stable
 example: background_verb
 ---

@@ -5,7 +5,6 @@ name: font
 qualified: sigil::compose::Element::font
 header: sigilcompose/core/verbs/Cascade.h
 group: The cascade
-python: sigil.compose.Element.font
 status: stable
 ---
 

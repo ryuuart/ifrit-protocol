@@ -5,7 +5,6 @@ name: spanStyle
 qualified: sigil::compose::Text::spanStyle
 header: sigilcompose/core/Text.h
 group: Content
-python: sigil.compose.Element.spanStyle
 status: stable
 ---
 

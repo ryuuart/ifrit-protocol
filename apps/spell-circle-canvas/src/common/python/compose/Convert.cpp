@@ -158,12 +158,10 @@ bool isNode(py::handle value) {
 }
 
 compose::Element node(py::handle value) {
-  if (py::isinstance<compose::Text>(value))
-    return value.cast<compose::Text>();
+  if (py::isinstance<compose::Text>(value)) return value.cast<compose::Text>();
   if (py::isinstance<compose::Image>(value))
     return value.cast<compose::Image>();
-  if (py::isinstance<compose::Band>(value))
-    return value.cast<compose::Band>();
+  if (py::isinstance<compose::Band>(value)) return value.cast<compose::Band>();
   return value.cast<compose::Element>();
 }
 

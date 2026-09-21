@@ -10,9 +10,10 @@ box().row().gap(12).padding(18).borderRadius({10}).fill(Fill::color(ink))
 ```
 
 One verb ends the chain rather than continuing it: `atRest` hands back a
-SECOND leaf by value, because a rest pose is something to place beside
-the moving copy rather than a state of it. Its row below says so, and it
-is the only row that does.
+SECOND leaf by value, of the same kind as the one it was written on,
+because a rest pose is something to place beside the moving copy rather
+than a state of it. Its row below says so, and it is the only row that
+does.
 
 Most verbs are on every node. The ones grouped under a leaf — the text
 properties and the text content, `imageRegion`, `bandAlignment` — are on
@@ -213,8 +214,9 @@ and it reaches every text leaf and every unnamed mark under the node.
 
 ## The text leaf
 
-Verbs a text, frame or rich-text leaf reads; on any other node they warn
-once and do nothing.
+Verbs the text leaf declares, whichever content form it was made from;
+no other node has such a member, so writing one on a box does not
+compile.
 
 | Verb | What it says |
 |---|---|
@@ -236,7 +238,7 @@ once and do nothing.
 | [`variationDrive`](pages/verbs/variationDrive.md) | Drive a variable-font axis from a bound output at draw time, with no reshape. |
 | [`textAttach`](pages/verbs/textAttach.md) | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |
 | `textOnPath` | Lay the run out along a path instead of a line. |
-| [`atRest`](pages/verbs/atRest.md) | This leaf as it stands at rest, RETURNED BY VALUE as a second element that can stand beside it — the one verb that does not chain. |
+| [`atRest`](pages/verbs/atRest.md) | This leaf as it stands at rest, RETURNED BY VALUE as a second leaf that can stand beside it — the one verb that does not chain. |
 
 ## Content
 

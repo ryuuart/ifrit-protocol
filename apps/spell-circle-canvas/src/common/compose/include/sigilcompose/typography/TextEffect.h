@@ -213,7 +213,7 @@ class TextEffect {
   /** A VARIABLE-FONT AXIS held at one coordinate for every glyph the track
    *  addresses — a grade, an optical size, a slant applied at draw time
    *  with no reshape. The effect the kernel builds for itself: an
-   *  `Element::spanStyle` that changes only such axes is carried as a
+   *  `Text::spanStyle` that changes only such axes is carried as a
    *  track holding it.
    *
    *  Only an ADVANCE-INVARIANT axis is honoured: the glyphs keep the pen

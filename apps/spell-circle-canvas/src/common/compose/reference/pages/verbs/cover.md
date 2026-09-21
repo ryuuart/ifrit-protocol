@@ -5,7 +5,6 @@ name: cover
 qualified: sigil::compose::Element::cover
 header: sigilcompose/core/verbs/Placement.h
 group: Flow and placement
-python: sigil.compose.Element.cover
 status: stable
 ---
 
