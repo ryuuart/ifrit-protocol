@@ -75,6 +75,7 @@ sigil_library_root(SigilCompose
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/COLOURING.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/CASCADE.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/SELECTORS.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEPTH.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/HEADERS.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/CACHING.md
@@ -131,6 +132,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/COLOURING.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/CASCADE.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/SELECTORS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEPTH.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/HEADERS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/CACHING.md

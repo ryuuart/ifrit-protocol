@@ -171,3 +171,6 @@ and its text in the node's font — `PaintContext::ink` and
 and a guest tree it paints through `paintRetained` inherits from the tree
 the pen stands in. `PaintContext::vars` is the same node's properties,
 for a decoration that resolves a fill by hand through `resolveRef`.
+
+Which elements a rule speaks about, rather than what one states, is
+CSS's selector grammar as a value: [selectors](SELECTORS.md).
