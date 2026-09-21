@@ -9,7 +9,7 @@ values — *which* glyphs (`weave::Selector`), *what* deviation from rest
 (`Track::unit`), and the master `Animatable<float>` progress that drives
 it. The spread is SigilMotion's and says nothing about text; `unit` is the
 whole of what makes it a cascade over glyphs rather than over a set's
-children or a feed's rows. `Element::fx` appends one;
+children or a feed's rows. `Text::fx` appends one;
 several compose per glyph, with `GlyphModifier` offsets and rotations adding
 and scale and alpha multiplying. The seam is three headers:
 
@@ -230,7 +230,7 @@ a wave at one phase is, so permanent volatility is declared by the wrapping
 binding, never by the field, and `loopMs = 0` — the default — is the
 one-shot cascade.
 
-**Marking the type.** `Element::textAttach` anchors a child to the rect a
+**Marking the type.** `Text::textAttach` anchors a child to the rect a
 *selector
 resolves — a caret, a callout, a tick, a rule standing at a word's edge:
 
@@ -258,7 +258,7 @@ A mark needs no
 `reach`, being a child: the recording cull already grows by the union of a
 node's children.
 
-**The rest pose is a description.** `Element::atRest` is this leaf as a
+**The rest pose is a description.** `Text::atRest` is this leaf as a
 second element that can stand beside it: the same content, style,
 measure and layout, carrying nothing that deviates or restyles a glyph
 at paint time — no tracks, no span restyles, none of the leaf's marks or
@@ -491,7 +491,7 @@ and `fx::scramble` is the decoding-text preset built on the substitution:
 each glyph churns through a charset and resolves to the true letter by
 `t = 1`, seeded per glyph so it is the same churn on every frame.
 
-`Element::variationDrive` is sugar over a whole-text `axis` track, so a
+`Text::variationDrive` is sugar over a whole-text `axis` track, so a
 driven axis composes with entrances and loops instead of being a second
 text path they would hide.
 
@@ -524,7 +524,7 @@ table's growths and leans are read against too. Drawn smaller than that,
 a preset reserves more than it needs, which costs nothing; drawn larger,
 it wants a `Track::reach` of its own.
 
-`Element::textFill` and `Element::textStroke` combine with tracks and with a
+`Text::textFill` and `Text::textStroke` combine with tracks and with a
 path baseline alike: a letter in flight, and a letter on a curve, are painted
 with the same glyph paint a resting one is. A layer style's echo, stated
 through `Element::layerStyle`, skips fx text by contract.

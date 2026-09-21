@@ -2,7 +2,7 @@
 kind: verb
 library: SigilCompose
 name: textStroke
-qualified: sigil::compose::Element::textStroke
+qualified: sigil::compose::Text::textStroke
 header: sigilcompose/core/verbs/TextStyle.h
 group: Paint
 python: sigil.compose.Element.textStroke

@@ -85,7 +85,7 @@ and reads as changed content every time — which is why it stays the escape
 hatch for the passage too custom for either verb, not the way to set two
 colours in a sentence.
 
-**Selector styling.** `Element::spanPaint` and `Element::spanStyle`
+**Selector styling.** `Text::spanPaint` and `Text::spanStyle`
 restyle whatever the SAME `selectors::` selectors the tracks use address, on
 every content form alike — plain text, `weave::rich()` spans and the paragraph
 overload. They are ordered by **what they are allowed to disturb**:
@@ -152,8 +152,8 @@ tab stops, the three tables a house's own setting is stated in
 (`Block::kinsoku`, `Block::hanging`, `Block::mojikumi` with `Block::tsume`),
 and the tailoring the segmentation runs under (`Block::lineBreakLocale`), which
 belongs to the Paragraph and lands there the way `Block::writingMode` does.
-`Element::textOverflow`, `Element::maxTextLines`, `Element::textLineMargin` and
-`Element::textWillChange` are the leaf's own, set on any content form. The rest
+`Text::textOverflow`, `Text::maxTextLines`, `Text::textLineMargin` and
+`Text::textWillChange` are the leaf's own, set on any content form. The rest
 of that struct — Knuth-Plass tolerance, line-metric overrides — stays behind
 the paragraph overload, which takes the whole options value. **On that overload
 the setters override FIELD BY FIELD**, and only the fields actually set:

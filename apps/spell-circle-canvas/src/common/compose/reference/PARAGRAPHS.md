@@ -6,7 +6,7 @@ A chapter of [TYPOGRAPHY.md](../TYPOGRAPHY.md), the type chapter of
 ## A passage whose input moves
 
 **Settled text is the special case, not the moving kind.**
-*`Element::textWillChange`
+*`Text::textWillChange`
 is a leaf saying that an input of its layout moves — a measure that
 animates, a frame that grows, content that changes between frames — and
 it buys two things: the break decisions of a block set in a uniform
@@ -48,7 +48,7 @@ frame before it, and caches.
 ## Paragraphs, frames and stories
 
 A hard break inside a passage separates **blocks** — the paragraphs a reader
-sees — and `Element::paragraphStyles` says how each one is set, one entry per
+sees — and `Text::paragraphStyles` says how each one is set, one entry per
 block in block order:
 
 ```cpp
@@ -66,8 +66,8 @@ README is the canon for what each one means. A block past the end of the list
 is set in THE BLOCK IN FORCE where the leaf stands — the `weave::Block`
 partials its ancestors declared through `Element::block`, folded down the tree
 — so ONE entry styles the first block and leaves the rest to the passage.
-`Element::paragraphStyles` with whole styles sets every block alike and
-inherits nothing, and `Element::paragraphStyles` also takes NAMES, resolved
+`Text::paragraphStyles` with whole styles sets every block alike and
+inherits nothing, and `Text::paragraphStyles` also takes NAMES, resolved
 through the block half of the `sigil::weave::StyleSheet` in force where the
 leaf lands into partials that are laid over the block in force when the leaf
 lays out — the same discipline `weave::rich().add(text, name)` follows for
@@ -75,14 +75,14 @@ character styles. A name no sheet in force carries WARNS ONCE and changes
 nothing about its block, because a block quietly set in a default nobody asked
 for looks exactly like a style that did not take.
 
-`Element::textFirstBaseline` and `Element::textVerticalAlign` are the two
+`Text::textFirstBaseline` and `Text::textVerticalAlign` are the two
 decisions a FRAME makes that no line makes for itself: where baseline 0 sits
 below the top of the box, and what becomes of the room left over down it.
 
 **A story fills as many frames as it is given.** `weave::Story` is content plus
 its block styles and nothing else — no layout, no cursor, no frame — and
 `frame(story)` is one text leaf over it, which `Element::key` names and
-`Element::textThreadTo` links to the next:
+`Text::textThreadTo` links to the next:
 
 ```cpp
 weave::Story article(weave::rich(body).add(u8"…"));
@@ -143,7 +143,7 @@ measure the frame AFTER it resolved to, which is the one fact the widow
 rule needs and no single fill can see: the lines a widow rule counts are
 the remainder, and the remainder is set in the next frame.
 
-**A RUN OF THE CHAIN CAN BE BALANCED**, which is `Element::textThreadBalance`
+**A RUN OF THE CHAIN CAN BE BALANCED**, which is `Text::textThreadBalance`
 on the frame that opens it: that frame and every one after it up to the
 next frame that opens a run — or the chain's end — are filled to the
 SHALLOWEST depth that still holds what the run was asked to hold, and all

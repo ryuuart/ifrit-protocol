@@ -62,7 +62,7 @@ the block's last line and breaking strategy, `textStroke`, `variationDrive` and
 `feed()`'s text tier all work as they do across a line. `textAttach()` anchors
 as it does anywhere — its rect is the union of the advance boxes its selector
 addressed, and in a column those stack downward, so a phrase's mark is a tall
-box standing in that phrase's column. `Element::textFill` maps its unit square
+box standing in that phrase's column. `Text::textFill` maps its unit square
 onto the COLUMN BLOCK rather than onto a cap band — a column's glyphs centre
 across its axis instead of standing on a baseline, so there is no cap band to
 hang a ramp on — which means a gradient authored in [0,1]² crosses the type
@@ -114,7 +114,7 @@ band, which dresses a whole run rather than one letter. Type on a path
 carries no band either way: a turned run's band would have to follow the
 curve it rides.
 
-**Ruby and kenten are `Element::textAnnotation`**, in a column exactly as along
+**Ruby and kenten are `Text::textAnnotation`**, in a column exactly as along
 a line: the band a reading needs goes into the base's strut before the
 base is broken, and the reading is then placed on the result, on the side
 the writing mode reads its furniture on — above a line, to the RIGHT of a

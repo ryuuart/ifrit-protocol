@@ -2,7 +2,7 @@
 kind: verb
 library: SigilCompose
 name: textAttach
-qualified: sigil::compose::Element::textAttach
+qualified: sigil::compose::Text::textAttach
 header: sigilcompose/core/Text.h
 group: Content
 status: stable

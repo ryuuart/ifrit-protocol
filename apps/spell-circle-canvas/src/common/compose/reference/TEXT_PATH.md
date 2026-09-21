@@ -3,7 +3,7 @@
 A chapter of [TYPOGRAPHY.md](../TYPOGRAPHY.md), the type chapter of
 [SigilCompose](../README.md).
 
-`Element::textOnPath` makes a `TextPath` the run's BASELINE. The run is shaped
+`Text::textOnPath` makes a `TextPath` the run's BASELINE. The run is shaped
 once — real kerning, real ligatures, real advances — and then laid out
 through SigilWeave's own contour geometry: every contour of the resolved
 `TextPath::path` is one interval of the run's one line, and the words fill
@@ -47,7 +47,7 @@ alpha, the colour multiplier and both substitutions are per-glyph dressings
 and are untouched by the frame — so `variationDrive` and `fx::scramble` reach
 curved lettering exactly as they reach straight lettering.
 
-`Element::textFill` and `Element::textStroke` reach a path run like any
+`Text::textFill` and `Text::textStroke` reach a path run like any
 other, with one caveat: a metric-mapped material maps its unit square to the
 run's STRAIGHT metric band, which is not where the type ended up. A flat
 colour and a stroke are exact; a gradient across a ring is not what it

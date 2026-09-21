@@ -2,7 +2,7 @@
 kind: verb
 library: SigilCompose
 name: contentFlowAround
-qualified: sigil::compose::Element::contentFlowAround
+qualified: sigil::compose::Text::contentFlowAround
 header: sigilcompose/core/verbs/TextStyle.h
 group: The text leaf
 python: sigil.compose.Element.contentFlowAround

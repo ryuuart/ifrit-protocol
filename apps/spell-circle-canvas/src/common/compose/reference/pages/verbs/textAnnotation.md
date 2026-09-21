@@ -2,7 +2,7 @@
 kind: verb
 library: SigilCompose
 name: textAnnotation
-qualified: sigil::compose::Element::textAnnotation
+qualified: sigil::compose::Text::textAnnotation
 header: sigilcompose/core/Text.h
 group: Content
 python: sigil.compose.Element.textAnnotation

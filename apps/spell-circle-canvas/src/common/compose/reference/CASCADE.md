@@ -82,7 +82,7 @@ margin is a box's own. Image sampling inherits the same way, as CSS's
 `image-rendering` does: `Element::imageRendering` on any node reaches every
 image leaf under it.
 
-**A range and a reading take the same partial.** `Element::spanStyle`
+**A range and a reading take the same partial.** `Text::spanStyle`
 with a `weave::Type` lays the fields it names over the style the range is
 set in — the inherited font for an inheriting leaf, the leaf's own style
 otherwise — and a partial naming no shaping field repaints without
@@ -126,7 +126,7 @@ unless the value names a `weave::TypeSheet` of its own.
 is an inheriting passage: a run added with a partial keeps the inherited
 face and size in every field it does not name, and only a run added with
 a whole style keeps the style it was written with. Blocks have the same
-discipline through the block half of the sheet and `Element::paragraphStyles`.
+discipline through the block half of the sheet and `Text::paragraphStyles`.
 
 **A custom property is set on a node and read by anything under it.**
 `Element::var` sets one; `var(name)` reads it as a `Dimension`,

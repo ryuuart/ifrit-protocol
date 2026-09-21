@@ -2,7 +2,7 @@
 kind: verb
 library: SigilCompose
 name: atRest
-qualified: sigil::compose::Element::atRest
+qualified: sigil::compose::Text::atRest
 header: sigilcompose/core/Text.h
 group: Content
 python: sigil.compose.Element.atRest

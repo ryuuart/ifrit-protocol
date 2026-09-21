@@ -2,7 +2,7 @@
 kind: verb
 library: SigilCompose
 name: paragraphStyles
-qualified: sigil::compose::Element::paragraphStyles
+qualified: sigil::compose::Text::paragraphStyles
 header: sigilcompose/core/verbs/TextStyle.h
 group: The text leaf
 python: sigil.compose.Element.paragraphStyles

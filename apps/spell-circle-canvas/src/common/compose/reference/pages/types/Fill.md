@@ -79,7 +79,7 @@ parameter that takes a fill takes every row of it.
 | Where | Kind | Library |
 | --- | --- | --- |
 | `Element::fill` | verb | SigilCompose |
-| `Element::textStroke` | verb | SigilCompose |
+| `Text::textStroke` | verb | SigilCompose |
 | `SurfacePaint` | type | SigilCompose — the implicit constructor, which is how a fill reaches every slot that takes a surface paint |
 | `PathFormat::strokeFill` | field | SigilCompose — through `SurfacePaint` |
 | `Line::fill`, `Line::Companion::fill` | field | SigilCompose |

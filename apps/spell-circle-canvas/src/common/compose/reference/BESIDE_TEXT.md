@@ -27,7 +27,7 @@ the break.
 Two things are built on it, and which one a case wants is decided by one
 question — does the annotation need ROOM?
 
-- **`Element::textAnnotation`** is part of the text. Its band is put into the
+- **`Text::textAnnotation`** is part of the text. Its band is put into the
   base's strut BEFORE the base is broken, so the pitch opens once and the
   reading is placed on the result; nothing chases anything. Ruby and
   kenten are `Annotation` values, and mono, group and jukugo ruby are the
@@ -71,7 +71,7 @@ difference between the two values.
 `kit::rules` cuts a rule or a shade to the extent a block's lines actually
 occupy and `kit::bullets` hangs markers in a hanging indent.
 
-A BLOCK'S OPENING LETTER is not kit at all: `Element::initialLetter` states
+A BLOCK'S OPENING LETTER is not kit at all: `Text::initialLetter` states
 how many lines of cap the initial spans and the layout derives the size
 from the block's own pitch and the face's own cap height, then seats the
 letter's baseline on the line it sinks to and cuts the notch the following
@@ -93,7 +93,7 @@ statement of where it stops: `kit::NestedStyle::Until::Words` counts the
 paragraph's own words, `Until::Characters` counts a character range, and
 `Until::Delimiter` runs through the first occurrence of a mark, inclusive.
 `kit::nestedRun` answers the `weave::Selector` that means and
-`Element::spanStyle` does the work, so an initial and the small caps that
+`Text::spanStyle` does the work, so an initial and the small caps that
 carry a paragraph out of it are two properties of one leaf.
 
 ```cpp

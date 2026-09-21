@@ -146,7 +146,7 @@ sound model; nothing below them changes kernel semantics.
   re-based into its own bounds), `custom`, `slot`, `layout`, `memo`.
   `text` takes `Utf8`, so `text("…")`, `text(u8"…")`, `text(std::string)`
   and `text(std::u8string)` are one factory and nothing widens a string to
-  reach it; `Element::textOverflow` takes the same value. `each(range, make)`
+  reach it; `Text::textOverflow` takes the same value. `each(range, make)`
   is the children a range describes, `each(count, make)` the children a
   COUNT describes — one per index, for the run whose items are their own
   place in it — and `each(range, make, between)`
@@ -781,7 +781,7 @@ a character the key does not carry rather than leave an unfindable hole),
 per draw, and `kit::SpriteSheet` holds sprites under names and packs them
 onto one image, each handed the rectangle it occupies — `kit::Scrim` and the
 halo/shade legibility helpers, the stock text effects over the
-`Element::fx` seam in `kit/Kinetic.h` — `fx::enter`, the one entrance
+`Text::fx` seam in `kit/Kinetic.h` — `fx::enter`, the one entrance
 every unit-offset reveal is a setting of, with `fx::rise`, `fx::slide`,
 `fx::pop`, `fx::spinIn` and `fx::scatter` over it, and `fx::typeOn`,
 `fx::waveLoop`, `fx::variableAxisSweep` and `fx::tint` beside them, each

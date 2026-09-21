@@ -24,9 +24,9 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| [`Fill`](pages/types/Fill.md) | Nothing, a colour, a shader, or a reference the tree resolves at paint. | `Fill::color`, `Fill::shader`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `linearGradient`, `radialGradient`, `toFill` | `Element::fill`, `Element::textStroke`, every decoration's own paint |
+| [`Fill`](pages/types/Fill.md) | Nothing, a colour, a shader, or a reference the tree resolves at paint. | `Fill::color`, `Fill::shader`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `linearGradient`, `radialGradient`, `toFill` | `Element::fill`, `Text::textStroke`, every decoration's own paint |
 | [`SurfacePaint`](pages/types/SurfacePaint.md) | A component's surface: a fill, a live fill binding, or a material. | Implicitly from a `Fill`, an animatable fill, a bound output, a transition, a paint or a recipe | `Element::fill`, `PathFormat::strokeFill`, the kit's wells and sheets |
-| `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | `Paint::solid`, `Paint::linear`, `Paint::radial`, `Paint::sweep`, `Paint::linearUnit`, `Paint::image`, `Paint::recipe`, `Paint::blend` | `Element::fill`, `Element::textFill` |
+| `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | `Paint::solid`, `Paint::linear`, `Paint::radial`, `Paint::sweep`, `Paint::linearUnit`, `Paint::image`, `Paint::recipe`, `Paint::blend` | `Element::fill`, `Text::textFill` |
 | `material::Material` | A recipe — a pattern described rather than a shader built. | SigilMaterial's own catalogue | `SurfacePaint`, and `Paint::recipe` |
 | `material::Color` | The one colour class: a colour in a stated space, convertible to Skia's. | SigilMaterial's colour vocabulary | Anywhere a colour is taken, through `material::skia::toSkColor` |
 | `hexColor` | Not a type: the one colour SPELLING here, `0xRRGGBB` and an alpha as a Skia colour. | — | — |
@@ -76,9 +76,9 @@ Python the reference is `compose.var` and the table is the dictionary
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| `Utf8` | Text, spelled either way: a `char` or `char8_t` string, a `std::string`, or a value that reads itself out as text. | Implicitly at the call site | `text`, `Element::textOverflow`, every kit property that takes words |
-| `weave::TextStyle` | A TOTAL style: a leaf set in one inherits nothing. | `weave::textStyle` over a partial, or the struct outright | `text(utf8, style)`, `Element::spanStyle` |
-| `weave::Type` | A PARTIAL: the fields it names override, the rest inherit. | The struct, field by field | `Element::font`, `Element::spanStyle`, `weave::RichText::add` |
+| `Utf8` | Text, spelled either way: a `char` or `char8_t` string, a `std::string`, or a value that reads itself out as text. | Implicitly at the call site | `text`, `Text::textOverflow`, every kit property that takes words |
+| `weave::TextStyle` | A TOTAL style: a leaf set in one inherits nothing. | `weave::textStyle` over a partial, or the struct outright | `text(utf8, style)`, `Text::spanStyle` |
+| `weave::Type` | A PARTIAL: the fields it names override, the rest inherit. | The struct, field by field | `Element::font`, `Text::spanStyle`, `weave::RichText::add` |
 | `weave::RichText` | Mixed-style text as a comparable value, so a re-described identical value prunes. | `weave::rich`, then `add` per run | `text(spans)` |
 
 ## What Python spells differently

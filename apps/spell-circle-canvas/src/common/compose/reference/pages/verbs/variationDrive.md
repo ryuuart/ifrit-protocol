@@ -2,7 +2,7 @@
 kind: verb
 library: SigilCompose
 name: variationDrive
-qualified: sigil::compose::Element::variationDrive
+qualified: sigil::compose::Text::variationDrive
 header: sigilcompose/core/Text.h
 group: Content
 status: stable

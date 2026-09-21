@@ -2,7 +2,7 @@
 kind: verb
 library: SigilCompose
 name: spanPaint
-qualified: sigil::compose::Element::spanPaint
+qualified: sigil::compose::Text::spanPaint
 header: sigilcompose/core/Text.h
 group: Content
 python: sigil.compose.Element.spanPaint

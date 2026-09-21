@@ -314,7 +314,7 @@ then up to three convergence rounds of custom `layout()` schemes,
 `centerAt` pins, and the derive phase, each of which may re-run Yoga.
 Recordings whose baked geometry moved are invalidated. Derive resolves text
 exclusions and connector/rail routing over flat edge lists, cycle-guarded.
-`Element::contentFlowAround` subtracts WHAT THE TARGET SAYS ITS EDGE IS,
+`Text::contentFlowAround` subtracts WHAT THE TARGET SAYS ITS EDGE IS,
 which is the one property the target already carries for its own decorations:
 `Element::decorationOutline`. Its glyph outlines under `Boundary::Glyphs`, so text
 flows around a word; the silhouette of what it DREW under
@@ -382,7 +382,7 @@ The shape of it in one paragraph: a text leaf holds an ordered list of
 glyphs, what deviation from rest, how their start times spread, what
 drives it — and the same `selectors::` vocabulary addresses glyphs for a track,
 characters for a `spanStyle`, and units for anything standing beside the
-passage. What a passage is SET like is `Element::paragraphStyles` and the
+passage. What a passage is SET like is `Text::paragraphStyles` and the
 layout setters beside it, which map onto
 `sigil::weave::ParagraphLayoutOptions` field by field.
 

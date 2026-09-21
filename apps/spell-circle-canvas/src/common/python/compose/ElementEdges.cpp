@@ -13,32 +13,34 @@ namespace py = pybind11;
 namespace {
 
 constexpr auto fluent = py::return_value_policy::reference_internal;
+using compose::Band;
 using compose::Element;
-using DimensionVerb = Element& (Element::*)(compose::Dimension);
+using compose::Image;
+using compose::Text;
 
-}  // namespace
-
-void bindComposeElementEdges(py::module_& module) {
-  auto element = extend<Element>(module, "compose.Element");
-
+/** The box model's shorthands, on whichever kind of node states them. */
+template <class Class>
+void bindEdges(Class& element) {
+  using Node = typename Class::type;
+  using DimensionVerb = Node& (Node::*)(compose::Dimension);
   // The per-side verbs write ONE side and leave the other three as they
   // stand, which is what CSS spells padding-left and margin-top.
   const auto side = [&element](const char* name, DimensionVerb setter) {
     element.def(
         name,
-        [setter](Element& self, py::object value) -> Element& {
+        [setter](Node& self, py::object value) -> Node& {
           return (self.*setter)(dimension(value));
         },
         py::arg("value"), fluent);
   };
-  side("paddingTop", &Element::paddingTop);
-  side("paddingRight", &Element::paddingRight);
-  side("paddingBottom", &Element::paddingBottom);
-  side("paddingLeft", &Element::paddingLeft);
-  side("marginTop", &Element::marginTop);
-  side("marginRight", &Element::marginRight);
-  side("marginBottom", &Element::marginBottom);
-  side("marginLeft", &Element::marginLeft);
+  side("paddingTop", &Node::paddingTop);
+  side("paddingRight", &Node::paddingRight);
+  side("paddingBottom", &Node::paddingBottom);
+  side("paddingLeft", &Node::paddingLeft);
+  side("marginTop", &Node::marginTop);
+  side("marginRight", &Node::marginRight);
+  side("marginBottom", &Node::marginBottom);
+  side("marginLeft", &Node::marginLeft);
 
   // One, two, three and four lengths are four arities, so each is its own
   // overload with its own named inputs, and each runs in CSS's order: a
@@ -46,21 +48,21 @@ void bindComposeElementEdges(py::module_& module) {
   // form when none matches.
   for (const char* name : {"padding", "margin"}) {
     const bool padding = std::string_view{name} == "padding";
-    const auto write = [padding](Element& self,
-                                 const compose::Edges& edges) -> Element& {
+    const auto write = [padding](Node& self,
+                                 const compose::Edges& edges) -> Node& {
       return padding ? self.padding(edges) : self.margin(edges);
     };
     element.def(
         name,
-        [padding](Element& self, py::object all) -> Element& {
+        [padding](Node& self, py::object all) -> Node& {
           return padding ? self.padding(dimension(all))
                          : self.margin(dimension(all));
         },
         py::arg("all"), fluent);
     element.def(
         name,
-        [write](Element& self, py::object vertical,
-                py::object horizontal) -> Element& {
+        [write](Node& self, py::object vertical,
+                py::object horizontal) -> Node& {
           const compose::Dimension down = dimension(vertical);
           const compose::Dimension across = dimension(horizontal);
           return write(self, {down, across, down, across});
@@ -68,8 +70,8 @@ void bindComposeElementEdges(py::module_& module) {
         py::arg("vertical"), py::arg("horizontal"), fluent);
     element.def(
         name,
-        [write](Element& self, py::object top, py::object horizontal,
-                py::object bottom) -> Element& {
+        [write](Node& self, py::object top, py::object horizontal,
+                py::object bottom) -> Node& {
           const compose::Dimension across = dimension(horizontal);
           return write(self,
                        {dimension(top), across, dimension(bottom), across});
@@ -77,8 +79,8 @@ void bindComposeElementEdges(py::module_& module) {
         py::arg("top"), py::arg("horizontal"), py::arg("bottom"), fluent);
     element.def(
         name,
-        [write](Element& self, py::object top, py::object right,
-                py::object bottom, py::object left) -> Element& {
+        [write](Node& self, py::object top, py::object right,
+                py::object bottom, py::object left) -> Node& {
           return write(self, {dimension(top), dimension(right),
                               dimension(bottom), dimension(left)});
         },
@@ -89,8 +91,8 @@ void bindComposeElementEdges(py::module_& module) {
     // matches the overload above it, which writes the same four sides.
     element.def(
         name,
-        [padding](Element& self, py::object top, py::object right,
-                  py::object bottom, py::object left) -> Element& {
+        [padding](Node& self, py::object top, py::object right,
+                  py::object bottom, py::object left) -> Node& {
           const auto named = [](py::object value) {
             return value.is_none() ? compose::Dimension(0.0f)
                                    : dimension(value);
@@ -106,29 +108,29 @@ void bindComposeElementEdges(py::module_& module) {
 
   element.def(
       "inset",
-      [](Element& self, py::object all) -> Element& {
+      [](Node& self, py::object all) -> Node& {
         return self.inset(dimension(all));
       },
       py::arg("all"), fluent);
   element.def(
       "inset",
-      [](Element& self, py::object vertical,
-         py::object horizontal) -> Element& {
+      [](Node& self, py::object vertical,
+         py::object horizontal) -> Node& {
         return self.inset(dimension(vertical), dimension(horizontal));
       },
       py::arg("vertical"), py::arg("horizontal"), fluent);
   element.def(
       "inset",
-      [](Element& self, py::object top, py::object horizontal,
-         py::object bottom) -> Element& {
+      [](Node& self, py::object top, py::object horizontal,
+         py::object bottom) -> Node& {
         return self.inset(dimension(top), dimension(horizontal),
                           dimension(bottom));
       },
       py::arg("top"), py::arg("horizontal"), py::arg("bottom"), fluent);
   element.def(
       "inset",
-      [](Element& self, py::object top, py::object right, py::object bottom,
-         py::object left) -> Element& {
+      [](Node& self, py::object top, py::object right, py::object bottom,
+         py::object left) -> Node& {
         return self.inset(dimension(top), dimension(right), dimension(bottom),
                           dimension(left));
       },
@@ -138,8 +140,8 @@ void bindComposeElementEdges(py::module_& module) {
   // stays unpinned, so the node's own size or the opposite inset sizes it.
   element.def(
       "inset",
-      [](Element& self, py::object top, py::object right, py::object bottom,
-         py::object left) -> Element& {
+      [](Node& self, py::object top, py::object right, py::object bottom,
+         py::object left) -> Node& {
         const auto named = [](py::object value) {
           return value.is_none() ? compose::autoDimension() : dimension(value);
         };
@@ -148,6 +150,19 @@ void bindComposeElementEdges(py::module_& module) {
       },
       py::kw_only(), py::arg("top") = py::none(), py::arg("right") = py::none(),
       py::arg("bottom") = py::none(), py::arg("left") = py::none(), fluent);
+}
+
+}  // namespace
+
+void bindComposeElementEdges(py::module_& module) {
+  auto element = extend<Element>(module, "compose.Element");
+  auto textLeaf = extend<Text>(module, "compose.Text");
+  auto imageLeaf = extend<Image>(module, "compose.Image");
+  auto bandLeaf = extend<Band>(module, "compose.Band");
+  bindEdges(element);
+  bindEdges(textLeaf);
+  bindEdges(imageLeaf);
+  bindEdges(bandLeaf);
 }
 
 }  // namespace sigil::python
