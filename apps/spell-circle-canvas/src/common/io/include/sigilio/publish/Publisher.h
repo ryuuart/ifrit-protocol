@@ -24,7 +24,10 @@ enum class Backend { Metal, Direct3D11 };
 
 /** A FRAME, OFFERED TO WHOEVER IS WATCHING: a host that has just drawn
  * into a texture hands it over and every application subscribed to the
- * name sees that frame, rows top first and alpha premultiplied as drawn.
+ * name sees that frame the way up it was drawn, with alpha premultiplied
+ * as drawn. THE TEXTURE HANDED IN HOLDS ITS FIRST ROW AT THE TOP, which
+ * is what a canvas draws; putting it the way round the protocol's own
+ * surface is read is this seam's work and not the caller's.
  * THE HANDLES ARE THE GRAPHICS API'S OWN, as opaque pointers — on Metal
  * an `id<MTLTexture>` and an `id<MTLCommandBuffer>` — and the texture is
  * BORROWED FOR THE CALL, the publication owning the copied image.

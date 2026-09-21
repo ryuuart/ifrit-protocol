@@ -59,11 +59,35 @@ caller keeps its device alive until after the publisher is destroyed.
 `sigil::io::publish::Publisher::publishFrame` borrows the input texture for the
 call. The protocol owns the published image, so the caller can replace its
 render target on resize without preserving an old target for subscribers.
-Rows retain their top-to-bottom order and alpha stays premultiplied. The
-Metal path publishes the stated region; nothing flips the image, reads it
-back to the CPU, or divides its alpha out. A publication carries a pixel
-format of its own, so the channels are put in that order on the way across;
-nothing else about a pixel changes.
+The picture arrives the way up it was drawn and alpha stays premultiplied. The
+Metal path publishes the stated region; nothing reads it back to the CPU or
+divides its alpha out. A publication carries a pixel format of its own, so the
+channels are put in that order on the way across; nothing else about a pixel
+changes.
+
+### Which way up a frame travels
+
+**The surface a publication is carried on holds its FIRST ROW AT THE IMAGE'S
+BOTTOM.** That is the order a host drawing straight into it with OpenGL's axes
+writes, and it is the order every application receiving one reads — a video
+mixer, a projection mapper, a compositor. A texture a canvas drew holds its
+first row at the TOP.
+
+So the two ends are not symmetrical, and each says which way round it is:
+
+* `sigil::io::publish::Publisher::publishFrame` takes a TOP-FIRST texture and
+  turns it over on the way across. On Metal that is Syphon's
+  `publishFrameTexture:onCommandBuffer:imageRegion:flipped:` with the flag set,
+  which costs the copy a redraw rather than a blit. Publishing an unturned
+  frame is what makes every subscriber show the picture upside down.
+* `sigil::io::publish::Subscription::newestFrame` hands back the carried
+  surface itself, BOTTOM-FIRST, because nothing is copied on the way in and a
+  turn is a copy. A caller drawing it in a space whose first row is the top
+  turns it over as it draws: a scene-graph node mirrors vertically, a canvas
+  draws through a flipped transform, a readback walks the rows backwards.
+
+Seer's capture and preview, and `sigil::sketch::Guest`, each do that turn, so
+what a reader of this repository's own tools looks at is upright.
 
 On Metal the publication is appended to the caller's open command buffer and
 not submitted: it runs when the caller commits, and work on one queue runs in

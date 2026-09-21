@@ -144,20 +144,49 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
       }
       ASSERT_TRUE(received) << "late client " << client;
       EXPECT_TRUE(incoming->standing());
-      const auto out = scratch.path / (std::to_string(client) + ".png");
-      ASSERT_TRUE(seer::texture::writeTexturePng(received, queue, out));
-      const auto written = contentsOf(out);
-      const auto decoded = sigil::image::decodeImage(written.data(), written.size());
-      ASSERT_TRUE(decoded);
-      const auto& image = decoded->frames().front().image;
-      ASSERT_EQ(image->width(), 2);
-      ASSERT_EQ(image->height(), 2);
-      SkBitmap pixels;
-      ASSERT_TRUE(pixels.tryAllocPixels(
-          SkImageInfo::Make(2, 2, kBGRA_8888_SkColorType, kPremul_SkAlphaType)));
-      ASSERT_TRUE(image->readPixels(nullptr, pixels.pixmap(), 0, 0));
-      for (int y = 0; y < 2; ++y)
-        for (int x = 0; x < 2; ++x) EXPECT_EQ(*pixels.getAddr32(x, y), kQuadrants[y * 2 + x]);
+      /** The four quadrants of the PNG written from @p received, read as
+       *  though the frame held its rows @p held. */
+      const auto quadrantsWritten = [&](seer::texture::Rows held,
+                                        const std::string& stem) -> std::vector<uint32_t> {
+        const auto out = scratch.path / (stem + ".png");
+        if (!seer::texture::writeTexturePng(received, queue, out, held)) return {};
+        const auto written = contentsOf(out);
+        const auto decoded = sigil::image::decodeImage(written.data(), written.size());
+        if (!decoded || decoded->frames().empty()) return {};
+        const auto& image = decoded->frames().front().image;
+        if (image->width() != 2 || image->height() != 2) return {};
+        SkBitmap pixels;
+        if (!pixels.tryAllocPixels(
+                SkImageInfo::Make(2, 2, kBGRA_8888_SkColorType, kPremul_SkAlphaType)))
+          return {};
+        if (!image->readPixels(nullptr, pixels.pixmap(), 0, 0)) return {};
+        return {*pixels.getAddr32(0, 0), *pixels.getAddr32(1, 0), *pixels.getAddr32(0, 1),
+                *pixels.getAddr32(1, 1)};
+      };
+
+      // WHICH WAY UP A PUBLICATION TRAVELS, asserted at both ends of the
+      // one turn. The surface a publication is carried on holds its
+      // first row at the image's BOTTOM, which is the order every
+      // application receiving one reads, so publishing a top-first
+      // texture turns it over: read back in the order it is carried in,
+      // the quadrants come out with their ROWS SWAPPED.
+      const std::string stem = std::to_string(client);
+      const std::vector<uint32_t> carried = quadrantsWritten(seer::texture::Rows::TopFirst,
+                                                             stem + "_carried");
+      ASSERT_EQ(carried.size(), 4u) << "late client " << client;
+      EXPECT_EQ(carried[0], kQuadrants[2]);
+      EXPECT_EQ(carried[1], kQuadrants[3]);
+      EXPECT_EQ(carried[2], kQuadrants[0]);
+      EXPECT_EQ(carried[3], kQuadrants[1]);
+
+      // …and a receiver that turns it back gets the picture that went
+      // in. Both halves are needed: the first says a third-party client
+      // sees the frame upright, this one says our own does.
+      const std::vector<uint32_t> upright =
+          quadrantsWritten(seer::texture::Rows::BottomFirst, stem);
+      ASSERT_EQ(upright.size(), 4u);
+      for (int quadrant = 0; quadrant < 4; ++quadrant)
+        EXPECT_EQ(upright[(size_t)quadrant], kQuadrants[quadrant]) << "quadrant " << quadrant;
     }
   }
 }

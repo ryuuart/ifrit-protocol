@@ -9,8 +9,11 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
 
+#include <cstddef>
 #include <cstdio>
+#include <cstring>
 #include <optional>
+#include <vector>
 
 namespace seer::texture {
 
@@ -38,7 +41,7 @@ std::optional<SkColorType> colorType(MTLPixelFormat format) {
 }  // namespace
 
 bool writeTexturePng(id<MTLTexture> texture, id<MTLCommandQueue> queue,
-                     const std::filesystem::path &path) {
+                     const std::filesystem::path &path, Rows held) {
   if (!texture || !queue) return false;
   const std::optional<SkColorType> type = colorType(texture.pixelFormat);
   if (!type) {
@@ -79,11 +82,26 @@ bool writeTexturePng(id<MTLTexture> texture, id<MTLCommandQueue> queue,
     return false;
   }
 
+  // A PNG IS WRITTEN TOP FIRST, so a frame that arrived the other way up
+  // is walked backwards into a buffer of its own. It is the whole turn:
+  // a row is the same bytes wherever it stands, so nothing is resampled
+  // and no channel moves.
+  std::vector<std::byte> turned;
+  const void *rows = readback.contents;
+  if (held == Rows::BottomFirst) {
+    turned.resize(rowBytes * height);
+    const auto *source = static_cast<const std::byte *>(readback.contents);
+    for (NSUInteger row = 0; row < height; ++row)
+      std::memcpy(turned.data() + row * rowBytes,
+                  source + (height - 1 - row) * rowBytes, rowBytes);
+    rows = turned.data();
+  }
+
   // THE ALPHA IS PREMULTIPLIED, because that is how a canvas draws and
   // nothing between there and here has divided it out. The PNG encoder
   // takes it from here.
   const SkImageInfo info = SkImageInfo::Make((int)width, (int)height, *type, kPremul_SkAlphaType);
-  const SkPixmap pixels(info, readback.contents, rowBytes);
+  const SkPixmap pixels(info, rows, rowBytes);
   const sk_sp<SkData> png = sigil::image::encodeImage(pixels, sigil::image::Format::Png);
   if (!png) {
     std::fprintf(stderr, "the frame could not be encoded as a PNG\n");

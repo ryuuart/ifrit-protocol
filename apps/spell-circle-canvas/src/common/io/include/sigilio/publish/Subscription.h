@@ -27,8 +27,13 @@ std::vector<Publication> publications();
 
 /** A PUBLICATION, HELD BY ITS NAME: the end that receives the frames
  * another application on this machine offers. THE FRAME IS THE GRAPHICS
- * API'S OWN, as an opaque pointer — on Metal an `id<MTLTexture>` — rows
- * top first and alpha premultiplied as the publisher drew it. THE NAME IS
+ * API'S OWN, as an opaque pointer — on Metal an `id<MTLTexture>` — with
+ * alpha premultiplied as the publisher drew it and ITS FIRST ROW AT THE
+ * IMAGE'S BOTTOM, which is the way round the surface a publication is
+ * carried on is written and read. Nothing is copied on the way in, and a
+ * turn is a copy, so what arrives is the surface itself: a caller
+ * drawing it in a space whose first row is the top turns it over as it
+ * draws. THE NAME IS
  * WHAT IS HELD, not the process behind it: a publisher that stops and
  * starts is followed, and a name nothing publishes yet is waited for.
  * @trap Asking for the newest frame is also what OPENS onto a

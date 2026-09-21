@@ -19,6 +19,7 @@
 #include <string_view>
 
 class SkCanvas;
+class SkSurface;
 
 namespace skgpu::graphite {
 class Recorder;
@@ -80,10 +81,21 @@ class Guest {
    *  rasterising on the CPU has no recorder, and the answer there is
    *  null.
    *
-   *  ONE WRAP PER FRAME THAT ARRIVED. An image holds the texture it
+   *  IT ARRIVES THE OTHER WAY UP AND IS TURNED OVER HERE. A publication
+   *  is carried on a surface whose first row is the image's BOTTOM,
+   *  which is the order every application sharing textures on this
+   *  machine writes and reads; a canvas draws with its first row at the
+   *  top. So the frame is drawn once into a target of its own, on the
+   *  recorder handed in, and what comes back is that — the one thing
+   *  done to a frame on the way in, and the reason a scene draws a
+   *  publication like any other image instead of knowing which way up
+   *  it came.
+   *
+   *  ONE TURN PER FRAME THAT ARRIVED. The image holds the texture it
    *  names for its own life, so the same image is handed back until
    *  another frame arrives, the recorder changes, or the publication
-   *  stops.
+   *  stops — a scene wearing one publication in several places pays for
+   *  the turn once.
    *
    *  ASK EVERY FRAME, including where nothing can be drawn with the
    *  answer: asking is also what opens onto a publication that appeared
@@ -106,16 +118,16 @@ class Guest {
    *  false and there is no picture to dress anything with, which is what
    *  a scene reads before it puts its own stand-in in the slot.
    *
-   *  THIS ONE COPIES, and it is the only thing in this door that does. A
-   *  body is shaded by the renderer the world stands on, and that
-   *  renderer does not stand where a publication arrives: the frame is a
-   *  Metal texture and the world draws through Vulkan, so neither side
-   *  holds anything the other could be handed. The pixels are read back
-   *  into host memory instead — one frame's worth for each frame that
-   *  arrives — and the renderer uploads them to its own device like any
-   *  other image, which is what makes the slot work on every tier rather
-   *  than on none. `frame()` is the case that copies nothing, because a
-   *  canvas draws on the device the frame arrived on.
+   *  THIS ONE LEAVES THE DEVICE, where `frame()` stays on it. A body is
+   *  shaded by the renderer the world stands on, and that renderer does
+   *  not stand where a publication arrives: the frame is a Metal texture
+   *  and the world draws through Vulkan, so neither side holds anything
+   *  the other could be handed. The pixels are read back into host
+   *  memory instead — one frame's worth for each frame that arrives, and
+   *  turned the right way up there, the frame having arrived with its
+   *  first row at the image's bottom — and the renderer uploads them to
+   *  its own device like any other image, which is what makes the slot
+   *  work on every tier rather than on none.
    *
    *  ONE READ PER FRAME THAT ARRIVED, like `frame()`: the same texture
    *  is handed back until another frame arrives or the publication
@@ -145,9 +157,12 @@ class Guest {
 
   std::string m_name;
   std::unique_ptr<io::publish::Subscription> m_subscription;
-  /** The last wrap, and what it was a wrap OF: which frame had arrived
-   *  and which recorder it was recorded on. */
+  /** The last picture, and what it was made OF: which frame had arrived
+   *  and which recorder it was turned over on. */
   sk_sp<SkImage> m_picture;
+  /** The target that turn landed in, held for as long as the picture is:
+   *  an image made from a surface names the surface's texture. */
+  sk_sp<SkSurface> m_turned;
   skgpu::graphite::Recorder* m_recorder = nullptr;
   uint64_t m_arrived = 0;
   /** The last read, and which frame had arrived when it was taken. It is

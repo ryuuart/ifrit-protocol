@@ -32,6 +32,11 @@ class TextureNode final : public QSGNode {
     if (!image) {
       image = new QSGSimpleTextureNode;
       image->setFiltering(QSGTexture::Linear);
+      // A RECEIVED FRAME IS THE CARRIED SURFACE ITSELF, whose first row
+      // is the bottom of the picture, and this item's own space has the
+      // first row at the top. Nothing is copied to turn it: the node
+      // samples the same texture the other way up.
+      image->setTextureCoordinatesTransform(QSGSimpleTextureNode::MirrorVertically);
       appendChildNode(image);
     }
     auto* previous = image->texture();
@@ -96,8 +101,10 @@ QSGNode* TexturePreview::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
         connected ? QStringLiteral("Receiving texture") : QStringLiteral("Waiting for publisher"));
     if (!m_capturePath.isEmpty()) {
       const auto path = std::exchange(m_capturePath, {});
-      const bool success = node->frame && seer::texture::writeTexturePng(node->frame, node->queue,
-                                                                         path.toStdString());
+      const bool success =
+          node->frame && seer::texture::writeTexturePng(node->frame, node->queue,
+                                                        path.toStdString(),
+                                                        seer::texture::Rows::BottomFirst);
       QMetaObject::invokeMethod(
           this, [this, path, success] { emit saved(path, success); }, Qt::QueuedConnection);
     }

@@ -39,15 +39,18 @@ class SyphonPublisher final : public Publisher {
     // Syphon appends the copy to the buffer the caller is still filling
     // and the caller commits it.
     //
-    // NOT FLIPPED: the flag says whether the texture's rows are upside
-    // down for the graphics API it came from, and a canvas drew this one
-    // the way its API reads it — first row at the top. Saying otherwise
-    // turns every frame over on the way across and costs a redraw where
-    // an unturned frame is a straight copy.
+    // TURNED OVER ON THE WAY ACROSS. The surface a publication is
+    // carried on holds its FIRST ROW AT THE IMAGE'S BOTTOM: a host that
+    // draws straight into it draws with OpenGL's axes, and every
+    // application that receives one reads it that way round. A texture a
+    // canvas drew has its first row at the TOP, so an unturned copy would
+    // put the top of the picture where the bottom is read and every
+    // subscriber would show the frame upside down. The flag costs this
+    // copy a redraw instead of a blit, which is what turning it over is.
     [m_server publishFrameTexture:texture
                   onCommandBuffer:commandBuffer
                       imageRegion:NSMakeRect(0, 0, width, height)
-                          flipped:NO];
+                          flipped:YES];
   }
 
   std::string_view name() const override { return m_name; }

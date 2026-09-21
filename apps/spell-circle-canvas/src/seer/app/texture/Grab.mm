@@ -96,7 +96,11 @@ int runGrab(const Arguments &arguments) {
                  arguments.texture.c_str());
     return 3;
   }
-  if (!writeTexturePng(frame, queue, arguments.grabPath)) return 4;
+  // A RECEIVED FRAME IS THE CARRIED SURFACE ITSELF, whose first row is
+  // the bottom of the picture, so the file is written the other way up
+  // from the rows it arrived in.
+  if (!writeTexturePng(frame, queue, arguments.grabPath, Rows::BottomFirst))
+    return 4;
   std::printf("wrote %s (%lux%lu)\n", arguments.grabPath.c_str(), (unsigned long)frame.width,
               (unsigned long)frame.height);
   return 0;
