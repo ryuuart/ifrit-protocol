@@ -242,7 +242,7 @@ struct CardFlip {
                  .top(14),
              box()
                  .absolute()
-                 .inset(gap, top, gap, gap)
+                 .inset({.top = top, .right = gap, .bottom = gap, .left = gap})
                  .row()
                  .gap(gap)
                  .children(

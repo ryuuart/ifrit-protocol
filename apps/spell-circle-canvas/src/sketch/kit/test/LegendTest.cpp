@@ -175,10 +175,12 @@ TEST(SketchKitLegend, AStripLightsTheStepsItsReadingIsTakenAt) {
                    .alignItems(compose::Align::Center)
                    .children({compose::box().width(20).height(10).fill(
                        Fill::color({1, 0, 0, 1}))})
-                   .children(
-                       {compose::text(u8"0",
-                                      house.style(house.type.eyebrow, lit))
-                            .margin(0, house.spacing.captionNoteGap, 0, 0)})})
+                   .children({compose::text(
+                                  u8"0", house.style(house.type.eyebrow, lit))
+                                  .margin({.top = house.spacing.captionNoteGap,
+                                           .right = 0,
+                                           .bottom = 0,
+                                           .left = 0})})})
           .children(
               {compose::box()
                    .column()
@@ -188,7 +190,10 @@ TEST(SketchKitLegend, AStripLightsTheStepsItsReadingIsTakenAt) {
                    .children(
                        {compose::text(u8"1", house.style(house.type.eyebrow,
                                                          house.palette.ash))
-                            .margin(0, house.spacing.captionNoteGap, 0, 0)})});
+                            .margin({.top = house.spacing.captionNoteGap,
+                                     .right = 0,
+                                     .bottom = 0,
+                                     .left = 0})})});
   EXPECT_TRUE(sameDrawing(
       std::move(byHand), kit::swatchStrip({.swatches = steps,
                                            .labels = {u8"0", u8"1"},
@@ -199,14 +204,16 @@ TEST(SketchKitLegend, AStripLightsTheStepsItsReadingIsTakenAt) {
 
 TEST(SketchKitLegend, AChipIsItsWordOnTheThemesFigureGround) {
   const kit::Theme& house = kit::houseTheme();
-  Element byHand =
-      compose::box()
-          .padding(house.spacing.chipPaddingX, house.spacing.chipPaddingY)
-          .fill(Fill::color(house.palette.figure))
-          .borderRadius(compose::Corners{2})
-          .children(
-              {compose::text(u8"PINNED", house.style(house.type.eyebrow,
-                                                     house.palette.ground))});
+  Element byHand = compose::box()
+                       .padding({.top = house.spacing.chipPaddingY,
+                                 .right = house.spacing.chipPaddingX,
+                                 .bottom = house.spacing.chipPaddingY,
+                                 .left = house.spacing.chipPaddingX})
+                       .fill(Fill::color(house.palette.figure))
+                       .borderRadius(compose::Corners{2})
+                       .children({compose::text(
+                           u8"PINNED", house.style(house.type.eyebrow,
+                                                   house.palette.ground))});
   EXPECT_TRUE(sameDrawing(std::move(byHand), kit::chip({.label = u8"PINNED"})));
 }
 

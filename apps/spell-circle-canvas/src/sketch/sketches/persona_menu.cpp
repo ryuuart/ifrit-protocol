@@ -580,22 +580,27 @@ struct PersonaMenu {
             {box()
                  .row()
                  .alignItems(Align::End)
-                 .children({text("07/22")
-                                .font(nn::menuType(38, nn::kPaper, 2.0f))
-                                .filter(styles::textGlow({0, 0, 0, 0.45f}, 3)),
-                            box()
-                                .column()
-                                .margin(11, 0, 0, 5)
-                                .children({text("SUNDAY").font(nn::smallType(
-                                               11, nn::kCyanC, 2.6f)),
-                                           text("EVENING")
-                                               .font(nn::smallType(
-                                                   11, nn::kCyanB, 2.6f))
-                                               .margin(0, 3, 0, 0)})}),
+                 .children(
+                     {text("07/22")
+                          .font(nn::menuType(38, nn::kPaper, 2.0f))
+                          .filter(styles::textGlow({0, 0, 0, 0.45f}, 3)),
+                      box()
+                          .column()
+                          .margin(
+                              {.top = 0, .right = 0, .bottom = 5, .left = 11})
+                          .children(
+                              {text("SUNDAY").font(
+                                   nn::smallType(11, nn::kCyanC, 2.6f)),
+                               text("EVENING")
+                                   .font(nn::smallType(11, nn::kCyanB, 2.6f))
+                                   .margin({.top = 3,
+                                            .right = 0,
+                                            .bottom = 0,
+                                            .left = 0})})}),
              box()
                  .width(168)
                  .height(2)
-                 .margin(0, 7, 0, 5)
+                 .margin({.top = 7, .right = 0, .bottom = 5, .left = 0})
                  .fill(Paint::linear(
                      {0, 0}, {168, 0},
                      {{0.0f, {1, 1, 1, 0.85f}}, {1.0f, {1, 1, 1, 0.0f}}})),
@@ -679,7 +684,7 @@ struct PersonaMenu {
                                {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
           .stroke(stroke(1.4f, Fill::color({1, 1, 1, 0.55f})))
           .column()
-          .padding(17, 7)
+          .padding({.top = 7, .right = 17, .bottom = 7, .left = 17})
           .gap(2)
           .children(
               {box()
@@ -765,38 +770,49 @@ struct PersonaMenu {
                  .translateX(animate(motion::from(36.0f).to(0.0f),
                                      {400ms, &ch::easeOutQuint}))
                  .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
-                 .children({text("PERSONA")
-                                .font(nn::menuType(30, nn::kPaper, 2))
-                                .filter(styles::textGlow({0, 0, 0, 0.5f}, 3)),
-                            box()
-                                .row()
-                                .alignItems(Align::Center)
-                                .margin(0, 6, 0, 0)
-                                .children({text("COMMAND").font(nn::smallType(
-                                               12, nn::kCyanB, 2)),
-                                           box()
-                                               .width(120)
-                                               .height(2)
-                                               .fill(SkColor4f{1, 1, 1, 0.8f})
-                                               .margin(8, 0, 0, 0)})})})
+                 .children(
+                     {text("PERSONA")
+                          .font(nn::menuType(30, nn::kPaper, 2))
+                          .filter(styles::textGlow({0, 0, 0, 0.5f}, 3)),
+                      box()
+                          .row()
+                          .alignItems(Align::Center)
+                          .margin(
+                              {.top = 6, .right = 0, .bottom = 0, .left = 0})
+                          .children({text("COMMAND").font(
+                                         nn::smallType(12, nn::kCyanB, 2)),
+                                     box()
+                                         .width(120)
+                                         .height(2)
+                                         .fill(SkColor4f{1, 1, 1, 0.8f})
+                                         .margin({.top = 0,
+                                                  .right = 0,
+                                                  .bottom = 0,
+                                                  .left = 8})})})})
         // ---- button prompts, bottom-right ----
-        .children({box()
-                       .key("prompts")
-                       .right(41)
-                       .bottom(28)
-                       .row()
-                       .alignItems(Align::Center)
-                       .zIndex(8)
-                       .opacity(animate(motion::from(0.0f).to(1.0f),
-                                        {400ms, &ch::easeOutQuad, 250ms}))
-                       .children({promptCircle("O"),
-                                  text("CONFIRM")
-                                      .font(nn::smallType(11, nn::kCyanB, 1.5f))
-                                      .margin(8, 0, 22, 0),
-                                  promptCircle("X"),
-                                  text("BACK")
-                                      .font(nn::smallType(11, nn::kCyanB, 1.5f))
-                                      .margin(8, 0, 0, 0)})});
+        .children(
+            {box()
+                 .key("prompts")
+                 .right(41)
+                 .bottom(28)
+                 .row()
+                 .alignItems(Align::Center)
+                 .zIndex(8)
+                 .opacity(animate(motion::from(0.0f).to(1.0f),
+                                  {400ms, &ch::easeOutQuad, 250ms}))
+                 .children(
+                     {promptCircle("O"),
+                      text("CONFIRM")
+                          .font(nn::smallType(11, nn::kCyanB, 1.5f))
+                          .margin(
+                              {.top = 0, .right = 22, .bottom = 0, .left = 8}),
+                      promptCircle("X"),
+                      text("BACK")
+                          .font(nn::smallType(11, nn::kCyanB, 1.5f))
+                          .margin({.top = 0,
+                                   .right = 0,
+                                   .bottom = 0,
+                                   .left = 8})})});
   }
 };
 

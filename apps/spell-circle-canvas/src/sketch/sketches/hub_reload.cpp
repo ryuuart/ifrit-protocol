@@ -153,16 +153,31 @@ struct HubReload {
                    (picture ? image(picture) : box()).width(180).height(120))});
         };
     Element resourceIndex = box().column().gap(18).width(330).children(
-        {box().height(96).column().gap(10).padding(0, 16).children(
-             {document::label("TEXT"), text("notes.txt").styleClass("readout"),
-              document::caption("hub.text(uri)")}),
-         box().height(130).column().gap(10).padding(0, 16).children(
-             {document::label("CALLER-DEFINED TYPE"),
-              text("cloud.pts").styleClass("readout"),
-              document::caption("registerDecoder<Cloud>\nload<Cloud>(uri)")}),
-         box().height(130).column().gap(10).padding(0, 16).children(
-             {document::label("IMAGE"), text("chart.png").styleClass("readout"),
-              document::caption("hub.image(uri)")})});
+        {box()
+             .height(96)
+             .column()
+             .gap(10)
+             .padding({.top = 16, .right = 0, .bottom = 16, .left = 0})
+             .children({document::label("TEXT"),
+                        text("notes.txt").styleClass("readout"),
+                        document::caption("hub.text(uri)")}),
+         box()
+             .height(130)
+             .column()
+             .gap(10)
+             .padding({.top = 16, .right = 0, .bottom = 16, .left = 0})
+             .children({document::label("CALLER-DEFINED TYPE"),
+                        text("cloud.pts").styleClass("readout"),
+                        document::caption(
+                            "registerDecoder<Cloud>\nload<Cloud>(uri)")}),
+         box()
+             .height(130)
+             .column()
+             .gap(10)
+             .padding({.top = 16, .right = 0, .bottom = 16, .left = 0})
+             .children({document::label("IMAGE"),
+                        text("chart.png").styleClass("readout"),
+                        document::caption("hub.image(uri)")})});
     ctx.composer.render(sketch::kit::page(
         {.title = "A file changes. A held value does not.",
          .subtitle = "Mounted files are replaced, poll() invalidates their "

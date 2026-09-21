@@ -285,20 +285,21 @@ TEST(ComposeShapeValues,
 
 TEST(ComposeQueries, HitTestHonorsShapeAndRotation) {
   Host host;
-  host.composer.render(box().children({box()
-                                           .key("star")
-                                           .width(100)
-                                           .height(100)
-                                           .shape(geometry::shapes::star(5))
-                                           .fill(red()),
-                                       box()
-                                           .key("spun")
-                                           .width(80)
-                                           .height(20)
-                                           .inset(60, 140, 60, 40)
-                                           .absolute()
-                                           .rotate(90.0f)
-                                           .fill(green())}));
+  host.composer.render(box().children(
+      {box()
+           .key("star")
+           .width(100)
+           .height(100)
+           .shape(geometry::shapes::star(5))
+           .fill(red()),
+       box()
+           .key("spun")
+           .width(80)
+           .height(20)
+           .inset({.top = 140, .right = 60, .bottom = 40, .left = 60})
+           .absolute()
+           .rotate(90.0f)
+           .fill(green())}));
   host.frame();
   EXPECT_EQ(host.composer.hitTest({50, 50}).value_or(""), "star");
   // Between the star's arms: inside the box, outside the silhouette.

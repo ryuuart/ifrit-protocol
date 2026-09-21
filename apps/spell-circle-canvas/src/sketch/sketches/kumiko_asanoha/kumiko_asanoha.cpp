@@ -25,7 +25,9 @@ struct KumikoAsanoha {
           into.children(
               {stripElement(panel.strips[i], bank, &fade[i], &pop[i])});
     };
-    auto group = box().inset(0, 0, 0, 0).cache(Cache::Group);
+    auto group = box()
+                     .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+                     .cache(Cache::Group);
     add(group, kRoleDiagonal);
     add(group, kRoleFiller);
     add(group, kRoleLock);
@@ -61,7 +63,9 @@ struct KumikoAsanoha {
     // The mitred keyaki boards carry the same bound entrance — and they are
     // the largest single boards on the canvas, so replaying their timber
     // shader per frame would cost more than their count suggests.
-    auto group = box().inset(0, 0, 0, 0).cache(Cache::Group);
+    auto group = box()
+                     .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+                     .cache(Cache::Group);
     for (size_t i = 0; i < panel.strips.size(); ++i)
       if (panel.strips[i].role == kRoleFrame)
         group.children(
@@ -100,9 +104,12 @@ struct KumikoAsanoha {
         }
       }
     };
-    auto group = stack().inset(0, 0, 0, 0).opacity(&seat);
+    auto group = stack()
+                     .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+                     .opacity(&seat);
     group.children(
-        {custom(std::string_view("joinery"), marks).inset(0, 0, 0, 0)});
+        {custom(std::string_view("joinery"), marks)
+             .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})});
     for (const Strip& n : panel.nubs)
       group.children({stripElement(n, bank, nullptr, nullptr)});
     return group;
@@ -123,7 +130,7 @@ struct KumikoAsanoha {
         // the corner cells in the dark, which loses the field at both ends
         // at once. The outer radius is the opening's diagonal.
         .children({box()
-                       .inset(0, 0, 0, 0)
+                       .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
                        .fill(Paint::radial(
                            {open.width() * 0.5f, open.height() * 0.5f}, 585,
                            {{0.00f, hexColor(0xF7E8C6, 0.88f)},

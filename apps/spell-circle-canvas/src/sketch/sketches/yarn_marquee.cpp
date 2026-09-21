@@ -126,7 +126,7 @@ Element banner(float length) {
           .alignItems(Align::Center)
           .width((float)kAcrossPx)
           .height(length)
-          .padding(14, 48)
+          .padding({.top = 48, .right = 14, .bottom = 48, .left = 14})
           .fill(Fill::color({0.031f, 0.047f, 0.086f, 0.62f}))
           .ink(kInk)
           .font(
@@ -134,11 +134,17 @@ Element banner(float length) {
   column.children(
       {box()
            .absolute()
-           .inset(3, 0, (float)kAcrossPx - 6, 0)
+           .inset({.top = 0,
+                   .right = (float)kAcrossPx - 6,
+                   .bottom = 0,
+                   .left = 3})
            .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.9f})),
        box()
            .absolute()
-           .inset((float)kAcrossPx - 5, 0, 3, 0)
+           .inset({.top = 0,
+                   .right = 3,
+                   .bottom = 0,
+                   .left = (float)kAcrossPx - 5})
            .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.5f})),
        text(u8"MARQUEE").font({.size = 48}).ink(kAccent)});
   // One sector: the slack before it, its numeral, and the phrase it

@@ -338,14 +338,17 @@ TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
              .key("a")
              .width(20)
              .height(20)
-             .inset(10, 10, 170, 170)
+             .inset({.top = 10, .right = 170, .bottom = 170, .left = 10})
              .absolute()
              .fill(red()),
          box()
              .key("b")
              .width(20)
              .height(20)
-             .inset(bLeft, 160, 180 - bLeft, 20)
+             .inset({.top = 160,
+                     .right = 180 - bLeft,
+                     .bottom = 20,
+                     .left = bLeft})
              .absolute()
              .fill(green()),
          connector("a", "b").inset(0).foreground(wire).zIndex(-1)});
@@ -367,25 +370,25 @@ TEST(ComposeDerive, OrthogonalRouterRunsManhattan) {
   PathFormat wire;
   wire.width = 4;
   wire.strokeFill = Fill::color({1, 1, 0, 1});
-  host.composer.render(
-      stack().children({box()
-                            .key("a")
-                            .width(20)
-                            .height(20)
-                            .inset(10, 10, 170, 170)
-                            .absolute()
-                            .fill(red()),
-                        box()
-                            .key("b")
-                            .width(20)
-                            .height(20)
-                            .inset(160, 160, 20, 20)
-                            .absolute()
-                            .fill(green()),
-                        connector("a", "b", routers::orthogonal())
-                            .inset(0)
-                            .foreground(wire)
-                            .zIndex(-1)}));
+  host.composer.render(stack().children(
+      {box()
+           .key("a")
+           .width(20)
+           .height(20)
+           .inset({.top = 10, .right = 170, .bottom = 170, .left = 10})
+           .absolute()
+           .fill(red()),
+       box()
+           .key("b")
+           .width(20)
+           .height(20)
+           .inset({.top = 160, .right = 20, .bottom = 20, .left = 160})
+           .absolute()
+           .fill(green()),
+       connector("a", "b", routers::orthogonal())
+           .inset(0)
+           .foreground(wire)
+           .zIndex(-1)}));
   host.frame();
   // Centers (20,20) and (170,170); midX = 95: H leg at y=20, V leg at
   // x=95, H leg at y=170.
@@ -400,24 +403,25 @@ TEST(ComposeDerive, ArcRouterBowsOffTheChord) {
   PathFormat wire;
   wire.width = 4;
   wire.strokeFill = Fill::color({1, 1, 0, 1});
-  host.composer.render(stack().children({box()
-                                             .key("a")
-                                             .width(10)
-                                             .height(10)
-                                             .inset(20, 95, 170, 95)
-                                             .absolute()
-                                             .fill(red()),
-                                         box()
-                                             .key("b")
-                                             .width(10)
-                                             .height(10)
-                                             .inset(170, 95, 20, 95)
-                                             .absolute()
-                                             .fill(green()),
-                                         connector("a", "b", routers::arc(0.3f))
-                                             .inset(0)
-                                             .foreground(wire)
-                                             .zIndex(-1)}));
+  host.composer.render(stack().children(
+      {box()
+           .key("a")
+           .width(10)
+           .height(10)
+           .inset({.top = 95, .right = 170, .bottom = 95, .left = 20})
+           .absolute()
+           .fill(red()),
+       box()
+           .key("b")
+           .width(10)
+           .height(10)
+           .inset({.top = 95, .right = 20, .bottom = 95, .left = 170})
+           .absolute()
+           .fill(green()),
+       connector("a", "b", routers::arc(0.3f))
+           .inset(0)
+           .foreground(wire)
+           .zIndex(-1)}));
   host.frame();
   // Horizontal chord from (25,100) to (175,100), bulge 0.3×150 = 45 px
   // toward +normal (downward-left convention: normal of (+x,0) is
@@ -441,14 +445,14 @@ TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
              .key("a")
              .width(20)
              .height(20)
-             .inset(10, 90, 170, 90)
+             .inset({.top = 90, .right = 170, .bottom = 90, .left = 10})
              .absolute()
              .fill(red()),
          box()
              .key("b")
              .width(20)
              .height(20)
-             .inset(170, 90, 10, 90)
+             .inset({.top = 90, .right = 10, .bottom = 90, .left = 170})
              .absolute()
              .fill(green()),
          connector("a", "b", {}, gap).inset(0).foreground(wire).zIndex(1)});

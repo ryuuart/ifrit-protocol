@@ -114,7 +114,7 @@ auto WinampBase::trackList() -> Element {
         .height(n(rowH))
         .row()
         .alignItems(Align::Center)
-        .padding(n(3), 0, n(3), 0)
+        .padding({.top = 0, .right = n(3), .bottom = 0, .left = n(3)})
         .opacity(&rowIn[i])
         .translateY(motion::bind(&rowIn[i]).invert().scale(n(2)))
         .children({ellipsized((int)i, std::to_string(i + 1) + ". " + tr.title,

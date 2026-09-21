@@ -48,7 +48,7 @@ def component(model: Reading) -> Element:
     return (
         column()
         .gap(12)
-        .padding(20, 16)
+        .padding(horizontal=20, vertical=16)
         .borderRadius(topLeft=8, topRight=8, bottomRight=4, bottomLeft=4)
         .alignItems(alignment="start")
         .opacity(entrance(0, 1, duration=0.5))

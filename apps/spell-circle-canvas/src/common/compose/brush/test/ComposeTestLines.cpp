@@ -9,10 +9,11 @@
 
 TEST(ComposeStroke, StrokeAlignInnerAndOuter) {
   auto boxWith = [](PathFormat::Align align) {
-    return box().children({box()
-                               .absolute()
-                               .inset(50, 50, 50, 50)
-                               .stroke(stroke(20, green(), align))});
+    return box().children(
+        {box()
+             .absolute()
+             .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+             .stroke(stroke(20, green(), align))});
   };
   Host inner, outer;
   inner.composer.render(boxWith(PathFormat::Align::Inner));
@@ -37,7 +38,10 @@ TEST(ComposeDecorations, BoundShadowOffsetSlides) {
   shadow.bindOffsetX = &lift;
   shadow.maxBind = 40.0f;
   host.composer.render(box().children(
-      {box().absolute().inset(60, 60, 80, 80).background(shadow)}));
+      {box()
+           .absolute()
+           .inset({.top = 60, .right = 80, .bottom = 80, .left = 60})
+           .background(shadow)}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 90), SK_ColorGREEN);   // at rest: under the box
   EXPECT_EQ(host.pixel(135, 90), SK_ColorBLACK);  // nothing to the right
@@ -53,8 +57,11 @@ TEST(ComposeDecorations, KnockoutShadowLeavesTheFootprintClear) {
   s.color = {0, 1, 0, 1};
   s.offset = {20, 0};
   s.knockout = true;
-  host.composer.render(
-      box().children({box().absolute().inset(60, 60, 80, 80).background(s)}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset({.top = 60, .right = 80, .bottom = 80, .left = 60})
+           .background(s)}));
   host.frame();
   EXPECT_EQ(host.pixel(130, 90), SK_ColorGREEN);  // shadow right of the box
   EXPECT_EQ(host.pixel(100, 90), SK_ColorBLACK);  // footprint knocked out
@@ -74,7 +81,11 @@ TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   sliver.trimEnd = 0.1f;
   sliver.trimPhase = &phase;
   host.composer.render(box().children(
-      {box().absolute().inset(50, 50, 50, 50).stroke(band).stroke(sliver)}));
+      {box()
+           .absolute()
+           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+           .stroke(band)
+           .stroke(sliver)}));
   host.frame();
   std::vector<SkIPoint> redNow;
   int greenCount = 0;
@@ -159,17 +170,18 @@ namespace {
 /** An L-shaped run: right along the bottom, then up — one hard 90° corner
  *  at local (120, 120), absolute (140, 140). */
 Element corneredRun(lines::Line style) {
-  return box().children({box()
-                             .absolute()
-                             .inset(20, 20, 20, 20)
-                             .shape([] {
-                               SkPathBuilder b;
-                               b.moveTo(0, 120);
-                               b.lineTo(120, 120);
-                               b.lineTo(120, 0);
-                               return b.detach();
-                             })
-                             .stroke(std::move(style))});
+  return box().children(
+      {box()
+           .absolute()
+           .inset({.top = 20, .right = 20, .bottom = 20, .left = 20})
+           .shape([] {
+             SkPathBuilder b;
+             b.moveTo(0, 120);
+             b.lineTo(120, 120);
+             b.lineTo(120, 0);
+             return b.detach();
+           })
+           .stroke(std::move(style))});
 }
 
 }  // namespace
@@ -215,11 +227,12 @@ TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
   // The stated-radii overload puts a circle exactly where it says. The
   // spaced form is kept here as the control that the trap is real.
   const auto ringNode = [](lines::RadialHatch hatch) {
-    return box().children({box()
-                               .absolute()
-                               .inset(20, 20, 20, 20)
-                               .shape(geometry::shapes::circle())
-                               .stroke(std::move(hatch))});
+    return box().children(
+        {box()
+             .absolute()
+             .inset({.top = 20, .right = 20, .bottom = 20, .left = 20})
+             .shape(geometry::shapes::circle())
+             .stroke(std::move(hatch))});
   };
   Host stated, spaced;
   stated.composer.render(ringNode(
@@ -331,16 +344,16 @@ RailScan scanRails(Host& host, float cx, float cy, float rInner, float rOuter) {
 }
 
 Element circleRun(Decoration style, float radius) {
-  return box().children({box()
-                             .absolute()
-                             .inset(0, 0, 0, 0)
-                             .shape([radius](SkSize s) {
-                               SkPathBuilder b;
-                               b.addCircle(s.width() / 2, s.height() / 2,
-                                           radius);
-                               return b.detach();
-                             })
-                             .stroke(std::move(style))});
+  return box().children(
+      {box()
+           .absolute()
+           .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})
+           .shape([radius](SkSize s) {
+             SkPathBuilder b;
+             b.addCircle(s.width() / 2, s.height() / 2, radius);
+             return b.detach();
+           })
+           .stroke(std::move(style))});
 }
 
 }  // namespace
@@ -623,21 +636,22 @@ TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
   // brush over hand-authored clean geometry: nothing the router emits — no
   // degenerate verb, no split run — reaches the pixels.
   auto boxes = [](Element route) {
-    return stack().children({box()
-                                 .key("a")
-                                 .width(20)
-                                 .height(20)
-                                 .inset(10, 90, 170, 90)
-                                 .absolute()
-                                 .fill(red()),
-                             box()
-                                 .key("b")
-                                 .width(20)
-                                 .height(20)
-                                 .inset(170, 90, 10, 90)
-                                 .absolute()
-                                 .fill(green()),
-                             std::move(route)});
+    return stack().children(
+        {box()
+             .key("a")
+             .width(20)
+             .height(20)
+             .inset({.top = 90, .right = 170, .bottom = 90, .left = 10})
+             .absolute()
+             .fill(red()),
+         box()
+             .key("b")
+             .width(20)
+             .height(20)
+             .inset({.top = 90, .right = 10, .bottom = 90, .left = 170})
+             .absolute()
+             .fill(green()),
+         std::move(route)});
   };
   Decoration wire = lines::presets::cased(3, Fill::color({1, 1, 1, 1}), 10);
   Host railed, clean;

@@ -97,7 +97,7 @@ Element card(float w, float h, SkColor4f accent) {
                .column()
                .gap(18)
                .absolute()
-               .inset(16, 16, 16, 16)
+               .inset({.top = 16, .right = 16, .bottom = 16, .left = 16})
                .children(
                    {// the header pill
                     box().width(w - 32).height(14).borderRadius({7}).fill(
@@ -139,7 +139,10 @@ Element card(float w, float h, SkColor4f accent) {
                                .track = Fill::color({1, 1, 1, 0.15f}),
                                .bar = Fill::color(accent)})
                .absolute()
-               .inset(w - gauge - 16, h - gauge - 16, 16, 16)});
+               .inset({.top = h - gauge - 16,
+                       .right = 16,
+                       .bottom = 16,
+                       .left = w - gauge - 16})});
 }
 
 }  // namespace

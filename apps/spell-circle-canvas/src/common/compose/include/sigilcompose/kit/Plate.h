@@ -110,7 +110,13 @@ struct Plate {
 
   // flexGrow(1) so the padded interior fills whatever rect the caller gave the
   // plate, without the interior needing its own size.
-  Element inner = box().padding(p.paddingX, p.paddingY).gap(p.gap).flexGrow(1);
+  Element inner = box()
+                      .padding({.top = p.paddingY,
+                                .right = p.paddingX,
+                                .bottom = p.paddingY,
+                                .left = p.paddingX})
+                      .gap(p.gap)
+                      .flexGrow(1);
   if (p.column)
     inner.column();
   else

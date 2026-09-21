@@ -39,12 +39,13 @@ TEST(ComposeDecorations, ContourWalkVisitsSamplesPositioned) {
     p.setColor(SK_ColorGREEN);
     c.drawRect(SkRect::MakeXYWH(-2, -2, 4, 4), p);  // at the sample origin
   };
-  host.composer.render(box().children({box()
-                                           .width(100)
-                                           .height(100)
-                                           .inset(50, 50, 50, 50)
-                                           .absolute()
-                                           .foreground(walk)}));
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(100)
+           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+           .absolute()
+           .foreground(walk)}));
   host.frame();
   EXPECT_EQ(visits, 16);  // 400px perimeter / 25px spacing
   EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);  // top edge stamped
@@ -92,17 +93,17 @@ TEST(ComposeDecorations, ContourWalkStampAtSequencesPerSampleArt) {
       return std::nullopt;  // odd samples: the shared stamp replays
     return box().width(10).height(10).fill(red());
   };
-  host.composer.render(box().children({box()
-                                           .absolute()
-                                           .inset(20, 80, 20, 80)
-                                           .shape([](SkSize s) {
-                                             SkPathBuilder b;
-                                             b.moveTo(0, s.height() / 2);
-                                             b.lineTo(s.width(),
-                                                      s.height() / 2);
-                                             return b.detach();
-                                           })
-                                           .foreground(walk)}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset({.top = 80, .right = 20, .bottom = 80, .left = 20})
+           .shape([](SkSize s) {
+             SkPathBuilder b;
+             b.moveTo(0, s.height() / 2);
+             b.lineTo(s.width(), s.height() / 2);
+             return b.detach();
+           })
+           .foreground(walk)}));
   host.frame();
   // 160px rail, spacing 40 → samples at x = 20, 60, 100, 140 (y = 100).
   EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);     // index 0: its own art
@@ -143,7 +144,7 @@ TEST(ComposeDecorations, ShadowSitsUnderTheFillAndAStrokeSitsOverIt) {
       {box()
            .width(80)
            .height(80)
-           .inset(40, 40, 40, 40)
+           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
            .absolute()
            .borderRadius({10})
            .background(sigil::compose::shadow({0, 0, 1, 1}, {12, 12}, 0))
@@ -207,7 +208,8 @@ Element station(const char* key, float left, float top) {
       .key(key)
       .width(20)
       .height(20)
-      .inset(left, top, 180 - left, 160 - top)
+      .inset(
+          {.top = top, .right = 180 - left, .bottom = 160 - top, .left = left})
       .absolute()
       .fill(blue());
 }
@@ -406,14 +408,14 @@ TEST(ComposeMask, PartialOutlineStrokesOnlyRevealedStretch) {
   // first 20% of the perimeter is dressed; right/bottom stay bare. The
   // fill and every outline decoration trace the CUT path.
   Host host;
-  host.composer.render(
-      box().children({box()
-                          .width(100)
-                          .height(100)
-                          .inset(0, 0, 100, 100)
-                          .absolute()
-                          .mask(by::spans(spans::upTo(0.2f)))
-                          .foreground(sigil::compose::stroke(4, green()))}));
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(100)
+           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+           .absolute()
+           .mask(by::spans(spans::upTo(0.2f)))
+           .foreground(sigil::compose::stroke(4, green()))}));
   host.frame();
   // Perimeter order for this outline: left → top → right → bottom, so the
   // first 20% is about the left edge. That order is a property of how the
@@ -433,7 +435,7 @@ TEST(ComposeMask, TransitionDrawsOn) {
              .key("b")
              .width(100)
              .height(100)
-             .inset(0, 0, 100, 100)
+             .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
              .absolute()
              .mask(by::spans(spans::upTo(std::move(end))))
              .foreground(sigil::compose::stroke(4, green()))});
@@ -455,14 +457,14 @@ TEST(ComposeMask, BoundGateRevealsWithoutRender) {
   // render(), and the reveal advances — the self-drawing wire primitive.
   choreograph::Output<float> end{0.2f};
   Host host;
-  host.composer.render(
-      box().children({box()
-                          .width(100)
-                          .height(100)
-                          .inset(0, 0, 100, 100)
-                          .absolute()
-                          .mask(by::spans(spans::upTo(&end)))
-                          .foreground(sigil::compose::stroke(4, green()))}));
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(100)
+           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+           .absolute()
+           .mask(by::spans(spans::upTo(&end)))
+           .foreground(sigil::compose::stroke(4, green()))}));
   host.frame();
   // (99,30) sits at ~57.5% of the perimeter (right edge, top→bottom).
   EXPECT_EQ(host.pixel(99, 30), SK_ColorBLACK);  // bare at end=0.2

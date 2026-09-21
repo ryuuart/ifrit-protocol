@@ -143,18 +143,19 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
 
   Host host(320, (int)std::ceil(panelH) + 40);
   auto divider = [&] { return box().height(div).fill(green()); };
-  host.composer.render(
-      box().children({box()
-                          .key("panel")
-                          .padding(12.0f, padY)
-                          .column()
-                          .gap(gap)
-                          .children({feed::feed(a, st).key("feedA")})
-                          .children({divider()})
-                          .children({feed::feed(b, st).key("feedB")})
-                          .children({divider()})
-                          .children({feed::feed(c, st).key("feedC")})
-                          .rect(SkRect::MakeXYWH(10, 10, 300, panelH))}));
+  host.composer.render(box().children(
+      {box()
+           .key("panel")
+           .padding(
+               {.top = padY, .right = 12.0f, .bottom = padY, .left = 12.0f})
+           .column()
+           .gap(gap)
+           .children({feed::feed(a, st).key("feedA")})
+           .children({divider()})
+           .children({feed::feed(b, st).key("feedB")})
+           .children({divider()})
+           .children({feed::feed(c, st).key("feedC")})
+           .rect(SkRect::MakeXYWH(10, 10, 300, panelH))}));
   host.frame();
 
   ASSERT_TRUE(host.composer.bounds("panel").has_value());

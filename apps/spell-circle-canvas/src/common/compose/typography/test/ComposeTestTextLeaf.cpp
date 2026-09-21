@@ -14,7 +14,9 @@ TEST(TextLayout, FullyConstrainedAbsoluteTextPaints) {
   sigil::weave::TextStyle style = styleAt(40);
   style.paint.foreground.setColor(SK_ColorWHITE);
   host.composer.render(stack().children(
-      {text(u8"WWWW", style).absolute().inset(10, 10, 10, 120)}));
+      {text(u8"WWWW", style)
+           .absolute()
+           .inset({.top = 10, .right = 10, .bottom = 120, .left = 10})}));
   host.frame();
   int lit = 0;
   for (int x = 10; x < 190; x += 4)
@@ -77,7 +79,7 @@ TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
       {box()
            .column()
            .absolute()
-           .inset(10, 10, 10, 10)
+           .inset({.top = 10, .right = 10, .bottom = 10, .left = 10})
            .children(
                {layout(layouts::BaselineGrid{.rhythm = 24})
                     .width(pct(100))

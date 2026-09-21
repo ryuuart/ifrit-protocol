@@ -33,7 +33,7 @@ class StackElement:
                 compose.box(compose.text("NEW", size=12, color=INK))
                 .top(14)
                 .right(14)
-                .padding(8, 5)
+                .padding(horizontal=8, vertical=5)
                 .borderRadius(4)
                 .fill(BADGE),
                 # A caption pinned to the other three edges.

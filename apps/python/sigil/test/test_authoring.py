@@ -77,7 +77,7 @@ class Authoring(unittest.TestCase):
     def test_explicit_children_and_native_motion_share_one_element_type(self):
         tree = (
             column()
-            .padding(12, 18)
+            .padding(horizontal=12, vertical=18)
             .opacity(entrance(0, 1, duration=0.4))
             .children(
                 [

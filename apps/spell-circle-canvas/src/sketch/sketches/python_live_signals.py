@@ -271,7 +271,7 @@ class LiveSignals:
                         (
                             row()
                             .gap(9)
-                            .padding(10, 15)
+                            .padding(horizontal=10, vertical=15)
                             .fill("#f8f9f2")
                             .borderRadius(18)
                             .children(

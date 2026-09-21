@@ -39,7 +39,8 @@ compose::Element titleCard(const TitleCard& card) {
   // absent must leave no space behind it.
   int placed = 0;
   const auto place = [&](Element line, float before) {
-    if (placed > 0) line.margin(0, before, 0, 0);
+    if (placed > 0)
+      line.margin({.top = before, .right = 0, .bottom = 0, .left = 0});
     column.children({std::move(line)});
     ++placed;
   };
@@ -114,8 +115,11 @@ compose::Element sectionHeader(const SectionHeader& header) {
              .role(weave::rule("caption").font(
                  look.font(look.type.captionNote, look.palette.ash)))
              .maxWidth(look.type.captionNote.size * 36)
-             .margin(0, header.label.empty() ? 0 : look.spacing.captionNoteGap,
-                     0, 0)});
+             .margin(
+                 {.top = header.label.empty() ? 0 : look.spacing.captionNoteGap,
+                  .right = 0,
+                  .bottom = 0,
+                  .left = 0})});
   return column;
 }
 

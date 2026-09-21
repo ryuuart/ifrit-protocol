@@ -52,7 +52,7 @@ class DataGarden:
             row()
             .width(892)
             .justifyContent("space_between")
-            .padding(19, 0)
+            .padding(horizontal=19, vertical=0)
             .children(
                 (
                     column()

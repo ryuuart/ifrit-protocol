@@ -73,8 +73,10 @@ compose::Element meter(const Meter& bar) {
                                                  look.palette.figure)))
                        .styleClass("readout")});
   column.children({std::move(head)});
-  column.children(
-      {std::move(rail.margin(0, look.spacing.captionNoteGap, 0, 0))});
+  column.children({std::move(rail.margin({.top = look.spacing.captionNoteGap,
+                                          .right = 0,
+                                          .bottom = 0,
+                                          .left = 0}))});
   return column;
 }
 

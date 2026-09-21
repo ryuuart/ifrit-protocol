@@ -36,13 +36,15 @@ Element tileChunk(const ChunkProps& p) {
     const int id = p.tiles[(size_t)i];
     const int atlasRow = id / 2, row = i / 4;
     const float sx = (float)(id % 2) * 8, sy = (float)atlasRow * 8;
-    chunk.children(
-        {image(atlas)
-             .imageRegion(SkRect::MakeXYWH(sx, sy, 8, 8))
-             .absolute()
-             .inset((float)(i % 4) * kTilePx, (float)row * kTilePx, 0, 0)
-             .width(kTilePx)
-             .height(kTilePx)});
+    chunk.children({image(atlas)
+                        .imageRegion(SkRect::MakeXYWH(sx, sy, 8, 8))
+                        .absolute()
+                        .inset({.top = (float)row * kTilePx,
+                                .right = 0,
+                                .bottom = 0,
+                                .left = (float)(i % 4) * kTilePx})
+                        .width(kTilePx)
+                        .height(kTilePx)});
   }
   return chunk;
 }

@@ -823,19 +823,24 @@ void bindCompose(py::module_& module) {
         name,
         [padding](Element& self, py::object horizontal,
                   py::object vertical) -> Element& {
-          return padding
-                     ? self.padding(dimension(horizontal), dimension(vertical))
-                     : self.margin(dimension(horizontal), dimension(vertical));
+          const compose::Dimension across = dimension(horizontal);
+          const compose::Dimension down = dimension(vertical);
+          const compose::Edges edges{down, across, down, across};
+          return padding ? self.padding(edges) : self.margin(edges);
         },
         py::arg("horizontal"), py::arg("vertical"), fluent);
     element.def(
         name,
         [padding](Element& self, py::object left, py::object top,
                   py::object right, py::object bottom) -> Element& {
-          return padding ? self.padding(dimension(left), dimension(top),
-                                        dimension(right), dimension(bottom))
-                         : self.margin(dimension(left), dimension(top),
-                                       dimension(right), dimension(bottom));
+          return padding ? self.padding({.top = dimension(top),
+                                         .right = dimension(right),
+                                         .bottom = dimension(bottom),
+                                         .left = dimension(left)})
+                         : self.margin({.top = dimension(top),
+                                        .right = dimension(right),
+                                        .bottom = dimension(bottom),
+                                        .left = dimension(left)});
         },
         py::arg("left"), py::arg("top"), py::arg("right"), py::arg("bottom"),
         fluent);
@@ -876,8 +881,10 @@ void bindCompose(py::module_& module) {
       "inset",
       [](Element& self, py::object l, py::object t, py::object r,
          py::object b) -> Element& {
-        return self.inset(dimension(l), dimension(t), dimension(r),
-                          dimension(b));
+        return self.inset({.top = dimension(t),
+                           .right = dimension(r),
+                           .bottom = dimension(b),
+                           .left = dimension(l)});
       },
       py::arg("left"), py::arg("top"), py::arg("right"), py::arg("bottom"),
       fluent);

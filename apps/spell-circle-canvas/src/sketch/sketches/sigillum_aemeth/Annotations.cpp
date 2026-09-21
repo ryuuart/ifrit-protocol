@@ -90,7 +90,7 @@ auto SigillumAemeth::nameRows() -> Element {
       .width(w)
       .height(324)
       .column()
-      .padding(0, 8)
+      .padding({.top = 8, .right = 0, .bottom = 8, .left = 0})
       .shape(keyedShape(w,
                         [w] {
                           SkPathBuilder b;

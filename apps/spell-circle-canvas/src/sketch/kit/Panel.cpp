@@ -82,11 +82,12 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
     shell.borderRadius(Corners{round});
   shell.children({std::move(opening)});
   if (!chrome.plate.empty())
-    shell.children({compose::document::eyebrow(chrome.plate)
-                        .role(weave::rule("eyebrow").font(
-                            look.font(look.type.eyebrow, look.palette.ash)))
-                        .margin(0, bezel * 0.5f, 0, 0)
-                        .alignSelf(Align::Center)});
+    shell.children(
+        {compose::document::eyebrow(chrome.plate)
+             .role(weave::rule("eyebrow").font(
+                 look.font(look.type.eyebrow, look.palette.ash)))
+             .margin({.top = bezel * 0.5f, .right = 0, .bottom = 0, .left = 0})
+             .alignSelf(Align::Center)});
   return shell;
 }
 

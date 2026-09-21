@@ -24,7 +24,7 @@ TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
       {box()
            .width(40)
            .height(40)
-           .inset(0, 0, 160, 160)
+           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
            .absolute()
            .fill(material::skia::Paint::sksl(effect).uniform("uK", &k))}));
   host.frame();
@@ -63,8 +63,18 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
 
   Host host;
   host.composer.render(box().children(
-      {box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(a),
-       box().width(40).height(40).inset(60, 0, 100, 160).absolute().fill(b)}));
+      {box()
+           .width(40)
+           .height(40)
+           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .absolute()
+           .fill(a),
+       box()
+           .width(40)
+           .height(40)
+           .inset({.top = 0, .right = 100, .bottom = 160, .left = 60})
+           .absolute()
+           .fill(b)}));
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 90u);   // a: uK=0.2
   EXPECT_GT(SkColorGetR(host.pixel(80, 20)), 200u);  // b: uK=1.0 — not aliased
@@ -81,7 +91,7 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
       {box()
            .width(40)
            .height(40)
-           .inset(0, 0, 160, 160)
+           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
            .absolute()
            .fill(material::skia::Paint::sksl(ukEffect())
                      .uniform("uK", &k))         // live red
@@ -106,7 +116,12 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
   EXPECT_TRUE(m.isAnimated());  // inherited from the bound layer
   Host host;
   host.composer.render(box().children(
-      {box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)}));
+      {box()
+           .width(40)
+           .height(40)
+           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .absolute()
+           .fill(m)}));
   host.frame();
   const uint32_t bright = SkColorGetR(host.pixel(20, 20));
   EXPECT_GT(bright, 170u);  // ~0.8 * 255 = 204
@@ -177,7 +192,12 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
   Host host;
   host.composer.setClock(&clock);
   host.composer.render(box().children(
-      {box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)}));
+      {box()
+           .width(40)
+           .height(40)
+           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .absolute()
+           .fill(m)}));
   host.frame();
   const uint32_t r0 = SkColorGetR(host.pixel(20, 20));  // uTime ≈ 0 → black
   clock.tick();                                         // advance real time…
@@ -195,20 +215,22 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
   Host host;
   host.composer.render(
       stack()
-          .children({box()
-                         .width(40)
-                         .height(40)
-                         .inset(0, 0, 160, 160)
-                         .absolute()
-                         .fill(Fill::color({0, 1, 0, 1}))})  // green under
-          .children({box()
-                         .width(40)
-                         .height(40)
-                         .inset(0, 0, 160, 160)
-                         .absolute()
-                         .fill(material::skia::Paint::sksl(ukEffect())
-                                   .uniform("uK", &k))
-                         .blendMode(SkBlendMode::kPlus)}));
+          .children(
+              {box()
+                   .width(40)
+                   .height(40)
+                   .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+                   .absolute()
+                   .fill(Fill::color({0, 1, 0, 1}))})  // green under
+          .children(
+              {box()
+                   .width(40)
+                   .height(40)
+                   .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+                   .absolute()
+                   .fill(material::skia::Paint::sksl(ukEffect())
+                             .uniform("uK", &k))
+                   .blendMode(SkBlendMode::kPlus)}));
   host.frame();
   const SkColor c = host.pixel(20, 20);  // red + green = yellow
   EXPECT_GT(SkColorGetR(c), 200u);

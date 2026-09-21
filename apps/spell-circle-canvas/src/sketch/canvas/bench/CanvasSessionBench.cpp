@@ -35,12 +35,14 @@ struct Grid {
     for (int i = 0; i < 64; ++i) {
       const int column = i % 8;
       const int row = i / 8;
-      root = root.children(
-          {box()
-               .width(60)
-               .height(40)
-               .inset((float)column * 78.0f, (float)row * 58.0f, 0, 0)
-               .fill(Fill::color({0.2f, 0.4f, 0.8f, 1}))});
+      root = root.children({box()
+                                .width(60)
+                                .height(40)
+                                .inset({.top = (float)row * 58.0f,
+                                        .right = 0,
+                                        .bottom = 0,
+                                        .left = (float)column * 78.0f})
+                                .fill(Fill::color({0.2f, 0.4f, 0.8f, 1}))});
     }
     ctx.composer.render(root);
   }

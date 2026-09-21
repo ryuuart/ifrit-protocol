@@ -167,7 +167,7 @@ inline Element flourishCard(const FlourishStyle& s, float w, float h,
       .foreground(beadChain(s.goldBright, 12.0f, 2.0f))
       .foreground(SwirlCorners{pal, 16.0f, 1.4f})
       .column()
-      .padding(20, 16)
+      .padding({.top = 16, .right = 20, .bottom = 16, .left = 20})
       .gap(6);
 }
 

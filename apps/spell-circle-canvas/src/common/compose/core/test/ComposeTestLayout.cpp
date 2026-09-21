@@ -564,10 +564,14 @@ TEST(ComposeLayout, PerEdgePaddingAndMargin) {
   Host host;
   host.composer.render(box().children(
       {box()
-           .padding(10, 20, 30, 40)
+           .padding({.top = 20, .right = 30, .bottom = 40, .left = 10})
            .key("outer")
            .children(
-               {box().margin(5, 6, 7, 8).width(50).height(50).key("inner")})}));
+               {box()
+                    .margin({.top = 6, .right = 7, .bottom = 8, .left = 5})
+                    .width(50)
+                    .height(50)
+                    .key("inner")})}));
   host.frame();
   auto inner = host.composer.bounds("inner");
   ASSERT_TRUE(inner.has_value());
@@ -588,21 +592,21 @@ TEST(ComposeLayout, DimLiteralsResolvePercent) {
 
 TEST(ComposeQueries, HitTestRespectsPaintOrderAndKeys) {
   Host host;
-  host.composer.render(
-      stack().children({box().key("under").inset(0).fill(red()),
-                        box()
-                            .key("over")
-                            .width(60)
-                            .height(60)
-                            .inset(20, 20, 120, 120)
-                            .absolute()
-                            .fill(green()),
-                        box()
-                            .width(30)
-                            .height(30)
-                            .inset(150, 150, 20, 20)
-                            .absolute()
-                            .fill(blue())}));  // keyless → falls to root
+  host.composer.render(stack().children(
+      {box().key("under").inset(0).fill(red()),
+       box()
+           .key("over")
+           .width(60)
+           .height(60)
+           .inset({.top = 20, .right = 120, .bottom = 120, .left = 20})
+           .absolute()
+           .fill(green()),
+       box()
+           .width(30)
+           .height(30)
+           .inset({.top = 150, .right = 20, .bottom = 20, .left = 150})
+           .absolute()
+           .fill(blue())}));  // keyless → falls to root
   host.frame();
   EXPECT_EQ(host.composer.hitTest({50, 50}).value_or(""), "over");
   EXPECT_EQ(host.composer.hitTest({120, 120}).value_or(""), "under");
@@ -620,14 +624,15 @@ TEST(ComposeTransform, SkewLeansPaintAndHits) {
   // backwards, so a point that is inside the leaning card but outside its
   // unsheared box still hits it.
   Host host;
-  host.composer.render(box().children({box()
-                                           .key("card")
-                                           .width(40)
-                                           .height(40)
-                                           .inset(60, 60, 100, 100)
-                                           .absolute()
-                                           .fill(red())
-                                           .skewX(-12.0f)}));
+  host.composer.render(box().children(
+      {box()
+           .key("card")
+           .width(40)
+           .height(40)
+           .inset({.top = 60, .right = 100, .bottom = 100, .left = 60})
+           .absolute()
+           .fill(red())
+           .skewX(-12.0f)}));
   host.frame();
   EXPECT_EQ(host.pixel(101, 64), SK_ColorRED);   // top leaned right
   EXPECT_EQ(host.pixel(61, 64), SK_ColorBLACK);  // vacated top-left
@@ -646,14 +651,15 @@ TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
   // The sign is easy to state backwards, so the runtime's answer is
   // pinned here in pixels.
   Host host;
-  host.composer.render(box().children({box()
-                                           .key("card")
-                                           .width(40)
-                                           .height(40)
-                                           .inset(60, 60, 100, 100)
-                                           .absolute()
-                                           .fill(red())
-                                           .skewX(30.0f)}));
+  host.composer.render(box().children(
+      {box()
+           .key("card")
+           .width(40)
+           .height(40)
+           .inset({.top = 60, .right = 100, .bottom = 100, .left = 60})
+           .absolute()
+           .fill(red())
+           .skewX(30.0f)}));
   host.frame();
   // The unsheared box is x in [60, 100], y in [60, 100], centre (80, 80).
   // At y = 64 (16 above centre) the shift is tan(30) * -16 ~ -9.2, so the

@@ -240,7 +240,10 @@ struct Caption {
             .absolute()
             .left(Dimension(caption.gap))
             .top(Dimension(caption.gap))
-            .padding(Dimension(caption.gap), Dimension(caption.gap * 0.5f))
+            .padding({.top = Dimension(caption.gap * 0.5f),
+                      .right = Dimension(caption.gap),
+                      .bottom = Dimension(caption.gap * 0.5f),
+                      .left = Dimension(caption.gap)})
             .children({caption.readingLine
                            ? caption.readingLine(caption.reading, caption)
                            : figure(caption.reading)});
@@ -271,7 +274,8 @@ struct Caption {
   // is absent must leave no space behind it.
   int placed = 0;
   const auto place = [&](Element part, float before) {
-    if (placed > 0) part.margin(0, before, 0, 0);
+    if (placed > 0)
+      part.margin({.top = before, .right = 0, .bottom = 0, .left = 0});
     column.children({std::move(part)});
     ++placed;
   };
@@ -489,8 +493,10 @@ struct Sheet {
     if (!page.key.empty()) part.key(page.key + "-" + which);
     return part;
   };
-  Element root = box().column().padding(page.marginX, page.marginTop,
-                                        page.marginX, page.marginBottom);
+  Element root = box().column().padding({.top = page.marginTop,
+                                         .right = page.marginX,
+                                         .bottom = page.marginBottom,
+                                         .left = page.marginX});
   if (!page.ground.none()) root.fill(page.ground);
 
   const bool ruled = page.rule.kind != Fill::Kind::None;
@@ -499,12 +505,13 @@ struct Sheet {
   const float half = std::max(
       0.0f, (page.contentGap - (ruled ? page.ruleWidth : 0.0f)) * 0.5f);
   const auto rule = [&](const char* which) {
-    return named(box()
-                     .height(Dimension(page.ruleWidth))
-                     .alignSelf(Align::Stretch)
-                     .fill(page.rule)
-                     .margin(0, half, 0, half),
-                 which);
+    return named(
+        box()
+            .height(Dimension(page.ruleWidth))
+            .alignSelf(Align::Stretch)
+            .fill(page.rule)
+            .margin({.top = half, .right = 0, .bottom = half, .left = 0}),
+        which);
   };
 
   const bool hasTitle = !page.title.empty();
@@ -520,14 +527,17 @@ struct Sheet {
           named(page.subtitleLine ? page.subtitleLine(page.subtitle, page)
                                   : sheetSubtitle(page.subtitle),
                 "subtitle");
-      if (hasTitle) subtitle.margin(0, page.subtitleGap, 0, 0);
+      if (hasTitle)
+        subtitle.margin(
+            {.top = page.subtitleGap, .right = 0, .bottom = 0, .left = 0});
       header.children({std::move(subtitle)});
     }
     root.children({std::move(header)});
     if (ruled)
       root.children({rule("head-rule")});
     else
-      content.margin(0, page.contentGap, 0, 0);
+      content.margin(
+          {.top = page.contentGap, .right = 0, .bottom = 0, .left = 0});
   }
 
   content.flexGrow(1);
@@ -540,7 +550,8 @@ struct Sheet {
     if (ruled)
       root.children({rule("foot-rule")});
     else
-      footer.margin(0, page.contentGap, 0, 0);
+      footer.margin(
+          {.top = page.contentGap, .right = 0, .bottom = 0, .left = 0});
     root.children({std::move(footer)});
   }
   return root;

@@ -163,7 +163,7 @@ auto TwoAdvancedV4::pressList() -> Element {
              .gap(7)
              .alignItems(Align::Center)
              .fill(mskia::withAlpha(kPanelSh, 0.55f))
-             .padding(6, 3)
+             .padding({.top = 3, .right = 6, .bottom = 3, .left = 6})
              .children({t(e["date"], cut(blackFace(), 13, kDate, 40, 0.95f)),
                         kit::line({.fill = Fill::color(
                                        mskia::withAlpha(kDate, 0.3f))})
@@ -252,7 +252,7 @@ auto TwoAdvancedV4::auxBar(const Utf8& label) -> Element {
       .height(18)
       .row()
       .alignItems(Align::Center)
-      .padding(6, 0)
+      .padding({.top = 0, .right = 6, .bottom = 0, .left = 6})
       .gap(6)
       .fill(mskia::Paint::linearUnit(
           {0, 0}, {0, 1},
@@ -322,7 +322,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
                 .flexShrink(0)
                 .fill(hexColor(0xF2F0EA))
                 .column()
-                .padding(7, 6)
+                .padding({.top = 6, .right = 7, .bottom = 6, .left = 7})
                 .gap(2)
                 .children(
                     {t(book["title"], cut(arial(), 15, hexColor(0x2A4A7A), 0)),
@@ -340,7 +340,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
            .height(40)
            .row()
            .alignItems(Align::Center)
-           .padding(8, 0)
+           .padding({.top = 0, .right = 8, .bottom = 0, .left = 8})
            .gap(7)
            .fill(mskia::Paint::linearUnit(
                {0, 0}, {0, 1},
@@ -373,7 +373,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
                      .flexGrow(1)
                      .row()
                      .gap(10)
-                     .padding(8, 6)
+                     .padding({.top = 6, .right = 8, .bottom = 6, .left = 8})
                      .fill(hexColor(0x300B0E))
                      .children({supplementals, photoshop, press})});
   return panel;
@@ -461,7 +461,11 @@ auto TwoAdvancedV4::subSystem() -> Element {
   }
 
   Element row =
-      bevelPanel(box().row().alignItems(Align::Center).padding(14, 0).gap(18),
+      bevelPanel(box()
+                     .row()
+                     .alignItems(Align::Center)
+                     .padding({.top = 0, .right = 14, .bottom = 0, .left = 14})
+                     .gap(18),
                  hexColor(0x2E0B0D));
   row.key("subsys")
       .gridArea("subsys")

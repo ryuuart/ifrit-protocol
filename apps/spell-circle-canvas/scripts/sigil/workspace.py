@@ -60,16 +60,16 @@ struct @NAME@ {
     // set in rather than spelling a size and a colour of its own.
     return stack()
         .styleSheet(sketch::kit::theme().styleSheet())
-        .children({text(u8"@STEM@").styleClass("title").inset(64, 56, 64, 0),
+        .children({text(u8"@STEM@").styleClass("title").inset({.top = 56, .right = 64, .bottom = 0, .left = 64}),
                    text(u8"edit this file and save")
                        .styleClass("subtitle")
-                       .inset(64, 92, 64, 0),
+                       .inset({.top = 92, .right = 64, .bottom = 0, .left = 64}),
                    image(reference)
                        .width(240)
                        .height(240)
                        .borderRadius({18})
                        .overflow(Overflow::Clip)
-                       .inset(64, 150, 64, 0)});
+                       .inset({.top = 150, .right = 64, .bottom = 0, .left = 64})});
   }
 
   void setup(sketch::SketchContext& ctx) {

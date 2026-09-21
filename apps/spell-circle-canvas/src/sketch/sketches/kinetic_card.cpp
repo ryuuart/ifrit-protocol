@@ -182,18 +182,22 @@ struct KineticCard {
    *  — it is drawn over the whole composition, because `beatsOf` answers
    *  in the composer's space. */
   sketch::kit::ComparisonCase cell(const Row& row, float width) {
-    return {.title = row.word,
-            .control = row.call,
-            .figure = box().width(width).height(kBodyH).padding(4, 22).children(
-                {text(row.word)
-                     .styleClass("specimen")
-                     .font(row.over)
-                     .key(row.key)
-                     .width(width - 8)
-                     .fx({.effect = row.effect,
-                          .stagger = kCascade,
-                          .progress = &phase})}),
-            .note = row.note};
+    return {
+        .title = row.word,
+        .control = row.call,
+        .figure = box()
+                      .width(width)
+                      .height(kBodyH)
+                      .padding({.top = 22, .right = 4, .bottom = 22, .left = 4})
+                      .children({text(row.word)
+                                     .styleClass("specimen")
+                                     .font(row.over)
+                                     .key(row.key)
+                                     .width(width - 8)
+                                     .fx({.effect = row.effect,
+                                          .stagger = kCascade,
+                                          .progress = &phase})}),
+        .note = row.note};
   }
 
   Element describe(sketch::SketchContext& ctx) {

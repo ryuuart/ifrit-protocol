@@ -213,7 +213,7 @@ auto WinampBase::lamp(float x, float y, float w, float h, const char* label,
   return key(x, y, w, h, box())
       .row()
       .alignItems(Align::Center)
-      .padding(n(pad), 0, 0, 0)
+      .padding({.top = 0, .right = 0, .bottom = 0, .left = n(pad)})
       .children({box().width(n(3)).height(n(3)).fill(on ? wa::kGreen
                                                         : hexColor(0x3C4A58)),
                  box().width(n(pad < 3 ? 1.5f : 2.0f)), t(label, pix(size))});

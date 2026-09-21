@@ -147,7 +147,7 @@ TEST(ComposePaint, EchoStampsShapeUnderTheFill) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(50, 50, 90, 90)
+           .inset({.top = 50, .right = 90, .bottom = 90, .left = 50})
            .fill(red())
            .layerStyle(LayerStyle::echo({10, 10}, {0, 1, 0, 1}))}));
   host.frame();
@@ -167,7 +167,7 @@ TEST(ComposePaint, EchoesAppendSoRegistrationDoublingIsTwoCalls) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(60, 60, 100, 100)
+           .inset({.top = 60, .right = 100, .bottom = 100, .left = 60})
            .fill(red())
            .layerStyle(LayerStyle::echo({-14, -14}, {0, 0, 1, 1}))
            .layerStyle(LayerStyle::echo({14, 14}, {0, 1, 0, 1}))
@@ -224,7 +224,7 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(100, 80, 60, 80)
+           .inset({.top = 80, .right = 60, .bottom = 80, .left = 100})
            .fill(red())
            .translateX(animate(
                sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
@@ -244,7 +244,7 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(100, 80, 60, 80)
+           .inset({.top = 80, .right = 60, .bottom = 80, .left = 100})
            .fill(red())
            .translateX(animate(
                sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
@@ -272,8 +272,11 @@ TEST(ComposeReconcile, RemovedDimsAndInsetsRelease) {
             30);  // released to content
 
   Host pins;
-  pins.composer.render(
-      box().children({box().inset(10, 10, 10, 10).fill(blue()).key("p")}));
+  pins.composer.render(box().children(
+      {box()
+           .inset({.top = 10, .right = 10, .bottom = 10, .left = 10})
+           .fill(blue())
+           .key("p")}));
   pins.frame();
   ASSERT_EQ(require(pins.composer.bounds("p")).width(), 180);
   pins.composer.render(box().children({box()
@@ -361,12 +364,15 @@ TEST_P(OpenContourWrap, AWrappedWindowOnAnOpenContourStaysTwoPieces) {
   // Joining them into one run draws a chord across the middle that exists
   // in no path the author supplied.
   Host host;
-  Element run = box().absolute().inset(20, 80, 20, 80).shape([](SkSize s) {
-    SkPathBuilder b;  // an open horizontal line
-    b.moveTo(0, s.height() / 2);
-    b.lineTo(s.width(), s.height() / 2);
-    return b.detach();
-  });
+  Element run = box()
+                    .absolute()
+                    .inset({.top = 80, .right = 20, .bottom = 80, .left = 20})
+                    .shape([](SkSize s) {
+                      SkPathBuilder b;  // an open horizontal line
+                      b.moveTo(0, s.height() / 2);
+                      b.lineTo(s.width(), s.height() / 2);
+                      return b.detach();
+                    });
   if (GetParam() == WrapDoor::NodeGate) {
     run.mask(by::spans(spans::wrap(0.9f, 1.2f))).stroke(stroke(6, green()));
   } else {
@@ -410,7 +416,7 @@ TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(20, 20, 20, 20)
+           .inset({.top = 20, .right = 20, .bottom = 20, .left = 20})
            .shape([](SkSize s) {  // closed rect, seam at its top-left corner
              SkPathBuilder b;
              b.moveTo(0, 0);
@@ -440,7 +446,7 @@ TEST(ComposePaint, BackdropLeavesDecorationsUnclipped) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(60, 60, 60, 60)
+           .inset({.top = 60, .right = 60, .bottom = 60, .left = 60})
            .backdropFilter(material::skia::Effect::filter(
                SkImageFilters::Blur(2, 2, nullptr)))
            .stroke(stroke(10, green(), PathFormat::Align::Outer))}));

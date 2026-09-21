@@ -13,8 +13,16 @@ TEST(ComposeCache, ConnectorWireSurvivesParentCaching) {
   // first frame and clipped away by every cached replay after it.
   Host host;
   host.composer.render(box().children(
-      {box().absolute().inset(20, 90, 160, 90).fill(red()).key("a"),
-       box().absolute().inset(160, 90, 20, 90).fill(red()).key("b"),
+      {box()
+           .absolute()
+           .inset({.top = 90, .right = 160, .bottom = 90, .left = 20})
+           .fill(red())
+           .key("a"),
+       box()
+           .absolute()
+           .inset({.top = 90, .right = 20, .bottom = 90, .left = 160})
+           .fill(red())
+           .key("b"),
        connector("a", "b").stroke(stroke(4, green()))}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);  // the wire, mid-span
@@ -27,13 +35,13 @@ TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
   // decoration that bleeds outside the box (here a shadow offset well past
   // it) is silently cropped away by a bake sized to the node.
   Host host;
-  host.composer.render(
-      box().children({box()
-                          .absolute()
-                          .inset(70, 70, 70, 70)
-                          .cache(Cache::Texture)
-                          .background(Shadow{{0, 1, 0, 1}, {30, 0}, 0})
-                          .fill(red())}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset({.top = 70, .right = 70, .bottom = 70, .left = 70})
+           .cache(Cache::Texture)
+           .background(Shadow{{0, 1, 0, 1}, {30, 0}, 0})
+           .fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN);  // shadow past the box
 }

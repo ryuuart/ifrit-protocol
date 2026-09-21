@@ -215,7 +215,10 @@ struct ThreadedStory {
         .ink(s::kFaint)
         .children(
             {box()
-                 .inset(s::kMargin, s::kMargin - 14, 0, 0)
+                 .inset({.top = s::kMargin - 14,
+                         .right = 0,
+                         .bottom = 0,
+                         .left = s::kMargin})
                  .column()
                  .gap(5)
                  .children(
@@ -229,7 +232,10 @@ struct ThreadedStory {
                           .font({.size = 9.5f, .track = 0.3f})
                           .width(700.0f)}),
              box()
-                 .inset(s::kMargin, s::kMargin + 56, 0, 0)
+                 .inset({.top = s::kMargin + 56,
+                         .right = 0,
+                         .bottom = 0,
+                         .left = s::kMargin})
                  .row()
                  .gap(44)
                  .font({.face = s::serif(), .size = 13})
@@ -246,7 +252,10 @@ struct ThreadedStory {
                  "a Western column is a FRAME; the vertical writing "
                  "mode keeps the word for the thing it already meant")
                  .font({.size = 9.5f, .track = 0.2f})
-                 .inset(s::kMargin, s::kH - 32, 0, 0)});
+                 .inset({.top = s::kH - 32,
+                         .right = 0,
+                         .bottom = 0,
+                         .left = s::kMargin})});
   }
 };
 

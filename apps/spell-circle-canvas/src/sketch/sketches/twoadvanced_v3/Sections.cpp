@@ -79,7 +79,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
         tabs.children(
             {kit::centred()
                  .height(17)
-                 .padding(10, 0)
+                 .padding({.top = 0, .right = 10, .bottom = 0, .left = 10})
                  .fill(mskia::withAlpha(kSeam, 0.92f))
                  .stroke(stroke(1,
                                 Fill::color(mskia::withAlpha(kSteelHi, 0.45f)),
@@ -158,7 +158,7 @@ Element TwoAdvancedV3::thumbPlate(Element content, const Utf8& btn) {
                .fill(hexColor(0x2A3550))
                .row()
                .alignItems(Align::Center)
-               .padding(3, 0)
+               .padding({.top = 0, .right = 3, .bottom = 0, .left = 3})
                .children({box().width(28).height(4).fill(
                    mskia::withAlpha(kSteelHi, 0.85f))}),
            kit::centred()
@@ -266,26 +266,32 @@ Element TwoAdvancedV3::updates() {
 Element TwoAdvancedV3::mailingList() {
   using namespace tv3;
   const data::Json& page = doc["modules"]["mailing"];
-  Element body = box().padding(12, 8).gap(6).children(
-      {t(page["prompt"], micro(11, hexColor(0xC7D0DD), 100)),
-       box()
-           .row()
-           .gap(8)
-           .alignItems(Align::Center)
-           .children({box()
-                          .flexGrow(1)
-                          .height(22)
-                          .fill(mskia::withAlpha(kPage, 0.9f))
-                          .stroke(stroke(
-                              1, Fill::color(mskia::withAlpha(kSteel, 0.6f)),
-                              PathFormat::Align::Inner))
-                          .row()
-                          .alignItems(Align::Center)
-                          .padding(7, 0)
-                          .children({t(
-                              page["placeholder"],
-                              micro(9, mskia::withAlpha(kBody, 0.7f), 100))}),
-                      button(page["button"], 64)})});
+  Element body =
+      box()
+          .padding({.top = 8, .right = 12, .bottom = 8, .left = 12})
+          .gap(6)
+          .children(
+              {t(page["prompt"], micro(11, hexColor(0xC7D0DD), 100)),
+               box()
+                   .row()
+                   .gap(8)
+                   .alignItems(Align::Center)
+                   .children(
+                       {box()
+                            .flexGrow(1)
+                            .height(22)
+                            .fill(mskia::withAlpha(kPage, 0.9f))
+                            .stroke(stroke(
+                                1, Fill::color(mskia::withAlpha(kSteel, 0.6f)),
+                                PathFormat::Align::Inner))
+                            .row()
+                            .alignItems(Align::Center)
+                            .padding(
+                                {.top = 0, .right = 7, .bottom = 0, .left = 7})
+                            .children({t(
+                                page["placeholder"],
+                                micro(9, mskia::withAlpha(kBody, 0.7f), 100))}),
+                        button(page["button"], 64)})});
   return module(page["glyph"], page["bar"], std::move(body), 3);
 }
 
@@ -310,8 +316,11 @@ Element TwoAdvancedV3::support2a() {
                        .children({meter(2),
                                   t(side["call"], micro(10, kNear, 120))})});
   };
-  Element body = box().row().padding(12, 4).gap(14).children(
-      {each(page["halves"].items(), half)});
+  Element body = box()
+                     .row()
+                     .padding({.top = 4, .right = 12, .bottom = 4, .left = 12})
+                     .gap(14)
+                     .children({each(page["halves"].items(), half)});
   return module(page["glyph"], page["bar"], std::move(body), 4);
 }
 
@@ -331,7 +340,7 @@ Element TwoAdvancedV3::follow2a() {
   }
   Element body = kit::centred()
                      .column()
-                     .padding(12, 8)
+                     .padding({.top = 8, .right = 12, .bottom = 8, .left = 12})
 
                      .children({icons});
   return module(page["glyph"], page["bar"], std::move(body), 5);

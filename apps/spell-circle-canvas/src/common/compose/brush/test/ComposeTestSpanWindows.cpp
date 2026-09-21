@@ -490,11 +490,12 @@ TEST(ComposeMask, WrapWindowCrossesTheSeam) {
   // A wrap window crossing the cycle seam must paint exactly the union of
   // its two clamped pieces — direction-agnostic pixel containment.
   auto strokedBox = [](Spans where) {
-    return box().children({box()
-                               .absolute()
-                               .inset(50, 50, 50, 50)
-                               .mask(by::spans(std::move(where)))
-                               .foreground(stroke(6, green()))});
+    return box().children(
+        {box()
+             .absolute()
+             .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+             .mask(by::spans(std::move(where)))
+             .foreground(stroke(6, green()))});
   };
   Host wrap, pieceA, pieceB;
   wrap.composer.render(strokedBox(spans::wrap(0.9f, 1.15f)));
@@ -524,7 +525,7 @@ TEST(ComposeMask, WrapOffsetBindingMarchesTheWindow) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(50, 50, 50, 50)
+           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
            .mask(by::spans(spans::wrap(0.0f, 0.25f).offset(&phase)))
            .foreground(stroke(6, green()))}));
   host.frame();

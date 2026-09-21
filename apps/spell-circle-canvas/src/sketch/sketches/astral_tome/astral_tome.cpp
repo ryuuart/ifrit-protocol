@@ -34,7 +34,7 @@ struct AstralTome {
   Element leather() const {
     Element e =
         box()
-            .inset(0, 0, 0, at::kBandH)
+            .inset({.top = 0, .right = 0, .bottom = at::kBandH, .left = 0})
             .key("leather")
             .cache(Cache::Texture)
             .fill(Paint::blend({{Paint::radialUnit({0.5f, 0.5f}, 0.95f,
@@ -292,19 +292,21 @@ struct AstralTome {
    *  Labels from ClientProxy:196-205. */
   /** THE CAPTION BAND: what the plate proves, under the plate. */
   Element captionBand() const {
-    Element band = box()
-                       .key("caption")
-                       .left(0)
-                       .right(0)
-                       .bottom(0)
-                       .height(at::kBandH)
-                       .column()
-                       .justifyContent(Justify::Center)
-                       .padding(34.0f, 0.0f)
-                       .gap(5.0f)
-                       .zIndex(20)
-                       .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}))
-                       .font({.face = mono});  // both lines are set in it
+    Element band =
+        box()
+            .key("caption")
+            .left(0)
+            .right(0)
+            .bottom(0)
+            .height(at::kBandH)
+            .column()
+            .justifyContent(Justify::Center)
+            .padding(
+                {.top = 0.0f, .right = 34.0f, .bottom = 0.0f, .left = 34.0f})
+            .gap(5.0f)
+            .zIndex(20)
+            .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}))
+            .font({.face = mono});  // both lines are set in it
     band.children(
         {text("ASTRAL SORCERY · "
               "GuiJournalConstellationCluster, PAGE 1 OF 4")

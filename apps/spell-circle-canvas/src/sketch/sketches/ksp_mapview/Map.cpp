@@ -352,7 +352,7 @@ auto KspMapView::burnCard() -> Element {
   return at(
       box()
           .column()
-          .padding(9, 8, 9, 8)
+          .padding({.top = 8, .right = 9, .bottom = 8, .left = 9})
           .gap(3)
           .fill(Paint::solid(hexColor(0x12181C, 0.86f)))
           .stroke(PathFormat{.width = 1.0f,

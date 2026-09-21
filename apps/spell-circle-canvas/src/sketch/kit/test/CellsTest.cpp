@@ -184,19 +184,20 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
 /** A plate set tighter down than across, which one distance cannot say. */
 TEST(SketchKitCells, APaddingDownOfItsOwn) {
   const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});
-  EXPECT_TRUE(sameDrawing(compose::box()
-                              .width(163)
-                              .height(176)
-                              .padding(13, 10)
-                              .overflow(compose::Overflow::Clip)
-                              .fill(ground)
-                              .children({subject()}),
-                          kit::well({.width = compose::Dimension(163),
-                                     .height = compose::Dimension(176),
-                                     .ground = ground,
-                                     .padding = 13,
-                                     .paddingY = 10},
-                                    compose::box().children({subject()}))));
+  EXPECT_TRUE(sameDrawing(
+      compose::box()
+          .width(163)
+          .height(176)
+          .padding({.top = 10, .right = 13, .bottom = 10, .left = 13})
+          .overflow(compose::Overflow::Clip)
+          .fill(ground)
+          .children({subject()}),
+      kit::well({.width = compose::Dimension(163),
+                 .height = compose::Dimension(176),
+                 .ground = ground,
+                 .padding = 13,
+                 .paddingY = 10},
+                compose::box().children({subject()}))));
 }
 
 /** THE GROUND'S OTHER FORM: a well grounded in a material draws what the

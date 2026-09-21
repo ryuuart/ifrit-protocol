@@ -31,13 +31,14 @@ TEST(ComposeStamps, StampRecordsOnceReplaysPerSample) {
           .width(12)
           .height(12);
 
-  host.composer.render(box().children({box()
-                                           .width(100)
-                                           .height(100)
-                                           .inset(50, 50, 50, 50)
-                                           .absolute()
-                                           .fill(blue())
-                                           .foreground(vine)}));
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(100)
+           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+           .absolute()
+           .fill(blue())
+           .foreground(vine)}));
   host.frame();
   host.frame();
   EXPECT_EQ(stampDescribes, 1);  // baked once, replayed at every sample
@@ -67,12 +68,13 @@ TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
   outer.spacing = 40.0f;
   outer.stamp = box().width(16).height(16).fill(red()).foreground(dots);
 
-  host.composer.render(box().children({box()
-                                           .width(120)
-                                           .height(120)
-                                           .inset(40, 40, 40, 40)
-                                           .absolute()
-                                           .foreground(outer)}));
+  host.composer.render(box().children(
+      {box()
+           .width(120)
+           .height(120)
+           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+           .absolute()
+           .foreground(outer)}));
   host.frame();
   int redPx = 0, cyanPx = 0;
   for (int x = 0; x < 200; x += 2)

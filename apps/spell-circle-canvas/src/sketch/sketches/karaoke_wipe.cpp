@@ -279,30 +279,33 @@ struct KaraokeWipe {
             // it: nothing in a text node can carry a mark that is not a
             // glyph, so anything pointing AT the type lives beside it and
             // is placed from the schedule the type is running.
-            .children({box()
-                           .width(pct(100))
-                           .height(kHopHeight + 18.0f)
-                           // Fleischer's ball is a hard white disc, and it is
-                           // the one thing on the frame that is not part of the
-                           // caption.
-                           .children({kit::dot({7.5f, kHopHeight + 7.5f}, 7.5f,
-                                               Fill::color(hexColor(0xFFFFFF)))
-                                          .key("ball")
-                                          .translateX(&ballX)
-                                          .translateY(&ballY)}),
-                       lyricLine(), ruler().margin(0, 12, 0, 0),
-                       text(kLine2)
-                           .font({.size = kLyricSize * 0.78f,
-                                  .color = kNext,
-                                  .track = kTrack,
-                                  .aliased = kAliased,
-                                  .antiAlias = false})
-                           .key("line2")
-                           .margin(0, 22, 0, 0)});
+            .children(
+                {box()
+                     .width(pct(100))
+                     .height(kHopHeight + 18.0f)
+                     // Fleischer's ball is a hard white disc, and it is
+                     // the one thing on the frame that is not part of the
+                     // caption.
+                     .children({kit::dot({7.5f, kHopHeight + 7.5f}, 7.5f,
+                                         Fill::color(hexColor(0xFFFFFF)))
+                                    .key("ball")
+                                    .translateX(&ballX)
+                                    .translateY(&ballY)}),
+                 lyricLine(),
+                 ruler().margin(
+                     {.top = 12, .right = 0, .bottom = 0, .left = 0}),
+                 text(kLine2)
+                     .font({.size = kLyricSize * 0.78f,
+                            .color = kNext,
+                            .track = kTrack,
+                            .aliased = kAliased,
+                            .antiAlias = false})
+                     .key("line2")
+                     .margin({.top = 22, .right = 0, .bottom = 0, .left = 0})});
 
     return box()
         .column()
-        .padding(46, 38)
+        .padding({.top = 38, .right = 46, .bottom = 38, .left = 46})
         .gap(26)
         .fill(linearGradient({0, 0}, {0, kH}, {kStage, kBand, kStage},
                              {0.0f, 0.5f, 1.0f}))

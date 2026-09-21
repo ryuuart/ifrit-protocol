@@ -86,12 +86,15 @@ compose::Element timeline(const Timeline& scale) {
              .children({std::move(label.flexShrink(0))})});
   }
   if (!scale.below && any) {
-    column.children({std::move(words.margin(0, 0, 0, reachOf))});
+    column.children({std::move(
+        words.margin({.top = 0, .right = 0, .bottom = reachOf, .left = 0}))});
     column.children({std::move(rail)});
     return column;
   }
   column.children({std::move(rail)});
-  if (any) column.children({std::move(words.margin(0, reachOf, 0, 0))});
+  if (any)
+    column.children({std::move(
+        words.margin({.top = reachOf, .right = 0, .bottom = 0, .left = 0}))});
   return column;
 }
 

@@ -96,7 +96,10 @@ Element hangingList() {
                {kit::bullets(items, marks, serif(kBodySize, kBody), kHang, 439),
                 kit::bullets(nested, dashes, serif(kBodySize, look.palette.ash),
                              kHang, 417)
-                    .margin(kHang, 0, 0, 0)})})});
+                    .margin({.top = 0,
+                             .right = 0,
+                             .bottom = 0,
+                             .left = kHang})})})});
 }
 }  // namespace
 

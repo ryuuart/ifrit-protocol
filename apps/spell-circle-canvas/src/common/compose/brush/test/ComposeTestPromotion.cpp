@@ -323,8 +323,10 @@ Element arcTable() {
     Element arc = box()
                       .width(2 * rMid)
                       .height(2 * rMid)
-                      .inset(C.x() - rMid, C.y() - rMid, W - C.x() - rMid,
-                             H - C.y() - rMid)
+                      .inset({.top = C.y() - rMid,
+                              .right = W - C.x() - rMid,
+                              .bottom = H - C.y() - rMid,
+                              .left = C.x() - rMid})
                       .shape(sigil::geometry::shapes::arc(-r.endDeg))
                       .stroke(ink);
     arc.mask(by::spans(spans::upTo(
@@ -333,7 +335,10 @@ Element arcTable() {
                  &choreograph::easeNone, std::chrono::milliseconds(150)}))));
     plate.children({std::move(arc).key("ring" + std::to_string(r.ring))});
   }
-  page.children({std::move(plate).inset(238, 20, 238, 20).key("plate")});
+  page.children(
+      {std::move(plate)
+           .inset({.top = 20, .right = 238, .bottom = 20, .left = 238})
+           .key("plate")});
   return page;
 }
 

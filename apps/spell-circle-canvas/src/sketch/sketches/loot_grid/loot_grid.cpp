@@ -351,7 +351,7 @@ struct LootGrid {
                      box()
                          .flexGrow(1)
                          .height(1.0f)
-                         .margin(6, 0, 6, 0)
+                         .margin({.top = 0, .right = 6, .bottom = 0, .left = 6})
                          .fill(Paint::solid({0.42f, 0.38f, 0.31f, 0.28f})),
                      text(value).styleClass("value").ink(valueColor)});
     };
@@ -408,7 +408,7 @@ struct LootGrid {
         .at({500, 300})
         .column()
         .alignItems(Align::Center)
-        .padding(14, 11)
+        .padding({.top = 11, .right = 14, .bottom = 11, .left = 14})
         .gap(2)
         .borderRadius({2})
         .fill(Paint::solid({0.02f, 0.02f, 0.02f, 0.90f}))
@@ -436,7 +436,7 @@ struct LootGrid {
                         .weight = 620}),
              text("Colossus Blade")
                  .font({.color = lt::kParch, .track = 0.8f})
-                 .margin(0, 0, 0, 6),
+                 .margin({.top = 0, .right = 0, .bottom = 6, .left = 0}),
              text("189% Enhanced Damage").styleClass("affix"),
              text("+2 to Fire Skills").styleClass("affix"),
              text("Adds 40-92 Fire Damage").styleClass("affix"),
@@ -444,7 +444,7 @@ struct LootGrid {
              box()
                  .width(180.0f)
                  .height(1.0f)
-                 .margin(0, 7, 0, 5)
+                 .margin({.top = 7, .right = 0, .bottom = 5, .left = 0})
                  .fill(Paint::linear({0, 0}, {180, 0},
                                      {{0.0f, {rc.fR, rc.fG, rc.fB, 0.0f}},
                                       {0.5f, {rc.fR, rc.fG, rc.fB, 0.5f}},
@@ -614,7 +614,7 @@ struct LootGrid {
               text("grid inventory — generated "
                    "materials, no sprites")
                   .font({.size = 12, .track = 1.0f})
-                  .margin(0, 5, 0, 0)}),
+                  .margin({.top = 5, .right = 0, .bottom = 0, .left = 0})}),
          paperdoll(), gridPanel(), tooltip(), beltRack(), cubePanel(),
          box()
              .row()
@@ -622,7 +622,7 @@ struct LootGrid {
              .gap(9)
              .right(30)
              .top(38)
-             .padding(13, 7)
+             .padding({.top = 7, .right = 13, .bottom = 7, .left = 13})
              .borderRadius({3})
              .fill(Paint::linear({0, 0}, {0, 32},
                                  {{0.0f, lt::kStoneHi}, {1.0f, lt::kStoneLo}}))

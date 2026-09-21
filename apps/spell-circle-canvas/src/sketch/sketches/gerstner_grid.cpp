@@ -310,20 +310,26 @@ struct GerstnerGrid {
         .key("head")
         .column()
         .at({g::kFieldX, 38})
-        .children({box()
-                       .row()
-                       .alignItems(Align::End)
-                       .font({.size = 30, .weight = 680})
-                       .children({text("PROGRAMME").font({.track = 3.2f}),
-                                  text("58")
-                                      .font({.color = g::kRed, .track = 1.0f})
-                                      .margin(14, 0, 0, 0),
-                                  text(count)
-                                      .font({.size = 11,
-                                             .color = g::kInkSoft,
-                                             .track = 3.0f,
-                                             .weight = 600})
-                                      .margin(18, 0, 0, 6)})});
+        .children(
+            {box()
+                 .row()
+                 .alignItems(Align::End)
+                 .font({.size = 30, .weight = 680})
+                 .children(
+                     {text("PROGRAMME").font({.track = 3.2f}),
+                      text("58")
+                          .font({.color = g::kRed, .track = 1.0f})
+                          .margin(
+                              {.top = 0, .right = 0, .bottom = 0, .left = 14}),
+                      text(count)
+                          .font({.size = 11,
+                                 .color = g::kInkSoft,
+                                 .track = 3.0f,
+                                 .weight = 600})
+                          .margin({.top = 0,
+                                   .right = 0,
+                                   .bottom = 6,
+                                   .left = 18})})});
   }
 
   /** The arithmetic, printed where a caption goes. */
@@ -419,12 +425,14 @@ struct GerstnerGrid {
              .bottom(26)
              .font({.size = 10})
              .ink(g::kInkSoft)
-             .children({text("KARL GERSTNER · CAPITAL "
-                             "· 1962")
-                            .font({.track = 2.6f, .weight = 600}),
-                        text("the mobile grid, run")
-                            .font({.track = 1.2f})
-                            .margin(0, 3, 0, 0)})});
+             .children(
+                 {text("KARL GERSTNER · CAPITAL "
+                       "· 1962")
+                      .font({.track = 2.6f, .weight = 600}),
+                  text("the mobile grid, run")
+                      .font({.track = 1.2f})
+                      .margin(
+                          {.top = 3, .right = 0, .bottom = 0, .left = 0})})});
     return root;
   }
 };

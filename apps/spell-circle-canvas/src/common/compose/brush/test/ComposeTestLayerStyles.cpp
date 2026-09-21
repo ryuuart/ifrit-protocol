@@ -55,10 +55,15 @@ TEST(ComposeStyles, AquaGelEdgesRunFromNoneToTheDeepCut) {
   lensToItsOutline.lensFadeEnd = 1.0f;
 
   Host host(500, 90);
-  host.composer.render(box().row().gap(8).padding(8, 20).children(
-      {withTopBand("none", 0.0f), withTopBand("default", preset.topBand),
-       withTopBand("deep", 1.0f), pill("nolens", noLens),
-       pill("lensout", lensToItsOutline)}));
+  host.composer.render(
+      box()
+          .row()
+          .gap(8)
+          .padding({.top = 20, .right = 8, .bottom = 20, .left = 8})
+          .children({withTopBand("none", 0.0f),
+                     withTopBand("default", preset.topBand),
+                     withTopBand("deep", 1.0f), pill("nolens", noLens),
+                     pill("lensout", lensToItsOutline)}));
   host.frame();
   auto lum = [&](int x, int y) {
     const SkColor c = host.pixel(x, y);
@@ -137,8 +142,10 @@ TEST(ComposeStyles, RippleDisplacesTheLayer) {
   // A thin horizontal red bar warped by a strong ripple: pixels appear
   // off-axis where the flat version has none.
   auto bar = [](bool warped) {
-    Element e =
-        box().absolute().inset(20, 96, 20, 96).fill(Fill::color({1, 0, 0, 1}));
+    Element e = box()
+                    .absolute()
+                    .inset({.top = 96, .right = 20, .bottom = 96, .left = 20})
+                    .fill(Fill::color({1, 0, 0, 1}));
     if (warped) e.filter(styles::ripple(10, 60));
     return box().children({std::move(e)});
   };

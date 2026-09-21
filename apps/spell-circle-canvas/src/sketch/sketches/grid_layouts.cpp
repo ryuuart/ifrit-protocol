@@ -74,7 +74,7 @@ std::vector<Element> cards() {
   return each(12, [&look](int i) {
     return text((i < 9 ? "0" : "") + std::to_string(i + 1) + " Aa",
                 look.mono(kSizes[i % 3], look.palette.figure))
-        .padding(8, 3, 8, 3)
+        .padding({.top = 3, .right = 8, .bottom = 3, .left = 8})
         .fill(Fill::color(kCard));
   });
 }

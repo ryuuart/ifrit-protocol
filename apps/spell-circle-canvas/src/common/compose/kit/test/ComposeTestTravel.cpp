@@ -64,7 +64,7 @@ TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
       {box()
            .width(100)
            .height(100)
-           .inset(0, 0, 100, 100)
+           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
            .absolute()
            .shape(geometry::shapes::star(4, 0.3f))
            .fill(material::skia::Paint::sksl(ukEffect()).uniform("uK", &k))}));

@@ -563,7 +563,7 @@ struct DaemonConsole {
         box()
             .row()
             .gap(8)
-            .padding(6, 1)
+            .padding({.top = 1, .right = 6, .bottom = 1, .left = 6})
             .borderRadius({2})
             .alignItems(Align::Center)
             .children({box().width(3).height(12).borderRadius({1.5f}).fill(
@@ -607,7 +607,8 @@ struct DaemonConsole {
   Element rule(float marginTop, float marginBottom) {
     return box()
         .height(1)
-        .margin(0, marginTop, 0, marginBottom)
+        .margin(
+            {.top = marginTop, .right = 0, .bottom = marginBottom, .left = 0})
         .fill(Fill::color(daemon_console::kRule));
   }
 
@@ -753,55 +754,58 @@ struct DaemonConsole {
             // The prompt's own voice: the host name is set in it, the
             // sigil in the heavier cut, and the typed command a half size up.
             .font({.face = faceMono, .size = 12, .color = dc::kDim})
-            .children({text(weave::rich().add("wardnet").add(
-                           " $ ", weave::Type{.face = faceMonoMed,
-                                              .color = dc::kAccent})),
-                       text(std::string(command).substr(0, shown))
-                           .font({.size = 12.5f, .color = dc::kBone}),
-                       box()
-                           .width(7)
-                           .height(13)
-                           .margin(3, 0, 0, 0)
-                           .fill(Fill::color(dc::kAccent))
-                           // The blink is the pulse waveform itself: on for
-                           // 0.62 s of every 1.06 s cycle, resting dim rather
-                           // than vanishing. Phase 0 is ON, so the caret the
-                           // typing machine parks at 0 sits solid.
-                           .opacity(motion::bind(&caretClock)
-                                        .source(0.0f, 1.06f)
-                                        .square(0.62f / 1.06f)
-                                        .target(0.10f, 1.0f))
-                           .key("caret"),
-                       box().flexGrow(1),
-                       text(std::format("ring 256 · {} events",
-                                        (unsigned long long)gen.events))
-                           .styleClass("fine")});
+            .children(
+                {text(weave::rich().add("wardnet").add(
+                     " $ ",
+                     weave::Type{.face = faceMonoMed, .color = dc::kAccent})),
+                 text(std::string(command).substr(0, shown))
+                     .font({.size = 12.5f, .color = dc::kBone}),
+                 box()
+                     .width(7)
+                     .height(13)
+                     .margin({.top = 0, .right = 0, .bottom = 0, .left = 3})
+                     .fill(Fill::color(dc::kAccent))
+                     // The blink is the pulse waveform itself: on for
+                     // 0.62 s of every 1.06 s cycle, resting dim rather
+                     // than vanishing. Phase 0 is ON, so the caret the
+                     // typing machine parks at 0 sits solid.
+                     .opacity(motion::bind(&caretClock)
+                                  .source(0.0f, 1.06f)
+                                  .square(0.62f / 1.06f)
+                                  .target(0.10f, 1.0f))
+                     .key("caret"),
+                 box().flexGrow(1),
+                 text(std::format("ring 256 · {} events",
+                                  (unsigned long long)gen.events))
+                     .styleClass("fine")});
 
     return stack()
         .styleSheet(classes())
         .fill(Paint::linear({0, 0}, {0, dc::kH},
                             {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}}))
-        .children({box()
-                       .column()
-                       .inset(26, 22, 26, 22)
-                       .fill(panel)
-                       .overflow(Overflow::Clip)
-                       .padding(padX, padY)
-                       // The enclosure's face, inherited by every chrome line;
-                       // the well and the prompt root their own monospaced
-                       // voice under it.
-                       .font({.face = faceChrome})
-                       .children({header, rule(9, 8),
-                                  box()
-                                      .row()
-                                      .flexGrow(1)
-                                      .gap(16)
-                                      .overflow(Overflow::Clip)
-                                      .children({std::move(well),
-                                                 box().width(1).fill(
-                                                     Fill::color(dc::kRule)),
-                                                 std::move(rail)}),
-                                  rule(8, 7), promptLine})})
+        .children(
+            {box()
+                 .column()
+                 .inset({.top = 22, .right = 26, .bottom = 22, .left = 26})
+                 .fill(panel)
+                 .overflow(Overflow::Clip)
+                 .padding(
+                     {.top = padY, .right = padX, .bottom = padY, .left = padX})
+                 // The enclosure's face, inherited by every chrome line;
+                 // the well and the prompt root their own monospaced
+                 // voice under it.
+                 .font({.face = faceChrome})
+                 .children({header, rule(9, 8),
+                            box()
+                                .row()
+                                .flexGrow(1)
+                                .gap(16)
+                                .overflow(Overflow::Clip)
+                                .children({std::move(well),
+                                           box().width(1).fill(
+                                               Fill::color(dc::kRule)),
+                                           std::move(rail)}),
+                            rule(8, 7), promptLine})})
         // the living surface: the scanline tile, crept by its bound pan
         .children({box()
                        .inset(0)

@@ -43,7 +43,12 @@ TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
   EXPECT_FALSE(m.isAnimated());        // still cacheable
   Host host;
   host.composer.render(box().children(
-      {box().width(100).height(100).inset(0, 0, 100, 100).absolute().fill(m)}));
+      {box()
+           .width(100)
+           .height(100)
+           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+           .absolute()
+           .fill(m)}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 150u);  // circle body visible
   EXPECT_LT(SkColorGetR(host.pixel(3, 3)), 40u);     // corner outside circle
@@ -57,7 +62,7 @@ TEST(ComposeSdf, AStarFillsItsCentreAndMissesTheBoxCorners) {
       {box()
            .width(100)
            .height(100)
-           .inset(0, 0, 100, 100)
+           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
            .absolute()
            .fill(material::skia::Paint::recipe(material::sdf::material(
                material::sdf::star(5, 2.4f), {.fill = {1, 0, 0, 1}})))}));
@@ -118,7 +123,7 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
       {box()
            .width(100)
            .height(100)
-           .inset(0, 0, 100, 100)
+           .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
            .absolute()
            .fill(material::skia::Paint::recipe(
                      material::sdf::material(material::sdf::circle(), style))
@@ -177,12 +182,13 @@ TEST(ComposePattern, CheckerTilesSeamlessly) {
   Pattern bg =
       Pattern(material::pattern::checker(10, {1, 0, 0, 1}, {0, 0, 1, 1}));
   Host host;
-  host.composer.render(box().children({box()
-                                           .width(60)
-                                           .height(20)
-                                           .inset(0, 0, 140, 180)
-                                           .absolute()
-                                           .fill(bg.material())}));
+  host.composer.render(box().children(
+      {box()
+           .width(60)
+           .height(20)
+           .inset({.top = 0, .right = 140, .bottom = 180, .left = 0})
+           .absolute()
+           .fill(bg.material())}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);    // cell (0,0)
   EXPECT_EQ(host.pixel(15, 5), SK_ColorBLUE);  // cell (1,0)
@@ -246,12 +252,13 @@ TEST(ComposePattern, AnElementTreeIsATile) {
       box().row().children({box().width(10).height(10).fill(red()),
                             box().width(10).height(10).fill(blue())}));
   Host host;
-  host.composer.render(box().children({box()
-                                           .width(40)
-                                           .height(10)
-                                           .inset(0, 0, 160, 190)
-                                           .absolute()
-                                           .fill(duo.material(fonts()))}));
+  host.composer.render(box().children(
+      {box()
+           .width(40)
+           .height(10)
+           .inset({.top = 0, .right = 160, .bottom = 190, .left = 0})
+           .absolute()
+           .fill(duo.material(fonts()))}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);
   EXPECT_EQ(host.pixel(15, 5), SK_ColorBLUE);
@@ -268,12 +275,13 @@ TEST(ComposePattern, TheGirihEightTileIsAStarAndACross) {
   Pattern zellige = material::kit::girih8(24, pal);
   const float s = 24 * (1 + 1.41421356f);  // tile spacing ≈ 57.9
   Host host;
-  host.composer.render(box().children({box()
-                                           .width(120)
-                                           .height(120)
-                                           .inset(0, 0, 80, 80)
-                                           .absolute()
-                                           .fill(zellige.material())}));
+  host.composer.render(box().children(
+      {box()
+           .width(120)
+           .height(120)
+           .inset({.top = 0, .right = 80, .bottom = 80, .left = 0})
+           .absolute()
+           .fill(zellige.material())}));
   host.frame();
   // Tile center = khatam star fill (blue).
   const SkColor center = host.pixel((int)(s / 2), (int)(s / 2));
@@ -297,7 +305,7 @@ TEST(ComposeStyles, BevelLightsAndShadesOpposedEdges) {
       {box()
            .width(60)
            .height(60)
-           .inset(0, 0, 140, 140)
+           .inset({.top = 0, .right = 140, .bottom = 140, .left = 0})
            .absolute()
            .fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))
            .foreground(styles::BevelEmboss{.depth = 4, .size = 3})}));
@@ -313,16 +321,16 @@ TEST(ComposeStyles, AnOverlaySitsOverTheFillAndAStrokeOverBoth) {
   // colorOverlay tints the shape through its blend; .stroke() is fill's
   // ergonomic peer for dressing the outline.
   Host host;
-  host.composer.render(
-      box().children({box()
-                          .width(60)
-                          .height(60)
-                          .inset(0, 0, 140, 140)
-                          .absolute()
-                          .fill(Fill::color({0, 0, 1, 1}))
-                          .foreground(styles::colorOverlay(
-                              {1, 0, 0, 1}, SkBlendMode::kSrcOver, 0.5f))
-                          .stroke(sigil::compose::stroke(4, green()))}));
+  host.composer.render(box().children(
+      {box()
+           .width(60)
+           .height(60)
+           .inset({.top = 0, .right = 140, .bottom = 140, .left = 0})
+           .absolute()
+           .fill(Fill::color({0, 0, 1, 1}))
+           .foreground(
+               styles::colorOverlay({1, 0, 0, 1}, SkBlendMode::kSrcOver, 0.5f))
+           .stroke(sigil::compose::stroke(4, green()))}));
   host.frame();
   const SkColor c = host.pixel(30, 30);  // 50% red over blue
   EXPECT_GT(SkColorGetR(c), 90u);
@@ -377,7 +385,7 @@ TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
       {box()
            .width(40)
            .height(40)
-           .inset(60, 60, 100, 100)
+           .inset({.top = 60, .right = 100, .bottom = 100, .left = 60})
            .absolute()
            .borderRadius({8})
            .background(styles::OuterGlow{.color = {1, 1, 1, 1}, .size = 10})
@@ -397,7 +405,7 @@ TEST(ComposePatterns, APatternFillReachesThePixels) {
       {box()
            .width(120)
            .height(40)
-           .inset(0, 0, 80, 160)
+           .inset({.top = 0, .right = 80, .bottom = 160, .left = 0})
            .absolute()
            .fill(Pattern(material::pattern::sequence({{10, {1, 0, 0, 1}},
                                                       {10, {0, 1, 0, 1}},

@@ -485,7 +485,7 @@ struct Ds2Bench {
              box()
                  .width(9.0f)
                  .height(9.0f)
-                 .margin(13, 0, 13, 0)
+                 .margin({.top = 0, .right = 13, .bottom = 0, .left = 13})
                  .shape(shapes::polygon(12))
                  .fill(Paint::radial({4.5f, 4.5f}, 5.0f,
                                      {{0.0f, art.ring}, {1.0f, art.fill}})),
@@ -512,7 +512,7 @@ struct Ds2Bench {
             .shape(chamfer(12))
             .zIndex(7)
             .column()
-            .padding(20, 12)
+            .padding({.top = 12, .right = 20, .bottom = 12, .left = 20})
             .gap(3)
             .staggerChildren(70ms, Spread::From::Start);
 
@@ -562,7 +562,7 @@ struct Ds2Bench {
                    SkBlendMode::kScreen}}))
              .column()
              .alignItems(Align::Center)
-             .padding(16, 11)
+             .padding({.top = 11, .right = 16, .bottom = 11, .left = 16})
              .gap(2)
              .zIndex(7)
              .children({kit::centred()
@@ -578,7 +578,7 @@ struct Ds2Bench {
                  {box()
                       .width(66.0f)
                       .height(46.0f)
-                      .margin(0, 6, 0, 0)
+                      .margin({.top = 6, .right = 0, .bottom = 0, .left = 0})
                       .children(
                           {box()
                                .rect(

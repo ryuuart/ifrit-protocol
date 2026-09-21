@@ -42,7 +42,8 @@ enum class MaskKind { Spans, Edge };
 
 Element maskedGrid(int count, MaskKind kind,
                    choreograph::Output<float>* reveal) {
-  auto root = positioned().inset(0, 0, 0, 0);
+  auto root =
+      positioned().inset({.top = 0, .right = 0, .bottom = 0, .left = 0});
   constexpr int kColumns = 32;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
@@ -114,7 +115,8 @@ struct WaveWidth {
 };
 
 Element profiledRibbonGrid(int count) {
-  auto root = positioned().inset(0, 0, 0, 0);
+  auto root =
+      positioned().inset({.top = 0, .right = 0, .bottom = 0, .left = 0});
   constexpr int kColumns = 16;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
@@ -147,7 +149,8 @@ Element profiledRibbonGrid(int count) {
  *  a per-Instance span cache, if one is ever added, has something to be
  *  measured against. */
 Element spanStrokeGrid(int passCount, choreograph::Output<float>& phase) {
-  auto root = positioned().inset(0, 0, 0, 0);
+  auto root =
+      positioned().inset({.top = 0, .right = 0, .bottom = 0, .left = 0});
   constexpr int kColumns = 4;
   constexpr int kNodes = 16;
   const float slot = 1.0f / (float)passCount;
@@ -365,15 +368,15 @@ ContourWalk starVine() {
  *  than rebuilt per station. */
 static void BM_Draw_StampBorder_Cached(benchmark::State& state) {
   Host host(800, 600);
-  host.composer.render(
-      box().children({box()
-                          .width(400)
-                          .height(280)
-                          .inset(100, 100, 300, 220)
-                          .absolute()
-                          .borderRadius({20})
-                          .fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
-                          .foreground(starVine())}));
+  host.composer.render(box().children(
+      {box()
+           .width(400)
+           .height(280)
+           .inset({.top = 100, .right = 300, .bottom = 220, .left = 100})
+           .absolute()
+           .borderRadius({20})
+           .fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
+           .foreground(starVine())}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }
@@ -385,17 +388,17 @@ BENCHMARK(BM_Draw_StampBorder_Cached);
 static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State& state) {
   Host host(800, 600);
   choreograph::Output<float> spin{0.0f};
-  host.composer.render(
-      box().children({box()
-                          .width(300)
-                          .height(300)
-                          .inset(250, 150, 250, 150)
-                          .absolute()
-                          .shape(geometry::shapes::rounded(
-                              geometry::shapes::star(7, 0.6f), 10))
-                          .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
-                          .rotate(&spin)
-                          .foreground(starVine())}));
+  host.composer.render(box().children(
+      {box()
+           .width(300)
+           .height(300)
+           .inset({.top = 150, .right = 250, .bottom = 150, .left = 250})
+           .absolute()
+           .shape(
+               geometry::shapes::rounded(geometry::shapes::star(7, 0.6f), 10))
+           .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
+           .rotate(&spin)
+           .foreground(starVine())}));
   host.draw();
   float angle = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -414,19 +417,19 @@ static void BM_Draw_ArtWarp_Live(benchmark::State& state) {
       brush::artAlong(box().width(48).height(16).borderRadius({8}).fill(
                           Fill::color({0.5f, 0.8f, 0.5f, 1})),
                       14, 6);
-  host.composer.render(
-      box().children({box()
-                          .absolute()
-                          .inset(20, 20, 20, 20)
-                          .shape([](SkSize s) {
-                            SkPathBuilder b;
-                            b.moveTo(0, s.height() / 2);
-                            b.cubicTo(s.width() * 0.3f, 0, s.width() * 0.5f,
-                                      s.height(), s.width(), s.height() / 2);
-                            return b.detach();
-                          })
-                          .foreground(vine)
-                          .cache(Cache::None)}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset({.top = 20, .right = 20, .bottom = 20, .left = 20})
+           .shape([](SkSize s) {
+             SkPathBuilder b;
+             b.moveTo(0, s.height() / 2);
+             b.cubicTo(s.width() * 0.3f, 0, s.width() * 0.5f, s.height(),
+                       s.width(), s.height() / 2);
+             return b.detach();
+           })
+           .foreground(vine)
+           .cache(Cache::None)}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }

@@ -54,7 +54,7 @@ def signal_row(number, title, detail, signal, accent):
         row()
         .gap(18)
         .alignItems("center")
-        .padding(16, 20)
+        .padding(horizontal=16, vertical=20)
         .width(WIDTH)
         .fill("#162621" if number % 2 else "#13221e")
         .borderRadius(12)

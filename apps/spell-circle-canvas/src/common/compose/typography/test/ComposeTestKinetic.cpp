@@ -76,7 +76,7 @@ TEST(ComposeKinetic, ATrackKeepsABlurredUnderlayBeneathTheStroke) {
     return text(u8"OOOOO", style)
         .key(key)
         .absolute()
-        .inset(20, 20, 20, 20)
+        .inset({.top = 20, .right = 20, .bottom = 20, .left = 20})
         .fx({.effect = fx::pop(),
              .stagger = {.eachMs = 30, .durationMs = 480},
              .progress = kMidCascade});

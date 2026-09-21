@@ -22,7 +22,10 @@ Element well(const Well& spec, Element surface) {
   if (spec.height.unit != Dimension::Unit::Auto) surface.height(spec.height);
   if (!spec.ground.none()) surface.fill(spec.ground);
   if (spec.paddingY)
-    surface.padding(Dimension(spec.padding), Dimension(*spec.paddingY));
+    surface.padding({.top = Dimension(*spec.paddingY),
+                     .right = Dimension(spec.padding),
+                     .bottom = Dimension(*spec.paddingY),
+                     .left = Dimension(spec.padding)});
   else if (spec.padding != 0.0f)
     surface.padding(Dimension(spec.padding));
   if (spec.clip) surface.overflow(Overflow::Clip);

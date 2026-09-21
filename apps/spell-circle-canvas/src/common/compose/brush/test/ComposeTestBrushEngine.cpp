@@ -38,7 +38,10 @@ TEST(ComposeBrushEngine, BrushPrunesAsOneValue) {
         .shaped(geometry::shapers::Wave{.amplitude = 3, .wavelength = 30})
         .layer(lines::presets::cased(3, Fill::color({0, 1, 0, 1}), 5));
     return box().children(
-        {box().absolute().inset(40, 40, 40, 40).stroke(std::move(b))});
+        {box()
+             .absolute()
+             .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+             .stroke(std::move(b))});
   };
   host.composer.render(tree());
   host.frame();
@@ -112,16 +115,17 @@ TEST(ComposeBrushEngine, AnExplicitIntervalIsNotOverriddenBySpacing) {
     b.spacing = spacing;
     b.place = {brush::Placement::Mode::Interval, interval};
     b.alignToPath = false;
-    host.composer.render(box().children({box()
-                                             .absolute()
-                                             .inset(20, 20, 20, 20)
-                                             .shape([](SkSize s) {
-                                               SkPathBuilder p;
-                                               p.moveTo(0, 0);
-                                               p.lineTo(s.width(), 0);
-                                               return p.detach();
-                                             })
-                                             .stroke(std::move(b))}));
+    host.composer.render(box().children(
+        {box()
+             .absolute()
+             .inset({.top = 20, .right = 20, .bottom = 20, .left = 20})
+             .shape([](SkSize s) {
+               SkPathBuilder p;
+               p.moveTo(0, 0);
+               p.lineTo(s.width(), 0);
+               return p.detach();
+             })
+             .stroke(std::move(b))}));
     host.frame();
     int runs = 0;
     bool inRun = false;
@@ -146,19 +150,19 @@ TEST(ComposeBrushEngine, PlacementGrammarLandsOnRealVertices) {
   b.art = box().width(8).height(8).fill(red());
   b.place = {brush::Placement::Mode::InnerVertices};
   b.alignToPath = false;
-  host.composer.render(
-      box().children({box()
-                          .absolute()
-                          .inset(40, 40, 40, 40)
-                          .shape([](SkSize s) {
-                            SkPathBuilder p;  // three segments, two bends
-                            p.moveTo(0, s.height());
-                            p.lineTo(60, s.height());
-                            p.lineTo(60, 0);
-                            p.lineTo(s.width(), 0);
-                            return p.detach();
-                          })
-                          .stroke(std::move(b))}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+           .shape([](SkSize s) {
+             SkPathBuilder p;  // three segments, two bends
+             p.moveTo(0, s.height());
+             p.lineTo(60, s.height());
+             p.lineTo(60, 0);
+             p.lineTo(s.width(), 0);
+             return p.detach();
+           })
+           .stroke(std::move(b))}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 160), SK_ColorRED);   // bend 1 (60,120)+40
   EXPECT_EQ(host.pixel(100, 40), SK_ColorRED);    // bend 2 (60,0)+40
@@ -169,16 +173,17 @@ TEST(ComposeBrushEngine, PlacementGrammarLandsOnRealVertices) {
   c.art = box().width(8).height(8).fill(blue());
   c.place = {brush::Placement::Mode::SegmentCenter};
   c.alignToPath = false;
-  centers.composer.render(box().children({box()
-                                              .absolute()
-                                              .inset(40, 40, 40, 40)
-                                              .shape([](SkSize s) {
-                                                SkPathBuilder p;
-                                                p.moveTo(0, 0);
-                                                p.lineTo(s.width(), 0);
-                                                return p.detach();
-                                              })
-                                              .stroke(std::move(c))}));
+  centers.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+           .shape([](SkSize s) {
+             SkPathBuilder p;
+             p.moveTo(0, 0);
+             p.lineTo(s.width(), 0);
+             return p.detach();
+           })
+           .stroke(std::move(c))}));
   centers.frame();
   EXPECT_EQ(centers.pixel(100, 40), SK_ColorBLUE);  // the segment midpoint
 }
@@ -228,11 +233,12 @@ TEST(ComposeBrushTail, BrushArtWarpsArtAlongTheOutline) {
   };
   brush::Art brush = brush::artAlong(
       box().width(40).height(20).fill(Fill::color({1, 1, 1, 1})), 20);
-  host.composer.render(box().children({box()
-                                           .absolute()
-                                           .inset(20, 60, 20, 60)
-                                           .shape(lineOutline)
-                                           .foreground(brush)}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset({.top = 60, .right = 20, .bottom = 60, .left = 20})
+           .shape(lineOutline)
+           .foreground(brush)}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorWHITE);  // on the ribbon
   EXPECT_EQ(host.pixel(100, 130), SK_ColorBLACK);  // 30px off: outside height
@@ -240,12 +246,12 @@ TEST(ComposeBrushTail, BrushArtWarpsArtAlongTheOutline) {
 
 TEST(ComposeBrushTail, HatchFillsInteriorSparsely) {
   Host host;
-  host.composer.render(
-      box().children({box()
-                          .absolute()
-                          .inset(50, 50, 50, 50)
-                          .background(lines::presets::hatch(
-                              Fill::color({1, 1, 1, 1}), 8, 1.5f, 45))}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+           .background(lines::presets::hatch(Fill::color({1, 1, 1, 1}), 8, 1.5f,
+                                             45))}));
   host.frame();
   // Count lit pixels in the hatched interior: strictly between "empty"
   // and "solid fill" — the lattice is present but sparse.
@@ -478,7 +484,7 @@ TEST(ComposeBrushTail, GlossContourRingIsWhereTheCoverageSaysNotTheAlpha) {
   auto shape = [] {
     return box()
         .absolute()
-        .inset(50, 50, 50, 50)
+        .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
         .borderRadius({24})
         .fill(Fill::color({0.2f, 0.3f, 0.5f, 1}));
   };
@@ -525,19 +531,19 @@ TEST(ComposeBrushEngine, AStepThatCannotAdvanceSkipsItsContour) {
              .interval = 0.25f,
              .offset = -5.0f};
   Host host;
-  host.composer.render(box().children({box()
-                                           .absolute()
-                                           .inset(20, 80, 20, 80)
-                                           .shape([](SkSize s) {
-                                             SkPathBuilder b;
-                                             b.moveTo(0, s.height() / 2);
-                                             b.close();  // no length at all
-                                             b.moveTo(0, s.height() / 2);
-                                             b.lineTo(s.width(),
-                                                      s.height() / 2);
-                                             return b.detach();
-                                           })
-                                           .stroke(Decoration(s))}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset({.top = 80, .right = 20, .bottom = 80, .left = 20})
+           .shape([](SkSize s) {
+             SkPathBuilder b;
+             b.moveTo(0, s.height() / 2);
+             b.close();  // no length at all
+             b.moveTo(0, s.height() / 2);
+             b.lineTo(s.width(), s.height() / 2);
+             return b.detach();
+           })
+           .stroke(Decoration(s))}));
   host.frame();
   SUCCEED();  // it finished
 }

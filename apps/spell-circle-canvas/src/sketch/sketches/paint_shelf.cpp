@@ -142,9 +142,16 @@ struct PaintShelf {
     // TWO NODES, ONE DESCRIPTION — which is the whole of what worldSpace
     // is read by.
     const auto pair = [&](bool world) {
-      return box().row().padding(18, 34).gap(16).children({each(2, [&](int) {
-        return box().flexGrow(1).alignSelf(Align::Stretch).fill(field(world));
-      })});
+      return box()
+          .row()
+          .padding({.top = 34, .right = 18, .bottom = 34, .left = 18})
+          .gap(16)
+          .children({each(2, [&](int) {
+            return box()
+                .flexGrow(1)
+                .alignSelf(Align::Stretch)
+                .fill(field(world));
+          })});
     };
 
     ctx.composer.render(sketch::kit::page(

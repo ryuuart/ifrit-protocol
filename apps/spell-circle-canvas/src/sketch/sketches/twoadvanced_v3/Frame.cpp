@@ -10,7 +10,7 @@ Element TwoAdvancedV3::moduleBar(const Utf8& glyph, const Utf8& label,
       .height(26)
       .row()
       .alignItems(Align::Center)
-      .padding(7, 0)
+      .padding({.top = 0, .right = 7, .bottom = 0, .left = 7})
       .gap(8)
       .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                      {{0.0f, hexColor(0x8B98B2)},
@@ -111,8 +111,12 @@ Element TwoAdvancedV3::wordmark() {
             "2a", sigil::weave::kit::tracked(grotBold(), 18, kNear, 0, 1.0f))});
   }
   Element panel =
-      at(box().row().alignItems(Align::Center).padding(30, 0).gap(16), kStageX,
-         82, kStageW, 86)
+      at(box()
+             .row()
+             .alignItems(Align::Center)
+             .padding({.top = 0, .right = 30, .bottom = 0, .left = 30})
+             .gap(16),
+         kStageX, 82, kStageW, 86)
           .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                          {{0.0f, hexColor(0x8C99B4)},
                                           {0.6f, kSteel},
@@ -164,7 +168,7 @@ Element TwoAdvancedV3::navBar() {
                     .height(33)
                     .row()
                     .alignItems(Align::Center)
-                    .padding(12, 0)
+                    .padding({.top = 0, .right = 12, .bottom = 0, .left = 12})
                     .gap(7)
                     .fill(mskia::withAlpha(hexColor(0x39445C), 0.92f))
                     .foreground(onEdges(
@@ -232,7 +236,7 @@ Element TwoAdvancedV3::scrollStrip() {
   return at(box()
                 .row()
                 .alignItems(Align::Center)
-                .padding(10, 0)
+                .padding({.top = 0, .right = 10, .bottom = 0, .left = 10})
                 .gap(6)
                 .fill(hexColor(0x4B5870))
                 .foreground(onEdges(
@@ -256,7 +260,7 @@ Element TwoAdvancedV3::footerRail() {
   return at(box()
                 .row()
                 .alignItems(Align::Center)
-                .padding(10, 0)
+                .padding({.top = 0, .right = 10, .bottom = 0, .left = 10})
                 .gap(8)
                 .fill(mskia::Paint::linearUnit(
                     {0, 0}, {0, 1},

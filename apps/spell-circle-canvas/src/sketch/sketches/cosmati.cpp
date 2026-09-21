@@ -489,39 +489,40 @@ struct Cosmati {
 
     // ---- the apparatus beside the floor ------------------------------
     const float px = cs::kFieldX + cs::kFieldSide + 34;
-    root.children({box()
-                       .column()
-                       .left(px)
-                       .top(cs::kFieldY + 4)
-                       .children({text("OPUS SECTILE")
-                                      .font({.size = 21,
-                                             .color = cs::kInk,
-                                             .track = 3.4f,
-                                             .weight = 640}),
-                                  text("Cosmatesque · Westminster "
-                                       "1268")
-                                      .font({.size = 11, .track = 1.4f})
-                                      .margin(0, 6, 0, 0),
-                                  box()
-                                      .width(190.0f)
-                                      .height(1.0f)
-                                      .margin(0, 12, 0, 12)
-                                      .fill(Paint::linear(
-                                          {0, 0}, {190, 0},
+    root.children(
+        {box()
+             .column()
+             .left(px)
+             .top(cs::kFieldY + 4)
+             .children(
+                 {text("OPUS SECTILE")
+                      .font({.size = 21,
+                             .color = cs::kInk,
+                             .track = 3.4f,
+                             .weight = 640}),
+                  text("Cosmatesque · Westminster "
+                       "1268")
+                      .font({.size = 11, .track = 1.4f})
+                      .margin({.top = 6, .right = 0, .bottom = 0, .left = 0}),
+                  box()
+                      .width(190.0f)
+                      .height(1.0f)
+                      .margin({.top = 12, .right = 0, .bottom = 12, .left = 0})
+                      .fill(Paint::linear({0, 0}, {190, 0},
                                           {{0.0f,
                                             {cs::kGiallo.fR, cs::kGiallo.fG,
                                              cs::kGiallo.fB, 0.7f}},
                                            {1.0f,
                                             {cs::kGiallo.fR, cs::kGiallo.fG,
                                              cs::kGiallo.fB, 0.0f}}})),
-                                  text("The governing figure is the QUINCUNX "
-                                       "— four roundels about a "
-                                       "fifth. The Great Pavement is a "
-                                       "quincunx of quincunxes, 25 Roman feet "
-                                       "square, laid by a Roman crew under "
-                                       "Odoricus.")
-                                      .font({.size = 11.5f, .track = 0.2f})
-                                      .width(210.0f)})});
+                  text("The governing figure is the QUINCUNX "
+                       "— four roundels about a "
+                       "fifth. The Great Pavement is a "
+                       "quincunx of quincunxes, 25 Roman feet "
+                       "square, laid by a Roman crew under "
+                       "Odoricus.")
+                      .font({.size = 11.5f, .track = 0.2f})
+                      .width(210.0f)})});
 
     // the quarry legend: every stone named, with a real sample of it
     struct Quarry {

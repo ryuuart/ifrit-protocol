@@ -171,7 +171,7 @@ class Dashboard:
                         ),
                         (
                             row()
-                            .padding(14, 10)
+                            .padding(horizontal=14, vertical=10)
                             .gap(8)
                             .borderRadius(14)
                             .fill("#203d3b")

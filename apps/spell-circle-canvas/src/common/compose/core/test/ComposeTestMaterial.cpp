@@ -39,15 +39,15 @@ TEST(ComposeMaterial, UnitRampFollowsTheBoxItLandsIn) {
 
 TEST(ComposeMaterial, LinearGradientFillPaints) {
   Host host;
-  host.composer.render(
-      box().children({box()
-                          .width(100)
-                          .height(20)
-                          .inset(0, 0, 100, 180)
-                          .absolute()
-                          .fill(material::skia::Paint::linear(
-                              {0, 0}, {100, 0},
-                              {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(20)
+           .inset({.top = 0, .right = 100, .bottom = 180, .left = 0})
+           .absolute()
+           .fill(material::skia::Paint::linear(
+               {0, 0}, {100, 0},
+               {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
   const SkColor left = host.pixel(2, 10);
   const SkColor right = host.pixel(98, 10);
@@ -68,7 +68,7 @@ TEST(ComposeMaterial, ConicalMovesTheHighlightWithoutMovingTheFalloff) {
         {box()
              .width(120)
              .height(120)
-             .inset(40, 40, 40, 40)
+             .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
              .absolute()
              .fill(material::skia::Paint::conical(
                  focus, 0.0f, {60, 60}, 60.0f,
@@ -153,7 +153,7 @@ TEST(ComposeMaterial, BlendStackCompositesToOneShader) {
       {box()
            .width(40)
            .height(40)
-           .inset(0, 0, 160, 160)
+           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
            .absolute()
            .fill(material::skia::Paint::blend({
                {material::skia::Paint::solid({1, 0, 0, 1}),
@@ -552,7 +552,7 @@ TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {
         {box()
              .width(60)
              .height(60)
-             .inset(0, 0, 140, 140)
+             .inset({.top = 0, .right = 140, .bottom = 140, .left = 0})
              .absolute()
              .fill(material::skia::Paint::blend(
                  {{material::skia::Paint::solid({1, 0, 0, 1}),
@@ -594,12 +594,13 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
   src->commit();
   Host host;
   auto tree = [&] {
-    return box().children({box()
-                               .width(100)
-                               .height(100)
-                               .inset(0, 0, 100, 100)
-                               .absolute()
-                               .fill(material::skia::Paint::buffer(src))});
+    return box().children(
+        {box()
+             .width(100)
+             .height(100)
+             .inset({.top = 0, .right = 100, .bottom = 100, .left = 0})
+             .absolute()
+             .fill(material::skia::Paint::buffer(src))});
   };
   host.composer.render(tree());
   host.frame();
@@ -794,7 +795,12 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
   EXPECT_FALSE(m.isAnimated());
   Host host;
   host.composer.render(box().children(
-      {box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)}));
+      {box()
+           .width(40)
+           .height(40)
+           .inset({.top = 0, .right = 160, .bottom = 160, .left = 0})
+           .absolute()
+           .fill(m)}));
   host.frame();  // paints with uK at its SkSL default (0) — and does not crash
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 40u);
 }

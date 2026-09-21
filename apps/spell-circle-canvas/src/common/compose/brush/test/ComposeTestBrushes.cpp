@@ -153,7 +153,7 @@ TEST(ComposeSeams, SvgOutlineTracesThePathData) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(50, 50, 50, 50)
+           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
            .shape(geometry::shapes::svg("M0 0 L100 0 L100 100 Z"))
            .fill(red())}));
   host.frame();
@@ -163,7 +163,7 @@ TEST(ComposeSeams, SvgOutlineTracesThePathData) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(50, 50, 50, 50)
+           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
            .shape(geometry::shapes::svg("M0 0 L100 0 L100 100 Z"))
            .fill(red())
            .key("tri")}));
@@ -326,18 +326,18 @@ TEST(ComposeBrushes, PatternCornerTileSitsOnTheBend) {
   b.side = box().width(20).height(4).fill(red());
   b.corner = brush::CornerArt{box().width(12).height(12).fill(blue()),
                               brush::CornerAlign::Bisector};
-  host.composer.render(
-      box().children({box()
-                          .absolute()
-                          .inset(40, 40, 40, 40)
-                          .shape([](SkSize s) {  // an L: right then down
-                            SkPathBuilder p;
-                            p.moveTo(0, 0);
-                            p.lineTo(s.width(), 0);
-                            p.lineTo(s.width(), s.height());
-                            return p.detach();
-                          })
-                          .stroke(std::move(b))}));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+           .shape([](SkSize s) {  // an L: right then down
+             SkPathBuilder p;
+             p.moveTo(0, 0);
+             p.lineTo(s.width(), 0);
+             p.lineTo(s.width(), s.height());
+             return p.detach();
+           })
+           .stroke(std::move(b))}));
   host.frame();
   EXPECT_EQ(host.pixel(160, 40), SK_ColorBLUE);  // corner tile at the bend
   EXPECT_EQ(host.pixel(100, 40), SK_ColorRED);   // side tiles on the top leg
@@ -367,7 +367,7 @@ TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(50, 50, 50, 50)
+           .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
            .shape([](SkSize s) {  // closed rect starting at (0,0)
              SkPathBuilder p;
              p.moveTo(0, 0);

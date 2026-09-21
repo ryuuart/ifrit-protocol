@@ -27,7 +27,7 @@ def describe(model: Model) -> compose.Element:
     return compose.text(str(model.count)).fontSize(weave.em(1.2))
 
 
-tree = compose.memo(Model(3), describe).width("100%").padding(12, 16)
+tree = compose.memo(Model(3), describe).width("100%").padding(horizontal=12, vertical=16)
 assert_type(tree, compose.Element)
 assert_type(
     tree.padding(all=8).margin(left=1, top=2, right=3, bottom=4), compose.Element

@@ -13,15 +13,15 @@
 
 TEST(ComposeEffects, LayerEffectBlursNode) {
   Host host;
-  host.composer.render(
-      box().children({box()
-                          .width(60)
-                          .height(60)
-                          .inset(70, 70, 70, 70)
-                          .absolute()
-                          .fill(red())
-                          .filter(material::skia::Effect::filter(
-                              SkImageFilters::Blur(8, 8, nullptr)))}));
+  host.composer.render(box().children(
+      {box()
+           .width(60)
+           .height(60)
+           .inset({.top = 70, .right = 70, .bottom = 70, .left = 70})
+           .absolute()
+           .fill(red())
+           .filter(material::skia::Effect::filter(
+               SkImageFilters::Blur(8, 8, nullptr)))}));
   host.frame();
   // Blur bleeds outside the crisp box bounds and softens the center edge.
   SkColor outside = host.pixel(64, 100);  // 6px outside the left edge
@@ -44,7 +44,7 @@ TEST(ComposeEffects, BackdropFiltersWhatIsBeneath) {
        box()
            .width(80)
            .height(80)
-           .inset(60, 60, 60, 60)
+           .inset({.top = 60, .right = 60, .bottom = 60, .left = 60})
            .absolute()
            .backdropFilter(material::skia::Effect::filter(invertFilter))}));
   host.frame();
@@ -141,14 +141,14 @@ TEST(ComposeEffects, ALiveBackdropEffectIsNeverLiftedOffABake) {
        box()
            .width(100)
            .height(200)
-           .inset(0, 0, 0, 100)
+           .inset({.top = 0, .right = 0, .bottom = 100, .left = 0})
            .absolute()
            .fill(green()),
        box()
            .key("well")
            .width(80)
            .height(80)
-           .inset(60, 60, 60, 60)
+           .inset({.top = 60, .right = 60, .bottom = 60, .left = 60})
            .absolute()
            .backdropFilter(material::skia::Effect::blur(sigmaMap(), 14.0f)
                                .uniform("maxSigma", &maxSigma))}));
@@ -182,7 +182,7 @@ TEST(ComposeEffects, ALiveUniformAnimatesWithoutRedescribe) {
       {box()
            .width(60)
            .height(60)
-           .inset(0, 0, 140, 140)
+           .inset({.top = 0, .right = 140, .bottom = 140, .left = 0})
            .absolute()
            .fill(green())
            .filter(material::skia::Effect::shader(effect).uniform("uK", &k))}));
@@ -250,13 +250,14 @@ TEST(ComposeEffects, LiveChainsRecomposeAndStaticChainsStayCheap) {
   // The chain applies BOTH stages: 1.0 * 0.5 through the live chain dims
   // a green fill to about half.
   Host host;
-  host.composer.render(box().children({box()
-                                           .width(60)
-                                           .height(60)
-                                           .inset(0, 0, 140, 140)
-                                           .absolute()
-                                           .fill(green())
-                                           .filter(liveChain)}));
+  host.composer.render(box().children(
+      {box()
+           .width(60)
+           .height(60)
+           .inset({.top = 0, .right = 140, .bottom = 140, .left = 0})
+           .absolute()
+           .fill(green())
+           .filter(liveChain)}));
   host.frame();
   const unsigned g = SkColorGetG(host.pixel(30, 30));
   EXPECT_GT(g, 90u);
@@ -273,13 +274,14 @@ TEST(ComposeEffects, ADirectionalBlurAtAnAxisAngleIsBlurBitwise) {
   // so a caller who already wrote the Blur by hand gets identical pixels.
   // Compared pixel-for-pixel over the whole plate.
   auto plate = [](Host& host, material::skia::Effect e) {
-    host.composer.render(box().children({box()
-                                             .width(60)
-                                             .height(60)
-                                             .inset(70, 70, 70, 70)
-                                             .absolute()
-                                             .fill(green())
-                                             .filter(std::move(e))}));
+    host.composer.render(box().children(
+        {box()
+             .width(60)
+             .height(60)
+             .inset({.top = 70, .right = 70, .bottom = 70, .left = 70})
+             .absolute()
+             .fill(green())
+             .filter(std::move(e))}));
     host.frame();
   };
   Host ported, hand, swapped;
@@ -305,7 +307,7 @@ TEST(ComposeEffects, ADirectionalBlurAtAnArbitraryAngleSmearsAlongIt) {
       {box()
            .width(40)
            .height(40)
-           .inset(80, 80, 80, 80)
+           .inset({.top = 80, .right = 80, .bottom = 80, .left = 80})
            .absolute()
            .fill(green())
            .filter(material::skia::Effect::directionalBlur(18, 45))}));
@@ -350,7 +352,7 @@ TEST(ComposeEffects, ABoundDirectionalBlurAngleAnimatesWithoutRedescribe) {
       {box()
            .width(40)
            .height(40)
-           .inset(80, 80, 80, 80)
+           .inset({.top = 80, .right = 80, .bottom = 80, .left = 80})
            .absolute()
            .fill(green())
            .filter(material::skia::Effect::directionalBlur(18, 0).uniform(
@@ -422,13 +424,14 @@ int contrastAt(Host& host, int x, int y) {
  *  Material must resolve in the NODE's space, and a map that read layer
  *  or canvas coordinates would shift its falloff by a third of the box. */
 void stripePlate(Host& host, material::skia::Effect e) {
-  host.composer.render(box().children({box()
-                                           .width(120)
-                                           .height(120)
-                                           .inset(40, 40, 40, 40)
-                                           .absolute()
-                                           .fill(stripeFill())
-                                           .filter(std::move(e))}));
+  host.composer.render(box().children(
+      {box()
+           .width(120)
+           .height(120)
+           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+           .absolute()
+           .fill(stripeFill())
+           .filter(std::move(e))}));
   host.frame();
 }
 
@@ -550,15 +553,15 @@ TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
                "}"));
   ASSERT_TRUE(fx) << err.c_str();
   Host host;
-  host.composer.render(
-      box().children({box()
-                          .width(120)
-                          .height(120)
-                          .inset(40, 40, 40, 40)
-                          .absolute()
-                          .fill(green())
-                          .filter(material::skia::Effect::shader(fx).slot(
-                              "param", focalRamp()))}));
+  host.composer.render(box().children(
+      {box()
+           .width(120)
+           .height(120)
+           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
+           .absolute()
+           .fill(green())
+           .filter(material::skia::Effect::shader(fx).slot("param",
+                                                           focalRamp()))}));
   host.frame();
   // The ramp modulates the green layer left (0) to right (1) — and the
   // ramp is in the NODE's unit square, so the dark end is at the node's
@@ -576,7 +579,7 @@ TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
       {box()
            .width(120)
            .height(120)
-           .inset(40, 40, 40, 40)
+           .inset({.top = 40, .right = 40, .bottom = 40, .left = 40})
            .absolute()
            .fill(green())
            .filter(material::skia::Effect::shader(fx).slot(

@@ -26,11 +26,19 @@ Element line(const Line& mark) {
   if (mark.column) {
     rule.width(Dimension(depth));
     if (!open) rule.height(mark.length);
-    if (mark.inset != 0.0f) rule.margin(Dimension(0), Dimension(mark.inset));
+    if (mark.inset != 0.0f)
+      rule.margin({.top = Dimension(mark.inset),
+                   .right = Dimension(0),
+                   .bottom = Dimension(mark.inset),
+                   .left = Dimension(0)});
   } else {
     rule.height(Dimension(depth));
     if (!open) rule.width(mark.length);
-    if (mark.inset != 0.0f) rule.margin(Dimension(mark.inset), Dimension(0));
+    if (mark.inset != 0.0f)
+      rule.margin({.top = Dimension(0),
+                   .right = Dimension(mark.inset),
+                   .bottom = Dimension(0),
+                   .left = Dimension(mark.inset)});
   }
   if (open) rule.alignSelf(Align::Stretch);
   if (!mark.pair) return std::move(rule.fill(ink));
@@ -80,11 +88,17 @@ Element ladder(const Ladder& rungs) {
   // with the box would be shrunk out of existence.
   if (rungs.column)
     rails.row()
-        .padding(Dimension(between), Dimension(0), Dimension(0), Dimension(0))
+        .padding({.top = Dimension(0),
+                  .right = Dimension(0),
+                  .bottom = Dimension(0),
+                  .left = Dimension(between)})
         .gap(between);
   else
     rails.column()
-        .padding(Dimension(0), Dimension(between), Dimension(0), Dimension(0))
+        .padding({.top = Dimension(between),
+                  .right = Dimension(0),
+                  .bottom = Dimension(0),
+                  .left = Dimension(0)})
         .gap(between);
   for (int i = 0; i < rungs.count; ++i)
     rails.children({line({.thickness = rungs.thickness,

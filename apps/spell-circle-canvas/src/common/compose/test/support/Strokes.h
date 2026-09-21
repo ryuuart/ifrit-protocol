@@ -14,16 +14,17 @@ namespace {
 
 Element straightRun(Decoration style) {
   // A horizontal open path across the node, dressed by the line style.
-  return box().children({box()
-                             .absolute()
-                             .inset(20, 80, 20, 80)
-                             .shape([](SkSize s) {
-                               SkPathBuilder b;
-                               b.moveTo(0, s.height() / 2);
-                               b.lineTo(s.width(), s.height() / 2);
-                               return b.detach();
-                             })
-                             .stroke(std::move(style))});
+  return box().children(
+      {box()
+           .absolute()
+           .inset({.top = 80, .right = 20, .bottom = 80, .left = 20})
+           .shape([](SkSize s) {
+             SkPathBuilder b;
+             b.moveTo(0, s.height() / 2);
+             b.lineTo(s.width(), s.height() / 2);
+             return b.detach();
+           })
+           .stroke(std::move(style))});
 }
 
 /** A box whose whole boundary is stroked, for the trim/span comparisons. */

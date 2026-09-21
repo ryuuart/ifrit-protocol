@@ -138,7 +138,7 @@ struct AnnotatedMargin {
         .ink(m::kInk)
         .children(
             {box()
-                 .inset(52, 44, 0, 0)
+                 .inset({.top = 44, .right = 0, .bottom = 0, .left = 52})
                  .column()
                  .gap(6)
                  .children({text("BESIDE THE TEXT", m::note(12, m::kInk, 4.0f)),
@@ -230,7 +230,10 @@ struct AnnotatedMargin {
                   "frame; a reading that must never lag is part of the "
                   "text",
                   m::note(10, m::kFaint, 0.2f))
-                 .inset(52, m::kH - 34, 0, 0)});
+                 .inset({.top = m::kH - 34,
+                         .right = 0,
+                         .bottom = 0,
+                         .left = 52})});
   }
 };
 

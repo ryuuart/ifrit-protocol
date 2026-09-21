@@ -50,14 +50,16 @@ Element benchChunk(const ChunkProps& p) {
   auto tiles = box().width(10 * kTile).height(10 * kTile);
   for (int i = 0; i < (int)p.ids.size(); ++i) {
     const int row = i / 10;
-    tiles.children(
-        {image(benchAtlas())
-             .imageRegion(SkRect::MakeXYWH((float)(p.ids[(size_t)i] % 4) * 16,
-                                           0, 16, 16))
-             .absolute()
-             .inset((float)(i % 10) * kTile, (float)row * kTile, 0, 0)
-             .width(kTile)
-             .height(kTile)});
+    tiles.children({image(benchAtlas())
+                        .imageRegion(SkRect::MakeXYWH(
+                            (float)(p.ids[(size_t)i] % 4) * 16, 0, 16, 16))
+                        .absolute()
+                        .inset({.top = (float)row * kTile,
+                                .right = 0,
+                                .bottom = 0,
+                                .left = (float)(i % 10) * kTile})
+                        .width(kTile)
+                        .height(kTile)});
   }
   return tiles;
 }

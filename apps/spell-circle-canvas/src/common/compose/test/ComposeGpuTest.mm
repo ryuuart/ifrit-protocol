@@ -193,16 +193,23 @@ TEST_P(DirectImageDraw, ItsPixelsArriveOnGraphite) {
 INSTANTIATE_TEST_SUITE_P(
     ComposeGpu, DirectImageDraw,
     testing::Values(
-        DirectDraw{
-            "AnImageRect",
-            [] { return box().children({image(whiteTile(32)).absolute().inset(50, 50, 50, 50)}); },
-            {{100, 100}},
-            {}},
+        DirectDraw{"AnImageRect",
+                   [] {
+                     return box().children(
+                         {image(whiteTile(32))
+                              .absolute()
+                              .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})});
+                   },
+                   {{100, 100}},
+                   {}},
         DirectDraw{"ANineSliceLattice",
                    [] {
                      Decoration slice = Slice{whiteTile(48), {16, 32}, {16, 32}};
                      return box().children(
-                         {box().absolute().inset(50, 50, 50, 50).background(std::move(slice))});
+                         {box()
+                              .absolute()
+                              .inset({.top = 50, .right = 50, .bottom = 50, .left = 50})
+                              .background(std::move(slice))});
                    },
                    {{100, 100}, {55, 55}},  // the stretched centre cell, then a corner cell
                    {}},

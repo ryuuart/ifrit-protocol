@@ -520,17 +520,19 @@ inline Element mnemonicLabel(std::string_view t, SkColor4f c, int mnemonic) {
 inline Element pushButton(std::string_view t, bool armed = false,
                           bool defaulted = false, bool insensitive = false) {
   const ColorSet s = ambient();
-  Element inner = kit::centred()
-                      .fill(armed ? s.sel : s.bg)
-                      .ink(s.fg)
-                      .overlay(bevel(2, armed, false))
-                      .padding(2)
+  Element inner =
+      kit::centred()
+          .fill(armed ? s.sel : s.bg)
+          .ink(s.fg)
+          .overlay(bevel(2, armed, false))
+          .padding(2)
 
-                      .height(25)
-                      .children({kit::centred()
-                                     .padding(6, 2)
+          .height(25)
+          .children(
+              {kit::centred()
+                   .padding({.top = 2, .right = 6, .bottom = 2, .left = 6})
 
-                                     .children({label(t)})});
+                   .children({label(t)})});
   if (insensitive) inner.foreground(stipple());
   Element ring = box().padding(2).children({std::move(inner)});
   if (defaulted) ring.overlay(bevel(1, true, false));
@@ -547,7 +549,7 @@ inline Element textField(const Utf8& t, float w, bool caret = false,
                       .row()
                       .alignItems(Align::Center)
                       .flexGrow(1)
-                      .padding(3, 0)
+                      .padding({.top = 0, .right = 3, .bottom = 0, .left = 3})
                       .children({label(t)});
   if (caret && caretOut)
     inner.children({box().width(1).height(13).fill(s.fg).opacity(

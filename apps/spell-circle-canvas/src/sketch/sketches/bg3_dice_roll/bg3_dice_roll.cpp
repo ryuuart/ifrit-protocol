@@ -771,18 +771,20 @@ struct Bg3DiceRoll {
    *  citations are the header's and the one thing worth reading beside
    *  the picture stands under it. */
   Element captionBand() const {
-    Element band = box()
-                       .key("caption")
-                       .left(0)
-                       .right(0)
-                       .top(bg3::kH)
-                       .height(bg3::kBandH)
-                       .column()
-                       .justifyContent(Justify::Center)
-                       .padding(56.0f, 0.0f)
-                       .gap(7.0f)
-                       .zIndex(30)
-                       .fill(Fill::color({0.020f, 0.017f, 0.014f, 1.0f}));
+    Element band =
+        box()
+            .key("caption")
+            .left(0)
+            .right(0)
+            .top(bg3::kH)
+            .height(bg3::kBandH)
+            .column()
+            .justifyContent(Justify::Center)
+            .padding(
+                {.top = 0.0f, .right = 56.0f, .bottom = 0.0f, .left = 56.0f})
+            .gap(7.0f)
+            .zIndex(30)
+            .fill(Fill::color({0.020f, 0.017f, 0.014f, 1.0f}));
     band.children(
         {label("BALDUR’S GATE 3 · DIALOGUE ABILITY "
                "CHECK, THE INSTANT AFTER THE DIE LANDS",

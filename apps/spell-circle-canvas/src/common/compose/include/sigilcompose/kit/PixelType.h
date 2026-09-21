@@ -185,11 +185,14 @@ inline Coverage coverage(std::u8string_view run,
     // on EVERY side, so a negative left side-bearing has somewhere to go.
     // Growing only the surface would pad right and bottom alone and clip
     // that case no matter how large the pad got.
-    SkBitmap plane = detail::rasterize(
-        box()
-            .padding((float)std::max(0, pad.x), (float)std::max(0, pad.y))
-            .children({text(text8, style)}),
-        fonts, {w, h});
+    SkBitmap plane =
+        detail::rasterize(box()
+                              .padding({.top = (float)std::max(0, pad.y),
+                                        .right = (float)std::max(0, pad.x),
+                                        .bottom = (float)std::max(0, pad.y),
+                                        .left = (float)std::max(0, pad.x)})
+                              .children({text(text8, style)}),
+                          fonts, {w, h});
     if (plane.isNull()) return out;
     out.plane = std::move(plane);
     out.pad = pad;

@@ -141,7 +141,10 @@ struct HitSlots {
           .key(targetKey(i))
           .width(w)
           .height(h)
-          .inset(at.x() - w * 0.5f, at.y() - h * 0.5f, 0, 0)
+          .inset({.top = at.y() - h * 0.5f,
+                  .right = 0,
+                  .bottom = 0,
+                  .left = at.x() - w * 0.5f})
           .shape(i % 2 == 1 ? Shape(shapes::star(5 + i % 3, 0.5f))
                             : Shape(shapes::blob((uint32_t)(60 + i), 0.32f, 6)))
           .fill(Fill::color(

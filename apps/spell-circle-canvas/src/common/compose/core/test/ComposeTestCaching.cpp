@@ -329,7 +329,7 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
         {box()
              .width(80)
              .height(80)
-             .inset(20, 20, 100, 100)
+             .inset({.top = 20, .right = 100, .bottom = 100, .left = 20})
              .absolute()
              .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
              .blendMode(SkBlendMode::kPlus)
@@ -353,15 +353,15 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
   // …and the blend is really live: plus over red saturates the red
   // channel where the child overlaps.
   Host host;
-  host.composer.render(
-      box().fill(red()).children({box()
-                                      .width(80)
-                                      .height(80)
-                                      .inset(20, 20, 100, 100)
-                                      .absolute()
-                                      .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
-                                      .blendMode(SkBlendMode::kPlus)
-                                      .cache(Cache::Texture)}));
+  host.composer.render(box().fill(red()).children(
+      {box()
+           .width(80)
+           .height(80)
+           .inset({.top = 20, .right = 100, .bottom = 100, .left = 20})
+           .absolute()
+           .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
+           .blendMode(SkBlendMode::kPlus)
+           .cache(Cache::Texture)}));
   for (int i = 0; i < 3; ++i) host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 250u);  // 1.0 + 0.2 clamps
   EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 90u);   // the child's green

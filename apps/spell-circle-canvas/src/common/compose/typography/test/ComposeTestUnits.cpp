@@ -160,7 +160,7 @@ TEST(ComposeUnits, ASiblingAnnotationPlacesOneElementPerUnit) {
              {.side = kit::Beside::Side::After, .gap = 4.0f},
              [] { return box().width(6.0f).height(6.0f).fill(green()); })
              .absolute()
-             .inset(0, 0, 0, 0)});
+             .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})});
   };
   host.composer.render(describe());
   host.frame();
@@ -203,7 +203,7 @@ TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
              sigil::weave::Unit::Word, anchored,
              [] { return box().width(6.0f).height(6.0f).fill(green()); })
              .absolute()
-             .inset(0, 0, 0, 0)});
+             .inset({.top = 0, .right = 0, .bottom = 0, .left = 0})});
   };
   const kit::Anchored fromFrame{.horizontal = kit::Anchored::From::Frame,
                                 .offset = {-20.0f, 0.0f}};

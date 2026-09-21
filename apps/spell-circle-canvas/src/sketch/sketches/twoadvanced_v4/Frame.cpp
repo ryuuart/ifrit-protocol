@@ -7,7 +7,7 @@ auto TwoAdvancedV4::panelHeader(const char* boldHalf, const char* restHalf,
       .height(28)
       .row()
       .alignItems(Align::Center)
-      .padding(10, 0)
+      .padding({.top = 0, .right = 10, .bottom = 0, .left = 10})
       .fill(stripesLive)
       .foreground(onEdges(path::Edge::Bottom,
                           stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.35f)),
@@ -61,12 +61,13 @@ auto TwoAdvancedV4::readout(float w, float h, SkColor4f ground) -> Element {
 
 auto TwoAdvancedV4::navBar() -> Element {
   using namespace tav;
-  Element bar = bevelPanel(box()
-                               .row()
-                               .justifyContent(Justify::SpaceEvenly)
-                               .alignItems(Align::Center)
-                               .padding(6, 0),
-                           kChrome);
+  Element bar =
+      bevelPanel(box()
+                     .row()
+                     .justifyContent(Justify::SpaceEvenly)
+                     .alignItems(Align::Center)
+                     .padding({.top = 0, .right = 6, .bottom = 0, .left = 6}),
+                 kChrome);
   bar.key("nav").gridArea("nav").fill(stripesLive).staggerChildren(40ms);
   // ONE ITEM PER NAME IN THE DOCUMENT'S TAXONOMY, with the hairline that
   // stands each off the one before it interleaved by the run itself.
@@ -142,7 +143,7 @@ auto TwoAdvancedV4::masthead() -> Element {
                .flexGrow(1)
                .row()
                .alignItems(Align::Center)
-               .padding(26, 0, 8, 0)
+               .padding({.top = 0, .right = 8, .bottom = 0, .left = 26})
                .gap(18)
                .children(
                    {emblem,
@@ -181,7 +182,7 @@ auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
   using namespace tav;
   return kit::centred()
       .height(18)
-      .padding(7, 0)
+      .padding({.top = 0, .right = 7, .bottom = 0, .left = 7})
       .shape(shapes::chamfered(5, shapes::Corner::Diagonal))
       .fill(on ? mskia::Paint::linearUnit(
                      {0, 0}, {0, 1},
@@ -212,7 +213,7 @@ auto TwoAdvancedV4::legalStrip() -> Element {
   using namespace tav;
   return box()
       .column()
-      .padding(6, 8)
+      .padding({.top = 8, .right = 6, .bottom = 8, .left = 6})
       .alignItems(Align::Center)
       .gap(4)
       .key("legal")
@@ -245,7 +246,10 @@ auto TwoAdvancedV4::legalStrip() -> Element {
                                micro(11, kDust, 240)),
                              box()
                                  .height(24)
-                                 .padding(8, 0)
+                                 .padding({.top = 0,
+                                           .right = 8,
+                                           .bottom = 0,
+                                           .left = 8})
                                  .shape(shapes::chamfered(
                                      7, shapes::Corner::Diagonal))
                                  .fill(hexColor(0x2A0A0C))
@@ -320,7 +324,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
                {hatchB.material(), SkBlendMode::kSrcOver}}))
           .row()
           .alignItems(Align::Center)
-          .padding(14, 12)
+          .padding({.top = 12, .right = 14, .bottom = 12, .left = 14})
           .gap(12)
           .key("dock")
           .gridArea("dock")

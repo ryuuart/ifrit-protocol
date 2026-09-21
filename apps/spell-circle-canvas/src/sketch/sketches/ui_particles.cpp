@@ -259,7 +259,7 @@ struct UiParticles {
         .height(kPostH - 6)
         .background(carved(pal, 128))
         .column()
-        .padding(30, 26)
+        .padding({.top = 26, .right = 30, .bottom = 26, .left = 30})
         .gap(5)
         .font({.size = 10.5f})
         .ink(pal.ink)
@@ -278,7 +278,7 @@ struct UiParticles {
         .fill(Fill::color({0.10f, 0.11f, 0.15f, 1}))
         .foreground(sigil::compose::stroke(1.4f, Fill::color(accent)))
         .column()
-        .padding(16, 14)
+        .padding({.top = 14, .right = 16, .bottom = 14, .left = 16})
         .gap(6)
         .font({.size = 10.5f})
         .children({text(cfg.title).font({.size = 15}).ink(accent),

@@ -19,11 +19,13 @@ TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
 
 TEST(ComposeLayout, DimInsetsAcceptPercent) {
   Host host(200, 100);
-  host.composer.render(
-      box().children({box()
-                          .inset(pct(10), pct(10), pct(10), pct(10))
-                          .fill(red())
-                          .key("panel")}));
+  host.composer.render(box().children({box()
+                                           .inset({.top = pct(10),
+                                                   .right = pct(10),
+                                                   .bottom = pct(10),
+                                                   .left = pct(10)})
+                                           .fill(red())
+                                           .key("panel")}));
   host.frame();
   auto b = host.composer.bounds("panel");
   ASSERT_TRUE(b.has_value());
@@ -286,7 +288,7 @@ TEST(ComposePaint, ClipSparesDecorations) {
   host.composer.render(box().children(
       {box()
            .absolute()
-           .inset(60, 60, 60, 60)
+           .inset({.top = 60, .right = 60, .bottom = 60, .left = 60})
            .overflow(Overflow::Clip)
            .fill(blue())
            .stroke(stroke(10, green(), PathFormat::Align::Outer))
@@ -302,15 +304,16 @@ TEST(ComposeTransform, PixelOriginPivotsWhereTold) {
   // top-left corner; rotate 90° and the box lands in different places.
   Host frac, px;
   auto tree = [](Element inner) { return box().children({std::move(inner)}); };
-  frac.composer.render(tree(box()
-                                .absolute()
-                                .inset(80, 80, 80, 80)
-                                .fill(red())
-                                .rotate(90.0f)));  // pivots on its center
+  frac.composer.render(
+      tree(box()
+               .absolute()
+               .inset({.top = 80, .right = 80, .bottom = 80, .left = 80})
+               .fill(red())
+               .rotate(90.0f)));  // pivots on its center
   px.composer.render(tree(
       box()
           .absolute()
-          .inset(80, 80, 80, 80)
+          .inset({.top = 80, .right = 80, .bottom = 80, .left = 80})
           .fill(red())
           .rotate(90.0f)
           .transformOrigin(Dimension(0), Dimension(0))));  // pivots top-left

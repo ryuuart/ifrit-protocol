@@ -268,7 +268,10 @@ struct Beethoven {
                 .key("label")
                 .column()
                 .gap(4)
-                .inset(bp::kPlateX + bp::kPlateW + 32, bp::kH - 150, 24, 64)
+                .inset({.top = bp::kH - 150,
+                        .right = 24,
+                        .bottom = 64,
+                        .left = bp::kPlateX + bp::kPlateW + 32})
                 .ink(bp::kLabel)
                 .children({
                     text("josef müller-brockmann").styleClass("labelTitle"),
