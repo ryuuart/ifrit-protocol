@@ -102,4 +102,9 @@ struct SelectorAccess {
  *  naming @p reason, and that it therefore matches nothing. */
 void warnBadSelector(std::string_view cssText, std::string_view reason);
 
+/** Says once that `&` was given a right side that is itself a chain of
+ *  elements, which no ONE element can carry, and that the compound
+ *  therefore matches nothing. */
+void warnChainInCompound();
+
 }  // namespace sigil::compose::detail

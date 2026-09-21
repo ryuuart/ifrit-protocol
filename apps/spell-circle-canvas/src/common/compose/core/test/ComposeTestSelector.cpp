@@ -5,6 +5,7 @@
 
 #include <sigilcompose/core/Selector.h>
 
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -181,6 +182,62 @@ TEST(ComposeSelector, ASelectorTextThisLibraryDoesNotReadMatchesNothing) {
   // algebra leaves standing rather than a half-built value.
   EXPECT_TRUE(ElementSelector().matchesNothing());
   EXPECT_EQ(ElementSelector().specificity().classes, 0);
+}
+
+TEST(ComposeSelector, NothingIsTheZeroOfTheAlgebraAndNeverWidensARule) {
+  const ElementSelector nothing = sigil::compose::selector("[data-x]");
+  const ElementSelector card = select::styleClass("card");
+  EXPECT_TRUE(nothing.matchesNothing());
+  // Compounding with nothing is nothing from either side: a misprint
+  // must lose its own rule, never hand that rule every element.
+  EXPECT_TRUE((nothing & card).matchesNothing());
+  EXPECT_TRUE((card & nothing).matchesNothing());
+  // Qualifying nothing is nothing, rather than `*` carrying the
+  // pseudo-class, and a chain onto nothing is nothing at either end.
+  EXPECT_TRUE(nothing.firstChild().matchesNothing());
+  EXPECT_TRUE(nothing.nthChild(2, 1).matchesNothing());
+  EXPECT_TRUE(nothing.child(card).matchesNothing());
+  EXPECT_TRUE(card.descendant(nothing).matchesNothing());
+  // A count whose filter matches nothing counts nothing, rather than
+  // widening into the unfiltered count over every sibling.
+  EXPECT_TRUE(card.nthChild(2, 1, nothing).matchesNothing());
+  EXPECT_FALSE(card.nthChild(2, 1, nothing) == card.nthChild(2, 1));
+  // The list pseudo-classes carry the same zero through.
+  EXPECT_TRUE((!nothing).matchesNothing());
+  EXPECT_TRUE(select::is(nothing).matchesNothing());
+  EXPECT_TRUE(select::where(nothing).matchesNothing());
+  // A selector list is the one place nothing is the identity instead.
+  EXPECT_TRUE((nothing | card) == card);
+  EXPECT_TRUE((card | nothing) == card);
+  // Erasing the `*` of a compound made only of them leaves the `*`,
+  // so both doors agree that `*` on `*` is still `*`.
+  EXPECT_TRUE((select::any() & select::any()) == select::any());
+  EXPECT_TRUE(sigil::compose::selector("**") == select::any());
+}
+
+TEST(ComposeSelector, ACountOrANestingTooLargeToReadIsAParseError) {
+  // The an+b reader refuses a digit run it cannot hold rather than
+  // wrapping around into a position nobody wrote.
+  EXPECT_TRUE(
+      sigil::compose::selector(".row:nth-child(9999999999)").matchesNothing());
+  EXPECT_TRUE(
+      sigil::compose::selector(".row:nth-child(2n+9999999999)").matchesNothing());
+  EXPECT_TRUE(sigil::compose::selector(".row:nth-child(99999999999999999999n+1)")
+                  .matchesNothing());
+  // A count a child list could actually reach still reads.
+  EXPECT_TRUE(sigil::compose::selector(".row:nth-child(1000)") ==
+              select::styleClass("row").nthChild(0, 1000));
+  // Bracketed lists nested past the ceiling end as a parse error
+  // rather than as the stack running out.
+  std::string deep;
+  for (int level = 0; level < 64; ++level) deep += ":is(";
+  deep += ".card";
+  for (int level = 0; level < 64; ++level) deep += ")";
+  EXPECT_TRUE(sigil::compose::selector(deep).matchesNothing());
+  // A nesting an author might actually write still reads.
+  EXPECT_FALSE(sigil::compose::selector(":is(:is(:is(.card)))").matchesNothing());
+  EXPECT_FALSE(sigil::compose::selector(".row:nth-child(2n of :is(.a, .b))")
+                   .matchesNothing());
 }
 
 TEST(ComposeSelector, SelectorsAreValuesThatCompareByWhatTheySay) {

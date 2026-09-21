@@ -31,6 +31,17 @@ void warnBadSelector(std::string_view cssText, std::string_view reason) {
       (int)cssText.size(), cssText.data(), (int)reason.size(), reason.data());
 }
 
+void warnChainInCompound() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "[compose] a & b asks ONE element to match both sides, and b is a "
+      "chain of elements, which no one element can be. The compound "
+      "matches nothing. Join chains with child/descendant/next/sibling "
+      "instead. (warned once)\n");
+}
+
 // ---------------------------------------------------------------------------
 // Building
 
@@ -72,10 +83,22 @@ ElementSelector pseudo(SimpleKind kind) {
   return SelectorAccess::fromSimples({std::move(simple)});
 }
 
-/** A compound holding one an+b pseudo-class, filtered by @p of where
- *  that selector says anything. */
+/** A compound holding one an+b pseudo-class, counted over every
+ *  sibling. */
+ElementSelector counted(SimpleKind kind, int step, int offset) {
+  Simple simple;
+  simple.kind = kind;
+  simple.step = step;
+  simple.offset = offset;
+  return SelectorAccess::fromSimples({std::move(simple)});
+}
+
+/** The same count taken over only the siblings matching @p of. A
+ *  filter that matches nothing counts nothing, rather than widening
+ *  into the unfiltered count. */
 ElementSelector counted(SimpleKind kind, int step, int offset,
                         const ElementSelector& of) {
+  if (of.matchesNothing()) return {};
   Simple simple;
   simple.kind = kind;
   simple.step = step;
@@ -98,11 +121,13 @@ ElementSelector listPseudo(SimpleKind kind, const ElementSelector& arguments) {
 ElementSelector withSubjectSimple(const ElementSelector& value,
                                   const ElementSelector& addition) {
   const SelectorBody* body = SelectorAccess::body(value);
+  // Nothing absorbs: qualifying a selector that matches nothing leaves
+  // one that matches nothing, never `*` carrying the qualification.
+  if (!body || addition.matchesNothing()) return {};
   const std::optional<Compound> extra = SelectorAccess::asCompound(addition);
-  if (!extra) return {};
-  if (!body) {
-    // Nothing to stand on: the pseudo-class alone is `*` carrying it.
-    return SelectorAccess::fromSimples(extra->simples);
+  if (!extra) {
+    warnChainInCompound();
+    return {};
   }
   std::vector<Step> steps = SelectorAccess::asSteps(value);
   if (steps.empty()) return {};
@@ -112,6 +137,9 @@ ElementSelector withSubjectSimple(const ElementSelector& value,
     std::erase_if(simples, [](const Simple& simple) {
       return simple.kind == SimpleKind::Universal;
     });
+  // Erasing every `*` of a compound made only of them leaves the `*`
+  // the compound still says, so `*` compounded with `*` is `*`.
+  if (simples.empty()) simples.push_back(Simple{});
   SelectorBody joined;
   joined.steps = std::move(steps);
   return SelectorAccess::make(std::move(joined));
@@ -263,7 +291,7 @@ ElementSelector ElementSelector::onlyChild() const {
 }
 ElementSelector ElementSelector::nthChild(int step, int offset) const {
   return detail::withSubjectSimple(
-      *this, detail::counted(detail::SimpleKind::NthChild, step, offset, {}));
+      *this, detail::counted(detail::SimpleKind::NthChild, step, offset));
 }
 ElementSelector ElementSelector::nthChild(int step, int offset,
                                           ElementSelector of) const {
@@ -272,8 +300,7 @@ ElementSelector ElementSelector::nthChild(int step, int offset,
 }
 ElementSelector ElementSelector::nthLastChild(int step, int offset) const {
   return detail::withSubjectSimple(
-      *this,
-      detail::counted(detail::SimpleKind::NthLastChild, step, offset, {}));
+      *this, detail::counted(detail::SimpleKind::NthLastChild, step, offset));
 }
 ElementSelector ElementSelector::nthLastChild(int step, int offset,
                                               ElementSelector of) const {
@@ -295,12 +322,12 @@ ElementSelector ElementSelector::onlyOfType() const {
 }
 ElementSelector ElementSelector::nthOfType(int step, int offset) const {
   return detail::withSubjectSimple(
-      *this, detail::counted(detail::SimpleKind::NthOfType, step, offset, {}));
+      *this, detail::counted(detail::SimpleKind::NthOfType, step, offset));
 }
 ElementSelector ElementSelector::nthLastOfType(int step, int offset) const {
   return detail::withSubjectSimple(
       *this,
-      detail::counted(detail::SimpleKind::NthLastOfType, step, offset, {}));
+      detail::counted(detail::SimpleKind::NthLastOfType, step, offset));
 }
 ElementSelector ElementSelector::empty() const {
   return detail::withSubjectSimple(*this, detail::pseudo(detail::SimpleKind::Empty));
@@ -346,6 +373,8 @@ ElementSelector notAnyOf(ElementSelector alternatives) {
 
 ElementSelector operator|(const ElementSelector& left,
                           const ElementSelector& right) {
+  // A union is the one place nothing is the IDENTITY: the alternatives
+  // that do say something still say it.
   if (left.matchesNothing()) return right;
   if (right.matchesNothing()) return left;
   detail::SelectorBody body;
@@ -358,8 +387,10 @@ ElementSelector operator|(const ElementSelector& left,
 
 ElementSelector operator&(const ElementSelector& left,
                           const ElementSelector& right) {
-  if (left.matchesNothing()) return right;
-  if (right.matchesNothing()) return left;
+  // A compound is the ZERO's home: an element asked to match a test
+  // nothing passes matches nothing, so a misprint on either side
+  // narrows the rule away rather than widening it to everything.
+  if (left.matchesNothing() || right.matchesNothing()) return {};
   return detail::withSubjectSimple(left, right);
 }
 

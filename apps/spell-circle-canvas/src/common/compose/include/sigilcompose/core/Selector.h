@@ -40,7 +40,8 @@ struct Specificity {
  *  SUBJECT, the element the rule actually styles.
  *  Every method returns a NEW selector; copies are cheap and share
  *  their storage. A default-built one, and one a bad CSS text produced,
- *  match nothing.
+ *  match nothing, and nothing ABSORBS: compounding or qualifying it
+ *  matches nothing too, so a misprint can never widen a rule.
  *  @trap `a.child(b)` reads "a then b", so the SUBJECT is `b`. */
 class ElementSelector {
  public:
@@ -112,9 +113,11 @@ class ElementSelector {
 };
 
 /** THE CSS FRONT DOOR, parsed once into the value above:
- *  `".card > .title:first-child"`, `"heading + paragraph"`,
- *  `".row:nth-child(odd)"`, `":is(.a, .b) .c"`, `":not(.x)"`, `"*"`.
- *  A text this library does not read warns once and matches nothing. */
+ *  `".card > .title:first-child"`, `".row:nth-child(odd)"`,
+ *  `":is(.a, .b) .c"`, `":not(.x)"`, `"*"`. A text this library does
+ *  not read warns once and matches nothing — including an `an+b`
+ *  number too large to hold and a nesting too deep to read, which are
+ *  REFUSED rather than clamped. */
 [[nodiscard]] ElementSelector selector(std::string_view cssText);
 
 /** THE TYPED FRONT DOOR: the same selectors built name by name, for
@@ -140,12 +143,15 @@ namespace select {
 
 }  // namespace select
 
-/** A SELECTOR LIST: either side matching is a match — CSS's comma. */
+/** A SELECTOR LIST: either side matching is a match — CSS's comma.
+ *  A side that matches nothing leaves the other side standing, which
+ *  is the one place nothing is the identity rather than the zero. */
 [[nodiscard]] ElementSelector operator|(const ElementSelector& left,
                                         const ElementSelector& right);
 /** A COMPOUND: both sides matching the SAME element — CSS `.card.wide`.
  *  The right side is folded into the left's subject compound, so a
- *  right side that is itself a chain matches nothing and says so. */
+ *  right side that is itself a chain matches nothing and says so, and
+ *  either side matching nothing leaves the compound matching nothing. */
 [[nodiscard]] ElementSelector operator&(const ElementSelector& left,
                                         const ElementSelector& right);
 /** A NEGATION: `select::notAnyOf` under CSS's own spelling. */

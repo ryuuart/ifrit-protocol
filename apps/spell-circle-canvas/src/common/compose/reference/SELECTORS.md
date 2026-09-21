@@ -42,11 +42,17 @@ number, as `an+b`, or as `odd` or `even`. `:is(...)`, `:where(...)` and
 **Type means ROLE**, and an element with no role has no type, so no
 of-type pseudo-class matches it.
 
-Not read: `:has()`, the state pseudo-classes, attribute selectors, `#id`
-and the pseudo-elements. A text this library does not read warns once
-and yields a selector that matches nothing, so a misprint loses one rule
-rather than the sheet around it — `ElementSelector::matchesNothing`
-answers for one.
+Not read: the state pseudo-classes, attribute selectors, `#id` and the
+pseudo-elements. A text this library does not read warns once and yields
+a selector that matches nothing, so a misprint loses one rule rather
+than the sheet around it — `ElementSelector::matchesNothing` answers for
+one. An `an+b` number too large to hold, and bracketed lists nested
+deeper than the parser reads, are refused the same way rather than
+clamped.
+
+Not yet: `:has()`, `calc()` on a length, a transition stated in a rule,
+and the box half of what a rule can state. Each of those is wanted and
+decided; none is in the grammar or the rule yet.
 
 ## The set algebra
 
@@ -62,6 +68,12 @@ elements rather than set operations on one.
 A comma does not nest, so `(a | b) | c` and `a | (b | c)` are the same
 flat list. A list compounded onto one element is exactly CSS's `:is()`,
 so `(a | b) & c` is `:is(a, b)c`.
+
+A selector that matches nothing is the ZERO of this algebra, not its
+identity: compounding it, negating it, qualifying it with a
+pseudo-class or chaining it with a combinator all match nothing, so a
+misprint can only ever narrow a rule away. `a | b` is the one exception
+— the alternatives that do read still read.
 
 ## What a selector weighs
 

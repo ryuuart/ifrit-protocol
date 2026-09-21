@@ -90,6 +90,38 @@ class Parser {
            isIdentifierStart(letter) || letter == '-';
   }
 
+  /** The digit run at the cursor, refused where it does not fit: a
+   *  count no child list could ever reach is a misprint, and a number
+   *  that wrapped around would name a position nobody wrote. */
+  bool readCount(int& value, bool& anyDigit) {
+    value = 0;
+    anyDigit = false;
+    while (m_at < m_text.size() && isDigit(m_text[m_at])) {
+      value = value * 10 + (m_text[m_at] - '0');
+      if (value > countCeiling) {
+        m_reason = "a count larger than any child list can reach";
+        return false;
+      }
+      ++m_at;
+      anyDigit = true;
+    }
+    return true;
+  }
+
+  /** A selector list inside brackets — the argument of `:is`, `:where`
+   *  or `:not`, or an `of` filter — refused past a ceiling so that a
+   *  text cannot drive the parser off the stack. */
+  ElementSelector parseNestedList() {
+    if (m_depth >= nestingCeiling) {
+      m_reason = "selectors nested deeper than this library reads";
+      return {};
+    }
+    ++m_depth;
+    ElementSelector nested = parseList();
+    --m_depth;
+    return nested;
+  }
+
   ElementSelector parseList() {
     ElementSelector list = parseComplex();
     if (!m_reason.empty()) return {};
@@ -225,11 +257,7 @@ class Parser {
     }
     int value = 0;
     bool anyDigit = false;
-    while (m_at < m_text.size() && isDigit(m_text[m_at])) {
-      value = value * 10 + (m_text[m_at] - '0');
-      ++m_at;
-      anyDigit = true;
-    }
+    if (!readCount(value, anyDigit)) return false;
     if (nextIs('n') || nextIs('N')) {
       ++m_at;
       simple.step = sign * (anyDigit ? value : 1);
@@ -249,11 +277,7 @@ class Parser {
       skipSpace();
       int offset = 0;
       bool anyOffsetDigit = false;
-      while (m_at < m_text.size() && isDigit(m_text[m_at])) {
-        offset = offset * 10 + (m_text[m_at] - '0');
-        ++m_at;
-        anyOffsetDigit = true;
-      }
+      if (!readCount(offset, anyOffsetDigit)) return false;
       if (!anyOffsetDigit) {
         m_reason = "a count whose sign has no number after it";
         return false;
@@ -309,7 +333,7 @@ class Parser {
           m_reason = "an of-type count, which takes no `of` filter";
           return false;
         }
-        const ElementSelector filter = parseList();
+        const ElementSelector filter = parseNestedList();
         if (!m_reason.empty()) return false;
         simple.arguments = SelectorAccess::alternatives(filter);
         if (simple.arguments.empty()) {
@@ -329,7 +353,7 @@ class Parser {
                     : name == "where" ? SimpleKind::Where
                                       : SimpleKind::Not;
       if (!take('(')) return false;
-      const ElementSelector arguments = parseList();
+      const ElementSelector arguments = parseNestedList();
       if (!m_reason.empty()) return false;
       if (!take(')')) return false;
       simple.arguments = SelectorAccess::alternatives(arguments);
@@ -346,8 +370,17 @@ class Parser {
     return false;
   }
 
+  /** The largest an+b step or offset a count may name. A child list
+   *  this long cannot be built, so a longer digit run is a misprint
+   *  rather than a number to carry. */
+  static constexpr int countCeiling = 1000000;
+  /** How deeply bracketed selector lists may stand inside one another
+   *  before the text is refused. */
+  static constexpr int nestingCeiling = 16;
+
   std::string_view m_text;
   size_t m_at = 0;
+  int m_depth = 0;
   std::string m_reason;
 };
 
