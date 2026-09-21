@@ -177,8 +177,8 @@ struct SpanRestyle {
   }
 };
 
-/** One Element::mark() declaration: which unit the mark anchors to, and the
- *  key of the child that anchors there. The child itself is an ordinary
+/** One Element::textAttach() declaration: which unit the mark anchors to, and
+ * the key of the child that anchors there. The child itself is an ordinary
  *  child of the text node — this is only the back-index the layout reads to
  *  learn which rect that child's box is. Comparable, so a re-described mark
  *  list prunes. */
@@ -275,7 +275,7 @@ struct TextData {
   // textOnPath(): the run's baseline IS a path. Resolved at paint against the
   // node's box, walked with SkContourMeasure, one RSXform per glyph.
   std::optional<TextPath> onPath;
-  // mark(): a child of this text node whose box is the rect a selector
+  // textAttach(): a child of this text node whose box is the rect a selector
   // resolves to, in declaration order. The rects themselves live on the
   // Instance (textMarkRects) because they are an answer of the layout.
   std::vector<MarkAnchor> marks;

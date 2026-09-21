@@ -278,12 +278,12 @@ struct AxisRipple {
     // label column, the gap and the tracking, none of which the mark has
     // to be told about.
     if (marked)
-      run.mark(weave::Selector{}, kit::line({.length = Dimension(96),
-                                             .column = true,
-                                             .fill = Fill::color(kMark)})
-                                      .key("rule")
-                                      .left(pct(100))
-                                      .top(0));
+      run.textAttach(weave::Selector{}, kit::line({.length = Dimension(96),
+                                                   .column = true,
+                                                   .fill = Fill::color(kMark)})
+                                            .key("rule")
+                                            .left(pct(100))
+                                            .top(0));
     return box()
         .row()
         .alignItems(Align::Baseline)

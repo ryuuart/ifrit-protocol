@@ -38,7 +38,7 @@ bool Composer::Impl::phaseCenterPins() {
 bool Composer::Impl::phaseDerive() { return hasDerived && resolveDerived(); }
 
 bool Composer::Impl::phasePathMarks() {
-  // mark() on a path-laid run resolves HERE, not in measure with the flow
+  // textAttach() on a path-laid run resolves HERE, not in measure with the flow
   // runs: the curve resolves against the node's final box, and only the
   // finished layout knows that box. The path layout underneath is memoized
   // against the box and the content; the mark walk itself is one pass over

@@ -179,7 +179,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/initialLetter.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/ink.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textWillChange.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/mark.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textAttach.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/mask.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/opacity.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/overlay.md

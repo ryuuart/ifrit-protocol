@@ -36,7 +36,7 @@ namespace sigil::compose {
  *
  *  ONE ENTRY PER UNIT, in draw order. A selector that addresses several
  *  units reports several entries — which is the whole difference from
- *  `mark()`, whose one rect is the union of them all. */
+ *  `textAttach()`, whose one rect is the union of them all. */
 struct TextUnit {
   /** The unit's laid-out rect in the COMPOSER's space: the axis-aligned
    *  bound of the advance boxes of the glyphs the selector addressed in it,

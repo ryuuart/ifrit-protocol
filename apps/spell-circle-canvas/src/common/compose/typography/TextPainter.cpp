@@ -124,8 +124,8 @@ Derived& TextContentVerbs<Derived>::textAnnotation(Annotation reading) {
 }
 
 template <class Derived>
-Derived& TextContentVerbs<Derived>::mark(sigil::weave::Selector where,
-                                         Element what) {
+Derived& TextContentVerbs<Derived>::textAttach(sigil::weave::Selector where,
+                                               Element what) {
   detail::ElementNode* node = declarations();
   detail::TextData& text = dressedText(node->textData.ensure());
   // A KEY IS THE ANCHOR'S HANDLE, so a mark that carries none is given one
@@ -228,8 +228,8 @@ Derived& TextContentVerbs<Derived>::spanStyle(sigil::weave::Selector where,
 template Element& TextContentVerbs<Element>::textOnPath(TextPath);
 template Element& TextContentVerbs<Element>::fx(Track);
 template Element& TextContentVerbs<Element>::textAnnotation(Annotation);
-template Element& TextContentVerbs<Element>::mark(sigil::weave::Selector,
-                                                  Element);
+template Element& TextContentVerbs<Element>::textAttach(sigil::weave::Selector,
+                                                        Element);
 template Element& TextContentVerbs<Element>::variationDrive(
     const char (&)[5], const choreograph::Output<float>*);
 template Element& TextContentVerbs<Element>::spanPaint(

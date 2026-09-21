@@ -208,7 +208,7 @@ struct Bousen {
                  // the rect it anchors to is the union of that phrase's
                  // advance boxes, and in a column those stack downward, so
                  // the note it carries runs down the page beside them.
-                 .mark(
+                 .textAttach(
                      weave::selectors::text(u8"列は右から左へ"),
                      box()
                          .key("callout")

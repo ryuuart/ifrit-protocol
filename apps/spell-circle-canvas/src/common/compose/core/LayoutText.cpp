@@ -251,8 +251,8 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
         inst.textSlotRects.emplace_back(inst.textSlotKeys[index], placed.rect);
     }
   }
-  // mark(): where each anchored child's selector landed, resolved here for
-  // the same reason the slot rects are — the layout has just finished and
+  // textAttach(): where each anchored child's selector landed, resolved here
+  // for the same reason the slot rects are — the layout has just finished and
   // is the only thing that knows, and resolving once per layout rather than
   // once per read keeps a mark's box as cheap as a slot's. A PATH-laid
   // run's marks are the one exception: their curve resolves against the

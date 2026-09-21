@@ -41,6 +41,6 @@ anchored to the rect the passage resolved for it.
 
 ## See also
 
-[`mark`](mark.md) for a child anchored to a selection of text, `each`
-for a run made from a range, and `key` for what a child is matched by
+[`textAttach`](textAttach.md) for a child anchored to a selection of text,
+`each` for a run made from a range, and `key` for what a child is matched by
 across describes.

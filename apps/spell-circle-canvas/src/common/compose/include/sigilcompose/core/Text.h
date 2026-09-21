@@ -53,7 +53,7 @@ class TextContentVerbs {
    *  this node whose PARENT BOX is the rect @p where resolves to. It
    *  reserves nothing — the text is laid out as though the mark were
    *  not there. */
-  Derived& mark(sigil::weave::Selector where, Element what);
+  Derived& textAttach(sigil::weave::Selector where, Element what);
   /** A READING SET BESIDE THE TYPE — furigana over a compound,
    *  emphasis dots down a column, a gloss under a phrase. A reading is
    *  PART OF THE TEXT: where it reserves, its band goes into the base's

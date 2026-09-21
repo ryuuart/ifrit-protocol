@@ -40,4 +40,4 @@ reads the finished text.
 
 ## See also
 
-[`mark`](mark.md), `Annotation`, `textLineMargin`, `kit::annotate`.
+[`textAttach`](textAttach.md), `Annotation`, `textLineMargin`, `kit::annotate`.

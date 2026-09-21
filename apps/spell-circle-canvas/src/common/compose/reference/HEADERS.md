@@ -112,7 +112,7 @@ sound model; nothing below them changes kernel semantics.
   `initialLetter`, `textFirstBaseline`, `textVerticalAlign`,
   `textLineMargin`, `textWillChange`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
-- `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `mark`,
+- `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `textAttach`,
   `textAnnotation`, `thread`, `textThreadBalance`, `textOnPath`, `spanPaint`,
   `spanStyle`, `atRest`.
 - `core/Image.h` — `ImageVerbs`: `imageRegion`.

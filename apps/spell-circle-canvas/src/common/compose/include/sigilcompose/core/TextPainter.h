@@ -97,7 +97,7 @@ struct TextScope {
  *  a run carrying fx() tracks, riding a path, anchoring marks, or restyled
  *  by selector. The kernel holds the paragraph, lays it out and draws it at
  *  rest by itself; everything below is answered by the value a text verb
- *  installs on the description (`fx()`, `textOnPath()`, `mark()`,
+ *  installs on the description (`fx()`, `textOnPath()`, `textAttach()`,
  *  `spanStyle()`, `spanPaint()`, `variationDrive()`). A text node carrying
  *  none of those has no painter, and the kernel then draws its paragraph at
  *  rest, resolves no marks and restyles nothing — the same picture a painter
@@ -119,8 +119,8 @@ class TextPainterOperations {
                      const sigil::weave::PaintStyle* override,
                      const TextPath* onPath, SkSize size,
                      const PaintContext& ctx) const = 0;
-  /** WHERE EACH mark() ANCHORS: refills the instance's mark rects from the
-   *  layout the letters are drawn from, one rect per anchor. */
+  /** WHERE EACH textAttach() ANCHORS: refills the instance's mark rects
+   *  from the layout the letters are drawn from, one rect per anchor. */
   virtual void marks(detail::Instance& inst) const = 0;
   /** WHERE THE UNITS A SELECTOR ADDRESSES LANDED, one entry each, read off
    *  the same layout the letters are drawn from — the query behind

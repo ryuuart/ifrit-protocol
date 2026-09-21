@@ -106,8 +106,8 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
       {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
            .key("line")
            .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
-           .mark(sigil::weave::selectors::word(1),
-                 box().key("caret").fill(green()))}));
+           .textAttach(sigil::weave::selectors::word(1),
+                       box().key("caret").fill(green()))}));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("line", 0);
   ASSERT_EQ(beats.size(), 3u);
@@ -125,7 +125,7 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
   pinned.composer.render(box().padding(10).children(
       {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
            .key("line")
-           .mark(
+           .textAttach(
                sigil::weave::selectors::word(1),
                box().key("caret").left(0).top(pct(100)).width(2).height(9).fill(
                    green()))}));
@@ -147,8 +147,8 @@ TEST(ComposeTextFx, MarkFollowsItsUnitWhenTheTextReflows) {
         {text(u8"ALPHA BETA GAMMA DELTA", whiteStyle(24))
              .key("line")
              .width(width)
-             .mark(sigil::weave::selectors::word(3),
-                   box().key("caret").fill(green()))}));
+             .textAttach(sigil::weave::selectors::word(3),
+                         box().key("caret").fill(green()))}));
     host.frame();
     return markRect(host, "caret");
   };
@@ -173,8 +173,8 @@ TEST(ComposeTextFx, MarkStandsAtRestWhileACascadeDeviatesTheGlyphs) {
              .fx({.effect = fx::rise(40),
                   .stagger = {.eachMs = 0, .durationMs = 100},
                   .progress = progress})
-             .mark(sigil::weave::selectors::word(1),
-                   box().key("caret").fill(green()))}));
+             .textAttach(sigil::weave::selectors::word(1),
+                         box().key("caret").fill(green()))}));
     host.frame();
     return markRect(host, "caret");
   };
@@ -199,8 +199,8 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
            .height(180)
            .textOnPath({.path = geometry::shapes::circle()})
            .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
-           .mark(sigil::weave::selectors::word(2),
-                 box().key("caret").fill(green()))}));
+           .textAttach(sigil::weave::selectors::word(2),
+                       box().key("caret").fill(green()))}));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
   ASSERT_GT(beats.size(), 2u);
@@ -220,8 +220,8 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
            .width(180)
            .height(180)
            .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
-           .mark(sigil::weave::selectors::word(2),
-                 box().key("caret").fill(green()))}));
+           .textAttach(sigil::weave::selectors::word(2),
+                       box().key("caret").fill(green()))}));
   straight.frame();
   const SkRect flow = markRect(straight, "caret");
   EXPECT_TRUE(std::abs(caret.left() - flow.left()) > 1.0f ||
@@ -238,8 +238,9 @@ TEST(ComposeTextFx, MarkResolvingNothingPlacesNothing) {
   host.composer.render(box().padding(10).children(
       {text(u8"ALPHA BETA", whiteStyle(24))
            .key("line")
-           .mark(selectors::style("nobody"),
-                 box().key("caret").width(30).height(30).fill(green()))}));
+           .textAttach(
+               selectors::style("nobody"),
+               box().key("caret").width(30).height(30).fill(green()))}));
   host.frame();
   EXPECT_TRUE(markRect(host, "caret").isEmpty())
       << "a mark on nothing took a box anyway";
@@ -259,8 +260,8 @@ TEST(ComposeTextFx, MarkPrunesAndReResolvesWhenItMoves) {
     return box().padding(10).children(
         {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
              .key("line")
-             .mark(sigil::weave::selectors::word(word),
-                   box().key("caret").fill(green()))});
+             .textAttach(sigil::weave::selectors::word(word),
+                         box().key("caret").fill(green()))});
   };
   host.composer.render(describe(0));
   host.frame();
@@ -291,8 +292,8 @@ TEST(ComposeTextFx, MarkIsNotASlotAndReservesNoSpaceInTheFlow) {
   const float bare = widthOf(text(u8"ALPHA BETA", whiteStyle(24)));
   const float marked =
       widthOf(text(u8"ALPHA BETA", whiteStyle(24))
-                  .mark(sigil::weave::selectors::word(0),
-                        box().key("m").width(40).fill(green())));
+                  .textAttach(sigil::weave::selectors::word(0),
+                              box().key("m").width(40).fill(green())));
   EXPECT_NEAR(marked, bare, 0.01f) << "the mark reserved space in the flow";
 }
 

@@ -136,7 +136,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
       return false;
     if (!(*ta.metricFill == *tb.metricFill)) return false;
   }
-  // mark(): a comparable selector and the key of the child it anchors, in
+  // textAttach(): a comparable selector and the key of the child it anchors, in
   // declaration order — so a re-described mark list prunes, and a mark
   // pointed at a different unit re-resolves its rect.
   if (ta.marks != tb.marks) return false;

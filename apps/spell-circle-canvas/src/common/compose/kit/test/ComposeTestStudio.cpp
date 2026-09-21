@@ -154,12 +154,12 @@ TEST(ComposeDebug, RestGhostCopiesTheTypeAndNotTheMarksOnIt) {
   // draw each of them twice under one key, which the composer's key index
   // cannot answer for — so the ghost is the type and nothing else.
   Host host(300, 140);
-  host.composer.render(box().padding(10).children(
-      {kit::restGhost(text(u8"ALPHA BETA", whiteStyle(24))
-                          .key("word")
-                          .mark(sigil::weave::selectors::word(1),
-                                box().key("caret").width(4).fill(green())),
-                      {0, 0, 1, 1})}));
+  host.composer.render(box().padding(10).children({kit::restGhost(
+      text(u8"ALPHA BETA", whiteStyle(24))
+          .key("word")
+          .textAttach(sigil::weave::selectors::word(1),
+                      box().key("caret").width(4).fill(green())),
+      {0, 0, 1, 1})}));
   host.frame();
   const SkRect caret =
       host.composer.bounds("caret").value_or(SkRect::MakeEmpty());

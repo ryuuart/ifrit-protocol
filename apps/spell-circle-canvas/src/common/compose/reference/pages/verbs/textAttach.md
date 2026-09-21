@@ -1,14 +1,14 @@
 ---
 kind: verb
 library: SigilCompose
-name: mark
-qualified: sigil::compose::Element::mark
+name: textAttach
+qualified: sigil::compose::Element::textAttach
 header: sigilcompose/core/Text.h
 group: Content
 status: stable
 ---
 
-# mark
+# textAttach
 
 A sibling anchored to a unit of the text: a caret, a callout, a tick, a
 rule standing at a word's edge.
@@ -17,7 +17,7 @@ rule standing at a word's edge.
 
 ```cpp
 text(line, style)
-    .mark(weave::selectors::word(3), box().left(0).top(pct(100))
+    .textAttach(weave::selectors::word(3), box().left(0).top(pct(100))
                                           .width(pct(100)).height(2)
                                           .fill(Fill::color(ink)));
 ```

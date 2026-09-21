@@ -59,8 +59,8 @@ runs down a column in reading order. `spanPaint`, `spanStyle`, the block's
 alignment (start is the top of the column), `maxTextLines` (which clamps
 COLUMNS) with `textOverflow` at the clamped column's foot, `contentFlowAround`,
 the block's last line and breaking strategy, `textStroke`, `variationDrive` and
-`feed()`'s text tier all work as they do across a line. `mark()` anchors as it
-does anywhere — its rect is the union of the advance boxes its selector
+`feed()`'s text tier all work as they do across a line. `textAttach()` anchors
+as it does anywhere — its rect is the union of the advance boxes its selector
 addressed, and in a column those stack downward, so a phrase's mark is a tall
 box standing in that phrase's column. `Element::textFill` maps its unit square
 onto the COLUMN BLOCK rather than onto a cap band — a column's glyphs centre
@@ -108,7 +108,7 @@ above the line).
 draws its own glyphs in batched buckets and a bucket carries glyphs alone,
 so the band is drawn beside them from the layout the letters left at rest:
 the letters travel on their schedule and the band does not travel with
-them. That is the same stand `mark()` takes — a rect resolved from the
+them. That is the same stand `textAttach()` takes — a rect resolved from the
 layout cannot chase a paint-time pose — and it is the honest one for a
 band, which dresses a whole run rather than one letter. Type on a path
 carries no band either way: a turned run's band would have to follow the

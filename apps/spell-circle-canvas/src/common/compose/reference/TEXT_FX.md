@@ -230,12 +230,13 @@ a wave at one phase is, so permanent volatility is declared by the wrapping
 binding, never by the field, and `loopMs = 0` — the default — is the
 one-shot cascade.
 
-**Marking the type.** `Element::mark` anchors a child to the rect a selector
+**Marking the type.** `Element::textAttach` anchors a child to the rect a
+*selector
 resolves — a caret, a callout, a tick, a rule standing at a word's edge:
 
 ```cpp
 text(line, style)
-    .mark(weave::selectors::word(3), box().left(0).top(pct(100))
+    .textAttach(weave::selectors::word(3), box().left(0).top(pct(100))
                              .width(pct(100)).height(2).fill(ink));
 ```
 

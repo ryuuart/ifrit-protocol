@@ -176,13 +176,14 @@ auto RotaConvocationis::colophon() -> Element {
       .gap(7)
       .hitTestable(false)
       .styleClass("label")
-      .children({text("ROTA CONVOCATIONIS")
-                     .font({.size = 12.0f, .color = kAshDim, .track = 5.2f})
-                     .key("titulus")
-                     // A lozenge stands at the word the whole figure
-                     // converges on, anchored to the rect the selector
-                     // resolves rather than to a number a caller measured.
-                     .mark(weave::selectors::text(u8"ROTA"),
+      .children(
+          {text("ROTA CONVOCATIONIS")
+               .font({.size = 12.0f, .color = kAshDim, .track = 5.2f})
+               .key("titulus")
+               // A lozenge stands at the word the whole figure
+               // converges on, anchored to the rect the selector
+               // resolves rather than to a number a caller measured.
+               .textAttach(weave::selectors::text(u8"ROTA"),
                            box()
                                .key("m-rota")
                                .left(pct(50))
@@ -192,18 +193,18 @@ auto RotaConvocationis::colophon() -> Element {
                                .shape(shapes::polygon(4))
                                .fill(Fill::color(kGold))
                                .opacity(beat(tIgnite + 0.9, tIgnite + 1.5)))
-                     .fx({.effect = fx::rise(10.0f),
-                          .stagger = {.eachMs = 0,
-                                      .amountMs = 420,
-                                      .durationMs = 520},
-                          .progress = beat(0.35, 1.8)}),
-                 text(std::to_string(totalGlyphs) +
-                      " GLYPHS · 23 CVRVED BASELINES · 10 "
-                      "TVRNING LAYERS · EVERY START CHAINED FROM A "
-                      "SPAN, NONE FITTED BY HAND")
-                     .font({.size = 8.5f,
-                            .color = hexColor(0x8A8299, 0.42f),
-                            .track = 2.4f})
-                     .key("colophon-2")
-                     .opacity(beat(tIgnite + 0.4, tIgnite + 1.2))});
+               .fx({.effect = fx::rise(10.0f),
+                    .stagger = {.eachMs = 0,
+                                .amountMs = 420,
+                                .durationMs = 520},
+                    .progress = beat(0.35, 1.8)}),
+           text(std::to_string(totalGlyphs) +
+                " GLYPHS · 23 CVRVED BASELINES · 10 "
+                "TVRNING LAYERS · EVERY START CHAINED FROM A "
+                "SPAN, NONE FITTED BY HAND")
+               .font({.size = 8.5f,
+                      .color = hexColor(0x8A8299, 0.42f),
+                      .track = 2.4f})
+               .key("colophon-2")
+               .opacity(beat(tIgnite + 0.4, tIgnite + 1.2))});
 }

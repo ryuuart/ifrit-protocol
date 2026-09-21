@@ -145,8 +145,8 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // keyed by one of these names takes that rect as its box.
   std::vector<std::string> textSlotKeys;
   std::vector<std::pair<std::string, SkRect>> textSlotRects;
-  // mark(): the rect each anchored child's key resolves to, in this node's
-  // own space, resolved once per layout from the placement the paragraph
+  // textAttach(): the rect each anchored child's key resolves to, in this
+  // node's own space, resolved once per layout from the placement the paragraph
   // produced. A key that resolved no glyphs is absent, and its child places
   // nothing.
   std::vector<std::pair<std::string, SkRect>> textMarkRects;

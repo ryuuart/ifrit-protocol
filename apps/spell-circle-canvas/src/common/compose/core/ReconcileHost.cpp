@@ -266,7 +266,7 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
       }
       needsLayout = true;
     }
-    // mark(): a mark's rect is an answer of the TEXT LAYOUT, and
+    // textAttach(): a mark's rect is an answer of the TEXT LAYOUT, and
     // layoutText() reuses a layout that is valid for the same content
     // revision. So a mark list that changed without the content changing
     // must invalidate that guard, or the marks keep the rects the

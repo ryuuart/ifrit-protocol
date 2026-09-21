@@ -546,8 +546,8 @@ TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
            .width(200)
            .height(200)
            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .mark(sigil::weave::selectors::text(u8"縦組み"),
-                 box().key("rule").width(3.0f).fill(red()))
+           .textAttach(sigil::weave::selectors::text(u8"縦組み"),
+                       box().key("rule").width(3.0f).fill(red()))
            .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");

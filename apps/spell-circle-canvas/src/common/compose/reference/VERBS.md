@@ -224,7 +224,7 @@ once and do nothing.
 | [`spanStyle`](pages/verbs/spanStyle.md) | Restyle that range with a whole style or a partial; re-shapes only the words it covers. |
 | `fx` | Append a text-fx track: which glyphs, what deviation, how the beats spread, what drives it. |
 | [`variationDrive`](pages/verbs/variationDrive.md) | Drive a variable-font axis from a bound output at draw time, with no reshape. |
-| [`mark`](pages/verbs/mark.md) | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |
+| [`textAttach`](pages/verbs/textAttach.md) | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |
 | `textOnPath` | Lay the run out along a path instead of a line. |
 | [`atRest`](pages/verbs/atRest.md) | This leaf as it stands at rest, RETURNED BY VALUE as a second element that can stand beside it — the one verb that does not chain. |
 
@@ -251,7 +251,7 @@ once and do nothing.
 
 ## What Python spells differently
 
-Five verbs have no Python binding: `fx`, `variationDrive`, `mark`,
+Five verbs have no Python binding: `fx`, `variationDrive`, `textAttach`,
 `mask` and `tether`.
 
 Six spellings exist only in Python, each composing verbs that C++ writes
@@ -295,7 +295,7 @@ spelling is the feature's.
   `textLineMargin`, `textWillChange`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
-  `mark`, `textAnnotation`, `thread`, `textThreadBalance`, `textOnPath`,
+  `textAttach`, `textAnnotation`, `thread`, `textThreadBalance`, `textOnPath`,
   `spanPaint`, `spanStyle`, `atRest`.
 - `core/Image.h` — `imageRegion`.
 - `core/Element.h` — the cascade a node names, `styleSheet`,

@@ -139,7 +139,7 @@ struct Composer::Impl {
   std::vector<detail::Instance*>
       flowInstances;  // contentFlowAround() text nodes
   std::vector<detail::Instance*> tetheredInstances;  // tether() nodes
-  // Text nodes carrying mark() on a path-laid run. Their curve resolves
+  // Text nodes carrying textAttach() on a path-laid run. Their curve resolves
   // against the node's FINAL box, which measurement never sees, so their
   // marks resolve in a post-layout pass over this flat list instead of
   // inside measure like a flow run's.
@@ -538,7 +538,7 @@ struct Composer::Impl {
   bool phaseCustomLayouts();  ///< custom layout() containers, when any
   bool phaseCenterPins();     ///< centerAt() pins, when any
   bool phaseDerive();         ///< flow exclusions and routes, when any
-  bool phasePathMarks();      ///< mark() on path-laid runs
+  bool phasePathMarks();      ///< textAttach() on path-laid runs
   bool phaseSyncRects();      ///< invalidate recordings whose rect moved
   /** The runner's list: Yoga, the converging group, then the post-layout
    *  passes. The derive family (connector, rail, band, contentFlowAround)
@@ -706,7 +706,7 @@ struct Composer::Impl {
     const detail::ElementNode* node = inst.description.get();
     return node && node->textData ? node->textData->painter.get() : nullptr;
   }
-  /** Resolves the node's mark() rects through its painter; a node with no
+  /** Resolves the node's textAttach() rects through its painter; a node with no
    *  painter anchors nothing. */
   void resolveTextMarks(detail::Instance& inst) {
     if (const TextPainterOperations* painter = textPainterOf(inst))
