@@ -48,6 +48,7 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.compose.lines.presets": "sigil.compose.lines.presets",
     "_sigil.compose.parts": "sigil.compose.parts",
     "_sigil.compose.routers": "sigil.compose.routers",
+    "_sigil.compose.select": "sigil.compose.select",
     "_sigil.compose.selectors": "sigil.compose.selectors",
     "_sigil.compose.spans": "sigil.compose.spans",
     "_sigil.compose.styles": "sigil.compose.styles",

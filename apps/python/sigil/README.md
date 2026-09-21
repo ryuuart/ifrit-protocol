@@ -909,6 +909,53 @@ text style describes its own look. A page states its theme's stylesheet
 on its root, and `styleClass` on a native element selects a class from
 that cascade. Mixed runs and paragraph settings use the same native values.
 
+### Selector sheets
+
+Beside that name-keyed sheet stands a sheet keyed by SELECTORS.
+`sigil.compose` carries its own `StyleSheet` and `Rule` — distinct values
+from `sigil.weave`'s, and deliberately under the same words, because they
+state the same partials. A Weave sheet registers a partial under a class
+NAME and is stated with `Element.styleSheet`; a Compose sheet holds rules
+whose `compose.ElementSelector` says which elements they speak about, and
+is put in force with `Element.applyStyleSheet`.
+
+```python
+from sigil.compose import StyleSheet, box, rule, text
+from sigil.weave import Type
+
+house = StyleSheet([
+    rule(".card").font(Type(size=18)),
+    rule(".card > .title").ink("#2d1b12"),
+    rule(".row:nth-child(odd)").var("tint", "#f4efe7"),
+])
+page = box().applyStyleSheet(house).children(
+    box().styleClass("card").children(text("A title").styleClass("title"))
+)
+```
+
+`compose.selector(cssText)` parses CSS's own grammar — a bare word is a
+role, `.name` a class, `*` any element, with the combinators `>`, `+`, `~`
+and a space, the structural pseudo-classes, and `:is`, `:where` and
+`:not`. The builders under `sigil.compose.select` produce the same value
+name by name: `styleClass`, `role`, `any`, `is_` (spelled with the
+trailing underscore Python's keyword forces), `where` and `notAnyOf`. The
+operators are the house's three — `a | b` a selector list, `a & b` a
+compound on one element, `~a` a negation — and the combinators stay named
+methods, because they relate two elements rather than combining sets on
+one. `ElementSelector.specificity()` answers the `compose.Specificity`
+pair CSS weighs, which compares and orders; a text the library does not
+read warns once and matches nothing, which `matchesNothing()` reports.
+Sheets join with `+` and may hold one another, and a rule states `font`,
+`block`, `ink` and `var` exactly as a node's own verbs do.
+
+**An applied sheet sees only its own subtree.** Every compound of a
+selector — the subject and every ancestor or sibling it names — must match
+the applying node or something below it, so a sheet that must name an
+outer element is applied at or above that element. The applying node is
+inside its own sheet and is that sheet's `:root`. Among matched rules the
+order is CSS's, specificity first; the node's own `font`, `block`, `ink`
+and `var` still stand over all of them.
+
 ## Typography
 
 Compose accepts a native `RichText` value. Each added run carries plain text,

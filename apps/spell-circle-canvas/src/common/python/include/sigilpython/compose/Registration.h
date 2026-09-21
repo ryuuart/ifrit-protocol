@@ -90,6 +90,9 @@ void bindComposePixelStyles(pybind11::module_& module);
 /** Registers pattern fills, the auto Table and Python layout schemes on
  *  @p module. */
 void bindComposeSchemes(pybind11::module_& module);
+/** Registers the CSS selector grammar, the rule and the selector-keyed
+ *  sheet a node applies, on @p module. */
+void bindComposeSelectors(pybind11::module_& module);
 /** Registers one-shot measurement, run metrics, tiles and shelves on @p
  *  module. */
 void bindComposeSheets(pybind11::module_& module);
