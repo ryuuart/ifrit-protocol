@@ -125,12 +125,12 @@ class Colors(unittest.TestCase):
         # A glyph outline is one such flat mark, and the node's own fill
         # is not, so the same value is refused at one and taken at the other.
         with self.assertRaisesRegex(TypeError, "geometry-dependent paint"):
-            compose.box().textStroke(1, unit)
+            compose.text("words").textStroke(1, unit)
         # The same values are a surface paint, which is what the message
         # sends the author to.
         self.assertFalse(compose.SurfacePaint(recipe).none())
         self.assertIsInstance(compose.box().fill(recipe), compose.Element)
-        self.assertIsInstance(compose.box().textFill(unit), compose.Element)
+        self.assertIsInstance(compose.text("words").textFill(unit), compose.Text)
 
     def test_a_glyph_paint_refuses_what_it_cannot_store(self):
         ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
@@ -139,9 +139,9 @@ class Colors(unittest.TestCase):
         # the ramp already set.
         for reference in (compose.Fill.currentInk(), compose.var("accent")):
             with self.assertRaisesRegex(TypeError, "clear one with None"):
-                compose.box().textFill(ramp).textFill(reference)
+                compose.text("words").textFill(ramp).textFill(reference)
         self.assertIsInstance(
-            compose.box().textFill(ramp).textFill(None), compose.Element
+            compose.text("words").textFill(ramp).textFill(None), compose.Text
         )
 
     def test_a_uniform_is_written_the_same_way_on_a_paint_and_an_effect(self):

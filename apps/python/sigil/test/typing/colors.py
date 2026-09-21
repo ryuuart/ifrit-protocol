@@ -59,11 +59,11 @@ assert compose.Fill(None) == compose.Fill.none()
 assert compose.Fill(solid) == compose.Fill.color("#b34a2f")
 # The glyph OUTLINE is one such fill on the node, so it is written with
 # the flat-mark set rather than the surface one.
-assert_type(compose.box().textStroke(1, "#6e99bb"), compose.Element)
-assert_type(compose.box().textStroke(1, compose.Fill.currentInk()), compose.Element)
-assert_type(compose.box().textStroke(1, accent), compose.Element)
-assert_type(compose.box().textStroke(1, solid), compose.Element)
-assert_type(compose.box().textStroke(1, None), compose.Element)
+assert_type(compose.text("words").textStroke(1, "#6e99bb"), compose.Text)
+assert_type(compose.text("words").textStroke(1, compose.Fill.currentInk()), compose.Text)
+assert_type(compose.text("words").textStroke(1, accent), compose.Text)
+assert_type(compose.text("words").textStroke(1, solid), compose.Text)
+assert_type(compose.text("words").textStroke(1, None), compose.Text)
 
 # ---------------------------------------------------------------------------
 # SurfacePaintLike — anything that can colour a surface, at Element.fill
@@ -94,7 +94,7 @@ assert_type(compose.box().fill(tinting), compose.Element)
 # of them could have been narrowed against: a recipe instance.
 assert_type(compose.SurfacePaint(recipe), compose.SurfacePaint)
 assert_type(compose.stroke(1, recipe), compose.PathFormat)
-assert_type(compose.box().textFill(recipe), compose.Element)
+assert_type(compose.text("words").textFill(recipe), compose.Text)
 assert_type(compose.kit.dot((0, 0), 2, recipe), compose.Element)
 assert_type(compose.kit.line(fill=recipe), compose.Element)
 assert_type(compose.kit.ladder(count=2, pitch=8, fill=ramp), compose.Element)

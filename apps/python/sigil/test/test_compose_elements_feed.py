@@ -330,13 +330,11 @@ class Columns(unittest.TestCase):
         with self.assertRaises(TypeError):
             feed.rowKey(-1)
 
-    def test_one_text_row_is_an_element(self):
-        self.assertIsInstance(
-            feed.textRow(line("first", "dim"), sheet()), compose.Element
-        )
+    def test_one_text_row_is_a_text_leaf(self):
+        self.assertIsInstance(feed.textRow(line("first", "dim"), sheet()), compose.Text)
         self.assertIsInstance(
             feed.textRow(row=line("first", "unregistered"), styles=sheet()),
-            compose.Element,
+            compose.Text,
         )
 
     def test_a_text_feed_is_an_element_however_it_is_called(self):
@@ -428,9 +426,9 @@ class Columns(unittest.TestCase):
     def test_a_row_function_answers_an_element(self):
         ring = feed.Ring()
         ring.append("only")
-        with self.assertRaisesRegex(TypeError, "returns an Element"):
+        with self.assertRaisesRegex(TypeError, "returns a node"):
             feed.feed(ring, feed.Options(), lambda value: value)
-        with self.assertRaisesRegex(TypeError, "returns an Element"):
+        with self.assertRaisesRegex(TypeError, "returns a node"):
             feed.feed(ring, feed.Options(), lambda value: None)
         with self.assertRaises(TypeError):
             feed.feed(ring, feed.Options(), "not a function")

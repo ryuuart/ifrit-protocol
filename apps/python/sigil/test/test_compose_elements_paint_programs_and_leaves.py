@@ -160,9 +160,9 @@ class PaintProgramValues(unittest.TestCase):
     def test_the_image_leaf_takes_a_decoded_asset_or_a_picture(self):
         picture = image.from_rgba(bytes([255, 0, 0, 255]) * 16, 4, 4)
         asset = image.decodeAsset(image.encode(picture))
-        self.assertIsInstance(native.image(asset), native.Element)
-        self.assertIsInstance(native.image(asset=asset), native.Element)
-        self.assertIsInstance(native.image(picture), native.Element)
+        self.assertIsInstance(native.image(asset), native.Image)
+        self.assertIsInstance(native.image(asset=asset), native.Image)
+        self.assertIsInstance(native.image(picture), native.Image)
         with self.assertRaises(TypeError):
             native.image("not an image")
 
@@ -174,8 +174,8 @@ class PaintProgramValues(unittest.TestCase):
             native.text(paragraph, options),
             native.text(paragraph=paragraph, options=None),
         ):
-            self.assertIsInstance(element, native.Element)
-        self.assertIsInstance(native.text("words"), native.Element)
+            self.assertIsInstance(element, native.Text)
+        self.assertIsInstance(native.text("words"), native.Text)
         with self.assertRaises(TypeError):
             native.text(paragraph, 3)
         with self.assertRaises(TypeError):

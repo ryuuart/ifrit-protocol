@@ -6,7 +6,7 @@ from pathlib import Path
 
 from _sigil import weave as native_weave
 from sigil import image, skia, weave
-from sigil.compose import TextPath, box, frame, text
+from sigil.compose import Text, TextPath, box, frame, text
 from sigil.compose import selectors as composition_selectors
 from sigil.motion import Output
 from sigil.sketch import render_file
@@ -83,7 +83,7 @@ class Typography(unittest.TestCase):
         story.paragraphs(())
         self.assertEqual(saved_blocks[0].spaceAfter, 12)
         self.assertEqual(story.blocks(), [])
-        self.assertIsInstance(frame(story), type(box()))
+        self.assertIsInstance(frame(story), Text)
 
     def test_unicode_tables_and_paint_lists_preserve_native_value_semantics(self):
         table = weave.MojikumiTable()

@@ -157,12 +157,15 @@ std::vector<compose::Element> elements(py::args values) {
       throw py::cast_error();
     // A typed leaf is one child, exactly as an element is: only a
     // genuine sequence is flattened.
-    const bool one = py::isinstance<compose::Element>(values[0]) ||
-                     py::isinstance<compose::Text>(values[0]) ||
-                     py::isinstance<compose::Image>(values[0]) ||
-                     py::isinstance<compose::Band>(values[0]);
-    const auto children = values.size() == 1 && !one ? py::tuple(values[0])
-                                                     : py::tuple(values);
+    const auto node = [](py::handle value) {
+      return py::isinstance<compose::Element>(value) ||
+             py::isinstance<compose::Text>(value) ||
+             py::isinstance<compose::Image>(value) ||
+             py::isinstance<compose::Band>(value);
+    };
+    const auto children = values.size() == 1 && !node(values[0])
+                              ? py::tuple(values[0])
+                              : py::tuple(values);
     return children.cast<std::vector<compose::Element>>();
   } catch (const py::cast_error&) {
     throw py::type_error(

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from _sigil import compose as raw
 from sigil import image
-from sigil.compose import Element, box
+from sigil.compose import Element, Text, box
 from sigil.compose import document as doc
 from sigil.sketch import render_file
 from sigil.weave import Type, em, rich, rule
@@ -41,7 +41,9 @@ class Document(unittest.TestCase):
             doc.quote(words="A quotation"),
             doc.rule(),
         ):
-            self.assertIsInstance(element, Element)
+            # The prose factories hand back the text leaf they make; the
+            # ones that wrap it in a row or a column hand back a node.
+            self.assertIsInstance(element, (Element, Text))
         self.assertEqual(doc.list_gap, raw.document.listGap)
         self.assertEqual(doc.quote_inset, raw.document.quoteInset)
         for level in (0, 7):

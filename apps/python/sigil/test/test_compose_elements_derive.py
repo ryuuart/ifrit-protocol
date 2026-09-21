@@ -561,11 +561,11 @@ class Descriptions(unittest.TestCase):
     def test_the_text_member_is_a_free_verb_over_a_copy(self):
         words = native.text("words")
         flowed = native.derive.contentFlowAround(words, "figure", 8)
-        self.assertIsInstance(flowed, native.Element)
+        self.assertIsInstance(flowed, native.Text)
         self.assertIsNot(flowed, words)
-        flowed = native.derive.contentFlowAround(element=words, key="figure", margin=8)
-        self.assertIsInstance(flowed, native.Element)
-        self.assertIsInstance(native.derive.contentFlowAround(words, "figure"), native.Element)
+        flowed = native.derive.contentFlowAround(text=words, key="figure", margin=8)
+        self.assertIsInstance(flowed, native.Text)
+        self.assertIsInstance(native.derive.contentFlowAround(words, "figure"), native.Text)
         with self.assertRaises(TypeError):
             native.derive.contentFlowAround("words", "figure")
 

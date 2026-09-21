@@ -151,16 +151,23 @@ void bindRing(py::module_& module, const char* name, const char* documentation,
   copyProtocol(ring);
 }
 
-/** What @p row answers for @p value, which has to be an element. The
- *  call happens on the thread and under the interpreter lock of the
- *  Python call that asked for the feed, and native scopes it opened and
- *  left open are closed before it returns. What it raises travels out
- *  through the native column as the Python error it is. */
+/** What @p row answers for @p value, which has to be a node — an
+ *  element or any typed leaf. The call happens on the thread and under
+ *  the interpreter lock of the Python call that asked for the feed, and
+ *  native scopes it opened and left open are closed before it returns.
+ *  What it raises travels out through the native column as the Python
+ *  error it is. */
 Element rowElement(const py::function& row, py::object value) {
   const CallbackBoundary boundary;
   const py::object built = row(std::move(value));
+  if (py::isinstance<compose::Text>(built))
+    return built.cast<compose::Text>();
+  if (py::isinstance<compose::Image>(built))
+    return built.cast<compose::Image>();
+  if (py::isinstance<compose::Band>(built))
+    return built.cast<compose::Band>();
   if (!py::isinstance<Element>(built))
-    throw py::type_error("A feed row function returns an Element.");
+    throw py::type_error("A feed row function returns a node.");
   return built.cast<Element>();
 }
 
