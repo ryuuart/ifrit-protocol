@@ -451,9 +451,10 @@ not part of the naming.
 
 `SwatchStrip::inks` is what says which numbers under a ramp are the
 MEASUREMENT — the steps a reading is taken at are lit and the rest stand
-in the quiet ash — and `SwatchStrip::appear` is the beat each step rides
-in on, so a strip that is DEALT rather than printed says
-`.staggerChildren(26ms)` on what comes back, exactly as a legend does.
+in the quiet ash — and `SwatchStrip::opacity` is every step's alpha,
+written as an entrance where the strip is DEALT rather than printed, so
+such a strip says `.staggerChildren(26ms)` on what comes back, exactly
+as a legend does.
 
 `LegendEntry::mark` is the other half: where a patch of colour is not
 what the key shows — a quarried sample at its own two dimensions, a live

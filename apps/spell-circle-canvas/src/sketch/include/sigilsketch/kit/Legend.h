@@ -115,11 +115,12 @@ struct SwatchStrip {
    *  swatches, which is what a continuous ramp wants. */
   std::optional<float> gap;
   float corners = 0;
-  /** THE BEAT EACH STEP RIDES IN ON — the strip that is DEALT rather than
-   *  printed. Unset leaves every step at rest. What tells one step from
-   *  the next is the run's own `staggerChildren`, chained onto what
-   *  `swatchStrip` returns, as a legend's entries are. */
-  std::optional<motion::Transition> appear;
+  /** EVERY STEP'S ALPHA — the strip that is DEALT rather than printed,
+   *  written as an entrance: `animate(from(0).to(1), {220ms})`. Unset
+   *  leaves every step at rest. What tells one step from the next is the
+   *  run's own `staggerChildren`, chained onto what `swatchStrip`
+   *  returns, as a legend's entries are. */
+  std::optional<motion::Animatable<float>> opacity;
 };
 
 /** THE STRIP.

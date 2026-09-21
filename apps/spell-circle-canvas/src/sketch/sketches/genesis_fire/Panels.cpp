@@ -108,7 +108,9 @@ Element GenesisFire::rampPanel() {
                       .width = Dimension(28),
                       .height = Dimension(26),
                       .gap = 2,
-                      .appear = {{.duration = 220ms, .ease = ease::outBack()}}})
+                      .opacity = animate(
+                          from(0.0f).to(1.0f),
+                          {.duration = 220ms, .ease = ease::outBack()})})
                      .flexShrink(0)
                      .staggerChildren(26ms),
                  box().flexGrow(1), note(ramp["note"])});
