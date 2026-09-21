@@ -10,6 +10,7 @@
 #include <sigilgeometry/path/Profile.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
+#include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Registration.h>
 #include <sigilpython/skia/Values.h>
 
@@ -622,6 +623,28 @@ void bindSpines(py::module_& composition) {
         "length.");
   }
 
+  // The borrowed spine stands first: an Around is no shape, and the shape
+  // reading would refuse it as one rather than let the next overload try.
+  composition.def(
+      "band",
+      [](const compose::Around& spine, const compose::Across& width) {
+        return compose::band(spine, width);
+      },
+      py::arg("spine"), py::arg("width"),
+      "A band over a spine borrowed from the element keyed by `spine`, "
+      "resolved once that element's shape is, and re-swept whenever it "
+      "moves.");
+  composition.def(
+      "band",
+      [](py::object spine, const compose::Across& width) {
+        return compose::band(shape(spine), width);
+      },
+      py::arg("spine"), py::arg("width"),
+      "A band: the ribbon `spine` sweeps out at `width` across it. The "
+      "spine is any shape a node takes — a generator, a path or a function "
+      "of the node's size — and the band lays out, fills, clips and takes "
+      "stroke passes like any other node.");
+
   composition.def(
       "bandPointAt", &compose::bandPointAt, py::arg("spine"), py::arg("along"),
       py::arg("acrossPx"),
@@ -663,6 +686,7 @@ void bindRoutes(py::module_& module, py::module_& composition) {
   derive.attr("connector") = composition.attr("connector");
   derive.attr("rail") = composition.attr("rail");
   derive.attr("around") = composition.attr("around");
+  derive.attr("band") = composition.attr("band");
   derive.def(
       "contentFlowAround",
       [](compose::Text leaf, const std::string& key, float margin) {

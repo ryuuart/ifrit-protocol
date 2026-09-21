@@ -3,6 +3,7 @@
 
 from _sigil.compose.derive import (
     around,
+    band,
     connector,
     contentFlowAround,
     rail,
@@ -10,6 +11,7 @@ from _sigil.compose.derive import (
 
 __all__ = [
     "around",
+    "band",
     "connector",
     "contentFlowAround",
     "rail",

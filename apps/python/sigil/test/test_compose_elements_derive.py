@@ -23,7 +23,7 @@ from pathlib import Path
 
 import _sigil
 from _sigil import compose as native
-from sigil import compose, image, skia
+from sigil import compose, geometry, image, skia
 from sigil.sketch import render_file
 
 RESULTS = "_sigil_derive_results"
@@ -38,13 +38,14 @@ NAMES = (
     "Tether",
     "across",
     "around",
+    "band",
     "bandPointAt",
     "connector",
     "rail",
 )
 
 # The members the derive module gathers under one name.
-FAMILY = ("around", "connector", "contentFlowAround", "rail")
+FAMILY = ("around", "band", "connector", "contentFlowAround", "rail")
 
 
 def segment(from_, to):
@@ -107,8 +108,8 @@ class Spellings(unittest.TestCase):
                 self.assertIs(
                     getattr(compose.derive, name), getattr(native.derive, name)
                 )
-        # Three of the four are the compose functions themselves.
-        for name in ("around", "connector", "rail"):
+        # Four of the five are the compose functions themselves.
+        for name in ("around", "band", "connector", "rail"):
             with self.subTest(name=name):
                 self.assertIs(getattr(native.derive, name), getattr(native, name))
 
@@ -475,6 +476,30 @@ class Spines(unittest.TestCase):
         with self.assertRaises(TypeError):
             native.across("wide")
 
+    def test_a_band_is_its_own_leaf_over_either_kind_of_spine(self):
+        width = native.across(10)
+        borrowed = native.band(native.around("dial"), width)
+        self.assertIsInstance(borrowed, native.Band)
+        self.assertIsInstance(
+            native.band(spine=native.around("dial"), width=width), native.Band
+        )
+        spine = skia.PathBuilder().addRect((20, 20, 100, 100)).detach()
+        for authored in (spine, lambda width, height: spine, compose.shape(spine)):
+            with self.subTest(spine=type(authored).__name__):
+                leaf = native.band(authored, width)
+                self.assertIsInstance(leaf, native.Band)
+        # The band's own verb, and every node verb, hand the band back, and
+        # the leaf converts wherever a node is taken.
+        leaf = native.band(spine, width)
+        self.assertIs(leaf.bandAlignment(geometry.path.Formation.Outer), leaf)
+        self.assertIs(leaf.fill("#ff0000"), leaf)
+        self.assertIsInstance(native.Element(leaf), native.Element)
+        native.stack(leaf)
+        native.box().children(leaf)
+        # A width is the value `across` builds, never a bare number.
+        with self.assertRaises(TypeError):
+            native.band(spine, 10)
+
     def test_positive_across_is_to_the_left_of_travel(self):
         spine = skia.PathBuilder().moveTo(0, 0).lineTo(100, 0).detach()
         on = native.bandPointAt(spine, 0.5, 0)
@@ -665,6 +690,33 @@ class Session(unittest.TestCase):
         offset = 4 * (row * picture.width() + column)
         red, green, blue = picture.rgba()[offset : offset + 3]
         return red > 200 and green < 80 and blue < 80
+
+
+@unittest.skipUnless(hasattr(native, "Composer"), "no composer to read a layout from")
+class Bands(Session):
+    def side(self, formation):
+        """The band's colour just outside and just inside its spine's top edge."""
+        picture = self.frame(f"""
+            from sigil import geometry
+            spine = skia.PathBuilder().addRect((8, 8, 48, 16)).detach()
+            show(pen, plate(
+                compose.band(spine, compose.across(8)).absolute().inset(0)
+                .bandAlignment(geometry.path.Formation.{formation})
+                .fill('#ff0000')
+            ))
+        """)
+        return self.red(picture, 32, 5), self.red(picture, 32, 10)
+
+    def test_a_band_takes_the_declared_side_of_its_spine(self):
+        # A rect spine runs clockwise on screen, so the left of travel along
+        # its top edge is upward, outside the rect.
+        self.assertEqual(self.side("Center"), (True, True))
+        self.assertEqual(self.side("Outer"), (True, False))
+        self.assertEqual(self.side("Inner"), (False, True))
+        picture = self.frame("""
+            show(pen, plate(compose.box().absolute().inset(0)))
+        """)
+        self.assertFalse(self.red(picture, 32, 5))
 
 
 @unittest.skipUnless(hasattr(native, "Composer"), "no composer to read a layout from")

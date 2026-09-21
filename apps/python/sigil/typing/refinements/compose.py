@@ -210,6 +210,17 @@ def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.Ba
     table.erased("_sigil.compose.SurfacePaint", "__init__", "_t.SurfacePaintLike")
     table.erased("_sigil.compose", "shadow", "_t.ColorLike", "_t.PointLike")
     table.erased("_sigil.compose", "shape", "_t.ShapeLike")
+    # A band's spine is either borrowed from a keyed element or any shape a
+    # node takes; the leaf it hands back keeps the band's own verb in reach.
+    table.declares(
+        "_sigil.compose",
+        "band",
+        """@typing.overload
+def band(spine: Around, width: Across) -> Band: ...
+@typing.overload
+def band(spine: _t.ShapeLike, width: Across) -> Band: ...
+""",
+    )
     table.erased("_sigil.compose", "stroke", "_t.SurfacePaintLike")
     table.erased(
         "_sigil.compose",
