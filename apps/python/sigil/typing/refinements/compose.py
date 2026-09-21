@@ -103,7 +103,7 @@ def rect(self, x: _t.DimensionLike, y: _t.DimensionLike, width: _t.DimensionLike
         "perspectiveOrigin",
         f"def perspectiveOrigin(self, x: {origin}, y: {origin}) -> Element: ...",
     )
-    table.erased(ELEMENT, "region", "_t.RectLike")
+    table.erased(ELEMENT, "imageRegion", "_t.RectLike")
     table.erased(ELEMENT, "shape", "_t.ShapeLike")
     table.erased(ELEMENT, "background foreground overlay stroke", "_t.DecorationLike")
     table.erased(ELEMENT, "textFill", "_t.SurfacePaintLike")

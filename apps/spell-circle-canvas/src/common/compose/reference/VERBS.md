@@ -232,7 +232,7 @@ once and do nothing.
 
 | Verb | What it says |
 |---|---|
-| `region` | Image leaves: draw this sub-rect of the asset instead of the whole picture. |
+| `imageRegion` | Image leaves: draw this sub-rect of the asset instead of the whole picture. |
 | [`imageRendering`](pages/verbs/imageRendering.md) | How image leaves under this node sample their source. Inherits. |
 
 ## Identity, layering and hit testing
@@ -296,7 +296,7 @@ spelling is the feature's.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
   `mark`, `textAnnotation`, `thread`, `textThreadBalance`, `textOnPath`,
   `spanPaint`, `spanStyle`, `atRest`.
-- `core/Image.h` — `region`.
+- `core/Image.h` — `imageRegion`.
 - `core/Element.h` — the cascade a node names, `styleSheet`,
   `styleClass` and `role`; `tether`, `key`, `hitTestable`, `cache`,
   `cacheScale`, `transition`, `staggerChildren`; and `children`, whose

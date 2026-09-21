@@ -8,7 +8,7 @@ group: Leaves
 python: sigil.compose.image
 status: stable
 example: image_element
-common_verbs: [imageRendering, region, width, height, borderRadius, overflow, decorationOutline]
+common_verbs: [imageRendering, imageRegion, width, height, borderRadius, overflow, decorationOutline]
 ---
 
 # image
@@ -60,7 +60,7 @@ tilemaps, fonts baked as sprites, simulation buffers. State
 that holds them and every image leaf under it takes it, as CSS inherits
 `image-rendering`.
 
-**`region` draws one sub-rect of the source** — an atlas cell, a sprite
+**`imageRegion` draws one sub-rect of the source** — an atlas cell, a sprite
 frame — strictly constrained, so neighbouring cells never bleed in.
 
 A node whose `decorationOutline` is `Boundary::Coverage` hands its decorations

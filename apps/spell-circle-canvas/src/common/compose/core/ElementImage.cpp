@@ -7,7 +7,7 @@
 namespace sigil::compose {
 
 template <class Derived>
-Derived& ImageVerbs<Derived>::region(SkRect sourceRect) {
+Derived& ImageVerbs<Derived>::imageRegion(SkRect sourceRect) {
   declarations()->imageData.ensure().region = sourceRect;
   return self();
 }

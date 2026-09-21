@@ -31,4 +31,4 @@ fill.
 
 ## See also
 
-`image`, `region`, `material::skia::Paint`.
+`image`, `imageRegion`, `material::skia::Paint`.

@@ -99,7 +99,7 @@ const std::array<Tile, 4> kTileset{{
 }};
 
 /** THE TILESET BAKED: the table drawn into one 64x16 image, read back
- *  with `image(atlas).region(cell)`, so forty tiles are forty regions of
+ *  with `image(atlas).imageRegion(cell)`, so forty tiles are forty regions of
  *  one image.
  *
  *  ONE ASSET FOR THE WHOLE MAP, held on the sketch. An image node is
@@ -168,7 +168,7 @@ Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
                            ? chunk.edit.id
                            : tileAt(chunk.index, at.column, at.row);
         return image(tileset)
-            .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
+            .imageRegion(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
             .rect(arrange::cellRect(at, {kTile, kTile}));
       })});
 }
@@ -275,7 +275,7 @@ struct TileMap {
     Element atlasLegend = box().row().children({each(4, [&](int i) {
       return box().column().gap(10).width(96).children(
           {image(tileset)
-               .region(SkRect::MakeXYWH((float)i * 16, 0, 16, 16))
+               .imageRegion(SkRect::MakeXYWH((float)i * 16, 0, 16, 16))
                .width(80)
                .height(80)
                .imageRendering(SkSamplingOptions(SkFilterMode::kNearest)),

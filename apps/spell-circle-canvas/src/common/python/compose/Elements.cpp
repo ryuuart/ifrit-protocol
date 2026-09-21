@@ -743,9 +743,9 @@ void bindCompose(py::module_& module) {
       .def("transition", &Element::transition, py::arg("transition"), fluent)
 
       .def(
-          "region",
+          "imageRegion",
           [](Element& self, py::object value) -> Element& {
-            return self.region(rect(value));
+            return self.imageRegion(rect(value));
           },
           py::arg("rect"), fluent)
       .def(

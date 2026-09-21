@@ -417,7 +417,7 @@ TEST(ComposeContent, ImageRegionDrawsAtlasCell) {
   auto atlas = twoCellAtlas();
   host.composer.render(
       box().row().children({image(atlas)
-                                .region(SkRect::MakeXYWH(16, 0, 16, 16))
+                                .imageRegion(SkRect::MakeXYWH(16, 0, 16, 16))
                                 .width(50)
                                 .height(50),
                             image(atlas).width(50).height(50)}));

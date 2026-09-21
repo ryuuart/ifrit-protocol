@@ -38,7 +38,7 @@ Element tileChunk(const ChunkProps& p) {
     const float sx = (float)(id % 2) * 8, sy = (float)atlasRow * 8;
     chunk.children(
         {image(atlas)
-             .region(SkRect::MakeXYWH(sx, sy, 8, 8))
+             .imageRegion(SkRect::MakeXYWH(sx, sy, 8, 8))
              .absolute()
              .inset((float)(i % 4) * kTilePx, (float)row * kTilePx, 0, 0)
              .width(kTilePx)

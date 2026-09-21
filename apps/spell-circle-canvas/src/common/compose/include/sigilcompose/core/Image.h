@@ -20,7 +20,7 @@ class ImageVerbs {
   /** Draw this sub-rect of the asset, in SOURCE pixels, instead of the
    *  whole image — atlas and sprite regions. Strictly constrained, so
    *  neighbouring atlas cells never bleed in. */
-  Derived& region(SkRect sourceRect);
+  Derived& imageRegion(SkRect sourceRect);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

@@ -11,9 +11,9 @@
 //   (element stamp, recursion L2) + an animatedWalk glow, a Slice
 //   nine-slice, onEdges crests, AlongPath/Radial/Scatter layouts, arc +
 //   orthogonal connectors, contentFlowAround, Blur/backdrop effects + SkSL
-//   fills, image().region(), a timeline draw-on entrance, with() transitions,
-//   and the Texture/Picture/None cache partition kept honest (every bound node
-//   is a sibling of the bake, never inside it).
+//   fills, image().imageRegion(), a timeline draw-on entrance, with()
+//   transitions, and the Texture/Picture/None cache partition kept honest
+//   (every bound node is a sibling of the bake, never inside it).
 //
 // The live layers are the ones that carry the piece: spinning medallions,
 // the draw-on scrollwork, and the shimmer. Everything else is static, and
@@ -324,7 +324,7 @@ struct Flourish {
     for (int i = 0; i < kFriezeTiles; ++i)
       frieze.push_back(
           image(gemAtlas)
-              .region(SkRect::MakeXYWH((float)(i % 4) * 16, 0, 16, 16))
+              .imageRegion(SkRect::MakeXYWH((float)(i % 4) * 16, 0, 16, 16))
               .width(16)
               .height(16));
 
