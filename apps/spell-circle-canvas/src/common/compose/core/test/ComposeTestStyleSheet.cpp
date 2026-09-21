@@ -116,3 +116,49 @@ TEST(ComposeStyleSheet, ASheetLiteralMayIncludeSheetsWhereARuleWouldStand) {
   EXPECT_TRUE(page == (house + dark +
                        StyleSheet{sigil::compose::rule(".badge").ink(kBlue)}));
 }
+
+TEST(ComposeStyleSheet, TheSheetsANodeAppliesArePartOfWhatThatNodeIs) {
+  // Nothing matches yet, so what is under test is only this: a node
+  // that applies the same sheets is the same node and prunes, and one
+  // that applies different sheets is a change reconcile must see.
+  Host host;
+  const StyleSheet house{sigil::compose::rule(".card").font({.size = 18})};
+  const StyleSheet dark{sigil::compose::rule(".card").ink(kRed)};
+  const auto page = [](const StyleSheet& applied) {
+    return box().key("p").applyStyleSheet(applied).children(
+        {box().key("c").width(20).height(20)});
+  };
+  host.composer.render(page(house));
+  host.frame();
+  // The same value again, and a separately built sheet that says the
+  // same thing, are both the same description.
+  host.composer.render(page(house));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.composer.render(
+      page(StyleSheet{sigil::compose::rule(".card").font({.size = 18})}));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  // A sheet that states something else is a change.
+  host.composer.render(page(dark));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
+}
+
+TEST(ComposeStyleSheet, ApplyingASheetAgainAddsItAfterTheOneBefore) {
+  Host host;
+  const StyleSheet house{sigil::compose::rule(".card").font({.size = 18})};
+  const StyleSheet dark{sigil::compose::rule(".card").ink(kRed)};
+  const auto page = [&](bool both) {
+    Element node = box().key("p").applyStyleSheet(house);
+    if (both) node.applyStyleSheet(dark);
+    return node.children({box().key("c").width(20).height(20)});
+  };
+  host.composer.render(page(false));
+  host.frame();
+  host.composer.render(page(false));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  // A second application is another sheet on the node, not a replaced
+  // one, so the node is not what it was.
+  host.composer.render(page(true));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
+  host.composer.render(page(true));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+}
