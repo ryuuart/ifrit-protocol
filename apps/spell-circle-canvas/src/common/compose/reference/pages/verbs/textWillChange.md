@@ -1,15 +1,15 @@
 ---
 kind: verb
 library: SigilCompose
-name: live
-qualified: sigil::compose::Element::live
+name: textWillChange
+qualified: sigil::compose::Element::textWillChange
 header: sigilcompose/core/verbs/TextStyle.h
 group: The text leaf
-python: sigil.compose.Element.live
+python: sigil.compose.Element.textWillChange
 status: stable
 ---
 
-# live
+# textWillChange
 
 An input of this passage is moving — a measure that animates, a frame
 that grows, content that changes from one frame to the next — so this
@@ -40,7 +40,7 @@ than against the lines the frame has left — so a guess would change the
 setting of a page that never moves. A passage that moves says so.
 
 ```cpp
-text(caption, body).width(Dimension(slider)).live(true, 6000);
+text(caption, body).width(Dimension(slider)).textWillChange(true, 6000);
 ```
 
 ## See also

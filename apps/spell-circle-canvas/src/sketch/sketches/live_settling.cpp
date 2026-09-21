@@ -2,7 +2,7 @@
  * live_settling — a passage told that its measure is moving, and what a
  * frame got for it.
  *
- * `Element::live` says AN INPUT OF THIS PASSAGE IS MOVING — a measure
+ * `Element::textWillChange` says AN INPUT OF THIS PASSAGE IS MOVING — a measure
  * that animates, a frame that grows, content that changes from one frame
  * to the next — so this layout is one of a run of them rather than an
  * answer somebody asked for once. NOTHING INFERS IT: a live layout
@@ -98,7 +98,7 @@ Element passage(float measure, bool live, int candidates) {
           .key("para")
           .width(measure)
           .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass});
-  if (live) leaf.live(true, candidates);
+  if (live) leaf.textWillChange(true, candidates);
   return leaf;
 }
 

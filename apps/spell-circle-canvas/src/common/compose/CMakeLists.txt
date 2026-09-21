@@ -178,7 +178,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/foreground.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/initialLetter.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/ink.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/live.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textWillChange.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/mark.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/mask.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/opacity.md

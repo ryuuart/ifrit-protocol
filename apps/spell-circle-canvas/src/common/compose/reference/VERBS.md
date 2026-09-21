@@ -215,7 +215,7 @@ once and do nothing.
 | `textLineMargin` | Room beside every line, over and above the leading, taken in the strut before breaking. |
 | `maxTextLines` | Use at most this many lines; the rest reports as overflow. |
 | `textOverflow` | The marker appended to the last line when the text overflows its geometry. |
-| [`live`](pages/verbs/live.md) | An input of this passage is moving, so the layout is one of a run rather than an answer. |
+| [`textWillChange`](pages/verbs/textWillChange.md) | An input of this passage is moving, so the layout is one of a run rather than an answer. |
 | [`thread`](pages/verbs/thread.md) | The frame this one fills into — the next link of a chain over one story. |
 | [`textThreadBalance`](pages/verbs/textThreadBalance.md) | This frame opens a balanced run: every frame of it resolves to one shallowest depth. |
 | [`contentFlowAround`](pages/verbs/contentFlowAround.md) | Flow this paragraph around the keyed node, by its silhouette or its box. |
@@ -292,7 +292,7 @@ spelling is the feature's.
   `perspectiveOrigin`, `preserve3d`, `backface`.
 - `core/verbs/TextStyle.h` — the text properties `paragraphStyles`,
   `initialLetter`, `textFirstBaseline`, `textVerticalAlign`,
-  `textLineMargin`, `live`,
+  `textLineMargin`, `textWillChange`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
   `mark`, `textAnnotation`, `thread`, `textThreadBalance`, `textOnPath`,

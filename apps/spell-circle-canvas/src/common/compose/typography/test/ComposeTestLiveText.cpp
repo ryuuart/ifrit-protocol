@@ -20,7 +20,7 @@ TextSettling settlingAt(Host& host, float measure, int candidates) {
            .key("t")
            .width(measure)
            .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
-           .live(true, candidates)}));
+           .textWillChange(true, candidates)}));
   host.frame();
   return host.composer.settling("t");
 }
@@ -52,7 +52,7 @@ TextSettling sweptSettling(bool live, int candidates, float endAt) {
             .key("para")
             .width(measure)
             .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass});
-    if (live) leaf.live(true, candidates);
+    if (live) leaf.textWillChange(true, candidates);
     host.composer.render(box().padding(10).children({std::move(leaf)}));
     host.frame();
   };
@@ -154,7 +154,7 @@ TEST(ComposeLiveText, AnInheritingPassageSettlesExactlyAsATotalOneDoes) {
                .width(measure)
                .block(
                    {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
-               .live(true, 1)}));
+               .textWillChange(true, 1)}));
       host.frame();
       answers.push_back(host.composer.settling("t"));
     }
@@ -265,7 +265,7 @@ TEST(ComposeLiveText,
                      .width(measure)
                      .block({.lineBreak =
                                  sigil::weave::LineBreakStrategy::kKnuthPlass})
-                     .live(true, candidates)}));
+                     .textWillChange(true, candidates)}));
     host.frame();
     return host.composer.settling("t");
   };

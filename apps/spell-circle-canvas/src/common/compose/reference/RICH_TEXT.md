@@ -146,19 +146,18 @@ chase its own result, so a `spanStyle` that moves the line breaks leaves the
 selection where the first breaking put it.
 
 **Layout options, fluently.** `Element::block` states every layout-wide
-field a passage inherits, as one partial: its alignment, its breaking
-strategy (greedy or Knuth-Plass), its hyphenation, its last line, its
-justification, its tab stops, the three tables a house's own setting is
-stated in (`Block::kinsoku`, `Block::hanging`, `Block::mojikumi` with
-`Block::tsume`), and the tailoring the segmentation runs under
-(`Block::lineBreakLocale`), which belongs to the Paragraph and lands
-there the way `Block::writingMode` does. `Element::textOverflow`,
-`Element::maxTextLines`, `Element::textLineMargin` and `Element::live` are the
-leaf's own, set on any content form. The rest of that struct — Knuth-Plass tolerance,
-line-metric overrides — stays behind the paragraph overload, which takes
-the whole options value. **On that overload the setters override FIELD BY
-FIELD**, and only the fields actually set: everything a setter did not
-name keeps the value that was passed in.
+field a passage inherits, as one partial: its alignment, its breaking strategy
+(greedy or Knuth-Plass), its hyphenation, its last line, its justification, its
+tab stops, the three tables a house's own setting is stated in
+(`Block::kinsoku`, `Block::hanging`, `Block::mojikumi` with `Block::tsume`),
+and the tailoring the segmentation runs under (`Block::lineBreakLocale`), which
+belongs to the Paragraph and lands there the way `Block::writingMode` does.
+`Element::textOverflow`, `Element::maxTextLines`, `Element::textLineMargin` and
+`Element::textWillChange` are the leaf's own, set on any content form. The rest
+of that struct — Knuth-Plass tolerance, line-metric overrides — stays behind
+the paragraph overload, which takes the whole options value. **On that overload
+the setters override FIELD BY FIELD**, and only the fields actually set:
+everything a setter did not name keeps the value that was passed in.
 
 A horizontal text leaf's measured height includes the room from its content
 origin to the first line. A reservation before the line, leading, or space

@@ -10,7 +10,8 @@ each control.
 - [Text on a path](reference/TEXT_PATH.md)
 - [Mixed text](reference/RICH_TEXT.md) — `weave::rich()`, span restyling, and the
   layout setters
-- [A passage whose input moves](reference/PARAGRAPHS.md) — `live`, the floor, and what a frame reports
+- [A passage whose input moves](reference/PARAGRAPHS.md) — `textWillChange`,
+  the floor, and what a frame reports
 - [Paragraphs, frames and stories](reference/PARAGRAPHS.md)
 - [Beside the text](reference/BESIDE_TEXT.md) — `Composer::units`, annotations, and the kit over them
 - [Vertical CJK](reference/VERTICAL_TEXT.md)

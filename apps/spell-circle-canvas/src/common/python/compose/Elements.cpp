@@ -663,8 +663,8 @@ void bindCompose(py::module_& module) {
       .def("textVerticalAlign", &Element::textVerticalAlign, py::arg("rule"),
            py::arg("maximumInterlineSpacing") = 0.0f, fluent)
       .def("textLineMargin", &Element::textLineMargin, py::arg("band"), fluent)
-      .def("live", &Element::live, py::arg("enabled") = true,
-           py::arg("candidates") = 0, fluent)
+      .def("textWillChange", &Element::textWillChange,
+           py::arg("enabled") = true, py::arg("candidates") = 0, fluent)
       .def(
           "textOverflow",
           [](Element& self, const std::string& marker) -> Element& {

@@ -417,7 +417,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // with instead of taking one last shift as it settles.
   bool placementUnderMotion = false;
   // …and is the COMPOSER still working on this passage? A text told its
-  // input is moving (Element::live) has its break decisions kept and
+  // input is moving (Element::textWillChange) has its break decisions kept and
   // reused, and a frame that answered every block from that store did no
   // work at all: the passage is set exactly as the frame before it. So the
   // leaf reports what its last layout cost — how many blocks came from the

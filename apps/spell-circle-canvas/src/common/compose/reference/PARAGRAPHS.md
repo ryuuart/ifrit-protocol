@@ -5,7 +5,8 @@ A chapter of [TYPOGRAPHY.md](../TYPOGRAPHY.md), the type chapter of
 
 ## A passage whose input moves
 
-**Settled text is the special case, not the moving kind.** `Element::live`
+**Settled text is the special case, not the moving kind.**
+*`Element::textWillChange`
 is a leaf saying that an input of its layout moves — a measure that
 animates, a frame that grows, content that changes between frames — and
 it buys two things: the break decisions of a block set in a uniform
@@ -15,7 +16,7 @@ than against the frame's supply of lines, so a frame that changes only in
 DEPTH changes which lines it holds and never where they break.
 
 ```cpp
-text(caption, body).width(Dimension(measure)).live(true, 6000)
+text(caption, body).width(Dimension(measure)).textWillChange(true, 6000)
 ```
 
 **NOTHING INFERS IT.** A live layout answers the overflow tail

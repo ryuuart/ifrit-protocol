@@ -686,13 +686,12 @@ node is holding still, beside every other input that node has. There is one
 such proof in a runtime and this is not it: a second answer to "has this
 settled" is a second answer that can disagree.
 
-SigilCompose is the worked example. `Element::live` is the declaration,
-`Composer::settling` hands the two numbers back, and the one bit its
-caching proof reads off them is whether the passage still composed this
-frame — a passage answered entirely from the store is set exactly as the
-frame before it, and one that still decided a break can be set
-differently next frame with no number on the node moving, which is what
-no value memo can see.
+SigilCompose is the worked example. `Element::textWillChange` is the
+declaration, `Composer::settling` hands the two numbers back, and the one bit
+its caching proof reads off them is whether the passage still composed this
+frame — a passage answered entirely from the store is set exactly as the frame
+before it, and one that still decided a break can be set differently next frame
+with no number on the node moving, which is what no value memo can see.
 
 **A degrade is provisional, not a decision.** The block was filled
 greedily for that frame alone and the setting the caller asked for is

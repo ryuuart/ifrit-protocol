@@ -63,7 +63,7 @@ class TextStyleVerbs {
    *  layout is one of a run of them. Nothing infers it. @p candidates
    *  is the floor under a frame the optimizing breaker cannot finish;
    *  0 is no floor. */
-  Derived& live(bool on = true, int candidates = 0);
+  Derived& textWillChange(bool on = true, int candidates = 0);
   /** The marker appended to the last line when the text overflows its
    *  geometry. Empty disables it. */
   Derived& textOverflow(Utf8 marker);

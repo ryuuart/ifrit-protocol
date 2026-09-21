@@ -82,7 +82,7 @@ Derived& TextStyleVerbs<Derived>::textLineMargin(
 }
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::live(bool on, int candidates) {
+Derived& TextStyleVerbs<Derived>::textWillChange(bool on, int candidates) {
   detail::TextOptions& options = declarations()->textData.ensure().options;
   options.live = on;
   options.candidates = candidates;
