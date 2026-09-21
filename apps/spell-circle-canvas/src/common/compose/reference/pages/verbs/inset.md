@@ -24,6 +24,7 @@ bottom; four run clockwise from the top; an
 ```cpp
 box().inset(0);                            // fill the parent
 box().inset(20, 10);                       // down, across
+box().inset(2, 3, 4);                      // top, both sides, bottom
 box().inset(2, 3, 4, 1);                   // top, right, bottom, left
 box().inset({.top = 6, .left = 8});        // by name; the rest unpinned
 ```

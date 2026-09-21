@@ -43,7 +43,8 @@ Derived& BoxVerbs<Derived>::padding(Dimension top, Dimension right,
 namespace {
 
 /** A side an `Edges` leaves unnamed is unstated, and for the air around
- *  a node unstated is zero. */
+ *  a node unstated is zero. Auto is not a length the air can take, so a
+ *  side stated as `autoDimension()` is zero here too. */
 Dimension orZero(Dimension side) {
   return side.unit == Dimension::Unit::Auto ? Dimension(0.0f) : side;
 }

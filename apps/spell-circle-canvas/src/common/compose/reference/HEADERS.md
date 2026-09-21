@@ -65,7 +65,7 @@ sound model; nothing below them changes kernel semantics.
   `geometry::path::crossing::` deciding who passes over whom.
 - `core/Mask.h` — the masking family: `Region`, `parts::`, `by::`, `Gate`,
   `Mask`.
-- `core/Layout.h` — `Dimension` and its literals, `FlexDirection`,
+- `core/Layout.h` — `Dimension` and its literals, `Edges`, `FlexDirection`,
   `FlexWrap`, `Display`, `BoxSizing`, `Align`, `Justify`, `Echo`, `Cache`,
   `LayoutInput` / `LayoutScheme`, `CellSpan`, and the
   `ComponentProperties` / `ComponentFunction` concepts. A `Dimension`

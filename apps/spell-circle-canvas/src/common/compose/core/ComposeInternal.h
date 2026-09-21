@@ -40,7 +40,12 @@ namespace sigil::compose::detail {
 enum class Kind : uint8_t { Box, Stack, Text, Image, Custom, Slot };
 
 /** Per-edge Dims: for absolute insets Auto is a side left unpinned; for
- *  padding and margin every side is a length, zero by default. */
+ *  padding and margin every side is a length, zero by default.
+ *
+ *  THE DECLARATION ORDER HERE IS NOT THE PUBLIC ONE. Storage runs left,
+ *  top, right, bottom; the public `Edges` and every verb that takes one
+ *  run in CSS's order, top, right, bottom, left. Assigning an `Edges`
+ *  field by field means permuting it, never copying it across. */
 struct EdgeDims {
   Dimension left, top, right, bottom;
   bool operator==(const EdgeDims&) const = default;

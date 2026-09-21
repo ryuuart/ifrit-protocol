@@ -32,7 +32,16 @@ default.** For `padding` and `margin` an unstated side is zero. For
 `inset` it is unpinned — `autoDimension()` — so the node's own size, or
 the opposite inset, sizes it there rather than stretching it to the
 parent's edge. `{.left = 12}` on a padding pads one side; the same
-braces on an inset pin one edge and leave the other three free.
+braces on an inset pin one edge and leave the other three free. Auto is
+not a length the air around a node can take, so on `padding` and
+`margin` a side written `autoDimension()` is zero as well.
+
+**Braces with no names are ordinary aggregate initialisation**, filling
+the fields from the front: `padding({2, 4})` is top 2, right 4, and
+zero below and left — not the vertical/horizontal pair the positional
+`padding(2, 4)` writes. Name the sides, or drop the braces. A single
+braced length, `padding({12})`, is refused outright as ambiguous between
+the one-length shorthand and this type.
 
 ## See also
 

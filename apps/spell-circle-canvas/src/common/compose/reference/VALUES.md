@@ -118,8 +118,9 @@ scheme of your own is C++ only.
 - `core/Stroke.h` — `Spans` and the `spans` factories, with `Across`,
   `Around` and `StrandPath`.
 - `core/Mask.h` — `Gate` and `Parts`, the two halves of a mask.
-- `core/Layout.h` — `Dimension` with `pct` and `autoDimension`, `Align`,
-  `Justify`, and `Cache`.
+- `core/Layout.h` — `Dimension` with `pct` and `autoDimension`, the
+  `Edges` that name the four sides around a node, `Align`, `Justify`, and
+  `Cache`.
 - `core/Utf8.h` — `Utf8`.
 - `brush/Decorations.h` — `PathFormat` and the `stroke` that makes one,
   `Shadow` and `shadow`, and `Slice`.

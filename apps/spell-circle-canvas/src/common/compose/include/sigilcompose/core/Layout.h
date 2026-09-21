@@ -3,7 +3,8 @@
 /** @file
  * @ingroup compose-core
  *
- * SigilCompose layout values — Dimension and its literals, Align, Justify,
+ * SigilCompose layout values — Dimension and its literals, the Edges that
+ * name the four sides around a node, Align, Justify,
  * Echo, Cache with the `cachePolicy` that reads it as the kernel's own, the
  * CellSpan a child claims and the LayoutInput a custom LayoutScheme
  * places children from, and the ComponentProperties and ComponentFunction
@@ -148,7 +149,12 @@ constexpr Dimension operator""_ph(unsigned long long v) { return ph((float)v); }
  *
  *  A SIDE LEFT UNNAMED IS UNSTATED, and each verb reads that as its own
  *  default: zero for `padding` and `margin`, unpinned for `inset`, which
- *  is what `autoDimension()` says. */
+ *  is what `autoDimension()` says. Auto is not a length the air around a
+ *  node can take, so on those two an explicitly auto side is zero too.
+ *
+ *  The trap: braces with no names are ordinary aggregate initialisation,
+ *  so `padding({2, 4})` is top 2 and right 4, not the vertical/horizontal
+ *  pair the positional `padding(2, 4)` writes. */
 struct Edges {
   Dimension top, right, bottom, left;
   bool operator==(const Edges&) const = default;
