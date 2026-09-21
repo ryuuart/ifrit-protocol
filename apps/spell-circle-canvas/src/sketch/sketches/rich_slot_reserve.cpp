@@ -50,7 +50,7 @@ Element reserved(weave::ReservedBand band) {
              "line for a reading, or after it for an annotation.")
       .font(voice())
       .width(kMeasure)
-      .reserve(band)
+      .textLineMargin(band)
       .fill(Fill::color(kBand));
 }
 

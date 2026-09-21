@@ -229,8 +229,8 @@ struct TextOptions {
   /// only one for which giving up on a block is a normal event.
   bool live = false;
   int candidates = 0;
-  /// reserve(): room beside every line of this passage, on top of whatever
-  /// an annotation reserves.
+  /// textLineMargin(): room beside every line of this passage, on top of
+  /// whatever an annotation reserves.
   sigil::weave::ReservedBand reserved;
 
   /** Writes every SET field over @p options, leaving the rest alone. */

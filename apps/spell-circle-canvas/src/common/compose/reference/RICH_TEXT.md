@@ -153,7 +153,7 @@ stated in (`Block::kinsoku`, `Block::hanging`, `Block::mojikumi` with
 `Block::tsume`), and the tailoring the segmentation runs under
 (`Block::lineBreakLocale`), which belongs to the Paragraph and lands
 there the way `Block::writingMode` does. `Element::textOverflow`,
-`Element::maxTextLines`, `Element::reserve` and `Element::live` are the
+`Element::maxTextLines`, `Element::textLineMargin` and `Element::live` are the
 leaf's own, set on any content form. The rest of that struct — Knuth-Plass tolerance,
 line-metric overrides — stays behind the paragraph overload, which takes
 the whole options value. **On that overload the setters override FIELD BY

@@ -57,7 +57,7 @@ class TextStyleVerbs {
    *  leading — `before` above a line and right of a column, `after`
    *  below one and left. It is a layout input: the room is in the strut
    *  before anything is broken. */
-  Derived& reserve(sigil::weave::ReservedBand band);
+  Derived& textLineMargin(sigil::weave::ReservedBand band);
   /** AN INPUT OF THIS PASSAGE IS MOVING — a measure that animates, a
    *  frame that grows, content that changes frame to frame — so this
    *  layout is one of a run of them. Nothing infers it. @p candidates

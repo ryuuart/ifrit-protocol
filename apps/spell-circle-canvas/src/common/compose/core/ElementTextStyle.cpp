@@ -73,7 +73,8 @@ Derived& TextStyleVerbs<Derived>::textVerticalAlign(
 }
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::reserve(sigil::weave::ReservedBand band) {
+Derived& TextStyleVerbs<Derived>::textLineMargin(
+    sigil::weave::ReservedBand band) {
   detail::TextOptions& options = declarations()->textData.ensure().options;
   options.reserved = band;
   options.set |= detail::TextOptions::kReserved;

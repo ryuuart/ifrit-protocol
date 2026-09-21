@@ -34,7 +34,7 @@ TEST(ComposeParagraphs, ReservedBeforeBelongsToTheMeasuredLeaf) {
         {text(u8"First line\nSecond line\nThird line", whiteStyle(18))
              .key("passage")
              .width(200)
-             .reserve({.before = before}),
+             .textLineMargin({.before = before}),
          box().key("next").width(200).height(10).fill(red())}));
     host.frame();
   };
@@ -63,7 +63,7 @@ TEST(ComposeParagraphs, ReservedBeforeParticipatesInBaselineAlignment) {
                            .children({text(u8"A", whiteStyle(20)).key("plain"),
                                       text(u8"A", whiteStyle(20))
                                           .key("reserved")
-                                          .reserve({.before = 14})}));
+                                          .textLineMargin({.before = 14})}));
   host.frame();
   const auto plain = baselinesOf(host, "plain");
   const auto reserved = baselinesOf(host, "reserved");

@@ -662,7 +662,7 @@ void bindCompose(py::module_& module) {
            py::arg("offset") = 0.0f, fluent)
       .def("textVerticalAlign", &Element::textVerticalAlign, py::arg("rule"),
            py::arg("maximumInterlineSpacing") = 0.0f, fluent)
-      .def("reserve", &Element::reserve, py::arg("band"), fluent)
+      .def("textLineMargin", &Element::textLineMargin, py::arg("band"), fluent)
       .def("live", &Element::live, py::arg("enabled") = true,
            py::arg("candidates") = 0, fluent)
       .def(

@@ -24,7 +24,7 @@ namespace sigil::compose {
  *  emphasis dots down a column, a gloss under a phrase.
  *
  *  IT IS PART OF THE TEXT, not a thing standing next to it, and the one
- *  fact that makes it so is `reserve`: the band the reading occupies is
+ *  fact that makes it so is `textLineMargin`: the band the reading occupies is
  *  stated BEFORE the base is laid out, from the annotation's own metrics,
  *  and goes into the base's strut. The base is then broken and placed once
  *  with the room already there, and the readings are placed on the result.
