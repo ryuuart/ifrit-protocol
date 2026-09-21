@@ -149,7 +149,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // same links prunes; one that names a different frame re-fills from
   // there.
   if (ta.threadTo != tb.threadTo) return false;
-  // balanceChain(): which frame opens a balanced run, and how much of the
+  // textThreadBalance(): which frame opens a balanced run, and how much of the
   // story that run must hold. Both change the depth the run is filled to,
   // so a re-described chain that states either differently re-bisects.
   if (ta.balanceChain != tb.balanceChain ||

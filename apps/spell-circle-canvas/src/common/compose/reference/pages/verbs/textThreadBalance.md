@@ -1,15 +1,15 @@
 ---
 kind: verb
 library: SigilCompose
-name: balanceChain
-qualified: sigil::compose::Element::balanceChain
+name: textThreadBalance
+qualified: sigil::compose::Element::textThreadBalance
 header: sigilcompose/core/Text.h
 group: Content
-python: sigil.compose.Element.balanceChain
+python: sigil.compose.Element.textThreadBalance
 status: stable
 ---
 
-# balanceChain
+# textThreadBalance
 
 This frame opens a BALANCED RUN of its chain — itself and every frame
 after it up to the next frame that opens one, or the chain's end.
@@ -17,7 +17,7 @@ after it up to the next frame that opens one, or the chain's end.
 ## Description
 
 ```cpp
-frame(article).key("a").thread("b").balanceChain();
+frame(article).key("a").thread("b").textThreadBalance();
 ```
 
 **The run is filled to the SHALLOWEST DEPTH that still holds what it was

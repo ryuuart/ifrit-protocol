@@ -673,8 +673,8 @@ void bindCompose(py::module_& module) {
           py::arg("marker"), fluent)
       .def("maxTextLines", &Element::maxTextLines, py::arg("lines"), fluent)
       .def("thread", &Element::thread, py::arg("key"), fluent)
-      .def("balanceChain", &Element::balanceChain, py::arg("throughLine") = ~0u,
-           fluent)
+      .def("textThreadBalance", &Element::textThreadBalance,
+           py::arg("throughLine") = ~0u, fluent)
       .def("contentFlowAround", &Element::contentFlowAround, py::arg("key"),
            py::arg("margin") = 0.0f, fluent)
       .def("textOnPath", &Element::textOnPath, py::arg("path"), fluent)

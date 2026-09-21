@@ -70,7 +70,7 @@ class TextContentVerbs {
    *  end. @p throughLine is what the run must hold, as a story-relative
    *  line number; the default holds all of it. The frames must declare
    *  a depth in pixels. */
-  Derived& balanceChain(uint32_t throughLine = ~0u);
+  Derived& textThreadBalance(uint32_t throughLine = ~0u);
   /** Lay the run out along a PATH instead of a line. Single-line runs;
    *  the node's own box still sizes the path, so give it the box the
    *  curve should be inscribed in. */

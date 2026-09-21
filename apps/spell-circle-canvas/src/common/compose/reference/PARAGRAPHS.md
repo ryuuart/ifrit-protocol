@@ -142,7 +142,7 @@ measure the frame AFTER it resolved to, which is the one fact the widow
 rule needs and no single fill can see: the lines a widow rule counts are
 the remainder, and the remainder is set in the next frame.
 
-**A RUN OF THE CHAIN CAN BE BALANCED**, which is `Element::balanceChain`
+**A RUN OF THE CHAIN CAN BE BALANCED**, which is `Element::textThreadBalance`
 on the frame that opens it: that frame and every one after it up to the
 next frame that opens a run — or the chain's end — are filled to the
 SHALLOWEST depth that still holds what the run was asked to hold, and all

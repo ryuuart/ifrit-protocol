@@ -341,7 +341,8 @@ struct ColumnSet {
       // Every row but the last opens a balanced run that must reach the
       // line its spanner breaks after; the last row is the remainder and
       // keeps the depth it was given.
-      if (i == 0 && r + 1 < rows) column.balanceChain(breakLine[(size_t)r]);
+      if (i == 0 && r + 1 < rows)
+        column.textThreadBalance(breakLine[(size_t)r]);
       if (index + 1 < rows * set.count)
         column.thread(keyAt(index + 1));
       else if (!set.ellipsis.empty())

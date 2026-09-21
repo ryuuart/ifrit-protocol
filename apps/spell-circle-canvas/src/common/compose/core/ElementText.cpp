@@ -75,7 +75,7 @@ Derived& TextContentVerbs<Derived>::thread(std::string_view key) {
 }
 
 template <class Derived>
-Derived& TextContentVerbs<Derived>::balanceChain(uint32_t throughLine) {
+Derived& TextContentVerbs<Derived>::textThreadBalance(uint32_t throughLine) {
   detail::TextData& text = declarations()->textData.ensure();
   text.balanceChain = true;
   text.balanceThroughLine = throughLine;

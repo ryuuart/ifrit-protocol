@@ -40,5 +40,5 @@ rather than added to.
 
 ## See also
 
-[`balanceChain`](balanceChain.md), `frame`, `weave::Story`,
+[`textThreadBalance`](textThreadBalance.md), `frame`, `weave::Story`,
 `Composer::settling`.

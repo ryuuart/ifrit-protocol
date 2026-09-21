@@ -137,7 +137,7 @@ TEST(KitColumns, ARunWhoseFramesStateNoDepthInPixelsIsLeftAlone) {
                           .key("a")
                           .thread("b")
                           .width(170.0f)
-                          .balanceChain()})
+                          .textThreadBalance()})
            .children({frame(article()).key("b").width(170.0f)})}));
   host.frame();
   EXPECT_GT(require(host.composer.bounds("a")).height(), 0);

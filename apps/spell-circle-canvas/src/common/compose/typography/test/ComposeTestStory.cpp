@@ -105,7 +105,7 @@ TEST(ComposeStory, TheMarkerEndsTheChainAndNoCutInsideIt) {
 }
 
 TEST(ComposeStory, ABalancedRunHoldsTheStoryDownToTheLineItWasGiven) {
-  // `balanceChain(throughLine)` is what stops a run of columns at a
+  // `textThreadBalance(throughLine)` is what stops a run of columns at a
   // spanning element: the run is shortened to the shallowest depth that
   // still holds the story DOWN TO THAT LINE, and everything after it is
   // left to the frames below. The number is the STORY's line, which is the
@@ -123,9 +123,13 @@ TEST(ComposeStory, ABalancedRunHoldsTheStoryDownToTheLineItWasGiven) {
            .thread("b")
            .width(120.0f)
            .height(200.0f)
-           .balanceChain(through),
+           .textThreadBalance(through),
        frame(article).key("b").thread("c").width(120.0f).height(200.0f),
-       frame(article).key("c").width(120.0f).height(200.0f).balanceChain()}));
+       frame(article)
+           .key("c")
+           .width(120.0f)
+           .height(200.0f)
+           .textThreadBalance()}));
   host.frame();
   host.frame();  // the first draw has no fill to balance against
 

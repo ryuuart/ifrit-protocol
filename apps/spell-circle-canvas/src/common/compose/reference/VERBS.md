@@ -217,7 +217,7 @@ once and do nothing.
 | `textOverflow` | The marker appended to the last line when the text overflows its geometry. |
 | [`live`](pages/verbs/live.md) | An input of this passage is moving, so the layout is one of a run rather than an answer. |
 | [`thread`](pages/verbs/thread.md) | The frame this one fills into — the next link of a chain over one story. |
-| [`balanceChain`](pages/verbs/balanceChain.md) | This frame opens a balanced run: every frame of it resolves to one shallowest depth. |
+| [`textThreadBalance`](pages/verbs/textThreadBalance.md) | This frame opens a balanced run: every frame of it resolves to one shallowest depth. |
 | [`contentFlowAround`](pages/verbs/contentFlowAround.md) | Flow this paragraph around the keyed node, by its silhouette or its box. |
 | [`textAnnotation`](pages/verbs/textAnnotation.md) | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
 | [`spanPaint`](pages/verbs/spanPaint.md) | Repaint the range a selector finds; never re-shapes. |
@@ -294,8 +294,8 @@ spelling is the feature's.
   `initialLetter`, `textFirstBaseline`, `distribute`, `reserve`, `live`,
   `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
-  `mark`, `textAnnotation`, `thread`, `balanceChain`, `textOnPath`, `spanPaint`,
-  `spanStyle`, `atRest`.
+  `mark`, `textAnnotation`, `thread`, `textThreadBalance`, `textOnPath`,
+  `spanPaint`, `spanStyle`, `atRest`.
 - `core/Image.h` — `region`.
 - `core/Element.h` — the cascade a node names, `styleSheet`,
   `styleClass` and `role`; `tether`, `key`, `hitTestable`, `cache`,

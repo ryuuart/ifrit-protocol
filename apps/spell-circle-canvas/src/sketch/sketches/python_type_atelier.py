@@ -121,7 +121,7 @@ class TypeAtelier:
                 ParagraphStyle(leading=Leading.absolute(24)),
             )
         )
-        first = frame(article).key("opening").thread("continuation").balanceChain()
+        first = frame(article).key("opening").thread("continuation").textThreadBalance()
         second = frame(article).key("continuation")
         sheet = StyleSheet().set("signal", Type(color=PAPER))
         with kit.provide(look):

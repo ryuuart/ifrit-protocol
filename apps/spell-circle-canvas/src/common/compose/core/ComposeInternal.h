@@ -288,7 +288,7 @@ struct TextData {
   // over one story; the cursor each frame starts at lives on the Instance,
   // because where a fill stopped is an answer of the layout.
   std::string threadTo;
-  // balanceChain(): this frame OPENS a balanced run of the chain — itself
+  // textThreadBalance(): this frame OPENS a balanced run of the chain — itself
   // and every frame after it up to the next frame that opens one, or the
   // chain's end. The run is filled to the shallowest depth that still
   // holds what it was asked to hold, which is `balanceThroughLine` lines
