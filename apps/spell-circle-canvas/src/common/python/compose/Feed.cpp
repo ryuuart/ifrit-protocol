@@ -4,6 +4,7 @@
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
+#include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Registration.h>
 #include <sigilweave/layout/StyleSheet.h>
 
@@ -160,15 +161,9 @@ void bindRing(py::module_& module, const char* name, const char* documentation,
 Element rowElement(const py::function& row, py::object value) {
   const CallbackBoundary boundary;
   const py::object built = row(std::move(value));
-  if (py::isinstance<compose::Text>(built))
-    return built.cast<compose::Text>();
-  if (py::isinstance<compose::Image>(built))
-    return built.cast<compose::Image>();
-  if (py::isinstance<compose::Band>(built))
-    return built.cast<compose::Band>();
-  if (!py::isinstance<Element>(built))
+  if (!isNode(built))
     throw py::type_error("A feed row function returns a node.");
-  return built.cast<Element>();
+  return node(built);
 }
 
 /** The feed of @p ring with every visible row built by the Python

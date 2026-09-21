@@ -17,6 +17,7 @@
 #include <sigilcompose/core/Instances.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
+#include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Registration.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
@@ -877,27 +878,26 @@ int registerVariants(CellSheet& sheet, int count, std::optional<SkSize> shared,
   return sheet.variants(count, [&](int index) -> std::pair<Element, SkSize> {
     const CallbackBoundary boundary;
     const py::object answer = named == 0 ? make() : make(index);
-    if (py::isinstance<Element>(answer)) {
+    if (isNode(answer)) {
       if (!shared)
         throw py::type_error(
-            "A variant recipe given no shared size answers an Element "
-            "and its size.");
-      return {answer.cast<Element>(), *shared};
+            "A variant recipe given no shared size answers a node and "
+            "its size.");
+      return {node(answer), *shared};
     }
     if ((py::isinstance<py::tuple>(answer) ||
          py::isinstance<py::list>(answer)) &&
         py::len(answer) == 2) {
       const auto pair = py::reinterpret_borrow<py::sequence>(answer);
       const py::object tree = pair[0];
-      if (py::isinstance<Element>(tree))
-        return {tree.cast<Element>(),
+      if (isNode(tree))
+        return {node(tree),
                 sizeFrom(pair[1],
                          "A variant's size is a Size, or a width and a "
                          "height.")};
     }
     throw py::type_error(
-        "A variant recipe answers an Element, or an Element and its "
-        "size.");
+        "A variant recipe answers a node, or a node and its size.");
   });
 }
 

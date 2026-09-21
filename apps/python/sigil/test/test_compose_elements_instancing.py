@@ -686,6 +686,19 @@ class Sheets(unittest.TestCase):
         sides = [sheet.frameSize(frame).width() for frame in range(4)]
         self.assertEqual(sides, [10, 20, 5, 10])
 
+    def test_a_recipe_answers_any_kind_of_node(self):
+        # A typed leaf is a class of its own rather than a subclass of
+        # Element, so a recipe that hands one back has to be read as the node
+        # it is, alone and beside its size.
+        sheet = instancing.CellSheet()
+        leaf = compose.text("A")
+        self.assertNotIsInstance(leaf, compose.Element)
+        shared = sheet.variants(1, (8, 8), lambda index: compose.text("A"))
+        self.assertEqual(sheet.frameCount(), shared + 1)
+        sized = sheet.variants(1, lambda index: (compose.text("B"), (6, 4)))
+        size = sheet.frameSize(sized)
+        self.assertEqual((size.width(), size.height()), (6, 4))
+
     def test_a_recipe_with_no_shared_size_has_to_answer_one(self):
         sheet = instancing.CellSheet()
         with self.assertRaises(TypeError):

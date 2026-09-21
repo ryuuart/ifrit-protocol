@@ -39,6 +39,14 @@ compose::Dimension originLength(pybind11::handle value);
 /** What a custom property holds, read from @p value: a colour, or a
  *  length. */
 compose::VarValue variable(pybind11::handle value);
+/** Whether @p value is a node: an element, or one of the typed leaves a
+ *  factory hands back. Each leaf is a class of its own in Python rather
+ *  than a subclass of Element, so asking after Element alone answers no
+ *  for a text, an image or a band. */
+bool isNode(pybind11::handle value);
+/** The element @p value describes, whatever kind of node it is. Call it
+ *  only where isNode answers yes; anything else raises. */
+compose::Element node(pybind11::handle value);
 /** The children in @p children as a list of elements, flattening a
  *  sequence passed as one argument. A typed leaf counts as one child. */
 std::vector<compose::Element> elements(pybind11::args children);

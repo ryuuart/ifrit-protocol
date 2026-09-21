@@ -22,28 +22,33 @@ class Document(unittest.TestCase):
 
     def test_factories_are_native_and_named_arguments_remain_available(self):
         self.assertIs(doc.article, raw.document.article)
-        for element in (
-            doc.heading(level=2, words="Heading"),
+        # A prose factory hands back the text leaf itself, so the text verbs
+        # are there to chain; one that wraps prose in a row or a column hands
+        # back the wrapper, which is a plain element.
+        for kind, element in (
+            (Text, doc.heading(level=2, words="Heading")),
             *(
-                heading(words="Heading")
+                (Text, heading(words="Heading"))
                 for heading in (doc.h1, doc.h2, doc.h3, doc.h4, doc.h5, doc.h6)
             ),
-            doc.paragraph(words=rich().add("A ").add("passage", Type(weight=600))),
-            doc.lead(words="Introduction"),
-            doc.caption(words="Supporting note"),
-            doc.label(words="Label"),
-            doc.eyebrow(words="Series"),
-            doc.footer(words="Source"),
-            doc.code(words="print('Hello')"),
-            doc.item(words="First", marker="1."),
-            doc.item(body=doc.paragraph("Second"), marker="2."),
-            doc.figure(body=box(), note="A figure"),
-            doc.quote(words="A quotation"),
-            doc.rule(),
+            (
+                Text,
+                doc.paragraph(words=rich().add("A ").add("passage", Type(weight=600))),
+            ),
+            (Text, doc.lead(words="Introduction")),
+            (Text, doc.caption(words="Supporting note")),
+            (Text, doc.label(words="Label")),
+            (Text, doc.eyebrow(words="Series")),
+            (Text, doc.footer(words="Source")),
+            (Text, doc.code(words="print('Hello')")),
+            (Element, doc.item(words="First", marker="1.")),
+            (Element, doc.item(body=doc.paragraph("Second"), marker="2.")),
+            (Element, doc.figure(body=box(), note="A figure")),
+            (Element, doc.quote(words="A quotation")),
+            (Element, doc.rule()),
         ):
-            # The prose factories hand back the text leaf they make; the
-            # ones that wrap it in a row or a column hand back a node.
-            self.assertIsInstance(element, (Element, Text))
+            with self.subTest(kind=kind.__name__):
+                self.assertIs(type(element), kind)
         self.assertEqual(doc.list_gap, raw.document.listGap)
         self.assertEqual(doc.quote_inset, raw.document.quoteInset)
         for level in (0, 7):

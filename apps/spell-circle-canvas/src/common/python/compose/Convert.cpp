@@ -150,6 +150,23 @@ compose::VarValue variable(py::handle value) {
   return dimension(value);
 }
 
+bool isNode(py::handle value) {
+  return py::isinstance<compose::Element>(value) ||
+         py::isinstance<compose::Text>(value) ||
+         py::isinstance<compose::Image>(value) ||
+         py::isinstance<compose::Band>(value);
+}
+
+compose::Element node(py::handle value) {
+  if (py::isinstance<compose::Text>(value))
+    return value.cast<compose::Text>();
+  if (py::isinstance<compose::Image>(value))
+    return value.cast<compose::Image>();
+  if (py::isinstance<compose::Band>(value))
+    return value.cast<compose::Band>();
+  return value.cast<compose::Element>();
+}
+
 std::vector<compose::Element> elements(py::args values) {
   try {
     if (values.size() == 1 && (py::isinstance<py::str>(values[0]) ||
@@ -157,13 +174,7 @@ std::vector<compose::Element> elements(py::args values) {
       throw py::cast_error();
     // A typed leaf is one child, exactly as an element is: only a
     // genuine sequence is flattened.
-    const auto node = [](py::handle value) {
-      return py::isinstance<compose::Element>(value) ||
-             py::isinstance<compose::Text>(value) ||
-             py::isinstance<compose::Image>(value) ||
-             py::isinstance<compose::Band>(value);
-    };
-    const auto children = values.size() == 1 && !node(values[0])
+    const auto children = values.size() == 1 && !isNode(values[0])
                               ? py::tuple(values[0])
                               : py::tuple(values);
     return children.cast<std::vector<compose::Element>>();
