@@ -3,7 +3,12 @@
 from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
 
-from _sigil.compose import Element
+from _sigil.compose import Band, Element, Image, Text
+
+# Every kind of node. A typed leaf is a class of its own rather than a
+# subclass of the element, and converts into one where it lands, so asking
+# after the element alone would answer no for a text, an image or a band.
+NODES = (Element, Text, Image, Band)
 
 
 def specification(record_type, value, properties):
@@ -31,7 +36,7 @@ def children(values, ancestors=None):
     for value in values:
         if value is None:
             continue
-        if isinstance(value, Element):
+        if isinstance(value, NODES):
             yield value
         elif isinstance(value, str):
             yield text(value)
@@ -46,6 +51,6 @@ def children(values, ancestors=None):
             ancestors.remove(identity)
         else:
             raise TypeError(
-                "children must be elements, strings, None, or ordered iterables; "
+                "children must be nodes, strings, None, or ordered iterables; "
                 f"got {type(value).__name__}"
             )

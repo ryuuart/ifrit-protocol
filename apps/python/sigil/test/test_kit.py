@@ -153,6 +153,18 @@ class Kit(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "unknown Page property 'titlle'"):
             kit.page(content, titlle="typo")
 
+    def test_every_kind_of_node_is_a_child_of_a_kit_piece(self):
+        # A typed leaf is a class of its own rather than a subclass of
+        # Element, so a run that asked after Element alone refused a text
+        # where the native children list takes one.
+        leaf = text("A")
+        self.assertNotIsInstance(leaf, Element)
+        self.assertIsInstance(kit.cells(leaf, box()), Element)
+        self.assertIsInstance(neutral.cells([leaf, "words", None]), Element)
+        self.assertIsInstance(neutral.centred(leaf), Element)
+        with self.assertRaisesRegex(TypeError, "children must be nodes"):
+            neutral.cells(42)
+
     def test_grid_tracks_are_owned_values_and_place_named_native_cells(self):
         grid = Grid(columns=[px(40), fr()])
         track = grid.columns[0]
