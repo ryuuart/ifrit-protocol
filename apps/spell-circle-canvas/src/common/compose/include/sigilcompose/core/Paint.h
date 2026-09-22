@@ -381,8 +381,11 @@ class StampCache {
 // ---------------------------------------------------------------------------
 // Gradient Fills — the flat-value spelling, one line over Fill::shader.
 
+namespace detail {
 /** The ramp's colours as the shader builder takes them. A colour is four
- *  straight sRGB floats either side, so this is a copy and nothing more. */
+ *  straight sRGB floats either side, so this is a copy and nothing more.
+ *  Not a name a caller spells: the two gradient lines below are inline,
+ *  so it stands in the header and nowhere else. */
 inline std::vector<SkColor4f> rampColors(
     const std::vector<material::Color>& colors) {
   std::vector<SkColor4f> out;
@@ -391,13 +394,14 @@ inline std::vector<SkColor4f> rampColors(
     out.push_back(material::skia::toSkColor(c));
   return out;
 }
+}  // namespace detail
 
 /** Linear gradient Fill — one line over Fill::shader + SkShaders. */
 inline Fill linearGradient(SkPoint from, SkPoint to,
                            std::vector<material::Color> colors,
                            std::vector<float> stops = {}) {
   SkPoint pts[2] = {from, to};
-  const std::vector<SkColor4f> ramp = rampColors(colors);
+  const std::vector<SkColor4f> ramp = detail::rampColors(colors);
   return Fill::shader(
       SkShaders::LinearGradient(pts, SkGradient({{ramp.data(), ramp.size()},
                                                  {stops.data(), stops.size()},
@@ -411,7 +415,7 @@ inline Fill linearGradient(SkPoint from, SkPoint to,
 inline Fill radialGradient(SkPoint center, float radius,
                            std::vector<material::Color> colors,
                            std::vector<float> stops = {}) {
-  const std::vector<SkColor4f> ramp = rampColors(colors);
+  const std::vector<SkColor4f> ramp = detail::rampColors(colors);
   return Fill::shader(
       SkShaders::RadialGradient(center, radius,
                                 SkGradient({{ramp.data(), ramp.size()},

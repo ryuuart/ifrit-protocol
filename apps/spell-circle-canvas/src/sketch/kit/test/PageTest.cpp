@@ -63,7 +63,7 @@ TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
   }
   kit::stage(ctx, {.size = {100, 100},
                    .background = sigil::material::Color{1, 0, 0, 1}});
-  EXPECT_EQ(specification.background, (SkColor4f{1, 0, 0, 1}));
+  EXPECT_EQ(specification.background, (sigil::material::Color{1, 0, 0, 1}));
 }
 
 TEST(SketchKitStage, ASetDeclaresTheSameThreeThings) {
@@ -82,7 +82,8 @@ TEST(SketchKitStage, ASetDeclaresTheSameThreeThings) {
               .background = sigil::material::Color{0.03f, 0.035f, 0.05f, 1}});
   EXPECT_EQ(specification.size, (SkSize{640, 440}));
   EXPECT_EQ(specification.captureSeconds, 1.3);
-  EXPECT_EQ(specification.background, (SkColor4f{0.03f, 0.035f, 0.05f, 1}));
+  EXPECT_EQ(specification.background,
+            (sigil::material::Color{0.03f, 0.035f, 0.05f, 1}));
   // The ground falls back to the theme's, as a canvas sketch's does.
   kit::stage(ctx, {.size = {10, 10}});
   EXPECT_EQ(specification.background, kit::houseTheme().palette.ground);

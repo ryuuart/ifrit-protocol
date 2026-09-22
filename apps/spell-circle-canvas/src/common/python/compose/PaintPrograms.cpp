@@ -520,8 +520,12 @@ void bindComposePaintPrograms(py::module_& module) {
       "linearGradient",
       [](py::handle from, py::handle to, std::vector<SkColor4f> colors,
          std::vector<float> stops) {
-        return compose::linearGradient(point(from), point(to),
-                                       checkedGradient(colors, stops),
+        // The ramp is checked in a statement of its own: an argument list
+        // is indeterminately sequenced, so a check reading `stops` beside
+        // an argument that moves from it may run after the move and see
+        // an empty list.
+        std::vector<material::Color> ramp = checkedGradient(colors, stops);
+        return compose::linearGradient(point(from), point(to), std::move(ramp),
                                        std::move(stops));
       },
       py::arg("from_"), py::arg("to"), py::arg("colors"),
@@ -530,8 +534,8 @@ void bindComposePaintPrograms(py::module_& module) {
       "radialGradient",
       [](py::handle center, float radius, std::vector<SkColor4f> colors,
          std::vector<float> stops) {
-        return compose::radialGradient(point(center), radius,
-                                       checkedGradient(colors, stops),
+        std::vector<material::Color> ramp = checkedGradient(colors, stops);
+        return compose::radialGradient(point(center), radius, std::move(ramp),
                                        std::move(stops));
       },
       py::arg("center"), py::arg("radius"), py::arg("colors"),
