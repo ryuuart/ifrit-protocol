@@ -165,9 +165,9 @@ class TimberBank {
             bool along = false) {
     return Paint::recipe(m_bank.get(
         matkit::timberRecipe(),
-        matkit::TimberParameters{.base = skia::toColor(sigil::material::skia::toSkColor(t.base)),
-                                 .light = skia::toColor(sigil::material::skia::toSkColor(t.light)),
-                                 .dark = skia::toColor(sigil::material::skia::toSkColor(t.dark)),
+        matkit::TimberParameters{.base = sigil::material::skia::toSkColor(t.base),
+                                 .light = sigil::material::skia::toSkColor(t.light),
+                                 .dark = sigil::material::skia::toSkColor(t.dark),
                                  .span = span,
                                  .flip = flip ? 1.0f : 0.0f,
                                  .along = along ? 1.0f : 0.0f,

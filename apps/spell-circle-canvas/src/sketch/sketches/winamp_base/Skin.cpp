@@ -71,7 +71,7 @@ auto WinampBase::buildMaterials() -> void {
                                    mskia::toColor(sigil::material::skia::toSkColor(hexColor(0x14141F))));
   // The visualiser well's baked dot grid (MAIN.BMP paints these under the
   // bars, in VISCOLOR's own "grey for dots").
-  visDots = patterns::halftone(n(2), n(0.5f), mskia::toColor(sigil::material::skia::toSkColor(kUnlit)), false);
+  visDots = patterns::halftone(n(2), n(0.5f), sigil::material::skia::toSkColor(kUnlit), false);
   // The EQ graph's dashed rules.
   graphGrid = Pattern::tile({n(4), n(4)}, [](SkCanvas& c, SkSize, uint32_t) {
     SkPaint p;

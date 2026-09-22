@@ -137,7 +137,7 @@ struct Bg3DiceRoll {
              // away.
              SkPaint glyph;
              glyph.setAntiAlias(true);
-             glyph.setColor4f(sigil::material::withAlpha(bg3::kInk, opacity), nullptr);
+             glyph.setColor4f(sigil::material::skia::toSkColor(sigil::material::withAlpha(bg3::kInk, opacity)), nullptr);
              for (int f = 0; f < nf; ++f) {
                if (nz[(size_t)f] < 0.34f) continue;
                const bg3::V3 r = attitude * solid.centroid[(size_t)f];

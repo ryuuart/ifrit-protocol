@@ -114,9 +114,9 @@ inline Element station(const char* key, float x, float y, float size = 16) {
       .height(size)
       .centerAt({x, y})
       .fill(Paint::recipe(
-          sdf::material(sdf::circle(), {.fill = mskia::toColor(material::skia::toSkColor(kBone)),
+          sdf::material(sdf::circle(), {.fill = material::skia::toSkColor(kBone),
                                         .borderWidth = 2.5f,
-                                        .borderColor = mskia::toColor(material::skia::toSkColor(kInk))})))
+                                        .borderColor = material::skia::toSkColor(kInk)})))
       .zIndex(6);
 }
 
@@ -289,7 +289,7 @@ struct NightNetwork {
     //    slot). dia. 190 circle -> circumference ~597 -> 8 stamps at 74.6.
     Element ringStamp =
         box().width(11).height(11).fill(Paint::recipe(sdf::material(
-            sdf::circle(), {.fill = mskia::toColor(material::skia::toSkColor(nn::kBone)),
+            sdf::circle(), {.fill = material::skia::toSkColor(nn::kBone),
                             .borderWidth = 2.0f,
                             .borderColor = {0.30f, 0.18f, 0.48f, 1}})));
     Brush orbital;
@@ -370,11 +370,11 @@ struct NightNetwork {
             .centerAt({436, 320})
             .fill(Paint::recipe(
                       sdf::material(sdf::star(8, 3.2f),
-                                    {.fill = mskia::toColor(material::skia::toSkColor(nn::kBone)),
+                                    {.fill = material::skia::toSkColor(nn::kBone),
                                      .borderWidth = 2,
-                                     .borderColor = mskia::toColor(material::skia::toSkColor(nn::kInk)),
+                                     .borderColor = material::skia::toSkColor(nn::kInk),
                                      .glowRadius = 6,
-                                     .glowColor = mskia::toColor(material::skia::toSkColor(nn::kEmber))}))
+                                     .glowColor = material::skia::toSkColor(nn::kEmber)}))
                       .uniform("uGlowR", &hubGlow))
             .zIndex(7);
 

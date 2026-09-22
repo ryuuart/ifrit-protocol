@@ -809,7 +809,7 @@ struct ChladniTab1 {
     paperMat = Paint::recipe(field::grain(0.013f, 4, 9.0f));
     // Sparse, and NOT on a grid you can see: the tile has to be big
     // enough that its repeat is not the strongest mark on the page.
-    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {skia::toColor(material::skia::toSkColor(kFox))});
+    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {material::skia::toSkColor(kFox)});
     foxing.seed(17);
     foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f,
                                  {skia::toColor(material::skia::toSkColor(hexColor(0x94764c, 0.09f)))});

@@ -280,7 +280,7 @@ weave::TextStyle hollow(sk_sp<SkTypeface> face, float size, material::Color colo
                                          .color = material::skia::toSkColor(color),
                                          .track = tracking});
   s.paint.foreground =
-      sigil::weave::kit::outline(color.toSkColor(), width).paint;
+      sigil::weave::kit::outline(sigil::material::skia::toSkColor(color).toSkColor(), width).paint;
   s.paint.foreground.setAntiAlias(true);
   return s;
 }

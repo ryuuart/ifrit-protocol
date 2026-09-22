@@ -661,7 +661,7 @@ struct ShippingForecast {
             .width(pct(100))
             .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
             .spanPaint(weave::selectors::regex(u8"[0-9]+"),
-                       sigil::weave::PaintStyle(kAmber.toSkColor()))
+                       sigil::weave::PaintStyle(sigil::material::skia::toSkColor(kAmber).toSkColor()))
             .fx(std::move(initials))
             .fx(std::move(grade))
             .fx(std::move(bodies)),
@@ -741,7 +741,7 @@ struct ShippingForecast {
             .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
             .spanStyle(weave::selectors::regex(u8"[0-9]+"), graded)
             .spanPaint(weave::selectors::regex(u8"[0-9]+"),
-                       sigil::weave::PaintStyle(kAmber.toSkColor()))
+                       sigil::weave::PaintStyle(sigil::material::skia::toSkColor(kAmber).toSkColor()))
             .fx({.effect = fx::slide(-22.0f),
                  .stagger = {.eachMs = 150, .durationMs = 620},
                  .unit = weave::Unit::Line,

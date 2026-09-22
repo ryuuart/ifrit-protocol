@@ -176,16 +176,16 @@ auto SlitScan2001::readoutEl() -> Element {
            {t(kit::formatted("z = %06.2f in", z),
               {.face = monoBoldFace(), .size = 9, .color = sigil::material::skia::toSkColor(kAmber)}),
             t(kit::formatted("m = ×%0.3f", kZ0In / std::max(z, 1e-3f)),
-              {.size = 9, .color = kType2})}),
+              {.size = 9, .color = sigil::material::skia::toSkColor(kType2)})}),
        box().row().gap(12).children(
            {t(kit::formatted("stamp %04d / %d", stampIdx, kKDisplay),
-              {.size = 9, .color = kType2}),
+              {.size = 9, .color = sigil::material::skia::toSkColor(kType2)}),
             t(kit::formatted("ω = %0.4f", omega),
-              {.size = 9, .color = al(kCold, 0.9f)})}),
+              {.size = 9, .color = sigil::material::skia::toSkColor(al(kCold, 0.9f))})}),
        t(kit::formatted("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
                         "texWindows()",
                         sheetW, sheetH, bakeMs),
-         {.size = 6.8f, .color = kTick})});
+         {.size = 6.8f, .color = sigil::material::skia::toSkColor(kTick)})});
 }
 
 auto SlitScan2001::expoEl() -> Element {
@@ -193,14 +193,14 @@ auto SlitScan2001::expoEl() -> Element {
   return t(kit::formatted("SWEEP %3d%%  ·  z %06.2f in  ·  %d / %d STAMPS LAID",
                           (int)(tau * 100.0), kZ0In * std::pow(kR, -(float)tau),
                           (int)(tau * (double)kK), kK),
-           {.size = 7.2f, .color = al(kCold, 0.8f)});
+           {.size = 7.2f, .color = sigil::material::skia::toSkColor(al(kCold, 0.8f))});
 }
 
 auto SlitScan2001::fitEl() -> Element {
   using namespace slit;
   if (fixedStatus.clamped)
     return t("FIT SUPPRESSED — THIS FRAME DROPPED SIMULATED TIME",
-             {.size = 8.2f, .color = kRed});
+             {.size = 8.2f, .color = sigil::material::skia::toSkColor(kRed)});
   return box().column().gap(1).children(
       {t(kit::formatted("FIT  E(u) = C / u^p     p = %0.4f     R² = %0.5f",
                         fitP, fitR2),
@@ -217,9 +217,9 @@ auto SlitScan2001::rippleEl() -> Element {
       {t(kit::formatted("AND K_min REMOVES GAPS, NOT RIPPLE: AT K = 406 THE "
                         "MEASURED MAX RESIDUAL IS %0.0f%%,",
                         fitResidMin * 100.0f),
-         {.size = 7.0f, .color = al(kCold, 0.85f)}),
+         {.size = 7.0f, .color = sigil::material::skia::toSkColor(al(kCold, 0.85f))}),
        t(kit::formatted("AT 4× IT IS %0.0f%% — AND p MOVES ONLY %0.4f → %0.4f. "
                         "THE LAW SURVIVES ITS OWN QUANTISATION.",
                         fitResid * 100.0f, fitPMin, fitP),
-         {.size = 7.0f, .color = al(kCold, 0.85f)})});
+         {.size = 7.0f, .color = sigil::material::skia::toSkColor(al(kCold, 0.85f))})});
 }

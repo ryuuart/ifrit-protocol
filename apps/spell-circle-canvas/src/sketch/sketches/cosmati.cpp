@@ -119,8 +119,8 @@ constexpr float kInner = kFieldSide - 2 * kBandW;
  *  tesserae do so that the Purbeck reads as one stone. */
 inline Paint stone(material::Color hi, material::Color lo, float angleDeg = 24,
                    float contrast = 0.35f) {
-  return Paint::recipe(mkit::stone({.hi = mskia::toColor(material::skia::toSkColor(hi)),
-                                    .lo = mskia::toColor(material::skia::toSkColor(lo)),
+  return Paint::recipe(mkit::stone({.hi = material::skia::toSkColor(hi),
+                                    .lo = material::skia::toSkColor(lo),
                                     .bedAngle = angleDeg,
                                     .grainContrast = contrast,
                                     .speckle = 0.30f,

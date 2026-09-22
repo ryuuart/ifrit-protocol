@@ -264,7 +264,7 @@ struct StrokeAtlasSketch {
                  lines::presets::concentric(red(), 14, 0.8f)),
            field(1224, 2, "decorations::wash(halftoneRamp)", shapes::circle(),
                  decorations::wash(mskia::Paint::recipe(field::halftoneRamp(
-                                       8, 1.0f, 3.2f, mskia::toColor(sigil::material::skia::toSkColor(kInk)))),
+                                       8, 1.0f, 3.2f, sigil::material::skia::toSkColor(kInk))),
                                    SkBlendMode::kSrcOver, 0.95f)),
            field(1370, 26, "hatch on shapes::chamfered(22)",
                  shapes::chamfered(22.0f),

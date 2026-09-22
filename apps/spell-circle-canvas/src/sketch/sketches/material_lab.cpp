@@ -107,7 +107,7 @@ sk_sp<SkImage> generated(const F& texel) {
   for (int y = 0; y < kMapSide; ++y)
     for (int x = 0; x < kMapSide; ++x) {
       const material::Color colour = texel(x, y);
-      *bitmap.getAddr32(x, y) = colour.toSkColor();
+      *bitmap.getAddr32(x, y) = sigil::material::skia::toSkColor(colour).toSkColor();
     }
   bitmap.setImmutable();
   return bitmap.asImage();

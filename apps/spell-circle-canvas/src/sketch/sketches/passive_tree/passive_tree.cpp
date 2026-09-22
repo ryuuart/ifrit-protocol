@@ -295,7 +295,7 @@ struct PassiveTree {
     const float dia = pt::diameterOf(n.kind);
     const bool alloc = n.state == treedata::State::Allocated;
     const bool can = n.state == treedata::State::CanAllocate;
-    const sdf::Style st{.fill = mskia::toColor(material::skia::toSkColor(pt::kSocket)),
+    const sdf::Style st{.fill = material::skia::toSkColor(pt::kSocket),
                         .borderWidth = alloc ? 2.6f : 1.9f,
                         .borderColor = mskia::toColor(material::skia::toSkColor(pt::ringColor(n.state))),
                         .glowRadius = can ? 12.0f : (alloc ? 11.0f : 0.0f),
@@ -322,9 +322,9 @@ struct PassiveTree {
     const bool can = n.state == treedata::State::CanAllocate;
     const material::Color ring = pt::ringColor(n.state);
     const sdf::Style outer{
-        .fill = mskia::toColor(material::skia::toSkColor(pt::kSocket)),
+        .fill = material::skia::toSkColor(pt::kSocket),
         .borderWidth = alloc ? 3.2f : 2.4f,
-        .borderColor = mskia::toColor(material::skia::toSkColor(ring)),
+        .borderColor = material::skia::toSkColor(ring),
         .glowRadius = 14,
         .glowColor = {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
                       alloc ? 0.5f
@@ -345,7 +345,7 @@ struct PassiveTree {
          pt::socket(nullptr, at, dia - 11,
                     {.fill = {0, 0, 0, 0},
                      .borderWidth = 1.6f,
-                     .borderColor = mskia::toColor(material::skia::toSkColor(ring))},
+                     .borderColor = material::skia::toSkColor(ring)},
                     nullptr, 4),
          box()
              .width(dia + 10)
@@ -406,7 +406,7 @@ struct PassiveTree {
     // A keystone's plate carries the heaviest sigil in the tree.
     parent.children(
         {pt::socket(nullptr, at, dia - 6,
-                    {.fill = mskia::toColor(material::skia::toSkColor(pt::kSocket)),
+                    {.fill = material::skia::toSkColor(pt::kSocket),
                      .borderWidth = 0,
                      .glowRadius = 22,
                      .glowColor = {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,

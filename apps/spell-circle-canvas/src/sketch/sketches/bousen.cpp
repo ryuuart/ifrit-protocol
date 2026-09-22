@@ -104,11 +104,11 @@ const material::Color kAiWash{kAi.r, kAi.g, kAi.b, 0.13f};
  *  down the left, `kHighlight` across the whole pitch. */
 inline weave::PaintStyle banded(material::Color ink, weave::Decoration::Kind kind,
                                 material::Color band, float thickness) {
-  weave::PaintStyle p(ink.toSkColor());
+  weave::PaintStyle p(sigil::material::skia::toSkColor(ink).toSkColor());
   p.foreground.setAntiAlias(true);
   weave::Decoration decoration;
   decoration.kind = kind;
-  decoration.color = band.toSkColor();
+  decoration.color = sigil::material::skia::toSkColor(band).toSkColor();
   decoration.thickness = thickness;
   p.addDecoration(decoration);
   return p;

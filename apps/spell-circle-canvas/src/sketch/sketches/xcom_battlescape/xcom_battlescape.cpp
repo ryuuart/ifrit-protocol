@@ -783,7 +783,7 @@ struct XcomBattlescape {
     // patterns::gridLines(spacingX, spacingY, width, colour) — the 5 x 2 pitch,
     // exactly. It takes ONE colour, so the capture's 136/137 verticals and its
     // 138 horizontals collapse to a single palette step here.
-    latticePattern = patterns::gridLines(n(5), n(2), PX, toColor(C(137)));
+    latticePattern = patterns::gridLines(n(5), n(2), PX, C(137));
     latticePattern.sampling(SkSamplingOptions(SkFilterMode::kNearest));
 
     // Type. FONT_BIG substitute at 1x, quantised into block 8 by coverage.
