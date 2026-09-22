@@ -58,6 +58,7 @@ TEST(ComposeDeclarations, UnsetIsInheritWhereThePropertyInheritsAndInitialElse) 
   EXPECT_FALSE(inheritsByDefault(Property::BorderRadius));
   EXPECT_FALSE(inheritsByDefault(Property::RotateX));
 
+  using sigil::weave::Keyword;
   EXPECT_EQ(resolveKeyword(Keyword::Unset, Property::Ink), Keyword::Inherit);
   EXPECT_EQ(resolveKeyword(Keyword::Unset, Property::Width), Keyword::Initial);
   EXPECT_EQ(resolveKeyword(Keyword::Inherit, Property::Width),

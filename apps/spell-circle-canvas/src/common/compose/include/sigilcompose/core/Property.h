@@ -4,15 +4,17 @@
  * @ingroup compose-core
  *
  * EVERY PROPERTY A DECLARATION CAN STATE, as one name: the set a value
- * records that it stated, the three wide keywords CSS lets a property be
- * written as instead of a value, and the one table that says which
- * properties a node takes from its parent when nothing states them.
+ * records that it stated, and the one table that says which properties a
+ * node takes from its parent when nothing states them. The three wide
+ * keywords a property may be written as instead of a value are
+ * SigilWeave's `Keyword`, with the `KeywordTable` that records them —
+ * a text style's partials are written with the same three.
  */
 
+#include <sigilweave/style/Keyword.h>
+
 #include <cstdint>
-#include <optional>
 #include <string_view>
-#include <vector>
 
 namespace sigil::compose {
 
@@ -147,19 +149,6 @@ static_assert(static_cast<size_t>(Property::kCount) <= 128,
               "a property whose bit is always clear reads as one no node "
               "ever stated.");
 
-/** WHAT A PROPERTY MAY BE WRITTEN AS instead of a value — CSS's three
- *  wide keywords, each meaning something a number cannot say. */
-enum class Keyword : uint8_t {
-  /** Take the parent's computed value, whether or not this property is
-   *  one that inherits on its own. */
-  Inherit,
-  /** Take the property's own initial value, whatever an ancestor says. */
-  Initial,
-  /** Whichever of the two the property's default behaviour asks for:
-   *  inherit where it inherits, initial where it does not. */
-  Unset
-};
-
 /** WHETHER A PROPERTY IS TAKEN FROM THE PARENT where nothing states it.
  *
  *  CSS's inherited set, as this library spells it: the type, the block,
@@ -186,46 +175,12 @@ constexpr bool inheritsByDefault(Property property) {
 
 /** Which of the two a keyword comes to for @p property: `unset` is the
  *  only one that asks, and it asks this table. */
-constexpr Keyword resolveKeyword(Keyword keyword, Property property) {
+constexpr sigil::weave::Keyword resolveKeyword(sigil::weave::Keyword keyword,
+                                               Property property) {
+  using sigil::weave::Keyword;
   if (keyword != Keyword::Unset) return keyword;
   return inheritsByDefault(property) ? Keyword::Inherit : Keyword::Initial;
 }
-
-/** THE PROPERTIES WRITTEN AS A KEYWORD rather than a value, in the order
- *  they were written. Rare — most descriptions carry none — so it is a
- *  small vector rather than a slot per property, and it lives out of line
- *  on whatever holds it. */
-class KeywordTable {
- public:
-  struct Entry {
-    Property property = Property::Display;
-    Keyword keyword = Keyword::Unset;
-    bool operator==(const Entry&) const = default;
-  };
-
-  /** @p property is written as @p keyword, replacing whatever it was
-   *  written as before, where it stands. */
-  void set(Property property, Keyword keyword) {
-    for (Entry& entry : m_entries)
-      if (entry.property == property) {
-        entry.keyword = keyword;
-        return;
-      }
-    m_entries.push_back({property, keyword});
-  }
-  /** The keyword @p property was written as, or nothing. */
-  [[nodiscard]] std::optional<Keyword> find(Property property) const {
-    for (const Entry& entry : m_entries)
-      if (entry.property == property) return entry.keyword;
-    return std::nullopt;
-  }
-  [[nodiscard]] const std::vector<Entry>& entries() const { return m_entries; }
-  [[nodiscard]] bool empty() const { return m_entries.empty(); }
-  bool operator==(const KeywordTable&) const = default;
-
- private:
-  std::vector<Entry> m_entries;
-};
 
 /** The property's name, as an author writes it — for a diagnostic, which
  *  is the only thing that reads one. */

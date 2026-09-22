@@ -30,7 +30,8 @@ void markDeclared(ElementNode* node, Property property);
 /** @p node states @p property as @p keyword rather than as a value, and
  *  states it: a keyword IS a declaration, and the layers under it are
  *  covered exactly as a value would cover them. */
-void markKeyword(ElementNode* node, Property property, Keyword keyword);
+void markKeyword(ElementNode* node, Property property,
+                 sigil::weave::Keyword keyword);
 
 /** COPY-ON-WRITE HANDLE ONTO ONE NODE. A description stays a cheap
  *  value, and a fluent call on a copy can never reach the node another

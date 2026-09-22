@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from sigil import compose
 from sigil import compose as raw
 from sigil import image, skia, weave
 from sigil.compose import Align, Dimension, Fill, box, pct, stroke
@@ -40,6 +41,50 @@ class Compose(unittest.TestCase):
         self.assertIsInstance(raw.box().fill(Fill.currentInk()), raw.Element)
         with self.assertRaisesRegex(TypeError, "Unknown Type field"):
             weave.Type(szie=10)
+
+    def test_every_unit_is_spelled_here_and_read_from_text(self):
+        # The font-relative units and the point answer a Dimension, so a
+        # length written in this language needs no second type to pass
+        # through; the literals C++ spells them with have no equivalent.
+        self.assertEqual(compose.em(1.5), Dimension(weave.em(1.5)))
+        self.assertEqual(compose.rem(2), Dimension(weave.rem(2)))
+        self.assertEqual(compose.lh(0.5), Dimension(weave.lh(0.5)))
+        self.assertEqual(compose.ch(3).unit, Dimension.Unit.Ch)
+        self.assertEqual(compose.pt(9).unit, Dimension.Unit.Pt)
+        self.assertFalse(compose.pt(9).relative())
+        self.assertTrue(compose.ch(3).relative())
+        # And ONE grammar reads a length written as text, so a string here
+        # and a length in a rule's text cannot drift apart.
+        for text, expected in (
+            ("12", Dimension(12)),
+            ("12px", Dimension(12)),
+            ("9pt", compose.pt(9)),
+            ("1.5em", compose.em(1.5)),
+            ("3ch", compose.ch(3)),
+            ("50%", pct(50)),
+            ("10pw", compose.pw(10)),
+        ):
+            self.assertEqual(Dimension(text), expected, text)
+            self.assertEqual(compose.parseDimension(text), expected, text)
+        self.assertIsNone(compose.parseDimension("12vh"))
+        with self.assertRaisesRegex(ValueError, "written as text"):
+            Dimension("12vh")
+
+    def test_a_property_may_be_written_as_one_of_the_three_keywords(self):
+        # Every value a node may state has a name, and the one table that
+        # says which of them inherit is asked here rather than guessed.
+        self.assertTrue(compose.inheritsByDefault(compose.Property.Ink))
+        self.assertFalse(compose.inheritsByDefault(compose.Property.Width))
+        self.assertEqual(compose.propertyName(compose.Property.PaddingLeft), "paddingLeft")
+        for element in (
+            box().inherit(compose.Property.Width),
+            box().initial(compose.Property.Font),
+            box().unset(compose.Property.PaddingLeft),
+        ):
+            self.assertIsInstance(element, raw.Element)
+        # The keywords are SigilWeave's, beside the text partials written
+        # with the same three.
+        self.assertEqual(len(list(weave.Keyword.__members__)), 3)
 
     def test_edge_dimensions_take_their_names_at_every_arity(self):
         for element in (

@@ -368,7 +368,10 @@ void Composer::Impl::resolveCascade(
         inkPaintOrigin = cascade->inkPaint.has_value();
       }
     }
-    sigil::weave::merge(block, ownBlock);
+    // The node's partial RESOLVED against the block it inherits, so a
+    // field written as a keyword takes the inherited value or none at
+    // all. A merge could not: it has no base to inherit from.
+    block = sigil::weave::overlay(block, ownBlock);
     if (cascade != nullptr && cascade->sampling) sampling = cascade->sampling;
     const bool anyOwnVars =
         cascade != nullptr &&
@@ -406,10 +409,12 @@ void Composer::Impl::resolveCascade(
   // stop inheriting, and stand in the value the property has under no
   // ancestor at all.
   if (node.keywords)
-    for (const KeywordTable::Entry& entry : node.keywords->entries()) {
-      if (resolveKeyword(entry.keyword, entry.property) != Keyword::Initial)
+    for (const sigil::weave::KeywordTable<Property>::Entry& entry :
+         node.keywords->entries()) {
+      if (resolveKeyword(entry.keyword, entry.field) !=
+          sigil::weave::Keyword::Initial)
         continue;
-      switch (entry.property) {
+      switch (entry.field) {
         case Property::Font: {
           // The colour is the INK, a property of its own, so a type reset
           // to its initial leaves it exactly as it stood.

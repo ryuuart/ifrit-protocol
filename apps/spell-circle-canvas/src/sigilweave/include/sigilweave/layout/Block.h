@@ -22,8 +22,36 @@
 #include "sigilweave/layout/TabStops.h"
 #include "sigilweave/paragraph/Hyphenation.h"
 #include "sigilweave/paragraph/Paragraph.h"
+#include "sigilweave/style/Keyword.h"
 
 namespace sigil::weave {
+
+/** ONE FIELD OF A BLOCK PARTIAL, named so a keyword can be said about
+ *  it. Every one of them inherits, as every field of a text style does,
+ *  so `initial` is the keyword that says something new. */
+enum class BlockField : uint8_t {
+  Leading,
+  HalfLeading,
+  Alignment,
+  Justification,
+  Hyphenation,
+  TabStops,
+  FirstLineIndent,
+  LastLineIndent,
+  WidowLines,
+  OrphanLines,
+  BalanceRaggedLines,
+  WritingMode,
+  LineBreakLocale,
+  LineBreak,
+  LastLineAlignment,
+  JustifyLastLine,
+  Kinsoku,
+  Hanging,
+  Mojikumi,
+  Tsume,
+  kCount
+};
 
 /** WHAT A BLOCK INHERITS, EVERY FIELD OPTIONAL — A PARTIAL: a field left
  *  unset is the field inherited, a field stated is the block's own,
@@ -68,6 +96,10 @@ struct Block {
   std::optional<MojikumiTable> mojikumi;
   std::optional<float> tsume;
 
+  /** The fields written as `inherit`, `initial` or `unset` rather than
+   *  as a value, resolved by `overlay` against the block in force above. */
+  KeywordTable<BlockField> keywords;
+
   bool operator==(const Block&) const = default;
 
   /** Whether it states NOTHING — the partial that changes no field. */
@@ -76,14 +108,24 @@ struct Block {
            !hyphenation && !tabStops && !firstLineIndent && !lastLineIndent &&
            !widowLines && !orphanLines && !balanceRaggedLines && !writingMode &&
            !lineBreakLocale && !lineBreak && !lastLineAlignment &&
-           !justifyLastLine && !kinsoku && !hanging && !mojikumi && !tsume;
+           !justifyLastLine && !kinsoku && !hanging && !mojikumi && !tsume &&
+           keywords.empty();
   }
 };
 
 /** FOLDS `over` INTO `into` — a pure field copy: every field `over` sets
  *  replaces `into`'s, every field it leaves unset leaves `into`'s alone.
- *  How two partials written about one block become one. */
+ *  How two partials written about one block become one.
+ *  @trap The keywords ACCUMULATE and are not applied: a merge has no
+ *  block in force to resolve `inherit` against. `overlay` is where a
+ *  keyword lands. */
 Block& merge(Block& into, const Block& over);
+
+/** `over` RESOLVED AGAINST `base` — one step of a cascade between two
+ *  partials, `over` winning where it states a field, and every field it
+ *  wrote as a keyword taking `base`'s value (`inherit`, `unset`) or none
+ *  at all (`initial`). The answer states no keywords. */
+[[nodiscard]] Block overlay(const Block& base, const Block& over);
 
 /** THE SET FIELDS OF `over` APPLIED TO A WHOLE STYLE — one step of a
  *  cascade whose base is a `ParagraphStyle`. The writing mode and the

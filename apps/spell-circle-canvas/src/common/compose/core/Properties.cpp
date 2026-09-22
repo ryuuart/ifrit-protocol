@@ -349,11 +349,15 @@ void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
   // is no ancestor to take a value from and the initial one is what CSS
   // gives it.
   static const ComputedStyle initial;
-  for (const KeywordTable::Entry& entry : node.keywords->entries()) {
-    const Keyword keyword = resolveKeyword(entry.keyword, entry.property);
+  for (const sigil::weave::KeywordTable<Property>::Entry& entry :
+       node.keywords->entries()) {
+    const sigil::weave::Keyword keyword =
+        resolveKeyword(entry.keyword, entry.field);
     const ComputedStyle* from =
-        keyword == Keyword::Inherit && parent != nullptr ? parent : &initial;
-    copyProperty(entry.property, *from, out);
+        keyword == sigil::weave::Keyword::Inherit && parent != nullptr
+            ? parent
+            : &initial;
+    copyProperty(entry.field, *from, out);
   }
 }
 

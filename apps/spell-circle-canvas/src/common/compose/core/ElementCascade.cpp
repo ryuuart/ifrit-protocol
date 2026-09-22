@@ -129,19 +129,19 @@ Derived& CascadeVerbs<Derived>::imageRendering(SkSamplingOptions options) {
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::inherit(Property property) {
-  detail::markKeyword(declarations(), property, Keyword::Inherit);
+  detail::markKeyword(declarations(), property, sigil::weave::Keyword::Inherit);
   return self();
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::initial(Property property) {
-  detail::markKeyword(declarations(), property, Keyword::Initial);
+  detail::markKeyword(declarations(), property, sigil::weave::Keyword::Initial);
   return self();
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::unset(Property property) {
-  detail::markKeyword(declarations(), property, Keyword::Unset);
+  detail::markKeyword(declarations(), property, sigil::weave::Keyword::Unset);
   return self();
 }
 

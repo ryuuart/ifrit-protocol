@@ -319,6 +319,82 @@ TEST(Type, AChWithNoFaceToMeasureTakesHalfTheTypeSize) {
   EXPECT_EQ(overlay(Type{.size = 20.0f}, {.size = 2_ch}).size, Length(20.0f));
 }
 
+TEST(Type, AFieldWrittenAsAKeywordTakesTheBaseOrTheInitialValue) {
+  // A partial says two things about a field: a value, or one of the three
+  // keywords. Every field of a text style inherits, so `inherit` and
+  // `unset` are the base's own and `initial` is the one that says
+  // something a value could not — stop taking the ancestor's.
+  const Type base{.size = 40.0f, .weight = 700.0f};
+  Type stop;
+  stop.keywords.set(TypeField::Weight, Keyword::Initial);
+  EXPECT_FLOAT_EQ(*overlay(base, stop).weight, 0.0f)
+      << "initial is the weight under no ancestor at all";
+  EXPECT_EQ(overlay(base, stop).size, Length(40.0f))
+      << "a field the partial says nothing about still inherits";
+
+  Type keep;
+  keep.keywords.set(TypeField::Weight, Keyword::Inherit);
+  EXPECT_FLOAT_EQ(*overlay(base, keep).weight, 700.0f);
+  Type asked;
+  asked.keywords.set(TypeField::Weight, Keyword::Unset);
+  EXPECT_FLOAT_EQ(*overlay(base, asked).weight, 700.0f)
+      << "every field of a text style inherits, so unset is inherit";
+}
+
+TEST(Type, AKeywordWinsOverAValueStatedInTheSamePartial) {
+  // The two are ONE layer, and a partial does not record which was
+  // written first, so the keyword is what stands. The resolved total
+  // states no keywords, which is what keeps one from being applied twice
+  // down a cascade.
+  const Type base{.size = 40.0f};
+  Type both{.size = 12.0f};
+  both.keywords.set(TypeField::Size, Keyword::Inherit);
+  const Type total = overlay(base, both);
+  EXPECT_EQ(total.size, Length(40.0f));
+  EXPECT_TRUE(total.keywords.empty());
+
+  // And a partial that says only a keyword is not EMPTY: it states
+  // something, so it does not overlay as itself.
+  Type keywordOnly;
+  keywordOnly.keywords.set(TypeField::Track, Keyword::Initial);
+  EXPECT_FALSE(keywordOnly.empty());
+  EXPECT_TRUE(Type{}.empty());
+}
+
+TEST(Type, AKeywordOnAShapingFieldReshapes) {
+  // Whichever value it resolves to, the glyphs are laid out again, so the
+  // question a consumer asks before repainting a range without setting it
+  // again must answer the same for a keyword as for a number.
+  Type shaping;
+  shaping.keywords.set(TypeField::Size, Keyword::Initial);
+  EXPECT_TRUE(reshapes(shaping));
+  Type painting;
+  painting.keywords.set(TypeField::Color, Keyword::Initial);
+  EXPECT_FALSE(reshapes(painting));
+}
+
+TEST(Type, AMergeACCUMULATESKeywordsRatherThanApplyingThem) {
+  // A merge folds two partials into one partial, and there is no style in
+  // force to resolve `inherit` against — so the keyword rides along and
+  // lands at the overlay. A rule that says `initial` and a node that says
+  // nothing must still reach the fold.
+  Type rule;
+  rule.keywords.set(TypeField::Weight, Keyword::Initial);
+  Type own{.size = 20.0f};
+  merge(own, rule);
+  ASSERT_TRUE(own.keywords.find(TypeField::Weight).has_value());
+  EXPECT_EQ(*own.keywords.find(TypeField::Weight), Keyword::Initial);
+  EXPECT_FLOAT_EQ(*overlay(Type{.weight = 900.0f}, own).weight, 0.0f);
+
+  // Written twice, the later statement replaces the earlier where it
+  // stands, as a value does.
+  Type later;
+  later.keywords.set(TypeField::Weight, Keyword::Inherit);
+  merge(own, later);
+  EXPECT_EQ(own.keywords.entries().size(), 1u);
+  EXPECT_EQ(*own.keywords.find(TypeField::Weight), Keyword::Inherit);
+}
+
 TEST(Type, ARelativeTrackingResolvesAgainstTheSizeTheTypeComesTo) {
   // Tracking in ems is a fraction of the size the type is set at — the
   // size after the same overlay resolved it — so one register states the

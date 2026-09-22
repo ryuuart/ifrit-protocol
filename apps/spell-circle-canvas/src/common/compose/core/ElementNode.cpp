@@ -60,7 +60,7 @@ void detail::markDeclared(ElementNode* node, Property property) {
 }
 
 void detail::markKeyword(ElementNode* node, Property property,
-                         Keyword keyword) {
+                         sigil::weave::Keyword keyword) {
   node->declared.set(property);
   node->keywords.ensure().set(property, keyword);
 }

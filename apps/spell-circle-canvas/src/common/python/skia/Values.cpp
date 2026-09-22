@@ -389,6 +389,10 @@ void bindValues(py::module_& module) {
                                                : SkFontStyle::kUpright_Slant));
       },
       py::arg("family"), py::arg("weight") = 400, py::arg("italic") = false);
+  py::enum_<weave::Keyword>(weave, "Keyword")
+      .value("Inherit", weave::Keyword::Inherit)
+      .value("Initial", weave::Keyword::Initial)
+      .value("Unset", weave::Keyword::Unset);
   auto length = py::class_<weave::Length>(weave, "Length");
   py::enum_<weave::Length::Unit>(length, "Unit")
       .value("Px", weave::Length::Unit::Px)

@@ -65,6 +65,80 @@ float resolvePx(Length length, float againstPx, float rootSizePx,
   return length.value;
 }
 
+
+/** The field @p field of @p total taken from @p base or from the initial
+ *  style, which is what a keyword said about it means. Every field of a
+ *  text style inherits, so `unset` reads as `inherit` and `inherit` is
+ *  the base's own value. */
+void applyKeyword(Type& total, const Type& base, TypeField field,
+                  Keyword keyword) {
+  const Type& from = keyword == Keyword::Initial ? initialType() : base;
+  switch (field) {
+    case TypeField::Face:
+      total.face = from.face;
+      return;
+    case TypeField::Size:
+      total.size = from.size;
+      return;
+    case TypeField::Color:
+      total.color = from.color;
+      return;
+    case TypeField::Track:
+      total.track = from.track;
+      return;
+    case TypeField::Condense:
+      total.condense = from.condense;
+      return;
+    case TypeField::Weight:
+      total.weight = from.weight;
+      return;
+    case TypeField::Slant:
+      total.slant = from.slant;
+      return;
+    case TypeField::Aliased:
+      total.aliased = from.aliased;
+      return;
+    case TypeField::AntiAlias:
+      total.antiAlias = from.antiAlias;
+      return;
+    case TypeField::Color8:
+      total.color8 = from.color8;
+      return;
+    case TypeField::Variations:
+      total.variations = from.variations;
+      return;
+    case TypeField::Language:
+      total.language = from.language;
+      return;
+    case TypeField::Features:
+      total.features = from.features;
+      return;
+    case TypeField::OpticalKerning:
+      total.opticalKerning = from.opticalKerning;
+      return;
+    case TypeField::WordSpacing:
+      total.wordSpacing = from.wordSpacing;
+      return;
+    case TypeField::TextTransform:
+      total.textTransform = from.textTransform;
+      return;
+    case TypeField::VerticalForm:
+      total.verticalForm = from.verticalForm;
+      return;
+    case TypeField::Decorations:
+      total.decorations = from.decorations;
+      return;
+    case TypeField::Underlays:
+      total.underlays = from.underlays;
+      return;
+    case TypeField::Overlays:
+      total.overlays = from.overlays;
+      return;
+    case TypeField::kCount:
+      return;
+  }
+}
+
 /** The px a relative size in a partial over `base` is stated against. A
  *  base that states no size — or states its own relatively, which a
  *  resolved total never does — leaves the initial size as the only number
@@ -122,6 +196,10 @@ Type& merge(Type& into, const Type& over) {
   if (over.decorations) into.decorations = over.decorations;
   if (over.underlays) into.underlays = over.underlays;
   if (over.overlays) into.overlays = over.overlays;
+  // The keywords ACCUMULATE and are not applied: a merge folds two
+  // partials into one partial, and there is no style in force here to
+  // resolve `inherit` against. `overlay` is where they land.
+  into.keywords.overlay(over.keywords);
   return into;
 }
 
@@ -141,6 +219,14 @@ Type overlay(const Type& base, const Type& over, float rootSizePx,
   if (total.wordSpacing && total.wordSpacing->relative())
     total.wordSpacing = Length(resolvePx(*total.wordSpacing, sizeAgainst(total),
                                          rootSizePx, lineHeightPx));
+  // A field written as a keyword takes the base's value or the initial
+  // one, over whatever the merge copied and over what the resolver just
+  // settled: the two are ONE layer, and the keyword is the statement that
+  // wins. A resolved total states none of them, so nothing below applies
+  // one twice.
+  for (const KeywordTable<TypeField>::Entry& entry : over.keywords.entries())
+    applyKeyword(total, base, entry.field, entry.keyword);
+  total.keywords = {};
   return total;
 }
 
@@ -221,6 +307,22 @@ TextStyle overlay(TextStyle base, const Type& over) {
 }
 
 bool reshapes(const Type& partial) {
+  // A field written as a KEYWORD is a field stated: whichever value it
+  // resolves to, the glyphs are laid out again, so a keyword on any
+  // shaping field answers here exactly as a number would.
+  for (const KeywordTable<TypeField>::Entry& entry : partial.keywords.entries())
+    switch (entry.field) {
+      case TypeField::Color:
+      case TypeField::AntiAlias:
+      case TypeField::Color8:
+      case TypeField::Decorations:
+      case TypeField::Underlays:
+      case TypeField::Overlays:
+      case TypeField::kCount:
+        break;
+      default:
+        return true;
+    }
   return partial.face.has_value() || partial.size || partial.track ||
          partial.condense || partial.weight || partial.slant ||
          partial.aliased || !partial.variations.empty() || partial.language ||

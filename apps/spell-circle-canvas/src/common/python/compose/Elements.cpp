@@ -164,8 +164,9 @@ void bindCompose(py::module_& module) {
           "pt", [](float amount) { return Dimension(weave::pt(amount)); },
           py::arg("amount"))
       .def("parseDimension", &parseDimension, py::arg("text"));
-  // Every property a verb or a rule may state, and the three wide
-  // keywords one may be written as instead of a value.
+  // Every property a verb or a rule may state. The three keywords one may
+  // be written as instead of a value are SigilWeave's, beside the text
+  // partials that take the same three.
   py::enum_<Property>(composition, "Property")
       .value("Display", Property::Display)
       .value("BoxSizing", Property::BoxSizing)
@@ -233,10 +234,6 @@ void bindCompose(py::module_& module) {
       .value("Ink", Property::Ink)
       .value("CustomProperties", Property::CustomProperties)
       .value("ImageRendering", Property::ImageRendering);
-  py::enum_<Keyword>(composition, "Keyword")
-      .value("Inherit", Keyword::Inherit)
-      .value("Initial", Keyword::Initial)
-      .value("Unset", Keyword::Unset);
   composition
       .def("inheritsByDefault", &inheritsByDefault, py::arg("property"))
       .def("propertyName", &propertyName, py::arg("property"));

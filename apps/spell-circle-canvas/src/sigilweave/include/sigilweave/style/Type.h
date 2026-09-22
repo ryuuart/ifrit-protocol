@@ -5,14 +5,16 @@
  *
  * `Type` — a text style's parameters as a PARTIAL: every field optional,
  * so a call site states the two it changes and says nothing about the
- * rest. With `initialType`, the two merges, and the `TextStyle` a total
- * builds. `Type` decides nothing: there is no type scale here.
+ * rest. With `TypeField` and the keywords a field may be written as
+ * instead of a value, `initialType`, the two merges, and the `TextStyle`
+ * a total builds. `Type` decides nothing: there is no type scale here.
  */
 
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilweave/style/Decoration.h>
+#include <sigilweave/style/Keyword.h>
 #include <sigilweave/style/Length.h>
 #include <sigilweave/style/PaintLayer.h>
 #include <sigilweave/style/ShapingStyle.h>
@@ -23,6 +25,34 @@
 #include <vector>
 
 namespace sigil::weave {
+
+/** ONE FIELD OF A TEXT-STYLE PARTIAL, named so a keyword can be said
+ *  about it. Every one of them INHERITS — a text style is the inherited
+ *  half of the cascade — so `unset` and `inherit` mean the same thing
+ *  here and `initial` is the keyword that says something new. */
+enum class TypeField : uint8_t {
+  Face,
+  Size,
+  Color,
+  Track,
+  Condense,
+  Weight,
+  Slant,
+  Aliased,
+  AntiAlias,
+  Color8,
+  Variations,
+  Language,
+  Features,
+  OpticalKerning,
+  WordSpacing,
+  TextTransform,
+  VerticalForm,
+  Decorations,
+  Underlays,
+  Overlays,
+  kCount
+};
 
 /** THE PARAMETERS OF A TEXT STYLE, EVERY ONE OPTIONAL — A PARTIAL: a
  *  designated-init aggregate whose unset field is not a field set to a
@@ -108,6 +138,12 @@ struct Type {
   std::optional<std::vector<PaintLayer>> underlays;
   std::optional<std::vector<PaintLayer>> overlays;
 
+  /** The fields written as `inherit`, `initial` or `unset` rather than as
+   *  a value. `overlay` resolves them against the style in force above;
+   *  a field named here is a statement, so the partial is not empty and
+   *  does not overlay as itself. */
+  KeywordTable<TypeField> keywords;
+
   bool operator==(const Type&) const = default;
 
   /** Whether it states NOTHING — the partial that changes no field, which
@@ -117,7 +153,7 @@ struct Type {
            !slant && !aliased && !antiAlias && !color8 && variations.empty() &&
            !language && !features && !opticalKerning && !wordSpacing &&
            !textTransform && !verticalForm && !decorations && !underlays &&
-           !overlays;
+           !overlays && keywords.empty();
   }
 };
 

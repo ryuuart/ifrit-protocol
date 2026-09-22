@@ -644,7 +644,7 @@ struct ElementNode {
   // The properties written as `inherit`, `initial` or `unset` rather than
   // as a value (see KeywordTable): a block, because a description that
   // writes one is rarer than any other kind of statement here.
-  Box<KeywordTable> keywords;
+  Box<sigil::weave::KeywordTable<Property>> keywords;
 
   // Decoration layers (kernel seam; primitives live in Decorations.h)
   std::vector<Decoration> backgrounds;

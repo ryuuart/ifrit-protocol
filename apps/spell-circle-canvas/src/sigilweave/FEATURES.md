@@ -151,6 +151,12 @@ text (its own section below).
   value, whose lookup always answers — an
   unregistered name resolves to the base alone, and `find` is the form
   that admits absence; `set`, `contains`, `entries`).
+- **`style/Keyword.h`** — `Keyword`, the three things a field of a
+  partial may be written as instead of a value (`Inherit`, `Initial`,
+  `Unset`), and `KeywordTable`, the small ordered record of which fields
+  were written as one — generic over whatever enumerates a partial's
+  fields, so one shape serves a text style, a block, and the element
+  trees built over them.
 - **`style/Length.h`** — `Length`: a distance in pixels, or one stated
   against a size it does not carry — `Unit`, `relative`, `absolutePx`,
   and the four relative units spelled either as `em`, `rem`, `lh`, `ch`

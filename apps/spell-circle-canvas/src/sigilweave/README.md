@@ -344,6 +344,16 @@ shader, a blur, a blend — which a call site adds to the built style.
 only the paint, for a consumer that can repaint a range without setting
 it again.
 
+A field may also be written as one of CSS's three wide keywords rather
+than as a value: `Type::keywords` and `Block::keywords` name the fields
+written as `weave::Keyword::Inherit`, `::Initial` or `::Unset`
+(`weave::TypeField`, `weave::BlockField`). `merge` ACCUMULATES them,
+because folding two partials into one has no style in force to resolve
+`inherit` against; `overlay` is where they land, and the total it answers
+states none. Every field of a text style and of a block inherits, so
+`unset` reads as `inherit` there and `initial` is the keyword that says
+what a value could not: stop taking the ancestor's.
+
 A size may be stated against a number the call site does not have:
 `weave::em(0.75f)` of a size decided elsewhere, `weave::rem(2)` of a
 root's, `weave::lh(1)` of a line's, `weave::ch(2)` of the advance of "0"
