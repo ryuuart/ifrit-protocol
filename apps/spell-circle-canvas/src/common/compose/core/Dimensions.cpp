@@ -8,6 +8,7 @@
 
 #include <cctype>
 #include <charconv>
+#include <cmath>
 #include <string>
 
 namespace sigil::compose {
@@ -66,14 +67,23 @@ std::optional<Dimension> parseDimension(std::string_view text) {
   if (sameWord(body, "auto")) return autoDimension();
   if (const std::optional<std::string_view> name = customProperty(body))
     return Dimension(var(*name));
+  // A LEADING SIGN is the number's, and from_chars reads only the minus,
+  // so the plus CSS allows is stepped over here.
+  const std::string_view digits =
+      body.front() == '+' ? body.substr(1) : body;
+  if (digits.empty()) return std::nullopt;
   // from_chars reads the number and stops at the unit, which is the whole
   // of the split: a length is one number and one suffix with nothing
   // between them.
   float amount = 0;
-  const char* const first = body.data();
-  const char* const last = first + body.size();
+  const char* const first = digits.data();
+  const char* const last = first + digits.size();
   const std::from_chars_result read = std::from_chars(first, last, amount);
   if (read.ec != std::errc{}) return std::nullopt;
+  // The general format from_chars reads accepts "inf" and "nan", which
+  // name no distance. A length that is not a finite number of anything is
+  // refused here rather than handed on to a layout that cannot lay it out.
+  if (!std::isfinite(amount)) return std::nullopt;
   return inUnit(amount, std::string_view(read.ptr, (size_t)(last - read.ptr)));
 }
 

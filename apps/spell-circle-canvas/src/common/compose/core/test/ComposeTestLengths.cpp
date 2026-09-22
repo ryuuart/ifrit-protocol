@@ -65,6 +65,25 @@ TEST(ComposeLengths, APointIsFourPixelsToEveryThree) {
   EXPECT_FLOAT_EQ(widthOf(host), 16.0f);
 }
 
+TEST(ComposeLengths, ARelativeLengthUnderASizeInPointsMeasuresThePixels) {
+  // A type size STATED in points stays in points once resolved — points
+  // are a fixed count of pixels and nothing is owed to convert them — so
+  // the em a box beneath it is written in must be a multiple of the
+  // pixels those points come to, not of the point count. Twelve points
+  // are sixteen pixels, and an em is one of them.
+  Host host(400, 200);
+  host.composer.render(box()
+                           .font({.face = sigil::test::instrument::sans(),
+                                  .size = sigil::weave::pt(12)})
+                           .children({box()
+                                          .key("measured")
+                                          .width(1_em)
+                                          .flexShrink(0)
+                                          .height(10)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(widthOf(host), 16.0f);
+}
+
 TEST(ComposeLengths, OnlyWhatNeedsSomethingElseToResolveIsRelative) {
   // The question the cascade pass asks to decide whether a node's layout
   // has to be written again when the font moves. A point carries
@@ -115,4 +134,25 @@ TEST(ComposeLengths, TextTheGrammarDoesNotCoverAnswersNothing) {
   EXPECT_FALSE(parseDimension("12vh").has_value());
   EXPECT_FALSE(parseDimension("12 px").has_value());
   EXPECT_FALSE(parseDimension("var()").has_value());
+}
+
+TEST(ComposeLengths, ANumberThatNamesNoDistanceIsNotALength) {
+  // The number reader accepts the words for infinity and for no number
+  // at all, which name no distance: a layout handed one lays out
+  // nothing, and every box under it is wrong with nothing reported.
+  EXPECT_FALSE(parseDimension("inf").has_value());
+  EXPECT_FALSE(parseDimension("infinity").has_value());
+  EXPECT_FALSE(parseDimension("inf%").has_value());
+  EXPECT_FALSE(parseDimension("-inf").has_value());
+  EXPECT_FALSE(parseDimension("nan").has_value());
+  EXPECT_FALSE(parseDimension("nanpx").has_value());
+}
+
+TEST(ComposeLengths, ALeadingPlusIsTheNumbersSign) {
+  // CSS writes a positive length either way, and a reader that took only
+  // the minus would refuse half of what an author copies in.
+  EXPECT_EQ(parseDimension("+12px"), Dimension(12.0f));
+  EXPECT_EQ(parseDimension("+1.5em"), Dimension(1.5_em));
+  EXPECT_EQ(parseDimension(" +50% "), pct(50.0f));
+  EXPECT_FALSE(parseDimension("+").has_value());
 }

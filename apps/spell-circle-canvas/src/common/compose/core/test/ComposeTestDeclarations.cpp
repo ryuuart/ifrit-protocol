@@ -126,6 +126,92 @@ TEST(ComposeDeclarations, InitialOnANonInheritingPropertyIsTheValueItStartsAt) {
   EXPECT_FLOAT_EQ(widthOf(host, "stated"), 120.0f);
 }
 
+TEST(ComposeDeclarations, AValueWrittenAfterAKeywordIsTheLaterStatement) {
+  // The other order, which is the one a reader of the pair above has to
+  // be able to predict. The keyword and the value are ONE layer, so the
+  // statement written second is the one that stands — here the width,
+  // which the `initial` before it no longer covers.
+  Host host(400, 200);
+  host.composer.render(box().alignItems(Align::Start).children({
+      box().key("restated").initial(Property::Width).width(120).height(10),
+      box().key("reset").width(120).initial(Property::Width).height(10),
+      box().key("silent").height(10),
+  }));
+  host.frame();
+  EXPECT_FLOAT_EQ(widthOf(host, "restated"), 120.0f);
+  EXPECT_FLOAT_EQ(widthOf(host, "reset"), widthOf(host, "silent"));
+}
+
+TEST(ComposeDeclarations, InheritOnAnInheritingPropertyDropsWhatTheNodeSaid) {
+  // THE CASE THE FIVE INHERITED PROPERTIES MAKE DIFFERENT. Their value is
+  // folded from the parent, then a rule, then the node's own verbs — so
+  // `inherit` cannot mean "what already happens" without meaning nothing
+  // at all. It means the value that ARRIVED: the layers folded over it
+  // are dropped.
+  Host host(200, 200);
+  host.composer.render(box().ink({1, 0, 0, 1}).children({
+      box().key("own").width(40).height(40).ink({0, 0, 1, 1}).fill(
+          Fill::currentInk()),
+      box()
+          .key("back")
+          .width(40)
+          .height(40)
+          .ink({0, 0, 1, 1})
+          .inherit(Property::Ink)
+          .fill(Fill::currentInk()),
+  }));
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(20, 60), SK_ColorRED)
+      << "inherit took the ink the node's own verb had covered";
+}
+
+TEST(ComposeDeclarations, AKeywordOnAnInheritingPropertyStandsOverARule) {
+  // A rule is a weaker layer than the node's own declarations, and a
+  // keyword IS one of those. `unset` on the ink asks the table, the table
+  // says the ink inherits, and so the class's colour is dropped for the
+  // ancestor's.
+  Host host(200, 200);
+  const sigil::weave::StyleSheet sheet{
+      {"loud", {.color = SkColors::kGreen}}};
+  const auto tree = [&](bool unsetInk) {
+    Element child = box().key("ruled").styleClass("loud").width(40).height(40);
+    if (unsetInk) child.unset(Property::Ink);
+    return box().ink({1, 0, 0, 1}).styleSheet(sheet).children(
+        {std::move(child).fill(Fill::currentInk())});
+  };
+  host.composer.render(tree(false));
+  host.frame();
+  ASSERT_EQ(host.pixel(20, 20), SK_ColorGREEN);
+  host.composer.render(tree(true));
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
+}
+
+TEST(ComposeDeclarations, AKeywordNoFoldAnswersIsRefusedRatherThanDropped) {
+  // Some properties are kept on the description, which no fold reads: a
+  // keyword about one of them would set the declared bit, make the node
+  // unequal to its old description, and then stand for nothing. The table
+  // says which, and the verb refuses those rather than taking them.
+  EXPECT_TRUE(answersKeyword(Property::Width));
+  EXPECT_TRUE(answersKeyword(Property::Ink));
+  EXPECT_TRUE(answersKeyword(Property::Opacity));
+  EXPECT_FALSE(answersKeyword(Property::Shape));
+  EXPECT_FALSE(answersKeyword(Property::GridArea));
+  EXPECT_FALSE(answersKeyword(Property::RotateX));
+  EXPECT_FALSE(answersKeyword(Property::DecorationOutline));
+
+  // Refused means the description is the one it would have been: the node
+  // lays out and paints exactly as the sibling that never said it.
+  Host host(400, 200);
+  host.composer.render(box().alignItems(Align::Start).children({
+      box().key("said").width(40).height(10).initial(Property::Shape),
+      box().key("silent").width(40).height(10),
+  }));
+  host.frame();
+  EXPECT_FLOAT_EQ(widthOf(host, "said"), widthOf(host, "silent"));
+}
+
 TEST(ComposeDeclarations, AKeywordIsADeclarationAndMakesTwoNodesUnequal) {
   // The values in the fields are IDENTICAL between the two frames — ten
   // pixels of padding on all four sides. Only the keyword differs, so

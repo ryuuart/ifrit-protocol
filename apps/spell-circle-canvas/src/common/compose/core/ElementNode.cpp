@@ -57,10 +57,20 @@ const ElementNode* detail::NodeHandle::operator->() const {
 
 void detail::markDeclared(ElementNode* node, Property property) {
   node->declared.set(property);
+  // A VALUE WRITTEN AFTER A KEYWORD is the later statement of the two, and
+  // the later statement wins: the keyword stops standing the moment the
+  // property is written as a value again. Nearly every node carries no
+  // keyword table at all, so what this costs the common case is one test
+  // of a null pointer.
+  if (node->keywords) node->keywords->clear(property);
 }
 
 void detail::markKeyword(ElementNode* node, Property property,
                          sigil::weave::Keyword keyword) {
+  if (!answersKeyword(property)) {
+    warnPropertyAnswersNoKeyword(property);
+    return;
+  }
   node->declared.set(property);
   node->keywords.ensure().set(property, keyword);
 }

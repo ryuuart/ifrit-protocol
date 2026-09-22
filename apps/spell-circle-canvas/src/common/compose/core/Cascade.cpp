@@ -47,10 +47,14 @@ VarNames& varNames() {
   return *table;
 }
 
-/** The size in pixels a resolved font carries; the initial size where a
- *  font has none yet. */
+/** The size in PIXELS a resolved font carries; the initial size where a
+ *  font has none yet. A resolved size may still be absolute in another
+ *  unit — an overlay leaves a size in points in points, since points are
+ *  a fixed count of pixels and nothing is owed to resolve them — so the
+ *  conversion is asked for rather than assumed. An `em` against a size
+ *  stated in points is otherwise a multiple of the point COUNT. */
 float fontSizePx(const sigil::weave::Type& font) {
-  return font.size ? font.size->value : 16.0f;
+  return font.size ? font.size->absolutePx() : 16.0f;
 }
 
 /** Whether two fonts agree in every field but the colour. */
@@ -114,6 +118,20 @@ void detail::warnNoSuchClass(std::string_view name, bool anySheetInScope) {
       "(warned once)\n",
       (int)name.size(), name.data(),
       anySheetInScope ? "" : " (no sheet is stated on the tree above it)");
+}
+
+void detail::warnPropertyAnswersNoKeyword(Property property) {
+  static thread_local boost::unordered_flat_set<uint8_t> warned;
+  if (!warned.insert((uint8_t)property).second) return;
+  const std::string_view name = propertyName(property);
+  SkDebugf(
+      "[compose] inherit/initial/unset was said about %.*s, and nothing "
+      "resolves a keyword for that property — it is kept on the "
+      "description, which no fold reads. The keyword was REFUSED, so the "
+      "node describes as one that never wrote it rather than as one "
+      "carrying a statement nothing answers. State the value itself. "
+      "(warned once)\n",
+      (int)name.size(), name.data());
 }
 
 void detail::warnNoSuchVar(VarRef reference, bool wantColour) {
@@ -246,14 +264,20 @@ void Composer::Impl::resolveCascade(
   // node per pass, and the pass runs only on a frame where something
   // already changed.
   if (node.keywords) {
-    const LayoutProps before = inst.computed.layout;
+    const ComputedStyle before = inst.computed;
     resolveStyle(inst.parent ? &inst.parent->computed : nullptr, node,
                  inst.computed);
-    if (!(before == inst.computed.layout)) {
+    if (!(before.layout == inst.computed.layout)) {
       applyLayoutProps(inst);
       needsLayout = true;
     }
-    if (inst.cascadeResolved) {
+    // ONLY WHERE THE SECOND FOLD MOVED SOMETHING. The fold's inputs are
+    // this node's own declarations, which did not move — a node whose
+    // declarations moved came through the patch — and the parent's
+    // answers, which may have. Invalidating whether or not they did
+    // re-records every keyword-bearing node and its ancestors on every
+    // frame anything anywhere changed.
+    if (inst.cascadeResolved && !computedStyleEqual(before, inst.computed)) {
       inst.markPaintDirtyUp();
       contentDirty = true;
     }
@@ -402,40 +426,48 @@ void Composer::Impl::resolveCascade(
         warnNoSuchVar(*inkVar, true);
     }
   }
-  // THE WIDE KEYWORDS, over everything a rule or this node's own verbs
-  // said. The five properties resolved above are the ones that INHERIT,
-  // so `inherit` on one of them is what it already does and `unset` comes
-  // to the same; the keyword that says something new here is `initial` —
-  // stop inheriting, and stand in the value the property has under no
-  // ancestor at all.
+  // THE WIDE KEYWORDS, over everything a role default, a rule or this
+  // node's own verbs said. These five properties INHERIT, and `inherit`
+  // is NOT what already happens to them: it throws away the layers folded
+  // above and stands in the value that arrived from the parent, which is
+  // the only thing a keyword can mean when the verbs and the rules sit
+  // over the inherited value. `initial` stops the inheriting instead and
+  // stands in the value the property has under no ancestor at all, and
+  // `unset` comes to `inherit` here because these five inherit.
   if (node.keywords)
     for (const sigil::weave::KeywordTable<Property>::Entry& entry :
          node.keywords->entries()) {
-      if (resolveKeyword(entry.keyword, entry.field) !=
-          sigil::weave::Keyword::Initial)
-        continue;
+      const bool fromParent = resolveKeyword(entry.keyword, entry.field) ==
+                              sigil::weave::Keyword::Inherit;
       switch (entry.field) {
         case Property::Font: {
-          // The colour is the INK, a property of its own, so a type reset
-          // to its initial leaves it exactly as it stood.
+          // The colour is the INK, a property of its own, so a type
+          // written as a keyword leaves it exactly as it stood.
           const std::optional<SkColor4f> ink = font.color;
-          font = sigil::weave::initialType();
+          font = fromParent ? parentFont : sigil::weave::initialType();
           font.color = ink;
           break;
         }
         case Property::Ink:
-          font.color = sigil::weave::initialType().color;
-          inkPaint = InkInForce{};
+          font.color =
+              fromParent ? parentFont.color : sigil::weave::initialType().color;
+          // Whichever way it went, the paint in force came from somewhere
+          // above this node or from nowhere, so this node is not the box a
+          // declaring-box anchor maps onto.
+          inkPaint = fromParent ? parentInkPaint : InkInForce{};
           inkPaintOrigin = false;
           break;
         case Property::Block:
-          block = sigil::weave::Block{};
+          block = fromParent ? parentBlock : sigil::weave::Block{};
           break;
         case Property::ImageRendering:
-          sampling.reset();
+          if (fromParent)
+            sampling = parentSampling;
+          else
+            sampling.reset();
           break;
         case Property::CustomProperties:
-          vars.reset();
+          vars = fromParent ? parentVars : nullptr;
           break;
         default:
           break;

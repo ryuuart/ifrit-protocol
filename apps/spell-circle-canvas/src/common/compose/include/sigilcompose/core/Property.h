@@ -13,6 +13,8 @@
 
 #include <sigilweave/style/Keyword.h>
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 
@@ -159,7 +161,7 @@ static_assert(static_cast<size_t>(Property::kCount) <= 128,
  *  again at every depth.
  *
  *  This is the whole of the set: adding a property to it is adding one
- *  line here. */
+ *  line here, and the fold walks the list this table builds. */
 constexpr bool inheritsByDefault(Property property) {
   switch (property) {
     case Property::Font:
@@ -170,6 +172,57 @@ constexpr bool inheritsByDefault(Property property) {
       return true;
     default:
       return false;
+  }
+}
+
+namespace detail {
+constexpr size_t inheritedCount() {
+  size_t count = 0;
+  for (size_t i = 0; i < (size_t)Property::kCount; ++i)
+    if (inheritsByDefault((Property)i)) ++count;
+  return count;
+}
+}  // namespace detail
+
+/** THE INHERITED SET AS A LIST, built from the table above at compile
+ *  time so the fold walks five entries rather than sixty-six, and so the
+ *  table above stays the only place the set is written down. */
+constexpr std::array<Property, detail::inheritedCount()> kInherited = [] {
+  std::array<Property, detail::inheritedCount()> list{};
+  size_t at = 0;
+  for (size_t i = 0; i < (size_t)Property::kCount; ++i)
+    if (inheritsByDefault((Property)i)) list[at++] = (Property)i;
+  return list;
+}();
+
+/** WHETHER A KEYWORD SAID ABOUT @p property IS ANSWERED BY ANYTHING.
+ *
+ *  A keyword needs a place to resolve: a row in `copyProperty`, which is
+ *  every property the computed style carries, or the cascade pass, which
+ *  resolves the inherited five against the values arriving from above.
+ *  The rest — the plane a node turns in, the silhouette's generator, the
+ *  grid area and the outline the decorations dress — are kept on the
+ *  description, which no fold reads, so a keyword written about one of
+ *  them would stand for nothing. Saying so at the verb is the only way an
+ *  author learns it. */
+constexpr bool answersKeyword(Property property) {
+  switch (property) {
+    case Property::GridArea:
+    case Property::Shape:
+    case Property::RotateX:
+    case Property::RotateY:
+    case Property::TranslateZ:
+    case Property::ScaleZ:
+    case Property::Perspective:
+    case Property::PerspectiveOrigin:
+    case Property::TransformOriginZ:
+    case Property::Preserve3d:
+    case Property::Backface:
+    case Property::DecorationOutline:
+    case Property::kCount:
+      return false;
+    default:
+      return true;
   }
 }
 

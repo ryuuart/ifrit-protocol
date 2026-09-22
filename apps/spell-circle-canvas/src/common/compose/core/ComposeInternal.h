@@ -727,6 +727,12 @@ void warnNoSuchClass(std::string_view name, bool anySheetInScope);
  *  `ink(var(...))` want a colour, a `Dimension` wants a length. */
 void warnNoSuchVar(VarRef reference, bool wantColour);
 
+/** The once-per-property diagnostic behind `inherit`, `initial` or
+ *  `unset` said about a property no fold reads — nothing would resolve
+ *  it, and a keyword that stands for nothing must not look like one that
+ *  took. `answersKeyword` is the table it asks. */
+void warnPropertyAnswersNoKeyword(Property property);
+
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */
 bool selectorNeedsLayout(const sigil::weave::Selector& selector);

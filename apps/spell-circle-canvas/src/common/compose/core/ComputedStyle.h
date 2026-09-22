@@ -63,13 +63,19 @@ static_assert(kFieldCount<ComputedStyle> == 4,
 /** THE FOLD: @p node's own declarations over @p parent's answers, with
  *  every property written as a keyword resolved against the two.
  *
+ *  A property that INHERITS and that the node states nothing about takes
+ *  the parent's answer; every other one is the node's own value. Then
+ *  `inherit` takes the parent's computed value for the one property it
+ *  names whether or not that property inherits, `initial` the value the
+ *  property's field carries on a node nobody wrote to, and `unset`
+ *  whichever of the two the property's own behaviour asks for. @p parent
+ *  is null at the root, which inherits from nothing and therefore reads
+ *  every `inherit` as `initial`.
+ *
  *  A node that writes no keyword — which is nearly every node — folds to
  *  the declarations as they stand, so the common case costs the copy and
- *  nothing else. `inherit` takes the parent's computed value for that one
- *  property, `initial` the value the property's field carries on a node
- *  nobody wrote to, and `unset` whichever of the two the property's own
- *  behaviour asks for. @p parent is null at the root, which inherits from
- *  nothing and therefore reads every `inherit` as `initial`. */
+ *  the walk of the inherited list, which the computed style carries none
+ *  of today. */
 void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
                   ComputedStyle& out);
 
@@ -79,6 +85,12 @@ void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
  *  answered where it lives and is a no-op here. */
 void copyProperty(Property property, const ComputedStyle& from,
                   ComputedStyle& into);
+
+/** WHETHER TWO FOLDS CAME TO THE SAME ANSWER — what the cascade pass asks
+ *  before it invalidates a node it re-folded. Every field participates:
+ *  one left out reads as a property that did not move, and the picture
+ *  recorded from the old value replays. */
+bool computedStyleEqual(const ComputedStyle& a, const ComputedStyle& b);
 
 /** A MOUNTED NODE AND THE STYLE COMPUTED FOR IT — the two halves a lane
  *  reads its endpoint from.

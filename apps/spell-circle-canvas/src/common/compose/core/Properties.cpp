@@ -2,8 +2,11 @@
  * A property by name, and a property by where its value is kept: the two
  * switches that have one line per `Property`, which is what makes adding
  * one a decision the compiler asks about rather than a silent omission.
+ * With the fold that reads them, and the comparison that says whether a
+ * second fold moved anything.
  */
 
+#include "ComposeCompare.h"
 #include "ComputedStyle.h"
 
 namespace sigil::compose {
@@ -309,11 +312,11 @@ void copyProperty(Property property, const ComputedStyle& from,
       paint.originX = paintSource.originX;
       paint.originY = paintSource.originY;
       return;
-    // The properties the computed style does not carry. The plane, the
-    // silhouette's generator, the outline the decorations dress and the
-    // five the cascade resolves are answered where each of them lives:
-    // the depth block, the description, and the cascade pass, which folds
-    // its own keywords over the values it inherits.
+    // The properties the computed style does not carry. The five the
+    // CASCADE PASS resolves are answered there, where it folds its own
+    // keywords over the values it inherits. The rest of this list is
+    // answered NOWHERE: `answersKeyword` says so, and a keyword written
+    // about one of them is refused at the verb rather than dropped here.
     case Property::GridArea:
     case Property::Shape:
     case Property::RotateX:
@@ -336,12 +339,51 @@ void copyProperty(Property property, const ComputedStyle& from,
   }
 }
 
+bool computedStyleEqual(const ComputedStyle& a, const ComputedStyle& b) {
+  static_assert(kFieldCount<ComputedStyle> == 4,
+                "ComputedStyle gained or lost a field — compare it here "
+                "too. A field left out makes a re-fold that MOVED it read "
+                "as one that moved nothing, and the picture recorded from "
+                "the old value replays.");
+  static_assert(kFieldCount<PaintProps> == 15,
+                "PaintProps gained or lost a field — compare it below.");
+  if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
+      a.clipContent != b.clipContent)
+    return false;
+  const PaintProps &pa = a.paint, &pb = b.paint;
+  if (pa.fill.has_value() != pb.fill.has_value()) return false;
+  if (pa.fill && !propertyEqual(*pa.fill, *pb.fill)) return false;
+  return propertyEqual(pa.opacity, pb.opacity) &&
+         pa.blendMode == pb.blendMode &&
+         pa.backgroundOrigin == pb.backgroundOrigin &&
+         propertyEqual(pa.translateX, pb.translateX) &&
+         propertyEqual(pa.translateY, pb.translateY) &&
+         propertyEqual(pa.rotate, pb.rotate) &&
+         propertyEqual(pa.scale, pb.scale) &&
+         propertyEqual(pa.scaleX, pb.scaleX) &&
+         propertyEqual(pa.scaleY, pb.scaleY) &&
+         propertyEqual(pa.skewX, pb.skewX) &&
+         propertyEqual(pa.skewY, pb.skewY) && pa.originX == pb.originX &&
+         pa.originY == pb.originY && pa.zIndex == pb.zIndex;
+}
+
 void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
                   ComputedStyle& out) {
   out.layout = node.layout;
   out.paint = node.paint;
   out.corners = node.corners;
   out.clipContent = node.clipContent;
+  // DEFAULT INHERITANCE: a property that inherits and that this node says
+  // nothing about takes the parent's computed value. The list is built
+  // from `inheritsByDefault` at compile time, so that table is the whole
+  // of the set. Every property on it today is one the cascade pass
+  // resolves and the computed style does not carry, which makes each of
+  // these calls a switch that returns at once; a property moved into the
+  // set that the style DOES carry inherits here with nothing else to
+  // write.
+  if (parent != nullptr)
+    for (const Property property : kInherited)
+      if (!node.declared.has(property)) copyProperty(property, *parent, out);
   if (!node.keywords) return;
   // The initial value of every property is the value its field carries on
   // a node nobody wrote to, so one default style IS the whole table of

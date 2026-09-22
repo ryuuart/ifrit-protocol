@@ -150,7 +150,7 @@ bool Composer::Impl::phaseAdditions() {
         ElementNode* node = NodeAccess::declarations(element);
         node->operatorData.ensure().added = true;
         // The operator's own properties, where the element states none.
-        if (op.zIndexStated() && node->paint.zIndex == 0)
+        if (op.zIndexStated() && !node->declared.has(Property::ZIndex))
           node->paint.zIndex = *op.zIndexStated();
         layClassesUnder(*node, op.classesStated());
         Instance* owner = attachment.owner == Scope::Attachment::kScope

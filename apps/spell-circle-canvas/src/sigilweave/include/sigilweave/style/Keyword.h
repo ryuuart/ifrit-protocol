@@ -41,9 +41,11 @@ enum class Keyword : uint8_t {
  *  own three words. Writing one twice replaces it where it stands, so the
  *  later statement wins as it does for a value.
  *
- *  @trap A field stated as a VALUE and as a keyword in the same partial
- *  takes the keyword. The two are one layer, and a partial does not
- *  record which was written first. */
+ *  A field written as a VALUE after a keyword is the later statement too,
+ *  and `clear` is how the writer says so: the keyword stops standing the
+ *  moment the field is written as a value again. A writer that does not
+ *  call it keeps the keyword, and the two are then one layer whose order
+ *  the table cannot see. */
 template <class Field>
 class KeywordTable {
  public:
@@ -60,6 +62,16 @@ class KeywordTable {
         return;
       }
     m_entries.push_back({field, keyword});
+  }
+  /** @p field is no longer written as a keyword. The entries keep the
+   *  order they were written in, so a keyword said about another field
+   *  still stands where it stood. */
+  void clear(Field field) {
+    for (auto entry = m_entries.begin(); entry != m_entries.end(); ++entry)
+      if (entry->field == field) {
+        m_entries.erase(entry);
+        return;
+      }
   }
   /** Every entry of @p over over this table's own, later winning. */
   void overlay(const KeywordTable& over) {
