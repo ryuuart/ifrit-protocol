@@ -95,10 +95,13 @@ sound model; nothing below them changes kernel semantics.
 - `core/Cascade.h` — `VarValue`, what a custom property holds, and
   `VarTable`, the properties in force at a node.
 - `core/Property.h` — `Property`, every value a node or a rule may
-  state; `PropertyMask`, which of them one STATED; `Keyword`, the three
-  wide keywords, with `resolveKeyword` and the `KeywordTable` that holds
-  the properties written as one; `inheritsByDefault`, the whole of the
-  inherited set; and `propertyName`.
+  state; `PropertyMask`, which of them one STATED; `inheritsByDefault`,
+  the whole of the inherited set, with the `kInherited` list it builds
+  and the `resolveKeyword` that says what `unset` comes to;
+  `answersKeyword`, whether a keyword said about a property resolves
+  anywhere; and `propertyName`. The three wide keywords themselves are
+  the text engine's, and so is the table that records which fields were
+  written as one.
 - `core/Declarations.h` — `NodeHandle`, the copy-on-write handle a
   description value is, `Declaring`, what every value that declares a
   node holds, and `NodeAccess`, the one door the verb mixins reach it

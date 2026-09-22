@@ -25,9 +25,12 @@ breaker.
 **`FEATURES.md` is the catalogue.** This page is what the library is, its
 seams, how to reach it, and what it will not do. Everything it covers —
 the pipeline stage by stage, the header map, the paragraph controls, the
-parity table in `PARITY.md` with the compose path for every row, what a
-frame of the live composer costs, and the conventions to read before
-writing against it — is one file over.
+parity table in `PARITY.md` with the compose path for every row, and what
+a frame of the live composer costs — is one file over. What is not
+discoverable from a signature — the threading contract, what a unit
+means, what a cache keys on, the shapes the library refuses — is
+`CONVENTIONS.md`, and it is the one to read before writing against the
+library.
 
 ## Getting started
 

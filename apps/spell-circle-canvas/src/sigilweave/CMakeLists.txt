@@ -60,6 +60,7 @@ sigil_library(SigilWeave
 sigil_doc_probes(weave
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/FEATURES.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/CONVENTIONS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/kit/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/PARAGRAPHS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/TYPE.md

@@ -112,10 +112,11 @@ scheme of your own is C++ only.
 - `core/Var.h` — `VarRef`, the `var` that interns one, and the `varName`
   that reads it back.
 - `core/Property.h` — `Property`, every value a node or a rule may state;
-  `PropertyMask`, which of them one STATED; `Keyword` with
-  `resolveKeyword` and the `KeywordTable` that holds the properties
-  written as one; `inheritsByDefault`, the whole of the inherited set;
-  and `propertyName`.
+  `PropertyMask`, which of them one STATED; `resolveKeyword`, what
+  `unset` comes to; `answersKeyword`, whether a keyword about a property
+  resolves anywhere; `inheritsByDefault`, the whole of the inherited set,
+  with the `kInherited` list it builds; and `propertyName`. The three
+  wide keywords are the text engine's own words.
 - `core/Cascade.h` — `VarValue` and the `VarTable` that holds the
   properties in force.
 - `core/Shape.h` — `Shape`, `MotionPath`, `Decoration` with the

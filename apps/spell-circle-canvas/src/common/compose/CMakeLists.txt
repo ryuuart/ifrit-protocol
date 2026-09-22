@@ -148,6 +148,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Edges.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Fill.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/PathFormat.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Property.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Shadow.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/SurfacePaint.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/box.md

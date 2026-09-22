@@ -40,7 +40,12 @@ arrangement, so `Property::PaddingLeft` is a thing you can inherit while
 | Cascade | `Font` `Block` `Ink` `CustomProperties` `ImageRendering` |
 
 `compose::propertyName` answers a property's authored spelling, which is
-what a diagnostic prints.
+what a diagnostic prints. `compose::answersKeyword` answers whether a
+keyword said about a property resolves anywhere: the plane a node turns
+in, the silhouette's generator, the grid area and the outline the
+decorations dress are kept on the description, which no fold reads, so a
+keyword about one of them is refused at the verb and said once rather
+than taken and dropped.
 
 ## What inherits
 
@@ -51,12 +56,18 @@ about ONE box — a padding taken from the parent would be applied again at
 every depth — so nothing in the box, the flex line, the placement, the
 fill, the silhouette, the transforms or the plane inherits.
 
+`compose::kInherited` is the list that table builds at compile time, and
+the fold walks it: moving a property into the set is the one line in
+`inheritsByDefault`, with nothing else to write.
+
 A property that does not inherit can still be told to, one node at a
 time, with `inherit`.
 
 ## The three keywords
 
-`compose::Keyword` is `Inherit`, `Initial` and `Unset`, and
+The three words are the text engine's — `sigil::weave::Keyword` is
+`Inherit`, `Initial` and `Unset`, so a field of a text-style partial and
+a property of an element are written as the same thing — and
 `compose::resolveKeyword` is what `unset` asks: inherit where the
 property inherits, initial where it does not.
 
@@ -69,11 +80,15 @@ property inherits, initial where it does not.
 A keyword IS a declaration: it sits in the node's own layer, over a rule
 and over anything inherited, and two descriptions that differ only in a
 keyword are unequal, so a node that gains one re-lays out rather than
-pruning against its old answer.
+pruning against its old answer. That layer is the reason `inherit` says
+something about a property that inherits ANYWAY: the value arriving from
+the parent is the weakest layer of the five, and the keyword drops the
+role default, the rule and the node's own verb that were folded over it.
 
-@trap Written after a value on the same node, the keyword is what stands:
-`width(120).initial(Property::Width)` is auto. The two are the same
-layer, and there the later statement wins.
+A keyword and a value about the same property are ONE layer, and the
+statement written second is the one that stands:
+`width(120).initial(Property::Width)` is auto, and
+`initial(Property::Width).width(120)` is a hundred and twenty.
 
 ## Pass it to
 
@@ -94,7 +109,10 @@ mask before it compares a single number.
 
 ## See also
 
-- `core/Property.h` — the header: `Property`, `PropertyMask`, `Keyword`,
-  `inheritsByDefault`, `resolveKeyword`, `KeywordTable`, `propertyName`
+- `core/Property.h` — the header: `Property`, `PropertyMask`,
+  `inheritsByDefault`, `kInherited`, `resolveKeyword`, `answersKeyword`,
+  `propertyName`
+- `sigil::weave::Keyword` — the three words themselves, and
+  `sigil::weave::KeywordTable`, which records the fields written as one
 - The cascade chapter on the [SigilCompose](doxygen:SigilCompose) site —
   what the five inheriting properties are and how a rule reaches them
