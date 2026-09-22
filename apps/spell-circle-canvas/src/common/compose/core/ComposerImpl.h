@@ -528,14 +528,20 @@ struct Composer::Impl {
    *  one it stands in now, which is the instance's own. Called wherever
    *  the computed style moves: at the patch for a node whose description
    *  changed, and in the cascade pass for one whose answer came from
-   *  above. Leaves the lane lists holding the two sides. */
-  void retargetProperties(detail::Instance& inst, detail::StyledNode prev);
+   *  above. @p prevLanes and @p nextLanes are the caller's scratch, left
+   *  holding the two sides so a caller with positional families to
+   *  retarget walks each description only once; a lane points INTO its
+   *  description, so neither list may outlive @p prev. */
+  void retargetProperties(detail::Instance& inst, detail::StyledNode prev,
+                          std::vector<detail::Lane>& prevLanes,
+                          std::vector<detail::Lane>& nextLanes);
   /** THE INK LANE. @p resolved is the colour the cascade pass just folded
    *  for the node, which becomes its target in force; the lane eases from
    *  the target that stood before it, under @p nodeTransition, and snaps
-   *  where there is none. @p recordOnly keeps the target and starts
-   *  nothing, for a node resolving its first colour and for one whose
-   *  colour comes from an ancestor already easing. */
+   *  where there is none. An unset @p resolved is a node with no colour
+   *  of its own — it inherits, so it runs no lane. @p recordOnly keeps
+   *  the target and starts nothing, for a node resolving its colour for
+   *  the first time, which has none to ease from. */
   void retargetInk(detail::Instance& inst,
                    const std::optional<SkColor4f>& resolved,
                    const std::optional<motion::Transition>& nodeTransition,

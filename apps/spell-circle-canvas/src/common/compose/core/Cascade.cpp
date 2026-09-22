@@ -19,6 +19,7 @@
 #include <mutex>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "ComposeRuntime.h"
 #include "SelectorMatch.h"
@@ -285,7 +286,11 @@ void Composer::Impl::resolveCascade(
       // patch cannot do it — this node never reaches the patch, its own
       // declarations having compared equal — which is why the pass that
       // found the change is the one that acts on it.
-      retargetProperties(inst, {before, node});
+      // The lane lists hold pointers into `before`, a local of this
+      // frame, so they live and die with it rather than outliving the
+      // description they point at.
+      std::vector<Lane> prevLanes, nextLanes;
+      retargetProperties(inst, {before, node}, prevLanes, nextLanes);
       inst.markPaintDirtyUp();
       contentDirty = true;
     }
@@ -506,6 +511,15 @@ void Composer::Impl::resolveCascade(
   // states the colour is the one easing it, everything under follows the
   // ramp through the inherited value, and a second lane here would run a
   // whole duration behind the one above it.
+  //
+  // THIS IS WHERE INK PARTS FROM THE PROPERTY LANES, whose inherited
+  // answer a child DOES ease for itself, and the difference is mechanical
+  // rather than a matter of taste. The ink ramp is read back into the
+  // resolved colour ten lines below, so it propagates down the tree on its
+  // own and a child that ran a lane would be easing an input already in
+  // flight. A property ramp stays on the node that runs it — the paint
+  // layer reads it, the fold does not — so a child inherits the property's
+  // TARGET, and its own lane is the only thing that can move it.
   retargetInk(inst, statesOwnInk ? font.color : std::nullopt,
               node.nodeTransition, first);
   // …and the ramp is read into the resolved colour here, so every node

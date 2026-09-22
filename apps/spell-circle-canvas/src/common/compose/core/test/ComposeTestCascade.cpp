@@ -343,10 +343,8 @@ TEST(ComposeCascade, APartialSpanStyleIsLaidOverTheStyleTheRangeIsSetIn) {
 TEST(ComposeCascade, AnInkTransitionEasesEverythingUnderTheNodeAndSettles) {
   // The node that declares the ink eases it; the fill under it, written as
   // the ink, is mixed while the ramp runs and lands when it settles. The
-  // frame with no elapsed time between the describe and the first tick is
-  // the frame the lane STARTS on: the ink's target is resolved by the
-  // cascade pass, so the ramp begins where the pass runs and the colour it
-  // begins at is the one that was standing.
+  // ramp starts at the DESCRIBE, where the cascade pass resolves the new
+  // target, so the first tick after it already moves the colour.
   Host host;
   const auto page = [](SkColor4f ink) {
     return box()
@@ -358,9 +356,6 @@ TEST(ComposeCascade, AnInkTransitionEasesEverythingUnderTheNodeAndSettles) {
   host.composer.render(page({1, 0, 0, 1}));
   host.frame();
   host.composer.render(page({0, 0, 1, 1}));
-  host.frame();
-  EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 255, 0, 0))
-      << "the ramp has begun and stands at the colour it begins at";
   host.frame(0.1);
   const SkColor mid = host.pixel(30, 30);
   EXPECT_GT(SkColorGetR(mid), 0u);
@@ -392,7 +387,6 @@ TEST(ComposeCascade, AnInkChangedThroughAClassEasesAsTheVerbsChangeDoes) {
   host.frame();
   EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 255, 0, 0));
   host.composer.render(page("cold"));
-  host.frame();
   host.frame(0.1);
   const SkColor mid = host.pixel(30, 30);
   EXPECT_GT(SkColorGetR(mid), 0u) << "the class change eased, it did not snap";
@@ -427,6 +421,69 @@ TEST(ComposeCascade, ANodeThatInheritsItsInkRunsNoLaneOfItsOwn) {
   host.frame(0.25);
   EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 0, 0, 255))
       << "settled with the ancestor, not a second duration behind it";
+}
+
+TEST(ComposeCascade, AnInkReadFromACustomPropertyEasesWhenThePropertyMoves) {
+  // The custom property reaches the resolved colour by its own line of the
+  // fold, beside the class and the verb, and it is the spelling furthest
+  // from the node: the node reading the property writes the same two verbs
+  // in both frames, so nothing of its own moved and only the value above
+  // it did.
+  Host host;
+  const auto page = [](material::Color accent) {
+    return box().var("accent", accent).children(
+        {box()
+             .ink(var("accent"))
+             .transition({.duration = 200ms})
+             .children({box().width(60).height(60).fill(
+                 Fill::currentInk())})});
+  };
+  host.composer.render(page({1, 0, 0, 1}));
+  host.frame();
+  ASSERT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 255, 0, 0));
+  host.composer.render(page({0, 0, 1, 1}));
+  host.frame(0.1);
+  const SkColor mid = host.pixel(30, 30);
+  EXPECT_GT(SkColorGetR(mid), 0u)
+      << "the property's new value eased, it did not snap";
+  EXPECT_LT(SkColorGetR(mid), 255u);
+  EXPECT_GT(SkColorGetB(mid), 0u);
+  host.frame(0.15);
+  EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 0, 0, 255));
+}
+
+TEST(ComposeCascade, AnInkAndAFillOfOneDurationOnOneNodeRunOnOneClock) {
+  // The ink lane is started by the cascade pass and the fill lane by the
+  // patch. Both belong to the DESCRIBE, so the clock they start on is one
+  // clock: this host advances its own between the describe and the draw,
+  // which would show a lane started at the later moment standing still
+  // while its neighbour was three quarters along. At every frame of the
+  // ramp the box painted in the fill and the box painted in the ink are
+  // one colour, and they settle together.
+  Host host;
+  const auto page = [](material::Color colour) {
+    return box()
+        .width(120)
+        .height(60)
+        .transition({.duration = 200ms})
+        .ink(colour)
+        .fill(Fill::color(colour))
+        .children({box().width(30).height(30).fill(Fill::currentInk())});
+  };
+  host.composer.render(page({1, 0, 0, 1}));
+  host.frame();
+  ASSERT_EQ(host.pixel(10, 10), SK_ColorRED) << "the ink box";
+  ASSERT_EQ(host.pixel(100, 50), SK_ColorRED) << "the fill around it";
+  host.composer.render(page({0, 0, 1, 1}));
+  host.frame(0.1);
+  const SkColor ink = host.pixel(10, 10);
+  EXPECT_EQ(ink, host.pixel(100, 50))
+      << "one moment, one colour: the two lanes are not a tick apart";
+  EXPECT_NE(ink, SK_ColorRED);
+  EXPECT_NE(ink, SK_ColorBLUE);
+  host.frame(0.15);
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(100, 50), SK_ColorBLUE) << "settled on one frame";
 }
 
 TEST(ComposeCascade,
@@ -696,3 +753,4 @@ TEST(ComposeCascade, APaintHoldingOneColourIsAPaintAndAPlainColourIsTheLane) {
   plain.frame();
   EXPECT_EQ(redInk(plain), 0);  // the leaf's own style stands
 }
+

@@ -13,6 +13,12 @@
  * a positional lane lives in a block of the description and so moves only
  * at a patch; an entrance belongs to the mount, where the fact "there is
  * no previous value" lives.
+ *
+ * WHEN EACH BEGINS. A lane starts where the pass that found its change
+ * runs, and both passes belong to the DESCRIBE — the patch and then the
+ * cascade over it, one after the other, before the host's clock moves
+ * again. That is what keeps an ink and a fill of one duration on one node
+ * starting at one moment and settling on one frame.
  */
 
 #include <sigilmaterial/color/Color.h>
@@ -64,13 +70,6 @@ std::span<const Lane> familyLanes(const std::vector<Lane>& lanes,
 
 constexpr LaneFamily kPositionalFamilies[] = {
     LaneFamily::Span, LaneFamily::Gate, LaneFamily::Track};
-
-/** The two sides of a retarget, as lane lists. They stand here rather
- *  than inside one function so that the property half of a patch and the
- *  positional half beside it walk each description once between them.
- *  `retargetProperties` refills both, and nothing else does; they are
- *  valid until the next call to it. */
-thread_local std::vector<Lane> prevLanes, nextLanes;
 
 }  // namespace
 
@@ -190,7 +189,9 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
   }
 }
 
-void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev) {
+void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
+                                        std::vector<Lane>& prevLanes,
+                                        std::vector<Lane>& nextLanes) {
   const StyledNode next = inst.styled();
   const auto& nd = next.node.nodeTransition;
   // Every slot the table can reach (kSlotSpecs, ComposeRuntime.h — the one
@@ -261,13 +262,10 @@ void Composer::Impl::retargetInk(
           ? std::optional<material::Color>(material::skia::toColor(*resolved))
           : std::nullopt;
   auto& anim = inst.anims[Instance::kInkLerp];
-  // RECORDED AND NOTHING ELSE, for the two nodes with nothing to ease: one
-  // resolving its first colour, which has no previous target, and one
-  // taking a colour from an ancestor whose own lane is in flight, which is
-  // ALREADY easing. The second is the reason the target is recorded even
-  // here — it moves every frame while the ancestor runs, so the settled
-  // value finds this node agreeing with it instead of starting a ramp of
-  // its own a whole duration behind.
+  // RECORDED AND NOTHING ELSE, for the node resolving its colour for the
+  // first time: there is no previous target to ease from, and the colour
+  // it settles on is simply the one it starts at. The target is still
+  // written, because it is what the NEXT resolution is compared against.
   if (recordOnly) return;
   if (!(inst.inkTarget && nodeTransition)) {
     if (anim && anim->started) {
@@ -293,7 +291,14 @@ void Composer::Impl::retargetInk(
 void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
   const StyledNode next = inst.styled();
   const auto& nd = next.node.nodeTransition;
-  retargetProperties(inst, prev);
+  // The two sides of the retarget, filled by the property half and read
+  // again by the positional half below, so a patch walks each description
+  // once between them. A lane holds a pointer INTO its description, so the
+  // lists may not outlive @p prev — they are scoped to the one call that
+  // has it, and reused across calls only because a patch's prev is an
+  // instance's own previous description.
+  static thread_local std::vector<Lane> prevLanes, nextLanes;
+  retargetProperties(inst, prev, prevLanes, nextLanes);
 
   // The positional families, each by the same rule. The lane list is
   // positional, so a description that changes the SHAPE of a family (a

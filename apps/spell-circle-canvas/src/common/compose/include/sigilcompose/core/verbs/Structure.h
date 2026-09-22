@@ -155,7 +155,11 @@ class StructureVerbs {
    *  exactly as the same change written with the verb does. None when
    *  unstated, so a new constant lands on the frame it arrives. A value
    *  that already carries its own `animate(...)` keeps that one; this
-   *  is the node's default for the ones that do not. */
+   *  is the node's default for the ones that do not.
+   *  @trap The INK is the one property whose inherited answer is not
+   *  eased here: the ramp belongs to the node that resolves a colour of
+   *  its own and reaches everything under it through the inherited
+   *  value, so a node that only inherits an ink runs no lane. */
   Derived& transition(motion::Transition t);
   /** Container stagger: child i's subtree enters with an EXTRA
    *  order-times-each delay on every `animate()` mount transition under

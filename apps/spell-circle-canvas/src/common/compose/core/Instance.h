@@ -317,9 +317,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kTranslateZ,
     kScaleZ,
     kPerspective,
-    // The ink this node DECLARES easing from one colour to another under
-    // its transition; the cascade pass reads the ramp into the colour of
-    // `font` each frame, so everything under the node follows.
+    // The ink easing from one colour to another under this node's
+    // transition. It belongs to the node the cascade RESOLVED a colour of
+    // its own for, however that colour was written; the pass reads the
+    // ramp back into the colour of `font` each frame, so everything under
+    // the node follows it and a node that only inherits runs none.
     kInkLerp,
     kSlots
   };

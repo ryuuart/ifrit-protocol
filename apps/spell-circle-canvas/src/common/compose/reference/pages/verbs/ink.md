@@ -82,11 +82,19 @@ under it volatile.
 the cascade RESOLVED for the node, not the one the node spelled, so a
 class toggled, a rule that started matching or a custom property given a
 new value eases exactly as this verb does. The lane belongs to the node
-that states the colour: everything under it takes the moving colour
-through the inherited value, and a node that inherits runs no lane of
-its own — one there would still be moving a whole duration after the
-node above it had landed. A node whose colour moves for the first time
-snaps, having nothing to ease from.
+the cascade resolved a colour of its own for: everything under it takes
+the moving colour through the inherited value, and a node that only
+inherits runs no lane of its own — one there would still be moving a
+whole duration after the node above it had landed. A node resolving its
+colour for the first time has nothing to ease from, so that colour
+simply stands.
+
+This is the one property whose inherited answer the inheriting node does
+not ease for itself, and the reason is mechanical. The ink ramp is read
+back into the colour the cascade resolved, so it travels down the tree
+on its own; a fill's ramp stays in the paint layer, so a child that
+inherits a fill inherits the TARGET and needs a lane of its own to move
+at all.
 
 **A paint anchored to its own box lands on the text metrics.** A text
 leaf's own box is its text-metric box — x across the widest line, y from

@@ -142,6 +142,16 @@ void Composer::render(const Element& root) {
     impl.cascadeDirty = true;
   }
   impl.rebuildKeyIndex();
+  // THE CASCADE BELONGS TO THE DESCRIBE, not to the draw that asks for a
+  // layout, and the reason is the clock. Both passes start transition
+  // lanes — the patch above for a node whose own description moved, this
+  // one for a node whose answer moved above it — so a frame that ran them
+  // at two different moments would start an ink and a fill of one duration
+  // on one node a tick apart and settle them on different frames. Layout
+  // asks again for anything mounted or invalidated after this point, and a
+  // running ink transition leaves the flag up so the next frame resolves
+  // again.
+  if (impl.cascadeDirty) impl.runCascade();
   impl.reconcileAccumMs += reconcile.elapsedMs();
 }
 
