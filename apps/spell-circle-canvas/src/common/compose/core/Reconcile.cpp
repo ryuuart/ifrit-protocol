@@ -86,7 +86,7 @@ void Composer::Impl::rebuildKeyIndex() {
       if (node.kind == Kind::Text && node.textData &&
           !node.textData->threadTo.empty())
         threadedInstances.push_back(&inst);
-      if (node.layout.centerAt) hasCenterPins = true;
+      if (inst.computed.layout.centerAt) hasCenterPins = true;
     });
   hasDerived = !borrowInstances.empty() || !flowInstances.empty() ||
                !threadedInstances.empty();

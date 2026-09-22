@@ -166,8 +166,8 @@ void Composer::Impl::syncLayoutRects(Instance& inst, bool movedAbove) {
  *  quiet round and would burn its full round count every frame. */
 bool Composer::Impl::applyCenterPins(Instance& inst) {
   bool applied = false;
-  if (inst.description->layout.centerAt && inst.yoga) {
-    const SkPoint p = *inst.description->layout.centerAt;
+  if (inst.computed.layout.centerAt && inst.yoga) {
+    const SkPoint p = *inst.computed.layout.centerAt;
     // Correct by the observed layout delta rather than writing the target
     // into the style directly — converges whatever reference box Yoga
     // resolves absolute positions against (padding, borders).
@@ -232,13 +232,13 @@ namespace {
 const Instance* flexContainerOf(const Instance& inst) {
   const Instance* container = inst.parent;
   while (container && container->parent &&
-         container->description->layout.display == Display::Contents)
+         container->computed.layout.display == Display::Contents)
     container = container->parent;
   return container;
 }
 
 bool constrainedAxis(const Instance& inst, bool horizontal) {
-  const LayoutProps& layout = inst.description->layout;
+  const LayoutProps& layout = inst.computed.layout;
   const Dimension& size = horizontal ? layout.width : layout.height;
   if (size.unit != Dimension::Unit::Auto) return true;
   if (layout.hasInsets &&
@@ -250,7 +250,7 @@ bool constrainedAxis(const Instance& inst, bool horizontal) {
   if (!inst.parent) return true;
   const Instance& parent = *flexContainerOf(inst);
   if (parent.description->arranges()) return true;
-  const LayoutProps& parentLayout = parent.description->layout;
+  const LayoutProps& parentLayout = parent.computed.layout;
   if (horizontal == mainAxisHorizontal(parentLayout.direction))
     return layout.grow > 0 || layout.basis.unit != Dimension::Unit::Auto;
   const Align alignment = layout.alignSelf == Align::Auto
@@ -265,8 +265,8 @@ bool constrainedAxis(const Instance& inst, bool horizontal) {
 bool stretchedFromContent(const Instance& inst, bool horizontal) {
   if (!inst.parent) return false;
   const Instance& container = *flexContainerOf(inst);
-  const LayoutProps& layout = inst.description->layout;
-  const LayoutProps& parent = container.description->layout;
+  const LayoutProps& layout = inst.computed.layout;
+  const LayoutProps& parent = container.computed.layout;
   const Align alignment =
       layout.alignSelf == Align::Auto ? parent.alignItems : layout.alignSelf;
   return horizontal != mainAxisHorizontal(parent.direction) &&
@@ -342,13 +342,13 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
   std::vector<Instance*> placed;
   if (node.arranges())
     for (const auto& child : inst.children)
-      if (child->description->layout.display != Display::None &&
+      if (child->computed.layout.display != Display::None &&
           !child->description->added())
         placed.push_back(child.get());
   // Arranging operators are a flex-world feature; inside a positioned
   // subtree (no Yoga nodes) — or ON a positioned() container, whose
   // children have none — they are documented-unsupported.
-  if (inst.yoga && !node.layout.positioned && node.arranges() &&
+  if (inst.yoga && !inst.computed.layout.positioned && node.arranges() &&
       !placed.empty()) {
     const OperatorData& operators = *node.operatorData;
     Arrangement arrangement;
@@ -367,7 +367,7 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
         const sigil::weave::LineMetrics& first = child->lines.front();
         record.baseline = first.baseline - first.rect().top();
       }
-      record.cells = description.layout.cells;
+      record.cells = child->computed.layout.cells;
       // The region name is a rare field and lives in the child's derive
       // block; a grid reads it beside the cell numbers.
       if (description.deriveData) record.area = description.deriveData->cellArea;
@@ -406,7 +406,7 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
       for (size_t i = 0; i < count; ++i) {
         Instance& child = *placed[i];
         Arrangement::Child& record = arrangement.children[i];
-        if (!child.paragraph || child.description->layout.centerAt) continue;
+        if (!child.paragraph || child.computed.layout.centerAt) continue;
         const TextData* text = child.description->textData
                                    ? &*child.description->textData
                                    : nullptr;
@@ -422,7 +422,7 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
                 ? constrainedMeasure(child, false, record.rect.height())
                 : kUnbounded;
         layoutTextInBox(child, width, height);
-        const LayoutProps& layout = child.description->layout;
+        const LayoutProps& layout = child.computed.layout;
         if (frame || (vertical ? layout.width : layout.height).unit !=
                          Dimension::Unit::Auto)
           continue;
@@ -456,7 +456,7 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
       // A centerAt() child opts OUT of the operators' placement — the pin
       // wins (otherwise the placement and the pin fight in a period-2
       // oscillation that never settles).
-      if (child.description->layout.centerAt) continue;
+      if (child.computed.layout.centerAt) continue;
       const SkRect& rect = record.rect;
       // Count a change only on an actual delta: the convergence loop in
       // ensureLayout keys off this (idempotent writes are free).
@@ -482,7 +482,7 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     // Keep assigned sizes. Supply the placed extent when children leaving
     // flow collapse the container, or when a content-sized flex line would
     // otherwise derive its cross extent from only the remaining siblings.
-    const LayoutProps& l = inst.description->layout;
+    const LayoutProps& l = inst.computed.layout;
     SkRect extent = SkRect::MakeEmpty();
     for (size_t i = 0; i < count; ++i)
       extent.join(arrangement.children[i].rect);

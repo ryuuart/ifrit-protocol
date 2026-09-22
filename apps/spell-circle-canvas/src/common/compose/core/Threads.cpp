@@ -202,7 +202,7 @@ bool Composer::Impl::balanceRuns(const std::vector<Instance*>& chain) {
       if (text && text->balanceChain) break;
       ++last;
     }
-    const Dimension declared = chain[first]->description->layout.height;
+    const Dimension declared = chain[first]->computed.layout.height;
     if (declared.unit != Dimension::Unit::Px || declared.value <= 0) continue;
     const uint32_t cursor = chain[first]->threadCursor;
     const uint32_t through = opens->balanceThroughLine;

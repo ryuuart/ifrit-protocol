@@ -32,7 +32,7 @@ detail::Insets Composer::Impl::paddingOf(const Instance& inst) const {
             YGNodeLayoutGetPadding(inst.yoga, YGEdgeTop),
             YGNodeLayoutGetPadding(inst.yoga, YGEdgeRight),
             YGNodeLayoutGetPadding(inst.yoga, YGEdgeBottom)};
-  const EdgeDims& pad = inst.description->layout.padding;
+  const EdgeDims& pad = inst.computed.layout.padding;
   // A PERCENT PADDING MEASURES ACROSS on all four edges, the top and the
   // bottom included — the rule that keeps a percentage-padded box's own
   // aspect from depending on its height, and the rule the flex world
@@ -130,7 +130,7 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
     warnUnknownTextSlot(*inst.parent, inst.description->key);
     return SkRect::MakeEmpty();
   }
-  const LayoutProps& l = inst.description->layout;
+  const LayoutProps& l = inst.computed.layout;
   if (l.display == Display::None) return SkRect::MakeEmpty();
   float parentW = 0, parentH = 0;
   if (anchor) {

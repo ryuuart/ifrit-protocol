@@ -91,7 +91,7 @@ YGJustify toYogaJustify(Justify j) {
 void Composer::Impl::applyLayoutProps(Instance& inst) {
   if (!inst.yoga)
     return;  // positioned subtree: instanceRect() reads the properties directly
-  const LayoutProps& l = inst.description->layout;
+  const LayoutProps& l = inst.computed.layout;
   YGNodeRef n = inst.yoga;
 
   // Whether any length below was measured against the font in force or
@@ -224,9 +224,8 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   if (inst.description->kind == Kind::Text) {
     const Align resolved =
         self != Align::Auto ? self
-                            : (inst.parent && inst.parent->description
-                                   ? inst.parent->description->layout.alignItems
-                                   : Align::Stretch);
+                            : (inst.parent ? inst.parent->computed.layout.alignItems
+                                           : Align::Stretch);
     if (resolved == Align::Stretch) self = Align::Start;
   }
   YGNodeStyleSetAlignSelf(n, toYogaAlign(self));

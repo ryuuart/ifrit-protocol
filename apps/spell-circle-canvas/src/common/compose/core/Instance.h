@@ -15,6 +15,7 @@
 #include <yoga/Yoga.h>
 
 #include "ComposeInternal.h"
+#include "ComputedStyle.h"
 #include "SelectorMatch.h"
 #include "TextState.h"
 
@@ -94,6 +95,16 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   Composer::Impl* owner = nullptr;
   YGNodeRef yoga = nullptr;
   std::vector<size_t> paintOrder;  // child indices sorted by zIndex
+
+  // WHAT THIS NODE'S PROPERTIES CAME TO. Every phase after the patch —
+  // layout, paint, hit testing, the transition lanes — reads a property
+  // HERE and not off `description`, so what fills it can change without
+  // any of them changing. Written where the description is patched (see
+  // ComputedStyle).
+  ComputedStyle computed;
+  /** This node and the style computed for it — what a lane reads an
+   *  endpoint from. */
+  StyledNode styled() const { return {computed, *description}; }
 
   // Text state
   std::optional<sigil::weave::Paragraph> paragraph;
@@ -847,7 +858,7 @@ inline TextState& textStateOf(Instance& inst) {
 
 inline bool childrenCarryYoga(const Instance& inst) {
   return inst.yoga != nullptr && inst.description &&
-         !inst.description->layout.positioned &&
+         !inst.computed.layout.positioned &&
          inst.description->kind != Kind::Text;
 }
 

@@ -209,6 +209,18 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   // environment compare equal does not take — the memo's own contract.
   if (inst.memoShell) mergeMemoShell(*inst.description, *inst.memoShell);
 
+  // THE STYLE THIS PATCH COMPUTES, over the one the node stood in until
+  // now. It is written here, after the shell has had its say, because
+  // everything below reads properties through it — and it is written
+  // ONLY here: a patch the reconciler prunes never reaches this function,
+  // and the description it swapped in was proved to carry the same
+  // properties, so the style standing on the instance is still the answer.
+  //
+  // The previous one is kept for the length of this call because the
+  // transition triggers below need both sides of the change.
+  ComputedStyle previous = std::move(inst.computed);
+  computeStyle(next, inst.computed);
+
   // Recompute the world-space flag once per patch. A pruned node keeps
   // its existing flag, which is correct: equal properties mean equal
   // materials. Then the movement class only this branch can see — a
@@ -232,12 +244,13 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   // centerAt lives outside Yoga's style set — it is applied inside
   // ensureLayout's convergence loop — so a moved pin has no dirty bit of
   // its own and must force the layout pass to run.
-  if (!prev || prev->layout.centerAt != next.layout.centerAt)
+  if (!prev || previous.layout.centerAt != inst.computed.layout.centerAt)
     needsLayout = true;
   // A positioned child's rect IS its layout properties: a change must run
   // the layout pass so syncLayoutRects stales the recordings that
   // baked the old rect (the job Yoga's dirty bit does elsewhere).
-  if (!inst.yoga && prev && !(prev->layout == next.layout)) needsLayout = true;
+  if (!inst.yoga && prev && !(previous.layout == inst.computed.layout))
+    needsLayout = true;
 
   if (next.kind == Kind::Text && next.textData) {
     const TextData& text = *next.textData;
