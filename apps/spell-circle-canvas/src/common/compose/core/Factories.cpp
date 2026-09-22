@@ -215,13 +215,23 @@ Element slot(std::string_view name) {
   return e;
 }
 
-namespace detail {
-Element makeLayout(std::function<std::vector<SkRect>(const LayoutInput&)> place,
-                   bool readsChildMinSizes) {
+Element point() {
   Element e;
-  detail::DeriveData& derive = e.node()->deriveData.ensure();
-  derive.placeFn = std::move(place);
-  derive.placeReadsMinSizes = readsChildMinSizes;
+  // Out of the flow, so it takes no room beside its siblings, and placed
+  // by its insets or a pin exactly as any absolute node is. Zero by zero,
+  // so a centre pin lands it on the point it names. Out of hit testing,
+  // because a point has no box to be hit in.
+  e.node()->layout.absolute = true;
+  e.node()->layout.width = Dimension(0.0f);
+  e.node()->layout.height = Dimension(0.0f);
+  e.node()->hitTestable = false;
+  return e;
+}
+
+namespace detail {
+Element makeLayout(Operator scheme) {
+  Element e;
+  e.node()->operatorData.ensure().operators.push_back(std::move(scheme));
   return e;
 }
 

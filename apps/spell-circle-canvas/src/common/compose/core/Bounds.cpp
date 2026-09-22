@@ -292,7 +292,10 @@ NodeTransform Composer::Impl::transformOf(Instance& inst) {
   NodeTransform out;
   out.pivot = pivotOf(inst, node.paint.originX, node.paint.originY,
                       node.depthData ? &node.depthData->originZ : nullptr);
-  out.rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
+  // The turn an arranging operator gave the node rides the same lane as
+  // its own rotation, so every consumer of the transform sees one turn.
+  out.rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate) +
+            inst.arrangedTurn;
   out.scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
   out.sx = inst.resolveFloat(Instance::kScaleX, node.paint.scaleX);
   out.sy = inst.resolveFloat(Instance::kScaleY, node.paint.scaleY);

@@ -9,6 +9,7 @@
  * included by name.
  */
 
+#include "sigilcompose/core/Attributes.h"
 #include "sigilcompose/core/Cascade.h"
 #include "sigilcompose/core/Composer.h"
 #include "sigilcompose/core/Derive.h"
@@ -19,6 +20,7 @@
 #include "sigilcompose/core/Layout.h"
 #include "sigilcompose/core/Mask.h"
 #include "sigilcompose/core/Measure.h"
+#include "sigilcompose/core/Operator.h"
 #include "sigilcompose/core/Paint.h"
 #include "sigilcompose/core/Selector.h"
 #include "sigilcompose/core/Shape.h"

@@ -237,8 +237,7 @@ bool constrainedAxis(const Instance& inst, bool horizontal) {
     return true;
   if (!inst.parent) return true;
   const Instance& parent = *flexContainerOf(inst);
-  if (parent.description->deriveData && parent.description->deriveData->placeFn)
-    return true;
+  if (parent.description->arranges()) return true;
   const LayoutProps& parentLayout = parent.description->layout;
   if (horizontal == mainAxisHorizontal(parentLayout.direction))
     return layout.grow > 0 || layout.basis.unit != Dimension::Unit::Auto;
@@ -322,54 +321,75 @@ float constrainedMeasure(const Instance& inst, bool horizontal, float extent) {
 
 bool Composer::Impl::applyCustomLayouts(Instance& inst) {
   bool applied = false;
-  // THE CHILDREN A SCHEME PLACES: every child that has a box. One with
+  const ElementNode& node = *inst.description;
+  // THE CHILDREN THE OPERATORS PLACE: every child that has a box. One with
   // `Display::None` takes no cell, as it takes no room on a flex line.
   std::vector<Instance*> placed;
-  if (inst.description->deriveData && inst.description->deriveData->placeFn)
+  if (node.arranges())
     for (const auto& child : inst.children)
       if (child->description->layout.display != Display::None)
         placed.push_back(child.get());
-  // layout() schemes are a flex-world feature; inside a positioned
+  // Arranging operators are a flex-world feature; inside a positioned
   // subtree (no Yoga nodes) — or ON a positioned() container, whose
-  // children have none — the placeFn is documented-unsupported.
-  if (inst.yoga && !inst.description->layout.positioned &&
-      inst.description->deriveData && inst.description->deriveData->placeFn &&
+  // children have none — they are documented-unsupported.
+  if (inst.yoga && !node.layout.positioned && node.arranges() &&
       !placed.empty()) {
-    LayoutInput input;
-    input.container = {YGNodeLayoutGetWidth(inst.yoga),
-                       YGNodeLayoutGetHeight(inst.yoga)};
+    const OperatorData& operators = *node.operatorData;
+    Arrangement arrangement;
+    arrangement.box = SkRect::MakeWH(YGNodeLayoutGetWidth(inst.yoga),
+                                     YGNodeLayoutGetHeight(inst.yoga));
+    arrangement.minSizesMeasured = operators.readsChildMinSizes();
+    arrangement.children.reserve(placed.size());
     for (Instance* child : placed) {
-      input.childSizes.push_back({YGNodeLayoutGetWidth(child->yoga),
-                                  YGNodeLayoutGetHeight(child->yoga)});
+      const ElementNode& description = *child->description;
+      Arrangement::Child record;
+      record.size = {YGNodeLayoutGetWidth(child->yoga),
+                     YGNodeLayoutGetHeight(child->yoga)};
       // First-baseline offset from the child's top — measured text only
       // (pass one measured it); everything else has no baseline.
-      float baseline = std::numeric_limits<float>::quiet_NaN();
       if (!child->lines.empty()) {
         const sigil::weave::LineMetrics& first = child->lines.front();
-        baseline = first.baseline - first.rect().top();
+        record.baseline = first.baseline - first.rect().top();
       }
-      input.childBaselines.push_back(baseline);
-      input.childCells.push_back(child->description->layout.cells);
+      record.cells = description.layout.cells;
       // The region name is a rare field and lives in the child's derive
-      // block; the scheme reads it beside the cell numbers.
-      input.childAreas.push_back(child->description->deriveData
-                                     ? child->description->deriveData->cellArea
-                                     : std::string());
+      // block; a grid reads it beside the cell numbers.
+      if (description.deriveData) record.area = description.deriveData->cellArea;
+      if (description.operatorData)
+        record.attributes = description.operatorData->attributes;
+      if (arrangement.minSizesMeasured) record.minSize = minimumSizeOf(*child);
+      // Where the child stands before the list runs: the flex layout's
+      // answer, which an operator that nudges rather than places reads.
+      record.rect = instanceRect(*child);
+      arrangement.children.push_back(std::move(record));
     }
-    if (inst.description->deriveData->placeReadsMinSizes)
-      for (Instance* child : placed)
-        input.childMinSizes.push_back(minimumSizeOf(*child));
-    std::vector<SkRect> rects = inst.description->deriveData->placeFn(input);
-    size_t count = std::min(rects.size(), placed.size());
+    // THE LIST RUNS FROM THE SAME START EVERY TIME: each run begins at the
+    // rects the flex layout gave and no turn, so a run after a text
+    // reflow answers the same question the first did rather than nudging
+    // what the first run left.
+    std::vector<SkRect> starting;
+    starting.reserve(arrangement.children.size());
+    for (const Arrangement::Child& child : arrangement.children)
+      starting.push_back(child.rect);
+    const auto run = [&] {
+      for (size_t i = 0; i < arrangement.children.size(); ++i) {
+        arrangement.children[i].rect = starting[i];
+        arrangement.children[i].turnDegrees = 0.0f;
+      }
+      for (const Operator& op : operators.operators) op.arrange(arrangement);
+    };
+    run();
+    const size_t count = arrangement.children.size();
     // Track placement supplies a text leaf's final reading measure. Its
     // automatic cross extent must be measured at that width (or depth in
-    // vertical writing) before the scheme sizes the other tracks. The
+    // vertical writing) before the operators size the other tracks. The
     // preferred width remains an intrinsic contribution; only the wrapped
     // extent changes. An authored extent or a threaded frame stays bounded.
     for (int pass = 0; pass < 2; ++pass) {
       bool reflowed = false;
       for (size_t i = 0; i < count; ++i) {
         Instance& child = *placed[i];
+        Arrangement::Child& record = arrangement.children[i];
         if (!child.paragraph || child.description->layout.centerAt) continue;
         const TextData* text = child.description->textData
                                    ? &*child.description->textData
@@ -379,10 +399,11 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
                               sigil::weave::WritingMode::kVerticalRL;
         const bool frame =
             child.threadedInto || (text && !text->threadTo.empty());
-        const float width = constrainedMeasure(child, true, rects[i].width());
+        const float width =
+            constrainedMeasure(child, true, record.rect.width());
         const float height =
             vertical || frame
-                ? constrainedMeasure(child, false, rects[i].height())
+                ? constrainedMeasure(child, false, record.rect.height())
                 : kUnbounded;
         layoutTextInBox(child, width, height);
         const LayoutProps& layout = child.description->layout;
@@ -394,40 +415,46 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
             child, vertical,
             vertical ? child.measuredSize.width + padding.across()
                      : child.measuredSize.height + padding.down());
-        float& extent =
-            vertical ? input.childSizes[i].fWidth : input.childSizes[i].fHeight;
+        float& extent = vertical ? record.size.fWidth : record.size.fHeight;
         if (std::abs(extent - measured) <= 0.25f) continue;
         extent = measured;
-        if (i < input.childMinSizes.size()) {
-          float& minimum = vertical ? input.childMinSizes[i].fWidth
-                                    : input.childMinSizes[i].fHeight;
+        if (arrangement.minSizesMeasured) {
+          float& minimum =
+              vertical ? record.minSize.fWidth : record.minSize.fHeight;
           minimum = measured;
         }
         reflowed = true;
       }
       if (!reflowed) break;
-      rects = inst.description->deriveData->placeFn(input);
-      count = std::min(rects.size(), placed.size());
+      run();
     }
     for (size_t i = 0; i < count; ++i) {
-      // A centerAt() child opts OUT of the scheme's placement — the pin
-      // wins (otherwise place() and the pin fight in a period-2
+      const Arrangement::Child& record = arrangement.children[i];
+      Instance& child = *placed[i];
+      // A turn is paint-only: it moves no layout, so it counts toward no
+      // convergence round, and a changed one repaints the child.
+      if (std::abs(child.arrangedTurn - record.turnDegrees) > 1e-3f) {
+        child.arrangedTurn = record.turnDegrees;
+        child.markPaintDirtyUp();
+      }
+      // A centerAt() child opts OUT of the operators' placement — the pin
+      // wins (otherwise the placement and the pin fight in a period-2
       // oscillation that never settles).
-      if (placed[i]->description->layout.centerAt) continue;
-      YGNodeRef child = placed[i]->yoga;
+      if (child.description->layout.centerAt) continue;
+      const SkRect& rect = record.rect;
       // Count a change only on an actual delta: the convergence loop in
       // ensureLayout keys off this (idempotent writes are free).
-      const SkRect cur = instanceRect(*placed[i]);
-      if (std::abs(cur.left() - rects[i].left()) > 0.25f ||
-          std::abs(cur.top() - rects[i].top()) > 0.25f ||
-          std::abs(cur.width() - rects[i].width()) > 0.25f ||
-          std::abs(cur.height() - rects[i].height()) > 0.25f)
+      const SkRect cur = instanceRect(child);
+      if (std::abs(cur.left() - rect.left()) > 0.25f ||
+          std::abs(cur.top() - rect.top()) > 0.25f ||
+          std::abs(cur.width() - rect.width()) > 0.25f ||
+          std::abs(cur.height() - rect.height()) > 0.25f)
         applied = true;
-      YGNodeStyleSetPositionType(child, YGPositionTypeAbsolute);
-      YGNodeStyleSetPosition(child, YGEdgeLeft, rects[i].left());
-      YGNodeStyleSetPosition(child, YGEdgeTop, rects[i].top());
-      YGNodeStyleSetWidth(child, rects[i].width());
-      YGNodeStyleSetHeight(child, rects[i].height());
+      YGNodeStyleSetPositionType(child.yoga, YGPositionTypeAbsolute);
+      YGNodeStyleSetPosition(child.yoga, YGEdgeLeft, rect.left());
+      YGNodeStyleSetPosition(child.yoga, YGEdgeTop, rect.top());
+      YGNodeStyleSetWidth(child.yoga, rect.width());
+      YGNodeStyleSetHeight(child.yoga, rect.height());
     }
     // Auto-size an ABSOLUTE container from the placed extent, per axis,
     // when the author left that axis open (no explicit dim, no
@@ -441,7 +468,8 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     // otherwise derive its cross extent from only the remaining siblings.
     const LayoutProps& l = inst.description->layout;
     SkRect extent = SkRect::MakeEmpty();
-    for (size_t i = 0; i < count; ++i) extent.join(rects[i]);
+    for (size_t i = 0; i < count; ++i)
+      extent.join(arrangement.children[i].rect);
     const bool widthPinned = l.hasInsets &&
                              l.insets.left.unit != Dimension::Unit::Auto &&
                              l.insets.right.unit != Dimension::Unit::Auto;

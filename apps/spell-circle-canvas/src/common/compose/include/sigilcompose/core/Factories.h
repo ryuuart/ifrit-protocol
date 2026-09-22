@@ -14,6 +14,7 @@
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/Operator.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilmaterial/skia/Paint.h>  // material::skia::Fit — how a picture meets its box
 #include <sigilweave/layout/ParagraphLayout.h>
@@ -289,28 +290,34 @@ Element picture(sk_sp<SkPicture> recorded, SkSize native);
  *  `.stroke()` or a `foreground(PathFormat{…})` as the drawing wants. */
 Element pathFigure(SkPath absolute, float bleed = 0.0f);
 
+/** A NODE WITH NO EXTENT: a place in its parent's box that carries a key
+ *  and facts (`Element::attribute`) and draws nothing. Out of the flow,
+ *  so it takes no room beside its siblings; put it where it names with
+ *  the placement longhand or a centre pin — a port on a card is
+ *  `point().key("out").left(pct(100)).top(pct(50))`. A skeleton of points
+ *  is what an arranging operator places and an adding operator builds on. */
+Element point();
+
 /** A container whose children are placed by @p scheme instead of
- *  flexbox (nests freely inside flex and vice versa). The container
+ *  flexbox (nests freely inside flex and vice versa) — the same node
+ *  `box().operators({scheme})` describes, kept as the shorter spelling
+ *  for a container whose whole reason is its placement. The container
  *  itself is sized by its own dims/flex; children are measured by
- *  Yoga/SigilWeave, then positioned and sized by scheme.place() in a
- *  bounded second layout pass. Text reflows at its placed reading measure
- *  before the scheme resolves content-sized tracks again. */
-template <LayoutScheme L>
+ *  Yoga/SigilWeave, then positioned and sized by the scheme in a bounded
+ *  second layout pass. Text reflows at its placed reading measure before
+ *  the scheme resolves content-sized tracks again. */
+template <typename L>
+  requires(std::constructible_from<Operator, L>)
 Element layout(L scheme);
 
 namespace detail {
-Element makeLayout(std::function<std::vector<SkRect>(const LayoutInput&)> place,
-                   bool readsChildMinSizes);
+Element makeLayout(Operator scheme);
 }  // namespace detail
 
-template <LayoutScheme L>
+template <typename L>
+  requires(std::constructible_from<Operator, L>)
 Element layout(L scheme) {
-  // Whether the scheme wants the content minima is asked of the TYPE, so a
-  // scheme that never reads them never pays for the measure that fills
-  // them — and a scheme that does cannot forget to ask.
-  return detail::makeLayout(
-      [s = std::move(scheme)](const LayoutInput& in) { return s.place(in); },
-      SizesFromContentMinima<L>);
+  return detail::makeLayout(Operator(std::move(scheme)));
 }
 
 /** A named mount point whose content is supplied independently via

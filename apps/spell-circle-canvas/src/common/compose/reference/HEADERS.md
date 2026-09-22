@@ -71,7 +71,20 @@ sound model; nothing below them changes kernel semantics.
   `ComponentProperties` / `ComponentFunction` concepts. A `Dimension`
   also takes SigilWeave's `Length` (`em`, `rem`, `lh`) and a `VarRef`, the
   relative units the cascade resolves, with `pw` and `ph` — the canvas's own
-  width and height — resolved in the same pass.
+  width and height — resolved in the same pass. `LayoutInput::attribute`
+  reads a child's fact by index and name.
+- `core/Attributes.h` — `Attributes`, the typed facts a node states
+  about itself (`Element::attribute` writes one, `Attributes::get` reads
+  it back in the type it was written in, `Attributes::merge` lays one
+  table over another), and the `AttributeValue` concept: anything that
+  copies and compares.
+- `core/Operator.h` — the operator seam: `Operator`, the comparable value
+  `Element::operators` holds, built from anything satisfying `Arranging`
+  (with `ArrangingOperator` the comparable form) or `LayoutScheme`;
+  `Arrangement` and `Arrangement::Child`, what an arranging operator is
+  handed — each child's size, baseline, cells, area and facts, and
+  `place`, `centreAt` and `turn` to answer with; and `ReadsChildMinSizes`,
+  the opt-in that fills each child's content minimum.
 - `core/Var.h` — `VarRef`, the reference a custom property's name
   interns to, with `var` to make one and `varName` to read it back.
 - `core/Cascade.h` — `VarValue`, what a custom property holds, and
@@ -143,7 +156,8 @@ sound model; nothing below them changes kernel semantics.
   `SkPicture` as a leaf, sized at what it was recorded at — the door out
   of a `snapshot()` that keeps the pruning and the caching the bake was
   taken for), `pathFigure` (a path already in canvas coordinates,
-  re-based into its own bounds), `custom`, `slot`, `layout`, `memo`.
+  re-based into its own bounds), `custom`, `slot`, `layout`, `point` (a
+  node with no extent that carries a key and facts), `memo`.
   `text` takes `Utf8`, so `text("…")`, `text(u8"…")`, `text(std::string)`
   and `text(std::u8string)` are one factory and nothing widens a string to
   reach it; `Text::textOverflow` takes the same value. `each(range, make)`

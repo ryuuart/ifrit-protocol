@@ -8,8 +8,10 @@
  * describes, what the painter may keep of it, and what is under it.
  */
 
+#include <sigilcompose/core/Attributes.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>  // Cache
+#include <sigilcompose/core/Operator.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Transition.h>
@@ -21,6 +23,8 @@
 #include <ranges>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 namespace sigil::compose {
 
@@ -82,6 +86,34 @@ class StructureVerbs {
    *  sets then inherit down the tree. A name neither sheet in force
    *  carries warns once and sets nothing. */
   Derived& styleClass(std::string_view names);
+  /** @} */
+
+  /** @name Facts and operators
+   *  What the node states about itself for whoever reads it, and what
+   *  it runs over its own children.
+   *  @{ */
+  /** A TYPED FACT THIS NODE STATES: @p value under @p name, for whatever
+   *  reads it — the scheme or operator on the parent placing this node
+   *  by its tier, an operator building something from it — and inert
+   *  where nothing does. The value is read back with the type it was
+   *  written in; a string literal is stored as a `std::string`. A later
+   *  fact under the same name replaces the earlier one. */
+  template <AttributeValue T>
+  Derived& attribute(std::string_view name, T value) {
+    Attributes one;
+    one.set(name, std::move(value));
+    return attributes(std::move(one));
+  }
+  /** Every fact of @p facts laid over the node's own, same names replaced. */
+  Derived& attributes(Attributes facts);
+  /** THE OPERATORS THIS NODE RUNS OVER ITS CHILDREN, in list order: each
+   *  is handed the children measured, with their facts and where the
+   *  operators before it left them, and places or turns them. A scheme
+   *  of the older `place(LayoutInput)` shape is an operator too. A later
+   *  call appends to the list. What the operators do runs inside the
+   *  layout's converging rounds, so what they place is what every pass
+   *  after layout reads. */
+  Derived& operators(std::vector<Operator> list);
   /** @} */
 
   /** HANG THIS NODE OFF A KEYED ONE, at a stated pair of points, with a

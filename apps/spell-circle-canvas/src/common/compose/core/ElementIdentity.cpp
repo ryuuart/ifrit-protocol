@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>
+#include <iterator>
 
 #include "ComposeInternal.h"
 
@@ -92,6 +93,22 @@ Derived& StructureVerbs<Derived>::cacheScale(float factor) {
 template <class Derived>
 Derived& StructureVerbs<Derived>::transition(motion::Transition t) {
   declarations()->nodeTransition = std::move(t);
+  return self();
+}
+
+template <class Derived>
+Derived& StructureVerbs<Derived>::attributes(Attributes facts) {
+  if (facts.empty()) return self();
+  declarations()->operatorData.ensure().attributes.merge(facts);
+  return self();
+}
+
+template <class Derived>
+Derived& StructureVerbs<Derived>::operators(std::vector<Operator> list) {
+  if (list.empty()) return self();
+  std::vector<Operator>& held = declarations()->operatorData.ensure().operators;
+  held.insert(held.end(), std::make_move_iterator(list.begin()),
+              std::make_move_iterator(list.end()));
   return self();
 }
 

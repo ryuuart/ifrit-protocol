@@ -45,6 +45,8 @@ sigil_library(SigilComposeCore
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
     ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
     ElementCascade.cpp
+    # the facts a node states and the operator seam that reads them
+    Attributes.cpp Operator.cpp
     # which elements a rule speaks about, the CSS text that says so,
     # and the rules a sheet states about them
     Selector.cpp SelectorParse.cpp StyleSheet.cpp SelectorMatch.cpp
@@ -120,6 +122,7 @@ sigil_test(compose_test
           test/ComposeTestMask.cpp test/ComposeTestFieldPins.cpp
           test/ComposeTestDepth.cpp
           test/ComposeTestInstances.cpp test/ComposeTestTether.cpp
+          test/ComposeTestOperators.cpp
           test/ComposeTestShelf.cpp test/ComposeTestTable.cpp
           test/ComposeTestValues.cpp test/ComposeTestBlockLane.cpp test/ComposeTestCascade.cpp
           test/ComposeTestRoles.cpp test/ComposeTestFlexBox.cpp

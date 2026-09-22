@@ -314,11 +314,10 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
     needsLayout = true;
   }
 
-  // A container LOSING its custom layout must release the out-of-band
-  // yoga writes place() left on the children (absolute + pinned rects
-  // survive the structural prune otherwise — frozen children).
-  if (prev && prev->deriveData && prev->deriveData->placeFn &&
-      !(next.deriveData && next.deriveData->placeFn)) {
+  // A container LOSING its arranging operators must release the
+  // out-of-band yoga writes they left on the children (absolute + pinned
+  // rects survive the structural prune otherwise — frozen children).
+  if (prev && prev->arranges() && !next.arranges()) {
     for (auto& child : inst.children)
       if (child) applyLayoutProps(*child);
     needsLayout = true;

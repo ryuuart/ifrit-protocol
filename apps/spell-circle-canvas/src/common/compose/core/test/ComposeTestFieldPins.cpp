@@ -275,7 +275,7 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
       "nodeTransition", "backgrounds", "foregrounds",       "textData",
       "imageData",      "customData",  "deriveData",        "fxData",
       "materialData",   "strokeData",  "memoData",          "motionData",
-      "depthData",      "cascadeData", "children"};
+      "depthData",      "cascadeData", "operatorData",      "children"};
   static const bool kParticipates[] = {
       true,
       true,
@@ -305,6 +305,8 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
       true,
       true,   // cascadeData — the font, the ink's property and the custom
               // properties a node declares for everything under it
+      true,   // operatorData — the facts a node states and the operators
+              // it runs; a present block with neither is still a change
       false,  // children — reconciled by key, never compared
   };
   walkFields<cd::ElementNode>(cd::propertiesEqual, kNames, kParticipates);

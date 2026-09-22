@@ -158,18 +158,16 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   return true;
 }
 
-static_assert(kFieldCount<DeriveData> == 19,
+static_assert(kFieldCount<DeriveData> == 17,
               "DeriveData gained or lost a field — rule on it in "
               "deriveEqual() below, then bump this count.");
 bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   if ((bool)a != (bool)b) return false;
   if (!a) return true;
-  // Incomparable callables → conservative inequality. Custom layout is
-  // the one left: a band's authored SPINE rides the Shape seam and both
-  // ROUTERS ride seams of their own (same rule as shapeFn), so a
-  // comparable value prunes and only a raw callable stays conservative.
-  // A band borrowed by key was always a comparable value.
-  if (a->placeFn || b->placeFn) return false;
+  // A band's authored SPINE rides the Shape seam and both ROUTERS ride
+  // seams of their own (same rule as shapeFn), so a comparable value
+  // prunes and only a raw callable stays conservative. A band borrowed by
+  // key was always a comparable value.
   if (!(a->router == b->router)) return false;
   if (!(a->railRouter == b->railRouter)) return false;
   if (!(a->bandSpine == b->bandSpine)) return false;
@@ -184,9 +182,7 @@ bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   // would break that, and would have to be compared here.
   // gridArea(): the region name a child claims of the scheme above it. Two
   // descriptions that name different regions place the child differently
-  // and must not prune into each other. `placeReadsMinSizes` needs no rule
-  // of its own: it is a property of the scheme type behind `placeFn`, and
-  // a node carrying one is already conservatively unequal above.
+  // and must not prune into each other.
   if (a->cellArea != b->cellArea) return false;
   // tether(): where the node hangs and everywhere it may hang instead. A
   // re-described tether that names the same places and the same points
@@ -200,6 +196,24 @@ bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
          a->bandFormation == b->bandFormation &&
          a->spanFitKeys == b->spanFitKeys &&
          a->borrowedPathKeys == b->borrowedPathKeys;
+}
+
+static_assert(kFieldCount<OperatorData> == 2,
+              "OperatorData gained or lost a field — rule on it in "
+              "operatorEqual() below, then bump this count.");
+bool operatorEqual(const Box<OperatorData>& a, const Box<OperatorData>& b) {
+  if ((bool)a != (bool)b) return false;
+  if (!a) return true;
+  // The facts: a scheme or an operator above reads them, so a node whose
+  // facts changed is placed or read differently and must not prune.
+  if (!(a->attributes == b->attributes)) return false;
+  // The operators, in list order: a comparable value prunes, and one with
+  // no equality of its own compares equal to nothing but its own copies,
+  // which keeps its node conservative — the Operator seam's own rule.
+  if (a->operators.size() != b->operators.size()) return false;
+  for (size_t i = 0; i < a->operators.size(); ++i)
+    if (!(a->operators[i] == b->operators[i])) return false;
+  return true;
 }
 
 static_assert(kFieldCount<StrokeData> == 2 && kFieldCount<StrokePass> == 4,
@@ -413,7 +427,7 @@ namespace detail {
  * reaches here, because `inst.description` holds the memo's PRODUCED payload;
  * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 27 && kFieldCount<PaintProps> == 14 &&
+static_assert(kFieldCount<ElementNode> == 28 && kFieldCount<PaintProps> == 14 &&
                   kFieldCount<ImageData> == 2 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 5,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
@@ -441,6 +455,7 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   // looks, and an outline can be the most expensive thing on the node.
   if (!(a.shapeFn == b.shapeFn)) return false;
   if (!deriveEqual(a.deriveData, b.deriveData)) return false;
+  if (!operatorEqual(a.operatorData, b.operatorData)) return false;
   // Decorations compare when they wrap value-comparable schemes (PathFormat,
   // Slice, Shadow…); an incomparable one (bare program, ContourWalk with a
   // draw lambda) makes Decoration::operator== false, so the node stays

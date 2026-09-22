@@ -78,8 +78,8 @@ void Composer::Impl::rebuildKeyIndex() {
               at.push_back(&inst);
           }
         }
-        if (derive.placeFn) hasCustomLayout = true;
       }
+      if (node.arranges()) hasCustomLayout = true;
       if (node.kind == Kind::Text && node.textData && node.textData->onPath &&
           !node.textData->marks.empty())
         pathMarkInstances.push_back(&inst);

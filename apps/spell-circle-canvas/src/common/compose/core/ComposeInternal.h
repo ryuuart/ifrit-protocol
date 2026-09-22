@@ -338,12 +338,27 @@ struct CustomData {
   std::string key;
 };
 
+/** WHAT THE OPERATOR FAMILY READS AND RUNS: the facts this node states
+ *  about itself (Element::attribute), read by the scheme or operator
+ *  above it, and the operators this node applies to its own children
+ *  (Element::operators), in list order. One block for both because a
+ *  node that says nothing about either, which is most of a tree, pays
+ *  one null pointer. */
+struct OperatorData {
+  Attributes attributes;
+  std::vector<Operator> operators;
+  /** Whether any operator in the list places children — the question the
+   *  layout pass, the props writer and the reconciler each ask. */
+  bool arranges() const { return !operators.empty(); }
+  /** Whether any operator asked for the children's content minima. */
+  bool readsChildMinSizes() const {
+    for (const Operator& op : operators)
+      if (op.readsChildMinSizes()) return true;
+    return false;
+  }
+};
+
 struct DeriveData {
-  // Custom layout (layout() containers)
-  std::function<std::vector<SkRect>(const LayoutInput&)> placeFn;
-  /** Whether the scheme behind `placeFn` reads `LayoutInput::childMinSizes`,
-   *  which costs one extra text measure per text child of the container. */
-  bool placeReadsMinSizes = false;
   /** Element::tether(): where this node hangs off a keyed one, resolved
    *  by the derive pass against the anchor's finished geometry. */
   std::optional<Tether> tether;
@@ -623,8 +638,14 @@ struct ElementNode {
   // The cascade this node declares (see CascadeData): a node that inherits
   // everything and sets nothing carries none.
   Box<CascadeData> cascadeData;
+  // The facts this node states and the operators it applies (see
+  // OperatorData): a node that states neither carries none.
+  Box<OperatorData> operatorData;
 
   std::vector<Element> children;
+
+  /** Whether this node applies operators that place its children. */
+  bool arranges() const { return operatorData && operatorData->arranges(); }
 
   bool isMemo() const { return (bool)memoData; }
   bool hasMasks() const { return fxData && !fxData->masks.empty(); }

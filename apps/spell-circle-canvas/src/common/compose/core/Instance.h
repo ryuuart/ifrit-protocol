@@ -137,6 +137,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // placement of it.
   bool schemeSizedWidth = false;
   bool schemeSizedHeight = false;
+  // The turn an arranging operator on the parent gave this node, degrees
+  // clockwise about its own transform origin: a paint-only lane laid
+  // over the rotation the description states, written by the layout
+  // pass and read wherever the node's transform is produced.
+  float arrangedTurn = 0.0f;
   uint32_t contentRev = 0;     // bumped on text/exclusion change
   uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
   // weave::rich().slot(): the slot names in the order the content declares them

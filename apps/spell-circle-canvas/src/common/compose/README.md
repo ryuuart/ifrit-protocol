@@ -310,7 +310,7 @@ siblings is a stable sort by `zIndex` then declaration order. Then the key,
 slot and edge indices rebuild.
 
 `draw()` detects the backend and host scale, then runs layout: Yoga first,
-then up to three convergence rounds of custom `layout()` schemes,
+then up to three convergence rounds of the arranging operators,
 `centerAt` pins, and the derive phase, each of which may re-run Yoga.
 Recordings whose baked geometry moved are invalidated. Derive resolves text
 exclusions and connector/rail routing over flat edge lists, cycle-guarded.
@@ -346,6 +346,35 @@ declaration and by no list that has to be found and extended.
 
 Released scalars are scanned and volatility computed in one walk. Then
 paint runs, selecting a cache tier per node.
+
+### Facts and operators
+
+A node STATES FACTS about itself and says nothing about how they are
+used: `Element::attribute` puts a typed value under a name, read back
+through `Attributes::get` in the type it was written in, and a fact
+nothing reads does nothing. `point()` is a node with no extent that
+exists to carry a key and facts — a port on a card, a station on a map —
+placed like any absolute node.
+
+An OPERATOR reads those facts. `Element::operators` takes a list of
+comparable values applied to the node's own children, in list order,
+and each one is handed an `Arrangement`: the node's box and one
+`Arrangement::Child` per direct child — its measured size, baseline,
+cells, area and facts, and where it stands so far — which the operator
+places, centres or turns. The list runs inside the layout's converging
+rounds, starting every run from the flex layout's own answer, so a
+later operator nudges what an earlier one placed and a run after a text
+reflow answers the same question the first did. A turn is paint-only:
+it rides the node's own rotation lane and moves no layout. An operator
+is a value with `arrange(Arrangement&)` and an equality, so an unchanged
+list over unchanged facts prunes; a value with no equality is the
+escape hatch that never does. A scheme of the older shape —
+`place(const LayoutInput&)` returning a rect per child, which is what
+`layouts::Grid` and its peers still are — is an `Operator` too, adapted
+when it is held, and `layout(scheme)` is `box().operators({scheme})`
+under the shorter spelling; `LayoutInput::childAttributes` hands such a
+scheme the same facts. A nested node with operators of its own is one
+element to the operators above it.
 
 ### Paint order inside a node
 

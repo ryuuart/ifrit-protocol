@@ -195,12 +195,11 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   applyEdge(l.margin.bottom, YGEdgeBottom, &YGNodeStyleSetMargin,
             &YGNodeStyleSetMarginPercent);
 
-  // Auto-sized layout() containers: applyCustomLayouts writes the placed
+  // Auto-sized arranging containers: applyCustomLayouts writes the placed
   // extent as explicit W/H onto auto-dim absolute containers — releasing
-  // those here would zero the container every re-describe and feed
-  // place() a degenerate input for a pass.
-  const bool autoSized = inst.description->deriveData &&
-                         inst.description->deriveData->placeFn && l.absolute;
+  // those here would zero the container every re-describe and feed the
+  // operators a degenerate box for a pass.
+  const bool autoSized = inst.description->arranges() && l.absolute;
   if (!autoSized || l.width.unit != Dimension::Unit::Auto)
     applyDim(l.width, &YGNodeStyleSetWidth, &YGNodeStyleSetWidthPercent);
   if (!autoSized || l.height.unit != Dimension::Unit::Auto)

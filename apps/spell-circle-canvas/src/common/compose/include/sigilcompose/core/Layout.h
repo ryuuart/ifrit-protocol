@@ -14,6 +14,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
+#include <sigilcompose/core/Attributes.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/cache/Policy.h>
 #include <sigilweave/style/Length.h>
@@ -21,7 +22,9 @@
 #include <bit>
 #include <concepts>
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -389,6 +392,17 @@ struct LayoutInput {
    *  measure per text child. A scheme asks by declaring
    *  `static constexpr bool readsChildMinSizes = true;`. */
   std::vector<SkSize> childMinSizes;
+  /** THE FACTS EACH CHILD STATES (`Element::attribute`), one table per
+   *  child, so a scheme places by what a child says of itself — its
+   *  tier, its hour, its weight — rather than by its index alone. */
+  std::vector<Attributes> childAttributes;
+
+  /** The fact child @p index states under @p name, as a @p T, or nothing. */
+  template <typename T>
+  std::optional<T> attribute(size_t index, std::string_view name) const {
+    if (index >= childAttributes.size()) return std::nullopt;
+    return childAttributes[index].get<T>(name);
+  }
 };
 
 /** A custom layout places children: one rect per child (position and
