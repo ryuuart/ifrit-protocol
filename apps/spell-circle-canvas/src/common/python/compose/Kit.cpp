@@ -4,6 +4,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilpython/compose/Kit.h>
+#include <sigilpython/compose/Operators.h>
 #include <sigilpython/compose/Registration.h>
 
 namespace sigil::python {
@@ -309,6 +310,16 @@ void bindLayouts(py::module_& compose) {
   layoutFunction<layouts::Jittered>(compose);
   layoutFunction<layouts::Jitter>(compose);
   layoutFunction<layouts::AlongPath>(compose);
+  // Last, so each stock scheme keeps the typed overload of its own and
+  // what none of them matches — an operator already built, a Python
+  // object that arranges or adds — falls through to this one.
+  compose.def(
+      "layout",
+      [](py::handle scheme, py::args children) {
+        return sigil::compose::layout(operatorValue(scheme))
+            .children(elements(children));
+      },
+      py::arg("scheme"));
 }
 
 }  // namespace

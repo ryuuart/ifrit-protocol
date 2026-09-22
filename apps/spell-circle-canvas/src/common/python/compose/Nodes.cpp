@@ -18,6 +18,7 @@
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Nodes.h>
+#include <sigilpython/compose/Operators.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -32,6 +33,32 @@
 
 namespace sigil::python {
 namespace py = pybind11;
+namespace {
+
+/** A bound `compose.Attributes`, spelled under its Python name. The
+ *  class is registered after this file, so a signature naming the
+ *  native type would be written before that name exists; this one
+ *  carries the name itself and refuses anything that is not a table of
+ *  facts at the call. */
+class AttributesObject : public py::object {
+ public:
+  using py::object::object;
+  static bool check_(py::handle value) {
+    return py::isinstance<compose::Attributes>(value);
+  }
+};
+
+}  // namespace
+}  // namespace sigil::python
+
+namespace pybind11::detail {
+template <>
+struct handle_type_name<sigil::python::AttributesObject> {
+  static constexpr auto name = const_name("_sigil.compose.Attributes");
+};
+}  // namespace pybind11::detail
+
+namespace sigil::python {
 namespace {
 constexpr auto fluent = py::return_value_policy::reference_internal;
 using compose::Band;
@@ -258,6 +285,35 @@ void bindNodeVerbs(py::class_<Node>& element) {
       .def("block", &Node::block, py::arg("block"), fluent)
       .def("styleSheet", &Node::styleSheet, py::arg("sheet"), fluent)
       .def("styleClass", &Node::styleClass, py::arg("name"), fluent)
+      .def(
+          "attribute",
+          [](Node& self, const std::string& name, py::handle value) -> Node& {
+            compose::Attributes one;
+            stateFact(one, name, value);
+            return self.attributes(std::move(one));
+          },
+          py::arg("name"), py::arg("value"), fluent,
+          "A typed fact this node states, for whatever reads it — the "
+          "scheme or operator on the parent placing this node by its tier, "
+          "an operator building something from it — and inert where nothing "
+          "does. A later fact under the same name replaces the earlier one.")
+      .def(
+          "attributes",
+          [](Node& self, const AttributesObject& facts) -> Node& {
+            return self.attributes(facts.template cast<compose::Attributes>());
+          },
+          py::arg("facts"), fluent,
+          "Every fact of this table laid over the node's own, same names "
+          "replaced.")
+      .def(
+          "operators",
+          [](Node& self, py::handle list) -> Node& {
+            return self.operators(operatorList(list));
+          },
+          py::arg("operators"), fluent,
+          "The operators this node runs over its children, in list order: "
+          "each is handed the children measured, with their facts and where "
+          "the operators before it left them. A later call appends.")
       .def("role", py::overload_cast<weave::Rule>(&Node::role),
            py::arg("defaults"), fluent)
       .def("role", py::overload_cast<std::string>(&Node::role), py::arg("name"),

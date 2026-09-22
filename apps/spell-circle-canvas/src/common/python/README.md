@@ -166,6 +166,20 @@ The pen wrapper checks both its drawing thread and callback lifetime. Every
 native drawing callback receives this same wrapper. Retaining it in Python
 does not extend access to the borrowed pen.
 
+AN OPERATOR WRITTEN IN PYTHON IS A VALUE, AND ITS EQUALITY IS THE
+RECONCILER'S QUESTION. The retained object takes part in structural
+equality only where its own class states an equality — one the class or
+a base of it wrote, rather than the identity every object inherits — and
+Python is asked under the interpreter lock whether the two are equal. A
+class that states none equals nothing but its own copies, which is the
+escape hatch, and a value whose callback lifetime has closed equals
+nothing but itself either, so a reconcile patches the node instead of
+raising out of itself. The arrangement such an operator places children
+over and the settled scope it attaches to are lent for the one call they
+were handed to, as a paint context is: both refuse every reading once
+that call has returned, and on a thread other than the one that laid
+them out. A scope lent to a program that draws attaches nothing.
+
 A native call whose callback is handed a canvas rather than a pen gets one
 built for it, so the author draws with the same verbs and the same checks
 everywhere. A panel is that case: its body is lent a pen of its own, opened
@@ -191,6 +205,8 @@ exception through it would leave open.
   `borrowedCanvas`, `canvas`, `invalidateCanvas`
 * `compose/PaintPrograms.h` — `BorrowedPaintContext`, `PaintContextLoan`,
   `CanvasLoan`, `paintProgram`, `penProgram`
+* `compose/Operators.h` — `stateFact`, `factOf`, `operatorValue`,
+  `operatorList`, `namesOperator`
 * `compose/Composer.h` — `ComposerHandle`
 * `io/Hub.h` — `HubHandle`, `retainSessionFeed`
 * `data/Convert.h` — `dataDatabase`, `loadData`

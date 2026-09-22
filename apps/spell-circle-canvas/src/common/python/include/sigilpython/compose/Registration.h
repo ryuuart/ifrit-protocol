@@ -90,8 +90,9 @@ void bindComposePaintPrograms(pybind11::module_& module);
 /** Registers the bitmap-era mechanisms: bevel pair, brackets, tick
  *  rail, scanlines, stipple on @p module. */
 void bindComposePixelStyles(pybind11::module_& module);
-/** Registers pattern fills, the auto Table and Python layout schemes on
- *  @p module. */
+/** Registers the operator seam on @p module: the facts a node states,
+ *  the arrangement and the settled scope an operator is handed, the
+ *  connecting records, and the pen an operator draws a scope with. */
 void bindComposeSchemes(pybind11::module_& module);
 /** Registers the CSS selector grammar, the rule and the selector-keyed
  *  sheet a node applies, on @p module. */

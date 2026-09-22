@@ -49,7 +49,7 @@ sigil_library(SigilPython
     weave/Layout.cpp weave/Type.cpp world/World.cpp
   HEADERS
     Bindings.h Extend.h PublicNames.h Python.h compose/Convert.h
-    compose/Kit.h compose/Nodes.h compose/Registration.h
+    compose/Kit.h compose/Nodes.h compose/Operators.h compose/Registration.h
     core/Registration.h data/Convert.h
     data/Registration.h draw/Canvas.h draw/Registration.h geometry/Casters.h
     geometry/Registration.h image/Registration.h io/Hub.h io/Registration.h
