@@ -334,6 +334,11 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   node.motionData.ensure();                 // travel(): carries kMotionT
   node.textData.ensure().onPath.emplace();  // textOnPath(): carries kTextPathAt
   node.depthData.ensure();  // the depth lanes: kRotateX … kPerspective
+  // A row reads a PROPERTY lane off the computed style and a positional one
+  // off the description's block, so the walk hands it both.
+  cd::ComputedStyle style;
+  cd::computeStyle(node, style);
+  const cd::StyledNode styled{style, node};
 
   std::vector<const sigil::motion::Animatable<float>*> seen;
   int bespoke = 0, opacityRows = 0;
@@ -344,7 +349,7 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
       // The compile-time assert already pairs "no accessor" with "declared
       // Bespoke, with a reason"; this is the runtime half of that claim.
       EXPECT_EQ(spec.of, nullptr) << "slot " << index;
-      EXPECT_EQ(cd::slotValueOf(spec, node), nullptr)
+      EXPECT_EQ(cd::slotValueOf(spec, styled), nullptr)
           << "slot " << index
           << ": a Bespoke row must be INERT through "
              "slotValueOf, so a consumer that walks the table without "
@@ -352,7 +357,7 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
       continue;
     }
     if (spec.role == cd::SlotRole::Opacity) ++opacityRows;
-    const sigil::motion::Animatable<float>* v = cd::slotValueOf(spec, node);
+    const sigil::motion::Animatable<float>* v = cd::slotValueOf(spec, styled);
     ASSERT_NE(v, nullptr) << "slot " << index
                           << "'s accessor reaches nothing "
                              "on a node carrying every block";
@@ -373,6 +378,42 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   EXPECT_EQ(opacityRows, 1)
       << "exactly one slot is applied by paint()'s saveLayer rather than its "
          "matrix; computeVolatile's device-bake refusal reads that split";
+}
+
+// A property row must read the COMPUTED style and not the description it was
+// filled from. The two hold the same value today, so a row still pointed at
+// the description passes every assertion above — and then, the moment a rule
+// or an inherited value writes an answer the description never carried, that
+// property snaps where every other one eases, silently. Moving one field of
+// the style apart from the node is the only thing that tells the two apart.
+TEST(ComposeSlotPins, EveryPropertyRowReadsTheComputedStyleAndNotTheNode) {
+  cd::ElementNode node;
+  node.motionData.ensure();
+  node.textData.ensure().onPath.emplace();
+  node.depthData.ensure();
+  cd::ComputedStyle style;
+  cd::computeStyle(node, style);
+
+  // One address per lane of the style's own paint block, so a row that
+  // answers with one of them is reading the style.
+  const void* paintLanes[] = {
+      &style.paint.opacity,    &style.paint.translateX, &style.paint.translateY,
+      &style.paint.rotate,     &style.paint.scale,      &style.paint.scaleX,
+      &style.paint.scaleY,     &style.paint.skewX,      &style.paint.skewY};
+  const cd::StyledNode styled{style, node};
+  int propertyRows = 0;
+  for (const cd::SlotSpec& spec : cd::kSlotSpecs) {
+    const sigil::motion::Animatable<float>* v = cd::slotValueOf(spec, styled);
+    if (v == nullptr) continue;
+    bool fromStyle = false;
+    for (const void* lane : paintLanes) fromStyle |= (lane == v);
+    if (!fromStyle) continue;  // a positional lane, read off the block
+    ++propertyRows;
+  }
+  EXPECT_EQ(propertyRows, (int)std::size(paintLanes))
+      << "every transform and opacity lane must come from the computed "
+         "style; a row still reading the description's own paint block "
+         "leaves that property unable to ramp from a resolved value";
 }
 
 // ---- maxScaleOf's perspective fallback -------------------------------------

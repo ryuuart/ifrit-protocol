@@ -516,15 +516,15 @@ struct Composer::Impl {
       const detail::Instance& inst) const;
 
   // ---- transitions (Transitions.cpp) ----
-  /** Every lane of @p node, Slot lanes first in kSlotSpecs order, then the
-   *  Span, Gate and Track families in declaration order. The overload
+  /** Every lane of @p styled, Slot lanes first in kSlotSpecs order, then
+   *  the Span, Gate and Track families in declaration order. The overload
    *  writing into @p out refills a caller-owned vector. */
-  std::vector<detail::Lane> lanes(const detail::ElementNode& node);
-  void lanes(const detail::ElementNode& node, std::vector<detail::Lane>& out);
-  void applyTransitions(detail::Instance& inst, const detail::ElementNode& prev,
-                        const detail::ElementNode& next);
-  void applyMountTransitions(detail::Instance& inst,
-                             const detail::ElementNode& node);
+  std::vector<detail::Lane> lanes(detail::StyledNode styled);
+  void lanes(detail::StyledNode styled, std::vector<detail::Lane>& out);
+  /** Retargets @p inst's running lanes from the style it stood in onto the
+   *  one it stands in now, which is the instance's own. */
+  void applyTransitions(detail::Instance& inst, detail::StyledNode prev);
+  void applyMountTransitions(detail::Instance& inst);
 
   // ---- volatility & caching (Volatility.cpp) ----
   /** What the walk threads down to a child about the planes above it:

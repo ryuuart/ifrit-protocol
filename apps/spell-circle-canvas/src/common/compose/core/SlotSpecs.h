@@ -91,11 +91,13 @@ enum class SlotRole : uint8_t {
 struct SlotSpec {
   Instance::Slot slot;
   SlotRole role;
-  /** The description's animatable for this slot on this node, or nullptr
-   *  when the node does not carry the block that holds it (a node with no
-   *  `travel()` has no `t`). Null for a Bespoke row — call it through
+  /** This slot's animatable on this node, or nullptr when the node does
+   *  not carry the block that holds it (a node with no `travel()` has no
+   *  `t`). A PROPERTY lane is read off the computed style, a positional
+   *  one off the block of the description that holds it — which is why the
+   *  row is handed both. Null for a Bespoke row — call it through
    *  slotValueOf(), which answers nullptr for those. */
-  const motion::Animatable<float>* (*of)(const ElementNode&);
+  const motion::Animatable<float>* (*of)(StyledNode);
   /** The standing endpoint a PATCH ramps from or to when `of` answers
    *  nullptr on one side of the diff — a node that GAINS or LOSES the block
    *  has no previous/next value, so the field's OWN DEFAULT is the
@@ -110,15 +112,15 @@ struct SlotSpec {
 
 inline constexpr SlotSpec kSlotSpecs[] = {
     {Instance::kOpacity, SlotRole::Opacity,
-     [](const ElementNode& n) { return &n.paint.opacity; }, 1.0f, nullptr},
+     [](StyledNode s) { return &s.style.paint.opacity; }, 1.0f, nullptr},
     {Instance::kTx, SlotRole::Geometric,
-     [](const ElementNode& n) { return &n.paint.translateX; }, 0.0f, nullptr},
+     [](StyledNode s) { return &s.style.paint.translateX; }, 0.0f, nullptr},
     {Instance::kTy, SlotRole::Geometric,
-     [](const ElementNode& n) { return &n.paint.translateY; }, 0.0f, nullptr},
+     [](StyledNode s) { return &s.style.paint.translateY; }, 0.0f, nullptr},
     {Instance::kRotate, SlotRole::Geometric,
-     [](const ElementNode& n) { return &n.paint.rotate; }, 0.0f, nullptr},
+     [](StyledNode s) { return &s.style.paint.rotate; }, 0.0f, nullptr},
     {Instance::kScale, SlotRole::Geometric,
-     [](const ElementNode& n) { return &n.paint.scale; }, 1.0f, nullptr},
+     [](StyledNode s) { return &s.style.paint.scale; }, 1.0f, nullptr},
     // kFillLerp is a 0→1 PROGRESS the composer synthesizes for a
     // colour→colour `animate()`; the description holds an
     // `Animatable<Fill>` and no float anywhere, so there is nothing for
@@ -128,18 +130,18 @@ inline constexpr SlotSpec kSlotSpecs[] = {
      "a progress scalar over paint.fill's Transitioned<Fill> — there is no "
      "Animatable<float> in the description to point at"},
     {Instance::kSkewX, SlotRole::Geometric,
-     [](const ElementNode& n) { return &n.paint.skewX; }, 0.0f, nullptr},
+     [](StyledNode s) { return &s.style.paint.skewX; }, 0.0f, nullptr},
     {Instance::kSkewY, SlotRole::Geometric,
-     [](const ElementNode& n) { return &n.paint.skewY; }, 0.0f, nullptr},
+     [](StyledNode s) { return &s.style.paint.skewY; }, 0.0f, nullptr},
     {Instance::kScaleX, SlotRole::Geometric,
-     [](const ElementNode& n) { return &n.paint.scaleX; }, 1.0f, nullptr},
+     [](StyledNode s) { return &s.style.paint.scaleX; }, 1.0f, nullptr},
     {Instance::kScaleY, SlotRole::Geometric,
-     [](const ElementNode& n) { return &n.paint.scaleY; }, 1.0f, nullptr},
+     [](StyledNode s) { return &s.style.paint.scaleY; }, 1.0f, nullptr},
     // travel(): the `t` lane moves the node exactly as tx/ty do, so it is
     // the GEOMETRIC half and a device-space bake is refused while it runs.
     {Instance::kMotionT, SlotRole::Geometric,
-     [](const ElementNode& n) -> const motion::Animatable<float>* {
-       return n.motionData ? &n.motionData->t : nullptr;
+     [](StyledNode s) -> const motion::Animatable<float>* {
+       return s.node.motionData ? &s.node.motionData->t : nullptr;
      },
      0.0f, nullptr},
     // textOnPath(): `at` is WHERE ALONG the baseline the run sits, so moving it
@@ -149,9 +151,10 @@ inline constexpr SlotSpec kSlotSpecs[] = {
     // joins ContentScalars so a marquee that stops running releases like any
     // other settled scalar.
     {Instance::kTextPathAt, SlotRole::Content,
-     [](const ElementNode& n) -> const motion::Animatable<float>* {
-       return n.textData && n.textData->onPath ? &n.textData->onPath->at
-                                               : nullptr;
+     [](StyledNode s) -> const motion::Animatable<float>* {
+       return s.node.textData && s.node.textData->onPath
+                  ? &s.node.textData->onPath->at
+                  : nullptr;
      },
      0.0f, nullptr},
     // The depth lanes (DepthData). The four that turn or move THIS plane
@@ -159,30 +162,30 @@ inline constexpr SlotSpec kSlotSpecs[] = {
     // projected rect moves with them. A node with no depth block answers
     // nullptr, so a plane that never turns costs the four consumers nothing.
     {Instance::kRotateX, SlotRole::Geometric,
-     [](const ElementNode& n) -> const motion::Animatable<float>* {
-       return n.depthData ? &n.depthData->rotateX : nullptr;
+     [](StyledNode s) -> const motion::Animatable<float>* {
+       return s.node.depthData ? &s.node.depthData->rotateX : nullptr;
      },
      0.0f, nullptr},
     {Instance::kRotateY, SlotRole::Geometric,
-     [](const ElementNode& n) -> const motion::Animatable<float>* {
-       return n.depthData ? &n.depthData->rotateY : nullptr;
+     [](StyledNode s) -> const motion::Animatable<float>* {
+       return s.node.depthData ? &s.node.depthData->rotateY : nullptr;
      },
      0.0f, nullptr},
     {Instance::kTranslateZ, SlotRole::Geometric,
-     [](const ElementNode& n) -> const motion::Animatable<float>* {
-       return n.depthData ? &n.depthData->translateZ : nullptr;
+     [](StyledNode s) -> const motion::Animatable<float>* {
+       return s.node.depthData ? &s.node.depthData->translateZ : nullptr;
      },
      0.0f, nullptr},
     {Instance::kScaleZ, SlotRole::Geometric,
-     [](const ElementNode& n) -> const motion::Animatable<float>* {
-       return n.depthData ? &n.depthData->scaleZ : nullptr;
+     [](StyledNode s) -> const motion::Animatable<float>* {
+       return s.node.depthData ? &s.node.depthData->scaleZ : nullptr;
      },
      1.0f, nullptr},
     // perspective(): the view the CHILDREN are seen through — the one
     // lane whose motion lands on other nodes' device rects.
     {Instance::kPerspective, SlotRole::Projection,
-     [](const ElementNode& n) -> const motion::Animatable<float>* {
-       return n.depthData ? &n.depthData->perspective : nullptr;
+     [](StyledNode s) -> const motion::Animatable<float>* {
+       return s.node.depthData ? &s.node.depthData->perspective : nullptr;
      },
      0.0f, nullptr},
     // kInkLerp is the same kind of row as kFillLerp: a 0→1 progress the
@@ -229,8 +232,15 @@ static_assert(slotTableWellFormed(),
  *  answers nullptr, so a consumer that walks the table without special-casing
  *  one is INERT for it rather than dereferencing a null function pointer. */
 inline const motion::Animatable<float>* slotValueOf(const SlotSpec& spec,
-                                                    const ElementNode& node) {
-  return spec.of ? spec.of(node) : nullptr;
+                                                    StyledNode styled) {
+  return spec.of ? spec.of(styled) : nullptr;
+}
+
+/** The same, for the common caller: a mounted node, read through the style
+ *  computed for it. */
+inline const motion::Animatable<float>* slotValueOf(const SlotSpec& spec,
+                                                    const Instance& inst) {
+  return slotValueOf(spec, inst.styled());
 }
 
 // ---- cross-TU paint/shape helpers -----------------------------------------

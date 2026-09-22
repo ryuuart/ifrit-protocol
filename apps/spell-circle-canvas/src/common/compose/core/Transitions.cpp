@@ -59,14 +59,15 @@ constexpr LaneFamily kPositionalFamilies[] = {
 
 }  // namespace
 
-void Composer::Impl::lanes(const ElementNode& node, std::vector<Lane>& out) {
+void Composer::Impl::lanes(StyledNode styled, std::vector<Lane>& out) {
+  const ElementNode& node = styled.node;
   out.clear();
   // Every slot the table can reach (kSlotSpecs, ComposeRuntime.h — the one
   // enumeration of Instance::Slot), one lane per row whether or not this
   // node carries the field: a Bespoke row answers nullptr and so does a
   // node without the block that holds the slot.
   for (const SlotSpec& spec : kSlotSpecs)
-    out.push_back({slotValueOf(spec, node),
+    out.push_back({slotValueOf(spec, styled),
                    {LaneFamily::Slot, (size_t)spec.slot},
                    spec.standing});
   // Every animatable span endpoint of a node's stroke passes, in
@@ -114,9 +115,9 @@ void Composer::Impl::lanes(const ElementNode& node, std::vector<Lane>& out) {
   }
 }
 
-std::vector<Lane> Composer::Impl::lanes(const ElementNode& node) {
+std::vector<Lane> Composer::Impl::lanes(StyledNode styled) {
   std::vector<Lane> out;
-  lanes(node, out);
+  lanes(styled, out);
   return out;
 }
 
@@ -124,8 +125,7 @@ std::vector<Lane> Composer::Impl::lanes(const ElementNode& node) {
  * the node FIRST appears (there is no prev to diff against — this is the "prev"
  * the author declared). Skipped for snapshot()/measure() (liveOnly: no live
  *  timeline — bakes render the settled value). */
-void Composer::Impl::applyMountTransitions(Instance& inst,
-                                           const ElementNode& node) {
+void Composer::Impl::applyMountTransitions(Instance& inst) {
   if (liveOnly) return;
 
   // staggerChildren()'s carry is the extra lead every entrance on this
@@ -147,7 +147,7 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
   //   slot.
   // Each family's vector is sized to the description before its lanes run.
   static thread_local std::vector<Lane> nodeLanes;
-  lanes(node, nodeLanes);
+  lanes(inst.styled(), nodeLanes);
   for (const Lane& lane : familyLanes(nodeLanes, LaneFamily::Slot))
     if (lane.value) entranceAt(inst.anims[lane.slot.index], *lane.value);
   for (const LaneFamily family : kPositionalFamilies) {
@@ -162,8 +162,9 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
   // The kFillLerp row (SlotRole::Bespoke): from → to through a synthesized
   // 0→1 progress, because the description holds an Animatable<Fill> and no
   // float for the table to point at.
-  if (node.paint.fill) {
-    const motion::Transitioned<Fill>* tr = node.paint.fill->transitioned();
+  if (inst.computed.paint.fill) {
+    const motion::Transitioned<Fill>* tr =
+        inst.computed.paint.fill->transitioned();
     if (tr && tr->from && tr->from->kind == Fill::Kind::Color &&
         tr->value.kind == Fill::Kind::Color && !(*tr->from == tr->value)) {
       inst.fillFrom = *tr->from;
@@ -174,9 +175,9 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
   }
 }
 
-void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
-                                      const ElementNode& next) {
-  const auto& nd = next.nodeTransition;
+void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
+  const StyledNode next = inst.styled();
+  const auto& nd = next.node.nodeTransition;
   // Every slot the table can reach (kSlotSpecs, ComposeRuntime.h — the one
   // enumeration of Instance::Slot). A patch asks nothing of a slot's ROLE
   // either; what it needs is the pair of endpoints, and the ONE extra fact
@@ -224,8 +225,8 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   // snap — disconnect any in-flight lerp so the description lands (the same
   // shadow rule as the float slots).
   bool nextFillTransitions = false;
-  if (next.paint.fill) {
-    ResolvedProperty<Fill> nf = resolveProperty(*next.paint.fill, nd);
+  if (next.style.paint.fill) {
+    ResolvedProperty<Fill> nf = resolveProperty(*next.style.paint.fill, nd);
     // Only a COLOR target can continue a color lerp: a shader/none fill
     // with a transition must still disconnect the running lerp, or the
     // node keeps painting a color no description contains until the old
@@ -239,9 +240,11 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
       anim->started = false;
     }
   }
-  if (prev.paint.fill && next.paint.fill) {
-    ResolvedProperty<Fill> prevFill = resolveProperty(*prev.paint.fill, nd);
-    ResolvedProperty<Fill> nextFill = resolveProperty(*next.paint.fill, nd);
+  if (prev.style.paint.fill && next.style.paint.fill) {
+    ResolvedProperty<Fill> prevFill =
+        resolveProperty(*prev.style.paint.fill, nd);
+    ResolvedProperty<Fill> nextFill =
+        resolveProperty(*next.style.paint.fill, nd);
     if (!prevFill.binding && !nextFill.binding && nextFill.transition &&
         prevFill.target.kind == Fill::Kind::Color &&
         nextFill.target.kind == Fill::Kind::Color &&
@@ -275,8 +278,8 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
     if (!n.cascadeData->font->color) return std::nullopt;
     return material::skia::toColor(*n.cascadeData->font->color);
   };
-  const std::optional<material::Color> prevInk = declaredInk(prev);
-  const std::optional<material::Color> nextInk = declaredInk(next);
+  const std::optional<material::Color> prevInk = declaredInk(prev.node);
+  const std::optional<material::Color> nextInk = declaredInk(next.node);
   if (!(nextInk && nd)) {
     if (auto& anim = inst.anims[Instance::kInkLerp]; anim && anim->started) {
       anim->value.disconnect();
@@ -354,9 +357,8 @@ std::vector<float> detail::Instance::resolveTrackValues() const {
 }
 
 Fill detail::Instance::resolveBoundFill() const {
-  const ElementNode& node = *description;
-  if (node.paint.fill)
-    if (const choreograph::Output<Fill>* binding = node.paint.fill->binding())
+  if (computed.paint.fill)
+    if (const choreograph::Output<Fill>* binding = computed.paint.fill->binding())
       return binding->value();
   return {};
 }

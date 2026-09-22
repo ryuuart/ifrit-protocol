@@ -292,9 +292,9 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   }
 
   if (prev)
-    applyTransitions(inst, *prev, next);
+    applyTransitions(inst, {previous, *prev});
   else
-    applyMountTransitions(inst, next);  // animate(from().to()) entrances
+    applyMountTransitions(inst);  // animate(from().to()) entrances
 
   // contentFlowAround changes (margin or key set) re-derive too: exclusions are
   // cached per instance and the derive guards compare geometry, not the

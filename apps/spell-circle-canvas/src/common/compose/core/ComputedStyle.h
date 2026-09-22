@@ -20,7 +20,11 @@ namespace sigil::compose::detail {
  *  reconciler PRUNES swaps in a description `propertiesEqual()` proved
  *  carries the same properties, so the style standing here is still the
  *  answer — the same invariant the pruned node's replayed recording rests
- *  on, read one level up.
+ *  on, read one level up. The one property that prune proves STRUCTURALLY
+ *  rather than by value is a material fill, which compares by the recipe
+ *  it was built from: what stands here is then the shader that recipe
+ *  minted at the last patch rather than the one this describe minted, and
+ *  the comparator's whole claim is that the two are interchangeable.
  *
  *  It lives on the INSTANCE, one per mounted node, and not on the
  *  description, which is allocated per node per frame: a copy here costs

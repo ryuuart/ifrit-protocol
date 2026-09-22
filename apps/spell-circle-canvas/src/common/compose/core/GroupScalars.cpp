@@ -62,7 +62,7 @@ void collectGroupScalars(const Instance& inst, bool root,
     if (root &&
         (spec.role == SlotRole::Opacity || spec.role == SlotRole::Geometric))
       continue;
-    if (const motion::Animatable<float>* v = slotValueOf(spec, node))
+    if (const motion::Animatable<float>* v = slotValueOf(spec, inst))
       push(spec.slot, *v);
   }
   // Mask gates: the same argument, over the per-mask vector. Only LIVE

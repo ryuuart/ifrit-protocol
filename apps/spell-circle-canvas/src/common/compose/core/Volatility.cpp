@@ -106,7 +106,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   bool scalarContent = false;
   bool projecting = false;
   for (const SlotSpec& spec : kSlotSpecs) {
-    const motion::Animatable<float>* v = slotValueOf(spec, node);
+    const motion::Animatable<float>* v = slotValueOf(spec, inst);
     if (!v) continue;  // this node does not carry the block that holds the slot
     switch (spec.role) {
       case SlotRole::Opacity:
