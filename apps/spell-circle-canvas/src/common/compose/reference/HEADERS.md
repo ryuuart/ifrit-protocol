@@ -692,8 +692,11 @@ not link SigilScry, so include it only in targets that do.
 a surface and handed over as a SigilMaterial texture value, in its own
 target `SigilComposeTexture`, which links the Graphite context and the
 hardware device its GPU path stands on. `draw/Draw.h` is the door
-to the imperative pen, both ways, in its own target `SigilComposeDraw`:
-`compose::pen` takes a `PenProgram` — a callable that NAMES ONLY THE
+to the imperative pen, both ways, in its own target `SigilComposeDraw`,
+and holds `drawWith`, the operator family's imperative door: an adding
+operator that attaches one pen over the scope and hands a
+`ScopeProgram` the pen and the settled `Scope`, keyed or not as
+`compose::pen` is. `compose::pen` takes a `PenProgram` — a callable that NAMES ONLY THE
 PARAMETERS IT READS out of a `draw::Pen` and the node's `PaintContext`,
 exactly as a paint program does, so a program that hands a path to the
 decoration grammar reads the context instead of rebuilding one — and

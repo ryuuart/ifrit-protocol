@@ -195,6 +195,44 @@ Element pen(std::string_view key, PenProgram program, Cache caching) {
   return custom(key, over(std::move(program))).cache(caching).cover();
 }
 
+namespace {
+
+/** THE PEN DOOR AS AN ADDING OPERATOR: one pen over the scope, handed the
+ *  scope as it stood when layout settled. No equality — a program has
+ *  none — so the operator is the escape hatch; the key, when given, is
+ *  what lets the pen it attaches prune. */
+struct DrawWith {
+  std::string key;
+  ScopeProgram program;
+
+  /** Equal KEYS assert equal programs — the author's contract, the one
+   *  `custom(key)` states — so a keyed operator prunes; an unkeyed one
+   *  compares equal to nothing and its node is described afresh. */
+  bool operator==(const DrawWith& other) const {
+    return !key.empty() && key == other.key;
+  }
+
+  void add(Scope& scope) const {
+    // The program reads the scope at PAINT time, so it is handed a copy
+    // taken now: the nodes as they stand, attaching nothing.
+    const PenProgram over = [snapshot = scope.snapshot(),
+                             program = program](draw::Pen& pen) {
+      if (program) program(pen, snapshot);
+    };
+    scope.attach(key.empty() ? pen(over) : pen(key, over));
+  }
+};
+
+}  // namespace
+
+Operator drawWith(ScopeProgram program) {
+  return DrawWith{{}, std::move(program)};
+}
+
+Operator drawWith(std::string_view key, ScopeProgram program) {
+  return DrawWith{std::string(key), std::move(program)};
+}
+
 Element graphics(PenProgram program, Cache caching) {
   return custom(onto(std::move(program))).cache(caching).cover();
 }

@@ -51,6 +51,41 @@ struct Paper {
   Pen pen;
 };
 
+TEST(DrawNode, DrawWithHandsAProgramTheScopeAndPaintsOverIt) {
+  // Two keyed boxes; the program draws a bar between their centres, read
+  // off the scope, and the bar lands between them on the canvas.
+  Host host;
+  int runs = 0;
+  auto tree = [&] {
+    return box().width(200).height(200)
+        .children({box().key("a").left(20).top(90).width(20).height(20),
+                   box().key("b").left(160).top(90).width(20).height(20)})
+        .operators({drawWith("bar", [&](Pen& pen, const Scope& scope) {
+          ++runs;
+          const Scope::Node* a = scope.find("a");
+          const Scope::Node* b = scope.find("b");
+          ASSERT_TRUE(a && b);
+          EXPECT_EQ(scope.nodes().size(), 2u);
+          pen.noStroke();
+          pen.fill(255, 0, 0);
+          pen.rect(a->bounds.centerX(), a->bounds.centerY() - 3,
+                   b->bounds.centerX() - a->bounds.centerX(), 6);
+        })});
+  };
+  host.composer.render(tree());
+  host.frame();
+  EXPECT_EQ(runs, 1);
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
+  EXPECT_EQ(host.pixel(100, 60), SK_ColorBLACK);
+  // Keyed, the pen it attaches prunes: a second identical describe
+  // patches nothing, and the program runs once more only because a pen
+  // at Cache::None runs every frame.
+  host.composer.render(tree());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame(1.0 / 60.0);
+  EXPECT_EQ(runs, 2);
+}
+
 TEST(DrawNode, RunsThePenOverTheNodesBoxEveryFrame) {
   Host host;
   int runs = 0;

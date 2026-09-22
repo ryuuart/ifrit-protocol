@@ -10,11 +10,13 @@
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/Operator.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/Retained.h>
 
+#include <functional>
 #include <string_view>
 
 namespace sigil::compose {
@@ -101,5 +103,31 @@ Element graphics(std::string_view key, PenProgram program,
  *  pen's own verbs do. */
 void paintRetained(draw::Pen& pen, const Element& element, const SkRect& box,
                    draw::Slot slot);
+
+/** A SCOPE PROGRAM: what a pen draws over a node's scope — every settled
+ *  node under it, with its key, facts, bounds and outline — the one door
+ *  through which a program reads where things landed. It is handed the
+ *  scope as it stood when layout settled; attaching to it draws nothing. */
+using ScopeProgram = std::function<void(draw::Pen&, const Scope&)>;
+
+/** THE IMPERATIVE DOOR OF THE OPERATOR FAMILY: an adding operator that
+ *  attaches ONE pen over the scope's box and hands @p program the pen
+ *  and the scope, so a wire whose weight is a fact on the card, a label
+ *  stamped along a route, a bulk overlay over a thousand nodes, are
+ *  drawn by hand from the same table `connect::ByLane` reads.
+ *
+ *      box().children({…}).operators({drawWith(drawTraffic).zIndex(-1)})
+ *
+ *  What it costs, against an operator that attaches elements: the output
+ *  is pixels, so nothing downstream reads it — no later operator, no
+ *  sheet, no hit test; and a program is a callable with no equality, so
+ *  an unkeyed operator compares equal to nothing and its node is
+ *  described afresh every frame. The KEYED spelling vouches for the
+ *  program's identity, as the keyed `pen()` does — equal keys assert
+ *  equal programs — so the operator and the pen it attaches both prune
+ *  while the scope they read is unchanged, and only the program's own
+ *  run is paid for. */
+Operator drawWith(ScopeProgram program);
+Operator drawWith(std::string_view key, ScopeProgram program);
 
 }  // namespace sigil::compose

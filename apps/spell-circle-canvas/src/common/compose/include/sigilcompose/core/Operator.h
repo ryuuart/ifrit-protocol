@@ -165,6 +165,10 @@ class Scope {
   /** ATTACHES @p element TO THE SCOPE, placed in the scope's coordinates:
    *  what is about several nodes, or about the scope itself. */
   void attach(Element element);
+  /** A COPY TO READ LATER — the nodes as they stand, and nothing attached:
+   *  what a program run at paint time is handed, where attaching would
+   *  be too late to mean anything, so `attach` on its nodes does nothing. */
+  Scope snapshot() const;
 
   /** ONE ATTACHMENT, as the composer reads it back: which node it belongs
    *  to (`npos` for the scope itself) and the element. */

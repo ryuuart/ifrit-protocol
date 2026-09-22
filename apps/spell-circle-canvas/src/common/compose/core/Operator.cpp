@@ -88,6 +88,14 @@ void Scope::attach(Element element) {
       Attachment::kScope, std::make_shared<Element>(std::move(element))});
 }
 
+Scope Scope::snapshot() const {
+  Scope copy;
+  copy.box = box;
+  copy.m_nodes = m_nodes;
+  for (Node& node : copy.m_nodes) node.m_scope = nullptr;
+  return copy;
+}
+
 namespace detail {
 
 LayoutInput layoutInputOf(const Arrangement& arrangement) {

@@ -641,7 +641,12 @@ standing still on the frames it is not. Neither side reads the wall,
 which is what keeps a plate with a pen in it reproducible. The cascade
 crosses in both directions too: a node's ink and resolved type seed the
 pen it hosts, and a retained element is seeded from the pen's own
-inherited pair.
+inherited pair. The same feature is the operator family's imperative
+door: `drawWith` is an adding operator that attaches one pen over the
+scope and hands a `ScopeProgram` the pen and the `Scope` as it stood
+when layout settled, so a program draws from the same table
+`connect::ByLane` reads; its output is pixels nothing downstream reads,
+and the keyed spelling is what lets the pen it attaches prune.
 
 Deliberately *not* linked: SigilVideo and SigilScry (their live leaves are
 header-only adapters with their own targets), EnTT (the instancing header
