@@ -160,13 +160,19 @@ TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
   host.frame();
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-  // A DIFFERENT path is a change, even one drawn from the same numbers:
-  // a rebuild carries a new generation, so equality stays conservative.
+  // A path REBUILT from the same numbers is the same drawing: it carries
+  // a new generation, so it is compared verb for verb, and prunes — which
+  // is what lets a figure an operator attaches every frame settle.
   SkPathBuilder rebuilt;
   rebuilt.addOval(SkRect::MakeXYWH(10, 10, 40, 40));
-  const SkPath other = rebuilt.detach();
-  host.composer.render(
-      box().children({box().width(60).height(60).shape(heldPath(other))}));
+  host.composer.render(box().children(
+      {box().width(60).height(60).shape(heldPath(rebuilt.detach()))}));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  // A DIFFERENT path is a change.
+  SkPathBuilder moved;
+  moved.addOval(SkRect::MakeXYWH(12, 12, 36, 36));
+  host.composer.render(box().children(
+      {box().width(60).height(60).shape(heldPath(moved.detach()))}));
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
   // The lambda spelling never settles.
   Host raw;

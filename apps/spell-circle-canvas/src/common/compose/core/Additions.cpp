@@ -21,24 +21,22 @@ namespace sigil::compose {
 
 using namespace detail;
 
-namespace {
-
-/** Whether two descriptions would reconcile to the same tree: the same
- *  properties at every node, in the same shape. */
-bool elementsEqual(const Element& a, const Element& b) {
+bool sameDescription(const Element& a, const Element& b) {
   const ElementNode& left = *a.node();
   const ElementNode& right = *b.node();
   if (!propertiesEqual(left, right)) return false;
   if (left.children.size() != right.children.size()) return false;
   for (size_t i = 0; i < left.children.size(); ++i)
-    if (!elementsEqual(left.children[i], right.children[i])) return false;
+    if (!sameDescription(left.children[i], right.children[i])) return false;
   return true;
 }
+
+namespace {
 
 bool listsEqual(const std::vector<Element>& a, const std::vector<Element>& b) {
   if (a.size() != b.size()) return false;
   for (size_t i = 0; i < a.size(); ++i)
-    if (!elementsEqual(a[i], b[i])) return false;
+    if (!sameDescription(a[i], b[i])) return false;
   return true;
 }
 

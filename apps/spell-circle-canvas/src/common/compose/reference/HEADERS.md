@@ -147,9 +147,11 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/Node.h` — `NodeVerbs`: the verb families EVERY node has,
   gathered so the list is stated once. A kind of node with verbs of its
   own inherits this and adds them.
-- `core/Element.h` — `Element`: `NodeVerbs` and nothing more, and the
+- `core/Element.h` — `Element`: `NodeVerbs` and nothing more, the
   `Children` value a `children({…})` run is — which takes an element or
-  any typed leaf. This is the header a consumer includes: it brings
+  any typed leaf — and `sameDescription`, whether two descriptions would
+  reconcile to the same tree, which a value carrying an element compares
+  by. This is the header a consumer includes: it brings
   every verb family and every kind of node with it, and a family's own
   header is for a value that inherits the family.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
@@ -459,6 +461,16 @@ wire between two keyed nodes, the pairing stated in the operator — and
 key or a list of them — each routed by a `Router` with a gap as a
 connector is, dressed by the decoration it carries, keyed by the pair it
 joins and attached to the scope; `connect::wire` is the figure itself.
+`kit/Pin.h` holds `pin::ByLane`, which hangs an element off every node
+stating a `pin::Request` — the element, the box it is given and a
+`Tether` for where, its key ignored since the stating node is the
+anchor — at the stated place or the first fallback that fits the scope.
+`kit/Outline.h` holds `outline::Around`, a band along one node's
+resolved outline attached to that node, and `outline::Hull`, the hull
+enclosing every node stating a lane or naming a class, grown by a
+margin and attached to the scope. `kit/Stamp.h` holds `stamp::ByLane`,
+one element per node stating a lane, made by a `stamp::Maker` given the
+node and attached to it, the operator's key vouching for the maker.
 `kit/Routers.h` holds the stock routers. `routers::straight`,
 `routers::orthogonal` (with `routers::Bend` saying whether the leg turns
 at the midpoint or at either end) and `routers::arc` are `Router`s,

@@ -30,9 +30,10 @@
 # Brush, and Brush links nothing here.
 sigil_library(SigilComposeKit
   SOURCES Bevels.cpp Board.cpp Connect.cpp Document.cpp Eras.cpp Frame.cpp
-          Routers.cpp Rows.cpp Specimen.cpp Sprites.cpp
+          Outline.cpp Pin.cpp Routers.cpp Rows.cpp Specimen.cpp Sprites.cpp
+          Stamp.cpp
   HEADERS Board.h Chrome.h Connect.h Document.h Frame.h Gel.h Gloss.h Ground.h
-          Annotations.h
+          Annotations.h Outline.h Pin.h Stamp.h
           Typeset.h Instruments.h Kinetic.h Kit.h Layouts.h Marquee.h
           PixelType.h Placers.h Routers.h Rows.h Specimen.h Sprites.h
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
@@ -52,7 +53,7 @@ sigil_test(compose_test
           test/ComposeTestEras.cpp test/ComposeTestFeedPlate.cpp
           test/ComposeTestFlowAround.cpp test/ComposeTestFrame.cpp
           test/ComposeTestGround.cpp test/ComposeTestLayouts.cpp
-          test/ComposeTestConnect.cpp
+          test/ComposeTestConnect.cpp test/ComposeTestAdders.cpp
           test/ComposeTestLegibility.cpp test/ComposeTestOrnament.cpp
           test/ComposeTestPixelType.cpp test/ComposeTestPlacers.cpp
           test/ComposeTestQueries.cpp test/ComposeTestRouters.cpp

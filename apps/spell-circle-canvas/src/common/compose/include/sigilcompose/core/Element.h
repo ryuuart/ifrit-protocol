@@ -126,6 +126,13 @@ class Element : public detail::Declaring, public NodeVerbs<Element> {
   friend struct detail::NodeAccess;
 };
 
+/** WHETHER TWO DESCRIPTIONS WOULD RECONCILE TO THE SAME TREE: the same
+ *  properties at every node, in the same shape — the structural prune's
+ *  own comparison, over a whole description. What a value that carries
+ *  an element compares by, so a fact holding one prunes as any other
+ *  fact does. */
+[[nodiscard]] bool sameDescription(const Element& a, const Element& b);
+
 /** ONE RUN OF A `children({…})` BLOCK: a node — an element or any typed
  *  leaf — or the list `each()` made, so the block mixes both. */
 struct Children {

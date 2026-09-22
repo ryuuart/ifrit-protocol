@@ -398,6 +398,19 @@ and are dressed by where they state none of their own, so
 The arranging operators are written first in the list, since they run
 first whatever the list says; a list that says otherwise is reported.
 
+The stock adders are kit, over that seam and nothing else: `connect::`
+draws a wire between nodes, the pairing stated in the operator
+(`connect::Between`) or read off the nodes (`connect::ByLane`); `pin::`
+hangs an element off every node stating a `pin::Request` — the element,
+the box it is given and a `Tether` for where — at the first place that
+fits; `outline::` builds from where nodes resolved their edges, a band
+along one node's outline (`outline::Around`) or the hull of a set
+(`outline::Hull`); `stamp::` makes one element per node stating a lane
+(`stamp::ByLane`), keyed to vouch for its maker as `custom(key)` does;
+and `drawWith` is the pen. A fact that carries an element compares by
+`sameDescription`, the structural prune's own comparison over a whole
+description, so a card stating the same callout every frame prunes.
+
 ### Paint order inside a node
 
 Fixed, and worth memorising, because several traps are just this list:

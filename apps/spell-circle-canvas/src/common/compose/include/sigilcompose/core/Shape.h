@@ -165,12 +165,15 @@ class HeldPath {
   explicit HeldPath(SkPath cooked) : m_cooked(std::move(cooked)) {}
   SkPath path(SkSize) const { return m_cooked; }
   const SkPath& cooked() const { return m_cooked; }
-  /** The generation id changes on every edit and rides every copy, so
-   *  this is exact for a held path and conservative for a rebuilt one.
-   *  Fill type joins it because the id does not answer for it. */
+  /** The generation id changes on every edit and rides every copy, so a
+   *  held path answers at once; a path rebuilt each describe — the
+   *  figure an operator attaches every frame — is compared verb for
+   *  verb, so an unchanged one prunes too. Fill type joins both because
+   *  the id does not answer for it. */
   bool operator==(const HeldPath& o) const {
-    return m_cooked.getGenerationID() == o.m_cooked.getGenerationID() &&
-           m_cooked.getFillType() == o.m_cooked.getFillType();
+    if (m_cooked.getFillType() != o.m_cooked.getFillType()) return false;
+    return m_cooked.getGenerationID() == o.m_cooked.getGenerationID() ||
+           m_cooked == o.m_cooked;
   }
 
  private:
