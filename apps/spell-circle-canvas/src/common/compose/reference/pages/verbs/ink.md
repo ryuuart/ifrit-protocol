@@ -78,6 +78,16 @@ a fill does: there is no ramp between two pictures. A BOUND ink is not
 offered: a live value inherited from above would make the whole subtree
 under it volatile.
 
+**However the change was written.** What the lane watches is the colour
+the cascade RESOLVED for the node, not the one the node spelled, so a
+class toggled, a rule that started matching or a custom property given a
+new value eases exactly as this verb does. The lane belongs to the node
+that states the colour: everything under it takes the moving colour
+through the inherited value, and a node that inherits runs no lane of
+its own — one there would still be moving a whole duration after the
+node above it had landed. A node whose colour moves for the first time
+snaps, having nothing to ease from.
+
 **A paint anchored to its own box lands on the text metrics.** A text
 leaf's own box is its text-metric box — x across the widest line, y from
 the first line's cap top to the last line's baseline. That mapping is

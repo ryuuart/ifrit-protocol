@@ -149,10 +149,13 @@ class StructureVerbs {
   /** HOW THIS NODE'S PLAIN CONSTANTS CHANGE when a later describe gives
    *  them a new value: the duration, easing and delay that every
    *  animatable lane on the node — its transforms, its opacity, its
-   *  mask gates, its fx progresses, its fill — is retargeted over. None
-   *  when unstated, so a new constant lands on the frame it arrives. A
-   *  value that already carries its own `animate(...)` keeps that one;
-   *  this is the node's default for the ones that do not. */
+   *  mask gates, its fx progresses, its fill, its ink — is retargeted
+   *  over. It is the value COMPUTED for the node that is watched, so a
+   *  property moved by a class, a rule or an inherited answer eases
+   *  exactly as the same change written with the verb does. None when
+   *  unstated, so a new constant lands on the frame it arrives. A value
+   *  that already carries its own `animate(...)` keeps that one; this
+   *  is the node's default for the ones that do not. */
   Derived& transition(motion::Transition t);
   /** Container stagger: child i's subtree enters with an EXTRA
    *  order-times-each delay on every `animate()` mount transition under

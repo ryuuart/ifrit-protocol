@@ -303,9 +303,13 @@ subtree change" is a decidable property rather than a heuristic.
 compares its captured environment snapshot and then the author's properties
 comparator; a hit reuses the previous payload without describing at all.
 A structural equality check is the prune: equal means nothing is marked
-dirty and no transition is applied, though children still reconcile.
+dirty and nothing is retargeted here, though children still reconcile.
 Unequal means dirty marking up the tree, a Yoga style write, a text
-content revision bump, and transition application. Paint order among
+content revision bump, and a retarget of the node's lanes. A pruned node
+whose answer moves anyway — a class, a rule or a value taken from above
+— is retargeted by the cascade pass instead, which is where that
+movement is found; a lane watches the value COMPUTED for the node, so
+the two routes to one change cannot disagree. Paint order among
 siblings is a stable sort by `zIndex` then declaration order. Then the key,
 slot and edge indices rebuild.
 
