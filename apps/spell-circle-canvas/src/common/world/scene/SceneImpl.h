@@ -230,7 +230,8 @@ struct Scene::Impl {
     return propertiesEqual(*a, *b);
   }
   static bool reconcilesChildren(const Description&) { return true; }
-  static const std::vector<Element>& children(const Description& description) {
+  static const std::vector<Element>& children(const Instance&,
+                                              const Description& description) {
     return description->children;
   }
   static const Description& descriptionOf(const Element& child) {

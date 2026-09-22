@@ -198,12 +198,15 @@ bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
          a->borrowedPathKeys == b->borrowedPathKeys;
 }
 
-static_assert(kFieldCount<OperatorData> == 2,
+static_assert(kFieldCount<OperatorData> == 3,
               "OperatorData gained or lost a field — rule on it in "
               "operatorEqual() below, then bump this count.");
 bool operatorEqual(const Box<OperatorData>& a, const Box<OperatorData>& b) {
   if ((bool)a != (bool)b) return false;
   if (!a) return true;
+  // Whether an operator added the node: an authored node and an added one
+  // stand in different lists and must not prune into each other.
+  if (a->added != b->added) return false;
   // The facts: a scheme or an operator above reads them, so a node whose
   // facts changed is placed or read differently and must not prune.
   if (!(a->attributes == b->attributes)) return false;

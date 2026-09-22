@@ -212,10 +212,19 @@ bool matchesComplex(const std::vector<Step>& steps, size_t at,
 }  // namespace
 
 void indexSiblings(Instance& parent) {
-  const int count = (int)parent.children.size();
-  for (int at = 0; at < count; ++at) {
-    SiblingPlace& place = parent.children[at]->place;
-    place = SiblingPlace{at, count, 0, 0};
+  // A node an adding operator attached is not a sibling of the authored
+  // children: it is counted among none of them, and answers to no
+  // structural pseudo-class itself.
+  int count = 0;
+  for (const auto& child : parent.children)
+    if (!child->description->added()) ++count;
+  int at = 0;
+  for (const auto& child : parent.children) {
+    SiblingPlace& place = child->place;
+    if (child->description->added())
+      place = SiblingPlace{0, 0, 0, 0};
+    else
+      place = SiblingPlace{at++, count, 0, 0};
   }
   // Then by role, which is what a type is. Roles are few per parent, so
   // the running tally is a scanned list and a parent whose children name
@@ -226,7 +235,9 @@ void indexSiblings(Instance& parent) {
     int seen = 0;
   };
   std::vector<RoleTally> tallies;
-  for (int at = 0; at < count; ++at) {
+  const int held = (int)parent.children.size();
+  for (int at = 0; at < held; ++at) {
+    if (parent.children[at]->description->added()) continue;
     const std::string_view role = roleOf(*parent.children[at]);
     if (role.empty()) continue;
     const auto found = std::find_if(
@@ -238,7 +249,8 @@ void indexSiblings(Instance& parent) {
       ++found->total;
   }
   if (tallies.empty()) return;
-  for (int at = 0; at < count; ++at) {
+  for (int at = 0; at < held; ++at) {
+    if (parent.children[at]->description->added()) continue;
     const std::string_view role = roleOf(*parent.children[at]);
     if (role.empty()) continue;
     const auto found = std::find_if(

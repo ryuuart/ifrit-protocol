@@ -45,8 +45,9 @@ sigil_library(SigilComposeCore
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
     ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
     ElementCascade.cpp
-    # the facts a node states and the operator seam that reads them
-    Attributes.cpp Operator.cpp
+    # the facts a node states, the operator seam that reads them, and the
+    # pass that mounts what the adding operators build
+    Attributes.cpp Operator.cpp Additions.cpp
     # which elements a rule speaks about, the CSS text that says so,
     # and the rules a sheet states about them
     Selector.cpp SelectorParse.cpp StyleSheet.cpp SelectorMatch.cpp

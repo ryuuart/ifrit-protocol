@@ -6,6 +6,8 @@
 // same list, a point that takes no room, and the prune a comparable
 // operator keeps and a fact change breaks.
 
+#include <include/core/SkPathBuilder.h>
+
 #include <cmath>
 #include <numbers>
 #include <string>
@@ -252,6 +254,171 @@ TEST(ComposeOperators, AComparableOperatorPrunesAndAFactChangeDoesNot) {
   auto rect = host.composer.bounds("h6");
   ASSERT_TRUE(rect.has_value());
   EXPECT_NEAR(rect->centerY(), 180, 1);
+}
+
+// ---------------------------------------------------------------------------
+// Adding operators: what they attach stands beside the authored children.
+
+namespace {
+
+/** A red mark on every node in the scope, at the node's own origin. */
+struct MarkEach {
+  float size = 10.0f;
+  bool operator==(const MarkEach&) const = default;
+  void add(Scope& scope) const {
+    for (const Scope::Node& node : scope.nodes())
+      node.attach(box().key(node.key + "-mark").left(0).top(0).width(size)
+                      .height(size).fill(red()));
+  }
+};
+
+/** One box over the whole scope, in the scope's coordinates. */
+struct Sheet {
+  bool operator==(const Sheet&) const = default;
+  void add(Scope& scope) const {
+    scope.attach(box().key("sheet").rect(scope.box).fill(red()));
+  }
+};
+
+/** A wire between two keyed nodes, centre to centre. */
+struct Wire {
+  std::string from, to;
+  bool operator==(const Wire&) const = default;
+  void add(Scope& scope) const {
+    const Scope::Node* a = scope.find(from);
+    const Scope::Node* b = scope.find(to);
+    if (!a || !b) return;
+    // A level bar between the two centres, the kernel test's wire: what
+    // dresses a path is the brush tier's business, not this seam's.
+    const SkPoint start = a->bounds.center();
+    const SkPoint end = b->bounds.center();
+    scope.attach(box()
+                     .key(from + "->" + to)
+                     .rect(SkRect::MakeLTRB(std::min(start.x(), end.x()),
+                                            start.y() - 2,
+                                            std::max(start.x(), end.x()),
+                                            start.y() + 2))
+                     .fill(red()));
+  }
+};
+
+}  // namespace
+
+TEST(ComposeOperators, AnAdditionOnTheScopeStandsBesideTheAuthoredChildren) {
+  Host host;
+  host.composer.render(box().key("scope").width(200).height(200).children(
+      {box().key("a").left(20).top(90).width(20).height(20).fill(green()),
+       box().key("b").left(160).top(90).width(20).height(20).fill(green())})
+                           .operators({Wire{"a", "b"}}));
+  host.frame();
+  // The wire is a keyed element with bounds, painted between the boxes.
+  auto wire = host.composer.bounds("a->b");
+  ASSERT_TRUE(wire.has_value());
+  EXPECT_NEAR(wire->centerY(), 100, 1);
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
+  // Over the authored children by default: listed after them.
+  EXPECT_EQ(host.pixel(30, 100), SK_ColorRED);
+}
+
+TEST(ComposeOperators, AnAdditionOnANodeIsPlacedInThatNodesCoordinates) {
+  Host host;
+  host.composer.render(box().width(200).height(200).children(
+      {box().key("a").left(50).top(60).width(40).height(40).fill(green())})
+                           .operators({MarkEach{}}));
+  host.frame();
+  auto mark = host.composer.bounds("a-mark");
+  ASSERT_TRUE(mark.has_value());
+  EXPECT_NEAR(mark->left(), 50, 0.5f);  // the node's origin, not the scope's
+  EXPECT_NEAR(mark->top(), 60, 0.5f);
+  EXPECT_EQ(host.pixel(55, 65), SK_ColorRED);
+  EXPECT_EQ(host.pixel(85, 95), SK_ColorGREEN);
+}
+
+TEST(ComposeOperators, TheOperatorsZIndexPutsItsAdditionsBehind) {
+  Host host;
+  host.composer.render(box().width(200).height(200).children(
+      {box().key("a").left(50).top(50).width(100).height(100).fill(green())})
+                           .operators({Operator(Sheet{}).zIndex(-1)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);  // the child, over the sheet
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);      // the sheet, everywhere else
+}
+
+TEST(ComposeOperators, AdditionsAreNeitherArrangedNorCountedAsSiblings) {
+  Host host;
+  host.composer.render(
+      box()
+          .width(200)
+          .height(200)
+          .operators({AroundRing{}, MarkEach{}})
+          .children({dot(12), dot(6)}));
+  host.frame();
+  // The dots are on the ring; the marks sit on the dots, not on the ring.
+  auto dot12 = host.composer.bounds("h12");
+  auto mark12 = host.composer.bounds("h12-mark");
+  ASSERT_TRUE(dot12.has_value());
+  ASSERT_TRUE(mark12.has_value());
+  EXPECT_NEAR(mark12->left(), dot12->left(), 0.5f);
+  EXPECT_NEAR(mark12->top(), dot12->top(), 0.5f);
+}
+
+TEST(ComposeOperators, AdditionsGoWhenTheirOperatorGoes) {
+  Host host;
+  auto tree = [](bool wired) {
+    Element scope = box().width(200).height(200).children(
+        {box().key("a").left(20).top(90).width(20).height(20),
+         box().key("b").left(160).top(90).width(20).height(20)});
+    if (wired) scope.operators({Wire{"a", "b"}});
+    return scope;
+  };
+  host.composer.render(tree(true));
+  host.frame();
+  ASSERT_TRUE(host.composer.bounds("a->b").has_value());
+  host.composer.render(tree(false));
+  host.frame();
+  EXPECT_FALSE(host.composer.bounds("a->b").has_value());
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);
+}
+
+TEST(ComposeOperators, AnUnchangedTreeMountsItsAdditionsOnce) {
+  Host host;
+  auto tree = [] {
+    return box().width(200).height(200).children(
+        {box().key("a").left(20).top(90).width(20).height(20),
+         box().key("b").left(160).top(90).width(20).height(20)})
+        .operators({Wire{"a", "b"}});
+  };
+  host.composer.render(tree());
+  host.frame();
+  host.composer.render(tree());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  EXPECT_TRUE(host.composer.bounds("a->b").has_value());
+}
+
+TEST(ComposeOperators, ANestedScopeIsOneNodeFromOutside) {
+  // The inner box applies operators of its own, so the outer wire cannot
+  // reach "inner" — but it reaches the inner box by the fact on its root.
+  Host host;
+  host.composer.render(
+      box()
+          .width(200)
+          .height(200)
+          .children({box().key("outer").left(10).top(10).width(20).height(20),
+                     box()
+                         .key("panel")
+                         .left(100)
+                         .top(100)
+                         .width(80)
+                         .height(80)
+                         .attribute("port", 1)
+                         .operators({Nudge{}})
+                         .children({box().key("inner").width(10).height(10)})})
+          .operators({Wire{"outer", "inner"}, Wire{"outer", "panel"}}));
+  host.frame();
+  EXPECT_FALSE(host.composer.bounds("outer->inner").has_value());
+  EXPECT_TRUE(host.composer.bounds("outer->panel").has_value());
 }
 
 TEST(ComposeOperators, AnOperatorWithNoEqualityNeverPrunes) {

@@ -40,7 +40,9 @@ concept ReconcileHost =
       { host.keyOf(description) } -> std::convertible_to<std::string_view>;
       { host.equal(description, description) } -> std::convertible_to<bool>;
       { host.reconcilesChildren(description) } -> std::convertible_to<bool>;
-      { host.children(description).size() } -> std::convertible_to<size_t>;
+      // The children a node reconciles: the description's, and whatever
+      // the host keeps under the node beside them.
+      { host.children(cnode, description).size() } -> std::convertible_to<size_t>;
       { host.memoOf(description) == nullptr } -> std::convertible_to<bool>;
       {
         host.create(description, parent, n, n)

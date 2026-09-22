@@ -139,6 +139,12 @@ struct Composer::Impl {
   std::vector<detail::Instance*>
       flowInstances;  // contentFlowAround() text nodes
   std::vector<detail::Instance*> tetheredInstances;  // tether() nodes
+  // Nodes applying ADDING operators, in tree order — the list the
+  // additions pass walks once layout has settled — and the nodes holding
+  // what a pass before it attached, so an owner nothing attaches to any
+  // more is emptied rather than left with last frame's elements.
+  std::vector<detail::Instance*> addingInstances;
+  std::vector<detail::Instance*> additionOwners;
   // Text nodes carrying textAttach() on a path-laid run. Their curve resolves
   // against the node's FINAL box, which measurement never sees, so their
   // marks resolve in a post-layout pass over this flat list instead of
@@ -175,6 +181,7 @@ struct Composer::Impl {
   // node clears them rather than latching them on forever.
   bool hasDerived = false;  // any contentFlowAround/connector/rail in the tree
   bool hasCustomLayout = false;
+  bool hasAdding = false;  // any adding operator, or any addition standing
   bool hasCenterPins = false;  // any centerAt() in the tree
   bool liveOnly = false;       // snapshot(): skip per-node caches
   material::skia::Effect
@@ -371,8 +378,33 @@ struct Composer::Impl {
   static bool reconcilesChildren(const Description& description) {
     return description->kind != detail::Kind::Slot;
   }
-  static const std::vector<Element>& children(const Description& description) {
-    return description->children;
+  /** THE CHILDREN A NODE RECONCILES: the description's, then what the
+   *  adding operators kept under the node — one range, so one pass
+   *  mounts, patches and retires both by key. */
+  struct ChildRange {
+    const std::vector<Element>* authored = nullptr;
+    const std::vector<Element>* added = nullptr;
+    struct Iterator {
+      const ChildRange* range = nullptr;
+      size_t at = 0;
+      const Element& operator*() const {
+        const size_t authored = range->authored->size();
+        return at < authored ? (*range->authored)[at]
+                             : (*range->added)[at - authored];
+      }
+      Iterator& operator++() {
+        ++at;
+        return *this;
+      }
+      bool operator!=(const Iterator& other) const { return at != other.at; }
+    };
+    size_t size() const { return authored->size() + added->size(); }
+    Iterator begin() const { return {this, 0}; }
+    Iterator end() const { return {this, size()}; }
+  };
+  static ChildRange children(const detail::Instance& inst,
+                             const Description& description) {
+    return {&description->children, &inst.additions};
   }
   static const Description& descriptionOf(const Element& child) {
     return child.node();
@@ -539,6 +571,18 @@ struct Composer::Impl {
   bool phaseCenterPins();     ///< centerAt() pins, when any
   bool phaseDerive();         ///< flow exclusions and routes, when any
   bool phasePathMarks();      ///< textAttach() on path-laid runs
+  // ---- the additions (Additions.cpp) ----
+  /** THE ADDING OPERATORS OVER THE SETTLED TREE: every node applying one
+   *  is handed its scope, what the operators attach is reconciled beside
+   *  the owner's authored children, and true says something changed and
+   *  the layout must run again with the additions standing. */
+  bool phaseAdditions();
+  /** Fills @p scope with every node under @p from as an adding operator
+   *  sees it — closed at a node with operators of its own, blind to a
+   *  node an operator added — with the owner instance of each record in
+   *  @p owners at the same index. */
+  void collectScope(detail::Instance& from, SkPoint origin, Scope& scope,
+                    std::vector<detail::Instance*>& owners);
   bool phaseSyncRects();      ///< invalidate recordings whose rect moved
   /** The runner's list: Yoga, the converging group, then the post-layout
    *  passes. The derive family (connector, rail, band, contentFlowAround)

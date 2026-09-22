@@ -119,7 +119,8 @@ struct FakeHost {
     return a->key == b->key && a->kind == b->kind && a->value == b->value;
   }
   static bool reconcilesChildren(const Description& d) { return !d->slot; }
-  static const std::vector<Description>& children(const Description& d) {
+  static const std::vector<Description>& children(const Node&,
+                                                  const Description& d) {
     return d->children;
   }
   // A fake element IS its description, so the handle read off it is the

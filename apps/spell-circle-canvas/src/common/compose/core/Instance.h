@@ -250,6 +250,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   };
   std::vector<InkRange> inheritedInkRanges;
 
+  // WHAT THE ADDING OPERATORS BUILT UNDER THIS NODE, kept from the last
+  // time they ran: the elements reconciled beside the authored children,
+  // after them, out of their flow. The reconciler reads them through the
+  // host's children() beside the description's own list, so one pass
+  // mounts, patches and retires both.
+  std::vector<Element> additions;
+
   // Transition state, keyed by property slot
   // The FIXED property slots — one per property every node can carry, so the
   // count is a property of the KERNEL. Mask gates and fx() tracks are

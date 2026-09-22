@@ -170,6 +170,15 @@ class Router {
 Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router = {}, float gap = 0.0f);
 
+/** THE PATH A ROUTE DRAWS between two rects, as a connector draws it:
+ *  @p router's answer, or a straight line centre to centre when it is
+ *  empty, with each END pulled back @p gap px along itself — clamped so
+ *  a short route keeps a visible run, and left alone on a closed
+ *  contour, which has no ends. The one statement of that rule, so an
+ *  operator routing a wire and a connector routing one cannot disagree. */
+SkPath routeBetween(const Router& router, const SkRect& from, const SkRect& to,
+                    float gap = 0.0f);
+
 /** A rail endpoint/waypoint. It is ONE OF TWO THINGS, and the type says
  *  which: a point bound to a keyed node, or a point bound to nothing.
  *  `where` is the choice itself, so an anchor carries the coordinates of

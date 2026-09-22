@@ -18,6 +18,42 @@ namespace sigil::compose {
 
 using namespace detail;
 
+SkPath routeBetween(const Router& router, const SkRect& from, const SkRect& to,
+                    float gap) {
+  SkPath path;
+  if (router) {
+    path = router(from, to);
+  } else {
+    SkPathBuilder b;
+    b.moveTo(from.centerX(), from.centerY());
+    b.lineTo(to.centerX(), to.centerY());
+    path = b.detach();
+  }
+  // Terminal gap, the connector's spelling of the same knob rail anchors
+  // carry: pull each END of the routed path back along itself, clamped
+  // like the rail's pullIn so a short wire keeps a visible run. Applied to
+  // the ROUTE rather than to the rects, so it works for any router —
+  // straight, orthogonal, arc.
+  if (gap > 0 && !path.isEmpty()) {
+    SkPathBuilder trimmed;
+    SkContourMeasureIter iter(path, false);
+    bool touched = false;
+    while (sk_sp<SkContourMeasure> contour = iter.next()) {
+      const float len = contour->length();
+      if (len <= 0) continue;
+      if (contour->isClosed()) {  // no terminals to pull back
+        (void)contour->getSegment(0, len, &trimmed, true);
+        continue;
+      }
+      const float pull = std::min(gap, len * 0.45f);
+      (void)contour->getSegment(pull, len - pull, &trimmed, true);
+      touched = true;
+    }
+    if (touched) path = trimmed.detach();
+  }
+  return path;
+}
+
 void Composer::Impl::deriveRoute(Instance& inst) {
   const DeriveData* derive = &*inst.description->deriveData;
 
@@ -90,36 +126,8 @@ void Composer::Impl::deriveRoute(Instance& inst) {
       if (from != inst.connectorFrom || to != inst.connectorTo) {
         inst.connectorFrom = from;
         inst.connectorTo = to;
-        if (derive->router) {
-          inst.connectorPath = derive->router(from, to);
-        } else {
-          SkPathBuilder b;
-          b.moveTo(from.centerX(), from.centerY());
-          b.lineTo(to.centerX(), to.centerY());
-          inst.connectorPath = b.detach();
-        }
-        // Terminal gap, the connector's spelling of the same knob rail
-        // anchors carry: pull each END of the routed path back along
-        // itself, clamped like the rail's pullIn below so a short wire
-        // keeps a visible run. Applied to the ROUTE rather than to the
-        // rects, so it works for any router — straight, orthogonal, arc.
-        if (derive->connectorGap > 0 && !inst.connectorPath.isEmpty()) {
-          SkPathBuilder trimmed;
-          SkContourMeasureIter iter(inst.connectorPath, false);
-          bool touched = false;
-          while (sk_sp<SkContourMeasure> contour = iter.next()) {
-            const float len = contour->length();
-            if (len <= 0) continue;
-            if (contour->isClosed()) {  // no terminals to pull back
-              (void)contour->getSegment(0, len, &trimmed, true);
-              continue;
-            }
-            const float pull = std::min(derive->connectorGap, len * 0.45f);
-            (void)contour->getSegment(pull, len - pull, &trimmed, true);
-            touched = true;
-          }
-          if (touched) inst.connectorPath = trimmed.detach();
-        }
+        inst.connectorPath =
+            routeBetween(derive->router, from, to, derive->connectorGap);
         inst.routedHitPath = expandForHit(inst.connectorPath);
         inst.markPaintDirtyUp();
       }

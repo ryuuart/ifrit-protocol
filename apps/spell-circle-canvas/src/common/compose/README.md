@@ -373,8 +373,30 @@ escape hatch that never does. A scheme of the older shape —
 `layouts::Grid` and its peers still are — is an `Operator` too, adapted
 when it is held, and `layout(scheme)` is `box().operators({scheme})`
 under the shorter spelling; `LayoutInput::childAttributes` hands such a
-scheme the same facts. A nested node with operators of its own is one
-element to the operators above it.
+scheme the same facts.
+
+An ADDING operator — a value with `add(Scope&)` — runs once layout has
+settled and builds elements from what it reads. It is handed a `Scope`:
+the node's box and every node under it as a `Scope::Node` — key, facts,
+classes, bounds and outline in the scope's coordinates — found by key,
+by a lane (`Scope::having`) or by class (`Scope::withClass`). THE SCOPE
+IS CLOSED: a node under it with operators of its own is one node here,
+with nothing under it, and what it wants read from outside it states as
+facts on its root. An addition belongs to what it is about — attached to
+one node (`attach` on the `Scope::Node`, in that node's coordinates,
+gone when it goes) or to the scope (`Scope::attach`) — and either way it is an
+ordinary element reconciled beside the owner's authored children, after
+them and out of their flow: it takes the cascade, a sheet dresses it, it
+hit-tests, and a later operator in the list reads its bounds; it is
+arranged by nothing, counted by no structural pseudo-class, and read by
+no operator. Whatever it attaches is laid out by one more run of the
+layout with the additions standing, which moves nothing that was
+authored, and an unchanged tree mounts its additions once. `zIndex` and
+`styleClass` on the `Operator` itself are what its additions paint at
+and are dressed by where they state none of their own, so
+`.zIndex(-1)` puts a whole operator's wires behind the nodes they join.
+The arranging operators are written first in the list, since they run
+first whatever the list says; a list that says otherwise is reported.
 
 ### Paint order inside a node
 

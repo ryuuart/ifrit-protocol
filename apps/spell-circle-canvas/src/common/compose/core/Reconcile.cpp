@@ -25,6 +25,8 @@ void Composer::Impl::rebuildKeyIndex() {
   tetheredInstances.clear();
   pathMarkInstances.clear();
   threadedInstances.clear();
+  addingInstances.clear();
+  additionOwners.clear();
   routesByAnchor.clear();
   hasDerived = false;
   hasCustomLayout = false;
@@ -80,6 +82,32 @@ void Composer::Impl::rebuildKeyIndex() {
         }
       }
       if (node.arranges()) hasCustomLayout = true;
+      if (node.adds()) {
+        addingInstances.push_back(&inst);
+        // THE LIST NEVER LIES ABOUT ITS ORDER: the arranging operators run
+        // during layout and the adding ones after it, so an arranging one
+        // written after an adding one runs before it whatever the list
+        // says. It is reported rather than reordered, once.
+        bool adding = false;
+        for (const Operator& op : node.operatorData->operators) {
+          if (op.adds()) adding = true;
+          if (adding && op.arranges()) {
+            static bool warned = false;
+            if (!warned) {
+              warned = true;
+              SkDebugf(
+                  "[compose] .operators() on \"%s\": an arranging operator is "
+                  "listed after an adding one. Arranging operators run during "
+                  "layout and adding operators after it, so the list runs out "
+                  "of the order it is written in; write the arranging "
+                  "operators first.\n",
+                  node.key.c_str());
+            }
+            break;
+          }
+        }
+      }
+      if (!inst.additions.empty()) additionOwners.push_back(&inst);
       if (node.kind == Kind::Text && node.textData && node.textData->onPath &&
           !node.textData->marks.empty())
         pathMarkInstances.push_back(&inst);
@@ -90,6 +118,7 @@ void Composer::Impl::rebuildKeyIndex() {
     });
   hasDerived = !routedInstances.empty() || !flowInstances.empty() ||
                !threadedInstances.empty() || !tetheredInstances.empty();
+  hasAdding = !addingInstances.empty() || !additionOwners.empty();
   orderDerivedByReads();
 }
 

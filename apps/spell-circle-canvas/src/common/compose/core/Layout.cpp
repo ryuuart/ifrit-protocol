@@ -100,6 +100,18 @@ void Composer::Impl::ensureLayout() {
                     // come.
                     phaseDerive();
                   });
+  // Then the ADDING OPERATORS over the settled tree. What they attach is
+  // laid out by one more run of the list — it stands beside the authored
+  // children and out of their flow, so nothing they measured moves, and
+  // the second run's additions equal the first's, which is the bound.
+  for (int pass = 0; pass < 2 && hasAdding; ++pass) {
+    if (!phaseAdditions()) break;
+    core::runPhases(*this, std::span<const core::Phase<Impl>>(phases),
+                    kConvergeRounds, [this] {
+                      phaseYoga();
+                      phaseDerive();
+                    });
+  }
   needsLayout = false;
 }
 
@@ -322,12 +334,16 @@ float constrainedMeasure(const Instance& inst, bool horizontal, float extent) {
 bool Composer::Impl::applyCustomLayouts(Instance& inst) {
   bool applied = false;
   const ElementNode& node = *inst.description;
-  // THE CHILDREN THE OPERATORS PLACE: every child that has a box. One with
-  // `Display::None` takes no cell, as it takes no room on a flex line.
+  // THE CHILDREN THE OPERATORS PLACE: every authored child that has a
+  // box. One with `Display::None` takes no cell, as it takes no room on a
+  // flex line, and one an adding operator attached is not arranged — it
+  // stands where the operator put it, out of the authored children's
+  // flow.
   std::vector<Instance*> placed;
   if (node.arranges())
     for (const auto& child : inst.children)
-      if (child->description->layout.display != Display::None)
+      if (child->description->layout.display != Display::None &&
+          !child->description->added())
         placed.push_back(child.get());
   // Arranging operators are a flex-world feature; inside a positioned
   // subtree (no Yoga nodes) — or ON a positioned() container, whose

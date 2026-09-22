@@ -80,11 +80,17 @@ sound model; nothing below them changes kernel semantics.
   copies and compares.
 - `core/Operator.h` — the operator seam: `Operator`, the comparable value
   `Element::operators` holds, built from anything satisfying `Arranging`
-  (with `ArrangingOperator` the comparable form) or `LayoutScheme`;
-  `Arrangement` and `Arrangement::Child`, what an arranging operator is
-  handed — each child's size, baseline, cells, area and facts, and
-  `place`, `centreAt` and `turn` to answer with; and `ReadsChildMinSizes`,
-  the opt-in that fills each child's content minimum.
+  or `Adding` (with `ArrangingOperator` and `AddingOperator` the
+  comparable forms) or `LayoutScheme`, carrying the `zIndex` and
+  `styleClass` its additions take; `Arrangement` and
+  `Arrangement::Child`, what an arranging operator is handed — each
+  child's size, baseline, cells, area and facts, and `place`, `centreAt`
+  and `turn` to answer with; `Scope` and `Scope::Node`, what an adding
+  operator is handed — every settled node's key, facts, classes, bounds
+  and outline, `find`, `having` and `withClass` to reach them, and
+  `attach` on the scope or on a node to answer with; and
+  `ReadsChildMinSizes`, the opt-in that fills each child's content
+  minimum.
 - `core/Var.h` — `VarRef`, the reference a custom property's name
   interns to, with `var` to make one and `varName` to read it back.
 - `core/Cascade.h` — `VarValue`, what a custom property holds, and
@@ -234,7 +240,10 @@ sound model; nothing below them changes kernel semantics.
   that gathers the family. A tether resolves in the derive pass before the
   routes, so a connector that ends on a tethered box routes to where it
   came to rest; when no place fits, the stated one stands, and a key that
-  names nothing places nothing. The two ROUTE seam values are here too —
+  names nothing places nothing. `routeBetween` is the path a route draws
+  between two rects with its ends pulled back by a gap — the one
+  statement a connector and a connecting operator both route by. The
+  two ROUTE seam values are here too —
   `Router` over a pair of rects (with `RouteScheme`) and `RailRouter`
   over an ordered anchor run (with `RailScheme`) — each a comparable
   value, with `Router::comparable` and `RailRouter::comparable` reporting
@@ -444,6 +453,12 @@ reproducing a published table can print what it resolved and diff it
 against what the original measured — numbers no placed rect carries,
 since a column nothing fills leaves no trace in the rects at all.
 
+`kit/Connect.h` holds the connecting operators, `connect::Between` — one
+wire between two keyed nodes, the pairing stated in the operator — and
+`connect::ByLane` — a wire per pairing the nodes state under a lane, one
+key or a list of them — each routed by a `Router` with a gap as a
+connector is, dressed by the decoration it carries, keyed by the pair it
+joins and attached to the scope; `connect::wire` is the figure itself.
 `kit/Routers.h` holds the stock routers. `routers::straight`,
 `routers::orthogonal` (with `routers::Bend` saying whether the leg turns
 at the midpoint or at either end) and `routers::arc` are `Router`s,

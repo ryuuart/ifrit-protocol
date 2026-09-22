@@ -142,8 +142,12 @@ class Reconciler {
       m_host.onPatched(inst, prev ? &*prev : nullptr, *resolved);
     }
 
+    // The children are the host's answer for THIS node rather than the
+    // description's list alone: a host that keeps children of its own
+    // beside the described ones — content an operator built under the
+    // node — answers with both, so one pass reconciles them together.
     if (m_host.reconcilesChildren(resolved))
-      patchChildren(inst, m_host.children(resolved));
+      patchChildren(inst, m_host.children(inst, resolved));
   }
 
   /** Matches `newChildren` against the node's children by key, then by

@@ -1,14 +1,94 @@
 /** @file
- * The adapter between the two shapes an arranging operator takes: the
- * table a `place(const LayoutInput&)` scheme reads, built from the
+ * The operator seam's bodies: a lane read as a number whichever type it
+ * was written in, the scope an adding operator reads and attaches to,
+ * and the adapter between the two shapes an arranging operator takes —
+ * the table a `place(const LayoutInput&)` scheme reads, built from the
  * arrangement's records, and the rectangles it answers written back.
  */
 
 #include "sigilcompose/core/Operator.h"
 
-#include <algorithm>
+#include <include/core/SkMatrix.h>
 
-namespace sigil::compose::detail {
+#include <algorithm>
+#include <memory>
+
+#include "sigilcompose/core/Element.h"
+
+namespace sigil::compose {
+
+namespace {
+
+std::optional<float> numberIn(const Attributes& attributes,
+                              std::string_view name) {
+  if (auto value = attributes.get<float>(name)) return *value;
+  if (auto value = attributes.get<int>(name)) return (float)*value;
+  if (auto value = attributes.get<double>(name)) return (float)*value;
+  if (auto value = attributes.get<unsigned int>(name)) return (float)*value;
+  if (auto value = attributes.get<long>(name)) return (float)*value;
+  if (auto value = attributes.get<unsigned long>(name)) return (float)*value;
+  return std::nullopt;
+}
+
+}  // namespace
+
+std::optional<float> Arrangement::Child::number(std::string_view name) const {
+  return numberIn(attributes, name);
+}
+
+std::optional<float> Scope::Node::number(std::string_view name) const {
+  return numberIn(attributes, name);
+}
+
+bool Scope::Node::hasClass(std::string_view name) const {
+  return std::find(classes.begin(), classes.end(), name) != classes.end();
+}
+
+SkPath Scope::Node::toLocal(const SkPath& path) const {
+  return path.makeTransform(SkMatrix::Translate(-bounds.left(), -bounds.top()));
+}
+
+void Scope::Node::attach(Element element) const {
+  if (!m_scope) return;
+  m_scope->m_attachments.push_back(
+      Attachment{m_index, std::make_shared<Element>(std::move(element))});
+}
+
+std::vector<Scope::Node>& Scope::mutableNodes() {
+  for (size_t i = 0; i < m_nodes.size(); ++i) {
+    m_nodes[i].m_scope = this;
+    m_nodes[i].m_index = i;
+  }
+  return m_nodes;
+}
+
+const Scope::Node* Scope::find(std::string_view key) const {
+  if (key.empty()) return nullptr;
+  for (const Node& node : m_nodes)
+    if (node.key == key) return &node;
+  return nullptr;
+}
+
+std::vector<const Scope::Node*> Scope::having(std::string_view lane) const {
+  std::vector<const Node*> out;
+  for (const Node& node : m_nodes)
+    if (node.attributes.has(lane)) out.push_back(&node);
+  return out;
+}
+
+std::vector<const Scope::Node*> Scope::withClass(std::string_view name) const {
+  std::vector<const Node*> out;
+  for (const Node& node : m_nodes)
+    if (node.hasClass(name)) out.push_back(&node);
+  return out;
+}
+
+void Scope::attach(Element element) {
+  m_attachments.push_back(Attachment{
+      Attachment::kScope, std::make_shared<Element>(std::move(element))});
+}
+
+namespace detail {
 
 LayoutInput layoutInputOf(const Arrangement& arrangement) {
   LayoutInput input;
@@ -40,4 +120,6 @@ void placeFromRects(Arrangement& arrangement, const std::vector<SkRect>& rects) 
   for (size_t i = 0; i < count; ++i) arrangement.children[i].rect = rects[i];
 }
 
-}  // namespace sigil::compose::detail
+}  // namespace detail
+
+}  // namespace sigil::compose

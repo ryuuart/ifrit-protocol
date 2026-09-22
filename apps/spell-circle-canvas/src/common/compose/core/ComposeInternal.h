@@ -347,9 +347,23 @@ struct CustomData {
 struct OperatorData {
   Attributes attributes;
   std::vector<Operator> operators;
+  /** This node was ADDED by an operator rather than authored: it stands
+   *  beside its parent's authored children, out of their flow, and no
+   *  operator above counts it among what it arranges or reads. */
+  bool added = false;
   /** Whether any operator in the list places children — the question the
    *  layout pass, the props writer and the reconciler each ask. */
-  bool arranges() const { return !operators.empty(); }
+  bool arranges() const {
+    for (const Operator& op : operators)
+      if (op.arranges()) return true;
+    return false;
+  }
+  /** Whether any operator in the list adds elements. */
+  bool adds() const {
+    for (const Operator& op : operators)
+      if (op.adds()) return true;
+    return false;
+  }
   /** Whether any operator asked for the children's content minima. */
   bool readsChildMinSizes() const {
     for (const Operator& op : operators)
@@ -646,6 +660,10 @@ struct ElementNode {
 
   /** Whether this node applies operators that place its children. */
   bool arranges() const { return operatorData && operatorData->arranges(); }
+  /** Whether this node applies operators that add elements. */
+  bool adds() const { return operatorData && operatorData->adds(); }
+  /** Whether an operator added this node (see OperatorData::added). */
+  bool added() const { return operatorData && operatorData->added; }
 
   bool isMemo() const { return (bool)memoData; }
   bool hasMasks() const { return fxData && !fxData->masks.empty(); }
