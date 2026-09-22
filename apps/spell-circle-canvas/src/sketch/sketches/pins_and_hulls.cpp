@@ -48,7 +48,8 @@ constexpr std::array<int, 2> kCallouts = {3, 9};        // the pinned hours
 
 /** One hour: a point stating its hour, and what else it asks for. */
 Element hour(int number) {
-  Element point = compose::point().key("h" + std::to_string(number))
+  Element point = sigil::compose::point()
+                      .key("h" + std::to_string(number))
                       .attribute("hour", number);
   if (std::find(kChosen.begin(), kChosen.end(), number) != kChosen.end())
     point.styleClass("chosen");
@@ -90,7 +91,7 @@ Operator ring() {
 Operator dialBand() {
   return outline::Around{.key = "dial",
                          .across = across(6),
-                         .formation = geometry::path::Formation::Inner,
+                         .formation = sigil::geometry::path::Formation::Inner,
                          .fill = Fill::color(sketch::kit::theme().palette.rule)};
 }
 
