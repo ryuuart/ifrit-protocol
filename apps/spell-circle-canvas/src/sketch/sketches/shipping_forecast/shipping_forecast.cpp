@@ -447,7 +447,7 @@ struct ShippingForecast {
                 // painted with the bottom of the ramp and arrives into
                 // the top of it. The gradient does not travel with the
                 // letter; the letter travels through the gradient.
-                .textFill(heroInk)
+                .ink(heroInk)
                 .fx(std::move(rise))
                 .fx(std::move(swell)),
         });
