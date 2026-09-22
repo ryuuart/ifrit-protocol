@@ -102,7 +102,9 @@ TEST(SketchKitDocument, ALineIsALeafInTheClassTheDocumentNamed) {
   kit::Document doc = beside.read();
   doc.figures({{"rest", "18.4"}});
   sigil::weave::StyleSheet dressed = kit::houseTheme().styleSheet();
-  dressed.set("figure", sigil::weave::Type{.color = SkColor4f{0, 1, 0, 1}});
+  dressed.set("figure",
+              sigil::weave::Type{.color = sigil::material::skia::toSkColor(
+                                     SkColor4f{0, 1, 0, 1})});
   const auto under = [&dressed](compose::Element leaf) {
     return compose::box().styleSheet(dressed).children({std::move(leaf)});
   };

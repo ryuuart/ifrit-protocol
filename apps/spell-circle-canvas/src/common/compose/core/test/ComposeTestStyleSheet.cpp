@@ -57,7 +57,9 @@ TEST(ComposeStyleSheet, AnInkIsEitherAColourOrAPropertyAndTheLaterOneStands) {
   // A colour written through font() is the ink too, so it displaces a
   // property the ink was read from just as ink() does.
   const Rule throughFont =
-      sigil::compose::rule(".card").ink(sigil::compose::var("brand")).font({.color = kBlue});
+      sigil::compose::rule(".card")
+          .ink(sigil::compose::var("brand"))
+          .font({.color = material::skia::toSkColor(kBlue)});
   EXPECT_FALSE(throughFont.inkVar().has_value());
   EXPECT_TRUE(throughFont.type().color == kBlue);
 }

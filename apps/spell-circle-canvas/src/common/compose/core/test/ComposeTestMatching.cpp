@@ -351,8 +351,9 @@ TEST(ComposeMatching, ASiblingOfTheApplyingNodeSatisfiesNeitherSiblingCombinator
 
 TEST(ComposeMatching, AMatchedRuleStandsOverAClassAndUnderTheNodesOwnVerbs) {
   Host host;
-  const sigil::weave::StyleSheet named{
-      sigil::weave::Rule("note", sigil::weave::Type{.color = kGreenInk})};
+  const sigil::weave::StyleSheet named{sigil::weave::Rule(
+      "note",
+      sigil::weave::Type{.color = material::skia::toSkColor(kGreenInk)})};
   const StyleSheet applied{rule(".note").ink(kRedInk)};
   // A class resolves through the name-keyed sheet; the selector rule
   // stands over it, and the node's own ink over them both.
@@ -439,8 +440,9 @@ TEST(ComposeMatching, ATreeThatAppliesNoSheetResolvesExactlyAsItDid) {
   // class through the name-keyed sheet, a role under it, the node's own
   // ink over both.
   Host host;
-  const sigil::weave::StyleSheet named{
-      sigil::weave::Rule("note", sigil::weave::Type{.color = kGreenInk})};
+  const sigil::weave::StyleSheet named{sigil::weave::Rule(
+      "note",
+      sigil::weave::Type{.color = material::skia::toSkColor(kGreenInk)})};
   host.composer.render(
       box().key("root").ink(kWhiteInk).styleSheet(named).children(
           {swatch(), swatch().styleClass("note"),

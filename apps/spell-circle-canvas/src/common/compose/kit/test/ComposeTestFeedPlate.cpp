@@ -179,7 +179,8 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   // write that column themselves without losing the identity discipline.
   feed::TextOptions st;
   st.styles.base(weave::textStyle({.size = 20, .color = SkColor4f{1, 1, 1, 1}}))
-      .set("alert", weave::Type{.color = SkColor4f{1, 0, 0, 1}});
+      .set("alert", weave::Type{.color = material::skia::toSkColor(
+                                    SkColor4f{1, 0, 0, 1})});
   st.window.gap = 4.0f;
   feed::TextRing ring;
   ring.append({u8"AAAA"});

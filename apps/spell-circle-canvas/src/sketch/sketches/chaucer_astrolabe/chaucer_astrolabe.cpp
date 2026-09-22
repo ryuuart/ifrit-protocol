@@ -145,8 +145,8 @@ auto ChaucerAstrolabe::setup(sketch::SketchContext& ctx) -> void {
   cardLook.set("time", partial(faceMono, 19, hexColor(0xffdc8b)));
 
   brassGrain = Paint::recipe(field::grain(0.9f, 3, 11.0f, 0.30f));
-  verdigris = patterns::speckle(420, 16, 1.6f, 5.0f,
-                                {skia::toColor(hexColor(0x2f5a44, 0.09f))});
+  verdigris =
+      patterns::speckle(420, 16, 1.6f, 5.0f, {hexColor(0x2f5a44, 0.09f)});
   verdigris.seed(1326);
   vellumGrain = Paint::recipe(field::grain(0.02f, 4, 5.0f));
 

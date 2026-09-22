@@ -94,7 +94,7 @@ auto ChevreulCircle::setup(sketch::SketchContext& ctx) -> void {
       for (int k = 0; k < 10; ++k) {
         const float lo = 0.80f + 0.012f * (float)k;
         const float a = std::clamp((d - lo) / 0.010f, 0.0f, 1.0f);
-        for (int r = 0; r < 20; ++r) tints[(size_t)k * 20 + (size_t)r].fA = a;
+        for (int r = 0; r < 20; ++r) tints[(size_t)k * 20 + (size_t)r].a = a;
       }
     }
   });

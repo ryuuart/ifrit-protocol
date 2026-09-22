@@ -76,10 +76,12 @@ TEST(KitDocument, RoleRulesRethemeExistingContentAndReflowParagraphs) {
 }
 
 TEST(KitDocument, RichParagraphsRemainOnePassageWithTheirInlineStyles) {
-  const auto words = weave::rich()
-                         .add(u8"Plain ")
-                         .add(u8"accent", weave::Type{.color = SkColors::kRed})
-                         .add(u8" plain");
+  const auto words =
+      weave::rich()
+          .add(u8"Plain ")
+          .add(u8"accent",
+               weave::Type{.color = material::skia::toSkColor(SkColors::kRed)})
+          .add(u8" plain");
   Host semantic(350, 100), raw(350, 100);
   semantic.composer.render(onPage(doc::paragraph(words).width(330)));
   raw.composer.render(onPage(text(words).width(330)));

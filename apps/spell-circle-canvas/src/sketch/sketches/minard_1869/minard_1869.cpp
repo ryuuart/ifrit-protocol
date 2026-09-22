@@ -78,38 +78,50 @@ auto Minard1869::setup(sketch::SketchContext& ctx) -> void {
   cardLook.type.captionNote = {9.5f, 0};
   cardSheet = cardLook.styleSheet();
   cardSheet.set("h1", partial(faceUiBold, 15, kCardInk, 1.6f));
-  cardSheet.set("measured", weave::Type{.color = kBlue});
-  cardSheet.set("amber", weave::Type{.color = kAmber});
-  cardSheet.set("grey", weave::Type{.color = hexColor(0x6d675c, 0.45f)});
-  cardSheet.set("route", weave::Type{.color = hexColor(0x1c1a17, 0.35f)});
-  cardSheet.set("vector", weave::Type{.color = hexColor(0x2f6f9c, 0.6f)});
-  cardSheet.set("cross", weave::Type{.color = kCardInk});
-  cardSheet.set("cardInk", weave::Type{.color = kCardInk});
-  cardSheet.set("claim", weave::Type{.color = kClaimRed});
-  cardSheet.set("pass", weave::Type{.color = kPass});
-  cardSheet.set("amberInk", weave::Type{.color = kAmber});
-  cardSheet.set("plotAxis", weave::Type{.color = kCardInk});
+  cardSheet.set("measured",
+                weave::Type{.color = sigil::material::skia::toSkColor(kBlue)});
+  cardSheet.set("amber",
+                weave::Type{.color = sigil::material::skia::toSkColor(kAmber)});
+  cardSheet.set("grey", weave::Type{.color = sigil::material::skia::toSkColor(
+                                        hexColor(0x6d675c, 0.45f))});
+  cardSheet.set("route", weave::Type{.color = sigil::material::skia::toSkColor(
+                                         hexColor(0x1c1a17, 0.35f))});
+  cardSheet.set("vector", weave::Type{.color = sigil::material::skia::toSkColor(
+                                          hexColor(0x2f6f9c, 0.6f))});
+  cardSheet.set(
+      "cross",
+      weave::Type{.color = sigil::material::skia::toSkColor(kCardInk)});
+  cardSheet.set(
+      "cardInk",
+      weave::Type{.color = sigil::material::skia::toSkColor(kCardInk)});
+  cardSheet.set(
+      "claim",
+      weave::Type{.color = sigil::material::skia::toSkColor(kClaimRed)});
+  cardSheet.set("pass",
+                weave::Type{.color = sigil::material::skia::toSkColor(kPass)});
+  cardSheet.set("amberInk",
+                weave::Type{.color = sigil::material::skia::toSkColor(kAmber)});
+  cardSheet.set(
+      "plotAxis",
+      weave::Type{.color = sigil::material::skia::toSkColor(kCardInk)});
   cardSheet.set("plotTick", partial(faceNum, 8.5f, kGrey));
   cardSheet.set("plotLabel", partial(faceUi, 9.5f, kGrey));
 
   // THE PAPER, and it is a FIBRE problem, not a colour problem: pulp
   // grain, the laid lines of a hand-made 19th-century sheet at ~1.2 px
   // pitch, the chain lines at ~26 px, and foxing.
-  paperPulp = patterns::speckle(160, 220, 0.35f, 0.9f,
-                                {skia::toColor(hexColor(0xb9ad98, 0.20f)),
-                                 skia::toColor(hexColor(0xd6cab6, 0.18f))});
+  paperPulp =
+      patterns::speckle(160, 220, 0.35f, 0.9f,
+                        {hexColor(0xb9ad98, 0.20f), hexColor(0xd6cab6, 0.18f)});
   paperPulp.seed(1869);
-  laidLines =
-      patterns::stripes(0.6f, 0.7f, skia::toColor(hexColor(0xb9ad98, 0.10f)));
+  laidLines = patterns::stripes(0.6f, 0.7f, hexColor(0xb9ad98, 0.10f));
   laidLines.rotate(90.0f);
-  chainLines =
-      patterns::stripes(1.1f, 25.0f, skia::toColor(hexColor(0xb9ad98, 0.13f)));
+  chainLines = patterns::stripes(1.1f, 25.0f, hexColor(0xb9ad98, 0.13f));
   chainLines.rotate(90.0f);
-  foxing = patterns::speckle(190, 5, 1.6f, 6.0f,
-                             {skia::toColor(hexColor(0xa07f55, 0.10f))});
+  foxing = patterns::speckle(190, 5, 1.6f, 6.0f, {hexColor(0xa07f55, 0.10f)});
   foxing.seed(91);
-  tintSpeckle = patterns::speckle(64, 40, 0.6f, 2.4f,
-                                  {skia::toColor(hexColor(0x8f6a55, 0.5f))});
+  tintSpeckle =
+      patterns::speckle(64, 40, 0.6f, 2.4f, {hexColor(0x8f6a55, 0.5f)});
   tintSpeckle.seed(41);
 
   paperMat = Paint::blend({

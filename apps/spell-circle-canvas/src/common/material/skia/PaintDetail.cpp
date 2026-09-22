@@ -10,6 +10,7 @@
 
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
@@ -108,7 +109,8 @@ sk_sp<SkShader> childShader(const Paint& source, const PaintFrame* paintFrame) {
   if (!paintFrame)
     return source.asShader();  // already turns a solid into SkShaders::Color
   if (source.isNone()) return nullptr;
-  if (source.isSolid()) return SkShaders::Color(source.solidColor(), nullptr);
+  if (source.isSolid())
+    return SkShaders::Color(toSkColor(source.solidColor()), nullptr);
   return source.shaderFor(*paintFrame);
 }
 

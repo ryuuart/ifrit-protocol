@@ -81,7 +81,9 @@ auto RotaConvocationis::limina() -> Element {
       .key("limina")
       .hitTestable(false)
       .styleClass("label")
-      .font({.size = 11.0f, .color = kAsh, .track = 2.0f})
+      .font({.size = 11.0f,
+             .color = sigil::material::skia::toSkColor(kAsh),
+             .track = 2.0f})
       .children(each(kLimens, [this, chordPath](int k) {
         return text(kLimina[k])
             .key("limen" + std::to_string(k))
@@ -109,7 +111,7 @@ auto RotaConvocationis::sigillum(int k) -> Element {
   // the case the SDF answers in one pass: silhouette, core and halo are three
   // uniforms of one shader rather than a union and four fills.
   const sdf::Style lit{.borderWidth = 1.1f,
-                       .borderColor = {kCore.fR, kCore.fG, kCore.fB, kCore.fA},
+                       .borderColor = kCore,
                        .glowRadius = 6.0f,
                        .glowColor = sigil::material::rgb(0xFFC152, 0.42f)};
   const float side = sdf::minBoxFor(lit, 2.0f * kSealR);
@@ -194,7 +196,9 @@ auto RotaConvocationis::sigillum(int k) -> Element {
        // brings it to while everything around it turns.
        text(s.ordo)
            .styleClass("mono")
-           .font({.size = 12.0f, .color = kGold, .track = 1.0f})
+           .font({.size = 12.0f,
+                  .color = sigil::material::skia::toSkColor(kGold),
+                  .track = 1.0f})
            .key(id + "-ordo")
            .centerAt({kSealR, kSealR})
            .hitTestable(false)
@@ -232,7 +236,8 @@ auto RotaConvocationis::emblema() -> Element {
                  line("hub-motes", hubMotes, 0.9f, kIronDim, tInner + 0.5, 0.7),
                  emissive("hub-lit", glows[kGlowHub], &litHub),
                  text(hubRuneText)
-                     .font({.size = 13.0f, .color = kAsh})
+                     .font({.size = 13.0f,
+                            .color = sigil::material::skia::toSkColor(kAsh)})
                      .key("hub-ring")
                      .cover()
                      .hitTestable(false)

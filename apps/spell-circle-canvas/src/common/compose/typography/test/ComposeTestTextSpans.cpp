@@ -79,9 +79,11 @@ TEST(TextRich, NamedRunsResolveThroughTheSheetInForce) {
   // the value names beats it.
   const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
   sigil::weave::StyleSheet reds(base);
-  reds.set("accent", sigil::weave::Type{.color = SkColor4f{1, 0, 0, 1}});
+  reds.set("accent", sigil::weave::Type{.color = material::skia::toSkColor(
+                                            SkColor4f{1, 0, 0, 1})});
   sigil::weave::StyleSheet greens(base);
-  greens.set("accent", sigil::weave::Type{.color = SkColor4f{0, 1, 0, 1}});
+  greens.set("accent", sigil::weave::Type{.color = material::skia::toSkColor(
+                                              SkColor4f{0, 1, 0, 1})});
 
   Host host(200, 120);
   const auto accentColor = [&](sigil::weave::RichText content,
@@ -219,7 +221,8 @@ namespace {
 sigil::weave::StyleSheet glossarySet(SkColor termColor, float termSize) {
   sigil::weave::StyleSheet set{coloredStyle(24, SK_ColorWHITE)};
   set.set("term", sigil::weave::Type{.size = termSize,
-                                     .color = SkColor4f::FromColor(termColor)});
+                                     .color = material::skia::toSkColor(
+                                         SkColor4f::FromColor(termColor))});
   return set;
 }
 

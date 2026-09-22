@@ -12,6 +12,7 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilskia/graphite/PaintOrder.h>
 #include <sigilskia/qt/QtInterop.h>
 #endif
@@ -341,7 +342,8 @@ void SketchbookRenderer::publishMetrics() {
       QStringLiteral("canvas"),
       QStringLiteral("%1x%2").arg((int)size.width()).arg((int)size.height()));
   metrics.insert(QStringLiteral("moment"), specification.captureSeconds);
-  const SkColor colour = specification.background.toSkColor();
+  const SkColor colour =
+      sigil::material::skia::toSkColor(specification.background).toSkColor();
   metrics.insert(QStringLiteral("background"),
                  QStringLiteral("#%1").arg((uint)(colour & 0x00ffffffU), 6, 16,
                                            QLatin1Char('0')));
@@ -403,7 +405,7 @@ void SketchbookRenderer::paintFrame(SkCanvas& canvas, sketch::Host& host) {
   // ground itself in nothing at all, and the pixels it does not draw on
   // then carry no colour and no coverage — which is what a subscriber
   // composites the sketch over its own scene by.
-  canvas.clear(host.background());
+  canvas.clear(sigil::material::skia::toSkColor(host.background()));
   // Wall time, scaled, pausable and stall-clamped: the frame the reader
   // sees advances by what actually elapsed, not by a nominal step.
   // Bakes belong to the canvas the sketch declared, not to how far this

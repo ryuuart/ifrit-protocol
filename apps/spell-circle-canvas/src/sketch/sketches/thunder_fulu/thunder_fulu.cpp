@@ -10,28 +10,56 @@ auto ThunderFulu::describe(sketch::SketchContext&) -> Element {
   // gold, the italic gloss, and the chant a line is sung in.
   weave::StyleSheet classes;
   classes
-      .set("heading",
-           {.face = faceDisplay, .size = 11.5f, .color = kGold, .track = 1.1f})
+      .set("heading", {.face = faceDisplay,
+                       .size = 11.5f,
+                       .color = sigil::material::skia::toSkColor(kGold),
+                       .track = 1.1f})
       .set("gloss",
-           {.face = faceItalic, .size = 10.5f, .color = hexColor(0x7d6f52)})
-      .set("chant", {.face = faceItalic, .size = 11.0f, .color = kChalk})
-      .set("lands", {.color = hexColor(0xe07a52)})
-      .set("lawMark", {.size = 8.5f, .color = hexColor(0xa89778)})
-      .set("plotRule", {.color = hexColor(0x8b7f66, 0.5f)})
-      .set("plotTrace", {.color = hexColor(0xe6d7ae, 0.95f)})
-      .set("ladder", {.size = 8.5f, .color = hexColor(0x8b7644)})
-      .set("station", {.size = 9.5f, .color = hexColor(0xa48c5c, 0.9f)})
+           {.face = faceItalic,
+            .size = 10.5f,
+            .color = sigil::material::skia::toSkColor(hexColor(0x7d6f52))})
+      .set("chant", {.face = faceItalic,
+                     .size = 11.0f,
+                     .color = sigil::material::skia::toSkColor(kChalk)})
+      .set("lands",
+           {.color = sigil::material::skia::toSkColor(hexColor(0xe07a52))})
+      .set("lawMark",
+           {.size = 8.5f,
+            .color = sigil::material::skia::toSkColor(hexColor(0xa89778))})
+      .set(
+          "plotRule",
+          {.color = sigil::material::skia::toSkColor(hexColor(0x8b7f66, 0.5f))})
+      .set("plotTrace", {.color = sigil::material::skia::toSkColor(
+                             hexColor(0xe6d7ae, 0.95f))})
+      .set("ladder",
+           {.size = 8.5f,
+            .color = sigil::material::skia::toSkColor(hexColor(0x8b7644))})
+      .set(
+          "station",
+          {.size = 9.5f,
+           .color = sigil::material::skia::toSkColor(hexColor(0xa48c5c, 0.9f))})
       .set("bayer", {.face = faceItalic,
                      .size = 9.0f,
-                     .color = hexColor(0x6f6047, 0.85f)})
-      .set("miniName", {.size = 8.0f, .color = hexColor(0xa89264, 0.95f)})
+                     .color = sigil::material::skia::toSkColor(
+                         hexColor(0x6f6047, 0.85f))})
+      .set("miniName", {.size = 8.0f,
+                        .color = sigil::material::skia::toSkColor(
+                            hexColor(0xa89264, 0.95f))})
       .set(
           "miniGloss",
-          {.face = faceItalic, .size = 8.0f, .color = hexColor(0x776953, 0.9f)})
-      .set("register", {.size = 8.5f, .color = hexColor(0x0b0a09, 0.60f)})
+          {.face = faceItalic,
+           .size = 8.0f,
+           .color = sigil::material::skia::toSkColor(hexColor(0x776953, 0.9f))})
+      .set("register", {.size = 8.5f,
+                        .color = sigil::material::skia::toSkColor(
+                            hexColor(0x0b0a09, 0.60f))})
       .set("colophon",
-           {.face = faceItalic, .size = 10.0f, .color = hexColor(0x8d7f60)})
-      .set("note", {.size = 9.5f, .color = hexColor(0x5d5341)});
+           {.face = faceItalic,
+            .size = 10.0f,
+            .color = sigil::material::skia::toSkColor(hexColor(0x8d7f60))})
+      .set("note",
+           {.size = 9.5f,
+            .color = sigil::material::skia::toSkColor(hexColor(0x5d5341))});
   return box()
       .inset(0)
       .font({.face = faceMono})
@@ -73,9 +101,9 @@ auto ThunderFulu::setup(sketch::SketchContext& ctx) -> void {
       weave::ports::face({"Optima", "Baskerville"}, SkFontStyle::kBold_Weight);
 
   ironGrain = Paint::recipe(field::grain(2.2f, 4, 1356.0f, 0.55f, 2.6f));
-  ironSpeck = patterns::speckle(420, 26, 0.7f, 2.6f,
-                                {skia::toColor(hexColor(0x7c7263, 0.10f)),
-                                 skia::toColor(hexColor(0x000000, 0.16f))});
+  ironSpeck =
+      patterns::speckle(420, 26, 0.7f, 2.6f,
+                        {hexColor(0x7c7263, 0.10f), hexColor(0x000000, 0.16f)});
   ironSpeck.seed(1220);
 
   // brush::Scatter / brush::Pattern art: held as MEMBERS. Built inside a

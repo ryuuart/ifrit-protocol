@@ -64,8 +64,8 @@ auto SigillumAemeth::setup(sketch::SketchContext& ctx) -> void {
       {"Luminari", "Herculanum", "Optima", "Baskerville"});
 
   waxGrain = Paint::recipe(field::grain(1.6f, 4, 1582.0f, 0.34f));
-  waxSpeck = patterns::speckle(520, 18, 1.4f, 4.4f,
-                               {skia::toColor(hexColor(0x6a4a20, 0.10f))});
+  waxSpeck =
+      patterns::speckle(520, 18, 1.4f, 4.4f, {hexColor(0x6a4a20, 0.10f)});
   waxSpeck.seed(1582);
 
   doc = sketch::kit::Document(ctx, "data/content.json");

@@ -156,7 +156,7 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
           {text(kSigns[i])
                .font({.face = faceEngrave,
                       .size = size,
-                      .color = hexColor(0x33240c, 0.88f),
+                      .color = mat::skia::toSkColor(hexColor(0x33240c, 0.88f)),
                       .track = size * 0.055f})
                .width(2 * kEclR * kR)
                .height(2 * kEclR * kR)
@@ -230,24 +230,25 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
     const SkPoint p = projRA(kStars[i].dec1326, kStars[i].ra1326);
     const float a = std::atan2(p.fY, p.fX) / kD;
     const float f = std::fmod(1.0f - a / 360.0f + 1.0f, 1.0f);
-    g.children({text(kStars[i].name)
-                    .font({.face = faceEngrave,
-                           .size = 0.026f * kR,
-                           .color = hexColor(0x33240c, 0.82f),
-                           .track = 0.4f})
-                    .width(2 * kR * (1.0f - kRingW * 0.5f))
-                    .height(2 * kR * (1.0f - kRingW * 0.5f))
-                    .centerAt(PL(0, 0))
-                    .key("sname" + std::to_string(i))
-                    .textOnPath(TextPath{.path = shapes::circle(),
-                                         .at = f,
-                                         .align = TextPath::Align::Center,
-                                         .offset = 0.0f,
-                                         .autoFlip = false,
-                                         .orient = TextPath::Orient::Tangent})
-                    .opacity(animate(
-                        from(0.0f).to(1.0f),
-                        ramp(tRete * 1000 + 1600 + (float)i * 90, 400)))});
+    g.children(
+        {text(kStars[i].name)
+             .font({.face = faceEngrave,
+                    .size = 0.026f * kR,
+                    .color = mat::skia::toSkColor(hexColor(0x33240c, 0.82f)),
+                    .track = 0.4f})
+             .width(2 * kR * (1.0f - kRingW * 0.5f))
+             .height(2 * kR * (1.0f - kRingW * 0.5f))
+             .centerAt(PL(0, 0))
+             .key("sname" + std::to_string(i))
+             .textOnPath(TextPath{.path = shapes::circle(),
+                                  .at = f,
+                                  .align = TextPath::Align::Center,
+                                  .offset = 0.0f,
+                                  .autoFlip = false,
+                                  .orient = TextPath::Orient::Tangent})
+             .opacity(
+                 animate(from(0.0f).to(1.0f),
+                         ramp(tRete * 1000 + 1600 + (float)i * 90, 400)))});
   }
 
   // --- the star tips, and the dog's head for Sirius --------------------

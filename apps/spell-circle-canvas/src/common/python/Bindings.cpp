@@ -2,6 +2,7 @@
 #include <sigildraw/Color.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilpython/Bindings.h>
 
 #include <algorithm>
@@ -22,12 +23,11 @@ SkColor4f color(py::handle value) {
   // that gives every SkColor4f parameter this reading calls in here, so
   // asking pybind11 to cast to an SkColor4f would ask for this function
   // again.
-  if (py::isinstance<material::Color>(value)) {
-    const auto c = py::cast<material::Color>(value);
-    return {c.r, c.g, c.b, c.a};
-  }
+  if (py::isinstance<material::Color>(value))
+    return material::skia::toSkColor(py::cast<material::Color>(value));
   if (py::isinstance<py::str>(value))
-    return draw::parseColor(py::cast<std::string>(value));
+    return material::skia::toSkColor(
+        draw::parseColor(py::cast<std::string>(value)));
   if (!py::isinstance<py::tuple>(value) && !py::isinstance<py::list>(value))
     throw py::type_error(
         "A color is a Color, a CSS string, or an RGB or RGBA sequence.");

@@ -7,6 +7,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Crash.h>
@@ -87,7 +88,8 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
     return 1;
   }
   SkCanvas& sk = *surface->getCanvas();
-  const SkColor background = host.background().toSkColor();
+  const SkColor background =
+      sigil::material::skia::toSkColor(host.background()).toSkColor();
 
   // Forces the pixels to exist. On raster this is already true when the
   // draw returns, and this path is raster by construction; the readback

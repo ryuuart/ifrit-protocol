@@ -486,10 +486,11 @@ TEST(ComposeCascade,
   // inherited face and size: the passage is exactly as wide as the same
   // words in one run, and the run's own colour shows.
   Host mixed, plain;
-  mixed.composer.render(
-      pageWith(text(sigil::weave::rich().add(u8"AA").add(
-                   u8"BB", sigil::weave::Type{.color = SkColor4f{1, 0, 0, 1}})),
-               24));
+  mixed.composer.render(pageWith(
+      text(sigil::weave::rich().add(u8"AA").add(
+          u8"BB", sigil::weave::Type{.color = material::skia::toSkColor(
+                                         SkColor4f{1, 0, 0, 1})})),
+      24));
   plain.composer.render(pageWith(text(u8"AABB"), 24));
   mixed.frame();
   plain.frame();

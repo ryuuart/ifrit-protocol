@@ -10,6 +10,7 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
 #include <sigilio/source/Sink.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Placement.h>
@@ -216,7 +217,7 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
         return 1;
       }
       const auto step = [&](SkCanvas& canvas, float scale, double dt) {
-        canvas.clear(session->canvas().background);
+        canvas.clear(material::skia::toSkColor(session->canvas().background));
         canvas.save();
         canvas.scale(scale, scale);
         session->frame(canvas, dt);

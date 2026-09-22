@@ -7,6 +7,7 @@
  */
 
 #include <include/core/SkShader.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <utility>
 
@@ -39,7 +40,7 @@ sk_sp<SkShader> Paint::asShader() const {
   if (m_live && isAnimated()) return build(*m_live, nullptr);
   if (m_backed && isAnimated()) return buildBacked(nullptr);
   if (m_shader) return m_shader;
-  if (m_isSolid) return SkShaders::Color(m_solid, nullptr);
+  if (m_isSolid) return SkShaders::Color(toSkColor(m_solid), nullptr);
   return nullptr;  // none
 }
 

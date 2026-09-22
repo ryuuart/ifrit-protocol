@@ -1,9 +1,9 @@
 #include "ChaucerAstrolabe.h"
 
 auto ChaucerAstrolabe::sheet() -> matkit::LattenParameters {
-  return {.shadow = mat::skia::toColor(kBrassP10),
-          .body = mat::skia::toColor(kBrassP50),
-          .light = mat::skia::toColor(kBrassP90),
+  return {.shadow = kBrassP10,
+          .body = kBrassP50,
+          .light = kBrassP90,
           .from = {kCx - kMaterR * 0.95f, kCy + kMaterR * 0.95f},
           .to = {kCx + kMaterR * 0.85f, kCy - kMaterR * 1.05f},
           .level = 0.0f,
@@ -387,24 +387,25 @@ auto ChaucerAstrolabe::limb() -> Element {
     const float psi = 90.0f - (float)deg;  // plate angle of this division
     const float f = kPlateAngles.fraction(psi);
     const float rr = 1.104f * kR;
-    g.children({text(std::to_string(deg == 0 ? 360 : deg))
-                    .font({.face = faceLimb,
-                           .size = 0.026f * kR,
-                           .color = hexColor(0x33240c, 0.92f),
-                           .track = 0.6f})
-                    .width(2 * rr)
-                    .height(2 * rr)
-                    .centerAt({kCx, kCy})
-                    .key("degnum" + std::to_string(i))
-                    .textOnPath(TextPath{.path = shapes::circle(),
-                                         .at = f,
-                                         .align = TextPath::Align::Center,
-                                         .offset = 0.0f,
-                                         .autoFlip = false,
-                                         .orient = TextPath::Orient::Radial})
-                    .opacity(animate(
-                        from(0.0f).to(1.0f),
-                        ramp(tTicks * 1000 + 300 + (float)i * 25, 400)))});
+    g.children(
+        {text(std::to_string(deg == 0 ? 360 : deg))
+             .font({.face = faceLimb,
+                    .size = 0.026f * kR,
+                    .color = mat::skia::toSkColor(hexColor(0x33240c, 0.92f)),
+                    .track = 0.6f})
+             .width(2 * rr)
+             .height(2 * rr)
+             .centerAt({kCx, kCy})
+             .key("degnum" + std::to_string(i))
+             .textOnPath(TextPath{.path = shapes::circle(),
+                                  .at = f,
+                                  .align = TextPath::Align::Center,
+                                  .offset = 0.0f,
+                                  .autoFlip = false,
+                                  .orient = TextPath::Orient::Radial})
+             .opacity(
+                 animate(from(0.0f).to(1.0f),
+                         ramp(tTicks * 1000 + 300 + (float)i * 25, 400)))});
   }
 
   // the 24 hour letters, RADIAL. A at the first hour after noon, running
@@ -420,8 +421,9 @@ auto ChaucerAstrolabe::limb() -> Element {
         {text(kLetters[n - 1])
              .font({.face = faceLimb,
                     .size = 0.040f * kR,
-                    .color = isX ? hexColor(0x33240c, 1.0f)
-                                 : hexColor(0x33240c, 0.88f)})
+                    .color =
+                        mat::skia::toSkColor(isX ? hexColor(0x33240c, 1.0f)
+                                                 : hexColor(0x33240c, 0.88f))})
              .width(2 * rr)
              .height(2 * rr)
              .centerAt({kCx, kCy})

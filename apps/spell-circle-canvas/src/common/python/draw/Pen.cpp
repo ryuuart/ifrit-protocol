@@ -227,7 +227,7 @@ void penProperty(PenClass& cls, const char* name, T Pen::* member) {
       name, [member](BorrowedPen& pen) { return pen.get().*member; });
 }
 
-SkColor4f penColor(Pen& pen, const py::args& args) {
+material::Color penColor(Pen& pen, const py::args& args) {
   if (args.size() == 1 && !py::isinstance<py::float_>(args[0]) &&
       !py::isinstance<py::int_>(args[0]))
     return color(args[0]);
