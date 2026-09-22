@@ -395,6 +395,17 @@ class RailRouter {
   core::Erased<detail::RailOperations> m_held;
 };
 
+/** THE PATH THROUGH AN ORDERED RUN OF POINTS: @p router's answer, or the
+ *  straight polyline through them when it is empty, with the FIRST point
+ *  pulled @p gapStart px back along its own segment and the LAST one
+ *  @p gapEnd px back along its — clamped so a short segment keeps a
+ *  visible run and a two-point run pulled from both ends cannot invert.
+ *  Fewer than two points draw nothing. The one statement of that rule, so
+ *  an operator threading a wire through stops and the kernel cannot
+ *  disagree about where the wire ends. */
+SkPath routeAlong(const RailRouter& router, std::span<const SkPoint> stops,
+                  float gapStart = 0.0f, float gapEnd = 0.0f);
+
 /** The component that IS a line: a path threaded through an ordered span of
  *  anchors (a transit line through its stations, a wire through ports),
  *  resolved in the derive phase and re-routed whenever an anchored node

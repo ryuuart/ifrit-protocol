@@ -54,6 +54,31 @@ SkPath routeBetween(const Router& router, const SkRect& from, const SkRect& to,
   return path;
 }
 
+SkPath routeAlong(const RailRouter& router, std::span<const SkPoint> stops,
+                  float gapStart, float gapEnd) {
+  if (stops.size() < 2) return SkPath();
+  std::vector<SkPoint> pts(stops.begin(), stops.end());
+  // Terminal gaps: pull the run's ends back along their own segments,
+  // clamped so a short segment keeps a visible run (and a two-point run
+  // pulled from both ends cannot invert).
+  const auto pullIn = [](SkPoint& end, const SkPoint& next, float gap) {
+    if (gap <= 0) return;
+    SkVector d = next - end;
+    const float len = d.length();
+    if (len < 1e-3f) return;
+    const float pull = std::min(gap, len * 0.45f);
+    d.scale(pull / len);
+    end += d;
+  };
+  pullIn(pts.front(), pts[1], gapStart);
+  pullIn(pts.back(), pts[pts.size() - 2], gapEnd);
+  if (router) return router(pts);
+  SkPathBuilder b;  // default: the straight polyline
+  b.moveTo(pts.front());
+  for (size_t i = 1; i < pts.size(); ++i) b.lineTo(pts[i]);
+  return b.detach();
+}
+
 void Composer::Impl::deriveRoute(Instance& inst) {
   const DeriveData* derive = &*inst.description->deriveData;
 
@@ -175,32 +200,12 @@ void Composer::Impl::deriveRoute(Instance& inst) {
         inst.markPaintDirtyUp();
       }
     } else if (pts.size() >= 2) {
-      // Terminal gaps: pull the rail's ends back along their segments,
-      // clamped so short segments keep a visible run (and a two-point rail
-      // pulled from both ends can't invert).
-      auto pullIn = [](SkPoint& end, const SkPoint& next, float gap) {
-        if (gap <= 0) return;
-        SkVector d = next - end;
-        const float len = d.length();
-        if (len < 1e-3f) return;
-        const float pull = std::min(gap, len * 0.45f);
-        d.scale(pull / len);
-        end += d;
-      };
-      pullIn(pts.front(), pts[1], derive->railAnchors.front().gap);
-      pullIn(pts.back(), pts[pts.size() - 2], derive->railAnchors.back().gap);
-
       if (pts != inst.railPoints) {
         inst.railPoints = std::move(pts);
-        if (derive->railRouter) {
-          inst.connectorPath = derive->railRouter(inst.railPoints);
-        } else {
-          SkPathBuilder b;  // default: the straight polyline
-          b.moveTo(inst.railPoints.front());
-          for (size_t i = 1; i < inst.railPoints.size(); ++i)
-            b.lineTo(inst.railPoints[i]);
-          inst.connectorPath = b.detach();
-        }
+        inst.connectorPath =
+            routeAlong(derive->railRouter, inst.railPoints,
+                       derive->railAnchors.front().gap,
+                       derive->railAnchors.back().gap);
         inst.routedHitPath = expandForHit(inst.connectorPath);
         inst.markPaintDirtyUp();
       }
