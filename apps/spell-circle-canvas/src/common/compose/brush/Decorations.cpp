@@ -11,6 +11,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilgeometry/path/StrokeSkia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilskia/draw/Direct.h>
 
@@ -58,8 +59,8 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   // visible half lands entirely on the kept side (the standard trick).
   const bool aligned = align != Align::Center;
   p.setStrokeWidth(aligned ? width * 2 : width);
-  p.setStrokeCap(cap);
-  p.setStrokeJoin(join);
+  p.setStrokeCap(geometry::path::toSk(cap));
+  p.setStrokeJoin(geometry::path::toSk(join));
   const Fill stroke = strokeFill.resolve(ctx);
   if (stroke.kind == Fill::Kind::None) return;
   if (stroke.kind == Fill::Kind::Color)
@@ -225,8 +226,8 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     p.setAntiAlias(true);
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(w);
-    p.setStrokeCap(cap);
-    p.setStrokeJoin(join);
+    p.setStrokeCap(geometry::path::toSk(cap));
+    p.setStrokeJoin(geometry::path::toSk(join));
     if (resolved.kind == Fill::Kind::Color)
       p.setColor4f(material::skia::toSkColor(resolved.colorValue), nullptr);
     else if (resolved.kind == Fill::Kind::Shader)

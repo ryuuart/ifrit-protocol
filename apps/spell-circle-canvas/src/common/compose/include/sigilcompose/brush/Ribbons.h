@@ -17,6 +17,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/path/Stroke.h>
 
 #include <memory>
 
@@ -91,10 +92,10 @@ struct Ribbon {
    *  band is wider than about half the leg it turns on, and it is then
    *  wider than the band itself.
    *
-   *  `SkPaint::Join` rather than a word of our own, because this is the
-   *  same decision a stroke makes and a caller should not have to learn a
-   *  second spelling of it. */
-  SkPaint::Join join = SkPaint::kBevel_Join;
+   *  `geometry::path::Join`, the word a stroke states, because this is
+   *  the same decision a stroke makes and a caller should not have to
+   *  learn a second spelling of it. */
+  geometry::path::Join join = geometry::path::Join::Bevel;
   /** How far a miter may reach, in widths, before it bevels instead —
    *  Skia's default of 4, and the reason `bleed()` grows under a miter:
    *  a mitered corner is the one join that reaches past the width. */
@@ -110,7 +111,9 @@ struct Ribbon {
     // A bevel and a round join stay inside the width; a miter is allowed
     // to reach `miterLimit` of them, and a bleed that did not say so
     // would clip the one corner the caller asked to be sharp.
-    return join == SkPaint::kMiter_Join ? w * std::max(miterLimit, 1.0f) : w;
+    return join == geometry::path::Join::Miter
+               ? w * std::max(miterLimit, 1.0f)
+               : w;
   }
   bool isAnimated() const { return fillMaterial && fillMaterial->isAnimated(); }
   bool operator==(const Ribbon& o) const {

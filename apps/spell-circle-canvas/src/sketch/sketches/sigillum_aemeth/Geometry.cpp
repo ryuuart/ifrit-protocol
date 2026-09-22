@@ -186,7 +186,7 @@ auto SigillumAemeth::circumferenceCells() -> Element {
                .stroke(PathFormat{
                    .width = 1.9f,
                    .strokeFill = Fill::color(hexColor(0x2c1c06, 1.0f)),
-                   .cap = SkPaint::kRound_Cap,
+                   .cap = sigil::geometry::path::Cap::Round,
                    .trimStart = 0.09f,
                    .trimEnd = 0.91f})
                .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 620)))

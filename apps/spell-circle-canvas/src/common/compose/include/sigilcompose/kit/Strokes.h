@@ -439,7 +439,7 @@ inline lines::Rails dottedCore(float outer, float core, const Fill& fill,
                         .width = core,
                         .fill = fill,
                         .dash = {0.01f, dotGap},
-                        .cap = SkPaint::kRound_Cap},
+                        .cap = geometry::path::Cap::Round},
                        {.across = gap, .width = outer, .fill = fill}});
 }
 

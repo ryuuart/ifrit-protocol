@@ -25,7 +25,8 @@
  *                    .wire = lines::presets::arrow(2, ink, 12)};
  */
 
-#include <include/core/SkPaint.h>
+#include <include/core/SkPath.h>
+#include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/skia/Paint.h>  // material::skia::Stop — the along-arc gradient ramp
 
 #include <optional>
@@ -34,9 +35,10 @@
 #include "sigilcompose/Compose.h"
 
 class SkCanvas;
+class SkPaint;
 
 /** THE LINE VOCABULARY a map or a diagram needs beyond a dash: parallel
- *  casings (double and triple rails, highway pairs), terminal caps
+ *  casings (double and triple rails, highway pairs), terminal markers
  *  (arrows, dots, bars — the node-graph direction language), railway
  *  ties, hatches, and wave and zigzag runs.
  *
@@ -116,10 +118,10 @@ struct Line {
   /** Corner treatment for the drawn strokes AND for the parallel-offset
    *  construction. The default round join also rounds the OFFSET contour,
    *  so a crisp 45° jog in a cased wire comes out as a soft S-curve; pass
-   *  `SkPaint::kMiter_Join` to keep the jog sharp. The offset rails are
+   *  `geometry::path::Join::Miter` to keep the jog sharp. The offset rails are
    *  built from a stroke outline either way, so this exposes that join
    *  rather than adding one. */
-  SkPaint::Join join = SkPaint::kRound_Join;
+  geometry::path::Join join = geometry::path::Join::Round;
 
   /** Wave/zigzag displacement of the run itself (the y2k squiggle, the
    *  hand-drawn nerve): amplitude in px, wavelength in px along the arc.

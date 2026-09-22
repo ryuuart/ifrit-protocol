@@ -2,7 +2,9 @@
 # typing/additions, not this file.
 
 from _sigil.geometry.path import (
+    Cap,
     Formation,
+    Join,
 )
 
 from . import (
@@ -13,7 +15,9 @@ from . import (
 )
 
 __all__ = [
+    "Cap",
     "Formation",
+    "Join",
     "blend",
     "crossing",
     "operations",

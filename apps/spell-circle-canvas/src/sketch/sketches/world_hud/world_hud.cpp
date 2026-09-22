@@ -400,7 +400,7 @@ struct WorldHud {
     // round is a fraction of the buff left.
     auto drainRing = [](sigil::material::Color colour, float left) {
       PathFormat ring = stroke(2.6f, Fill::color(colour));
-      ring.cap = SkPaint::kRound_Cap;
+      ring.cap = sigil::geometry::path::Cap::Round;
       ring.trimStart = 0.0f;
       ring.trimEnd = std::max(0.0f, std::min(1.0f, left));
       return ring;

@@ -365,11 +365,11 @@ std::vector<Style> furnishedStyles() {
       {0.0f, kRed}, {0.5f, {0.85f, 0.66f, 0.16f, 1}}, {1.0f, kBlue}};
 
   PathFormat dotted = stroke(2.6f, ink());
-  dotted.cap = SkPaint::kRound_Cap;
+  dotted.cap = geometry::path::Cap::Round;
   dotted.dashIntervals = {0.01f, 8.0f};
 
   PathFormat morse = stroke(1.8f, ink());
-  morse.cap = SkPaint::kButt_Cap;
+  morse.cap = geometry::path::Cap::Butt;
   morse.dashIntervals = {14, 5, 3, 5, 3, 12};
 
   return {

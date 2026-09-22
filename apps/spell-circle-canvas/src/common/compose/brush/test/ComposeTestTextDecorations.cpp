@@ -295,7 +295,7 @@ TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {
     b.moveTo(40, 40).lineTo(160, 40).lineTo(160, 160);
     return b.detach();
   };
-  auto corner = [&](SkPaint::Join join) {
+  auto corner = [&](geometry::path::Join join) {
     PathFormat f = stroke(24, Fill::color({1, 1, 1, 1}));
     f.join = join;
     Host host(200, 200);
@@ -309,8 +309,8 @@ TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {
     // The outer corner of the elbow: a miter reaches it, a round does not.
     return host.pixel(171, 29) != SK_ColorBLACK;
   };
-  EXPECT_TRUE(corner(SkPaint::kMiter_Join));
-  EXPECT_FALSE(corner(SkPaint::kRound_Join));
+  EXPECT_TRUE(corner(geometry::path::Join::Miter));
+  EXPECT_FALSE(corner(geometry::path::Join::Round));
 }
 
 TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {

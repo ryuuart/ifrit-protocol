@@ -35,8 +35,9 @@ SkPath Ribbon::band(const SkPath& spine) const {
   return geometry::path::sweptRegion(
       spine, law,
       {.stepPx = step,
-       .join = join == SkPaint::kRound_Join ? geometry::path::SweepJoin::Round
-               : join == SkPaint::kMiter_Join
+       .join = join == geometry::path::Join::Round
+                   ? geometry::path::SweepJoin::Round
+               : join == geometry::path::Join::Miter
                    ? geometry::path::SweepJoin::Miter
                    : geometry::path::SweepJoin::Bevel,
        .miterLimit = miterLimit});

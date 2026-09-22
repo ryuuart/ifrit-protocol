@@ -28,7 +28,7 @@ auto ThunderFulu::inkStroke(const Stroke& s) const -> Element {
     PathFormat hair;
     hair.width = 2.6f;
     hair.strokeFill = Fill::color(kIronMid);
-    hair.cap = SkPaint::kButt_Cap;
+    hair.cap = sigil::geometry::path::Cap::Butt;
     hair.dashIntervals = {7.0f, 3.0f};
     hair.dashPhase = 2.0f;
     brush.layer(hair, {shapers::Offset{-2.6f, 3.0f}});
@@ -59,7 +59,7 @@ auto ThunderFulu::inkStroke(const Stroke& s) const -> Element {
   PathFormat wet;
   wet.width = s.w0 * 0.30f;
   wet.strokeFill = Fill::color({kCinnaWet.r, kCinnaWet.g, kCinnaWet.b, 0.7f});
-  wet.cap = SkPaint::kButt_Cap;
+  wet.cap = sigil::geometry::path::Cap::Butt;
   wet.trimStart = 0.93f;
   wet.trimEnd = 1.0f;
   e.foreground(wet);

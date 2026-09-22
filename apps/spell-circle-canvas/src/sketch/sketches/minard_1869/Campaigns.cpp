@@ -423,7 +423,7 @@ auto Minard1869::flowRibbon(const WidthProfile& prof,
   brush::Ribbon r =
       brush::ribbon(FlowWidth{prof, &mmScale}, Fill::color(colour));
   r.step = 2.0f;
-  r.join = SkPaint::kBevel_Join;
+  r.join = sigil::geometry::path::Join::Bevel;
   return r;
 }
 

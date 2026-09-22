@@ -171,13 +171,13 @@ struct AstralTome {
          .width = 1.4f,
          .fill = Fill::color(sigil::material::scale(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
-         .cap = SkPaint::kRound_Cap},
+         .cap = geometry::path::Cap::Round},
         {.across = half * 1.9f,
          .width = 1.4f,
          .fill = Fill::color(sigil::material::scale(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
          .dashPhase = 5.8f,
-         .cap = SkPaint::kRound_Cap},
+         .cap = geometry::path::Cap::Round},
     };
 
     // The band's own soft shoulder, tapered to 40% at both ends so the link

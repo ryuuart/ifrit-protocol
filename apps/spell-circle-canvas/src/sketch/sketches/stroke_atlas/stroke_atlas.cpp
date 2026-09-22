@@ -407,7 +407,7 @@ struct StrokeAtlasSketch {
                                                 .fill = ink(),
                                                 .inset = 7.0f,
                                                 .dash = {0.01f, 5.0f},
-                                                .cap = SkPaint::kRound_Cap}),
+                                                .cap = geometry::path::Cap::Round}),
                -0.9f);
 
       const float pitch = 212.0f;

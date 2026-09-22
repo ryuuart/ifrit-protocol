@@ -31,11 +31,11 @@
  * geometry you built yourself — see `decorations::paintOn`.
  */
 
-#include <include/core/SkPaint.h>
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Lines.h>  // cornerBrackets, cornerGaps
 #include <sigilcore/callable/Callable.h>
+#include <sigilgeometry/path/Stroke.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>  // Wash — the material-valued decoration
@@ -84,13 +84,13 @@ struct PathFormat {
 
   /** Dash on/off intervals in px (empty → solid). */
   std::vector<SkScalar> dashIntervals;
-  /** Stroke cap and join on the paint itself. The defaults are Skia's —
-   *  butt caps and mitred joins — which end open contours square; line art
+  /** How the stroke ends and how its corners meet. The defaults are
+   *  butt caps and mitred joins, which end open contours square; line art
    *  built from many short open contours usually wants round for both.
    *  Distinct from `lines::Rail::join`, which shapes that rail's own
    *  OFFSET CURVE rather than this stroke on the node's outline. */
-  SkPaint::Cap cap = SkPaint::kButt_Cap;
-  SkPaint::Join join = SkPaint::kMiter_Join;
+  geometry::path::Cap cap = geometry::path::Cap::Butt;
+  geometry::path::Join join = geometry::path::Join::Miter;
   /** Off puts the stroke on whole pixels — the 1 px rule of an interface
    *  that was screen-shot rather than drawn, where a smoothed edge reads
    *  as a blur rather than as a line. `styles::BevelPair`, `Brackets` and
@@ -433,8 +433,8 @@ struct Border {
   float dashPhase = 0.0f;
   /** On `PathFormat::dashPhaseBinding`'s terms. */
   std::optional<motion::Animatable<float>> dashPhaseBinding;
-  SkPaint::Cap cap = SkPaint::kButt_Cap;
-  SkPaint::Join join = SkPaint::kMiter_Join;
+  geometry::path::Cap cap = geometry::path::Cap::Butt;
+  geometry::path::Join join = geometry::path::Join::Miter;
 
   bool operator==(const Border&) const = default;
   bool isAnimated() const {

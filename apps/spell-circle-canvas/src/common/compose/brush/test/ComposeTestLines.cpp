@@ -193,13 +193,13 @@ TEST(ComposeLines, ParallelJoinControlKeepsACornerSharp) {
   // equality, so it is recipe like every other field. The discriminator is
   // exact: a miter reaches the corner's outer point, a round join provably
   // never does.
-  const auto cased = [](SkPaint::Join join) {
+  const auto cased = [](geometry::path::Join join) {
     return lines::Line{
         .width = 3, .fill = green(), .parallels = 2, .gap = 12, .join = join};
   };
   Host miter, round;
-  miter.composer.render(corneredRun(cased(SkPaint::kMiter_Join)));
-  round.composer.render(corneredRun(cased(SkPaint::kRound_Join)));
+  miter.composer.render(corneredRun(cased(geometry::path::Join::Miter)));
+  round.composer.render(corneredRun(cased(geometry::path::Join::Round)));
   miter.frame();
   round.frame();
   // The outer rail rides 6 px outside the corner at (140, 140). A miter

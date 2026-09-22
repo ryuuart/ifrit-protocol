@@ -356,7 +356,7 @@ TEST(ComposeSpanCorner, AWholeContourClaimKeepsItsCornerJoin) {
     Host host(200, 200);
     Element e = revealBox();
     PathFormat wide = stroke(12, red());
-    wide.join = SkPaint::kMiter_Join;
+    wide.join = geometry::path::Join::Miter;
     switch (form) {
       case 0:
         e.stroke(std::move(wide));

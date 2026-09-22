@@ -526,9 +526,9 @@ TEST(ComposeRibbon, TheJoinShapesTheOutsideOfTheCorner) {
   brush::Ribbon bevel;
   bevel.width = geometry::path::Profile(FlatWidth{40.0f});
   brush::Ribbon round = bevel;
-  round.join = SkPaint::kRound_Join;
+  round.join = geometry::path::Join::Round;
   brush::Ribbon miter = bevel;
-  miter.join = SkPaint::kMiter_Join;
+  miter.join = geometry::path::Join::Miter;
 
   // Outside a right turn is the far side of the elbow, up and to the
   // right of (80,80). The bevel's chord cuts that corner off at 14.1 px;

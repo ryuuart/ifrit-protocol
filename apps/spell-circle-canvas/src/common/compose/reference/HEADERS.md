@@ -561,8 +561,8 @@ itself where the spine turns hard, the crossing winds the wrong way, and
 the winding fill DROPS the inside of the bend — a hole that opens once
 the band is wider than about half the leg it turns on, and is then wider
 than the band. `Ribbon::join` is what happens on the OUTSIDE of that
-corner, an `SkPaint::Join` because it is the same decision a stroke
-makes: the chord, the arc, or the point (bevelling past
+corner, a `geometry::path::Join` because it is the same decision a
+stroke makes: the chord, the arc, or the point (bevelling past
 `Ribbon::miterLimit`, which is also the one join whose bleed reaches past
 the width). What stays HERE is the WIDTH LAW — the linear taper, the
 `Profile`, and the calligraphic nib, whose width is a function of the

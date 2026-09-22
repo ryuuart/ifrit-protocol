@@ -90,8 +90,8 @@ auto ThunderFulu::sealBlock() -> Element {
                     .stroke(PathFormat{
                         .width = 4.4f,
                         .strokeFill = Fill::color(hexColor(0xf2e2cf, 0.95f)),
-                        .cap = SkPaint::kSquare_Cap,
-                        .join = SkPaint::kMiter_Join})
+                        .cap = sigil::geometry::path::Cap::Square,
+                        .join = sigil::geometry::path::Join::Miter})
                     .key(kit::formatted("sealglyph%d", k))});
   }
   return g;

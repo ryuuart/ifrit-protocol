@@ -15,6 +15,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilgeometry/path/StrokeSkia.h>
 #include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
@@ -91,8 +92,9 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   SkPaint stroke;
   stroke.setAntiAlias(true);
   stroke.setStyle(SkPaint::kStroke_Style);
-  stroke.setStrokeJoin(join);                // round unless asked otherwise
-  stroke.setStrokeCap(SkPaint::kRound_Cap);  // rails always end round
+  // Round unless asked otherwise; the rails always end round.
+  stroke.setStrokeJoin(geometry::path::toSk(join));
+  stroke.setStrokeCap(SkPaint::kRound_Cap);
   applyFill(stroke, ctx);
   if (!dashIntervals.empty())
     stroke.setPathEffect(SkDashPathEffect::Make(
@@ -178,8 +180,9 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
         SkPaint spread;
         spread.setStyle(SkPaint::kStroke_Style);
         spread.setStrokeWidth(std::max(span, 0.5f));
-        spread.setStrokeJoin(join);  // the offset contour inherits the join,
-        spread.setStrokeCap(SkPaint::kRound_Cap);  // so miter rails jog sharp
+        // The offset contour inherits the join, so mitre rails jog sharp.
+        spread.setStrokeJoin(geometry::path::toSk(join));
+        spread.setStrokeCap(SkPaint::kRound_Cap);
         SkPath loop = skpathutils::FillPathWithPaint(body, spread);
         if (std::optional<SkPath> simple = Simplify(loop))
           loop = std::move(*simple);  // tight-bend self-intersection repair
@@ -356,8 +359,8 @@ void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     p.setAntiAlias(true);
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(rail.width);
-    p.setStrokeCap(rail.cap);
-    p.setStrokeJoin(rail.join);
+    p.setStrokeCap(geometry::path::toSk(rail.cap));
+    p.setStrokeJoin(geometry::path::toSk(rail.join));
     const Fill railFill = resolveRef(rail.fill, ctx);
     if (railFill.kind == Fill::Kind::Color)
       p.setColor4f(material::skia::toSkColor(railFill.colorValue), nullptr);

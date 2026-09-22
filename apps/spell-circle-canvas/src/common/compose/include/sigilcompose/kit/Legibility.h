@@ -36,6 +36,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
+#include <sigilgeometry/path/StrokeSkia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Type.h>
 
@@ -55,7 +56,7 @@ struct Halo {
   float width = 2.2f;
   /** Round is what a knockout wants — a mitred join spikes at every sharp
    *  vertex and reads as a burr. */
-  SkPaint::Join join = SkPaint::kRound_Join;
+  geometry::path::Join join = geometry::path::Join::Round;
 };
 
 /** A displaced solid copy underneath — the game-HUD spelling, for a ground
@@ -76,7 +77,7 @@ inline sigil::weave::TextStyle haloed(sigil::weave::TextStyle style,
   p.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(halo.width);
-  p.setStrokeJoin(halo.join);
+  p.setStrokeJoin(geometry::path::toSk(halo.join));
   style.paint.addUnderlay(sigil::weave::PaintLayer(std::move(p)));
   return style;
 }
@@ -103,7 +104,7 @@ inline sigil::weave::Type haloed(sigil::weave::Type type,
   p.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(halo.width);
-  p.setStrokeJoin(halo.join);
+  p.setStrokeJoin(geometry::path::toSk(halo.join));
   if (!type.underlays) type.underlays.emplace();
   type.underlays->push_back(sigil::weave::PaintLayer(std::move(p)));
   return type;
@@ -202,7 +203,7 @@ inline void drawHaloed(SkCanvas& canvas, std::string_view s, SkPoint at,
   h.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
   h.setStyle(SkPaint::kStroke_Style);
   h.setStrokeWidth(halo.width);
-  h.setStrokeJoin(halo.join);
+  h.setStrokeJoin(geometry::path::toSk(halo.join));
   canvas.drawSimpleText(s.data(), s.size(), SkTextEncoding::kUTF8, at.fX, at.fY,
                         font, h);
   canvas.drawSimpleText(s.data(), s.size(), SkTextEncoding::kUTF8, at.fX, at.fY,
@@ -244,7 +245,7 @@ inline void drawHaloed(SkCanvas& canvas,
   h.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
   h.setStyle(SkPaint::kStroke_Style);
   h.setStrokeWidth(halo.width);
-  h.setStrokeJoin(halo.join);
+  h.setStrokeJoin(geometry::path::toSk(halo.join));
   for (const HaloedLine& l : lines)
     canvas.drawSimpleText(l.text.data(), l.text.size(), SkTextEncoding::kUTF8,
                           l.at.fX, l.at.fY, font, h);

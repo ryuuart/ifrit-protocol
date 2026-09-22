@@ -43,7 +43,8 @@ void bindGeometryMeshRender(pybind11::module_& module);
 /** Registers segments, extremes, tidy, fit, direction, edges, exact
  *  interpolation and the blend tool on @p module. */
 void bindGeometryPathEditing(pybind11::module_& module);
-/** Registers path.operations booleans, offset, corner treatments,
+/** Registers the two words a widened mark states — path.Cap and
+ *  path.Join — and path.operations booleans, offset, corner treatments,
  *  distorts, chains and strip joinery on @p module. */
 void bindGeometryPathOperations(pybind11::module_& module);
 /** Registers the artist's Builder, the sweeps and the sinks on @p

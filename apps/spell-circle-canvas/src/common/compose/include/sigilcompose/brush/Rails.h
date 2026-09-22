@@ -7,6 +7,8 @@
  * is its own line with its own width, fill, dash and phase.
  */
 
+#include <sigilgeometry/path/Stroke.h>
+
 #include "sigilcompose/brush/Lines.h"
 
 namespace sigil::compose::lines {
@@ -53,8 +55,8 @@ struct Rail {
   /** Added to the stroke's shared phase — the knob that slides ONE rail
    *  against its neighbours (staggered ties, a counter-dashed strand). */
   float dashPhase = 0.0f;
-  SkPaint::Cap cap = SkPaint::kRound_Cap;
-  SkPaint::Join join = SkPaint::kRound_Join;
+  geometry::path::Cap cap = geometry::path::Cap::Round;
+  geometry::path::Join join = geometry::path::Join::Round;
 
   bool operator==(const Rail&) const = default;
 };
