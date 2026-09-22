@@ -144,6 +144,8 @@ class FontContext {
                                                      const sk_sp<SkTypeface>&,
                                                      std::u16string_view,
                                                      uint32_t, bool, bool);
+  /// Reads the per-face zero advance this context measures once and keeps.
+  friend float zeroAdvanceOf(const TextStyle&, FontContext&);
   struct Impl;
   std::unique_ptr<Impl> m_impl;
 };

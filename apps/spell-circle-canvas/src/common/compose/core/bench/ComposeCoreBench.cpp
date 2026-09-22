@@ -110,6 +110,22 @@ Element groupScene(int count, Cache mode) {
 
 // ---- describe / reconcile -------------------------------------------------
 
+// WHAT A DESCRIBE COSTS ON ITS OWN, with no composer to hand the tree to:
+// one node allocated and filled per element, and the whole tree freed
+// again, every frame. It is the arm the node's SIZE is read against — the
+// mount and the reconcile arms below both carry a describe inside them,
+// so a node that grew and a reconcile that slowed are one number there
+// and two here.
+static void BM_Describe_Cold(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  for ([[maybe_unused]] auto iteration : state) {
+    Element tree = flexGrid(count);
+    benchmark::DoNotOptimize(tree);
+  }
+  reportNodes(state, count);
+}
+BENCHMARK(BM_Describe_Cold)->Apply(nodeLadder);
+
 static void BM_Mount_Cold(benchmark::State& state) {
   const int count = (int)state.range(0);
   for ([[maybe_unused]] auto iteration : state) {

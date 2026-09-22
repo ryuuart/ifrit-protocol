@@ -247,6 +247,13 @@ struct FontContext::Impl {
   // what optical kerning closes every other pair to. Absent from the map
   // until the face has been asked; kNoInk when the face has no such pair.
   boost::unordered_flat_map<uint32_t, float> referenceGaps;
+  // The advance of the figure zero, in EMS, per varied face — what a `ch`
+  // is a multiple of. Measuring it builds a font and asks for a glyph's
+  // width, and every element of every tree asks for it the moment its
+  // face is resolved, whether or not anything under it is written in
+  // `ch`. In ems because the advance scales with the size under linear
+  // metrics, so one measurement answers every size.
+  boost::unordered_flat_map<uint32_t, float> zeroAdvanceEms;
 
   // Reused scratch object (the context is single-threaded by contract).
   hb_buffer_t* shapingBuffer = nullptr;
@@ -273,6 +280,11 @@ struct FontContext::Impl {
   const detail::GlyphProfile& profileOf(const sk_sp<SkTypeface>& typeface,
                                         uint16_t glyph);
   float referenceGap(const sk_sp<SkTypeface>& typeface);
+  /** The advance of "0" in @p typeface as a fraction of its em, measured
+   *  once per face. `kAssumedZeroAdvanceEm` where the face has no zero:
+   *  a face with none would answer with the notdef box's width, which is
+   *  a different number in every face. */
+  float zeroAdvanceEm(const sk_sp<SkTypeface>& typeface);
   void applyOpticalKerning(const sk_sp<SkTypeface>& typeface, float fontSize,
                            ShapedWord& word);
   /** Destroys every HarfBuzz face/font and clears the record map. */

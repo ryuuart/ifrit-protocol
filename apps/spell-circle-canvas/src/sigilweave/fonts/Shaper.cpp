@@ -53,12 +53,8 @@ float lineHeightOf(const TextStyle& style, FontContext& fontContext) {
 float zeroAdvanceOf(const TextStyle& style, FontContext& fontContext) {
   const sk_sp<SkTypeface> typeface = fontContext.variedTypeface(
       style.shaping.typeface, style.shaping.variations);
-  const SkFont font = makeFont(typeface, style.shaping.fontSize);
-  // A face with no zero has no width to report and would answer with the
-  // notdef box's, which is a different number in every face.
-  if (font.unicharToGlyph(U'0') == 0)
-    return style.shaping.fontSize * Length::kAssumedZeroAdvanceEm;
-  return font.measureText("0", 1, SkTextEncoding::kUTF8);
+  return style.shaping.fontSize *
+         fontContext.m_impl->zeroAdvanceEm(typeface);
 }
 
 // The glyph's edges, measured once per face and kept.
@@ -77,6 +73,21 @@ const detail::GlyphProfile& FontContext::Impl::profileOf(
             .first;
   }
   return entry->second;
+}
+
+float FontContext::Impl::zeroAdvanceEm(const sk_sp<SkTypeface>& typeface) {
+  const uint32_t faceId = typeface ? typeface->uniqueID() : 0;
+  auto entry = zeroAdvanceEms.find(faceId);
+  if (entry != zeroAdvanceEms.end()) return entry->second;
+  // Measured at one em, so the answer is the fraction every size
+  // multiplies. A face with no zero has no width to report and would
+  // answer with the notdef box's.
+  const SkFont font = makeFont(typeface, 1.0f);
+  const float advance = font.unicharToGlyph(U'0') == 0
+                            ? Length::kAssumedZeroAdvanceEm
+                            : font.measureText("0", 1, SkTextEncoding::kUTF8);
+  zeroAdvanceEms.emplace(faceId, advance);
+  return advance;
 }
 
 // WHAT THIS FACE CALLS AN EVEN PAIR, in ems: the distance its own 'n n'

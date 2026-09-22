@@ -129,10 +129,14 @@ Block overlay(const Block& base, const Block& over) {
 }
 
 ParagraphStyle overlay(ParagraphStyle base, const Block& over) {
-  // A block handed straight to a whole style stands under NO ancestor, so
-  // `inherit` and `initial` both come to the field nobody stated, which is
-  // what the style already carries. Resolving against an empty block is
-  // exactly that, and it keeps the keyword from being a silent no-op here.
+  // A block handed straight to a whole style stands under NO ancestor.
+  // `inherit` therefore comes to the field nobody stated, which is what
+  // the style already carries, and resolving against an empty block is
+  // exactly that. `initial` comes to the same thing HERE and not to the
+  // layout's own default for that field: the door reads a partial and the
+  // style beneath it is already a whole value, so there is nothing to
+  // reset it to without a second table mapping every block field onto the
+  // style's. State the field's value where a block must reset one.
   if (!over.keywords.empty()) return overlay(base, overlay(Block{}, over));
   if (over.leading) base.leading = *over.leading;
   if (over.halfLeading) base.halfLeading = *over.halfLeading;
