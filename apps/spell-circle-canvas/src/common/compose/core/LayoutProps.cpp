@@ -222,10 +222,12 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   // the parent — through untouched.
   Align self = l.alignSelf;
   if (inst.description->kind == Kind::Text) {
-    const Align resolved =
-        self != Align::Auto ? self
-                            : (inst.parent ? inst.parent->computed.layout.alignItems
-                                           : Align::Stretch);
+    // A ROOT has no parent to inherit from, and a parent whose style has
+    // not been written yet stands at the property's own default — which is
+    // Stretch either way, so the two cases answer alike.
+    const Align fromParent =
+        inst.parent ? inst.parent->computed.layout.alignItems : Align::Stretch;
+    const Align resolved = self != Align::Auto ? self : fromParent;
     if (resolved == Align::Stretch) self = Align::Start;
   }
   YGNodeStyleSetAlignSelf(n, toYogaAlign(self));
