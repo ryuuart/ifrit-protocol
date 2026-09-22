@@ -523,8 +523,25 @@ struct Composer::Impl {
    *  writing into @p out refills a caller-owned vector. */
   std::vector<detail::Lane> lanes(detail::StyledNode styled);
   void lanes(detail::StyledNode styled, std::vector<detail::Lane>& out);
-  /** Retargets @p inst's running lanes from the style it stood in onto the
-   *  one it stands in now, which is the instance's own. */
+  /** Retargets every PROPERTY lane of @p inst — the slot table's rows and
+   *  the fill's synthesized progress — from the style it stood in onto the
+   *  one it stands in now, which is the instance's own. Called wherever
+   *  the computed style moves: at the patch for a node whose description
+   *  changed, and in the cascade pass for one whose answer came from
+   *  above. Leaves the lane lists holding the two sides. */
+  void retargetProperties(detail::Instance& inst, detail::StyledNode prev);
+  /** THE INK LANE. @p resolved is the colour the cascade pass just folded
+   *  for the node, which becomes its target in force; the lane eases from
+   *  the target that stood before it, under @p nodeTransition, and snaps
+   *  where there is none. @p recordOnly keeps the target and starts
+   *  nothing, for a node resolving its first colour and for one whose
+   *  colour comes from an ancestor already easing. */
+  void retargetInk(detail::Instance& inst,
+                   const std::optional<SkColor4f>& resolved,
+                   const std::optional<motion::Transition>& nodeTransition,
+                   bool recordOnly);
+  /** A patch: the property lanes, then the positional families a changed
+   *  description brings. */
   void applyTransitions(detail::Instance& inst, detail::StyledNode prev);
   void applyMountTransitions(detail::Instance& inst);
 

@@ -1,10 +1,18 @@
 /** @file
- * Transitions: the lanes a description carries, enumerated by family; the
- * patch that retargets each lane's ramp from its current value and the
- * mount that plays a declared entrance, both through SigilCore's lane
- * operations (one motion per (instance, property), retarget-from-current);
- * the per-frame reads of every animated lane a recording bakes; and the
- * cascade order a stagger deals its units in.
+ * Transitions: the lanes a mounted node carries, enumerated by family;
+ * the retarget of every PROPERTY lane from its current value onto the
+ * style now computed for the node, the retarget of the positional lanes a
+ * patch brings, the ink lane's own retarget, and the mount that plays a
+ * declared entrance — all through SigilMotion's lane operations (one
+ * motion per (instance, property), retarget-from-current); and the
+ * per-frame reads of every animated lane a recording bakes.
+ *
+ * WHO CALLS WHICH. A property lane is retargeted wherever the computed
+ * style moves, which is the patch for a node whose own description
+ * changed and the CASCADE PASS for one that takes its answer from above;
+ * a positional lane lives in a block of the description and so moves only
+ * at a patch; an entrance belongs to the mount, where the fact "there is
+ * no previous value" lives.
  */
 
 #include <sigilmaterial/color/Color.h>
@@ -56,6 +64,13 @@ std::span<const Lane> familyLanes(const std::vector<Lane>& lanes,
 
 constexpr LaneFamily kPositionalFamilies[] = {
     LaneFamily::Span, LaneFamily::Gate, LaneFamily::Track};
+
+/** The two sides of a retarget, as lane lists. They stand here rather
+ *  than inside one function so that the property half of a patch and the
+ *  positional half beside it walk each description once between them.
+ *  `retargetProperties` refills both, and nothing else does; they are
+ *  valid until the next call to it. */
+thread_local std::vector<Lane> prevLanes, nextLanes;
 
 }  // namespace
 
@@ -175,50 +190,22 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
   }
 }
 
-void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
+void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev) {
   const StyledNode next = inst.styled();
   const auto& nd = next.node.nodeTransition;
   // Every slot the table can reach (kSlotSpecs, ComposeRuntime.h — the one
-  // enumeration of Instance::Slot). A patch asks nothing of a slot's ROLE
-  // either; what it needs is the pair of endpoints, and the ONE extra fact
+  // enumeration of Instance::Slot). A retarget asks nothing of a slot's
+  // ROLE; what it needs is the pair of endpoints, and the ONE extra fact
   // the table carries for it: a node that GAINS or LOSES the block holding
   // a slot (a `travel()` path, kinetic text) has no previous or next value
   // there, so the field's own default stands in as the endpoint. That is
-  // the same "positional list" rule the span endpoints below use.
-  static thread_local std::vector<Lane> prevLanes, nextLanes;
+  // the same "positional list" rule the span endpoints use.
   lanes(prev, prevLanes);
   lanes(next, nextLanes);
   motion::retargetSlots(ticker,
                         std::span<std::unique_ptr<AnimatedFloat>>(inst.anims),
                         familyLanes(prevLanes, LaneFamily::Slot),
                         familyLanes(nextLanes, LaneFamily::Slot), nd);
-
-  // The positional families, each by the same rule. The lane list is
-  // positional, so a description that changes the SHAPE of a family (a
-  // pass added, a term added, a mask or a track added or removed) drops the
-  // running motions rather than carrying them onto endpoints that now mean
-  // something else — the same rule keys enforce for whole nodes.
-  //
-  // Span reveals: settled values show through (resolveFloatAt falls back to
-  // the description); an ENTRANCE is a mount thing, and this node is not
-  // mounting.
-  //
-  // Mask gates: this is what makes the retarget case work. An element that
-  // writes ONE mask in both branches of an if/else keeps a stable slot
-  // index, so `animate(to(span))` ramps from wherever the gate is now
-  // instead of mounting from scratch. Write two masks in one branch and one
-  // in the other and the shape changed — the motions drop, deliberately,
-  // rather than carrying onto a number that now means something else.
-  //
-  // fx() tracks: an element that writes the same NUMBER of tracks in both
-  // branches of an if/else keeps stable slot indices, so `animate(to(1))`
-  // on the second track ramps from wherever that track's progress is now.
-  // Add or remove a track and the shape changed — the motions drop rather
-  // than carrying onto a progress that now drives a different effect.
-  for (const LaneFamily family : kPositionalFamilies)
-    motion::retargetFamily(ticker, familyAnims(inst, family),
-                           familyLanes(prevLanes, family),
-                           familyLanes(nextLanes, family), nd);
 
   // The kFillLerp row (SlotRole::Bespoke): color→color lerp via a
   // synthesized progress output. A next fill with NO transition is a plain
@@ -263,45 +250,78 @@ void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
       motion::progressRamp(ticker, anim, *nextFill.transition, 0.0f);
     }
   }
+}
 
-  // The kInkLerp row (SlotRole::Bespoke): the ink this node DECLARES,
-  // colour → colour through a synthesized progress. Only a node that
-  // writes its ink can ease it — a transition belongs to the node whose
-  // property changes — and everything under it follows, because the
-  // cascade pass reads the ramp into the resolved colour each frame. A
-  // next ink with no transition, or one read from a custom property, is a
-  // snap, and disconnects any easing in flight so the description lands.
-  const auto declaredInk =
-      [](const ElementNode& n) -> std::optional<material::Color> {
-    if (!n.cascadeData || n.cascadeData->inkVar || !n.cascadeData->font)
-      return std::nullopt;
-    if (!n.cascadeData->font->color) return std::nullopt;
-    return material::skia::toColor(*n.cascadeData->font->color);
-  };
-  const std::optional<material::Color> prevInk = declaredInk(prev.node);
-  const std::optional<material::Color> nextInk = declaredInk(next.node);
-  if (!(nextInk && nd)) {
-    if (auto& anim = inst.anims[Instance::kInkLerp]; anim && anim->started) {
+void Composer::Impl::retargetInk(Instance& inst,
+                                 const std::optional<SkColor4f>& resolved,
+                                 const std::optional<motion::Transition>&
+                                     nodeTransition,
+                                 bool recordOnly) {
+  const std::optional<material::Color> previous = inst.inkTarget;
+  inst.inkTarget = resolved ? std::optional<material::Color>(
+                                  material::skia::toColor(*resolved))
+                            : std::nullopt;
+  auto& anim = inst.anims[Instance::kInkLerp];
+  // RECORDED AND NOTHING ELSE, for the two nodes with nothing to ease: one
+  // resolving its first colour, which has no previous target, and one
+  // taking a colour from an ancestor whose own lane is in flight, which is
+  // ALREADY easing. The second is the reason the target is recorded even
+  // here — it moves every frame while the ancestor runs, so the settled
+  // value finds this node agreeing with it instead of starting a ramp of
+  // its own a whole duration behind.
+  if (recordOnly) return;
+  if (!(inst.inkTarget && nodeTransition)) {
+    if (anim && anim->started) {
       anim->value.disconnect();
       anim->started = false;
     }
+    return;
   }
-  if (prevInk && nextInk && nd && !(*prevInk == *nextInk)) {
-    // The colour on screen as the new "from": mid-easing, the value the
-    // ramp stands at, so a retarget never snaps back to the old endpoint.
-    material::Color from = *prevInk;
-    auto& anim = inst.anims[Instance::kInkLerp];
-    if (anim && anim->started && anim->value.isConnected()) {
-      const float t = anim->value.value();
-      const material::Color& a = inst.inkFrom;
-      const material::Color& b = inst.inkTo;
-      from = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
-    }
-    inst.inkFrom = from;
-    inst.inkTo = *nextInk;
-    motion::progressRamp(ticker, anim, *nd, 0.0f);
-    cascadeDirty = true;
+  if (!previous || *previous == *inst.inkTarget) return;
+  // The colour on screen as the new "from": mid-easing, the value the
+  // ramp stands at, so a retarget never snaps back to the old endpoint.
+  material::Color from = *previous;
+  if (anim && anim->started && anim->value.isConnected()) {
+    const float t = anim->value.value();
+    const material::Color& a = inst.inkFrom;
+    const material::Color& b = *previous;
+    from = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
   }
+  inst.inkFrom = from;
+  motion::progressRamp(ticker, anim, *nodeTransition, 0.0f);
+}
+
+void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
+  const StyledNode next = inst.styled();
+  const auto& nd = next.node.nodeTransition;
+  retargetProperties(inst, prev);
+
+  // The positional families, each by the same rule. The lane list is
+  // positional, so a description that changes the SHAPE of a family (a
+  // pass added, a term added, a mask or a track added or removed) drops the
+  // running motions rather than carrying them onto endpoints that now mean
+  // something else — the same rule keys enforce for whole nodes.
+  //
+  // Span reveals: settled values show through (resolveFloatAt falls back to
+  // the description); an ENTRANCE is a mount thing, and this node is not
+  // mounting.
+  //
+  // Mask gates: this is what makes the retarget case work. An element that
+  // writes ONE mask in both branches of an if/else keeps a stable slot
+  // index, so `animate(to(span))` ramps from wherever the gate is now
+  // instead of mounting from scratch. Write two masks in one branch and one
+  // in the other and the shape changed — the motions drop, deliberately,
+  // rather than carrying onto a number that now means something else.
+  //
+  // fx() tracks: an element that writes the same NUMBER of tracks in both
+  // branches of an if/else keeps stable slot indices, so `animate(to(1))`
+  // on the second track ramps from wherever that track's progress is now.
+  // Add or remove a track and the shape changed — the motions drop rather
+  // than carrying onto a progress that now drives a different effect.
+  for (const LaneFamily family : kPositionalFamilies)
+    motion::retargetFamily(ticker, familyAnims(inst, family),
+                           familyLanes(prevLanes, family),
+                           familyLanes(nextLanes, family), nd);
 }
 
 // ---------------------------------------------------------------------------

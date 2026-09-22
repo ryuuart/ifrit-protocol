@@ -324,9 +324,17 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
-  Fill fillFrom, fillTo;                             // endpoints for kFillLerp
-  material::Color inkFrom{0, 0, 0, 1},
-      inkTo{0, 0, 0, 1};  // endpoints for kInkLerp
+  Fill fillFrom, fillTo;             // endpoints for kFillLerp
+  material::Color inkFrom{0, 0, 0, 1};  // where kInkLerp started
+  // THE INK TARGET IN FORCE, as the cascade pass last resolved it: the
+  // colour kInkLerp is headed for, and the one a freshly resolved colour
+  // is compared against to decide the lane moves. It is the RESOLVED
+  // colour and not the declared one, so a change arriving through a
+  // class, a matched rule or a custom property is a change here too.
+  // Unset until the pass has resolved this node once, and wherever it
+  // resolves no colour at all — a lane with no previous target has
+  // nothing to ease from.
+  std::optional<material::Color> inkTarget;
 
   // Derive-phase state
   std::vector<Exclusion>

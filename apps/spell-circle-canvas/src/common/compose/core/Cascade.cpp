@@ -255,6 +255,7 @@ void Composer::Impl::resolveCascade(
     const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet,
     const SheetChain& parentSheets, const InkInForce& parentInkPaint) {
   const ElementNode& node = *inst.description;
+  const bool first = !inst.cascadeResolved;
   // A NODE THAT WRITES A KEYWORD takes a value from its parent, and the
   // parent's answer can move while this node's own declarations stand
   // still — the one case the patch cannot see, because a node whose
@@ -277,7 +278,14 @@ void Composer::Impl::resolveCascade(
     // answers, which may have. Invalidating whether or not they did
     // re-records every keyword-bearing node and its ancestors on every
     // frame anything anywhere changed.
-    if (inst.cascadeResolved && !computedStyleEqual(before, inst.computed)) {
+    if (!first && !computedStyleEqual(before, inst.computed)) {
+      // A PROPERTY THAT MOVED HERE MOVED FOR THE SAME REASON one changed
+      // by the node's own verbs does, so it eases the same way: the lanes
+      // are retargeted from the style that stood before this fold. The
+      // patch cannot do it — this node never reaches the patch, its own
+      // declarations having compared equal — which is why the pass that
+      // found the change is the one that acts on it.
+      retargetProperties(inst, {before, node});
       inst.markPaintDirtyUp();
       contentDirty = true;
     }
@@ -287,6 +295,12 @@ void Composer::Impl::resolveCascade(
   // node that STATED it is the box a declaring-box anchor maps onto.
   InkInForce inkPaint = parentInkPaint;
   bool inkPaintOrigin = false;
+  // Whether the colour resolved below is one this node produced — a
+  // layer of its own fold said so — rather than one that simply arrived
+  // from its parent. Only the second kind can be a colour an ancestor is
+  // in the middle of easing, which is the one case the node's own lane
+  // must stand aside for.
+  bool statesOwnInk = false;
   std::shared_ptr<const VarTable> vars = parentVars;
   sigil::weave::Block block = parentBlock;
   std::optional<SkSamplingOptions> sampling = parentSampling;
@@ -416,14 +430,17 @@ void Composer::Impl::resolveCascade(
     if (!ownFont.empty())
       font = sigil::weave::overlay(parentFont, ownFont, fontSizePx(rootFont),
                                    parentLineHeight);
+    if (ownFont.color) statesOwnInk = true;
     if (inkVar) {
       const VarValue* value = vars ? vars->find(*inkVar) : nullptr;
       const material::Color* colour =
           value ? std::get_if<material::Color>(value) : nullptr;
-      if (colour)
+      if (colour) {
         font.color = material::skia::toSkColor(*colour);
-      else
+        statesOwnInk = true;
+      } else {
         warnNoSuchVar(*inkVar, true);
+      }
     }
   }
   // THE WIDE KEYWORDS, over everything a role default, a rule or this
@@ -451,6 +468,9 @@ void Composer::Impl::resolveCascade(
         case Property::Ink:
           font.color =
               fromParent ? parentFont.color : sigil::weave::initialType().color;
+          // `inherit` names the colour arriving from above and nothing
+          // else; `initial` is a colour of this node's own choosing.
+          statesOwnInk = !fromParent;
           // Whichever way it went, the paint in force came from somewhere
           // above this node or from nowhere, so this node is not the box a
           // declaring-box anchor maps onto.
@@ -474,18 +494,29 @@ void Composer::Impl::resolveCascade(
       }
     }
 
-  // The kInkLerp row: the ink this node declares, easing from one colour
-  // to another under its transition. The ramp is read into the resolved
-  // colour here, so every node under this one inherits the colour in
-  // flight and repaints with it.
+  // THE kInkLerp ROW'S TRIGGER, on the colour the fold above RESOLVED. A
+  // colour that moved because a class, a matched rule or a custom property
+  // moved eases exactly as the same change written with `ink()` does,
+  // which is the whole reason the trigger stands here and not in the
+  // patch: a node whose own declarations did not move never reaches the
+  // patch, and a node whose ink arrives through a rule has none that did.
+  // A node resolving its first colour has nothing to ease from, so it
+  // records the target and starts nothing. A node whose colour ARRIVES
+  // from an ancestor has no lane of its own at all: the ancestor that
+  // states the colour is the one easing it, everything under follows the
+  // ramp through the inherited value, and a second lane here would run a
+  // whole duration behind the one above it.
+  retargetInk(inst, statesOwnInk ? font.color : std::nullopt,
+              node.nodeTransition, first);
+  // …and the ramp is read into the resolved colour here, so every node
+  // under this one inherits the colour in flight and repaints with it.
   if (const auto& anim = inst.anims[Instance::kInkLerp];
-      anim && anim->started && anim->value.isConnected()) {
+      anim && anim->started && anim->value.isConnected() && inst.inkTarget) {
     font.color = material::skia::toSkColor(
-        lerpColour(inst.inkFrom, inst.inkTo, anim->value.value()));
+        lerpColour(inst.inkFrom, *inst.inkTarget, anim->value.value()));
     inkAnimating = true;
   }
 
-  const bool first = !inst.cascadeResolved;
   const bool shapeChanged = first || !sameFontButColour(font, inst.font);
   const bool inkChanged =
       first || !(font.color == inst.font.color) || !(inkPaint == inst.inkPaint);

@@ -342,7 +342,11 @@ TEST(ComposeCascade, APartialSpanStyleIsLaidOverTheStyleTheRangeIsSetIn) {
 
 TEST(ComposeCascade, AnInkTransitionEasesEverythingUnderTheNodeAndSettles) {
   // The node that declares the ink eases it; the fill under it, written as
-  // the ink, is mixed while the ramp runs and lands when it settles.
+  // the ink, is mixed while the ramp runs and lands when it settles. The
+  // frame with no elapsed time between the describe and the first tick is
+  // the frame the lane STARTS on: the ink's target is resolved by the
+  // cascade pass, so the ramp begins where the pass runs and the colour it
+  // begins at is the one that was standing.
   Host host;
   const auto page = [](SkColor4f ink) {
     return box()
@@ -354,6 +358,9 @@ TEST(ComposeCascade, AnInkTransitionEasesEverythingUnderTheNodeAndSettles) {
   host.composer.render(page({1, 0, 0, 1}));
   host.frame();
   host.composer.render(page({0, 0, 1, 1}));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 255, 0, 0))
+      << "the ramp has begun and stands at the colour it begins at";
   host.frame(0.1);
   const SkColor mid = host.pixel(30, 30);
   EXPECT_GT(SkColorGetR(mid), 0u);
@@ -363,6 +370,63 @@ TEST(ComposeCascade, AnInkTransitionEasesEverythingUnderTheNodeAndSettles) {
   EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 0, 0, 255));
   host.frame(0.1);
   EXPECT_FALSE(host.composer.active());
+}
+
+TEST(ComposeCascade, AnInkChangedThroughAClassEasesAsTheVerbsChangeDoes) {
+  // THE POINT OF WATCHING THE COMPUTED VALUE. The node writes no ink of
+  // its own in either description: the colour arrives through a class, so
+  // nothing the node DECLARES moves, and the lane still eases — the two
+  // spellings of one change cannot disagree.
+  const sigil::weave::StyleSheet sheet{
+      {"hot", sigil::weave::Type{.color = SkColor4f{1, 0, 0, 1}}},
+      {"cold", sigil::weave::Type{.color = SkColor4f{0, 0, 1, 1}}}};
+  Host host;
+  const auto page = [&](std::string_view name) {
+    return box()
+        .styleSheet(sheet)
+        .styleClass(name)
+        .transition({.duration = 200ms})
+        .children({box().width(60).height(60).fill(Fill::currentInk())});
+  };
+  host.composer.render(page("hot"));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 255, 0, 0));
+  host.composer.render(page("cold"));
+  host.frame();
+  host.frame(0.1);
+  const SkColor mid = host.pixel(30, 30);
+  EXPECT_GT(SkColorGetR(mid), 0u) << "the class change eased, it did not snap";
+  EXPECT_LT(SkColorGetR(mid), 255u);
+  EXPECT_GT(SkColorGetB(mid), 0u);
+  host.frame(0.3);
+  EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 0, 0, 255));
+}
+
+TEST(ComposeCascade, ANodeThatInheritsItsInkRunsNoLaneOfItsOwn) {
+  // The lane belongs to the node that STATES the colour; everything under
+  // it follows through the inherited value. The box between states a
+  // transition of its own and no ink, and it must add no second ramp —
+  // one there would still be moving a whole duration after the node above
+  // had landed.
+  Host host;
+  const auto page = [](SkColor4f ink) {
+    return box()
+        .ink(ink)
+        .transition({.duration = 200ms})
+        .children({box()
+                       .transition({.duration = 200ms})
+                       .children({box().width(60).height(60).fill(
+                           Fill::currentInk())})});
+  };
+  host.composer.render(page({1, 0, 0, 1}));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 255, 0, 0)) << "start";
+  host.composer.render(page({0, 0, 1, 1}));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 255, 0, 0)) << "begun";
+  host.frame(0.25);
+  EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 0, 0, 255))
+      << "settled with the ancestor, not a second duration behind it";
 }
 
 TEST(ComposeCascade,
