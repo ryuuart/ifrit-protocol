@@ -62,6 +62,18 @@ struct Arrangement {
     std::optional<T> attribute(std::string_view name) const {
       return attributes.get<T>(name);
     }
+    /** The fact under @p name as a number, whichever numeric type it was
+     *  written in — an operator placing by a lane reads it here, so an
+     *  author who wrote `3` and one who wrote `3.0f` are placed alike. */
+    std::optional<float> number(std::string_view name) const {
+      if (auto value = attributes.get<float>(name)) return *value;
+      if (auto value = attributes.get<int>(name)) return (float)*value;
+      if (auto value = attributes.get<double>(name)) return (float)*value;
+      if (auto value = attributes.get<unsigned int>(name)) return (float)*value;
+      if (auto value = attributes.get<long>(name)) return (float)*value;
+      if (auto value = attributes.get<unsigned long>(name)) return (float)*value;
+      return std::nullopt;
+    }
     /** Puts the child at @p where, size included. */
     void place(SkRect where) { rect = where; }
     /** Centres the child's measured size on @p centre. */

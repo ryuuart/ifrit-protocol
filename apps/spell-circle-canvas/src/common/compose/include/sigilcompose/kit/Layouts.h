@@ -4,8 +4,10 @@
  * @ingroup compose-kit
  *
  * Free-form child placement: rings, paths, sheared stacks, baseline
- * rhythms and seeded jitter. Each scheme places measured child boxes
- * within a container. Track-based arrangements use Grid.
+ * rhythms and seeded jitter. Each is an arranging operator or a
+ * placement scheme applied with `Element::operators` or `layout()`,
+ * placing measured child boxes within a container. Track-based
+ * arrangements use Grid.
  */
 
 #include <include/core/SkContourMeasure.h>
@@ -16,6 +18,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "sigilcompose/Compose.h"
@@ -33,7 +37,18 @@ namespace sigil::compose::layouts {
  *  A FULL-TURN sweep excludes the endpoint — n children divide the circle
  *  into n equal steps, and the last does not land on top of the first. A
  *  PARTIAL sweep includes both ends, so the first child sits at startDeg
- *  and the last at startDeg + sweepDeg. */
+ *  and the last at startDeg + sweepDeg.
+ *
+ *  BY A FACT RATHER THAN BY INDEX: name a `lane`, and each child stands
+ *  at the fraction its own fact under that name makes of `divisions` —
+ *  the child stating `3` under "hour" at three of twelve, whatever
+ *  order the children were written in and whichever hours are missing.
+ *  `divisions` of zero is the number of children. A child stating no
+ *  such fact stands at its index.
+ *
+ *  `facing` turns each child to stand along its radius, its top toward
+ *  the rim — a numeral on a dial, a petal — as a paint-only turn over
+ *  whatever rotation the child states for itself. */
 struct Radial {
   float radiusFraction = 0.8f;
   float startDeg = -90.0f;
@@ -43,33 +58,50 @@ struct Radial {
    *  be shorter than the child list; the tail falls back to
    *  `radiusFraction`. */
   std::vector<float> radiusAt;
+  std::string lane;
+  float divisions = 0.0f;
+  bool facing = false;
+  bool operator==(const Radial&) const = default;
 
-  std::vector<SkRect> place(const LayoutInput& in) const {
-    const size_t n = in.childSizes.size();
-    std::vector<SkRect> rects(n);
-    if (n == 0) return rects;
-    const float cx = in.container.width() / 2;
-    const float cy = in.container.height() / 2;
+  void arrange(Arrangement& arrangement) const {
+    const size_t n = arrangement.children.size();
+    if (n == 0) return;
+    const float cx = arrangement.box.width() / 2;
+    const float cy = arrangement.box.height() / 2;
     auto frac = [&](size_t i) {
       return i < radiusAt.size() ? radiusAt[i] : radiusFraction;
     };
     // A full circle spaces n children evenly (endpoint excluded); a
     // partial sweep includes both endpoints. The test is made in degrees,
     // the unit the author stated the sweep in.
-    const geometry::arrange::Turn turn =
-        std::abs(std::abs(sweepDeg) - 360.0f) < 1e-3f
-            ? geometry::arrange::Turn::Closed
-            : geometry::arrange::Turn::Open;
+    const bool closed = std::abs(std::abs(sweepDeg) - 360.0f) < 1e-3f;
+    const geometry::arrange::Turn turn = closed
+                                             ? geometry::arrange::Turn::Closed
+                                             : geometry::arrange::Turn::Open;
     const float start = startDeg * geometry::path::kDegToRad;
     const float sweep = sweepDeg * geometry::path::kDegToRad;
+    const float count = divisions > 0 ? divisions : (float)n;
     for (size_t i = 0; i < n; ++i) {
+      Arrangement::Child& child = arrangement.children[i];
       const float r = frac(i);
-      rects[i] = geometry::path::centred(
-          geometry::arrange::onRing(i, n, {cx, cy}, {cx * r, cy * r}, start,
-                                    sweep, turn),
-          in.childSizes[i]);
+      const std::optional<float> fact =
+          lane.empty() ? std::nullopt : child.number(lane);
+      float angle;
+      if (fact) {
+        // A fact's fraction of the sweep: a closed ring divides into
+        // `count` steps, an open fan into `count - 1` so the last fact
+        // reaches the far end exactly as the last index does.
+        const float steps = closed ? count : std::max(count - 1.0f, 1.0f);
+        angle = start + sweep * (*fact / steps);
+      } else {
+        angle = geometry::arrange::along(start, sweep, i, n, turn);
+      }
+      child.centreAt(
+          geometry::arrange::onEllipse({cx, cy}, {cx * r, cy * r}, angle));
+      // Standing along the radius: a child at twelve o'clock (−90°) is
+      // upright, one at three o'clock turned a quarter clockwise.
+      if (facing) child.turn(angle * geometry::path::kRadToDeg + 90.0f);
     }
-    return rects;
   }
 };
 
@@ -84,20 +116,29 @@ struct Radial {
  *
  *  A closed contour walked end to end excludes the duplicate endpoint, so
  *  the last child does not land on the first. Any other stretch, and any
- *  open contour, includes both ends. */
+ *  open contour, includes both ends.
+ *
+ *  `facing` turns each child to lie along the contour where it stands —
+ *  its x axis on the tangent, so a word set along a curve reads along
+ *  it — as a paint-only turn over the child's own rotation.
+ *
+ *  The path is a callable and carries no equality, so an `AlongPath` is
+ *  the escape hatch that never prunes; a container whose children hold
+ *  still is memoised above it. */
 struct AlongPath {
   core::Callable<SkPath(SkSize)> path;
   float startFraction = 0.0f;
   float endFraction = 1.0f;
+  bool facing = false;
 
-  std::vector<SkRect> place(const LayoutInput& in) const {
-    const size_t n = in.childSizes.size();
-    std::vector<SkRect> rects(n);
-    if (n == 0 || !path) return rects;
-    const SkPath resolved = path(in.container);
+  void arrange(Arrangement& arrangement) const {
+    const size_t n = arrangement.children.size();
+    if (n == 0 || !path) return;
+    const SkPath resolved =
+        path({arrangement.box.width(), arrangement.box.height()});
     SkContourMeasureIter iter(resolved, false);
     sk_sp<SkContourMeasure> contour = iter.next();
-    if (!contour) return rects;
+    if (!contour) return;
     const float length = contour->length();
     const float d0 = length * startFraction;
     const float d1 = length * endFraction;
@@ -110,11 +151,41 @@ struct AlongPath {
         loop ? geometry::arrange::Turn::Closed : geometry::arrange::Turn::Open;
     for (size_t i = 0; i < n; ++i) {
       SkPoint pos;
-      if (contour->getPosTan(geometry::arrange::along(d0, d1 - d0, i, n, turn),
-                             &pos, nullptr))
-        rects[i] = geometry::path::centred(pos, in.childSizes[i]);
+      SkVector tangent;
+      if (!contour->getPosTan(geometry::arrange::along(d0, d1 - d0, i, n, turn),
+                              &pos, &tangent))
+        continue;
+      arrangement.children[i].centreAt(pos);
+      if (facing)
+        arrangement.children[i].turn(std::atan2(tangent.y(), tangent.x()) *
+                                     geometry::path::kRadToDeg);
     }
-    return rects;
+  }
+};
+
+/** EVERY CHILD NUDGED FROM WHERE IT STANDS by a seeded offset of up to
+ *  `amount` px on each axis — deterministic per seed, so the same chaos
+ *  every frame and a cacheable one — and held inside the box. It moves
+ *  what the operator before it in the list placed, so a ring, a path
+ *  or a grid is jittered by listing this after it. */
+struct Jitter {
+  uint32_t seed = 1;
+  float amount = 8.0f;
+  bool operator==(const Jitter&) const = default;
+
+  void arrange(Arrangement& arrangement) const {
+    for (size_t i = 0; i < arrangement.children.size(); ++i) {
+      Arrangement::Child& child = arrangement.children[i];
+      const float dx = core::noise::hash(seed, (uint32_t)(i * 2)) * amount;
+      const float dy = core::noise::hash(seed, (uint32_t)(i * 2 + 1)) * amount;
+      SkRect moved = child.rect.makeOffset(dx, dy);
+      // Held inside the box, so a nudge never clips a child away.
+      moved.offset(std::max(0.0f, -moved.left()) -
+                       std::max(0.0f, moved.right() - arrangement.box.width()),
+                   std::max(0.0f, -moved.top()) -
+                       std::max(0.0f, moved.bottom() - arrangement.box.height()));
+      child.place(moved);
+    }
   }
 };
 

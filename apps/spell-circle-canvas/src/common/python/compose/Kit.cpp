@@ -265,6 +265,10 @@ void bindLayouts(py::module_& compose) {
   field(radial, "startDeg", &layouts::Radial::startDeg);
   field(radial, "sweepDeg", &layouts::Radial::sweepDeg);
   field(radial, "radiusAt", &layouts::Radial::radiusAt);
+  field(radial, "lane", &layouts::Radial::lane);
+  field(radial, "divisions", &layouts::Radial::divisions);
+  field(radial, "facing", &layouts::Radial::facing);
+  radial.def(py::self == py::self);
   auto diagonal = record<layouts::Diagonal>(module, "Diagonal");
   py::enum_<layouts::Diagonal::Anchor>(module, "DiagonalAnchor")
       .value("Start", layouts::Diagonal::Anchor::Start)
@@ -279,6 +283,10 @@ void bindLayouts(py::module_& compose) {
   auto jittered = record<layouts::Jittered>(module, "Jittered");
   field(jittered, "seed", &layouts::Jittered::seed);
   field(jittered, "jitter", &layouts::Jittered::jitter);
+  auto jitter = record<layouts::Jitter>(module, "Jitter");
+  field(jitter, "seed", &layouts::Jitter::seed);
+  field(jitter, "amount", &layouts::Jitter::amount);
+  jitter.def(py::self == py::self);
   auto along = record<layouts::AlongPath>(module, "AlongPath");
   along.def_property(
       "path",
@@ -293,11 +301,13 @@ void bindLayouts(py::module_& compose) {
       });
   field(along, "startFraction", &layouts::AlongPath::startFraction);
   field(along, "endFraction", &layouts::AlongPath::endFraction);
+  field(along, "facing", &layouts::AlongPath::facing);
   layoutFunction<layouts::Radial>(compose);
   layoutFunction<layouts::Grid>(compose);
   layoutFunction<layouts::Diagonal>(compose);
   layoutFunction<layouts::BaselineGrid>(compose);
   layoutFunction<layouts::Jittered>(compose);
+  layoutFunction<layouts::Jitter>(compose);
   layoutFunction<layouts::AlongPath>(compose);
 }
 

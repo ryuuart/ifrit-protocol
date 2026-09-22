@@ -167,13 +167,92 @@ TEST(ComposeLayouts, AlongPathUsesTheSelectedContoursClosure) {
       if (!firstClosed) path.close();
       return path.detach();
     }};
-    LayoutInput in;
-    in.container = {100, 100};
-    in.childSizes = {{0, 0}, {0, 0}};
-    const auto placed = scheme.place(in);
-    ASSERT_EQ(placed.size(), 2u);
-    EXPECT_FLOAT_EQ(placed[0].centerX(), 0);
-    EXPECT_FLOAT_EQ(placed[1].centerX(), 100);
-    EXPECT_FLOAT_EQ(placed[1].centerY(), 0);
+    Arrangement arrangement;
+    arrangement.box = SkRect::MakeWH(100, 100);
+    arrangement.children.resize(2);
+    scheme.arrange(arrangement);
+    const auto& placed = arrangement.children;
+    EXPECT_FLOAT_EQ(placed[0].rect.centerX(), 0);
+    EXPECT_FLOAT_EQ(placed[1].rect.centerX(), 100);
+    EXPECT_FLOAT_EQ(placed[1].rect.centerY(), 0);
   }
+}
+
+TEST(ComposeLayouts, RadialPlacesByAFactWhenToldTheLane) {
+  // Written out of order, with hours missing, under twelve divisions: each
+  // numeral stands at its own hour, and a child stating no hour stands at
+  // its index.
+  Host host;
+  auto hour = [](int number) {
+    return box()
+        .key("h" + std::to_string(number))
+        .attribute("hour", number)
+        .width(10)
+        .height(10)
+        .fill(red());
+  };
+  host.composer.render(
+      box()
+          .width(200)
+          .height(200)
+          .operators({layouts::Radial{.lane = "hour", .divisions = 12}})
+          .children({hour(9), hour(3)}));
+  host.frame();
+  auto centre = [&](const char* key) {
+    auto rect = host.composer.bounds(key);
+    return SkPoint{rect->centerX(), rect->centerY()};
+  };
+  EXPECT_NEAR(centre("h3").x(), 180, 1);
+  EXPECT_NEAR(centre("h3").y(), 100, 1);
+  EXPECT_NEAR(centre("h9").x(), 20, 1);
+  EXPECT_NEAR(centre("h9").y(), 100, 1);
+}
+
+TEST(ComposeLayouts, RadialFacingTurnsEachChildAlongItsRadius) {
+  // A tall bar at three o'clock, facing, is turned a quarter clockwise:
+  // it paints wide, so the pixel above and below its centre is background
+  // and the one beside it is the bar.
+  Host host;
+  host.composer.render(
+      box()
+          .width(200)
+          .height(200)
+          .operators({layouts::Radial{
+              .radiusFraction = 0.5f, .startDeg = 0.0f, .facing = true}})
+          .children({box().key("bar").width(6).height(40).fill(red())}));
+  host.frame();
+  auto rect = host.composer.bounds("bar");
+  ASSERT_TRUE(rect.has_value());
+  EXPECT_NEAR(rect->centerX(), 150, 1);
+  EXPECT_NEAR(rect->centerY(), 100, 1);
+  EXPECT_EQ(host.pixel(150, 85), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(135, 100), SK_ColorRED);
+  EXPECT_EQ(host.pixel(165, 100), SK_ColorRED);
+}
+
+TEST(ComposeLayouts, JitterNudgesWhatTheOperatorBeforeItPlaced) {
+  Host host;
+  auto tree = [](bool jittered) {
+    std::vector<Operator> list = {layouts::Radial{}};
+    if (jittered) list.push_back(layouts::Jitter{.seed = 7, .amount = 12});
+    return box().width(200).height(200).operators(list).children(
+        {box().key("a").width(10).height(10).fill(red()),
+         box().key("b").width(10).height(10).fill(red())});
+  };
+  host.composer.render(tree(false));
+  host.frame();
+  const SkRect still = *host.composer.bounds("a");
+  host.composer.render(tree(true));
+  host.frame();
+  const SkRect moved = *host.composer.bounds("a");
+  // Moved off the ring, by no more than the amount, and still in the box.
+  EXPECT_NE(still, moved);
+  EXPECT_LE(std::abs(moved.left() - still.left()), 12.5f);
+  EXPECT_LE(std::abs(moved.top() - still.top()), 12.5f);
+  EXPECT_GE(moved.left(), 0);
+  EXPECT_LE(moved.right(), 200);
+  // Deterministic: the same seed lands in the same place again.
+  host.composer.render(tree(true));
+  host.frame();
+  EXPECT_EQ(*host.composer.bounds("a"), moved);
 }
