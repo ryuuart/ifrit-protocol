@@ -123,6 +123,8 @@ void perturb(std::vector<Element>& v) { v.push_back(box()); }
 
 void perturb(cd::PaintProps& v) { perturb(v.opacity); }
 
+void perturb(PropertyMask& v) { v.set(Property::Gap); }
+
 void perturb(sigil::weave::Unit& v) { v = sigil::weave::Unit::Line; }
 
 void perturb(Beats& v) { v = Beats::Text; }
@@ -181,10 +183,9 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
   // The per-axis scales are the easiest ones to leave out, because the
   // uniform `scale` beside them makes a comparator look complete.
   static const char* const kNames[] = {
-      "fill",       "opacity",    "blendMode", "backgroundOrigin",
-      "translateX", "translateY", "rotate",    "scale",
-      "scaleX",     "scaleY",     "skewX",     "skewY",
-      "originX",    "originY",    "zIndex"};
+      "fill",       "opacity", "blendMode", "backgroundOrigin", "translateX",
+      "translateY", "rotate",  "scale",     "scaleX",           "scaleY",
+      "skewX",      "skewY",   "originX",   "originY",          "zIndex"};
   static const bool kParticipates[] = {true, true, true, true, true,
                                        true, true, true, true, true,
                                        true, true, true, true, true};
@@ -275,13 +276,14 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   //  - `children` are reconciled BY KEY, not compared. A node that prunes
   //    still walks them — that is the whole point of the structural prune.
   static const char* const kNames[] = {
-      "kind",           "boundary",    "coverageThreshold", "key",
-      "layout",         "paint",       "corners",           "shapeFn",
-      "clipContent",    "hitTestable", "cacheMode",         "bakeScale",
-      "nodeTransition", "backgrounds", "foregrounds",       "textData",
-      "imageData",      "customData",  "deriveData",        "fxData",
-      "materialData",   "strokeData",  "memoData",          "motionData",
-      "depthData",      "cascadeData", "operatorData",      "children"};
+      "kind",         "boundary",       "coverageThreshold", "key",
+      "layout",       "paint",          "corners",           "shapeFn",
+      "clipContent",  "hitTestable",    "cacheMode",         "bakeScale",
+      "declared",     "nodeTransition", "keywords",          "backgrounds",
+      "foregrounds",  "textData",       "imageData",         "customData",
+      "deriveData",   "fxData",         "materialData",      "strokeData",
+      "memoData",     "motionData",     "depthData",         "cascadeData",
+      "operatorData", "children"};
   static const bool kParticipates[] = {
       true,
       true,
@@ -295,7 +297,10 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
       true,
       true,
       true,
+      true,  // declared — which properties this description STATED, which
+             // the values alone cannot say
       true,
+      true,  // keywords — a property written as inherit/initial/unset
       true,
       true,
       true,
@@ -340,7 +345,7 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   // A row reads a PROPERTY lane off the computed style and a positional one
   // off the description's block, so the walk hands it both.
   cd::ComputedStyle style;
-  cd::computeStyle(node, style);
+  cd::resolveStyle(nullptr, node, style);
   const cd::StyledNode styled{style, node};
 
   std::vector<const sigil::motion::Animatable<float>*> seen;
@@ -400,14 +405,14 @@ TEST(ComposeSlotPins, EveryPropertyRowReadsTheComputedStyleAndNotTheNode) {
   node.textData.ensure().onPath.emplace();
   node.depthData.ensure();
   cd::ComputedStyle style;
-  cd::computeStyle(node, style);
+  cd::resolveStyle(nullptr, node, style);
 
   // One address per lane of the style's own paint block, so a row that
   // answers with one of them is reading the style.
   const void* paintLanes[] = {
-      &style.paint.opacity,    &style.paint.translateX, &style.paint.translateY,
-      &style.paint.rotate,     &style.paint.scale,      &style.paint.scaleX,
-      &style.paint.scaleY,     &style.paint.skewX,      &style.paint.skewY};
+      &style.paint.opacity, &style.paint.translateX, &style.paint.translateY,
+      &style.paint.rotate,  &style.paint.scale,      &style.paint.scaleX,
+      &style.paint.scaleY,  &style.paint.skewX,      &style.paint.skewY};
   const cd::StyledNode styled{style, node};
   int propertyRows = 0;
   for (const cd::SlotSpec& spec : cd::kSlotSpecs) {

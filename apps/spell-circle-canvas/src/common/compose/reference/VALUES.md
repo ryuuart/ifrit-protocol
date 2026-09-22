@@ -111,6 +111,11 @@ scheme of your own is C++ only.
 - `core/SurfacePaint.h` — `SurfacePaint`, the surface a component takes.
 - `core/Var.h` — `VarRef`, the `var` that interns one, and the `varName`
   that reads it back.
+- `core/Property.h` — `Property`, every value a node or a rule may state;
+  `PropertyMask`, which of them one STATED; `Keyword` with
+  `resolveKeyword` and the `KeywordTable` that holds the properties
+  written as one; `inheritsByDefault`, the whole of the inherited set;
+  and `propertyName`.
 - `core/Cascade.h` — `VarValue` and the `VarTable` that holds the
   properties in force.
 - `core/Shape.h` — `Shape`, `MotionPath`, `Decoration` with the

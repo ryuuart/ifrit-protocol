@@ -11,7 +11,7 @@ namespace sigil::compose {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::absolute() {
-  detail::ElementNode* node = declarations();
+  detail::ElementNode* node = declare(Property::Absolute);
   node->layout.absolute = true;
   node->layout.covering = false;
   return self();
@@ -44,7 +44,9 @@ Derived& PlacementVerbs<Derived>::inset(Dimension top, Dimension horizontal,
 template <class Derived>
 Derived& PlacementVerbs<Derived>::inset(Dimension top, Dimension right,
                                         Dimension bottom, Dimension left) {
-  detail::ElementNode* node = declarations();
+  detail::ElementNode* node =
+      declare({Property::Absolute, Property::Left, Property::Top,
+               Property::Right, Property::Bottom});
   node->layout.absolute = true;
   node->layout.covering = false;
   node->layout.hasInsets = true;
@@ -59,7 +61,7 @@ Derived& PlacementVerbs<Derived>::inset(Edges edges) {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::left(Dimension d) {
-  detail::ElementNode* node = declarations();
+  detail::ElementNode* node = declare({Property::Absolute, Property::Left});
   node->layout.absolute = true;
   node->layout.covering = false;
   node->layout.hasInsets = true;
@@ -69,7 +71,7 @@ Derived& PlacementVerbs<Derived>::left(Dimension d) {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::top(Dimension d) {
-  detail::ElementNode* node = declarations();
+  detail::ElementNode* node = declare({Property::Absolute, Property::Top});
   node->layout.absolute = true;
   node->layout.covering = false;
   node->layout.hasInsets = true;
@@ -79,7 +81,7 @@ Derived& PlacementVerbs<Derived>::top(Dimension d) {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::right(Dimension d) {
-  detail::ElementNode* node = declarations();
+  detail::ElementNode* node = declare({Property::Absolute, Property::Right});
   node->layout.absolute = true;
   node->layout.covering = false;
   node->layout.hasInsets = true;
@@ -89,7 +91,7 @@ Derived& PlacementVerbs<Derived>::right(Dimension d) {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::bottom(Dimension d) {
-  detail::ElementNode* node = declarations();
+  detail::ElementNode* node = declare({Property::Absolute, Property::Bottom});
   node->layout.absolute = true;
   node->layout.covering = false;
   node->layout.hasInsets = true;
@@ -99,7 +101,7 @@ Derived& PlacementVerbs<Derived>::bottom(Dimension d) {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::centerAt(SkPoint p) {
-  detail::ElementNode* node = declarations();
+  detail::ElementNode* node = declare({Property::Absolute, Property::CenterAt});
   node->layout.absolute = true;
   node->layout.covering = false;
   node->layout.centerAt = p;
@@ -111,7 +113,7 @@ Derived& PlacementVerbs<Derived>::gridCells(int column, int row, int columns,
                                             int rows) {
   // A span of zero cells would place the child nowhere and size it to
   // nothing, which reads as "it vanished" rather than as a mistake.
-  CellSpan& claim = declarations()->layout.cells;
+  CellSpan& claim = declare(Property::GridCells)->layout.cells;
   claim.column = std::max(column, 0);
   claim.row = std::max(row, 0);
   claim.columns = std::max(columns, 1);
@@ -131,7 +133,7 @@ Derived& PlacementVerbs<Derived>::gridArea(std::string_view name) {
   // the scheme's picture resolves them, and `declared` is left to that
   // resolution, so a name no picture carries flows exactly as an unspoken
   // child does rather than landing on cell (0, 0).
-  declarations()->deriveData.ensure().cellArea = std::string(name);
+  declare(Property::GridArea)->deriveData.ensure().cellArea = std::string(name);
   return self();
 }
 
@@ -140,7 +142,7 @@ Derived& PlacementVerbs<Derived>::gridCellAlign(Align across, Align down) {
   // An alignment says where the child sits in whatever cell it gets, and
   // nothing about WHICH cell: `declared` stays as it is, so a child that
   // states only this still flows.
-  CellSpan& claim = declarations()->layout.cells;
+  CellSpan& claim = declare(Property::GridCells)->layout.cells;
   claim.across = across;
   claim.down = down;
   claim.alignDeclared = true;

@@ -375,6 +375,9 @@ void bindNodeVerbs(py::class_<Node>& element) {
           },
           py::arg("defaults"), fluent)
       .def("imageRendering", &Node::imageRendering, py::arg("sampling"), fluent)
+      .def("inherit", &Node::inherit, py::arg("property"), fluent)
+      .def("initial", &Node::initial, py::arg("property"), fluent)
+      .def("unset", &Node::unset, py::arg("property"), fluent)
       .def("hitTestable", &Node::hitTestable, py::arg("enabled"), fluent)
       .def("decorationOutline", &Node::decorationOutline, py::arg("source"),
            py::arg("coverage") = 0.5f, fluent)

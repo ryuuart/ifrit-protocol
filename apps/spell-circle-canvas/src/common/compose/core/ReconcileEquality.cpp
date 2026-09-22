@@ -412,7 +412,7 @@ namespace detail {
  * reaches here, because `inst.description` holds the memo's PRODUCED payload;
  * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 28 && kFieldCount<PaintProps> == 15 &&
+static_assert(kFieldCount<ElementNode> == 30 && kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 2 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 5,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
@@ -423,6 +423,15 @@ static_assert(kFieldCount<ElementNode> == 28 && kFieldCount<PaintProps> == 15 &&
               "it. Nothing else fails, so no test will catch it for you.");
 bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   if (a.kind != b.kind || a.key != b.key) return false;
+  // WHICH PROPERTIES WERE STATED, before any value is compared. Two
+  // descriptions can carry the same padding and mean different things —
+  // one states it, the other says nothing and takes whatever a rule or an
+  // inherited value gives it — and a comparator that read only the
+  // numbers would call them equal, prune the node for good and leave the
+  // rule unable to reach it ever again.
+  if (!(a.declared == b.declared)) return false;
+  if ((bool)a.keywords != (bool)b.keywords) return false;
+  if (a.keywords && !(*a.keywords == *b.keywords)) return false;
   // Incomparable callables → conservative inequality.
   if (a.hitTestable != b.hitTestable) return false;
   if ((bool)a.customData != (bool)b.customData) return false;

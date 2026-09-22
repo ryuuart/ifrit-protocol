@@ -17,7 +17,7 @@ namespace sigil::compose {
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::font(sigil::weave::Type partial) {
-  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
+  detail::CascadeData& cascade = declare(Property::Font)->cascadeData.ensure();
   if (!cascade.font) cascade.font.emplace();
   // Later wins field by field: the partial written last replaces what it
   // names and leaves the rest as an earlier call or a class left it.
@@ -34,7 +34,7 @@ Derived& CascadeVerbs<Derived>::font(sigil::weave::Type partial) {
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::block(sigil::weave::Block partial) {
-  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
+  detail::CascadeData& cascade = declare(Property::Block)->cascadeData.ensure();
   if (!cascade.block) cascade.block.emplace();
   sigil::weave::merge(*cascade.block, partial);
   return self();
@@ -42,7 +42,7 @@ Derived& CascadeVerbs<Derived>::block(sigil::weave::Block partial) {
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::ink(material::Color colour) {
-  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
+  detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
   if (!cascade.font) cascade.font.emplace();
   cascade.font->color = material::skia::toSkColor(colour);
   cascade.inkVar.reset();
@@ -53,7 +53,7 @@ Derived& CascadeVerbs<Derived>::ink(material::Color colour) {
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::ink(VarRef reference) {
-  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
+  detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
   cascade.inkVar = reference;
   if (cascade.font) cascade.font->color.reset();
   cascade.inkPaint.reset();
@@ -63,7 +63,7 @@ Derived& CascadeVerbs<Derived>::ink(VarRef reference) {
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor) {
-  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
+  detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
   // A PLAIN COLOUR is the ink lane as it has always been. A paint that
   // happens to be flat is not one: it overrides the glyphs of a leaf set
   // in a style of its own, which an inherited colour does not reach.
@@ -95,25 +95,53 @@ Derived& CascadeVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor) {
 template <class Derived>
 Derived& CascadeVerbs<Derived>::var(std::string_view name,
                                     material::Color colour) {
-  declarations()->cascadeData.ensure().vars.set(compose::var(name), colour);
+  declare(Property::CustomProperties)
+      ->cascadeData.ensure()
+      .vars.set(compose::var(name), colour);
   return self();
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::var(std::string_view name, Dimension length) {
-  declarations()->cascadeData.ensure().vars.set(compose::var(name), length);
+  declare(Property::CustomProperties)
+      ->cascadeData.ensure()
+      .vars.set(compose::var(name), length);
   return self();
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::varDefaults(VarTable defaults) {
-  declarations()->cascadeData.ensure().varDefaults = std::move(defaults);
+  declare(Property::CustomProperties)->cascadeData.ensure().varDefaults =
+      std::move(defaults);
   return self();
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::imageRendering(SkSamplingOptions options) {
-  declarations()->cascadeData.ensure().sampling = options;
+  declare(Property::ImageRendering)->cascadeData.ensure().sampling = options;
+  return self();
+}
+
+// The three wide keywords. Each is a DECLARATION of the property it
+// names — the bit is set beside the entry — so it covers a rule and an
+// inherited value exactly as a stated number would, and two descriptions
+// that differ only in a keyword are unequal.
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::inherit(Property property) {
+  detail::markKeyword(declarations(), property, Keyword::Inherit);
+  return self();
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::initial(Property property) {
+  detail::markKeyword(declarations(), property, Keyword::Initial);
+  return self();
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::unset(Property property) {
+  detail::markKeyword(declarations(), property, Keyword::Unset);
   return self();
 }
 

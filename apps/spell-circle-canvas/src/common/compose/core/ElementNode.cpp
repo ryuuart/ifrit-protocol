@@ -55,4 +55,14 @@ const ElementNode* detail::NodeHandle::operator->() const {
   return value.get();
 }
 
+void detail::markDeclared(ElementNode* node, Property property) {
+  node->declared.set(property);
+}
+
+void detail::markKeyword(ElementNode* node, Property property,
+                         Keyword keyword) {
+  node->declared.set(property);
+  node->keywords.ensure().set(property, keyword);
+}
+
 }  // namespace sigil::compose

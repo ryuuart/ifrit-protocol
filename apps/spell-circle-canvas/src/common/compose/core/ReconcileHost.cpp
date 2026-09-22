@@ -211,19 +211,20 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
 
   // THE STYLE THIS PATCH COMPUTES, over the one the node stood in until
   // now. It is written after the shell has had its say, because everything
-  // below reads properties through it. The fill is the cascade resolver's
-  // to own; it stands here while it is VERBATIM, for the reason
-  // ComputedStyle.h states — and because it stands here, a patch the
-  // reconciler prunes never reaches this function, and the description it
-  // swapped in was proved to carry the same properties, so the style
-  // already on the instance is still the answer.
+  // below reads properties through it. The parent's own style is the other
+  // half of the fold, and it is current here: the reconciler walks a
+  // parent before its children, so a parent that patched this frame has
+  // already written its answer. A node the reconciler PRUNES never reaches
+  // this function — the cascade pass re-folds the ones that take a value
+  // from above, for the reason ComputedStyle.h states.
   //
   // The previous one is COPIED, not moved out of: the transition triggers
   // below need both sides of the change, and `inst.computed` is the object
   // the painter and `Instance::styled()` bind references to, so it must
   // hold a value at every point between here and the write.
   const ComputedStyle previous = inst.computed;
-  computeStyle(next, inst.computed);
+  resolveStyle(inst.parent ? &inst.parent->computed : nullptr, next,
+               inst.computed);
 
   // Recompute the world-space flag once per patch. A pruned node keeps
   // its existing flag, which is correct: equal properties mean equal

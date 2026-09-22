@@ -73,8 +73,11 @@ sigil_library(SigilComposeCore
     Fills.cpp
     # a length written as text
     Dimensions.cpp
+    # what a property is: its name, and where its value is kept
+    Properties.cpp
     # internal headers
     ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
+    ComputedStyle.h
     SelectorInternal.h SelectorMatch.h
     TextState.h SlotSpecs.h
     Lanes.h
@@ -85,7 +88,7 @@ sigil_library(SigilComposeCore
           Derive.h Element.h
           Factories.h Feed.h Grid.h Image.h Instances.h Layout.h Mask.h
           Measure.h
-          Paint.h Pattern.h Selector.h Shape.h Shelf.h Stroke.h
+          Paint.h Pattern.h Property.h Selector.h Shape.h Shelf.h Stroke.h
           StyleSheet.h SurfacePaint.h Table.h
           Text.h TextPainter.h Tiles.h Utf8.h Var.h
           verbs/Box.h verbs/Cascade.h verbs/Decoration.h verbs/Depth.h
@@ -131,6 +134,7 @@ sigil_test(compose_test
           test/ComposeTestValues.cpp test/ComposeTestBlockLane.cpp test/ComposeTestCascade.cpp
           test/ComposeTestRoles.cpp test/ComposeTestFlexBox.cpp
           test/ComposeTestEdges.cpp test/ComposeTestLengths.cpp
+          test/ComposeTestDeclarations.cpp
           test/ComposeTestSelector.cpp test/ComposeTestStyleSheet.cpp
           test/ComposeTestMatching.cpp test/ComposeTestTypedLeaves.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}

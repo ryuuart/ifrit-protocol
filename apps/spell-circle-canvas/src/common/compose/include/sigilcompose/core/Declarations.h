@@ -12,6 +12,8 @@
  * however many families it crosses.
  */
 
+#include <sigilcompose/core/Property.h>
+
 #include <memory>
 #include <utility>
 
@@ -21,6 +23,14 @@ class Element;
 
 namespace detail {
 struct ElementNode;
+
+/** @p node STATES @p property: the bit beside the field, set in the same
+ *  statement that writes the field. */
+void markDeclared(ElementNode* node, Property property);
+/** @p node states @p property as @p keyword rather than as a value, and
+ *  states it: a keyword IS a declaration, and the layers under it are
+ *  covered exactly as a value would cover them. */
+void markKeyword(ElementNode* node, Property property, Keyword keyword);
 
 /** COPY-ON-WRITE HANDLE ONTO ONE NODE. A description stays a cheap
  *  value, and a fluent call on a copy can never reach the node another
@@ -45,6 +55,15 @@ struct NodeAccess {
   template <class T>
   static ElementNode* declarations(T& value) {
     return value.m_node.operator->();
+  }
+  /** The node to WRITE, with @p property marked as one this value
+   *  STATES — the door every declaring verb goes through, so a field
+   *  cannot be written without the bit that says it was. */
+  template <class T>
+  static ElementNode* declare(T& value, Property property) {
+    ElementNode* node = value.m_node.operator->();
+    markDeclared(node, property);
+    return node;
   }
   /** The node to READ, shared as it stands. */
   template <class T>

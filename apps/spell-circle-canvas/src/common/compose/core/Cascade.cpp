@@ -237,6 +237,27 @@ void Composer::Impl::resolveCascade(
     const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet,
     const SheetChain& parentSheets, const InkInForce& parentInkPaint) {
   const ElementNode& node = *inst.description;
+  // A NODE THAT WRITES A KEYWORD takes a value from its parent, and the
+  // parent's answer can move while this node's own declarations stand
+  // still — the one case the patch cannot see, because a node whose
+  // declarations did not move never reaches it. So the fold runs again
+  // here, for those nodes alone; a node that writes none is untouched and
+  // pays nothing. What it costs is one invalidation per keyword-bearing
+  // node per pass, and the pass runs only on a frame where something
+  // already changed.
+  if (node.keywords) {
+    const LayoutProps before = inst.computed.layout;
+    resolveStyle(inst.parent ? &inst.parent->computed : nullptr, node,
+                 inst.computed);
+    if (!(before == inst.computed.layout)) {
+      applyLayoutProps(inst);
+      needsLayout = true;
+    }
+    if (inst.cascadeResolved) {
+      inst.markPaintDirtyUp();
+      contentDirty = true;
+    }
+  }
   sigil::weave::Type font = parentFont;
   // The ink's paint inherits exactly as the font's colour does, and the
   // node that STATED it is the box a declaring-box anchor maps onto.
@@ -378,6 +399,44 @@ void Composer::Impl::resolveCascade(
         warnNoSuchVar(*inkVar, true);
     }
   }
+  // THE WIDE KEYWORDS, over everything a rule or this node's own verbs
+  // said. The five properties resolved above are the ones that INHERIT,
+  // so `inherit` on one of them is what it already does and `unset` comes
+  // to the same; the keyword that says something new here is `initial` —
+  // stop inheriting, and stand in the value the property has under no
+  // ancestor at all.
+  if (node.keywords)
+    for (const KeywordTable::Entry& entry : node.keywords->entries()) {
+      if (resolveKeyword(entry.keyword, entry.property) != Keyword::Initial)
+        continue;
+      switch (entry.property) {
+        case Property::Font: {
+          // The colour is the INK, a property of its own, so a type reset
+          // to its initial leaves it exactly as it stood.
+          const std::optional<SkColor4f> ink = font.color;
+          font = sigil::weave::initialType();
+          font.color = ink;
+          break;
+        }
+        case Property::Ink:
+          font.color = sigil::weave::initialType().color;
+          inkPaint = InkInForce{};
+          inkPaintOrigin = false;
+          break;
+        case Property::Block:
+          block = sigil::weave::Block{};
+          break;
+        case Property::ImageRendering:
+          sampling.reset();
+          break;
+        case Property::CustomProperties:
+          vars.reset();
+          break;
+        default:
+          break;
+      }
+    }
+
   // The kInkLerp row: the ink this node declares, easing from one colour
   // to another under its transition. The ramp is read into the resolved
   // colour here, so every node under this one inherits the colour in

@@ -20,7 +20,7 @@ properties and the text content, `imageRegion`, `bandAlignment` — are on
 that leaf ALONE, so writing one on a box does not compile rather than
 doing nothing.
 
-One hundred and twelve of them, in fourteen concerns. Each row says
+One hundred and fifteen of them, in fourteen concerns. Each row says
 what the verb SAYS, in one line; the page behind a linked name says what
 it takes, what Python spells, and shows it drawn. An unlinked name has no
 page yet, and its line here is the whole of what this reference claims
@@ -220,9 +220,18 @@ the code that built a child ran.
 | `role` | A semantic role with default typography, overridden by the sheet, the classes and the node. |
 | `var` | A custom property set here and inherited by everything under it. |
 | `varDefaults` | Fallback custom properties, which an inherited or locally set property overrides. |
+| `inherit` | This property takes the PARENT's computed value, whether or not it is one that inherits. |
+| `initial` | This property takes its own initial value, whatever an ancestor or a rule says — the way an inheriting one is stopped. |
+| `unset` | Whichever of the two the property's own behaviour asks for: CSS's `unset`. |
 
 The third inherited lane is `ink`, in *Paint* above: it is CSS's `color`,
 and it reaches every text leaf and every unnamed mark under the node.
+
+The three keywords take a [`Property`](pages/types/Property.md), which is
+also the one table saying which properties inherit: the type, the block,
+the ink, the custom properties and the image sampling, and nothing else.
+A keyword is a declaration like any other, so a later one on the same
+node replaces an earlier statement of that property.
 
 ## The text leaf
 
@@ -304,7 +313,8 @@ spelling is the feature's.
   that has it.
 - `core/verbs/Mask.h` — `mask`.
 - `core/verbs/Cascade.h` — the cascade verbs `font`, `block`, `ink`,
-  `var`, `varDefaults`, `imageRendering`.
+  `var`, `varDefaults`, `imageRendering`, and the three wide keywords
+  `inherit`, `initial`, `unset`.
 - `core/verbs/Paint.h` — `fill`.
 - `core/verbs/Decoration.h` — the decoration slots `stroke`,
   `background`, `overlay`, `foreground`, `layerStyle`, and what they

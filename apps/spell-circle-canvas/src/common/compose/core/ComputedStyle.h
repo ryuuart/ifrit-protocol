@@ -13,22 +13,23 @@ namespace sigil::compose::detail {
 /** THE STYLE IN FORCE ON ONE MOUNTED NODE.
  *
  *  It is the ONE place the phases after the patch read a property from, so
- *  what fills it can change without any of them changing. Today the answer
- *  is the description's own declarations, copied as they stand.
+ *  what fills it can change without any of them changing. The answer is
+ *  the fold `resolveStyle()` makes: the node's own declarations over the
+ *  parent's answers, with every property written as a keyword resolved
+ *  against the two.
  *
- *  THE FILL BELONGS TO THE CASCADE RESOLVER — the pass that holds the
- *  parent's answer, the sheet's matched rules and the node's own
- *  declarations at once, and so is the only one that can write a value the
- *  description never carried. It stands in the PATCH only while the fill
- *  is verbatim, where a resolver would add nothing: a patch the reconciler
- *  PRUNES swaps in a description `propertiesEqual()` proved carries the
- *  same properties, so the style standing here is still the answer — the
- *  same invariant the pruned node's replayed recording rests on, read one
- *  level up. That arrangement ends at the first property a RULE or an
- *  INHERITED value can move: the node's own declarations then compare
- *  equal, the node prunes, the patch never runs, and a style filled there
- *  would hold the previous answer for good. Moving the fill into the
- *  resolver is what that property costs.
+ *  IT IS FILLED TWICE, BY ONE FUNCTION, and the second time is what makes
+ *  an inherited answer honest. The PATCH fills it, holding the parent's
+ *  style — the reconciler walks parents before children, so the parent's
+ *  answer is current there. A node the reconciler PRUNES never reaches the
+ *  patch: its description compared equal, so its own declarations did not
+ *  move, and the style standing here is still the answer — unless it takes
+ *  a value from ABOVE, which the node's own declarations cannot see
+ *  changing. That is the case the CASCADE PASS answers: it walks the whole
+ *  tree from the root whenever anything changed, and re-folds every node
+ *  that writes a keyword, which is the only way a value reaches one from
+ *  its parent. A node that writes none is never re-folded and pays
+ *  nothing.
  *
  *  A material fill is the one property the prune proves STRUCTURALLY
  *  rather than by value: it compares by the recipe it was built from, so
@@ -52,18 +53,32 @@ struct ComputedStyle {
 
 static_assert(kFieldCount<ComputedStyle> == 4,
               "ComputedStyle gained or lost a field — fill it in "
-              "computeStyle() below, then bump this count. A field declared "
-              "here and never filled reads as its type's default on every "
-              "node in every tree, which is a wrong pixel nothing reports.");
+              "resolveStyle() below, and give every property it holds a "
+              "row in copyProperty(), then bump this count. A field "
+              "declared here and never filled reads as its type's default "
+              "on every node in every tree, which is a wrong pixel nothing "
+              "reports; a property with no row there is one no keyword can "
+              "move, silently.");
 
-/** The style @p node declares, as it stands: no resolution, no inheritance,
- *  no rule folded in. */
-inline void computeStyle(const ElementNode& node, ComputedStyle& out) {
-  out.layout = node.layout;
-  out.paint = node.paint;
-  out.corners = node.corners;
-  out.clipContent = node.clipContent;
-}
+/** THE FOLD: @p node's own declarations over @p parent's answers, with
+ *  every property written as a keyword resolved against the two.
+ *
+ *  A node that writes no keyword — which is nearly every node — folds to
+ *  the declarations as they stand, so the common case costs the copy and
+ *  nothing else. `inherit` takes the parent's computed value for that one
+ *  property, `initial` the value the property's field carries on a node
+ *  nobody wrote to, and `unset` whichever of the two the property's own
+ *  behaviour asks for. @p parent is null at the root, which inherits from
+ *  nothing and therefore reads every `inherit` as `initial`. */
+void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
+                  ComputedStyle& out);
+
+/** One property of @p from written over @p into — the one place a
+ *  property's name is tied to the field it is kept in, and the whole of
+ *  what a keyword does. A property the computed style does not carry is
+ *  answered where it lives and is a no-op here. */
+void copyProperty(Property property, const ComputedStyle& from,
+                  ComputedStyle& into);
 
 /** A MOUNTED NODE AND THE STYLE COMPUTED FOR IT — the two halves a lane
  *  reads its endpoint from.

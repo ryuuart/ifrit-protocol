@@ -183,3 +183,24 @@ selector must match the applying node or one below it, so nothing
 above or beside it answers any part of a rule. Which elements a rule speaks about, how heavily it
 weighs and which of two matched rules wins is CSS's selector grammar
 as a value: [selectors](SELECTORS.md).
+
+**Three keywords say what no value can.** Every property a node or a
+rule may state has a name of its own — a
+[`compose::Property`](pages/types/Property.md) — and
+`Element::inherit`, `Element::initial` and `Element::unset` write that
+property as CSS's wide keywords instead of as a value.
+`inherit(Property::PaddingLeft)` gives a node the padding its PARENT
+ended up with, though nothing about a box inherits on its own;
+`initial(Property::Font)` stops an inherited font and sets the subtree in
+the default face at the default size; `unset` asks
+`compose::inheritsByDefault` and takes whichever of the two that property
+calls for. A keyword is a declaration like any other — it stands over a
+rule and under nothing but a running motion, and a later statement of the
+same property on the same node replaces it.
+
+`compose::inheritsByDefault` is the whole of the inherited set, and it is
+the five things this chapter opened with: the font, the ink, the block,
+the custom properties and the image sampling. Everything else is a
+statement about ONE box — a padding taken from the parent would be
+applied again at every depth — which is why the keyword is the only way
+to say it, one node at a time.

@@ -41,7 +41,13 @@ using namespace detail;
 // the gap, the padding and the margin are lengths every kind carries,
 // and a length that may be measured in the font is twice the float it
 // replaced.
-static_assert(sizeof(ElementNode) <= 832,
+// The twenty-four bytes over the eight hundred and thirty-two the hot
+// fields alone came to are the declared mask and the handle onto the
+// keyword table. Neither can be a block: the mask is written by EVERY
+// declaring verb on every node, so a node that states anything would
+// allocate one, and the handle is what says there is no table. The cap is
+// the gate on rare fields, and these two are the opposite of rare.
+static_assert(sizeof(ElementNode) <= 856,
               "ElementNode grew — put rare fields in a block");
 
 // ---------------------------------------------------------------------------

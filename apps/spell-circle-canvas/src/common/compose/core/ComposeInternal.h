@@ -27,6 +27,7 @@
 #include "ComposeCompare.h"
 #include "sigilcompose/Compose.h"
 #include "sigilcompose/core/Cascade.h"
+#include "sigilcompose/core/Property.h"
 #include "sigilcompose/core/StyleSheet.h"
 // The text leaf's description is spelled in the typography vocabulary —
 // its tracks, its runs, its readings, its restyles' selectors, its
@@ -632,7 +633,18 @@ struct ElementNode {
   bool hitTestable = true;
   Cache cacheMode = Cache::Auto;
   float bakeScale = 1.0f;  // Texture-bake resolution multiplier (see Element)
+  /** WHICH PROPERTIES THIS DESCRIPTION STATED. A field holds its type's
+   *  default until a verb writes it, so the value alone cannot tell a
+   *  node that states the default from one that says nothing — and those
+   *  are different nodes to a rule, to an inherited value and to the
+   *  prune. Every declaring verb sets its bit in the same statement that
+   *  writes the field. */
+  PropertyMask declared;
   std::optional<motion::Transition> nodeTransition;
+  // The properties written as `inherit`, `initial` or `unset` rather than
+  // as a value (see KeywordTable): a block, because a description that
+  // writes one is rarer than any other kind of statement here.
+  Box<KeywordTable> keywords;
 
   // Decoration layers (kernel seam; primitives live in Decorations.h)
   std::vector<Decoration> backgrounds;

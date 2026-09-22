@@ -78,10 +78,36 @@ class CascadeVerbs {
    *  so a panel of pixel art states nearest once. */
   Derived& imageRendering(SkSamplingOptions options);
 
+  /** @p property TAKES THE PARENT'S COMPUTED VALUE, whether or not it is
+   *  one that inherits on its own: `inherit(Property::PaddingLeft)` gives
+   *  this node the padding its parent ended up with. It is a declaration
+   *  like any other, so it stands over a rule and over anything inherited,
+   *  and the root, which has no parent, reads it as `initial`. */
+  Derived& inherit(Property property);
+  /** @p property TAKES ITS OWN INITIAL VALUE — the one it has where
+   *  nothing anywhere states it — whatever an ancestor or a rule says.
+   *  This is how an inheriting property is stopped: `initial(Property::Font)`
+   *  sets this node and its subtree in the default face at the default
+   *  size. */
+  Derived& initial(Property property);
+  /** @p property TAKES WHICHEVER OF THE TWO its own behaviour asks for:
+   *  the parent's value where it inherits, its initial value where it does
+   *  not. CSS's `unset`, and the honest way to say "as if I had not
+   *  written this" when a rule might have. */
+  Derived& unset(Property property);
+
  private:
   Derived& self() { return static_cast<Derived&>(*this); }
   detail::ElementNode* declarations() {
     return detail::NodeAccess::declarations(self());
+  }
+  detail::ElementNode* declare(Property property) {
+    return detail::NodeAccess::declare(self(), property);
+  }
+  detail::ElementNode* declare(std::initializer_list<Property> properties) {
+    detail::ElementNode* node = detail::NodeAccess::declarations(self());
+    for (Property property : properties) detail::markDeclared(node, property);
+    return node;
   }
 };
 
