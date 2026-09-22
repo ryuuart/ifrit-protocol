@@ -822,6 +822,55 @@ Stock layouts are native values from `sigil.compose.layouts`: `Grid`,
 lengths belong to `sigil.weave`; parent and percentage dimensions belong
 to `sigil.compose`.
 
+A node states typed FACTS about itself with `attribute(name, value)`, or a
+whole `Attributes` table with `attributes(facts)`, and says nothing about
+who reads them. The value reads back in the type it was stated in: a
+bool, a whole number, a number, a string, a list of either, or a
+`skia.Point` — a sequence of numbers is a list of numbers whatever its
+length, so a fact meant as a point is stated as a point. `point()` is a
+node with no extent that exists to carry a key and facts.
+
+`operators([...])` is what reads them. Each entry is a stock arranging
+value, one of the connecting records in `sigil.compose.connect`, or a
+Python object of your own:
+
+```python
+import math
+from dataclasses import dataclass
+from sigil import compose
+
+@dataclass(frozen=True)
+class AroundRing:
+    fraction: float = 0.8
+
+    def arrange(self, arrangement):
+        middle = arrangement.box.centerX(), arrangement.box.centerY()
+        radius = min(middle) * self.fraction
+        for child in arrangement.children:
+            degrees = (child.number("hour") or 0.0) * 30.0 - 90.0
+            radians = math.radians(degrees)
+            child.centreAt((middle[0] + radius * math.cos(radians),
+                            middle[1] + radius * math.sin(radians)))
+            child.turn(degrees + 90.0)
+
+dial = compose.box().operators([AroundRing()]).children(hours)
+```
+
+An object with `arrange(arrangement)` places the node's direct children
+during layout, reading each one's measured size and facts; one with
+`add(scope)` runs once layout has settled and attaches elements to a node
+of its scope or to the scope itself. A value cannot do both, because the
+two run in different phases of one layout. THE CLASS'S OWN EQUALITY IS
+WHAT LETS THE NODE PRUNE: a frozen dataclass compares by its fields and
+an unchanged tree patches nothing, while a plain class equals nothing but
+itself and its node is described afresh every frame.
+`compose.Operator(value)` is the same value with `zIndex` and
+`styleClass` on it, which are where an adding operator's attachments
+paint and what dresses them. `compose.drawWith(program)`, keyed or not,
+is the imperative door: one pen over the scope's box, handed the pen and
+the scope. Both the arrangement and the scope are lent for the one call
+and refuse every reading once it has returned.
+
 The specimen kit supplies the native page furniture and theme:
 
 ```python
