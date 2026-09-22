@@ -177,6 +177,40 @@ void walkFields(Eq equal, const char* const (&names)[N],
 
 }  // namespace
 
+// The cascade pass re-folds every node that writes a keyword, on every
+// pass, and asks this comparator whether the second fold moved anything
+// before it invalidates. A field left out of it reads as a property that
+// did not move, and the picture recorded from the old value replays —
+// the same invisible failure the description's comparator has, one phase
+// later.
+
+TEST(ComposeDeclarations, EveryComputedStyleFieldParticipatesInEquality) {
+  static const char* const kNames[] = {"layout", "paint", "corners",
+                                       "clipContent"};
+  static const bool kParticipates[] = {true, true, true, true};
+  walkFields<cd::ComputedStyle>(cd::computedStyleEqual, kNames, kParticipates);
+}
+
+TEST(ComposeDeclarations, EveryPaintPropsFieldParticipatesInTheStyleCompare) {
+  // The paint block is the half of the computed style with a hand-written
+  // comparison, so it is walked field by field there as it is here.
+  static const char* const kNames[] = {
+      "fill",       "opacity", "blendMode", "backgroundOrigin", "translateX",
+      "translateY", "rotate",  "scale",     "scaleX",           "scaleY",
+      "skewX",      "skewY",   "originX",   "originY",          "zIndex"};
+  static const bool kParticipates[] = {true, true, true, true, true,
+                                       true, true, true, true, true,
+                                       true, true, true, true, true};
+  walkFields<cd::PaintProps>(
+      [](const cd::PaintProps& a, const cd::PaintProps& b) {
+        cd::ComputedStyle sa, sb;
+        sa.paint = a;
+        sb.paint = b;
+        return cd::computedStyleEqual(sa, sb);
+      },
+      kNames, kParticipates);
+}
+
 TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
   // No legitimate exclusion exists in this block: every field of PaintProps
   // is a lane the painter reads live, so every one must reach the comparator.
