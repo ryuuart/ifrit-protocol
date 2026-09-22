@@ -73,27 +73,6 @@ class RouteSchemeObject : public py::object {
   }
 };
 
-/** What a connector's router parameter takes: the erased router, or a
- *  route function it erases on the way in. */
-class RouterObject : public py::object {
- public:
-  using py::object::object;
-  static bool check_(py::handle value) {
-    return py::isinstance<compose::Router>(value) ||
-           RouteFunctionObject::check_(value);
-  }
-};
-
-/** What a rail's router parameter takes, on the same terms. */
-class RailRouterObject : public py::object {
- public:
-  using py::object::object;
-  static bool check_(py::handle value) {
-    return py::isinstance<compose::RailRouter>(value) ||
-           RailFunctionObject::check_(value);
-  }
-};
-
 }  // namespace
 }  // namespace sigil::python
 
@@ -112,18 +91,6 @@ struct handle_type_name<sigil::python::RailFunctionObject> {
 template <>
 struct handle_type_name<sigil::python::RouteSchemeObject> {
   static constexpr auto name = const_name("builtins.object");
-};
-template <>
-struct handle_type_name<sigil::python::RouterObject> {
-  static constexpr auto name = const_name(
-      "_sigil.compose.Router | collections.abc.Callable[[_sigil.skia.Rect, "
-      "_sigil.skia.Rect], _sigil.skia.Path]");
-};
-template <>
-struct handle_type_name<sigil::python::RailRouterObject> {
-  static constexpr auto name = const_name(
-      "_sigil.compose.RailRouter | "
-      "collections.abc.Callable[[list[_sigil.skia.Point]], _sigil.skia.Path]");
 };
 }  // namespace pybind11::detail
 
@@ -272,7 +239,7 @@ struct PythonRouteScheme {
   }
 };
 
-/** A Python value with `route(anchors)` as a native rail scheme. */
+/** A Python value with `route(anchors)` as a native run-route scheme. */
 struct PythonRailScheme {
   PythonSchemeValue value;
   bool operator==(const PythonRailScheme&) const = default;
@@ -305,59 +272,6 @@ RailRouter functionRailRouter(const py::object& function) {
   }};
 }
 
-Router readRouter(const RouterObject& value) {
-  if (py::isinstance<Router>(value)) return value.cast<Router>();
-  return functionRouter(value);
-}
-
-RailRouter readRailRouter(const RailRouterObject& value) {
-  if (py::isinstance<RailRouter>(value)) return value.cast<RailRouter>();
-  return functionRailRouter(value);
-}
-
-/** One anchor read from @p value: the anchor itself, a node's key for
- *  the centre of that node, or the key with its normalized point and,
- *  after it, its gap — the forms a native initializer list spells. */
-Anchor readAnchor(py::handle value) {
-  if (py::isinstance<Anchor>(value)) return value.cast<Anchor>();
-  if (py::isinstance<py::str>(value)) return Anchor(value.cast<std::string>());
-  if (py::isinstance<py::tuple>(value) || py::isinstance<py::list>(value)) {
-    const auto fields = py::reinterpret_borrow<py::sequence>(value);
-    const auto count = py::len(fields);
-    if (count == 2 || count == 3) {
-      const py::object key = fields[0];
-      const py::object norm = fields[1];
-      if (py::isinstance<py::str>(key)) {
-        float gap = 0.0f;
-        if (count == 3) {
-          const py::object stated = fields[2];
-          try {
-            gap = stated.cast<float>();
-          } catch (const py::cast_error&) {
-            throw py::type_error("An anchor's gap is a number.");
-          }
-        }
-        return Anchor(key.cast<std::string>(), readPoint(norm), gap);
-      }
-    }
-  }
-  throw py::type_error(
-      "An anchor is an Anchor, a node's key, or a key with its normalized "
-      "point and, after it, its gap.");
-}
-
-/** Every anchor of a rail, read before the rail is built so a refused
- *  one leaves nothing half made. A string is one key and never a run of
- *  one-letter keys. */
-std::vector<Anchor> readAnchors(py::handle values) {
-  if (py::isinstance<py::str>(values) || !py::isinstance<py::iterable>(values))
-    throw py::type_error("A rail's anchors are an iterable of anchors.");
-  std::vector<Anchor> anchors;
-  for (const py::handle value : py::reinterpret_borrow<py::iterable>(values))
-    anchors.push_back(readAnchor(value));
-  return anchors;
-}
-
 /** Every point of an anchor run, read for a router asked directly. */
 std::vector<SkPoint> readPoints(py::handle values) {
   if (py::isinstance<py::str>(values) || !py::isinstance<py::iterable>(values))
@@ -385,13 +299,14 @@ void pointField(py::class_<Record>& type, const char* name,
 void bindRouters(py::module_& composition) {
   py::class_<Router> router(
       composition, "Router",
-      "The route between two endpoint rects that a connector holds. Built "
+      "The route between two endpoint rects that a connecting operator "
+      "holds. Built "
       "over a scheme — any value with route(from_, to) and equality — it "
-      "compares by that value, and the connector it routes prunes while "
+      "compares by that value, and the wire it routes prunes while "
       "the value and the rects are unchanged. Built over a function it "
       "equals only its own copies, so keep the Router and pass it again "
       "instead of building one in every describe. An empty one leaves the "
-      "connector its straight line.");
+      "wire its straight line.");
   router.def(py::init<>())
       .def(py::init([](const RouteSchemeObject& scheme) {
              return schemeRouter(scheme);
@@ -420,10 +335,11 @@ void bindRouters(py::module_& composition) {
   py::class_<RailRouter> railRouter(
       composition, "RailRouter",
       "The path through an ordered run of resolved anchor points that a "
-      "rail holds. Comparable exactly as a Router is: over a scheme with "
+      "a wire along a run of stops holds. Comparable exactly as a Router "
+      "is: over a scheme with "
       "route(anchors) and equality it compares by that value, and over a "
       "function it equals only its own copies. An empty one leaves the "
-      "rail its straight polyline.");
+      "wire its straight polyline.");
   railRouter.def(py::init<>())
       .def(py::init([](const RouteSchemeObject& scheme) {
              return schemeRailRouter(scheme);
@@ -454,9 +370,9 @@ void bindRouters(py::module_& composition) {
 void bindAnchor(py::module_& composition) {
   py::class_<Anchor> anchor(
       composition, "Anchor",
-      "One endpoint or waypoint of a rail: a normalized point on a keyed "
-      "node's resolved bounds, or a free point in the rail's own "
-      "coordinates bound to nothing. `gap` pulls a terminal anchor back "
+      "One stop of a wire — an endpoint or a waypoint: a normalized point "
+      "on a keyed node's resolved bounds, or a free point in the scope's "
+      "own coordinates bound to nothing. `gap` pulls a terminal stop back "
       "along its segment and is ignored on a waypoint.");
 
   // The two alternatives are records nested in the class they are the
@@ -479,7 +395,7 @@ void bindAnchor(py::module_& composition) {
 
   py::class_<Anchor::FreePoint> freePoint(
       anchor, "FreePoint",
-      "Bound to nothing: `point` is read in the rail's own coordinates.");
+      "Bound to nothing: `point` is read in the scope's own coordinates.");
   freePoint
       .def(py::init([](py::kwargs fields) {
         return keywordValue<Anchor::FreePoint>(fields,
@@ -488,7 +404,7 @@ void bindAnchor(py::module_& composition) {
       .def("copy", [](const Anchor::FreePoint& self) { return self; })
       .def(py::self == py::self);
   pointField(freePoint, "point", &Anchor::FreePoint::point,
-             "The point, in the rail's own coordinates.");
+             "The point, in the scope's own coordinates.");
   copyProtocol(freePoint);
 
   anchor.def(py::init<>())
@@ -511,7 +427,7 @@ void bindAnchor(py::module_& composition) {
             return Anchor::at(readPoint(point), gap);
           },
           py::arg("point"), py::arg("gap") = 0.0f,
-          "The free form: a point in the rail's own coordinates.")
+          "The free form: a point in the scope's own coordinates.")
       .def_property(
           "where", [](const Anchor& self) { return self.where; },
           [](Anchor& self,
@@ -530,7 +446,7 @@ void bindAnchor(py::module_& composition) {
   copyProtocol(anchor);
 }
 
-void bindTether(py::module_& module, py::module_& composition) {
+void bindTether(py::module_& composition) {
   auto tether =
       bindRecord<Tether>(composition, "Tether", "Unknown Tether field: ");
   tether.doc() =
@@ -540,7 +456,8 @@ void bindTether(py::module_& module, py::module_& composition) {
       "in pixels. The stated tether is tried first and then each of "
       "`fallbacks` in order, and the first whose box stays inside `within` "
       "is taken; an empty `within` is the composer's own bounds. A key "
-      "nothing carries places nothing.";
+      "nothing carries places nothing. A pin's request reads one, and "
+      "ignores its `key`: the node stating the request is the anchor.";
   tether.def_readwrite("key", &Tether::key);
   pointField(tether, "on", &Tether::on,
              "The normalized point of the anchor's rect the box hangs from.");
@@ -573,27 +490,9 @@ void bindTether(py::module_& module, py::module_& composition) {
           "`anchor`, in the space both were given in. Fallbacks are not "
           "consulted.")
       .def(py::self == py::self);
-
-  // The element class belongs to the file that registered it, and this
-  // verb takes the record registered just above.
-  extend<Element>(module, "compose.Element")
-      .def("tether", &Element::tether, py::arg("tether"), fluent,
-           "Hangs this node off a keyed one. It leaves the flow, and where "
-           "it lands is resolved against the geometry the anchor resolved "
-           "to and again whenever that moves. A later call replaces the "
-           "tether.");
 }
 
 void bindSpines(py::module_& composition) {
-  auto around = bindRecord<compose::Around>(composition, "Around",
-                                            "Unknown Around field: ");
-  around.doc() =
-      "A band's spine borrowed from the keyed element's resolved shape.";
-  around.def_readwrite("key", &compose::Around::key).def(py::self == py::self);
-  composition.def(
-      "around", [](const std::string& key) { return compose::around(key); },
-      py::arg("key"), "A spine borrowed from the element keyed `key`.");
-
   // Built by `across` alone, which installs the engine that sweeps the
   // profile into a region; one made any other way would sweep nothing.
   py::class_<compose::Across> across(
@@ -623,17 +522,6 @@ void bindSpines(py::module_& composition) {
         "length.");
   }
 
-  // The borrowed spine stands first: an Around is no shape, and the shape
-  // reading would refuse it as one rather than let the next overload try.
-  composition.def(
-      "band",
-      [](const compose::Around& spine, const compose::Across& width) {
-        return compose::band(spine, width);
-      },
-      py::arg("spine"), py::arg("width"),
-      "A band over a spine borrowed from the element keyed by `spine`, "
-      "resolved once that element's shape is, and re-swept whenever it "
-      "moves.");
   composition.def(
       "band",
       [](py::object spine, const compose::Across& width) {
@@ -653,59 +541,14 @@ void bindSpines(py::module_& composition) {
       "which with y pointing down is outside a clockwise path.");
 }
 
-void bindRoutes(py::module_& module, py::module_& composition) {
-  composition.def(
-      "connector",
-      [](const std::string& fromKey, const std::string& toKey,
-         const RouterObject& router, float gap) {
-        return compose::connector(fromKey, toKey, readRouter(router), gap);
-      },
-      py::arg("fromKey"), py::arg("toKey"), py::arg("router") = Router{},
-      py::arg("gap") = 0.0f,
-      "An edge between two keyed nodes, routed against the rects they "
-      "resolved to and again whenever either moves. The routed path is the "
-      "node's own outline, so a stroke or any decoration dresses it, and "
-      "`gap` pulls each end back along the route by that many pixels. "
-      "Place it absolute over the nodes it connects. A key nothing carries "
-      "draws nothing.");
-  composition.def(
-      "rail",
-      [](py::handle anchors, const RailRouterObject& router) {
-        return compose::rail(readAnchors(anchors), readRailRouter(router));
-      },
-      py::arg("anchors"), py::arg("router") = RailRouter{},
-      "A path threaded through an ordered run of anchors, resolved against "
-      "where the anchored nodes landed and again whenever one moves. Each "
-      "anchor is an Anchor, a node's key, or a key with its normalized "
-      "point and, after it, its gap. Place it absolute over the nodes it "
-      "threads.");
-
-  // The family under one name: the same functions, and the text member
-  // as a free verb beside the method that chains.
-  auto derive = submodule(module, "compose.derive");
-  derive.attr("connector") = composition.attr("connector");
-  derive.attr("rail") = composition.attr("rail");
-  derive.attr("around") = composition.attr("around");
-  derive.attr("band") = composition.attr("band");
-  derive.def(
-      "contentFlowAround",
-      [](compose::Text leaf, const std::string& key, float margin) {
-        return compose::derive::contentFlowAround(std::move(leaf), key, margin);
-      },
-      py::arg("text"), py::arg("key"), py::arg("margin") = 0.0f,
-      "A copy of `text` whose lines flow around the keyed node, as "
-      "Text.contentFlowAround sets on the leaf itself.");
-}
-
 }  // namespace
 
 void bindComposeDerive(pybind11::module_& module) {
   auto composition = submodule(module, "compose");
   bindRouters(composition);
   bindAnchor(composition);
-  bindTether(module, composition);
+  bindTether(composition);
   bindSpines(composition);
-  bindRoutes(module, composition);
 }
 
 }  // namespace sigil::python

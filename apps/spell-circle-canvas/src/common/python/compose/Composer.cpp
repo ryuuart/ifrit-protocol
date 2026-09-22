@@ -352,13 +352,7 @@ void bindQueries(py::class_<ComposerHandle>& composer) {
             const SkPoint at = canvasPosition(canvasPoint);
             return self.get().hitTest(at);
           },
-          py::arg("canvasPoint"))
-      .def(
-          "routesAt",
-          [](const ComposerHandle& self, const std::string& nodeKey) {
-            return self.get().routesAt(nodeKey);
-          },
-          py::arg("nodeKey"));
+          py::arg("canvasPoint"));
   // The two text queries answer in the typography vocabulary, which
   // another file registers ahead of this one.
   if (registered<compose::Beat>())

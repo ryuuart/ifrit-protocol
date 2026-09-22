@@ -32,8 +32,7 @@ void bindComposeDecorationPrimitives(pybind11::module_& module);
 /** Registers decoration seam, paint context and the outline adaptors on
  *  @p module. */
 void bindComposeDecorationSeam(pybind11::module_& module);
-/** Registers routers, anchors, tethers, connectors, rails and bands on
- *  @p module. */
+/** Registers routers, anchors, tethers and bands on @p module. */
 void bindComposeDerive(pybind11::module_& module);
 /** Registers feed rings, options and the streaming column on @p module. */
 void bindComposeFeed(pybind11::module_& module);
@@ -58,7 +57,7 @@ void bindComposeKitLegibility(pybind11::module_& module);
 void bindComposeKitOrnament(pybind11::module_& module);
 /** Registers the aliased bitmap-font bake on @p module. */
 void bindComposeKitPixelType(pybind11::module_& module);
-/** Registers the connector routers and the instance placers on @p
+/** Registers the wire routers and the instance placers on @p
  *  module. */
 void bindComposeKitRoutes(pybind11::module_& module);
 /** Registers rows, table, bars and the bordered feed plate on @p

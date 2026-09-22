@@ -1,11 +1,11 @@
-"""The derive family: content that asks where a keyed node landed.
+"""The derive vocabulary: the values that ask where a keyed node landed.
 
-A connector and a rail are routed against the rects their keyed nodes
-resolved to, a tether hangs one box off another, and a router is the
-value that says what path runs between the ends. The first cases ask the
-values everything that needs no layout: how each is built, called by
-name, compared, copied and refused. The rest draw, because a route and a
-tether are answers of a layout and layout runs inside a draw.
+A router says what path runs between two ends, an anchor is one stop of a
+wire, a tether is where a box hangs off another, and a band is the ribbon
+a spine sweeps out. The first cases ask the values everything that needs
+no layout: how each is built, called by name, compared, copied and
+refused. The band cases draw, because a swept region is an answer of a
+layout and layout runs inside a draw.
 
 A router built over a function equals only its own copies, and one built
 over a value with a `route` method compares by that value's own equality.
@@ -32,20 +32,13 @@ RESULTS = "_sigil_derive_results"
 NAMES = (
     "Across",
     "Anchor",
-    "Around",
     "RailRouter",
     "Router",
     "Tether",
     "across",
-    "around",
     "band",
     "bandPointAt",
-    "connector",
-    "rail",
 )
-
-# The members the derive module gathers under one name.
-FAMILY = ("around", "band", "connector", "contentFlowAround", "rail")
 
 
 def segment(from_, to):
@@ -83,7 +76,7 @@ class Bowed:
 
 
 class Threaded:
-    """A rail scheme: the same, over a resolved anchor run."""
+    """A run-route scheme: the same, over a resolved anchor run."""
 
     def __init__(self, radius):
         self.radius = radius
@@ -101,24 +94,9 @@ class Spellings(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertIs(getattr(compose, name), getattr(native, name))
 
-    def test_the_family_is_gathered_under_one_name(self):
-        for name in FAMILY:
-            with self.subTest(name=name):
-                self.assertTrue(callable(getattr(native.derive, name)))
-                self.assertIs(
-                    getattr(compose.derive, name), getattr(native.derive, name)
-                )
-        # Four of the five are the compose functions themselves.
-        for name in ("around", "band", "connector", "rail"):
-            with self.subTest(name=name):
-                self.assertIs(getattr(native.derive, name), getattr(native, name))
-
     def test_the_alternatives_of_an_anchor_are_nested_in_it(self):
         self.assertTrue(isinstance(native.Anchor.OnNode, type))
         self.assertTrue(isinstance(native.Anchor.FreePoint, type))
-
-    def test_an_element_takes_a_tether(self):
-        self.assertTrue(callable(native.Element.tether))
 
     def test_the_profile_reading_stands_where_the_width_law_does(self):
         # The width law is a class of the geometry bindings; the reading
@@ -432,35 +410,11 @@ class Tethers(unittest.TestCase):
             with self.subTest(anchor=anchor, size=size), self.assertRaises(TypeError):
                 tether.place(anchor, size)
 
-    def test_an_element_is_tethered_by_a_tether_and_nothing_else(self):
-        tether = native.Tether(key="dial")
-        self.assertIsInstance(native.box().tether(tether), native.Element)
-        self.assertIsInstance(native.box().tether(tether=tether), native.Element)
-        for value in ("dial", None, native.Anchor("dial")):
-            with self.subTest(value=value), self.assertRaises(TypeError):
-                native.box().tether(value)
-
 
 class Spines(unittest.TestCase):
     def assertPoint(self, point, x, y):
         self.assertAlmostEqual(point.x, x, places=3)
         self.assertAlmostEqual(point.y, y, places=3)
-
-    def test_a_borrowed_spine_names_the_element_it_borrows(self):
-        spine = native.around("dial")
-        self.assertIsInstance(spine, native.Around)
-        self.assertEqual(spine.key, "dial")
-        self.assertEqual(spine, native.around(key="dial"))
-        self.assertEqual(spine, native.Around(key="dial"))
-        self.assertNotEqual(spine, native.around("gauge"))
-        self.assertEqual(native.Around().key, "")
-        spine.key = "gauge"
-        self.assertEqual(spine, native.around("gauge"))
-        for duplicate in (spine.copy(), copy.copy(spine), copy.deepcopy(spine)):
-            self.assertIsNot(duplicate, spine)
-            self.assertEqual(duplicate, spine)
-        with self.assertRaisesRegex(TypeError, "Unknown Around field"):
-            native.Around(node="dial")
 
     def test_a_width_is_built_by_across_and_compared_by_its_profile(self):
         width = native.across(22)
@@ -476,14 +430,10 @@ class Spines(unittest.TestCase):
         with self.assertRaises(TypeError):
             native.across("wide")
 
-    def test_a_band_is_its_own_leaf_over_either_kind_of_spine(self):
+    def test_a_band_is_its_own_leaf_over_its_spine(self):
         width = native.across(10)
-        borrowed = native.band(native.around("dial"), width)
-        self.assertIsInstance(borrowed, native.Band)
-        self.assertIsInstance(
-            native.band(spine=native.around("dial"), width=width), native.Band
-        )
         spine = skia.PathBuilder().addRect((20, 20, 100, 100)).detach()
+        self.assertIsInstance(native.band(spine=spine, width=width), native.Band)
         for authored in (spine, lambda width, height: spine, compose.shape(spine)):
             with self.subTest(spine=type(authored).__name__):
                 leaf = native.band(authored, width)
@@ -515,86 +465,6 @@ class Spines(unittest.TestCase):
         self.assertPoint(native.bandPointAt(spine, -1.0, 0), 0, 0)
         # A spine with no length has no point to answer.
         self.assertPoint(native.bandPointAt(skia.Path(), 0.5, 10), 0, 0)
-
-
-class Descriptions(unittest.TestCase):
-    """What a connector and a rail accept, with no layout behind them."""
-
-    def test_a_connector_takes_its_inputs_by_name(self):
-        router = native.Router(segment)
-        for element in (
-            native.connector("a", "b"),
-            native.connector("a", "b", router),
-            native.connector("a", "b", router, 4),
-            native.connector("a", "b", segment),
-            native.connector("a", "b", native.Router(Bowed(4)), gap=4),
-            native.connector(fromKey="a", toKey="b", router=router, gap=4),
-            native.connector("a", "b", gap=4),
-            native.derive.connector("a", "b", router),
-        ):
-            self.assertIsInstance(element, native.Element)
-
-    def test_a_connector_refuses_what_is_no_router(self):
-        # A scheme is erased by the Router built over it, which is the
-        # value to keep; the connector takes that router or a function.
-        for value in (3, "arc", None, native.RailRouter(), Bowed(4)):
-            with self.subTest(value=value), self.assertRaises(TypeError):
-                native.connector("a", "b", value)
-        with self.assertRaises(TypeError):
-            native.connector("a")
-
-    def test_a_rail_reads_an_anchor_in_each_of_its_forms(self):
-        anchors = [
-            native.Anchor("a", (1, 0.5), 4),
-            "b",
-            ("c", (0, 0.5)),
-            ["d", skia.Point(0.5, 0), 4],
-            native.Anchor.at((30, 4)),
-        ]
-        rails = native.RailRouter(polyline)
-        for element in (
-            native.rail(anchors),
-            native.rail(tuple(anchors)),
-            native.rail(anchor for anchor in anchors),
-            native.rail(anchors, rails),
-            native.rail(anchors, polyline),
-            native.rail(anchors, native.RailRouter(Threaded(8))),
-            native.rail(anchors=anchors, router=rails),
-            native.rail([]),
-            native.derive.rail(anchors, rails),
-        ):
-            self.assertIsInstance(element, native.Element)
-
-    def test_a_rail_refuses_what_is_no_anchor_run(self):
-        for anchors in (
-            "ab",
-            None,
-            7,
-            [3],
-            [("a",)],
-            [(3, (0.5, 0.5))],
-            [("a", "centre")],
-            [("a", (0.5, 0.5), "wide")],
-            [("a", (0.5, 0.5), 4, 5)],
-        ):
-            with self.subTest(anchors=anchors), self.assertRaises(TypeError):
-                native.rail(anchors)
-        for router in (3, "polyline", None, native.Router(), Threaded(8)):
-            with self.subTest(router=router), self.assertRaises(TypeError):
-                native.rail(["a", "b"], router)
-
-    def test_the_text_member_is_a_free_verb_over_a_copy(self):
-        words = native.text("words")
-        flowed = native.derive.contentFlowAround(words, "figure", 8)
-        self.assertIsInstance(flowed, native.Text)
-        self.assertIsNot(flowed, words)
-        flowed = native.derive.contentFlowAround(text=words, key="figure", margin=8)
-        self.assertIsInstance(flowed, native.Text)
-        self.assertIsInstance(
-            native.derive.contentFlowAround(words, "figure"), native.Text
-        )
-        with self.assertRaises(TypeError):
-            native.derive.contentFlowAround("words", "figure")
 
 
 class Session(unittest.TestCase):
@@ -719,140 +589,6 @@ class Bands(Session):
         self.assertFalse(self.red(picture, 32, 5))
 
 
-@unittest.skipUnless(hasattr(native, "Composer"), "no composer to read a layout from")
-class Routes(Session):
-    def test_a_connector_is_a_straight_stroke_between_two_keyed_nodes(self):
-        picture = self.frame("""
-            probe = show(pen, plate(
-                node('a', 4, 12), node('b', 52, 12),
-                wire(compose.connector('a', 'b').key('wire')),
-            ))
-            results['routes'] = [probe.routesAt(key) for key in ('a', 'b', 'wire')]
-        """)
-        self.assertTrue(self.red(picture, 30, 16))
-        self.assertTrue(self.red(picture, 14, 16))
-        self.assertFalse(self.red(picture, 30, 4))
-        self.assertEqual(self.results["routes"], [["wire"], ["wire"], []])
-
-    def test_a_gap_pulls_each_end_back_along_the_route(self):
-        picture = self.frame("""
-            show(pen, plate(
-                node('a', 4, 12), node('b', 52, 12),
-                wire(compose.connector('a', 'b', gap=10)),
-            ))
-        """)
-        # The route runs centre to centre, from x = 8 to x = 56.
-        self.assertTrue(self.red(picture, 30, 16))
-        self.assertFalse(self.red(picture, 14, 16))
-        self.assertFalse(self.red(picture, 50, 16))
-
-    def test_a_key_nothing_carries_draws_nothing(self):
-        picture = self.frame("""
-            probe = show(pen, plate(
-                node('a', 4, 12), node('b', 52, 12),
-                wire(compose.connector('a', 'absent').key('wire')),
-            ))
-            results['routes'] = probe.routesAt('b')
-        """)
-        self.assertFalse(self.red(picture, 30, 16))
-        self.assertEqual(self.results["routes"], [])
-
-    def test_a_python_router_is_asked_with_the_two_resolved_rects(self):
-        picture = self.frame("""
-            def under(from_, to):
-                results['rects'] = [edges(from_), edges(to)]
-                results['kinds'] = [type(each).__name__ for each in (from_, to)]
-                return (
-                    skia.PathBuilder().moveTo(from_.centerX(), from_.centerY())
-                    .lineTo(from_.centerX(), 28).lineTo(to.centerX(), 28)
-                    .lineTo(to.centerX(), to.centerY()).detach()
-                )
-            show(pen, plate(
-                node('a', 4, 12), node('b', 52, 12),
-                wire(compose.connector('a', 'b', under)),
-            ))
-        """)
-        from_, to = self.results["rects"]
-        self.assertNumbers(from_, (4, 12, 8, 8))
-        self.assertNumbers(to, (52, 12, 8, 8))
-        self.assertEqual(self.results["kinds"], ["Rect", "Rect"])
-        self.assertTrue(self.red(picture, 30, 28))
-        self.assertFalse(self.red(picture, 30, 16))
-
-    def test_a_rail_threads_anchors_given_in_every_form(self):
-        picture = self.frame("""
-            probe = show(pen, plate(
-                node('a', 4, 12), node('b', 28, 12), node('c', 52, 12),
-                wire(compose.rail(
-                    [compose.Anchor('a'), 'b', ('c', (0.5, 0.5))]
-                ).key('line')),
-            ))
-            results['routes'] = [probe.routesAt(key) for key in ('a', 'b', 'c')]
-        """)
-        self.assertTrue(self.red(picture, 20, 16))
-        self.assertTrue(self.red(picture, 44, 16))
-        self.assertFalse(self.red(picture, 20, 4))
-        self.assertEqual(self.results["routes"], [["line"], ["line"], ["line"]])
-
-    def test_a_python_rail_router_is_asked_with_the_resolved_run(self):
-        picture = self.frame("""
-            def through(anchors):
-                results['run'] = [(each.x, each.y) for each in anchors]
-                return skia.PathBuilder().addPolygon(anchors, False).detach()
-            show(pen, plate(
-                node('a', 4, 12), node('c', 52, 12),
-                wire(compose.rail(
-                    ['a', compose.Anchor.at((32, 4)), ('c', (0, 0.5))], through
-                )),
-            ))
-        """)
-        # A bound anchor is its normalized point on the node's rect, and a
-        # free one is the point it was given.
-        self.assertEqual(len(self.results["run"]), 3)
-        for point, wanted in zip(
-            self.results["run"], [(8, 16), (32, 4), (52, 16)], strict=True
-        ):
-            self.assertNumbers(point, wanted)
-        self.assertTrue(self.red(picture, 32, 4))
-
-    def test_a_tether_hangs_a_box_where_place_says(self):
-        self.frame("""
-            above = compose.Tether(key='dial', on=(0.5, 0), at=(0.5, 1), offset=(0, -2))
-            probe = show(pen, plate(
-                node('dial', 20, 16, 16, 10),
-                compose.box().key('tip').width(10).height(6).fill('#00ff00').tether(above),
-            ))
-            results['tip'] = edges(probe.bounds('tip'))
-            results['placed'] = edges(above.place(probe.bounds('dial'), (10, 6)))
-        """)
-        self.assertNumbers(self.results["tip"], (23, 8, 10, 6))
-        self.assertNumbers(self.results["placed"], self.results["tip"])
-
-    def test_a_fallback_is_taken_when_the_stated_tether_does_not_fit(self):
-        self.frame("""
-            below = compose.Tether(key='dial', on=(0.5, 1), at=(0.5, 0))
-            above = compose.Tether(key='dial', on=(0.5, 0), at=(0.5, 1), fallbacks=[below])
-            probe = show(pen, plate(
-                node('dial', 20, 2, 16, 10),
-                compose.box().key('tip').width(10).height(6).fill('#00ff00').tether(above),
-            ))
-            results['tip'] = edges(probe.bounds('tip'))
-        """)
-        # Above would leave the composer's bounds by four pixels.
-        self.assertNumbers(self.results["tip"], (23, 12, 10, 6))
-
-    def test_a_tether_to_a_key_nothing_carries_places_nothing(self):
-        self.frame("""
-            probe = show(pen, plate(
-                node('dial', 20, 16, 16, 10),
-                compose.box().key('tip').left(5).top(7).width(10).height(6)
-                .tether(compose.Tether(key='absent', on=(0.5, 0), at=(0.5, 1))),
-            ))
-            results['tip'] = edges(probe.bounds('tip'))
-        """)
-        self.assertNumbers(self.results["tip"], (5, 7, 10, 6))
-
-
 class Lifetimes(Session):
     def test_a_router_is_released_when_its_session_closes(self):
         self.render("""
@@ -877,10 +613,11 @@ class Lifetimes(Session):
                 results['function'] = compose.Router(owner.between)
                 results['scheme'] = compose.Router(Scheme(owner))
                 results['equal'] = results['scheme'] == compose.Router(Scheme(owner))
-                ctx.render(plate(
-                    node('a', 4, 12), node('b', 52, 12),
-                    wire(compose.connector('a', 'b', results['function'])),
-                ))
+                # The router is asked while its session stands, which is
+                # what the cases below contrast with: the same call once
+                # the session that retained the function has closed.
+                results['function'].route((4, 12, 8, 8), (52, 12, 8, 8))
+                ctx.render(plate(node('a', 4, 12), node('b', 52, 12)))
         """)
         self.assertTrue(self.results["asked"])
         self.assertTrue(self.results["equal"])

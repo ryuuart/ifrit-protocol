@@ -41,7 +41,6 @@ HOSTED = (
     "purgeCaches",
     "render",
     "renderSlot",
-    "routesAt",
     "settling",
     "stats",
 )
@@ -171,8 +170,6 @@ class Owned(unittest.TestCase):
         composer.render(plate())
         self.assertIsNone(composer.bounds("missing"))
         self.assertIsNone(composer.bounds(key="missing"))
-        self.assertEqual(composer.routesAt("missing"), [])
-        self.assertEqual(composer.routesAt(nodeKey="missing"), [])
         self.assertEqual(composer.cascadeSpanMs("missing", 0), 0)
         self.assertEqual(composer.cascadeSpanMs(key="missing", trackIndex=3), 0)
         settling = composer.settling("missing")
