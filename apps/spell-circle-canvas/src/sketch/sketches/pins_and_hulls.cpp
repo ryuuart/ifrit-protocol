@@ -7,9 +7,11 @@
  * first stamps a numeral on every point and pins a callout to the ones
  * that ask for one — the callout nearest the edge takes its fallback and
  * hangs inward. The second draws a band along the dial's own outline and
- * a hull around the points classed `chosen`, behind everything. The
- * third is the whole dial: stamped, pinned, banded and hulled by one
- * list, the picture the model was written for.
+ * a hull around the points classed `chosen`, behind everything — the
+ * band from the box AROUND the dial, because a node applying operators
+ * of its own is one closed node to the scope above it, and only that
+ * scope can find it. The third is the whole dial: stamped, pinned,
+ * banded and hulled, the picture the model was written for.
  *
  * EDIT THESE FIRST
  *   kChosen — the hours the hull encloses.
@@ -104,12 +106,17 @@ Operator chosenHull() {
       .zIndex(-1);
 }
 
-/** The dial: a circle keyed for the band, the hours under the operators. */
-Element dial(std::vector<Operator> operators) {
+/** The dial: a circle keyed for the band, the hours under the operators.
+ *  The dial applies operators of its own, so to the box around it the
+ *  dial is one closed node: the band along the dial's edge is the OUTER
+ *  box's operator, which is the scope that can find "dial". */
+Element dial(std::vector<Operator> operators, bool banded = false) {
   std::vector<Element> hours;
   for (int number = 1; number <= 12; ++number) hours.push_back(hour(number));
+  Element around = box().inset(0);
+  if (banded) around.operators({dialBand()});
   return sketch::kit::well({.width = kCell, .height = kPicture})
-      .children({box().inset(0).children(
+      .children({around.children(
           {box()
                .key("dial")
                .inset(24)
@@ -147,20 +154,23 @@ struct PinsAndHulls {
                  {.cases =
                       {cell("STAMPED AND PINNED",
                             "Radial{lane}, stamp::ByLane, pin::ByLane",
-                            "A numeral on every point; the callouts hang "
-                            "outward, and nine o'clock takes its fallback.",
+                            "A numeral on every point; the callouts hang to "
+                            "the right, and three o'clock, which would leave "
+                            "the dial, takes its fallback.",
                             dial({ring(), numerals(),
                                   pin::ByLane{.lane = "callout"}})),
                        cell("BANDED AND HULLED",
                             "Around{\"dial\"}, Hull{.styleClass = \"chosen\"}",
-                            "A band inside the dial's own edge; a hull, grown "
-                            "18 px, round the four chosen hours.",
-                            dial({ring(), numerals(), dialBand(), chosenHull()})),
-                       cell("ALL FOUR", "one list",
-                            "Placed, stamped, pinned, banded and hulled: five "
-                            "operators over twelve points.",
-                            dial({ring(), numerals(), dialBand(), chosenHull(),
-                                  pin::ByLane{.lane = "callout"}}))},
+                            "A band inside the dial's own edge, applied by the "
+                            "box around the dial; a hull, grown 18 px, round "
+                            "the four chosen hours.",
+                            dial({ring(), numerals(), chosenHull()}, true)),
+                       cell("ALL FOUR", "two lists",
+                            "Placed, stamped, pinned and hulled by the dial's "
+                            "list; banded by the box around it.",
+                            dial({ring(), numerals(), chosenHull(),
+                                  pin::ByLane{.lane = "callout"}},
+                                 true))},
                   .measure = 1020,
                   .gap = 18})})));
   }
