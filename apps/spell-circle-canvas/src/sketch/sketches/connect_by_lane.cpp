@@ -113,13 +113,13 @@ Element panel(std::vector<Operator> operators) {
 Element district() {
   return box()
       .key("district")
-      .left(150)
-      .top(120)
-      .width(160)
-      .height(150)
+      .left(110)
+      .top(96)
+      .width(210)
+      .height(196)
       .borderRadius({8})
       .foreground(stroke(1.0f, Fill::color(sketch::kit::theme().palette.rule)))
-      .operators({layouts::Radial{.radiusFraction = 0.55f},
+      .operators({layouts::Radial{.radiusFraction = 0.62f},
                   connect::ByLane{.lane = "calls", .wire = wire()}})
       .children({each(kServices, card)});
 }
