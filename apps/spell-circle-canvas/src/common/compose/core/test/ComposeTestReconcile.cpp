@@ -506,10 +506,18 @@ TEST(ComposeReconcile, APrunedPatchLeavesTheComputedStyleStanding) {
   // nothing writes the style that frame — and nothing has to, because the
   // description it swapped in was proved to carry the same properties.
   //
-  // That is the whole invariant, and it is silent when it breaks: the style
-  // would simply keep an older answer, which is indistinguishable from a
-  // node that did not change until the frame a real change lands on top of
-  // it. So: prune, then change, and assert the change takes in full.
+  // WHAT THIS PINS, exactly: that a patch arriving AFTER a prune takes in
+  // full, and that a patch moving one property does not drop the one an
+  // earlier patch wrote. A fill that wrote only the fields this describe
+  // changed, or that stopped writing at all, reddens it.
+  //
+  // WHAT IT CANNOT PIN: a change that reaches the node without touching the
+  // node's OWN declarations — a rule, or a value inherited from an
+  // ancestor. That change prunes, the patch never runs, and a style filled
+  // at the patch keeps the previous answer forever. No property can be
+  // moved that way yet, so the case cannot be written; it arrives with the
+  // first rule-settable box property, and it is the reason the fill belongs
+  // to the cascade resolver rather than here.
   Host host(200, 200);
   auto describe = [](float width, float opacity) {
     return box().children({box()
@@ -540,4 +548,8 @@ TEST(ComposeReconcile, APrunedPatchLeavesTheComputedStyleStanding) {
   host.composer.render(describe(40, 0.0f));  // …and a paint property
   host.frame();
   EXPECT_EQ(host.pixel(20, 10), SK_ColorBLACK);
+  // The paint patch rewrote the whole style, so the width the PREVIOUS
+  // patch wrote is still standing: a fill that copied only what this
+  // describe changed would answer the property's default here.
+  EXPECT_FLOAT_EQ(host.composer.bounds("a")->width(), 40.0f);
 }

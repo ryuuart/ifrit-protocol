@@ -101,10 +101,11 @@ sigil_shader_sources(SigilComposeCore DIR ${_shaders} NAMESPACE sigil::compose)
 # The kernel: elements, the reconciler, layout, paint, transitions, text,
 # the feed, the instanced leaf, masks and the field walks. Links Core
 # ALONE, which is the proof that the kernel stands without its catalogs.
-# The field walks include ComposeInternal.h AND ComposeRuntime.h (the
-# only test TU that does either) so the equality comparators and the
-# kSlotSpecs table can be reached DIRECTLY, which is why this binary
-# alone sees the library's source directory. yoga::yogacore is
+# Two TUs include the library's own headers — the field walks
+# (ComposeInternal.h and ComposeRuntime.h, for the equality comparators
+# and the kSlotSpecs table) and the slot-consumer scenes (ComposeRuntime.h,
+# for the accounting that every slot is driven or excused) — which is why
+# this binary alone sees the library's source directory. yoga::yogacore is
 # PRIVATE to Core, so its headers are not on this target's path by
 # inheritance — and ComposeRuntime.h includes <yoga/Yoga.h>. Listed for
 # the INCLUDE PATH; the archive itself was already in the link closure.
@@ -121,6 +122,7 @@ sigil_test(compose_test
           test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp
           test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp
           test/ComposeTestMask.cpp test/ComposeTestFieldPins.cpp
+          test/ComposeTestSlotConsumers.cpp
           test/ComposeTestDepth.cpp
           test/ComposeTestInstances.cpp test/ComposeTestOperators.cpp
           test/ComposeTestShelf.cpp test/ComposeTestTable.cpp

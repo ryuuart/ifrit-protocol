@@ -20,13 +20,16 @@
 // that renders two trees and counts patched nodes can report exactly what a
 // correct comparator would while the comparator is in fact broken.
 //
-// THIS FILE REACHES THE LIBRARY'S OWN SOURCE DIRECTORY, and it is the only
-// test translation unit that does. That is a stated exception rather than
-// an oversight: a field left out of a comparator is unfalsifiable from
-// outside, because from outside the two descriptions simply compare equal
-// and the tree simply prunes. Every case here needs the comparator or the
-// slot table itself; a case that needs neither belongs in the binary whose
-// tier owns its subject, not here.
+// THIS FILE REACHES THE LIBRARY'S OWN SOURCE DIRECTORY, as does
+// ComposeTestSlotConsumers.cpp beside it and nothing else. That is a
+// stated exception rather than an oversight: a field left out of a
+// comparator is unfalsifiable from outside, because from outside the two
+// descriptions simply compare equal and the tree simply prunes. Every case
+// here needs the comparator or the slot table itself; a case that needs
+// neither belongs in the binary whose tier owns its subject, not here. What
+// the slot table's CONSUMERS do with a row — whether the property ramps, is
+// volatile, refuses a group's bake — is scenes rendered through a host, and
+// lives in that file.
 
 #include <boost/pfr/core.hpp>
 
@@ -384,8 +387,13 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
 // filled from. The two hold the same value today, so a row still pointed at
 // the description passes every assertion above — and then, the moment a rule
 // or an inherited value writes an answer the description never carried, that
-// property snaps where every other one eases, silently. Moving one field of
-// the style apart from the node is the only thing that tells the two apart.
+// property snaps where every other one eases, silently.
+//
+// What tells the two apart is the ADDRESS, not the value: the style here is
+// a separate object standing beside the node, so a row reading the style
+// answers inside `style.paint` and a row still reading the node answers
+// inside `node.paint`. A row left on the node is then counted as positional
+// and the total falls short.
 TEST(ComposeSlotPins, EveryPropertyRowReadsTheComputedStyleAndNotTheNode) {
   cd::ElementNode node;
   node.motionData.ensure();

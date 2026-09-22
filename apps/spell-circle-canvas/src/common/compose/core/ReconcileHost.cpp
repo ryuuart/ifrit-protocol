@@ -210,15 +210,19 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   if (inst.memoShell) mergeMemoShell(*inst.description, *inst.memoShell);
 
   // THE STYLE THIS PATCH COMPUTES, over the one the node stood in until
-  // now. It is written here, after the shell has had its say, because
-  // everything below reads properties through it — and it is written
-  // ONLY here: a patch the reconciler prunes never reaches this function,
-  // and the description it swapped in was proved to carry the same
-  // properties, so the style standing on the instance is still the answer.
+  // now. It is written after the shell has had its say, because everything
+  // below reads properties through it. The fill is the cascade resolver's
+  // to own; it stands here while it is VERBATIM, for the reason
+  // ComputedStyle.h states — and because it stands here, a patch the
+  // reconciler prunes never reaches this function, and the description it
+  // swapped in was proved to carry the same properties, so the style
+  // already on the instance is still the answer.
   //
-  // The previous one is kept for the length of this call because the
-  // transition triggers below need both sides of the change.
-  ComputedStyle previous = std::move(inst.computed);
+  // The previous one is COPIED, not moved out of: the transition triggers
+  // below need both sides of the change, and `inst.computed` is the object
+  // the painter and `Instance::styled()` bind references to, so it must
+  // hold a value at every point between here and the write.
+  const ComputedStyle previous = inst.computed;
   computeStyle(next, inst.computed);
 
   // Recompute the world-space flag once per patch. A pruned node keeps
