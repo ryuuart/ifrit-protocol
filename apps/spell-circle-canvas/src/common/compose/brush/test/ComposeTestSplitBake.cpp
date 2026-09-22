@@ -6,24 +6,26 @@
 
 #include "support/BrushTestSupport.h"
 
-TEST(ComposeCache, ConnectorWireSurvivesParentCaching) {
-  // A connector's routed path is NOT bounded by the connector node's layout
-  // rect — it reaches across to the endpoints it joins. The parent's
-  // recording cull has to account for that, or the wire is drawn on the
-  // first frame and clipped away by every cached replay after it.
+TEST(ComposeCache, AnAddedWireSurvivesParentCaching) {
+  // A wire is mounted by an operator AFTER the parent has been described,
+  // and it reaches across the whole span between the nodes it joins. The
+  // parent's recording cull has to account for it, or the wire is drawn on
+  // the first frame and clipped away by every cached replay after it.
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .absolute()
-           .inset(90, 160, 90, 20)
-           .fill(red())
-           .key("a"),
-       box()
-           .absolute()
-           .inset(90, 20, 90, 160)
-           .fill(red())
-           .key("b"),
-       connector("a", "b").stroke(stroke(4, green()))}));
+  host.composer.render(
+      box()
+          .children({box()
+                         .absolute()
+                         .inset(90, 160, 90, 20)
+                         .fill(red())
+                         .key("a"),
+                     box()
+                         .absolute()
+                         .inset(90, 20, 90, 160)
+                         .fill(red())
+                         .key("b")})
+          .operators({connect::Between{
+              .from = "a", .to = "b", .wire = stroke(4, green())}}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);  // the wire, mid-span
   host.frame();                                    // cached replay

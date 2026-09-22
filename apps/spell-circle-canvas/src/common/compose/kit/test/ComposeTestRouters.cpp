@@ -1,8 +1,7 @@
-// The routers: how a derived route gets from one node to another, and
-// which layout scheme a router's own bends belong to, and the
-// connector between two nodes: the route that tracks endpoints as they
-// move, the Manhattan and bowed variants, and the gap that pulls the
-// wire off both ends.
+// The routers: how a wire gets from one node to another, and which layout
+// scheme a router's own bends belong to, and the wire between two nodes:
+// the route that tracks endpoints as they move, the Manhattan and bowed
+// variants, and the gap that pulls the wire off both ends.
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Decorations.h>
@@ -27,33 +26,35 @@ TEST(ComposeRouters, OrbitFollowsTheRing) {
 
 TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {
   // A router is a VALUE: two describes that mint the same stock router
-  // are the same description, so the connector prunes and replays the
-  // recording it already made. Minted afresh each describe on purpose —
-  // that is the shape every author writes, and the shape a callable
-  // could never settle from.
+  // state the same operator, so the wire it attaches is the same element
+  // and the node replays the recording it already made. Minted afresh
+  // each describe on purpose — that is the shape every author writes, and
+  // the shape a callable could never settle from.
   const auto page = [] {
-    return box().width(300).height(200).children(
-        {box()
-             .key("a")
-             .absolute()
-             .left(10.0f)
-             .top(10.0f)
-             .width(20)
-             .height(20)
-             .fill(red()),
-         box()
-             .key("b")
-             .absolute()
-             .left(200.0f)
-             .top(150.0f)
-             .width(20)
-             .height(20)
-             .fill(blue()),
-         connector("a", "b", routers::orthogonal(routers::Bend::VFirst, 6.0f))
-             .key("wire")
-             .absolute()
-             .inset(0)
-             .foreground(PathFormat{.width = 2, .strokeFill = green()})});
+    return box()
+        .width(300)
+        .height(200)
+        .children({box()
+                       .key("a")
+                       .absolute()
+                       .left(10.0f)
+                       .top(10.0f)
+                       .width(20)
+                       .height(20)
+                       .fill(red()),
+                   box()
+                       .key("b")
+                       .absolute()
+                       .left(200.0f)
+                       .top(150.0f)
+                       .width(20)
+                       .height(20)
+                       .fill(blue())})
+        .operators({connect::Between{
+            .from = "a",
+            .to = "b",
+            .router = routers::orthogonal(routers::Bend::VFirst, 6.0f),
+            .wire = PathFormat{.width = 2, .strokeFill = green()}}});
   };
   Host host;
   host.composer.render(page());
@@ -63,32 +64,35 @@ TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {
   host.composer.render(page());
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
-      << "an unchanged router re-patched the connector";
+      << "an unchanged router re-patched the wire";
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
       << "an unchanged router re-recorded the route";
   // …and a router with different parameters is a different description.
-  host.composer.render(box().width(300).height(200).children(
-      {box()
-           .key("a")
-           .absolute()
-           .left(10.0f)
-           .top(10.0f)
-           .width(20)
-           .height(20)
-           .fill(red()),
-       box()
-           .key("b")
-           .absolute()
-           .left(200.0f)
-           .top(150.0f)
-           .width(20)
-           .height(20)
-           .fill(blue()),
-       connector("a", "b", routers::orthogonal(routers::Bend::VFirst, 18.0f))
-           .key("wire")
-           .absolute()
-           .inset(0)
-           .foreground(PathFormat{.width = 2, .strokeFill = green()})}));
+  host.composer.render(
+      box()
+          .width(300)
+          .height(200)
+          .children({box()
+                         .key("a")
+                         .absolute()
+                         .left(10.0f)
+                         .top(10.0f)
+                         .width(20)
+                         .height(20)
+                         .fill(red()),
+                     box()
+                         .key("b")
+                         .absolute()
+                         .left(200.0f)
+                         .top(150.0f)
+                         .width(20)
+                         .height(20)
+                         .fill(blue())})
+          .operators({connect::Between{
+              .from = "a",
+              .to = "b",
+              .router = routers::orthogonal(routers::Bend::VFirst, 18.0f),
+              .wire = PathFormat{.width = 2, .strokeFill = green()}}}));
   host.frame();
   EXPECT_GE(host.composer.stats().patchedNodes, 1u)
       << "a router with a different radius pruned";
@@ -115,7 +119,7 @@ TEST(ComposeRouters, ARawRouteCallableNeverSettles) {
             routers::fromPairwise(routers::arc(0.2f)));
   EXPECT_NE(routers::fromPairwise(routers::arc(0.2f)),
             routers::fromPairwise(routers::arc(0.4f)));
-  EXPECT_EQ(RailRouter{}, RailRouter{});  // the default: rail()'s polyline
+  EXPECT_EQ(RailRouter{}, RailRouter{});  // the default: the polyline
 }
 
 TEST(ComposeLayouts, AbsoluteDiagonalAutoSizes) {
@@ -185,9 +189,9 @@ PathDump dumpPath(const SkPath& p) {
 }  // namespace
 
 TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
-  // rail() takes a RailRouter, and orthogonal() is a pairwise Router — so
-  // orthogonal routing was unreachable from a rail at all. This line
-  // compiling is half of what is being checked.
+  // A run of stops takes a RailRouter, and orthogonal() is a pairwise
+  // Router — so orthogonal routing would be unreachable from a run at
+  // all. This line compiling is half of what is being checked.
   RailRouter router = routers::manhattan();
 
   // An axis-aligned pair: ONE segment, no zero-length verbs.
@@ -298,7 +302,8 @@ TEST(ComposeRouters, AStampedRouteCarriesAWholeCountOfTilesPerLeg) {
 }
 
 TEST(ComposeRouters, FromPairwiseStitchesOneContourAndKeepsCurves) {
-  // The adapter: any pairwise Router rides rail(). Three stations, the
+  // The adapter: any pairwise Router rides a run of stops. Three
+  // stations, the
   // legs stitch into ONE contour (terminal caps fire once, junction
   // moves dropped) and the old router's zero-length verbs collapse.
   const SkPoint stops[3] = {{20, 100}, {100, 100}, {100, 180}};
@@ -322,33 +327,35 @@ TEST(ComposeRouters, FromPairwiseStitchesOneContourAndKeepsCurves) {
 }
 
 // -------------------------------------------------------------------------
-// The connector between two nodes: the route that tracks endpoints as
-// they move, the Manhattan and bowed variants, and the gap that pulls
-// the wire off both ends.
+// The wire between two nodes: the route that tracks endpoints as they
+// move, the Manhattan and bowed variants, and the gap that pulls the wire
+// off both ends.
 
-TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
+TEST(ComposeConnect, AWireTracksMovedEndpoints) {
   Host host;
   PathFormat wire;
   wire.width = 4;
   wire.strokeFill = Fill::color({1, 1, 0, 1});
 
   auto tree = [&](float bLeft) {
-    return stack().children(
-        {box()
-             .key("a")
-             .width(20)
-             .height(20)
-             .inset(10, 170, 170, 10)
-             .absolute()
-             .fill(red()),
-         box()
-             .key("b")
-             .width(20)
-             .height(20)
-             .inset(160, 180 - bLeft, 20, bLeft)
-             .absolute()
-             .fill(green()),
-         connector("a", "b").inset(0).foreground(wire).zIndex(-1)});
+    return stack()
+        .children({box()
+                       .key("a")
+                       .width(20)
+                       .height(20)
+                       .inset(10, 170, 170, 10)
+                       .absolute()
+                       .fill(red()),
+                   box()
+                       .key("b")
+                       .width(20)
+                       .height(20)
+                       .inset(160, 180 - bLeft, 20, bLeft)
+                       .absolute()
+                       .fill(green())})
+        .operators({Operator(connect::Between{
+                                 .from = "a", .to = "b", .wire = wire})
+                        .zIndex(-1)});
   };
 
   host.composer.render(tree(10.0f));
@@ -362,30 +369,33 @@ TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
   EXPECT_NE(host.pixel(95, 95), SK_ColorBLACK);   // new diagonal route
 }
 
-TEST(ComposeDerive, OrthogonalRouterRunsManhattan) {
+TEST(ComposeConnect, TheOrthogonalRouterRunsManhattan) {
   Host host;
   PathFormat wire;
   wire.width = 4;
   wire.strokeFill = Fill::color({1, 1, 0, 1});
-  host.composer.render(stack().children(
-      {box()
-           .key("a")
-           .width(20)
-           .height(20)
-           .inset(10, 170, 170, 10)
-           .absolute()
-           .fill(red()),
-       box()
-           .key("b")
-           .width(20)
-           .height(20)
-           .inset(160, 20, 20, 160)
-           .absolute()
-           .fill(green()),
-       connector("a", "b", routers::orthogonal())
-           .inset(0)
-           .foreground(wire)
-           .zIndex(-1)}));
+  host.composer.render(
+      stack()
+          .children({box()
+                         .key("a")
+                         .width(20)
+                         .height(20)
+                         .inset(10, 170, 170, 10)
+                         .absolute()
+                         .fill(red()),
+                     box()
+                         .key("b")
+                         .width(20)
+                         .height(20)
+                         .inset(160, 20, 20, 160)
+                         .absolute()
+                         .fill(green())})
+          .operators({Operator(connect::Between{
+                                   .from = "a",
+                                   .to = "b",
+                                   .router = routers::orthogonal(),
+                                   .wire = wire})
+                          .zIndex(-1)}));
   host.frame();
   // Centers (20,20) and (170,170); midX = 95: H leg at y=20, V leg at
   // x=95, H leg at y=170.
@@ -395,30 +405,33 @@ TEST(ComposeDerive, OrthogonalRouterRunsManhattan) {
   EXPECT_EQ(host.pixel(60, 100), SK_ColorBLACK);    // nowhere near diagonal
 }
 
-TEST(ComposeDerive, ArcRouterBowsOffTheChord) {
+TEST(ComposeConnect, TheArcRouterBowsOffTheChord) {
   Host host;
   PathFormat wire;
   wire.width = 4;
   wire.strokeFill = Fill::color({1, 1, 0, 1});
-  host.composer.render(stack().children(
-      {box()
-           .key("a")
-           .width(10)
-           .height(10)
-           .inset(95, 170, 95, 20)
-           .absolute()
-           .fill(red()),
-       box()
-           .key("b")
-           .width(10)
-           .height(10)
-           .inset(95, 20, 95, 170)
-           .absolute()
-           .fill(green()),
-       connector("a", "b", routers::arc(0.3f))
-           .inset(0)
-           .foreground(wire)
-           .zIndex(-1)}));
+  host.composer.render(
+      stack()
+          .children({box()
+                         .key("a")
+                         .width(10)
+                         .height(10)
+                         .inset(95, 170, 95, 20)
+                         .absolute()
+                         .fill(red()),
+                     box()
+                         .key("b")
+                         .width(10)
+                         .height(10)
+                         .inset(95, 20, 95, 170)
+                         .absolute()
+                         .fill(green())})
+          .operators({Operator(connect::Between{
+                                   .from = "a",
+                                   .to = "b",
+                                   .router = routers::arc(0.3f),
+                                   .wire = wire})
+                          .zIndex(-1)}));
   host.frame();
   // Horizontal chord from (25,100) to (175,100), bulge 0.3×150 = 45 px
   // toward +normal (downward-left convention: normal of (+x,0) is
@@ -427,32 +440,36 @@ TEST(ComposeDerive, ArcRouterBowsOffTheChord) {
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);   // chord midpoint empty
 }
 
-TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
+TEST(ComposeConnect, TheGapPullsTheWireOffTheEndpoints) {
   // A route runs to the node BOX's centre, and a box is often much larger
   // than the shape drawn inside it — an sdf:: panel, for instance, reserves
   // room for its glow. Without a terminal gap the wire is drawn straight
   // through the visible terminal to a centre nobody can see. The gap is the
-  // same pull-back Anchor takes, spelled on connector().
+  // same pull-back a stop takes, spelled on the operator.
   const auto scene = [](float gap) {
     PathFormat wire;
     wire.width = 4;
     wire.strokeFill = Fill::color({1, 1, 0, 1});
-    return stack().children(
-        {box()
-             .key("a")
-             .width(20)
-             .height(20)
-             .inset(90, 170, 90, 10)
-             .absolute()
-             .fill(red()),
-         box()
-             .key("b")
-             .width(20)
-             .height(20)
-             .inset(90, 10, 90, 170)
-             .absolute()
-             .fill(green()),
-         connector("a", "b", {}, gap).inset(0).foreground(wire).zIndex(1)});
+    return stack()
+        .children({box()
+                       .key("a")
+                       .width(20)
+                       .height(20)
+                       .inset(90, 170, 90, 10)
+                       .absolute()
+                       .fill(red()),
+                   box()
+                       .key("b")
+                       .width(20)
+                       .height(20)
+                       .inset(90, 10, 90, 170)
+                       .absolute()
+                       .fill(green())})
+        .operators({Operator(connect::Between{.from = "a",
+                                              .to = "b",
+                                              .gap = gap,
+                                              .wire = wire})
+                        .zIndex(1)});
   };
   // Control: with gap 0 the wire runs centre to centre, (20,100) → (180,100),
   // and paints OVER both terminal boxes. Without this arm, "the gapped wire

@@ -1,8 +1,7 @@
 /** @file
- * A node's identity and retained behaviour — the anchor it hangs off,
- * the key, whether the node answers a hit, the cache policy and bake
- * scale, the node transition, the child stagger, and the children
- * themselves.
+ * A node's identity and retained behaviour — the key, whether the node
+ * answers a hit, the cache policy and bake scale, the node transition,
+ * the child stagger, and the children themselves.
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the slot-rename diagnostic
@@ -16,38 +15,6 @@
 namespace sigil::compose {
 
 using detail::Kind;
-
-template <class Derived>
-Derived& StructureVerbs<Derived>::tether(Tether t) {
-  detail::ElementNode* node = declarations();
-  node->layout.absolute = true;
-  node->layout.covering = false;
-  detail::DeriveData& derive = node->deriveData.ensure();
-  // LAST-WINS, so the previous tether's reads go with it: a box hangs off
-  // exactly one anchor at a time, and one re-tethered would otherwise keep
-  // waiting on every node it was ever tethered to. The keys that tether
-  // named, and no other Bounds read — a spans gate sized from a node's box
-  // is a read this one does not own.
-  if (derive.tether) {
-    const Tether& was = *derive.tether;
-    std::erase_if(derive.reads, [&](const sigil::core::Read& read) {
-      if (read.facet != sigil::core::Facet::Bounds) return false;
-      if (read.key == was.key) return true;
-      for (const Tether& fallback : was.fallbacks)
-        if (read.key == fallback.key) return true;
-      return false;
-    });
-  }
-  // Every place the box may end up is a node whose finished geometry this
-  // one waits for, so every one of them is declared — a fallback that
-  // named a node nothing waited for would be resolved a pass late, and
-  // the box would flick into it a frame after the anchor moved.
-  derive.reads.push_back({t.key, sigil::core::Facet::Bounds});
-  for (const Tether& fallback : t.fallbacks)
-    derive.reads.push_back({fallback.key, sigil::core::Facet::Bounds});
-  derive.tether = std::move(t);
-  return self();
-}
 
 template <class Derived>
 Derived& StructureVerbs<Derived>::hitTestable(bool enabled) {

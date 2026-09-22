@@ -1,7 +1,7 @@
 /** @file
- * What the reconcile walk indexes as it goes: the key index with the edge
- * store that rides it, and the order the derived nodes' declared reads
- * imply. The reconciler itself — memo resolution, the prune, keyed and
+ * What the reconcile walk indexes as it goes: the key index with the
+ * borrow lists that ride it, and the order the derived nodes' declared
+ * reads imply. The reconciler itself — memo resolution, the prune, keyed and
  * positional matching — is SigilCore's, driven through the host operations
  * in ReconcileHost.cpp.
  */
@@ -20,21 +20,18 @@ using namespace detail;
 void Composer::Impl::rebuildKeyIndex() {
   byKey.clear();
   bySlot.clear();
-  routedInstances.clear();
+  borrowInstances.clear();
   flowInstances.clear();
-  tetheredInstances.clear();
   pathMarkInstances.clear();
   threadedInstances.clear();
   addingInstances.clear();
   additionOwners.clear();
-  routesByAnchor.clear();
   hasDerived = false;
   hasCustomLayout = false;
   hasCenterPins = false;
   // The reconciler fills byKey — a memo shell's key first, else the
-  // description's — and the edge store (flat derive lists + anchor
-  // back-index) and the pass gates ride the same walk. Tree order here IS
-  // the derive order.
+  // description's — and the flat borrow lists and the pass gates ride the
+  // same walk. Tree order here IS the derive order.
   if (root)
     reconciler.indexKeys(*root, byKey, [this](Instance& inst) {
       if (inst.description->kind == Kind::Slot &&
@@ -44,42 +41,17 @@ void Composer::Impl::rebuildKeyIndex() {
       if (node.deriveData) {
         const DeriveData& derive = *node.deriveData;
         if (!derive.flowAroundKeys.empty()) flowInstances.push_back(&inst);
-        if (derive.tether) tetheredInstances.push_back(&inst);
-        const bool isConnector =
-            !derive.connectFrom.empty() && !derive.connectTo.empty();
-        const bool isRail = derive.railAnchors.size() >= 2;
-        // A borrowed band spine and a spans::fit() gap are the same kind
-        // of question a connector asks — "where did that keyed node land"
-        // — so they ride the SAME flat derive list rather than growing a
-        // phase.
+        // A spans::fit() gap and a strand::from() path are the same
+        // question — "where did that keyed node land" — so they ride ONE
+        // flat list rather than growing a phase each.
         //
-        // THESE THREE ARE NOT READ QUESTIONS, which is why they read the
-        // fields and not the declared reads: they choose WHICH PASS
-        // resolves the node — a route, a flow, a chain — and which anchors
-        // a route is re-run from when one of them moves. A read says what
-        // a node waits for; this says what is done to it, and two nodes
-        // reading the same key can still be resolved by different passes.
-        const bool isBorrowed = !derive.bandAround.empty() ||
-                                !derive.spanFitKeys.empty() ||
-                                !derive.borrowedPathKeys.empty();
-        if (isBorrowed && !isConnector && !isRail)
-          routedInstances.push_back(&inst);
-        if (isConnector || isRail) {
-          routedInstances.push_back(&inst);
-          if (isConnector) {
-            routesByAnchor[derive.connectFrom].push_back(&inst);
-            if (derive.connectTo != derive.connectFrom)
-              routesByAnchor[derive.connectTo].push_back(&inst);
-          }
-          for (const Anchor& anchor : derive.railAnchors) {
-            // A waypoint that names no node is a free point: nothing
-            // resolves it, so it belongs under no anchor's key.
-            if (anchor.key().empty()) continue;
-            auto& at = routesByAnchor[std::string(anchor.key())];
-            if (at.empty() || at.back() != &inst)  // rails revisit anchors
-              at.push_back(&inst);
-          }
-        }
+        // THIS IS NOT A READ QUESTION, which is why it reads the fields
+        // and not the declared reads: it chooses WHICH PASS resolves the
+        // node — a borrow, a flow, a chain. A read says what a node waits
+        // for; this says what is done to it, and two nodes reading the
+        // same key can still be resolved by different passes.
+        if (!derive.spanFitKeys.empty() || !derive.borrowedPathKeys.empty())
+          borrowInstances.push_back(&inst);
       }
       if (node.arranges()) hasCustomLayout = true;
       if (node.adds()) {
@@ -116,8 +88,8 @@ void Composer::Impl::rebuildKeyIndex() {
         threadedInstances.push_back(&inst);
       if (node.layout.centerAt) hasCenterPins = true;
     });
-  hasDerived = !routedInstances.empty() || !flowInstances.empty() ||
-               !threadedInstances.empty() || !tetheredInstances.empty();
+  hasDerived = !borrowInstances.empty() || !flowInstances.empty() ||
+               !threadedInstances.empty();
   hasAdding = !addingInstances.empty() || !additionOwners.empty();
   orderDerivedByReads();
 }
@@ -126,9 +98,10 @@ void Composer::Impl::rebuildKeyIndex() {
  *
  *  A derived node is one whose answer is a function of another node's
  *  finished answer, and tree order is only the right order to resolve them
- *  in while none of them reads another. One that does — a rail anchored on
- *  a connector's own box, a frame threaded from a frame written later — is
- *  a pass behind for as long as the order is the order it was written in.
+ *  in while none of them reads another. One that does — a gate sized from
+ *  a box that is itself borrowed, a frame threaded from a frame written
+ *  later — is a pass behind for as long as the order is the order it was
+ *  written in.
  *
  *  Every derivation DECLARES what it reads, in the statement that writes
  *  it, and this hands those declarations to `core::orderByReads`. Nothing
@@ -160,8 +133,7 @@ void Composer::Impl::orderDerivedByReads() {
     list.swap(sorted);
   };
   reorder(flowInstances);
-  reorder(tetheredInstances);
-  reorder(routedInstances);
+  reorder(borrowInstances);
   reorder(threadedInstances);
 }
 

@@ -3,8 +3,7 @@
 /** @file
  * What every borrow in the derive phase shares: the shape a laid-out
  * instance occupies in its own space, whether that shape is a silhouette
- * it declared, the hit tolerance a routed element is tested against, and
- * the cycle guard that refuses a descendant's geometry.
+ * it declared, and the cycle guard that refuses a descendant's geometry.
  *
  * This is where reference cycles are rejected — nothing upstream checks
  * for them. Every borrow resolves a key to an instance and then refuses
@@ -15,27 +14,14 @@
  * the same answer an unknown key gets.
  */
 
-#include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathUtils.h>
 
 #include "ComposeRuntime.h"
 
 namespace sigil::compose {
 
 using namespace detail;
-
-/** Routed elements hit near their PATH, not their layout box (an inset(0)
- *  rail must not eclipse the scene): expand the route by a ±6px tolerance
- *  once at derive time; Query.cpp tests containment against it. */
-inline SkPath expandForHit(const SkPath& route) {
-  SkPaint p;
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(12.0f);
-  p.setStrokeCap(SkPaint::kRound_Cap);
-  return skpathutils::FillPathWithPaint(route, p);
-}
 
 /** The shape a laid-out instance actually occupies, in its OWN space —
  *  the same answer the painter builds, so a borrowed spine and the
@@ -44,8 +30,6 @@ inline SkPath resolvedShapeOf(Instance& inst) {
   const ElementNode& node = *inst.description;
   const SkRect rect = inst.owner->instanceRect(inst);
   const SkSize size{rect.width(), rect.height()};
-  if (node.deriveData && !inst.connectorPath.isEmpty())
-    return inst.connectorPath;
   if (node.shapeFn) return node.shapeFn(size);
   SkPathBuilder b;
   b.addRect(SkRect::MakeWH(size.width(), size.height()));
@@ -57,9 +41,7 @@ inline SkPath resolvedShapeOf(Instance& inst) {
  *  not count: they round the fill, not the outline the borrow family reads,
  *  and `resolvedShapeOf` ignores them everywhere else too. */
 inline bool hasResolvedSilhouette(const Instance& inst) {
-  const ElementNode& node = *inst.description;
-  return (bool)node.shapeFn ||
-         (node.deriveData && !inst.connectorPath.isEmpty());
+  return (bool)inst.description->shapeFn;
 }
 
 /** The cycle guard every borrow in this file applies: the target must not be

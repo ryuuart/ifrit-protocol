@@ -101,8 +101,8 @@ float declaredBleed(const ElementNode& node, SkSize size) {
  *  grown by every declared bleed (decorations, stroke passes, echo offsets,
  *  band width profiles, material reserves), then joined with what a layout
  *  rect does not bound at all: the ink of the glyphs a text leaf placed, a
- *  routed connector/rail path, a text run's path baseline, a borrowed band
- *  spine, and the shape the node declares, each outset by its own reach.
+ *  text run's path baseline, a band's spine, and the shape the node
+ *  declares, each outset by its own reach.
  *
  *  THIS IS THE ONE PLACE A NODE IS SIZED. Everything allocated from a
  *  node's extent begins here — the recording cull and the child union over
@@ -128,17 +128,6 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   local.join(inst.textInk);
   const float bleed = declaredBleed(node, {rect.width(), rect.height()});
   if (bleed > 0) local.outset(bleed, bleed);
-  // Routed elements paint their derive-resolved PATH, which is not bounded
-  // by the layout rect (a connector's box is one thing, its wire another) —
-  // the cull must hold the route plus its stroke reach.
-  if (node.deriveData &&
-      (!node.deriveData->connectFrom.empty() ||
-       !node.deriveData->railAnchors.empty()) &&
-      !inst.connectorPath.isEmpty()) {
-    SkRect route = inst.connectorPath.getBounds();
-    route.outset(bleed + 8.0f, bleed + 8.0f);
-    local.join(route);
-  }
   // A PATH BASELINE is the same problem once more. The baseline resolves
   // against the node's own box, so a `shapes::` generator normally stays
   // inside it — but nothing requires that: a Shape may return a curve well
@@ -161,14 +150,14 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
     }
   }
   // A BAND is the same problem: the bleed above covers the width axis, but
-  // a BORROWED spine (band(around(key))) can sit anywhere relative to this
-  // node's own box, so the cull has to hold the spine itself — exactly the
-  // routed case one paragraph up, and for the same reason.
+  // nothing holds a SPINE inside this node's own box — a held path laid
+  // over a node's outline sits where that node is — so the cull has to
+  // hold the spine itself.
   if (const Across* band = node.bandWidth()) {
-    const SkPath spine =
-        node.deriveData->bandSpine
-            ? node.deriveData->bandSpine({rect.width(), rect.height()})
-            : inst.bandSpine;
+    const SkPath spine = node.deriveData->bandSpine
+                             ? node.deriveData->bandSpine(
+                                   {rect.width(), rect.height()})
+                             : SkPath();
     if (!spine.isEmpty()) {
       SkRect swept = spine.getBounds();
       swept.outset(bleed + band->profile.max(), bleed + band->profile.max());
@@ -481,13 +470,10 @@ SkRect Composer::Impl::bakeBounds(Instance& inst) {
 
 SkRect Composer::Impl::declaredShapeBounds(Instance& inst) {
   const ElementNode& node = *inst.description;
-  // A routed path and a band's region are shapes too, and both already
-  // join the paint bounds through their own instances; this is the third
-  // carrier, the one a node names outright with `shape()`.
-  const bool routed =
-      node.deriveData && (!node.deriveData->connectFrom.empty() ||
-                          !node.deriveData->railAnchors.empty());
-  if (!node.shapeFn || node.bandWidth() || routed) return SkRect::MakeEmpty();
+  // A band's region is a shape too, and it already joins the paint bounds
+  // through its own instance; this is the other carrier, the one a node
+  // names outright with `shape()`.
+  if (!node.shapeFn || node.bandWidth()) return SkRect::MakeEmpty();
   const SkRect rect = instanceRect(inst);
   const SkPath& shape = resolveOutline(inst, {rect.width(), rect.height()});
   if (shape.isEmpty()) return SkRect::MakeEmpty();

@@ -5,10 +5,9 @@
  *
  * SigilCompose stroke grammar — WHERE a stroke goes and HOW a composite
  * mark is built. Spans claims runs of a boundary by arc length and the
- * `spans::` factories spell the claims; Across names a band's width and
- * Around its borrowed spine; StrandPath says where one strand of a
- * composite runs; and the resolver seams are what the kernel answers a
- * span claim through.
+ * `spans::` factories spell the claims; Across names a band's width;
+ * StrandPath says where one strand of a composite runs; and the resolver
+ * seams are what the kernel answers a span claim through.
  *
  * The path arithmetic under all of it is SigilGeometry's: the width law
  * (`geometry::path::Profile`), the deviation
@@ -344,15 +343,6 @@ class StrokeResolverOperations : public SpanArithmeticOperations {
 /** The resolver as a description carries it — on its stroke passes and on
  *  a band's width — excluded from structural equality. */
 using StrokeResolver = core::Erased<StrokeResolverOperations>;
-
-/** A band spine borrowed from another element's resolved shape, through
- *  the derive phase: `band(around("dial"), across(14))`. */
-struct Around {
-  std::string key;
-  bool operator==(const Around&) const = default;
-};
-/** A spine borrowed from the element keyed @p key, for `band()`. */
-inline Around around(std::string_view key) { return Around{std::string(key)}; }
 
 // ---------------------------------------------------------------------------
 // Strands — WHERE a composite's marks run

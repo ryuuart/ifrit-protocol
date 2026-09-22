@@ -310,24 +310,18 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   const SkRect bounds = SkRect::MakeWH(ownRect.width(), ownRect.height());
   const SkRRect rrect = cornersRRect(bounds, node.corners);
 
-  // The node's shape: routed connector/rail path, custom outline(), or the
+  // The node's shape: a band's swept region, a custom outline(), or the
   // corner-rounded box.
-  const bool routed =
-      node.deriveData && (!node.deriveData->connectFrom.empty() ||
-                          !node.deriveData->railAnchors.empty());
   const Across* bandWidth = node.bandWidth();
-  const bool customShape = (node.shapeFn || bandWidth) && !routed;
+  const bool customShape = node.shapeFn || bandWidth;
   SkPath outlinePath;
-  if (routed) {
-    outlinePath = inst.connectorPath;  // derive phase routed it
-  } else if (bandWidth) {
+  if (bandWidth) {
     // A BAND's shape is derived: the region its spine sweeps at the
-    // profile's width, on the declared side. The spine is guide data
-    // (authored here) or borrowed geometry (derive resolved it).
+    // profile's width, on the declared side. The spine is guide data.
     const SkPath spine =
         node.deriveData->bandSpine
             ? node.deriveData->bandSpine({bounds.width(), bounds.height()})
-            : inst.bandSpine;
+            : SkPath();
     outlinePath = bandWidth->resolver
                       ? bandWidth->resolver->bandRegion(
                             spine, *bandWidth, node.deriveData->bandFormation)
@@ -779,7 +773,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // not the decorations (above and below), which trace the outline itself.
   if (node.clipContent) {
     canvas.save();
-    if (customShape || routed)
+    if (customShape)
       canvas.clipPath(clipShape, true);
     else
       canvas.clipRRect(rrect, true);

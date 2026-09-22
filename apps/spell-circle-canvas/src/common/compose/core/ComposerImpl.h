@@ -130,15 +130,14 @@ struct Composer::Impl {
   boost::unordered_flat_map<std::string, detail::Instance*, core::KeyHash,
                             std::equal_to<>>
       bySlot;
-  // The EDGE STORE, rebuilt with the key index each render: routed nodes
-  // (connector()/rail()) as a flat list in tree order, plus the back-index
-  // anchor-key → routes-anchored-there. The derive pass iterates these flat
-  // lists instead of recursing the whole tree, and routesAt() answers graph
-  // queries ("which edges touch this node") in O(routes-at-node).
-  std::vector<detail::Instance*> routedInstances;
+  // THE BORROW LISTS, rebuilt with the key index each render: the nodes
+  // whose own answer is a function of another keyed node's resolved
+  // geometry, flat and in tree order, so the derive pass iterates them
+  // instead of recursing the whole tree and a tree that borrows nothing
+  // pays nothing.
+  std::vector<detail::Instance*> borrowInstances;
   std::vector<detail::Instance*>
       flowInstances;  // contentFlowAround() text nodes
-  std::vector<detail::Instance*> tetheredInstances;  // tether() nodes
   // Nodes applying ADDING operators, in tree order — the list the
   // additions pass walks once layout has settled — and the nodes holding
   // what a pass before it attached, so an owner nothing attaches to any
@@ -157,9 +156,6 @@ struct Composer::Impl {
   // …and the frames THEY thread into, kept from the last walk so a frame
   // that stops being a target is unbounded again the moment it does.
   std::vector<detail::Instance*> threadTargets;
-  boost::unordered_flat_map<std::string, std::vector<detail::Instance*>,
-                            core::KeyHash, std::equal_to<>>
-      routesByAnchor;
   bool volatileDirty = true;  // recompute needed (render or animation)
   bool tickerWasActive = false;
   // The root verdict's volatileAbove bit: unlike Instance::subtreeVolatile,
@@ -642,15 +638,14 @@ struct Composer::Impl {
   SkRect absoluteRect(const detail::Instance& inst) const;
 
   // ---- derive (Derive.cpp) ----
-  /** One pass over the flat flow/route lists (the edge store) — no tree
-   *  recursion. Returns true when a text exclusion changed (second layout
-   *  pass needed). */
+  /** One pass over the flat flow and borrow lists — no tree recursion.
+   *  Returns true when a text exclusion changed (second layout pass
+   *  needed). */
   bool resolveDerived();
   bool deriveFlow(detail::Instance& inst);
   /** Walks every frame chain in order, handing each frame the cursor the
    *  one before it left. True when a cursor moved. */
   bool resolveThreads();
-  bool resolveTethers();
   /** What a run of a chain came to when it was filled at one depth: the
    *  lines it placed, whether the last of them still had something over,
    *  and the word the run stopped at. */
@@ -669,7 +664,9 @@ struct Composer::Impl {
   /** Sorts the derive lists into the order their declared reads imply —
    *  stable, so a list whose members read none of each other is untouched. */
   void orderDerivedByReads();
-  void deriveRoute(detail::Instance& inst);
+  /** Everything one node borrows off another's settled geometry: the
+   *  boxes a span gate is sized from and the paths a decoration reads. */
+  void deriveBorrows(detail::Instance& inst);
 
   // ---- the node's paint transform, resolved once (Bounds.cpp) ----
   /** The node's lanes for THIS frame (NodeTransform.h), resolved once so

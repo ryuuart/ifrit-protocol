@@ -1,6 +1,6 @@
 // The words a node's change is spelled with: the motion ramps and their
-// entrances, the derive connectors, the one word that declares volatility,
-// and the shape that overrides a node's rect.
+// entrances, the one word that declares volatility, and the shape that
+// overrides a node's rect.
 
 #include "support/BrushTestSupport.h"
 
@@ -158,60 +158,6 @@ TEST(ComposeMotionWords, WindowIsSourceThatClamps) {
   EXPECT_FLOAT_EQ(w.apply(0.3f), s.apply(0.3f));
   EXPECT_FLOAT_EQ(w.apply(0.9f), 1.0f) << "window clamps";
   EXPECT_GT(s.apply(0.9f), 1.0f) << "source does not";
-}
-
-// ---- the derive family -----------------------------------------------------
-// --------------------------------------------------
-TEST(ComposeDeriveWords, TheQualifiedAndPlainConnectorDrawOnePicture) {
-  // Aliases, so the same picture, term for term.
-  auto draw = [](bool qualified) {
-    Host host(200, 200);
-    Element a = box().key("a").rect(SkRect::MakeXYWH(20, 20, 40, 40));
-    Element b = box().key("b").rect(SkRect::MakeXYWH(120, 120, 40, 40));
-    Element wire =
-        qualified ? derive::connector("a", "b") : connector("a", "b");
-    wire.absolute().inset(0).foreground(stroke(4, red()));
-    host.composer.render(
-        stack().children({std::move(a), std::move(b), std::move(wire)}));
-    host.frame();
-    host.frame();  // derive resolves against the first layout
-    std::vector<SkColor> out;
-    for (int i = 20; i < 160; i += 4) out.push_back(host.pixel(i, i));
-    return out;
-  };
-  const std::vector<SkColor> qualified = draw(true);
-  EXPECT_EQ(qualified, draw(false));
-  EXPECT_GT(inkedCount(qualified), 10u) << "the wire actually drew";
-}
-
-TEST(ComposeDeriveWords, TheFreeFlowAroundVerbIsTheMethod) {
-  auto draw = [](bool freeVerb) {
-    Host host(300, 200);
-    // whiteStyle, not styleAt: the default foreground is BLACK and so is the
-    // host's ground, so with the default style both arms would compare two
-    // blank grids and agree perfectly. The liveness bound at the end is the
-    // second guard against that.
-    Text para = text(
-        u8"one two three four five six seven eight nine ten "
-        u8"eleven twelve thirteen fourteen",
-        whiteStyle(16));
-    if (freeVerb)
-      para = derive::contentFlowAround(std::move(para), "cut", 6.0f);
-    else
-      para.contentFlowAround("cut", 6.0f);
-    host.composer.render(stack().children(
-        {box().key("cut").rect(SkRect::MakeXYWH(10, 10, 90, 60)),
-         box().absolute().inset(0).children({std::move(para)})}));
-    host.frame();
-    host.frame();
-    std::vector<SkColor> out;
-    for (int y = 0; y < 200; y += 3)
-      for (int x = 0; x < 300; x += 3) out.push_back(host.pixel(x, y));
-    return out;
-  };
-  const std::vector<SkColor> freeVerb = draw(true);
-  EXPECT_EQ(freeVerb, draw(false));
-  EXPECT_GT(inkedCount(freeVerb), 20u) << "the paragraph actually drew";
 }
 
 TEST(ComposeVolatility, ALiveMaterialOnASpanPassDeclaresItself) {

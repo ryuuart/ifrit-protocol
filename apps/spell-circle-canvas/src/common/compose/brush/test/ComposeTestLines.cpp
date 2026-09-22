@@ -629,46 +629,46 @@ TEST(ComposeRouters, ChamferCutsTheCornerRoundingCannot) {
   EXPECT_GT(round.curves, 0);
 }
 
-TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
+TEST(ComposeRouters, AManhattanCasedWireMatchesCleanGeometry) {
   // A cased brush builds its rails from an offset CONTOUR, which is where
   // stray geometry flares into visible artefacts. So the check is that a
   // cased brush over a manhattan route renders byte-identically to the same
   // brush over hand-authored clean geometry: nothing the router emits — no
   // degenerate verb, no split run — reaches the pixels.
-  auto boxes = [](Element route) {
-    return stack().children(
-        {box()
-             .key("a")
-             .width(20)
-             .height(20)
-             .inset(90, 170, 90, 10)
-             .absolute()
-             .fill(red()),
-         box()
-             .key("b")
-             .width(20)
-             .height(20)
-             .inset(90, 10, 90, 170)
-             .absolute()
-             .fill(green()),
-         std::move(route)});
+  const auto stations = [] {
+    return stack().children({box()
+                                 .key("a")
+                                 .width(20)
+                                 .height(20)
+                                 .inset(90, 170, 90, 10)
+                                 .absolute()
+                                 .fill(red()),
+                             box()
+                                 .key("b")
+                                 .width(20)
+                                 .height(20)
+                                 .inset(90, 10, 90, 170)
+                                 .absolute()
+                                 .fill(green())});
   };
   Decoration wire = lines::presets::cased(3, Fill::color({1, 1, 1, 1}), 10);
-  Host railed, clean;
-  railed.composer.render(
-      boxes(rail({{"a"}, {"b"}}, routers::manhattan()).inset(0).stroke(wire)));
-  clean.composer.render(boxes(box()
-                                  .absolute()
-                                  .inset(0)
-                                  .shape([] {
-                                    SkPathBuilder b;
-                                    b.moveTo(20, 100);
-                                    b.lineTo(180, 100);
-                                    return b.detach();
-                                  })
-                                  .stroke(wire)));
-  railed.frame();
+  Host routed, clean;
+  routed.composer.render(
+      stations().operators({connect::Along{.stops = {{"a"}, {"b"}},
+                                           .router = routers::manhattan(),
+                                           .wire = wire}}));
+  clean.composer.render(stations().children({box()
+                                                 .absolute()
+                                                 .inset(0)
+                                                 .shape([] {
+                                                   SkPathBuilder b;
+                                                   b.moveTo(20, 100);
+                                                   b.lineTo(180, 100);
+                                                   return b.detach();
+                                                 })
+                                                 .stroke(wire)}));
+  routed.frame();
   clean.frame();
-  EXPECT_TRUE(identicalPixels(railed, clean, 200, 200))
-      << "the manhattan rail's cased brush differs from clean geometry";
+  EXPECT_TRUE(identicalPixels(routed, clean, 200, 200))
+      << "the manhattan wire's cased brush differs from clean geometry";
 }

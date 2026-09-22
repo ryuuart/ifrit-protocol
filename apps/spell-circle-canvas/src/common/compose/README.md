@@ -273,7 +273,7 @@ and child pointers, the resolved description, a Yoga node, paint order,
 text layout state, animated value slots, derived geometry, and every cache
 slot. Elements are write-only. Reads target the composer, after layout —
 `Composer::bounds`, `Composer::paragraphLayout`, `Composer::hitTest`,
-`Composer::routesAt`, `Composer::stats`, `Composer::profile`. Querying a
+`Composer::stats`, `Composer::profile`. Querying a
 description is not offered, because it would invent a second identity
 system next to keys.
 
@@ -313,15 +313,17 @@ slot and edge indices rebuild.
 then up to three convergence rounds of the arranging operators,
 `centerAt` pins, and the derive phase, each of which may re-run Yoga.
 Recordings whose baked geometry moved are invalidated. Derive resolves text
-exclusions and connector/rail routing over flat edge lists, cycle-guarded.
+exclusions and borrowed geometry over flat lists, cycle-guarded.
 `Text::contentFlowAround` subtracts WHAT THE TARGET SAYS ITS EDGE IS,
 which is the one property the target already carries for its own decorations:
 `Element::decorationOutline`. Its glyph outlines under `Boundary::Glyphs`, so text
 flows around a word; the silhouette of what it DREW under
 `Boundary::Coverage`, at the coverage the same verb stated, so text
 flows around a photograph's alpha, a clipped subtree or a masked node; its
-`shape()`, routed connector or rail otherwise, so text runs into a star's
-notches and through an annulus; and its BOX when it declares none. One
+`shape()` otherwise — a wire's routed path included, since a wire is a
+figure whose shape is that path — so text runs into a star's notches,
+through an annulus and around a cable; and its BOX when it declares
+none. One
 reading serves both, so a node cannot be dressed along one outline and
 flowed around along another. A round silhouette is subtracted analytically.
 
@@ -332,13 +334,13 @@ mode: a column a target crosses is cut into a head and a foot exactly as a
 line is shortened beside it.
 
 Every derivation DECLARES WHAT IT READS, in the same statement that stores the
-key: `contentFlowAround`, `spans::fit`, `strand::from`, `band` around a key,
-`connector`, `rail` and `textThreadTo` each record a `sigil::core::Read` — the
-node waited for, and which `sigil::core::Facet` of it is needed (a box, an
-outline, or the units a text produces). `sigil::core::orderByReads` turns those
-declarations into the order the derived nodes are resolved in, so a rail
-anchored on a connector written after it, or a frame threaded from a frame
-written later, settles in the same pass instead of one behind. It is stable:
+key: `contentFlowAround`, `spans::fit`, `strand::from` and `textThreadTo` each
+record a `sigil::core::Read` — the node waited for, and which
+`sigil::core::Facet` of it is needed (a box, an outline, or the units a text
+produces). `sigil::core::orderByReads` turns those declarations into the order
+the derived nodes are resolved in, so a gate sized from a box that is itself
+borrowed, or a frame threaded from a frame written later, settles in the same
+pass instead of one behind. It is stable:
 derivations that read none of each other are resolved in exactly the order they
 were written in, which is nearly every tree. Nothing infers an edge from which
 fields a node carries, so a derivation added later is ordered by its own
@@ -400,7 +402,9 @@ first whatever the list says; a list that says otherwise is reported.
 
 The stock adders are kit, over that seam and nothing else: `connect::`
 draws a wire between nodes, the pairing stated in the operator
-(`connect::Between`) or read off the nodes (`connect::ByLane`); `pin::`
+(`connect::Between`), a whole run of stops stated in it
+(`connect::Along`) or every pairing read off the nodes
+(`connect::ByLane`); `pin::`
 hangs an element off every node stating a `pin::Request` — the element,
 the box it is given and a `Tether` for where — at the first place that
 fits; `outline::` builds from where nodes resolved their edges, a band

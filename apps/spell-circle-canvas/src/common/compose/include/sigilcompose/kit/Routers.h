@@ -3,7 +3,8 @@
 /** @file
  * @ingroup compose-kit
  *
- * The connector routers — Router values for connector().
+ * The wire routers — the Router and RailRouter values a connecting
+ * operator takes.
  *
  * A Router answers the routed path between two endpoint rects, and a
  * RailRouter the same over an ordered run of anchor points. There is no
@@ -11,17 +12,17 @@
  * value — or its own callable — is a peer of them.
  *
  * Every value here is COMPARABLE: two routers built from the same
- * parameters compare equal, so a re-described connector or rail prunes
- * and keeps the recording it already made. A raw callable handed to
- * `connector()` or `rail()` is the escape hatch and never prunes.
+ * parameters compare equal, so a re-described operator prunes and keeps
+ * the recording it already made. A raw callable handed to one is the
+ * escape hatch and never prunes.
  *
- * The routed path arrives as the connector's `PaintContext::outline`, so
- * any PathFormat or ContourWalk foreground dresses it.
+ * The routed path becomes the wire's own outline and arrives as its
+ * `PaintContext::outline`, so any PathFormat or ContourWalk dresses it.
  */
 
 #include "sigilcompose/Compose.h"
 
-/** THE STOCK ROUTES a connector or a rail may take: straight, arced,
+/** THE STOCK ROUTES a wire may take: straight, arced,
  *  orthogonal, octilinear, orbiting, manhattan.
  *
  *  A `Router` answers the path between two endpoint rects and a
@@ -99,12 +100,13 @@ Router orthogonal(Bend bend, float cornerRadius = 0.0f, float chamferCut = 0.0f,
                   Stamp stamp = {});
 
 // ---------------------------------------------------------------------------
-// Rail routers (rail(): an ordered run of anchor points → the line's path)
+// Rail routers (an ordered run of anchor points → the line's path, which
+// is what connect::Along threads a wire through)
 
-/** The RAIL spelling of the orthogonal family: `rail(stops,
- *  routers::manhattan())`. `orthogonal()` cannot be used here — it is a
- *  pairwise Router and `rail()` takes a RailRouter over the whole anchor
- *  run.
+/** The RUN spelling of the orthogonal family: `connect::Along{.stops =
+ *  …, .router = routers::manhattan()}`. `orthogonal()` cannot be used
+ *  there — it is a pairwise Router, and a run takes a RailRouter over the
+ *  whole anchor run.
  *
  *  Each consecutive anchor pair runs H/V legs per @p bend; collinear
  *  points collapse, so axis-aligned anchors thread as single clean

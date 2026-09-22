@@ -196,7 +196,6 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/spanPaint.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/spanStyle.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/stroke.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/tether.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textFill.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textStroke.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textThreadTo.md

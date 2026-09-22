@@ -68,7 +68,6 @@ is placed.
 | [`at`](pages/verbs/at.md) | Pin the top-left to a parent-space point and let the content size the node. |
 | [`rect`](pages/verbs/rect.md) | Place the node on a parent-space rectangle — the point and the box at once. |
 | `centerAt` | Centre the node on a parent-space point, measured after layout. |
-| [`tether`](pages/verbs/tether.md) | Hang the node off a keyed one at a stated pair of points, with fallbacks. |
 | [`gridCells`](pages/verbs/gridCells.md) | Which cells of the `layout` scheme above this child it claims, and how many it covers. |
 | [`gridArea`](pages/verbs/gridArea.md) | Which NAMED region of the scheme above it this child claims. |
 | `gridCellAlign` | Where the child sits inside the cell box its span makes. |
@@ -277,8 +276,8 @@ compile.
 
 ## What Python spells differently
 
-Five verbs have no Python binding: `fx`, `variationDrive`, `textAttach`,
-`mask` and `tether`.
+Four verbs have no Python binding: `fx`, `variationDrive`, `textAttach`
+and `mask`.
 
 Six spellings exist only in Python, each composing verbs that C++ writes
 out: `size(width, height)` is `width` then `height`; `fontSize`,
@@ -329,7 +328,6 @@ spelling is the feature's.
   that has both these and the text properties.
 - `core/Image.h` — `imageRegion`, and the `Image` leaf that has it.
 - `core/verbs/Structure.h` — the cascade a node names, `styleSheet`,
-  `applyStyleSheet`, `styleClass` and `role`; `tether`, `key`,
-  `hitTestable`, `cache`, `cacheScale`, `transition`,
+  `applyStyleSheet`, `styleClass` and `role`; `key`, `hitTestable`, `cache`, `cacheScale`, `transition`,
   `staggerChildren`; and `children`.
 - `core/Element.h` — `Children`, the value a `children({…})` run is.

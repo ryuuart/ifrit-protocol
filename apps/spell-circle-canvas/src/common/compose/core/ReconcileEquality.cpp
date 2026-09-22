@@ -158,18 +158,14 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   return true;
 }
 
-static_assert(kFieldCount<DeriveData> == 17,
+static_assert(kFieldCount<DeriveData> == 9,
               "DeriveData gained or lost a field — rule on it in "
               "deriveEqual() below, then bump this count.");
 bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   if ((bool)a != (bool)b) return false;
   if (!a) return true;
-  // A band's authored SPINE rides the Shape seam and both ROUTERS ride
-  // seams of their own (same rule as shapeFn), so a comparable value
-  // prunes and only a raw callable stays conservative. A band borrowed by
-  // key was always a comparable value.
-  if (!(a->router == b->router)) return false;
-  if (!(a->railRouter == b->railRouter)) return false;
+  // A band's SPINE rides the Shape seam (same rule as shapeFn), so a
+  // comparable value prunes and only a raw callable stays conservative.
   if (!(a->bandSpine == b->bandSpine)) return false;
   if (a->bandWidth.has_value() != b->bandWidth.has_value()) return false;
   if (a->bandWidth && !(*a->bandWidth == *b->bandWidth)) return false;
@@ -184,15 +180,8 @@ bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   // descriptions that name different regions place the child differently
   // and must not prune into each other.
   if (a->cellArea != b->cellArea) return false;
-  // tether(): where the node hangs and everywhere it may hang instead. A
-  // re-described tether that names the same places and the same points
-  // prunes; one that moves either re-resolves the position.
-  if (a->tether != b->tether) return false;
-  return a->railAnchors == b->railAnchors &&
-         a->flowAroundKeys == b->flowAroundKeys &&
+  return a->flowAroundKeys == b->flowAroundKeys &&
          a->flowAroundMargin == b->flowAroundMargin &&
-         a->connectFrom == b->connectFrom && a->connectTo == b->connectTo &&
-         a->connectorGap == b->connectorGap && a->bandAround == b->bandAround &&
          a->bandFormation == b->bandFormation &&
          a->spanFitKeys == b->spanFitKeys &&
          a->borrowedPathKeys == b->borrowedPathKeys;

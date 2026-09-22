@@ -1,5 +1,5 @@
 #pragma once
-// Support for compose_brush_test: decorations, lines, rails, hatches and
+// Support for compose_brush_test: decorations, lines, wires, hatches and
 // brushes, the kit's stroke grammar and the bordered feed plate, and the
 // paint vocabulary this tier spells over SigilMaterial -- tiles, fields,
 // SDF surfaces and layer styles as a node's fill -- over the shape

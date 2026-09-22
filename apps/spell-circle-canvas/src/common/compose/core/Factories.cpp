@@ -1,8 +1,8 @@
 /** @file
  * The functions that start an Element — the containers, the three text
  * content forms and the frame over a story, the image, the custom
- * program in both spellings, the routed connector and rail, the slot —
- * and the makers behind layout() and memo().
+ * program in both spellings, the figure a path becomes, the slot and the
+ * point — and the makers behind layout() and memo().
  */
 
 #include <include/core/SkCanvas.h>
@@ -176,36 +176,6 @@ Element pathFigure(SkPath absolute, float bleed) {
   SkPath local = absolute.makeTransform(
       SkMatrix::Translate(-bounds.left(), -bounds.top()));
   return box().absolute().rect(bounds).shape(heldPath(std::move(local)));
-}
-
-Element connector(std::string_view fromKey, std::string_view toKey,
-                  Router router, float gap) {
-  Element e;
-  e.node()->kind = Kind::Custom;  // painted via derive-resolved outline
-  detail::DeriveData& derive = e.node()->deriveData.ensure();
-  derive.connectFrom = std::string(fromKey);
-  derive.connectTo = std::string(toKey);
-  derive.router = std::move(router);
-  derive.connectorGap = gap;
-  // A wire is routed between two settled BOXES, one at each end.
-  derive.reads.push_back({derive.connectFrom, sigil::core::Facet::Bounds});
-  derive.reads.push_back({derive.connectTo, sigil::core::Facet::Bounds});
-  return e;
-}
-
-Element rail(std::vector<Anchor> anchors, RailRouter router) {
-  Element e;
-  e.node()->kind = Kind::Custom;  // painted via the derive-routed outline
-  detail::DeriveData& derive = e.node()->deriveData.ensure();
-  derive.railAnchors = std::move(anchors);
-  derive.railRouter = std::move(router);
-  // …and a rail through as many boxes as it has waypoints. A free point
-  // is bound to nothing and reads nothing.
-  for (const Anchor& anchor : derive.railAnchors)
-    if (!anchor.key().empty())
-      derive.reads.push_back(
-          {std::string(anchor.key()), sigil::core::Facet::Bounds});
-  return e;
 }
 
 Element slot(std::string_view name) {

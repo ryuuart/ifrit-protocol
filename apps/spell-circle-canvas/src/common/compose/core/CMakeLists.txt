@@ -114,7 +114,7 @@ sigil_test(compose_test
           test/ComposeTestReconcile.cpp test/ComposeTestCaching.cpp
           test/ComposeTestPromotion.cpp test/ComposeTestMotion.cpp
           test/ComposeTestBakeReuse.cpp test/ComposeTestFeed.cpp
-          test/ComposeTestFlowAroundCore.cpp test/ComposeTestEdgeStore.cpp
+          test/ComposeTestFlowAroundCore.cpp
           test/ComposeTestPromotionBounds.cpp
           test/ComposeTestPromotionGate.cpp
           test/StandardExceptionsTest.cpp
@@ -122,8 +122,7 @@ sigil_test(compose_test
           test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp
           test/ComposeTestMask.cpp test/ComposeTestFieldPins.cpp
           test/ComposeTestDepth.cpp
-          test/ComposeTestInstances.cpp test/ComposeTestTether.cpp
-          test/ComposeTestOperators.cpp
+          test/ComposeTestInstances.cpp test/ComposeTestOperators.cpp
           test/ComposeTestShelf.cpp test/ComposeTestTable.cpp
           test/ComposeTestValues.cpp test/ComposeTestBlockLane.cpp test/ComposeTestCascade.cpp
           test/ComposeTestRoles.cpp test/ComposeTestFlexBox.cpp

@@ -598,6 +598,10 @@ struct LayerStyle {
   std::vector<Decoration> under;
   std::vector<Decoration> over;
   std::vector<Echo> echoes;
+  /** A VALUE, so a style stated on an operator prunes with everything
+   *  else that operator states. Each layer compares as a Decoration does:
+   *  a value scheme structurally, a bare paint program never. */
+  bool operator==(const LayerStyle&) const = default;
 
   /** THE MISPRINT PRESET: one echo at @p offset in a flat @p color.
    *  Applied again, it stacks another beneath the real pass, bottom

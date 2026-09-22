@@ -1,6 +1,6 @@
 // Decorations on an ordinary node: borders and dashes along an outline,
 // shadows under a fill, strokes over one, the mask a decoration is gated
-// by, and rail(), the component that IS a line.
+// by, and the wire an operator threads through a run of stops.
 
 #include <sigilcompose/kit/Strokes.h>
 
@@ -222,34 +222,34 @@ PathFormat railLine() {
 
 }  // namespace
 
-TEST(ComposeRail, ThreadsThroughAnchors) {
-  // Three stations, one rail through their centers: the routed polyline is
-  // the element; the PathFormat foreground dresses it.
+TEST(ComposeWire, ThreadsThroughItsStops) {
+  // Three stations, one wire through their centers: the routed polyline is
+  // the element the operator attaches; the PathFormat dresses it.
   Host host;
-  host.composer.render(stack().children(
-      {station("s1", 10, 40), station("s2", 90, 40), station("s3", 170, 40),
-       rail({{"s1"}, {"s2"}, {"s3"}})
-           .absolute()
-           .inset(0)
-           .foreground(railLine())}));
+  host.composer.render(
+      stack()
+          .children({station("s1", 10, 40), station("s2", 90, 40),
+                     station("s3", 170, 40)})
+          .operators({connect::Along{
+              .stops = {{"s1"}, {"s2"}, {"s3"}}, .wire = railLine()}}));
   host.frame();
   EXPECT_EQ(host.pixel(60, 50), SK_ColorGREEN);   // between s1 and s2
   EXPECT_EQ(host.pixel(140, 50), SK_ColorGREEN);  // between s2 and s3
   EXPECT_EQ(host.pixel(60, 80), SK_ColorBLACK);   // off the rail
 }
 
-TEST(ComposeRail, DrawsOnWithTrim) {
-  // Composition, not new machinery: a span gate on a rail = the self-drawing
-  // subway line. A bound reveal advances with no render() calls.
+TEST(ComposeWire, DrawsOnWithTrim) {
+  // Composition, not new machinery: a span gate on a wire = the
+  // self-drawing subway line. A bound reveal advances with no render()
+  // calls.
   choreograph::Output<float> reveal{0.05f};
   Host host;
   host.composer.render(
-      stack().children({station("a", 10, 40), station("b", 170, 40),
-                        rail({{"a"}, {"b"}})
-                            .absolute()
-                            .inset(0)
-                            .mask(by::spans(spans::upTo(&reveal)))
-                            .foreground(railLine())}));
+      stack()
+          .children({station("a", 10, 40), station("b", 170, 40)})
+          .operators({connect::Along{.stops = {{"a"}, {"b"}},
+                                     .wire = railLine(),
+                                     .mask = by::spans(spans::upTo(&reveal))}}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK);  // reveal stops at ~x=28
   reveal = 1.0f;                                  // no render()
@@ -257,7 +257,7 @@ TEST(ComposeRail, DrawsOnWithTrim) {
   EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);  // the whole line
 }
 
-TEST(ComposeRail, OctilinearRoutesDiagonalThenStraight) {
+TEST(ComposeWire, OctilinearRoutesDiagonalThenStraight) {
   // The metro-map router: a 45° leg for the shorter delta, then straight —
   // never the direct slanted line.
   Host host;
@@ -265,10 +265,9 @@ TEST(ComposeRail, OctilinearRoutesDiagonalThenStraight) {
       stack()
           .children({station("a", 10, 40)})    // center (20, 50)
           .children({station("b", 130, 100)})  // center (140, 110)
-          .children({rail({{"a"}, {"b"}}, routers::octilinear(0.0f))
-                         .absolute()
-                         .inset(0)
-                         .foreground(railLine())}));
+          .operators({connect::Along{.stops = {{"a"}, {"b"}},
+                                     .router = routers::octilinear(0.0f),
+                                     .wire = railLine()}}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 80), SK_ColorGREEN);    // on the 45° leg
   EXPECT_EQ(host.pixel(110, 110), SK_ColorGREEN);  // on the straight leg
@@ -277,11 +276,11 @@ TEST(ComposeRail, OctilinearRoutesDiagonalThenStraight) {
 
 namespace {
 
-/** One thing that decides a rail's route, and what happens when it
+/** One thing that decides a wire's route, and what happens when it
  *  changes: a scene built either way, a point the first route inks, a
  *  point the second one inks, and a point the second one must leave
- *  bare. Anchors are keys and normalized points rather than absolute
- *  coordinates, so all three of these reach the derive guard by different
+ *  bare. Stops are keys and normalized points rather than absolute
+ *  coordinates, so all three of these reach the operator by different
  *  routes and each has to reach it. */
 struct RailDecision {
   const char* what;
@@ -295,7 +294,7 @@ class RailRoute : public testing::TestWithParam<RailDecision> {};
 
 }  // namespace
 
-TEST_P(RailRoute, ARailReRoutesWhenWhatDecidesItsRouteChanges) {
+TEST_P(RailRoute, AWireReRoutesWhenWhatDecidesItsRouteChanges) {
   const RailDecision& decision = GetParam();
   Host host;
   host.composer.render(decision.scene(false));
@@ -313,61 +312,60 @@ TEST_P(RailRoute, ARailReRoutesWhenWhatDecidesItsRouteChanges) {
 
 INSTANTIATE_TEST_SUITE_P(
     ComposeRail, RailRoute,
-    testing::Values(RailDecision{"AnAnchorMoves",
-                                 [](bool second) {
-                                   return stack().children(
-                                       {station("a", 10, 40),
-                                        station("b", 90, second ? 140 : 40),
-                                        rail({{"a"}, {"b"}})
-                                            .absolute()
-                                            .inset(0)
-                                            .foreground(railLine())});
-                                 },
-                                 {60, 50},
-                                 {60, 100},
-                                 {60, 50}},
-                    RailDecision{"TheRouterIsSwapped",
-                                 [](bool second) {
-                                   return stack().children(
-                                       {station("a", 10, 40),
-                                        station("b", 130, 100),
-                                        rail({{"a"}, {"b"}},
-                                             second ? routers::octilinear(0.0f)
-                                                    : RailRouter{})
-                                            .absolute()
-                                            .inset(0)
-                                            .foreground(railLine())});
-                                 },
-                                 {80, 80},
-                                 {50, 80},
-                                 {80, 80}},
-                    RailDecision{
-                        "AnAnchorsNormMoves",
-                        [](bool second) {
-                          const float ny = second ? 0.0f : 0.5f;
-                          return stack().children(
-                              {station("a", 10, 40), station("b", 170, 40),
-                               rail({{"a", {0.5f, ny}}, {"b", {0.5f, ny}}})
-                                   .absolute()
-                                   .inset(0)
-                                   .foreground(railLine())});
-                        },
-                        {100, 50},
-                        {100, 40},
-                        {100, 52}}),
+    testing::Values(
+        RailDecision{"AStopMoves",
+                     [](bool second) {
+                       return stack()
+                           .children({station("a", 10, 40),
+                                      station("b", 90, second ? 140 : 40)})
+                           .operators({connect::Along{.stops = {{"a"}, {"b"}},
+                                                      .wire = railLine()}});
+                     },
+                     {60, 50},
+                     {60, 100},
+                     {60, 50}},
+        RailDecision{"TheRouterIsSwapped",
+                     [](bool second) {
+                       return stack()
+                           .children(
+                               {station("a", 10, 40), station("b", 130, 100)})
+                           .operators({connect::Along{
+                               .stops = {{"a"}, {"b"}},
+                               .router = second ? routers::octilinear(0.0f)
+                                                : RailRouter{},
+                               .wire = railLine()}});
+                     },
+                     {80, 80},
+                     {50, 80},
+                     {80, 80}},
+        RailDecision{"AStopsNormMoves",
+                     [](bool second) {
+                       const float ny = second ? 0.0f : 0.5f;
+                       return stack()
+                           .children(
+                               {station("a", 10, 40), station("b", 170, 40)})
+                           .operators({connect::Along{
+                               .stops = {{"a", {0.5f, ny}}, {"b", {0.5f, ny}}},
+                               .wire = railLine()}});
+                     },
+                     {100, 50},
+                     {100, 40},
+                     {100, 52}}),
     [](const testing::TestParamInfo<RailDecision>& info) {
       return info.param.what;
     });
 
-TEST(ComposeRail, ClearsWhenAnchorUnmounts) {
-  // An unmounted station takes its rail with it. A route whose anchor is
-  // gone resolves to nothing and must draw nothing, not keep its last path.
+TEST(ComposeWire, ClearsWhenAStopUnmounts) {
+  // An unmounted station takes its wire with it. A route whose stop is
+  // gone resolves to nothing and must draw nothing, not keep its last
+  // path.
   Host host;
   auto scene = [](bool withB) {
-    auto s = stack().children({station("a", 10, 40)});
+    auto s = stack()
+                 .children({station("a", 10, 40)})
+                 .operators({connect::Along{.stops = {{"a"}, {"b"}},
+                                            .wire = railLine()}});
     if (withB) s.children({station("b", 170, 40)});
-    s.children(
-        {rail({{"a"}, {"b"}}).absolute().inset(0).foreground(railLine())});
     return s;
   };
   host.composer.render(scene(true));
@@ -375,29 +373,7 @@ TEST(ComposeRail, ClearsWhenAnchorUnmounts) {
   EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);
   host.composer.render(scene(false));  // station b unmounts
   host.frame();
-  EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK);  // rail vanished, not stale
-}
-
-TEST(ComposeRail, HitsNearPathOnlyNotItsLayoutBox) {
-  // A rail's layout box is inset(0) — the whole canvas — so hit testing it
-  // by box would swallow every hit in the frame. It must hit near the routed
-  // PATH instead.
-  Host host;
-  host.composer.render(stack().children({station("s1", 10, 40),
-                                         rail({{"s1"}, {"s2"}})
-                                             .key("line")
-                                             .absolute()
-                                             .inset(0)
-                                             .foreground(railLine()),
-                                         station("s2", 170, 40)}));
-  host.frame();
-  auto onPath = host.composer.hitTest({100, 50});
-  ASSERT_TRUE(onPath.has_value());
-  EXPECT_EQ(*onPath, "line");
-  auto onStation = host.composer.hitTest({180, 50});
-  ASSERT_TRUE(onStation.has_value());
-  EXPECT_EQ(*onStation, "s2");  // stations still win over the rail overlay
-  EXPECT_FALSE(host.composer.hitTest({30, 150}).has_value());  // empty canvas
+  EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK);  // gone, not stale
 }
 
 // ---- Trim Path (draw-on reveals) -------------------------------------------
@@ -475,15 +451,14 @@ TEST(ComposeMask, BoundGateRevealsWithoutRender) {
 
 TEST(ComposeBrushes, FilamentGlowsAroundItsCore) {
   // A filament mark: white-hot core with an additive glow envelope falling
-  // off around it, built as a value brush on a rail rather than as a stack
+  // off around it, built as a value brush on a wire rather than as a stack
   // of hand-placed nodes.
   Host host;
   host.composer.render(
-      stack().children({station("a", 10, 90), station("b", 170, 90),
-                        rail({{"a"}, {"b"}})
-                            .absolute()
-                            .inset(0)
-                            .stroke(brush::presets::filament())}));
+      stack()
+          .children({station("a", 10, 90), station("b", 170, 90)})
+          .operators({connect::Along{.stops = {{"a"}, {"b"}},
+                                     .wire = brush::presets::filament()}}));
   host.frame();
   const SkColor core = host.pixel(100, 100);  // on the line (y=100)
   EXPECT_GT(SkColorGetR(core), 180u);         // near-white core

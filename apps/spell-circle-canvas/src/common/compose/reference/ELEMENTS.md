@@ -51,16 +51,16 @@ its own; nothing on this page needs it.
 `Children` is what a `children({…})` block is made of — an element, or
 the list `each` made, so one block mixes both.
 
-## Derived from other nodes
-
-`core/Derive.h` holds the factories whose geometry is READ OFF the tree
-after layout, by the keys they name.
+## Swept from a spine
 
 | Element | What it is |
 |---|---|
-| `connector` | A line from one keyed node to another, routed after both are placed. |
-| `rail` | A line through a list of anchors, routed the same way. |
 | `band` | A ribbon of stated width along a spine, as a `Band`, placed on it by `bandAlignment`. |
+
+A line from one keyed node to another is not an element an author writes:
+it is what a connecting operator attaches, from where the nodes settled —
+`connect::Between`, `connect::Along` and `connect::ByLane` in
+`kit/Connect.h`.
 
 ## Fields, feeds and the other leaves
 
@@ -86,8 +86,7 @@ numbers where C++ takes one size value. `compose.pen` and
 beside it.
 
 Not bound: `each` — a Python comprehension is the same list — and
-`custom`, `connector`, `rail`, `band`, `feed`, `instances`, `video` and
-`web`. `compose.pen` is the Python door for a node that draws its own
+`custom`, `band`, `feed`, `instances`, `video` and `web`. `compose.pen` is the Python door for a node that draws its own
 content.
 
 ## Where they live
@@ -96,8 +95,8 @@ content.
   `frame`, `image`, `picture`, `pathFigure`, `custom`, `layout`, `slot`, `memo`
   and `each`; the fit a picture meets its box under is
   `material::skia::Fit`.
-- `core/Derive.h` — `connector`, `rail` and `band`, with the `Anchor` a
-  rail is strung through and the `RailRouter` that routes it.
+- `core/Derive.h` — `band`, with the `Anchor` a wire is strung through
+  and the `RailRouter` that routes it.
 - `core/Instances.h` — `instances`, and `pick`, which answers which
   instance a point is over.
 - `core/Feed.h` — `feed` over a `Ring`, with the `Options` it is shaped

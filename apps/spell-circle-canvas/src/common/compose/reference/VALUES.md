@@ -115,8 +115,8 @@ scheme of your own is C++ only.
   `BleedingDecoration`, `ReachingDecoration`, `BlendingDecoration` and
   `BorrowingDecoration` a scheme declares itself by; `LayerStyle`; and
   `Boundary`.
-- `core/Stroke.h` — `Spans` and the `spans` factories, with `Across`,
-  `Around` and `StrandPath`.
+- `core/Stroke.h` — `Spans` and the `spans` factories, with `Across` and
+  `StrandPath`.
 - `core/Mask.h` — `Gate` and `Parts`, the two halves of a mask.
 - `core/Layout.h` — `Dimension` with `pct` and `autoDimension`, the
   `Edges` that name the four sides around a node, `Align`, `Justify`, and

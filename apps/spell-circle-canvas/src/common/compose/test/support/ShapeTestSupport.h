@@ -1,10 +1,12 @@
 #pragma once
 // Support for compose_kit_test: the silhouette catalog, the layout
-// catalog and the routers, over the kernel support. The typography
+// catalog, the routers and the connecting operators over them, over the
+// kernel support. The typography
 // support builds on this one too, for the path baselines and upright
 // columns exercised on `geometry::shapes::` silhouettes.
 
 #include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilgeometry/kit/Shapers.h>

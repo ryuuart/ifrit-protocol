@@ -326,12 +326,6 @@ class Composer {
    *  container will answer for its whole box. See
    *  `Element::hitTestable` for the opt-out. */
   std::optional<std::string> hitTest(SkPoint canvasPoint) const;
-  /** The edge store's back-index: keys of route elements (connector()/
-   *  rail()) anchored on @p nodeKey, in tree order — the graph query
-   *  ("which edges touch this node") for hover highlights and pruned
-   *  updates. Keyless routes are anchored but unaddressable, so they are
-   *  omitted; give routes keys to see them here. Valid after render(). */
-  std::vector<std::string> routesAt(std::string_view nodeKey) const;
   /** @} */
 
   /** @name Introspection

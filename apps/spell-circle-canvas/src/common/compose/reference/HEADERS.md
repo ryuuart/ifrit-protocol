@@ -57,7 +57,7 @@ sound model; nothing below them changes kernel semantics.
   concepts, and `LayerStyle`; and `Boundary`, which outline a node hands
   its decorations.
 - `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Across`,
-  `Around`, `StrandPath` and `strand::`. The path arithmetic under it is
+  `StrandPath` and `strand::`. The path arithmetic under it is
   SigilGeometry's — the width law `geometry::path::Profile` with
   `geometry::path::profile::self` / `offset`, the deviation
   `geometry::path::Shaper`, the band `geometry::path::bandRegion` on a
@@ -141,8 +141,8 @@ sound model; nothing below them changes kernel semantics.
   that has them.
 - `core/verbs/Structure.h` — `StructureVerbs`: what a node IS rather
   than how it looks — the cascade it NAMES with `styleSheet`,
-  `applyStyleSheet`, `role` and `styleClass`, the anchor it hangs off
-  with `tether`, its identity with `key`, `hitTestable`, `cache`,
+  `applyStyleSheet`, `role` and `styleClass`, its identity with `key`,
+  `hitTestable`, `cache`,
   `cacheScale`, `transition` and `staggerChildren`, and `children`.
 - `core/verbs/Node.h` — `NodeVerbs`: the verb families EVERY node has,
   gathered so the list is stated once. A kind of node with verbs of its
@@ -230,26 +230,23 @@ sound model; nothing below them changes kernel semantics.
   caller's — a per-frame shiver, a gate that fades a whole field at once,
   anything whose value depends on something besides this instance's own
   progress — and steps after `fly()`, over the lanes it wrote.
-- `core/Derive.h` — `connector`, `rail`, `Anchor` (ONE OF TWO THINGS,
-  and `where` says which: a normalised point on a keyed node's bounds, or
-  a free waypoint at a point in the rail's own coordinates, so a bend
-  that clears a corner costs no node — spelled `on` and `at`, with `key`
-  answering which it is), `Tether` (where a box hangs off a keyed one:
-  `on`, the point of the anchor it hangs from, `at`, the point of itself
-  that lands there, an `offset`, and `fallbacks`, the places tried in
-  order when the first will not fit `within` — written with
-  `Element::tether`), `band`, `bandPointAt`, and the `derive::` namespace
-  that gathers the family. A tether resolves in the derive pass before the
-  routes, so a connector that ends on a tethered box routes to where it
-  came to rest; when no place fits, the stated one stands, and a key that
-  names nothing places nothing. `routeBetween` is the path a route draws
-  between two rects with its ends pulled back by a gap — the one
-  statement a connector and a connecting operator both route by. The
-  two ROUTE seam values are here too —
-  `Router` over a pair of rects (with `RouteScheme`) and `RailRouter`
-  over an ordered anchor run (with `RailScheme`) — each a comparable
-  value, with `Router::comparable` and `RailRouter::comparable` reporting
-  whether the one a node holds can prune.
+- `core/Derive.h` — `Anchor` (ONE OF TWO THINGS, and `where` says which:
+  a normalised point on a keyed node's bounds, or a free waypoint at a
+  point in the coordinates the run is read in, so a bend that clears a
+  corner costs no node — spelled `on` and `at`, with `key` answering
+  which it is), `Tether` (where a box hangs off another: `on`, the point
+  of the anchor it hangs from, `at`, the point of itself that lands
+  there, an `offset`, and `fallbacks`, the places tried in order when the
+  first will not fit `within` — read by `pin::Request`), `band`,
+  `bandPointAt`, and the two ROUTE statements: `routeBetween`, the path a
+  route draws between two rects with its ends pulled back by a gap, and
+  `routeAlong`, the path through an ordered run of points with its two
+  ends pulled back — the one statement everything that routes a wire
+  routes by. The two ROUTE seam values are here too — `Router` over a
+  pair of rects (with `RouteScheme`) and `RailRouter` over an ordered
+  anchor run (with `RailScheme`) — each a comparable value, with
+  `Router::comparable` and `RailRouter::comparable` reporting whether the
+  one an operator holds can prune.
 - `core/Composer.h` — `Composer`, and `TextSettling`, what
   `Composer::settling` reports about a live passage's last layout;
   `Composer::setInherited` is what the root inherits from;
@@ -455,12 +452,16 @@ reproducing a published table can print what it resolved and diff it
 against what the original measured — numbers no placed rect carries,
 since a column nothing fills leaves no trace in the rects at all.
 
-`kit/Connect.h` holds the connecting operators, `connect::Between` — one
-wire between two keyed nodes, the pairing stated in the operator — and
+`kit/Connect.h` holds the connecting operators: `connect::Between` — one
+wire between two keyed nodes, the pairing stated in the operator —
+`connect::Along` — one wire through a stated run of `Anchor` stops, each
+bound to a node or to nothing, routed by a `RailRouter` — and
 `connect::ByLane` — a wire per pairing the nodes state under a lane, one
-key or a list of them — each routed by a `Router` with a gap as a
-connector is, dressed by the decoration it carries, keyed by the pair it
-joins and attached to the scope; `connect::wire` is the figure itself.
+key or a list of them. Each is keyed by the nodes it joins or by the
+`key` it states, attached to the scope, and dressed by a `Dressing`: the
+`mark` it is drawn with, the `Spans` saying `where` on the wire that mark
+paints, the `Gate` over the lot, and a whole `LayerStyle` where one mark
+will not do. `connect::wire` is the figure itself.
 `kit/Pin.h` holds `pin::ByLane`, which hangs an element off every node
 stating a `pin::Request` — the element, the box it is given and a
 `Tether` for where, its key ignored since the stating node is the
@@ -490,7 +491,7 @@ every route that is stroked. Every one
 of them is a comparable VALUE, the same seam a `Shape` rides: a `Router`
 or a `RailRouter` holds either a scheme — a value with `route(…)` and
 `==`, which is what each stock factory answers — or a raw callable. Two
-routers built from the same parameters are equal, so a connector or rail
+routers built from the same parameters are equal, so an operator
 re-described with an unchanged route SETTLES: it prunes and replays the
 recording it already made. A raw callable compares equal to nothing but
 its own copies and re-patches every describe, which is what the escape

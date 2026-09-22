@@ -116,13 +116,6 @@ class StructureVerbs {
   Derived& operators(std::vector<Operator> list);
   /** @} */
 
-  /** HANG THIS NODE OFF A KEYED ONE, at a stated pair of points, with a
-   *  list of places to try when the first will not fit. It takes the
-   *  node out of the flow, and where it lands is an answer of the
-   *  layout: resolved against the geometry the anchor resolved to, and
-   *  re-resolved whenever that moves. A later call replaces the tether. */
-  Derived& tether(Tether t);
-
   /** @name Identity, caching, transitions
    *  Who the node is across describes, whether it answers a hit, what
    *  the painter is allowed to keep of it, and how its plain constants

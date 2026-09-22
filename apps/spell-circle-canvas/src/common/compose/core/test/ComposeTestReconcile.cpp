@@ -55,6 +55,24 @@ TEST(ComposeReconcile, KeyedReorderKeepsInstances) {
 
 namespace {
 
+/** An adding operator that wires two keyed nodes of its scope: what the
+ *  kit's connecting operator does, in miniature, so the kernel's own test
+ *  needs no catalog. */
+struct WireBetween {
+  std::string from;
+  std::string to;
+  bool operator==(const WireBetween&) const = default;
+  void add(Scope& scope) const {
+    const Scope::Node* start = scope.find(from);
+    const Scope::Node* end = scope.find(to);
+    if (!start || !end) return;
+    Element figure =
+        pathFigure(routeBetween({}, start->bounds, end->bounds), 6.0f);
+    figure.key(from + "->" + to);
+    scope.attach(std::move(figure));
+  }
+};
+
 /** A decoration that strokes a path BORROWED from a keyed node — the one
  *  kind of mark whose answer is another node's finished geometry. */
 struct BorrowedStroke {
@@ -72,13 +90,13 @@ struct BorrowedStroke {
 
 }  // namespace
 
-TEST(ComposeDerive, ABorrowOfAConnectorWrittenAfterItLandsOnTheFirstFrame) {
-  // The borrower reads the wire's OUTLINE and is written before the wire,
-  // so resolving the two in the order they were written hands it a route
-  // that has not been laid yet — it dresses the connector's empty box for
-  // a whole frame and only catches up on the next one. Both declare what
-  // they read, so both are resolved in one pass in the order those
-  // declarations imply, and the borrowed route is right the first time.
+TEST(ComposeDerive, ABorrowOfAnAddedWireLandsOnTheFirstFrame) {
+  // The borrower reads the WIRE's outline, and the wire does not exist
+  // until the operator has run: it is built from where the two nodes
+  // settled, mounted beside them, and laid out with them standing. A
+  // borrow resolved against the tree as it was AUTHORED finds nothing and
+  // dresses an empty box for a whole frame, catching up only on the next
+  // one.
   Host host;
   host.composer.render(
       positioned()
@@ -86,13 +104,13 @@ TEST(ComposeDerive, ABorrowOfAConnectorWrittenAfterItLandsOnTheFirstFrame) {
           .children({box()
                          .absolute()
                          .inset(0)
-                         .foreground(Decoration(BorrowedStroke{"wire"})),
+                         .foreground(Decoration(BorrowedStroke{"a->b"})),
                      box().key("a").left(20).top(90).width(20).height(20),
-                     box().key("b").left(160).top(90).width(20).height(20),
-                     connector("a", "b").key("wire").absolute().inset(0)}));
+                     box().key("b").left(160).top(90).width(20).height(20)})
+          .operators({WireBetween{.from = "a", .to = "b"}}));
   host.frame();  // THE FIRST frame — a pass behind is visible only here
   // The route runs centre to centre along y=100, and the borrowed stroke
-  // is on it. An unrouted borrow dresses the connector's own box instead,
+  // is on it. A borrow that found nothing dresses its own box instead,
   // whose edges are nowhere near the middle of the canvas.
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
   EXPECT_EQ(host.pixel(40, 100), SK_ColorRED);

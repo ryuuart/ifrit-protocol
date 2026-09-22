@@ -307,11 +307,6 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // Derive-phase state
   std::vector<Exclusion>
       exclusionsLocal;   // contentFlowAround targets, text-local
-  SkPath connectorPath;  // routed path (connector OR rail), local
-  SkRect connectorFrom = SkRect::MakeEmpty(), connectorTo = SkRect::MakeEmpty();
-  std::vector<SkPoint> railPoints;  // last resolved rail waypoints
-  SkPath routedHitPath;             // stroke-expanded route (hit testing)
-  SkPath bandSpine;                 // band(around(key)): borrowed spine
   // spans::fit(key): the keyed boxes, in this node's local space, in the
   // order the element declared them.
   std::vector<std::pair<std::string, SkRect>> spanFitRects;

@@ -3,19 +3,20 @@
 /** @file
  * @ingroup compose-core
  *
- * SigilCompose derive family — content that asks where a keyed node landed:
- * connector and rail, with Router and RailRouter as their pluggable seam;
- * Anchor, a normalized point on a keyed node's bounds; band, a shape swept
- * out by an authored or borrowed spine; bandPointAt, the one statement of
- * the band's across sign; and the `derive::` namespace that gathers the
- * family under one name.
+ * SigilCompose derive vocabulary — what asks where a keyed node landed:
+ * Router and RailRouter, the two route seams, with routeBetween and
+ * routeAlong as the one statement of where a route runs and where it
+ * ends; Anchor, a normalized point on a keyed node's bounds or a point
+ * bound to nothing; Tether, where a box hangs off another; band, a shape
+ * swept out by a spine; and bandPointAt, the one statement of the band's
+ * across sign.
  *
- * The derive phase itself — resolving text exclusions and routes over the
- * flat edge lists once layout has produced geometry — is a pass in the
- * composer's layout phase list, inside the converging group, so a routed
- * plate settles against the geometry the other converging passes move.
- * That registration is the whole of how the family reaches the kernel's
- * schedule; nothing else in the kernel knows a route from a box.
+ * The derive phase itself — resolving text exclusions and borrowed
+ * geometry over the flat lists once layout has produced geometry — is a
+ * pass in the composer's layout phase list, inside the converging group,
+ * so borrowed geometry settles against what the other converging passes
+ * move. That registration is the whole of how the family reaches the
+ * kernel's schedule.
  */
 
 #include <include/core/SkPath.h>
@@ -39,19 +40,6 @@
 
 namespace sigil::compose {
 
-/** A relationship as a first-class element: a path routed between two
- *  keyed nodes' resolved bounds, stroked by the connector's foreground
- *  decorations (attach a PathFormat — the routed path arrives as
- *  PaintContext::outline). Straight line by default; supply a router
- *  for anything else. Position it absolute().inset(0) over the nodes
- *  it connects.
- *
- *  `gap` is `Anchor::gap` under another name: it pulls each END of the
- *  routed path back along itself by that many px, clamped so short routes
- *  keep a visible run. Routes run centre to centre, and a node's box can
- *  be much larger than its visible shape — under `sdf::` chrome, for
- *  instance — so the gap is how a wire stops at the glow instead of
- *  piercing it. */
 /** A route scheme: `SkPath route(const SkRect& from, const SkRect& to)
  *  const`, plus equality — the same seam-value convention a `Shape`
  *  takes, and for the same reason. A routed node can only prune if the
@@ -101,7 +89,8 @@ struct RouteFunction : RouteOperations {
 
 }  // namespace detail
 
-/** THE ROUTE BETWEEN TWO RECTS, type-erased: what `connector()` holds.
+/** THE ROUTE BETWEEN TWO RECTS, type-erased: what a connecting operator
+ *  holds.
  *
  *  Two constructions, one value:
  *
@@ -123,7 +112,7 @@ class Router {
 
   template <RouteScheme R>
     requires(!std::same_as<std::remove_cvref_t<R>, Router>)
-  Router(R scheme)  // NOLINT: implicit by design (connector(a, b, arc()))
+  Router(R scheme)  // NOLINT: implicit by design (.router = arc())
       : m_held(detail::RouteModel<R>(std::move(scheme))) {}
 
   /** The escape hatch: any callable over the two endpoint rects. Never
@@ -133,7 +122,7 @@ class Router {
              !std::same_as<std::remove_cvref_t<F>, Router> &&
              std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
                                    const SkRect&, const SkRect&>)
-  Router(F fn)  // NOLINT: implicit by design (connector(a, b, [](…){…}))
+  Router(F fn)  // NOLINT: implicit by design (.router = [](…){…})
       : m_held(core::Erased<detail::RouteOperations>(
             detail::RouteFunction(std::move(fn)))) {}
 
@@ -161,54 +150,44 @@ class Router {
   core::Erased<detail::RouteOperations> m_held;
 };
 
-/** AN EDGE BETWEEN TWO KEYED NODES, routed in the derive phase against
- *  the rects they resolved to and re-routed whenever either moves. The
- *  routed path becomes the node's own outline, so any brush or
- *  decoration dresses it, and @p gap holds the route that many pixels
- *  clear of each endpoint's box. A default router draws a straight
- *  line; a key nothing carries draws nothing. */
-Element connector(std::string_view fromKey, std::string_view toKey,
-                  Router router = {}, float gap = 0.0f);
-
-/** THE PATH A ROUTE DRAWS between two rects, as a connector draws it:
- *  @p router's answer, or a straight line centre to centre when it is
- *  empty, with each END pulled back @p gap px along itself — clamped so
- *  a short route keeps a visible run, and left alone on a closed
- *  contour, which has no ends. The one statement of that rule, so an
- *  operator routing a wire and a connector routing one cannot disagree. */
+/** THE PATH A ROUTE DRAWS BETWEEN TWO RECTS: @p router's answer, or a
+ *  straight line centre to centre when it is empty, with each END pulled
+ *  back @p gap px along itself — clamped so a short route keeps a visible
+ *  run, and left alone on a closed contour, which has no ends. Routes run
+ *  centre to centre and a node's box can be much larger than its visible
+ *  shape, so the gap is how a wire stops at the glow instead of piercing
+ *  it. The one statement of that rule, so nothing routing a wire can
+ *  disagree with anything else about where it ends. */
 SkPath routeBetween(const Router& router, const SkRect& from, const SkRect& to,
                     float gap = 0.0f);
 
-/** A rail endpoint/waypoint. It is ONE OF TWO THINGS, and the type says
- *  which: a point bound to a keyed node, or a point bound to nothing.
- *  `where` is the choice itself, so an anchor carries the coordinates of
- *  the kind it IS and no others — there is no field to fill that the
- *  resolver will not read.
+/** A WIRE'S STOP — an endpoint or a waypoint. It is ONE OF TWO THINGS,
+ *  and the type says which: a point bound to a keyed node, or a point
+ *  bound to nothing. `where` is the choice itself, so an anchor carries
+ *  the coordinates of the kind it IS and no others — there is no field to
+ *  fill that the resolver will not read.
  *
  *  `Anchor::on(key, norm)` is the bound form: a NORMALIZED point on that
  *  node's resolved bounds ((0,0)=top-left, (1,1)=bottom-right — the
  *  binding form tldraw and Excalidraw both converged on; never absolute
- *  coordinates, so rails survive layout, drag, and reflow). The
- *  constructor spells it too, so `{"port", {1, 0.5f}}` in a rail's
- *  initializer list is an anchor on a node's right edge.
+ *  coordinates, so a wire survives layout, drag, and reflow). The
+ *  constructor spells it too, so `{"port", {1, 0.5f}}` in a run of stops
+ *  is an anchor on a node's right edge.
  *
- *  `Anchor::at(point)` is the free form: a point in the RAIL'S OWN
- *  coordinates (the rail is normally `absolute().inset(0)` over the nodes
- *  it threads, so those are the coordinates the nodes are placed in),
- *  bound to nothing. A route through a place rather than through a thing
- *  — the bend that clears a corner, the fan-out a diagram's own drawing
- *  puts at a fixed offset — is a real waypoint and not a node, and
- *  standing invisible boxes up to carry those coordinates mounts, lays
- *  out and reconciles a node per bend for a number the caller already
- *  had.
+ *  `Anchor::at(point)` is the free form: a point in the coordinates the
+ *  run is read in, bound to nothing. A route through a place rather than
+ *  through a thing — the bend that clears a corner, the fan-out a
+ *  diagram's own drawing puts at a fixed offset — is a real waypoint and
+ *  not a node, and standing invisible boxes up to carry those coordinates
+ *  mounts, lays out and reconciles a node per bend for a number the
+ *  caller already had.
  *
  *  `gap` belongs to neither half: it pulls a TERMINAL anchor back along
  *  its segment (breathing room at the ends; ignored on waypoints).
  *
- *  A rail whose anchors are ALL free points is a polyline the router
- *  draws and nothing binds; one that mixes them is the ordinary case —
- *  a wire that leaves a port, turns in the gutter, and arrives at
- *  another. */
+ *  A run whose anchors are ALL free points is a polyline the router draws
+ *  and nothing binds; one that mixes them is the ordinary case — a wire
+ *  that leaves a port, turns in the gutter, and arrives at another. */
 struct Anchor {
   /** Bound to a node: `norm` is read on that node's resolved bounds. */
   struct OnNode {
@@ -280,9 +259,10 @@ struct Anchor {
  *  means when nothing narrower is stated.
  *
  *  AN UNKNOWN KEY IS SILENT, the family's rule: a tether naming a node
- *  that is not there places nothing and the box stays where layout left
- *  it. So is a key naming this node or one of its descendants, which
- *  would derive the box from itself. */
+ *  that is not there places nothing. `pin::Request` is what reads one on
+ *  the scope's nodes, and it ignores the `key` — the node stating the
+ *  request is the anchor — so the field is for a caller that hangs a box
+ *  off a named anchor itself. */
 struct Tether {
   std::string key;
   SkPoint on = {0.5f, 0.5f};
@@ -346,7 +326,7 @@ struct RailFunction : RailOperations {
 }  // namespace detail
 
 /** THE PATH THROUGH AN ORDERED RUN OF ANCHORS, type-erased: what
- *  `rail()` holds. Stock values in <sigilcompose/kit/Routers.h>
+ *  `connect::Along` holds. Stock values in <sigilcompose/kit/Routers.h>
  *  (polyline, octilinear, orbit, manhattan); write your own for anything
  *  else, and a straight polyline is what an empty one draws.
  *
@@ -360,7 +340,7 @@ class RailRouter {
 
   template <RailScheme R>
     requires(!std::same_as<std::remove_cvref_t<R>, RailRouter>)
-  RailRouter(R scheme)  // NOLINT: implicit by design (rail(a, polyline()))
+  RailRouter(R scheme)  // NOLINT: implicit by design (.router = polyline())
       : m_held(detail::RailModel<R>(std::move(scheme))) {}
 
   /** The escape hatch: any callable over the resolved anchor run. Never
@@ -370,7 +350,7 @@ class RailRouter {
              !std::same_as<std::remove_cvref_t<F>, RailRouter> &&
              std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
                                    std::span<const SkPoint>>)
-  RailRouter(F fn)  // NOLINT: implicit by design (rail(a, [](auto p){…}))
+  RailRouter(F fn)  // NOLINT: implicit by design (.router = [](auto p){…})
       : m_held(core::Erased<detail::RailOperations>(
             detail::RailFunction(std::move(fn)))) {}
 
@@ -406,21 +386,10 @@ class RailRouter {
 SkPath routeAlong(const RailRouter& router, std::span<const SkPoint> stops,
                   float gapStart = 0.0f, float gapEnd = 0.0f);
 
-/** The component that IS a line: a path threaded through an ordered span of
- *  anchors (a transit line through its stations, a wire through ports),
- *  resolved in the derive phase and re-routed whenever an anchored node
- *  moves. The routed path becomes PaintContext::outline, so PathFormat
- *  strokes, ContourWalk stamps and span masks all dress it — a rail with
- *  `.mask(by::spans(spans::upTo(with(1.0f, {800ms}))))` DRAWS ITSELF.
- *  Position it absolute().inset(0) over the nodes it threads, as with
- *  connector(). */
-Element rail(std::vector<Anchor> anchors, RailRouter router = {});
-
 /** A BAND: the shape a spine sweeps out at a given width across it.
  *
  *      band(shapes::circle(), across(22))
  *          .bandAlignment(geometry::path::Formation::Inner).fill(brass)
- *      band(around("dial"), across(14)).stroke(spans::edges(6), rule)
  *
  *  It is an ordinary element in every way that matters — it lays out,
  *  hosts children, fills, clips and takes stroke passes like any other
@@ -435,26 +404,23 @@ Element rail(std::vector<Anchor> anchors, RailRouter router = {});
  *  so a band hits as its LAYOUT BOX — a wider region than the mark you can
  *  see.
  *
- *  An authored spine is a `Shape`, exactly like shape()'s value: a
- *  comparable generator (any `shapes::` value) prunes; a raw callable is
- *  the escape hatch that never compares equal — memo() such a node, or
- *  hold the Shape value stable, to prune it. A borrowed spine
- *  (`around(key)`) is a comparable value and prunes on its own.
+ *  The spine is a `Shape`, exactly like shape()'s value: a comparable
+ *  generator (any `shapes::` value) prunes; a raw callable is the escape
+ *  hatch that never compares equal — memo() such a node, or hold the
+ *  Shape value stable, to prune it. A band along a node's own resolved
+ *  outline is `outline::Around`, the operator, which hands this verb a
+ *  held path.
  *
  *  Formation is explicit: `bandAlignment()` takes `Formation::Center`
  *  (the default), which straddles the spine, or `Outer` or `Inner`,
- *  which take one side of it. The spine is guide
- *  DATA, never an element — a path participates as an element's shape, as
- *  borrowed geometry (`around(key)`, resolved in the derive phase), or as
- *  pure guide data in no tree, and this is the third case.
+ *  which take one side of it. The spine is guide DATA, never an element —
+ *  a path participates as an element's shape, as an operator's reading of
+ *  a settled node's outline, or as pure guide data in no tree, and this
+ *  is the third case.
  *
  *  The profile's `max()` is what the paint cull grows by, so a band whose
  *  width varies is never silently clipped. */
 Band band(Shape spine, Across width);
-/** The same band over a spine BORROWED from another keyed element,
- *  resolved in the derive phase and re-swept whenever that element's
- *  shape moves. */
-Band band(Around spine, Across width);
 
 /** The band's own (along, across) space, addressable: `along` is a
  *  fraction of the spine's total arc length, `across` is px on the normal.
@@ -472,55 +438,26 @@ Band band(Around spine, Across width);
 SkPoint bandPointAt(const SkPath& spine, float along, float acrossPx);
 
 // ---------------------------------------------------------------------------
-// The DERIVE family, gathered under one word
+// WHAT EVERY DERIVATION SHARES
+//
+// A derivation is content whose input is another keyed node's RESOLVED
+// geometry: `Text::contentFlowAround`, `spans::fit`, a decoration's
+// `strand::from`, `Text::textThreadTo`, and every adding operator that
+// reads a `Scope`. One flat store, walked once per render, under three
+// rules:
+//
+//  1. AN UNKNOWN KEY IS SILENT. `contentFlowAround("typo")`,
+//     `spans::fit("typo")`, an operator naming a node that is not in its
+//     scope — each resolves to nothing and draws nothing, with no
+//     diagnostic. A misspelled key looks exactly like a feature you did
+//     not write.
+//  2. ONE SECOND PASS, cycle-guarded. Backward influence inside a frame
+//     is this declared exception and nothing else: answers are computed
+//     from the FIRST layout and fed to at most one more pass. A borrow
+//     that would close a cycle is dropped, not chased.
+//  3. THE ANSWER CAN LAG BY A FRAME when the borrowed node's own geometry
+//     only settles during that layout, so a borrow taken on the very
+//     first frame may resolve against a not-yet-final rect.
 
-/** Everything that asks "where did that keyed node land, and give me more
- *  content because of it" — the DERIVE phase.
- *
- *  Its members are `contentFlowAround`, `connector` and `rail` (with
- *  `routers::` as their pluggable seam), `band(around(key))`,
- *  `spans::fit(key)` and a decoration's `strand::from(key)`. Six
- *  spellings, one mechanism; the aliases below exist so it can be found
- *  under one name.
- *
- *  THE RULES THEY SHARE — one flat edge store, walked once per render:
- *
- *   1. **AN UNKNOWN KEY IS SILENT, across the whole family.**
- *      `contentFlowAround("typo")`, `spans::fit("typo")`,
- *      `around("typo")`, a connector naming a node that is not in the
- *      tree — each resolves to nothing and draws nothing, with no
- *      diagnostic. A misspelled key looks exactly like a feature you did
- *      not write.
- *   2. **ONE SECOND PASS, cycle-guarded.** Backward influence inside a
- *      frame is this declared exception and nothing else: derive answers
- *      are computed from the FIRST layout and fed to at most one more
- *      pass. A borrow that would close a cycle is dropped, not chased.
- *   3. **The answer can lag by a frame** when the borrowed node's own
- *      geometry only settles during that layout, so a borrow taken on the
- *      very first frame may resolve against a not-yet-final rect.
- *   4. **Flat, not recursive.** Routed nodes and flowing text are flat
- *      lists in tree order plus a back-index from anchor key to routes, so
- *      a tree with no derived content pays nothing and `routesAt(key)`
- *      answers in time proportional to the routes at that node.
- */
-namespace derive {
-/** A relationship as an element — see connector() above. */
-using sigil::compose::connector;
-/** A path threaded through anchors — see rail() above. */
-using sigil::compose::rail;
-/** A spine borrowed from a keyed element — `band(derive::around("dial"),
- *  across(14))`. */
-using sigil::compose::around;
-/** The family's text member as a free verb:
- *  `derive::contentFlowAround(el, "fig", 8)` ==
- *  `el.contentFlowAround("fig", 8)`. The method is the ergonomic form,
- *  since it chains; this exists so the whole family can be found under
- *  one name. */
-inline Text contentFlowAround(Text el, std::string_view key,
-                              float margin = 0.0f) {
-  el.contentFlowAround(key, margin);
-  return el;
-}
-}  // namespace derive
 
 }  // namespace sigil::compose

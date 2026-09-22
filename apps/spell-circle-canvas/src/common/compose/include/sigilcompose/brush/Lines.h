@@ -7,9 +7,9 @@
  * beyond dashes: parallel casings (double/triple rails, highway pairs),
  * terminal caps (arrows, dots, bars — the node-graph direction language),
  * railway ties, wave and zigzag runs. One value DecorationScheme
- * (`lines::Line`) built from pure data, so patterned connectors prune and
- * cache like any static chrome; attach with `.stroke()` to dress any
- * outline, rail, or connector route.
+ * (`lines::Line`) built from pure data, so a patterned wire prunes and
+ * caches like any static chrome; attach with `.stroke()` to dress any
+ * outline or routed wire.
  *
  * Skia's own seam here would be a custom SkPathEffect, but its public API
  * seals subclassing. This header mirrors that contract at OUR seam
@@ -18,11 +18,11 @@
  * sk_sp<SkPathEffect> escape hatch for the effects Skia does ship (dash,
  * corner, discrete, 1D, trim).
  *
- *   rail(stops, routers::octilinear())
- *       .stroke(lines::Line{.width = 3, .fill = ink,
- *                           .parallels = 2, .gap = 5});      // transit pair
- *   connector("a", "b").stroke(lines::presets::arrow(2, wire, 12));   //
- * directed edge
+ *   connect::Along{.stops = stops, .router = routers::octilinear(),
+ *                  .wire = lines::Line{.width = 3, .fill = ink,
+ *                                      .parallels = 2, .gap = 5}};
+ *   connect::Between{.from = "a", .to = "b",
+ *                    .wire = lines::presets::arrow(2, ink, 12)};
  */
 
 #include <include/core/SkPaint.h>

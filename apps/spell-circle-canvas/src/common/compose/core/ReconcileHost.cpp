@@ -323,19 +323,6 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
     needsLayout = true;
   }
 
-  // A re-described ROUTE must re-derive even when no geometry moved: the
-  // derive guards key cached geometry (resolved points/rects), not the
-  // description — a router swap or an anchor-norm change would otherwise
-  // keep replaying the stale path. Clearing the cached inputs defeats the
-  // guards, and needsLayout makes ensureLayout run the derive pass.
-  if (next.deriveData && (!next.deriveData->railAnchors.empty() ||
-                          (!next.deriveData->connectFrom.empty() &&
-                           !next.deriveData->connectTo.empty()))) {
-    inst.railPoints.clear();
-    inst.connectorFrom = SkRect::MakeLTRB(-1, -1, -1, -1);
-    inst.connectorTo = SkRect::MakeLTRB(-1, -1, -1, -1);
-    needsLayout = true;
-  }
 }
 
 void Composer::Impl::reorder(Instance& parent, bool structureChanged) {

@@ -1,8 +1,8 @@
 /** @file
- * band() — the point on a rail, the two band factories, and `across()`,
+ * band() — the point on a band's spine, the band factory, and `across()`,
  * which installs the engine that sweeps a width profile on the value it
- * returns. The rails themselves, and the region between them, are
- * SigilGeometry's (`geometry::path::bandRegion`).
+ * returns. The rails of the band itself, and the region between them,
+ * are SigilGeometry's (`geometry::path::bandRegion`).
  */
 
 #include <include/core/SkContourMeasure.h>
@@ -58,17 +58,6 @@ Band band(Shape spine, Across width) {
   detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.bandSpine = std::move(spine);
   derive.bandWidth = std::move(width);
-  return e;
-}
-
-Band band(Around spine, Across width) {
-  Band e{std::make_shared<detail::ElementNode>()};
-  detail::DeriveData& derive = e.node()->deriveData.ensure();
-  derive.bandAround = std::move(spine.key);
-  derive.bandWidth = std::move(width);
-  // A borrowed spine is the target's SHAPE swept at a width, so what the
-  // band waits for is that node's outline.
-  derive.reads.push_back({derive.bandAround, sigil::core::Facet::Outline});
   return e;
 }
 

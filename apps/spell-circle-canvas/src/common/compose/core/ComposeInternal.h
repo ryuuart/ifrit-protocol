@@ -373,9 +373,6 @@ struct OperatorData {
 };
 
 struct DeriveData {
-  /** Element::tether(): where this node hangs off a keyed one, resolved
-   *  by the derive pass against the anchor's finished geometry. */
-  std::optional<Tether> tether;
   /** Element::gridArea(): the name of the region this child claims of the
    *  scheme above it, merged into the CellSpan the layout pass hands that
    *  scheme. It lives in this block rather than beside the cell numbers in
@@ -384,20 +381,10 @@ struct DeriveData {
   std::string cellArea;
   std::vector<std::string> flowAroundKeys;
   float flowAroundMargin = 0;
-  std::string connectFrom, connectTo;
-  Router router;
-  /** connector()'s terminal gap: px pulled back along the routed path at
-   *  EACH end, Anchor::gap's clamp (never more than 45% of the route per
-   *  end, so a short wire keeps a visible run). */
-  float connectorGap = 0.0f;
-  std::vector<Anchor> railAnchors;  // rail(): ordered waypoints
-  RailRouter railRouter;
-  // band(): the spine is guide DATA — either authored here, or borrowed
-  // from a keyed element's resolved shape by the derive pass. The width
-  // profile's presence is what makes this node a band. A Shape, so a
-  // comparable spine prunes (same seam as shapeFn).
+  // band(): the spine is guide DATA, authored here. The width profile's
+  // presence is what makes this node a band. A Shape, so a comparable
+  // spine prunes (same seam as shapeFn).
   Shape bandSpine;
-  std::string bandAround;
   std::optional<Across> bandWidth;
   geometry::path::Formation bandFormation = geometry::path::Formation::Center;
   // spans::fit(key): the keyed boxes a stroke pass sizes its gap from,
