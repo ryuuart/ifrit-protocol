@@ -460,6 +460,13 @@ void bindCompose(py::module_& module) {
   composition.def("pathFigure", &pathFigure, py::arg("path"),
                   py::arg("bleed") = 0.0f);
   composition.def(
+      "point", &compose::point,
+      "A node with no extent: a place in its parent's box that carries a "
+      "key and facts and draws nothing. Out of the flow, so it takes no "
+      "room beside its siblings; put it where it names with the placement "
+      "longhand or a centre pin. A skeleton of points is what an arranging "
+      "operator places and an adding operator builds on.");
+  composition.def(
       "text",
       [](const std::string& value, weave::TextStyle style) {
         return compose::text(value, std::move(style));

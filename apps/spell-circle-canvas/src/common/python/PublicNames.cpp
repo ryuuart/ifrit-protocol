@@ -18,13 +18,14 @@ namespace {
 // the extension's own name and is reported by the package's surface check.
 // A row whose public module is shared with another row is a feature lifted
 // into the catalogue it serves.
-constexpr std::array<std::pair<std::string_view, std::string_view>, 101> kPublic{{
+constexpr std::array<std::pair<std::string_view, std::string_view>, 102> kPublic{{
     {"", "sigil.sketch"},
     {"compose", "sigil.compose"},
     {"compose.brush", "sigil.compose.brush"},
     {"compose.brush.presets", "sigil.compose.brush.presets"},
     {"compose.brush.strand", "sigil.compose.brush.strand"},
     {"compose.by", "sigil.compose.by"},
+    {"compose.connect", "sigil.compose.connect"},
     {"compose.decorations", "sigil.compose.decorations"},
     {"compose.derive", "sigil.compose.derive"},
     {"compose.document", "sigil.compose.document"},

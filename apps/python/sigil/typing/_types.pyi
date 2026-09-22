@@ -2,6 +2,8 @@ from collections.abc import Buffer, Callable, Iterable, Sequence
 from typing import Literal, Protocol, SupportsFloat, SupportsIndex, TypeAlias
 
 import _sigil.compose
+import _sigil.compose.connect
+import _sigil.compose.layouts
 import _sigil.data
 import _sigil.draw
 import _sigil.material
@@ -11,7 +13,11 @@ import _sigil.skia
 import _sigil.weave
 
 __all__ = [
+    "AddingOperator",
     "AlignLike",
+    "ArrangingOperator",
+    "AttributeLike",
+    "AttributeValue",
     "BankMaker",
     "CellInput",
     "CellValue",
@@ -34,6 +40,7 @@ __all__ = [
     "KeyedShapeFunction",
     "MotionCallback",
     "NodeLike",
+    "OperatorLike",
     "PaintProgram",
     "PenProgram",
     "PointBatch",
@@ -44,6 +51,7 @@ __all__ = [
     "SampleLike",
     "ScalarFunction",
     "ScalarLike",
+    "ScopeProgram",
     "ShapeFunction",
     "ShapeLike",
     "SilhouetteLike",
@@ -153,6 +161,74 @@ text element, None for nothing at all, or an ordered iterable of those,
 nested as deeply as the author nests it. A mapping or a set is not a
 child: the order children are laid out in has to be the order they were
 written in."""
+
+AttributeLike: TypeAlias = (
+    bool
+    | int
+    | float
+    | str
+    | Sequence[str]
+    | Sequence[FloatLike]
+    | _sigil.skia.Point
+)
+"""A TYPED FACT'S VALUE, as a node states it. The type is part of the
+fact: a fact written as a whole number is not read back as a number, and
+a sequence of numbers is a list of numbers whatever its length, so a
+fact meant as a point is written as a point. An empty sequence is an
+empty list of strings, because an empty one has to pick."""
+AttributeValue: TypeAlias = (
+    bool | int | float | str | list[str] | list[float] | _sigil.skia.Point | None
+)
+"""A FACT READ BACK, in the type it was stated in, and None where no
+fact of that name stands in one of them. A fact a C++ caller stated in
+some other type reads as None for the same reason."""
+
+class ArrangingOperator(Protocol):
+    """A VALUE THAT PLACES A NODE'S DIRECT CHILDREN during layout,
+    reading each one's measured size and facts and writing where it
+    goes. It runs inside the layout's converging rounds, so it is asked
+    again whenever what it read has moved, and the equality of the class
+    it belongs to is what lets its node prune."""
+
+    def arrange(self, arrangement: _sigil.compose.Arrangement) -> None: ...
+
+class AddingOperator(Protocol):
+    """A VALUE THAT BUILDS ELEMENTS FROM A SETTLED TREE, run once layout
+    has settled and handed every node in its scope. What it attaches is
+    an ordinary element beside the authored children, and it can move
+    nothing that was authored."""
+
+    def add(self, scope: _sigil.compose.Scope) -> None: ...
+
+OperatorLike: TypeAlias = (
+    _sigil.compose.Operator
+    | _sigil.compose.layouts.Radial
+    | _sigil.compose.layouts.Grid
+    | _sigil.compose.layouts.Diagonal
+    | _sigil.compose.layouts.BaselineGrid
+    | _sigil.compose.layouts.Jittered
+    | _sigil.compose.layouts.Jitter
+    | _sigil.compose.layouts.AlongPath
+    | _sigil.compose.connect.Between
+    | _sigil.compose.connect.ByLane
+    | ArrangingOperator
+    | AddingOperator
+)
+"""WHAT AN OPERATOR IS BUILT FROM: one already built, a stock arranging
+value, a connecting record, or a Python object that arranges or adds. A
+Python object takes part in structural equality only where its own class
+states an equality, so a frozen dataclass prunes its node and a plain
+class is the escape hatch that never does."""
+ScopeProgram: TypeAlias = (
+    Callable[[], None]
+    | Callable[[_sigil.draw.Pen], None]
+    | Callable[[_sigil.draw.Pen, _sigil.compose.Scope], None]
+)
+"""WHAT ONE PEN DRAWS A SETTLED SCOPE WITH, on the same terms as a pen
+program: the program names the parameters it reads, from the first, and
+both the pen and the scope are lent for the one call. The scope is there
+to be read — attaching to it draws nothing, because the pixels land
+after the additions are laid out."""
 
 class SilhouetteLike(Protocol):
     """Anything that answers a path over a size: the pen calls
