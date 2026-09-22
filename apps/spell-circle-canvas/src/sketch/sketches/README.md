@@ -112,7 +112,7 @@ were read off; the rule above is written for all of them.
 | `chevreul_circle` | Chevreul's *1er cercle chromatique*, Plate V, 1864 | The first study whose content is a PALETTE; 13 invariants computed, ten hold and three fail |
 | `chladni_tab1` | Chladni's Tab. I, sound-figures of a bowed plate, engraved by Capieux 1786 | 9,580 instanced sand grains migrating onto twelve nodal geometries in one stamp |
 | `fallout2_charsheet` | The Fallout 2 character screen (Black Isle, 1998) at 2× | The program's first TYPE-SET study: ~134 positioned runs in five alignment regimes, 21/21 derived values verified |
-| `ds2_bench` | *Dead Space 2*'s Bench — the Nanocircuit Repair upgrade circuit (2011) | Routers, rails and connectors; a diegetic holographic panel |
+| `ds2_bench` | *Dead Space 2*'s Bench — the Nanocircuit Repair upgrade circuit (2011) | Routers and the wires an operator builds from them; a diegetic holographic panel |
 | `genesis_fire` | The Genesis Demo wall of fire (Lucasfilm, 1982) — the first particle system | Reeves' published attribute list against `instances()`; additive `kPlus` where the colour IS overlap count |
 | `hitman_verlet` | Jakobsen's *Advanced Character Physics* (GDC 2001) and the Hitman ragdoll | Motion with STATE and CONTACT — and the sign error in four of the paper's five stick listings, with the reason the fifth is correct |
 | `ksp_mapview` | *Kerbal Space Program*'s map view + flight instruments | Real conics with the planet at the focus; a navball as an orthographic sphere in one SkSL pass |

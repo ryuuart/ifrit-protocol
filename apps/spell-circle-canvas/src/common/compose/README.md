@@ -401,10 +401,12 @@ The arranging operators are written first in the list, since they run
 first whatever the list says; a list that says otherwise is reported.
 
 The stock adders are kit, over that seam and nothing else: `connect::`
-draws a wire between nodes, the pairing stated in the operator
-(`connect::Between`), a whole run of stops stated in it
-(`connect::Along`) or every pairing read off the nodes
-(`connect::ByLane`); `pin::`
+draws a wire between nodes — the pairing stated in the operator
+(`connect::Between`), a whole run of `Anchor` stops stated in it
+(`connect::Along`), or every pairing read off the nodes
+(`connect::ByLane`) — keyed by what it joins and dressed by a
+`connect::Dressing`: the mark, where on the wire that mark paints, the
+gate over it and a whole `LayerStyle` where one mark will not do; `pin::`
 hangs an element off every node stating a `pin::Request` — the element,
 the box it is given and a `Tether` for where — at the first place that
 fits; `outline::` builds from where nodes resolved their edges, a band
