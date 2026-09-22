@@ -31,6 +31,13 @@ Element figureOf(SkPath route, float bleed, std::string key,
     figure.layerStyle(dressing.style);
   if (dressing.gate) figure.mask(*dressing.gate);
   if (!key.empty()) figure.key(std::move(key));
+  // A WIRE IS TRANSPARENT TO THE HIT TEST. Its shape is one open path, and
+  // containment in an open path is the region the fill's implicit close
+  // encloses — the lens under an arc, the triangle inside an elbow — which
+  // is nowhere near the mark anyone can see. A wire laid over a diagram
+  // would answer for hits on the empty space beside it, so it answers for
+  // none; the nodes it joins answer for themselves.
+  figure.hitTestable(false);
   return figure;
 }
 
