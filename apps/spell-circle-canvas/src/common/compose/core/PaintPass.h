@@ -77,6 +77,7 @@ struct PaintPass {
       : impl(impl),
         inst(inst),
         node(*inst.description),
+        style(inst.computed),
         canvas(canvas),
         rect(rect),
         profile(profile) {}
@@ -84,6 +85,9 @@ struct PaintPass {
   Composer::Impl& impl;
   detail::Instance& inst;
   const detail::ElementNode& node;
+  /** The properties the node came to — what every tier below reads a
+   *  layout, a paint, a corner or a clip from. */
+  const detail::ComputedStyle& style;
   SkCanvas& canvas;
   /** The node's layout rect, in its parent's space. */
   SkRect rect;

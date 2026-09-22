@@ -52,9 +52,9 @@ bool Composer::Impl::hostsSpace(Instance& inst) {
   // carries any of them hosts no space, and its children project onto its
   // plane one by one exactly as they would under a flat parent. The rule
   // is CSS's, stated on Element::preserve3d.
-  if (node.clipContent || node.hasMasks() || layerEffectOf(node) ||
+  if (inst.computed.clipContent || node.hasMasks() || layerEffectOf(node) ||
       backdropEffectOf(node) ||
-      node.paint.blendMode != SkBlendMode::kSrcOver ||
+      inst.computed.paint.blendMode != SkBlendMode::kSrcOver ||
       node.boundary == Boundary::Coverage ||
       node.cacheMode == Cache::Texture || node.cacheMode == Cache::Group)
     return false;
@@ -62,7 +62,8 @@ bool Composer::Impl::hostsSpace(Instance& inst) {
   // or closes the space on the frame it does — which is the CSS behaviour
   // too, and the only reading the painter, the hit test and the bounds
   // walk can all agree on.
-  return inst.resolveFloat(Instance::kOpacity, node.paint.opacity) >= 1.0f;
+  return inst.resolveFloat(Instance::kOpacity, inst.computed.paint.opacity) >=
+         1.0f;
 }
 
 void Composer::Impl::depthOrder(Instance& host, const SkM44& space,

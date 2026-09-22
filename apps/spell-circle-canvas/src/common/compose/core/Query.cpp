@@ -24,9 +24,10 @@ bool Composer::Impl::shapeContains(Instance& inst, SkPoint local,
     return resolveOutline(inst, size).contains(local.x(), local.y());
   const SkRect bounds = SkRect::MakeWH(size.width(), size.height());
   if (!bounds.contains(local.x(), local.y())) return false;
-  if (node.corners.any()) {
+  const Corners& corners = inst.computed.corners;
+  if (corners.any()) {
     SkPathBuilder b;
-    b.addRRect(cornersRRect(bounds, node.corners));
+    b.addRRect(cornersRRect(bounds, corners));
     return b.detach().contains(local.x(), local.y());
   }
   return true;
@@ -36,10 +37,11 @@ std::optional<std::string> Composer::Impl::hitInstance(
     Instance& inst, SkPoint parentPt, const std::string* inheritedKey,
     const HitSpace* space) {
   const ElementNode& node = *inst.description;
-  if (node.layout.display == Display::None) return std::nullopt;
+  const ComputedStyle& style = inst.computed;
+  if (style.layout.display == Display::None) return std::nullopt;
 
   const float opacity = std::clamp(
-      inst.resolveFloat(Instance::kOpacity, node.paint.opacity), 0.0f, 1.0f);
+      inst.resolveFloat(Instance::kOpacity, style.paint.opacity), 0.0f, 1.0f);
   if (opacity <= 0.0f) return std::nullopt;  // invisible subtrees don't hit
 
   // Into local space: undo the layout offset, then the paint transform (the
@@ -108,7 +110,7 @@ std::optional<std::string> Composer::Impl::hitInstance(
 
   const SkSize size{rect.width(), rect.height()};
   const bool inside = placed && shapeContains(inst, local, size);
-  if (node.clipContent && !inside)
+  if (style.clipContent && !inside)
     return std::nullopt;  // clip bounds the whole subtree's hit region
 
   const std::shared_ptr<ElementNode>& shell =

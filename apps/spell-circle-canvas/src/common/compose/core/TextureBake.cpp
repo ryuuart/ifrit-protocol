@@ -33,6 +33,7 @@ bool paintTextureBake(PaintPass& pass) {
   Composer::Impl& impl = pass.impl;
   Instance& inst = pass.inst;
   const ElementNode& node = pass.node;
+  const ComputedStyle& style = pass.style;
   SkCanvas& canvas = pass.canvas;
   const SkRect& rect = pass.rect;
   const SkMatrix& totalM = pass.totalM;
@@ -171,7 +172,7 @@ bool paintTextureBake(PaintPass& pass) {
           // replaces: no full-canvas intermediate, one less rounding.
           SkPaint blit;
           blit.setAlphaf(opacity);
-          blit.setBlendMode(node.paint.blendMode);
+          blit.setBlendMode(style.paint.blendMode);
           pass.deviceBlit(inst.textureImage, deviceR, &blit);
         } else {
           pass.deviceBlit(inst.textureImage, deviceR, nullptr);
@@ -231,9 +232,9 @@ bool paintTextureBake(PaintPass& pass) {
       out = a->target;
       declared = true;
     };
-    lane(Instance::kScale, node.paint.scale, destTf.scl);
-    lane(Instance::kScaleX, node.paint.scaleX, destTf.sx);
-    lane(Instance::kScaleY, node.paint.scaleY, destTf.sy);
+    lane(Instance::kScale, style.paint.scale, destTf.scl);
+    lane(Instance::kScaleX, style.paint.scaleX, destTf.sx);
+    lane(Instance::kScaleY, style.paint.scaleY, destTf.sy);
     if (declared) {
       destTotal =
           impl.recordingDepth == 0
@@ -399,7 +400,7 @@ bool paintTextureBake(PaintPass& pass) {
     if (deferBlendToBlit) {
       SkPaint layerPaint;
       layerPaint.setAlphaf(opacity);
-      layerPaint.setBlendMode(node.paint.blendMode);
+      layerPaint.setBlendMode(style.paint.blendMode);
       const SkRect content = impl.recordBounds(inst);
       canvas.saveLayer(&content, &layerPaint);
     }
@@ -431,7 +432,7 @@ bool paintTextureBake(PaintPass& pass) {
     bool dressed = false;
     if (deferBlendToBlit) {  // same rule as the device blit above
       blit.setAlphaf(opacity);
-      blit.setBlendMode(node.paint.blendMode);
+      blit.setBlendMode(style.paint.blendMode);
       dressed = true;
     }
     // The deferred layer effect, applied to the bake rather than to the

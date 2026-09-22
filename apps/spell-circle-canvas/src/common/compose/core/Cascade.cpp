@@ -451,11 +451,11 @@ void Composer::Impl::resolveCascade(
   // moves, under recordings that hold the matrix it had. One on the canvas
   // is moved by a resize alone, which the layout pass answers for.
   if (!first && (shapeChanged || varsChanged) &&
-      originsFollowCascade(*inst.description)) {
+      originsFollowCascade(inst.styled())) {
     inst.markPaintDirtyUp();
     contentDirty = true;
   }
-  if (originsFollowCanvas(*inst.description)) anyCanvasLengths = true;
+  if (originsFollowCanvas(inst.styled())) anyCanvasLengths = true;
   // Whatever reads the ink, a property or the sampling at paint — a stroke
   // in the ink, a fill on a property, an image through its filter — baked
   // the old value into its recording.

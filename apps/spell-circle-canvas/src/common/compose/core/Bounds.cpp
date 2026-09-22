@@ -278,18 +278,19 @@ Pivot Composer::Impl::pivotOf(const Instance& inst, const Dimension& x,
 
 NodeTransform Composer::Impl::transformOf(Instance& inst) {
   const ElementNode& node = *inst.description;
+  const ComputedStyle& style = inst.computed;
   NodeTransform out;
-  out.pivot = pivotOf(inst, node.paint.originX, node.paint.originY,
+  out.pivot = pivotOf(inst, style.paint.originX, style.paint.originY,
                       node.depthData ? &node.depthData->originZ : nullptr);
   // The turn an arranging operator gave the node rides the same lane as
   // its own rotation, so every consumer of the transform sees one turn.
-  out.rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate) +
+  out.rot = inst.resolveFloat(Instance::kRotate, style.paint.rotate) +
             inst.arrangedTurn;
-  out.scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
-  out.sx = inst.resolveFloat(Instance::kScaleX, node.paint.scaleX);
-  out.sy = inst.resolveFloat(Instance::kScaleY, node.paint.scaleY);
-  out.skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
-  out.sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
+  out.scl = inst.resolveFloat(Instance::kScale, style.paint.scale);
+  out.sx = inst.resolveFloat(Instance::kScaleX, style.paint.scaleX);
+  out.sy = inst.resolveFloat(Instance::kScaleY, style.paint.scaleY);
+  out.skx = inst.resolveFloat(Instance::kSkewX, style.paint.skewX);
+  out.sky = inst.resolveFloat(Instance::kSkewY, style.paint.skewY);
   // The depth lanes, on the nodes that carry the block; everyone else is
   // at rest in all four and stays a 2D node in every consumer.
   if (node.depthData) {
@@ -315,8 +316,8 @@ NodeTransform Composer::Impl::transformOf(Instance& inst) {
     out.rot += sample->second;
     return out;
   }
-  out.tx = inst.resolveFloat(Instance::kTx, node.paint.translateX);
-  out.ty = inst.resolveFloat(Instance::kTy, node.paint.translateY);
+  out.tx = inst.resolveFloat(Instance::kTx, style.paint.translateX);
+  out.ty = inst.resolveFloat(Instance::kTy, style.paint.translateY);
   return out;
 }
 
@@ -390,9 +391,9 @@ SkRect filteredReach(const ElementNode& node, const SkRect& local,
  *  sizes from this holds the faces of a cube wherever they have turned. */
 SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
                                     bool forBake) {
-  const ElementNode& node = *inst.description;
+  const ComputedStyle& style = inst.computed;
   // A node with no box paints nothing, its decorations' reach included.
-  if (node.layout.display == Display::None) return SkRect::MakeEmpty();
+  if (style.layout.display == Display::None) return SkRect::MakeEmpty();
   SkRect local = ownPaintBounds(inst);
   const bool hosts = hostsSpace(inst);
   // The host's own 4x4 in the plane its space is drawn on — what every
@@ -405,7 +406,7 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
     own = m;
     local = projectRect(own->asM33(), local);
   }
-  if (node.clipContent) return local;
+  if (style.clipContent) return local;
   // A CHILD'S contribution, grown by the reach its own layer effect
   // filters over when this rect is about to size a surface. The node's own
   // effect is not asked here: it is applied by this node's own paint,
@@ -419,8 +420,7 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
                          forBake);
   };
   for (auto& child : inst.children) {
-    const ElementNode& cn = *child->description;
-    if (cn.layout.display == Display::None) continue;
+    if (child->computed.layout.display == Display::None) continue;
     const SkRect crect = instanceRect(*child);
     const NodeTransform tf = transformOf(*child);
     if (hosts) {

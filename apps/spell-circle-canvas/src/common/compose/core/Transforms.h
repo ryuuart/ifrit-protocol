@@ -232,27 +232,31 @@ struct Pivot {
 /** Whether an origin this node declares is measured against the font in
  *  force or read from a custom property, so a change in either moves the
  *  node's matrix under recordings that hold the one it had. */
-inline bool originsFollowCascade(const ElementNode& node) {
+inline bool originsFollowCascade(StyledNode styled) {
   const auto follows = [](const Dimension& d) {
     return d.relative() && d.unit != Dimension::Unit::Pw &&
            d.unit != Dimension::Unit::Ph;
   };
-  if (follows(node.paint.originX) || follows(node.paint.originY)) return true;
-  if (!node.depthData) return false;
-  const DepthData& depth = *node.depthData;
+  if (follows(styled.style.paint.originX) ||
+      follows(styled.style.paint.originY))
+    return true;
+  if (!styled.node.depthData) return false;
+  const DepthData& depth = *styled.node.depthData;
   return follows(depth.originZ) || follows(depth.perspectiveOriginX) ||
          follows(depth.perspectiveOriginY);
 }
 
 /** Whether an origin this node declares is measured against the CANVAS,
  *  which only a canvas that changes size moves. */
-inline bool originsFollowCanvas(const ElementNode& node) {
+inline bool originsFollowCanvas(StyledNode styled) {
   const auto follows = [](const Dimension& d) {
     return d.unit == Dimension::Unit::Pw || d.unit == Dimension::Unit::Ph;
   };
-  if (follows(node.paint.originX) || follows(node.paint.originY)) return true;
-  if (!node.depthData) return false;
-  const DepthData& depth = *node.depthData;
+  if (follows(styled.style.paint.originX) ||
+      follows(styled.style.paint.originY))
+    return true;
+  if (!styled.node.depthData) return false;
+  const DepthData& depth = *styled.node.depthData;
   return follows(depth.originZ) || follows(depth.perspectiveOriginX) ||
          follows(depth.perspectiveOriginY);
 }

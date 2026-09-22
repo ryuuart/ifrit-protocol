@@ -107,7 +107,7 @@ void decidePromotion(PaintPass& pass) {
   if (!contentStable) flag(Prom::Volatile);
   if (leafBlend != SkBlendMode::kSrcOver || leafOpacity < 1.0f)
     flag(Prom::Composited);
-  if (layerEffectOf(node) || node.clipContent) flag(Prom::Filtered);
+  if (layerEffectOf(node) || pass.style.clipContent) flag(Prom::Filtered);
   if (inst.subtreeReadsBackdrop)  // incl. this node's own backdropFilter()
     flag(Prom::ReadsBackdrop);
   if (rect.width() < 0.5f || rect.height() < 0.5f)

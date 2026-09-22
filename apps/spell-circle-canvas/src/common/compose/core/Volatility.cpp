@@ -19,6 +19,7 @@ using namespace detail;
 core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                                                      Above above) {
   const ElementNode& node = *inst.description;
+  const ComputedStyle& style = inst.computed;
   const bool movingAbove = above.moving;
 
   auto boundOrRunning = [&](Instance::Slot slot,
@@ -164,7 +165,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // ancestor caches across it.
   const bool inkLerp = inst.anims[Instance::kInkLerp] &&
                        inst.anims[Instance::kInkLerp]->value.isConnected();
-  const bool boundFill = node.paint.fill && node.paint.fill->binding();
+  const bool boundFill = style.paint.fill && style.paint.fill->binding();
   const material::skia::Paint* nodeLiveMat = liveMaterialOf(node);
   // A fill material whose ONLY animation is its own bound tile pan is NOT
   // the live-material lane — it is two floats, resolvable outside paint by
@@ -469,7 +470,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // it covers asks for the bake themselves with `.cache(Cache::Texture)`,
   // which is the same bargain every other rounding-accepting opt-in makes.
   inst.ownReadsBackdrop = backdropEffectOf(node) != nullptr ||
-                          node.paint.blendMode != SkBlendMode::kSrcOver ||
+                          style.paint.blendMode != SkBlendMode::kSrcOver ||
                           node.kind == Kind::Custom || decorBlends ||
                           typeBlends;
 

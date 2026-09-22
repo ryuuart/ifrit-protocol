@@ -290,6 +290,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                                   float leafOpacity, Phase phase,
                                   bool deferLayerEffect) {
   const ElementNode& node = *inst.description;
+  const ComputedStyle& style = inst.computed;
   // The two halves of a node's paint, split at the children loop. A
   // split bake is only ever offered to a node with no layer effect — that
   // one WRAPS BOTH HALVES and a bake of the prefix alone would have to
@@ -311,7 +312,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // never interleaved and each is restored in its own order.
   const auto enterOwn = [&] {
     if (ownPlane) {
-      SkASSERT(!node.clipContent);
+      SkASSERT(!style.clipContent);
       canvas.save();
       canvas.concat(*ownPlane);
     }
@@ -329,7 +330,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   const bool emitMarks = coverageTrace != &inst && ownVisible;
   const SkRect ownRect = instanceRect(inst);
   const SkRect bounds = SkRect::MakeWH(ownRect.width(), ownRect.height());
-  const SkRRect rrect = cornersRRect(bounds, node.corners);
+  const SkRRect rrect = cornersRRect(bounds, style.corners);
 
   // The node's shape: a band's swept region, a custom outline(), or the
   // corner-rounded box.
@@ -801,7 +802,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
 
   // overflow(Overflow::Clip) bounds the fill, the content, and the children —
   // not the decorations (above and below), which trace the outline itself.
-  if (node.clipContent) {
+  if (style.clipContent) {
     canvas.save();
     if (customShape)
       canvas.clipPath(clipShape, true);
@@ -829,7 +830,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // A border here is a stroke dressing the boundary rather than a box
     // lane, so the padding box IS the border box and only the content box
     // moves the paint.
-    if (node.paint.backgroundOrigin != BackgroundOrigin::ContentBox ||
+    if (style.paint.backgroundOrigin != BackgroundOrigin::ContentBox ||
         inst.hasPendingLiveFill) {
       resolvedFill = inst.hasPendingLiveFill ? inst.pendingLiveFill
                                              : resolveFill(*live, paintCtx);
@@ -844,9 +845,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
             SkMatrix::Translate(inset.left, inset.top));
       resolvedFill = std::move(placed);
     }
-  } else if (node.paint.fill) {
+  } else if (style.paint.fill) {
     Fill fill;
-    if (const choreograph::Output<Fill>* binding = node.paint.fill->binding())
+    if (const choreograph::Output<Fill>* binding = style.paint.fill->binding())
       fill = binding->value();
     else if (inst.anims[Instance::kFillLerp] &&
              inst.anims[Instance::kFillLerp]->started &&
@@ -863,7 +864,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       fill.kind = Fill::Kind::Color;
     } else {
       ResolvedProperty<Fill> resolved =
-          resolveProperty(*node.paint.fill, node.nodeTransition);
+          resolveProperty(*style.paint.fill, node.nodeTransition);
       fill = resolved.target;
     }
     resolvedFill = resolveRef(fill, paintCtx);
@@ -1072,7 +1073,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   if (granularPlane && emitChildren) leaveGates(kidsSaves, kidsCover);
   enterOwn();
 
-  if (node.clipContent) canvas.restore();  // decorations below stay unclipped
+  if (style.clipContent) canvas.restore();  // decorations below stay unclipped
 
   // FOREGROUNDS PAINT AFTER THE CHILDREN, so they belong to the children
   // half and can never be in an own-paint bake. The own half is the

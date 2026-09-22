@@ -27,14 +27,15 @@ using namespace detail;
 
 void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   const ElementNode& node = *inst.description;
+  const ComputedStyle& style = inst.computed;
   // No box, and no subtree: the description keeps the node, the picture
   // does not.
-  if (node.layout.display == Display::None) return;
+  if (style.layout.display == Display::None) return;
   const SkRect rect = instanceRect(inst);
   ProfileScope profileScope(this, inst, rect);
 
   const float opacity = std::clamp(
-      inst.resolveFloat(Instance::kOpacity, node.paint.opacity), 0.0f, 1.0f);
+      inst.resolveFloat(Instance::kOpacity, style.paint.opacity), 0.0f, 1.0f);
   if (opacity <= 0.0f) return;
 
   // (Size-change invalidation for recordings — including geometry-dependent
@@ -241,7 +242,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                       true);
     else
       canvas.clipRRect(cornersRRect(SkRect::MakeWH(rect.width(), rect.height()),
-                                    node.corners),
+                                    style.corners),
                        true);
     SkCanvas::SaveLayerRec rec(nullptr, nullptr, backdropFilter.get(), 0);
     canvas.saveLayer(rec);
@@ -373,7 +374,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // pixels as that path drawn at alpha, since there is nothing inside the
   // layer for it to composite against first.
   const bool opacityLive =
-      node.paint.opacity.binding() != nullptr ||
+      style.paint.opacity.binding() != nullptr ||
       (inst.anims[Instance::kOpacity] &&
        inst.anims[Instance::kOpacity]->value.isConnected());
   const bool leafDirectBlend =
@@ -382,7 +383,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       node.foregrounds.empty() && !node.hasStrokePasses() &&
       (!node.fxData ||
        (node.fxData->overlays.empty() && node.fxData->masks.empty())) &&
-      !layerEffectOf(node) && !backdropEffectOf(node) && !node.clipContent &&
+      !layerEffectOf(node) && !backdropEffectOf(node) && !style.clipContent &&
       (!opacityLive || (node.cacheMode != Cache::Picture && !memoized)) &&
       node.cacheMode != Cache::Texture &&
       node.cacheMode != Cache::Group;  // (same reason: bakes isolate)
@@ -397,16 +398,16 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // — the device blit, or the quantized-local blit it falls back to. A node
   // that fails the entry keeps the layer, so nothing can lose its blend.
   const bool deferBlendToBlit =
-      (opacity < 1.0f || node.paint.blendMode != SkBlendMode::kSrcOver) &&
+      (opacity < 1.0f || style.paint.blendMode != SkBlendMode::kSrcOver) &&
       !leafDirectBlend && !liveOnly && cacheHolds &&
       node.cacheMode == Cache::Texture && !backdropEffectOf(node);
   const bool needsLayer =
-      (opacity < 1.0f || node.paint.blendMode != SkBlendMode::kSrcOver) &&
+      (opacity < 1.0f || style.paint.blendMode != SkBlendMode::kSrcOver) &&
       !leafDirectBlend && !deferBlendToBlit;
   if (needsLayer) {
     SkPaint layerPaint;
     layerPaint.setAlphaf(opacity);
-    layerPaint.setBlendMode(node.paint.blendMode);
+    layerPaint.setBlendMode(style.paint.blendMode);
     // BOUNDED like the effect layer: nullptr would allocate a clip-sized
     // (often full-canvas) layer for every fading container, so an entrance
     // opacity ramp would cost a fullscreen composite per animated group.
@@ -414,7 +415,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     canvas.saveLayer(&content, &layerPaint);
   }
   const SkBlendMode leafBlend =
-      leafDirectBlend ? node.paint.blendMode : SkBlendMode::kSrcOver;
+      leafDirectBlend ? style.paint.blendMode : SkBlendMode::kSrcOver;
   const float leafOpacity = leafDirectBlend ? opacity : 1.0f;
   pass.deferBlendToBlit = deferBlendToBlit;
   pass.needsLayer = needsLayer;

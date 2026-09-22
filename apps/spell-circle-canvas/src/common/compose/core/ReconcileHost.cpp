@@ -344,8 +344,8 @@ void Composer::Impl::reorder(Instance& parent, bool structureChanged) {
   std::iota(parent.paintOrder.begin(), parent.paintOrder.end(), size_t{0});
   std::stable_sort(parent.paintOrder.begin(), parent.paintOrder.end(),
                    [&](size_t a, size_t b) {
-                     return parent.children[a]->description->paint.zIndex <
-                            parent.children[b]->description->paint.zIndex;
+                     return parent.children[a]->computed.paint.zIndex <
+                            parent.children[b]->computed.paint.zIndex;
                    });
 
   // Yoga sees the children in the order they now stand: every child is
