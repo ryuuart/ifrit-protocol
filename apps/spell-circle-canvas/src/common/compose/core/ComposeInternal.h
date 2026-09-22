@@ -109,6 +109,12 @@ struct PaintProps {
   std::optional<motion::Animatable<Fill>> fill;
   motion::Animatable<float> opacity = 1.0f;
   SkBlendMode blendMode = SkBlendMode::kSrcOver;
+  // fill(paint, anchor, origin): which of the box's rectangles the
+  // paint's unit square begins at. Only where the paint is stretched
+  // over the box; the painted AREA never moves with it. Beside the blend
+  // mode because the two bytes share one word there and this struct is
+  // inline in every node.
+  BackgroundOrigin backgroundOrigin = BackgroundOrigin::BorderBox;
   motion::Animatable<float> translateX = 0.0f, translateY = 0.0f;
   motion::Animatable<float> rotate = 0.0f, scale = 1.0f;
   // Per-axis scale, multiplied INTO `scale`. Bars, wipes, meters,
@@ -273,10 +279,6 @@ struct TextData {
   // Text::variationDrive() appends one of these too — a driven axis is a
   // per-glyph deviation like any other, and has no plumbing of its own.
   std::vector<Track> tracks;
-  // textFill(): glyph paint in text-metric space (unit square → cap band).
-  // Resolved at paint from the line metrics; live materials re-resolve per
-  // frame; static ones compare by recipe for the prune.
-  std::optional<material::skia::Paint> metricFill;
   // textOnPath(): the run's baseline IS a path. Resolved at paint against the
   // node's box, walked with SkContourMeasure, one RSXform per glyph.
   std::optional<TextPath> onPath;
@@ -543,6 +545,15 @@ struct DepthData {
  *  is most of a tree, pays one null pointer. What a node RESOLVES to lives
  *  on the instance (Instance::font, Instance::vars), written by the cascade
  *  pass from the parent's resolved values and this block. */
+/** THE INK IN FORCE AS A PAINT, as it flows down the tree: the paint
+ *  `Element::ink` was given and the box its unit square maps onto. The
+ *  ordinary ink is a colour and holds no paint at all. */
+struct InkInForce {
+  std::optional<material::skia::Paint> paint;
+  PaintAnchor anchor = PaintAnchor::OwnBox;
+  bool operator==(const InkInForce&) const = default;
+};
+
 struct CascadeData {
   std::optional<sigil::weave::Type> font;
   /** The node's semantic name and fallback typography. The matching
@@ -572,6 +583,14 @@ struct CascadeData {
   /** ink(var(...)): the property the ink reads. Exclusive with a colour in
    *  `font->color` — whichever was written last stands. */
   std::optional<VarRef> inkVar;
+  /** ink(paint): the ink as a WHOLE PAINT — a ramp, a recipe, SkSL —
+   *  and the box its unit square maps onto. Inherited exactly as the
+   *  colour is. `statesInk` is the lane being written at all, so a node
+   *  that states a plain colour clears an ancestor's paint: an absent
+   *  paint beside a stated lane is the colour case. */
+  std::optional<material::skia::Paint> inkPaint;
+  PaintAnchor inkAnchor = PaintAnchor::OwnBox;
+  bool statesInk = false;
   /** Properties supplied only where no ancestor or this node states a
    *  value, so component defaults do not override their document. */
   VarTable varDefaults;

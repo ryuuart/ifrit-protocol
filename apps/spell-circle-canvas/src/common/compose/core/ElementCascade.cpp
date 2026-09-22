@@ -23,8 +23,12 @@ Derived& CascadeVerbs<Derived>::font(sigil::weave::Type partial) {
   // names and leaves the rest as an earlier call or a class left it.
   sigil::weave::merge(*cascade.font, partial);
   // A colour written here is the ink, so a property the ink was read from
-  // before no longer stands.
-  if (partial.color) cascade.inkVar.reset();
+  // before no longer stands, and neither does a paint.
+  if (partial.color) {
+    cascade.inkVar.reset();
+    cascade.inkPaint.reset();
+    cascade.statesInk = true;
+  }
   return self();
 }
 
@@ -42,6 +46,8 @@ Derived& CascadeVerbs<Derived>::ink(material::Color colour) {
   if (!cascade.font) cascade.font.emplace();
   cascade.font->color = material::skia::toSkColor(colour);
   cascade.inkVar.reset();
+  cascade.inkPaint.reset();
+  cascade.statesInk = true;
   return self();
 }
 
@@ -50,6 +56,34 @@ Derived& CascadeVerbs<Derived>::ink(VarRef reference) {
   detail::CascadeData& cascade = declarations()->cascadeData.ensure();
   cascade.inkVar = reference;
   if (cascade.font) cascade.font->color.reset();
+  cascade.inkPaint.reset();
+  cascade.statesInk = true;
+  return self();
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor) {
+  detail::CascadeData& cascade = declarations()->cascadeData.ensure();
+  // A PLAIN COLOUR is the ink lane as it has always been. A paint that
+  // happens to be flat is not one: it overrides the glyphs of a leaf set
+  // in a style of its own, which an inherited colour does not reach.
+  const std::optional<Fill> flat =
+      paint.writtenAsPaint() ? std::nullopt : paint.collapsedFill();
+  if (flat && flat->kind == Fill::Kind::Color && !flat->references())
+    return ink(flat->colorValue);
+  cascade.statesInk = true;
+  cascade.inkPaint.reset();
+  cascade.inkAnchor = anchor;
+  // An empty paint STATES the lane and holds nothing, which clears an
+  // ancestor's paint and leaves the colour in force standing. A fill the
+  // slot cannot hold — a live binding, the ink in force, a custom
+  // property — leaves the ink where it was: a reference to the ink is
+  // the ink, and a bound fill has no paint to inherit.
+  if (paint.none()) return self();
+  if (std::optional<material::skia::Paint> stored = paint.collapsedPaint())
+    cascade.inkPaint = std::move(stored);
+  else
+    cascade.statesInk = false;
   return self();
 }
 

@@ -80,6 +80,13 @@ class SurfacePaint {
    *  so does an empty paint, which is the one spelling that means the
    *  slot should hold nothing. `none()` separates the two. */
   [[nodiscard]] std::optional<material::skia::Paint> collapsedPaint() const;
+  /** WAS THIS WRITTEN AS A MATERIAL PAINT rather than as a fill? Both can
+   *  be one flat colour and still mean different things to a slot that
+   *  treats a colour specially: `Paint::solid(c)` is a picture that
+   *  happens to be flat, and a `Fill` holding `c` is the colour itself.
+   *  `Element::ink` is the slot that asks — a colour is the inherited,
+   *  easing ink lane, and a paint is a paint. */
+  [[nodiscard]] bool writtenAsPaint() const;
   [[nodiscard]] bool isAnimated() const;
   bool operator==(const SurfacePaint&) const = default;
 

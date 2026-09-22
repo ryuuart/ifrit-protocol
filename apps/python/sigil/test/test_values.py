@@ -130,19 +130,34 @@ class Colors(unittest.TestCase):
         # sends the author to.
         self.assertFalse(compose.SurfacePaint(recipe).none())
         self.assertIsInstance(compose.box().fill(recipe), compose.Element)
-        self.assertIsInstance(compose.text("words").textFill(unit), compose.Text)
+        self.assertIsInstance(compose.text("words").ink(unit), compose.Text)
 
-    def test_a_glyph_paint_refuses_what_it_cannot_store(self):
+    def test_an_ink_paint_refuses_what_it_cannot_store(self):
         ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
-        # A glyph paint is one paint resolved without the tree, so the
-        # spellings that read the tree say so rather than quietly dropping
-        # the ramp already set.
-        for reference in (compose.Fill.currentInk(), compose.var("accent")):
-            with self.assertRaisesRegex(TypeError, "clear one with None"):
-                compose.text("words").textFill(ramp).textFill(reference)
+        # An ink paint is one paint resolved without the tree, so a bound
+        # fill says so rather than quietly dropping the ramp already set.
+        # A custom-property reference is the ink lane's own spelling and
+        # sets the ink from that property.
+        with self.assertRaisesRegex(TypeError, "clear the paint with None"):
+            compose.text("words").ink(ramp).ink(compose.Fill.currentInk())
         self.assertIsInstance(
-            compose.text("words").textFill(ramp).textFill(None), compose.Text
+            compose.text("words").ink(ramp).ink(None), compose.Text
         )
+        self.assertIsInstance(
+            compose.text("words").ink(ramp).ink(compose.var("accent")),
+            compose.Text,
+        )
+
+    def test_an_ink_paint_takes_the_box_it_is_anchored_to(self):
+        ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
+        for anchor in (
+            compose.PaintAnchor.OwnBox,
+            compose.PaintAnchor.DeclaringBox,
+            compose.PaintAnchor.CanvasBox,
+        ):
+            self.assertIsInstance(
+                compose.box().ink(ramp, anchor=anchor), compose.Element
+            )
 
     def test_a_uniform_is_written_the_same_way_on_a_paint_and_an_effect(self):
         source = skia.RuntimeEffect.MakeForShader(

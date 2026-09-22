@@ -371,10 +371,10 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
   // condense with scaleX — the same move the nav labels need, and the same
   // one a 1996 art director made by hand.
   //
-  // textFill() maps the ramp onto the TEXT METRICS (cap top to baseline),
+  // ink() maps the ramp onto the TEXT METRICS (cap top to baseline),
   // so the teal -> yellow-green horizon crosses the capitals at any size
   // with no hand-positioned gradient. That is the whole reason it exists —
-  // but NOT with the Unit ramps. textFill already installs a local matrix
+  // but NOT with the Unit ramps. ink already installs a local matrix
   // mapping [0,1]^2 onto the metric band, and linearUnit's own SkSL then
   // divides by uResolution (the NODE size) on top of it, so t collapses to
   // ~0 and every glyph comes out the first stop, flat. The pixel-space
@@ -383,7 +383,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;
     Text t = text(s).font(ty(display(), size, C5(0x2FA9A0), 0));
-    t.textFill(mskia::Paint::linear({0, 0}, {0, 1},
+    t.ink(mskia::Paint::linear({0, 0}, {0, 1},
                                     {{0.0f, C5(0x006BA5)},
                                      {0.22f, C5(0x007BAD)},
                                      {0.52f, C5(0x00A584)},

@@ -11,7 +11,9 @@
 
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/PaintAnchor.h>
 #include <sigilcompose/core/Selector.h>
+#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/layout/Block.h>
@@ -47,6 +49,11 @@ class Rule {
   /** The ink read from a custom property, resolved where the rule
    *  matches. Exclusive with a colour: the later call stands. */
   Rule& ink(VarRef reference);
+  /** The ink as a WHOLE PAINT, taking everything a fill takes, with the
+   *  box its unit square maps onto. A plain colour is the colour form;
+   *  an empty paint states the lane and holds nothing, which clears an
+   *  ancestor's paint. */
+  Rule& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox);
   /** A custom property set on every element this rule matches, for that
    *  element and everything under it. */
   Rule& var(std::string_view name, material::Color colour);
@@ -60,6 +67,15 @@ class Rule {
   [[nodiscard]] const sigil::weave::Block& block() const { return m_block; }
   /** The property the ink reads, where it was written as one. */
   [[nodiscard]] const std::optional<VarRef>& inkVar() const { return m_inkVar; }
+  /** The paint the ink is, where it was written as one. */
+  [[nodiscard]] const std::optional<material::skia::Paint>& inkPaint() const {
+    return m_inkPaint;
+  }
+  /** The box that paint's unit square maps onto. */
+  [[nodiscard]] PaintAnchor inkAnchor() const { return m_inkAnchor; }
+  /** Whether this rule writes the ink lane at all — a colour, a
+   *  property, a paint, or an empty paint, which is the lane cleared. */
+  [[nodiscard]] bool statesInk() const { return m_statesInk; }
   /** The custom properties it sets. */
   [[nodiscard]] const VarTable& vars() const { return m_vars; }
 
@@ -70,6 +86,9 @@ class Rule {
   sigil::weave::Type m_type;
   sigil::weave::Block m_block;
   std::optional<VarRef> m_inkVar;
+  std::optional<material::skia::Paint> m_inkPaint;
+  PaintAnchor m_inkAnchor = PaintAnchor::OwnBox;
+  bool m_statesInk = false;
   VarTable m_vars;
 };
 

@@ -29,11 +29,11 @@ letters in the same places.
 
 **The key takes `-rest` after it**, so both are addressable and both
 prune; a keyless original leaves the copy keyless. The ink is left to
-the caller, which is what [`textFill`](textFill.md) is for.
+the caller, which is what [`ink`](ink.md) is for.
 
 A rest pose is what a track's per-glyph deviation is measured against,
 and `kit::restGhost` draws it under the moving copy.
 
 ## See also
 
-`fx`, [`textFill`](textFill.md), `kit::restGhost`, `Composer::beatsOf`.
+`fx`, [`ink`](ink.md), `kit::restGhost`, `Composer::beatsOf`.

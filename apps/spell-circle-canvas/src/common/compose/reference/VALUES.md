@@ -26,7 +26,7 @@ read before the four rows under *The surface*.
 |---|---|---|---|
 | [`Fill`](pages/types/Fill.md) | Nothing, a colour, a shader, or a reference the tree resolves at paint. | `Fill::color`, `Fill::shader`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `linearGradient`, `radialGradient`, `toFill` | `Element::fill`, `Text::textStroke`, every decoration's own paint |
 | [`SurfacePaint`](pages/types/SurfacePaint.md) | A component's surface: a fill, a live fill binding, or a material. | Implicitly from a `Fill`, an animatable fill, a bound output, a transition, a paint or a recipe | `Element::fill`, `PathFormat::strokeFill`, the kit's wells and sheets |
-| `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | `Paint::solid`, `Paint::linear`, `Paint::radial`, `Paint::sweep`, `Paint::linearUnit`, `Paint::image`, `Paint::recipe`, `Paint::blend` | `Element::fill`, `Text::textFill` |
+| `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | `Paint::solid`, `Paint::linear`, `Paint::radial`, `Paint::sweep`, `Paint::linearUnit`, `Paint::image`, `Paint::recipe`, `Paint::blend` | `Element::fill`, `Element::ink` |
 | `material::Material` | A recipe — a pattern described rather than a shader built. | SigilMaterial's own catalogue | `SurfacePaint`, and `Paint::recipe` |
 | `material::Color` | The one colour class: a colour in a stated space, convertible to Skia's. | SigilMaterial's colour vocabulary | Anywhere a colour is taken, through `material::skia::toSkColor` |
 | `hexColor` | Not a type: the one colour SPELLING here, `0xRRGGBB` and an alpha as a Skia colour. | — | — |

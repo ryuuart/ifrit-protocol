@@ -406,7 +406,7 @@ struct Y2kChrome {
                            // the type with the same unit-space chrome ramp puts
                            // the horizon inside the letterforms, which is where
                            // a period chrome wordmark carries it.
-                           .textFill(kit::sunsetChromeType())});
+                           .ink(kit::sunsetChromeType())});
 
     Element wordmark =
         box()

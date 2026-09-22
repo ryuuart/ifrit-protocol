@@ -1,7 +1,7 @@
 // What a shaped run exposes and how its glyphs are dressed: type set
 // along a path — every contour, the word breaks between them, the
 // per-run flip decision and the radial and level orientations a dial and
-// a calendar ring need — the glyph paints textFill and textStroke put on
+// a calendar ring need — the glyph paints ink and textStroke put on
 // the letters rather than the box, and the metrics a placement solves
 // from: the cap slack, the pen positions across a run, the cap height
 // off the face, what fitting or condensing a run to a width moves, and
@@ -310,7 +310,7 @@ TEST(ComposeText, MetricsExposeTheCapSlackThatPlacementNeeds) {
 }
 
 TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
-  // textFill and the weave::Unit ramps must compose, and they very nearly do
+  // ink and the weave::Unit ramps must compose, and they very nearly do
   // not: the metric band already maps the shader's [0,1]² onto the text, so a
   // weave::Unit ramp dividing by the NODE's size a second time collapses the
   // whole gradient to a sliver near zero. Every glyph then paints the first
@@ -318,7 +318,7 @@ TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
   Host host(320, 160);
   host.composer.render(box().padding(20).children(
       {text(u8"HH", whiteStyle(96))
-           .textFill(material::skia::Paint::linearUnit(
+           .ink(material::skia::Paint::linearUnit(
                {0, 0}, {0, 1},
                {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
@@ -388,7 +388,7 @@ TEST(ComposeText, TextStrokeComposesWithTextFill) {
   host.composer.render(box().padding(20).children(
       {text(u8"HH", whiteStyle(96))
            .textStroke(9.0f, Fill::color({0, 1, 0, 1}))
-           .textFill(material::skia::Paint::linearUnit(
+           .ink(material::skia::Paint::linearUnit(
                {0, 0}, {0, 1},
                {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
@@ -442,7 +442,7 @@ TEST(ComposeText, AGlyphPaintTheSlotCannotStoreLeavesTheOneItHas) {
   auto rampedPixels = [&](SurfacePaint after) {
     Host host(320, 160);
     host.composer.render(box().padding(20).children(
-        {text(u8"HH", whiteStyle(96)).textFill(ramp).textFill(after)}));
+        {text(u8"HH", whiteStyle(96)).ink(ramp).ink(after)}));
     host.frame();
     int inked = 0;
     for (int y = 0; y < 160; ++y)

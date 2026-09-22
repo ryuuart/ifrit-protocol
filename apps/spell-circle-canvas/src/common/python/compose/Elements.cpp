@@ -90,6 +90,14 @@ void bindCompose(py::module_& module) {
       .value("Texture", compose::Cache::Texture)
       .value("Group", compose::Cache::Group)
       .value("None_", compose::Cache::None);
+  py::enum_<compose::PaintAnchor>(composition, "PaintAnchor")
+      .value("OwnBox", compose::PaintAnchor::OwnBox)
+      .value("DeclaringBox", compose::PaintAnchor::DeclaringBox)
+      .value("CanvasBox", compose::PaintAnchor::CanvasBox);
+  py::enum_<compose::BackgroundOrigin>(composition, "BackgroundOrigin")
+      .value("BorderBox", compose::BackgroundOrigin::BorderBox)
+      .value("PaddingBox", compose::BackgroundOrigin::PaddingBox)
+      .value("ContentBox", compose::BackgroundOrigin::ContentBox);
   py::class_<Element> element(composition, "Element");
   // The typed leaves: a node, plus what only that leaf can say. Each
   // converts to an Element, so a leaf drops into any children list.

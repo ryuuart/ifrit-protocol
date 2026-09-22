@@ -58,7 +58,7 @@ Element passage(std::u8string_view words, float size, float width,
           {.alignment = weave::TextAlignment::kJustify,
            .hyphenation = weave::HyphenationOptions{.patterns = hyphenator()},
            .lineBreak = weave::LineBreakStrategy::kKnuthPlass})
-      .textFill(std::move(fill));
+      .ink(std::move(fill));
 }
 
 paint::Paint field(material::Material value) {
@@ -66,7 +66,7 @@ paint::Paint field(material::Material value) {
 }
 
 // Sparkle uses pixel-sized cells. Map a virtual field into the unit square
-// that textFill stretches over the run's metrics.
+// that ink stretches over the run's metrics.
 paint::Paint sparkle() {
   const auto shader =
       field(material::kit::sparkle(SkRect::MakeWH(96, 256), kMoment))
@@ -89,7 +89,7 @@ struct ParagraphPaints {
                                   sketch::kit::Voice::Book),
                               .size = 52,
                               .track = 0})
-                       .textFill(ink),
+                       .ink(ink),
                    document::eyebrow("02 · A COMPLETE PARAGRAPH / 13 PX"),
                    passage(kExcerpt, 13, 453, ink),
                    document::eyebrow("03 · THE TOP OF A LONG RUN / 9 PX"),

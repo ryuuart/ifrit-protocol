@@ -194,9 +194,10 @@ Skia paint by value.
 - `core/SurfacePaint.h` — `SurfacePaint`
 - `core/verbs/Paint.h` — `fill`
 - `core/verbs/Cascade.h` — `ink`, `var`
+- `core/PaintAnchor.h` — `PaintAnchor`, `BackgroundOrigin`
 - `core/verbs/Decoration.h` — `background`, `foreground`, `overlay`
 - `core/verbs/Effects.h` — `backdropFilter`, `filter`, `opacity`
-- `core/verbs/TextStyle.h` — `textFill`, `textStroke`
+- `core/verbs/TextStyle.h` — `textStroke`
 
 ## See also
 

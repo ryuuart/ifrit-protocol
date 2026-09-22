@@ -27,8 +27,8 @@ namespace {
 
 /** Does anything this description paints anchor its field to the composer
  *  root (Material::worldSpace)? Every place a Material is resolved against
- *  the node's PaintContext is checked — the fill slot, textFill's metric
- *  material, both effects' child materials, the mask coverage materials.
+ *  the node's PaintContext is checked — the fill slot, the ink's paint,
+ *  both effects' child materials, the mask coverage materials.
  *  Miss one and a world-space material reached through it will not be
  *  invalidated when the node moves.
  *
@@ -42,8 +42,8 @@ bool nodeUsesWorldSpace(const ElementNode& n) {
     if (n.materialData->recipe && n.materialData->recipe->usesWorldSpace())
       return true;
   }
-  if (n.textData && n.textData->metricFill &&
-      n.textData->metricFill->usesWorldSpace())
+  if (n.cascadeData && n.cascadeData->inkPaint &&
+      n.cascadeData->inkPaint->usesWorldSpace())
     return true;
   if (n.fxData) {
     if (n.fxData->layerEffect && n.fxData->layerEffect->usesWorldSpace())

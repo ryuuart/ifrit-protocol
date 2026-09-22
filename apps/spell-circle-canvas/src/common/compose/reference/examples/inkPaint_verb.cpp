@@ -1,5 +1,5 @@
 /** @file
- * textFill — the glyphs painted with a material mapped to text-metric
+ * ink — the glyphs painted with a material mapped to text-metric
  * space, so one ramp authored in the unit square crosses the capitals at
  * any size.
  *
@@ -51,10 +51,10 @@ struct TextFillVerb {
         .padding(28)
         .justifyContent(Justify::Center)
         .children({
-            text("CHROME").font({.size = 64, .track = 2}).textFill(chrome()),
+            text("CHROME").font({.size = 64, .track = 2}).ink(chrome()),
             text("SET SMALLER")
                 .font({.size = 26, .track = 2})
-                .textFill(chrome()),
+                .ink(chrome()),
             text("One ramp, two sizes, the same horizon.")
                 .font({.size = 13, .color = material::skia::toSkColor(kAsh)}),
         });

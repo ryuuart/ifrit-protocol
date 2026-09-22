@@ -29,14 +29,13 @@
 
 namespace sigil::compose::kit {
 
-/** The sunset-chrome ramp in UNIT space: hand it straight to textFill()
- *  and the hard horizon crosses the capitals at half cap height, whatever
- *  the size —
- *  `text(u8"CHROME", display).textFill(kit::sunsetChromeType())`.
+/** The sunset-chrome ramp in UNIT space: hand it straight to the ink and
+ *  the hard horizon crosses the capitals at half cap height, whatever
+ *  the size — `text(u8"CHROME", display).ink(kit::sunsetChromeType())`.
  *  The kit's stops as a linear gradient. */
 material::skia::Paint sunsetChromeType();
 
-/** The silver-chrome ramp in unit space, for textFill(). */
+/** The silver-chrome ramp in unit space, for an ink. */
 material::skia::Paint silverChromeType();
 
 /** The shape's blurred coverage remapped through a 256-entry CONTOUR

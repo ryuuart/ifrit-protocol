@@ -524,7 +524,7 @@ table's growths and leans are read against too. Drawn smaller than that,
 a preset reserves more than it needs, which costs nothing; drawn larger,
 it wants a `Track::reach` of its own.
 
-`Text::textFill` and `Text::textStroke` combine with tracks and with a
+`Element::ink` and `Text::textStroke` combine with tracks and with a
 path baseline alike: a letter in flight, and a letter on a curve, are painted
 with the same glyph paint a resting one is. A layer style's echo, stated
 through `Element::layerStyle`, skips fx text by contract.

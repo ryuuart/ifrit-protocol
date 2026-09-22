@@ -77,6 +77,8 @@ void perturb(material::Backface& v) { v = material::Backface::Hidden; }
 
 void perturb(SkBlendMode& v) { v = SkBlendMode::kMultiply; }
 
+void perturb(BackgroundOrigin& v) { v = BackgroundOrigin::ContentBox; }
+
 void perturb(Corners& v) { v.topLeft += 1.0f; }
 
 void perturb(Dimension& v) { v = Dimension(v.value + 1.0f); }
@@ -176,12 +178,13 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
   // The per-axis scales are the easiest ones to leave out, because the
   // uniform `scale` beside them makes a comparator look complete.
   static const char* const kNames[] = {
-      "fill",   "opacity", "blendMode", "translateX", "translateY",
-      "rotate", "scale",   "scaleX",    "scaleY",     "skewX",
-      "skewY",  "originX", "originY",   "zIndex"};
+      "fill",       "opacity",    "blendMode", "backgroundOrigin",
+      "translateX", "translateY", "rotate",    "scale",
+      "scaleX",     "scaleY",     "skewX",     "skewY",
+      "originX",    "originY",    "zIndex"};
   static const bool kParticipates[] = {true, true, true, true, true,
                                        true, true, true, true, true,
-                                       true, true, true, true};
+                                       true, true, true, true, true};
   walkFields<cd::PaintProps>(
       [](const cd::PaintProps& a, const cd::PaintProps& b) {
         cd::ElementNode na, nb;

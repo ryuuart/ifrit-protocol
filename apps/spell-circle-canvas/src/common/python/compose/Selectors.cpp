@@ -315,16 +315,27 @@ void bindRule(py::module_& composition) {
                                        "way.")
       .def(
           "ink",
-          [](Rule& self, py::object value) -> Rule& {
+          [](Rule& self, py::object value,
+             compose::PaintAnchor anchor) -> Rule& {
             if (py::isinstance<compose::VarRef>(value))
               return self.ink(value.cast<compose::VarRef>());
-            return self.ink(color(value));
+            const compose::SurfacePaint paint = surfacePaint(value);
+            if (!paint.none() && !paint.collapsedPaint())
+              throw py::type_error(
+                  "An ink paint is stored as one paint and resolved without "
+                  "the tree, so the ink in force, a custom property and a "
+                  "bound fill have no paint to give it. State a colour, or "
+                  "clear the paint with None.");
+            return self.ink(paint, anchor);
           },
-          py::arg("value"), fluent,
-          "The ink — the font's colour, which everything under a matched "
-          "element inherits. A colour, or the `compose.var` reference of a "
-          "custom property to read it from, which is resolved where the "
-          "rule matches. The two are exclusive: the later call stands.")
+          py::arg("value"),
+          py::arg("anchor") = compose::PaintAnchor::OwnBox, fluent,
+          "The ink — what everything under a matched element is painted "
+          "in. A colour, anything else a surface takes, or the "
+          "`compose.var` reference of a custom property to read a colour "
+          "from, which is resolved where the rule matches. They are "
+          "exclusive: the later call stands. `anchor` is the box a paint's "
+          "unit square maps onto.")
       .def(
           "var",
           [](Rule& self, const std::string& name, py::object value) -> Rule& {

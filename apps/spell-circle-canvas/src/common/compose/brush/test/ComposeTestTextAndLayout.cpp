@@ -75,12 +75,12 @@ TEST(ComposeKitMarquee, TwoCopiesSlideUnderOneClip) {
 
 TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
   // A hard two-stop ramp authored in [0,1]: red above the midline, blue
-  // below. textFill maps it to the CAP BAND, so the switch happens INSIDE
+  // below. ink maps it to the CAP BAND, so the switch happens INSIDE
   // the glyphs — capitals read red on top, blue underneath.
   Host host(300, 120);
   host.composer.render(box().padding(20).children(
       {text(u8"HHH", whiteStyle(64))
-           .textFill(material::skia::Paint::linear({0, 0}, {0, 1},
+           .ink(material::skia::Paint::linear({0, 0}, {0, 1},
                                                    {{0.0f, {1, 0, 0, 1}},
                                                     {0.499f, {1, 0, 0, 1}},
                                                     {0.501f, {0, 0, 1, 1}},
@@ -226,7 +226,7 @@ TEST(ComposeText, OnPathWrapsTheSeamAndTheFlippedRunKeepsItsHalf) {
 }
 
 TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
-  // textFill supersedes the style's FOREGROUND only, never the passes
+  // ink supersedes the style's FOREGROUND only, never the passes
   // around it. Overriding the whole PaintStyle instead silently drops every
   // underlay — a wordmark loses its cast shadow and its keyline and reads as
   // flat type, which looks like a design choice rather than a bug.
@@ -244,7 +244,7 @@ TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
   }();
   host.composer.render(box().padding(20).children(
       {text(u8"HHH", styled)
-           .textFill(material::skia::Paint::solid({1, 0, 0, 1}))}));
+           .ink(material::skia::Paint::solid({1, 0, 0, 1}))}));
   host.frame();
   int red = 0, green = 0;
   for (int y = 0; y < 120; ++y)

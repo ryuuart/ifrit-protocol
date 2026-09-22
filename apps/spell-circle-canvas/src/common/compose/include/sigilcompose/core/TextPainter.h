@@ -112,7 +112,7 @@ class TextPainterOperations {
   /** THE GLYPH DRAW for dressed text: the rest pose comes from the baseline
    *  — level on a plain run, on the curve and turned to it on a path run —
    *  and every fx() track's deviation applies on top of it. @p override is
-   *  the glyph-paint override textFill()/textStroke() ask for, or null;
+   *  the glyph-paint override ink(paint)/textStroke() ask for, or null;
    *  @p onPath is null for text with no baseline path; @p size is the
    *  node's box; @p ctx is the node's paint context. */
   virtual void paint(detail::Instance& inst, SkCanvas& canvas,

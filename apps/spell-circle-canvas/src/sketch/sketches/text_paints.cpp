@@ -31,7 +31,7 @@ Element word(float size, paint::Paint fill) {
                  {"Avenir Next Heavy", "Helvetica Neue Bold", "Arial Black"}),
              .size = size,
              .track = size * 0.025f})
-      .textFill(std::move(fill));
+      .ink(std::move(fill));
 }
 
 paint::Paint field(material::Material value) {
@@ -39,7 +39,7 @@ paint::Paint field(material::Material value) {
 }
 
 // Sparkle uses pixel-sized cells. Map a virtual field into the unit square
-// that textFill stretches over the run's metrics.
+// that ink stretches over the run's metrics.
 paint::Paint sparkle() {
   const auto shader =
       field(material::kit::sparkle(SkRect::MakeWH(220, 70), kMoment))

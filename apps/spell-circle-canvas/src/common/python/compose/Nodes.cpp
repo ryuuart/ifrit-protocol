@@ -103,7 +103,8 @@ void bindNodeVerbs(py::class_<Node>& element) {
           py::arg("width"), py::arg("height"), fluent)
       .def(
           "fill",
-          [](Node& self, py::object value) -> Node& {
+          [](Node& self, py::object value, compose::PaintAnchor anchor,
+             compose::BackgroundOrigin origin) -> Node& {
             // One conversion for every surface-colouring parameter, so a
             // material reaches the node's fill exactly as it reaches a
             // stroke's or a kit ground's. Empty is STATED rather than
@@ -112,17 +113,46 @@ void bindNodeVerbs(py::class_<Node>& element) {
             // empty Fill and an empty paint, must clear the same way.
             const compose::SurfacePaint paint = surfacePaint(value);
             if (paint.none()) return self.fill(compose::Fill::none());
-            return paint.apply(self);
+            if (anchor == compose::PaintAnchor::OwnBox &&
+                origin == compose::BackgroundOrigin::BorderBox)
+              return paint.apply(self);
+            // A box and an origin are statements about a PICTURE stretched
+            // over a box, so a fill that has no picture to place says so.
+            const std::optional<material::skia::Paint> stretched =
+                paint.collapsedPaint();
+            if (!stretched)
+              throw py::type_error(
+                  "An anchor and an origin place a paint's unit square, so "
+                  "only a paint takes them: the ink in force, a custom "
+                  "property and a bound fill have no picture to place.");
+            return self.fill(*stretched, anchor, origin);
           },
-          py::arg("value"), fluent)
+          py::arg("value"),
+          py::arg("anchor") = compose::PaintAnchor::OwnBox,
+          py::arg("origin") = compose::BackgroundOrigin::BorderBox, fluent)
       .def(
           "ink",
-          [](Node& self, py::object value) -> Node& {
+          [](Node& self, py::object value,
+             compose::PaintAnchor anchor) -> Node& {
             if (py::isinstance<compose::VarRef>(value))
               return self.ink(value.cast<compose::VarRef>());
-            return self.ink(color(value));
+            // The ink takes everything a surface takes. A colour — the
+            // ordinary case, and the one an author writes as a tuple or
+            // a name — is the inherited, easing lane it has always been;
+            // anything else is a paint, and a paint that will not resolve
+            // without the tree says so rather than leaving a standing ink
+            // untouched and the author guessing why.
+            const compose::SurfacePaint paint = surfacePaint(value);
+            if (!paint.none() && !paint.collapsedPaint())
+              throw py::type_error(
+                  "An ink paint is stored as one paint and resolved without "
+                  "the tree, so the ink in force, a custom property and a "
+                  "bound fill have no paint to give it. State a colour, or "
+                  "clear the paint with None.");
+            return self.ink(paint, anchor);
           },
-          py::arg("value"), fluent)
+          py::arg("value"),
+          py::arg("anchor") = compose::PaintAnchor::OwnBox, fluent)
       .def("font", &Node::font, py::arg("type"), fluent)
       .def(
           "fontTrack",
@@ -474,24 +504,6 @@ void bindTextVerbs(py::class_<Text>& element) {
            py::arg("where"), py::arg("type"), fluent)
       .def("textAnnotation", &Text::textAnnotation, py::arg("reading"), fluent)
       .def("atRest", &Text::atRest)
-      .def(
-          "textFill",
-          [](Text& self, py::object value) -> Text& {
-            // A glyph paint is stored as one paint and resolved without
-            // the tree, so the spellings it cannot store say so here
-            // rather than leaving a standing override untouched and the
-            // author guessing why.
-            const compose::SurfacePaint paint = surfacePaint(value);
-            if (!paint.none() && !paint.collapsedPaint())
-              throw py::type_error(
-                  "A glyph paint is stored as one paint and resolved without "
-                  "the tree, so the ink in force, a custom property and a "
-                  "bound fill have no paint to give it. The glyphs already "
-                  "take the ink in force where no glyph paint reaches; clear "
-                  "one with None.");
-            return self.textFill(paint);
-          },
-          py::arg("paint"), fluent)
       .def(
           "textStroke",
           [](Text& self, float width, py::object value) -> Text& {

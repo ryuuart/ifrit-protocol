@@ -129,11 +129,14 @@ Everything a flat mark is, plus a paint of any tier, a recipe instance,
 a bound fill and a fill transition. A slot that takes it resolves
 against the frame it paints at, so a gradient measured on the node and a
 material that reads the clock both belong in it."""
-ElementInkLike: TypeAlias = ColorLike | _sigil.compose.VarRef
-"""THE INK AN ELEMENT SETS for itself and everything under it. A colour
-or a custom-property reference, and deliberately nothing animatable: a
-bound ink would make every inheriting node volatile, so an ink that has
-to move is set on a fill that names it."""
+ElementInkLike: TypeAlias = SurfacePaintLike | _sigil.compose.VarRef
+"""THE INK AN ELEMENT SETS for itself and everything under it. Anything
+that colours a surface, or a custom-property reference. A colour is the
+inherited lane it has always been and eases under a transition; any
+other paint inherits the same way and snaps. Deliberately nothing
+animatable as an INK: a bound ink would make every inheriting node
+volatile, so one that has to move is set on a fill that names it, and a
+bound fill raises here."""
 AlignLike: TypeAlias = (
     _sigil.compose.Align
     | Literal["auto", "start", "center", "end", "stretch", "baseline"]

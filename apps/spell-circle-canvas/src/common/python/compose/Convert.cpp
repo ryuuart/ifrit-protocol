@@ -56,7 +56,7 @@ compose::Fill fill(py::handle value) {
       throw py::type_error(
           "A live or geometry-dependent paint is not a flat fill. Give it to "
           "a verb that resolves against the frame it paints at, such as "
-          "Element.fill or Element.textFill.");
+          "Element.fill or Element.ink.");
     return compose::toFill(paint);
   }
   if (py::isinstance<material::Material>(value))

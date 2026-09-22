@@ -47,7 +47,7 @@ alpha, the colour multiplier and both substitutions are per-glyph dressings
 and are untouched by the frame — so `variationDrive` and `fx::scramble` reach
 curved lettering exactly as they reach straight lettering.
 
-`Text::textFill` and `Text::textStroke` reach a path run like any
+`Element::ink` and `Text::textStroke` reach a path run like any
 other, with one caveat: a metric-mapped material maps its unit square to the
 run's STRAIGHT metric band, which is not where the type ended up. A flat
 colour and a stroke are exact; a gradient across a ring is not what it

@@ -16,9 +16,8 @@ NODES = (ELEMENT, TEXT, IMAGE, "_sigil.compose.Band")
 def register(table: Table) -> None:
     for node in NODES:
         registerNode(table, node)
-    # A glyph paint and a glyph outline are the text leaf's alone, and the
-    # region of a source is the image leaf's.
-    table.erased(TEXT, "textFill", "_t.SurfacePaintLike")
+    # A glyph outline is the text leaf's alone, and the region of a source
+    # is the image leaf's.
     # The glyph OUTLINE is one comparable Fill on the node, measured with no
     # frame in hand, so it takes the flat-mark set and not the surface one.
     table.erased(TEXT, "textStroke", "_t.FillLike")

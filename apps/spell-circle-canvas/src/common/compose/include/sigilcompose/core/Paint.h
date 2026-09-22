@@ -21,6 +21,7 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <include/effects/SkGradient.h>
+#include <sigilcompose/core/PaintAnchor.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigilmaterial/color/Color.h>
@@ -247,6 +248,17 @@ struct PaintContext {
    *  in and `Fill::currentInk()` resolves to. Black outside a composer,
    *  which is the root's own default. */
   material::Color ink = {0, 0, 0, 1};
+  /** THE INK IN FORCE AS A PAINT, where `Element::ink` was given a ramp,
+   *  a sprite, a recipe or SkSL rather than a colour. Null is the
+   *  ordinary case, where `ink` above is the whole of it; valid for the
+   *  duration of the paint call. */
+  const material::skia::Paint* inkPaint = nullptr;
+  /** THE BOX THAT PAINT IS ANCHORED TO: its extent, and this node's own
+   *  space mapped into it. An EMPTY extent is the own-box case — the box
+   *  being painted is the box the paint maps onto — and is what a paint
+   *  anchored to a declaring box or to the canvas replaces. */
+  SkSize inkAnchorSize = SkSize::MakeEmpty();
+  SkMatrix inkAnchorToRoot = SkMatrix::I();
   /** THE FONT IN FORCE at this node, every field resolved — what a pen
    *  program hosted here sets its text in, and what a guest tree painted
    *  from it inherits. The initial values outside a composer. */
@@ -295,6 +307,13 @@ using PaintProgram = core::Callable<void(SkCanvas&, const PaintContext&)>;
  *  through here first; one that reads the colour without a context sees the
  *  root's black for the ink and nothing for a property. */
 [[nodiscard]] Fill resolveRef(const Fill& fill, const PaintContext& ctx);
+
+/** THE INK'S PAINT AS A FILL at the node @p ctx describes. An own-box ink
+ *  maps the paint's unit square onto that node's box, which is what every
+ *  other paint on a node does; an anchored one maps it onto the box the
+ *  context names and hands back this node's slice of it. */
+[[nodiscard]] Fill resolveInk(const material::skia::Paint& paint,
+                              const PaintContext& ctx);
 
 // ---------------------------------------------------------------------------
 // A paint as a node's fill — the adapter between SigilMaterial's Skia

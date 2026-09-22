@@ -22,7 +22,7 @@
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
+#include <sigilweave/fonts/Shaper.h>  // makeFont — the ink band's cap-height metrics
 
 #include <algorithm>
 #include <chrono>

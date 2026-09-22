@@ -11,6 +11,8 @@
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/PaintAnchor.h>
+#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/layout/Block.h>
@@ -48,6 +50,15 @@ class CascadeVerbs {
    *  nobody set, or one holding a length, leaves the inherited ink
    *  standing and says so once. */
   Derived& ink(VarRef reference);
+  /** THE INK AS A WHOLE PAINT — a ramp, a sprite, a recipe, SkSL —
+   *  taking everything `fill` takes. A plain colour behaves as the
+   *  colour form above does; any other paint inherits the same way but
+   *  SNAPS under a transition rather than easing, as a fill does. @p
+   *  anchor is the box the paint's unit square maps onto, own box by
+   *  default, which for a text leaf is its text-metric box.
+   *  @trap An empty paint clears an ancestor's ink paint and leaves the
+   *  inherited colour standing. */
+  Derived& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox);
   /** A CUSTOM PROPERTY set on this node and inherited by everything
    *  under it, read back through `var(name)`, `Fill::var` or
    *  `ink(var(name))`. The nearest ancestor that set a name wins. */

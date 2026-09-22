@@ -67,7 +67,7 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
 
-static_assert(kFieldCount<TextData> == 20 && kFieldCount<TextOptions> == 10 &&
+static_assert(kFieldCount<TextData> == 19 && kFieldCount<TextOptions> == 10 &&
                   kFieldCount<SpanRestyle> == 4,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
@@ -129,13 +129,6 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // falls back to never pruning.
   if (ta.onPath.has_value() != tb.onPath.has_value()) return false;
   if (ta.onPath && !textPathEqual(*ta.onPath, *tb.onPath)) return false;
-  // textFill(): live never prunes, static compares by recipe.
-  if (ta.metricFill.has_value() != tb.metricFill.has_value()) return false;
-  if (ta.metricFill) {
-    if (ta.metricFill->isAnimated() || tb.metricFill->isAnimated())
-      return false;
-    if (!(*ta.metricFill == *tb.metricFill)) return false;
-  }
   // textAttach(): a comparable selector and the key of the child it anchors, in
   // declaration order — so a re-described mark list prunes, and a mark
   // pointed at a different unit re-resolves its rect.
@@ -419,7 +412,7 @@ namespace detail {
  * reaches here, because `inst.description` holds the memo's PRODUCED payload;
  * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 28 && kFieldCount<PaintProps> == 14 &&
+static_assert(kFieldCount<ElementNode> == 28 && kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 2 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 5,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
@@ -472,6 +465,13 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   // pass carries it down.
   if ((bool)a.cascadeData != (bool)b.cascadeData) return false;
   if (a.cascadeData && !(*a.cascadeData == *b.cascadeData)) return false;
+  // ink(paint): a LIVE ink paint never prunes. Two live paints built from
+  // one recipe compare equal, and the subtree under them is painted from
+  // uniforms that moved since the recording was made.
+  if (a.cascadeData && a.cascadeData->inkPaint &&
+      (a.cascadeData->inkPaint->isAnimated() ||
+       b.cascadeData->inkPaint->isAnimated()))
+    return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;
   if (a.nodeTransition &&
@@ -501,6 +501,7 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
     return false;
   }
   if (!propertyEqual(pa.opacity, pb.opacity) || pa.blendMode != pb.blendMode ||
+      pa.backgroundOrigin != pb.backgroundOrigin ||
       !propertyEqual(pa.translateX, pb.translateX) ||
       !propertyEqual(pa.translateY, pb.translateY) ||
       !propertyEqual(pa.rotate, pb.rotate) ||

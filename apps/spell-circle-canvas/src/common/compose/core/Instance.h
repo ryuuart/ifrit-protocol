@@ -189,6 +189,12 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // IS the ink. Written by the cascade pass before layout; read by text
   // materialisation, by the relative lengths and by the paint context.
   sigil::weave::Type font;
+  // THE INK IN FORCE AS A PAINT at this node, inherited exactly as the
+  // font's colour is, and empty on the tree every ink is a colour on.
+  InkInForce inkPaint;
+  // Whether THIS node is the one that stated that paint — the box an
+  // ink anchored to a declaring box maps onto.
+  bool inkPaintOrigin = false;
   // THE BLOCK IN FORCE at this node: the parent's, with what this node's
   // description declares folded over. A partial, since an unset field is
   // the layout's own answer and nothing engages it. Written by the pass
@@ -681,7 +687,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   sk_sp<SkShader> bakedLiveShader;
 
   // Does this node's description carry a world-space material ANYWHERE a
-  // paint consumes one — the fill slot, textFill, an effect's child
+  // paint consumes one — the fill slot, the ink's paint, an effect's child
   // materials, a mask's coverage? Computed once at reconcile patch
   // (Reconcile.cpp), so the per-relayout syncLayoutRects walk and the
   // volatility walk read a bool instead of re-walking material trees.

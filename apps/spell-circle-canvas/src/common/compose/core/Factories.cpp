@@ -80,7 +80,7 @@ Text text(sigil::weave::RichText spans) {
   text.inherits = !spans.hasBase();
   // The base rides along as `style` because everything downstream that asks
   // a text leaf what it is set in — the strut a line height comes from, the
-  // metric band textFill() maps into — reads one style, and a mixed
+  // metric band an own-box ink maps into — reads one style, and a mixed
   // paragraph's answer to that question is the style its unstyled runs use.
   text.style = spans.base();
   text.rich = std::move(spans);

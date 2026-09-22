@@ -20,7 +20,11 @@ Rule& Rule::font(sigil::weave::Type partial) {
   sigil::weave::merge(m_type, partial);
   // A colour written here is the ink, so a property the ink was read
   // from before no longer stands.
-  if (partial.color) m_inkVar.reset();
+  if (partial.color) {
+    m_inkVar.reset();
+    m_inkPaint.reset();
+    m_statesInk = true;
+  }
   return *this;
 }
 
@@ -32,12 +36,35 @@ Rule& Rule::block(sigil::weave::Block partial) {
 Rule& Rule::ink(material::Color colour) {
   m_type.color = material::skia::toSkColor(colour);
   m_inkVar.reset();
+  m_inkPaint.reset();
+  m_statesInk = true;
   return *this;
 }
 
 Rule& Rule::ink(VarRef reference) {
   m_inkVar = reference;
   m_type.color.reset();
+  m_inkPaint.reset();
+  m_statesInk = true;
+  return *this;
+}
+
+Rule& Rule::ink(SurfacePaint paint, PaintAnchor anchor) {
+  // A PLAIN COLOUR is the ink lane as it has always been. A paint that
+  // happens to be flat is not one: it overrides the glyphs of a leaf set
+  // in a style of its own, which an inherited colour does not reach.
+  const std::optional<Fill> flat =
+      paint.writtenAsPaint() ? std::nullopt : paint.collapsedFill();
+  if (flat && flat->kind == Fill::Kind::Color && !flat->references())
+    return ink(flat->colorValue);
+  m_statesInk = true;
+  m_inkPaint.reset();
+  m_inkAnchor = anchor;
+  if (paint.none()) return *this;
+  if (std::optional<material::skia::Paint> stored = paint.collapsedPaint())
+    m_inkPaint = std::move(stored);
+  else
+    m_statesInk = false;
   return *this;
 }
 

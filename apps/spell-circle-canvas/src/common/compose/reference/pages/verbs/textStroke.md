@@ -50,7 +50,7 @@ thickens the glyph outward from its edge and never covers the face of
 it.
 
 **It composes with the rest of the text surface**: with
-[`textFill`](textFill.md), which paints the fill above it; with the
+[`ink`](ink.md), which paints the fill above it; with the
 style's own underlays and overlays, which it joins rather than replaces;
 and with the fx tracks, which carry every pass along as a glyph moves.
 
@@ -66,6 +66,6 @@ so it costs no rectangle and survives whatever is underneath.
 
 ## See also
 
-[`textFill`](textFill.md), [`stroke`](stroke.md) for the node's
+[`ink`](ink.md), [`stroke`](stroke.md) for the node's
 boundary, `decorationOutline` for dressing a node with the outline of its glyphs,
 and [`text`](../elements/text.md).

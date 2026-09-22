@@ -131,7 +131,7 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/TextStyle.h` — `TextStyleVerbs`: `paragraphStyles`,
   `initialLetter`, `textFirstBaseline`, `textVerticalAlign`,
   `textLineMargin`, `textWillChange`,
-  `textOverflow`, `maxTextLines`, `textFill`, `textStroke`, `contentFlowAround`.
+  `textOverflow`, `maxTextLines`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `textAttach`,
   `textAnnotation`, `textThreadTo`, `textThreadBalance`, `textOnPath`,
   `spanPaint`, `spanStyle`, `atRest`; and `Text`, the leaf that has them

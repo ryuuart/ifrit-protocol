@@ -73,11 +73,6 @@ class TextStyleVerbs {
    *  overflow, and `textOverflow()`, when set, lands on the clamped line.
    *  0 is unclamped. */
   Derived& maxTextLines(int lines);
-  /** Paint the GLYPHS with this material, mapped to TEXT-METRIC space:
-   *  the material's unit square lands with x across the widest line and
-   *  y from the first line's cap top to the last line's baseline. An
-   *  EMPTY paint clears the override. */
-  Derived& textFill(SurfacePaint paint);
   /** Stroke the GLYPHS, under the fill — engraved display type, an
    *  outlined label, a caption that has to survive over an image. Not
    *  `stroke()`, which dresses the node's box. */

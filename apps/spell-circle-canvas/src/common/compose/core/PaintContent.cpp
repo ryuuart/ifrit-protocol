@@ -3,7 +3,7 @@
  * clip, the fill, the echoes and overlays, the leaf content, the children,
  * the foregrounds — with the masking family applied over it, the silhouette
  * the marks are dressed along, and the one glyph-paint override
- * textFill()/textStroke() ask for.
+ * ink(paint)/textStroke() ask for.
  */
 
 #include <include/core/SkCanvas.h>
@@ -24,7 +24,7 @@
 #include <sigilshaders/ComposeCore.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
+#include <sigilweave/fonts/Shaper.h>  // makeFont — the ink band's cap-height metrics
 
 #include <algorithm>
 #include <cmath>
@@ -155,12 +155,12 @@ const SkPath& Composer::Impl::resolveOutline(Instance& inst,
 }
 
 // ---------------------------------------------------------------------------
-// textFill()/textStroke(): the one glyph-paint override
+// ink(paint)/textStroke(): the one glyph-paint override
 
 std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
     Instance& inst, const PaintContext& paintCtx) {
   const ElementNode& node = *inst.description;
-  const material::skia::Paint* metricMat = metricFillOf(node);
+  const material::skia::Paint* metricMat = inkPaintOf(inst);
   const bool stroked = node.textData && node.textData->hasTextStroke;
   if (!metricMat && !stroked) return std::nullopt;
   if (!inst.paragraph.has_value()) return std::nullopt;
@@ -172,7 +172,7 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
   //
   // The override replaces the whole PaintStyle for every run, so it starts
   // as a COPY of the paragraph's own style and swaps only the foreground —
-  // textFill supersedes the fill, not the underlays, overlays and
+  // an ink paint supersedes the fill, not the underlays, overlays and
   // decorations around it (a chrome wordmark keeps its cast shadow and dark
   // keyline).
   sigil::weave::PaintStyle metric = paragraph.spans().empty()
@@ -202,6 +202,22 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
     havePaint = true;
   }
   if (!metricMat) return havePaint ? std::optional(metric) : std::nullopt;
+
+  // AN ANCHORED INK is already resolved in this node's own space — the
+  // slice it stands on of the box the ink was anchored to — so nothing
+  // maps it onto the metric band, which is the own-box reading.
+  if (inst.inkPaint.anchor != PaintAnchor::OwnBox) {
+    const Fill anchored = resolveInk(*metricMat, paintCtx);
+    if (anchored.kind == Fill::Kind::Shader && anchored.shaderValue) {
+      metric.foreground.setShader(anchored.shaderValue);
+      havePaint = true;
+    } else if (anchored.kind == Fill::Kind::Color) {
+      metric.foreground.setColor4f(
+          material::skia::toSkColor(anchored.colorValue), nullptr);
+      havePaint = true;
+    }
+    return havePaint ? std::optional(metric) : std::nullopt;
+  }
 
   // Geometry-dependent materials resolve against a UNIT box here, not the
   // node's. The local matrix below already maps the shader's [0,1]² onto
@@ -511,6 +527,12 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       // custom properties a fill or an ink may read.
       .ink = inst.font.color ? material::skia::toColor(*inst.font.color)
                              : material::Color{0, 0, 0, 1},
+      .inkPaint = inst.inkPaint.paint ? &*inst.inkPaint.paint : nullptr,
+      .inkAnchorSize = inkAnchorSize,
+      // This node's own space mapped INTO the anchor box: the walk holds
+      // the anchor's node→root matrix, and a slice is what stands between
+      // the two.
+      .inkAnchorToRoot = anchorSpace(),
       .font = inst.font,
       .vars = inst.vars.get(),
       .pointer = pointerHere,
@@ -799,8 +821,29 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // they must stay balanced against their restores below, and the
     // foregrounds still trace the outline.)
   } else if (const material::skia::Paint* live = liveMaterialOf(node)) {
-    resolvedFill = inst.hasPendingLiveFill ? inst.pendingLiveFill
-                                           : resolveFill(*live, paintCtx);
+    // background-origin: the paint's unit square begins at the box the
+    // origin names rather than at the node's own. The painted AREA does
+    // not move with it — a clip is what would move that, and this library
+    // does not adopt one — so the paint is resolved against the origin
+    // box and then placed at its corner.
+    // A border here is a stroke dressing the boundary rather than a box
+    // lane, so the padding box IS the border box and only the content box
+    // moves the paint.
+    if (node.paint.backgroundOrigin != BackgroundOrigin::ContentBox ||
+        inst.hasPendingLiveFill) {
+      resolvedFill = inst.hasPendingLiveFill ? inst.pendingLiveFill
+                                             : resolveFill(*live, paintCtx);
+    } else {
+      const detail::Insets inset = paddingOf(inst);
+      PaintContext originCtx = paintCtx;
+      originCtx.size = {std::max(bounds.width() - inset.across(), 1.0f),
+                        std::max(bounds.height() - inset.down(), 1.0f)};
+      Fill placed = resolveFill(*live, originCtx);
+      if (placed.kind == Fill::Kind::Shader && placed.shaderValue)
+        placed.shaderValue = placed.shaderValue->makeWithLocalMatrix(
+            SkMatrix::Translate(inset.left, inset.top));
+      resolvedFill = std::move(placed);
+    }
   } else if (node.paint.fill) {
     Fill fill;
     if (const choreograph::Output<Fill>* binding = node.paint.fill->binding())
@@ -952,7 +995,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
             const std::optional<TextPath>& path = node.textData->onPath;
             if (path.has_value()) onPath = &path.value();
           }
-          // textFill()/textStroke() resolve to ONE glyph-paint override,
+          // ink(paint)/textStroke() resolve to ONE glyph-paint override,
           // and every draw that takes one takes the SAME one: a letter in
           // flight, and a letter on a curve, are painted exactly as a
           // resting letter is.

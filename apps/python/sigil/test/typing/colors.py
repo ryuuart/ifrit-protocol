@@ -96,7 +96,7 @@ assert_type(compose.box().fill(tinting), compose.Element)
 # of them could have been narrowed against: a recipe instance.
 assert_type(compose.SurfacePaint(recipe), compose.SurfacePaint)
 assert_type(compose.stroke(1, recipe), compose.PathFormat)
-assert_type(compose.text("words").textFill(recipe), compose.Text)
+assert_type(compose.text("words").ink(recipe), compose.Text)
 assert_type(compose.kit.dot((0, 0), 2, recipe), compose.Element)
 assert_type(compose.kit.line(fill=recipe), compose.Element)
 assert_type(compose.kit.ladder(count=2, pitch=8, fill=ramp), compose.Element)

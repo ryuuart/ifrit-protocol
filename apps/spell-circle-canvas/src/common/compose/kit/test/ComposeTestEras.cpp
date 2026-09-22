@@ -147,7 +147,7 @@ TEST(KitEras, TheChromeTypeRampsSitInUnitSpaceSoTheHorizonHoldsAtAnySize) {
   auto lit = [](float size, const material::skia::Paint& ramp) {
     Host host(300, 200);
     host.composer.render(box().padding(20).children(
-        {text(u8"HH", whiteStyle(size)).key("word").textFill(ramp)}));
+        {text(u8"HH", whiteStyle(size)).key("word").ink(ramp)}));
     host.frame();
     const SkRect at = require(host.composer.bounds("word"));
     const auto band = [&](float frac) {

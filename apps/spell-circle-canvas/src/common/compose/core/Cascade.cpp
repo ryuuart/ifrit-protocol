@@ -138,6 +138,10 @@ Fill resolveRef(const Fill& fill, const PaintContext& ctx) {
     case Fill::Ref::None:
       return fill;
     case Fill::Ref::CurrentInk:
+      // The ink is a whole paint wherever one was stated, and a colour
+      // everywhere else; both are what a mark naming no colour is
+      // painted in.
+      if (ctx.inkPaint) return resolveInk(*ctx.inkPaint, ctx);
       return Fill::color(ctx.ink);
     case Fill::Ref::Var: {
       const VarValue* value =
@@ -207,8 +211,9 @@ void Composer::Impl::runCascade() {
   if (rootLineHeight <= 0.0f) rootLineHeight = lineHeightAt(rootFont);
   indexRoot(*root);
   const SheetChain none;
+  const InkInForce noInkPaint;
   resolveCascade(*root, rootFont, rootLineHeight, nullptr, rootBlock,
-                 rootSampling, rootSheet, none);
+                 rootSampling, rootSheet, none, noInkPaint);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
   // says otherwise.
@@ -221,9 +226,13 @@ void Composer::Impl::resolveCascade(
     const sigil::weave::Block& parentBlock,
     const std::optional<SkSamplingOptions>& parentSampling,
     const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet,
-    const SheetChain& parentSheets) {
+    const SheetChain& parentSheets, const InkInForce& parentInkPaint) {
   const ElementNode& node = *inst.description;
   sigil::weave::Type font = parentFont;
+  // The ink's paint inherits exactly as the font's colour does, and the
+  // node that STATED it is the box a declaring-box anchor maps onto.
+  InkInForce inkPaint = parentInkPaint;
+  bool inkPaintOrigin = false;
   std::shared_ptr<const VarTable> vars = parentVars;
   sigil::weave::Block block = parentBlock;
   std::optional<SkSamplingOptions> sampling = parentSampling;
@@ -311,6 +320,10 @@ void Composer::Impl::resolveCascade(
       } else if (rule.type().color) {
         inkVar.reset();
       }
+      if (rule.statesInk()) {
+        inkPaint = {rule.inkPaint(), rule.inkAnchor()};
+        inkPaintOrigin = rule.inkPaint().has_value();
+      }
       if (!rule.vars().empty()) ruleVars.overlay(rule.vars());
     }
     if (cascade != nullptr) {
@@ -320,6 +333,10 @@ void Composer::Impl::resolveCascade(
       }
       if (cascade->block) sigil::weave::merge(ownBlock, *cascade->block);
       if (cascade->inkVar) inkVar = cascade->inkVar;
+      if (cascade->statesInk) {
+        inkPaint = {cascade->inkPaint, cascade->inkAnchor};
+        inkPaintOrigin = cascade->inkPaint.has_value();
+      }
     }
     sigil::weave::merge(block, ownBlock);
     if (cascade != nullptr && cascade->sampling) sampling = cascade->sampling;
@@ -365,10 +382,21 @@ void Composer::Impl::resolveCascade(
 
   const bool first = !inst.cascadeResolved;
   const bool shapeChanged = first || !sameFontButColour(font, inst.font);
-  const bool inkChanged = first || !(font.color == inst.font.color);
+  const bool inkChanged =
+      first || !(font.color == inst.font.color) || !(inkPaint == inst.inkPaint);
   const bool varsChanged = first || !sameVars(vars, inst.vars);
   const bool samplingChanged = first || !(sampling == inst.sampling);
   inst.font = font;
+  inst.inkPaint = inkPaint;
+  // An ink anchored to a box that is NOT the one being painted samples a
+  // field this node's place in the tree decides, so the node invalidates
+  // when it moves, exactly as a world-space material does. Set here and
+  // never cleared here: the reconcile writes the flag from the node's own
+  // description, and a flag left standing costs an invalidation, never a
+  // wrong pixel.
+  if (inkPaint.paint && inkPaint.anchor != PaintAnchor::OwnBox)
+    inst.hasWorldSpaceMaterial = true;
+  inst.inkPaintOrigin = inkPaintOrigin;
   inst.vars = vars;
   inst.block = block;
   inst.sampling = sampling;
@@ -442,7 +470,7 @@ void Composer::Impl::resolveCascade(
   indexSiblings(inst);
   for (auto& child : inst.children)
     resolveCascade(*child, font, inst.lineHeight, vars, block, sampling, sheet,
-                   *sheets);
+                   *sheets, inkPaint);
 }
 
 void Composer::Impl::refreshInheritedInk(Instance& inst) {

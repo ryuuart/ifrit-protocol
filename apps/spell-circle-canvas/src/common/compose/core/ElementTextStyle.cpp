@@ -107,22 +107,6 @@ Derived& TextStyleVerbs<Derived>::maxTextLines(int lines) {
 }
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::textFill(SurfacePaint paint) {
-  detail::TextData& text = declarations()->textData.ensure();
-  // An empty paint CLEARS the override, because that is what asking for
-  // no glyph paint means. A fill the slot cannot store — the ink in
-  // force, a custom property, a bound fill — leaves whatever paint the
-  // glyphs already carry: blanking it would repaint them in a colour
-  // nobody named, and the reference the caller wrote is the colour they
-  // are painted in without an override anyway.
-  if (paint.none())
-    text.metricFill.reset();
-  else if (std::optional<material::skia::Paint> stored = paint.collapsedPaint())
-    text.metricFill = std::move(stored);
-  return self();
-}
-
-template <class Derived>
 Derived& TextStyleVerbs<Derived>::textStroke(float width,
                                              SurfacePaint paint) {
   detail::TextData& text = declarations()->textData.ensure();

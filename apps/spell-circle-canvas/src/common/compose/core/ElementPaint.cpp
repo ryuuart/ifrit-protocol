@@ -40,6 +40,18 @@ Derived& PaintVerbs<Derived>::fill(material::skia::Paint m) {
   return self();
 }
 
+template <class Derived>
+Derived& PaintVerbs<Derived>::fill(material::skia::Paint m, PaintAnchor anchor,
+                                   BackgroundOrigin origin) {
+  // CanvasBox IS root anchoring: the unit square maps onto the canvas and
+  // the shader is sampled through the node's place in it, which is the
+  // one mechanism the paint library already resolves through. A fill does
+  // not inherit, so DeclaringBox says nothing OwnBox does not.
+  if (anchor == PaintAnchor::CanvasBox) m.worldSpace(true);
+  declarations()->paint.backgroundOrigin = origin;
+  return fill(std::move(m));
+}
+
 template class PaintVerbs<Element>;
 template class PaintVerbs<Text>;
 template class PaintVerbs<Image>;

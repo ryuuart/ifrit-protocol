@@ -301,6 +301,24 @@ struct Composer::Impl {
   // the hit test inverts, and a world-space field lands where the hit test
   // says the node is.
   SkMatrix curToRoot = SkMatrix::I();
+  // THE BOX THE INK'S PAINT IS ANCHORED TO, accumulated by the same walk:
+  // the anchor box's own node→root matrix and its extent. An EMPTY extent
+  // is the own-box case — every node maps the paint onto its own box —
+  // and is what an ink anchored to a declaring box or to the canvas
+  // replaces for the subtree under the node that stated it.
+  SkMatrix inkAnchorToRoot = SkMatrix::I();
+  SkSize inkAnchorSize = SkSize::MakeEmpty();
+  /** The node being painted mapped into that anchor box — what a paint
+   *  anchored there samples through. Identity on the own-box case and
+   *  wherever the anchor's matrix will not invert, which draws the
+   *  anchored paint as an own-box one rather than as nothing. */
+  [[nodiscard]] SkMatrix anchorSpace() const {
+    if (inkAnchorSize.isEmpty()) return SkMatrix::I();
+    SkMatrix fromAnchor;
+    if (!inkAnchorToRoot.invert(&fromAnchor)) return SkMatrix::I();
+    fromAnchor.preConcat(curToRoot);
+    return fromAnchor;
+  }
   // The root's LAID-OUT size (canvas px) — differs from `size` under an
   // intrinsic root (snapshot()). Written by paint() at the root frame;
   // PaintContext::rootSize is read from here.
@@ -465,7 +483,8 @@ struct Composer::Impl {
       const sigil::weave::Block& parentBlock,
       const std::optional<SkSamplingOptions>& parentSampling,
       const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet,
-      const detail::SheetChain& parentSheets);
+      const detail::SheetChain& parentSheets,
+      const detail::InkInForce& parentInkPaint);
   /** An inheriting text leaf whose ink alone changed: the new colour set
    *  on its inherited ranges in place, the restyles replayed over them,
    *  and nothing re-shaped or re-broken. */
@@ -772,7 +791,7 @@ struct Composer::Impl {
   // ---- paint (StackingPainter.cpp and the paint-phase files beside it) ----
   float hostScale = 1.0f;  // device px per layout px at draw() entry
   void paint(detail::Instance& inst, SkCanvas& canvas);
-  /** The glyph-paint override textFill()/textStroke() ask for, or nullopt
+  /** The glyph-paint override ink(paint)/textStroke() ask for, or nullopt
    *  when the node asks for neither. ONE body, called by the resting draw
    *  and by the fx() draw — a letter in flight is painted exactly as a
    *  resting one is. */

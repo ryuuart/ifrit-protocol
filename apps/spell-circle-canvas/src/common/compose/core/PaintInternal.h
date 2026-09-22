@@ -26,9 +26,10 @@ inline const material::skia::Paint* liveMaterialOf(const ElementNode& n) {
   return n.materialData && n.materialData->live ? &*n.materialData->live
                                                 : nullptr;
 }
-inline const material::skia::Paint* metricFillOf(const ElementNode& n) {
-  return n.textData && n.textData->metricFill ? &*n.textData->metricFill
-                                              : nullptr;
+/** THE INK IN FORCE AS A PAINT at this instance, or null where the ink
+ *  is a colour — which is the whole of nearly every tree. */
+inline const material::skia::Paint* inkPaintOf(const Instance& inst) {
+  return inst.inkPaint.paint ? &*inst.inkPaint.paint : nullptr;
 }
 /** The node's fx() tracks, or an empty span. */
 inline std::span<const Track> tracksOf(const ElementNode& n) {

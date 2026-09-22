@@ -516,3 +516,111 @@ TEST(ComposeCascade, TheRootInheritsWhatTheComposerWasTold) {
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 60)));
   EXPECT_GT(widthOf(host, "t"), 40.0f);
 }
+
+// ---------------------------------------------------------------------------
+// ink(paint): the ink lane holding a whole paint, and the box it maps onto
+
+namespace {
+
+/** A red-to-blue ramp across the unit square, left to right. */
+material::skia::Paint redToBlue() {
+  return material::skia::Paint::linearUnit(
+      {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+}
+
+/** Two 40x40 boxes filled with the ink in force, side by side inside a
+ *  120-wide declaring box that sets @p ink under @p anchor. */
+Element twoSwatches(SurfacePaint ink, PaintAnchor anchor) {
+  const auto swatch = [](std::string key) {
+    return box()
+        .key(std::move(key))
+        .width(40)
+        .height(40)
+        .fill(Fill::currentInk());
+  };
+  return box()
+      .row()
+      .width(120)
+      .height(40)
+      .ink(std::move(ink), anchor)
+      .children({swatch("left"), swatch("right")});
+}
+
+}  // namespace
+
+TEST(ComposeCascade, AnInkPaintPaintsEveryMarkUnderItThatNamesNoColour) {
+  // The ink takes what a fill takes; a fill written as the ink in force
+  // resolves to the paint rather than to a colour.
+  Host host;
+  host.composer.render(twoSwatches(redToBlue(), PaintAnchor::OwnBox));
+  host.frame();
+  // Own box: each swatch shows the WHOLE ramp, so both run red to blue.
+  EXPECT_GT(SkColorGetR(host.pixel(2, 20)), 200u);
+  EXPECT_GT(SkColorGetB(host.pixel(38, 20)), 200u);
+  EXPECT_GT(SkColorGetR(host.pixel(42, 20)), 200u);
+  EXPECT_GT(SkColorGetB(host.pixel(78, 20)), 200u);
+}
+
+TEST(ComposeCascade, AnInkPaintOnTheDeclaringBoxGivesEachMarkItsOwnSlice) {
+  Host host;
+  host.composer.render(twoSwatches(redToBlue(), PaintAnchor::DeclaringBox));
+  host.frame();
+  // One ramp across the 120-wide declaring box: the left swatch holds its
+  // first third and the right one its middle third, so the left is red
+  // throughout and the right is neither end.
+  EXPECT_GT(SkColorGetR(host.pixel(2, 20)), 200u);
+  EXPECT_LT(SkColorGetB(host.pixel(38, 20)), 150u);
+  EXPECT_GT(SkColorGetB(host.pixel(78, 20)), 100u);
+  EXPECT_LT(SkColorGetB(host.pixel(78, 20)), 220u);
+}
+
+TEST(ComposeCascade, AnInkPaintOnTheCanvasBoxIsOneFieldTheWholeTreeStandsIn) {
+  // The same two swatches, moved: a canvas-anchored ink is a field the
+  // canvas owns, so what a mark shows is decided by where it stands.
+  Host host;
+  const auto page = [](float left) {
+    return box().children({twoSwatches(redToBlue(), PaintAnchor::CanvasBox)
+                               .absolute()
+                               .left(left)
+                               .top(0.0f)});
+  };
+  host.composer.render(page(0.0f));
+  host.frame();
+  const SkColor atOrigin = host.pixel(20, 20);
+  host.composer.render(page(100.0f));
+  host.frame();
+  const SkColor moved = host.pixel(120, 20);
+  // The 200px canvas carries the whole ramp, so a swatch 100px further
+  // right shows a bluer slice of it than the same swatch at the origin.
+  EXPECT_GT(SkColorGetB(moved), SkColorGetB(atOrigin) + 60u);
+}
+
+TEST(ComposeCascade, AnEmptyInkPaintClearsAnAncestorsAndLeavesTheColour) {
+  Host host;
+  host.composer.render(
+      box()
+          .ink({0, 1, 0, 1})
+          .ink(redToBlue())
+          .children({box()
+                         .ink(SurfacePaint{})
+                         .children({box().key("c").width(40).height(40).fill(
+                             Fill::currentInk())})}));
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 20), SkColorSetARGB(255, 0, 255, 0));
+}
+
+TEST(ComposeCascade, APaintHoldingOneColourIsAPaintAndAPlainColourIsTheLane) {
+  // A plain colour is the lane that eases and that a style of the leaf's
+  // own overrides; a paint that happens to be flat overrides the style.
+  Host host;
+  host.composer.render(box().padding(10).children(
+      {text(u8"HH", whiteStyle(48))
+           .ink(material::skia::Paint::solid({1, 0, 0, 1}))}));
+  host.frame();
+  EXPECT_GT(redInk(host), 40);
+  Host plain;
+  plain.composer.render(box().padding(10).children(
+      {text(u8"HH", whiteStyle(48)).ink(material::Color{1, 0, 0, 1})}));
+  plain.frame();
+  EXPECT_EQ(redInk(plain), 0);  // the leaf's own style stands
+}

@@ -7,7 +7,7 @@ header: sigilcompose/core/Factories.h
 group: Leaves
 status: stable
 example: text_element
-common_verbs: [font, ink, block, maxTextLines, textOverflow, textFill, textStroke, paragraphStyles]
+common_verbs: [font, ink, block, maxTextLines, textOverflow, textStroke, paragraphStyles]
 ---
 
 # text
@@ -85,7 +85,7 @@ node is wanted. Its children are its marks and its slot mounts.
 
 ## See also
 
-`frame` for one frame of a story, [`textFill`](../verbs/textFill.md) and
-[`textStroke`](../verbs/textStroke.md) for painting the glyphs,
-[`ink`](../verbs/ink.md) for the colour a leaf inherits, and the *text
-leaf* group on [the verb index](../../VERBS.md).
+`frame` for one frame of a story, [`ink`](../verbs/ink.md) for what a
+leaf inherits and for painting the glyphs with a whole paint,
+[`textStroke`](../verbs/textStroke.md) for the pass under them, and the
+*text leaf* group on [the verb index](../../VERBS.md).

@@ -383,7 +383,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
 
         // The whole span style rides along, so a letter in flight keeps the
         // gradient, stroke and glow passes it was styled with — and the
-        // textFill/textStroke override, when the node carries one.
+        // ink(paint)/textStroke override, when the node carries one.
         sigil::weave::GlyphDress dress;
         dress.alphaScale = alpha;
         dress.colorMultiplier = material::skia::toSkColor(tint);

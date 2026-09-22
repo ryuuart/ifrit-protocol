@@ -178,8 +178,11 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // truly live (bound/uTime) — geometry-dependent materials resolve at
   // record time and stay cacheable
   const bool liveMat = liveMatAnimated && !patternPan;
-  const material::skia::Paint* mfLive = metricFillOf(node);
-  const bool metricLive = mfLive && mfLive->isAnimated();  // chrome type
+  // A LIVE INK PAINT moves what every mark and every glyph under this
+  // node is painted in, so the node that carries it re-resolves per frame
+  // exactly as a live fill material does.
+  const material::skia::Paint* inkLive = inkPaintOf(inst);
+  const bool metricLive = inkLive && inkLive->isAnimated();
   const bool cacheNone = node.cacheMode == Cache::None;
   const bool decorLive = [&] {
     bool live = false;
@@ -266,7 +269,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // A LIVE pass material on an fx() track — uTime, a bound uniform, a
   // bound block — repaints the pass's output every frame with no float the
   // scalar lane could compare, so it is opaque volatility, exactly as a
-  // live textFill material is. A pass whose only motion is its track's
+  // live ink paint is. A pass whose only motion is its track's
   // PROGRESS is not this: progress already rides the memoized scalar lane
   // above, and the recording replays once it settles.
   const bool passLive = [&] {

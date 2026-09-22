@@ -119,7 +119,8 @@ class StressPart final : public Scene {
           }
           if (m_effectOutline)
             m_effect.addUnderlay(sigil::weave::kit::outline(
-                kBlue.toSkColor(), std::max(0.55f, stressFontSize * 0.03f)));
+                SkColors::kBlue.toSkColor(),
+                std::max(0.55f, stressFontSize * 0.03f)));
           if (m_effectStars) {
             SkPaint stars;
             stars.setAntiAlias(true);

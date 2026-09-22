@@ -119,6 +119,34 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     curToRoot.preConcat(tf.matrix({0, 0}, rect.width(), rect.height()));
   }
 
+  // A node that STATES an anchored ink paint is the box everything under
+  // it shows a slice of, so the anchor is taken here, where this node's
+  // matrix and rect are both in hand, and restored on the way out.
+  struct InkAnchorScope {
+    Composer::Impl* impl;
+    SkMatrix savedMatrix;
+    SkSize savedSize;
+    ~InkAnchorScope() {
+      impl->inkAnchorToRoot = savedMatrix;
+      impl->inkAnchorSize = savedSize;
+    }
+  } inkAnchorScope{this, inkAnchorToRoot, inkAnchorSize};
+  if (inst.inkPaintOrigin) {
+    switch (inst.inkPaint.anchor) {
+      case PaintAnchor::OwnBox:
+        inkAnchorSize = SkSize::MakeEmpty();
+        break;
+      case PaintAnchor::DeclaringBox:
+        inkAnchorToRoot = curToRoot;
+        inkAnchorSize = {rect.width(), rect.height()};
+        break;
+      case PaintAnchor::CanvasBox:
+        inkAnchorToRoot = SkMatrix::I();
+        inkAnchorSize = rootLayoutSize;
+        break;
+    }
+  }
+
   // The space this node hosts for its children, and its own plane for
   // paintContent; a node hosting none closes the one it stands in, since
   // its children are flat in its plane. RAII for the same reason as above.

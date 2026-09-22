@@ -804,3 +804,84 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
   host.frame();  // paints with uK at its SkSL default (0) — and does not crash
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 40u);
 }
+
+// ---------------------------------------------------------------------------
+// fill(paint, anchor, origin): the box a paint is stretched over
+
+TEST(ComposeMaterial, ACanvasAnchoredFillIsOneFieldSeveralBoxesShowSlicesOf) {
+  // Two cards side by side, each filled with the same left-to-right ramp
+  // anchored to the canvas: the left card shows the ramp's left, the
+  // right card its right, and together they read as one gradient.
+  const auto ramp = [] {
+    return material::skia::Paint::linearUnit(
+        {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+  };
+  Host host;
+  const auto card = [&](std::string key, float left) {
+    return box()
+        .key(std::move(key))
+        .absolute()
+        .left(left)
+        .top(0.0f)
+        .width(80)
+        .height(40)
+        .fill(ramp(), PaintAnchor::CanvasBox);
+  };
+  host.composer.render(box().children({card("a", 0.0f), card("b", 110.0f)}));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(4, 20)), 200u);
+  EXPECT_GT(SkColorGetB(host.pixel(186, 20)), 200u);
+  // The seam between them: the right card's left edge continues where the
+  // canvas ramp stands there, so it is bluer than the left card's.
+  EXPECT_GT(SkColorGetB(host.pixel(114, 20)),
+            SkColorGetB(host.pixel(70, 20)) + 40u);
+}
+
+TEST(ComposeMaterial, AFillOnTheContentBoxStartsInsideThePadding) {
+  // The same ramp over the whole box and over the box inside its padding:
+  // the painted area is identical — there is no clip — and only where the
+  // ramp starts moves, so the top-left corner is redder on the inset one.
+  const auto ramp = [] {
+    return material::skia::Paint::linearUnit(
+        {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+  };
+  const auto page = [&](BackgroundOrigin origin) {
+    return box().children({box()
+                               .key("c")
+                               .width(100)
+                               .height(40)
+                               .padding(20)
+                               .fill(ramp(), PaintAnchor::OwnBox, origin)});
+  };
+  Host whole, inset;
+  whole.composer.render(page(BackgroundOrigin::BorderBox));
+  inset.composer.render(page(BackgroundOrigin::ContentBox));
+  whole.frame();
+  inset.frame();
+  // Both painted the same 100x40 box.
+  EXPECT_GT(SkColorGetA(whole.pixel(2, 20)), 200u);
+  EXPECT_GT(SkColorGetA(inset.pixel(2, 20)), 200u);
+  // The inset ramp is 60 wide and begins 20 in, so at x=70 it is already
+  // past its end and clamped to blue while the whole-box one is not.
+  EXPECT_GT(SkColorGetB(inset.pixel(70, 20)),
+            SkColorGetB(whole.pixel(70, 20)) + 40u);
+}
+
+TEST(ComposeMaterial, APaddingBoxFillNamesTheSameRectangleABorderBoxOneDoes) {
+  // A border here is a stroke dressing the boundary, not a box lane, so
+  // the two origins are the same rectangle until one exists.
+  const auto ramp = [] {
+    return material::skia::Paint::linearUnit(
+        {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+  };
+  const auto page = [&](BackgroundOrigin origin) {
+    return box().children({box().width(100).height(40).padding(20).fill(
+        ramp(), PaintAnchor::OwnBox, origin)});
+  };
+  Host border, padding;
+  border.composer.render(page(BackgroundOrigin::BorderBox));
+  padding.composer.render(page(BackgroundOrigin::PaddingBox));
+  border.frame();
+  padding.frame();
+  EXPECT_TRUE(identicalPixels(border, padding, 120, 60));
+}

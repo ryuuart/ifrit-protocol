@@ -76,6 +76,10 @@ std::optional<material::skia::Paint> SurfacePaint::collapsedPaint() const {
   return std::get<material::skia::Paint>(m_value);
 }
 
+bool SurfacePaint::writtenAsPaint() const {
+  return std::holds_alternative<material::skia::Paint>(m_value);
+}
+
 bool SurfacePaint::isAnimated() const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value))
     return fill->binding() != nullptr;
@@ -96,6 +100,23 @@ Fill toFill(const material::skia::Paint& paint) {
   if (paint.isSolid()) return Fill::color(paint.solidColor());
   if (sk_sp<SkShader> s = paint.staticShader())
     return Fill::shader(std::move(s));
+  return Fill::none();
+}
+
+Fill resolveInk(const material::skia::Paint& paint, const PaintContext& ctx) {
+  if (ctx.inkAnchorSize.isEmpty()) return resolveFill(paint, ctx);
+  if (paint.isSolid()) return Fill::color(paint.solidColor());
+  if (paint.isNone()) return Fill::none();
+  // The anchor box stands in for the canvas: a root-anchored build maps
+  // the unit square onto `rootSize` and samples the field through the
+  // inverse of `toRoot`, which is exactly "the slice of that box this
+  // node stands on".
+  material::skia::PaintFrame frame = frameOf(ctx);
+  frame.rootSize = ctx.inkAnchorSize;
+  frame.toRoot = ctx.inkAnchorToRoot;
+  material::skia::Paint anchored = paint;
+  anchored.worldSpace(true);
+  if (sk_sp<SkShader> s = anchored.shaderFor(frame)) return Fill::shader(std::move(s));
   return Fill::none();
 }
 

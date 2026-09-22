@@ -1,8 +1,8 @@
-"""textFill — the glyphs painted with a material mapped to text-metric
+"""ink — the glyphs painted with a material mapped to text-metric
 space, so one ramp authored in the unit square crosses the capitals at
 any size.
 
-The Python twin of textFill_verb.cpp. A reference example: it is
+The Python twin of inkPaint_verb.cpp. A reference example: it is
 rendered with ``sigil render`` and belongs to no sketch registry.
 """
 
@@ -38,8 +38,8 @@ class TextFillVerb:
     def describe(self) -> compose.Element:
         return (
             compose.box(
-                compose.text("CHROME", size=64).fontTrack(2).textFill(chrome()),
-                compose.text("SET SMALLER", size=26).fontTrack(2).textFill(chrome()),
+                compose.text("CHROME", size=64).fontTrack(2).ink(chrome()),
+                compose.text("SET SMALLER", size=26).fontTrack(2).ink(chrome()),
                 compose.text(
                     "One ramp, two sizes, the same horizon.", size=13, color=ASH
                 ),

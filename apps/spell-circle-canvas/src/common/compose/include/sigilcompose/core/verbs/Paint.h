@@ -8,6 +8,7 @@
 
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/PaintAnchor.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -41,6 +42,16 @@ class PaintVerbs {
    *  SkSL. A static paint collapses to a Fill, so it caches and prunes
    *  on the same path. */
   Derived& fill(material::skia::Paint m);
+  /** The same, saying which box the paint's unit square maps onto and
+   *  which of that box's rectangles it begins at. `CanvasBox` makes one
+   *  field several boxes show slices of; `ContentBox` starts the paint
+   *  inside the padding.
+   *  @trap A fill does not inherit, so `DeclaringBox` is `OwnBox`: the
+   *  element that stated the fill is the one painting it. And a border
+   *  here is a stroke dressing the boundary rather than a box lane, so
+   *  `PaddingBox` names the same rectangle `BorderBox` does. */
+  Derived& fill(material::skia::Paint m, PaintAnchor anchor,
+                BackgroundOrigin origin = BackgroundOrigin::BorderBox);
   /** A surface value supplied by component properties. Exact-type
    *  deduction keeps ordinary fill and material arguments on their own
    *  overloads. */

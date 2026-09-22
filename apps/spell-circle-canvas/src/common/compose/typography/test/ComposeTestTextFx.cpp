@@ -158,14 +158,14 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
 
 TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
   // A letter in flight is painted with the same glyph paint a resting one
-  // is: textFill's material is its foreground and textStroke's outline is
+  // is: ink's material is its foreground and textStroke's outline is
   // an underlay, both carried through the batched draw. Shadowed instead,
   // a chrome wordmark loses its chrome the moment it starts moving.
   Host host(220, 140);
   const auto tree = [](bool moving) {
     Text t = text(u8"II", whiteStyle(48))
                  .key("k")
-                 .textFill(material::skia::Paint::solid({0, 1, 0, 1}));
+                 .ink(material::skia::Paint::solid({0, 1, 0, 1}));
     if (moving)
       t.fx({.effect = fx::effect("still", [](const GlyphInfo&, float,
                                              sigil::core::noise::Mix64Stream&) {
@@ -187,11 +187,11 @@ TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
   host.composer.render(tree(false));
   host.frame();
   const int resting = greenPixels();
-  ASSERT_GT(resting, 20) << "textFill did not paint the resting glyphs green";
+  ASSERT_GT(resting, 20) << "ink did not paint the resting glyphs green";
   host.composer.render(tree(true));
   host.frame();
   EXPECT_GT(greenPixels(), resting / 2)
-      << "the fx path dropped textFill's material and painted the style's "
+      << "the fx path dropped ink's material and painted the style's "
          "own foreground instead";
 }
 
