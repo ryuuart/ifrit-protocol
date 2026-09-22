@@ -9,8 +9,9 @@
  * it churn at completely different rates.
  *
  *   THE WORLD   nine keyed targets standing on the probe's own path, and
- *               eight keyed wires between them, described once in setup
- *               and never again. Nothing in it is a rectangle, so the hit
+ *               eight wires between them — operators of the scene, each
+ *               keyed by the pair it joins — described once in setup and
+ *               never again. Nothing in it is a rectangle, so the hit
  *               test has to answer against real outlines rather than
  *               bounds.
  *   THE PROBE   a slot re-rendered EVERY frame, because a marker that
@@ -38,8 +39,10 @@
  *                   FROM it, never from the numbers that described the
  *                   target: a second copy of the arithmetic is a second
  *                   thing to keep in step.
- *   routesAt(key)   the edge store's back-index — which keyed wires are
- *                   anchored on that node. The wires it names light up.
+ *   bounds(pair)    a wire is keyed by the pair it joins, so the wires
+ *                   that touch the hit are named by asking for those
+ *                   keys. The ones that answer light up, routed again by
+ *                   `routeBetween` over the same two resolved boxes.
  *
  * The order of operations is the shape of all three: queries answer
  * against the resolved tree, so the scene is described first, the answers
@@ -56,6 +59,7 @@
 
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -100,7 +104,17 @@ sketch::kit::Theme sheetTheme() {
 }
 
 std::string targetKey(int i) { return "target-" + std::to_string(i); }
-std::string wireKey(int i) { return "wire-" + std::to_string(i); }
+/** A wire is keyed by the pair it joins, so its key is a question the
+ *  sketch can ask without keeping a second name for it. */
+std::string wireKey(int i) {
+  return targetKey(i) + "->" + targetKey(i + 1);
+}
+/** Which side each wire arcs to — the parity of its index. Stated once,
+ *  because the lit copy in the answer slot routes by the same rule. */
+Router wireRouter(int i) {
+  return routers::arc(i % 2 == 0 ? 0.22f : -0.22f);
+}
+constexpr float kWireGap = 6.0f;
 
 /** Where the probe is at scene time @p seconds: a Lissajous figure, so
  *  it crosses the field at an angle that never repeats over the run. */
@@ -123,6 +137,7 @@ struct HitSlots {
   std::string hitLabel = "—";
   std::optional<SkRect> hitBounds;
   std::vector<std::string> hitRoutes;
+  std::vector<SkPath> litWires;
   SkPoint probe{0, 0};
 
   /** THE WORLD: nine keyed outlines standing on the probe's path, eight
@@ -154,33 +169,30 @@ struct HitSlots {
         .fill(linearGradient(
             {0, 0}, {0, kCanvas.height()},
             {{0.07f, 0.06f, 0.13f, 1}, {0.16f, 0.09f, 0.20f, 1}}, {0.0f, 1.0f}))
+        // The wires are operators of the scene: each is routed from where
+        // its own two targets settled, and keyed by the pair it joins, so
+        // the answer slot can ask for one by name.
+        .operators([] {
+          std::vector<Operator> wires;
+          for (int i = 0; i + 1 < kTargets; ++i)
+            wires.push_back(
+                Operator(connect::Between{.from = targetKey(i),
+                                          .to = targetKey(i + 1),
+                                          .router = wireRouter(i),
+                                          .gap = kWireGap,
+                                          .wire = stroke(
+                                              1.6f, Fill::color(kWire))})
+                    .zIndex(1));
+          return wires;
+        }())
         .children(
             {stack().inset(0).zIndex(0).children({each(stations, target)}),
-             // The wires: keyed, so `routesAt` can name them. A keyless
-             // route is anchored but unaddressable, and the back-index
-             // omits it.
-             stack().inset(0).zIndex(1).hitTestable(false).children(
-                 {each(stations | std::views::take(kTargets - 1),
-                       [this](int i) {
-                         return wire(i, 1.6f, kWire).key(wireKey(i));
-                       })}),
              // Both slots opt OUT of the hit test. A slot's name is its
              // key, and a full-canvas marker slot would otherwise be the
              // topmost keyed node under every point the probe visits — the
              // readout would answer with the probe's own name, for ever.
              slot("probe").inset(0).zIndex(6).hitTestable(false),
              slot("answer").inset(0).zIndex(5).hitTestable(false)});
-  }
-
-  /** ONE WIRE between two neighbouring stations, arcing to whichever side
-   *  the parity of its index gives it. The LIT copy in the answer slot is
-   *  described exactly like the dim one, which is what lands it on top of
-   *  it: a route is a derivation of the two nodes' resolved bounds. */
-  Element wire(int i, float width, SkColor4f ink) const {
-    return connector(targetKey(i), targetKey(i + 1),
-                     routers::arc(i % 2 == 0 ? 0.22f : -0.22f), 6)
-        .hitTestable(false)
-        .stroke(stroke(width, Fill::color(ink)));
   }
 
   /** The probe marker: new content on every frame, which is why its
@@ -191,9 +203,9 @@ struct HitSlots {
          kit::ring(probe, 10, stroke(1.5f, Fill::color(SkColors::kWhite)))});
   }
 
-  /** THE ANSWER: the ring placed from `bounds`, the wires `routesAt`
-   *  named drawn again lit, and the three answers printed. Re-described
-   *  only when `hitTest` returns something new. */
+  /** THE ANSWER: the ring placed from `bounds`, the wires that touch the
+   *  hit drawn again lit, and the three answers printed. Re-described only
+   *  when `hitTest` returns something new. */
   Element answer() const {
     Element root = stack().inset(0).hitTestable(false);
 
@@ -206,12 +218,14 @@ struct HitSlots {
                          .borderRadius({16})
                          .foreground(stroke(2.5f, Fill::color(kLit)))
                          .hitTestable(false)});
-    // The named routes, drawn again over their own dim selves.
-    root.children({each(hitRoutes, [this](const std::string& route) {
-      const size_t dash = route.rfind('-');
-      return dash == std::string::npos
-                 ? box()
-                 : wire(std::stoi(route.substr(dash + 1)), 2.6f, kLit);
+    // The touching wires, drawn again over their own dim selves. The lit
+    // copy is the SAME ROUTE over the same two resolved boxes — routeBetween
+    // is the one statement of where a wire runs, so the copy cannot land
+    // anywhere else than the wire it lights.
+    root.children({each(litWires, [](const SkPath& route) {
+      return pathFigure(route, 8.0f)
+          .foreground(stroke(2.6f, Fill::color(kLit)))
+          .hitTestable(false);
     })});
 
     std::string routes;
@@ -234,7 +248,7 @@ struct HitSlots {
                .value = hitLabel,
                .ink = sketch::kit::theme().palette.ink},
               {.name = "bounds(\"" + hitLabel + "\")", .value = rect},
-              {.name = "routesAt(\"" + hitLabel + "\")", .value = routes}},
+              {.name = "wires at \"" + hitLabel + "\"", .value = routes}},
              {.nameMeasure = 196})
              .absolute()
              .left(20)
@@ -251,6 +265,7 @@ struct HitSlots {
     hitLabel = "—";
     hitBounds.reset();
     hitRoutes.clear();
+    litWires.clear();
     probe = walk(0.0);
     ctx.composer.render(describe());
     ctx.composer.renderSlot("probe", probeDot());
@@ -272,7 +287,22 @@ struct HitSlots {
     if (found == hitLabel) return;
     hitLabel = std::move(found);
     hitBounds = composer.bounds(hitLabel);
-    hitRoutes = composer.routesAt(hitLabel);
+    // WHICH WIRES TOUCH THE HIT: a wire is keyed by the pair it joins, so
+    // the question is asked of the keys, and `bounds` on one confirms it
+    // was routed and mounted rather than dropped for a stop that is gone.
+    hitRoutes.clear();
+    litWires.clear();
+    for (int i = 0; i + 1 < kTargets; ++i) {
+      const std::string key = wireKey(i);
+      if (key.find(hitLabel) == std::string::npos) continue;
+      if (!composer.bounds(key)) continue;
+      hitRoutes.push_back(key);
+      const std::optional<SkRect> from = composer.bounds(targetKey(i));
+      const std::optional<SkRect> to = composer.bounds(targetKey(i + 1));
+      if (from && to)
+        litWires.push_back(
+            routeBetween(wireRouter(i), *from, *to, kWireGap));
+    }
     composer.renderSlot("answer", answer());
   }
 };
@@ -280,5 +310,5 @@ struct HitSlots {
 SIGIL_SKETCH(HitSlots, "Kit · API",
              "the read-back queries over one scene described once "
              "— hitTest naming a target, bounds placing the ring "
-             "on it and routesAt lighting its wires, in a slot that "
+             "on it and naming the wires that touch it, in a slot that "
              "re-renders only when the answer changes")

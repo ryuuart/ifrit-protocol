@@ -4,9 +4,10 @@
  * A `Router` is a plain function of the two endpoint RECTS returning the
  * routed path, and a `RailRouter` the same over an ordered run of anchor
  * points. There is no enum of route kinds and no route object: these are
- * the stock values, and a caller's own function is a peer of them. The
- * routed path arrives as the connector's `PaintContext::outline`, so any
- * PathFormat dresses it.
+ * the stock values, and a caller's own function is a peer of them. A
+ * connecting operator carries one and attaches the wire it routes; the
+ * routed path becomes that wire's own outline, so any PathFormat dresses
+ * it.
  *
  * The two that are easy to confuse are `orthogonal`'s bends. `MidX` is
  * the Z every node-graph editor defaults to — half way over, one vertical
@@ -23,8 +24,8 @@
  *
  * A corner either ROUNDS or is CUT at 45°, and the cut wins when both are
  * set. Octilinear is a RailRouter, not a Router: it wants the whole
- * anchor run, so it is reached through `rail()` and never through
- * `connector()`.
+ * anchor run, so it is reached through `connect::Along` and never
+ * through `connect::Between`.
  *
  * EDIT THESE FIRST
  *   kRadius — the corner radius the rounded routes take, px.
@@ -36,6 +37,7 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -69,24 +71,31 @@ Element endpoint(const std::string& key, float x, float y) {
   return kit::at(box().key(key).fill(Fill::color(kNodeFill)), x, y, kNode, 28);
 }
 
-Element plate(const std::string& tag, Element route) {
-  const PathFormat wire{
+Element plate(const std::string& tag, Operator route) {
+  return sketch::kit::well({.width = kCell, .height = kPicture})
+      .children({stack()
+                     .inset(0)
+                     .operators({std::move(route)})
+                     .children({endpoint(tag + "-a", 16, 26),
+                                // The two are deliberately NOT on a 45
+                                // degree chord: an octilinear leg would
+                                // otherwise consume the whole run and read
+                                // as a straight line.
+                                endpoint(tag + "-b", kCell - kNode - 16,
+                                         kPicture - 28 - 62)})});
+}
+
+/** The mark every cell's wire is drawn with, so the router is the only
+ *  thing that differs between them. */
+PathFormat wireMark() {
+  return PathFormat{
       .width = 1.6f,
       .strokeFill = Fill::color(sketch::kit::theme().palette.figure)};
-  return sketch::kit::well({.width = kCell, .height = kPicture})
-      .children(
-          {stack().inset(0).children(
-               {endpoint(tag + "-a", 16, 26),
-                // The two are deliberately NOT on a 45 degree chord:
-                // an octilinear leg would otherwise consume the whole
-                // run and read as a straight line.
-                endpoint(tag + "-b", kCell - kNode - 16, kPicture - 28 - 62)}),
-           std::move(route).inset(0).foreground(wire)});
 }
 
 sketch::kit::ComparisonCase cell(const char* title, const char* call,
                                  const char* note, const std::string& tag,
-                                 Element route) {
+                                 Operator route) {
   return {.title = title,
           .control = call,
           .figure = plate(tag, std::move(route)),
@@ -102,15 +111,20 @@ struct RoutersStraight {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const auto wire = [](const std::string& tag, Router router) {
-      return connector(tag + "-a", tag + "-b", std::move(router), 4);
+      return Operator(connect::Between{.from = tag + "-a",
+                                       .to = tag + "-b",
+                                       .router = std::move(router),
+                                       .gap = 4,
+                                       .wire = wireMark()});
     };
 
     ctx.composer.render(sketch::kit::page(
         {.title = "Routes between two anchors",
          .subtitle =
              "Hold the endpoints still and change the path between them.",
-         .footer = "A connector consumes two endpoint rectangles. A rail "
-                   "consumes an entire run of anchors."},
+         .footer = "A wire between two nodes consumes their two endpoint "
+                   "rectangles. A wire along a run consumes every stop in "
+                   "it."},
         box().column().gap(22).children(
             {sketch::kit::sectionHeader(
                  {.label = "01  A CONNECTOR BETWEEN TWO RECTANGLES",
@@ -149,13 +163,16 @@ struct RoutersStraight {
                             wire("vf",
                                  routers::orthogonal(routers::Bend::VFirst, 0,
                                                      kChamfer))),
-                       cell("FOLLOW AN ANCHOR RUN", "rail(..., octilinear(8))",
-                            "A rail follows the anchor run with a 45° leg and "
+                       cell("FOLLOW AN ANCHOR RUN",
+                            "Along{…, octilinear(8)}",
+                            "A run of stops is followed with a 45° leg and "
                             "a straight remainder.",
                             "oc",
-                            rail({Anchor{"oc-a", {0.5f, 0.5f}, 4},
-                                  Anchor{"oc-b", {0.5f, 0.5f}, 4}},
-                                 routers::octilinear(8)))},
+                            Operator(connect::Along{
+                                .stops = {Anchor{"oc-a", {0.5f, 0.5f}, 4},
+                                          Anchor{"oc-b", {0.5f, 0.5f}, 4}},
+                                .router = routers::octilinear(8),
+                                .wire = wireMark()}))},
                   .measure = 1020,
                   .gap = 18})})));
   }
@@ -164,4 +181,4 @@ struct RoutersStraight {
 SIGIL_SKETCH(RoutersStraight, "Kit · API",
              "the same two anchors routed straight, as both orthogonal Ls "
              "and the Z between them, bowed as an arc, and threaded "
-             "octilinearly through a rail")
+             "octilinearly along a run of stops")

@@ -1,4 +1,4 @@
-// A research web laid over parchment, stamped connectors and brass controls.
+// A research web laid over parchment, stamped wires and brass controls.
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
@@ -159,12 +159,16 @@ struct Thaumonomicon {
   }
 
   // -------------------------------------------------------------------------
-  // One edge: a connector on the transcribed router, dressed with ONE stock
+  // One edge: a wire on the transcribed router, dressed with ONE stock
   // brush::Pattern — 24x24 side tiles, a 24x24 or 48x48 corner tile, and
   // cornerLength reserving the elbow's own room so the side run butts against
   // it instead of continuing underneath. Nothing here is a stroke.
+  //
+  // The wires paint at EVEN depths and the arrowheads at the odd depth just
+  // above their own tier's wire, so an arrow stands on the leg it marks and
+  // a higher tier's wire still crosses over it.
 
-  Element edgeEl(const Edge& e, int order) const {
+  Operator edgeEl(const Edge& e, int order) const {
     const Node& child = nodeByKey(e.child);
     const Node& parent = nodeByKey(e.parent);
     const RouteShape shape = shapeOf(child, parent, e.flipped);
@@ -191,20 +195,23 @@ struct Thaumonomicon {
     Brush br;
     br.layer(std::move(pb));
 
-    // A REVERSE edge walks from the parent: the connector's own from/to
-    // is the walk's direction, and the route bends at the START's column.
-    return connector(e.flipped ? parent.key : child.key,
-                     e.flipped ? child.key : parent.key, thaumRoute())
-        .inset(0)
-        .key(std::string("edge:") + child.key + "<" + parent.key)
-        .zIndex(tierZ(e.tier))
-        .stroke(
-            spans::upTo(animate(
-                from(0.0f).to(1.0f),
-                Transition{.duration = 620ms,
-                           .ease = ch::easeOutQuad,
-                           .delay = std::chrono::milliseconds(60 * order)})),
-            br);
+    // A REVERSE edge walks from the parent: the wire's own from/to is the
+    // walk's direction, and the route bends at the START's column.
+    return Operator(connect::Between{
+                        .from = e.flipped ? parent.key : child.key,
+                        .to = e.flipped ? child.key : parent.key,
+                        .router = thaumRoute(),
+                        .wire = br,
+                        .where = spans::upTo(animate(
+                            from(0.0f).to(1.0f),
+                            Transition{
+                                .duration = 620ms,
+                                .ease = ch::easeOutQuad,
+                                .delay =
+                                    std::chrono::milliseconds(60 * order)})),
+                        .key = std::string("edge:") + child.key + "<" +
+                               parent.key})
+        .zIndex(2 * tierZ(e.tier));
   }
 
   Element arrowEl(const Edge& e) const {
@@ -234,7 +241,7 @@ struct Thaumonomicon {
     return arrowCell(tint)
         .centerAt({c.fX - travel.fX * g(20), c.fY - travel.fY * g(20)})
         .rotate(std::atan2(travel.fY, travel.fX) * 57.29578f)
-        .zIndex(tierZ(e.tier));
+        .zIndex(2 * tierZ(e.tier) + 1);
   }
 
   // -------------------------------------------------------------------------
@@ -253,8 +260,8 @@ struct Thaumonomicon {
                        .height(g(32))
                        .key(n.key);
     // :598 culls the whole node, art and all, but drawLine still draws its
-    // edges — so a culled node keeps its KEYED, empty box (the connector
-    // still needs somewhere to route to) and paints nothing.
+    // edges — so a culled node keeps its KEYED, empty box (the wire still
+    // needs somewhere to route to) and paints nothing.
     if (culled(n.col, n.row)) return wrap;
     wrap.cache(Cache::Texture);
     if (n.state == kUnlockable)
@@ -599,18 +606,20 @@ struct Thaumonomicon {
         inner.children({warpSwirl(&spin, n.warp).centerAt(c).zIndex(-1)});
       }
 
-    // 2b. the edges, in unlock order — staggerChildren cascades the
-    //     animate(from().to()) span entrance outward from BASEALCHEMY.
-    Element edges = box().inset(0).zIndex(0);
+    // 2b. the edges, in unlock order — the delay on each wire's own span
+    //     cascades the entrance outward from BASEALCHEMY. The wires are
+    //     operators of this box, since it is the one that holds both the
+    //     plates they run between and the arrowheads that mark them.
+    std::vector<Operator> wires;
     std::vector<int> order = edgeOrder();
     int k = 0;
-    for (int i : order) edges.children({edgeEl(kEdges[i], k++)});
+    for (int i : order) wires.push_back(edgeEl(kEdges[i], k++));
+    inner.operators(std::move(wires));
     for (int i : order)
-      if (kEdges[i].tier != kSiblingKnown) edges.children({arrowEl(kEdges[i])});
-    inner.children({std::move(edges)});
+      if (kEdges[i].tier != kSiblingKnown) inner.children({arrowEl(kEdges[i])});
 
     // 2c. the plates, then the badges at full brightness over them.
-    Element plates = box().inset(0).zIndex(4);
+    Element plates = box().inset(0).zIndex(10);
     for (const Node& n : kNodes) plates.children({nodePlate(n)});
     for (const Node& n : kNodes)
       if (n.flagResearch || n.flagPage) plates.children({nodeBadges(n)});

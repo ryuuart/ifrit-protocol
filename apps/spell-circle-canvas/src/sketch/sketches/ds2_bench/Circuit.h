@@ -10,6 +10,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Placers.h>

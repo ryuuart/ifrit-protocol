@@ -1,9 +1,11 @@
 /** @file
- * Connectivity and cache decisions read from a composed diagram.
- * routesAt() lists keyed edges anchored to a node in tree order. profile()
- * reports the cache state, first promotion reason and complete refusal mask
- * for each selected node. The queries run on a separate composer after its
- * first draw; the displayed timings are deliberately omitted from plates.
+ * Connectivity and cache decisions read from a composed diagram. A wire is
+ * keyed by the pair it joins, so connectivity is a question about keys:
+ * bounds() answers where each wire came to rest, and answers nothing for a
+ * pairing no operator drew. profile() reports the cache state, first
+ * promotion reason and complete refusal mask for each selected node. The
+ * queries run on a separate composer after its first draw; the displayed
+ * timings are deliberately omitted from plates.
  */
 
 // TAGS: Geometry/Diagrams
@@ -13,6 +15,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Document.h>
+#include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -40,7 +43,12 @@ constexpr float kDiagram = 330;
 constexpr float kPicture = 300;
 constexpr float kNode = 74;
 
-constexpr const char* kProbe = "hub";  // whose routes are listed
+constexpr const char* kProbe = "hub";  // whose wires are listed
+
+/** The pairings the readout asks about, the last of them one no operator
+ *  draws — the silence an unrouted pair answers with. */
+constexpr const char* kPairings[] = {"spun->hub", "glass->hub", "hub->baked",
+                                     "hub->live", "hub->nowhere"};
 
 constexpr SkColor4f kWire{0.42f, 0.62f, 0.78f, 1};
 
@@ -65,7 +73,7 @@ constexpr const char* kStateWords[] = {"Live",     "Picture",  "Texture",
 }  // namespace
 
 struct RoutesProbe {
-  std::vector<std::string> routes;  // what routesAt() answered
+  std::vector<std::string> routes;  // the pairings that answered
   struct Verdict {
     std::string key, state, reason, refusals;
   };
@@ -88,7 +96,8 @@ struct RoutesProbe {
             SkImageInfo::MakeN32Premul((int)kDiagram, (int)kPicture)))
       probe.draw(*scratch->getCanvas());
 
-    routes = probe.routesAt(kProbe);
+    for (const char* pairing : kPairings)
+      if (probe.bounds(pairing)) routes.push_back(pairing);
     for (const char* key : {"hub", "spun", "glass", "live", "baked"})
       for (const Composer::NodeCost& row : probe.profile())
         // A row's label is the node's key() and the kind and size that
@@ -152,31 +161,23 @@ struct RoutesProbe {
                                     .absolute()
                                     .inset(26, 0, 0, 0)})});
 
-    // KEYED ROUTES: only a keyed route is addressable, and routesAt lists
-    // exactly these three.
-    struct Keyed {
+    // THE WIRES, each keyed by the pair it joins: four operators of the
+    // plate that holds the nodes, so each is routed from where its own two
+    // nodes settled.
+    struct Pairing {
       const char* from;
       const char* to;
       Router router;
-      const char* key;
     };
-    const Keyed keyed[] = {
-        {"spun", kProbe, routers::orthogonal(routers::Bend::VFirst, 8),
-         "wire-spun"},
-        {"glass", kProbe, routers::arc(0.18f), "wire-glass"},
-        {kProbe, "baked", routers::straight(), "wire-baked"}};
-    Element wires = stack().inset(0).children(
-        {each(keyed,
-              [&wire](const Keyed& one) {
-                return connector(one.from, one.to, one.router)
-                    .key(one.key)
-                    .inset(0)
-                    .foreground(wire);
-              }),
-         // …and one with no key at all: anchored, drawn, unlistable.
-         connector(kProbe, "live", routers::arc(-0.18f))
-             .inset(0)
-             .foreground(wire)});
+    const Pairing pairings[] = {
+        {"spun", kProbe, routers::orthogonal(routers::Bend::VFirst, 8)},
+        {"glass", kProbe, routers::arc(0.18f)},
+        {kProbe, "baked", routers::straight()},
+        {kProbe, "live", routers::arc(-0.18f)}};
+    std::vector<Operator> wires;
+    for (const Pairing& one : pairings)
+      wires.push_back(connect::Between{
+          .from = one.from, .to = one.to, .router = one.router, .wire = wire});
 
     // The diagram is composed on a probe of its own before it stands on
     // the sheet, so its classes are stated on the diagram itself.
@@ -184,7 +185,8 @@ struct RoutesProbe {
                               .height = kPicture,
                               .ground = Fill::color({0.085f, 0.09f, 0.10f, 1})})
         .styleSheet(sheetClasses(sketch::kit::theme()))
-        .children({nodes, wires});
+        .operators(std::move(wires))
+        .children({nodes});
   }
 
   /** A readout: one line per string, in the sheet's own mono. */
@@ -229,10 +231,14 @@ struct RoutesProbe {
                         {sketch::kit::sectionHeader(
                              {.label = "CONNECTIVITY", .note = "hub"}),
                          diagram(),
-                         text("routesAt(\"hub\")").styleClass("readout"),
-                         lines(routes, kDiagram, "No keyed routes"),
-                         text("The route to live is drawn but has no key, so "
-                              "it cannot appear in the addressable route list.")
+                         text("bounds(\"<from>-><to>\")")
+                             .styleClass("readout"),
+                         lines(routes, kDiagram, "No wires answered"),
+                         text("A wire is keyed by the pair it joins, so the "
+                              "question is asked of that key. The pairing "
+                              "hub->nowhere names a node the operator's scope "
+                              "does not hold, so nothing was routed and "
+                              "nothing answers.")
                              .width(kDiagram)}),
                     box().column().gap(18).width(560).children(
                         {sketch::kit::sectionHeader(
@@ -244,6 +250,6 @@ struct RoutesProbe {
 };
 
 SIGIL_SKETCH(RoutesProbe, "Kit · API",
-             "the edge store's back-index for one hub, and the profile row "
-             "each of four bake refusals produces, both read off the "
-             "composer after the frame they describe")
+             "the wires that answer for one hub, and the profile row each "
+             "of four bake refusals produces, both read off the composer "
+             "after the frame they describe")

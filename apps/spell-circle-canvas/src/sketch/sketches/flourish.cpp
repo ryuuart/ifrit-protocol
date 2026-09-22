@@ -30,6 +30,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Routers.h>
@@ -259,7 +260,10 @@ struct Flourish {
                  .opacity(&flare)});
   }
 
-  Element filaments() const {
+  /** The filaments between the four medallions, as operators of the scene
+   *  that holds them: an arc around the rim between neighbours, a beaded
+   *  orthogonal run across the diagonals. */
+  std::vector<Operator> filaments() const {
     PathFormat gild;
     gild.width = 1.1f;
     gild.strokeFill = Fill::color({st.gold.fR, st.gold.fG, st.gold.fB, 0.7f});
@@ -272,18 +276,23 @@ struct Flourish {
     beaded.stampPath = dot.detach();
     beaded.stampAdvance = 11.0f;
 
-    auto arc = [&](const char* a, const char* b) {
-      return connector(a, b, routers::arc(0.05f)).inset(0).foreground(gild);
+    const auto arc = [&](const char* a, const char* b) {
+      return Operator(connect::Between{.from = a,
+                                       .to = b,
+                                       .router = routers::arc(0.05f),
+                                       .wire = gild})
+          .zIndex(2);
     };
-    return stack().inset(0).zIndex(2).children(
-        {arc("med0", "med1"), arc("med1", "med2"), arc("med2", "med3"),
-         arc("med3", "med0"),
-         connector("med0", "med2", routers::orthogonal(18.0f))
-             .inset(0)
-             .foreground(beaded),
-         connector("med1", "med3", routers::orthogonal(18.0f))
-             .inset(0)
-             .foreground(beaded)});
+    const auto across = [&](const char* a, const char* b) {
+      return Operator(connect::Between{.from = a,
+                                       .to = b,
+                                       .router = routers::orthogonal(18.0f),
+                                       .wire = beaded})
+          .zIndex(2);
+    };
+    return {arc("med0", "med1"), arc("med1", "med2"), arc("med2", "med3"),
+            arc("med3", "med0"), across("med0", "med2"),
+            across("med1", "med3")};
   }
 
   // ---- the central cartouche (the box being framed) ----------------------
@@ -542,7 +551,8 @@ struct Flourish {
     return stack()
         .fill(sigil::compose::radialGradient({kW / 2, kH / 2}, 620,
                                              {st.velvetCore, st.velvetEdge}))
-        .children({frameBand(), frameGlow(), filaments(),
+        .operators(filaments())
+        .children({frameBand(), frameGlow(),
                    memo(MedProps{0, accent},
                         [this](const MedProps& p) { return medallion(p); })
                        .key("med0"),

@@ -33,8 +33,8 @@
 //                         diamond, keystone octagon under an ornament ring.
 //                         Size carries hierarchy, colour carries progress
 //                         (the PoE width law, applied to sockets)
-//   orbit routing ....... EVERY edge is a rail(...) with routers::orbit(the
-//                         edge's own group centre): the 21 same-orbit pairs
+//   orbit routing ....... EVERY edge is a connect::Along with routers::orbit(
+//                         the edge's own group centre): the 21 same-orbit pairs
 //                         become arcs on their group's circle, the 22
 //                         cross-group links stay straight spokes
 //   wrap-mode comet ..... the widest group's orbit ring carries a Wrap-mode
@@ -57,6 +57,7 @@
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -548,11 +549,14 @@ struct PassiveTree {
              .zIndex(2)});
   }
 
-  /** Every link is a rail. Same-group/same-orbit pairs get that group's
-   *  centre as the orbit router's focus and come out as arcs; everything
-   *  else stays a straight spoke. The rope state is the WEAKER endpoint. */
+  /** Every link is a wire between the two sockets it joins. Same-group /
+   *  same-orbit pairs get that group's centre as the orbit router's focus
+   *  and come out as arcs; everything else stays a straight spoke. The
+   *  rope state is the WEAKER endpoint. */
   void edges(Element& root) {
     namespace pt = skill_tree;
+    std::vector<Operator> links;
+    links.reserve(treedata::kEdgeCount);
     for (const auto& e : treedata::kEdges) {
       const int state = pt::edgeState(treedata::kNodes[e.a].state,
                                       treedata::kNodes[e.b].state);
@@ -561,14 +565,17 @@ struct PassiveTree {
         const treedata::Group& g = treedata::kGroups[e.group];
         router = routers::orbit({g.x, g.y});
       }
-      root.children({rail({{nodeKey(e.a)}, {nodeKey(e.b)}}, std::move(router))
-                         .inset(0)
-                         .stroke(brush::presets::rope(state, pt::kRopeScale))
-                         .zIndex(1)});
+      links.push_back(
+          Operator(connect::Along{
+                       .stops = {{nodeKey(e.a)}, {nodeKey(e.b)}},
+                       .router = std::move(router),
+                       .wire = brush::presets::rope(state, pt::kRopeScale)})
+              .zIndex(1));
     }
+    root.operators(std::move(links));
   }
 
-  /** The allocated spine, drawn as ONE rail so it can draw itself on at
+  /** The allocated spine, drawn as ONE wire so it can draw itself on at
    *  mount, plus the packet that travels it. The spine's own links are
    *  already painted by edges(); this rides on top in Active rope. */
   void spine(Element& root) {
@@ -628,19 +635,24 @@ struct PassiveTree {
     anchors.reserve(path.size());
     for (int n : path) anchors.push_back(Anchor{nodeKey(n)});
     // Straight router: the spine crosses groups, and routers::orbit only
-    // curves same-radius pairs anyway — a single focus would be a lie.
-    root.children(
-        {rail(anchors)
-             .inset(0)
-             .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {900ms})),
-                     brush::presets::rope(2, pt::kRopeScale))
+    // curves same-radius pairs anyway — a single focus would be a lie. Two
+    // wires over ONE run of stops, so each states the key it is addressed
+    // by rather than taking the run's own.
+    root.operators(
+        {Operator(connect::Along{
+                      .stops = anchors,
+                      .wire = brush::presets::rope(2, pt::kRopeScale),
+                      .where = spans::upTo(
+                          animate(motion::from(0.0f).to(1.0f), {900ms})),
+                      .key = "spine"})
              .zIndex(2),
-         rail(anchors)
-             .inset(0)
-             .stroke(spans::range(&pulseS, &pulseE),
-                     brush::presets::pulse(
-                         {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.35f},
-                         {1, 1, 1, 0.9f}, 1.25f))
+         Operator(connect::Along{
+                      .stops = anchors,
+                      .wire = brush::presets::pulse(
+                          {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.35f},
+                          {1, 1, 1, 0.9f}, 1.25f),
+                      .where = spans::range(&pulseS, &pulseE),
+                      .key = "spine-packet"})
              .zIndex(2)});
   }
 
@@ -756,13 +768,14 @@ struct PassiveTree {
                       .slant = -10.0f})
                .margin(9, 0, 0, 0)});
     // the leader from the card back to the node it describes
-    root.children(
-        {rail({{"detail"}, {nodeKey(sel)}})
-             .inset(0)
-             .stroke(stroke(1.0f, Fill::color({pt::kGold.fR, pt::kGold.fG,
-                                               pt::kGold.fB, 0.35f})))
-             .zIndex(6),
-         card.key("detail")});
+    root.operators({Operator(connect::Along{
+                                 .stops = {{"detail"}, {nodeKey(sel)}},
+                                 .wire = stroke(
+                                     1.0f, Fill::color({pt::kGold.fR,
+                                                        pt::kGold.fG,
+                                                        pt::kGold.fB, 0.35f}))})
+                        .zIndex(6)});
+    root.children({card.key("detail")});
   }
 
   /** The sheet's own look, for the masthead: the two registers the title

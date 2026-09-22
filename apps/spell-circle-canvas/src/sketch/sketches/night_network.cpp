@@ -48,6 +48,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Stamps.h>
+#include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Shapers.h>
@@ -386,43 +387,65 @@ struct NightNetwork {
         .fill(Paint::linear(
             {0, 0}, {0, nn::kH},
             {{0.0f, nn::kInkHigh}, {0.5f, nn::kInk}, {1.0f, nn::kInk}}))
-        // ---- the waterway, beneath everything ----
-        .children(
-            {rail({{"rv0"}, {"rv1"}, {"rv2"}, {"rv3"}, {"rv4"}},
-                  routers::octilinear(20))  // the Thames rule: the river
-                                            // rides the routes' own grid
-                 .inset(0)
-                 .stroke(river)
+        // ---- the routes: operators of the map, each built from where its
+        // own stops settled ----
+        .operators(
+            {Operator(connect::Along{
+                          .stops = {{"rv0"}, {"rv1"}, {"rv2"}, {"rv3"}, {"rv4"}},
+                          // the Thames rule: the river rides the routes' own grid
+                          .router = routers::octilinear(20),
+                          .wire = river})
                  .zIndex(1),
              // ---- the bus corridor (bridges the river) ----
-             rail({{"rd_w"}, {"rd1"}, {"rd2"}, {"rd_e"}}, routers::polyline(22))
-                 .inset(0)
-                 .mask(by::spans(spans::upTo(&roadReveal)))
-                 .stroke(roadbed)
-                 .stroke(busLane)
-                 .stroke(curb)
+             Operator(connect::Along{
+                          .stops = {{"rd_w"}, {"rd1"}, {"rd2"}, {"rd_e"}},
+                          .router = routers::polyline(22),
+                          .mask = by::spans(spans::upTo(&roadReveal)),
+                          .style = LayerStyle{.over = {roadbed, busLane, curb}}})
                  .zIndex(2),
              // ---- the carto railway ----
-             rail({{"rw_w"}, {"rw1"}, {"rw2"}, {"rw_e"}},
-                  routers::octilinear(14))
-                 .inset(0)
-                 .mask(by::spans(spans::upTo(&railReveal)))
-                 .layerStyle(brush::presets::railwayCarto(
-                     1.6f, nn::kSteel, {0.95f, 0.94f, 0.90f, 1}))
+             Operator(connect::Along{
+                          .stops = {{"rw_w"}, {"rw1"}, {"rw2"}, {"rw_e"}},
+                          .router = routers::octilinear(14),
+                          .mask = by::spans(spans::upTo(&railReveal)),
+                          .style = brush::presets::railwayCarto(
+                              1.6f, nn::kSteel, {0.95f, 0.94f, 0.90f, 1})})
                  .zIndex(3),
              // ---- the cased metro pair ----
-             rail({{"em_w"}, {"em1"}, {"hub"}, {"em2"}, {"em_e"}},
-                  routers::octilinear(0))
-                 .inset(0)
-                 .stroke(spans::upTo(&emberReveal), emberBrush)
+             Operator(connect::Along{
+                          .stops = {{"em_w"}, {"em1"}, {"hub"}, {"em2"},
+                                    {"em_e"}},
+                          .router = routers::octilinear(0),
+                          .wire = emberBrush,
+                          .where = spans::upTo(&emberReveal)})
                  .zIndex(4),
              // ---- the one-way line ----
-             rail({{"cy_w"}, {"cy1"}, {"hub"}, {"cy2"}, {"cy_e"}},
-                  routers::octilinear(8))
-                 .inset(0)
-                 .stroke(spans::upTo(&cyanReveal), current)
+             Operator(connect::Along{
+                          .stops = {{"cy_w"}, {"cy1"}, {"hub"}, {"cy2"},
+                                    {"cy_e"}},
+                          .router = routers::octilinear(8),
+                          .wire = current,
+                          .where = spans::upTo(&cyanReveal)})
                  .zIndex(4),
-             // ---- the orbital ring with instanced stations ----
+             // ---- twin service (bottom-right strip) ----
+             Operator(connect::Along{.stops = {{"tw_w"}, {"tw1"}, {"tw_e"}},
+                                     .router = routers::octilinear(9),
+                                     .wire = twin})
+                 .zIndex(2),
+             // ---- cableway (top gap) ----
+             Operator(connect::Along{.stops = {{"cb_w"}, {"cb_e"}},
+                                     .router = routers::polyline(0),
+                                     .wire = cableway})
+                 .zIndex(3),
+             // ---- millbrook creek (tapers INTO the smokewater):
+             // source->mouth, narrow->wide ----
+             Operator(connect::Along{
+                          .stops = {{"ck_s"}, {"ck2"}, {"ck1"}, {"ck_m"}},
+                          .router = routers::octilinear(10),
+                          .wire = creek})
+                 .zIndex(1)})
+        .children(
+            {// ---- the orbital ring with instanced stations ----             // ---- the orbital ring with instanced stations ----
              box()
                  .width(190)
                  .height(190)
@@ -430,22 +453,6 @@ struct NightNetwork {
                  .shape(shapes::arc(0.0f, 359.9f))
                  .stroke(spans::upTo(&ringReveal), orbital)
                  .zIndex(5),
-             // ---- twin service (bottom-right strip) ----
-             rail({{"tw_w"}, {"tw1"}, {"tw_e"}}, routers::octilinear(9))
-                 .inset(0)
-                 .stroke(twin)
-                 .zIndex(2),
-             // ---- cableway (top gap) ----
-             rail({{"cb_w"}, {"cb_e"}}, routers::polyline(0))
-                 .inset(0)
-                 .stroke(cableway)
-                 .zIndex(3),
-             // ---- millbrook creek (tapers INTO the smokewater) ----
-             rail({{"ck_s"}, {"ck2"}, {"ck1"}, {"ck_m"}},
-                  routers::octilinear(10))  // source->mouth: narrow->wide
-                 .inset(0)
-                 .stroke(creek)
-                 .zIndex(1),
              // ---- ARTLINE: the SkVertices art warp (brush::artAlong) — one
              // leaf-vine cell stretched and BENT along the S-curve; rigid
              // stamps can't follow this curvature continuously ----

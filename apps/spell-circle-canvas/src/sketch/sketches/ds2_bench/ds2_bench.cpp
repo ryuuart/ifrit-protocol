@@ -339,27 +339,40 @@ struct Ds2Bench {
   // one circuit: traces first (so node glow sits on the wire), then nodes
 
   void circuit(Element& root, const Circuit& c) {
-    auto wires =
-        box().inset(0).zIndex(4).staggerChildren(30ms, Spread::From::Start);
+    // The traces are operators of the box that holds the pads: each is
+    // built from where its two pads settled, and revealed 30ms behind the
+    // one before it — the stagger written on each wire's own reveal, since
+    // what a trace draws belongs to the trace and not to a container.
+    std::vector<Operator> wires;
     for (int i = 0; i < c.edgeCount; ++i) {
       const EdgeDef& e = c.edges[i];
-      wires.children(
-          {connector(c.key(e.a), c.key(e.b), pcb(9.0f, e.jog))
-               .key(std::string(c.tag) + "e" + std::to_string(i))
-               .inset(0)
-               .mask(by::spans(
-                   spans::upTo(animate(from(0.0f).to(1.0f), {620ms}))))
-               .stroke(LayeredBrush{{{7.0f,
-                                      mskia::withAlpha(kCyan, 0.075f),
-                                      3.4f,
-                                      {},
-                                      0,
-                                      SkBlendMode::kPlus}}})
-               .stroke(lines::presets::cased(
-                   1.2f, Fill::color(mskia::withAlpha(kCyan, c.traceAlpha)),
-                   c.typedDia > 24 ? 4.2f : 3.4f))});
+      wires.push_back(
+          Operator(connect::Between{
+                       .from = c.key(e.a),
+                       .to = c.key(e.b),
+                       .router = pcb(9.0f, e.jog),
+                       .mask = by::spans(spans::upTo(animate(
+                           from(0.0f).to(1.0f),
+                           Transition{.duration = 620ms,
+                                      .delay = 30ms * i}))),
+                       .style =
+                           LayerStyle{
+                               .over = {LayeredBrush{{{7.0f,
+                                                       mskia::withAlpha(kCyan,
+                                                                        0.075f),
+                                                       3.4f,
+                                                       {},
+                                                       0,
+                                                       SkBlendMode::kPlus}}},
+                                        lines::presets::cased(
+                                            1.2f,
+                                            Fill::color(mskia::withAlpha(
+                                                kCyan, c.traceAlpha)),
+                                            c.typedDia > 24 ? 4.2f : 3.4f)}},
+                       .key = std::string(c.tag) + "e" + std::to_string(i)})
+              .zIndex(4));
     }
-    root.children({std::move(wires)});
+    root.operators(std::move(wires));
 
     auto layer =
         box().inset(0).zIndex(5).staggerChildren(30ms, Spread::From::Start);

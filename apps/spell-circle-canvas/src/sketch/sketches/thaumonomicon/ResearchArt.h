@@ -13,6 +13,7 @@
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Stamps.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Sprites.h>
