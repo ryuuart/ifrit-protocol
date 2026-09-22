@@ -232,3 +232,79 @@ both rails to 30 and the constant rail on to 10; closing this entry
 means carrying the varying rail down to 10 beside it, with every corner
 blunter than a right angle and every constant rail unchanged to the
 bit.
+
+## A wire an operator attaches cannot be hit, and an addition cannot say whether it may be
+
+`connect::wire` (`src/common/compose/kit/Connect.cpp`) marks every wire
+`hitTestable(false)`. A wire is a `pathFigure` whose shape is one OPEN
+path, and the hit test asks `SkPath::contains`, which answers for the
+region the fill's implicit close encloses — the lens under an arc, the
+triangle inside an elbow — so a wire left testable would answer for hits
+on empty space beside it. The routed elements this replaced carried a
+stroke-expanded hit path ±6 px around the route, and a graph could learn
+which edge was under the pointer.
+
+Two things are meant here. A figure whose shape is an open path should
+be hit along the path within a stated tolerance, not inside its closure:
+`pathFigure` should carry, or the hit test should derive, the
+stroke-expanded region the retired route had. And an addition should be
+able to state `hitTestable`, `cache` and the rest of a node's identity
+verbs, since `Operator` states only `zIndex` and `styleClass` for what it
+attaches. A test should attach a `connect::Between` wire over two boxes
+and assert `hitTest` answers the wire's key on the route, the box's key
+inside the box, and nothing beside the route; and a second test should
+attach an element the operator marks untestable and assert the node
+under it answers.
+
+## `Scope` copies other than `snapshot()` route attachments to the wrong scope
+
+`Scope::Node` holds a back-pointer to the scope it was read from
+(`Scope::Node::m_scope` in `core/Operator.h`), and `Scope::snapshot()`
+exists to null it on a copy. The implicitly generated copy constructor
+and assignment do not: a `Scope` copied any other way hands out nodes
+whose `attach` appends to the source scope's attachments, or dangles once
+the source is gone. Nothing in the tree copies a scope that way today
+(`DrawWith::add` copies a snapshot), so the defect is latent.
+
+A scope is meant to be read where it is handed over and copied only as a
+snapshot. The copy constructor and assignment should be deleted, or made
+to unbind the nodes as `snapshot()` does. A test should copy a scope
+through the remaining door and assert `attach` on the copy's nodes
+attaches nothing to the original.
+
+## The operator-order report names a keyless node as `""`
+
+`Composer::Impl::rebuildKeyIndex` (`core/Reconcile.cpp`) reports an
+arranging operator listed after an adding one as
+`.operators() on "<key>"`, and a node with no key prints as `""`, which
+tells the author nothing about which node to look at. The report is
+meant to locate the list. It should name the node by its key when it has
+one and otherwise by its place — the path of child indices from the root,
+or the nearest keyed ancestor and the index under it. A test should
+build a keyless container with the two operators reversed and assert the
+report names a place rather than an empty string.
+
+## The header says a later operator reads an addition and the code does not
+
+`core/Operator.h`'s `Scope` comment says an addition is an ordinary
+element "a later operator in the list reads", and `Additions.cpp`
+collects the scope once before the operator loop with
+`if (node.added()) continue;` in `collectScope`, so no operator ever
+sees an addition. The README states the rule the code follows — an
+addition is read by no operator — and no longer makes the first claim.
+The header should say the same. A test should attach an element from
+one adding operator and assert a second adding operator in the same
+list does not find it by key.
+
+## `connect::Along`, `pin::`, `outline::` and `stamp::` are not bound in Python
+
+`src/common/python/compose/Schemes.cpp` builds an `Operator` from every
+stock arranging value and from `connect::Between` and `connect::ByLane`,
+and `_t.OperatorLike` in `apps/python/sigil/typing/_types.pyi` names the
+same set. `connect::Along` and the three adder families landed after the
+bindings branched, and the `Anchor` readings the rail bindings carried
+(`readAnchor`, `readAnchors`) went with the rail. The Python surface is
+meant to be complete over the kit's operators. `stockOperator` should
+take each of the four, the readings should return for `Along`'s stops,
+`OperatorLike` should name them and `PARITY.md` should move them across;
+a test should build each from Python and assert its additions by key.
