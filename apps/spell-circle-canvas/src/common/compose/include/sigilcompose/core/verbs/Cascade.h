@@ -80,9 +80,14 @@ class CascadeVerbs {
 
   /** @p property TAKES THE PARENT'S COMPUTED VALUE, whether or not it is
    *  one that inherits on its own: `inherit(Property::PaddingLeft)` gives
-   *  this node the padding its parent ended up with. It is a declaration
-   *  like any other, so it stands over a rule and over anything inherited,
-   *  and the root, which has no parent, reads it as `initial`. */
+   *  this node the padding its parent ended up with. On a property that
+   *  DOES inherit it drops the role default, the rule and this node's own
+   *  verb that were folded over the inherited value. The root, which has
+   *  no parent, reads it as `initial`.
+   *  @trap A property the description keeps and no fold reads — the
+   *  depth lanes, the shape, the grid area, the decoration outline — has
+   *  nowhere to resolve a keyword, so one written about it is refused and
+   *  said once. `answersKeyword` is the table. */
   Derived& inherit(Property property);
   /** @p property TAKES ITS OWN INITIAL VALUE — the one it has where
    *  nothing anywhere states it — whatever an ancestor or a rule says.
@@ -93,7 +98,8 @@ class CascadeVerbs {
   /** @p property TAKES WHICHEVER OF THE TWO its own behaviour asks for:
    *  the parent's value where it inherits, its initial value where it does
    *  not. CSS's `unset`, and the honest way to say "as if I had not
-   *  written this" when a rule might have. */
+   *  written this" when a rule might have — including when this node's own
+   *  verb said it. */
   Derived& unset(Property property);
 
  private:

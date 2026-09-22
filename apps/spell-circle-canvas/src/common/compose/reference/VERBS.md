@@ -230,8 +230,10 @@ and it reaches every text leaf and every unnamed mark under the node.
 The three keywords take a [`Property`](pages/types/Property.md), which is
 also the one table saying which properties inherit: the type, the block,
 the ink, the custom properties and the image sampling, and nothing else.
-A keyword is a declaration like any other, so a later one on the same
-node replaces an earlier statement of that property.
+A keyword is a declaration like any other, so it stands over a rule and
+over this node's own verb for that property — `ink(blue).unset(Property::Ink)`
+is the ancestor's ink — and the statement written second is the one that
+stands, whichever of value and keyword that is.
 
 ## The text leaf
 

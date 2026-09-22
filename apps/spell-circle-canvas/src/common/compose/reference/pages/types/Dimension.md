@@ -84,10 +84,15 @@ space is ignored; a bare number is pixels.
 | `"var(gutter)"`, `"var(--gutter)"` | a custom property |
 | `"auto"` | layout decides |
 
+A leading sign is the number's, either way: `"+12px"` and `"-12px"` both
+read, as they do in CSS.
+
 Nothing is answered for text the grammar does not cover — an empty
 string, a unit no `Dimension` carries, a space between the number and
 its unit — so a caller can tell an unreadable length from a length that
-was never stated.
+was never stated. `"inf"`, `"infinity"` and `"nan"` are in that set
+rather than out of it: they are numbers the reader will take and
+distances nothing can lay out.
 
 ## Make one
 

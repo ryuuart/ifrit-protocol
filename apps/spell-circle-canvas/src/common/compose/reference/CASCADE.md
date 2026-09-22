@@ -196,7 +196,22 @@ the default face at the default size; `unset` asks
 `compose::inheritsByDefault` and takes whichever of the two that property
 calls for. A keyword is a declaration like any other — it stands over a
 rule and under nothing but a running motion, and a later statement of the
-same property on the same node replaces it.
+same property on the same node replaces it, whichever of the two was
+written first.
+
+That layer is why `inherit` says something about a property that inherits
+ANYWAY. The value arriving from the parent is the WEAKEST of the five
+layers this chapter opened with, and the keyword drops the four folded
+over it: `ink(blue).inherit(Property::Ink)` is the ancestor's ink, and
+`unset(Property::Ink)` on a node carrying a class that states a colour is
+the ancestor's ink too.
+
+A keyword needs somewhere to resolve, and a few properties are kept on
+the description, which no fold reads — the plane a node turns in, the
+silhouette's generator, the grid area and the outline the decorations
+dress. `compose::answersKeyword` says which, and a keyword about one of
+them is refused at the verb and said once, so the node describes as one
+that never wrote it.
 
 `compose::inheritsByDefault` is the whole of the inherited set, and it is
 the five things this chapter opened with: the font, the ink, the block,
