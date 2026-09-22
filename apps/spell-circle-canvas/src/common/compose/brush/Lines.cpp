@@ -53,7 +53,7 @@ SkPath cornerGaps(const SkPath& src, float gap, float angleDeg) {
 float Line::bleed() const {
   const float casing = parallels > 1 ? gap * (float)(parallels - 1) : 0.0f;
   return width + casing + waveAmplitude + std::abs(across) +
-         std::max({tickLength * 0.5f, capSize, 0.0f});
+         std::max({tickLength * 0.5f, markerSize, 0.0f});
 }
 
 void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
@@ -66,11 +66,11 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
       across != 0 ? geometry::path::parallel(ctx.outline, across) : ctx.outline;
   if (waveAmplitude > 0)
     body = geometry::path::displace(body, waveAmplitude, waveLength, zigzag);
-  // Caps ride the FINAL geometry (offset + wave applied), not the raw
+  // Markers ride the FINAL geometry (offset + wave applied), not the raw
   // outline — a head must sit on the line it terminates.
   const SkPath capPath = body;
-  const float headTrim = trimFor(endCap);
-  const float tailTrim = trimFor(startCap);
+  const float headTrim = trimFor(endMarker);
+  const float tailTrim = trimFor(startMarker);
   if (headTrim > 0 || tailTrim > 0) {
     SkPathBuilder trimmed;
     SkContourMeasureIter iter(body, false);
@@ -215,11 +215,11 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     canvas.drawPath(ties.detach(), tiePaint);
   }
 
-  // 4. Caps, FILLED with the line's own fill: the arrow TIP sits AT the
+  // 4. Markers, FILLED with the line's own fill: the arrow TIP sits AT the
   //    endpoint and the head extends BACKWARD over the run. Mid-path
   //    chevrons reuse the same glyphs at intervals.
-  if (startCap != Cap::None || endCap != Cap::None ||
-      (midCap != Cap::None && midSpacing > 0)) {
+  if (startMarker != Marker::None || endMarker != Marker::None ||
+      (midMarker != Marker::None && midSpacing > 0)) {
     SkPaint head;
     head.setAntiAlias(true);
     applyFill(head, ctx);
@@ -230,12 +230,12 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
       SkVector tan;
       const bool closed = contour->isClosed();
       if (!closed) {
-        if (endCap != Cap::None && contour->getPosTan(len, &pos, &tan))
-          drawCap(canvas, head, endCap, pos, tan);
-        if (startCap != Cap::None && contour->getPosTan(0, &pos, &tan))
-          drawCap(canvas, head, startCap, pos, {-tan.x(), -tan.y()});
+        if (endMarker != Marker::None && contour->getPosTan(len, &pos, &tan))
+          drawMarker(canvas, head, endMarker, pos, tan);
+        if (startMarker != Marker::None && contour->getPosTan(0, &pos, &tan))
+          drawMarker(canvas, head, startMarker, pos, {-tan.x(), -tan.y()});
       }
-      if (midCap != Cap::None && midSpacing > 0) {
+      if (midMarker != Marker::None && midSpacing > 0) {
         // Closed contours have no terminals: chevrons run the full loop.
         const float from = closed ? midSpacing : midSpacing + tailTrim;
         const float until = closed ? len : len - headTrim;
@@ -243,20 +243,20 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
         // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
         for (float d = from; d < until; d += midSpacing)
           if (contour->getPosTan(d, &pos, &tan))
-            drawCap(canvas, head, midCap, pos, tan);
+            drawMarker(canvas, head, midMarker, pos, tan);
       }
     }
   }
 }
 
-float Line::trimFor(Cap cap) const {
-  switch (cap) {
-    case Cap::Arrow:
-      return capSize * 0.9f;
-    case Cap::Bar:
+float Line::trimFor(Marker marker) const {
+  switch (marker) {
+    case Marker::Arrow:
+      return markerSize * 0.9f;
+    case Marker::Bar:
       return std::max(width, 2.0f) * 0.5f;
-    case Cap::Dot:
-    case Cap::None:
+    case Marker::Dot:
+    case Marker::None:
       break;
   }
   return 0.0f;
@@ -272,42 +272,44 @@ void Line::applyFill(SkPaint& p, const PaintContext& ctx) const {
     p.setShader(resolved.shaderValue);
 }
 
-void Line::drawCap(SkCanvas& canvas, const SkPaint& head, Cap cap, SkPoint pos,
-                   SkVector tan) const {
+void Line::drawMarker(SkCanvas& canvas, const SkPaint& head, Marker marker,
+                      SkPoint pos, SkVector tan) const {
   const float t = std::hypot(tan.x(), tan.y());
   if (t < 1e-4f) return;
   tan = {tan.x() / t, tan.y() / t};
   const SkVector n{-tan.y(), tan.x()};
-  switch (cap) {
-    case Cap::Arrow: {
-      // Tip AT the endpoint; barbs capSize back at ±tan(30°)·capSize,
+  switch (marker) {
+    case Marker::Arrow: {
+      // Tip AT the endpoint; barbs markerSize back at ±tan(30°)·markerSize,
       // which is the 60° apex.
-      const SkPoint base{pos.x() - tan.x() * capSize,
-                         pos.y() - tan.y() * capSize};
+      const SkPoint base{pos.x() - tan.x() * markerSize,
+                         pos.y() - tan.y() * markerSize};
       SkPathBuilder tri;
       tri.moveTo(pos);
-      tri.lineTo(base.x() - n.x() * capSize * 0.577f,
-                 base.y() - n.y() * capSize * 0.577f);
-      tri.lineTo(base.x() + n.x() * capSize * 0.577f,
-                 base.y() + n.y() * capSize * 0.577f);
+      tri.lineTo(base.x() - n.x() * markerSize * 0.577f,
+                 base.y() - n.y() * markerSize * 0.577f);
+      tri.lineTo(base.x() + n.x() * markerSize * 0.577f,
+                 base.y() + n.y() * markerSize * 0.577f);
       tri.close();
       canvas.drawPath(tri.detach(), head);
       break;
     }
-    case Cap::Dot:
-      canvas.drawCircle(pos, capSize * 0.5f, head);
+    case Marker::Dot:
+      canvas.drawCircle(pos, markerSize * 0.5f, head);
       break;
-    case Cap::Bar: {
+    case Marker::Bar: {
       SkPaint bar = head;
       bar.setStyle(SkPaint::kStroke_Style);
       bar.setStrokeWidth(std::max(width, 2.0f));
       canvas.drawLine(
-          {pos.x() - n.x() * capSize * 0.5f, pos.y() - n.y() * capSize * 0.5f},
-          {pos.x() + n.x() * capSize * 0.5f, pos.y() + n.y() * capSize * 0.5f},
+          {pos.x() - n.x() * markerSize * 0.5f,
+           pos.y() - n.y() * markerSize * 0.5f},
+          {pos.x() + n.x() * markerSize * 0.5f,
+           pos.y() + n.y() * markerSize * 0.5f},
           bar);
       break;
     }
-    case Cap::None:
+    case Marker::None:
       break;
   }
 }

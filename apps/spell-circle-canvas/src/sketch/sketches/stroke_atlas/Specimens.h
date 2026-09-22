@@ -348,16 +348,16 @@ std::vector<Style> furnishedStyles() {
   lines::Line chevrons;
   chevrons.width = 1.4f;
   chevrons.fill = soft();
-  chevrons.midCap = lines::Cap::Arrow;
+  chevrons.midMarker = lines::Marker::Arrow;
   chevrons.midSpacing = 26.0f;
-  chevrons.capSize = 8.0f;
+  chevrons.markerSize = 8.0f;
 
   lines::Line terminals;
   terminals.width = 1.8f;
   terminals.fill = ink();
-  terminals.startCap = lines::Cap::Dot;
-  terminals.endCap = lines::Cap::Bar;
-  terminals.capSize = 11.0f;
+  terminals.startMarker = lines::Marker::Dot;
+  terminals.endMarker = lines::Marker::Bar;
+  terminals.markerSize = 11.0f;
 
   lines::Line gradient;
   gradient.width = 3.0f;
@@ -377,8 +377,8 @@ std::vector<Style> furnishedStyles() {
        lines::presets::railway(1.6f, ink(), 12.0f, 10.0f)},
       {"lines::presets::arrow(1.8, ink, 12)",
        lines::presets::arrow(1.8f, ink(), 12.0f)},
-      {"{.midCap=Arrow, .midSpacing=26}", chevrons},
-      {"{.startCap=Dot, .endCap=Bar, .capSize=11}", terminals},
+      {"{.midMarker=Arrow, .midSpacing=26}", chevrons},
+      {"{.startMarker=Dot, .endMarker=Bar, .markerSize=11}", terminals},
       {"{.alongStops={red, gold, blue}}  arc gradient", gradient},
       {"PathFormat{cap=Round, dash{0.01, 8}}  dotted", dotted},
       {"PathFormat{dash{14,5,3,5,3,12}}  morse rule", morse},

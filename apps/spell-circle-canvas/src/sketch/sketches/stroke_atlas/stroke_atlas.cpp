@@ -136,9 +136,9 @@ struct StrokeAtlasSketch {
       lines::Line chev;
       chev.width = 1.3f;
       chev.fill = soft();
-      chev.midCap = lines::Cap::Arrow;
+      chev.midMarker = lines::Marker::Arrow;
       chev.midSpacing = 30.0f;
-      chev.capSize = 8.0f;
+      chev.markerSize = 8.0f;
       Brush wavyRing;
       wavyRing
           .shaped(
@@ -154,7 +154,7 @@ struct StrokeAtlasSketch {
           {130, -1.00f, "shaped(shapers::Wave{4,26}).layer(1.4 red)", wavyRing},
           {100, -0.80f, "lines::presets::railway(1.4, ink, 13, 9)",
            lines::presets::railway(1.4f, ink(), 13.0f, 9.0f)},
-          {70, -0.60f, "{.midCap=Arrow, .midSpacing=30}", chev},
+          {70, -0.60f, "{.midMarker=Arrow, .midSpacing=30}", chev},
           {42, -0.40f, "lines::presets::triple(1.4, ink, 4.5, 2)",
            lines::presets::triple(1.4f, ink(), 4.5f, 2.0f)},
       };

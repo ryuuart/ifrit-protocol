@@ -91,8 +91,8 @@ inline Line arrow(float width, Fill fill, float headSize = 10.0f) {
   Line l;
   l.width = width;
   l.fill = std::move(fill);
-  l.endCap = Cap::Arrow;
-  l.capSize = headSize;
+  l.endMarker = Marker::Arrow;
+  l.markerSize = headSize;
   return l;
 }
 

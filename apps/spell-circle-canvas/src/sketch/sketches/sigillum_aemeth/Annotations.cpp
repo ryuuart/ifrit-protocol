@@ -60,8 +60,8 @@ auto SigillumAemeth::solverOverlay() -> Element {
              .stroke(spans::upTo(reveal(760.0f)),
                      lines::Line{.width = 2.6f,
                                  .fill = Fill::color(hexColor(0x7fd0f4, 0.95f)),
-                                 .endCap = lines::Cap::Arrow,
-                                 .capSize = 15.0f})
+                                 .endMarker = lines::Marker::Arrow,
+                                 .markerSize = 15.0f})
              .opacity(fade(0))
              .key("hops" + std::to_string(n))});
     g.children({box()
@@ -194,8 +194,8 @@ auto SigillumAemeth::basketFan() -> Element {
             .stroke(spans::upTo(lit(delay + 120, 420)),
                     lines::Line{.width = 0.9f,
                                 .fill = Fill::color(hexColor(0x2f6f9c, 0.55f)),
-                                .endCap = lines::Cap::Dot,
-                                .capSize = 4.0f})
+                                .endMarker = lines::Marker::Dot,
+                                .markerSize = 4.0f})
             .opacity(lit(delay + 120, 300)));
     rays.push_back(text(kArchangels[c])
                        .styleClass("archangel")

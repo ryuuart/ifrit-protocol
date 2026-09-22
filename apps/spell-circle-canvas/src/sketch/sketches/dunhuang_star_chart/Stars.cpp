@@ -91,7 +91,7 @@ auto DunhuangStarChart::asterismLines() -> Element {
                                                 .seed = (uint32_t)(i * 31 + 7)})
                         .layer(lines::Line{.width = 1.05f,
                                            .fill = Fill::color(A.ink),
-                                           .capSize = 0.0f}));
+                                           .markerSize = 0.0f}));
       }));
 }
 
@@ -201,8 +201,8 @@ auto DunhuangStarChart::map5Labels() -> Element {
               .opacity(gate(t, t + 0.3f))
               .stroke(lines::Line{.width = 0.7f,
                                   .fill = Fill::color(hexColor(0xb4531f, 0.8f)),
-                                  .startCap = lines::Cap::Dot,
-                                  .capSize = 4.0f}));
+                                  .startMarker = lines::Marker::Dot,
+                                  .markerSize = 4.0f}));
   }
   return box().cover().key("m5lab").children(labels);
 }

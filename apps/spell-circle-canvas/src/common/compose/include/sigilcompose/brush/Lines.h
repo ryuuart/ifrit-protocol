@@ -5,7 +5,7 @@
  *
  * SigilCompose line patterns — the cartography/diagram stroke vocabulary
  * beyond dashes: parallel casings (double/triple rails, highway pairs),
- * terminal caps (arrows, dots, bars — the node-graph direction language),
+ * terminal markers (arrows, dots, bars — the node-graph direction language),
  * railway ties, wave and zigzag runs. One value DecorationScheme
  * (`lines::Line`) built from pure data, so a patterned wire prunes and
  * caches like any static chrome; attach with `.stroke()` to dress any
@@ -92,7 +92,7 @@ SkPath cornerGaps(const SkPath& src, float gap, float angleDeg = 30.0f);
 
 /** How a line run terminates (per contour end). Heads are FILLED with the
  *  line's own fill — solid arrowheads, station dots, buffer bars. */
-enum class Cap : uint8_t { None, Arrow, Dot, Bar };
+enum class Marker : uint8_t { None, Arrow, Dot, Bar };
 
 /** The patterned line: everything is data (defaulted equality — a static
  *  patterned connector prunes without memo). Compose freely: a wavy
@@ -145,19 +145,19 @@ struct Line {
    *  single Line. */
   float across = 0.0f;
 
-  /** Terminal caps per contour; start is the path's first point. The
+  /** Terminal markers per contour; start is the path's first point. The
    *  convention: the arrow TIP sits AT the endpoint and the head extends
    *  BACKWARD over the run, with the body trimmed out from under Arrow and
-   *  Bar heads so dashes stop cleanly instead of showing through. The apex
-   *  is 60°, and a capSize around 3× the line width reads as a normal
+   *  Bar markers so dashes stop cleanly instead of showing through. The apex
+   *  is 60°, and a markerSize around 3× the line width reads as a normal
    *  arrowhead. */
-  Cap startCap = Cap::None;
-  Cap endCap = Cap::None;
-  float capSize = 10.0f;
+  Marker startMarker = Marker::None;
+  Marker endMarker = Marker::None;
+  float markerSize = 10.0f;
 
-  /** Mid-path repeated caps: a cap glyph every `midSpacing` px — the
+  /** Mid-path repeated markers: a marker glyph every `midSpacing` px — the
    *  direction chevrons that run down a wire. */
-  Cap midCap = Cap::None;
+  Marker midMarker = Marker::None;
   float midSpacing = 0.0f;
 
   /** Dashing still composes with everything above (applied to the body
@@ -195,13 +195,13 @@ struct Line {
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
 
  private:
-  /** How much body to cut under a terminal (dashes stop under heads). */
-  float trimFor(Cap cap) const;
+  /** How much body to cut under a marker (dashes stop under heads). */
+  float trimFor(Marker marker) const;
 
   void applyFill(SkPaint& p, const PaintContext& ctx) const;
 
-  void drawCap(SkCanvas& canvas, const SkPaint& head, Cap cap, SkPoint pos,
-               SkVector tan) const;
+  void drawMarker(SkCanvas& canvas, const SkPaint& head, Marker marker,
+                  SkPoint pos, SkVector tan) const;
 };
 
 }  // namespace sigil::compose::lines

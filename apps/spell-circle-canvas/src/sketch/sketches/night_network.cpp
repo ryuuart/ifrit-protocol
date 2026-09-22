@@ -12,7 +12,7 @@
 //   STEEL SPUR ...... brush::presets::railwayCarto LayerStyle -- osm-carto's
 //   verified
 //                     dark line + white 50%-duty dash overlay (NOT ties)
-//   CURRENT LINE .... lines::Line with midCap chevrons + terminal arrow --
+//   CURRENT LINE .... lines::Line with midMarker chevrons + terminal arrow --
 //                     the polylinedecorator repeat pattern
 //   SMOKEWATER ...... the TfL Thames rule: a pale octilinear band ~3.9x the
 //                     route weight with thin per-layer shapers::Offset edges
@@ -246,9 +246,9 @@ struct NightNetwork {
     //    trimmed under the head so nothing pokes past.
     lines::Line current{.width = 3.5f,
                         .fill = Fill::color(nn::kCyan),
-                        .endCap = lines::Cap::Arrow,
-                        .capSize = 12.0f,
-                        .midCap = lines::Cap::Arrow,
+                        .endMarker = lines::Marker::Arrow,
+                        .markerSize = 12.0f,
+                        .midMarker = lines::Marker::Arrow,
                         .midSpacing = 72.0f};
 
     // -- 4. SMOKEWATER: the VERIFIED schematic-water convention (TfL

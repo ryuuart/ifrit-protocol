@@ -477,7 +477,7 @@ at the midpoint or at either end) and `routers::arc` are `Router`s,
 between one pair of rects; `routers::manhattan`, `routers::polyline`,
 `routers::octilinear` and `routers::orbit` are `RailRouter`s, over a
 whole run of anchors, and `routers::fromPairwise` adapts a `Router` into
-one by stitching its legs into a single contour, so terminal caps and
+one by stitching its legs into a single contour, so terminal markers and
 casings fire at the run's ends rather than at every waypoint. The two
 orthogonal spellings also take a `routers::Stamp`, which lays a route
 out FOR A STAMPED BRUSH rather than for a stroke: `advance` is the tile
@@ -576,7 +576,7 @@ have to have the same paint written twice; `brush::presets::taper` and
 `Fill`, and a live material declares the ribbon animated. The line vocabulary is three
 more:
 `brush/Lines.h`, the cartography and diagram stroke (`lines::Line` —
-parallel casings, terminal caps, ties, waves); `brush/Rails.h`, N-rail
+parallel casings, terminal markers, ties, waves); `brush/Rails.h`, N-rail
 strokes where every rail is its own line; and `brush/Hatches.h`, the
 parallel, radial and concentric hatches — each of the three a MECHANISM
 with every field open. The finished ones over them, whose constants are
