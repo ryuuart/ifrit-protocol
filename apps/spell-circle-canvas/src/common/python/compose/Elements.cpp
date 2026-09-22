@@ -129,7 +129,9 @@ void bindCompose(py::module_& module) {
       .value("Lh", Dimension::Unit::Lh)
       .value("Var", Dimension::Unit::Var)
       .value("Pw", Dimension::Unit::Pw)
-      .value("Ph", Dimension::Unit::Ph);
+      .value("Ph", Dimension::Unit::Ph)
+      .value("Ch", Dimension::Unit::Ch)
+      .value("Pt", Dimension::Unit::Pt);
   dim.def(py::init<>())
       .def(py::init([](py::object value) { return dimension(value); }),
            py::arg("value"))
@@ -142,6 +144,26 @@ void bindCompose(py::module_& module) {
       .def("pw", &pw, py::arg("percent"))
       .def("ph", &ph, py::arg("percent"))
       .def("autoDimension", &autoDimension);
+  // The font-relative units and the point, each answering a Dimension, so
+  // a length written here needs no second type to pass through. The
+  // literals C++ spells them with have no equivalent in this language.
+  composition
+      .def(
+          "em", [](float multiple) { return Dimension(weave::em(multiple)); },
+          py::arg("multiple"))
+      .def(
+          "rem", [](float multiple) { return Dimension(weave::rem(multiple)); },
+          py::arg("multiple"))
+      .def(
+          "lh", [](float multiple) { return Dimension(weave::lh(multiple)); },
+          py::arg("multiple"))
+      .def(
+          "ch", [](float multiple) { return Dimension(weave::ch(multiple)); },
+          py::arg("multiple"))
+      .def(
+          "pt", [](float amount) { return Dimension(weave::pt(amount)); },
+          py::arg("amount"))
+      .def("parseDimension", &parseDimension, py::arg("text"));
   py::enum_<FlexDirection>(composition, "FlexDirection")
       .value("Column", FlexDirection::Column)
       .value("ColumnReverse", FlexDirection::ColumnReverse)

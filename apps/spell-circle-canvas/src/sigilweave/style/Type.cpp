@@ -35,17 +35,28 @@ void setAxis(std::vector<FontVariation>& axes, const FontVariation& axis) {
 }
 
 /** The px a length comes to. `againstPx` is what `em` multiplies and what
- *  an unknown line height is derived from; `rootSizePx` what `rem`
- *  multiplies; `lineHeightPx` what `lh` multiplies, 0 meaning unknown. */
+ *  an unknown line height and an unmeasured figure width are derived from;
+ *  `rootSizePx` what `rem` multiplies; `lineHeightPx` what `lh`
+ *  multiplies, 0 meaning unknown.
+ *
+ *  A `ch` is the advance of "0" in the face, which only a face in hand can
+ *  say, and this resolver holds numbers rather than faces: it takes the
+ *  stand-in a half of the type size, which is what a face carrying no
+ *  figure zero is measured as. A caller holding the face resolves that
+ *  unit itself. */
 float resolvePx(Length length, float againstPx, float rootSizePx,
                 float lineHeightPx) {
   switch (length.unit) {
     case Length::Unit::Px:
       return length.value;
+    case Length::Unit::Pt:
+      return length.value * Length::kPointPx;
     case Length::Unit::Em:
       return length.value * againstPx;
     case Length::Unit::Rem:
       return length.value * rootSizePx;
+    case Length::Unit::Ch:
+      return length.value * againstPx * Length::kAssumedZeroAdvanceEm;
     case Length::Unit::Lh:
       return length.value * (lineHeightPx > 0
                                  ? lineHeightPx
@@ -59,7 +70,7 @@ float resolvePx(Length length, float againstPx, float rootSizePx,
  *  resolved total never does — leaves the initial size as the only number
  *  there is to multiply. */
 float sizeAgainst(const Type& base) {
-  if (base.size && !base.size->relative()) return base.size->value;
+  if (base.size && !base.size->relative()) return base.size->absolutePx();
   return kInitialSizePx;
 }
 

@@ -298,6 +298,27 @@ TEST(Type, ARelativeSizeResolvesAgainstTheBase) {
   EXPECT_FLOAT_EQ(overlay(built, {.size = em(0.25f)}).shaping.fontSize, 6.0f);
 }
 
+TEST(Type, APointIsAFixedCountOfPixelsAndNeedsNothingToResolve) {
+  // A point carries everything it needs, so it is not relative and the
+  // overlay leaves it standing — but every reader that turns a style into
+  // pixels still owes the conversion.
+  EXPECT_FALSE(Length(12_pt).relative());
+  EXPECT_FLOAT_EQ(Length(12_pt).absolutePx(), 16.0f);
+  EXPECT_FLOAT_EQ(textStyle({.size = 12_pt}).shaping.fontSize, 16.0f);
+  // And a relative size over a base stated in points is measured against
+  // the pixels those points come to, not against the number of points.
+  EXPECT_EQ(overlay(Type{.size = 12_pt}, {.size = 0.5_em}).size, Length(8.0f));
+}
+
+TEST(Type, AChWithNoFaceToMeasureTakesHalfTheTypeSize) {
+  // The advance of "0" is a fact about a face, and this resolver holds
+  // numbers rather than faces. Half the size is what a face carrying no
+  // figure zero is measured as, so the length stays a plausible column
+  // width rather than becoming nothing.
+  EXPECT_TRUE(Length(2_ch).relative());
+  EXPECT_EQ(overlay(Type{.size = 20.0f}, {.size = 2_ch}).size, Length(20.0f));
+}
+
 TEST(Type, ARelativeTrackingResolvesAgainstTheSizeTheTypeComesTo) {
   // Tracking in ems is a fraction of the size the type is set at — the
   // size after the same overlay resolved it — so one register states the

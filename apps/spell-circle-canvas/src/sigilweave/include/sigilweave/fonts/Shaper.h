@@ -111,4 +111,12 @@ using ShapedWordReference = std::shared_ptr<const ShapedWord>;
 [[nodiscard]] float lineHeightOf(const TextStyle& style,
                                  FontContext& fontContext);
 
+/** THE ADVANCE OF THE FIGURE ZERO in `style`'s face at its size — the
+ * width a `ch` length is a multiple of, and the column a table of figures
+ * is measured in. A face that carries no zero answers half the type size,
+ * which is the stand-in for a face that cannot be measured.
+ */
+[[nodiscard]] float zeroAdvanceOf(const TextStyle& style,
+                                  FontContext& fontContext);
+
 }  // namespace sigil::weave

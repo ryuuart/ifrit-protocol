@@ -152,10 +152,11 @@ text (its own section below).
   unregistered name resolves to the base alone, and `find` is the form
   that admits absence; `set`, `contains`, `entries`).
 - **`style/Length.h`** — `Length`: a distance in pixels, or one stated
-  against a size it does not carry — `Unit`, `relative`, and the three
-  relative units spelled either as `em`, `rem`, `lh` or as the `_em`,
-  `_rem`, `_lh` suffixes beside them. Pixels are implicit, so a plain
-  number already is a length and no pixel suffix is declared here.
+  against a size it does not carry — `Unit`, `relative`, `absolutePx`,
+  and the four relative units spelled either as `em`, `rem`, `lh`, `ch`
+  or as the `_em`, `_rem`, `_lh`, `_ch` suffixes beside them, with `pt`
+  and `_pt` for the absolute printer's point. Pixels are implicit, so a
+  plain number already is a length and no pixel suffix is declared here.
 - **`layout/Block.h`** — `Block`, the PARTIAL a call site names a block's
   setting in, every field optional: what a block inherits — leading, half
   leading, alignment, justification, hyphenation, tab stops, first- and
@@ -206,10 +207,11 @@ text (its own section below).
   a continuously varying coordinate), the shape cache, observable `Stats`.
 - **`fonts/Shaper.h`** — `ShapedWord`, `shapeWord()`, `wordBlob()`,
   `makeFont()`. Reach for it to inspect or reuse individual glyph runs —
-  and for `faceMetrics()` and `lineHeightOf()`, the face's own metrics at
-  a style's size and design position and the single-spaced line height
-  they come to — which is both what a block's strut reports and the line
-  height a size stated in lh units is resolved against.
+  and for `faceMetrics()`, `lineHeightOf()` and `zeroAdvanceOf()`, the
+  face's own metrics at a style's size and design position, the
+  single-spaced line height they come to — which is both what a block's
+  strut reports and the line height a size stated in lh units is resolved
+  against — and the advance of the figure zero a ch is a multiple of.
 
 **`paragraph`** — `SigilWeaveParagraph`, the Unicode leaf private:
 

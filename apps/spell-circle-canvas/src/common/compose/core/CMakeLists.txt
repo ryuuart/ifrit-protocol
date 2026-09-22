@@ -71,6 +71,8 @@ sigil_library(SigilComposeCore
     Instances.cpp Shelf.cpp
     # paint values
     Fills.cpp
+    # a length written as text
+    Dimensions.cpp
     # internal headers
     ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
     SelectorInternal.h SelectorMatch.h
@@ -128,7 +130,7 @@ sigil_test(compose_test
           test/ComposeTestShelf.cpp test/ComposeTestTable.cpp
           test/ComposeTestValues.cpp test/ComposeTestBlockLane.cpp test/ComposeTestCascade.cpp
           test/ComposeTestRoles.cpp test/ComposeTestFlexBox.cpp
-          test/ComposeTestEdges.cpp
+          test/ComposeTestEdges.cpp test/ComposeTestLengths.cpp
           test/ComposeTestSelector.cpp test/ComposeTestStyleSheet.cpp
           test/ComposeTestMatching.cpp test/ComposeTestTypedLeaves.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}

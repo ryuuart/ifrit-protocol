@@ -40,12 +40,14 @@ namespace sigil::compose {
  *  case reads as a number.
  *
  *  THE FONT-RELATIVE UNITS. `em` is the node's own resolved font
- *  size, `rem` the root's, `lh` the node's own line height — SigilWeave's
- *  `Length`, spelled with its `_em`, `_rem` and `_lh` literals, converts
- *  here — so a padding written in ems follows the type it surrounds, and a
- *  change to an ancestor's font relays out everything measured in it. A
- *  `var(...)` reads the length the nearest ancestor set under that name
- *  and resolves it where it is read.
+ *  size, `rem` the root's, `lh` the node's own line height, `ch` the
+ *  advance of "0" in the face in force — SigilWeave's `Length`, spelled
+ *  with its `_em`, `_rem`, `_lh` and `_ch` literals, converts here — so a
+ *  padding written in ems follows the type it surrounds, and a change to
+ *  an ancestor's font relays out everything measured in it. A `var(...)`
+ *  reads the length the nearest ancestor set under that name and resolves
+ *  it where it is read. `pt` is SigilWeave's too, and absolute: four
+ *  pixels to every three points.
  *
  *  THE CANVAS-RELATIVE UNITS ARE THE ROOT'S BOX, not the parent's: `pw` is
  *  a percentage of the canvas the composer renders into, `ph` a percentage
@@ -66,7 +68,9 @@ struct Dimension {
     Lh,    ///< multiples of the node's own line height
     Var,   ///< a custom property, its id bit-cast into `value`
     Pw,    ///< percent of the CANVAS's width
-    Ph     ///< percent of the CANVAS's height
+    Ph,    ///< percent of the CANVAS's height
+    Ch,    ///< multiples of the advance of "0" in the font in force
+    Pt     ///< printer's points, four pixels to every three
   };
   Unit unit = Unit::Auto;
   /** The length, or under `Var` the reference id, bit-cast into the float
@@ -80,6 +84,8 @@ struct Dimension {
       : unit(length.unit == sigil::weave::Length::Unit::Em    ? Unit::Em
              : length.unit == sigil::weave::Length::Unit::Rem ? Unit::Rem
              : length.unit == sigil::weave::Length::Unit::Lh  ? Unit::Lh
+             : length.unit == sigil::weave::Length::Unit::Ch  ? Unit::Ch
+             : length.unit == sigil::weave::Length::Unit::Pt  ? Unit::Pt
                                                               : Unit::Px),
         value(length.value) {}
   constexpr Dimension(VarRef reference)  // NOLINT: implicit
@@ -87,10 +93,11 @@ struct Dimension {
 
   /** Whether resolving this length needs something the number itself does
    *  not carry — the font in force, a custom property, or the canvas: it is
-   *  everything but a pixel, a parent-relative percent and auto. */
+   *  everything but a pixel, a point, a parent-relative percent and auto. */
   [[nodiscard]] constexpr bool relative() const {
     return unit == Unit::Em || unit == Unit::Rem || unit == Unit::Lh ||
-           unit == Unit::Var || unit == Unit::Pw || unit == Unit::Ph;
+           unit == Unit::Ch || unit == Unit::Var || unit == Unit::Pw ||
+           unit == Unit::Ph;
   }
   /** The custom property a `Var` length reads; meaningless otherwise. */
   [[nodiscard]] constexpr VarRef reference() const {
@@ -126,6 +133,19 @@ constexpr Dimension ph(float v) {
  *  stated — an unpinned side lets the node's own width or height, or the
  *  opposite inset, size it rather than stretching it across the box. */
 constexpr Dimension autoDimension() { return {}; }
+
+/** THE ONE PLACE A LENGTH WRITTEN AS TEXT IS READ — `"12"`, `"12px"`,
+ *  `"1.5em"`, `"2rem"`, `".5lh"`, `"3ch"`, `"9pt"`, `"50%"`, `"10pw"`,
+ *  `"10ph"`, `"auto"`, and `var(name)` naming a custom property — so a
+ *  rule's text and a length handed in from Python are one grammar with
+ *  one set of units.
+ *
+ *  Case does not matter and surrounding blank space is ignored. A bare
+ *  number is pixels, as it is everywhere else in this library. Nothing is
+ *  answered for text this grammar does not cover, including an empty
+ *  string and a unit no `Dimension` carries; the caller says what an
+ *  unreadable length means where it stands. */
+[[nodiscard]] std::optional<Dimension> parseDimension(std::string_view text);
 
 /** `width(50_pct)`, `width(50_pw)`, `top(10_ph)`, `flexBasis(120_px)` — for the
  *  Dimension-valued setters; exposed by `using namespace sigil::compose` (or

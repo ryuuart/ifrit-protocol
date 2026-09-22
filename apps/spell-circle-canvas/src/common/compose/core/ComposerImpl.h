@@ -498,6 +498,8 @@ struct Composer::Impl {
       const detail::Instance& inst) const;
   /** The face's own line height at @p font, px. */
   float lineHeightAt(const sigil::weave::Type& font);
+  /** The advance of "0" in @p font's face at its size, px. */
+  float zeroAdvanceAt(const sigil::weave::Type& font);
   /** Builds the instance's Paragraph from whichever content form its
    *  description carries — plain utf8, `weave::rich()` runs, or a copy of a
    *  supplied Paragraph — and then applies the span restyles in

@@ -177,6 +177,11 @@ float Composer::Impl::resolveLength(const Instance& inst,
     case Dimension::Unit::Lh:
       relative = true;
       return length.value * inst.lineHeight;
+    case Dimension::Unit::Ch:
+      relative = true;
+      return length.value * inst.zeroAdvance;
+    case Dimension::Unit::Pt:
+      return length.value * sigil::weave::Length::kPointPx;
     case Dimension::Unit::Pw:
     case Dimension::Unit::Ph: {
       // THE CANVAS, never the parent: the box the composer renders into,
@@ -200,6 +205,10 @@ float Composer::Impl::resolveLength(const Instance& inst,
 
 float Composer::Impl::lineHeightAt(const sigil::weave::Type& font) {
   return sigil::weave::lineHeightOf(sigil::weave::toTextStyle(font), fonts);
+}
+
+float Composer::Impl::zeroAdvanceAt(const sigil::weave::Type& font) {
+  return sigil::weave::zeroAdvanceOf(sigil::weave::toTextStyle(font), fonts);
 }
 
 // ---------------------------------------------------------------------------
@@ -402,7 +411,10 @@ void Composer::Impl::resolveCascade(
   inst.sampling = sampling;
   inst.sheet = sheet;
   inst.cascadeResolved = true;
-  if (shapeChanged) inst.lineHeight = lineHeightAt(font);
+  if (shapeChanged) {
+    inst.lineHeight = lineHeightAt(font);
+    inst.zeroAdvance = zeroAdvanceAt(font);
+  }
 
   // A text leaf: text reconcile left owed is shaped here, once, in the
   // font and the block it lands in. After that, a change of face, size or

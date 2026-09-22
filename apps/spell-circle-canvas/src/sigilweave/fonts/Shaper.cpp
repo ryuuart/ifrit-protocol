@@ -50,6 +50,17 @@ float lineHeightOf(const TextStyle& style, FontContext& fontContext) {
   return lineHeightOf(faceMetrics(fontContext, style.shaping));
 }
 
+float zeroAdvanceOf(const TextStyle& style, FontContext& fontContext) {
+  const sk_sp<SkTypeface> typeface = fontContext.variedTypeface(
+      style.shaping.typeface, style.shaping.variations);
+  const SkFont font = makeFont(typeface, style.shaping.fontSize);
+  // A face with no zero has no width to report and would answer with the
+  // notdef box's, which is a different number in every face.
+  if (font.unicharToGlyph(U'0') == 0)
+    return style.shaping.fontSize * Length::kAssumedZeroAdvanceEm;
+  return font.measureText("0", 1, SkTextEncoding::kUTF8);
+}
+
 // The glyph's edges, measured once per face and kept.
 const detail::GlyphProfile& FontContext::Impl::profileOf(
     const sk_sp<SkTypeface>& typeface, uint16_t glyph) {

@@ -394,7 +394,9 @@ void bindValues(py::module_& module) {
       .value("Px", weave::Length::Unit::Px)
       .value("Em", weave::Length::Unit::Em)
       .value("Rem", weave::Length::Unit::Rem)
-      .value("Lh", weave::Length::Unit::Lh);
+      .value("Lh", weave::Length::Unit::Lh)
+      .value("Ch", weave::Length::Unit::Ch)
+      .value("Pt", weave::Length::Unit::Pt);
   length.def(py::init<>())
       .def(py::init<float>(), py::arg("value"))
       .def(py::init<float, weave::Length::Unit>(), py::arg("value"),
@@ -402,12 +404,15 @@ void bindValues(py::module_& module) {
       .def_readwrite("value", &weave::Length::value)
       .def_readwrite("unit", &weave::Length::unit)
       .def("relative", &weave::Length::relative)
+      .def("absolutePx", &weave::Length::absolutePx)
       .def(py::self == py::self);
   py::implicitly_convertible<py::float_, weave::Length>();
   py::implicitly_convertible<py::int_, weave::Length>();
   weave.def("em", &weave::em, py::arg("value"))
       .def("rem", &weave::rem, py::arg("value"))
-      .def("lh", &weave::lh, py::arg("value"));
+      .def("lh", &weave::lh, py::arg("value"))
+      .def("ch", &weave::ch, py::arg("value"))
+      .def("pt", &weave::pt, py::arg("value"));
   py::class_<weave::Type>(weave, "Type")
       .def(py::init([](py::kwargs kwargs) {
         return keywordValue<weave::Type>(kwargs, "Unknown Type field: ");

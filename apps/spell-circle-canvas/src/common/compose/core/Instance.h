@@ -217,6 +217,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // The face's own line height at `font`, px — what an `lh` length under
   // this node resolves against.
   float lineHeight = 0.0f;
+  // The advance of "0" at `font`, px — what a `ch` length on this node
+  // resolves against. Beside the line height because both are answers of
+  // the same face at the same size and both are measured when the shaping
+  // in force moves.
+  float zeroAdvance = 0.0f;
   // THE CUSTOM PROPERTIES IN FORCE: the parent's table shared when this
   // node sets none, or a copy of it with this node's own written over.
   std::shared_ptr<const VarTable> vars;

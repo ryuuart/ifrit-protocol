@@ -29,17 +29,16 @@ compose::Dimension dimension(py::handle value) {
     return value.cast<compose::VarRef>();
   if (!py::isinstance<py::str>(value))
     return compose::Dimension{value.cast<float>()};
+  // The one length grammar the library reads, so a string written here
+  // and a length written in a rule's text mean the same thing.
   const auto text = value.cast<std::string>();
-  if (text == "auto") return compose::autoDimension();
-  if (text.size() > 1 && text.back() == '%') {
-    std::size_t end = 0;
-    const float amount = std::stof(text, &end);
-    if (end == text.size() - 1 && std::isfinite(amount))
-      return compose::pct(amount);
-  }
+  if (const std::optional<compose::Dimension> length =
+          compose::parseDimension(text))
+    return *length;
   throw py::value_error(
-      "A dimension is a native Dimension or Length, number, percentage string, "
-      "or 'auto'.");
+      "A dimension is a native Dimension or Length, a number, 'auto', or a "
+      "length written as text: '12px', '1.5em', '2rem', '0.5lh', '3ch', "
+      "'9pt', '50%', '10pw', '10ph' or var(name).");
 }
 
 compose::Fill fill(py::handle value) {

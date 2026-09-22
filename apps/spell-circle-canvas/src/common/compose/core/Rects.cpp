@@ -149,6 +149,8 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
     switch (d.unit) {
       case Dimension::Unit::Px:
         return d.value;
+      case Dimension::Unit::Pt:
+        return d.value * sigil::weave::Length::kPointPx;
       case Dimension::Unit::Pct:
         return parentExtent * d.value / 100.0f;
       case Dimension::Unit::Pw:

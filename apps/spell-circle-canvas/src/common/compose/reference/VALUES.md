@@ -92,8 +92,11 @@ A fill is anything in that list plus `compose.Fill`, a custom property
 reference, a transitioned or bound value, a `material.Paint` and a
 `compose.SurfacePaint`; the annotation for that whole union is
 `SurfacePaintLike`, and the narrower ones under it are `FillLike` and
-`ColorLike`. A dimension is a number, a string, a `compose.Dimension`, a
-weave length or a property reference. A decoration is a
+`ColorLike`. A dimension is a number, a string in the length grammar
+`compose.parseDimension` reads, a `compose.Dimension`, a weave length or
+a property reference; `compose.em`, `rem`, `lh`, `ch` and `pt` spell the
+units that have no literal suffix in this language, beside `pct`, `pw`
+and `ph`. A decoration is a
 `compose.Decoration`, a `compose.PathFormat` or a `compose.Shadow`: a
 scheme of your own is C++ only.
 
@@ -118,9 +121,10 @@ scheme of your own is C++ only.
 - `core/Stroke.h` — `Spans` and the `spans` factories, with `Across` and
   `StrandPath`.
 - `core/Mask.h` — `Gate` and `Parts`, the two halves of a mask.
-- `core/Layout.h` — `Dimension` with `pct` and `autoDimension`, the
-  `Edges` that name the four sides around a node, `Align`, `Justify`, and
-  `Cache`.
+- `core/Layout.h` — `Dimension` with `pct`, `pw`, `ph`,
+  `autoDimension` and the `parseDimension` that reads one written as
+  text, the `Edges` that name the four sides around a node, `Align`,
+  `Justify`, and `Cache`.
 - `core/Utf8.h` — `Utf8`.
 - `brush/Decorations.h` — `PathFormat` and the `stroke` that makes one,
   `Shadow` and `shadow`, and `Slice`.
