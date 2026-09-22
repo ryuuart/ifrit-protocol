@@ -65,6 +65,7 @@
 #include <utility>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 namespace field = sigil::material::field;
@@ -85,12 +86,13 @@ namespace gerstner {
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
-constexpr SkColor4f kPaper = hexColor(0xEDEAE3);
-constexpr SkColor4f kPaperLo = hexColor(0xDCD7CB);
-constexpr SkColor4f kInk = hexColor(0x16151A);
-constexpr SkColor4f kInkSoft = hexColor(0x55525A);
-constexpr SkColor4f kRed = hexColor(0xD8442F);
-constexpr SkColor4f kBlue = hexColor(0x2C4CA8);  // the non-printing grid blue
+constexpr material::Color kPaper = hexColor(0xEDEAE3);
+constexpr material::Color kPaperLo = hexColor(0xDCD7CB);
+constexpr material::Color kInk = hexColor(0x16151A);
+constexpr material::Color kInkSoft = hexColor(0x55525A);
+constexpr material::Color kRed = hexColor(0xD8442F);
+constexpr material::Color kBlue =
+    hexColor(0x2C4CA8);  // the non-printing grid blue
 
 // The measure is 58 units. The unit here is a screen unit, not 10pt —
 // but every ratio below is Gerstner's.
@@ -180,15 +182,15 @@ struct GerstnerGrid {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 1.5,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     // The grid, in the blue a grid was drawn in: every unit ruled faintly
     // both ways, and over it every second column line and every fifth
     // baseline struck harder. Two tiles rather than ninety-three boxes.
     const auto blue = [](float alpha) {
-      return sigil::material::Color{gerstner::kBlue.fR, gerstner::kBlue.fG,
-                                    gerstner::kBlue.fB, alpha};
+      return sigil::material::Color{gerstner::kBlue.r, gerstner::kBlue.g,
+                                    gerstner::kBlue.b, alpha};
     };
     unitRule = Pattern(pattern::gridLines(gerstner::kUnit, gerstner::kUnit,
                                           0.5f, blue(0.07f)));
@@ -264,7 +266,7 @@ struct GerstnerGrid {
                                {320ms, &ch::easeOutQuad}))
               .translateY(animate(motion::from(9.0f).to(0.0f),
                                   {420ms, &ch::easeOutQuint}))
-              .fill(Fill::color({g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.045f}))
+              .fill(Fill::color({g::kRed.r, g::kRed.g, g::kRed.b, 0.045f}))
               // The field's foot is the page's foot: the copy that does not
               // fit is cut there, as it is in a magazine.
               .overflow(Overflow::Clip);
@@ -288,11 +290,12 @@ struct GerstnerGrid {
                .rect(SkRect::MakeXYWH(0, g::kUnit * 3.4f, colW, 1.4f))
                .fill(Fill::currentInk())});
       const std::string label = kit::formatted("%02d", i + 1);
-      band.children(
-          {text(label)
-               .font(
-                   {.size = 10, .color = g::kRed, .track = 1.6f, .weight = 620})
-               .at({0, g::kUnit * 1.7f})});
+      band.children({text(label)
+                         .font({.size = 10,
+                                .color = material::skia::toSkColor(g::kRed),
+                                .track = 1.6f,
+                                .weight = 620})
+                         .at({0, g::kUnit * 1.7f})});
       bands.children({std::move(band)});
     }
     return bands;
@@ -318,13 +321,15 @@ struct GerstnerGrid {
                  .children(
                      {text("PROGRAMME").font({.track = 3.2f}),
                       text("58")
-                          .font({.color = g::kRed, .track = 1.0f})
+                          .font({.color = material::skia::toSkColor(g::kRed),
+                                 .track = 1.0f})
                           .margin(0, 0, 0, 14),
                       text(count)
-                          .font({.size = 11,
-                                 .color = g::kInkSoft,
-                                 .track = 3.0f,
-                                 .weight = 600})
+                          .font(
+                              {.size = 11,
+                               .color = material::skia::toSkColor(g::kInkSoft),
+                               .track = 3.0f,
+                               .weight = 600})
                           .margin(0, 0, 6, 18)})});
   }
 
@@ -342,10 +347,11 @@ struct GerstnerGrid {
             .gap(10)
             .at({g::kFieldX, g::kFieldY + g::kFieldH + 16})
             .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
-            .children({text("58 =").font({.size = 13,
-                                          .color = g::kInkSoft,
-                                          .track = 1.2f,
-                                          .weight = 600}),
+            .children({text("58 =").font(
+                           {.size = 13,
+                            .color = material::skia::toSkColor(g::kInkSoft),
+                            .track = 1.2f,
+                            .weight = 600}),
                        text(c.arithmetic)
                            .font({.size = 15, .track = 0.8f, .weight = 640})});
     // the ladder of all six, with the live one marked
@@ -364,7 +370,7 @@ struct GerstnerGrid {
                .width(22.0f)
                .height(22.0f)
 
-               .fill(Fill::color(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
+               .fill(Fill::color(live ? g::kRed : material::Color{0, 0, 0, 0}))
                .foreground(
                    stroke(1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))
                .children({text(n).ink(live ? g::kPaper : g::kInkSoft)})});
@@ -398,7 +404,10 @@ struct GerstnerGrid {
          // the page, because an unlabelled red rule across live text reads as a
          // defect rather than as an instrument.
          text("READING INDEX")
-             .font({.size = 7, .color = g::kRed, .track = 0.6f, .weight = 620})
+             .font({.size = 7,
+                    .color = material::skia::toSkColor(g::kRed),
+                    .track = 0.6f,
+                    .weight = 620})
              .at({g::kFieldX + g::kFieldW + 6, -4})
              .translateY(&sweep)
              .zIndex(6),
@@ -409,10 +418,10 @@ struct GerstnerGrid {
              .top(0)
              .translateY(&sweep)
              .fill(linearGradient({0, 0}, {g::kFieldW + 44, 0},
-                                  {{g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f},
-                                   {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.55f},
-                                   {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.55f},
-                                   {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f}},
+                                  {{g::kRed.r, g::kRed.g, g::kRed.b, 0.0f},
+                                   {g::kRed.r, g::kRed.g, g::kRed.b, 0.55f},
+                                   {g::kRed.r, g::kRed.g, g::kRed.b, 0.55f},
+                                   {g::kRed.r, g::kRed.g, g::kRed.b, 0.0f}},
                                   {0.0f, 0.12f, 0.88f, 1.0f}))
              .zIndex(6),
          box()
@@ -421,13 +430,12 @@ struct GerstnerGrid {
              .bottom(26)
              .font({.size = 10})
              .ink(g::kInkSoft)
-             .children(
-                 {text("KARL GERSTNER · CAPITAL "
-                       "· 1962")
-                      .font({.track = 2.6f, .weight = 600}),
-                  text("the mobile grid, run")
-                      .font({.track = 1.2f})
-                      .margin(3, 0, 0, 0)})});
+             .children({text("KARL GERSTNER · CAPITAL "
+                             "· 1962")
+                            .font({.track = 2.6f, .weight = 600}),
+                        text("the mobile grid, run")
+                            .font({.track = 1.2f})
+                            .margin(3, 0, 0, 0)})});
     return root;
   }
 };

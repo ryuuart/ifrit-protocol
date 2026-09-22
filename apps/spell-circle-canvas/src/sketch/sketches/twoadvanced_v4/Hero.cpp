@@ -168,13 +168,14 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // the horizon haze band, full width. Without it the outer thirds are
   // black-on-black and the silhouettes have nothing to read against;
   // one kPlus ramp is the whole of the fix.
-  scene.children({at(box().fill(mskia::Paint::linearUnit(
-                         {0, 0}, {0, 1},
-                         {{0.00f, mskia::withAlpha(kTealBar, 0.0f)},
-                          {0.62f, mskia::withAlpha(kTealBar, 0.10f)},
-                          {1.00f, mskia::withAlpha(kTealBar, 0.34f)}})),
-                     0, horizon - 132, w, 132)
-                      .blendMode(SkBlendMode::kPlus)});
+  scene.children(
+      {at(box().fill(mskia::Paint::linearUnit(
+              {0, 0}, {0, 1},
+              {{0.00f, sigil::material::withAlpha(kTealBar, 0.0f)},
+               {0.62f, sigil::material::withAlpha(kTealBar, 0.10f)},
+               {1.00f, sigil::material::withAlpha(kTealBar, 0.34f)}})),
+          0, horizon - 132, w, 132)
+           .blendMode(SkBlendMode::kPlus)});
 
   // THE portal: one SDF circle. Its box must RESERVE sdf::pad() for the
   // glow — sdf::minBoxFor() is the only honest way to size it, since
@@ -184,12 +185,12 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // this adds is the atmosphere around it: a low-alpha core under a
   // reaching glow, screened over the render rather than pasted in front
   // of it.
-  msdf::Style ps{.fill = mskia::toColor(mskia::withAlpha(kGlow, 0.07f)),
+  msdf::Style ps{.fill = sigil::material::withAlpha(kGlow, 0.07f),
                  .borderWidth = 2,
-                 .borderColor = mskia::toColor(
-                     mskia::withAlpha({0.90f, 1.0f, 1.0f, 1.0f}, 0.35f)),
+                 .borderColor = sigil::material::withAlpha(
+                     {0.90f, 1.0f, 1.0f, 1.0f}, 0.35f),
                  .glowRadius = 54,
-                 .glowColor = mskia::toColor(mskia::withAlpha(kGlow, 0.42f))};
+                 .glowColor = sigil::material::withAlpha(kGlow, 0.42f)};
   const float pbox = msdf::minBoxFor(ps, 132);
   mskia::Paint pm = mskia::Paint::recipe(msdf::material(msdf::circle(), ps));
   if (!still) pm.uniform("uGlowR", &portalGlow);  // ±8 % sine, period 4 s
@@ -206,11 +207,12 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   scene.children({portal});
 
   // an orbital ring, trim-revealed with the panel
-  Element ring = at(
-      box()
-          .shape(shapes::arc(-125, 310))
-          .stroke(stroke(2, Fill::color(mskia::withAlpha(kCyanRing, 0.34f)))),
-      cx - 118, horizon - 226, 236, 236);
+  Element ring =
+      at(box()
+             .shape(shapes::arc(-125, 310))
+             .stroke(stroke(
+                 2, Fill::color(sigil::material::withAlpha(kCyanRing, 0.34f)))),
+         cx - 118, horizon - 226, 236, 236);
   if (!still)
     ring.mask(by::spans(spans::upTo(animate(
         motion::from(0.0f).to(1.0f), {700ms, &ch::easeOutQuint, 2600ms}))));
@@ -236,9 +238,9 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            .height(300)
            .fill(mskia::Paint::radialUnit(
                {0.5f, 0.14f}, 1.05f,
-               {{0.0f, mskia::withAlpha(kGlow, 0.75f)},
-                {0.45f, mskia::withAlpha(kTealBar, 0.32f)},
-                {1.0f, mskia::withAlpha(kTealBar, 0.0f)}}))
+               {{0.0f, sigil::material::withAlpha(kGlow, 0.75f)},
+                {0.45f, sigil::material::withAlpha(kTealBar, 0.32f)},
+                {1.0f, sigil::material::withAlpha(kTealBar, 0.0f)}}))
            // smear the reflection down into the water: sigma 26
            // along the 90° axis (straight down), 14 across it
            .filter(mskia::Effect::directionalBlur(26, 90, 14))
@@ -253,9 +255,9 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            .height(h - horizon)
            .fill(mskia::Paint::linearUnit(
                {0, 0}, {0, 1},
-               {{0.00f, mskia::withAlpha(kGlow, 0.55f)},
-                {0.35f, mskia::withAlpha(kGlow, 0.20f)},
-                {1.00f, mskia::withAlpha(kGlow, 0.0f)}}))
+               {{0.00f, sigil::material::withAlpha(kGlow, 0.55f)},
+                {0.35f, sigil::material::withAlpha(kGlow, 0.20f)},
+                {1.00f, sigil::material::withAlpha(kGlow, 0.0f)}}))
            // soften the column's sides: sigma 10 along the 0° axis
            // (horizontal), only 3 down its length
            .filter(mskia::Effect::directionalBlur(10, 0, 3))
@@ -264,9 +266,10 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
       {water,
        // THE horizon hairline. A hard, bright edge where the water starts
        // sells the reflection below it more than the blur itself does.
-       at(box().fill(mskia::withAlpha(kGlow, 0.62f)), 0, horizon - 1, w, 2),
-       at(box().fill(mskia::withAlpha(kCyanRing, 0.16f)), 0, horizon + 3, w,
-          1)});
+       at(box().fill(sigil::material::withAlpha(kGlow, 0.62f)), 0, horizon - 1,
+          w, 2),
+       at(box().fill(sigil::material::withAlpha(kCyanRing, 0.16f)), 0,
+          horizon + 3, w, 1)});
   return scene;
 }
 
@@ -290,8 +293,9 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
                                      {0.58f, {0, 0, 0, 0.10f}},
                                      {1.00f, {0, 0, 0, 0.66f}}})),
        box().inset(0).foreground(styles::Scanlines{}),
-       box().inset(0).foreground(styles::Brackets{
-           mskia::withAlpha(kCyan, 0.7f), 22, 2, 8, shapes::Corner::All})});
+       box().inset(0).foreground(
+           styles::Brackets{sigil::material::withAlpha(kCyan, 0.7f), 22, 2, 8,
+                            shapes::Corner::All})});
 
   auto corner = [&](const char* a, const char* b, float l, float tp, bool end) {
     return box()
@@ -300,8 +304,10 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
         .alignItems(end ? Align::End : Align::Start)
         .left(l)
         .top(tp)
-        .children({t(a, micro(10, mskia::withAlpha(kCyan, 0.8f), 220)),
-                   t(b, micro(10, mskia::withAlpha(kCyanRing, 0.45f), 220))});
+        .children(
+            {t(a, micro(10, sigil::material::withAlpha(kCyan, 0.8f), 220)),
+             t(b,
+               micro(10, sigil::material::withAlpha(kCyanRing, 0.45f), 220))});
   };
   s.children(
       {corner("REND / MAXON C4D R8", "PASS 04 · FRM 0142", 20, 18, false),
@@ -313,11 +319,12 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
            .row()
            .gap(6)
            .alignItems(Align::Center)
-           .children({box().width(120).height(8).foreground(
-                          styles::TickRail{mskia::withAlpha(kCyan, 0.6f), 6, 3,
-                                           8, 1, 4, 0.5f, path::Edge::Top}),
-                      t("SIG 88%",
-                        micro(10, mskia::withAlpha(kCyan, 0.85f), 200))})});
+           .children(
+               {box().width(120).height(8).foreground(
+                    styles::TickRail{sigil::material::withAlpha(kCyan, 0.6f), 6,
+                                     3, 8, 1, 4, 0.5f, path::Edge::Top}),
+                t("SIG 88%",
+                  micro(10, sigil::material::withAlpha(kCyan, 0.85f), 200))})});
   return s;
 }
 
@@ -337,10 +344,10 @@ auto TwoAdvancedV4::mainframe() -> Element {
         .fill(mskia::Paint::linearUnit(
             {0, 0}, {1, 0},
             {{0.0f, hexColor(0x2A0708)}, {1.0f, hexColor(0x1A0405)}}))
-        .foreground(
-            onEdges(path::Edge::Bottom,
-                    stroke(3, Fill::color(mskia::withAlpha(kCyan, 0.5f)),
-                           PathFormat::Align::Inner)))
+        .foreground(onEdges(
+            path::Edge::Bottom,
+            stroke(3, Fill::color(sigil::material::withAlpha(kCyan, 0.5f)),
+                   PathFormat::Align::Inner)))
         .scaleY(&shutter[(size_t)i])
         .transformOrigin(pct(50), pct(0));
   };
@@ -357,11 +364,13 @@ auto TwoAdvancedV4::mainframe() -> Element {
                    .width(440)
                    .height(64)
                    .shape(shapes::chamfered(10, shapes::Corner::Diagonal))
-                   .fill(mskia::withAlpha(hexColor(0x140404), 0.92f))
-                   .stroke(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.6f)),
-                                  PathFormat::Align::Inner))
-                   .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.7f),
-                                                10, 2, 3, shapes::Corner::All})
+                   .fill(sigil::material::withAlpha(hexColor(0x140404), 0.92f))
+                   .stroke(stroke(
+                       1, Fill::color(sigil::material::withAlpha(kCyan, 0.6f)),
+                       PathFormat::Align::Inner))
+                   .foreground(
+                       styles::Brackets{sigil::material::withAlpha(kCyan, 0.7f),
+                                        10, 2, 3, shapes::Corner::All})
 
                    .children({slot("mfload")})});
   Element body =
@@ -389,12 +398,13 @@ auto TwoAdvancedV4::mfLoadReadout(int section) -> Element {
       .row()
       .gap(10)
       .alignItems(Align::Center)
-      .children({t("ACCESSING", micro(12, mskia::withAlpha(kCyan, 0.85f), 260)),
+      .children({t("ACCESSING",
+                   micro(12, sigil::material::withAlpha(kCyan, 0.85f), 260)),
                  t("▸", micro(11, kCyan, 0)),
                  t(doc()["nav"][(size_t)section], heavy(17, kNear, 80)),
-                 box().width(60).height(10).foreground(
-                     styles::TickRail{mskia::withAlpha(kCyan, 0.6f), 5, 3, 8, 1,
-                                      4, 0.5f, path::Edge::Bottom})});
+                 box().width(60).height(10).foreground(styles::TickRail{
+                     sigil::material::withAlpha(kCyan, 0.6f), 5, 3, 8, 1, 4,
+                     0.5f, path::Edge::Bottom})});
 }
 
 auto TwoAdvancedV4::monitorBody(float h) -> Element {
@@ -406,12 +416,13 @@ auto TwoAdvancedV4::monitorBody(float h) -> Element {
                                       {0.15f, kPanel},
                                       {0.88f, kPanel},
                                       {1.00f, kPanelSh}}))
-      .foreground(kit::gloss(mskia::withAlpha(kPanelHi, 0.5f), 40,
+      .foreground(kit::gloss(sigil::material::withAlpha(kPanelHi, 0.5f), 40,
                              {0, -h * 0.34f}, 0.72f, 0.28f))
-      .foreground(onEdges(
-          path::Edge::Top,
-          stroke(1, Fill::color(mskia::withAlpha(hexColor(0xCFEFEC), 0.7f)),
-                 PathFormat::Align::Inner)));
+      .foreground(onEdges(path::Edge::Top,
+                          stroke(1,
+                                 Fill::color(sigil::material::withAlpha(
+                                     hexColor(0xCFEFEC), 0.7f)),
+                                 PathFormat::Align::Inner)));
 }
 
 auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
@@ -428,21 +439,23 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
              .fill(mskia::Paint::linearUnit(
                  {0, 0}, {0, 1},
                  {{0.0f, hexColor(0x0A2C33)}, {1.0f, hexColor(0x02171B)}}))
-             .stroke(stroke(
-                 1, Fill::color(mskia::withAlpha(hexColor(0x0B3B40), 0.9f)),
-                 PathFormat::Align::Inner))
+             .stroke(stroke(1,
+                            Fill::color(sigil::material::withAlpha(
+                                hexColor(0x0B3B40), 0.9f)),
+                            PathFormat::Align::Inner))
              .children({box().inset(0).fill(mskia::Paint::radialUnit(
                             {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
-                            {{0.0f, mskia::withAlpha(kGlow, g)},
-                             {1.0f, mskia::withAlpha(kGlow, 0.0f)}})),
+                            {{0.0f, sigil::material::withAlpha(kGlow, g)},
+                             {1.0f, sigil::material::withAlpha(kGlow, 0.0f)}})),
                         at(box().fill(hexColor(0x011114)), 6 + 4 * (float)i, 18,
                            12, 30),
                         at(box().fill(hexColor(0x01191D)), 24 + 3 * (float)i, 8,
                            16, 40),
-                        at(box().fill(mskia::withAlpha(kGlow, 0.55f)), 0, 40,
-                           200, 1)})
-             .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.5f), 6, 1,
-                                          2, shapes::Corner::All})
+                        at(box().fill(sigil::material::withAlpha(kGlow, 0.55f)),
+                           0, 40, 200, 1)})
+             .foreground(
+                 styles::Brackets{sigil::material::withAlpha(kCyan, 0.5f), 6, 1,
+                                  2, shapes::Corner::All})
              .foreground(styles::Scanlines{{0, 0, 0, 0.24f}, 3, 1}),
          t(caption, micro(9, hexColor(0x123B3D), 220))});
     out.push_back(std::move(cell));

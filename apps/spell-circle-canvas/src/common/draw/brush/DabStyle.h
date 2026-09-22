@@ -10,6 +10,7 @@
 #include <include/core/SkPoint.h>
 #include <sigildraw/brush/Dab.h>
 #include <sigildraw/brush/Tool.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 
@@ -35,9 +36,9 @@ inline float pressureAt(const Tool& tool, const Dab& dab) {
 
 /** The tool's colour at @p alpha of its load; the colour's own alpha
  *  multiplies in. */
-inline SkColor4f pigment(const Tool& tool, float alpha) {
-  SkColor4f color = tool.color;
-  color.fA = std::clamp(color.fA * tool.opacity * alpha, 0.0f, 1.0f);
+inline material::Color pigment(const Tool& tool, float alpha) {
+  material::Color color = tool.color;
+  color.a = std::clamp(color.a * tool.opacity * alpha, 0.0f, 1.0f);
   return color;
 }
 

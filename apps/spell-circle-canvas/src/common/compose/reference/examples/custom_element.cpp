@@ -8,10 +8,12 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -19,9 +21,9 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {520, 280};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kCell = hexColor(0x1b2229);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kCell = hexColor(0x1b2229);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
 
 /** The program: rings measured off the box the node was laid out at,
  *  which is what `PaintContext::size` carries. */
@@ -63,7 +65,8 @@ struct CustomElement {
                 .borderRadius({10})
                 .fill(kCell)
                 .overflow(Overflow::Clip),
-            text("custom(key, program)").font({.size = 12, .color = kAsh}),
+            text("custom(key, program)")
+                .font({.size = 12, .color = material::skia::toSkColor(kAsh)}),
         });
   }
 };

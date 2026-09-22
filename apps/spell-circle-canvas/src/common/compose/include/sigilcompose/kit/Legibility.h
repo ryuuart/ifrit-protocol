@@ -36,6 +36,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Type.h>
 
 #include <initializer_list>
@@ -47,7 +48,7 @@ namespace sigil::compose::kit {
 struct Halo {
   /** The colour to knock out in — the ground the type sits on, not a
    *  contrasting outline. A drafting plate knocks out in the paper. */
-  SkColor4f colour = {1, 1, 1, 1};
+  material::Color colour = {1, 1, 1, 1};
   /** Total stroke width in px, so the visible halo is half this on each
    *  side. The default suits mono type around 7–8 px; below about 1.5 px
    *  total the counters of small type start filling in. */
@@ -61,7 +62,7 @@ struct Halo {
  *  of arbitrary terrain where a symmetric halo would grey the glyph
  *  instead of separating it. */
 struct Shade {
-  SkColor4f colour = {0, 0, 0, 0.9f};
+  material::Color colour = {0, 0, 0, 0.9f};
   SkVector offset = {1, 1};
 };
 
@@ -72,7 +73,7 @@ inline sigil::weave::TextStyle haloed(sigil::weave::TextStyle style,
                                       const Halo& halo = {}) {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(halo.colour, nullptr);
+  p.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(halo.width);
   p.setStrokeJoin(halo.join);
@@ -85,7 +86,7 @@ inline sigil::weave::TextStyle shaded(sigil::weave::TextStyle style,
                                       const Shade& shade = {}) {
   sigil::weave::PaintLayer layer;
   layer.paint.setAntiAlias(true);
-  layer.paint.setColor4f(shade.colour, nullptr);
+  layer.paint.setColor4f(material::skia::toSkColor(shade.colour), nullptr);
   layer.offset = shade.offset;
   style.paint.addUnderlay(std::move(layer));
   return style;
@@ -99,7 +100,7 @@ inline sigil::weave::Type haloed(sigil::weave::Type type,
                                  const Halo& halo = {}) {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(halo.colour, nullptr);
+  p.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(halo.width);
   p.setStrokeJoin(halo.join);
@@ -111,7 +112,7 @@ inline sigil::weave::Type shaded(sigil::weave::Type type,
                                  const Shade& shade = {}) {
   sigil::weave::PaintLayer layer;
   layer.paint.setAntiAlias(true);
-  layer.paint.setColor4f(shade.colour, nullptr);
+  layer.paint.setColor4f(material::skia::toSkColor(shade.colour), nullptr);
   layer.offset = shade.offset;
   if (!type.underlays) type.underlays.emplace();
   type.underlays->push_back(std::move(layer));
@@ -125,10 +126,10 @@ inline sigil::weave::Type shaded(sigil::weave::Type type,
  *  rather than a flag — the colour a caller passes is the difference, and
  *  a flag would not make that visible. */
 inline sigil::weave::TextStyle emboldened(sigil::weave::TextStyle style,
-                                          float width, SkColor4f colour) {
+                                          float width, material::Color colour) {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(colour, nullptr);
+  p.setColor4f(material::skia::toSkColor(colour), nullptr);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(width);
   p.setStrokeJoin(SkPaint::kRound_Join);
@@ -138,10 +139,10 @@ inline sigil::weave::TextStyle emboldened(sigil::weave::TextStyle style,
 /** On a partial; a @p colour of transparent black is the ink the text is
  *  set in, which is what a weight usually wants. */
 inline sigil::weave::Type emboldened(sigil::weave::Type type, float width,
-                                     SkColor4f colour = {0, 0, 0, 0}) {
+                                     material::Color colour = {0, 0, 0, 0}) {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(colour, nullptr);
+  p.setColor4f(material::skia::toSkColor(colour), nullptr);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(width);
   p.setStrokeJoin(SkPaint::kRound_Join);
@@ -198,7 +199,7 @@ inline void drawHaloed(SkCanvas& canvas, std::string_view s, SkPoint at,
                        const Halo& halo = {}) {
   SkPaint h;
   h.setAntiAlias(true);
-  h.setColor4f(halo.colour, nullptr);
+  h.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
   h.setStyle(SkPaint::kStroke_Style);
   h.setStrokeWidth(halo.width);
   h.setStrokeJoin(halo.join);
@@ -211,11 +212,11 @@ inline void drawHaloed(SkCanvas& canvas, std::string_view s, SkPoint at,
 /** The colour spelling, for the common case where the ink is a flat
  *  antialiased fill. */
 inline void drawHaloed(SkCanvas& canvas, std::string_view s, SkPoint at,
-                       const SkFont& font, SkColor4f ink,
+                       const SkFont& font, material::Color ink,
                        const Halo& halo = {}) {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(ink, nullptr);
+  p.setColor4f(material::skia::toSkColor(ink), nullptr);
   drawHaloed(canvas, s, at, font, p, halo);
 }
 
@@ -240,7 +241,7 @@ inline void drawHaloed(SkCanvas& canvas,
                        const Halo& halo = {}) {
   SkPaint h;
   h.setAntiAlias(true);
-  h.setColor4f(halo.colour, nullptr);
+  h.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
   h.setStyle(SkPaint::kStroke_Style);
   h.setStrokeWidth(halo.width);
   h.setStrokeJoin(halo.join);

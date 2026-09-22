@@ -13,6 +13,7 @@
 #include <sigilcompose/brush/Stamps.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -29,6 +30,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
@@ -68,21 +70,22 @@ constexpr float kCellW = 80.0f, kCellH = 110.0f;    // Cluster:59 — the HIT bo
 constexpr float kUlen = kRenderBox / (float)kGrid;  // 3.0645 GUI px
 constexpr float kLineBreadth = 2.0f;                // Cluster:240
 
-using sigil::compose::hexColor;  // 0xRRGGBB -> SkColor4f
+using sigil::compose::hexColor;  // 0xRRGGBB -> material::Color
 
 // Palette, sampled out of the mod's own PNGs (see the header).
-const SkColor4f kLeatherDark =
+const material::Color kLeatherDark =
     hexColor(0x0A0800);  // guijspacebook, darkest bulk
-const SkColor4f kLeatherMid =
+const material::Color kLeatherMid =
     hexColor(0x2C1602);  // its commonest opaque colour
-const SkColor4f kLeatherWarm = hexColor(0x634913);
-const SkColor4f kGilt = hexColor(0x9B7A2D);   // its brightest
-const SkColor4f kOlive = hexColor(0x7D6C00);  // guijarrow
-const SkColor4f kOliveDim = hexColor(0x574E25);
-const SkColor4f kNebula =
+const material::Color kLeatherWarm = hexColor(0x634913);
+const material::Color kGilt = hexColor(0x9B7A2D);   // its brightest
+const material::Color kOlive = hexColor(0x7D6C00);  // guijarrow
+const material::Color kOliveDim = hexColor(0x574E25);
+const material::Color kNebula =
     hexColor(0x0B080B);  // guiresbgcst mean * (.8,.8,1)*.7
-const SkColor4f kFieldStar = hexColor(0x8F8FB3);  // its white points, same tint
-const SkColor4f kInk = hexColor(0xDDDDDD);        // Cluster:253 text 0xBBDDDDDD
+const material::Color kFieldStar =
+    hexColor(0x8F8FB3);                           // its white points, same tint
+const material::Color kInk = hexColor(0xDDDDDD);  // Cluster:253 text 0xBBDDDDDD
 constexpr float kInkAlpha = 0xBB / 255.0f;
 
 // ---------------------------------------------------------------------------

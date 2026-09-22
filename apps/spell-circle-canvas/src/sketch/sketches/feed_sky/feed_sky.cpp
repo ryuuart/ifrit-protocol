@@ -51,6 +51,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
@@ -66,6 +67,7 @@
 
 #include "feed_sky_generated.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace data = sigil::data;
@@ -79,7 +81,7 @@ const char* kAddress = "udp://:27020";     // where the sky arrives
 const char* kRecording = "data/sky.feed";  // what a capture replays
 
 constexpr SkSize kCanvas = {1280, 720};
-constexpr SkColor4f kGround = {0.04f, 0.04f, 0.09f, 1};
+constexpr material::Color kGround = {0.04f, 0.04f, 0.09f, 1};
 constexpr double kCaptureAt = 2.0;  // by now several messages have landed
 
 constexpr float kTop = 80.0f;       // where the first band stands
@@ -175,7 +177,7 @@ struct FeedSky {
     // A paint program runs after the describe scope has closed, where the
     // theme in force is no longer this page's, so the one colour the
     // placeholder is drawn in is read here and carried in by value.
-    const SkColor4f rule = sketch::kit::theme().palette.rule;
+    const material::Color rule = sketch::kit::theme().palette.rule;
     std::vector<compose::Element> parts;
     parts.push_back(compose::pen("feed_sky.sky", [this, rule](Pen& pen) {
                       draw(pen, rule);
@@ -200,7 +202,7 @@ struct FeedSky {
   }
 
   /** The sky, or the placeholder where there is none. */
-  void draw(Pen& pen, SkColor4f rule) {
+  void draw(Pen& pen, material::Color rule) {
     pen.noStroke();
     if (!arrived()) {
       horizon(pen, rule);
@@ -211,7 +213,7 @@ struct FeedSky {
 
   /** THE QUIET PLACEHOLDER: one dim line where the bands would cross, so
    *  a canvas nothing has reached still says where the sky is. */
-  void horizon(Pen& pen, SkColor4f rule) {
+  void horizon(Pen& pen, material::Color rule) {
     pen.stroke(rule);
     pen.strokeWeight(1);
     pen.line(kMargin, pen.height * 0.5f, pen.width - kMargin,

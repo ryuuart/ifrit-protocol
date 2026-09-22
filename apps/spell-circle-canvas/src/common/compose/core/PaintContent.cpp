@@ -19,6 +19,8 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/ComposeCore.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -116,9 +118,9 @@ SkPath gateSilhouette(const SkPath& src, const std::vector<Span>& show) {
 /** Rec. 601 luma of a resolved COLOUR, as a coverage alpha. `Fill`'s colour
  *  is unpremultiplied, so the premultiplied reading is written out:
  *  `a · dot(rgb, k)`. */
-SkColor4f lumaCoverageColor(const SkColor4f& c) {
-  const float y = 0.299f * c.fR + 0.587f * c.fG + 0.114f * c.fB;
-  return {0, 0, 0, std::clamp(c.fA * y, 0.0f, 1.0f)};
+material::Color lumaCoverageColor(const material::Color& c) {
+  const float y = 0.299f * c.r + 0.587f * c.g + 0.114f * c.b;
+  return {0, 0, 0, std::clamp(c.a * y, 0.0f, 1.0f)};
 }
 
 /** …and of a resolved SHADER. A shader's channels arrive PREMULTIPLIED, so
@@ -192,7 +194,9 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
       outline.paint.setShader(sf.shaderValue);
     else
       outline.paint.setColor4f(
-          sf.kind == Fill::Kind::Color ? sf.colorValue : SkColor4f{0, 0, 0, 1},
+          material::skia::toSkColor(sf.kind == Fill::Kind::Color
+                                        ? sf.colorValue
+                                        : material::Color{0, 0, 0, 1}),
           nullptr);
     metric.addUnderlay(outline);
     havePaint = true;
@@ -255,7 +259,8 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
     metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
     havePaint = true;
   } else if (f.kind == Fill::Kind::Color) {
-    metric.foreground.setColor4f(f.colorValue, nullptr);
+    metric.foreground.setColor4f(material::skia::toSkColor(f.colorValue),
+                                 nullptr);
     havePaint = true;
   }
   return havePaint ? std::optional(metric) : std::nullopt;
@@ -504,7 +509,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       // The cascade as it resolved at this node: the ink every mark that
       // names no colour takes, the font a pen program begins in, and the
       // custom properties a fill or an ink may read.
-      .ink = inst.font.color.value_or(SkColor4f{0, 0, 0, 1}),
+      .ink = inst.font.color ? material::skia::toColor(*inst.font.color)
+                             : material::Color{0, 0, 0, 1},
       .font = inst.font,
       .vars = inst.vars.get(),
       .pointer = pointerHere,
@@ -652,7 +658,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                                : f.shaderValue);
         else if (f.kind == Fill::Kind::Color)
           cover.setColor4f(
-              luma ? lumaCoverageColor(f.colorValue) : f.colorValue, nullptr);
+              material::skia::toSkColor(luma ? lumaCoverageColor(f.colorValue)
+                                             : f.colorValue),
+              nullptr);
         else
           cover.setColor4f({0, 0, 0, 0},
                            nullptr);  // Fill::none() shows nothing
@@ -806,10 +814,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       const Fill from = resolveRef(inst.fillFrom, paintCtx);
       const Fill to = resolveRef(inst.fillTo, paintCtx);
       fill = to;
-      for (int i = 0; i < 4; ++i)
-        fill.colorValue.vec()[i] =
-            from.colorValue.vec()[i] +
-            (to.colorValue.vec()[i] - from.colorValue.vec()[i]) * t;
+      const material::Color& a = from.colorValue;
+      const material::Color& b = to.colorValue;
+      fill.colorValue = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
       fill.kind = Fill::Kind::Color;
     } else {
       ResolvedProperty<Fill> resolved =
@@ -831,7 +838,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     for (const Echo& e : echoesOf(node)) {
       SkPaint stamp;
       stamp.setAntiAlias(true);
-      stamp.setColor4f(e.color, nullptr);
+      stamp.setColor4f(material::skia::toSkColor(e.color), nullptr);
       canvas.save();
       canvas.translate(e.offset.fX, e.offset.fY);
       if (customShape || trimmed)
@@ -847,7 +854,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     SkPaint paint;
     paint.setAntiAlias(true);
     if (fill.kind == Fill::Kind::Color)
-      paint.setColor4f(fill.colorValue, nullptr);
+      paint.setColor4f(material::skia::toSkColor(fill.colorValue), nullptr);
     else
       paint.setShader(fill.shaderValue);
     // Leaf fast path: paint() proved a layer is unnecessary and routed the
@@ -932,7 +939,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           if (!echoesOf(node).empty() && !hasTextFx(inst)) {
             for (const Echo& e : echoesOf(node)) {
               sigil::weave::PaintStyle stamp;
-              stamp.foreground.setColor4f(e.color, nullptr);
+              stamp.foreground.setColor4f(material::skia::toSkColor(e.color),
+                                          nullptr);
               canvas.save();
               canvas.translate(e.offset.fX, e.offset.fY);
               inst.textLayout.drawBatched(&canvas, *inst.paragraph, &stamp);

@@ -13,6 +13,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
@@ -33,6 +34,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
@@ -64,7 +66,7 @@ inline float snap5f(float v) {
   return (float)(((uint32_t)i << 3u) | ((uint32_t)i >> 2u)) / 255.0f;
 }
 /** A nav-art colour, snapped to the grid the shipped art lives on. */
-inline SkColor4f C5(uint32_t rgb, float a = 1.0f) noexcept {
+inline material::Color C5(uint32_t rgb, float a = 1.0f) noexcept {
   return {snap5f((float)((rgb >> 16u) & 0xffu) / 255.0f),
           snap5f((float)((rgb >> 8u) & 0xffu) / 255.0f),
           snap5f((float)(rgb & 0xffu) / 255.0f), a};
@@ -75,17 +77,17 @@ inline SkColor4f C5(uint32_t rgb, float a = 1.0f) noexcept {
 
 // Straight out of the shipped HTML:
 // <body bgcolor="#000000" text="#ff0000" link="#ff4c4c" ...>
-constexpr SkColor4f kPageBlack = hexColor(0x000000);
-constexpr SkColor4f kBodyText = hexColor(0xFF0000);
+constexpr material::Color kPageBlack = hexColor(0x000000);
+constexpr material::Color kBodyText = hexColor(0xFF0000);
 
 // The label treatment, pixel-sampled and identical on all twelve GIFs
 // THE LABELS ARE NOT ALL YELLOW. The shipped art sets STELLAR SOUVENIRS,
 // LUNAR TUNES and PRESS BOX SHUTTLE in WHITE and SITE MAP in yellow, and
 // that split is the page's only typographic variation — flattened to one
 // colour, twelve buttons read as one button repeated.
-const SkColor4f kLabel = C5(0xFFFF00);
-const SkColor4f kLabelWhite = C5(0xFFFFFF);
-const SkColor4f kLabelInk = C5(0x080800);
+const material::Color kLabel = C5(0xFFFF00);
+const material::Color kLabelWhite = C5(0xFFFFFF);
+const material::Color kLabelInk = C5(0x080800);
 
 // ---------------------------------------------------------------------------
 // Type. Two live pieces of text on this page (the © line, and nothing else);
@@ -105,8 +107,11 @@ inline sk_sp<SkTypeface> serif() {
  *  is baked alone, so a run resolves over the initial values, and the two
  *  live lines on the page over the page's. */
 inline sigil::weave::Type ty(const sk_sp<SkTypeface>& tf, float size,
-                             SkColor4f color, float track = 0) {
-  return {.face = tf, .size = size, .color = color, .track = track};
+                             material::Color color, float track = 0) {
+  return {.face = tf,
+          .size = size,
+          .color = material::skia::toSkColor(color),
+          .track = track};
 }
 
 /** The label outline, spelled with echo() because there is no glyph stroke.
@@ -196,8 +201,9 @@ half4 main(float2 xy) {
   return effect;
 }
 
-inline mskia::Paint ballMaterial(bool live, SkColor4f hi, SkColor4f lo,
-                                 SkColor4f seam, float seamW) {
+inline mskia::Paint ballMaterial(bool live, material::Color hi,
+                                 material::Color lo, material::Color seam,
+                                 float seamW) {
   sk_sp<SkRuntimeEffect> fx = ballEffect(live);
   if (!fx) return mskia::Paint::solid(hi);
   mskia::Paint m = mskia::Paint::sksl(fx, {{"uSeamW", seamW}});
@@ -225,7 +231,7 @@ inline float hash1(uint32_t n) {
 }
 
 struct Bands {
-  std::vector<SkColor4f> inks;
+  std::vector<material::Color> inks;
   int count = 6;
   uint32_t seed = 1;
   float thick = 0.11f;    // fraction of the box height
@@ -286,7 +292,8 @@ struct Bands {
       const int pts = under.countPoints();
       for (int i = pts - 1; i >= 0; --i) closed.lineTo(under.getPoint(i));
       closed.close();
-      p.setColor4f(inks[(size_t)b % inks.size()], nullptr);
+      p.setColor4f(material::skia::toSkColor(inks[(size_t)b % inks.size()]),
+                   nullptr);
       canvas.drawPath(closed.detach(), p);
     }
     canvas.restore();
@@ -400,7 +407,7 @@ inline Element starTile() {
  *  browser: the run has to fit its box before the table sees it. */
 inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
                         float x, float y, float w, float capPx,
-                        SkColor4f ink = kLabel) {
+                        material::Color ink = kLabel) {
   const float track = 0.4f * kScale;
   auto styleAt = [&](float sz) { return ty(display(), sz, ink, track); };
   float size = capPx / 0.72f;  // Impact cap height ~0.72 em

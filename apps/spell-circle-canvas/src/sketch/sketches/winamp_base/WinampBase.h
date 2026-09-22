@@ -162,7 +162,7 @@ struct WinampBase {
    *  instead would let the leading blank of " 3:02" slide the lit digits
    *  sideways off the ghost. The ghost and the live readout are built by
    *  this same function, so they cannot disagree about the pitch. */
-  Element lcdCells(const std::string& s, SkColor4f ink) const;
+  Element lcdCells(const std::string& s, sigil::material::Color ink) const;
 
   Element timeReadout(int seconds) {
     return lcdCells(mmssCells(seconds), wa::kGreen);

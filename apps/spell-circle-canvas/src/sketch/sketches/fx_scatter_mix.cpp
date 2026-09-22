@@ -39,6 +39,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -47,6 +48,7 @@
 
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace motion = sigil::motion;
@@ -63,16 +65,17 @@ constexpr float kLean = 26;        // …and its lean, degrees
 constexpr float kEach = 60;        // per-unit spacing, ms
 constexpr float kDuration = 420;   // one unit's own motion, ms
 
-constexpr SkColor4f kHot{0.95f, 0.36f, 0.28f,
-                         1};  // what the mixed tint wipes FROM
+constexpr material::Color kHot{0.95f, 0.36f, 0.28f,
+                               1};  // what the mixed tint wipes FROM
 
 weave::TextStyle specimen() {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
-  return weave::textStyle({.face = face,
-                           .size = 34,
-                           .color = sketch::kit::theme().palette.figure,
-                           .track = 1});
+  return weave::textStyle(
+      {.face = face,
+       .size = 34,
+       .color = material::skia::toSkColor(sketch::kit::theme().palette.figure),
+       .track = 1});
 }
 
 Element figure(float width, const char* key, Track track) {
@@ -118,7 +121,7 @@ struct FxScatterMix {
 
   Element describe(sketch::SketchContext& ctx) {
     const sketch::kit::Provide presentation(sketch::kit::studyTheme());
-    const SkColor4f ink = sketch::kit::theme().palette.figure;
+    const material::Color ink = sketch::kit::theme().palette.figure;
 
     Element page = sketch::kit::page(
         {.title = "Change the effect, or change who starts",

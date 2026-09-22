@@ -26,6 +26,7 @@
 #include <sigilgeometry/path/Edges.h>
 #include <sigilimage/asset/Embedded.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
@@ -48,6 +49,7 @@
 #include "TwoAdvanced.h"
 
 namespace data = sigil::data;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace patterns = sigil::material::pattern;
@@ -69,18 +71,19 @@ using namespace twoadvanced;
 // ---------------------------------------------------------------------------
 // Palette — sampled from the studio's own 1920×1080 capture, never eyed.
 
-constexpr SkColor4f kPage = hexColor(0x182337);    // outer page ground
-constexpr SkColor4f kPageHi = hexColor(0x314361);  // page ground, top of ramp
-constexpr SkColor4f kDeep = hexColor(0x1C283C);    // stage art darks
-constexpr SkColor4f kSeam = hexColor(0x2E3C57);    // seams, scroll strip
-constexpr SkColor4f kNavbar = hexColor(0x4A5972);  // navbar body
-constexpr SkColor4f kSteel = hexColor(0x7886A6);   // the mid chrome steel
-constexpr SkColor4f kSteelDim = hexColor(0x68758A);
-constexpr SkColor4f kSteelHi = hexColor(0xC3CCD8);  // lifted chrome
-constexpr SkColor4f kNear = hexColor(0xF1F4F8);     // titles, wordmark
-constexpr SkColor4f kBody = hexColor(0xA8B2C0);     // module body copy
-constexpr SkColor4f kInk = hexColor(0x202B3F);      // dark type on steel bars
-constexpr SkColor4f kHost = hexColor(0xE8920A);     // the ONE saturated mark
+constexpr material::Color kPage = hexColor(0x182337);  // outer page ground
+constexpr material::Color kPageHi =
+    hexColor(0x314361);  // page ground, top of ramp
+constexpr material::Color kDeep = hexColor(0x1C283C);    // stage art darks
+constexpr material::Color kSeam = hexColor(0x2E3C57);    // seams, scroll strip
+constexpr material::Color kNavbar = hexColor(0x4A5972);  // navbar body
+constexpr material::Color kSteel = hexColor(0x7886A6);   // the mid chrome steel
+constexpr material::Color kSteelDim = hexColor(0x68758A);
+constexpr material::Color kSteelHi = hexColor(0xC3CCD8);  // lifted chrome
+constexpr material::Color kNear = hexColor(0xF1F4F8);     // titles, wordmark
+constexpr material::Color kBody = hexColor(0xA8B2C0);     // module body copy
+constexpr material::Color kInk = hexColor(0x202B3F);  // dark type on steel bars
+constexpr material::Color kHost = hexColor(0xE8920A);  // the ONE saturated mark
 
 // ---------------------------------------------------------------------------
 // Type — the studio's chassis (the faces, the 1/1000-em tracking unit and
@@ -92,14 +95,16 @@ constexpr SkColor4f kHost = hexColor(0xE8920A);     // the ONE saturated mark
 // in and that it is not condensed.
 
 /** The chrome register: tracking quoted in 1/1000 em of @p size. */
-inline sigil::weave::Type micro(float size, SkColor4f c, float tr = 160) {
-  return {.size = size, .color = c, .track = size * tr / 1000.0f};
+inline sigil::weave::Type micro(float size, material::Color c, float tr = 160) {
+  return {.size = size,
+          .color = material::skia::toSkColor(c),
+          .track = size * tr / 1000.0f};
 }
 /** The prose register: the medium weight, loosely tracked, uncondensed. */
-inline sigil::weave::Type prose(float size, SkColor4f c) {
+inline sigil::weave::Type prose(float size, material::Color c) {
   return {.face = grot(),
           .size = size,
-          .color = c,
+          .color = material::skia::toSkColor(c),
           .track = size * 30 / 1000.0f,
           .condense = 1.0f};
 }

@@ -239,7 +239,9 @@ struct PenrosePaving {
                              p.setAntiAlias(true);
                              p.setStyle(SkPaint::kStroke_Style);
                              p.setStrokeWidth(1.0f);
-                             p.setColor4f(hexColor(0x1B1D1E, 0.85f), nullptr);
+                             p.setColor4f(mat::skia::toSkColor(
+                                              hexColor(0x1B1D1E, 0.85f)),
+                                          nullptr);
                              for (const Tri& g : edges) {
                                SkPathBuilder b;
                                b.moveTo(g.b);
@@ -267,7 +269,8 @@ struct PenrosePaving {
     look.type.captionNote = {9.5f, 0.3f};
     look.type.captionLabel = {9.5f, 0.3f, true};
     look.spacing.rowGap = 4;
-    const SkColor4f held = hexColor(0x7FA87F), broken = hexColor(0xC0564B);
+    const sigil::material::Color held = hexColor(0x7FA87F),
+                                 broken = hexColor(0xC0564B);
     std::vector<sketch::kit::Row> rows;
     for (const measure::Check& c : verdict.rows) {
       if (c.standing == measure::Standing::Heading) {
@@ -346,7 +349,9 @@ struct PenrosePaving {
         .fill(Fill::color(kJointBed))
         // The plaza's lettering voice, stated once: the small tracked line
         // both panels are titled in. The plaque's lines step off it.
-        .font({.size = 10.5f, .color = hexColor(0x8E9295), .track = 1.0f})
+        .font({.size = 10.5f,
+               .color = mat::skia::toSkColor(hexColor(0x8E9295)),
+               .track = 1.0f})
         // the bedding course showing through the saw cuts
         // A procedural grain evaluated over every pixel of the canvas, and
         // the most expensive node in the frame by a wide margin. Nothing it
@@ -436,18 +441,22 @@ struct PenrosePaving {
              // The plaque's three lines are one stack at one place: the
              // paving's name, where it stands, and the pentagrid it was
              // struck from.
-             kit::at(box().column().gap(13).children(
-                         {text(doc["plaque.title"])
-                              .font({.size = 13.0f,
-                                     .color = hexColor(0xDCE0E2),
-                                     .track = 1.9f}),
-                          text(doc["plaque.place"])
-                              .font({.size = 11.5f,
-                                     .color = hexColor(0xA9AEB1),
-                                     .track = 1.5f}),
-                          text(spec).font(
-                              {.color = hexColor(0x8E9598), .track = 1.3f})}),
-                     76, 1096, 1010, 72),
+             kit::at(
+                 box().column().gap(13).children(
+                     {text(doc["plaque.title"])
+                          .font({.size = 13.0f,
+                                 .color =
+                                     mat::skia::toSkColor(hexColor(0xDCE0E2)),
+                                 .track = 1.9f}),
+                      text(doc["plaque.place"])
+                          .font({.size = 11.5f,
+                                 .color =
+                                     mat::skia::toSkColor(hexColor(0xA9AEB1)),
+                                 .track = 1.5f}),
+                      text(spec).font(
+                          {.color = mat::skia::toSkColor(hexColor(0x8E9598)),
+                           .track = 1.3f})}),
+                 76, 1096, 1010, 72),
              verificationCard()});
   }
 

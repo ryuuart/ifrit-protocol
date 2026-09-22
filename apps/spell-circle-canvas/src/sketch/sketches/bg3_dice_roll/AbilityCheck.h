@@ -19,6 +19,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Faces.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -34,6 +35,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace mesh = sigil::geometry::mesh;
@@ -80,24 +82,24 @@ constexpr float kCornerAngle = 12.0f;
 // the ink goes bone. The gilt does not move, the die's own stone does not
 // move, and the three status colours are lifted to where they read on
 // black rather than re-chosen.
-constexpr SkColor4f kVellum{0.043f, 0.037f, 0.031f, 1.0f};  // the scrim
-constexpr SkColor4f kVellumDeep{0.086f, 0.071f, 0.055f, 1.0f};
-constexpr SkColor4f kInk{0.878f, 0.839f, 0.745f, 1.0f};       // bone type
-constexpr SkColor4f kGilt{0.788f, 0.635f, 0.153f, 1.0f};      // #C9A227
-constexpr SkColor4f kGiltDark{0.549f, 0.420f, 0.082f, 1.0f};  // #8C6B15
-constexpr SkColor4f kViridian{0.353f, 0.678f, 0.541f, 1.0f};
-constexpr SkColor4f kOxblood{0.816f, 0.290f, 0.290f, 1.0f};
-constexpr SkColor4f kAdvantage{0.435f, 0.827f, 0.435f, 1.0f};
-constexpr SkColor4f kBone{0.871f, 0.824f, 0.706f, 1.0f};  // #DED2B4
+constexpr material::Color kVellum{0.043f, 0.037f, 0.031f, 1.0f};  // the scrim
+constexpr material::Color kVellumDeep{0.086f, 0.071f, 0.055f, 1.0f};
+constexpr material::Color kInk{0.878f, 0.839f, 0.745f, 1.0f};       // bone type
+constexpr material::Color kGilt{0.788f, 0.635f, 0.153f, 1.0f};      // #C9A227
+constexpr material::Color kGiltDark{0.549f, 0.420f, 0.082f, 1.0f};  // #8C6B15
+constexpr material::Color kViridian{0.353f, 0.678f, 0.541f, 1.0f};
+constexpr material::Color kOxblood{0.816f, 0.290f, 0.290f, 1.0f};
+constexpr material::Color kAdvantage{0.435f, 0.827f, 0.435f, 1.0f};
+constexpr material::Color kBone{0.871f, 0.824f, 0.706f, 1.0f};  // #DED2B4
 
 inline Fill ink(float a = 1.0f) {
-  return Fill::color(mskia::withAlpha(kInk, a));
+  return Fill::color(material::withAlpha(kInk, a));
 }
 inline Fill gilt(float a = 1.0f) {
-  return Fill::color(mskia::withAlpha(kGilt, a));
+  return Fill::color(material::withAlpha(kGilt, a));
 }
 inline Fill giltDark(float a = 1.0f) {
-  return Fill::color(mskia::withAlpha(kGiltDark, a));
+  return Fill::color(material::withAlpha(kGiltDark, a));
 }
 
 inline std::u8string u8(const std::string& s) {

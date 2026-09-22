@@ -55,6 +55,7 @@
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilweave/style/ShapingStyle.h>
@@ -270,18 +271,18 @@ struct Entrance {
  *  composes with this one. The ramp is a smoothstep because a hard cut at
  *  display size flickers at any frame rate; the width of the edge is bought
  *  with the cascade's `durationMs`, not with the curve. */
-[[nodiscard]] inline TextEffect tint(SkColor4f from, SkColor4f to) {
-  const SkColor4f origin{to.fR > 0 ? from.fR / to.fR : 1.0f,
-                         to.fG > 0 ? from.fG / to.fG : 1.0f,
-                         to.fB > 0 ? from.fB / to.fB : 1.0f, 1.0f};
+[[nodiscard]] inline TextEffect tint(material::Color from, material::Color to) {
+  const material::Color origin{to.r > 0 ? from.r / to.r : 1.0f,
+                               to.g > 0 ? from.g / to.g : 1.0f,
+                               to.b > 0 ? from.b / to.b : 1.0f, 1.0f};
   return TextEffect(
-      "tint", {from.fR, from.fG, from.fB, from.fA, to.fR, to.fG, to.fB, to.fA},
+      "tint", {from.r, from.g, from.b, from.a, to.r, to.g, to.b, to.a},
       [origin](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
         const float e = motion::ease::smoothstep(t);
         GlyphModifier m;
-        m.colorMultiplier = {origin.fR + (1.0f - origin.fR) * e,
-                             origin.fG + (1.0f - origin.fG) * e,
-                             origin.fB + (1.0f - origin.fB) * e, 1.0f};
+        m.colorMultiplier = {origin.r + (1.0f - origin.r) * e,
+                             origin.g + (1.0f - origin.g) * e,
+                             origin.b + (1.0f - origin.b) * e, 1.0f};
         return m;
       },
       // Colour only: a wipe repaints letters, it does not move them.

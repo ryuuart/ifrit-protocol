@@ -63,6 +63,7 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Sweep.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
@@ -74,6 +75,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace camera = sigil::geometry::mesh::camera;
 namespace sections = sigil::geometry::sections;
@@ -95,11 +97,11 @@ constexpr int kSections = 220;   // rings along a rail
 constexpr int kStations = 34;    // across-vector ticks per panel
 constexpr int kSectors = 16;     // numbered sectors down the banner
 
-constexpr SkColor4f kCellGround{0.055f, 0.055f, 0.085f, 1};
-constexpr SkColor4f kInk{0.925f, 0.957f, 0.996f, 1};
-constexpr SkColor4f kAccent{0.455f, 0.878f, 0.745f, 1};
-constexpr SkColor4f kNumeral{0.588f, 0.659f, 0.769f, 1};
-constexpr SkColor4f kTick{1.0f, 0.72f, 0.36f, 1};
+constexpr material::Color kCellGround{0.055f, 0.055f, 0.085f, 1};
+constexpr material::Color kInk{0.925f, 0.957f, 0.996f, 1};
+constexpr material::Color kAccent{0.455f, 0.878f, 0.745f, 1};
+constexpr material::Color kNumeral{0.588f, 0.659f, 0.769f, 1};
+constexpr material::Color kTick{1.0f, 0.72f, 0.36f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -135,11 +137,11 @@ Element banner(float length) {
       {box()
            .absolute()
            .inset(0, (float)kAcrossPx - 6, 0, 3)
-           .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.9f})),
+           .fill(Fill::color({kAccent.r, kAccent.g, kAccent.b, 0.9f})),
        box()
            .absolute()
            .inset(0, 3, 0, (float)kAcrossPx - 5)
-           .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.5f})),
+           .fill(Fill::color({kAccent.r, kAccent.g, kAccent.b, 0.5f})),
        text(u8"MARQUEE").font({.size = 48}).ink(kAccent)});
   // One sector: the slack before it, its numeral, and the phrase it
   // carries. The spacers are grow boxes, so the column distributes
@@ -198,7 +200,7 @@ void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
   tick.setAntiAlias(true);
   tick.setStyle(SkPaint::kStroke_Style);
   tick.setStrokeWidth(1.6f);
-  tick.setColor4f(kTick);
+  tick.setColor4f(material::skia::toSkColor(kTick));
   const int stride = std::max(1, (int)rail.size() / kStations);
   for (size_t i = 0; i < rail.size(); i += (size_t)stride) {
     const curve::Frame3& f = rail[i];
@@ -239,7 +241,7 @@ struct YarnMarquee {
                  rule.setColor4f({0.22f, 0.25f, 0.32f, 1});
                  canvas.drawLine(20, 44, kPanel - 20, 44, rule);
                  const auto camera = view();
-                 rule.setColor4f(kTick);
+                 rule.setColor4f(material::skia::toSkColor(kTick));
                  rule.setStrokeWidth(2);
                  for (int i = 0; i < 16; ++i) {
                    const auto& f =

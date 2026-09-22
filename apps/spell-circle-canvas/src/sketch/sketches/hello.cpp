@@ -12,6 +12,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/bind/Bound.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -21,6 +22,7 @@
 #include <string>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace draw = sigil::draw;
 namespace motion = sigil::motion;
@@ -46,7 +48,7 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-Element card(Utf8 step, Utf8 title, Utf8 note, SkColor4f color) {
+Element card(Utf8 step, Utf8 title, Utf8 note, material::Color color) {
   return box()
       .column()
       .gap(10)

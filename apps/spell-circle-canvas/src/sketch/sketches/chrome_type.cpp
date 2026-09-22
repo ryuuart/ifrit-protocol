@@ -41,6 +41,7 @@
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -51,6 +52,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -67,18 +69,18 @@ constexpr float kMargin = 60;
 constexpr float kDisplay = 76;
 constexpr const char* kWordmark = "CHROME";
 
-const SkColor4f kGround{0.086f, 0.090f, 0.106f, 1};
-const SkColor4f kGroundLift{0.129f, 0.137f, 0.157f, 1};
-const SkColor4f kPale{0.796f, 0.816f, 0.847f, 1};
-const SkColor4f kFaint{0.796f, 0.816f, 0.847f, 0.42f};
+const material::Color kGround{0.086f, 0.090f, 0.106f, 1};
+const material::Color kGroundLift{0.129f, 0.137f, 0.157f, 1};
+const material::Color kPale{0.796f, 0.816f, 0.847f, 1};
+const material::Color kFaint{0.796f, 0.816f, 0.847f, 0.42f};
 
-weave::TextStyle wordmark(SkColor4f colour = {0.7f, 0.73f, 0.78f, 1}) {
+weave::TextStyle wordmark(material::Color colour = {0.7f, 0.73f, 0.78f, 1}) {
   return weave::textStyle(
       {.face = weave::ports::face(
            {"Helvetica Neue", "Inter", "Arial Black", "Helvetica"},
            SkFontStyle::Bold()),
        .size = kDisplay,
-       .color = colour,
+       .color = material::skia::toSkColor(colour),
        .track = 1.5f,
        .weight = 800.0f});
 }
@@ -119,7 +121,7 @@ struct ChromeType {
    *  cells of one run so the two boundaries are captioned in one voice and
    *  the only thing that differs between them is the boundary. */
   Element pair(const char* name, const LayerStyle& style,
-               SkColor4f letterInk = {0.72f, 0.75f, 0.80f, 1}) {
+               material::Color letterInk = {0.72f, 0.75f, 0.80f, 1}) {
     namespace c = chrome;
     // On the box: the style dresses the node's own shape and the word
     // sits inside it.

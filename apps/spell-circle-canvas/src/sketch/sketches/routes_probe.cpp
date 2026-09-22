@@ -14,12 +14,13 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
-#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Connect.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -30,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace draw = sigil::draw;
 namespace weave = sigil::weave;
@@ -50,7 +52,7 @@ constexpr const char* kProbe = "hub";  // whose wires are listed
 constexpr const char* kPairings[] = {"spun->hub", "glass->hub", "hub->baked",
                                      "hub->live", "hub->nowhere"};
 
-constexpr SkColor4f kWire{0.42f, 0.62f, 0.78f, 1};
+constexpr material::Color kWire{0.42f, 0.62f, 0.78f, 1};
 
 /** The sheet's classes are the theme's: the probe plates and the answer
  *  lines are both set in `readout`, which is already the call register in

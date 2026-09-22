@@ -43,6 +43,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
@@ -67,20 +68,20 @@ constexpr float kViewDistance = 900;   // px, in front of each panel
 constexpr float kTilt = 38;            // the plate's pitch, degrees
 
 // A restrained palette: paper, ink, and one accent per panel.
-constexpr SkColor4f kGround{0.055f, 0.06f, 0.075f, 1};
-constexpr SkColor4f kPanel{0.09f, 0.10f, 0.12f, 1};
-constexpr SkColor4f kPaper{0.93f, 0.91f, 0.86f, 1};
-constexpr SkColor4f kInk{0.10f, 0.10f, 0.12f, 1};
-constexpr SkColor4f kAsh{0.56f, 0.57f, 0.62f, 1};
-constexpr SkColor4f kCardFront{0.88f, 0.34f, 0.24f, 1};
-constexpr SkColor4f kCardBack{0.16f, 0.42f, 0.78f, 1};
-constexpr SkColor4f kEdge{1, 1, 1, 0.22f};
+constexpr material::Color kGround{0.055f, 0.06f, 0.075f, 1};
+constexpr material::Color kPanel{0.09f, 0.10f, 0.12f, 1};
+constexpr material::Color material::skia::toSkColor(kPaper){0.93f, 0.91f, 0.86f, 1};
+constexpr material::Color kInk{0.10f, 0.10f, 0.12f, 1};
+constexpr material::Color material::skia::toSkColor(kAsh){0.56f, 0.57f, 0.62f, 1};
+constexpr material::Color kCardFront{0.88f, 0.34f, 0.24f, 1};
+constexpr material::Color kCardBack{0.16f, 0.42f, 0.78f, 1};
+constexpr material::Color kEdge{1, 1, 1, 0.22f};
 
 /** THE SIX FACES, front first and back last — which the depth sort must
  *  and does ignore. Each is turned about its own centre and pushed half
  *  an edge along the cube's own axes, which is what `push` counts in. */
 struct Face {
-  SkColor4f fill;
+  material::Color fill;
   const char* name;
   float turnX, turnY;
   float pushX, pushY, pushZ;
@@ -116,7 +117,7 @@ Element panel(const char* caption, Element content) {
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
       .children({text(caption)
-                     .font({.size = 13, .color = kAsh, .track = 2})
+                     .font({.size = 13, .color = material::skia::toSkColor(kAsh), .track = 2})
                      .absolute()
                      .left(18)
                      .bottom(14)});
@@ -154,7 +155,7 @@ struct CardFlip {
    *  hides its back, so whichever faces the viewer is the one drawn. */
   Element card() const {
     constexpr float w = 220, h = 320;
-    const auto face = [](const char* title, const char* line, SkColor4f fill,
+    const auto face = [](const char* title, const char* line, material::Color fill,
                          float turn) {
       return kit::at(0, 0, w, h)
           .borderRadius({16})
@@ -165,7 +166,7 @@ struct CardFlip {
           .justifyContent(Justify::SpaceBetween)
           .rotateY(turn)
           .backface(material::Backface::Hidden)
-          .font({.color = kPaper, .track = 1})
+          .font({.color = material::skia::toSkColor(kPaper), .track = 1})
           .children({text(title).font({.size = 30}),
                      text(line).font({.size = 14}).width(pct(100))});
     };
@@ -236,7 +237,7 @@ struct CardFlip {
         .ink(look.palette.ink)
         .children(
             {text("THE DEPTH LANES — A NODE IS A PLANE")
-                 .font({.size = 14, .color = kAsh, .track = 3})
+                 .font({.size = 14, .color = material::skia::toSkColor(kAsh), .track = 3})
                  .absolute()
                  .left(gap)
                  .top(14),

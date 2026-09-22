@@ -23,6 +23,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
@@ -42,6 +43,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
@@ -63,16 +65,16 @@ namespace {
 // ---------------------------------------------------------------------------
 // palette
 
-using sigil::compose::hexColor;  // 0xRRGGBB -> SkColor4f
+using sigil::compose::hexColor;  // 0xRRGGBB -> material::Color
 
-const SkColor4f kBody = hexColor(0x0B1E21);
-const SkColor4f kStrip = hexColor(0x102A2A);
-const SkColor4f kCyan = hexColor(0x8FE0E6);
-const SkColor4f kTitle = hexColor(0xE4F7F8);
-const SkColor4f kDim = hexColor(0x33514E);
-const SkColor4f kBrassLo = hexColor(0xC9A227);
-const SkColor4f kBrassHi = hexColor(0xE8C860);
-const SkColor4f kBrassDk = hexColor(0x5E4914);
+const material::Color kBody = hexColor(0x0B1E21);
+const material::Color kStrip = hexColor(0x102A2A);
+const material::Color kCyan = hexColor(0x8FE0E6);
+const material::Color kTitle = hexColor(0xE4F7F8);
+const material::Color kDim = hexColor(0x33514E);
+const material::Color kBrassLo = hexColor(0xC9A227);
+const material::Color kBrassHi = hexColor(0xE8C860);
+const material::Color kBrassDk = hexColor(0x5E4914);
 
 // ---------------------------------------------------------------------------
 // canvas geometry (1200 x 800)
@@ -109,14 +111,15 @@ inline sk_sp<SkTypeface> uiFace(bool bold) {
 // leaf it is that run's type, on a row it is every run under it. Tracking
 // arrives here in EM, not px, because the reference quotes it that way; the
 // em size is known at this call, so the conversion lands here.
-inline weave::Type benchType(float size, SkColor4f color, float trackEm = 0.07f,
-                             bool bold = true, float stretch = 1.16f) {
+inline weave::Type benchType(float size, material::Color color,
+                             float trackEm = 0.07f, bool bold = true,
+                             float stretch = 1.16f) {
   // The port holds the face, so asking it per style hands back the one
   // pointer every style and every memo below compares against — where a
   // static here would hold it in a dylib that is unloaded on reload.
   return {.face = uiFace(bold),
           .size = size,
-          .color = color,
+          .color = material::skia::toSkColor(color),
           .track = trackEm * size,
           .condense = stretch};
 }
@@ -336,7 +339,7 @@ inline float steppedTime(double t) {
   return (float)(std::floor((t + 1.0 / 12.0) * 6.0) / 6.0);
 }
 
-inline Paint scanField(SkColor4f tint, float period,
+inline Paint scanField(material::Color tint, float period,
                        const choreograph::Output<float>* clock) {
   auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform float2 uResolution;
@@ -378,7 +381,7 @@ struct EdgeDef {
 };
 
 struct KindArt {
-  SkColor4f fill, ring;
+  material::Color fill, ring;
   const char* label;
 };
 inline KindArt artOf(Kind k) {
@@ -393,7 +396,7 @@ inline KindArt artOf(Kind k) {
       return {hexColor(0x563F1D), hexColor(0xE2C088), "REL"};
     case Blank:
     default:
-      return {hexColor(0x0A1B1E), mskia::withAlpha(kCyan, 0.88f), nullptr};
+      return {hexColor(0x0A1B1E), material::withAlpha(kCyan, 0.88f), nullptr};
   }
 }
 

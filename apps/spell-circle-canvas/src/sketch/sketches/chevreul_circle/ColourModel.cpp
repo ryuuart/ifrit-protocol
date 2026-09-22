@@ -1,11 +1,12 @@
 #include "ChevreulCircle.h"
 
-auto ChevreulCircle::wallLift(SkColor4f c) -> SkColor4f {
-  const float y = 0.2126f * c.fR + 0.7152f * c.fG + 0.0722f * c.fB;
+auto ChevreulCircle::wallLift(sigil::material::Color c)
+    -> sigil::material::Color {
+  const float y = 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
   const auto lift = [y](float v) {
     return std::clamp(y + (v - y) * kWallLift, 0.0f, 1.0f);
   };
-  return {lift(c.fR), lift(c.fG), lift(c.fB), c.fA};
+  return {lift(c.r), lift(c.g), lift(c.b), c.a};
 }
 
 auto ChevreulCircle::computeColours() -> void {
@@ -201,7 +202,7 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
     if (r.valid()) {
       for (int b = 0; b < kBandN; ++b) {
         const int x0 = (int)(b * kBandW);
-        const SkColor4f want = gamme[(size_t)b];
+        const sigil::material::Color want = gamme[(size_t)b];
         int dev = 0;
         // interior only: the band edges are antialiased and a 1 px
         // blend seam there is correct behaviour, not a defect.
@@ -209,11 +210,11 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
         int cnt = 0;
         for (int x = x0 + 6; x < x0 + (int)kBandW - 6; x += 2)
           for (int y = 6; y < 26; y += 2) {
-            const SkColor4f got = r.at(x, y);
-            dev = std::max({dev, std::abs(code(got.fR) - code(want.fR)),
-                            std::abs(code(got.fG) - code(want.fG)),
-                            std::abs(code(got.fB) - code(want.fB))});
-            const double lum = code(got.fG);
+            const sigil::material::Color got = r.at(x, y);
+            dev = std::max({dev, std::abs(code(got.r) - code(want.r)),
+                            std::abs(code(got.g) - code(want.g)),
+                            std::abs(code(got.b) - code(want.b))});
+            const double lum = code(got.g);
             sum += lum;
             sum2 += lum * lum;
             ++cnt;
@@ -283,11 +284,11 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
       const auto pos = quadPool->positions();
       const auto tints = quadPool->tints();
       for (size_t i = 0; i < pos.size(); ++i) {
-        const SkColor4f got = r.at((int)pos[i].fX, (int)pos[i].fY);
-        const SkColor4f want = tints[i];
-        const int dev = std::max({std::abs(code(got.fR) - code(want.fR)),
-                                  std::abs(code(got.fG) - code(want.fG)),
-                                  std::abs(code(got.fB) - code(want.fB))});
+        const sigil::material::Color got = r.at((int)pos[i].fX, (int)pos[i].fY);
+        const sigil::material::Color want = tints[i];
+        const int dev = std::max({std::abs(code(got.r) - code(want.r)),
+                                  std::abs(code(got.g) - code(want.g)),
+                                  std::abs(code(got.b) - code(want.b))});
         ++v.tintCells;
         v.tintMaxDev = std::max(v.tintMaxDev, dev);
         if (dev == 0) ++v.tintExact;
@@ -320,10 +321,10 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
                             .filter(Effect::recipe(ocio::exponent(2.2f))),
                         *ctx.fonts, {32, 32}, kN32_SkColorType);
     if (r.valid()) {
-      const SkColor4f got = r.at(16, 16);
+      const sigil::material::Color got = r.at(16, 16);
       v.ocioSample = kit::formatted(
-          "#%02X%02X%02X", (int)std::lround(got.fR * 255.0f),
-          (int)std::lround(got.fG * 255.0f), (int)std::lround(got.fB * 255.0f));
+          "#%02X%02X%02X", (int)std::lround(got.r * 255.0f),
+          (int)std::lround(got.g * 255.0f), (int)std::lround(got.b * 255.0f));
     }
   }
 }
@@ -389,7 +390,9 @@ auto ChevreulCircle::buildLaw() -> void {
       u8"in their op­ti­cal com­po­si­tion "
       u8"and in the height of their tone.”  ");
   b.pushStyle(
-      weave::textStyle({.face = serifIt(), .size = 11, .color = kInk2}));
+      weave::textStyle({.face = serifIt(),
+                        .size = 11,
+                        .color = sigil::material::skia::toSkColor(kInk2)}));
   b.addText(
       u8"— M. E. Chevreul, §16, De la loi du contraste simultané des "
       u8"couleurs, 1839; trans. Charles Martel.");

@@ -16,6 +16,7 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <string>
 #include <vector>
@@ -36,15 +37,15 @@ using ornament::SwirlCorners;
 
 /** The gilt-on-oxblood palette Aurelia is drawn in. */
 struct FlourishStyle {
-  SkColor4f gold{0.830f, 0.660f, 0.320f, 1};
-  SkColor4f goldBright{0.980f, 0.860f, 0.540f, 1};
-  SkColor4f bronze{0.470f, 0.300f, 0.150f, 1};
-  SkColor4f leaf{0.680f, 0.560f, 0.280f, 1};
-  SkColor4f parchment{0.760f, 0.665f, 0.485f, 1};
-  SkColor4f ink{0.190f, 0.115f, 0.080f, 1};
-  SkColor4f velvetCore{0.105f, 0.050f, 0.065f, 1};
-  SkColor4f velvetEdge{0.028f, 0.018f, 0.028f, 1};
-  SkColor4f rubric{0.560f, 0.150f, 0.130f, 1};
+  material::Color gold{0.830f, 0.660f, 0.320f, 1};
+  material::Color goldBright{0.980f, 0.860f, 0.540f, 1};
+  material::Color bronze{0.470f, 0.300f, 0.150f, 1};
+  material::Color leaf{0.680f, 0.560f, 0.280f, 1};
+  material::Color parchment{0.760f, 0.665f, 0.485f, 1};
+  material::Color ink{0.190f, 0.115f, 0.080f, 1};
+  material::Color velvetCore{0.105f, 0.050f, 0.065f, 1};
+  material::Color velvetEdge{0.028f, 0.018f, 0.028f, 1};
+  material::Color rubric{0.560f, 0.150f, 0.130f, 1};
 };
 
 /** The ornament palette this style is, for the pieces that take one. */
@@ -62,7 +63,8 @@ inline Fill flourishParchment(const FlourishStyle& s, float freq = 0.04f) {
       SkBlendMode::kLuminosity,
       SkShaders::Color(SkColorSetARGB(255, 128, 128, 128)), std::move(noise));
   return Fill::shader(SkShaders::Blend(
-      SkBlendMode::kSoftLight, SkShaders::Color(s.parchment.toSkColor()),
+      SkBlendMode::kSoftLight,
+      SkShaders::Color(material::skia::toSkColor(s.parchment).toSkColor()),
       std::move(muted)));
 }
 
@@ -86,20 +88,20 @@ inline Element acanthusLeaf(const FlourishStyle& s, float w = 28.0f,
                             float h = 20.0f) {
   ContourWalk veins;  // recursion level 2: the stamp walks its own contour
   veins.spacing = 4.0f;
-  const SkColor4f bead = s.goldBright;
+  const material::Color bead = s.goldBright;
   veins.draw = [bead](SkCanvas& c) {
     SkPaint p;
     p.setAntiAlias(true);
-    p.setColor4f(bead, nullptr);
+    p.setColor4f(material::skia::toSkColor(bead), nullptr);
     c.drawCircle(0, 0, 0.7f, p);
   };
-  const SkColor4f rib = s.goldBright;
+  const material::Color rib = s.goldBright;
   Decoration midrib{PaintProgram([rib](SkCanvas& c, const PaintContext& ctx) {
     SkPaint p;
     p.setAntiAlias(true);
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(1.1f);
-    p.setColor4f(rib, nullptr);
+    p.setColor4f(material::skia::toSkColor(rib), nullptr);
     c.drawLine(ctx.size.width() * 0.1f, ctx.size.height() * 0.5f,
                ctx.size.width() * 0.92f, ctx.size.height() * 0.5f, p);
   })};
@@ -123,7 +125,7 @@ inline ContourWalk flourishVine(const FlourishStyle& s, float spacing = 18.0f,
 }
 
 /** A gilt diamond bead chain, stamped along the outline. */
-inline PathFormat beadChain(SkColor4f color, float advance = 14.0f,
+inline PathFormat beadChain(material::Color color, float advance = 14.0f,
                             float r = 2.6f) {
   SkPathBuilder bead;
   bead.moveTo(0, -r);
@@ -140,7 +142,7 @@ inline PathFormat beadChain(SkColor4f color, float advance = 14.0f,
 }
 
 /** A broken gilt rule (dashed stroke) of the outline. */
-inline PathFormat giltDash(SkColor4f color, float width = 1.2f) {
+inline PathFormat giltDash(material::Color color, float width = 1.2f) {
   PathFormat f;
   f.width = width;
   f.strokeFill = Fill::color(color);

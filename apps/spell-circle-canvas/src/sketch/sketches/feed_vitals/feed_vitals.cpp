@@ -15,6 +15,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -27,6 +28,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace io = sigil::io;
 
@@ -131,8 +133,8 @@ struct FeedVitals {
     // theme in force is no longer this page's, so the colours the strip
     // is drawn in are read here and carried in by value.
     const sketch::kit::Theme& look = sketch::kit::theme();
-    const SkColor4f rule = look.palette.rule;
-    const SkColor4f figure = look.palette.figure;
+    const material::Color rule = look.palette.rule;
+    const material::Color figure = look.palette.figure;
     ctx.composer.render(sketch::kit::page(
         {.title = "Listen to the wire",
          .subtitle = "Arrival timing, queue health and the newest payload are "
@@ -193,7 +195,7 @@ struct FeedVitals {
   /** THE ARRIVALS: one tick per message, placed by the time that message
    *  carries against the scene clock, so a burst is a cluster and a
    *  silence is empty strip. */
-  void strip(Pen& pen, SkColor4f rule, SkColor4f figure) {
+  void strip(Pen& pen, material::Color rule, material::Color figure) {
     const float base = pen.height - 16.0f;
     const float top = 22.0f;
     pen.strokeWeight(1);

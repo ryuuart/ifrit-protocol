@@ -40,6 +40,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -49,6 +50,7 @@
 
 namespace arrange = sigil::geometry::arrange;
 namespace draw = sigil::draw;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace noise = sigil::core::noise;
 namespace core = sigil::core;
@@ -83,7 +85,7 @@ using Field = std::function<float(int, int)>;
 Element field(const char* key, Field sample) {
   // A pen program runs after the describe scope has closed, so the
   // field's ink is read here and carried in by value.
-  const SkColor4f ink = sketch::kit::theme().palette.figure;
+  const material::Color ink = sketch::kit::theme().palette.figure;
   return pen(key, [sample = std::move(sample), ink](draw::Pen& pen) {
     pen.noStroke();
     pen.noSmooth();
@@ -93,7 +95,7 @@ Element field(const char* key, Field sample) {
       for (int x = 0; x < columns; ++x) {
         const float v = sample(x, y);
         const SkRect at = arrange::cellRect({x, y}, {kBlock, kBlock});
-        pen.fill(SkColor4f{ink.fR * v, ink.fG * v, ink.fB * v, 1});
+        pen.fill(material::Color{ink.r * v, ink.g * v, ink.b * v, 1});
         pen.rect(at.fLeft, at.fTop, kBlock, kBlock);
       }
   });

@@ -58,6 +58,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/skia/Draw.h>
@@ -86,8 +87,8 @@ constexpr float kBevelPx = 118.0f;
 /** Where the three bodies stand across the canvas. */
 constexpr float kStations[3] = {-320, 0, 380};
 
-constexpr SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
-constexpr SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
+constexpr material::Color kInk{0.90f, 0.93f, 0.97f, 1};
+constexpr material::Color kDim{0.56f, 0.61f, 0.72f, 1};
 
 /** The third panel's silhouette: a squircle, in CANVAS coordinates,
  *  because `bevelNormals` places its map so a shader's device xy reads
@@ -177,7 +178,7 @@ struct MeshNormalBridge {
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,
-                        .background = SkColor4f{0.051f, 0.051f, 0.075f, 1}});
+                        .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
     studio = material::kit::studioEnvironment();
     sunset = material::kit::sunsetEnvironment();
     blob = mesh::superellipsoid({170, 150, 90}, 2.6f, 64, 48);

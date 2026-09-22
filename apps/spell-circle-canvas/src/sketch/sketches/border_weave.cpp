@@ -41,12 +41,14 @@
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Crossings.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 namespace crossing = sigil::geometry::path::crossing;
@@ -68,8 +70,8 @@ constexpr float kAmplitude = 5;
 constexpr float kWavelength = 34;
 constexpr float kChamfer = 14;
 
-constexpr SkColor4f kPlate{0.15f, 0.155f, 0.175f, 1};
-constexpr SkColor4f kCool{0.46f, 0.70f, 0.86f, 1};
+constexpr material::Color kPlate{0.15f, 0.155f, 0.175f, 1};
+constexpr material::Color kCool{0.46f, 0.70f, 0.86f, 1};
 
 /** The plaque every cell dresses: a chamfered box, so each corner is a
  *  real tangent break the corner scan can find — except in the last cell,

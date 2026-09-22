@@ -104,7 +104,7 @@ TEST(BrushFormat, ADirectoryOfThreeFilesLoadsThroughAnyByteSource) {
   EXPECT_FLOAT_EQ(read->width, 26.0f);
   EXPECT_FLOAT_EQ(read->opacity, 0.8f);
   EXPECT_EQ(read->rotation, brush::Rotation::Fixed);
-  EXPECT_FLOAT_EQ(read->color.fR, 0.2f);
+  EXPECT_FLOAT_EQ(read->color.r, 0.2f);
 
   ASSERT_TRUE(read->shape);
   EXPECT_TRUE(read->shape->image);
@@ -520,10 +520,10 @@ TEST(BrushFormat, EveryFieldOfATheDescriptionCanHoldSurvivesTheRoundTrip) {
   ASSERT_TRUE(read);
 
   EXPECT_EQ(read->tip, authored.tip);
-  EXPECT_EQ(read->color.fR, authored.color.fR);
-  EXPECT_EQ(read->color.fG, authored.color.fG);
-  EXPECT_EQ(read->color.fB, authored.color.fB);
-  EXPECT_EQ(read->color.fA, authored.color.fA);
+  EXPECT_EQ(read->color.r, authored.color.r);
+  EXPECT_EQ(read->color.g, authored.color.g);
+  EXPECT_EQ(read->color.b, authored.color.b);
+  EXPECT_EQ(read->color.a, authored.color.a);
   EXPECT_EQ(read->width, authored.width);
   EXPECT_EQ(read->spacing, authored.spacing);
   EXPECT_EQ(read->opacity, authored.opacity);

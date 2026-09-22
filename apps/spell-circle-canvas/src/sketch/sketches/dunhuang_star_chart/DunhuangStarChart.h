@@ -15,53 +15,85 @@ struct DunhuangStarChart {
    *  its slot from the clock. */
   [[nodiscard]] weave::StyleSheet voices() const {
     return weave::StyleSheet{
-        {"heading",
-         weave::Type{
-             .face = faceDisplay, .color = hexColor(0xc9a35c), .track = 1.0f}},
+        {"heading", weave::Type{.face = faceDisplay,
+                                .color = sigil::material::skia::toSkColor(
+                                    hexColor(0xc9a35c)),
+                                .track = 1.0f}},
         // THE SIZES FIRST, THE COLOURS AFTER, because a later entry stands over
         // an earlier one by name: `styleClass("caption dim")` is then the small
         // hand in the quiet ink, which is what a plate of notes is set in.
-        {"caption", weave::Type{.size = 8.4f, .color = hexColor(0x9a8a68)}},
-        {"paper", weave::Type{.size = 8.0f, .color = hexColor(0x4a3b28, 0.9f)}},
-        {"tick", weave::Type{.size = 7.4f, .color = hexColor(0x8a7458, 0.6f)}},
-        {"ruler",
-         weave::Type{.size = 7.6f, .color = hexColor(0xc9a35c, 0.85f)}},
+        {"caption", weave::Type{.size = 8.4f,
+                                .color = sigil::material::skia::toSkColor(
+                                    hexColor(0x9a8a68))}},
+        {"paper", weave::Type{.size = 8.0f,
+                              .color = sigil::material::skia::toSkColor(
+                                  hexColor(0x4a3b28, 0.9f))}},
+        {"tick", weave::Type{.size = 7.4f,
+                             .color = sigil::material::skia::toSkColor(
+                                 hexColor(0x8a7458, 0.6f))}},
+        {"ruler", weave::Type{.size = 7.6f,
+                              .color = sigil::material::skia::toSkColor(
+                                  hexColor(0xc9a35c, 0.85f))}},
         {"han", weave::Type{.face = faceHan ? faceHan : faceSerif,
                             .size = 11.5f,
-                            .color = hexColor(0x2a2118, 0.88f)}},
+                            .color = sigil::material::skia::toSkColor(
+                                hexColor(0x2a2118, 0.88f))}},
         {"brush", weave::Type{.face = faceHan ? faceHan : faceSerif,
                               .size = 12.5f,
-                              .color = hexColor(0x241d15, 0.92f)}},
+                              .color = sigil::material::skia::toSkColor(
+                                  hexColor(0x241d15, 0.92f))}},
         {"mapno", weave::Type{.face = faceDisplay,
                               .size = 13.0f,
-                              .color = hexColor(0x4a3b28, 0.82f)}},
-        {"xiu", weave::Type{.size = 7.0f, .color = hexColor(0x5d4c37, 0.75f)}},
-        {"note", weave::Type{.color = hexColor(0x9a8a68)}},
-        {"dim", weave::Type{.color = hexColor(0x6d6249)}},
-        {"chalk", weave::Type{.color = kChalk}},
-        {"number", weave::Type{.color = hexColor(0xcf6a4a)}},
-        {"flag", weave::Type{.color = hexColor(0xb4531f)}},
-        {"pass", weave::Type{.color = hexColor(0x6ba87e)}},
-        {"gold", weave::Type{.color = hexColor(0xc9a35c)}},
-        {"vermilion", weave::Type{.color = hexColor(0x8a3020, 0.95f)}},
+                              .color = sigil::material::skia::toSkColor(
+                                  hexColor(0x4a3b28, 0.82f))}},
+        {"xiu", weave::Type{.size = 7.0f,
+                            .color = sigil::material::skia::toSkColor(
+                                hexColor(0x5d4c37, 0.75f))}},
+        {"note", weave::Type{.color = sigil::material::skia::toSkColor(
+                                 hexColor(0x9a8a68))}},
+        {"dim", weave::Type{.color = sigil::material::skia::toSkColor(
+                                hexColor(0x6d6249))}},
+        {"chalk",
+         weave::Type{.color = sigil::material::skia::toSkColor(kChalk)}},
+        {"number", weave::Type{.color = sigil::material::skia::toSkColor(
+                                   hexColor(0xcf6a4a))}},
+        {"flag", weave::Type{.color = sigil::material::skia::toSkColor(
+                                 hexColor(0xb4531f))}},
+        {"pass", weave::Type{.color = sigil::material::skia::toSkColor(
+                                 hexColor(0x6ba87e))}},
+        {"gold", weave::Type{.color = sigil::material::skia::toSkColor(
+                                 hexColor(0xc9a35c))}},
+        {"vermilion", weave::Type{.color = sigil::material::skia::toSkColor(
+                                      hexColor(0x8a3020, 0.95f))}},
         // THE THREE SCHOOLS ARE CLASSES, so a name and the dot beside it take
         // one statement: S.3326 is the first document to colour them, and
         // cinnabar, carbon and oxidised lead white are what it colours them
         // with.
-        {"shishi", weave::Type{.color = kCinnabar}},
-        {"ganshi", weave::Type{.color = kInk}},
-        {"wuxian", weave::Type{.color = kLead}},
-        {"undeclared", weave::Type{.color = kInkFaint}},
+        {"shishi",
+         weave::Type{.color = sigil::material::skia::toSkColor(kCinnabar)}},
+        {"ganshi",
+         weave::Type{.color = sigil::material::skia::toSkColor(kInk)}},
+        {"wuxian",
+         weave::Type{.color = sigil::material::skia::toSkColor(kLead)}},
+        {"undeclared",
+         weave::Type{.color = sigil::material::skia::toSkColor(kInkFaint)}},
         // THE PARTS A CHART DRAWS, in this plate's own inks rather than the
         // theme's: the pole wheel's rings, its track, its dots and its
         // captions, the departure curves, and the hand's own residual ruled
         // across them.
-        {"plotRule", weave::Type{.color = hexColor(0x8a7458, 0.30f)}},
-        {"plotTrace", weave::Type{.color = kTrace}},
-        {"plotMark", weave::Type{.color = kCinnabar}},
-        {"plotLabel", weave::Type{.size = 7.4f, .color = hexColor(0x9a8a68)}},
-        {"ghost", weave::Type{.color = hexColor(0x8a7458, 0.45f)}},
-        {"hand", weave::Type{.color = hexColor(0xa8382a, 0.45f)}},
+        {"plotRule", weave::Type{.color = sigil::material::skia::toSkColor(
+                                     hexColor(0x8a7458, 0.30f))}},
+        {"plotTrace",
+         weave::Type{.color = sigil::material::skia::toSkColor(kTrace)}},
+        {"plotMark",
+         weave::Type{.color = sigil::material::skia::toSkColor(kCinnabar)}},
+        {"plotLabel", weave::Type{.size = 7.4f,
+                                  .color = sigil::material::skia::toSkColor(
+                                      hexColor(0x9a8a68))}},
+        {"ghost", weave::Type{.color = sigil::material::skia::toSkColor(
+                                  hexColor(0x8a7458, 0.45f))}},
+        {"hand", weave::Type{.color = sigil::material::skia::toSkColor(
+                                 hexColor(0xa8382a, 0.45f))}},
     };
   }
 
@@ -146,7 +178,7 @@ struct DunhuangStarChart {
     SkPath local;
     SkRect box;
     float t0;
-    SkColor4f ink;
+    sigil::material::Color ink;
   };
   std::vector<AstArt> astArt;
   /** Map 5's twenty centroids and the 28 determinative RAs, resolved ONCE in

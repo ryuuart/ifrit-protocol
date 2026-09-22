@@ -49,6 +49,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
@@ -63,6 +64,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace data = sigil::data;
@@ -86,7 +88,7 @@ const char* kLightsOut = "midi://out/";     // the same controller's lights
 const char* kRecording = "data/pads.feed";  // what a capture replays
 
 constexpr SkSize kCanvas = {1280, 720};
-constexpr SkColor4f kGround = {0.04f, 0.04f, 0.09f, 1};
+constexpr material::Color kGround = {0.04f, 0.04f, 0.09f, 1};
 /** Three pads are down and the knob stands mid-way by here. */
 constexpr double kCaptureAt = 3.0;
 
@@ -130,7 +132,7 @@ constexpr int kLightVelocity = 127;
 /** The three colours the cells are lit in, taken in turn down the grid
  *  so two pads struck side by side are told apart. */
 constexpr size_t kTints = 3;
-constexpr std::array<SkColor4f, kTints> kLitTints = {
+constexpr std::array<material::Color, kTints> kLitTints = {
     {{0.42f, 0.78f, 0.94f, 1},
      {0.96f, 0.58f, 0.42f, 1},
      {0.68f, 0.52f, 0.95f, 1}}};
@@ -373,8 +375,8 @@ struct MidiPads {
     // the theme in force is no longer this page's, so the colours the
     // grid is drawn in are read here and carried in by value.
     const sketch::kit::Theme& look = sketch::kit::theme();
-    const SkColor4f rule = look.palette.rule;
-    const SkColor4f figure = look.palette.figure;
+    const material::Color rule = look.palette.rule;
+    const material::Color figure = look.palette.figure;
     compose::Element picture =
         compose::stack()
             .width(kCanvas.width())
@@ -407,8 +409,8 @@ struct MidiPads {
     const float period = kSegment + kGap;
     size_t index = 0;
     for (const Band& band : kBands) {
-      SkColor4f tint = kLitTints[index % kTints];
-      tint.fA = kBandAlpha * 0.32f;
+      material::Color tint = kLitTints[index % kTints];
+      tint.a = kBandAlpha * 0.32f;
       pen.fill(tint);
       const double travelled = drift + (double)band.speed * seconds;
       const float phase =
@@ -427,7 +429,7 @@ struct MidiPads {
    *  as washes one inside the next rather than as one bright edge,
    *  because what a lit pad looks like across a room is light in the
    *  air around it and not a border. */
-  void grid(Pen& pen, SkColor4f rule) {
+  void grid(Pen& pen, material::Color rule) {
     constexpr float kTileGap = 18.0f;
     constexpr float kGridAcross = 0.56f;  // of the canvas, so the sky is a sky
     constexpr float kTileTall = 0.72f;    // of a tile's own width
@@ -453,20 +455,20 @@ struct MidiPads {
       // a grid with nothing lit is still a grid, and eight of them are
       // what says how many pads there are to strike. It is laid over
       // the sky rather than in it, so the bands pass behind the grid.
-      SkColor4f ground = rule;
-      ground.fA *= 0.72f;
+      material::Color ground = rule;
+      ground.a *= 0.72f;
       pen.fill(ground);
       pen.rect(x, y, tile, height, kCorner);
       if (glow <= 0.0f) continue;
-      SkColor4f tint = kLitTints[index % kTints];
+      material::Color tint = kLitTints[index % kTints];
       for (int step = kHalo; step != 0; --step) {
         const float out = (float)step * kHaloStep;
-        tint.fA = glow * 0.055f;
+        tint.a = glow * 0.055f;
         pen.fill(tint);
         pen.rect(x - out, y - out, tile + out * 2.0f, height + out * 2.0f,
                  kCorner + out);
       }
-      tint.fA = glow;
+      tint.a = glow;
       pen.fill(tint);
       pen.rect(x, y, tile, height, kCorner);
     }
@@ -477,7 +479,7 @@ struct MidiPads {
    *  end of it. It is drawn rather than written because a description
    *  carrying a number that changes every frame is a description
    *  rebuilt every frame. */
-  void knob(Pen& pen, SkColor4f rule, SkColor4f figure) {
+  void knob(Pen& pen, material::Color rule, material::Color figure) {
     constexpr float kLength = 260.0f;
     constexpr float kThickness = 6.0f;
     const float right = pen.width - kMargin;

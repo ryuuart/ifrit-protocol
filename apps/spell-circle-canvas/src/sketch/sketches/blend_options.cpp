@@ -64,6 +64,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/blend/Blend.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -72,6 +73,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace arrange = sigil::geometry::arrange;
 namespace blend = sigil::geometry::path::blend;
@@ -87,7 +89,7 @@ constexpr float kWide = 210;       // the height of the derived-count band
 constexpr float kSpine = 300;      // one spine cell, square-ish
 constexpr float kSpineCell = 551;  // (kBand - the gap between the two) / 2
 
-constexpr SkColor4f kCellGround{0.085f, 0.085f, 0.105f, 1};
+constexpr material::Color kCellGround{0.085f, 0.085f, 0.105f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -193,11 +195,12 @@ void strokes(SkCanvas& canvas) {
   const blend::Key from{
       .path = at(shapes::star(6, 40.0f / 72.0f), 62, {80, kRun / 2}),
       .fill = {0, 0, 0, 0},
-      .stroke = SkColor4f{0.2f, 0.9f, 1.0f, 1},
+      .stroke = material::skia::toSkColor(material::Color{0.2f, 0.9f, 1.0f, 1}),
       .strokeWidth = 6};
   const blend::Key to{.path = at(shapes::circle(), 56, {kBand - 80, kRun / 2}),
                       .fill = {0, 0, 0, 0},
-                      .stroke = SkColor4f{1.0f, 0.35f, 0.75f, 1},
+                      .stroke = material::skia::toSkColor(
+                          material::Color{1.0f, 0.35f, 0.75f, 1}),
                       .strokeWidth = 1};
   blend::draw(canvas,
               blend::make(from, to, {.steps = 14, .smoothOutlines = true}));
@@ -218,12 +221,14 @@ void derivedCount(SkCanvas& canvas) {
   {
     const blend::Key from{.path = wave({470, 40}, {kBand - 40, 52}, 24, 3),
                           .fill = {0, 0, 0, 0},
-                          .stroke = SkColor4f{0.15f, 0.85f, 1.0f, 0.9f},
+                          .stroke = material::skia::toSkColor(
+                              material::Color{0.15f, 0.85f, 1.0f, 0.9f}),
                           .strokeWidth = 2.5f};
     const blend::Key to{
         .path = wave({450, kWide - 60}, {kBand - 60, kWide - 52}, 38, 2),
         .fill = {0, 0, 0, 0},
-        .stroke = SkColor4f{1.0f, 0.3f, 0.75f, 0.9f},
+        .stroke =
+            material::skia::toSkColor(material::Color{1.0f, 0.3f, 0.75f, 0.9f}),
         .strokeWidth = 2.5f};
     blend::draw(canvas, blend::make(from, to, {.steps = 42}));
   }

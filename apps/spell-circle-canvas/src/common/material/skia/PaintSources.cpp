@@ -15,6 +15,7 @@
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/core/Program.h>  // reportOnce
+#include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
@@ -33,8 +34,8 @@ namespace sigil::material::skia {
 namespace {
 
 struct RampArrays {
-  std::vector<SkColor4f> colors;
-  std::vector<float> positions;  // empty → evenly spaced
+  std::vector<SkColor4f> colors;  // the shader builder's own colour
+  std::vector<float> positions;   // empty → evenly spaced
 };
 
 RampArrays split(const std::vector<Stop>& stops) {
@@ -42,7 +43,7 @@ RampArrays split(const std::vector<Stop>& stops) {
   r.colors.reserve(stops.size());
   r.positions.reserve(stops.size());
   for (const Stop& s : stops) {
-    r.colors.push_back(s.color);
+    r.colors.push_back(toSkColor(s.color));
     r.positions.push_back(s.pos);
   }
   return r;
@@ -59,7 +60,7 @@ SkGradient makeGradient(const RampArrays& r, SkTileMode tile) {
 
 }  // namespace
 
-Paint Paint::solid(SkColor4f color) {
+Paint Paint::solid(material::Color color) {
   Paint m;
   m.m_isSolid = true;
   m.m_solid = color;
@@ -227,7 +228,7 @@ Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial) {
   // The stop count is baked into the source and one effect is cached per
   // count. Generating per count leaves no arbitrary ceiling below the
   // uniform budget and avoids a uniform-guarded fixed-maximum loop.
-  if (stops.empty()) return Paint::solid(SkColor4f{0, 0, 0, 0});
+  if (stops.empty()) return Paint::solid(material::Color{0, 0, 0, 0});
   if (stops.size() == 1) return Paint::solid(stops.front().color);
   constexpr size_t kMaxStops = 256;
   if (stops.size() > kMaxStops) {

@@ -22,6 +22,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -46,6 +47,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace mskia = sigil::material::skia;
@@ -67,53 +69,66 @@ namespace wa {
 constexpr float kScale = 3.0f;
 constexpr float n(float v) { return v * kScale; }
 
-/** The shadow tone: the complement spelling of `mskia::scale()`, because a
+/** The shadow tone: the complement spelling of `material::scale()`, because a
  * bevel is authored as "how much darker" rather than as a surviving fraction.
  */
-inline SkColor4f dark(SkColor4f c, float k) { return mskia::scale(c, 1 - k); }
+inline material::Color dark(material::Color c, float k) {
+  return material::scale(c, 1 - k);
+}
 
 // ---------------------------------------------------------------------------
 // Palette — sampled from the extracted BMPs, or quoted from the skin's own
 // plain-text config files. Nothing here is remembered.
 
-constexpr SkColor4f kBody = hexColor(0x343453);     // MAIN.BMP body base
-constexpr SkColor4f kBodyTop = hexColor(0x3B3B5A);  // the unit ramp, top-lit
-constexpr SkColor4f kBodyBot = hexColor(0x2E2E48);  // ... to shadowed
-constexpr SkColor4f kLcd =
+constexpr material::Color kBody = hexColor(0x343453);  // MAIN.BMP body base
+constexpr material::Color kBodyTop =
+    hexColor(0x3B3B5A);  // the unit ramp, top-lit
+constexpr material::Color kBodyBot = hexColor(0x2E2E48);  // ... to shadowed
+constexpr material::Color kLcd =
     hexColor(0x131320);  // LCD screen (sampled
                          // #181829, dropped four levels so
                          // the #182129 unlit ghost reads)
-constexpr SkColor4f kBezel = hexColor(0x161622);  // LCD bezel outer ring
-constexpr SkColor4f kUnlit =
+constexpr material::Color kBezel = hexColor(0x161622);  // LCD bezel outer ring
+constexpr material::Color kUnlit =
     hexColor(0x182129);  // VISCOLOR color 1, "grey for
                          // dots" — byte-identical to the
                          // sampled NUMBERS.BMP background
-constexpr SkColor4f kGreen = hexColor(0x00F800);    // NUMBERS.BMP digit green
-constexpr SkColor4f kTitle = hexColor(0x25253A);    // TITLEBAR.BMP base
-constexpr SkColor4f kGold = hexColor(0xA99865);     // wordmark, focused
-constexpr SkColor4f kGoldDim = hexColor(0x7A7A94);  // wordmark, unfocused
-constexpr SkColor4f kBtnHi = hexColor(0xEFFFFF);    // CBUTTONS bevel highlight
-constexpr SkColor4f kBtnFace = hexColor(0x97A8B9);  // CBUTTONS steel-blue face
-constexpr SkColor4f kBtnLo = hexColor(0x4A5A6B);    // CBUTTONS bevel shadow
-constexpr SkColor4f kGlyph = hexColor(0x1E2833);  // the ink on a transport key
-constexpr SkColor4f kLabel = hexColor(0x121A24);  // the lettering on a key
-constexpr SkColor4f kCaption = hexColor(0x8E8EB4);  // a caption on the body
-constexpr SkColor4f kDisplay = hexColor(0x00E000);  // TEXT.BMP's lit green
-constexpr SkColor4f kGraph = hexColor(0x1B1A2C);    // EQMAIN graph screen navy
-constexpr SkColor4f kGrid = hexColor(0x3A3A55);     // EQMAIN dashed gridline
-constexpr SkColor4f kEqTop = hexColor(0x2A9A16);    // fader track, green
-constexpr SkColor4f kEqMid = hexColor(0xA6C731);    // ... yellow-gold
-constexpr SkColor4f kEqBot = hexColor(0xC5431B);    // ... red
-constexpr SkColor4f kPlBg = hexColor(0x000000);     // PLEDIT.TXT NormalBG
-constexpr SkColor4f kPlText = hexColor(0x00FF00);   // PLEDIT.TXT Normal
-constexpr SkColor4f kPlNow = hexColor(0xFFFFFF);    // PLEDIT.TXT Current
-constexpr SkColor4f kPlSel = hexColor(0x0000C6);    // PLEDIT.TXT SelectedBG
-constexpr SkColor4f kDesk = hexColor(0x008080);  // Windows 9x/2000 default teal
-constexpr SkColor4f kPeak = hexColor(0x969696);  // VISCOLOR 23, peak-hold dots
+constexpr material::Color kGreen =
+    hexColor(0x00F800);  // NUMBERS.BMP digit green
+constexpr material::Color kTitle = hexColor(0x25253A);    // TITLEBAR.BMP base
+constexpr material::Color kGold = hexColor(0xA99865);     // wordmark, focused
+constexpr material::Color kGoldDim = hexColor(0x7A7A94);  // wordmark, unfocused
+constexpr material::Color kBtnHi =
+    hexColor(0xEFFFFF);  // CBUTTONS bevel highlight
+constexpr material::Color kBtnFace =
+    hexColor(0x97A8B9);  // CBUTTONS steel-blue face
+constexpr material::Color kBtnLo = hexColor(0x4A5A6B);  // CBUTTONS bevel shadow
+constexpr material::Color kGlyph =
+    hexColor(0x1E2833);  // the ink on a transport key
+constexpr material::Color kLabel =
+    hexColor(0x121A24);  // the lettering on a key
+constexpr material::Color kCaption =
+    hexColor(0x8E8EB4);  // a caption on the body
+constexpr material::Color kDisplay =
+    hexColor(0x00E000);  // TEXT.BMP's lit green
+constexpr material::Color kGraph =
+    hexColor(0x1B1A2C);  // EQMAIN graph screen navy
+constexpr material::Color kGrid = hexColor(0x3A3A55);  // EQMAIN dashed gridline
+constexpr material::Color kEqTop = hexColor(0x2A9A16);   // fader track, green
+constexpr material::Color kEqMid = hexColor(0xA6C731);   // ... yellow-gold
+constexpr material::Color kEqBot = hexColor(0xC5431B);   // ... red
+constexpr material::Color kPlBg = hexColor(0x000000);    // PLEDIT.TXT NormalBG
+constexpr material::Color kPlText = hexColor(0x00FF00);  // PLEDIT.TXT Normal
+constexpr material::Color kPlNow = hexColor(0xFFFFFF);   // PLEDIT.TXT Current
+constexpr material::Color kPlSel = hexColor(0x0000C6);  // PLEDIT.TXT SelectedBG
+constexpr material::Color kDesk =
+    hexColor(0x008080);  // Windows 9x/2000 default teal
+constexpr material::Color kPeak =
+    hexColor(0x969696);  // VISCOLOR 23, peak-hold dots
 
 /** VISCOLOR.TXT colors 2..17, bottom of spectrum -> top, quoted verbatim.
  *  The same family the EQ fader tracks are sampled from. */
-constexpr std::array<SkColor4f, 16> kVis = {
+constexpr std::array<material::Color, 16> kVis = {
     hexColor(0x188408), hexColor(0x299400), hexColor(0x319C08),
     hexColor(0x39B510), hexColor(0x32BE10), hexColor(0x29CE10),
     hexColor(0x94DE21), hexColor(0xBDDE29), hexColor(0xD6B521),
@@ -141,11 +156,11 @@ inline sk_sp<SkTypeface> arial() {
 }
 
 inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
-                                    SkColor4f color, float track = 0,
+                                    material::Color color, float track = 0,
                                     float condense = 1.0f) {
   return weave::textStyle({.face = tf,
                            .size = size,
-                           .color = color,
+                           .color = material::skia::toSkColor(color),
                            .track = track,
                            .condense = condense});
 }
@@ -180,22 +195,23 @@ inline Element at(Element e, float x, float y, float w, float h) {
  *  It goes in `.overlay()`: over the fill, under the content and the
  *  children. A bevel in `.background()` is painted and then covered by
  *  the surface it was meant to sit on. */
-inline Element& raised(Element& e, SkColor4f hi = kBtnHi, SkColor4f lo = kBtnLo,
-                       float w = 1.0f) {
+inline Element& raised(Element& e, material::Color hi = kBtnHi,
+                       material::Color lo = kBtnLo, float w = 1.0f) {
   return kit::bevelled(e, kit::bevels::skin(hi, lo, n(w)));
 }
 /** The same pair the other way up. Every LCD well, trough and list frame
  *  in the skin. */
-inline Element& sunken(Element& e,
-                       SkColor4f hi = mskia::withAlpha(hexColor(0x5C5C86),
-                                                       0.9f),
-                       SkColor4f lo = hexColor(0x101018), float w = 1.0f) {
+inline Element& sunken(
+    Element& e,
+    material::Color hi = material::withAlpha(hexColor(0x5C5C86), 0.9f),
+    material::Color lo = hexColor(0x101018), float w = 1.0f) {
   return kit::bevelled(e, kit::bevels::skin(hi, lo, n(w), true));
 }
 /** THE WELL EDGE the three list frames share — a fainter light and a
  *  deeper shadow than a button's, which is what a hole in the body is. */
-inline const SkColor4f kWellHi = mskia::withAlpha(hexColor(0x585880), 0.7f);
-inline const SkColor4f kWellLo = hexColor(0x0E0E18);
+inline const material::Color kWellHi =
+    material::withAlpha(hexColor(0x585880), 0.7f);
+inline const material::Color kWellLo = hexColor(0x0E0E18);
 
 /** Right/left/up-pointing triangles for the transport glyphs, as outlines
  *  so the node IS the shape.

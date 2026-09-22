@@ -22,6 +22,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Conic.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Globe.h>
 #include <sigilmaterial/sdf/Sdf.h>
@@ -48,6 +49,7 @@
 #include <vector>
 
 namespace data = sigil::data;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
@@ -75,63 +77,69 @@ namespace ksp {
 // ---------------------------------------------------------------------------
 // Palette
 
-constexpr SkColor4f kSpace = hexColor(0x090A0C);  // sampled
-constexpr SkColor4f kSpaceEdge = hexColor(0x06070A);
-constexpr SkColor4f kNebula = hexColor(0x6E7288);
-constexpr SkColor4f kNebula2 = hexColor(0x525F82);
+constexpr material::Color kSpace = hexColor(0x090A0C);  // sampled
+constexpr material::Color kSpaceEdge = hexColor(0x06070A);
+constexpr material::Color kNebula = hexColor(0x6E7288);
+constexpr material::Color kNebula2 = hexColor(0x525F82);
 
-constexpr SkColor4f kOceanLit = hexColor(0x235274);  // sampled mid-tone
-constexpr SkColor4f kOceanDark = hexColor(0x12283A);
-constexpr SkColor4f kLandMoss = hexColor(0x5F8C42);
-constexpr SkColor4f kLandTan = hexColor(0xA08A5C);
-constexpr SkColor4f kAtmo = hexColor(0x6FB3D9);
+constexpr material::Color kOceanLit = hexColor(0x235274);  // sampled mid-tone
+constexpr material::Color kOceanDark = hexColor(0x12283A);
+constexpr material::Color kLandMoss = hexColor(0x5F8C42);
+constexpr material::Color kLandTan = hexColor(0xA08A5C);
+constexpr material::Color kAtmo = hexColor(0x6FB3D9);
 
-constexpr SkColor4f kOrbit = hexColor(0x4DD0C8);  // current vessel, cyan-teal
-constexpr SkColor4f kOrbitCore = hexColor(0xDCF7F5);
-constexpr SkColor4f kTarget = hexColor(0xD8CE7A);  // target orbit, pale yellow
-constexpr SkColor4f kEscape = hexColor(0xD9DCE2);  // escape trajectory, white
+constexpr material::Color kOrbit =
+    hexColor(0x4DD0C8);  // current vessel, cyan-teal
+constexpr material::Color kOrbitCore = hexColor(0xDCF7F5);
+constexpr material::Color kTarget =
+    hexColor(0xD8CE7A);  // target orbit, pale yellow
+constexpr material::Color kEscape =
+    hexColor(0xD9DCE2);  // escape trajectory, white
 
-constexpr SkColor4f kApLabel = hexColor(0x66D6C8);
-constexpr SkColor4f kPeLabel = hexColor(0xB87CE0);
-constexpr SkColor4f kAnLabel = hexColor(0xB7D66E);
+constexpr material::Color kApLabel = hexColor(0x66D6C8);
+constexpr material::Color kPeLabel = hexColor(0xB87CE0);
+constexpr material::Color kAnLabel = hexColor(0xB7D66E);
 
-constexpr SkColor4f kProgradeC =
-    hexColor(0x4CD964);                             // green  — prograde family
-constexpr SkColor4f kNormalC = hexColor(0xB87CE0);  // purple — normal family
-constexpr SkColor4f kRadialC = hexColor(0x5AC8E0);  // blue   — radial family
+constexpr material::Color kProgradeC =
+    hexColor(0x4CD964);  // green  — prograde family
+constexpr material::Color kNormalC =
+    hexColor(0xB87CE0);  // purple — normal family
+constexpr material::Color kRadialC =
+    hexColor(0x5AC8E0);  // blue   — radial family
 
-constexpr SkColor4f kOrange = hexColor(0xDC6F2A);    // sampled (1770,250)
-constexpr SkColor4f kCardBody = hexColor(0xE4E5E7);  // sampled off-white
-constexpr SkColor4f kCardStrip = hexColor(0xF4F4F5);
-constexpr SkColor4f kCardInk = hexColor(0x2A2A2C);
-constexpr SkColor4f kCardSub = hexColor(0x3A3A3E);
+constexpr material::Color kOrange = hexColor(0xDC6F2A);    // sampled (1770,250)
+constexpr material::Color kCardBody = hexColor(0xE4E5E7);  // sampled off-white
+constexpr material::Color kCardStrip = hexColor(0xF4F4F5);
+constexpr material::Color kCardInk = hexColor(0x2A2A2C);
+constexpr material::Color kCardSub = hexColor(0x3A3A3E);
 
-constexpr SkColor4f kLcd = hexColor(0x35C93A);  // sampled, two hits averaged
-constexpr SkColor4f kLcdBg = hexColor(0x1C1E20);
-constexpr SkColor4f kLcdVal = hexColor(0xDCEEF2);
-constexpr SkColor4f kAmber = hexColor(0xE3D24A);  // burn readout text
+constexpr material::Color kLcd =
+    hexColor(0x35C93A);  // sampled, two hits averaged
+constexpr material::Color kLcdBg = hexColor(0x1C1E20);
+constexpr material::Color kLcdVal = hexColor(0xDCEEF2);
+constexpr material::Color kAmber = hexColor(0xE3D24A);  // burn readout text
 
-constexpr SkColor4f kGun = hexColor(0x5E6C77);  // sampled (1893,55)
-constexpr SkColor4f kGunHi = hexColor(0x8D9AA3);
-constexpr SkColor4f kBezel = hexColor(0x9AA2A6);  // navball bezel silver
-constexpr SkColor4f kBezelDk = hexColor(0x555D64);
-constexpr SkColor4f kPanel = hexColor(0x33383E);
-constexpr SkColor4f kPanelDk = hexColor(0x1B1F23);
+constexpr material::Color kGun = hexColor(0x5E6C77);  // sampled (1893,55)
+constexpr material::Color kGunHi = hexColor(0x8D9AA3);
+constexpr material::Color kBezel = hexColor(0x9AA2A6);  // navball bezel silver
+constexpr material::Color kBezelDk = hexColor(0x555D64);
+constexpr material::Color kPanel = hexColor(0x33383E);
+constexpr material::Color kPanelDk = hexColor(0x1B1F23);
 
-constexpr SkColor4f kSky = hexColor(0x1180AC);
-constexpr SkColor4f kSkyHi = hexColor(0x8ED4E8);  // sampled (430,260)
-constexpr SkColor4f kGround = hexColor(0x8B5A2E);
-constexpr SkColor4f kGroundLo = hexColor(0x5A3A1E);
-constexpr SkColor4f kGold = hexColor(0xFCB100);  // sampled
+constexpr material::Color kSky = hexColor(0x1180AC);
+constexpr material::Color kSkyHi = hexColor(0x8ED4E8);  // sampled (430,260)
+constexpr material::Color kGround = hexColor(0x8B5A2E);
+constexpr material::Color kGroundLo = hexColor(0x5A3A1E);
+constexpr material::Color kGold = hexColor(0xFCB100);  // sampled
 
-constexpr SkColor4f kRcs = hexColor(0x73AC43);       // sampled (248,172)
-constexpr SkColor4f kSas = hexColor(0x77A9B0);       // sampled (520,172)
-constexpr SkColor4f kStageTab = hexColor(0xBE5907);  // sampled
-constexpr SkColor4f kFuel = hexColor(0x666C0A);      // sampled
-constexpr SkColor4f kStageLcd =
+constexpr material::Color kRcs = hexColor(0x73AC43);       // sampled (248,172)
+constexpr material::Color kSas = hexColor(0x77A9B0);       // sampled (520,172)
+constexpr material::Color kStageTab = hexColor(0xBE5907);  // sampled
+constexpr material::Color kFuel = hexColor(0x666C0A);      // sampled
+constexpr material::Color kStageLcd =
     hexColor(0xBFBFBF);  // sampled — the LIGHT panel
-constexpr SkColor4f kGo = hexColor(0x4CAF50);
-constexpr SkColor4f kDvArc = hexColor(0x7FE33F);  // the bright burn arc
+constexpr material::Color kGo = hexColor(0x4CAF50);
+constexpr material::Color kDvArc = hexColor(0x7FE33F);  // the bright burn arc
 
 // ---------------------------------------------------------------------------
 // Type — two families, both plain. KSP1 shipped Unity's humanist grotesque;
@@ -150,17 +158,19 @@ inline sk_sp<SkTypeface> mono() {
 }
 
 inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
-                           SkColor4f color, float track = 0) {
-  return weave::textStyle(
-      {.face = tf, .size = size, .color = color, .track = track});
+                           material::Color color, float track = 0) {
+  return weave::textStyle({.face = tf,
+                           .size = size,
+                           .color = material::skia::toSkColor(color),
+                           .track = track});
 }
-inline weave::TextStyle body(float sz, SkColor4f c, float tr = 0) {
+inline weave::TextStyle body(float sz, material::Color c, float tr = 0) {
   return ty(sans(), sz, c, tr);
 }
-inline weave::TextStyle bold(float sz, SkColor4f c, float tr = 0) {
+inline weave::TextStyle bold(float sz, material::Color c, float tr = 0) {
   return ty(sansB(), sz, c, tr);
 }
-inline weave::TextStyle lcd(float sz, SkColor4f c, float tr = 0) {
+inline weave::TextStyle lcd(float sz, material::Color c, float tr = 0) {
   return ty(mono(), sz, c, tr);
 }
 inline Text t(const char* s, weave::TextStyle st) {
@@ -280,7 +290,7 @@ inline Shape paddle(float length) {
 
 struct MarchingDots {
   float width = 1.0f;
-  SkColor4f color = {1, 1, 1, 1};
+  material::Color color = {1, 1, 1, 1};
   std::vector<SkScalar> intervals{1.5f, 5.0f};
   const ch::Output<float>* phase = nullptr;
   float speed = 1.0f;  ///< px of phase per unit of the bound output
@@ -296,7 +306,7 @@ struct MarchingDots {
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(width);
     p.setStrokeCap(SkPaint::kRound_Cap);
-    p.setColor4f(color, nullptr);
+    p.setColor4f(material::skia::toSkColor(color), nullptr);
     const float ph = phase ? phase->value() * speed : 0.0f;
     p.setPathEffect(
         SkDashPathEffect::Make(SkSpan(intervals.data(), intervals.size()), ph));

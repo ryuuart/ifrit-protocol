@@ -166,7 +166,7 @@ void SlitScan2001::drawRig(Pen& pen, const PaintContext& ctx) {
   // ticks, an arrowhead at each end, and the measure over the middle.
   pen.textSize(7.5f);
   auto leader = [&pen](float ax, float bx, float y, const char* label,
-                       SkColor4f col) {
+                       sigil::material::Color col) {
     pen.stroke(col);
     pen.noFill();
     pen.strokeWeight(0.8f);
@@ -207,7 +207,7 @@ void SlitScan2001::drawRig(Pen& pen, const PaintContext& ctx) {
     SkFont f75(monoFace(), 7.5f);
     SkPaint ink;
     ink.setAntiAlias(true);
-    ink.setColor4f(kRed);
+    ink.setColor4f(sigil::material::skia::toSkColor(kRed));
     kit::drawHaloed(
         *pen.canvas(),
         {{"1½ in = 4.5 px [T68] — AND [C85]’s TRACK", {304, trackY - 26}},
@@ -224,7 +224,7 @@ void SlitScan2001::drawRig(Pen& pen, const PaintContext& ctx) {
   struct Told {
     const char* words;
     float y;
-    SkColor4f ink;
+    sigil::material::Color ink;
   };
   static const std::array<Told, 9> clock{
       {{"2 EXPOSURES / FRAME × 45–60 s  [T68][C85]", 44, al(kCold, 0.92f)},
@@ -312,7 +312,7 @@ void SlitScan2001::drawArtworkPanel(Pen& pen, const PaintContext& ctx) {
   struct Told {
     std::string words;
     float y;
-    SkColor4f ink;
+    sigil::material::Color ink;
   };
   std::vector<Told> notes{
       {s.art, top - 24, al(kCold, 0.9f)},
@@ -390,10 +390,10 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   // never mutated afterwards, so they are plain baked SkImages; a live
   // pixel buffer would only be needed if something wrote into them later.
   const double b0 = (double)std::clock() / CLOCKS_PER_SEC;
-  gridPat = patterns::gridLines(37.0f, 23.0f, 2.0f, toColor(kWhite));
+  gridPat = patterns::gridLines(37.0f, 23.0f, 2.0f, kWhite);
   // patterns::speckle's tile IS the repeat, so it has to be large or the
   // speckle reads as a visibly repeating stamp.
-  spekPat = patterns::speckle(492.0f, 84, 5.0f, 21.0f, {toColor(kWhite)});
+  spekPat = patterns::speckle(492.0f, 84, 5.0f, 21.0f, {kWhite});
   if (ctx.fonts) {
     strips[0] =
         bakeStrip(artOpArt(), *ctx.fonts, (int)kCellW, (int)kCellH, 0.30f, -1);

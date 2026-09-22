@@ -1,10 +1,11 @@
 #include <sigilcompose/kit/Document.h>
+#include <sigilmaterial/color/Color.h>
 
 #include "ThunderFulu.h"
 
 auto ThunderFulu::voidWriting() -> Element {
   auto g = box().inset(0).key("xushu");
-  const SkColor4f cols[3] = {kVoidBlue, kVoidRed, kVoidWhite};
+  const sigil::material::Color cols[3] = {kVoidBlue, kVoidRed, kVoidWhite};
   const std::vector<Utf8> how = wordsOf(doc()["void"]);
   const SkPoint at[3] = {{kCol - 116, 214}, {kCol + 116, 214}, {kCol, 330}};
   const int src[3] = {WU, GANG, LING};
@@ -27,7 +28,7 @@ auto ThunderFulu::voidWriting() -> Element {
              .foreground(PathFormat{
                  .width = 7.0f,
                  .strokeFill =
-                     Fill::color({cols[k].fR, cols[k].fG, cols[k].fB, 0.20f})})
+                     Fill::color({cols[k].r, cols[k].g, cols[k].b, 0.20f})})
              .opacity(bind(&scribe)
                           .window(tVoid + (float)k * 0.16f,
                                   tVoid + tVoidDur + (float)k * 0.16f)
@@ -37,7 +38,8 @@ auto ThunderFulu::voidWriting() -> Element {
          text(how[(size_t)k])
              .font({.size = 10.0f,
                     .color =
-                        SkColor4f{cols[k].fR, cols[k].fG, cols[k].fB, 0.85f}})
+                        sigil::material::skia::toSkColor(sigil::material::Color{
+                            cols[k].r, cols[k].g, cols[k].b, 0.85f})})
              .at({at[k].fX - 72, at[k].fY + 50})
              .width(168)
              .opacity(bind(&scribe)
@@ -316,10 +318,11 @@ auto ThunderFulu::furniture() -> Element {
       {text(std::string(doc()["title"].text()))
            .font({.face = faceDisplay,
                   .size = 22.0f,
-                  .color = kChalk,
+                  .color = sigil::material::skia::toSkColor(kChalk),
                   .track = 2.6f}),
        text(std::string(doc()["subtitle"].text()))
-           .font({.size = 10.5f, .color = kGoldDim})})});
+           .font({.size = 10.5f,
+                  .color = sigil::material::skia::toSkColor(kGoldDim)})})});
   // registration marks at the four corners of the sheet
   const std::array<SkPoint, 4> corners{
       {{46, 46}, {kW - 46, 46}, {46, kH - 46}, {kW - 46, kH - 46}}};

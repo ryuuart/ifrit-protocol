@@ -40,6 +40,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/paragraph/RichText.h>
@@ -47,6 +48,7 @@
 
 #include "VerticalSpecimen.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 namespace motion = sigil::motion;
@@ -86,7 +88,7 @@ struct Tategaki {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 2.4,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     ctx.composer.render(describe());
   }
 
@@ -134,7 +136,7 @@ struct Tategaki {
             .add(u8"SigilWeave",
                  weave::Type{
                      .size = tg::kBodySize * 0.86f,
-                     .color = tg::kAi,
+                     .color = material::skia::toSkColor(tg::kAi),
                      .verticalForm = sigil::weave::VerticalForm::kRotated})
             .add(u8"は縦書きに対応した。字は立ち、欧文は寝る。")
             .add(u8"数字は縦中横に組み、二桁のまま読ませる。")
@@ -156,7 +158,9 @@ struct Tategaki {
                  // The phrase the plate is about, in vermilion — paint only,
                  // so the glyphs are exactly the glyphs the passage shaped.
                  .spanPaint(weave::selectors::text(u8"縦組み"),
-                            sigil::weave::PaintStyle(tg::kAka.toSkColor()))
+                            sigil::weave::PaintStyle(
+                                sigil::material::skia::toSkColor(tg::kAka)
+                                    .toSkColor()))
                  // One settling entrance, beating cluster by cluster in
                  // READING ORDER: down each column, then right to left.
                  .fx({.effect = fx::rise(30),
@@ -197,7 +201,8 @@ struct Tategaki {
                                    .add(u8"令和")
                                    .add(u8"07",
                                         weave::Type{
-                                            .color = tg::kAka,
+                                            .color = material::skia::toSkColor(
+                                                tg::kAka),
                                             .verticalForm = sigil::weave::
                                                 VerticalForm::kTateChuYoko})
                                    .add(u8"年"),

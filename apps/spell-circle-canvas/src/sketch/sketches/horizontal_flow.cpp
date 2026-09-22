@@ -22,6 +22,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Page.h>
@@ -31,6 +32,7 @@
 
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
@@ -45,12 +47,12 @@ constexpr float kDropWidth = 96;
 constexpr float kDropHeight = 118;
 constexpr float kWrapMargin = 9;
 
-constexpr SkColor4f kPaper{0.94f, 0.91f, 0.84f, 1};
-constexpr SkColor4f kPanel{0.975f, 0.955f, 0.91f, 1};
-constexpr SkColor4f kInk{0.12f, 0.11f, 0.10f, 1};
-constexpr SkColor4f kQuiet{0.42f, 0.37f, 0.31f, 1};
-constexpr SkColor4f kCinnabar{0.67f, 0.16f, 0.11f, 1};
-constexpr SkColor4f kGold{0.78f, 0.55f, 0.16f, 1};
+constexpr material::Color kPaper{0.94f, 0.91f, 0.84f, 1};
+constexpr material::Color kPanel{0.975f, 0.955f, 0.91f, 1};
+constexpr material::Color kInk{0.12f, 0.11f, 0.10f, 1};
+constexpr material::Color kQuiet{0.42f, 0.37f, 0.31f, 1};
+constexpr material::Color kCinnabar{0.67f, 0.16f, 0.11f, 1};
+constexpr material::Color kGold{0.78f, 0.55f, 0.16f, 1};
 
 constexpr float kMeasure = 430;
 
@@ -116,7 +118,8 @@ Element droppedPassage() {
           .key("illuminated-h")
           .shape(shapes::rounded(shapes::star(8, 0.58f, 0.12f), 5))
           .fill(Fill::color(kCinnabar))
-          .children({text(u8"H").font({.size = 50, .color = kPaper})});
+          .children({text(u8"H").font(
+              {.size = 50, .color = material::skia::toSkColor(kPaper)})});
 
   return box().width(kMeasure).height(350).children(
       {std::move(ornament),

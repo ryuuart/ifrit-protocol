@@ -22,6 +22,8 @@
 #include <include/core/SkSize.h>
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <cmath>
@@ -41,13 +43,13 @@ namespace sigil::compose::kit {
  *
  *      box().absolute().inset(0).fill(kit::vignette(ctx.size, {0, 0, 0, 0.5f}))
  */
-[[nodiscard]] inline Fill vignette(SkSize over, SkColor4f edge,
+[[nodiscard]] inline Fill vignette(SkSize over, material::Color edge,
                                    float clear = 0.45f) {
   const SkPoint centre{over.width() * 0.5f, over.height() * 0.5f};
   const float radius = std::hypot(centre.fX, centre.fY);
   const float hold = std::clamp(clear, 0.0f, 1.0f);
-  SkColor4f inner = edge;
-  inner.fA = 0;
+  material::Color inner = edge;
+  inner.a = 0;
   return radialGradient(centre, std::max(radius, 1.0f), {inner, edge},
                         {hold, 1.0f});
 }
@@ -64,7 +66,7 @@ namespace sigil::compose::kit {
  *
  *      box().absolute().inset(0).fill(kit::grained(kGround, 0.05f))
  */
-[[nodiscard]] inline Fill grained(SkColor4f over, float amount = 0.06f,
+[[nodiscard]] inline Fill grained(material::Color over, float amount = 0.06f,
                                   float frequency = 0.8f) {
   const float strength = std::clamp(amount, 0.0f, 1.0f);
   if (strength <= 0) return Fill::color(over);
@@ -86,9 +88,10 @@ namespace sigil::compose::kit {
           SkBlendMode::kDstIn, std::move(value),
           SkShaders::Color(SkColorSetARGB(
               (uint8_t)std::lround(strength * 255.0f), 255, 255, 255))));
-  return Fill::shader(SkShaders::Blend(SkBlendMode::kSoftLight,
-                                       SkShaders::Color(over.toSkColor()),
-                                       std::move(reached)));
+  return Fill::shader(SkShaders::Blend(
+      SkBlendMode::kSoftLight,
+      SkShaders::Color(material::skia::toSkColor(over).toSkColor()),
+      std::move(reached)));
 }
 
 }  // namespace sigil::compose::kit

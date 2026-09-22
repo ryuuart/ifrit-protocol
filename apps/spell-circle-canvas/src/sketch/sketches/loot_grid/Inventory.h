@@ -10,6 +10,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -28,6 +29,7 @@
 #include <string_view>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace motion = sigil::motion;
@@ -57,19 +59,19 @@ constexpr float kGridW = kCols * kCell + (kCols - 1) * kGap;
 constexpr float kGridH = kRows * kCell + (kRows - 1) * kGap;
 
 // The panel: cold slate under bronze.
-constexpr SkColor4f kStoneHi = hexColor(0x2A2723);
-constexpr SkColor4f kStoneLo = hexColor(0x14120F);
-constexpr SkColor4f kWellHi = hexColor(0x1C1A17);
-constexpr SkColor4f kWellLo = hexColor(0x0B0A08);
-constexpr SkColor4f kBronze = hexColor(0x8C7247);
-constexpr SkColor4f kBronzeLit = hexColor(0xC9A96A);
-constexpr SkColor4f kBronzeDim = hexColor(0x4A3B23);
-constexpr SkColor4f kParch = hexColor(0xC8BC9A);
-constexpr SkColor4f kAsh = hexColor(0x7A705C);
+constexpr material::Color kStoneHi = hexColor(0x2A2723);
+constexpr material::Color kStoneLo = hexColor(0x14120F);
+constexpr material::Color kWellHi = hexColor(0x1C1A17);
+constexpr material::Color kWellLo = hexColor(0x0B0A08);
+constexpr material::Color kBronze = hexColor(0x8C7247);
+constexpr material::Color kBronzeLit = hexColor(0xC9A96A);
+constexpr material::Color kBronzeDim = hexColor(0x4A3B23);
+constexpr material::Color kParch = hexColor(0xC8BC9A);
+constexpr material::Color kAsh = hexColor(0x7A705C);
 
 /** Diablo II's item-quality colours. */
 enum class Rarity { Normal, Magic, Rare, Unique, Set };
-inline SkColor4f rarityColor(Rarity r) {
+inline material::Color rarityColor(Rarity r) {
   switch (r) {
     case Rarity::Magic:
       return hexColor(0x6969FF);
@@ -238,14 +240,14 @@ inline std::function<SkPath(SkSize)> artPath(Art art) {
 }
 
 /** One item's art, filled with a steel or tinted ramp and outlined. */
-inline Element artwork(Art art, float w, float h, SkColor4f tint,
+inline Element artwork(Art art, float w, float h, material::Color tint,
                        bool glassy = false) {
-  const SkColor4f hi =
-      glassy ? SkColor4f{tint.fR, tint.fG, tint.fB, 0.95f}
-             : SkColor4f{std::min(1.0f, tint.fR * 1.55f + 0.20f),
-                         std::min(1.0f, tint.fG * 1.55f + 0.20f),
-                         std::min(1.0f, tint.fB * 1.55f + 0.20f), 1};
-  const SkColor4f lo{tint.fR * 0.32f, tint.fG * 0.32f, tint.fB * 0.32f, 1};
+  const material::Color hi =
+      glassy ? material::Color{tint.r, tint.g, tint.b, 0.95f}
+             : material::Color{std::min(1.0f, tint.r * 1.55f + 0.20f),
+                               std::min(1.0f, tint.g * 1.55f + 0.20f),
+                               std::min(1.0f, tint.b * 1.55f + 0.20f), 1};
+  const material::Color lo{tint.r * 0.32f, tint.g * 0.32f, tint.b * 0.32f, 1};
   return box()
       .width(w)
       .height(h)
@@ -263,7 +265,7 @@ struct Item {
   Art art;
   int col, row, w, h;  // cell footprint
   Rarity rarity;
-  SkColor4f tint;  // the metal/glass the art is made of
+  material::Color tint;  // the metal/glass the art is made of
 };
 
 /** The hoard. Footprints are D2's: two-hand sword 2x4, body armour 2x3,
@@ -328,13 +330,13 @@ inline Element well(float w, float h, float alpha = 1.0f) {
        .height = Dimension(h),
        .ground =
            Paint::linear({0, 0}, {0, h},
-                         {{0.0f, {kWellLo.fR, kWellLo.fG, kWellLo.fB, alpha}},
-                          {1.0f, {kWellHi.fR, kWellHi.fG, kWellHi.fB, alpha}}}),
+                         {{0.0f, {kWellLo.r, kWellLo.g, kWellLo.b, alpha}},
+                          {1.0f, {kWellHi.r, kWellHi.g, kWellHi.b, alpha}}}),
        .clip = false,
        .corners = 2,
        .recess = sketch::kit::Well::Recess{
-           .lipLight = SkColor4f{0.42f, 0.38f, 0.31f, 0.30f},
-           .lipDark = SkColor4f{0, 0, 0, 0.55f}}});
+           .lipLight = material::Color{0.42f, 0.38f, 0.31f, 0.30f},
+           .lipDark = material::Color{0, 0, 0, 0.55f}}});
 }
 
 /** The bronze-framed stone panel every part of this UI sits in. */
@@ -352,12 +354,12 @@ inline Element panel(float w, float h) {
                      .fill(Paint::recipe(field::noise(0.06f, 4, 7.0f)))
                      .opacity(0.16f)
                      .blendMode(SkBlendMode::kOverlay)})
-      .foreground(styles::BevelEmboss{
-          2.5f,
-          4.0f,
-          120,
-          {kBronzeLit.fR, kBronzeLit.fG, kBronzeLit.fB, 0.35f},
-          {0, 0, 0, 0.7f}})
+      .foreground(
+          styles::BevelEmboss{2.5f,
+                              4.0f,
+                              120,
+                              {kBronzeLit.r, kBronzeLit.g, kBronzeLit.b, 0.35f},
+                              {0, 0, 0, 0.7f}})
       .foreground(stroke(2.0f, Fill::color(kBronze)))
       .foreground(
           stroke(1.0f, Fill::color(kBronzeDim), PathFormat::Align::Inner))

@@ -21,6 +21,7 @@
 #include <sigilcore/compute/Chance.h>
 #include <sigildraw/Noise.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -30,6 +31,7 @@
 #include <cstdint>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace chance = sigil::core::chance;
@@ -44,7 +46,7 @@ constexpr float kFieldScale = 0.0038f;
 constexpr float kTurn = 1.55f;
 constexpr double kSimHz = 60.0;
 
-constexpr std::array<SkColor4f, 5> kPigments = {{
+constexpr std::array<material::Color, 5> kPigments = {{
     {0.08f, 0.18f, 0.19f, 1.0f},
     {0.12f, 0.35f, 0.39f, 1.0f},
     {0.76f, 0.20f, 0.14f, 1.0f},
@@ -187,13 +189,12 @@ struct BristleCurrent {
     pen.blendMode(MULTIPLY);
     pen.strokeCap(ROUND);
     for (const Mark& mark : pending) {
-      const SkColor4f pigment = kPigments[(size_t)mark.pigment];
-      pen.stroke(
-          sigil::material::skia::withAlpha(pigment, mark.opacity * 0.11f));
+      const material::Color pigment = kPigments[(size_t)mark.pigment];
+      pen.stroke(sigil::material::withAlpha(pigment, mark.opacity * 0.11f));
       pen.strokeWeight(mark.weight * 4.6f);
       pen.line(mark.x0, mark.y0, mark.x1, mark.y1);
 
-      pen.stroke(sigil::material::skia::withAlpha(pigment, mark.opacity));
+      pen.stroke(sigil::material::withAlpha(pigment, mark.opacity));
       pen.strokeWeight(mark.weight);
       pen.line(mark.x0, mark.y0, mark.x1, mark.y1);
     }

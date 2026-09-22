@@ -37,15 +37,14 @@ sound model; nothing below them changes kernel semantics.
   `[](SkCanvas& c, const PaintContext& ctx) {…}` and `[] {…}` are all paint
   programs and nothing spells a parameter in order to ignore it —
   `StampCache`, and `hexColor`, the one colour spelling here: a source
-  palette's hex integer as an `SkColor4f`. A `Fill` may be written as a
+  palette's hex integer as a `material::Color`. A `Fill` may be written as a
   REFERENCE the tree resolves at paint — `Fill::currentInk`, the ink in
   force, and `Fill::var`, a custom property — through `resolveRef`, which
   every consumer holding a `PaintContext` runs a fill through; the
   context carries the node's `PaintContext::ink`, `PaintContext::font`
   and `PaintContext::vars` for it. What a colour BECOMES is
-  SigilMaterial's vocabulary, spelled from it — `material::skia::withAlpha`,
-  `material::skia::scale`, `material::skia::lighten` and
-  `material::skia::mixLinear`.
+  SigilMaterial's vocabulary, spelled from it — `material::withAlpha`,
+  `material::scale`, `material::lighten` and `material::mixLinear`.
 - `core/TextPainter.h` — the seam the kernel draws dressed type through:
   `TextPainterOperations`, the operations the composer asks of text that is not
   resting on its own straight baseline, and `TextPainter`, that engine

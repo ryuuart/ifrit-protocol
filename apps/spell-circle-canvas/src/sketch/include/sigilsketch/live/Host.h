@@ -9,6 +9,7 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkRefCnt.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/FrameClock.h>
@@ -321,7 +322,7 @@ class Host {
   /** The canvas the running sketch declared; hosts letterbox to this
    *  size and clear with this colour. */
   [[nodiscard]] SkSize canvasSize() const;
-  [[nodiscard]] SkColor4f background() const;
+  [[nodiscard]] sigil::material::Color background() const;
   /** THE SCENE TIME THE RUNNING SKETCH DECLARED a still of itself should
    *  be taken at, or a negative number where it declared none — the
    *  moment a capture steps to unless the caller names another.

@@ -47,7 +47,7 @@ struct SlitScan2001 {
 
   struct Shot {
     const char* name;
-    SkColor4f gelA, gelB;
+    sigil::material::Color gelA, gelB;
     float phi0, dPhi;
     int cell;
     const char* art;

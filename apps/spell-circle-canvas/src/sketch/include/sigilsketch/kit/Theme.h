@@ -16,6 +16,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/TextStyle.h>
 #include <sigilweave/style/Type.h>
@@ -44,20 +45,20 @@ namespace sigil::sketch::kit {
  *  epsilon'd. */
 struct Palette {
   /** Behind the whole sheet. */
-  SkColor4f ground{0.07f, 0.07f, 0.085f, 1};
+  material::Color ground{0.07f, 0.07f, 0.085f, 1};
   /** Behind one specimen — the well a subject is shown in. */
-  SkColor4f cellGround{0.105f, 0.11f, 0.125f, 1};
+  material::Color cellGround{0.105f, 0.11f, 0.125f, 1};
   /** The title, and the call a cell names. */
-  SkColor4f ink{0.90f, 0.90f, 0.92f, 1};
+  material::Color ink{0.90f, 0.90f, 0.92f, 1};
   /** The subtitle, the footer, and the remark under a cell. */
-  SkColor4f ash{0.55f, 0.56f, 0.62f, 1};
+  material::Color ash{0.55f, 0.56f, 0.62f, 1};
   /** The hairline under the header and over the footer. */
-  SkColor4f rule{0.20f, 0.21f, 0.25f, 1};
+  material::Color rule{0.20f, 0.21f, 0.25f, 1};
   /** A MEASURED FIGURE: the number a readout answers with, the filled
    *  part of a meter, the ground of a chip. It is the one colour on the
    *  sheet that is not type or furniture, so it is the one a reader's eye
    *  is meant to find. */
-  SkColor4f figure{0.90f, 0.83f, 0.68f, 1};
+  material::Color figure{0.90f, 0.83f, 0.68f, 1};
   bool operator==(const Palette&) const = default;
 };
 
@@ -194,7 +195,8 @@ struct Theme {
   [[nodiscard]] weave::Type font(const Register& line) const;
   /** The same register with a colour named — what a caption's label or a
    *  sheet's title is set in, as a partial over what the page inherits. */
-  [[nodiscard]] weave::Type font(const Register& line, SkColor4f color) const;
+  [[nodiscard]] weave::Type font(const Register& line,
+                                 material::Color color) const;
   /** THE DOCUMENT ROLES in the theme's registers: "h1", "lead",
    *  "footer", "label", "caption", "eyebrow" and "h2", plus "readout"
    *  for measured values. A document factory names its role and resolves
@@ -220,7 +222,7 @@ struct Theme {
   [[nodiscard]] weave::StyleSheet styleSheet() const;
   /** @p line in @p color, set in whichever of the two faces it names. */
   [[nodiscard]] weave::TextStyle style(const Register& line,
-                                       SkColor4f color) const;
+                                       material::Color color) const;
   /** @p line IN AN INK, which is what a component that fills a patch and
    *  names it beside is holding: the same value paints both. A colour
    *  sets the glyphs in it; a shader is carried onto the glyphs' own
@@ -231,10 +233,10 @@ struct Theme {
                                        const compose::Fill& ink) const;
   /** A line in the sans face at an arbitrary size — for the text a sheet
    *  sets that none of the registers above covers. */
-  [[nodiscard]] weave::TextStyle sans(float size, SkColor4f color,
+  [[nodiscard]] weave::TextStyle sans(float size, material::Color color,
                                       float track = 0) const;
   /** The same in the mono face. */
-  [[nodiscard]] weave::TextStyle mono(float size, SkColor4f color,
+  [[nodiscard]] weave::TextStyle mono(float size, material::Color color,
                                       float track = 0) const;
 
   /** THE SHEET'S VOICE: how every cell on it is captioned — where the

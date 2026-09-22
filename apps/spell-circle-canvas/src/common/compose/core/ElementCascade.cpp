@@ -4,6 +4,8 @@
  * image leaves under it sample.
  */
 
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilweave/layout/Block.h>
 #include <sigilweave/style/Type.h>
 
@@ -35,10 +37,10 @@ Derived& CascadeVerbs<Derived>::block(sigil::weave::Block partial) {
 }
 
 template <class Derived>
-Derived& CascadeVerbs<Derived>::ink(SkColor4f colour) {
+Derived& CascadeVerbs<Derived>::ink(material::Color colour) {
   detail::CascadeData& cascade = declarations()->cascadeData.ensure();
   if (!cascade.font) cascade.font.emplace();
-  cascade.font->color = colour;
+  cascade.font->color = material::skia::toSkColor(colour);
   cascade.inkVar.reset();
   return self();
 }
@@ -52,7 +54,8 @@ Derived& CascadeVerbs<Derived>::ink(VarRef reference) {
 }
 
 template <class Derived>
-Derived& CascadeVerbs<Derived>::var(std::string_view name, SkColor4f colour) {
+Derived& CascadeVerbs<Derived>::var(std::string_view name,
+                                    material::Color colour) {
   declarations()->cascadeData.ensure().vars.set(compose::var(name), colour);
   return self();
 }

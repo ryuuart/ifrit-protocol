@@ -27,6 +27,7 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/texture/Texture.h>
 
 #include <cstdint>
@@ -71,8 +72,8 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
    *  before each paint. */
   static std::shared_ptr<TextureScene> make(SkISize size,
                                             sigil::weave::FontContext& fonts,
-                                            SkColor4f background = {0, 0, 0,
-                                                                    0});
+                                            material::Color background = {
+                                                0, 0, 0, 0});
   ~TextureScene();
 
   TextureScene(const TextureScene&) = delete;
@@ -170,6 +171,6 @@ class SceneSource {
  *  is described once. */
 material::Texture texture(const Element& root, SkISize size,
                           sigil::weave::FontContext& fonts,
-                          SkColor4f background = {0, 0, 0, 0});
+                          material::Color background = {0, 0, 0, 0});
 
 }  // namespace sigil::compose

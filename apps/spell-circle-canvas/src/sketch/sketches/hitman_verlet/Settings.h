@@ -14,6 +14,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/physics/Constraints.h>
@@ -38,6 +39,7 @@
 
 #include "../genesis_fire/Instrument.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace shapes = sigil::geometry::shapes;
@@ -59,39 +61,39 @@ namespace hitman_verlet {
 // ---------------------------------------------------------------------------
 // Palette — this study's own chrome (a physics-debug register)
 
-constexpr SkColor4f kInk = hexColor(0x0A0A0C);
-constexpr SkColor4f kPanel = hexColor(0x101116);
-constexpr SkColor4f kKeyline = hexColor(0x191B22);
-constexpr SkColor4f kBone = hexColor(0xE8E6E1);
-constexpr SkColor4f kSteel = hexColor(0x8A8F9C);
-constexpr SkColor4f kBlue = hexColor(0x6FA8DC);
-constexpr SkColor4f kRed = hexColor(0xC8402F);
-constexpr SkColor4f kSolid = hexColor(0x2A2E38);
-constexpr SkColor4f kTick = hexColor(0x5A6070);
+constexpr material::Color kInk = hexColor(0x0A0A0C);
+constexpr material::Color kPanel = hexColor(0x101116);
+constexpr material::Color kKeyline = hexColor(0x191B22);
+constexpr material::Color kBone = hexColor(0xE8E6E1);
+constexpr material::Color material::skia::toSkColor(kSteel) = hexColor(0x8A8F9C);
+constexpr material::Color kBlue = hexColor(0x6FA8DC);
+constexpr material::Color kRed = hexColor(0xC8402F);
+constexpr material::Color kSolid = hexColor(0x2A2E38);
+constexpr material::Color kTick = hexColor(0x5A6070);
 
 // The constraint-error ramp — the study's whole visual thesis.
 constexpr float kRampStop[5] = {0.000f, 0.004f, 0.010f, 0.020f, 0.035f};
-constexpr SkColor4f kRampCol[5] = {hexColor(0x4FC79E), hexColor(0x93C866),
+constexpr material::Color kRampCol[5] = {hexColor(0x4FC79E), hexColor(0x93C866),
                                    hexColor(0xF2A73B), hexColor(0xE2673A),
                                    hexColor(0xC8402F)};
 
-inline SkColor4f errColor(float e, float alpha = 1.0f) {
+inline material::Color errColor(float e, float alpha = 1.0f) {
   if (e <= kRampStop[0])
-    return {kRampCol[0].fR, kRampCol[0].fG, kRampCol[0].fB, alpha};
+    return {kRampCol[0].r, kRampCol[0].g, kRampCol[0].b, alpha};
   for (int i = 1; i < 5; ++i) {
     if (e <= kRampStop[i]) {
       const float u =
           (e - kRampStop[i - 1]) / (kRampStop[i] - kRampStop[i - 1]);
-      const SkColor4f &a = kRampCol[i - 1], &b = kRampCol[i];
-      return {a.fR + (b.fR - a.fR) * u, a.fG + (b.fG - a.fG) * u,
-              a.fB + (b.fB - a.fB) * u, alpha};
+      const material::Color &a = kRampCol[i - 1], &b = kRampCol[i];
+      return {a.r + (b.r - a.r) * u, a.g + (b.g - a.g) * u,
+              a.b + (b.b - a.b) * u, alpha};
     }
   }
-  return {kRampCol[4].fR, kRampCol[4].fG, kRampCol[4].fB, alpha};
+  return {kRampCol[4].r, kRampCol[4].g, kRampCol[4].b, alpha};
 }
 
-inline SkColor4f fadeTo(SkColor4f c, float a) {
-  return {c.fR, c.fG, c.fB, c.fA * a};
+inline material::Color fadeTo(material::Color c, float a) {
+  return {c.r, c.g, c.b, c.a * a};
 }
 
 // ---------------------------------------------------------------------------
@@ -180,15 +182,15 @@ using instrument::uiFace;
 
 /** The same three registers on the PEN: a pen carries one type and one
  *  fill, so a register is set rather than described. */
-inline void penMono(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
+inline void penMono(Pen& pen, float size, material::Color c, float track = 0.0f) {
   pen.textFont(instrument::penType(monoFace(), size, track));
   pen.fill(c);
 }
-inline void penMonoB(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
+inline void penMonoB(Pen& pen, float size, material::Color c, float track = 0.0f) {
   pen.textFont(instrument::penType(monoBoldFace(), size, track));
   pen.fill(c);
 }
-inline void penUi(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
+inline void penUi(Pen& pen, float size, material::Color c, float track = 0.0f) {
   pen.textFont(instrument::penType(uiFace(), size, track));
   pen.fill(c);
 }
@@ -210,14 +212,14 @@ inline float cue(double ms, float delayMs, float durationMs,
  *  one column of its five that the shipped code lands on. */
 inline weave::StyleSheet plotClasses() {
   weave::StyleSheet look;
-  look.set("plotAxis", {.color = hexColor(0x2A2E38)});
-  look.set("plotRule", {.color = hexColor(0x2A2E38)});
-  look.set("plotTick", {.face = monoFace(), .size = 7.0f, .color = kTick});
-  look.set("plotLabel", {.face = monoFace(), .size = 7.0f, .color = kSteel});
-  look.set("plotBar", {.color = hexColor(0x6FA8DC, 0.42f)});
-  look.set("exact", {.face = monoFace(), .size = 7.0f, .color = kSteel});
-  look.set("approx", {.face = monoFace(), .size = 7.0f, .color = kBlue});
-  look.set("hit", {.color = kBlue});
+  look.set("plotAxis", {.color = material::skia::toSkColor(hexColor(0x2A2E38))});
+  look.set("plotRule", {.color = material::skia::toSkColor(hexColor(0x2A2E38))});
+  look.set("plotTick", {.face = monoFace(), .size = 7.0f, .color = material::skia::toSkColor(kTick)});
+  look.set("plotLabel", {.face = monoFace(), .size = 7.0f, .color = material::skia::toSkColor(kSteel)});
+  look.set("plotBar", {.color = material::skia::toSkColor(hexColor(0x6FA8DC, 0.42f))});
+  look.set("exact", {.face = monoFace(), .size = 7.0f, .color = material::skia::toSkColor(kSteel)});
+  look.set("approx", {.face = monoFace(), .size = 7.0f, .color = material::skia::toSkColor(kBlue)});
+  look.set("hit", {.color = material::skia::toSkColor(kBlue)});
   return look;
 }
 

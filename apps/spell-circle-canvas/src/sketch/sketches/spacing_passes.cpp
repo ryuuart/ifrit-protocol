@@ -47,6 +47,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/LayoutOptions.h>
@@ -55,6 +56,7 @@
 
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
@@ -71,12 +73,13 @@ constexpr float kWordSpacing = 2.0f;     // the multiple a gap is AIMED at
 constexpr float kLetterSpacing = 0.05f;  // the em fraction the second pass adds
 constexpr float kGlyphScale = 0.92f;     // what the third pass scales across
 
-constexpr SkColor4f kBody{0.86f, 0.87f, 0.90f, 1};
+constexpr material::Color kBody{0.86f, 0.87f, 0.90f, 1};
 
 weave::TextStyle body() {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
-  return weave::textStyle({.face = face, .size = 12, .color = kBody});
+  return weave::textStyle(
+      {.face = face, .size = 12, .color = material::skia::toSkColor(kBody)});
 }
 
 /** Long words in a narrow measure: a fit the word gaps alone cannot make

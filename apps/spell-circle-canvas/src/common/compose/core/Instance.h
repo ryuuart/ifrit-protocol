@@ -10,6 +10,7 @@
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcore/cache/Settle.h>
 #include <sigilcore/reconcile/Node.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Lanes.h>
 #include <yoga/Yoga.h>
 
@@ -302,7 +303,8 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
   Fill fillFrom, fillTo;                             // endpoints for kFillLerp
-  SkColor4f inkFrom{0, 0, 0, 1}, inkTo{0, 0, 0, 1};  // endpoints for kInkLerp
+  material::Color inkFrom{0, 0, 0, 1},
+      inkTo{0, 0, 0, 1};  // endpoints for kInkLerp
 
   // Derive-phase state
   std::vector<Exclusion>

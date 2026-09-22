@@ -40,17 +40,21 @@ auto KspMapView::infoCard() -> Element {
                    .height(26)
                    .justifyContent(Justify::Center)
                    .fill(kOrange)
-                   .children({text(page["vessel"])
-                                  .font({.face = sansB(),
-                                         .size = 14,
-                                         .color = hexColor(0xFFFFFF)})}),
+                   .children(
+                       {text(page["vessel"])
+                            .font({.face = sansB(),
+                                   .size = 14,
+                                   .color = sigil::material::skia::toSkColor(
+                                       hexColor(0xFFFFFF))})}),
                box()
                    .height(19)
                    .justifyContent(Justify::Center)
                    .fill(kCardSub)
-                   .children({text(page["tab"])
-                                  .font({.face = sansB(),
-                                         .color = hexColor(0xE8E8EA)})}),
+                   .children(
+                       {text(page["tab"])
+                            .font({.face = sansB(),
+                                   .color = sigil::material::skia::toSkColor(
+                                       hexColor(0xE8E8EA))})}),
                infoHead(page["classification"]),
                // the part icon, and the three readings that name the ship
                box().row().padding(0, 4).gap(8).children(
@@ -80,9 +84,10 @@ auto KspMapView::toolbar() -> Element {
         return at(
             kit::centred()
                 .borderRadius({5})
-                .fill(Paint::linearUnit({0, 0}, {0, 1},
-                                        {{0.0f, mskia::lighten(kGun, 0.10f)},
-                                         {1.0f, hexColor(0x3E4750)}}))
+                .fill(Paint::linearUnit(
+                    {0, 0}, {0, 1},
+                    {{0.0f, sigil::material::lighten(kGun, 0.10f)},
+                     {1.0f, hexColor(0x3E4750)}}))
                 .stroke(
                     PathFormat{.width = 1.0f,
                                .strokeFill = Fill::color(hexColor(0x22282D)),
@@ -110,9 +115,10 @@ auto KspMapView::missionClock() -> Element {
        at(kit::centred()
               .borderRadius({4})
 
-              .fill(Paint::linearUnit({0, 0}, {0, 1},
-                                      {{0.0f, mskia::lighten(kGun, 0.12f)},
-                                       {1.0f, hexColor(0x3E4750)}}))
+              .fill(Paint::linearUnit(
+                  {0, 0}, {0, 1},
+                  {{0.0f, sigil::material::lighten(kGun, 0.12f)},
+                   {1.0f, hexColor(0x3E4750)}}))
               .children({t("MET", bold(11, hexColor(0xE6EAEC)))}),
           222, 14, 40, 28)});
   static const char* kIcons[5] = {"◉", "▮▮", "▼", "◍", "◈"};
@@ -128,7 +134,7 @@ auto KspMapView::missionClock() -> Element {
 }
 
 auto KspMapView::chip(const char* glyph, const char* label, SkPoint p,
-                      SkColor4f ink, float r) -> Element {
+                      sigil::material::Color ink, float r) -> Element {
   using namespace ksp;
   Element g = stack();
   g.children(

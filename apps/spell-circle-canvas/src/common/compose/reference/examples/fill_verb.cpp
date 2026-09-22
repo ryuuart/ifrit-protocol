@@ -7,9 +7,11 @@
  */
 
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace skia = sigil::material::skia;
 
@@ -18,9 +20,9 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {600, 220};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kLabel = hexColor(0x8ea0ad);
-constexpr SkColor4f kAccent = hexColor(0xe2714b);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kLabel = hexColor(0x8ea0ad);
+constexpr material::Color kAccent = hexColor(0xe2714b);
 
 /** One labelled swatch: the square, and the spelling under it. */
 Element swatch(Element square, const char* spelling) {
@@ -28,8 +30,10 @@ Element swatch(Element square, const char* spelling) {
       .column()
       .gap(10)
       .alignItems(Align::Center)
-      .children({square.width(120).height(120).borderRadius({12}),
-                 text(spelling).font({.size = 13, .color = kLabel})});
+      .children(
+          {square.width(120).height(120).borderRadius({12}),
+           text(spelling).font(
+               {.size = 13, .color = material::skia::toSkColor(kLabel)})});
 }
 
 }  // namespace

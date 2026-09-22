@@ -10,6 +10,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -20,6 +21,7 @@
 
 #include "eva_magi_interior/EvangelionUi.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace weave = sigil::weave;
@@ -28,15 +30,15 @@ using namespace sigil::compose;
 
 namespace {
 
-const SkColor4f kGround = hexColor(0x020202);
-const SkColor4f kOrange = hexColor(0xF39A19);
-const SkColor4f kOrangeDim = hexColor(0xA94C15);
-const SkColor4f kMint = hexColor(0x59E7A0);
-const SkColor4f kMintRule = hexColor(0x2AA98A);
-const SkColor4f kMintRuleHi = hexColor(0x65E3BC);
-const SkColor4f kInk = hexColor(0x071615);
-const SkColor4f kRed = hexColor(0xA20915);
-const SkColor4f kRedHot = hexColor(0xE1262E);
+const material::Color kGround = hexColor(0x020202);
+const material::Color kOrange = hexColor(0xF39A19);
+const material::Color kOrangeDim = hexColor(0xA94C15);
+const material::Color kMint = hexColor(0x59E7A0);
+const material::Color kMintRule = hexColor(0x2AA98A);
+const material::Color kMintRuleHi = hexColor(0x65E3BC);
+const material::Color kInk = hexColor(0x071615);
+const material::Color kRed = hexColor(0xA20915);
+const material::Color kRedHot = hexColor(0xE1262E);
 
 struct EvaMagiDeliberation {
   evangelion::MagiVoteLayout layout;
@@ -66,7 +68,7 @@ struct EvaMagiDeliberation {
 
   /** A Han run stays a whole style: the Mincho stand-in strokes its paint. */
   weave::TextStyle han(const std::u8string& run, float capHeight,
-                       float maxWidth, SkColor4f color) const {
+                       float maxWidth, material::Color color) const {
     weave::TextStyle style =
         evangelion::minchoDisplay(capHeight * 1.34f, color, 1.30f);
     if (fonts) {

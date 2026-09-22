@@ -13,7 +13,7 @@ Element GenesisFire::generationPanel() {
            box().flexGrow(1), note(law["note"]).ink(kSteelDim)});
 }
 
-Element GenesisFire::censusBar(float frac, SkColor4f c, const char* key) {
+Element GenesisFire::censusBar(float frac, sigil::material::Color c, const char* key) {
   sketch::kit::Meter bar{.width = Dimension(kCensusW[4]),
                          .height = Dimension(7),
                          .track = Fill::color(hexColor(0x171B24)),
@@ -117,7 +117,7 @@ Element GenesisFire::rampPanel() {
 }
 
 Element GenesisFire::benchCell(Element content, const Utf8& caption,
-                               SkColor4f cc) {
+                               sigil::material::Color cc) {
   return box().column().gap(3).width(130).flexShrink(0).children(
       {box()
            .width(130)

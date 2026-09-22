@@ -11,6 +11,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilskia/draw/Direct.h>
 
 #include <cmath>
@@ -36,7 +37,7 @@ float Shadow::bleed() const {
 void Shadow::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(color, nullptr);
+  p.setColor4f(material::skia::toSkColor(color), nullptr);
   if (blur > 0)
     p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
   canvas.save();
@@ -62,7 +63,7 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   const Fill stroke = strokeFill.resolve(ctx);
   if (stroke.kind == Fill::Kind::None) return;
   if (stroke.kind == Fill::Kind::Color)
-    p.setColor4f(stroke.colorValue, nullptr);
+    p.setColor4f(material::skia::toSkColor(stroke.colorValue), nullptr);
   else if (stroke.kind == Fill::Kind::Shader)
     p.setShader(stroke.shaderValue);
 
@@ -190,9 +191,9 @@ void Wash::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   p.setAntiAlias(true);
   p.setBlendMode(blend);
   if (fill.kind == Fill::Kind::Color) {
-    SkColor4f c = fill.colorValue;
-    c.fA *= a;
-    p.setColor4f(c, nullptr);
+    material::Color c = fill.colorValue;
+    c.a *= a;
+    p.setColor4f(material::skia::toSkColor(c), nullptr);
   } else if (fill.kind == Fill::Kind::Shader) {
     p.setShader(fill.shaderValue);
     p.setAlphaf(a);
@@ -227,7 +228,7 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     p.setStrokeCap(cap);
     p.setStrokeJoin(join);
     if (resolved.kind == Fill::Kind::Color)
-      p.setColor4f(resolved.colorValue, nullptr);
+      p.setColor4f(material::skia::toSkColor(resolved.colorValue), nullptr);
     else if (resolved.kind == Fill::Kind::Shader)
       p.setShader(resolved.shaderValue);
     if (!dash.empty())

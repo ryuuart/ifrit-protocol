@@ -76,7 +76,7 @@ struct Fill {
    *  reference rather than a value. `None` is a value. */
   enum class Ref : uint8_t { None, CurrentInk, Var };
 
-  static Fill color(SkColor4f c) { return {Kind::Color, c, nullptr}; }
+  static Fill color(material::Color c) { return {Kind::Color, c, nullptr}; }
   static Fill shader(sk_sp<SkShader> s);
   static Fill none() { return {}; }
   /** THE INK IN FORCE where the fill is painted — CSS's currentColor: the
@@ -103,7 +103,7 @@ struct Fill {
   static Fill var(std::string_view name) { return var(compose::var(name)); }
 
   Kind kind = Kind::None;
-  SkColor4f colorValue = {0, 0, 0, 0};
+  material::Color colorValue = {0, 0, 0, 0};
   sk_sp<SkShader> shaderValue;
   Ref ref = Ref::None;
   uint32_t varId = 0;
@@ -120,21 +120,15 @@ struct Fill {
 
 // Colour — source palettes arrive as lists of hex integers.
 
-/** `0xRRGGBB` (+ alpha) as an SkColor4f, sRGB byte values divided by 255 —
- *  the spelling a source palette is written in, one hex integer per colour,
- *  each one written where it is used.
+/** `0xRRGGBB` with alpha @p a, as a colour: sRGB byte values divided by
+ *  255. The spelling a source palette is written in, one hex integer per
+ *  colour. constexpr, so a palette stays a constant.
  *
- *  Not `rgb`, because `rgb(0xRRGGBB)` reads as "three arguments" when
- *  there is only one. constexpr, so palette constants stay constexpr. The
- *  arithmetic is SigilMaterial's `rgb`, which is where a colour is
- *  defined; this is the spelling and the Skia colour it answers in.
- *
- *  It is the only colour verb here. What a colour BECOMES — a different
- *  alpha, a tone off a base, a lighter edge, a mix — is SigilMaterial's
- *  vocabulary and is spelled from it: `material::skia::withAlpha`,
- *  `scale`, `lighten` and `mixLinear`, over <sigilmaterial/skia/Color.h>. */
-constexpr SkColor4f hexColor(uint32_t rrggbb, float a = 1.0f) noexcept {
-  return material::skia::toSkColor(material::rgb(rrggbb, a));
+ *  The only colour verb here. What a colour BECOMES — a different alpha,
+ *  a tone off a base, a lighter edge, a mix — is SigilMaterial's
+ *  vocabulary: `material::withAlpha`, `scale`, `lighten`, `mixLinear`. */
+constexpr material::Color hexColor(uint32_t rrggbb, float a = 1.0f) noexcept {
+  return material::rgb(rrggbb, a);
 }
 
 /** Corner radii, clockwise from top-left. `{r}` rounds all four; the
@@ -252,7 +246,7 @@ struct PaintContext {
    *  `Element::ink` set, which every mark that names no colour is painted
    *  in and `Fill::currentInk()` resolves to. Black outside a composer,
    *  which is the root's own default. */
-  SkColor4f ink = {0, 0, 0, 1};
+  material::Color ink = {0, 0, 0, 1};
   /** THE FONT IN FORCE at this node, every field resolved — what a pen
    *  program hosted here sets its text in, and what a guest tree painted
    *  from it inherits. The initial values outside a composer. */
@@ -387,13 +381,25 @@ class StampCache {
 // ---------------------------------------------------------------------------
 // Gradient Fills — the flat-value spelling, one line over Fill::shader.
 
+/** The ramp's colours as the shader builder takes them. A colour is four
+ *  straight sRGB floats either side, so this is a copy and nothing more. */
+inline std::vector<SkColor4f> rampColors(
+    const std::vector<material::Color>& colors) {
+  std::vector<SkColor4f> out;
+  out.reserve(colors.size());
+  for (const material::Color& c : colors)
+    out.push_back(material::skia::toSkColor(c));
+  return out;
+}
+
 /** Linear gradient Fill — one line over Fill::shader + SkShaders. */
 inline Fill linearGradient(SkPoint from, SkPoint to,
-                           std::vector<SkColor4f> colors,
+                           std::vector<material::Color> colors,
                            std::vector<float> stops = {}) {
   SkPoint pts[2] = {from, to};
+  const std::vector<SkColor4f> ramp = rampColors(colors);
   return Fill::shader(
-      SkShaders::LinearGradient(pts, SkGradient({{colors.data(), colors.size()},
+      SkShaders::LinearGradient(pts, SkGradient({{ramp.data(), ramp.size()},
                                                  {stops.data(), stops.size()},
                                                  SkTileMode::kClamp},
                                                 {})));
@@ -403,11 +409,12 @@ inline Fill linearGradient(SkPoint from, SkPoint to,
  *  space. @p stops are positions in [0,1], one per colour; an empty
  *  list spaces them evenly. Clamped past the radius. */
 inline Fill radialGradient(SkPoint center, float radius,
-                           std::vector<SkColor4f> colors,
+                           std::vector<material::Color> colors,
                            std::vector<float> stops = {}) {
+  const std::vector<SkColor4f> ramp = rampColors(colors);
   return Fill::shader(
       SkShaders::RadialGradient(center, radius,
-                                SkGradient({{colors.data(), colors.size()},
+                                SkGradient({{ramp.data(), ramp.size()},
                                             {stops.data(), stops.size()},
                                             SkTileMode::kClamp},
                                            {})));

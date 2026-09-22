@@ -7,12 +7,12 @@
  * ink, the custom properties, and how image leaves under it sample.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Var.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/layout/Block.h>
 #include <sigilweave/style/Style.h>
 
@@ -43,7 +43,7 @@ class CascadeVerbs {
    *  mark that names no colour is painted in — CSS's `color`.
    *  `Fill::currentInk()` reads it back. A node whose ink changes under
    *  a `transition()` eases it, and everything under it follows. */
-  Derived& ink(SkColor4f colour);
+  Derived& ink(material::Color colour);
   /** The ink read from a custom property in force here. A property
    *  nobody set, or one holding a length, leaves the inherited ink
    *  standing and says so once. */
@@ -51,7 +51,7 @@ class CascadeVerbs {
   /** A CUSTOM PROPERTY set on this node and inherited by everything
    *  under it, read back through `var(name)`, `Fill::var` or
    *  `ink(var(name))`. The nearest ancestor that set a name wins. */
-  Derived& var(std::string_view name, SkColor4f colour);
+  Derived& var(std::string_view name, material::Color colour);
   /** The same, holding a LENGTH rather than a colour. A property is one
    *  or the other, and reading one as the other leaves the target
    *  standing and says so once. */

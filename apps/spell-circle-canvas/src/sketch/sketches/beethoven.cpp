@@ -44,6 +44,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -55,6 +56,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 namespace motion = sigil::motion;
@@ -83,10 +85,10 @@ constexpr float kScale = kPlateW / kPosterW;  // poster units → plate px
 constexpr float kPlateX = (kW - kPlateW) * 0.5f;
 constexpr float kPlateY = (kH - kPlateH) * 0.5f;
 
-constexpr SkColor4f kWall{0.235f, 0.230f, 0.222f, 1};   // the museum wall
-constexpr SkColor4f kPaper{0.961f, 0.953f, 0.933f, 1};  // #F5F3EE
-constexpr SkColor4f kInk{0.066f, 0.062f, 0.058f, 1};
-constexpr SkColor4f kLabel{0.760f, 0.745f, 0.715f, 1};
+constexpr material::Color kWall{0.235f, 0.230f, 0.222f, 1};   // the museum wall
+constexpr material::Color kPaper{0.961f, 0.953f, 0.933f, 1};  // #F5F3EE
+constexpr material::Color kInk{0.066f, 0.062f, 0.058f, 1};
+constexpr material::Color kLabel{0.760f, 0.745f, 0.715f, 1};
 
 /// The beat of blank paper the reveal starts from.
 constexpr std::chrono::milliseconds kRevealDelay{150};
@@ -131,7 +133,7 @@ struct Beethoven {
     // is the poster rather than a frame of its assembly.
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     ctx.composer.render(describe());
   }
 

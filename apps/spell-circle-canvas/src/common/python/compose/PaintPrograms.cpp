@@ -175,12 +175,15 @@ compose::VarRef variableReference(py::handle name) {
 
 /** The colours and stops of a gradient, checked before Skia reads the
  *  stops as one position per colour. */
-void checkGradient(const std::vector<SkColor4f>& colors,
-                   const std::vector<float>& stops) {
+std::vector<material::Color> checkedGradient(
+    const std::vector<SkColor4f>& colors, const std::vector<float>& stops) {
   if (colors.empty()) throw py::value_error("A gradient needs a colour.");
   if (!stops.empty() && stops.size() != colors.size())
     throw py::value_error(
         "A gradient's stops are one position per colour, or none.");
+  // Skia's colour is what the caster reads a Python colour into; the ramp
+  // is stated in this project's.
+  return {colors.begin(), colors.end()};
 }
 
 }  // namespace
@@ -517,9 +520,9 @@ void bindComposePaintPrograms(py::module_& module) {
       "linearGradient",
       [](py::handle from, py::handle to, std::vector<SkColor4f> colors,
          std::vector<float> stops) {
-        checkGradient(colors, stops);
         return compose::linearGradient(point(from), point(to),
-                                       std::move(colors), std::move(stops));
+                                       checkedGradient(colors, stops),
+                                       std::move(stops));
       },
       py::arg("from_"), py::arg("to"), py::arg("colors"),
       py::arg("stops") = std::vector<float>{});
@@ -527,8 +530,8 @@ void bindComposePaintPrograms(py::module_& module) {
       "radialGradient",
       [](py::handle center, float radius, std::vector<SkColor4f> colors,
          std::vector<float> stops) {
-        checkGradient(colors, stops);
-        return compose::radialGradient(point(center), radius, std::move(colors),
+        return compose::radialGradient(point(center), radius,
+                                       checkedGradient(colors, stops),
                                        std::move(stops));
       },
       py::arg("center"), py::arg("radius"), py::arg("colors"),

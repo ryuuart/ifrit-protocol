@@ -10,9 +10,9 @@
  * `PaintContext::ink` and `PaintContext::vars`.
  */
 
-#include <include/core/SkColor.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Var.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <utility>
 #include <variant>
@@ -24,7 +24,7 @@ namespace sigil::compose {
  *  `Element::ink(var(...))`; or a length, read wherever a `Dimension` is
  *  written as `var(...)`. A length may itself be relative and resolves
  *  where it is read, against the font in force there. */
-using VarValue = std::variant<SkColor4f, Dimension>;
+using VarValue = std::variant<material::Color, Dimension>;
 
 /** THE CUSTOM PROPERTIES IN FORCE AT A NODE — every name an ancestor set,
  *  the nearest ancestor winning, as one comparable value. Small and

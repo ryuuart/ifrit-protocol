@@ -29,6 +29,7 @@
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilgeometry/path/Projection.h>
 #include <sigilgeometry/path/Skia.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
@@ -84,29 +85,30 @@ namespace chaucer_astrolabe {}
 using namespace chaucer_astrolabe;
 namespace chaucer_astrolabe {
 
-using sigil::compose::hexColor;  // 0xRRGGBB -> SkColor4f
+using sigil::compose::hexColor;  // 0xRRGGBB -> mat::Color
 
 // ---------------------------------------------------------------------------
 // palette — luminance percentiles over the hue-masked brass of the 1466
 // Strasbourg instrument. Brass has ONE colour and many lights; this is a
 // ramp, not a set of hues, and that is the whole material problem here.
 
-constexpr SkColor4f kCase = hexColor(0x1d222d);  // the vitrine, not the object
-constexpr SkColor4f kBrassP2 = hexColor(0x4f360e);  // inside the rete's cutouts
-constexpr SkColor4f kBrassP10 =
+constexpr mat::Color kCase = hexColor(0x1d222d);  // the vitrine, not the object
+constexpr mat::Color kBrassP2 =
+    hexColor(0x4f360e);  // inside the rete's cutouts
+constexpr mat::Color kBrassP10 =
     hexColor(0x5c462f);  // plate seen through a cutout
-constexpr SkColor4f kBrassP30 = hexColor(0x846a2d);  // the recessed plate
-constexpr SkColor4f kBrassP50 = hexColor(0xa18643);  // the base tone
-constexpr SkColor4f kBrassP70 = hexColor(0xc2a955);  // the rete's raised faces
-constexpr SkColor4f kBrassP90 = hexColor(0xffdc8b);  // throne, top of the limb
-constexpr SkColor4f kBrassP99 = hexColor(0xffffbd);  // rim highlights only
-constexpr SkColor4f kGrooveDark = hexColor(0x3a2a10);
-constexpr SkColor4f kGrooveLite = hexColor(0xf2dfa0);
-constexpr SkColor4f kVerdigris = hexColor(0x2f5a44);
-constexpr SkColor4f kVellum = hexColor(0xefe6d2);
-constexpr SkColor4f kInk = hexColor(0x241c15);
-constexpr SkColor4f kRubric = hexColor(0x8c2f22);
-constexpr SkColor4f kTrace = hexColor(0x2f6f9c);  // the sketch talking, only
+constexpr mat::Color kBrassP30 = hexColor(0x846a2d);  // the recessed plate
+constexpr mat::Color kBrassP50 = hexColor(0xa18643);  // the base tone
+constexpr mat::Color kBrassP70 = hexColor(0xc2a955);  // the rete's raised faces
+constexpr mat::Color kBrassP90 = hexColor(0xffdc8b);  // throne, top of the limb
+constexpr mat::Color kBrassP99 = hexColor(0xffffbd);  // rim highlights only
+constexpr mat::Color kGrooveDark = hexColor(0x3a2a10);
+constexpr mat::Color kGrooveLite = hexColor(0xf2dfa0);
+constexpr mat::Color kVerdigris = hexColor(0x2f5a44);
+constexpr mat::Color kVellum = hexColor(0xefe6d2);
+constexpr mat::Color kInk = hexColor(0x241c15);
+constexpr mat::Color kRubric = hexColor(0x8c2f22);
+constexpr mat::Color kTrace = hexColor(0x2f6f9c);  // the sketch talking, only
 
 // ---------------------------------------------------------------------------
 // canvas & the instrument's frame
@@ -561,9 +563,12 @@ inline std::vector<T> listOf(R&& range, Fn of) {
  *  the panel inherits. Every other line on the plate writes its partial in
  *  place and names only what differs from the panel it stands in — the
  *  panel's ink, and a face and size where a panel is set in one. */
-inline weave::Type partial(sk_sp<SkTypeface> face, float size, SkColor4f c,
+inline weave::Type partial(sk_sp<SkTypeface> face, float size, mat::Color c,
                            float tracking = 0) {
-  return {.face = std::move(face), .size = size, .color = c, .track = tracking};
+  return {.face = std::move(face),
+          .size = size,
+          .color = mat::skia::toSkColor(c),
+          .track = tracking};
 }
 
 using motion::ramp;  // (startMs, durationMs) -> a Transition
@@ -575,8 +580,8 @@ using motion::ramp;  // (startMs, durationMs) -> a Transition
  *  it. The alphas are how deep each family reads over the brass. */
 inline PathFormat groove(float rad, float w, float darkA, float liteA) {
   return kit::groove(
-      rad, w, SkColor4f{kGrooveDark.fR, kGrooveDark.fG, kGrooveDark.fB, darkA},
-      SkColor4f{kGrooveLite.fR, kGrooveLite.fG, kGrooveLite.fB, liteA});
+      rad, w, mat::Color{kGrooveDark.r, kGrooveDark.g, kGrooveDark.b, darkA},
+      mat::Color{kGrooveLite.r, kGrooveLite.g, kGrooveLite.b, liteA});
 }
 
 /** FROM NOTHING TO WHOLE over @p spec, for the one property that is not

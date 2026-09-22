@@ -50,6 +50,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
@@ -98,10 +99,10 @@ constexpr int kTapeHeight = 160;
  *  statement. */
 weave::StyleSheet screenType() {
   weave::StyleSheet sheet;
-  sheet.set("h1", {.size = 22.0f, .color = compose::hexColor(0xbfd4ef)});
-  sheet.set("note", {.size = 19.0f, .color = compose::hexColor(0x7e93b4)});
-  sheet.set("display", {.size = 46.0f, .color = compose::hexColor(0xf2ebdc)});
-  sheet.set("caption", {.size = 20.0f, .color = compose::hexColor(0x9eb8d9)});
+  sheet.set("h1", {.size = 22.0f, .color = material::skia::toSkColor(compose::hexColor(0xbfd4ef))});
+  sheet.set("note", {.size = 19.0f, .color = material::skia::toSkColor(compose::hexColor(0x7e93b4))});
+  sheet.set("display", {.size = 46.0f, .color = material::skia::toSkColor(compose::hexColor(0xf2ebdc))});
+  sheet.set("caption", {.size = 20.0f, .color = material::skia::toSkColor(compose::hexColor(0x9eb8d9))});
   return sheet;
 }
 
@@ -109,7 +110,7 @@ weave::StyleSheet screenType() {
  *  on, its air, the aliasing a display's glyphs are set with, and the sheet
  *  its registers are named through. A screen below states its own ground
  *  and its own gap and nothing else about itself. */
-compose::Element screen(float gap, SkColor4f ground, float padding = 16.0f) {
+compose::Element screen(float gap, material::Color ground, float padding = 16.0f) {
   return compose::box()
       .width(compose::pct(100))
       .height(compose::pct(100))
@@ -122,7 +123,7 @@ compose::Element screen(float gap, SkColor4f ground, float padding = 16.0f) {
 
 /** A LEVEL SCREEN: a row of bars whose heights ride one wave, so the
  *  whole row moves together and no single bar has to be watched. */
-compose::Element levels(float seconds, SkColor4f accent) {
+compose::Element levels(float seconds, material::Color accent) {
   // nine bars on one wave: each is the room above it and the bar under
   const auto bar = [seconds, accent](int i) {
     const float height =
@@ -143,7 +144,7 @@ compose::Element levels(float seconds, SkColor4f accent) {
 
 /** A TRACE SCREEN: one line of blocks whose brightness travels, which is
  *  a moving picture made without moving anything. */
-compose::Element trace(float seconds, SkColor4f accent) {
+compose::Element trace(float seconds, material::Color accent) {
   constexpr int kCells = 14;
   const auto cell = [seconds, accent](int i) {
     const float at =
@@ -153,7 +154,7 @@ compose::Element trace(float seconds, SkColor4f accent) {
         .width(compose::pct(100))
         .height(44.0f)
         .fill(
-            SkColor4f{accent.fR * lit, accent.fG * lit, accent.fB * lit, 1.0f});
+            material::Color{accent.r * lit, accent.g * lit, accent.b * lit, 1.0f});
   };
   return screen(10.0f, compose::hexColor(0x0f141c))
       .children(
@@ -166,7 +167,7 @@ compose::Element trace(float seconds, SkColor4f accent) {
 /** A DIAL SCREEN: a needle laid out rather than drawn — a bar whose
  *  offset is the reading, which is the layout vocabulary standing in for
  *  a gauge. */
-compose::Element dial(float seconds, SkColor4f accent) {
+compose::Element dial(float seconds, material::Color accent) {
   const float reading = 0.5f + 0.5f * std::sin(seconds * 1.15f);
   return screen(10.0f, compose::hexColor(0x14121f))
       .children({compose::document::h1(u8"DIAL"),
@@ -183,8 +184,8 @@ compose::Element dial(float seconds, SkColor4f accent) {
                  compose::box()
                      .width(compose::pct(100))
                      .height(12.0f + 46.0f * reading)
-                     .fill(SkColor4f{accent.fR * 0.35f, accent.fG * 0.35f,
-                                     accent.fB * 0.35f, 1.0f})});
+                     .fill(material::Color{accent.r * 0.35f, accent.g * 0.35f,
+                                     accent.b * 0.35f, 1.0f})});
 }
 
 /** THE BAND under them: one wide strip of cells, so the curved panel has
@@ -199,7 +200,7 @@ compose::Element band(float seconds) {
     return compose::box()
         .width(compose::pct(100))
         .height(compose::pct(100))
-        .fill(SkColor4f{0.30f * lit, 0.95f * lit, 0.70f * lit, 1.0f});
+        .fill(material::Color{0.30f * lit, 0.95f * lit, 0.70f * lit, 1.0f});
   };
   return screen(6.0f, compose::hexColor(0x0d121a), 12.0f)
       .row()
@@ -292,7 +293,7 @@ struct SceneSurfaces {
     sketch::kit::stage(ctx,
                        {.size = {960, 620},
                         .captureAt = 1.35,
-                        .background = SkColor4f{0.025f, 0.028f, 0.038f, 1.0f}});
+                        .background = material::Color{0.025f, 0.028f, 0.038f, 1.0f}});
     for (Screen& card : cards) card.scene = ctx.textureScene({320, 214});
     strip.scene = ctx.textureScene({1024, 128});
     loop.scene = ctx.textureScene({kTapeWidth, kTapeHeight});
@@ -303,10 +304,10 @@ struct SceneSurfaces {
   }
 
   world::Frame describe(float seconds) {
-    const std::array<SkColor4f, 3> accents = {
-        SkColor4f{0.30f, 0.82f, 1.00f, 1.0f},
-        SkColor4f{1.00f, 0.62f, 0.24f, 1.0f},
-        SkColor4f{0.70f, 0.52f, 1.00f, 1.0f}};
+    const std::array<material::Color, 3> accents = {
+        material::Color{0.30f, 0.82f, 1.00f, 1.0f},
+        material::Color{1.00f, 0.62f, 0.24f, 1.0f},
+        material::Color{0.70f, 0.52f, 1.00f, 1.0f}};
     const std::array<compose::Element, 3> content = {
         levels(seconds, accents[0]), trace(seconds, accents[1]),
         dial(seconds, accents[2])};

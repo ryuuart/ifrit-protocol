@@ -83,6 +83,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
@@ -95,6 +96,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 namespace motion = sigil::motion;
@@ -107,12 +109,12 @@ namespace {
 constexpr float kW = 1120.0f;
 constexpr float kH = 620.0f;
 
-constexpr SkColor4f kPaper = hexColor(0x0C0C0E);
-constexpr SkColor4f kInk = hexColor(0xF4F1EA);
-constexpr SkColor4f kLabel = hexColor(0x7E8492);
-constexpr SkColor4f kFaint = hexColor(0x3A3F4B);
-constexpr SkColor4f kMark = hexColor(0xE2504B);  // the overhang
-constexpr SkColor4f kAxis = hexColor(0x63B8FF);  // the driven coordinate
+constexpr material::Color kPaper = hexColor(0x0C0C0E);
+constexpr material::Color kInk = hexColor(0xF4F1EA);
+constexpr material::Color kLabel = hexColor(0x7E8492);
+constexpr material::Color kFaint = hexColor(0x3A3F4B);
+constexpr material::Color kMark = hexColor(0xE2504B);  // the overhang
+constexpr material::Color kAxis = hexColor(0x63B8FF);  // the driven coordinate
 
 const char* kProof = "HAMBURGEFONTSIV";
 
@@ -268,7 +270,7 @@ struct AxisRipple {
     sigil::weave::TextStyle style =
         weave::textStyle({.face = face,
                           .size = kProofRowSize,
-                          .color = kInk,
+                          .color = material::skia::toSkColor(kInk),
                           .track = kProofTrack * 0.6f});
     style.variation(tag, value);
     Text run = text(kProof, style);
@@ -300,7 +302,7 @@ struct AxisRipple {
   [[nodiscard]] Element axisPanel(const Utf8& heading, const char (&tag)[5],
                                   float lo, float hi, const char* loLabel,
                                   const char* hiLabel, const Utf8& verdict,
-                                  SkColor4f verdictInk) {
+                                  material::Color verdictInk) {
     return box().column().gap(12).flexGrow(1).children(
         {text(heading),
          box().column().gap(6).children({proofRow(tag, lo, loLabel, true),
@@ -392,7 +394,7 @@ struct AxisRipple {
     // at the size and the track the page sets the run in.
     const auto sized = [&](float size, float track) {
       return weave::textStyle(
-          {.face = face, .size = size, .color = kInk, .track = track});
+          {.face = face, .size = size, .color = material::skia::toSkColor(kInk), .track = track});
     };
     const auto runWidth = [&](const weave::TextStyle& style) {
       return runPens(kProof, style, *ctx.fonts).back();

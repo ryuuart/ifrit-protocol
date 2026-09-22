@@ -38,6 +38,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/paragraph/Unit.h>
@@ -48,6 +49,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -69,11 +71,11 @@ constexpr float kNoteMeasure = 190;
 constexpr float kTextLeft = 300;
 constexpr float kTextTop = 150;
 
-const SkColor4f kPaper{0.972f, 0.968f, 0.960f, 1};
-const SkColor4f kInk{0.106f, 0.114f, 0.129f, 1};
-const SkColor4f kFaint{0.106f, 0.114f, 0.129f, 0.32f};
-const SkColor4f kMark{0.192f, 0.404f, 0.545f, 1};
-const SkColor4f kHot{0.780f, 0.286f, 0.176f, 1};
+const material::Color kPaper{0.972f, 0.968f, 0.960f, 1};
+const material::Color kInk{0.106f, 0.114f, 0.129f, 1};
+const material::Color kFaint{0.106f, 0.114f, 0.129f, 0.32f};
+const material::Color kMark{0.192f, 0.404f, 0.545f, 1};
+const material::Color kHot{0.780f, 0.286f, 0.176f, 1};
 
 sk_sp<SkTypeface> serif() {
   return weave::ports::face(
@@ -83,10 +85,10 @@ sk_sp<SkTypeface> grotesque() {
   return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
 }
 
-weave::TextStyle note(float size = 8.5f, SkColor4f colour = kFaint,
+weave::TextStyle note(float size = 8.5f, material::Color colour = kFaint,
                       float track = 0.4f) {
   return weave::textStyle(
-      {.face = grotesque(), .size = size, .color = colour, .track = track});
+      {.face = grotesque(), .size = size, .color = material::skia::toSkColor(colour), .track = track});
 }
 
 /** The cascade the playhead rides, and the ms its master must span for it
@@ -144,7 +146,7 @@ struct AnnotatedMargin {
                  .children({text("BESIDE THE TEXT", m::note(12, m::kInk, 4.0f)),
                             text("one element per unit, placed from "
                                  "the unit's own rect",
-                                 m::note(10, m::kFaint, 0.3f))}),
+                                 m::note(10, material::skia::toSkColor(m::kFaint), 0.3f))}),
              // The passage itself: one leaf, keyed, and annotated by
              // nothing — everything below reads it from outside.
              document::paragraph(m::kPassage)
@@ -182,7 +184,7 @@ struct AnnotatedMargin {
                              return text(std::to_string(unit.range.start) +
                                              "–" +
                                              std::to_string(unit.range.end),
-                                         m::note(7.5f, m::kMark, 0.2f));
+                                         m::note(7.5f, material::skia::toSkColor(m::kMark), 0.2f));
                            })
                  .inset(0),
              // ── One note per line, in the gutter, with a leader
@@ -219,8 +221,8 @@ struct AnnotatedMargin {
                          .colour = m::kMark})
                  .inset(0),
              // ── The playhead, riding the cascade
-             kit::trackMeter(composer, "cascade", 0, m::kHot,
-                             {m::kHot.fR, m::kHot.fG, m::kHot.fB, 0.12f},
+             kit::trackMeter(composer, "cascade", 0, material::skia::toSkColor(m::kHot),
+                             {m::kHot.r, m::kHot.g, m::kHot.b, 0.12f},
                              {.where = kit::MeterPlacement::Where::Under,
                               .thickness = 3.0f,
                               .gap = 5.0f,

@@ -65,7 +65,7 @@ Element recorded(const std::string& name, std::string_view styleClass,
 SkPaint strokePen(const PaintContext& context, float width) {
   SkPaint pen;
   pen.setAntiAlias(true);
-  pen.setColor4f(context.ink);
+  pen.setColor4f(material::skia::toSkColor(context.ink));
   pen.setStyle(SkPaint::kStroke_Style);
   pen.setStrokeWidth(std::max(width, 0.0f));
   return pen;
@@ -492,7 +492,7 @@ Layer area(sigil::core::Callable<double(double)> f, const Area& how) {
           if (!f) return;
           SkPaint pen;
           pen.setAntiAlias(true);
-          pen.setColor4f(pc.ink);
+          pen.setColor4f(material::skia::toSkColor(pc.ink));
           SkPathBuilder path = walked(frame, f, how.samples, pc.size);
           // Closed back along the base, so the band between the
           // curve and that value is what is filled.

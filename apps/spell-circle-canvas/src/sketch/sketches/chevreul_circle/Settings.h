@@ -47,6 +47,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace measure = sigil::measure;
@@ -73,15 +74,18 @@ namespace chevreul_circle {
 // ---------------------------------------------------------------------------
 // palette — sampled off the 1864 plate
 
-constexpr SkColor4f kPaper = hexColor(0xEFE8D9);  // the plate's unprinted paper
-constexpr SkColor4f kWell = hexColor(0xE4DCCA);  // panel wells, the limb's tint
-constexpr SkColor4f kRule = hexColor(0x8C8578);  // engraved rules and hairlines
-constexpr SkColor4f kInk = hexColor(0x221F1A);   // letterpress
-constexpr SkColor4f kInk2 = hexColor(0x5C554A);  // small caps, numerals
-constexpr SkColor4f kRed = hexColor(0x8E2F26);   // annotation red
-constexpr SkColor4f kShade = hexColor(0x3A352D);  // mounted-panel shadow
-constexpr SkColor4f kBlack = hexColor(0x000000);
-constexpr SkColor4f kWhite = hexColor(0xFFFFFF);
+constexpr material::Color kPaper =
+    hexColor(0xEFE8D9);  // the plate's unprinted paper
+constexpr material::Color kWell =
+    hexColor(0xE4DCCA);  // panel wells, the limb's tint
+constexpr material::Color kRule =
+    hexColor(0x8C8578);  // engraved rules and hairlines
+constexpr material::Color kInk = hexColor(0x221F1A);    // letterpress
+constexpr material::Color kInk2 = hexColor(0x5C554A);   // small caps, numerals
+constexpr material::Color kRed = hexColor(0x8E2F26);    // annotation red
+constexpr material::Color kShade = hexColor(0x3A352D);  // mounted-panel shadow
+constexpr material::Color kBlack = hexColor(0x000000);
+constexpr material::Color kWhite = hexColor(0xFFFFFF);
 
 // ---------------------------------------------------------------------------
 // the seventy-two couleurs franches. n is Chevreul's index from ROUGE; the
@@ -208,14 +212,15 @@ using sigil::material::luminance;
 using sigil::material::srgbToLinear;
 using sigil::material::toLab;
 
-inline SkColor4f lerpLinear(SkColor4f a, SkColor4f b, float t) {
-  return {linearToSrgb(srgbToLinear(a.fR) +
-                       (srgbToLinear(b.fR) - srgbToLinear(a.fR)) * t),
-          linearToSrgb(srgbToLinear(a.fG) +
-                       (srgbToLinear(b.fG) - srgbToLinear(a.fG)) * t),
-          linearToSrgb(srgbToLinear(a.fB) +
-                       (srgbToLinear(b.fB) - srgbToLinear(a.fB)) * t),
-          a.fA + (b.fA - a.fA) * t};
+inline material::Color lerpLinear(material::Color a, material::Color b,
+                                  float t) {
+  return {linearToSrgb(srgbToLinear(a.r) +
+                       (srgbToLinear(b.r) - srgbToLinear(a.r)) * t),
+          linearToSrgb(srgbToLinear(a.g) +
+                       (srgbToLinear(b.g) - srgbToLinear(a.g)) * t),
+          linearToSrgb(srgbToLinear(a.b) +
+                       (srgbToLinear(b.b) - srgbToLinear(a.b)) * t),
+          a.a + (b.a - a.a) * t};
 }
 /** Chevreul's index n -> the sector's START angle in Skia degrees
  *  (0° = +x, sweeping clockwise). n = 0 is ROUGE, straight down. */
@@ -237,8 +242,9 @@ inline int sepSectors(int a, int b) {
 /** §164: tone 15 of radius k is (10−k)/10 of the colour with k/10 black.
  *  §160: tones BELOW the normal tone add white, tones above add black. The
  *  normal tone of ROUGE is 15 on the 1..20 scale. */
-inline SkColor4f quadrantCell(SkColor4f hue, int k /*1..10*/, int t /*1..20*/) {
-  const SkColor4f broken = lerpLinear(hue, kBlack, (float)k / 10.0f);
+inline material::Color quadrantCell(material::Color hue, int k /*1..10*/,
+                                    int t /*1..20*/) {
+  const material::Color broken = lerpLinear(hue, kBlack, (float)k / 10.0f);
   if (t < 15) return lerpLinear(broken, kWhite, (float)(15 - t) / 14.0f);
   if (t > 15) return lerpLinear(broken, kBlack, (float)(t - 15) / 5.0f);
   return broken;
@@ -246,9 +252,9 @@ inline SkColor4f quadrantCell(SkColor4f hue, int k /*1..10*/, int t /*1..20*/) {
 
 /** Chevreul's own prediction (§18, §20), made numeric: nudge a colour
  *  toward the complement of its neighbour, in linear light. */
-inline SkColor4f predicted(SkColor4f self, int neighbourSector,
-                           const std::array<SkColor4f, 72>& wheel,
-                           float amount = 0.22f) {
+inline material::Color predicted(material::Color self, int neighbourSector,
+                                 const std::array<material::Color, 72>& wheel,
+                                 float amount = 0.22f) {
   return lerpLinear(self, wheel[(size_t)complementOf(neighbourSector)], amount);
 }
 
@@ -308,28 +314,36 @@ inline const weave::StyleSheet& classes() {
   static const weave::StyleSheet look =
       sheet()
           .styleSheet()
-          .set("heading",
-               {.face = mono(), .size = 8.5f, .color = kInk, .track = 0.5f})
+          .set("heading", {.face = mono(),
+                           .size = 8.5f,
+                           .color = material::skia::toSkColor(kInk),
+                           .track = 0.5f})
           .set("note", {.size = 7.0f, .track = 0.2f})
           .set("column", {.size = 6.5f, .track = 0.2f})
           .set("readout", {.size = 8.0f, .track = 0.2f})
-          .set("finding", {.size = 8.0f, .color = kRed, .track = 0.2f})
+          .set("finding", {.size = 8.0f,
+                           .color = material::skia::toSkColor(kRed),
+                           .track = 0.2f})
           .set("quote", {.face = serifIt(), .size = 8.5f})
           // What the a*b* plot's own parts are drawn in: the chart kit
           // names the part and the plate says the colour.
-          .set("plotRule", {.color = hexColor(0x8C8578, 0.35f)})
-          .set("plotAxis", {.color = kInk})
-          .set("plotLabel", {.size = 7.0f, .color = kInk2, .track = 0.3f})
-          .set("chord", {.color = hexColor(0x8C8578, 0.85f)})
-          .set("centroid", {.color = kRed});
+          .set("plotRule",
+               {.color = material::skia::toSkColor(hexColor(0x8C8578, 0.35f))})
+          .set("plotAxis", {.color = material::skia::toSkColor(kInk)})
+          .set("plotLabel", {.size = 7.0f,
+                             .color = material::skia::toSkColor(kInk2),
+                             .track = 0.3f})
+          .set("chord",
+               {.color = material::skia::toSkColor(hexColor(0x8C8578, 0.85f))})
+          .set("centroid", {.color = material::skia::toSkColor(kRed)});
   return look;
 }
 
-inline std::string hexOf(SkColor4f c) {
+inline std::string hexOf(material::Color c) {
   auto q = [](float v) {
     return (int)std::lround(std::clamp(v, 0.f, 1.f) * 255.f);
   };
-  return kit::formatted("#%02X%02X%02X", q(c.fR), q(c.fG), q(c.fB));
+  return kit::formatted("#%02X%02X%02X", q(c.r), q(c.g), q(c.b));
 }
 
 /** One line of type at a plate position — ranged left, centred, or right

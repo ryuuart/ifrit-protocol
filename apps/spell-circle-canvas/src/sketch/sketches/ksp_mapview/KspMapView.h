@@ -62,8 +62,8 @@ struct KspMapView {
    *  offset +8, and a node whose label also sits above its diamond prints
    *  straight through that run — "Ap 213,904DN m". Nodes that land in the arc
    *  label's band hang their label the other way. */
-  Element marker(const char* label, SkPoint p, SkColor4f c, bool filled,
-                 SkVector lift = {12, -9});
+  Element marker(const char* label, SkPoint p, sigil::material::Color c,
+                 bool filled, SkVector lift = {12, -9});
 
   // -------------------------------------------------------------------
   // The manoeuvre gizmo — the centre of the study.
@@ -122,8 +122,8 @@ struct KspMapView {
 
   /** A vessel/body chip on a trajectory: circular gunmetal disc, glyph,
    *  short label — the reference's "As" marker and the craft icon. */
-  Element chip(const char* glyph, const char* label, SkPoint p, SkColor4f ink,
-               float r);
+  Element chip(const char* glyph, const char* label, SkPoint p,
+               sigil::material::Color ink, float r);
 
   Element mapLayer(sketch::SketchContext& ctx);
 

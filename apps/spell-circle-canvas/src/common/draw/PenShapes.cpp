@@ -16,6 +16,7 @@
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <cmath>
@@ -244,7 +245,8 @@ void Pen::vertex(float x, float y) {
       m_vertexColors.push_back(SK_ColorTRANSPARENT);
       return;
     }
-    const SkColor packed = m_style.fill.solidColor().toSkColor();
+    const SkColor packed =
+        material::skia::toSkColor(m_style.fill.solidColor()).toSkColor();
     if (!m_vertexColors.empty() && packed != m_vertexColors.front())
       m_vertexColorsVary = true;
     m_vertexColors.push_back(packed);

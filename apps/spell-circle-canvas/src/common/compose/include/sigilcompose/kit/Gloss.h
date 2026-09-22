@@ -20,6 +20,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilmaterial/skia/Paint.h>
 
@@ -47,7 +48,7 @@ material::skia::Paint silverChromeType();
  *  chain (blur, then an alpha table), so it composes with the node's other
  *  decorations inside a single paint rather than forcing a layer. */
 struct GlossContour {
-  SkColor4f color = {1, 1, 1, 0.85f};
+  material::Color color = {1, 1, 1, 0.85f};
   float sigma = 6.0f;
   SkVector offset = {0, -3};
   std::array<uint8_t, 256> table{};
@@ -63,7 +64,7 @@ struct GlossContour {
 
 /** The drop-in gloss band. Attach as a foreground: it reads the node's
  *  outline and paints over the fill. */
-GlossContour gloss(SkColor4f color = {1, 1, 1, 0.85f}, float sigma = 6.0f,
+GlossContour gloss(material::Color color = {1, 1, 1, 0.85f}, float sigma = 6.0f,
                    SkVector offset = {0, -3}, float ringCenter = 0.55f,
                    float ringWidth = 0.35f);
 

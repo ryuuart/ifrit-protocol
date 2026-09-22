@@ -27,6 +27,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsubstance/graph/Graph.h>
@@ -39,6 +40,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace substance = sigil::substance;
@@ -62,8 +64,8 @@ constexpr int kPerRow = 4;
  *  round. */
 constexpr float kGridWidth = kPerRow * kCard + (kPerRow - 1) * kGap;
 
-constexpr SkColor4f kInk = hexColor(0xf0ece4);
-constexpr SkColor4f kDim = hexColor(0xb4a894);
+constexpr material::Color kInk = hexColor(0xf0ece4);
+constexpr material::Color kDim = hexColor(0xb4a894);
 
 /** The archive's own look: warm ink on a cooled ground, and the card's
  *  two lines under its picture rather than around it. */
@@ -121,9 +123,9 @@ Element notice(Utf8 heading, Utf8 detail) {
       .column()
       .gap(10)
       .children({text(std::move(heading),
-                      weave::textStyle({.size = 22, .color = kInk})),
+                      weave::textStyle({.size = 22, .color = material::skia::toSkColor(kInk)})),
                  text(std::move(detail),
-                      weave::textStyle({.size = 13, .color = kDim}))});
+                      weave::textStyle({.size = 13, .color = material::skia::toSkColor(kDim)}))});
 }
 
 }  // namespace

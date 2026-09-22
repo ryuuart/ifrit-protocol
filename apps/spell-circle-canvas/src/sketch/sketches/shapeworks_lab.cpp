@@ -52,6 +52,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/path/Operations.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -295,7 +296,7 @@ struct ShapeworksLab {
     sketch::kit::stage(ctx,
                        {.size = {1280, 780},
                         .captureAt = 2.6,
-                        .background = SkColor4f{0.05f, 0.048f, 0.088f, 1}});
+                        .background = material::Color{0.05f, 0.048f, 0.088f, 1}});
 
     studio = material::kit::studioEnvironment();
 

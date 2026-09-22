@@ -51,7 +51,7 @@ auto WinampBase::mainWindow() -> Element {
   // outside it, exactly as MAIN.BMP bakes them
   const auto readout = [this](float x, float wN, const char* v) {
     return sunken(at(box(), x, 41, wN, 9).fill(hexColor(0x101020)),
-                  mskia::withAlpha(hexColor(0x4A4A70), 0.5f),
+                  sigil::material::withAlpha(hexColor(0x4A4A70), 0.5f),
                   hexColor(0x08080E))
         .children({at(box(), 1, 2, wN - 2, 6)
                        .justifyContent(Justify::End)
@@ -64,7 +64,7 @@ auto WinampBase::mainWindow() -> Element {
         .children({t(words, pix(4)).ink(hexColor(0x6E6E9A))});
   };
   const auto channels = [this](float x, float wN, const char* words, float size,
-                               std::optional<SkColor4f> ink) {
+                               std::optional<sigil::material::Color> ink) {
     Element run = t(words, pix(size));
     if (ink) run.ink(*ink);
     return at(box(), x, 41, wN, 12)
@@ -87,7 +87,7 @@ auto WinampBase::mainWindow() -> Element {
            // the clutter bar on its own dark strip, running past the well,
            // with the specular glint that sweeps the stack once every 5 s
            sunken(at(box(), 10, 22, 8, 43).fill(hexColor(0x101020)),
-                  mskia::withAlpha(hexColor(0x4A4A70), 0.7f),
+                  sigil::material::withAlpha(hexColor(0x4A4A70), 0.7f),
                   hexColor(0x080810))
                .children(
                    {each(kClutter,
@@ -131,7 +131,7 @@ auto WinampBase::mainWindow() -> Element {
            // viewport cut the bottom scanline off every round glyph — E read
            // as F, L as I, U as II.
            sunken(at(box(), 109, 22, 158, 11).fill(hexColor(0x101020)),
-                  mskia::withAlpha(hexColor(0x4A4A70), 0.5f),
+                  sigil::material::withAlpha(hexColor(0x4A4A70), 0.5f),
                   hexColor(0x08080E))
                .children(
                    {at(box(), 2, 1, 154, 9)
@@ -147,7 +147,7 @@ auto WinampBase::mainWindow() -> Element {
            // the spectrum analyser well (native 24,43,76,16), with ONE atlas
            // stamp for 19x16 LED segments plus 19 peak-hold dots
            sunken(at(box(), 24, 43, 76, 16).fill(hexColor(0x000000)),
-                  mskia::withAlpha(hexColor(0x4A4A70), 0.6f),
+                  sigil::material::withAlpha(hexColor(0x4A4A70), 0.6f),
                   hexColor(0x08080E))
                .children({box().inset(0).fill(visDots.material()),
                           box().inset(0).children({instancing::instances(
@@ -173,25 +173,26 @@ auto WinampBase::mainWindow() -> Element {
            // consumers are here: the elapsed underlay's scaleX, and the thumb
            // in pixels.
            sunken(at(box(), 16, 72, 248, 10).fill(hexColor(0x14141F)),
-                  mskia::withAlpha(hexColor(0x4A4A70), 0.7f),
+                  sigil::material::withAlpha(hexColor(0x4A4A70), 0.7f),
                   hexColor(0x08080E))
-               .children(
-                   {at(box(), 1, 1, 246, 8)
-                        .fill(hexColor(0x24243A))
-                        .transformOrigin(pct(0), pct(50))
-                        .scaleX(&playPos),
-                    raised(at(box(), 1, 0, 29, 10)
-                               .fill(mskia::Paint::linearUnit(
-                                   {0, 0}, {0, 1},
-                                   {{0.0f, mskia::lighten(kBtnFace, 0.12f)},
-                                    {1.0f, dark(kBtnFace, 0.28f)}}))
-                               .translateX(motion::bind(&playPos).target(
-                                   0, n(248 - 31))))
-                        .children(
-                            {at(box(), 13, 2, 1, 6)
-                                 .fill(mskia::withAlpha(kBtnLo, 0.8f)),
-                             at(box(), 15, 2, 1, 6)
-                                 .fill(mskia::withAlpha(kBtnHi, 0.7f))})}),
+               .children({at(box(), 1, 1, 246, 8)
+                              .fill(hexColor(0x24243A))
+                              .transformOrigin(pct(0), pct(50))
+                              .scaleX(&playPos),
+                          raised(at(box(), 1, 0, 29, 10)
+                                     .fill(mskia::Paint::linearUnit(
+                                         {0, 0}, {0, 1},
+                                         {{0.0f, sigil::material::lighten(
+                                                     kBtnFace, 0.12f)},
+                                          {1.0f, dark(kBtnFace, 0.28f)}}))
+                                     .translateX(motion::bind(&playPos).target(
+                                         0, n(248 - 31))))
+                              .children({at(box(), 13, 2, 1, 6)
+                                             .fill(sigil::material::withAlpha(
+                                                 kBtnLo, 0.8f)),
+                                         at(box(), 15, 2, 1, 6)
+                                             .fill(sigil::material::withAlpha(
+                                                 kBtnHi, 0.7f))})}),
            // the six transport keys + shuffle / repeat
            transportRow(),
            // the baked Nullsoft bolt, bottom right — MAIN.BMP's bolt is a
@@ -286,20 +287,22 @@ auto WinampBase::sliders(int vol, int bal) -> Element {
     return raised(at(box(), 0, 1, 14, 11)
                       .fill(mskia::Paint::linearUnit(
                           {0, 0}, {0, 1},
-                          {{0.0f, mskia::lighten(kBtnFace, 0.12f)},
+                          {{0.0f, sigil::material::lighten(kBtnFace, 0.12f)},
                            {1.0f, dark(kBtnFace, 0.30f)}}))
                       .translateX(n((travel - 14.0f) * (float)frame / 28.0f)))
-        .children(
-            {at(box(), 6, 2, 1, 7).fill(mskia::withAlpha(kBtnLo, 0.85f))});
+        .children({at(box(), 6, 2, 1, 7)
+                       .fill(sigil::material::withAlpha(kBtnLo, 0.85f))});
   };
-  const SkColor4f volColor = kVis[(size_t)std::clamp((vol * 15) / 28, 0, 15)];
+  const sigil::material::Color volColor =
+      kVis[(size_t)std::clamp((vol * 15) / 28, 0, 15)];
   // BALANCE.BMP, the same 28-frame mechanism, but read as a DISTANCE FROM
   // CENTRE: the colour ramps outward in both directions from frame 14.
   const int b = std::abs(bal - 14);
-  const SkColor4f balColor = kVis[(size_t)std::clamp((b * 15) / 14, 0, 15)];
+  const sigil::material::Color balColor =
+      kVis[(size_t)std::clamp((b * 15) / 14, 0, 15)];
   const auto trough = [](float x, float wN) {
     return sunken(at(box(), x, 0, wN, 13).fill(hexColor(0x1B1B2C)),
-                  mskia::withAlpha(hexColor(0x4A4A70), 0.6f),
+                  sigil::material::withAlpha(hexColor(0x4A4A70), 0.6f),
                   hexColor(0x0A0A12));
   };
   return box().children(
@@ -310,7 +313,8 @@ auto WinampBase::sliders(int vol, int bal) -> Element {
             thumb(68.0f, vol)}),
        trough(70, 38).children(
            {at(box(), 1, 4, 36, 5).fill(dark(balColor, 0.55f)),
-            at(box(), 18, 1, 2, 11).fill(mskia::withAlpha(balColor, 0.9f)),
+            at(box(), 18, 1, 2, 11)
+                .fill(sigil::material::withAlpha(balColor, 0.9f)),
             thumb(38.0f, bal)})});
 }
 
@@ -325,8 +329,8 @@ auto WinampBase::marqueeText() -> std::string {
   return s;
 }
 
-auto WinampBase::lcdCells(const std::string& s, SkColor4f ink) const
-    -> Element {
+auto WinampBase::lcdCells(const std::string& s,
+                          sigil::material::Color ink) const -> Element {
   using namespace wa;
   const float pitch = n(54) / (s.empty() ? 1.0f : (float)s.size());
   return box().row().width(n(54)).height(n(13)).ink(ink).children(

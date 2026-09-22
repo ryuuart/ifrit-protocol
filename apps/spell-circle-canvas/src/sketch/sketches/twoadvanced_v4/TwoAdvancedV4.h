@@ -111,7 +111,7 @@ struct TwoAdvancedV4 {
   // =========================================================================
   // Small parts.
 
-  Element tickDots(int cluster, SkColor4f c = tav::kCyan);
+  Element tickDots(int cluster, sigil::material::Color c = tav::kCyan);
 
   /** The two-weight panel header: heavy half + regular half over the
    *  hazard-stripe ground, with a flavour line, a tick cluster and a tick
@@ -122,14 +122,15 @@ struct TwoAdvancedV4 {
   /** CTA: chamfered, blood-red ramp in UNIT space so the gradient follows
    *  whatever height the layout hands the button, gloss band on top. */
   Element cta(const char* lbl, float w = 116, float h = 34,
-              SkColor4f hairline = tav::kNear);
+              sigil::material::Color hairline = tav::kNear);
 
   /** A dark readout window: chamfered, inset-bevelled, bracketed. */
-  Element readout(float w, float h, SkColor4f ground = hexColor(0x1B0708));
+  Element readout(float w, float h,
+                  sigil::material::Color ground = hexColor(0x1B0708));
 
   /** A radar wedge: shapes::sector, rotation BOUND. Every gauge on the
    *  page is this with a different bezel. */
-  Element radarSweep(int i, SkColor4f tint, float inner = 0.30f);
+  Element radarSweep(int i, sigil::material::Color tint, float inner = 0.30f);
 
   // =========================================================================
   // Regions.

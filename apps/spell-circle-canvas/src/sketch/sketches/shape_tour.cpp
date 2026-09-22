@@ -45,6 +45,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -52,6 +53,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
@@ -64,9 +66,9 @@ constexpr float kSmall = 44;  // …and the small one, from the same value
 constexpr float kCell = 168;  // one cell's width
 constexpr float kBed = 118;   // the drawn strip's height
 
-constexpr SkColor4f kBedTone{0.902f, 0.890f, 0.863f, 1};
-constexpr SkColor4f kBody{0.827f, 0.318f, 0.220f, 1};
-constexpr SkColor4f kLine{0.129f, 0.298f, 0.451f, 1};
+constexpr material::Color kBedTone{0.902f, 0.890f, 0.863f, 1};
+constexpr material::Color kBody{0.827f, 0.318f, 0.220f, 1};
+constexpr material::Color kLine{0.129f, 0.298f, 0.451f, 1};
 
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {

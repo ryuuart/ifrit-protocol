@@ -12,14 +12,15 @@ Save this anywhere on disk as `first_box.cpp`.
 #include <sigilcompose/core/Core.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
 
 namespace {
 constexpr SkSize kCanvas = {480, 320};
-constexpr SkColor4f kGround = hexColor(0x11151a);
-constexpr SkColor4f kAccent = hexColor(0xe2714b);
+constexpr material::Color kGround = hexColor(0x11151a);
+constexpr material::Color kAccent = hexColor(0xe2714b);
 }  // namespace
 
 struct FirstBox {

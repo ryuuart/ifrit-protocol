@@ -78,7 +78,7 @@ PaintProgram over(PenProgram program) {
                                               const PaintContext& ctx) {
     held->pen.begin(canvas, held->frameIn(ctx));
     const SkScopeExit endFrame([&] { held->pen.end(); });
-    held->pen.inherit(ctx.ink, ctx.font);
+    held->pen.inherit(material::skia::toSkColor(ctx.ink), ctx.font);
     lendPolicy(held->pen, ctx.promotion);
     program(held->pen, ctx);
   };
@@ -125,7 +125,7 @@ PaintProgram onto(PenProgram program) {
     held->sinceDraw += frame.deltaSeconds;
     held->host.pen.begin(canvas, frame);
     const SkScopeExit endHost([&] { held->host.pen.end(); });
-    held->host.pen.inherit(ctx.ink, ctx.font);
+    held->host.pen.inherit(material::skia::toSkColor(ctx.ink), ctx.font);
     // The buffer is the node's box. It is formed on its first `begin`, at
     // the host pen's own density, and a box that has changed resizes it
     // with what it holds carried over rather than cleared.
@@ -140,7 +140,7 @@ PaintProgram onto(PenProgram program) {
     {
       draw::Pen& g = held->surface->begin(held->host.pen);
       const SkScopeExit endSurface([&] { held->surface->end(); });
-      g.inherit(ctx.ink, ctx.font);
+      g.inherit(material::skia::toSkColor(ctx.ink), ctx.font);
       lendPolicy(g, ctx.promotion);
       if (shouldRun(g, *held)) {
         // The program's own clock, as p5 keeps it: the count counts runs,

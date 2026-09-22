@@ -55,6 +55,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/bind/Bound.h>
 #include <sigilmotion/bind/BoundFloat.h>
 #include <sigilmotion/values/Keyframes.h>
@@ -66,6 +67,7 @@
 #include <algorithm>
 #include <cmath>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace draw = sigil::draw;
 namespace shapes = sigil::geometry::shapes;
@@ -100,32 +102,32 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
-const SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
-const SkColor4f kRail{0.85f, 0.30f, 0.36f, 0.75f};
-const SkColor4f kTrace{0.36f, 0.82f, 0.72f, 1};
-const SkColor4f kTraceB{1.00f, 0.72f, 0.28f, 1};
-const SkColor4f kCurve{0.32f, 0.46f, 0.62f, 1};
+const material::Color kDim{0.55f, 0.60f, 0.70f, 1};
+const material::Color kFrame{0.20f, 0.24f, 0.32f, 1};
+const material::Color kRail{0.85f, 0.30f, 0.36f, 0.75f};
+const material::Color kTrace{0.36f, 0.82f, 0.72f, 1};
+const material::Color kTraceB{1.00f, 0.72f, 0.28f, 1};
+const material::Color kCurve{0.32f, 0.46f, 0.62f, 1};
 
 /** The sheet's one class past the registers and the chart's: the ±amount
  *  rails, which are the bound worth seeing and not a hairline. */
 weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
   weave::StyleSheet classes = look.styleSheet();
-  classes.set("rail", {.color = kRail});
+  classes.set("rail", {.color = material::skia::toSkColor(kRail)});
   // The two loci are the same curve in two inks: the split-seed shake and
   // the shared-seed slide, told apart by the class each names.
-  classes.set("locus", {.color = kTrace});
-  classes.set("locusShared", {.color = kTraceB});
+  classes.set("locus", {.color = material::skia::toSkColor(kTrace)});
+  classes.set("locusShared", {.color = material::skia::toSkColor(kTraceB)});
   return classes;
 }
 
-void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
+void strokePath(SkCanvas& canvas, const SkPath& path, material::Color color,
                 float width) {
   SkPaint paint;
   paint.setAntiAlias(true);
   paint.setStyle(SkPaint::kStroke_Style);
   paint.setStrokeWidth(width);
-  paint.setColor4f(color, nullptr);
+  paint.setColor4f(material::skia::toSkColor(color), nullptr);
   canvas.drawPath(path, paint);
 }
 
@@ -264,7 +266,7 @@ struct BoundLane {
     // `bind(&out).scale(0).wiggle(…)` — without the scale(0) the property
     // would track `seconds` itself and drift off the canvas. `left/top` are
     // the REST position; the wiggle is a paint-only transform on top of it.
-    const auto chip = [](const Bound& x, const Bound& y, SkColor4f color,
+    const auto chip = [](const Bound& x, const Bound& y, material::Color color,
                          float left) {
       return box()
           .width(26)

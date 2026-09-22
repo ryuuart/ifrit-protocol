@@ -21,6 +21,7 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -32,6 +33,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace img = sigil::image;
 namespace io = sigil::io;
@@ -72,11 +74,11 @@ std::optional<Cloud> parseCloud(const io::Bytes& bytes, std::string_view) {
 
 /** A small picture with a stated number of bars, so the two states of
  *  the same file are told apart at a glance. */
-sk_sp<SkData> chart(int bars, SkColor4f ink) {
+sk_sp<SkData> chart(int bars, material::Color ink) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 80));
   draw::on(*surface->getCanvas(), {120, 80}, [bars, ink](draw::Pen& pen) {
-    pen.background(SkColor4f{0.10f, 0.11f, 0.13f, 1});
+    pen.background(material::Color{0.10f, 0.11f, 0.13f, 1});
     pen.noStroke();
     pen.fill(ink);
     for (int i = 0; i < bars; ++i)
@@ -224,12 +226,12 @@ struct HubReload {
         after ? after->points : std::vector<SkPoint>{};
     // A paint program runs after the describe scope has closed, so both
     // inks are read here and carried in by value.
-    const SkColor4f ash = sketch::kit::theme().palette.ash;
-    const SkColor4f figure = sketch::kit::theme().palette.figure;
+    const material::Color ash = sketch::kit::theme().palette.ash;
+    const material::Color figure = sketch::kit::theme().palette.figure;
     return pen("hub.clouds", [a, b, ash, figure](sigil::draw::Pen& pen) {
       pen.noStroke();
       const auto dots = [&](const std::vector<SkPoint>& points,
-                            SkColor4f colour, float diameter) {
+                            material::Color colour, float diameter) {
         pen.fill(colour);
         for (const SkPoint& point : points)
           pen.circle(point.fX, point.fY, diameter);

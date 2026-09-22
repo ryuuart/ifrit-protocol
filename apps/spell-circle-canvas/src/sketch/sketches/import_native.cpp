@@ -42,6 +42,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -100,12 +101,12 @@ Element dial(float edge) {
       .children({box().inset(34).column().gap(22).children(
           {text("COMPOSE")
                .font({.size = 30, .track = 6})
-               .ink(SkColor4f{1, 1, 1, 0.92f}),
+               .ink(material::Color{1, 1, 1, 0.92f}),
            text("a composer painting into a surface of "
                 "its own; texture() is the value a slot "
                 "holds")
                .font({.size = 17, .track = 0.4f})
-               .ink(SkColor4f{1, 1, 1, 0.45f})
+               .ink(material::Color{1, 1, 1, 0.45f})
                .width(edge - 68),
            box()
                .row()
@@ -203,7 +204,7 @@ struct ImportNative {
     sketch::kit::stage(ctx,
                        {.size = {880, 480},
                         .captureAt = 0.4,
-                        .background = SkColor4f{0.02f, 0.024f, 0.036f, 1.0f}});
+                        .background = material::Color{0.02f, 0.024f, 0.036f, 1.0f}});
     gm::camera::Camera lens;
     lens.eye = kEye;
     lens.target = {0.0f, 0.0f, 0.0f};

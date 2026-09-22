@@ -43,6 +43,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
@@ -120,10 +121,10 @@ struct ComputeVariant {
   int cookedPoints = 0;
 
   void setup(sketch::SetContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = {880, 560},
-                        .captureAt = 1.4,
-                        .background = SkColor4f{0.028f, 0.032f, 0.05f, 1.0f}});
+    sketch::kit::stage(
+        ctx, {.size = {880, 560},
+              .captureAt = 1.4,
+              .background = material::Color{0.028f, 0.032f, 0.05f, 1.0f}});
     gm::camera::Camera lens;
     lens.eye = kEye;
     lens.target = {0.0f, -30.0f, 0.0f};

@@ -65,6 +65,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <array>
@@ -282,7 +283,7 @@ inline Mask bakeRun(std::u8string_view run, sigil::weave::FontContext& fonts,
 
 /** How a baked mask is presented. */
 struct Present {
-  SkColor4f colour = {1, 1, 1, 1};
+  material::Color colour = {1, 1, 1, 1};
   /** INTEGER, please: a bitmap face at 1.5× is a blurry bitmap face. */
   float scale = 1.0f;
   /** A second pass underneath, offset by this many DESTINATION px, with
@@ -308,14 +309,14 @@ inline void draw(SkCanvas& canvas, const Mask& m, SkPoint at,
   paint.setAntiAlias(false);
   if (p.shadowOffset.fX != 0 || p.shadowOffset.fY != 0) {
     paint.setColor4f(
-        {p.colour.fR * p.shadowMultiplier, p.colour.fG * p.shadowMultiplier,
-         p.colour.fB * p.shadowMultiplier, p.colour.fA},
+        {p.colour.r * p.shadowMultiplier, p.colour.g * p.shadowMultiplier,
+         p.colour.b * p.shadowMultiplier, p.colour.a},
         nullptr);
     canvas.drawImageRect(m.image,
                          dst.makeOffset(p.shadowOffset.fX, p.shadowOffset.fY),
                          nearest, &paint);
   }
-  paint.setColor4f(p.colour, nullptr);
+  paint.setColor4f(material::skia::toSkColor(p.colour), nullptr);
   canvas.drawImageRect(m.image, dst, nearest, &paint);
 }
 
@@ -483,10 +484,11 @@ inline float widthOf(const PixFont& f, std::string_view s, const Blit& b = {}) {
  *  a live readout reads its bound `Output` here and draws the number, with
  *  nothing re-described and nothing reconciled. */
 inline float blit(SkCanvas& canvas, const PixFont& f, SkPoint at,
-                  std::string_view s, SkColor4f colour, const Blit& b = {}) {
+                  std::string_view s, material::Color colour,
+                  const Blit& b = {}) {
   SkPaint p;
   p.setAntiAlias(false);
-  p.setColor4f(colour, nullptr);
+  p.setColor4f(material::skia::toSkColor(colour), nullptr);
   const SkSamplingOptions nearest(SkFilterMode::kNearest);
   const float x0 = detail::snapTo(at.fX, b.snap);
   const float y = detail::snapTo(at.fY, b.snap);

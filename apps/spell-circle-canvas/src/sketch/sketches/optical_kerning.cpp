@@ -36,6 +36,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -45,6 +46,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
@@ -60,8 +62,8 @@ constexpr float kSize = 40;  // the size the deltas are measured at
 const char* kHeadline = "WAVY. To AVA";
 const char* kPairs[6] = {"AV", "VA", "To", "Y.", "WA", "av"};
 
-constexpr SkColor4f kTable{0.95f, 0.44f, 0.32f, 0.80f};
-constexpr SkColor4f kOptical{0.40f, 0.76f, 0.98f, 0.80f};
+constexpr material::Color kTable{0.95f, 0.44f, 0.32f, 0.80f};
+constexpr material::Color kOptical{0.40f, 0.76f, 0.98f, 0.80f};
 
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::studyTheme();
@@ -73,11 +75,11 @@ sketch::kit::Theme sheetTheme() {
 
 /** The headline's register. `optical` is the whole difference between the
  *  two settings on this sheet. */
-weave::TextStyle display(float size, SkColor4f color, bool optical) {
+weave::TextStyle display(float size, material::Color color, bool optical) {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
-  weave::TextStyle style =
-      weave::textStyle({.face = face, .size = size, .color = color});
+  weave::TextStyle style = weave::textStyle(
+      {.face = face, .size = size, .color = material::skia::toSkColor(color)});
   style.shaping.opticalKerning = optical;
   return style;
 }
@@ -101,7 +103,7 @@ struct OpticalKerning {
     // THE DELTAS ARE MEASURED: each pair is set twice at the headline's
     // own size and the difference of the two advances is the answer. A
     // pair the face already kerns has little left to give.
-    const SkColor4f figure = sketch::kit::theme().palette.figure;
+    const material::Color figure = sketch::kit::theme().palette.figure;
     const auto advance = [&](const char* text8, bool optical) {
       return ctx
           .measure(
@@ -139,7 +141,7 @@ struct OpticalKerning {
              .gap = 28})));
   }
 
-  Element headline(SkColor4f colour, bool optical) {
+  Element headline(material::Color colour, bool optical) {
     return text(kHeadline, display(kSize, colour, optical))
         .width(kComparison - 40);
   }

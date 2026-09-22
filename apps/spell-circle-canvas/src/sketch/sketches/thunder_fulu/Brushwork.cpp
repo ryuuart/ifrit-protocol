@@ -58,8 +58,7 @@ auto ThunderFulu::inkStroke(const Stroke& s) const -> Element {
   // of the revealed part — this needs no second node.
   PathFormat wet;
   wet.width = s.w0 * 0.30f;
-  wet.strokeFill =
-      Fill::color({kCinnaWet.fR, kCinnaWet.fG, kCinnaWet.fB, 0.7f});
+  wet.strokeFill = Fill::color({kCinnaWet.r, kCinnaWet.g, kCinnaWet.b, 0.7f});
   wet.cap = SkPaint::kButt_Cap;
   wet.trimStart = 0.93f;
   wet.trimEnd = 1.0f;
@@ -69,7 +68,7 @@ auto ThunderFulu::inkStroke(const Stroke& s) const -> Element {
 }
 
 auto ThunderFulu::push(SkPath p, float w0, int cls, float t0, float t1,
-                       SkColor4f ink, std::string key, bool dry,
+                       sigil::material::Color ink, std::string key, bool dry,
                        std::vector<std::array<float, 3>> spans) -> void {
   Stroke s;
   s.len = pathLength(p);

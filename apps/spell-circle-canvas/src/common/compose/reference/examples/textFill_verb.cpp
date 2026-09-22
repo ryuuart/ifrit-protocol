@@ -8,9 +8,11 @@
  */
 
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace skia = sigil::material::skia;
 
@@ -19,8 +21,8 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 260};
-constexpr SkColor4f kGround = hexColor(0x101418);
-constexpr SkColor4f kAsh = hexColor(0x7e8f9c);
+constexpr material::Color kGround = hexColor(0x101418);
+constexpr material::Color kAsh = hexColor(0x7e8f9c);
 
 /** The chrome ramp, authored once in the unit square: the horizon sits
  *  where the ramp's middle stops meet, and lands on the capitals at
@@ -54,7 +56,7 @@ struct TextFillVerb {
                 .font({.size = 26, .track = 2})
                 .textFill(chrome()),
             text("One ramp, two sizes, the same horizon.")
-                .font({.size = 13, .color = kAsh}),
+                .font({.size = 13, .color = material::skia::toSkColor(kAsh)}),
         });
   }
 };

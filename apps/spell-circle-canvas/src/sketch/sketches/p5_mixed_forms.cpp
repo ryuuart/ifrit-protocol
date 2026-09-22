@@ -25,12 +25,14 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Constants.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
 #include <string>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 
@@ -71,10 +73,10 @@ struct P5MixedForms {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = {720, 480},
-                        .captureAt = 2.5,
-                        .background = SkColor4f{0.047f, 0.055f, 0.094f, 1}});
+    sketch::kit::stage(
+        ctx, {.size = {720, 480},
+              .captureAt = 2.5,
+              .background = material::Color{0.047f, 0.055f, 0.094f, 1}});
     ctx.composer.render(
         compose::box()
             .cover()

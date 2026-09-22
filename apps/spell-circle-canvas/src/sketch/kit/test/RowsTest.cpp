@@ -172,7 +172,7 @@ TEST(SketchKitRows, ASurplusWordTakesTheLastColumnsRegister) {
  *  its columns decide — which row is lit is what the reading says. */
 TEST(SketchKitRows, ARowsOwnInkStandsOverTheThemesAndKeepsTheRegister) {
   const kit::Theme& house = kit::houseTheme();
-  const SkColor4f lit{0.81f, 0.19f, 0.09f, 1};
+  const sigil::material::Color lit{0.81f, 0.19f, 0.09f, 1};
   Element byHand =
       compose::box()
           .column()
@@ -239,7 +239,7 @@ TEST(SketchKitRows, BarsStandAgainstTheLargestValue) {
                          .gap = house.spacing.labelGap,
                          .rowGap = house.spacing.rowGap,
                          .bar = Fill::color(house.palette.figure),
-                         .rest = Fill::color(sigil::material::skia::withAlpha(
+                         .rest = Fill::color(sigil::material::withAlpha(
                              house.palette.figure, 0.25f))};
   const auto quiet = house.style(house.type.captionNote, house.palette.ash);
   const auto number =
@@ -275,7 +275,8 @@ TEST(SketchKitRows, AReadoutClassKeepsTheParagraphRoleAndOverridesItsType) {
       sigil::weave::rule("readout").font(
           house.font(house.type.captionLabel, SkColors::kBlue)),
       sigil::weave::rule("paragraph")
-          .font({.size = 32, .color = SkColors::kRed})
+          .font({.size = 32,
+                 .color = sigil::material::skia::toSkColor(SkColors::kRed)})
           .block({.leading = sigil::weave::Leading::multiple(2.0f)})};
   const auto under = [&](Element content) {
     return compose::box().styleSheet(sheet).children({std::move(content)});

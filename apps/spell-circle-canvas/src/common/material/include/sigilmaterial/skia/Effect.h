@@ -69,7 +69,7 @@ class Effect {
   static Effect recipe(const Material& material, SkColorType surface);
   /** The layer re-emitted blurred beneath itself in @p color — a drop
    *  shadow at zero offset, which keeps the content on top. */
-  static Effect glow(SkColor4f color, float sigma);
+  static Effect glow(material::Color color, float sigma);
   /** THE LAYER WITH EVERYTHING BUT ITS LIGHT TAKEN OUT: what is brighter
    *  than @p threshold, faded in over @p knee above it, carrying that
    *  brightness as its own coverage — the first half of a bloom, to

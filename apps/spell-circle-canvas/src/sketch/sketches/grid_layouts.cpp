@@ -32,12 +32,14 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -55,7 +57,7 @@ constexpr float kGutter = 10;
 constexpr float kRhythm = 32;    // the baseline pitch, px
 constexpr float kSkewDeg = -12;  // the shear the second cell's rows ride
 
-constexpr SkColor4f kCard{0.17f, 0.18f, 0.21f, 1};
+constexpr material::Color kCard{0.17f, 0.18f, 0.21f, 1};
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {

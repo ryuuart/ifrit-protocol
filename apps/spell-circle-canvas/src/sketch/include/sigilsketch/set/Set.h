@@ -8,6 +8,7 @@
  * world Frame.
  */
 
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Device.h>
@@ -65,7 +66,7 @@ struct SetContext {
    *  a second session rather than rewinding this one — so no run of the
    *  piece begins where an earlier one left off. */
   [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
-      SkISize size, SkColor4f background = {0, 0, 0, 0});
+      SkISize size, sigil::material::Color background = {0, 0, 0, 0});
 
   /** Declare the plate's size in pixels. */
   void canvas(int width, int height) {
@@ -73,7 +74,7 @@ struct SetContext {
   }
   /** The colour behind the set — and, on a device, what the frame's own
    *  clear is written with. */
-  void background(SkColor4f color) {
+  void background(sigil::material::Color color) {
     if (specification) specification->background = color;
   }
   /** The scene time a still of this set is taken at. */

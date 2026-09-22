@@ -11,6 +11,7 @@
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>        // lines::displace (the wave op)
+#include <sigilmaterial/color/Color.h>
 
 #include <any>
 #include <functional>
@@ -25,7 +26,7 @@ namespace sigil::compose {
 /** One stroke pass of a layered brush. */
 struct StrokeLayer {
   float width = 2.0f;
-  SkColor4f color = {1, 1, 1, 1};
+  material::Color color = {1, 1, 1, 1};
   float blurSigma = 0;         ///< soft halo layers
   std::vector<SkScalar> dash;  ///< empty → solid
   float dashPhase = 0;

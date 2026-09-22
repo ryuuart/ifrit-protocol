@@ -87,9 +87,9 @@ const std::array<Band, 8> kBands{{
     {{0.5f, 0.5f, 0.5f, 1}, "grey .5"},
 }};
 
-constexpr SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
-constexpr SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
-constexpr SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
+constexpr mat::Color kInk{0.90f, 0.93f, 0.97f, 1};
+constexpr mat::Color kDim{0.55f, 0.60f, 0.70f, 1};
+constexpr mat::Color kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -156,7 +156,7 @@ Element content(float w, float h) {
                                       {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
       .children({text(u8"MATTE")
                      .font({.size = 30, .track = 0})
-                     .ink(SkColor4f{1, 1, 1, 0.92f})});
+                     .ink(mat::Color{1, 1, 1, 0.92f})});
 }
 
 /** A panel: the checkerboard as its ground, the content on it, the gate on

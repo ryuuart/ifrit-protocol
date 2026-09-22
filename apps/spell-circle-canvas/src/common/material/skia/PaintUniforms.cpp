@@ -161,11 +161,11 @@ Paint& Paint::uniform(std::string name, std::array<float, 2> value) {
   return *this;
 }
 
-Paint& Paint::uniform(std::string name, SkColor4f value) {
+Paint& Paint::uniform(std::string name, material::Color value) {
   if (m_backed) {
     detachBacked();
     m_backed->material.set(
-        name, sigil::material::Color{value.fR, value.fG, value.fB, value.fA});
+        name, sigil::material::Color{value.r, value.g, value.b, value.a});
     m_shader = buildBacked(nullptr);
     return *this;
   }
@@ -182,7 +182,7 @@ Paint& Paint::uniform(std::string name, SkColor4f value) {
   }
   detachLive();
   putByName(m_live->constants4, std::move(name),
-            std::array<float, 4>{value.fR, value.fG, value.fB, value.fA});
+            std::array<float, 4>{value.r, value.g, value.b, value.a});
   m_shader = build(*m_live, nullptr);  // refresh the static snapshot
   return *this;
 }

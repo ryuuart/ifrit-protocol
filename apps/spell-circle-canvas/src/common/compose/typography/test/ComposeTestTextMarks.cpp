@@ -16,8 +16,8 @@ TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
   // way: colorMultiplier MULTIPLIES, so the element is set in the destination
   // and the effect divides down toward the origin. At t = 1 the multiplier must
   // therefore be white — anything else tints a line that has arrived.
-  const SkColor4f pale{0.9f, 0.8f, 0.4f, 1};
-  const SkColor4f sung{0.3f, 0.6f, 0.8f, 1};
+  const sigil::material::Color pale{0.9f, 0.8f, 0.4f, 1};
+  const sigil::material::Color sung{0.3f, 0.6f, 0.8f, 1};
   const TextEffect ramp = fx::tint(pale, sung);
   GlyphInfo glyph;
   sigil::core::noise::Mix64Stream rng(1);
@@ -26,23 +26,24 @@ TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
   const GlyphModifier middle = ramp(glyph, 0.5f, rng);
 
   // Origin: the multiplier that takes the DESTINATION to `pale`.
-  EXPECT_NEAR(start.colorMultiplier.fR * sung.fR, pale.fR, 1e-5f);
-  EXPECT_NEAR(start.colorMultiplier.fG * sung.fG, pale.fG, 1e-5f);
-  EXPECT_NEAR(start.colorMultiplier.fB * sung.fB, pale.fB, 1e-5f);
+  EXPECT_NEAR(start.colorMultiplier.r * sung.r, pale.r, 1e-5f);
+  EXPECT_NEAR(start.colorMultiplier.g * sung.g, pale.g, 1e-5f);
+  EXPECT_NEAR(start.colorMultiplier.b * sung.b, pale.b, 1e-5f);
   // Destination: no tint at all.
-  EXPECT_NEAR(end.colorMultiplier.fR, 1.0f, 1e-5f);
-  EXPECT_NEAR(end.colorMultiplier.fG, 1.0f, 1e-5f);
-  EXPECT_NEAR(end.colorMultiplier.fB, 1.0f, 1e-5f);
+  EXPECT_NEAR(end.colorMultiplier.r, 1.0f, 1e-5f);
+  EXPECT_NEAR(end.colorMultiplier.g, 1.0f, 1e-5f);
+  EXPECT_NEAR(end.colorMultiplier.b, 1.0f, 1e-5f);
   // And a monotone ramp between them on every channel, in whichever
   // direction that channel happens to run.
-  for (auto lane : {&SkColor4f::fR, &SkColor4f::fG, &SkColor4f::fB}) {
+  for (auto lane : {&sigil::material::Color::r, &sigil::material::Color::g,
+                    &sigil::material::Color::b}) {
     const float a = start.colorMultiplier.*lane,
                 b = middle.colorMultiplier.*lane;
     EXPECT_GT((b - a) * (1.0f - a), 0.0f)
         << "the middle of the ramp is not between its ends";
   }
   // Alpha is left alone: a reveal that also fades is a separate track.
-  EXPECT_FLOAT_EQ(start.colorMultiplier.fA, 1.0f);
+  EXPECT_FLOAT_EQ(start.colorMultiplier.a, 1.0f);
   // The value is comparable, which is what lets a re-described wipe prune.
   EXPECT_TRUE(fx::tint(pale, sung) == ramp);
   EXPECT_FALSE(fx::tint(sung, pale) == ramp);
@@ -50,7 +51,7 @@ TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
   // says so by holding at 1 rather than dividing by nothing.
   const GlyphModifier dark =
       fx::tint({1, 1, 1, 1}, {0, 0, 0, 1})(glyph, 0.0f, rng);
-  EXPECT_FLOAT_EQ(dark.colorMultiplier.fR, 1.0f);
+  EXPECT_FLOAT_EQ(dark.colorMultiplier.r, 1.0f);
 }
 
 TEST(ComposeTextFx, TintComposesWithAnotherTrackByMultiplying) {

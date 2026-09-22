@@ -19,6 +19,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -41,6 +42,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
 namespace patterns = sigil::material::pattern;
@@ -117,7 +119,7 @@ constexpr uint32_t kPal[256] = {
 // clang-format on
 
 /** Palette index -> colour. Index 0 is the chroma key and returns alpha 0. */
-inline SkColor4f C(int idx) noexcept {
+inline material::Color C(int idx) noexcept {
   return hexColor(kPal[(unsigned)idx & 255u], idx == 0 ? 0.0f : 1.0f);
 }
 constexpr int blk(int block, int step) { return block * 16 + step; }

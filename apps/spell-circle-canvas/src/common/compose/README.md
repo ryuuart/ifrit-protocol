@@ -160,7 +160,7 @@ struct Channel {
 };
 
 Element meter(const Channel &c) {
-  const SkColor4f ink =
+  const material::Color ink =
       c.alarm ? hexColor(0xff5252) : hexColor(0x8fd0ff);
   return box()
       .row()
@@ -699,7 +699,7 @@ What it refuses to be:
   perspective matrix explicitly, the host's or a plane's own.
 - **Compositing happens in encoded sRGB, with no linear stage.** Every
   surface compose paints into is `N32Premul` with no colour space
-  attached, so the `SkColor4f` you write is the display-encoded number
+  attached, so the `material::Color` you write is the display-encoded number
   that lands in the byte and a shader's channels are those same numbers.
   Any weighting of colour channels inside the library uses coefficients
   defined on encoded values. `Composer::declareInputSpace` lets you state

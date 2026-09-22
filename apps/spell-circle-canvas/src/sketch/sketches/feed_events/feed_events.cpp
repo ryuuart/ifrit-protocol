@@ -47,6 +47,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
@@ -63,6 +64,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace data = sigil::data;
@@ -78,7 +80,7 @@ const char* kDoor = "udp://:27072";           // where the messages arrive
 const char* kRecording = "data/events.feed";  // what a capture replays
 
 constexpr SkSize kCanvas = {1280, 720};
-constexpr SkColor4f kGround = {0.04f, 0.04f, 0.09f, 1};
+constexpr material::Color kGround = {0.04f, 0.04f, 0.09f, 1};
 /** A gust is halfway across the canvas by here, which is the frame that
  *  shows an event and a state in the same picture. */
 constexpr double kCaptureAt = 3.0;
@@ -104,7 +106,7 @@ constexpr size_t kWaves = 4;
 
 /** The colours the bands are tinted from, in turn. */
 constexpr size_t kTints = 3;
-using Palette = std::array<SkColor4f, kTints>;
+using Palette = std::array<material::Color, kTints>;
 
 constexpr Palette kOpeningPalette = {{{0.44f, 0.60f, 0.90f, kBandAlpha},
                                       {0.54f, 0.50f, 0.86f, kBandAlpha},
@@ -301,7 +303,7 @@ struct FeedEvents {
     // A paint program runs after the describe scope has closed, where
     // the theme in force is no longer this page's, so the one colour a
     // wave is drawn in is read here and carried in by value.
-    const SkColor4f crest = sketch::kit::theme().palette.figure;
+    const material::Color crest = sketch::kit::theme().palette.figure;
     compose::Element picture =
         compose::stack()
             .width(kCanvas.width())
@@ -349,7 +351,7 @@ struct FeedEvents {
    *  crossing left to right, brightest at the moment it happened and
    *  gone by the time it leaves — so what is on the canvas is the
    *  history of the gusts, which is all an event ever leaves. */
-  void crossings(Pen& pen, SkColor4f crest) {
+  void crossings(Pen& pen, material::Color crest) {
     pen.noStroke();
     for (const Wave& wave : waves) {
       const float across = wave.travel();
@@ -357,8 +359,8 @@ struct FeedEvents {
       const float lead = across * (pen.width + kWaveWidth);
       const float fading = wave.strength * (1.0f - across);
       const float slice = kWaveWidth / (float)kWaveSlices;
-      SkColor4f ink = crest;
-      ink.fA = fading * kWaveInk;
+      material::Color ink = crest;
+      ink.a = fading * kWaveInk;
       pen.fill(ink);
       // EACH STEP STARTS FURTHER FORWARD AND ALL OF THEM END AT THE
       // FRONT, so what builds the tail is the laying of one over

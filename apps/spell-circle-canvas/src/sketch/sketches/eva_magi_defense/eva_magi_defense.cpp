@@ -10,6 +10,7 @@
 
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilmaterial/color/Color.h>
 
 #include "DefenseLayout.h"
 
@@ -111,8 +112,8 @@ struct EvaMagiDefense {
   Element installation(int index, SkPoint origin, bool friendly) const {
     using namespace eva;
     const Site& s = kSites[index];
-    const SkColor4f plateFill = friendly ? kFriendly : kHostile;
-    const SkColor4f rim = friendly ? kRimFriendly : kRim;
+    const sigil::material::Color plateFill = friendly ? kFriendly : kHostile;
+    const sigil::material::Color rim = friendly ? kRimFriendly : kRim;
     const auto& module = tre::kModule;
 
     // The measured centre is the rotated silhouette's bounding-box centre.
@@ -180,7 +181,7 @@ struct EvaMagiDefense {
                  const char* keyTag, SkPoint origin) const {
     using namespace eva;
     const LabelRegister labelStyle = labelRegister(L.role);
-    const SkColor4f ink = L.alarm ? kAlarm : kRim;
+    const sigil::material::Color ink = L.alarm ? kAlarm : kRim;
     const SkPoint at = unroll(L.centre) - origin;
     auto node = kit::at(at.fX - L.w * 0.5f, at.fY - L.h * 0.5f, L.w, L.h)
                     .rotate(L.rotate)
@@ -390,8 +391,8 @@ struct EvaMagiDefense {
       rows.push_back(
           {{c.label, c.actual,
             c.pass ? std::string("PASS") : "FAIL want " + c.expected},
-           Fill::color(c.pass ? SkColor4f{0, 0.30f, 0.14f, 1}
-                              : SkColor4f{0.62f, 0, 0, 1})});
+           Fill::color(c.pass ? sigil::material::Color{0, 0.30f, 0.14f, 1}
+                              : sigil::material::Color{0.62f, 0, 0, 1})});
     }
     sketch::kit::Provide bound(look);
     return kit::at(0, 300, eva::kW, 150.0f + 30.0f * (float)rows.size())

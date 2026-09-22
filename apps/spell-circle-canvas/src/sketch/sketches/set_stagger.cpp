@@ -38,6 +38,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Keyframes.h>
@@ -110,10 +111,10 @@ struct SetStagger {
     // MID-CASCADE: far enough in that the head of each row has landed and
     // its tail is still on the way, which is the whole of what a ladder
     // looks like.
-    sketch::kit::stage(ctx,
-                       {.size = {900, 460},
-                        .captureAt = 0.62,
-                        .background = SkColor4f{0.045f, 0.05f, 0.062f, 1}});
+    sketch::kit::stage(
+        ctx, {.size = {900, 460},
+              .captureAt = 0.62,
+              .background = material::Color{0.045f, 0.05f, 0.062f, 1}});
     gm::camera::Camera lens;
     lens.eye = {0, 190, 430};
     lens.target = {0, 26, -10};

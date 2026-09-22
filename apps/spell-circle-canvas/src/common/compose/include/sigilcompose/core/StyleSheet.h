@@ -9,11 +9,11 @@
  * to its subtree.
  */
 
-#include <include/core/SkColor.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Selector.h>
 #include <sigilcompose/core/Var.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/layout/Block.h>
 #include <sigilweave/style/Type.h>
 
@@ -43,13 +43,13 @@ class Rule {
   Rule& block(sigil::weave::Block partial);
   /** The ink — the font's colour, which everything under a matched
    *  element inherits. */
-  Rule& ink(SkColor4f colour);
+  Rule& ink(material::Color colour);
   /** The ink read from a custom property, resolved where the rule
    *  matches. Exclusive with a colour: the later call stands. */
   Rule& ink(VarRef reference);
   /** A custom property set on every element this rule matches, for that
    *  element and everything under it. */
-  Rule& var(std::string_view name, SkColor4f colour);
+  Rule& var(std::string_view name, material::Color colour);
   Rule& var(std::string_view name, Dimension length);
 
   /** Which elements this rule speaks about. */

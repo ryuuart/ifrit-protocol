@@ -5,6 +5,8 @@
  */
 
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <utility>
 
@@ -27,8 +29,8 @@ Rule& Rule::block(sigil::weave::Block partial) {
   return *this;
 }
 
-Rule& Rule::ink(SkColor4f colour) {
-  m_type.color = colour;
+Rule& Rule::ink(material::Color colour) {
+  m_type.color = material::skia::toSkColor(colour);
   m_inkVar.reset();
   return *this;
 }
@@ -39,7 +41,7 @@ Rule& Rule::ink(VarRef reference) {
   return *this;
 }
 
-Rule& Rule::var(std::string_view name, SkColor4f colour) {
+Rule& Rule::var(std::string_view name, material::Color colour) {
   m_vars.set(compose::var(name), colour);
   return *this;
 }

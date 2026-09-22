@@ -35,12 +35,13 @@ Element TwoAdvancedV3::describe() {
 
   Element mods = at(box().row().gap(10), kStageX, kModY, kStageW, kModH);
   mods.children({featuredPartner(), subData(), updates()});
-  page.children({mods,
-                 // the dark divider band that closes the module row
-                 at(box().fill(mskia::withAlpha(hexColor(0x26314A), 0.9f)),
-                    kStageX, kModY + kModH + 2, kStageW, 8)
-                     .opacity(animate(motion::from(0.0f).to(1.0f),
-                                      {320ms, &ch::easeOutQuad, 2650ms}))});
+  page.children(
+      {mods,
+       // the dark divider band that closes the module row
+       at(box().fill(sigil::material::withAlpha(hexColor(0x26314A), 0.9f)),
+          kStageX, kModY + kModH + 2, kStageW, 8)
+           .opacity(animate(motion::from(0.0f).to(1.0f),
+                            {320ms, &ch::easeOutQuad, 2650ms}))});
 
   Element row = at(box().row().gap(10), kStageX, kRowY, kStageW, kRowH);
   row.children({mailingList(), support2a(), follow2a()});
@@ -61,13 +62,11 @@ void TwoAdvancedV3::setup(sketch::SketchContext& ctx) {
   // without a rebuild.
   doc = sketch::kit::Document(ctx, "data/content.json");
 
-  diag =
-      patterns::stripes(2, 9, mskia::toColor(mskia::withAlpha(kSteelHi, 0.5f)));
+  diag = patterns::stripes(2, 9, sigil::material::withAlpha(kSteelHi, 0.5f));
   diag.rotate(45);
-  dots = patterns::halftone(5, 1.3f,
-                            mskia::toColor(mskia::withAlpha(kInk, 0.55f)));
-  vticks = patterns::stripes(1.5f, 5.5f,
-                             mskia::toColor(mskia::withAlpha(kSteelHi, 0.5f)));
+  dots = patterns::halftone(5, 1.3f, sigil::material::withAlpha(kInk, 0.55f));
+  vticks =
+      patterns::stripes(1.5f, 5.5f, sigil::material::withAlpha(kSteelHi, 0.5f));
 
   // --- the production assets, from the live site ------------------------
   // https fetches cache on disk (CacheFirst): the first run downloads,

@@ -43,6 +43,7 @@
 #include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextUnit.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/paragraph/Unit.h>
@@ -370,7 +371,7 @@ struct BlockRule {
   float gap = 4.0f;            ///< Above/Below: clearance from the type
   float inset = 0.0f;          ///< taken off both ends of the extent
   float bleed = 0.0f;          ///< Behind: added above and below the extent
-  SkColor4f colour = {0, 0, 0, 1};
+  material::Color colour = {0, 0, 0, 1};
 };
 
 /** RULES AND SHADING CUT TO WHAT A BLOCK ACTUALLY OCCUPIES.

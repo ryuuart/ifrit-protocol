@@ -23,6 +23,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <cmath>
 #include <vector>
@@ -39,11 +40,11 @@ namespace sigil::compose::kit::ornament {
 /** A manuscript palette — every ornament component below is driven by
  *  one of these, never by hard-coded colors. */
 struct Palette {
-  SkColor4f parchment;  ///< page/panel ground
-  SkColor4f ink;        ///< body text on that ground
-  SkColor4f stem;       ///< flourish strokes (the watercolor "cobalt")
-  SkColor4f leaf;       ///< sprig leaves (olive/ochre greens)
-  SkColor4f gold;       ///< gilded accents: diamonds, dots, trims
+  material::Color parchment;  ///< page/panel ground
+  material::Color ink;        ///< body text on that ground
+  material::Color stem;       ///< flourish strokes (the watercolor "cobalt")
+  material::Color leaf;       ///< sprig leaves (olive/ochre greens)
+  material::Color gold;       ///< gilded accents: diamonds, dots, trims
 };
 
 inline Palette azurePalette() {
@@ -80,12 +81,13 @@ inline Palette oakPalette() {
 
 /** Parchment ground: the base tint modulated by fractal noise — the
  *  patterned dialog background, in any color. */
-inline Fill parchmentFill(SkColor4f base, float frequency = 0.045f) {
+inline Fill parchmentFill(material::Color base, float frequency = 0.045f) {
   sk_sp<SkShader> noise =
       SkShaders::MakeFractalNoise(frequency, frequency, 3, 7.0f);
-  return Fill::shader(SkShaders::Blend(SkBlendMode::kSoftLight,
-                                       SkShaders::Color(base, nullptr),
-                                       std::move(noise)));
+  return Fill::shader(SkShaders::Blend(
+      SkBlendMode::kSoftLight,
+      SkShaders::Color(material::skia::toSkColor(base), nullptr),
+      std::move(noise)));
 }
 
 // ---------------------------------------------------------------------------
@@ -154,18 +156,19 @@ inline SkPath taperedStroke(const std::vector<SkPoint>& pts, float wMax,
 /** One tapered sweep with spiral-rolled ends, described by its rough
  *  course; fills in pal-colored ink. */
 inline void drawTaperedSweep(SkCanvas& c, const std::vector<SkPoint>& pts,
-                             SkColor4f color, float weight) {
+                             material::Color color, float weight) {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(color, nullptr);
+  p.setColor4f(material::skia::toSkColor(color), nullptr);
   c.drawPath(taperedStroke(pts, weight), p);
 }
 
 /** Small gilded diamond, the reference's corner stud. */
-inline void drawDiamond(SkCanvas& c, SkPoint at, float r, SkColor4f color) {
+inline void drawDiamond(SkCanvas& c, SkPoint at, float r,
+                        material::Color color) {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(color, nullptr);
+  p.setColor4f(material::skia::toSkColor(color), nullptr);
   SkPathBuilder d;
   d.moveTo(at.x(), at.y() - r);
   d.lineTo(at.x() + r, at.y());
@@ -207,7 +210,7 @@ inline PaintProgram edgeFlourish(const Palette& pal, int quadrant,
     rule.setAntiAlias(true);
     rule.setStyle(SkPaint::kStroke_Style);
     rule.setStrokeWidth(1.0f);
-    rule.setColor4f(pal.stem, nullptr);
+    rule.setColor4f(material::skia::toSkColor(pal.stem), nullptr);
     c.drawLine(26, 11, L - 10, 11, rule);
     rule.setStrokeWidth(0.8f);
     const SkScalar dash[2] = {11, 6};
@@ -237,7 +240,7 @@ inline PaintProgram edgeFlourish(const Palette& pal, int quadrant,
     if (!vertical) drawDiamond(c, {11, 11}, 5.0f, pal.gold);
     SkPaint dot;
     dot.setAntiAlias(true);
-    dot.setColor4f(pal.gold, nullptr);
+    dot.setColor4f(material::skia::toSkColor(pal.gold), nullptr);
     c.drawCircle(L * 0.83f, 16, 2.2f, dot);
     c.drawCircle(L * 0.43f, 28, 1.7f, dot);
   };
@@ -259,25 +262,25 @@ inline PaintProgram sprig(const Palette& pal) {
 
     SkPaint leaf;
     leaf.setAntiAlias(true);
-    auto drawLeaf = [&](SkPoint at, float rot, float len, SkColor4f col) {
-      leaf.setColor4f(col, nullptr);
+    auto drawLeaf = [&](SkPoint at, float rot, float len, material::Color col) {
+      leaf.setColor4f(material::skia::toSkColor(col), nullptr);
       c.save();
       c.translate(at.x(), at.y());
       c.rotate(rot);
       c.drawOval(SkRect::MakeXYWH(0, -len * 0.22f, len, len * 0.44f), leaf);
       c.restore();
     };
-    SkColor4f leafDark = pal.leaf;
-    leafDark.fR *= 0.75f;
-    leafDark.fG *= 0.75f;
-    leafDark.fB *= 0.75f;
+    material::Color leafDark = pal.leaf;
+    leafDark.r *= 0.75f;
+    leafDark.g *= 0.75f;
+    leafDark.b *= 0.75f;
     drawLeaf({0, -h * 0.30f}, -140, 13, pal.leaf);
     drawLeaf({1, -h * 0.46f}, -40, 12, leafDark);
     drawLeaf({-1, -h * 0.62f}, -150, 11, pal.leaf);
 
     SkPaint berry;
     berry.setAntiAlias(true);
-    berry.setColor4f(pal.gold, nullptr);
+    berry.setColor4f(material::skia::toSkColor(pal.gold), nullptr);
     c.drawCircle(7, -h * 0.86f, 2.6f, berry);
   };
 }
@@ -330,22 +333,22 @@ inline sk_sp<SkImage> makeCarvedFrame(const Palette& pal, int size = 96) {
   p.setAntiAlias(true);
 
   // Parchment center (stretches under content).
-  SkColor4f ground = pal.parchment;
-  ground.fA = 0.96f;
-  p.setColor4f(ground, nullptr);
+  material::Color ground = pal.parchment;
+  ground.a = 0.96f;
+  p.setColor4f(material::skia::toSkColor(ground), nullptr);
   c.drawRoundRect(SkRect::MakeLTRB(5, 5, s - 5, s - 5), s * 0.14f, s * 0.14f,
                   p);
 
   // Wood band.
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(s * 0.10f);
-  p.setColor4f(pal.stem, nullptr);
+  p.setColor4f(material::skia::toSkColor(pal.stem), nullptr);
   c.drawRoundRect(SkRect::MakeLTRB(s * 0.07f, s * 0.07f, s * 0.93f, s * 0.93f),
                   s * 0.16f, s * 0.16f, p);
 
   // Gilded trims inside and outside the band.
   p.setStrokeWidth(1.6f);
-  p.setColor4f(pal.gold, nullptr);
+  p.setColor4f(material::skia::toSkColor(pal.gold), nullptr);
   c.drawRoundRect(
       SkRect::MakeLTRB(s * 0.135f, s * 0.135f, s * 0.865f, s * 0.865f),
       s * 0.10f, s * 0.10f, p);
@@ -359,17 +362,17 @@ inline sk_sp<SkImage> makeCarvedFrame(const Palette& pal, int size = 96) {
                               {s * 0.87f, s * 0.87f},
                               {s * 0.13f, s * 0.87f}};
   for (auto& at : bossAt) {
-    SkColor4f dark = pal.stem;
-    dark.fR *= 0.6f;
-    dark.fG *= 0.6f;
-    dark.fB *= 0.6f;
-    p.setColor4f(dark, nullptr);
+    material::Color dark = pal.stem;
+    dark.r *= 0.6f;
+    dark.g *= 0.6f;
+    dark.b *= 0.6f;
+    p.setColor4f(material::skia::toSkColor(dark), nullptr);
     c.drawCircle(at[0], at[1], s * 0.085f, p);
     drawDiamond(c, {at[0], at[1]}, s * 0.042f, pal.gold);
   }
 
   // Edge studs at the halves (in the stretchable bands).
-  p.setColor4f(pal.gold, nullptr);
+  p.setColor4f(material::skia::toSkColor(pal.gold), nullptr);
   c.drawCircle(s * 0.5f, s * 0.075f, 2.6f, p);
   c.drawCircle(s * 0.5f, s * 0.925f, 2.6f, p);
   c.drawCircle(s * 0.075f, s * 0.5f, 2.6f, p);

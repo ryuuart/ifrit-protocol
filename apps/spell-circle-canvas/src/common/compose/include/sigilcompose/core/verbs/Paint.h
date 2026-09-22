@@ -6,10 +6,10 @@
  * What the node's own surface is painted with.
  */
 
-#include <include/core/SkColor.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 
@@ -27,7 +27,7 @@ class Pattern;
 
 /** THE SURFACE. Unfilled when unstated, so a box paints nothing and
  *  only its decorations and children show. What may be passed: an
- *  `SkColor4f`, a `Fill`, a `motion::Animatable<Fill>`, a
+ *  `material::Color`, a `Fill`, a `motion::Animatable<Fill>`, a
  *  `material::skia::Paint`, or a `SurfacePaint`, which is the one value
  *  all of those convert into and the type a component declares. */
 template <class Derived>
@@ -60,7 +60,7 @@ class PaintVerbs {
   Derived& fill(const Pattern& pattern) = delete;
   /** Solid-colour sugar: `fill({r,g,b,a})` without the `Fill::`
    *  ceremony. */
-  Derived& fill(SkColor4f color) {
+  Derived& fill(material::Color color) {
     return fill(motion::Animatable<Fill>{Fill::color(color)});
   }
 

@@ -165,8 +165,10 @@ auto SigillumAemeth::circumferenceCells() -> Element {
       .font({.face = faceRing, .size = 0.060f * kR})
       .ink(hexColor(0x241603, 1.0f))
       .styleSheet(weaveNs::StyleSheet{
-          {"cellNumber", weaveNs::Type{.size = 0.031f * kR,
-                                       .color = hexColor(0x4a3210, 1.0f)}}})
+          {"cellNumber",
+           weaveNs::Type{.size = 0.031f * kR,
+                         .color = sigil::material::skia::toSkColor(
+                             hexColor(0x4a3210, 1.0f))}}})
       .children(
           {box()
                .inset(0)
@@ -317,7 +319,8 @@ auto SigillumAemeth::heptagonNames() -> Element {
       .styleSheet(weaveNs::StyleSheet{
           {"gloss", weaveNs::Type{.face = faceItalic,
                                   .size = 0.022f * kR,
-                                  .color = hexColor(0x53380f, 0.88f),
+                                  .color = sigil::material::skia::toSkColor(
+                                      hexColor(0x53380f, 0.88f)),
                                   .track = 0.0f}}})
       .children(
           {box()
@@ -384,7 +387,7 @@ auto SigillumAemeth::heptagram() -> Element {
       body.setStyle(SkPaint::kStroke_Style);
       body.setStrokeWidth(bandW);
       body.setStrokeCap(SkPaint::kButt_Cap);
-      body.setColor4f(kCutDark, nullptr);
+      body.setColor4f(sigil::material::skia::toSkColor(kCutDark), nullptr);
       cv.drawPath(p, body);
       decorations::paintOn(
           cv, ctx, p,
@@ -493,10 +496,10 @@ auto SigillumAemeth::inner() -> Element {
       {kFiliiLucis, rFiliiLucis, shapes::circle(), 0.025f},
       {kFiliaeFil, rFiliaeFil, std::nullopt, 0.024f},
       {kFiliiFil, rFiliiFil, shapes::polygon(3, 180.0f), 0.023f}};
-  const SkColor4f kTabletFace[4] = {
+  const sigil::material::Color kTabletFace[4] = {
       hexColor(0xe4cd9e, 0.62f), hexColor(0xecd7a8, 0.66f),
       hexColor(0xe8d2a2, 0.60f), hexColor(0xdfc793, 0.58f)};
-  const SkColor4f kTabletRule = hexColor(0x2c1c06, 0.95f);
+  const sigil::material::Color kTabletRule = hexColor(0x2c1c06, 0.95f);
   std::vector<Element> marks;
   for (int o = 0; o < 4; ++o) {
     const Order& ord = orders[o];
@@ -574,7 +577,8 @@ auto SigillumAemeth::pentagram() -> Element {
       .styleSheet(weaveNs::StyleSheet{
           {"tail", weaveNs::Type{.face = faceQuill,
                                  .size = 0.024f * kR,
-                                 .color = hexColor(0x40300f, 0.92f)}}})
+                                 .color = sigil::material::skia::toSkColor(
+                                     hexColor(0x40300f, 0.92f))}}})
       .children(
           {kit::disc(hub, rPenta * kR)
                .shape(wobbled(shapes::star(5, 0.382f), 5, 16.0f, 0.30f))

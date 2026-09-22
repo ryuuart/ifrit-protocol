@@ -9,25 +9,27 @@ auto TwoAdvancedV4::panelHeader(const char* boldHalf, const char* restHalf,
       .alignItems(Align::Center)
       .padding(0, 10)
       .fill(stripesLive)
-      .foreground(onEdges(path::Edge::Bottom,
-                          stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.35f)),
-                                 PathFormat::Align::Inner)))
+      .foreground(onEdges(
+          path::Edge::Bottom,
+          stroke(1, Fill::color(sigil::material::withAlpha(kCyan, 0.35f)),
+                 PathFormat::Align::Inner)))
       .children(
           {t(boldHalf, heavy(17, kNear, 40)),
            t(restHalf, cut(arial(), 15, kHeadDim, 40, 0.95f)), box().width(12),
-           kit::line({.length = Dimension(12),
-                      .column = true,
-                      .fill = Fill::color(mskia::withAlpha(kCyan, 0.4f))}),
+           kit::line(
+               {.length = Dimension(12),
+                .column = true,
+                .fill = Fill::color(sigil::material::withAlpha(kCyan, 0.4f))}),
            box().width(10),
-           t(flavor, micro(11, mskia::withAlpha(kDust, 1.0f), 260)),
+           t(flavor, micro(11, sigil::material::withAlpha(kDust, 1.0f), 260)),
            box().flexGrow(1), tickDots(cluster), box().width(8),
            box().width(34).height(10).foreground(
-               styles::TickRail{mskia::withAlpha(kCyan, 0.55f), 4, 3, 7, 1, 3,
-                                0.5f, path::Edge::Bottom})});
+               styles::TickRail{sigil::material::withAlpha(kCyan, 0.55f), 4, 3,
+                                7, 1, 3, 0.5f, path::Edge::Bottom})});
 }
 
-auto TwoAdvancedV4::cta(const char* lbl, float w, float h, SkColor4f hairline)
-    -> Element {
+auto TwoAdvancedV4::cta(const char* lbl, float w, float h,
+                        sigil::material::Color hairline) -> Element {
   using namespace tav;
   return kit::centred()
       .width(w)
@@ -37,16 +39,18 @@ auto TwoAdvancedV4::cta(const char* lbl, float w, float h, SkColor4f hairline)
           {0, 0}, {0, 1},
           {{0.0f, kCtaHi}, {0.42f, kCta}, {1.0f, hexColor(0x3A0000)}}))
       .stroke(stroke(1, Fill::color(kChrome), PathFormat::Align::Outer))
-      .foreground(kit::gloss(mskia::withAlpha(kCtaHi, 0.55f), h * 0.30f,
-                             {0, -h * 0.26f}, 0.62f, 0.30f))
-      .foreground(stroke(1, Fill::color(mskia::withAlpha(hairline, 0.45f)),
-                         PathFormat::Align::Inner))
+      .foreground(kit::gloss(sigil::material::withAlpha(kCtaHi, 0.55f),
+                             h * 0.30f, {0, -h * 0.26f}, 0.62f, 0.30f))
+      .foreground(
+          stroke(1, Fill::color(sigil::material::withAlpha(hairline, 0.45f)),
+                 PathFormat::Align::Inner))
       .row()
 
       .children({t(lbl, label(15, kNear, 110))});
 }
 
-auto TwoAdvancedV4::readout(float w, float h, SkColor4f ground) -> Element {
+auto TwoAdvancedV4::readout(float w, float h, sigil::material::Color ground)
+    -> Element {
   using namespace tav;
   return box()
       .width(w)
@@ -54,9 +58,9 @@ auto TwoAdvancedV4::readout(float w, float h, SkColor4f ground) -> Element {
       .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
       .fill(ground)
       .foreground(styles::BevelPair{
-          mskia::withAlpha(kChromeHi, 0.6f), {0, 0, 0, 0.5f}, 1, 1})
-      .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.55f), 8, 2, 3,
-                                   shapes::Corner::All});
+          sigil::material::withAlpha(kChromeHi, 0.6f), {0, 0, 0, 0.5f}, 1, 1})
+      .foreground(styles::Brackets{sigil::material::withAlpha(kCyan, 0.55f), 8,
+                                   2, 3, shapes::Corner::All});
 }
 
 auto TwoAdvancedV4::navBar() -> Element {
@@ -81,33 +85,33 @@ auto TwoAdvancedV4::navBar() -> Element {
                                 {240ms, &ch::easeOutQuint, 2250ms}))
             .opacity(animate(motion::from(0.0f).to(1.0f),
                              {240ms, &ch::easeOutQuad, 2250ms}))
-            .children(
-                {t(name, label(13, kNear, 80)),
-                 box().width(8).height(2).fill(mskia::withAlpha(kDust, 0.6f))});
+            .children({t(name, label(13, kNear, 80)),
+                       box().width(8).height(2).fill(
+                           sigil::material::withAlpha(kDust, 0.6f))});
       },
-      kit::line(
-          {.length = Dimension(20),
-           .column = true,
-           .fill = Fill::color(mskia::withAlpha(hexColor(0x2A0A0C), 0.9f))}))});
+      kit::line({.length = Dimension(20),
+                 .column = true,
+                 .fill = Fill::color(
+                     sigil::material::withAlpha(hexColor(0x2A0A0C), 0.9f))}))});
   // The GLOBAL NAVIGATOR's live selection mark: one cyan bar whose X is
   // a single bound value, gliding between items as the section cycle
   // walks the taxonomy.
-  bar.children(
-      {box()
-           .left(0)
-           .top(38)
-           .width(24)
-           .height(3)
-           .fill(kCyan)
-           .background(styles::OuterGlow{mskia::withAlpha(kGlow, 0.5f), 6, 0})
-           .translateX(&navIndX)});
+  bar.children({box()
+                    .left(0)
+                    .top(38)
+                    .width(24)
+                    .height(3)
+                    .fill(kCyan)
+                    .background(styles::OuterGlow{
+                        sigil::material::withAlpha(kGlow, 0.5f), 6, 0})
+                    .translateX(&navIndX)});
   return bar;
 }
 
 auto TwoAdvancedV4::masthead() -> Element {
   using namespace tav;
   Element emblem = kit::centred().width(78).height(78).background(
-      styles::OuterGlow{mskia::withAlpha(kGlow, 0.45f), 14, 0});
+      styles::OuterGlow{sigil::material::withAlpha(kGlow, 0.45f), 14, 0});
   if (logoBugSvg) {
     // The production mark itself, recoloured to the wordmark cyan: a
     // solid fill masked by the SVG raster's coverage, so the vector
@@ -117,16 +121,15 @@ auto TwoAdvancedV4::masthead() -> Element {
   } else {
     emblem
         .fill(mskia::Paint::recipe(msdf::material(
-            msdf::circle(), {.fill = {0, 0, 0, 0},
-                             .borderWidth = 4,
-                             .borderColor = mskia::toColor(kCyan)})))
+            msdf::circle(),
+            {.fill = {0, 0, 0, 0}, .borderWidth = 4, .borderColor = kCyan})))
         .children(
             {kit::centred()
                  .width(50)
                  .height(50)
                  .shape(shapes::polygon(6, 0))
-                 .stroke(
-                     stroke(1, Fill::color(mskia::withAlpha(kCyanRing, 0.75f))))
+                 .stroke(stroke(1, Fill::color(sigil::material::withAlpha(
+                                       kCyanRing, 0.75f))))
 
                  .children({t("2", cut(blackFace(), 32, kCyan, 0, 0.85f))})});
   }
@@ -152,19 +155,20 @@ auto TwoAdvancedV4::masthead() -> Element {
                         {t("2ADVANCED STUDIOS",
                            cut(blackFace(), 25, kCyan, 80, 0.90f))
                              .filter(styles::textGlow(
-                                 mskia::withAlpha(kGlow, 0.55f), 6)),
+                                 sigil::material::withAlpha(kGlow, 0.55f), 6)),
                          t("PROGRESSIVE DESIGN TECHNOLOGY",
                            micro(12, kDust, 240)),
                          box()
                              .row()
                              .gap(6)
                              .alignItems(Align::Center)
-                             .children({kit::line({.length = Dimension(30),
-                                                   .fill = Fill::color(
-                                                       mskia::withAlpha(
-                                                           kCyan, 0.5f))}),
-                                        t("EST. 1999 · IRVINE CA",
-                                          micro(10, kDustDim, 200))})}),
+                             .children(
+                                 {kit::line({.length = Dimension(30),
+                                             .fill = Fill::color(
+                                                 sigil::material::withAlpha(
+                                                     kCyan, 0.5f))}),
+                                  t("EST. 1999 · IRVINE CA",
+                                    micro(10, kDustDim, 200))})}),
                     box().flexGrow(1),
                     box()
                         .column()
@@ -175,8 +179,8 @@ auto TwoAdvancedV4::masthead() -> Element {
                              t("FLASH 6 REQ.", micro(10, kDustDim, 200)),
                              t("1024×768 MIN", micro(10, kDustDim, 200))})}),
            // the glowing 2px cyan divider under the whole masthead panel
-           box().height(2).fill(kCyan).background(
-               styles::OuterGlow{mskia::withAlpha(kGlow, 0.55f), 10, 1})});
+           box().height(2).fill(kCyan).background(styles::OuterGlow{
+               sigil::material::withAlpha(kGlow, 0.55f), 10, 1})});
 }
 
 auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
@@ -190,8 +194,8 @@ auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
                      {{0.0f, hexColor(0x0A4148)}, {1.0f, hexColor(0x02181C)}})
                : mskia::Paint::solid(hexColor(0x220608)))
       .stroke(stroke(1,
-                     Fill::color(on ? mskia::withAlpha(kCyan, 0.7f)
-                                    : mskia::withAlpha(kDust, 0.35f)),
+                     Fill::color(on ? sigil::material::withAlpha(kCyan, 0.7f)
+                                    : sigil::material::withAlpha(kDust, 0.35f)),
                      PathFormat::Align::Inner))
 
       .children({t(lbl, micro(10, on ? kCyan : kDustDim, 160))});
@@ -205,9 +209,10 @@ auto TwoAdvancedV4::linkRun(const sigil::data::Json& names, float size,
       [size](const sigil::data::Json& name) {
         return t(name, micro(size, kDustDim, 200));
       },
-      kit::line({.length = Dimension(rule),
-                 .column = true,
-                 .fill = Fill::color(mskia::withAlpha(kDust, 0.32f))}));
+      kit::line(
+          {.length = Dimension(rule),
+           .column = true,
+           .fill = Fill::color(sigil::material::withAlpha(kDust, 0.32f))}));
 }
 
 auto TwoAdvancedV4::legalStrip() -> Element {
@@ -231,12 +236,12 @@ auto TwoAdvancedV4::legalStrip() -> Element {
                         .row()
                         .gap(6)
                         .alignItems(Align::Center)
-                        .children(
-                            {kit::line({.length = Dimension(60),
-                                        .fill = Fill::color(
-                                            mskia::withAlpha(kDust, 0.35f))}),
-                             t(doc()["legal"]["requires"],
-                               micro(10, kDustDim, 200))}),
+                        .children({kit::line({.length = Dimension(60),
+                                              .fill = Fill::color(
+                                                  sigil::material::withAlpha(
+                                                      kDust, 0.35f))}),
+                                   t(doc()["legal"]["requires"],
+                                     micro(10, kDustDim, 200))}),
                     box().flexGrow(1),
                     box()
                         .row()
@@ -251,10 +256,11 @@ auto TwoAdvancedV4::legalStrip() -> Element {
                                  .shape(shapes::chamfered(
                                      7, shapes::Corner::Diagonal))
                                  .fill(hexColor(0x2A0A0C))
-                                 .stroke(stroke(1,
-                                                Fill::color(mskia::withAlpha(
-                                                    kDust, 0.45f)),
-                                                PathFormat::Align::Inner))
+                                 .stroke(stroke(
+                                     1,
+                                     Fill::color(sigil::material::withAlpha(
+                                         kDust, 0.45f)),
+                                     PathFormat::Align::Inner))
                                  .row()
                                  .gap(6)
                                  .alignItems(Align::Center)
@@ -267,13 +273,14 @@ auto TwoAdvancedV4::legalStrip() -> Element {
                .row()
                .gap(9)
                .alignItems(Align::Center)
-               .children({kit::line({.length = Dimension(40),
-                                     .fill = Fill::color(
-                                         mskia::withAlpha(kDust, 0.3f))}),
-                          linkRun(doc()["footer"], 10, 9),
-                          kit::line({.length = Dimension(40),
-                                     .fill = Fill::color(
-                                         mskia::withAlpha(kDust, 0.3f))})}),
+               .children(
+                   {kit::line({.length = Dimension(40),
+                               .fill = Fill::color(
+                                   sigil::material::withAlpha(kDust, 0.3f))}),
+                    linkRun(doc()["footer"], 10, 9),
+                    kit::line({.length = Dimension(40),
+                               .fill = Fill::color(
+                                   sigil::material::withAlpha(kDust, 0.3f))})}),
            box().height(4),
            t(doc()["legal"]["copyright"], micro(12, kDust, 240)),
            box()
@@ -290,9 +297,10 @@ auto TwoAdvancedV4::dockBars() -> std::vector<Element> {
     const float v = 0.14f + 0.82f * std::abs(std::sin(i * 0.51f) *
                                              std::cos(i * 0.19f + 0.7f));
     bars.push_back(box().flexGrow(1).flexShrink(0).height(72 * v).fill(
-        mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                 {{0.0f, mskia::withAlpha(kD7, 1.0f)},
-                                  {1.0f, mskia::withAlpha(kD4, 0.9f)}})));
+        mskia::Paint::linearUnit(
+            {0, 0}, {0, 1},
+            {{0.0f, sigil::material::withAlpha(kD7, 1.0f)},
+             {1.0f, sigil::material::withAlpha(kD4, 0.9f)}})));
   }
   return bars;
 }
@@ -348,7 +356,8 @@ auto TwoAdvancedV4::footerDock() -> Element {
                             kit::line({.fill = Fill::color(kD4)}).flexGrow(1),
                             t("»", micro(11, kD5, 0))}),
              t(w["first"], micro(10, kD6, 220)),
-             t(w["second"], micro(10, mskia::withAlpha(kD6, 0.7f), 220)),
+             t(w["second"],
+               micro(10, sigil::material::withAlpha(kD6, 0.7f), 220)),
              box().flexGrow(1),
              box()
                  .row()
@@ -429,16 +438,16 @@ auto TwoAdvancedV4::footerDock() -> Element {
         {kit::centred()
              .width(80)
              .height(80)
-             .fill(mskia::Paint::recipe(msdf::material(
-                 msdf::circle(), {.fill = mskia::toColor(hexColor(0x0A0202)),
-                                  .borderWidth = 3,
-                                  .borderColor = mskia::toColor(kD6)})))
+             .fill(mskia::Paint::recipe(
+                 msdf::material(msdf::circle(), {.fill = hexColor(0x0A0202),
+                                                 .borderWidth = 3,
+                                                 .borderColor = kD6})))
 
              .children({radarSweep(i, hexColor(0xB65050), 0.42f),
                         box()
                             .inset(26)
                             .borderRadius({16})
-                            .fill(mskia::withAlpha(kD1, 0.92f))
+                            .fill(sigil::material::withAlpha(kD1, 0.92f))
                             .stroke(stroke(1, Fill::color(kD4),
                                            PathFormat::Align::Inner)),
                         t(i == 0 ? "01" : (i == 1 ? "02" : "03"),
@@ -472,10 +481,11 @@ auto TwoAdvancedV4::rail(bool right) -> Element {
                                       {0.22f, kChrome},
                                       {0.70f, hexColor(0x2A0708)},
                                       {1.00f, hexColor(0x0A0000)}}))
-      .foreground(onEdges(
-          right ? path::Edge::Left : path::Edge::Right,
-          stroke(1, Fill::color(mskia::withAlpha(hexColor(0x99AAAA), 0.35f)),
-                 PathFormat::Align::Inner)))
+      .foreground(onEdges(right ? path::Edge::Left : path::Edge::Right,
+                          stroke(1,
+                                 Fill::color(sigil::material::withAlpha(
+                                     hexColor(0x99AAAA), 0.35f)),
+                                 PathFormat::Align::Inner)))
       .foreground(RailFlares{hexColor(0x99AAAA), 6.0f, right ? 3.0f : 0.0f});
 }
 
@@ -513,7 +523,8 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
               .shape(shapes::arc(-90, 359))
               .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f),
                                           {500ms, &ch::easeOutQuint, 260ms})),
-                      stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.7f)))),
+                      stroke(1, Fill::color(
+                                    sigil::material::withAlpha(kCyan, 0.7f)))),
           cx - 92, cy - 92, 184, 184),
        // 3. the 0→100 readout (a slot: TEXT, so it cannot be a binding)
        at(box().column().alignItems(Align::Center).gap(9), cx - 260, cy + 120,
@@ -525,17 +536,17 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
                 box()
                     .width(420)
                     .height(2)
-                    .fill(mskia::withAlpha(kCyan, 0.18f))
+                    .fill(sigil::material::withAlpha(kCyan, 0.18f))
                     .children({box().inset(0).shape(ray(1, 1)).stroke(
                         spans::upTo(animate(motion::from(0.0f).to(1.0f),
                                             {800ms, &ch::easeNone, 550ms})),
                         stroke(2, Fill::color(kCyan)))}),
                 t("LOADING PROPHECY INTERFACE · 970×655",
-                  micro(11, mskia::withAlpha(kCyan, 0.6f), 240))}),
+                  micro(11, sigil::material::withAlpha(kCyan, 0.6f), 240))}),
        // 4. the boot-complete flash
        box()
            .inset(0)
-           .fill(SkColor4f{1, 1, 1, 1})
+           .fill(sigil::material::Color{1, 1, 1, 1})
            .opacity(animate(motion::through(
                {{1330ms, 0.0f}, {1390ms, 0.7f}, {1460ms, 0.0f}})))
            .blendMode(SkBlendMode::kPlus)});
@@ -550,7 +561,8 @@ auto TwoAdvancedV4::bootReadout() -> Element {
       .row()
       .alignItems(Align::Baseline)
       .gap(6)
-      .children({t(buf.c_str(), cut(blackFace(), 46, kCyan, 40, 0.9f)),
-                 t("%", cut(blackFace(), 20, mskia::withAlpha(kCyan, 0.6f), 40,
-                            0.9f))});
+      .children(
+          {t(buf.c_str(), cut(blackFace(), 46, kCyan, 40, 0.9f)),
+           t("%", cut(blackFace(), 20, sigil::material::withAlpha(kCyan, 0.6f),
+                      40, 0.9f))});
 }

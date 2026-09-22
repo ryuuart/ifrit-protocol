@@ -8,6 +8,7 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkTileMode.h>
 #include <sigilcompose/kit/Sprites.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <cmath>
@@ -44,7 +45,7 @@ std::optional<Sprite> pixelMap(std::span<const std::string> rows,
       if (taken[seed]) continue;
       const int idx = index[seed];
       taken[seed] = 1;
-      if (out.colourOf(idx).fA <= 0) continue;  // the grid's own blank
+      if (out.colourOf(idx).a <= 0) continue;  // the grid's own blank
       // Widest first, then as deep as that whole width stays this entry —
       // the largest rectangle anchored here, which is what keeps a flat
       // field of one colour to a single mark.
@@ -71,10 +72,10 @@ std::optional<Sprite> pixelMap(std::span<const std::string> rows,
 }
 
 namespace {
-SkColor4f faded(const SkColor4f& colour, float alpha) {
+material::Color faded(const material::Color& colour, float alpha) {
   return alpha >= 1.0f
              ? colour
-             : SkColor4f{colour.fR, colour.fG, colour.fB, colour.fA * alpha};
+             : material::Color{colour.r, colour.g, colour.b, colour.a * alpha};
 }
 }  // namespace
 
@@ -92,8 +93,9 @@ Element pixelSprite(const Sprite& sprite, const SpriteStyle& style) {
           .width(Dimension((float)sprite.grid.width() * style.cell))
           .height(Dimension((float)sprite.grid.height() * style.cell));
   for (const SpriteRun& run : sprite.runs) {
-    const SkColor4f colour = faded(sprite.colourOf(run.index), style.alpha);
-    if (colour.fA <= 0) continue;
+    const material::Color colour =
+        faded(sprite.colourOf(run.index), style.alpha);
+    if (colour.a <= 0) continue;
     root.children({box()
                        .left(Dimension(run.x * style.cell))
                        .top(Dimension(run.y * style.cell))
@@ -128,7 +130,7 @@ sk_sp<SkImage> indexImage(const Sprite& sprite, float cell) {
   for (const SpriteRun& run : sprite.runs) {
     if (run.index <= 0 || run.index > 255) continue;
     ink.rect(run.x, run.y, run.w, run.h,
-             SkColor4f{(float)run.index / 255.0f, 0.0f, 0.0f, 1.0f});
+             material::Color{(float)run.index / 255.0f, 0.0f, 0.0f, 1.0f});
   }
   plane.setImmutable();
   return plane.asImage();

@@ -32,6 +32,7 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -43,6 +44,7 @@
 #include <array>
 #include <string>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mkit = sigil::material::kit;
 namespace mpattern = sigil::material::pattern;
@@ -60,7 +62,7 @@ constexpr SkSize kSceneSize = {900, 640};
 namespace zellige_wall {
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
-constexpr SkColor4f kPlaster{0.885f, 0.850f, 0.775f, 1};
+constexpr material::Color kPlaster{0.885f, 0.850f, 0.775f, 1};
 
 // THE WALL IS WHITE. Every zellige field on a Fes or Meknes wall is
 // white-dominant with the cobalt, turquoise, ochre, brick-red, green and
@@ -87,8 +89,8 @@ inline mkit::GirihPalette fesOchre() {
           {0.180f, 0.431f, 0.290f, 1},  // green
           {0.102f, 0.090f, 0.078f, 1}};
 }
-constexpr SkColor4f kInk{0.180f, 0.129f, 0.106f, 1};
-constexpr SkColor4f kSub{0.42f, 0.36f, 0.30f, 1};
+constexpr material::Color kInk{0.180f, 0.129f, 0.106f, 1};
+constexpr material::Color kSub{0.42f, 0.36f, 0.30f, 1};
 constexpr double kSwapPeriod = 3.0;  // seconds between re-tilings
 
 /** THE SWEPT DIAL: one contact angle per panel, left to right. Below
@@ -161,7 +163,7 @@ struct Zellige {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 1.5,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     nextSwap = zellige_wall::kSwapPeriod;
     phase = 0;
     retile();
@@ -215,7 +217,7 @@ struct Zellige {
                                            text("Hankin PIC · 4.8.8 · "
                                                 "θ swept 30–60°")
                                                .font({.size = 14,
-                                                      .color = zw::kSub,
+                                                      .color = material::skia::toSkColor(zw::kSub),
                                                       .track = 1})}),
                             box().row().flexGrow(1).gap(22).children({each(
                                 panels, [this](const zellige_wall::Panel& one) {

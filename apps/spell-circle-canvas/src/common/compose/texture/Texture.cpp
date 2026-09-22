@@ -12,6 +12,8 @@
 #include <include/core/SkSurfaceProps.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilskia/graphite/GraphiteContext.h>
@@ -28,7 +30,7 @@ struct TextureScene::Impl {
   }
 
   SkISize size{0, 0};
-  SkColor4f background{0, 0, 0, 0};
+  material::Color background{0, 0, 0, 0};
   motion::Ticker ticker;
   motion::FrameClock clock;
   std::unique_ptr<Composer> composer;
@@ -64,7 +66,7 @@ struct TextureScene::Impl {
       skia::OffscreenSurface surface(*context, *device, handle);
       SkCanvas* canvas = surface.canvas();
       if (!canvas) return;
-      canvas->clear(background);
+      canvas->clear(material::skia::toSkColor(background));
       composer->draw(*canvas);
       if (surface.surface()) image = surface.surface()->makeImageSnapshot();
       surface.submit();
@@ -72,7 +74,7 @@ struct TextureScene::Impl {
     }
     if (!raster) return;
     SkCanvas* canvas = raster->getCanvas();
-    canvas->clear(background);
+    canvas->clear(material::skia::toSkColor(background));
     composer->draw(*canvas);
     image = raster->makeImageSnapshot();
   }
@@ -83,7 +85,7 @@ TextureScene::~TextureScene() = default;
 
 std::shared_ptr<TextureScene> TextureScene::make(SkISize size,
                                                  weave::FontContext& fonts,
-                                                 SkColor4f background) {
+                                                 material::Color background) {
   std::shared_ptr<TextureScene> scene(new TextureScene());
   Impl& impl = *scene->m_impl;
   impl.size = {std::max(1, size.width()), std::max(1, size.height())};
@@ -181,7 +183,8 @@ void TextureScene::setAutoTexturePromotion(PromotionPolicy policy) {
 }
 
 material::Texture texture(const Element& root, SkISize size,
-                          weave::FontContext& fonts, SkColor4f background) {
+                          weave::FontContext& fonts,
+                          material::Color background) {
   const std::shared_ptr<TextureScene> scene =
       TextureScene::make(size, fonts, background);
   scene->render(root);

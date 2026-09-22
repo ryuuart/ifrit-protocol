@@ -8,6 +8,7 @@
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Engine.h>
 #include <sigildraw/brush/Fields.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <cmath>
@@ -56,7 +57,8 @@ const Tool* Engine::pick(std::string_view name) {
   return found;
 }
 
-const Tool* Engine::set(std::string_view name, SkColor4f color, float weight) {
+const Tool* Engine::set(std::string_view name, material::Color color,
+                        float weight) {
   const Tool* found = pick(name);
   if (!found) return nullptr;
   m_color = color;
@@ -65,7 +67,7 @@ const Tool* Engine::set(std::string_view name, SkColor4f color, float weight) {
   return found;
 }
 
-void Engine::stroke(SkColor4f color) {
+void Engine::stroke(material::Color color) {
   m_color = color;
   m_strokeActive = true;
 }
@@ -100,7 +102,7 @@ Tool Engine::hatchTool() const { return m_hatchTool ? *m_hatchTool : tool(); }
 
 // ---- the interiors ----------------------------------------------------------
 
-void Engine::fill(SkColor4f color, float opacity) {
+void Engine::fill(material::Color color, float opacity) {
   m_fill.color = color;
   m_fill.opacity = std::clamp(opacity, 0.0f, 1.0f);
   m_fillActive = true;
@@ -108,7 +110,7 @@ void Engine::fill(SkColor4f color, float opacity) {
 
 void Engine::noFill() { m_fillActive = false; }
 
-void Engine::wash(SkColor4f color, float opacity) {
+void Engine::wash(material::Color color, float opacity) {
   m_washColor = color;
   m_washOpacity = std::clamp(opacity, 0.0f, 1.0f);
   m_washActive = true;
@@ -148,7 +150,7 @@ void Engine::noHatch() {
   m_hatchTool.reset();
 }
 
-const Tool* Engine::hatchStyle(std::string_view name, SkColor4f color,
+const Tool* Engine::hatchStyle(std::string_view name, material::Color color,
                                float weight) {
   const Tool* found = m_catalogue.find(name);
   if (!found) return nullptr;
@@ -160,7 +162,7 @@ const Tool* Engine::hatchStyle(std::string_view name, SkColor4f color,
   return found;
 }
 
-const Tool* Engine::mass(std::string_view name, SkColor4f color,
+const Tool* Engine::mass(std::string_view name, material::Color color,
                          const Mass& style) {
   const Tool* found = m_catalogue.find(name);
   if (!found) return nullptr;

@@ -20,7 +20,7 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   // arithmetic here, over the substituted faces' own measured metrics —
   // alignItems(Align::Baseline) would be the kernel spelling, but the two
   // runs are absolutely positioned at documented x/y, not laid out in a row.
-  g.children({ink(t(d.name, titleType()), 348 - 345, 272 - 267, titleRise)});
+  g.children({sigil::material::skia::toSkColor(ink)(t(d.name, titleType()), 348 - 345, 272 - 267, titleRise)});
   const int walkIdx = skill == 0 ? 0 : (skill == 7 ? 1 : 2);
   const float advance = titleAdvance[walkIdx] / kScale;
   // ---- the rule: two 1-px lines at y = 300, 301 ------------------------
@@ -90,37 +90,37 @@ auto Fallout2CharSheet::card() -> Element {
            .rotate(-16.0f)
            .translateX(n(120))
            .fill(Paint::linearUnit({0, 0}, {1, 0},
-                                   {{0.0f, mskia::withAlpha(kRust, 0.0f)},
-                                    {0.5f, mskia::withAlpha(kRust, 0.16f)},
-                                    {1.0f, mskia::withAlpha(kRust, 0.0f)}})),
+                                   {{0.0f, sigil::material::withAlpha(kRust, 0.0f)},
+                                    {0.5f, sigil::material::withAlpha(kRust, 0.16f)},
+                                    {1.0f, sigil::material::withAlpha(kRust, 0.0f)}})),
        at(box(), -40, -20, 34, 260)
            .rotate(9.0f)
            .translateX(n(232))
            .fill(Paint::linearUnit(
                {0, 0}, {1, 0},
-               {{0.0f, mskia::withAlpha(hexColor(0x7C581C), 0.0f)},
-                {0.5f, mskia::withAlpha(hexColor(0x6A4A18), 0.20f)},
-                {1.0f, mskia::withAlpha(hexColor(0x7C581C), 0.0f)}})),
+               {{0.0f, sigil::material::withAlpha(hexColor(0x7C581C), 0.0f)},
+                {0.5f, sigil::material::withAlpha(hexColor(0x6A4A18), 0.20f)},
+                {1.0f, sigil::material::withAlpha(hexColor(0x7C581C), 0.0f)}})),
        at(box(), 150, 120, 130, 55)
            .fill(Paint::radialUnit(
                {0.55f, 0.75f}, 1.0f,
-               {{0.0f, mskia::withAlpha(kParchScuff, 0.30f)},
-                {1.0f, mskia::withAlpha(kParchScuff, 0.0f)}})),
+               {{0.0f, sigil::material::withAlpha(kParchScuff, 0.30f)},
+                {1.0f, sigil::material::withAlpha(kParchScuff, 0.0f)}})),
        at(box(), -6, -10, 60, 190)
            .fill(Paint::linearUnit(
                {0, 0}, {1, 0},
-               {{0.0f, mskia::withAlpha(hexColor(0x5A3C10), 0.28f)},
-                {1.0f, mskia::withAlpha(hexColor(0x5A3C10), 0.0f)}})),
+               {{0.0f, sigil::material::withAlpha(hexColor(0x5A3C10), 0.28f)},
+                {1.0f, sigil::material::withAlpha(hexColor(0x5A3C10), 0.0f)}})),
        box().inset(0).fill(Paint::radialUnit(
            {0.46f, 0.42f}, 1.35f,
-           {{0.0f, mskia::withAlpha(hexColor(0x2A1C08), 0.0f)},
-            {0.70f, mskia::withAlpha(hexColor(0x2A1C08), 0.04f)},
-            {1.0f, mskia::withAlpha(hexColor(0x2A1C08), 0.22f)}})),
+           {{0.0f, sigil::material::withAlpha(hexColor(0x2A1C08), 0.0f)},
+            {0.70f, sigil::material::withAlpha(hexColor(0x2A1C08), 0.04f)},
+            {1.0f, sigil::material::withAlpha(hexColor(0x2A1C08), 0.22f)}})),
        at(box(), 178, 118, 110, 60)
            .fill(Paint::radialUnit(
                {0.60f, 0.85f}, 1.0f,
-               {{0.0f, mskia::withAlpha(hexColor(0x3A2A12), 0.18f)},
-                {1.0f, mskia::withAlpha(hexColor(0x3A2A12), 0.0f)}}))});
+               {{0.0f, sigil::material::withAlpha(hexColor(0x3A2A12), 0.18f)},
+                {1.0f, sigil::material::withAlpha(hexColor(0x3A2A12), 0.0f)}}))});
   c.stroke(stroke(n(1.5f), Fill::color(hexColor(0x2A1C08, 0.75f)),
                   PathFormat::Align::Inner));
   c.children({box().inset(0).children({slot("card")})});
@@ -186,7 +186,7 @@ auto Fallout2CharSheet::captionBand() -> Element {
                    fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
                      .at({30, 14}),
                  line(audited.c_str(), 41)
-                     .font({.size = 14.5f, .color = kGreen, .track = 0.2f}),
+                     .font({.size = 14.5f, .color = sigil::material::skia::toSkColor(kGreen), .track = 0.2f}),
                  line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
                       "palette has no pure green, so what reached the CRT is "
                       "#3CF800.",

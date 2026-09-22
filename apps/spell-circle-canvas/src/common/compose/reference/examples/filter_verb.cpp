@@ -7,9 +7,11 @@
  */
 
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace skia = sigil::material::skia;
 
@@ -18,10 +20,10 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {640, 250};
-constexpr SkColor4f kGround = hexColor(0x0f1318);
-constexpr SkColor4f kPlate = hexColor(0x1d2730);
-constexpr SkColor4f kInk = hexColor(0x9fe3d4);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = hexColor(0x0f1318);
+constexpr material::Color kPlate = hexColor(0x1d2730);
+constexpr material::Color kInk = hexColor(0x9fe3d4);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
 
 /** The same subtree — a plate, a word and a disc — under each filter. */
 Element cell(const char* caption, Element plate) {
@@ -40,9 +42,12 @@ Element cell(const char* caption, Element plate) {
                      .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({text("SIGNAL").font(
-                                    {.size = 26, .color = kInk, .track = 3}),
+                                    {.size = 26,
+                                     .color = material::skia::toSkColor(kInk),
+                                     .track = 3}),
                                 box().width(58).height(4).fill(kInk)}),
-                 text(caption).font({.size = 12, .color = kAsh})});
+                 text(caption).font(
+                     {.size = 12, .color = material::skia::toSkColor(kAsh)})});
 }
 
 }  // namespace

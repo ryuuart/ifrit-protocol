@@ -50,7 +50,8 @@ T converted(py::handle value) {
   if constexpr (Optional<T>::value) {
     if (value.is_none()) return std::nullopt;
     return converted<typename Optional<T>::Value>(value);
-  } else if constexpr (std::is_same_v<T, SkColor4f>) {
+  } else if constexpr (std::is_same_v<T, SkColor4f> ||
+                       std::is_same_v<T, material::Color>) {
     return color(value);
   } else if constexpr (std::is_same_v<T, SkPoint>) {
     return point(value);

@@ -44,6 +44,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -65,24 +66,24 @@ constexpr float kW = 1280.0f;
 constexpr float kH = 1280.0f;
 
 // ---- palette: chalk by candlelight, then one hue of light -----------------
-constexpr SkColor4f kNight = hexColor(0x0A0812);
-constexpr SkColor4f kNightLift = hexColor(0x141021);
-constexpr SkColor4f kGold = hexColor(0xD8A94E);
-constexpr SkColor4f kBone = hexColor(0xE9DFC8);
-constexpr SkColor4f kEmber = hexColor(0x8A4A26);
-constexpr SkColor4f kIron = hexColor(0x3B3554);     // construction lines
-constexpr SkColor4f kIronDim = hexColor(0x262238);  // faint construction
-constexpr SkColor4f kAsh = hexColor(0x8A8299);      // secondary type
-constexpr SkColor4f kAshDim = hexColor(0x8A8299, 0.62f);
-constexpr SkColor4f kRuneInk = hexColor(0x9C8FB8);  // the register's ink
+constexpr material::Color kNight = hexColor(0x0A0812);
+constexpr material::Color kNightLift = hexColor(0x141021);
+constexpr material::Color kGold = hexColor(0xD8A94E);
+constexpr material::Color kBone = hexColor(0xE9DFC8);
+constexpr material::Color kEmber = hexColor(0x8A4A26);
+constexpr material::Color kIron = hexColor(0x3B3554);     // construction lines
+constexpr material::Color kIronDim = hexColor(0x262238);  // faint construction
+constexpr material::Color kAsh = hexColor(0x8A8299);      // secondary type
+constexpr material::Color kAshDim = hexColor(0x8A8299, 0.62f);
+constexpr material::Color kRuneInk = hexColor(0x9C8FB8);  // the register's ink
 
 // ---- the ignited palette: ONE hue family, value doing the drawing --------
 // Not a second scheme beside the candlelit one. It is the state the circle
 // changes INTO: chalk is pigment on a surface and reflects what the room
 // gives it, light is emitted and collapses to one hue with a white core.
-constexpr SkColor4f kCore = hexColor(0xFFF6E2);   // the white-hot core
-constexpr SkColor4f kHalo = hexColor(0xFFC152);   // the saturated halo
-constexpr SkColor4f kBloom = hexColor(0xC96F1E);  // the wide dim bloom
+constexpr material::Color kCore = hexColor(0xFFF6E2);   // the white-hot core
+constexpr material::Color kHalo = hexColor(0xFFC152);   // the saturated halo
+constexpr material::Color kBloom = hexColor(0xC96F1E);  // the wide dim bloom
 
 // ---- the circle's frame ---------------------------------------------------
 constexpr SkPoint kEye{640.0f, 640.0f};  // centre in canvas px

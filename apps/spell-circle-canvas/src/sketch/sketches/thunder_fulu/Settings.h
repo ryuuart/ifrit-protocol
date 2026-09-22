@@ -26,6 +26,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Polyline.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -53,6 +54,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
@@ -99,20 +101,20 @@ namespace thunder_fulu {
 // only bright thing here, and where the brush runs dry the IRON shows through
 // rather than a paler red.
 
-constexpr SkColor4f kNight = hexColor(0x08070a);
-constexpr SkColor4f kIronDeep = hexColor(0x232120);
-constexpr SkColor4f kIronMid = hexColor(0x35312c);
-constexpr SkColor4f kIronLit = hexColor(0x4c453b);
-constexpr SkColor4f kIronEdge = hexColor(0x6c6354);
-constexpr SkColor4f kCinnabar = hexColor(0xcf3018);
-constexpr SkColor4f kCinnaWet = hexColor(0xf2542a);
-constexpr SkColor4f kCinnaDry = hexColor(0x8f2313);
-constexpr SkColor4f kGold = hexColor(0xb2914f);
-constexpr SkColor4f kGoldDim = hexColor(0x6d5a33);
-constexpr SkColor4f kChalk = hexColor(0xd8cdb6);
-constexpr SkColor4f kVoidBlue = hexColor(0x4f92d8);
-constexpr SkColor4f kVoidRed = hexColor(0xd8422a);
-constexpr SkColor4f kVoidWhite = hexColor(0xe7e2d6);
+constexpr material::Color kNight = hexColor(0x08070a);
+constexpr material::Color kIronDeep = hexColor(0x232120);
+constexpr material::Color kIronMid = hexColor(0x35312c);
+constexpr material::Color kIronLit = hexColor(0x4c453b);
+constexpr material::Color kIronEdge = hexColor(0x6c6354);
+constexpr material::Color kCinnabar = hexColor(0xcf3018);
+constexpr material::Color kCinnaWet = hexColor(0xf2542a);
+constexpr material::Color kCinnaDry = hexColor(0x8f2313);
+constexpr material::Color kGold = hexColor(0xb2914f);
+constexpr material::Color kGoldDim = hexColor(0x6d5a33);
+constexpr material::Color kChalk = hexColor(0xd8cdb6);
+constexpr material::Color kVoidBlue = hexColor(0x4f92d8);
+constexpr material::Color kVoidRed = hexColor(0xd8422a);
+constexpr material::Color kVoidWhite = hexColor(0xe7e2d6);
 
 // ---------------------------------------------------------------------------
 // canvas & the plate. 五寸 × 三寸 — the ratio is the specification, so it is

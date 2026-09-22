@@ -47,6 +47,7 @@
 #include <sigilcompose/web/Web.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebImage.h>
 #include <sigilscry/platform/Runtime.h>
@@ -61,6 +62,7 @@
 #include <string>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace scry = sigil::scry;
 
@@ -72,8 +74,8 @@ constexpr int kPageWidth = 640;
 constexpr int kPageHeight = 470;
 constexpr int kSlotSize = 168;
 
-constexpr SkColor4f kInk = hexColor(0xe8ecf6);
-constexpr SkColor4f kDim = hexColor(0x93a0bd);
+constexpr material::Color kInk = hexColor(0xe8ecf6);
+constexpr material::Color kDim = hexColor(0x93a0bd);
 
 /** The page. Transparent, so what is behind it in the scene is part of
  *  the composite rather than covered by it, and static, so it settles to
@@ -173,7 +175,7 @@ Element note(std::u8string heading, std::u8string body) {
       .column()
       .gap(6)
       .children({text(std::move(heading)).font({.size = 14}),
-                 text(std::move(body)).font({.size = 11.5f, .color = kDim})});
+                 text(std::move(body)).font({.size = 11.5f, .color = material::skia::toSkColor(kDim)})});
 }
 
 }  // namespace
@@ -286,7 +288,7 @@ struct WebPanelSketch {
                         u8"the view's own latest and never waits"
                       : u8"the page background is transparent — the scene's "
                         u8"gradient is what shows between its cards")
-                 .font({.size = 12, .color = kDim})
+                 .font({.size = 12, .color = material::skia::toSkColor(kDim)})
                  .left(40)
                  .top(590)});
   }
@@ -310,7 +312,7 @@ struct WebPanelSketch {
                  .column()
                  .gap(10)
                  .children({text(u8"no web engine here").font({.size = 22}),
-                            text(why).font({.size = 13, .color = kDim})})});
+                            text(why).font({.size = 13, .color = material::skia::toSkColor(kDim)})})});
   }
 
  private:

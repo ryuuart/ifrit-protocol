@@ -11,6 +11,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/core/UniformBlock.h>

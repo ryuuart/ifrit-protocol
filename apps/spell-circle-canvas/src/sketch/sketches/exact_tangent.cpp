@@ -15,6 +15,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Curves.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -26,6 +27,7 @@
 #include <stdexcept>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
@@ -45,9 +47,9 @@ constexpr float kDetailSize =
     260;                        // the raster's type size before magnification
 constexpr float kTurns = 3.2f;  // the spiral's turns
 
-constexpr SkColor4f kSnapped{0.95f, 0.44f, 0.32f, 1};
-constexpr SkColor4f kExact{0.40f, 0.76f, 0.98f, 1};
-constexpr SkColor4f kShared{0.76f, 0.76f, 0.76f, 1};
+constexpr material::Color kSnapped{0.95f, 0.44f, 0.32f, 1};
+constexpr material::Color kExact{0.40f, 0.76f, 0.98f, 1};
+constexpr material::Color kShared{0.76f, 0.76f, 0.76f, 1};
 constexpr SkISize kRaster = {328, 420};
 constexpr SkISize kCrop = {41, 20};
 constexpr float kMagnification = 8;
@@ -67,11 +69,11 @@ weave::StyleSheet voices() {
 
 /** A run on the tight spiral. The baseline resolves against the TEXT
  *  node's own box, so the leaf carries the plate's dimensions. */
-Element run(const char* word, float size, SkColor4f colour, bool exact,
+Element run(const char* word, float size, material::Color colour, bool exact,
             float inset = 16) {
   return text(word)
       .styleClass("inscription")
-      .font({.size = size, .color = colour})
+      .font({.size = size, .color = material::skia::toSkColor(colour)})
       .inset(inset)
       .textOnPath({.path = shapes::spiral(kTurns),
                    .at = 0.42f,
@@ -81,11 +83,11 @@ Element run(const char* word, float size, SkColor4f colour, bool exact,
 
 /** A run on the inscribed oval — the large-size cells. `offset` rides
  *  the type inside the baseline so a big face stays on the plate. */
-Element arcRun(const char* word, float size, SkColor4f colour, bool exact,
+Element arcRun(const char* word, float size, material::Color colour, bool exact,
                float at = 0.75f, float offset = -65, float inset = 14) {
   return text(word)
       .styleClass("inscription")
-      .font({.size = size, .color = colour})
+      .font({.size = size, .color = material::skia::toSkColor(colour)})
       .inset(inset)
       .textOnPath({.path = shapes::circle(),
                    .at = at,
@@ -143,9 +145,9 @@ Element tangentDetail(weave::FontContext& fonts) {
                      : 0u;
       };
       *overlay.getAddr32(x, y) =
-          SkPreMultiplyARGB(alpha, channel(kShared.fR, kSnapped.fR, kExact.fR),
-                            channel(kShared.fG, kSnapped.fG, kExact.fG),
-                            channel(kShared.fB, kSnapped.fB, kExact.fB));
+          SkPreMultiplyARGB(alpha, channel(kShared.r, kSnapped.r, kExact.r),
+                            channel(kShared.g, kSnapped.g, kExact.g),
+                            channel(kShared.b, kSnapped.b, kExact.b));
     }
   }
   overlay.setImmutable();
@@ -156,7 +158,7 @@ Element tangentDetail(weave::FontContext& fonts) {
                        std::clamp(peak.y() - kCrop.height() / 2, 0,
                                   kRaster.height() - kCrop.height()),
                        kCrop.width(), kCrop.height());
-  const SkColor4f marker = sketch::kit::theme().palette.ash;
+  const material::Color marker = sketch::kit::theme().palette.ash;
   const SkRect overview =
       SkRect::Make(ink.isEmpty() ? SkIRect::MakeSize(kRaster) : ink);
   const float scale =
@@ -197,7 +199,7 @@ struct ExactTangent {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Provide look(sketch::kit::studyTheme());
-    const SkColor4f figure = sketch::kit::theme().palette.figure;
+    const material::Color figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(
         sketch::kit::page(

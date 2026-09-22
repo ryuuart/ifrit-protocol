@@ -53,6 +53,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
@@ -67,6 +68,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace data = sigil::data;
@@ -82,7 +84,7 @@ const char* kDesk = "osc://:27070";         // where the desk's messages land
 const char* kRecording = "data/desk.feed";  // what a capture replays
 
 constexpr SkSize kCanvas = {1280, 720};
-constexpr SkColor4f kGround = {0.04f, 0.04f, 0.09f, 1};
+constexpr material::Color kGround = {0.04f, 0.04f, 0.09f, 1};
 /** A gust is in the air and the colours have turned once by here. */
 constexpr double kCaptureAt = 2.0;
 
@@ -106,7 +108,7 @@ constexpr float kWindSpan = 34.0f;  // the reading the drawn fader reads as full
  *  something read off a message. */
 constexpr size_t kTints = 3;
 constexpr size_t kChannels = 3;
-using Palette = std::array<SkColor4f, kTints>;
+using Palette = std::array<material::Color, kTints>;
 
 /** WHAT THE SKY IS BEFORE THE DESK HAS SAID ANYTHING. A canvas nobody
  *  is sending to is still a sky, so there is nothing to wait for and no
@@ -300,9 +302,9 @@ struct OscDesk {
     // the theme in force is no longer this page's, so the colours the
     // faders are drawn in are read here and carried in by value.
     const sketch::kit::Theme& look = sketch::kit::theme();
-    const SkColor4f rule = look.palette.rule;
-    const SkColor4f figure = look.palette.figure;
-    const SkColor4f ash = look.palette.ash;
+    const material::Color rule = look.palette.rule;
+    const material::Color figure = look.palette.figure;
+    const material::Color ash = look.palette.ash;
     compose::Element picture =
         compose::stack()
             .width(kCanvas.width())
@@ -338,8 +340,8 @@ struct OscDesk {
     const float lift = std::min(gust() * kGustLift, 1.0f - kBandAlpha);
     size_t index = 0;
     for (const Band& band : kBands) {
-      SkColor4f tint = palette[index % kTints];
-      tint.fA = std::min(tint.fA + lift, 1.0f);
+      material::Color tint = palette[index % kTints];
+      tint.a = std::min(tint.a + lift, 1.0f);
       pen.fill(tint);
       const double travelled = drift + (double)band.speed * seconds;
       const float phase =
@@ -358,7 +360,7 @@ struct OscDesk {
    *  and the gust standing over it. They are drawn rather than
    *  written because a description carrying a number that changes every
    *  frame is a description rebuilt every frame. */
-  void faders(Pen& pen, SkColor4f rule, SkColor4f figure, SkColor4f ash) {
+  void faders(Pen& pen, material::Color rule, material::Color figure, material::Color ash) {
     constexpr float kLength = 220.0f;
     constexpr float kThickness = 6.0f;
     constexpr float kLabelGap = 56.0f;  // room for the word beside a bar

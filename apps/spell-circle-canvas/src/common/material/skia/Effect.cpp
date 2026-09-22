@@ -13,6 +13,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/core/Program.h>  // reportOnce
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 
@@ -217,9 +218,9 @@ Effect Effect::recipe(const Material& material, SkColorType surface) {
   return recipe(material);
 }
 
-Effect Effect::glow(SkColor4f color, float sigma) {
-  return filter(SkImageFilters::DropShadow(0, 0, sigma, sigma,
-                                           color.toSkColor(), nullptr));
+Effect Effect::glow(material::Color color, float sigma) {
+  return filter(SkImageFilters::DropShadow(
+      0, 0, sigma, sigma, toSkColor(color).toSkColor(), nullptr));
 }
 
 Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,

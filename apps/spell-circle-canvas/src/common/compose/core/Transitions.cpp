@@ -7,6 +7,9 @@
  * cascade order a stagger deals its units in.
  */
 
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
+
 #include <chrono>
 
 #include "ComposeRuntime.h"
@@ -248,11 +251,9 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
       auto& anim = inst.anims[Instance::kFillLerp];
       if (anim && anim->started && anim->value.isConnected()) {
         const float t = anim->value.value();
-        for (int i = 0; i < 4; ++i)
-          from.colorValue.vec()[i] = inst.fillFrom.colorValue.vec()[i] +
-                                     (inst.fillTo.colorValue.vec()[i] -
-                                      inst.fillFrom.colorValue.vec()[i]) *
-                                         t;
+        const material::Color& a = inst.fillFrom.colorValue;
+        const material::Color& b = inst.fillTo.colorValue;
+        from.colorValue = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
       }
       inst.fillFrom = std::move(from);
       inst.fillTo = nextFill.target;
@@ -268,13 +269,14 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   // next ink with no transition, or one read from a custom property, is a
   // snap, and disconnects any easing in flight so the description lands.
   const auto declaredInk =
-      [](const ElementNode& n) -> std::optional<SkColor4f> {
+      [](const ElementNode& n) -> std::optional<material::Color> {
     if (!n.cascadeData || n.cascadeData->inkVar || !n.cascadeData->font)
       return std::nullopt;
-    return n.cascadeData->font->color;
+    if (!n.cascadeData->font->color) return std::nullopt;
+    return material::skia::toColor(*n.cascadeData->font->color);
   };
-  const std::optional<SkColor4f> prevInk = declaredInk(prev);
-  const std::optional<SkColor4f> nextInk = declaredInk(next);
+  const std::optional<material::Color> prevInk = declaredInk(prev);
+  const std::optional<material::Color> nextInk = declaredInk(next);
   if (!(nextInk && nd)) {
     if (auto& anim = inst.anims[Instance::kInkLerp]; anim && anim->started) {
       anim->value.disconnect();
@@ -284,13 +286,13 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   if (prevInk && nextInk && nd && !(*prevInk == *nextInk)) {
     // The colour on screen as the new "from": mid-easing, the value the
     // ramp stands at, so a retarget never snaps back to the old endpoint.
-    SkColor4f from = *prevInk;
+    material::Color from = *prevInk;
     auto& anim = inst.anims[Instance::kInkLerp];
     if (anim && anim->started && anim->value.isConnected()) {
       const float t = anim->value.value();
-      for (int i = 0; i < 4; ++i)
-        from.vec()[i] = inst.inkFrom.vec()[i] +
-                        (inst.inkTo.vec()[i] - inst.inkFrom.vec()[i]) * t;
+      const material::Color& a = inst.inkFrom;
+      const material::Color& b = inst.inkTo;
+      from = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
     }
     inst.inkFrom = from;
     inst.inkTo = *nextInk;

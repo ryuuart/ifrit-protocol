@@ -52,6 +52,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -93,7 +94,7 @@ class Pool {
  public:
   /** Appends one instance; returns its index. */
   size_t add(SkPoint position, int frame = 0, float rotateRadians = 0.0f,
-             float scale = 1.0f, SkColor4f tint = {1, 1, 1, 1});
+             float scale = 1.0f, material::Color tint = {1, 1, 1, 1});
   void clear();
   void resize(size_t n);
   size_t size() const { return m_positions.size(); }
@@ -110,7 +111,7 @@ class Pool {
    *  units below both, off the palette, invisibly. For exact palette
    *  swaps bake atlas VARIANTS — one cell per palette — and select by
    *  frame; tint only what may legitimately be scaled. */
-  std::span<SkColor4f> tints() { return m_tints; }
+  std::span<material::Color> tints() { return m_tints; }
   std::span<int> frames() { return m_frames; }
   /** Per-instance UV WINDOW inside the sprite's cell, as fractions of that
    *  cell ({0,0,1,1} is the whole thing). Opt-in like `sizes()`: the lane
@@ -196,7 +197,7 @@ class Pool {
   std::span<const SkPoint> positions() const { return m_positions; }
   std::span<const float> rotations() const { return m_rotations; }
   std::span<const float> scales() const { return m_scales; }
-  std::span<const SkColor4f> tints() const { return m_tints; }
+  std::span<const material::Color> tints() const { return m_tints; }
   std::span<const int> frames() const { return m_frames; }
   std::span<const SkSize> sizes() const { return m_sizes; }
   std::span<const SkRect> texWindows() const { return m_texWindows; }
@@ -217,7 +218,7 @@ class Pool {
   std::vector<SkPoint> m_positions;
   std::vector<float> m_rotations;
   std::vector<float> m_scales;
-  std::vector<SkColor4f> m_tints;
+  std::vector<material::Color> m_tints;
   std::vector<int> m_frames;
   std::vector<SkSize> m_sizes;       // empty unless sizes() was asked for
   std::vector<float> m_alphas;       // empty unless alphas() was asked for

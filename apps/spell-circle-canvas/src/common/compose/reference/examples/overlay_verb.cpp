@@ -9,8 +9,10 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -18,11 +20,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {600, 250};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kPlate = hexColor(0xd9a441);
-constexpr SkColor4f kInk = hexColor(0x1a1206);
-constexpr SkColor4f kVignette = hexColor(0x1a1206, 0.45f);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kPlate = hexColor(0xd9a441);
+constexpr material::Color kInk = hexColor(0x1a1206);
+constexpr material::Color kVignette = hexColor(0x1a1206, 0.45f);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
 
 /** A band 56 px wide inside the node's own boundary — wide enough to
  *  cross the digit standing in the middle of it, so which slot it is in
@@ -38,15 +40,18 @@ Element cell(const char* caption, Element plate) {
       .flexBasis(0)
       .flexGrow(1)
       .alignItems(Align::Center)
-      .children({plate.width(pct(100))
-                     .height(120)
-                     .borderRadius({10})
-                     .fill(kPlate)
-                     .overflow(Overflow::Clip)
-                     .justifyContent(Justify::Center)
-                     .alignItems(Align::Center)
-                     .children({text("47").font({.size = 52, .color = kInk})}),
-                 text(caption).font({.size = 12, .color = kAsh})});
+      .children(
+          {plate.width(pct(100))
+               .height(120)
+               .borderRadius({10})
+               .fill(kPlate)
+               .overflow(Overflow::Clip)
+               .justifyContent(Justify::Center)
+               .alignItems(Align::Center)
+               .children({text("47").font(
+                   {.size = 52, .color = material::skia::toSkColor(kInk)})}),
+           text(caption).font(
+               {.size = 12, .color = material::skia::toSkColor(kAsh)})});
 }
 
 }  // namespace

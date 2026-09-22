@@ -7,8 +7,10 @@
  */
 
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -16,11 +18,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {520, 300};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kPlate = hexColor(0x223039);
-constexpr SkColor4f kInk = hexColor(0xe8eef2);
-constexpr SkColor4f kBadge = hexColor(0xd8603f);
-constexpr SkColor4f kWash = hexColor(0x0d1116, 0.55f);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kPlate = hexColor(0x223039);
+constexpr material::Color kInk = hexColor(0xe8eef2);
+constexpr material::Color kBadge = hexColor(0xd8603f);
+constexpr material::Color kWash = hexColor(0x0d1116, 0.55f);
 
 }  // namespace
 
@@ -51,10 +53,13 @@ struct StackElement {
                     .padding(5, 8)
                     .borderRadius({4})
                     .fill(kBadge)
-                    .children({text("NEW").font({.size = 12, .color = kInk})}),
+                    .children({text("NEW").font(
+                        {.size = 12,
+                         .color = material::skia::toSkColor(kInk)})}),
                 // A caption pinned to the other three edges.
                 text("Every child shares the box.")
-                    .font({.size = 15, .color = kInk})
+                    .font(
+                        {.size = 15, .color = material::skia::toSkColor(kInk)})
                     .left(18)
                     .right(18)
                     .bottom(16),

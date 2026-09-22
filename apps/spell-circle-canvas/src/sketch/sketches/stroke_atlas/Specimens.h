@@ -16,6 +16,7 @@
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -33,6 +34,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
@@ -47,12 +49,12 @@ namespace {
 // ---------------------------------------------------------------------------
 // the plate's ink
 
-constexpr SkColor4f kPaper = {0.918f, 0.902f, 0.859f, 1};  // #EAE6DB
-constexpr SkColor4f kInk = {0.114f, 0.106f, 0.098f, 1};    // #1D1B19
-constexpr SkColor4f kInkSoft = {0.114f, 0.106f, 0.098f, 0.55f};
-constexpr SkColor4f kRed = {0.663f, 0.157f, 0.125f, 1};    // #A92820
-constexpr SkColor4f kBlue = {0.157f, 0.278f, 0.435f, 1};   // #28476F
-constexpr SkColor4f kGreen = {0.243f, 0.373f, 0.243f, 1};  // #3E5F3E
+constexpr material::Color kPaper = {0.918f, 0.902f, 0.859f, 1};  // #EAE6DB
+constexpr material::Color kInk = {0.114f, 0.106f, 0.098f, 1};    // #1D1B19
+constexpr material::Color kInkSoft = {0.114f, 0.106f, 0.098f, 0.55f};
+constexpr material::Color kRed = {0.663f, 0.157f, 0.125f, 1};    // #A92820
+constexpr material::Color kBlue = {0.157f, 0.278f, 0.435f, 1};   // #28476F
+constexpr material::Color kGreen = {0.243f, 0.373f, 0.243f, 1};  // #3E5F3E
 
 Fill ink() { return Fill::color(kInk); }
 Fill red() { return Fill::color(kRed); }
@@ -92,19 +94,19 @@ weave::StyleSheet voices() {
 
 /** The caption IS the call: monospaced, small, and set in the same ink as
  *  the body unless a caller asks for a lighter one. */
-Element call(const char* words, float size = 9.5f, SkColor4f c = kInk) {
-  return text(words).styleClass("call").font({.size = size, .color = c});
+Element call(const char* words, float size = 9.5f, material::Color c = kInk) {
+  return text(words).styleClass("call").font({.size = size, .color = material::skia::toSkColor(c)});
 }
-Element roman(const char* words, float size, SkColor4f c = kInk,
+Element roman(const char* words, float size, material::Color c = kInk,
               float tracking = 0) {
   return text(words).styleClass("roman").font(
-      {.size = size, .color = c, .track = tracking});
+      {.size = size, .color = material::skia::toSkColor(c), .track = tracking});
 }
-Element romanBold(const char* words, float size, SkColor4f c = kInk,
+Element romanBold(const char* words, float size, material::Color c = kInk,
                   float tracking = 0) {
   return text(words)
       .styleClass("romanBold")
-      .font({.size = size, .color = c, .track = tracking});
+      .font({.size = size, .color = material::skia::toSkColor(c), .track = tracking});
 }
 
 // ---------------------------------------------------------------------------
@@ -409,10 +411,10 @@ std::vector<Style> bandStyles() {
 }
 
 /** THE STAMPED — an element instanced along the run. */
-Element tick(SkColor4f c, float w, float h) {
+Element tick(material::Color c, float w, float h) {
   return box().width(w).height(h).fill(c);
 }
-Element lozenge(SkColor4f c, float r) {
+Element lozenge(material::Color c, float r) {
   return box()
       .width(r * 2)
       .height(r * 2)

@@ -47,7 +47,7 @@ struct ThunderFulu {
     int cls = TURN;
     float t0 = 0, t1 = 1;
     bool dry = false;  // 飛白
-    SkColor4f ink = kCinnabar;
+    sigil::material::Color ink = kCinnabar;
     std::string key;
     // the foot is ONE contour of 75 spans: 38 strokes and 37 ligatures
     std::vector<std::array<float, 3>>
@@ -68,8 +68,8 @@ struct ThunderFulu {
   Element inkStroke(const Stroke& s) const;
 
   /** Register a stroke: measure it, size its box to its own content. */
-  void push(SkPath p, float w0, int cls, float t0, float t1, SkColor4f ink,
-            std::string key, bool dry = false,
+  void push(SkPath p, float w0, int cls, float t0, float t1,
+            sigil::material::Color ink, std::string key, bool dry = false,
             std::vector<std::array<float, 3>> spans = {});
 
   /** 雲篆. Strokes 「盤曲如雲」 — twisted like winding cloud. The wander is a

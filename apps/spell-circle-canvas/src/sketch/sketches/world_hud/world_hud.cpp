@@ -109,16 +109,16 @@ struct WorldHud {
    *  and a quad sized from `2 d tan(fov/2)` is short of the frustum by
    *  that unit — which is a resample of the whole overlay, the one thing
    *  this quad exists to avoid. */
-  world::Element overlayQuad(material::Texture texture) {
+  world::Element overlayQuad(sigil::material::Texture texture) {
     const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
     constexpr float kAt = 60.0f;
     const SkSize frame =
         lens.extentAt(kAt, kSceneSize.fWidth / kSceneSize.fHeight);
     const float h = frame.height(), w = frame.width();
     const glm::vec3 at = lens.eye + forward * kAt;
-    material::Material surface =
-        material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-    surface.slot(material::kit::kBaseColorSlot, std::move(texture));
+    sigil::material::Material surface =
+        sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}});
+    surface.slot(sigil::material::kit::kBaseColorSlot, std::move(texture));
     return world::Element()
         .key("overlay")
         .transform(
@@ -146,7 +146,7 @@ struct WorldHud {
     scene.children({world::Element()
                         .key("terrain")
                         .mesh(valley)
-                        .fill(material::kit::surface(
+                        .fill(sigil::material::kit::surface(
                             {.baseColor = {1, 1, 1, 1}, .roughness = 0.92f}))
                         .tag("terrain")});
 
@@ -178,8 +178,8 @@ struct WorldHud {
              .children({box()
                             .rect(SkRect::MakeWH(wh::kHealthW, wh::kHealthH))
                             .borderRadius({2})
-                            .fill(Paint::solid({wh::kCritHp.fR, wh::kCritHp.fG,
-                                                wh::kCritHp.fB, 0.55f}))
+                            .fill(Paint::solid({wh::kCritHp.r, wh::kCritHp.g,
+                                                wh::kCritHp.b, 0.55f}))
                             .opacity(&lowPulse)
                             .blendMode(SkBlendMode::kPlus),
                         text("640 / 1030")
@@ -298,13 +298,13 @@ struct WorldHud {
                             {0.030f, 4, 2.0f, 0.55f, SkBlendMode::kOverlay},
                             {0.070f, 2, 5.0f, 0.30f, SkBlendMode::kMultiply}};
     // a marker on the map: a small rounded pip at a fraction of the dial
-    const auto pin = [](float u, float v, SkColor4f ink) {
+    const auto pin = [](float u, float v, sigil::material::Color ink) {
       return box()
           .rect(SkRect::MakeXYWH(d * u, d * v, 6.0f, 6.0f))
           .borderRadius({3})
           .fill(Paint::solid(ink));
     };
-    const SkColor4f bone = wh::kBoneHi;
+    const sigil::material::Color bone = wh::kBoneHi;
     return stack()
         .key("minimap")
         .right(28)
@@ -335,10 +335,9 @@ struct WorldHud {
                             // the rivers Veloren's world always has
                             box()
                                 .inset(0)
-                                .fill(Pattern(mpattern::stripes(
-                                                  2, 47,
-                                                  mskia::toColor(hexColor(
-                                                      0x2F6FA8, 0.30f))))
+                                .fill(Pattern(
+                                          mpattern::stripes(
+                                              2, 47, hexColor(0x2F6FA8, 0.30f)))
                                           .material())
                                 .rotate(24.0f)
                                 .opacity(0.7f)}),
@@ -349,16 +348,16 @@ struct WorldHud {
                  .rect(SkRect::MakeXYWH(d * 0.5f - 23, d * 0.5f - 23, 46.0f,
                                         46.0f))
                  .rotate(&compass)
-                 .children({box()
-                                .inset(0)
-                                .shape(shapes::star(8, 0.34f))
-                                .fill(Paint::solid(
-                                    {bone.fR, bone.fG, bone.fB, 0.30f})),
-                            box()
-                                .inset(9)
-                                .shape(shapes::star(4, 0.22f))
-                                .fill(Paint::solid(
-                                    {bone.fR, bone.fG, bone.fB, 0.62f}))}),
+                 .children(
+                     {box()
+                          .inset(0)
+                          .shape(shapes::star(8, 0.34f))
+                          .fill(Paint::solid({bone.r, bone.g, bone.b, 0.30f})),
+                      box()
+                          .inset(9)
+                          .shape(shapes::star(4, 0.22f))
+                          .fill(
+                              Paint::solid({bone.r, bone.g, bone.b, 0.62f}))}),
              box()
                  .rect(SkRect::MakeXYWH(d * 0.5f - 4, d * 0.5f - 4, 8.0f, 8.0f))
                  .shape(shapes::polygon(3))
@@ -394,12 +393,12 @@ struct WorldHud {
     using namespace std::chrono_literals;
     struct Pip {
       const char* label;
-      SkColor4f color;
+      sigil::material::Color color;
       float left;
     };
     // The ring is the outline itself, trimmed: a fraction of the way
     // round is a fraction of the buff left.
-    auto drainRing = [](SkColor4f colour, float left) {
+    auto drainRing = [](sigil::material::Color colour, float left) {
       PathFormat ring = stroke(2.6f, Fill::color(colour));
       ring.cap = SkPaint::kRound_Cap;
       ring.trimStart = 0.0f;
@@ -428,8 +427,8 @@ struct WorldHud {
               .fill(Paint::linear(
                   {0, 0}, {0, 30},
                   {{0.0f, hexColor(0x2A2118)}, {1.0f, hexColor(0x120C08)}}))
-              .foreground(stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
-                                                    p.color.fB, 0.28f})))
+              .foreground(stroke(
+                  1.4f, Fill::color({p.color.r, p.color.g, p.color.b, 0.28f})))
               // THE DRAIN RING: the same outline stroked again, trimmed
               // to what is left of the buff. One node, two decorations —
               // a trim window is per decoration, so the spent part and
@@ -458,7 +457,7 @@ struct WorldHud {
     using namespace std::chrono_literals;
     struct Line {
       const char* text;
-      SkColor4f color;
+      sigil::material::Color color;
     };
     static const Line kLines[] = {
         {"Sunsteel Greatsword", wh::kQualityLegendary},
@@ -482,15 +481,15 @@ struct WorldHud {
               .gap(7)
               .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
               .translateX(animate(motion::from(-24.0f).to(0.0f), {480ms}))
-              .children({box()
-                             .width(16.0f)
-                             .height(16.0f)
-                             .borderRadius({2})
-                             .fill(Paint::solid({l.color.fR * 0.28f,
-                                                 l.color.fG * 0.28f,
-                                                 l.color.fB * 0.28f, 1}))
-                             .foreground(stroke(1.0f, Fill::color(l.color))),
-                         text(l.text).font(wh::line(11, 0.4f)).ink(l.color)});
+              .children(
+                  {box()
+                       .width(16.0f)
+                       .height(16.0f)
+                       .borderRadius({2})
+                       .fill(Paint::solid({l.color.r * 0.28f, l.color.g * 0.28f,
+                                           l.color.b * 0.28f, 1}))
+                       .foreground(stroke(1.0f, Fill::color(l.color))),
+                   text(l.text).font(wh::line(11, 0.4f)).ink(l.color)});
         }));
   }
 

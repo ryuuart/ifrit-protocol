@@ -6,8 +6,10 @@
  */
 
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -15,10 +17,10 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {640, 250};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kBed = hexColor(0xc4763c);
-constexpr SkColor4f kDisc = hexColor(0x4f8fd8);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kBed = hexColor(0xc4763c);
+constexpr material::Color kDisc = hexColor(0x4f8fd8);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
 
 /** One bed with one disc over it, the disc blended as named. */
 Element cell(const char* caption, SkBlendMode mode) {
@@ -42,7 +44,8 @@ Element cell(const char* caption, SkBlendMode mode) {
                                                         .blendMode(mode)
                                                         .left(pct(30))
                                                         .top(18)}),
-           text(caption).font({.size = 12, .color = kAsh})});
+           text(caption).font(
+               {.size = 12, .color = material::skia::toSkColor(kAsh)})});
 }
 
 }  // namespace

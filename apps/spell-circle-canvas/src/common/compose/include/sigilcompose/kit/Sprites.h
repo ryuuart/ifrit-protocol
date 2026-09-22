@@ -52,6 +52,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Shelf.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <optional>
@@ -106,20 +107,21 @@ struct PixelInk {
   /** Where the grid's origin sits on the canvas, in canvas pixels. */
   SkPoint at = {0, 0};
 
-  void rect(float x, float y, float w, float h, const SkColor4f& colour) const {
-    if (colour.fA <= 0) return;
+  void rect(float x, float y, float w, float h,
+            const material::Color& colour) const {
+    if (colour.a <= 0) return;
     SkPaint paint;
     paint.setAntiAlias(false);
-    paint.setColor4f(colour, nullptr);
+    paint.setColor4f(material::skia::toSkColor(colour), nullptr);
     canvas.drawRect(SkRect::MakeXYWH(at.fX + x * cell, at.fY + y * cell,
                                      w * cell, h * cell),
                     paint);
   }
-  void px(float x, float y, const SkColor4f& colour) const {
+  void px(float x, float y, const material::Color& colour) const {
     rect(x, y, 1, 1, colour);
   }
   /** A run of one row: [x, x + w) at row @p y. */
-  void row(float x, float y, float w, const SkColor4f& colour) const {
+  void row(float x, float y, float w, const material::Color& colour) const {
     rect(x, y, w, 1, colour);
   }
 };
@@ -155,7 +157,7 @@ struct Sprite {
    *  whose marks stop short of its edge still occupies its whole cell, and
    *  a sheet packs the cell. */
   SkISize grid{0, 0};
-  std::vector<SkColor4f> colours;
+  std::vector<material::Color> colours;
   std::vector<SpriteRun> runs;
 
   bool empty() const { return runs.empty(); }
@@ -163,7 +165,7 @@ struct Sprite {
   /** The index of @p colour, appended if this is its first use. Linear —
    *  a palette is a handful of entries, and holding a map beside it would
    *  cost more than the scan saves. */
-  int entry(const SkColor4f& colour) {
+  int entry(const material::Color& colour) {
     for (size_t i = 0; i < colours.size(); ++i)
       if (colours[i] == colour) return (int)i;
     colours.push_back(colour);
@@ -174,21 +176,21 @@ struct Sprite {
     if (w <= 0 || h <= 0 || index < 0) return;
     runs.push_back({x, y, w, h, index});
   }
-  void rect(float x, float y, float w, float h, const SkColor4f& colour) {
+  void rect(float x, float y, float w, float h, const material::Color& colour) {
     rect(x, y, w, h, entry(colour));
   }
   void px(float x, float y, int index) { rect(x, y, 1, 1, index); }
-  void px(float x, float y, const SkColor4f& colour) {
+  void px(float x, float y, const material::Color& colour) {
     rect(x, y, 1, 1, colour);
   }
   /** A run of one row: [x, x + w) at row @p y. */
   void row(float x, float y, float w, int index) { rect(x, y, w, 1, index); }
-  void row(float x, float y, float w, const SkColor4f& colour) {
+  void row(float x, float y, float w, const material::Color& colour) {
     rect(x, y, w, 1, colour);
   }
 
-  const SkColor4f& colourOf(int index) const {
-    static const SkColor4f none{0, 0, 0, 0};
+  const material::Color& colourOf(int index) const {
+    static const material::Color none{0, 0, 0, 0};
     return index >= 0 && (size_t)index < colours.size() ? colours[(size_t)index]
                                                         : none;
   }
@@ -204,7 +206,7 @@ struct Sprite {
  *  see `pixelMap`. */
 struct SpriteKey {
   std::string_view chars;
-  std::span<const SkColor4f> colours;
+  std::span<const material::Color> colours;
 };
 
 /** Read a character grid into a sprite: each character names a palette

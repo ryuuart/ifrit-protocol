@@ -16,6 +16,7 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/clock/FrameClock.h>
@@ -118,7 +119,7 @@ class Composer {
    *  seeds them from where it stands: a pen's guest from the pen, a scene
    *  painted into a texture from the node that shows it. Every field of
    *  @p font counts; one it leaves unset takes the initial value. */
-  void setInherited(const sigil::weave::Type& font, SkColor4f ink);
+  void setInherited(const sigil::weave::Type& font, material::Color ink);
 
   /** Output view transform (color management): applied to the composer's
    *  whole output as the final stage — one saveLayer while set, zero cost

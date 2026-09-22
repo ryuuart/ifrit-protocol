@@ -7,12 +7,14 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 using namespace sigil::draw;
@@ -26,7 +28,7 @@ struct Circle {
   SkPoint centre;
   float radius = 5.0f;
   bool growing = true;
-  SkColor4f colour;
+  material::Color colour;
 };
 
 struct ObservableCirclePacking {
@@ -88,8 +90,8 @@ struct ObservableCirclePacking {
     pen.background(0);
     pen.stroke(0, 110);
     for (const Circle& circle : circles) {
-      pen.fill(circle.colour.fR * 255.0f, circle.colour.fG * 255.0f,
-               circle.colour.fB * 255.0f);
+      pen.fill(circle.colour.r * 255.0f, circle.colour.g * 255.0f,
+               circle.colour.b * 255.0f);
       pen.circle(circle.centre.x(), circle.centre.y(), circle.radius * 2.0f);
     }
     addCircle(pen);

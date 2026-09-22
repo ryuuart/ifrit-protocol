@@ -68,7 +68,9 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
   return box()
       .width(100_pw)
       .height(100_ph)
-      .font({.face = faceMono, .size = 9.0f, .color = hexColor(0x9a8a68)})
+      .font({.face = faceMono,
+             .size = 9.0f,
+             .color = sigil::material::skia::toSkColor(hexColor(0x9a8a68))})
       .styleSheet(voices())
       .children({ground(), locator(), graticule(),
                  scrollBand(-90, kBreakL, "bandL", -0.42f),
@@ -108,9 +110,9 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
 
   // the fibre runs ALONG the roll: anisotropic luminance grain, not noise
   paperGrain = Paint::recipe(field::grain(1.15f, 4, 3326.0f, 0.42f, 5.5f));
-  paperSpeck = patterns::speckle(900, 34, 0.20f, 0.85f,
-                                 {skia::toColor(hexColor(0x6a5330, 0.10f)),
-                                  skia::toColor(hexColor(0x2a2118, 0.08f))});
+  paperSpeck =
+      patterns::speckle(900, 34, 0.20f, 0.85f,
+                        {hexColor(0x6a5330, 0.10f), hexColor(0x2a2118, 0.08f)});
   paperSpeck.seed(649);
 
   doc = sketch::kit::Document(ctx, "data/content.json");
@@ -127,9 +129,9 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
   // ring and the school fill bake into ONE sprite, so 1,460 dots stay one
   // draw and there is no second concentric pass.
   atlas = std::make_shared<instancing::CellSheet>(3.0f);
-  auto dot = [](SkColor4f fill, bool ring) {
+  auto dot = [](sigil::material::Color fill, bool ring) {
     auto e = box().width(11).height(11).shape(shapes::circle());
-    if (fill.fA > 0) e.fill(Fill::color(fill));
+    if (fill.a > 0) e.fill(Fill::color(fill));
     if (ring)
       e.stroke(PathFormat{.width = 1.15f,
                           .strokeFill = Fill::color(hexColor(0x1d1710, 0.92f)),

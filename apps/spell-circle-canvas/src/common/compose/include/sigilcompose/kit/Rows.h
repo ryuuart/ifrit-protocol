@@ -28,6 +28,7 @@
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/kit/Part.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <cstddef>
 #include <optional>
@@ -62,7 +63,7 @@ struct Reading {
    *  reads. Unset leaves each line in its own class's colour, which is
    *  the common case. It is a colour and not a class because WHICH rows
    *  are lit is the data's business and a sheet cannot say it. */
-  std::optional<SkColor4f> ink;
+  std::optional<material::Color> ink;
 };
 
 /** HOW A ROW IS SET — the widths, the mark and the air, with none of the
@@ -223,7 +224,7 @@ struct Bars {
    *  data's business and a sheet cannot say it, which is why this is a
    *  run beside the values rather than a look. A short run leaves the
    *  rows past its end as the props say. */
-  std::span<const SkColor4f> inks;
+  std::span<const material::Color> inks;
   /** THE FIGURE AFTER THE BAR, as a function of the VALUE, because how a
    *  number reads is the data's business and not the kit's. Empty is the
    *  value to the nearest whole number, in the class `readout`. */

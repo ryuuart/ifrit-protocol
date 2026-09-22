@@ -26,6 +26,7 @@
 #include <include/core/SkSamplingOptions.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilvideo/decode/Decode.h>
@@ -40,6 +41,7 @@
 #include <string_view>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace image = sigil::image;
 namespace io = sigil::io;
@@ -150,7 +152,7 @@ struct VideoCompositing {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
                              .captureAt = 4.25,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
 
     io::Hub& hub = ctx.assets.hub();
     std::shared_ptr<video::Playback> playback =
@@ -206,7 +208,9 @@ struct VideoCompositing {
             .cache(Cache::None);
 
     const weave::TextStyle title = weave::textStyle(
-        {.size = 34, .color = SkColor4f{1, 1, 1, 0.96f}, .track = 8.0f});
+        {.size = 34,
+         .color = material::skia::toSkColor(material::Color{1, 1, 1, 0.96f}),
+         .track = 8.0f});
     ctx.composer.render(stack().width(kWidth).height(kHeight).children(
         {std::move(stage),
          text(u8"SKY / SIGNAL", title)

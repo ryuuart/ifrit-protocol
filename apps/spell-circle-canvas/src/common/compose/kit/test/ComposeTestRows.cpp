@@ -248,7 +248,7 @@ TEST(KitRows, ABarsOwnInkStandsOverTheRowsPaintAndItsLines) {
   // say.
   const std::vector<sigil::compose::Utf8> labels = {u8"a", u8"b"};
   const std::vector<double> values = {40.0, 40.0};
-  const std::array<SkColor4f, 1> lit{{{0, 1, 0, 1}}};
+  const std::array<sigil::material::Color, 1> lit{{{0, 1, 0, 1}}};
   Host host(400, 200);
   host.composer.render(
       box()

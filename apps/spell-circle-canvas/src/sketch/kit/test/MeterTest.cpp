@@ -31,14 +31,14 @@ using sigil::sketch::test::fonts;
  *  way, the scaled edge is resolved by the transform rather than by
  *  layout, so the two are close and not equal. */
 TEST(SketchKitMeter, ABoundLevelFillsTheRailAsAFractionDoes) {
-  const SkColor4f figure = kit::houseTheme().palette.figure;
+  const sigil::material::Color figure = kit::houseTheme().palette.figure;
   const auto barAt = [&](float level, int x) {
     SkBitmap drawn =
         Drawn(kit::meter({.level = level, .width = compose::Dimension(200)}))
             .pixels();
-    const SkColor4f pixel = drawn.getColor4f(x, 2);
-    return std::abs(pixel.fR - figure.fR) < 0.02f &&
-           std::abs(pixel.fG - figure.fG) < 0.02f;
+    const sigil::material::Color pixel = drawn.getColor4f(x, 2);
+    return std::abs(pixel.r - figure.r) < 0.02f &&
+           std::abs(pixel.g - figure.g) < 0.02f;
   };
   EXPECT_TRUE(barAt(1.0f, 190));
   EXPECT_FALSE(barAt(0.25f, 190));
@@ -69,21 +69,21 @@ TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {
  *  from the cross-axis stretch would be a hairline wherever that axis is
  *  the horizontal one. */
 TEST(SketchKitMeter, TheBarFillsItsRailInsideAColumn) {
-  const SkColor4f figure = kit::houseTheme().palette.figure;
+  const sigil::material::Color figure = kit::houseTheme().palette.figure;
   SkBitmap drawn = Drawn(compose::box().column().children(
                              {kit::meter({.fraction = 0.5f,
                                           .width = compose::Dimension(200),
                                           .height = compose::Dimension(20)})}))
                        .pixels();
-  const SkColor4f pixel = drawn.getColor4f(40, 10);
-  EXPECT_NEAR(pixel.fR, figure.fR, 0.02f);
-  EXPECT_NEAR(pixel.fG, figure.fG, 0.02f);
+  const sigil::material::Color pixel = drawn.getColor4f(40, 10);
+  EXPECT_NEAR(pixel.r, figure.r, 0.02f);
+  EXPECT_NEAR(pixel.g, figure.g, 0.02f);
 }
 
 /** A KEYLINE AND AN INSET make the rail a bezelled gauge: the line is
  *  drawn inside the rail's own box and the fill is held off it. */
 TEST(SketchKitMeter, ABezelHoldsTheFillOffTheFrame) {
-  const SkColor4f figure = kit::houseTheme().palette.figure;
+  const sigil::material::Color figure = kit::houseTheme().palette.figure;
   SkBitmap drawn = Drawn(kit::meter({.fraction = 1.0f,
                                      .width = compose::Dimension(200),
                                      .height = compose::Dimension(24),
@@ -93,12 +93,12 @@ TEST(SketchKitMeter, ABezelHoldsTheFillOffTheFrame) {
                        .pixels();
   // Inside the inset the bar; on the edge the keyline, and neither is
   // the other.
-  const SkColor4f inside = drawn.getColor4f(100, 12);
-  EXPECT_NEAR(inside.fR, figure.fR, 0.02f);
-  EXPECT_NEAR(inside.fG, figure.fG, 0.02f);
-  const SkColor4f edge = drawn.getColor4f(100, 1);
-  EXPECT_GT(edge.fR, 0.5f);
-  EXPECT_LT(edge.fG, 0.3f);
+  const sigil::material::Color inside = drawn.getColor4f(100, 12);
+  EXPECT_NEAR(inside.r, figure.r, 0.02f);
+  EXPECT_NEAR(inside.g, figure.g, 0.02f);
+  const sigil::material::Color edge = drawn.getColor4f(100, 1);
+  EXPECT_GT(edge.r, 0.5f);
+  EXPECT_LT(edge.g, 0.3f);
 }
 
 /** A fraction outside 0..1 is clamped: a bar past its own end is a

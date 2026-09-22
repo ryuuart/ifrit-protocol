@@ -49,7 +49,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
     // Idle beacon on the art's readout cluster: the one light that
     // never stops blinking.
     art.children({at(box().borderRadius({3}), kStageW - 116, kArtH - 62, 6, 6)
-                      .fill(mskia::withAlpha(kSteelHi, 0.9f))
+                      .fill(sigil::material::withAlpha(kSteelHi, 0.9f))
                       .opacity(&beaconAlpha)});
     return art;
   }
@@ -57,20 +57,21 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   const SectionSpec& spec = kSections[(size_t)sec];
   // Title spreader, top right: the letterform block settles from
   // stretched-wide to rest as the section engages.
-  art.children({at(box()
-                       .row()
-                       .justifyContent(Justify::End)
-                       .alignItems(Align::Center)
-                       .gap(10)
-                       .children({box().flexGrow(1).height(1).fill(
-                                      mskia::withAlpha(kSteelHi, 0.55f)),
-                                  t(spec.tab, micro(14, kNear, 600)),
-                                  box().width(24).height(8).fill(
-                                      mskia::withAlpha(kSteelHi, 0.8f))}),
-                   kStageW - 560, 12, 540, 22)
-                    .opacity(0.25f + 0.75f * settle)
-                    .scaleX(1.5f - 0.5f * settle)
-                    .transformOrigin(pct(100), pct(50))});
+  art.children(
+      {at(box()
+              .row()
+              .justifyContent(Justify::End)
+              .alignItems(Align::Center)
+              .gap(10)
+              .children({box().flexGrow(1).height(1).fill(
+                             sigil::material::withAlpha(kSteelHi, 0.55f)),
+                         t(spec.tab, micro(14, kNear, 600)),
+                         box().width(24).height(8).fill(
+                             sigil::material::withAlpha(kSteelHi, 0.8f))}),
+          kStageW - 560, 12, 540, 22)
+           .opacity(0.25f + 0.75f * settle)
+           .scaleX(1.5f - 0.5f * settle)
+           .transformOrigin(pct(100), pct(50))});
   // Sub-nav tabs, centre top — sections without them page by arrows.
   if (spec.subnav[0]) {
     Element tabs = box().row().gap(2);
@@ -80,10 +81,11 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
             {kit::centred()
                  .height(17)
                  .padding(0, 10)
-                 .fill(mskia::withAlpha(kSeam, 0.92f))
-                 .stroke(stroke(1,
-                                Fill::color(mskia::withAlpha(kSteelHi, 0.45f)),
-                                PathFormat::Align::Inner))
+                 .fill(sigil::material::withAlpha(kSeam, 0.92f))
+                 .stroke(stroke(
+                     1,
+                     Fill::color(sigil::material::withAlpha(kSteelHi, 0.45f)),
+                     PathFormat::Align::Inner))
 
                  .children({t(s, micro(9, kNear, 200))})});
     art.children(
@@ -94,12 +96,13 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   // RETURN TO MAIN, bottom right.
   const data::Json& voice = doc["art"];
   art.children(
-      {at(t(voice["return"], micro(9, mskia::withAlpha(kNear, 0.85f), 200)),
+      {at(t(voice["return"],
+            micro(9, sigil::material::withAlpha(kNear, 0.85f), 200)),
           kStageW - 190, kArtH - 30, 180, 14)
            .opacity(settle),
        // MODULE.ENGAGED tick, bottom left — the riv's load-state voice.
        at(t(voice[settle >= 1.0f ? "engaged" : "loading"],
-            micro(9, mskia::withAlpha(kSteelHi, 0.8f), 240)),
+            micro(9, sigil::material::withAlpha(kSteelHi, 0.8f), 240)),
           18, kArtH - 30, 220, 14)});
   return art;
 }
@@ -115,10 +118,10 @@ Element TwoAdvancedV3::transitionArt(int fromSec, int toSec, int step) {
        box().inset(0).children({sectionArt(toSec, f)}).mask(by::edge(0, f))});
   // the leading band, one step wide, brightest at mid-sweep
   const float x = kStageW * f;
-  out.children(
-      {at(box().fill(mskia::withAlpha(kSteelHi, 0.85f)), x - 5, 0, 10, kArtH)
-           .blendMode(SkBlendMode::kScreen)
-           .opacity(0.28f + 0.5f * std::sin(f * 3.14159f))});
+  out.children({at(box().fill(sigil::material::withAlpha(kSteelHi, 0.85f)),
+                   x - 5, 0, 10, kArtH)
+                    .blendMode(SkBlendMode::kScreen)
+                    .opacity(0.28f + 0.5f * std::sin(f * 3.14159f))});
   return out;
 }
 
@@ -132,9 +135,10 @@ Element TwoAdvancedV3::module(const Utf8& glyph, const Utf8& barLabel,
           {moduleBar(glyph, barLabel, kPanelW),
            box()
                .flexGrow(1)
-               .fill(mskia::withAlpha(hexColor(0x4A5872), 0.80f))
-               .stroke(stroke(1, Fill::color(mskia::withAlpha(kSteelHi, 0.55f)),
-                              PathFormat::Align::Inner))
+               .fill(sigil::material::withAlpha(hexColor(0x4A5872), 0.80f))
+               .stroke(stroke(
+                   1, Fill::color(sigil::material::withAlpha(kSteelHi, 0.55f)),
+                   PathFormat::Align::Inner))
                .children({body.inset(0)})})
       .translateY(animate(motion::from(46.0f).to(0.0f),
                           {420ms, &ch::easeOutQuint,
@@ -160,21 +164,23 @@ Element TwoAdvancedV3::thumbPlate(Element content, const Utf8& btn) {
                .alignItems(Align::Center)
                .padding(0, 3)
                .children({box().width(28).height(4).fill(
-                   mskia::withAlpha(kSteelHi, 0.85f))}),
+                   sigil::material::withAlpha(kSteelHi, 0.85f))}),
            kit::centred()
                .height(96)
                .shape(shapes::chamfered(20, shapes::Corner::TopRight))
                .fill(hexColor(0x232E48))
-               .stroke(stroke(1, Fill::color(mskia::withAlpha(kSteelHi, 0.5f)),
-                              PathFormat::Align::Inner))
+               .stroke(stroke(
+                   1, Fill::color(sigil::material::withAlpha(kSteelHi, 0.5f)),
+                   PathFormat::Align::Inner))
 
                .children({std::move(content)}),
            kit::centred()
                .height(22)
                .shape(shapes::chamfered(14, shapes::Corner::BottomLeft))
                .fill(hexColor(0x313D5A))
-               .stroke(stroke(1, Fill::color(mskia::withAlpha(kSteelHi, 0.45f)),
-                              PathFormat::Align::Inner))
+               .stroke(stroke(
+                   1, Fill::color(sigil::material::withAlpha(kSteelHi, 0.45f)),
+                   PathFormat::Align::Inner))
 
                .children({text(btn).font(micro(11, kNear, 140))})});
 }
@@ -186,15 +192,20 @@ Element TwoAdvancedV3::riveLockup() {
   if (logoMark)
     row.children({box().width(34).height(34).fill(kNear).mask(
         by::alpha(stretchFill(logoMark, 34, 34)))});
-  row.children({text(page["plus"],
-                     sigil::weave::kit::tracked(
-                         grotBold(), 13, mskia::withAlpha(kNear, 0.9f), 0))});
+  row.children(
+      {text(page["plus"], sigil::weave::kit::tracked(
+                              grotBold(), 13,
+                              sigil::material::skia::toSkColor(
+                                  sigil::material::withAlpha(kNear, 0.9f)),
+                              0))});
   if (riveLogo)
     row.children(
         {box().width(44).height(44).fill(stretchFill(riveLogo, 44, 44))});
   else
-    row.children({text(page["rive"],
-                       sigil::weave::kit::tracked(grotBold(), 26, kNear, 0))});
+    row.children(
+        {text(page["rive"], sigil::weave::kit::tracked(
+                                grotBold(), 26,
+                                sigil::material::skia::toSkColor(kNear), 0))});
   return row;
 }
 
@@ -220,7 +231,7 @@ Element TwoAdvancedV3::subData() {
   if (!discordSeq.empty())
     icon.children({slot("discord")});
   else
-    icon.borderRadius({32}).fill(mskia::withAlpha(kSteel, 0.5f));
+    icon.borderRadius({32}).fill(sigil::material::withAlpha(kSteel, 0.5f));
   Element body =
       box()
           .column()
@@ -248,11 +259,14 @@ Element TwoAdvancedV3::updates() {
   using namespace tv3;
   const data::Json& page = doc["modules"]["updates"];
   Element body = box().row().padding(12).gap(12).children(
-      {thumbPlate(dddLogo ? box().width(56).height(72).fill(
-                                stretchFill(dddLogo, 56, 72))
-                          : text(page["mark"], sigil::weave::kit::tracked(
-                                                   grotBold(), 20, kNear, 100)),
-                  page["button"]),
+      {thumbPlate(
+           dddLogo
+               ? box().width(56).height(72).fill(stretchFill(dddLogo, 56, 72))
+               : text(page["mark"],
+                      sigil::weave::kit::tracked(
+                          grotBold(), 20,
+                          sigil::material::skia::toSkColor(kNear), 100)),
+           page["button"]),
        box().flexGrow(1).column().gap(8).children(
            {box()
                 .row()
@@ -266,31 +280,28 @@ Element TwoAdvancedV3::updates() {
 Element TwoAdvancedV3::mailingList() {
   using namespace tv3;
   const data::Json& page = doc["modules"]["mailing"];
-  Element body =
-      box()
-          .padding(8, 12)
-          .gap(6)
-          .children(
-              {t(page["prompt"], micro(11, hexColor(0xC7D0DD), 100)),
-               box()
-                   .row()
-                   .gap(8)
-                   .alignItems(Align::Center)
-                   .children(
-                       {box()
-                            .flexGrow(1)
-                            .height(22)
-                            .fill(mskia::withAlpha(kPage, 0.9f))
-                            .stroke(stroke(
-                                1, Fill::color(mskia::withAlpha(kSteel, 0.6f)),
-                                PathFormat::Align::Inner))
-                            .row()
-                            .alignItems(Align::Center)
-                            .padding(0, 7)
-                            .children({t(
-                                page["placeholder"],
-                                micro(9, mskia::withAlpha(kBody, 0.7f), 100))}),
-                        button(page["button"], 64)})});
+  Element body = box().padding(8, 12).gap(6).children(
+      {t(page["prompt"], micro(11, hexColor(0xC7D0DD), 100)),
+       box()
+           .row()
+           .gap(8)
+           .alignItems(Align::Center)
+           .children({box()
+                          .flexGrow(1)
+                          .height(22)
+                          .fill(sigil::material::withAlpha(kPage, 0.9f))
+                          .stroke(stroke(1,
+                                         Fill::color(sigil::material::withAlpha(
+                                             kSteel, 0.6f)),
+                                         PathFormat::Align::Inner))
+                          .row()
+                          .alignItems(Align::Center)
+                          .padding(0, 7)
+                          .children({t(
+                              page["placeholder"],
+                              micro(9, sigil::material::withAlpha(kBody, 0.7f),
+                                    100))}),
+                      button(page["button"], 64)})});
   return module(page["glyph"], page["bar"], std::move(body), 3);
 }
 
@@ -305,8 +316,8 @@ Element TwoAdvancedV3::support2a() {
         .gap(4)
         .alignItems(Align::Center)
         .children({t(side["head"], micro(11, kNear, 60)),
-                   t(side["copy"],
-                     prose(9, mskia::withAlpha(hexColor(0xC7D0DD), 0.95f))),
+                   t(side["copy"], prose(9, sigil::material::withAlpha(
+                                                hexColor(0xC7D0DD), 0.95f))),
                    box().flexGrow(1),
                    box()
                        .row()
@@ -335,7 +346,7 @@ Element TwoAdvancedV3::follow2a() {
     icons.row().gap(12);
     for (int i = 0; i < 7; ++i)
       icons.children({box().width(16).height(16).borderRadius({8}).fill(
-          mskia::withAlpha(kSteelHi, 0.8f))});
+          sigil::material::withAlpha(kSteelHi, 0.8f))});
   }
   Element body = kit::centred()
                      .column()

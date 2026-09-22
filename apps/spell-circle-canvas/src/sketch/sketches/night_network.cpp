@@ -54,6 +54,7 @@
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Shaper.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -63,6 +64,7 @@
 
 #include <cmath>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
 namespace mskia = sigil::material::skia;
@@ -85,17 +87,17 @@ namespace night_network {
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
-constexpr SkColor4f kInk{0.030f, 0.034f, 0.060f, 1};
-constexpr SkColor4f kInkHigh{0.065f, 0.075f, 0.125f, 1};
-constexpr SkColor4f kBone{0.94f, 0.92f, 0.87f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.63f, 1};
-constexpr SkColor4f kEmber{0.99f, 0.53f, 0.19f, 1};
-constexpr SkColor4f kCyan{0.36f, 0.86f, 0.96f, 1};
-constexpr SkColor4f kViolet{0.71f, 0.51f, 0.99f, 1};
-constexpr SkColor4f kSteel{0.52f, 0.53f, 0.58f, 1};
-constexpr SkColor4f kAmber{0.98f, 0.76f, 0.24f, 1};
-constexpr SkColor4f kRose{0.95f, 0.45f, 0.62f, 1};
-constexpr SkColor4f kAsphalt{0.23f, 0.25f, 0.32f, 1};
+constexpr material::Color kInk{0.030f, 0.034f, 0.060f, 1};
+constexpr material::Color kInkHigh{0.065f, 0.075f, 0.125f, 1};
+constexpr material::Color kBone{0.94f, 0.92f, 0.87f, 1};
+constexpr material::Color kAsh{0.55f, 0.56f, 0.63f, 1};
+constexpr material::Color kEmber{0.99f, 0.53f, 0.19f, 1};
+constexpr material::Color kCyan{0.36f, 0.86f, 0.96f, 1};
+constexpr material::Color kViolet{0.71f, 0.51f, 0.99f, 1};
+constexpr material::Color kSteel{0.52f, 0.53f, 0.58f, 1};
+constexpr material::Color kAmber{0.98f, 0.76f, 0.24f, 1};
+constexpr material::Color kRose{0.95f, 0.45f, 0.62f, 1};
+constexpr material::Color kAsphalt{0.23f, 0.25f, 0.32f, 1};
 
 /** Invisible keyed waypoint -- rivers and roads route through pins. */
 inline Element pin(const char* key, float x, float y) {
@@ -112,9 +114,9 @@ inline Element station(const char* key, float x, float y, float size = 16) {
       .height(size)
       .centerAt({x, y})
       .fill(Paint::recipe(
-          sdf::material(sdf::circle(), {.fill = mskia::toColor(kBone),
+          sdf::material(sdf::circle(), {.fill = mskia::toColor(material::skia::toSkColor(kBone)),
                                         .borderWidth = 2.5f,
-                                        .borderColor = mskia::toColor(kInk)})))
+                                        .borderColor = mskia::toColor(material::skia::toSkColor(kInk))})))
       .zIndex(6);
 }
 
@@ -130,9 +132,9 @@ inline Element label(const char* s, float x, float y) {
 /** The ARTLINE art cell: a stem with alternating leaf lenses — reads as a
  *  living vine once the art warp bends it (logical 48x16). */
 inline Element vineArt() {
-  constexpr SkColor4f kMoss{0.55f, 0.80f, 0.47f, 1};
-  constexpr SkColor4f kMossDeep{0.34f, 0.60f, 0.36f, 1};
-  auto leaf = [&](float x, float y, float deg, SkColor4f c) {
+  constexpr material::Color kMoss{0.55f, 0.80f, 0.47f, 1};
+  constexpr material::Color kMossDeep{0.34f, 0.60f, 0.36f, 1};
+  auto leaf = [&](float x, float y, float deg, material::Color c) {
     return box()
         .width(13)
         .height(7)
@@ -157,7 +159,7 @@ inline Element vineArt() {
 struct Legend {
   const char* name;
   const char* what;
-  SkColor4f ink;
+  material::Color ink;
 };
 
 inline const Legend kLegend[] = {
@@ -178,7 +180,7 @@ inline const Legend kLegend[] = {
 
 /** Legend row: the line's name in its own colour, the construction note
  *  in the root's ash, both one size. */
-inline Element legendRow(const char* name, const char* what, SkColor4f c,
+inline Element legendRow(const char* name, const char* what, material::Color c,
                          float y) {
   return box()
       .row()
@@ -201,7 +203,7 @@ struct NightNetwork {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace ch = choreograph;
@@ -287,7 +289,7 @@ struct NightNetwork {
     //    slot). dia. 190 circle -> circumference ~597 -> 8 stamps at 74.6.
     Element ringStamp =
         box().width(11).height(11).fill(Paint::recipe(sdf::material(
-            sdf::circle(), {.fill = mskia::toColor(nn::kBone),
+            sdf::circle(), {.fill = mskia::toColor(material::skia::toSkColor(nn::kBone)),
                             .borderWidth = 2.0f,
                             .borderColor = {0.30f, 0.18f, 0.48f, 1}})));
     Brush orbital;
@@ -335,7 +337,7 @@ struct NightNetwork {
     // -- 10. THE PIPELINE TRIO: three runs over IDENTICAL path points --
     //    only the geometry op differs (squiggly / zigzag / boxy). The
     //    whole point of the pipeline: restyle the line, never the route.
-    auto demoRun = [](path::Shaper op, SkColor4f c) {
+    auto demoRun = [](path::Shaper op, material::Color c) {
       Brush b;
       b.shaped(std::move(op));
       b.layer(lines::Line{.width = 2.2f, .fill = Fill::color(c)});
@@ -368,11 +370,11 @@ struct NightNetwork {
             .centerAt({436, 320})
             .fill(Paint::recipe(
                       sdf::material(sdf::star(8, 3.2f),
-                                    {.fill = mskia::toColor(nn::kBone),
+                                    {.fill = mskia::toColor(material::skia::toSkColor(nn::kBone)),
                                      .borderWidth = 2,
-                                     .borderColor = mskia::toColor(nn::kInk),
+                                     .borderColor = mskia::toColor(material::skia::toSkColor(nn::kInk)),
                                      .glowRadius = 6,
-                                     .glowColor = mskia::toColor(nn::kEmber)}))
+                                     .glowColor = mskia::toColor(material::skia::toSkColor(nn::kEmber))}))
                       .uniform("uGlowR", &hubGlow))
             .zIndex(7);
 
@@ -520,7 +522,7 @@ struct NightNetwork {
              nn::label("wharf lane", 82, 466), nn::label("north quay", 524, 98),
              nn::label("saltmarsh", 693, 477),
              nn::label("the smokewater", 668, 206)
-                 .ink(SkColor4f{0.45f, 0.62f, 0.78f, 1}),
+                 .ink(material::Color{0.45f, 0.62f, 0.78f, 1}),
              // ---- title + legend ----
              box()
                  .column()

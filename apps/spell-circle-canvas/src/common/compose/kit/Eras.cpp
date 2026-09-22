@@ -18,6 +18,7 @@
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Gloss.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/Color.h>
@@ -38,7 +39,8 @@ float AquaBody::bleed(SkSize size) const {
 
 void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
   const float H = ctx.size.height();
-  const sigil::material::Color t = material::skia::toColor(tint);
+  const sigil::material::Color t =
+      material::skia::toColor(material::skia::toSkColor(tint));
   if (opts.halo) {  // a lightened, half-transparent cast of the tint
     Shadow{material::skia::toSkColor(material::kit::aquaHalo(t)),
            {0, H * 0.25f},
@@ -84,11 +86,12 @@ void AquaGloss::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.restore();
 }
 
-LayerStyle aquaGel(SkColor4f tint, AquaGelOptions opts) {
+LayerStyle aquaGel(material::Color tint, AquaGelOptions opts) {
   PathFormat hairline;
   hairline.width = 1.0f;
-  hairline.strokeFill = Fill::color(material::skia::toSkColor(
-      material::kit::aquaHairline(material::skia::toColor(tint))));
+  hairline.strokeFill =
+      Fill::color(material::skia::toSkColor(material::kit::aquaHairline(
+          material::skia::toColor(material::skia::toSkColor(tint)))));
   hairline.align = PathFormat::Align::Inner;
   return LayerStyle{{Decoration(AquaBody{tint, opts})},
                     {Decoration(AquaGloss{.insetXFrac = opts.lensInsetXFrac,
@@ -100,7 +103,7 @@ LayerStyle aquaGel(SkColor4f tint, AquaGelOptions opts) {
                      Decoration(hairline)}};
 }
 
-LayerStyle aquaOrb(SkColor4f tint) {
+LayerStyle aquaOrb(material::Color tint) {
   AquaGelOptions opts;
   opts.lensInsetXFrac = 0.16f;
   opts.lensBottomFrac = 0.50f;
@@ -184,11 +187,11 @@ void GlossContour::paint(SkCanvas& c, const PaintContext& ctx) const {
   // coverage first would move the ring, and a translucent colour whose
   // alpha sits at the ring's centre would put the whole interior on the
   // peak.
-  p.setColor4f({color.fR, color.fG, color.fB, 1.0f}, nullptr);
-  const float alphaScale[20] = {1, 0, 0, 0,        0,  //
-                                0, 1, 0, 0,        0,  //
-                                0, 0, 1, 0,        0,  //
-                                0, 0, 0, color.fA, 0};
+  p.setColor4f({color.r, color.g, color.b, 1.0f}, nullptr);
+  const float alphaScale[20] = {1, 0, 0, 0,       0,  //
+                                0, 1, 0, 0,       0,  //
+                                0, 0, 1, 0,       0,  //
+                                0, 0, 0, color.a, 0};
   p.setImageFilter(SkImageFilters::ColorFilter(
       SkColorFilters::Compose(
           SkColorFilters::Matrix(alphaScale),
@@ -201,7 +204,7 @@ void GlossContour::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.restore();
 }
 
-GlossContour gloss(SkColor4f color, float sigma, SkVector offset,
+GlossContour gloss(material::Color color, float sigma, SkVector offset,
                    float ringCenter, float ringWidth) {
   GlossContour g;
   g.color = color;

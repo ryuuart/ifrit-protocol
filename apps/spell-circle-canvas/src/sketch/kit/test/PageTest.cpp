@@ -61,7 +61,8 @@ TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
     kit::stage(ctx, {.size = {100, 100}});
     EXPECT_EQ(specification.background, paper.palette.ground);
   }
-  kit::stage(ctx, {.size = {100, 100}, .background = SkColor4f{1, 0, 0, 1}});
+  kit::stage(ctx, {.size = {100, 100},
+                   .background = sigil::material::Color{1, 0, 0, 1}});
   EXPECT_EQ(specification.background, (SkColor4f{1, 0, 0, 1}));
 }
 
@@ -75,9 +76,10 @@ TEST(SketchKitStage, ASetDeclaresTheSameThreeThings) {
                                 .specification = &specification,
                                 .eye = &eye};
 
-  kit::stage(ctx, {.size = {640, 440},
-                   .captureAt = 1.3,
-                   .background = SkColor4f{0.03f, 0.035f, 0.05f, 1}});
+  kit::stage(ctx,
+             {.size = {640, 440},
+              .captureAt = 1.3,
+              .background = sigil::material::Color{0.03f, 0.035f, 0.05f, 1}});
   EXPECT_EQ(specification.size, (SkSize{640, 440}));
   EXPECT_EQ(specification.captureSeconds, 1.3);
   EXPECT_EQ(specification.background, (SkColor4f{0.03f, 0.035f, 0.05f, 1}));
@@ -92,9 +94,12 @@ TEST(SketchKitStage, ASetDeclaresTheSameThreeThings) {
  *  theme is the sheet those sheets spelled by hand. */
 TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
   const kit::Theme& house = kit::houseTheme();
-  const auto label = [&](float size, SkColor4f color, float track) {
-    return sigil::weave::Type{
-        .face = house.type.sans, .size = size, .color = color, .track = track};
+  const auto label = [&](float size, sigil::material::Color color,
+                         float track) {
+    return sigil::weave::Type{.face = house.type.sans,
+                              .size = size,
+                              .color = sigil::material::skia::toSkColor(color),
+                              .track = track};
   };
   // By hand the three lines are three classes of a sheet stated on the
   // page, which is exactly what the register names resolve to under the

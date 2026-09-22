@@ -46,6 +46,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
@@ -60,6 +61,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace data = sigil::data;
@@ -77,7 +79,7 @@ const char* kPages = "data/pages";           // where index.html stands
 const char* kRecording = "data/phone.feed";  // what a capture replays
 
 constexpr SkSize kCanvas = {1280, 720};
-constexpr SkColor4f kGround = {0.04f, 0.04f, 0.09f, 1};
+constexpr material::Color kGround = {0.04f, 0.04f, 0.09f, 1};
 /** A palette turn has landed and a gust is half a second old, which is
  *  the frame that shows both things a phone can do. */
 constexpr double kCaptureAt = 2.5;
@@ -107,7 +109,7 @@ constexpr float kBandAlpha = 0.82f;  // what a colour off the wire is drawn at
 
 /** The colours the bands are tinted from, in turn. */
 constexpr size_t kTints = 3;
-using Palette = std::array<SkColor4f, kTints>;
+using Palette = std::array<material::Color, kTints>;
 
 /** What the sky is tinted from until a phone turns it — the first of
  *  the three a page's buttons send. */
@@ -320,10 +322,10 @@ struct PhoneSky {
                              {"height", (double)kBands[index].height},
                              {"offset", toThePhone(phaseOf(index))}});
     data::Json::Array colours;
-    for (const SkColor4f& tint : palette)
-      colours.push_back(data::Json::Array{toThePhone(tint.fR),
-                                          toThePhone(tint.fG),
-                                          toThePhone(tint.fB), tint.fA});
+    for (const material::Color& tint : palette)
+      colours.push_back(data::Json::Array{toThePhone(tint.r),
+                                          toThePhone(tint.g),
+                                          toThePhone(tint.b), tint.a});
     return data::Json::Object{{"kind", "Sky"},
                               {"width", (double)kCanvas.width()},
                               {"height", (double)kCanvas.height()},

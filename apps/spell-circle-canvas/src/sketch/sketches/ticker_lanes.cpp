@@ -43,6 +43,7 @@
 #include <choreograph/Choreograph.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilmotion/values/Time.h>
@@ -55,6 +56,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 namespace weave = sigil::weave;
@@ -74,7 +76,7 @@ constexpr double kFixedHz = 5.0;      // the fixed steppable's rate
 constexpr int kLevels = 6;            // levels the derivation quantizes to
 constexpr float kRamp = 1.4f;         // the timeline motion's duration
 
-constexpr SkColor4f kSecond{0.46f, 0.72f, 0.92f, 1};
+constexpr material::Color kSecond{0.46f, 0.72f, 0.92f, 1};
 
 /** One recorded lane: a value per tick, plotted left to right. */
 using Lane = std::vector<double>;
@@ -108,8 +110,8 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> lanes) {
  *  against. */
 weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
   weave::StyleSheet classes = look.styleSheet();
-  classes.set("second", {.color = kSecond});
-  classes.set("source", {.color = look.palette.ash});
+  classes.set("second", {.color = material::skia::toSkColor(kSecond)});
+  classes.set("source", {.color = material::skia::toSkColor(look.palette.ash)});
   return classes;
 }
 

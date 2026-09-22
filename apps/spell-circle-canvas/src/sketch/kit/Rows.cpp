@@ -2,6 +2,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Rows.h>
 #include <sigildata/table/Table.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/kit/Rows.h>
 
@@ -90,7 +91,7 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
   std::vector<std::span<const Utf8>> cells;
   std::vector<compose::SurfacePaint> swatches;
   std::vector<std::string> keys;
-  std::vector<std::optional<SkColor4f>> inks;
+  std::vector<std::optional<material::Color>> inks;
   cells.reserve(rows.size());
   swatches.reserve(rows.size());
   keys.reserve(rows.size());
@@ -147,7 +148,7 @@ compose::Element bars(std::span<const compose::Utf8> labels,
       .rowGap = how.rowGap.value_or(look.spacing.rowGap),
       .bar = how.bar.value_or(Fill::color(look.palette.figure)),
       .rest = how.rest.value_or(
-          Fill::color(material::skia::withAlpha(look.palette.figure, 0.25f))),
+          Fill::color(sigil::material::withAlpha(look.palette.figure, 0.25f))),
       .inks = how.inks};
   const Registers set = registers(look);
   specification.labelLine = [quiet = set.quiet](const Utf8& words) {

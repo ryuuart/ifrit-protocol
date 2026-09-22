@@ -86,6 +86,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -110,6 +111,7 @@
 
 namespace arrange = sigil::geometry::arrange;
 namespace data = sigil::data;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace motion = sigil::motion;
@@ -132,10 +134,12 @@ namespace {
 // palette — sampled from the scan (patch means + the darkest/lightest
 // deciles, which separate "ink dot" from "paper showing through")
 
-constexpr SkColor4f kPaper = hexColor(0xf2e9d9);  // aged ivory, WARM CREAM
-constexpr SkColor4f kInk = hexColor(0x241c15);    // engraver's warm black-brown
-constexpr SkColor4f kInkSoft = hexColor(0x241c15, 0.55f);
-constexpr SkColor4f kFox = hexColor(0xc9a688, 0.10f);
+constexpr material::Color kPaper =
+    hexColor(0xf2e9d9);  // aged ivory, WARM CREAM
+constexpr material::Color kInk =
+    hexColor(0x241c15);  // engraver's warm black-brown
+constexpr material::Color kInkSoft = hexColor(0x241c15, 0.55f);
+constexpr material::Color kFox = hexColor(0xc9a688, 0.10f);
 
 // per band: the paper-side wash and the ink dot laid over it
 // Read off the lithograph rather than off a modern chart of it: the blue
@@ -143,12 +147,12 @@ constexpr SkColor4f kFox = hexColor(0xc9a688, 0.10f);
 // cream. A saturated teal and a salmon on a pink-lilac ground are the
 // same data a stop or two too strong, and at that strength the sheet
 // stops looking like a stone-printed diagram.
-constexpr SkColor4f kBlueWash = hexColor(0xccd9e0);
-constexpr SkColor4f kBlueInk = hexColor(0x5d7f8c);
-constexpr SkColor4f kRoseWash = hexColor(0xe6cec6);
-constexpr SkColor4f kRoseInk = hexColor(0xb07a6a);
-constexpr SkColor4f kGreyWash = hexColor(0xd9d0c8);
-constexpr SkColor4f kGreyInk = hexColor(0x241f19);
+constexpr material::Color kBlueWash = hexColor(0xccd9e0);
+constexpr material::Color kBlueInk = hexColor(0x5d7f8c);
+constexpr material::Color kRoseWash = hexColor(0xe6cec6);
+constexpr material::Color kRoseInk = hexColor(0xb07a6a);
+constexpr material::Color kGreyWash = hexColor(0xd9d0c8);
+constexpr material::Color kGreyInk = hexColor(0x241f19);
 
 // ---------------------------------------------------------------------------
 // geometry — canvas 1900x1032 keeps the plate's 35:19 ratio
@@ -548,7 +552,9 @@ struct NightingaleCoxcomb {
                   SkFont f(faceDisplay, 46);
                   SkPaint p;
                   p.setAntiAlias(true);
-                  p.setColor4f(hexColor(0x241c15, 0.055f), nullptr);
+                  p.setColor4f(
+                      material::skia::toSkColor(hexColor(0x241c15, 0.055f)),
+                      nullptr);
                   canvas.save();
                   canvas.translate(760, 118);  // mirrored: the verso title
                   canvas.scale(-1, 1);
@@ -578,12 +584,16 @@ struct NightingaleCoxcomb {
     // An emboldening underlay lives on a whole style, so the two titles
     // and the ring labels carry theirs and inherit nothing.
     const auto title1 = kit::emboldened(
-        weave::textStyle(
-            {.face = faceDisplay, .size = 39, .color = kInk, .track = 0.8f}),
+        weave::textStyle({.face = faceDisplay,
+                          .size = 39,
+                          .color = material::skia::toSkColor(kInk),
+                          .track = 0.8f}),
         2.0f, kInk);
     const auto title2 = kit::emboldened(
-        weave::textStyle(
-            {.face = faceGrotesque, .size = 27, .color = kInk, .track = 0.4f}),
+        weave::textStyle({.face = faceGrotesque,
+                          .size = 27,
+                          .color = material::skia::toSkColor(kInk),
+                          .track = 0.4f}),
         0.9f, kInk);
 
     Track t1{.effect = fx::typeOn(),
@@ -653,16 +663,24 @@ struct NightingaleCoxcomb {
 
     // ---- the ring labels: each hugging its own wedge's rim ----------
     const auto labelStyle = kit::emboldened(
-        weave::textStyle(
-            {.face = faceLabel, .size = 20, .color = kInk, .track = 0.4f}),
+        weave::textStyle({.face = faceLabel,
+                          .size = 20,
+                          .color = material::skia::toSkColor(kInk),
+                          .track = 0.4f}),
         0.35f, kInk);
-    const auto smallLabel = weave::textStyle(
-        {.face = faceLabel, .size = 12, .color = kInk, .track = 0.0f});
+    const auto smallLabel =
+        weave::textStyle({.face = faceLabel,
+                          .size = 12,
+                          .color = material::skia::toSkColor(kInk),
+                          .track = 0.0f});
     // The two campaign annotations are tracked wider than the months.
     // A run on a path is shaped once, so tracking is part of the shaping
     // and belongs to the style rather than to the call.
-    const auto campaign = weave::textStyle(
-        {.face = faceLabel, .size = 16, .color = kInk, .track = 1.9f});
+    const auto campaign =
+        weave::textStyle({.face = faceLabel,
+                          .size = 16,
+                          .color = material::skia::toSkColor(kInk),
+                          .track = 1.9f});
     std::vector<Element> labels;
 
     // The floor is not decoration: twelve labels must fit the circumference
@@ -813,8 +831,8 @@ struct NightingaleCoxcomb {
     // Two speckle layers per band — a fine one for the tint itself and a
     // coarse sparse one so the ink density visibly wanders, which is what
     // separates a stone-printed tint from a flat vector fill.
-    auto band = [](SkColor4f wash, SkColor4f ink, int fine, int coarse,
-                   uint32_t seed, Pattern& grainOut) {
+    auto band = [](material::Color wash, material::Color ink, int fine,
+                   int coarse, uint32_t seed, Pattern& grainOut) {
       // THE TILE HAS TO BE BIGGER THAN THE EYE'S PATCH. A forty-pixel
       // stipple repeats a dozen times across a wheel, and at that pitch
       // the tile's own little clusters read as an ordered motif — which
@@ -822,12 +840,11 @@ struct NightingaleCoxcomb {
       // four times across the same wheel and the repeat stops being
       // findable; the mark count rises with the area so the density is
       // the density it was.
-      grainOut =
-          patterns::speckle(128, fine * 10, 0.25f, 0.66f, {skia::toColor(ink)});
+      grainOut = patterns::speckle(128, fine * 10, 0.25f, 0.66f, {ink});
       grainOut.seed(seed);
-      Pattern blot = patterns::speckle(
-          320, coarse * 8, 1.8f, 5.0f,
-          {skia::toColor(SkColor4f{ink.fR, ink.fG, ink.fB, 0.12f})});
+      Pattern blot =
+          patterns::speckle(320, coarse * 8, 1.8f, 5.0f,
+                            {material::Color{ink.r, ink.g, ink.b, 0.12f}});
       blot.seed(seed * 7 + 3);
       return Paint::blend(
           {{Paint::solid(wash), SkBlendMode::kSrc},
@@ -843,7 +860,7 @@ struct NightingaleCoxcomb {
     greyMat = band(kGreyWash, kGreyInk, 900, 18, 37, greyGrain);
 
     paperMat = Paint::recipe(field::grain(0.011f, 4, 5.0f));
-    foxing = patterns::speckle(190, 4, 1.5f, 6.5f, {skia::toColor(kFox)});
+    foxing = patterns::speckle(190, 4, 1.5f, 6.5f, {kFox});
     foxing.seed(91);
 
     // The needles and the rim flashes they ring.

@@ -1,4 +1,5 @@
 #include <sigilcompose/kit/Document.h>
+#include <sigilmaterial/color/Color.h>
 
 #include "SigillumAemeth.h"
 
@@ -246,7 +247,7 @@ auto SigillumAemeth::margin() -> Element {
   // body size in the note ink; a heading is the rubric, tracked; every other
   // line says only what differs, by class.
   const std::vector<sketch::kit::Document::Line> orders = doc.run("orders");
-  const SkColor4f kTablet[4] = {
+  const sigil::material::Color kTablet[4] = {
       hexColor(0xb9c6da, 0.95f), hexColor(0xe6bf63, 0.95f),
       hexColor(0xf7f1e2, 0.95f), hexColor(0x9dbfa2, 0.95f)};
   // the tablet each order wears: an arc-segment in the forehead, a round gold
@@ -377,10 +378,10 @@ auto SigillumAemeth::colophon() -> Element {
            text(doc.phrase("seal"))
                .font({.face = faceItalic,
                       .size = 17,
-                      .color = hexColor(0xb59a6c)})
+                      .color = sigil::material::skia::toSkColor(hexColor(0xb59a6c))})
                .width(690),
            text(doc.phrase("imprint"))
                .font({.face = faceMono,
                       .size = 12,
-                      .color = hexColor(0x6f5f45)})});
+                      .color = sigil::material::skia::toSkColor(hexColor(0x6f5f45))})});
 }

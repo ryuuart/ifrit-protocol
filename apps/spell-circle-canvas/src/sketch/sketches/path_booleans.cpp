@@ -36,9 +36,11 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Operations.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace draw = sigil::draw;
 namespace shapes = sigil::geometry::shapes;
@@ -56,13 +58,13 @@ SkPath at(const Shape& shape, float radius, SkPoint center) {
           SkMatrix::Translate(center.fX - radius, center.fY - radius));
 }
 
-void fillPath(draw::Pen& pen, const SkPath& path, SkColor4f color) {
+void fillPath(draw::Pen& pen, const SkPath& path, material::Color color) {
   pen.noStroke();
   pen.fill(color);
   pen.shape(path);
 }
 
-void outlinePath(draw::Pen& pen, const SkPath& path, SkColor4f color,
+void outlinePath(draw::Pen& pen, const SkPath& path, material::Color color,
                  float width) {
   pen.noFill();
   pen.stroke(color);
@@ -77,7 +79,7 @@ struct PathBooleans {
     // Row 1 — the four booleans on one pair of operands.
     {
       const float y = 140;
-      const SkColor4f ink = {0.85f, 0.9f, 1.0f, 1};
+      const material::Color ink = {0.85f, 0.9f, 1.0f, 1};
       struct Case {
         SkPath (*operation)(const SkPath&, const SkPath&);
       };
@@ -123,7 +125,7 @@ struct PathBooleans {
                               .makeTransform(SkMatrix::Translate(-70, -70));
       struct Row {
         SkPath path;
-        SkColor4f color;
+        material::Color color;
       };
       const Row rows[] = {
           {operations::Roughen{5, 7, 3}.apply(base), {0.55f, 0.95f, 0.7f, 1}},
@@ -149,7 +151,7 @@ struct PathBooleans {
     sketch::kit::stage(ctx,
                        {.size = {1240, 720},
                         .captureAt = 1.0,
-                        .background = SkColor4f{0.063f, 0.063f, 0.078f, 1}});
+                        .background = material::Color{0.063f, 0.063f, 0.078f, 1}});
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
     ctx.composer.render(

@@ -48,6 +48,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -58,6 +59,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
@@ -74,9 +76,9 @@ constexpr float kSigma = 14.0f;
 /** The tube's scanline period, px. */
 constexpr float kPitch = 6.0f;
 
-constexpr SkColor4f kGround{0.02f, 0.03f, 0.05f, 1};
-constexpr SkColor4f kCore{0.616f, 0.949f, 1.0f, 1};
-constexpr SkColor4f kHalo{0.165f, 0.498f, 0.588f, 1};
+constexpr material::Color kGround{0.02f, 0.03f, 0.05f, 1};
+constexpr material::Color kCore{0.616f, 0.949f, 1.0f, 1};
+constexpr material::Color kHalo{0.165f, 0.498f, 0.588f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -94,11 +96,11 @@ sketch::kit::Theme sheetTheme() {
  *  and the colour the construction paints it in. The face is STATED as the
  *  font context's own family, because the word is not set in the sheet's
  *  text face. */
-Element headline(SkColor4f color) {
+Element headline(material::Color color) {
   return text(u8"PHOSPHOR")
       .font({.face = weave::defaultFace(),
              .size = 62,
-             .color = color,
+             .color = material::skia::toSkColor(color),
              .track = 1.5f});
 }
 

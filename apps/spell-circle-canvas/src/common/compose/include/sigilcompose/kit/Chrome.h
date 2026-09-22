@@ -41,6 +41,7 @@
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilmaterial/skia/Paint.h>
 
@@ -60,8 +61,8 @@ namespace sigil::compose::kit {
 struct BevelInner {
   /** Px inside the outer ring. 0 puts the two rings edge to edge. */
   float gap = 1;
-  SkColor4f light = {1, 1, 1, 0.6f};
-  SkColor4f shadow = {0, 0, 0, 0.5f};
+  material::Color light = {1, 1, 1, 0.6f};
+  material::Color shadow = {0, 0, 0, 0.5f};
   /** Px of the lit edge. */
   float depth = 1;
   /** Px of the shadowed edge; 0 takes `depth`. */
@@ -97,8 +98,8 @@ struct BevelInner {
  *  wants. The tones and the depth mean the same thing on both sides of
  *  that line, so a look moves between them by one number. */
 struct Bevel {
-  SkColor4f light = {1, 1, 1, 0.6f};
-  SkColor4f shadow = {0, 0, 0, 0.5f};
+  material::Color light = {1, 1, 1, 0.6f};
+  material::Color shadow = {0, 0, 0, 0.5f};
   /** Px of the lit edge. */
   float depth = 1;
   /** Px of the shadowed edge; 0 takes `depth`. */
@@ -153,33 +154,33 @@ namespace bevels {
 /** THE TWO-TONE SHADOW of the Motif toolkits: @p depth px on the pixel
  *  lattice, mitred, drawn in the colour set of the window it is in. Every
  *  control in a CDE session is this, at 1 or 2 px, raised or sunken. */
-Bevel motif(SkColor4f light, SkColor4f shadow, float depth = 2,
+Bevel motif(material::Color light, material::Color shadow, float depth = 2,
             bool sunken = false);
 
 /** THE ETCHED GROOVE the same toolkits scored a separator with: half the
  *  depth twice, the inner ring the other way up, and the corner pixel to
  *  the far band on both rings so the groove closes. */
-Bevel motifEtched(SkColor4f light, SkColor4f shadow, float depth = 2,
-                  bool sunken = false);
+Bevel motifEtched(material::Color light, material::Color shadow,
+                  float depth = 2, bool sunken = false);
 
 /** THE CHAMFERED PANEL of a Flash-era component kit: an asymmetric pair
  *  over an antialiased silhouette — the lift wider than the drop, both
  *  derived from the face — and, doubled, the same pair again fainter
  *  @p gap px in. Pass a gap of 0 for the single-bevel panel. */
-Bevel flash(SkColor4f face, float gap = 0);
+Bevel flash(material::Color face, float gap = 0);
 
 /** THE SKIN'S PART: @p depth of light and the same of shadow, square,
  *  stated tones — a bitmap skin's chrome was pixels someone placed, so
  *  neither tone is derived from anything and every part of the window,
  *  from the title bar to the smallest key, is this one value. */
-Bevel skin(SkColor4f light, SkColor4f shadow, float depth = 1,
+Bevel skin(material::Color light, material::Color shadow, float depth = 1,
            bool sunken = false);
 
 /** THE STAMPED PLATE: a moulded edge rather than a drawn one — the
  *  blurred plane pair a pressed, cast or embossed surface has, lit from
  *  the upper left. @p sunken is the recess punched into the same plate.
  */
-Bevel plate(SkColor4f light, SkColor4f shadow, float depth = 1.4f,
+Bevel plate(material::Color light, material::Color shadow, float depth = 1.4f,
             float softness = 1.8f, bool sunken = false);
 
 }  // namespace bevels
@@ -190,10 +191,10 @@ struct ChromeOptions {
   Palette palette = Palette::Steel;
   bool horizonSliver = true;  ///< white specular sliver straddling 50%
   float keylineWidth = 2.0f;
-  /** SkColor4f, as every other era look states its colours in: these
+  /** material::Color, as every other era look states its colours in: these
    *  values are painted, and a look whose knobs are in two colour types
    *  makes an author convert to set one of them. */
-  SkColor4f keyline = hexColor(0x10141A);
+  material::Color keyline = hexColor(0x10141A);
   float bevelDepth = 3.0f, bevelSize = 5.0f;
   bool operator==(const ChromeOptions&) const = default;
 };

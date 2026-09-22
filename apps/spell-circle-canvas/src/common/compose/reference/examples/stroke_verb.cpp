@@ -8,8 +8,10 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -17,11 +19,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 240};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kPlate = hexColor(0x1c232b);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
-constexpr SkColor4f kEdge = hexColor(0x6fb3a6);
-constexpr SkColor4f kHalo = hexColor(0x2f5f6a);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kPlate = hexColor(0x1c232b);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kEdge = hexColor(0x6fb3a6);
+constexpr material::Color kHalo = hexColor(0x2f5f6a);
 
 Element cell(const char* caption, Element plate) {
   return box()
@@ -32,7 +34,8 @@ Element cell(const char* caption, Element plate) {
       .alignItems(Align::Center)
       .children(
           {plate.width(pct(100)).height(120).borderRadius({10}).fill(kPlate),
-           text(caption).font({.size = 12, .color = kAsh})});
+           text(caption).font(
+               {.size = 12, .color = material::skia::toSkColor(kAsh)})});
 }
 
 }  // namespace

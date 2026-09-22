@@ -16,6 +16,7 @@
 #include <include/effects/SkDashPathEffect.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 
 #include <algorithm>
@@ -99,7 +100,7 @@ bool Pen::keyIsDown(int code) const {
          m_keysDown.end();
 }
 
-void Pen::inherit(SkColor4f ink, const weave::Type& font) {
+void Pen::inherit(material::Color ink, const weave::Type& font) {
   m_inheritedInk = ink;
   m_inheritedFont = font;
   // WHAT THE PROGRAM HAS NOT SET, AND NOTHING ELSE. The flags `fill`,
@@ -230,24 +231,27 @@ void Pen::colorMode(Constant mode, float max1, float max2, float max3,
   m_style.colorMode = {mode, max1, max2, max3, maxA};
 }
 
-SkColor4f Pen::color(float gray) const {
+material::Color Pen::color(float gray) const {
   return colorFrom(m_style.colorMode, gray);
 }
-SkColor4f Pen::color(float gray, float alpha) const {
+material::Color Pen::color(float gray, float alpha) const {
   return colorFrom(m_style.colorMode, gray, alpha);
 }
-SkColor4f Pen::color(float v1, float v2, float v3) const {
+material::Color Pen::color(float v1, float v2, float v3) const {
   return colorFrom(m_style.colorMode, v1, v2, v3);
 }
-SkColor4f Pen::color(float v1, float v2, float v3, float alpha) const {
+material::Color Pen::color(float v1, float v2, float v3, float alpha) const {
   return colorFrom(m_style.colorMode, v1, v2, v3, alpha);
 }
-SkColor4f Pen::color(std::string_view css) const { return parseColor(css); }
+material::Color Pen::color(std::string_view css) const {
+  return parseColor(css);
+}
 
-SkColor4f Pen::lerpColor(SkColor4f a, SkColor4f b, float amount) {
+material::Color Pen::lerpColor(material::Color a, material::Color b,
+                               float amount) {
   const float t = std::clamp(amount, 0.0f, 1.0f);
-  return {lerp(a.fR, b.fR, t), lerp(a.fG, b.fG, t), lerp(a.fB, b.fB, t),
-          lerp(a.fA, b.fA, t)};
+  return {lerp(a.r, b.r, t), lerp(a.g, b.g, t), lerp(a.b, b.b, t),
+          lerp(a.a, b.a, t)};
 }
 
 void Pen::background(float gray) { background(color(gray)); }
@@ -261,7 +265,7 @@ void Pen::background(float v1, float v2, float v3, float alpha) {
   background(color(v1, v2, v3, alpha));
 }
 void Pen::background(std::string_view css) { background(parseColor(css)); }
-void Pen::background(SkColor4f color) {
+void Pen::background(material::Color color) {
   background(material::skia::Paint::solid(color));
 }
 
@@ -298,7 +302,9 @@ void Pen::fill(float v1, float v2, float v3, float alpha) {
   fill(color(v1, v2, v3, alpha));
 }
 void Pen::fill(std::string_view css) { fill(parseColor(css)); }
-void Pen::fill(SkColor4f color) { fill(material::skia::Paint::solid(color)); }
+void Pen::fill(material::Color color) {
+  fill(material::skia::Paint::solid(color));
+}
 void Pen::fill(const material::skia::Paint& paint) {
   m_style.fill = paint;
   // The fit belongs to the material it was set with, so a fill set without
@@ -324,7 +330,7 @@ void Pen::stroke(float v1, float v2, float v3, float alpha) {
   stroke(color(v1, v2, v3, alpha));
 }
 void Pen::stroke(std::string_view css) { stroke(parseColor(css)); }
-void Pen::stroke(SkColor4f color) {
+void Pen::stroke(material::Color color) {
   stroke(material::skia::Paint::solid(color));
 }
 void Pen::stroke(const material::skia::Paint& paint) {

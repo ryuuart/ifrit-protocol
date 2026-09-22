@@ -17,6 +17,8 @@
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Crash.h>
@@ -241,7 +243,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // Every size below comes off the session: a sketch declares its own
     // canvas from inside its own setup, which opening has just run.
     const SkSize size = session->canvas().size;
-    const SkColor4f clearColor = session->canvas().background;
+    const SkColor4f clearColor =
+        sigil::material::skia::toSkColor(session->canvas().background);
     const SkImageInfo info =
         SkImageInfo::MakeN32Premul((int)size.width(), (int)size.height());
     sk_sp<SkSurface> surface;

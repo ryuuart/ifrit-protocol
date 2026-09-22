@@ -5,12 +5,13 @@
 
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Tool.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 
 namespace sigil::draw::brush {
 
-Tool pencil(SkColor4f color, float width) {
+Tool pencil(material::Color color, float width) {
   return Tool{.tip = Tip::Dust,
               .color = color,
               .width = width,
@@ -26,7 +27,7 @@ Tool pencil(SkColor4f color, float width) {
               .noise = 0.3f};
 }
 
-Tool charcoal(SkColor4f color, float width) {
+Tool charcoal(material::Color color, float width) {
   return Tool{.tip = Tip::Dust,
               .color = color,
               .width = width,
@@ -43,7 +44,7 @@ Tool charcoal(SkColor4f color, float width) {
               .noise = 0.45f};
 }
 
-Tool marker(SkColor4f color, float width) {
+Tool marker(material::Color color, float width) {
   return Tool{.tip = Tip::Nib,
               .color = color,
               .width = width,
@@ -59,7 +60,7 @@ Tool marker(SkColor4f color, float width) {
               .noise = 0.3f};
 }
 
-Tool watercolor(SkColor4f color, float width) {
+Tool watercolor(material::Color color, float width) {
   return Tool{.tip = Tip::Fibres,
               .color = color,
               .width = width,
@@ -72,7 +73,7 @@ Tool watercolor(SkColor4f color, float width) {
               .blend = MULTIPLY};
 }
 
-Tool spray(SkColor4f color, float width) {
+Tool spray(material::Color color, float width) {
   return Tool{.tip = Tip::Scatter,
               .color = color,
               .width = width * 0.12f,

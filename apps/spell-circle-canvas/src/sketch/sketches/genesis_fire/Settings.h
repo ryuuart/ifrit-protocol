@@ -19,6 +19,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -43,6 +44,7 @@
 
 #include "Instrument.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace chance = sigil::core::chance;
 namespace field = sigil::material::field;
@@ -65,13 +67,13 @@ namespace genesis {
 // ---------------------------------------------------------------------------
 // Palette — this study's own chrome, not sourced
 
-constexpr SkColor4f kInk = hexColor(0x06070B);
-constexpr SkColor4f kPanel = hexColor(0x0B0D14);
-constexpr SkColor4f kBone = hexColor(0xE9ECF3);
-constexpr SkColor4f kSteel = hexColor(0x77819A);
-constexpr SkColor4f kSteelDim = hexColor(0x545E74);
-constexpr SkColor4f kKeyline = hexColor(0x242A36);
-constexpr SkColor4f kCyan = hexColor(0x4FB8D8);
+constexpr material::Color kInk = hexColor(0x06070B);
+constexpr material::Color kPanel = hexColor(0x0B0D14);
+constexpr material::Color kBone = hexColor(0xE9ECF3);
+constexpr material::Color kSteel = hexColor(0x77819A);
+constexpr material::Color kSteelDim = hexColor(0x545E74);
+constexpr material::Color kKeyline = hexColor(0x242A36);
+constexpr material::Color kCyan = hexColor(0x4FB8D8);
 
 // THE EMISSION SEED. Everything about the fire's colour is a consequence
 // of this triple plus "light adds and clamps" [R83 §2.5].
@@ -80,7 +82,7 @@ constexpr float kE0r = 0.220f, kE0g = 0.050f, kE0b = 0.009f;
 /** clamp(n * e0) — the colour of a pixel covered by n particles. This is
  *  not a palette; it is an overlap count. Red saturates at n=5, green at
  *  n=20, blue at n=111. */
-inline SkColor4f overlap(int n) {
+inline material::Color overlap(int n) {
   return {std::min(1.0f, (float)n * kE0r), std::min(1.0f, (float)n * kE0g),
           std::min(1.0f, (float)n * kE0b), 1.0f};
 }
@@ -204,7 +206,7 @@ inline weave::StyleSheet registers() {
 
 /** The same register on the PEN: a pen carries one type and one fill, so
  *  a register is set rather than described. */
-inline void penMono(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
+inline void penMono(Pen& pen, float size, material::Color c, float track = 0.0f) {
   pen.textFont(instrument::penType(monoFace(), size, track));
   pen.fill(c);
 }

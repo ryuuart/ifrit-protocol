@@ -64,6 +64,7 @@
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Rows.h>
@@ -77,6 +78,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
@@ -91,8 +93,8 @@ constexpr int kTargets = 9;
 constexpr double kFirstStation = 0.8;
 constexpr double kStationGap = 1.05;
 
-constexpr SkColor4f kWire{0.42f, 0.46f, 0.62f, 0.55f};
-constexpr SkColor4f kLit{1.0f, 0.71f, 0.42f, 1};
+constexpr material::Color kWire{0.42f, 0.46f, 0.62f, 0.55f};
+constexpr material::Color kLit{1.0f, 0.71f, 0.42f, 1};
 
 /** The house sheet warmed to this one's own ink, so every line on it is
  *  set from the theme rather than from a colour restated beside it. */
@@ -259,9 +261,10 @@ struct HitSlots {
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(
-        ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
-              .captureAt = stationTime(4),
-              .background = SkColor4f{0, 0, 0, 1}});  // standing on target-4
+        ctx,
+        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+         .captureAt = stationTime(4),
+         .background = material::Color{0, 0, 0, 1}});  // standing on target-4
     hitLabel = "—";
     hitBounds.reset();
     hitRoutes.clear();

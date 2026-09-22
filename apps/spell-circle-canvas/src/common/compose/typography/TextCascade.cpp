@@ -10,6 +10,7 @@
 
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilcore/compute/Intervals.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <cstring>
@@ -151,22 +152,22 @@ void compose(GlyphModifier& into, const GlyphModifier& next) {
   into.scaleX *= next.scaleX;
   into.scaleY *= next.scaleY;
   into.alpha *= next.alpha;
-  into.colorMultiplier = {into.colorMultiplier.fR * next.colorMultiplier.fR,
-                          into.colorMultiplier.fG * next.colorMultiplier.fG,
-                          into.colorMultiplier.fB * next.colorMultiplier.fB,
-                          into.colorMultiplier.fA * next.colorMultiplier.fA};
+  into.colorMultiplier = {into.colorMultiplier.r * next.colorMultiplier.r,
+                          into.colorMultiplier.g * next.colorMultiplier.g,
+                          into.colorMultiplier.b * next.colorMultiplier.b,
+                          into.colorMultiplier.a * next.colorMultiplier.a};
   // The additive term ADDS unclamped — the clamp happens once, at the draw,
   // so two half flashes make one full one rather than each clamping alone.
   into.colorAdd = {
-      into.colorAdd.fR + next.colorAdd.fR, into.colorAdd.fG + next.colorAdd.fG,
-      into.colorAdd.fB + next.colorAdd.fB, into.colorAdd.fA + next.colorAdd.fA};
+      into.colorAdd.r + next.colorAdd.r, into.colorAdd.g + next.colorAdd.g,
+      into.colorAdd.b + next.colorAdd.b, into.colorAdd.a + next.colorAdd.a};
   // The screen term SCREENS: 1 − (1−a)(1−b), commutative and associative,
   // so stacked glows compose in any track order and never leave [0,1].
   const auto screen = [](float a, float b) { return 1 - (1 - a) * (1 - b); };
-  into.colorScreen = {screen(into.colorScreen.fR, next.colorScreen.fR),
-                      screen(into.colorScreen.fG, next.colorScreen.fG),
-                      screen(into.colorScreen.fB, next.colorScreen.fB),
-                      screen(into.colorScreen.fA, next.colorScreen.fA)};
+  into.colorScreen = {screen(into.colorScreen.r, next.colorScreen.r),
+                      screen(into.colorScreen.g, next.colorScreen.g),
+                      screen(into.colorScreen.b, next.colorScreen.b),
+                      screen(into.colorScreen.a, next.colorScreen.a)};
   // The two SUBSTITUTIONS are last-one-wins rather than combined: two
   // tracks naming two outlines for one glyph have no arithmetic between
   // them, and averaging their numbers would draw a third thing neither
@@ -188,16 +189,17 @@ GlyphModifier lerpModifier(const GlyphModifier& a, const GlyphModifier& b,
   out.scaleY = a.scaleY + (b.scaleY - a.scaleY) * w;
   out.alpha = a.alpha + (b.alpha - a.alpha) * w;
   out.colorMultiplier = {
-      a.colorMultiplier.fR + (b.colorMultiplier.fR - a.colorMultiplier.fR) * w,
-      a.colorMultiplier.fG + (b.colorMultiplier.fG - a.colorMultiplier.fG) * w,
-      a.colorMultiplier.fB + (b.colorMultiplier.fB - a.colorMultiplier.fB) * w,
-      a.colorMultiplier.fA + (b.colorMultiplier.fA - a.colorMultiplier.fA) * w};
+      a.colorMultiplier.r + (b.colorMultiplier.r - a.colorMultiplier.r) * w,
+      a.colorMultiplier.g + (b.colorMultiplier.g - a.colorMultiplier.g) * w,
+      a.colorMultiplier.b + (b.colorMultiplier.b - a.colorMultiplier.b) * w,
+      a.colorMultiplier.a + (b.colorMultiplier.a - a.colorMultiplier.a) * w};
   // The two colour terms lerp componentwise like every other continuous
   // field — a flash decays through straight interpolation of its own
   // channels, not through the compose() arithmetic, which is for stacking.
-  const auto lerpColor = [w](const SkColor4f& x, const SkColor4f& y) {
-    return SkColor4f{x.fR + (y.fR - x.fR) * w, x.fG + (y.fG - x.fG) * w,
-                     x.fB + (y.fB - x.fB) * w, x.fA + (y.fA - x.fA) * w};
+  const auto lerpColor = [w](const material::Color& x,
+                             const material::Color& y) {
+    return material::Color{x.r + (y.r - x.r) * w, x.g + (y.g - x.g) * w,
+                           x.b + (y.b - x.b) * w, x.a + (y.a - x.a) * w};
   };
   out.colorAdd = lerpColor(a.colorAdd, b.colorAdd);
   out.colorScreen = lerpColor(a.colorScreen, b.colorScreen);

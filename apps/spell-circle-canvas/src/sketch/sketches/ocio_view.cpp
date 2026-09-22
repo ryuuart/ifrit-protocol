@@ -35,6 +35,7 @@
 #include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -80,11 +81,12 @@ material::Texture wedge() {
                                         (float)kW / kSteps, kH * 0.5f),
                        step);
     }
-    const SkColor4f primaries[3] = {
+    const material::Color primaries[3] = {
         {1, 0.15f, 0.10f, 1}, {0.15f, 1, 0.25f, 1}, {0.20f, 0.35f, 1, 1}};
     for (int band = 0; band < 3; ++band) {
       const SkPoint ends[2] = {{0, 0}, {kW, 0}};
-      const SkColor4f stops[2] = {{0, 0, 0, 1}, primaries[band]};
+      const SkColor4f stops[2] = {{0, 0, 0, 1},
+                                  material::skia::toSkColor(primaries[band])};
       SkPaint ramp;
       ramp.setShader(SkShaders::LinearGradient(
           ends, SkGradient({{stops, 2}, {}, SkTileMode::kClamp}, {})));

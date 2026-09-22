@@ -13,6 +13,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -45,7 +46,7 @@ struct Stage {
   double captureAt = -1.0;
   /** Unset is the theme's ground — which is what a sheet wants, since
    *  the page paints the same colour over it. */
-  std::optional<SkColor4f> background;
+  std::optional<material::Color> background;
   /** Device pixels per canvas pixel a PLATE is taken at; 0 lets the host
    *  pick. */
   int oversample = 0;

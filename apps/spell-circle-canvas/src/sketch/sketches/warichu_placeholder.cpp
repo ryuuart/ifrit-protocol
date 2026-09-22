@@ -10,6 +10,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/Beside.h>
@@ -21,12 +22,13 @@
 #include <string>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
 
 namespace {
-constexpr SkColor4f kSlot{0.19f, 0.21f, 0.26f, 1};
+constexpr material::Color kSlot{0.19f, 0.21f, 0.26f, 1};
 constexpr const char8_t* kNote =
     u8"a small interruption that stays within the line";
 
@@ -102,14 +104,14 @@ struct WarichuPlaceholder {
     latin.measure(ctx, kNote,
                   {.face = sketch::kit::houseFace(sketch::kit::Voice::Book),
                    .size = 13,
-                   .color = sheet.palette.figure,
+                   .color = material::skia::toSkColor(sheet.palette.figure),
                    .track = 0});
     japanese.measure(
         ctx, u8"小さな文字で二行に組む",
         {.face = weave::ports::face(
              {"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP"}),
          .size = 13,
-         .color = sheet.palette.figure,
+         .color = material::skia::toSkColor(sheet.palette.figure),
          .track = 0,
          .language = "ja"},
         true);

@@ -19,6 +19,7 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Network.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -28,6 +29,7 @@
 #include <string>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace img = sigil::image;
 namespace io = sigil::io;
@@ -52,7 +54,8 @@ sk_sp<SkData> seedBytes() {
   canvas->clear(SkColor4f{0.11f, 0.13f, 0.17f, 1}.toSkColor());
   SkPaint paint;
   paint.setAntiAlias(true);
-  paint.setColor4f(sketch::kit::theme().palette.figure);
+  paint.setColor4f(
+      material::skia::toSkColor(sketch::kit::theme().palette.figure));
   for (int i = 0; i < 5; ++i)
     canvas->drawCircle(24.0f + (float)i * 26.0f,
                        50.0f + (i % 2 ? 18.0f : -18.0f), 11.0f, paint);

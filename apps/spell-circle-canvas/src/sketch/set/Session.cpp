@@ -5,6 +5,8 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
@@ -56,9 +58,11 @@ float pixelScale(const SkCanvas& canvas) {
  *  body. A set that already declares passes is left alone — an executor
  *  is only reached through passes, and a set about the scene must be
  *  able to say what it looks like on a device too. */
-void throughPasses(world::Frame& frame, const SkColor4f& background) {
+void throughPasses(world::Frame& frame,
+                   const sigil::material::Color& background) {
   if (!frame.passes().empty()) return;
-  frame.pass(world::geometryPass("colour").writes("colour").clear(background));
+  frame.pass(world::geometryPass("colour").writes("colour").clear(
+      sigil::material::skia::toSkColor(background)));
 }
 
 /** ONE 3D SKETCH, RUNNING. */
@@ -213,7 +217,8 @@ class SetSession final : public Session {
   }
 
   void paint(SkCanvas& canvas) {
-    canvas.clear(m_specification.background.toSkColor());
+    canvas.clear(
+        material::skia::toSkColor(m_specification.background).toSkColor());
     // The picture arrives as many pixels across as the frame STANDING
     // was formed at — as a presented resource, or as bodies projected
     // into that extent — and is put back on the declared canvas here.

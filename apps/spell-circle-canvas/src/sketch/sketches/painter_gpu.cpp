@@ -16,6 +16,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -24,6 +25,7 @@
 #include <string>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
@@ -38,7 +40,7 @@ constexpr SkSize kCell = {536, 420};
 constexpr int kPanels = 3;
 constexpr float kCurve = 300;
 
-constexpr SkColor4f kCellGround{0.035f, 0.038f, 0.055f, 1};
+constexpr material::Color kCellGround{0.035f, 0.038f, 0.055f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -50,8 +52,8 @@ sketch::kit::Theme sheetTheme() {
 /** What a card carries: a header pill, a stack of rules and a bar row.
  *  An element tree like any other — the only thing 3D about it is where
  *  it ends up. */
-Element card(float w, float h, SkColor4f accent) {
-  const SkColor4f faint{1, 1, 1, 0.22f};
+Element card(float w, float h, material::Color accent) {
+  const material::Color faint{1, 1, 1, 0.22f};
   const auto rule = [w, faint](int i) {
     return box()
         .width(w - 44 - (float)i * 26)
@@ -65,7 +67,7 @@ Element card(float w, float h, SkColor4f accent) {
         .width(8)
         .height(8 + 26.0f * (0.5f + 0.5f * std::sin(t * 8.0f + 1.1f)))
         .borderRadius({2})
-        .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f}));
+        .fill(Fill::color({accent.r, accent.g, accent.b, 0.85f}));
   };
   return box()
       .width(w)
@@ -75,7 +77,7 @@ Element card(float w, float h, SkColor4f accent) {
       .gap(12)
       .padding(12)
       .children({box().width(w - 24).height(11).borderRadius({5}).fill(
-                     Fill::color({accent.fR, accent.fG, accent.fB, 0.92f})),
+                     Fill::color({accent.r, accent.g, accent.b, 0.92f})),
                  box().column().gap(9).children({each(3, rule)}),
                  box()
                      .row()
@@ -149,9 +151,9 @@ struct PainterGpu {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    const SkColor4f accents[3] = {{0.2f, 0.85f, 1.0f, 1},
-                                  {1.0f, 0.62f, 0.26f, 1},
-                                  {0.68f, 0.45f, 1.0f, 1}};
+    const material::Color accents[3] = {{0.2f, 0.85f, 1.0f, 1},
+                                        {1.0f, 0.62f, 0.26f, 1},
+                                        {0.68f, 0.45f, 1.0f, 1}};
     for (int i = 0; i < kPanels; ++i)
       cards[i] = bake(ctx, card(176, 116, accents[i % 3]), 176, 116);
     screen = bake(ctx, card(380, 108, {0.3f, 1.0f, 0.6f, 1}), 380, 108);

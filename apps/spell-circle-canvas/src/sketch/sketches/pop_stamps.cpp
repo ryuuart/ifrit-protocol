@@ -45,6 +45,7 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -54,6 +55,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 namespace sections = sigil::geometry::sections;
@@ -72,13 +74,13 @@ constexpr SkSize kCanvas = {1240, 900};
  *  four cells, which is exactly what `.atlas(2, 2)` indexes — the cell a
  *  motif lands in is its own place in the run. */
 Element atlasSheet(float cell) {
-  const std::array<std::pair<Shape, SkColor4f>, 4> motifs{
+  const std::array<std::pair<Shape, material::Color>, 4> motifs{
       {{shapes::circle(), {0.4f, 0.85f, 1.0f, 1}},
        {shapes::annulus(0.62f), {1.0f, 0.6f, 0.3f, 1}},
        {shapes::polygon(4), {0.6f, 1.0f, 0.6f, 1}},
        {shapes::star(4, 0.35f), {1.0f, 0.8f, 0.3f, 1}}}};
   return stack().width(cell * 2).height(cell * 2).children(each(
-      motifs, [cell](const std::pair<Shape, SkColor4f>& motif, std::size_t i) {
+      motifs, [cell](const std::pair<Shape, material::Color>& motif, std::size_t i) {
         return kit::at((float)(i % 2) * cell, (float)(i / 2) * cell, cell, cell)
             .padding(cell * 0.12f)
             .children({box()
@@ -158,7 +160,7 @@ struct PopStamps {
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,
-                        .background = SkColor4f{0.051f, 0.051f, 0.075f, 1}});
+                        .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
 
     atlas = bake(ctx, atlasSheet(128), 256);
 

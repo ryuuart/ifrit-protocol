@@ -39,6 +39,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -53,6 +54,7 @@
 #include <string>
 #include <string_view>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
@@ -82,19 +84,21 @@ constexpr float kStatusH = 22;
 constexpr float kTickerSpeed = 70;  // px/s, the lazy 56k crawl
 constexpr float kTickerGap = 40;    // between the two marquee copies
 
-/** 0xRRGGBB -> SkColor4f. */
+/** 0xRRGGBB -> material::Color. */
 
-inline sigil::weave::TextStyle type(float size, SkColor4f color,
+inline sigil::weave::TextStyle type(float size, material::Color color,
                                     float tracking = 0, float weight = 0) {
-  return sigil::weave::textStyle(
-      {.size = size, .color = color, .track = tracking, .weight = weight});
+  return sigil::weave::textStyle({.size = size,
+                                  .color = material::skia::toSkColor(color),
+                                  .track = tracking,
+                                  .weight = weight});
 }
 
 /** One pass under the glyphs, offset down: the 1px ground a label on gel
  *  or chrome stands on. */
-inline weave::PaintLayer ground(SkColor4f colour, float dy = 1.2f) {
+inline weave::PaintLayer ground(material::Color colour, float dy = 1.2f) {
   weave::PaintLayer layer;
-  layer.paint.setColor4f(colour, nullptr);
+  layer.paint.setColor4f(material::skia::toSkColor(colour), nullptr);
   layer.paint.setAntiAlias(true);
   layer.offset = {0, dy};
   return layer;
@@ -102,9 +106,9 @@ inline weave::PaintLayer ground(SkColor4f colour, float dy = 1.2f) {
 
 /** The one field a gel label adds to its class: the ground under it,
  *  derived from the gel's tint. */
-inline weave::Type gelGround(SkColor4f tint) {
+inline weave::Type gelGround(material::Color tint) {
   return {.underlays = {{ground(
-              {tint.fR * 0.30f, tint.fG * 0.30f, tint.fB * 0.30f, 0.5f})}}};
+              {tint.r * 0.30f, tint.g * 0.30f, tint.b * 0.30f, 0.5f})}}};
 }
 
 /** The type this card names, bound around the description: `gelLabel` is
@@ -113,22 +117,25 @@ inline weave::Type gelGround(SkColor4f tint) {
  *  `note` the footer's fine print. */
 inline weave::StyleSheet classes() {
   return weave::StyleSheet()
-      .set("gelLabel", {.size = 16,
-                        .color = SkColor4f{1, 1, 1, 0.98f},
-                        .track = 1.0f,
-                        .weight = 650})
+      .set("gelLabel",
+           {.size = 16,
+            .color = material::skia::toSkColor(material::Color{1, 1, 1, 0.98f}),
+            .track = 1.0f,
+            .weight = 650})
       .set("caption", {.size = 10,
-                       .color = hexColor(0xAFC0DE),
+                       .color = material::skia::toSkColor(hexColor(0xAFC0DE)),
                        .track = 0.8f,
                        .weight = 600})
-      .set("note", {.size = 10, .color = hexColor(0x8DA0C4), .track = 0.4f});
+      .set("note", {.size = 10,
+                    .color = material::skia::toSkColor(hexColor(0x8DA0C4)),
+                    .track = 0.4f});
 }
 
 // ---------------------------------------------------------------------------
 // PRESET pill / orb - the whole recipe is one style() call.
 
-inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
-                       float h = kPillH) {
+inline Element gelPill(std::string_view label, material::Color tint,
+                       float w = kPillW, float h = kPillH) {
   return box()
       .width(w)
       .height(h)
@@ -170,7 +177,7 @@ inline Element gelOrb(float d = kOrbD) {
 // five stops and a knockout highlight, spelled out.
 
 struct PillTint {
-  SkColor4f deep, mid, light, glow, halo;
+  material::Color deep, mid, light, glow, halo;
 };
 
 inline constexpr PillTint kBluePill{
@@ -184,7 +191,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                         float w = kPillW, float h = kPillH) {
   const float r = h / 2;  // true pill
   // rim 1.5px per-side #8BA2C1 / #5890BF / #4F93CA / #768FA5.
-  auto rim = [](path::Edge e, SkColor4f c) {
+  auto rim = [](path::Edge e, material::Color c) {
     return onEdges(e, stroke(1.5f, Fill::color(c)));
   };
   return box()
@@ -207,8 +214,8 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                .borderRadius({r - 2})
                .fill(Paint::linear(
                    {0, h * 0.45f - 4}, {0, 0},
-                   {{0.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.85f}},
-                    {1.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.0f}}}))
+                   {{0.0f, {t.glow.r, t.glow.g, t.glow.b, 0.85f}},
+                    {1.0f, {t.glow.r, t.glow.g, t.glow.b, 0.0f}}}))
                .blendMode(SkBlendMode::kScreen),
            // the LENS: x in [5%,95%] y in [4%,52%], white .72->0
            box()
@@ -223,11 +230,10 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                .row()
 
                .zIndex(1)
-               .children(
-                   {text(label)
-                        .styleClass("gelLabel")
-                        .font(gelGround({t.deep.fR * 1.3f, t.deep.fG * 1.3f,
-                                         t.deep.fB * 1.3f, 1}))})});
+               .children({text(label)
+                              .styleClass("gelLabel")
+                              .font(gelGround({t.deep.r * 1.3f, t.deep.g * 1.3f,
+                                               t.deep.b * 1.3f, 1}))})});
 }
 
 // ---------------------------------------------------------------------------
@@ -253,7 +259,7 @@ inline Element plasticButton(std::string_view label) {
 }
 
 /** Tiny window-chrome bevel square (the min/max/close cluster). */
-inline Element chromeSquare(SkColor4f fill) {
+inline Element chromeSquare(material::Color fill) {
   styles::BevelEmboss bevel;
   bevel.depth = 1.5f;
   bevel.size = 0;
@@ -286,7 +292,7 @@ struct Y2kChrome {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace yc = y2k_chrome;
@@ -346,7 +352,8 @@ struct Y2kChrome {
             .gap(5)
             .children({text("SIGILNET 2000 — hyperportal v4.2")
                            .font({.size = 12,
-                                  .color = hexColor(0xF2F6FA),
+                                  .color = material::skia::toSkColor(
+                                      hexColor(0xF2F6FA)),
                                   .track = 0.4f,
                                   .weight = 600,
                                   .underlays = {{yc::ground(
@@ -544,20 +551,18 @@ struct Y2kChrome {
                                  {1.00f, hexColor(0x050817)}}))
             .borderRadius({6})
             .overflow(Overflow::Clip)
-            .children(
-                {box()
-                     .inset(0)
-                     .fill(Pattern(mpattern::stripes(1, 4,
-                                                     mskia::toColor(hexColor(
-                                                         0x6E8CD8, 0.16f))))
-                               .rotate(45)
-                               .material())
-                     .blendMode(SkBlendMode::kPlus),
-                 box().inset(0).fill(
-                     Paint::glowUnit({0.5f, 0.42f}, 1.02f,
-                                     {{0.0f, {0.36f, 0.52f, 0.92f, 0.16f}},
-                                      {0.55f, {0, 0, 0, 0.0f}},
-                                      {1.0f, {0, 0, 0, 0.45f}}}))})
+            .children({box()
+                           .inset(0)
+                           .fill(Pattern(mpattern::stripes(
+                                             1, 4, hexColor(0x6E8CD8, 0.16f)))
+                                     .rotate(45)
+                                     .material())
+                           .blendMode(SkBlendMode::kPlus),
+                       box().inset(0).fill(Paint::glowUnit(
+                           {0.5f, 0.42f}, 1.02f,
+                           {{0.0f, {0.36f, 0.52f, 0.92f, 0.16f}},
+                            {0.55f, {0, 0, 0, 0.0f}},
+                            {1.0f, {0, 0, 0, 0.45f}}}))})
             .cache(Cache::Texture);
 
     // ---- assembly ---------------------------------------------------------

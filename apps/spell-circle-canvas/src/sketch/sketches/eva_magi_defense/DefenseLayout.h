@@ -17,6 +17,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -41,6 +42,7 @@
 
 #include "../eva_magi_interior/EvangelionUi.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
@@ -95,22 +97,23 @@ inline SkPoint unroll(SkPoint m) {
 // ---------------------------------------------------------------------------
 // PALETTE. Percentiles over the actual frame, classified by HSV.
 
-const SkColor4f kGround =
+const material::Color kGround =
     hexColor(0x050A01);  // 51% of the frame; green-cast black
-const SkColor4f kHostile =
+const material::Color kHostile =
     hexColor(0xEE2C26);  // a captured MAGI (measured core)
-const SkColor4f kFriendly =
-    hexColor(0x8BF0FE);                     // MAGI 01, and every site pre-fall
-const SkColor4f kRim = hexColor(0xFF9418);  // 2 px core, blooms
-const SkColor4f kRimFriendly = hexColor(0xD6FBEA);
-const SkColor4f kNumeral =
+const material::Color kFriendly =
+    hexColor(0x8BF0FE);  // MAGI 01, and every site pre-fall
+const material::Color kRim = hexColor(0xFF9418);  // 2 px core, blooms
+const material::Color kRimFriendly = hexColor(0xD6FBEA);
+const material::Color kNumeral =
     hexColor(0xFDA114);  // yellower and hotter than the rims
-const SkColor4f kInkHostile =
+const material::Color kInkHostile =
     hexColor(0x990000);  // knocked DARK into the plate
-const SkColor4f kInkFriendly = hexColor(0x29985E);
-const SkColor4f kAlarm =
+const material::Color kInkFriendly = hexColor(0x29985E);
+const material::Color kAlarm =
     hexColor(0xFF4740);  // COLLAPSING — pure red, never orange
-const SkColor4f kCell = hexColor(0x060200);  // the cells are not quite black
+const material::Color kCell =
+    hexColor(0x060200);  // the cells are not quite black
 
 /** THE FIELD, sampled down the reference plate.
  *
@@ -153,7 +156,7 @@ inline weave::Type type(float size, float condense = 1.0f) {
 // ---------------------------------------------------------------------------
 // EMISSIVE MARKS. The strokes and glyphs remain crisp here. The completed
 // marks receive a continuous halo after their geometry and type are drawn.
-inline LayeredBrush rimStroke(float core, SkColor4f c) {
+inline LayeredBrush rimStroke(float core, material::Color c) {
   return LayeredBrush{{
       {core, c, 0.0f, {}, 0, SkBlendMode::kSrcOver, false},
   }};

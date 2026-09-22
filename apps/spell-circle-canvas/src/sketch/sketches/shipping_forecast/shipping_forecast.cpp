@@ -152,6 +152,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Time.h>
@@ -178,6 +179,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -196,13 +198,13 @@ namespace {
 constexpr float kW = 1440.0f;
 constexpr float kH = 880.0f;
 
-constexpr SkColor4f kSea = hexColor(0x06090E);      // ground
-constexpr SkColor4f kSeaLift = hexColor(0x0B111A);  // panel wash
-constexpr SkColor4f kBone = hexColor(0xE9E5DB);     // primary type
-constexpr SkColor4f kSlate = hexColor(0x76828F);    // secondary type
-constexpr SkColor4f kSlateDim = hexColor(0x76828F, 0.62f);
-constexpr SkColor4f kKeyline = hexColor(0x1A2532);
-constexpr SkColor4f kAmber = hexColor(0xF0A03C);  // the one accent
+constexpr material::Color kSea = hexColor(0x06090E);      // ground
+constexpr material::Color kSeaLift = hexColor(0x0B111A);  // panel wash
+constexpr material::Color kBone = hexColor(0xE9E5DB);     // primary type
+constexpr material::Color kSlate = hexColor(0x76828F);    // secondary type
+constexpr material::Color kSlateDim = hexColor(0x76828F, 0.62f);
+constexpr material::Color kKeyline = hexColor(0x1A2532);
+constexpr material::Color kAmber = hexColor(0xF0A03C);  // the one accent
 
 constexpr float kRingBox = 660.0f;  // the square the ring panel occupies
 constexpr float kRingR = 292.0f;    // sea-area baseline radius
@@ -297,20 +299,20 @@ struct ShippingForecast {
    *  also what the synopsis's spanStyle grades against. */
   [[nodiscard]] sigil::weave::StyleSheet registers() const {
     return {
-        weave::textStyle({.face = faceBody, .size = 19.5f, .color = kBone}),
+        weave::textStyle({.face = faceBody, .size = 19.5f, .color = material::skia::toSkColor(kBone)}),
         {
             // The line that names a block — seven of them, one per panel.
             {"eyebrow",
              {.face = faceBold,
               .size = 11.0f,
-              .color = kSlateDim,
+              .color = material::skia::toSkColor(kSlateDim),
               .track = 3.0f}},
             // A sea area on the ring: a name rather than a label, so it is
             // set a shade under the body ink.
             {"area",
              {.face = faceBold,
               .size = 11.5f,
-              .color = hexColor(0xBFC7D1),
+              .color = material::skia::toSkColor(hexColor(0xBFC7D1)),
               .track = 1.1f}},
             // The wind direction: the one thing in the sentence that is a
             // heading, so it is set as one — condensed, tracked, and a shade
@@ -321,37 +323,37 @@ struct ShippingForecast {
             // reads as a citation of a glossary, which is exactly what
             // these words are.
             {"term",
-             {.face = faceTerm, .size = 20.5f, .color = kAmber, .track = 0.2f}},
+             {.face = faceTerm, .size = 20.5f, .color = material::skia::toSkColor(kAmber), .track = 0.2f}},
             // A Beaufort numeral. NO COLOUR: the number and the bar over it
             // are one fact, so the cell sets the ink and both take it.
             {"force", {.face = faceBold, .size = 10.5f, .track = 0.4f}},
             // The barometer, and the column a station's reading stands in.
             {"readout",
-             {.face = faceMono, .size = 27.0f, .color = kBone, .track = 3.0f}},
+             {.face = faceMono, .size = 27.0f, .color = material::skia::toSkColor(kBone), .track = 3.0f}},
             {"station",
-             {.face = faceMono, .size = 12.0f, .color = kSlate, .track = 0.4f}},
+             {.face = faceMono, .size = 12.0f, .color = material::skia::toSkColor(kSlate), .track = 0.4f}},
             // The area being read, the compass points, the gale strip.
             {"hero",
              {.face = faceDisplay,
               .size = kHero,
-              .color = kBone,
+              .color = material::skia::toSkColor(kBone),
               .track = 1.5f}},
             {"cardinal",
-             {.face = faceBold, .size = 12.0f, .color = kAmber, .track = 2.0f}},
+             {.face = faceBold, .size = 12.0f, .color = material::skia::toSkColor(kAmber), .track = 2.0f}},
             {"warning", {.face = faceBold, .size = 13.5f, .track = 2.8f}},
             // The small print: a note under a readout, a station's name and
             // its wind, the Beaufort bands, the spine, the foot.
-            {"note", {.size = 12.0f, .color = kSlateDim, .track = 0.6f}},
-            {"place", {.size = 12.5f, .color = kBone, .track = 0.8f}},
+            {"note", {.size = 12.0f, .color = material::skia::toSkColor(kSlateDim), .track = 0.6f}},
+            {"place", {.size = 12.5f, .color = material::skia::toSkColor(kBone), .track = 0.8f}},
             {"wind",
-             {.face = faceBold, .size = 12.5f, .color = kSlate, .track = 1.4f}},
-            {"bands", {.size = 10.5f, .color = kSlateDim, .track = 0.8f}},
+             {.face = faceBold, .size = 12.5f, .color = material::skia::toSkColor(kSlate), .track = 1.4f}},
+            {"bands", {.size = 10.5f, .color = material::skia::toSkColor(kSlateDim), .track = 0.8f}},
             {"spine",
              {.face = faceBold,
               .size = 12.5f,
-              .color = kSlateDim,
+              .color = material::skia::toSkColor(kSlateDim),
               .track = 2.6f}},
-            {"foot", {.size = 11.0f, .color = kSlateDim, .track = 0.5f}},
+            {"foot", {.size = 11.0f, .color = material::skia::toSkColor(kSlateDim), .track = 0.5f}},
         }};
   }
 
@@ -435,7 +437,7 @@ struct ShippingForecast {
   }
 
   [[nodiscard]] Element ringPanel() {
-    const auto hair = [](float r, SkColor4f color, float width) {
+    const auto hair = [](float r, material::Color color, float width) {
       return kit::disc(kEye, r)
           .borderRadius({r})
           .fill(Fill::none())

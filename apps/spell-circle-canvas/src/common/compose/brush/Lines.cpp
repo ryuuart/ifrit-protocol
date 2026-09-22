@@ -15,6 +15,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <cmath>
@@ -112,11 +113,9 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
           const float span = alongStops[i].pos - alongStops[i - 1].pos;
           const float k =
               span > 1e-6f ? (t - alongStops[i - 1].pos) / span : 1.0f;
-          const SkColor4f& a = alongStops[i - 1].color;
-          const SkColor4f& b2 = alongStops[i].color;
-          return SkColor4f{a.fR + (b2.fR - a.fR) * k, a.fG + (b2.fG - a.fG) * k,
-                           a.fB + (b2.fB - a.fB) * k,
-                           a.fA + (b2.fA - a.fA) * k};
+          const material::Color& a = alongStops[i - 1].color;
+          const material::Color& b2 = alongStops[i].color;
+          return material::mixToward(a, b2, k, a.a + (b2.a - a.a) * k);
         }
       return alongStops.back().color;
     };
@@ -129,7 +128,9 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
         const float b2 = len * (float)(i + 1) / (float)chunks;
         SkPathBuilder seg;
         (void)contour->getSegment(a, b2, &seg, true);
-        chunk.setColor4f(rampAt(((float)i + 0.5f) / (float)chunks), nullptr);
+        chunk.setColor4f(material::skia::toSkColor(
+                             rampAt(((float)i + 0.5f) / (float)chunks)),
+                         nullptr);
         canvas.drawPath(seg.detach(), chunk);
       }
     }
@@ -266,7 +267,7 @@ void Line::applyFill(SkPaint& p, const PaintContext& ctx) const {
   // its colour from the node the line is painted under.
   const Fill resolved = resolveRef(fill, ctx);
   if (resolved.kind == Fill::Kind::Color)
-    p.setColor4f(resolved.colorValue, nullptr);
+    p.setColor4f(material::skia::toSkColor(resolved.colorValue), nullptr);
   else if (resolved.kind == Fill::Kind::Shader)
     p.setShader(resolved.shaderValue);
 }
@@ -357,7 +358,7 @@ void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     p.setStrokeJoin(rail.join);
     const Fill railFill = resolveRef(rail.fill, ctx);
     if (railFill.kind == Fill::Kind::Color)
-      p.setColor4f(railFill.colorValue, nullptr);
+      p.setColor4f(material::skia::toSkColor(railFill.colorValue), nullptr);
     else if (railFill.kind == Fill::Kind::Shader)
       p.setShader(railFill.shaderValue);
     canvas.drawPath(run, p);
@@ -378,7 +379,7 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   p.setAntiAlias(true);
   const Fill hatchFill = resolveRef(strokeFill, ctx);
   if (hatchFill.kind == Fill::Kind::Color)
-    p.setColor4f(hatchFill.colorValue, nullptr);
+    p.setColor4f(material::skia::toSkColor(hatchFill.colorValue), nullptr);
   else if (hatchFill.kind == Fill::Kind::Shader)
     p.setShader(hatchFill.shaderValue);
   c.save();
@@ -412,7 +413,7 @@ void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   p.setStrokeWidth(width);
   const Fill ringFill = resolveRef(strokeFill, ctx);
   if (ringFill.kind == Fill::Kind::Color)
-    p.setColor4f(ringFill.colorValue, nullptr);
+    p.setColor4f(material::skia::toSkColor(ringFill.colorValue), nullptr);
   else if (ringFill.kind == Fill::Kind::Shader)
     p.setShader(ringFill.shaderValue);
 

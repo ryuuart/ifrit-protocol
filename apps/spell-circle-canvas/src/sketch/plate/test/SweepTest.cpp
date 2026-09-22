@@ -16,6 +16,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
 #include <sigilimage/decode/Decode.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
@@ -66,8 +67,9 @@ struct StoryMomentProbe {
     ctx.captureAt(2.0);
   }
   void update(double elapsed, SketchContext& ctx) {
-    ctx.composer.render(box().width(64).height(48).fill(Fill::color(
-        elapsed > 1.9 ? SkColor4f{0, 1, 0, 1} : SkColor4f{1, 0, 0, 1})));
+    ctx.composer.render(box().width(64).height(48).fill(
+        Fill::color(elapsed > 1.9 ? sigil::material::Color{0, 1, 0, 1}
+                                  : sigil::material::Color{1, 0, 0, 1})));
   }
 };
 

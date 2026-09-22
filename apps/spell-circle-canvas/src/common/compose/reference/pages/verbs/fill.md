@@ -25,7 +25,7 @@ of them, or a live binding whose value IS the node's colour.
 ```cpp
 Element& fill(motion::Animatable<Fill> colour);
 Element& fill(material::skia::Paint paint);
-Element& fill(SkColor4f colour);
+Element& fill(material::Color colour);
 template <typename P> Element& fill(P&& surface);   // a SurfacePaint
 ```
 
@@ -40,7 +40,7 @@ def fill(self, value: SurfacePaintLike) -> Element: ...
 | `Fill` | Nothing, a colour, a shader, or a reference the tree resolves at paint. | [`Fill`](../types/Fill.md) |
 | `motion::Animatable<Fill>` | The same, at rest, in transition, or bound to a live output. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) |
 | `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | [`material::skia::Paint`](../../VALUES.md#the-surface) |
-| `SkColor4f` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |
+| `material::Color` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |
 | `SurfacePaint` | A component's surface property: any of the above, or empty. | [`SurfacePaint`](../types/SurfacePaint.md) |
 
 In Python the parameter is `SurfacePaintLike`, which additionally

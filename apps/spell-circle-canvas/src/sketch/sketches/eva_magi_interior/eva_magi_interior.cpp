@@ -10,6 +10,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -23,6 +24,7 @@
 #include "EvangelionUi.h"
 #include "Infection.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace weave = sigil::weave;
@@ -30,12 +32,12 @@ namespace ch = choreograph;
 using namespace sigil::compose;
 
 namespace {
-const SkColor4f kGround = hexColor(0x060505);
-const SkColor4f kOrange = hexColor(0xF39B39);
-const SkColor4f kDim = hexColor(0x704021);
-const SkColor4f kRed = hexColor(0xEB3C30);
-const SkColor4f kMint = hexColor(0x72D9B0);
-const SkColor4f kGold = hexColor(0xE5CD69);
+const material::Color kGround = hexColor(0x060505);
+const material::Color kOrange = hexColor(0xF39B39);
+const material::Color kDim = hexColor(0x704021);
+const material::Color kRed = hexColor(0xEB3C30);
+const material::Color kMint = hexColor(0x72D9B0);
+const material::Color kGold = hexColor(0xE5CD69);
 constexpr SkPoint kCentre{488, 589};
 constexpr float kMemoryWidth = 348;
 constexpr float kMemoryHeight = 142;
@@ -46,7 +48,7 @@ SkPoint polar(float radius, float degrees) {
           kCentre.fY + radius * std::sin(angle)};
 }
 
-Element trace(SkPath path, SkColor4f ink, float width = 1.5f) {
+Element trace(SkPath path, material::Color ink, float width = 1.5f) {
   return box()
       .inset(0)
       .shape(heldPath(std::move(path)))
@@ -54,17 +56,17 @@ Element trace(SkPath path, SkColor4f ink, float width = 1.5f) {
       .stroke(PathFormat{.width = width, .strokeFill = Fill::color(ink)});
 }
 
-Element segment(SkPoint a, SkPoint b, SkColor4f ink, float width = 1.5f) {
+Element segment(SkPoint a, SkPoint b, material::Color ink, float width = 1.5f) {
   return trace(SkPathBuilder().moveTo(a).lineTo(b).detach(), ink, width);
 }
 
-Element ring(float radius, SkColor4f ink, float width = 1.5f) {
+Element ring(float radius, material::Color ink, float width = 1.5f) {
   return trace(
       SkPathBuilder().addCircle(kCentre.fX, kCentre.fY, radius).detach(), ink,
       width);
 }
 
-Element arc(float radius, float start, float sweep, SkColor4f ink,
+Element arc(float radius, float start, float sweep, material::Color ink,
             float width) {
   const SkRect bounds = SkRect::MakeXYWH(
       kCentre.fX - radius, kCentre.fY - radius, radius * 2, radius * 2);
@@ -83,7 +85,7 @@ struct EvaMagiInterior {
 
   // Display text is fitted by its measured cap height and placed by its ink
   // top, so changing a fallback face does not change the spacing between rows.
-  Element label(Utf8 content, SkPoint ink, float cap, SkColor4f color,
+  Element label(Utf8 content, SkPoint ink, float cap, material::Color color,
                 float measure = 0) const {
     auto face = evangelion::condensedBold();
     const auto probe =
@@ -141,7 +143,7 @@ struct EvaMagiInterior {
     // core.
     for (int i = 0; i < 24; ++i) {
       const float angle = i * 15.0f - 82.5f;
-      const SkColor4f color = i < 8 ? kMint : (i < 16 ? kRed : kGold);
+      const material::Color color = i < 8 ? kMint : (i < 16 ? kRed : kGold);
       const SkPoint soma = polar(302, angle);
       SkPathBuilder hexagon;
       for (int corner = 0; corner < 6; ++corner) {
@@ -273,7 +275,7 @@ struct EvaMagiInterior {
                                            "CASPER / 03"};
     const std::array<const char*, 3> states{"INVADED", "ISOLATING",
                                             "PROTECTED"};
-    const std::array<SkColor4f, 3> colors{kRed, kGold, kMint};
+    const std::array<material::Color, 3> colors{kRed, kGold, kMint};
     for (int i = 0; i < 3; ++i) {
       const float y = 432.0f + i * 67;
       const float coverage = i == 0 ? 1 : (i == 1 ? progress : 0);

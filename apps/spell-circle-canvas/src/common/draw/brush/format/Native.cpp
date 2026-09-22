@@ -332,9 +332,9 @@ std::string encodeBrush(const Tool& tool) {
   out += "  \"tip\": \"";
   out += wordFor(tool.tip, kTipNames);
   out += "\",\n";
-  out += "  \"color\": [" + decimal(tool.color.fR) + ", " +
-         decimal(tool.color.fG) + ", " + decimal(tool.color.fB) + ", " +
-         decimal(tool.color.fA) + "],\n";
+  out += "  \"color\": [" + decimal(tool.color.r) + ", " +
+         decimal(tool.color.g) + ", " + decimal(tool.color.b) + ", " +
+         decimal(tool.color.a) + "],\n";
   out += "  \"width\": " + decimal(tool.width) + ",\n";
   out += "  \"opacity\": " + decimal(tool.opacity) + ",\n";
   out += "  \"spacing\": " + decimal(tool.spacing) + ",\n";

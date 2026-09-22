@@ -16,10 +16,10 @@ using sigil::compose::kit::SpriteKey;
 using sigil::compose::kit::SpriteSheet;
 using sigil::compose::kit::SpriteStyle;
 
-const SkColor4f kBlank{0, 0, 0, 0};
-const SkColor4f kRed{1, 0, 0, 1};
-const SkColor4f kBlue{0, 0, 1, 1};
-const std::vector<SkColor4f> kColours{kBlank, kRed, kBlue};
+const sigil::material::Color kBlank{0, 0, 0, 0};
+const sigil::material::Color kRed{1, 0, 0, 1};
+const sigil::material::Color kBlue{0, 0, 1, 1};
+const std::vector<sigil::material::Color> kColours{kBlank, kRed, kBlue};
 constexpr std::string_view kChars = " ab";
 
 /** The three-by-three the bake cases read, with a hole in it: the blank is
@@ -125,7 +125,7 @@ TEST(KitSprites, MarksKeepTheirOrderSoAnOverlapCompositesAsAuthored) {
   Sprite sprite;
   sprite.grid = {2, 1};
   sprite.rect(0, 0, 2, 1, kRed);
-  sprite.px(1, 0, SkColor4f{0, 0, 1, 0.5f});
+  sprite.px(1, 0, sigil::material::Color{0, 0, 1, 0.5f});
   const sk_sp<SkImage> image = spriteImage(sprite);
   ASSERT_TRUE(image);
   EXPECT_EQ(pixelOf(image, 0, 0), SK_ColorRED);
@@ -157,10 +157,11 @@ TEST(KitSprites, ASheetPacksEverySpriteUnderItsNameWithoutOverlap) {
   SpriteSheet sheet;
   const std::vector<std::string> flat{"aa", "aa"};
   for (int i = 0; i < 16; ++i)
-    sheet.add("icon" + std::to_string(i),
-              *pixelMap(flat, {kChars, i % 2 ? kColours
-                                             : std::vector<SkColor4f>{
-                                                   kBlank, kBlue, kRed}}));
+    sheet.add(
+        "icon" + std::to_string(i),
+        *pixelMap(flat, {kChars, i % 2 ? kColours
+                                       : std::vector<sigil::material::Color>{
+                                             kBlank, kBlue, kRed}}));
   ASSERT_EQ(sheet.size(), 16u);
   ASSERT_TRUE(sheet.bake({.cell = 3.0f}));
   ASSERT_TRUE(sheet.image());

@@ -1,4 +1,5 @@
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
@@ -11,7 +12,8 @@ namespace sigil::sketch::kit {
 void stage(SketchContext& ctx, const Stage& surface) {
   CanvasSpecification declared;
   declared.size = surface.size;
-  declared.background = surface.background.value_or(theme().palette.ground);
+  declared.background = material::skia::toSkColor(
+      surface.background.value_or(theme().palette.ground));
   declared.captureSeconds = surface.captureAt;
   declared.oversample = surface.oversample;
   declared.plateOnly = surface.plateOnly;
@@ -23,7 +25,8 @@ void stage(SetContext& ctx, const Stage& surface) {
   if (ctx.specification == nullptr) return;
   CanvasSpecification declared;
   declared.size = surface.size;
-  declared.background = surface.background.value_or(theme().palette.ground);
+  declared.background = material::skia::toSkColor(
+      surface.background.value_or(theme().palette.ground));
   declared.captureSeconds = surface.captureAt;
   declared.oversample = surface.oversample;
   declared.plateOnly = surface.plateOnly;

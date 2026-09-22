@@ -1,4 +1,5 @@
 #include <sigilcompose/kit/Document.h>
+#include <sigilmaterial/color/Color.h>
 
 #include "ThunderFulu.h"
 
@@ -70,12 +71,19 @@ auto ThunderFulu::logStyle() -> feed::TextOptions {
   // face and the size the base's.
   s.styles
       .base(weave::textStyle(
-          {.face = faceMono, .size = 9.6f, .color = hexColor(0x9a8a68)}))
-      .set("dim", weave::Type{.color = hexColor(0x6d6249)})
-      .set("heading", weave::Type{.color = kGold})
-      .set("pass", weave::Type{.color = hexColor(0x5fae7f)})
-      .set("number", weave::Type{.color = hexColor(0xcf6a4a)})
-      .set("fail", weave::Type{.color = hexColor(0xc4483a)});
+          {.face = faceMono,
+           .size = 9.6f,
+           .color = sigil::material::skia::toSkColor(hexColor(0x9a8a68))}))
+      .set("dim", weave::Type{.color = sigil::material::skia::toSkColor(
+                                  hexColor(0x6d6249))})
+      .set("heading",
+           weave::Type{.color = sigil::material::skia::toSkColor(kGold)})
+      .set("pass", weave::Type{.color = sigil::material::skia::toSkColor(
+                                   hexColor(0x5fae7f))})
+      .set("number", weave::Type{.color = sigil::material::skia::toSkColor(
+                                     hexColor(0xcf6a4a))})
+      .set("fail", weave::Type{.color = sigil::material::skia::toSkColor(
+                                   hexColor(0xc4483a))});
   s.window.gap = 1.0f;
   s.window.visible = 13;
   return s;
@@ -109,10 +117,11 @@ auto ThunderFulu::tempoPanel() -> Element {
   std::vector<sketch::kit::Row> rows;
   const std::span<const data::Json> read = said["rows"].items();
   for (std::size_t i = 0; i < read.size(); ++i)
-    rows.push_back({.cells = wordsOf(read[i]),
-                    .ink = i + 1 == read.size()
-                               ? std::optional<SkColor4f>(kCinnabar)
-                               : std::nullopt});
+    rows.push_back(
+        {.cells = wordsOf(read[i]),
+         .ink = i + 1 == read.size()
+                    ? std::optional<sigil::material::Color>(kCinnabar)
+                    : std::nullopt});
   return box()
       .column()
       .at({718, 972})
@@ -203,7 +212,9 @@ auto ThunderFulu::marginColumn() -> Element {
                     .key("lawband"),
                 widthLawPlot(Wc),
                 text(said["law"]["note"])
-                    .font({.size = 8.5f, .color = hexColor(0x6f6047)})})});
+                    .font({.size = 8.5f,
+                           .color = sigil::material::skia::toSkColor(
+                               hexColor(0x6f6047))})})});
 
   // --- the six recovered classes, as specimens -------------------------
   // Each specimen runs in its OWN class's direction, at the class's own
@@ -240,7 +251,9 @@ auto ThunderFulu::marginColumn() -> Element {
                          .key(kit::formatted("spec%d", (int)c)),
                      text(kit::formatted("%s  %.3f em", kClsName[c],
                                          (double)w0ForClass((int)c)))
-                         .font({.size = 9.0f, .color = hexColor(0xa48c5c)})
+                         .font({.size = 9.0f,
+                                .color = sigil::material::skia::toSkColor(
+                                    hexColor(0xa48c5c))})
                          .at({0, 56})
                          .width(140)});
               })});
@@ -258,6 +271,8 @@ auto ThunderFulu::marginColumn() -> Element {
            {sung(said["gall"]["lines"], tGall, 10.0f * tGallEach / 6.0f, 0.28f,
                  "gc")}),
        text(said["gall"]["note"])
-           .font({.size = 9.0f, .color = hexColor(0x6f6047)})})});
+           .font({.size = 9.0f,
+                  .color = sigil::material::skia::toSkColor(
+                      hexColor(0x6f6047))})})});
   return g;
 }

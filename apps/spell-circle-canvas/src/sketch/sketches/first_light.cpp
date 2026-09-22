@@ -18,6 +18,7 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
@@ -51,10 +52,10 @@ gm::curve::Spline3 ribbon() { return world::kit::wave({}); }
 
 struct FirstLight {
   void setup(sketch::SetContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = {900, 640},
-                        .captureAt = 1.4,
-                        .background = SkColor4f{0.035f, 0.04f, 0.055f, 1.0f}});
+    sketch::kit::stage(
+        ctx, {.size = {900, 640},
+              .captureAt = 1.4,
+              .background = material::Color{0.035f, 0.04f, 0.055f, 1.0f}});
   }
 
   world::Frame describe(float seconds) {

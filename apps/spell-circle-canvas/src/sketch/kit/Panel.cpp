@@ -3,6 +3,7 @@
 #include <sigilcompose/kit/Board.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Ground.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Panel.h>
 
 #include <algorithm>
@@ -30,8 +31,8 @@ compose::Element backdrop(const Backdrop& ground) {
         {0.5f, 0.5f, 0.5f, 1}, ground.grain, ground.grainScale))});
   }
   if (ground.vignette > 0) {
-    SkColor4f edge = ground.edge.value_or(SkColor4f{0, 0, 0, 1});
-    edge.fA = std::clamp(ground.vignette, 0.0f, 1.0f);
+    material::Color edge = ground.edge.value_or(material::Color{0, 0, 0, 1});
+    edge.a = std::clamp(ground.vignette, 0.0f, 1.0f);
     surface.children({box().absolute().inset(0).fill(
         compose::kit::vignette(ground.over, edge))});
   }

@@ -31,6 +31,7 @@
 #include <sigildraw/PenTypes.h>
 #include <sigildraw/Retained.h>
 #include <sigilgeometry/kit/Corners.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/style/Type.h>
 
@@ -103,10 +104,10 @@ class Pen {
    *  calls this on keeps p5's own defaults.
    *  @silent the program has called the verb itself: that choice then
    *  holds from frame to frame and this stops reaching it. */
-  void inherit(SkColor4f ink, const weave::Type& font);
+  void inherit(material::Color ink, const weave::Type& font);
   /** The pair the last `inherit` carried — black and
    *  `weave::initialType()` on a pen that was never told one. */
-  [[nodiscard]] SkColor4f inheritedInk() const { return m_inheritedInk; }
+  [[nodiscard]] material::Color inheritedInk() const { return m_inheritedInk; }
   [[nodiscard]] const weave::Type& inheritedFont() const {
     return m_inheritedFont;
   }
@@ -172,22 +173,23 @@ class Pen {
   void colorMode(Constant mode, float max);
   void colorMode(Constant mode, float max1, float max2, float max3);
   void colorMode(Constant mode, float max1, float max2, float max3, float maxA);
-  [[nodiscard]] SkColor4f color(float gray) const;
-  [[nodiscard]] SkColor4f color(float gray, float alpha) const;
-  [[nodiscard]] SkColor4f color(float v1, float v2, float v3) const;
-  [[nodiscard]] SkColor4f color(float v1, float v2, float v3,
-                                float alpha) const;
-  [[nodiscard]] SkColor4f color(std::string_view css) const;
-  [[nodiscard]] SkColor4f color(SkColor4f c) const { return c; }
-  [[nodiscard]] static SkColor4f lerpColor(SkColor4f a, SkColor4f b,
-                                           float amount);
+  [[nodiscard]] material::Color color(float gray) const;
+  [[nodiscard]] material::Color color(float gray, float alpha) const;
+  [[nodiscard]] material::Color color(float v1, float v2, float v3) const;
+  [[nodiscard]] material::Color color(float v1, float v2, float v3,
+                                      float alpha) const;
+  [[nodiscard]] material::Color color(std::string_view css) const;
+  [[nodiscard]] material::Color color(material::Color c) const { return c; }
+  [[nodiscard]] static material::Color lerpColor(material::Color a,
+                                                 material::Color b,
+                                                 float amount);
 
   void background(float gray);
   void background(float gray, float alpha);
   void background(float v1, float v2, float v3);
   void background(float v1, float v2, float v3, float alpha);
   void background(std::string_view css);
-  void background(SkColor4f color);
+  void background(material::Color color);
   /** A material as the ground: a gradient, a shader, a recipe. */
   void background(const material::skia::Paint& paint);
   /** A recipe instance as the ground, as the fill and the stroke take
@@ -201,7 +203,7 @@ class Pen {
   void fill(float v1, float v2, float v3);
   void fill(float v1, float v2, float v3, float alpha);
   void fill(std::string_view css);
-  void fill(SkColor4f color);
+  void fill(material::Color color);
   /** A material as the fill — the pen's own overload. A live material
    *  is resolved against the pen's clock on every draw; a static one
    *  once, here. */
@@ -221,7 +223,7 @@ class Pen {
   void stroke(float v1, float v2, float v3);
   void stroke(float v1, float v2, float v3, float alpha);
   void stroke(std::string_view css);
-  void stroke(SkColor4f color);
+  void stroke(material::Color color);
   void stroke(const material::skia::Paint& paint);
   /** Fitted exactly as the fill is: `SHAPE` measures the material against
    *  each shape's bounds, `CANVAS` against the frame. */
@@ -595,7 +597,7 @@ class Pen {
   bool m_redraw = false;
   double m_targetFrameRate = 0.0;
   std::vector<int> m_keysDown;
-  SkColor4f m_inheritedInk{0, 0, 0, 1};
+  material::Color m_inheritedInk{0, 0, 0, 1};
   weave::Type m_inheritedFont = weave::initialType();
 
   Style m_style;

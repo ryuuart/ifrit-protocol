@@ -25,6 +25,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Projection.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -50,6 +51,7 @@
 
 #include "Catalogue.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace data = sigil::data;
 namespace field = sigil::material::field;
@@ -80,21 +82,21 @@ namespace dunhuang_star_chart {
 // the edges of every stroke; the three schools are cinnabar, that same
 // carbon, and an ochre-white lead that has oxidised warm.
 
-constexpr SkColor4f kVoid = hexColor(0x14120e);
-constexpr SkColor4f kPaperDeep = hexColor(0xb99f72);
-constexpr SkColor4f kPaperMid = hexColor(0xd6bf95);
-constexpr SkColor4f kPaperLit = hexColor(0xe8d6ad);
-constexpr SkColor4f kPaperPale = hexColor(0xf1e4c2);
-constexpr SkColor4f kKraft = hexColor(0xa87f4c);
-constexpr SkColor4f kInk = hexColor(0x2a2118);
-constexpr SkColor4f kInkSoft = hexColor(0x5d4c37);
-constexpr SkColor4f kInkFaint = hexColor(0x8a7458);
-constexpr SkColor4f kCinnabar = hexColor(0xa8382a);
-constexpr SkColor4f kLead = hexColor(0xf4ecd8);
-constexpr SkColor4f kRule = hexColor(0x6b573c);
-constexpr SkColor4f kTrace = hexColor(0x2f6d86);
-constexpr SkColor4f kFlag = hexColor(0xb4531f);
-constexpr SkColor4f kChalk = hexColor(0xcbb894);
+constexpr material::Color kVoid = hexColor(0x14120e);
+constexpr material::Color kPaperDeep = hexColor(0xb99f72);
+constexpr material::Color kPaperMid = hexColor(0xd6bf95);
+constexpr material::Color kPaperLit = hexColor(0xe8d6ad);
+constexpr material::Color kPaperPale = hexColor(0xf1e4c2);
+constexpr material::Color kKraft = hexColor(0xa87f4c);
+constexpr material::Color kInk = hexColor(0x2a2118);
+constexpr material::Color kInkSoft = hexColor(0x5d4c37);
+constexpr material::Color kInkFaint = hexColor(0x8a7458);
+constexpr material::Color kCinnabar = hexColor(0xa8382a);
+constexpr material::Color kLead = hexColor(0xf4ecd8);
+constexpr material::Color kRule = hexColor(0x6b573c);
+constexpr material::Color kTrace = hexColor(0x2f6d86);
+constexpr material::Color kFlag = hexColor(0xb4531f);
+constexpr material::Color kChalk = hexColor(0xcbb894);
 
 // ---------------------------------------------------------------------------
 // canvas, and the scroll's own metric. Everything below is in MILLIMETRES of
@@ -391,7 +393,7 @@ inline const char* schoolClass(char c) {
   }
 }
 
-inline SkColor4f schoolInk(char c) {
+inline material::Color schoolInk(char c) {
   switch (c) {
     case 'R':
       return kCinnabar;

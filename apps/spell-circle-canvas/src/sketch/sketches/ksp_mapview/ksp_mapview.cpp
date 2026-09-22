@@ -53,11 +53,18 @@ auto KspMapView::setup(sketch::SketchContext& ctx) -> void {
   // states this sheet and every line under it is dressed by name.
   doc = sketch::kit::Document(ctx, "data/content.json");
   cardLook = weave::StyleSheet{
-      {"caption", weave::Type{.face = sans(), .size = 11, .color = kCardInk}},
-      {"readout", weave::Type{.face = sansB(), .size = 11, .color = kOrange}},
-      {"h2",
-       weave::Type{
-           .face = sansB(), .size = 11, .color = kOrange, .track = 0.2f}}};
+      {"caption",
+       weave::Type{.face = sans(),
+                   .size = 11,
+                   .color = sigil::material::skia::toSkColor(kCardInk)}},
+      {"readout",
+       weave::Type{.face = sansB(),
+                   .size = 11,
+                   .color = sigil::material::skia::toSkColor(kOrange)}},
+      {"h2", weave::Type{.face = sansB(),
+                         .size = 11,
+                         .color = sigil::material::skia::toSkColor(kOrange),
+                         .track = 0.2f}}};
 
   // Starfield: one soft-dot cell, 360 hashed instances.
   starAtlas = std::make_shared<instancing::CellSheet>(2.0f);
@@ -77,7 +84,7 @@ auto KspMapView::setup(sketch::SketchContext& ctx) -> void {
     const float px = rnd() * 1200.0f, py = rnd() * 800.0f;
     const float sc = 0.18f + rnd() * rnd() * 0.75f;
     const float a = 0.25f + rnd() * 0.7f;
-    SkColor4f tint = hexColor(0xFFFFFF, a);
+    sigil::material::Color tint = hexColor(0xFFFFFF, a);
     const float hue = rnd();
     if (hue > 0.90f)
       tint = hexColor(0xBFD4FF, a);

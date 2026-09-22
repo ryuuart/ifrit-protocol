@@ -9,6 +9,8 @@
 #include <include/core/SkSurface.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Kind.h>
@@ -33,6 +35,7 @@
 namespace fs = std::filesystem;
 namespace image = sigil::image;
 namespace io = sigil::io;
+namespace material = sigil::material;
 
 namespace sigil::sketch {
 
@@ -217,7 +220,8 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   // Only setup was needed to learn that, which is the cheap half; the
   // walk is what is stood down.
   if (specification.plateOnly && !run.heavy) return ThumbnailOutcome::Heavy;
-  const SkColor4f background = specification.background;
+  const SkColor4f background =
+      material::skia::toSkColor(specification.background);
 
   // Step from zero to the sketch's declared moment on a working surface
   // its own size — the frame the plate tier photographs.

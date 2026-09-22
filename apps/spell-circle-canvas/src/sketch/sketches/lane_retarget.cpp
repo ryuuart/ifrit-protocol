@@ -36,6 +36,7 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilmotion/values/Lanes.h>
@@ -51,6 +52,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 namespace weave = sigil::weave;
@@ -70,8 +72,8 @@ constexpr float kFirst = 0.92f;       // the first target
 constexpr float kSecond = 0.24f;      // …and the one it is bent onto
 constexpr int kDuration = 900;        // the transition both ask for, ms
 
-constexpr SkColor4f kGrid{0.19f, 0.20f, 0.24f, 1};
-constexpr SkColor4f kSecondInk{0.46f, 0.72f, 0.92f, 1};
+constexpr material::Color kGrid{0.19f, 0.20f, 0.24f, 1};
+constexpr material::Color kSecondInk{0.46f, 0.72f, 0.92f, 1};
 
 /** The host's enumeration of its storages, declared here because a lane
  *  names no host type: one fixed slot array and one positional family. */
@@ -88,9 +90,11 @@ using Trace = std::vector<float>;
  *  changed shape. */
 weave::StyleSheet look() {
   weave::StyleSheet dressed = sketch::kit::theme().styleSheet();
-  dressed.set("arrive", {.color = kGrid});
-  dressed.set("quiet", {.color = sketch::kit::theme().palette.ash});
-  dressed.set("reshaped", {.color = kSecondInk});
+  dressed.set("arrive", {.color = material::skia::toSkColor(kGrid)});
+  dressed.set(
+      "quiet",
+      {.color = material::skia::toSkColor(sketch::kit::theme().palette.ash)});
+  dressed.set("reshaped", {.color = material::skia::toSkColor(kSecondInk)});
   return dressed;
 }
 

@@ -52,6 +52,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/LayoutOptions.h>
@@ -61,6 +62,7 @@
 #include <string>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
@@ -77,12 +79,13 @@ constexpr float kWide = 230;    // …and to
 constexpr int kFloor = 4000;    // the frame's floor, break candidates
 constexpr int kStarved = 1;     // a floor nothing can meet
 
-constexpr SkColor4f kBody{0.84f, 0.85f, 0.88f, 1};
+constexpr material::Color kBody{0.84f, 0.85f, 0.88f, 1};
 
 weave::TextStyle body() {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
-  return weave::textStyle({.face = face, .size = 11.5f, .color = kBody});
+  return weave::textStyle(
+      {.face = face, .size = 11.5f, .color = material::skia::toSkColor(kBody)});
 }
 
 const char* kPassage =

@@ -8,8 +8,10 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -17,10 +19,10 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {600, 260};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kPlate = hexColor(0x1b2229);
-constexpr SkColor4f kPale = hexColor(0xd9e3ea);
-constexpr SkColor4f kAmber = hexColor(0xe0a03c);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kPlate = hexColor(0x1b2229);
+constexpr material::Color kPale = hexColor(0xd9e3ea);
+constexpr material::Color kAmber = hexColor(0xe0a03c);
 
 /** One panel. Nothing inside it names a colour: the text takes the ink,
  *  the stroke takes the ink because it names none, and the square takes

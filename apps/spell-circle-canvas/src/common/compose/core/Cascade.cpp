@@ -7,6 +7,8 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the once-per-name diagnostics
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/style/Type.h>
 
@@ -71,11 +73,9 @@ bool sameSheet(const std::shared_ptr<const sigil::weave::StyleSheet>& a,
   return *a == *b;
 }
 
-SkColor4f lerpColour(const SkColor4f& from, const SkColor4f& to, float t) {
-  SkColor4f out = to;
-  for (int i = 0; i < 4; ++i)
-    out.vec()[i] = from.vec()[i] + (to.vec()[i] - from.vec()[i]) * t;
-  return out;
+material::Color lerpColour(const material::Color& from,
+                           const material::Color& to, float t) {
+  return material::mixToward(from, to, t, from.a + (to.a - from.a) * t);
 }
 
 }  // namespace
@@ -142,7 +142,8 @@ Fill resolveRef(const Fill& fill, const PaintContext& ctx) {
     case Fill::Ref::Var: {
       const VarValue* value =
           ctx.vars ? ctx.vars->find(VarRef{fill.varId}) : nullptr;
-      const SkColor4f* colour = value ? std::get_if<SkColor4f>(value) : nullptr;
+      const material::Color* colour =
+          value ? std::get_if<material::Color>(value) : nullptr;
       if (colour) return Fill::color(*colour);
       warnNoSuchVar(VarRef{fill.varId}, true);
       return Fill::none();
@@ -343,9 +344,10 @@ void Composer::Impl::resolveCascade(
                                    parentLineHeight);
     if (inkVar) {
       const VarValue* value = vars ? vars->find(*inkVar) : nullptr;
-      const SkColor4f* colour = value ? std::get_if<SkColor4f>(value) : nullptr;
+      const material::Color* colour =
+          value ? std::get_if<material::Color>(value) : nullptr;
       if (colour)
-        font.color = *colour;
+        font.color = material::skia::toSkColor(*colour);
       else
         warnNoSuchVar(*inkVar, true);
     }
@@ -356,7 +358,8 @@ void Composer::Impl::resolveCascade(
   // flight and repaints with it.
   if (const auto& anim = inst.anims[Instance::kInkLerp];
       anim && anim->started && anim->value.isConnected()) {
-    font.color = lerpColour(inst.inkFrom, inst.inkTo, anim->value.value());
+    font.color = material::skia::toSkColor(
+        lerpColour(inst.inkFrom, inst.inkTo, anim->value.value()));
     inkAnimating = true;
   }
 

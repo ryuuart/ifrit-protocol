@@ -7,6 +7,7 @@
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/Draw.h>
 #include <sigilweave/style/Type.h>
 
@@ -164,7 +165,8 @@ bool resolve(const material::skia::Paint& material, SkPaint& paint,
              const material::skia::PaintFrame& frame) {
   if (material.isSolid()) {
     paint.setShader(nullptr);
-    paint.setColor4f(material.solidColor(), nullptr);
+    paint.setColor4f(sigil::material::skia::toSkColor(material.solidColor()),
+                     nullptr);
     return false;
   }
   if (material.isNone()) {

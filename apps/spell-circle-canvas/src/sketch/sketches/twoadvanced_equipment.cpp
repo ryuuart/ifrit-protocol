@@ -59,6 +59,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -73,6 +74,7 @@
 
 #include "twoadvanced_v3/TwoAdvanced.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
@@ -89,12 +91,15 @@ namespace teq {
 using namespace twoadvanced;
 
 // The page's entire palette, straight from its attributes.
-constexpr SkColor4f kMaroon = hexColor(0x7C252C);   // header rows, copy, links
-constexpr SkColor4f kRose = hexColor(0xF0E7E8);     // description cells
-constexpr SkColor4f kWhite = hexColor(0xFFFFFF);    // BODY bgColor
-constexpr SkColor4f kSbFace = hexColor(0xBBC0C9);   // SCROLLBAR-FACE-COLOR
-constexpr SkColor4f kSbTrack = hexColor(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
-constexpr SkColor4f kSbArrow = hexColor(0x666666);  // SCROLLBAR-ARROW-COLOR
+constexpr material::Color kMaroon =
+    hexColor(0x7C252C);  // header rows, copy, links
+constexpr material::Color kRose = hexColor(0xF0E7E8);    // description cells
+constexpr material::Color kWhite = hexColor(0xFFFFFF);   // BODY bgColor
+constexpr material::Color kSbFace = hexColor(0xBBC0C9);  // SCROLLBAR-FACE-COLOR
+constexpr material::Color kSbTrack =
+    hexColor(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
+constexpr material::Color kSbArrow =
+    hexColor(0x666666);  // SCROLLBAR-ARROW-COLOR
 
 // Frameset geometry, in the page's own CSS pixels.
 constexpr float kPageW = 790, kPageH = 580;
@@ -221,7 +226,7 @@ struct TwoAdvancedEquipment {
    *  on every one of its bitmaps, and half of them are stated at
    *  something other than the file's own size. */
   Element img(const char* name, float w, float h,
-              SkColor4f fallback = teq::kMaroon) {
+              material::Color fallback = teq::kMaroon) {
     auto it = art.find(name);
     if (it == art.end() || !it->second)
       return box().width(w).height(h).flexShrink(0).fill(fallback);
@@ -251,7 +256,7 @@ struct TwoAdvancedEquipment {
       // 1.2 s apart, so the pointer walks the row.
       const float on0 = teq::kHoverFirst + (float)i * teq::kHoverStep;
       f.children(
-          {at(box().fill(mskia::withAlpha(kWhite, 0.4f)), x, 82, w, 11)
+          {at(box().fill(material::withAlpha(kWhite, 0.4f)), x, 82, w, 11)
                .opacity(motion::bind(&clock)
                             .source(on0, on0 + teq::kHoverCycle)
                             .square(teq::kHoverDwell / teq::kHoverCycle))});
@@ -286,7 +291,8 @@ struct TwoAdvancedEquipment {
                   .row()
                   .alignItems(Align::Center)
                   .padding(0, 4)
-                  .children({t(p.name, {.color = kWhite})}),
+                  .children({t(p.name,
+                               {.color = material::skia::toSkColor(kWhite)})}),
               kit::centred()
                   .width(17)
                   .fill(kMaroon)
@@ -297,7 +303,8 @@ struct TwoAdvancedEquipment {
              {box().width(13), img(p.thumb, 69, 52, hexColor(0xD8D0D0)),
               box().width(3),
               box().width(416).height(52).fill(kRose).column().children(
-                  {box().padding(7).children({t(p.copy, {.color = kMaroon})}),
+                  {box().padding(7).children({t(
+                       p.copy, {.color = material::skia::toSkColor(kMaroon)})}),
                    box().flexGrow(1),
                    box()
                        .row()
@@ -352,7 +359,8 @@ struct TwoAdvancedEquipment {
                                      PathFormat::Align::Inner)))
 
           .children({t(up ? "▴" : "▾",
-                       {.face = verdanaFace(true), .color = kSbArrow})});
+                       {.face = verdanaFace(true),
+                        .color = material::skia::toSkColor(kSbArrow)})});
     };
     const sketch::kit::Scrolled frame = scrolled();
     Element scrollbar =

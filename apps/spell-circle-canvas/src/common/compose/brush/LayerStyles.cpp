@@ -34,7 +34,7 @@ void InnerShadow::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.clipPath(ctx.silhouette.isEmpty() ? ctx.outline : ctx.silhouette, true);
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(color, nullptr);
+  p.setColor4f(material::skia::toSkColor(color), nullptr);
   p.setStyle(SkPaint::kStroke_Style);
   const float reach =
       std::max(size, 1.0f) + std::max(std::abs(offset.fX), std::abs(offset.fY));
@@ -52,7 +52,7 @@ void InnerShadow::paint(SkCanvas& c, const PaintContext& ctx) const {
 void OuterGlow::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(color, nullptr);
+  p.setColor4f(material::skia::toSkColor(color), nullptr);
   if (spread > 0) {
     p.setStyle(SkPaint::kStrokeAndFill_Style);
     p.setStrokeWidth(spread * 2);
@@ -75,7 +75,7 @@ void Overlay::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(true);
   if (material.isSolid())
-    p.setColor4f(material.solidColor(), nullptr);
+    p.setColor4f(material::skia::toSkColor(material.solidColor()), nullptr);
   else if (sk_sp<SkShader> s = material.asShader())
     p.setShader(std::move(s));
   else

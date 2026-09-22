@@ -108,11 +108,11 @@ TEST(SketchKitPanel, ThePlatesOwnValuesStandOverTheThemes) {
 
 TEST(SketchKitPanel, TheBackdropIsTheThemesGround) {
   SkBitmap flat = Drawn(kit::backdrop({.over = {kWide, kTall}})).pixels();
-  const SkColor4f ground = kit::houseTheme().palette.ground;
-  const SkColor4f drawn = flat.getColor4f(4, 4);
-  EXPECT_NEAR(drawn.fR, ground.fR, 0.01f);
-  EXPECT_NEAR(drawn.fG, ground.fG, 0.01f);
-  EXPECT_NEAR(drawn.fB, ground.fB, 0.01f);
+  const sigil::material::Color ground = kit::houseTheme().palette.ground;
+  const sigil::material::Color drawn = flat.getColor4f(4, 4);
+  EXPECT_NEAR(drawn.r, ground.r, 0.01f);
+  EXPECT_NEAR(drawn.g, ground.g, 0.01f);
+  EXPECT_NEAR(drawn.b, ground.b, 0.01f);
 }
 
 /** A vignette darkens the corners and leaves the middle alone, which is
@@ -123,10 +123,10 @@ TEST(SketchKitPanel, AVignetteDarkensTheCornersAndNotTheMiddle) {
   const kit::Provide bound(paper);
   SkBitmap shaded =
       Drawn(kit::backdrop({.over = {kWide, kTall}, .vignette = 0.9f})).pixels();
-  const SkColor4f corner = shaded.getColor4f(1, 1);
-  const SkColor4f middle = shaded.getColor4f(kWide / 2, kTall / 2);
-  EXPECT_LT(corner.fR, middle.fR);
-  EXPECT_NEAR(middle.fR, paper.palette.ground.fR, 0.02f);
+  const sigil::material::Color corner = shaded.getColor4f(1, 1);
+  const sigil::material::Color middle = shaded.getColor4f(kWide / 2, kTall / 2);
+  EXPECT_LT(corner.r, middle.r);
+  EXPECT_NEAR(middle.r, paper.palette.ground.r, 0.02f);
 }
 
 /** A grain moves pixels that a flat ground leaves identical. */

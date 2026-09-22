@@ -8,8 +8,10 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -17,11 +19,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 250};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kPlate = hexColor(0x223039);
-constexpr SkColor4f kInk = hexColor(0xe8eef2);
-constexpr SkColor4f kKey = hexColor(0xf0f4f7);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kPlate = hexColor(0x223039);
+constexpr material::Color kInk = hexColor(0xe8eef2);
+constexpr material::Color kKey = hexColor(0xf0f4f7);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
 
 /** A tile whose child fills the whole box, so a mark under the children
  *  would be covered and a mark over them is not. */
@@ -42,8 +44,11 @@ Element tile(const char* caption, Element plate) {
                     .alignItems(Align::Center)
                     .children(
                         {text("A FULL-BLEED CHILD")
-                             .font({.size = 14, .color = kInk, .track = 2})})}),
-           text(caption).font({.size = 12, .color = kAsh})});
+                             .font({.size = 14,
+                                    .color = material::skia::toSkColor(kInk),
+                                    .track = 2})})}),
+           text(caption).font(
+               {.size = 12, .color = material::skia::toSkColor(kAsh)})});
 }
 
 }  // namespace

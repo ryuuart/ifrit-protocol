@@ -19,6 +19,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -38,6 +39,7 @@
 #include <vector>
 
 namespace data = sigil::data;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace measure = sigil::measure;
 namespace test = sigil::compose::test;
@@ -195,7 +197,7 @@ inline Derived calculate(Rgb bg) {
 
 /** Display truncation: X takes the TOP EIGHT BITS. Not round(v / 257) —
  *  the difference is an off-by-one on about a third of the values. */
-constexpr SkColor4f toSk(Rgb c) noexcept {
+constexpr material::Color toSk(Rgb c) noexcept {
   return {(float)((uint32_t)c.r >> 8u) / 255.0f,
           (float)((uint32_t)c.g >> 8u) / 255.0f,
           (float)((uint32_t)c.b >> 8u) / 255.0f, 1.0f};
@@ -208,7 +210,7 @@ constexpr Rgb from8(uint32_t rgb) noexcept {
   return {(int)(((rgb >> 16u) & 0xffu) << 8u),
           (int)(((rgb >> 8u) & 0xffu) << 8u), (int)((rgb & 0xffu) << 8u)};
 }
-constexpr SkColor4f C(uint32_t rgb) noexcept { return toSk(from8(rgb)); }
+constexpr material::Color C(uint32_t rgb) noexcept { return toSk(from8(rgb)); }
 
 // ===========================================================================
 // 2. THE PALETTES — the complete themes, verbatim from the shipped .dp
@@ -301,7 +303,7 @@ constexpr std::array<uint32_t, 8> kIconColor = {0x000000, 0xFFFFFF, 0xFF0000,
 // ===========================================================================
 
 struct ColorSet {
-  SkColor4f bg{}, fg{}, ts{}, bs{}, sel{};
+  material::Color bg{}, fg{}, ts{}, bs{}, sel{};
   bool operator==(const ColorSet&) const = default;
 
   static ColorSet of(Rgb background) {
@@ -359,7 +361,7 @@ inline kit::Bevel bevel(float T, bool sunken, bool etched) {
 /** A bevel drawn in the FOREGROUND on both faces — the flat outline Motif
  *  puts inside a maximise box, which is a shadow with one colour. */
 inline kit::Bevel bevelFg(float T) {
-  const SkColor4f fg = ambient().fg;
+  const material::Color fg = ambient().fg;
   return kit::bevels::motif(fg, fg, T);
 }
 
@@ -401,13 +403,14 @@ inline styles::Stipple stipple() { return styles::stipple(ambient().bg); }
  *  each, on a staggered half-drop. Period 14 in x, 13 in y. In 1993 a
  *  texture was a pixmap and a gradient was a dither, and this is why the
  *  CDE root window is a faintly-structured mid-tone rather than flat. */
-inline pattern::Program pinStripeTile(SkColor4f light, SkColor4f dark) {
+inline pattern::Program pinStripeTile(material::Color light,
+                                      material::Color dark) {
   return [light, dark](SkCanvas& c, SkSize, uint32_t) {
     SkPaint p;
     p.setAntiAlias(false);
-    p.setColor(light, nullptr);
+    p.setColor(material::skia::toSkColor(light), nullptr);
     c.drawRect(SkRect::MakeWH(28, 52), p);
-    p.setColor(dark, nullptr);
+    p.setColor(material::skia::toSkColor(dark), nullptr);
     for (int y = 0; y < 52; ++y) {
       const bool pin = (y == 0 || y == 13 || y == 26 || y == 39);
       for (int x = 0; x < 28; ++x) {
@@ -474,8 +477,12 @@ inline Element label(const Utf8& t) { return text(t).flexShrink(0); }
  *  not in the set's: a calendar page's month over its day, the one figure a
  *  proof row fails on. */
 inline Element label(const Utf8& t, float size,
-                     std::optional<SkColor4f> c = std::nullopt) {
-  return text(t).font({.size = size, .color = c}).flexShrink(0);
+                     std::optional<material::Color> c = std::nullopt) {
+  return text(t)
+      .font({.size = size,
+             .color = c ? std::optional(material::skia::toSkColor(*c))
+                        : std::nullopt})
+      .flexShrink(0);
 }
 
 /** One run with Motif's mnemonic underline on exactly one character. Two
@@ -486,16 +493,17 @@ inline Element label(const Utf8& t, float size,
  *  THE UNDERLINED CHARACTER IS TOLD ITS COLOUR: a decoration carries one of
  *  its own rather than taking the ink the glyphs are painted in, so that
  *  span is a whole style and inherits nothing. The two either side do. */
-inline Element mnemonicLabel(std::string_view t, SkColor4f c, int mnemonic) {
+inline Element mnemonicLabel(std::string_view t, material::Color c,
+                             int mnemonic) {
   if (mnemonic < 0 || mnemonic >= (int)t.size()) return label(t);
   sigil::weave::Type coloured = uiType();
-  coloured.color = c;
+  coloured.color = material::skia::toSkColor(c);
   sigil::weave::TextStyle under = weave::textStyle(coloured);
   sigil::weave::Decoration d;
   d.kind = sigil::weave::Decoration::Kind::kUnderline;
   d.skipInk = false;
   d.thickness = 1;
-  d.color = c.toSkColor();
+  d.color = material::skia::toSkColor(c).toSkColor();
   under.paint.addDecoration(d);
   return text(weave::rich()
                   .add(t.substr(0, (size_t)mnemonic))
@@ -596,7 +604,8 @@ constexpr std::string_view kIconChars = " BTSLF12345678kwrguycm";
  *  which is the whole reason CDE icons re-colour and Win95 icons do not. */
 inline kit::Sprite iconArt(const std::vector<std::string>& rows) {
   const ColorSet s = ambient();
-  std::vector<SkColor4f> colours{{0, 0, 0, 0}, s.bg, s.ts, s.bs, s.sel, s.fg};
+  std::vector<material::Color> colours{{0, 0, 0, 0}, s.bg,  s.ts,
+                                       s.bs,         s.sel, s.fg};
   for (uint32_t gray : kIconGray) colours.push_back(C(gray));
   for (uint32_t colour : kIconColor) colours.push_back(C(colour));
   return kit::pixelMap(rows, {kIconChars, colours}).value_or(kit::Sprite{});

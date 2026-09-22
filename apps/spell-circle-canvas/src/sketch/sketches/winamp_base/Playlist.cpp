@@ -37,7 +37,7 @@ auto WinampBase::playlistWindow() -> Element {
            // multiple of the row height. The row backgrounds are one atlas
            // stamp in three tint states.
            sunken(at(box(), 12, 20, W - 32, 319).fill(kPlBg),
-                  mskia::withAlpha(hexColor(0x4A4A70), 0.6f),
+                  sigil::material::withAlpha(hexColor(0x4A4A70), 0.6f),
                   hexColor(0x06060A))
                .children({box().inset(0).children({instancing::instances(
                               rowAtlas, rowPool, instancing::Mode::Live)}),
@@ -48,7 +48,7 @@ auto WinampBase::playlistWindow() -> Element {
            // the rail, and the grip — a skin's sprite at the one size the skin
            // cut it, so it is not a reading of how much list is showing
            sunken(at(box(), W - 20, 20, 20, 319).fill(hexColor(0x1A1A2A)),
-                  mskia::withAlpha(hexColor(0x4A4A70), 0.5f),
+                  sigil::material::withAlpha(hexColor(0x4A4A70), 0.5f),
                   hexColor(0x0A0A12)),
            raised(at(box(), W - 19, 24, 18, 36).fill(kBtnFace)),
            arrow(310, true), arrow(324, false),
@@ -57,7 +57,8 @@ auto WinampBase::playlistWindow() -> Element {
                .children(
                    {box().inset(0).fill(steel).cache(Cache::Texture),
                     at(box(), 0, 0, W, 1)
-                        .fill(mskia::withAlpha(hexColor(0x585880), 0.6f)),
+                        .fill(sigil::material::withAlpha(hexColor(0x585880),
+                                                         0.6f)),
                     each(kMenus,
                          [this](const char* words, size_t i) {
                            return textKey(14 + 29 * (float)i, 14, 22, 18, words,
@@ -72,23 +73,26 @@ auto WinampBase::playlistWindow() -> Element {
                     at(box(), 132, 13, 62, 7)
                         .alignItems(Align::Center)
                         .children({t(runningTime(), pix(4.0f)).ink(kPlText)}),
-                    sunken(at(box(), 132, 22, 62, 12).fill(hexColor(0x12121E)),
-                           mskia::withAlpha(hexColor(0x4A4A70), 0.55f),
-                           hexColor(0x08080E))
+                    sunken(
+                        at(box(), 132, 22, 62, 12).fill(hexColor(0x12121E)),
+                        sigil::material::withAlpha(hexColor(0x4A4A70), 0.55f),
+                        hexColor(0x08080E))
                         .children(each(
                             kMini,
                             [](const Mini& m, size_t i) {
                               return raised(
                                          at(box(), 2 + 12 * (float)i, 1, 11, 10)
-                                             .fill(mskia::withAlpha(kBtnFace,
-                                                                    0.9f)),
-                                         mskia::withAlpha(kBtnHi, 0.8f), kBtnLo)
+                                             .fill(sigil::material::withAlpha(
+                                                 kBtnFace, 0.9f)),
+                                         sigil::material::withAlpha(kBtnHi,
+                                                                    0.8f),
+                                         kBtnLo)
                                   .children({box().children(m.glyph)});
                             })),
                     // the preview-visualiser swatch (default checkerboard art)
                     sunken(
                         at(box(), W - 88, 20, 38, 14).fill(hexColor(0x000000)),
-                        mskia::withAlpha(hexColor(0x4A4A70), 0.5f),
+                        sigil::material::withAlpha(hexColor(0x4A4A70), 0.5f),
                         hexColor(0x08080E))
                         .children(
                             {box().inset(0).fill(previewCheck.material())})})});

@@ -14,6 +14,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -36,6 +37,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 
@@ -72,32 +74,32 @@ constexpr float kCaptionH = 128.0f;
 // what the 6-bit VGA palette actually delivered, sampled off the lossless PNG.
 // The gap is the finding (see header).
 
-constexpr SkColor4f kGreen =
+constexpr material::Color kGreen =
     hexColor(0x3CF800);  // _colorTable[992],  req #00FF00
-constexpr SkColor4f kSelected =
+constexpr material::Color kSelected =
     hexColor(0xFCFC7C);  // _colorTable[32747], req #F8F858
-constexpr SkColor4f kInactive =
+constexpr material::Color kInactive =
     hexColor(0x183018);  // _colorTable[1313],  req #084808
-constexpr SkColor4f kTagged = hexColor(0xA0A0A0);  // _colorTable[21140], exact
-constexpr SkColor4f kGold =
+constexpr material::Color kTagged = hexColor(0xA0A0A0);  // _colorTable[21140], exact
+constexpr material::Color kGold =
     hexColor(0x907824);  // _colorTable[18979], req #908818
-constexpr SkColor4f kGoldDim = hexColor(0x7C6818);  // engraving shadow
-constexpr SkColor4f kInk = hexColor(0x000000);  // ALL card text and its rule
+constexpr material::Color kGoldDim = hexColor(0x7C6818);  // engraving shadow
+constexpr material::Color kInk = hexColor(0x000000);  // ALL card text and its rule
 
-constexpr SkColor4f kWell = hexColor(0x040C00);   // inset interior: near-black,
+constexpr material::Color kWell = hexColor(0x040C00);   // inset interior: near-black,
                                                   // GREEN-cast, not pure black
-constexpr SkColor4f kPlate = hexColor(0x383020);  // metal plate, base olive
-constexpr SkColor4f kPlateLit = hexColor(0x483828);   // lit facet
-constexpr SkColor4f kPlateDark = hexColor(0x302820);  // shadowed facet
-constexpr SkColor4f kRust = hexColor(0x7C581C);
-constexpr SkColor4f kParch = hexColor(0x9C7434);  // parchment base ochre
-constexpr SkColor4f kParchLit = hexColor(0xAC8044);
-constexpr SkColor4f kParchLit2 = hexColor(0xBC9054);
-constexpr SkColor4f kParchDark = hexColor(0x8C6428);
-constexpr SkColor4f kParchScuff = hexColor(0x947C60);
-constexpr SkColor4f kLampOff = hexColor(0x580000);
-constexpr SkColor4f kLampOn = hexColor(0xF80000);  // _colorTable[31744]
-constexpr SkColor4f kDigit = hexColor(0xFFFFFF);  // the odometer sprite sheet's
+constexpr material::Color kPlate = hexColor(0x383020);  // metal plate, base olive
+constexpr material::Color kPlateLit = hexColor(0x483828);   // lit facet
+constexpr material::Color kPlateDark = hexColor(0x302820);  // shadowed facet
+constexpr material::Color kRust = hexColor(0x7C581C);
+constexpr material::Color kParch = hexColor(0x9C7434);  // parchment base ochre
+constexpr material::Color kParchLit = hexColor(0xAC8044);
+constexpr material::Color kParchLit2 = hexColor(0xBC9054);
+constexpr material::Color kParchDark = hexColor(0x8C6428);
+constexpr material::Color kParchScuff = hexColor(0x947C60);
+constexpr material::Color kLampOff = hexColor(0x580000);
+constexpr material::Color kLampOn = hexColor(0xF80000);  // _colorTable[31744]
+constexpr material::Color kDigit = hexColor(0xFFFFFF);  // the odometer sprite sheet's
                                                   // first half (the second half
                                                   // is red, for stats above 10)
 
@@ -181,11 +183,11 @@ inline sk_sp<SkTypeface> digitFace() {
 // one type signature and names its own five parameters over it. A PARTIAL,
 // laid over the font and ink in force where the run lands.
 inline weave::Type sheetType(const sk_sp<SkTypeface>& tf, float size,
-                             SkColor4f color, float track = 0,
+                             material::Color color, float track = 0,
                              float condense = 1.0f) {
   return {.face = tf,
           .size = size,
-          .color = color,
+          .color = material::skia::toSkColor(color),
           .track = track,
           .condense = condense};
 }
@@ -581,8 +583,8 @@ inline shapes::OutlineFunction figure(Pose p) {
  *  how deep the press went and which two golds it went into, never the
  *  treatment. The one recess lit from below states its own angle: a press
  *  from the other side is the same stamp with the light moved. */
-inline kit::Bevel stamp(float depth, float softness, SkColor4f lit,
-                        SkColor4f shade, float angleDeg = 118) {
+inline kit::Bevel stamp(float depth, float softness, material::Color lit,
+                        material::Color shade, float angleDeg = 118) {
   kit::Bevel b = kit::bevels::plate(lit, shade, n(depth), n(softness));
   b.angleDeg = angleDeg;
   return b;

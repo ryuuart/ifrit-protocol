@@ -65,6 +65,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
@@ -83,6 +84,7 @@
 #include <random>
 #include <string>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace ocio = sigil::material::ocio;
@@ -104,20 +106,20 @@ namespace daemon_console {
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
 // ---- palette: graphite steel, phosphor accents ----------------------------
-constexpr SkColor4f kVoid = hexColor(0x04060B);
-constexpr SkColor4f kGroundTop = hexColor(0x0A101A);
-constexpr SkColor4f kPanel = hexColor(0x0C121C, 0.97f);
-constexpr SkColor4f kRule = hexColor(0x22344A);
-constexpr SkColor4f kAccent = hexColor(0x59CBE3);
-constexpr SkColor4f kBone = hexColor(0xE8EFF6);
-constexpr SkColor4f kChrome = hexColor(0x8296AE);
-constexpr SkColor4f kDim = hexColor(0x49596D);
-constexpr SkColor4f kBody = hexColor(0xAFC8BB);
-constexpr SkColor4f kOk = hexColor(0x49D6A2);
-constexpr SkColor4f kWarn = hexColor(0xF2B04E);
-constexpr SkColor4f kCrit = hexColor(0xFF5752);
-constexpr SkColor4f kCritText = hexColor(0xFF7A73);
-constexpr SkColor4f kMeterBed = hexColor(0x16202E);
+constexpr material::Color kVoid = hexColor(0x04060B);
+constexpr material::Color kGroundTop = hexColor(0x0A101A);
+constexpr material::Color kPanel = hexColor(0x0C121C, 0.97f);
+constexpr material::Color kRule = hexColor(0x22344A);
+constexpr material::Color kAccent = hexColor(0x59CBE3);
+constexpr material::Color kBone = hexColor(0xE8EFF6);
+constexpr material::Color kChrome = hexColor(0x8296AE);
+constexpr material::Color kDim = hexColor(0x49596D);
+constexpr material::Color kBody = hexColor(0xAFC8BB);
+constexpr material::Color kOk = hexColor(0x49D6A2);
+constexpr material::Color kWarn = hexColor(0xF2B04E);
+constexpr material::Color kCrit = hexColor(0xFF5752);
+constexpr material::Color kCritText = hexColor(0xFF7A73);
+constexpr material::Color kMeterBed = hexColor(0x16202E);
 
 // ---- severities -----------------------------------------------------------
 enum Sev : int { kTrace = 0, kInfo, kSeal, kFlux, kBreach, kSevCount };
@@ -126,14 +128,14 @@ enum Sev : int { kTrace = 0, kInfo, kSeal, kFlux, kBreach, kSevCount };
  *  and the payload's named styles. The tag NAMES the channel; its COLOUR is
  *  the severity — two dimensions on one four-letter word. */
 struct SevDress {
-  SkColor4f stripe;
+  material::Color stripe;
   const char* tagStyle;
   const char* bodyStyle;
 };
 inline const SevDress& dress(int sev) {
   static const SevDress kDress[kSevCount] = {
-      {mskia::withAlpha(kDim, 0.55f), "tag-trace", "trace"},
-      {mskia::withAlpha(kChrome, 0.6f), "tag-info", ""},
+      {material::withAlpha(kDim, 0.55f), "tag-trace", "trace"},
+      {material::withAlpha(kChrome, 0.6f), "tag-info", ""},
       {kOk, "tag-seal", "seal"},
       {kWarn, "tag-flux", "flux"},
       {kCrit, "tag-breach", "breach"},
@@ -163,7 +165,7 @@ struct LogRow {
 constexpr float kScanPeriods = 10.0f;
 constexpr float kScanTileH = 37.0f;        // ten periods of 2pi / 1.7 px, whole
 constexpr float kScanCreep = 9.0f / 1.7f;  // px per second, downward
-constexpr SkColor4f kTubeInk{0.55f, 0.85f, 0.95f, 1.0f};
+constexpr material::Color kTubeInk{0.55f, 0.85f, 0.95f, 1.0f};
 
 inline Pattern scanlineTile() {
   return Pattern::tile(
@@ -173,7 +175,7 @@ inline Pattern scanlineTile() {
           const float phase =
               ((float)y + 0.5f) / size.height() * kScanPeriods * 6.2831853f;
           const float a = 0.028f * (0.5f + 0.5f * std::sin(phase));
-          row.setColor4f({kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, a});
+          row.setColor4f({kTubeInk.r, kTubeInk.g, kTubeInk.b, a});
           canvas.drawRect(SkRect::MakeXYWH(0, (float)y, size.width(), 1), row);
         }
       });
@@ -186,9 +188,9 @@ constexpr float kRefreshSpeed = 90.0f;  // px per second
 constexpr float kRefreshWrap = 820.0f;  // the sweep's period, in px
 inline Paint refreshBand() {
   return Paint::linear({0, 0}, {0, kRefreshH},
-                       {{0.0f, {kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, 0.0f}},
-                        {0.5f, {kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, 0.045f}},
-                        {1.0f, {kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, 0.0f}}});
+                       {{0.0f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.0f}},
+                        {0.5f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.045f}},
+                        {1.0f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.0f}}});
 }
 
 /** THE TUBE'S GRADE: the whole composited console read back through an
@@ -320,16 +322,22 @@ struct DaemonConsole {
     // Every entry is a PARTIAL over the well's font: the payload voices
     // change the colour alone, the timestamp one size down with it, and
     // only the tags name a face of their own.
-    s.set("ts", weave::Type{.size = 11, .color = dc::kDim});
-    s.set("trace", weave::Type{.color = dc::kDim});
-    s.set("seal", weave::Type{.color = hexColor(0x8FE5C4)});
-    s.set("flux", weave::Type{.color = dc::kWarn});
-    s.set("breach", weave::Type{.color = dc::kCritText});
-    s.set("cipher", weave::Type{.color = dc::kAccent});
-    auto tag = [&](SkColor4f color) {
-      return weave::Type{.face = faceMonoMed, .size = 11, .color = color};
+    s.set("ts", weave::Type{.size = 11,
+                            .color = material::skia::toSkColor(dc::kDim)});
+    s.set("trace", weave::Type{.color = material::skia::toSkColor(dc::kDim)});
+    s.set("seal",
+          weave::Type{.color = material::skia::toSkColor(hexColor(0x8FE5C4))});
+    s.set("flux", weave::Type{.color = material::skia::toSkColor(dc::kWarn)});
+    s.set("breach",
+          weave::Type{.color = material::skia::toSkColor(dc::kCritText)});
+    s.set("cipher",
+          weave::Type{.color = material::skia::toSkColor(dc::kAccent)});
+    auto tag = [&](material::Color color) {
+      return weave::Type{.face = faceMonoMed,
+                         .size = 11,
+                         .color = material::skia::toSkColor(color)};
     };
-    s.set("tag-trace", tag(mskia::withAlpha(dc::kDim, 0.8f)));
+    s.set("tag-trace", tag(material::withAlpha(dc::kDim, 0.8f)));
     s.set("tag-info", tag(dc::kChrome));
     s.set("tag-seal", tag(dc::kOk));
     s.set("tag-flux", tag(dc::kWarn));
@@ -341,9 +349,11 @@ struct DaemonConsole {
    *  the panel is rooted in, so a line names only its size, colour and
    *  tracking; `medium` names the heavier cut. Tabular numerals so a
    *  ticking clock or a counter never jitters sideways. */
-  weave::Type chrome(float size, SkColor4f color, float track = 0,
+  weave::Type chrome(float size, material::Color color, float track = 0,
                      bool medium = false, bool tabular = false) const {
-    weave::Type t{.size = size, .color = color, .track = track};
+    weave::Type t{.size = size,
+                  .color = material::skia::toSkColor(color),
+                  .track = track};
     if (medium) t.face = faceChromeMed;
     if (tabular) t.features = {weave::features::tabularNumbers};
     return t;
@@ -359,11 +369,11 @@ struct DaemonConsole {
     weave::StyleSheet s = look.styleSheet();
     s.set("label", {.face = faceChromeMed,
                     .size = 9.5f,
-                    .color = dc::kDim,
+                    .color = material::skia::toSkColor(dc::kDim),
                     .track = 2.4f});
     s.set("fine", {.face = faceChrome,
                    .size = 9.5f,
-                   .color = dc::kDim,
+                   .color = material::skia::toSkColor(dc::kDim),
                    .track = 0.8f,
                    .features = {{weave::features::tabularNumbers}}});
     return s;
@@ -372,7 +382,7 @@ struct DaemonConsole {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 9.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace dc = daemon_console;
@@ -571,7 +581,7 @@ struct DaemonConsole {
                        std::move(leaf)});
     // Severity in form as well as ink: a breach line carries its own wash.
     if (r.sev == dc::kBreach)
-      row.fill(Fill::color(mskia::withAlpha(dc::kCrit, 0.09f)));
+      row.fill(Fill::color(material::withAlpha(dc::kCrit, 0.09f)));
     return row;
   }
 
@@ -590,7 +600,7 @@ struct DaemonConsole {
    *  is how a count that changes every second stops the row from twitching,
    *  and a theme's register names a face and a size and cannot ask for a
    *  font feature. The row is otherwise the component's, mark and all. */
-  Element counterRow(const char* label, SkColor4f chip, unsigned n) {
+  Element counterRow(const char* label, material::Color chip, unsigned n) {
     namespace dc = daemon_console;
     return box()
         .row()
@@ -629,12 +639,11 @@ struct DaemonConsole {
     // drawn border sits sdf::pad() in from the node edge — the content
     // padding is that reserve plus the designed inset, read off the style
     // rather than restated as a number that drifts.
-    const sdf::Style panelStyle{
-        .fill = mskia::toColor(dc::kPanel),
-        .borderWidth = 1.0f,
-        .borderColor = mskia::toColor(hexColor(0x3B5474, 0.95f)),
-        .glowRadius = 6,
-        .glowColor = mskia::toColor(hexColor(0x3EC2DC, 0.22f))};
+    const sdf::Style panelStyle{.fill = dc::kPanel,
+                                .borderWidth = 1.0f,
+                                .borderColor = hexColor(0x3B5474, 0.95f),
+                                .glowRadius = 6,
+                                .glowColor = hexColor(0x3EC2DC, 0.22f)};
     Paint panel = Paint::recipe(sdf::material(sdf::roundBox(12), panelStyle));
     const float padX = sdf::pad(panelStyle) + 17.0f;
     const float padY = sdf::pad(panelStyle) + 12.0f;
@@ -643,8 +652,8 @@ struct DaemonConsole {
     // well — zero row nodes touched, fully cached.
     Paint fade = Paint::linear(
         {0, 0}, {0, 64},
-        {{0.0f, {dc::kPanel.fR, dc::kPanel.fG, dc::kPanel.fB, 1.0f}},
-         {1.0f, {dc::kPanel.fR, dc::kPanel.fG, dc::kPanel.fB, 0.0f}}});
+        {{0.0f, {dc::kPanel.r, dc::kPanel.g, dc::kPanel.b, 1.0f}},
+         {1.0f, {dc::kPanel.r, dc::kPanel.g, dc::kPanel.b, 0.0f}}});
 
     // NOT `kit::console`. That component sets N rings of ONE monospaced
     // voice on one plate; this scrollback's ring carries a VALUE per row —
@@ -666,7 +675,9 @@ struct DaemonConsole {
             .overflow(Overflow::Clip)
             // The scrollback's voice, stated once: every row is set in it
             // and its named runs are partials over it.
-            .font({.face = faceMono, .size = 12.5f, .color = dc::kBody})
+            .font({.face = faceMono,
+                   .size = 12.5f,
+                   .color = material::skia::toSkColor(dc::kBody)})
             .children({feed::feed(ring, window,
                                   [&](const dc::LogRow& r) {
                                     return logRow(r, styles);
@@ -752,13 +763,17 @@ struct DaemonConsole {
             .alignItems(Align::Center)
             // The prompt's own voice: the host name is set in it, the
             // sigil in the heavier cut, and the typed command a half size up.
-            .font({.face = faceMono, .size = 12, .color = dc::kDim})
+            .font({.face = faceMono,
+                   .size = 12,
+                   .color = material::skia::toSkColor(dc::kDim)})
             .children(
                 {text(weave::rich().add("wardnet").add(
-                     " $ ",
-                     weave::Type{.face = faceMonoMed, .color = dc::kAccent})),
+                     " $ ", weave::Type{.face = faceMonoMed,
+                                        .color = material::skia::toSkColor(
+                                            dc::kAccent)})),
                  text(std::string(command).substr(0, shown))
-                     .font({.size = 12.5f, .color = dc::kBone}),
+                     .font({.size = 12.5f,
+                            .color = material::skia::toSkColor(dc::kBone)}),
                  box()
                      .width(7)
                      .height(13)

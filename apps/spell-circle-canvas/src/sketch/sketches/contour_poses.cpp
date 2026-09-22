@@ -37,6 +37,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Pose.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -45,6 +46,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
@@ -62,10 +64,10 @@ constexpr int kStations = 24;     // poses cut out of the whole run
 constexpr float kCornerDeg = 30;  // the turn that counts as a corner
 constexpr float kWindow = 26;     // a corner window's reach, px
 
-constexpr SkColor4f kFaint{0.28f, 0.29f, 0.34f, 1};
-constexpr SkColor4f kFigure{0.86f, 0.80f, 0.66f, 1};
-constexpr SkColor4f kWarm{0.95f, 0.62f, 0.30f, 1};
-constexpr SkColor4f kCool{0.44f, 0.70f, 0.95f, 1};
+constexpr material::Color kFaint{0.28f, 0.29f, 0.34f, 1};
+constexpr material::Color kFigure{0.86f, 0.80f, 0.66f, 1};
+constexpr material::Color kWarm{0.95f, 0.62f, 0.30f, 1};
+constexpr material::Color kCool{0.44f, 0.70f, 0.95f, 1};
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
@@ -89,12 +91,12 @@ SkPath subject() {
 using sigil::draw::Pen;
 
 /** The pen set for a stroked mark, and for a filled one. */
-void inked(Pen& pen, SkColor4f color, float width) {
+void inked(Pen& pen, material::Color color, float width) {
   pen.noFill();
   pen.stroke(color);
   pen.strokeWeight(width);
 }
-void filled(Pen& pen, SkColor4f color) {
+void filled(Pen& pen, material::Color color) {
   pen.noStroke();
   pen.fill(color);
 }

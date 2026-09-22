@@ -78,7 +78,7 @@ const char* kDesk = "osc://:27080";           // where the faders land
 const char* kRecording = "data/faders.feed";  // what a capture replays
 
 constexpr SkSize kCanvas = {1180, 740};
-constexpr SkColor4f kBackdrop = {0.05f, 0.05f, 0.075f, 1};
+constexpr material::Color kBackdrop = {0.05f, 0.05f, 0.075f, 1};
 /** Every fader is away from both ends of its travel by here, and the
  *  three stand at three different points of their own rhythms. */
 constexpr double kCaptureAt = 2.5;

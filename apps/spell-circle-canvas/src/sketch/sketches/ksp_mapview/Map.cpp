@@ -16,14 +16,14 @@ auto KspMapView::backdrop(sketch::SketchContext& ctx) -> Element {
   // whole band into a white cloud. Grain lives on the opaque panels
   // below, which is where it reads as material anyway.
   auto wisp = [&](uint32_t seed, float x, float y, float w, float h,
-                  SkColor4f c, float a, float rot) {
+                  sigil::material::Color c, float a, float rot) {
     return at(box()
                   .shape(shapes::blob(seed, 0.30f, 9))
-                  .fill(
-                      Paint::radialUnit({0.5f, 0.5f}, 1.0f,
-                                        {{0.0f, mskia::withAlpha(c, a)},
-                                         {0.5f, mskia::withAlpha(c, a * 0.45f)},
-                                         {1.0f, mskia::withAlpha(c, 0.0f)}}))
+                  .fill(Paint::radialUnit(
+                      {0.5f, 0.5f}, 1.0f,
+                      {{0.0f, sigil::material::withAlpha(c, a)},
+                       {0.5f, sigil::material::withAlpha(c, a * 0.45f)},
+                       {1.0f, sigil::material::withAlpha(c, 0.0f)}}))
                   .rotate(rot),
               x, y, w, h)
         .cache(Cache::Texture)
@@ -71,12 +71,12 @@ auto KspMapView::planet() -> Element {
               .shape(shapes::circle())
               // light offset toward the upper-left: the centre of the
               // ramp is displaced, which is what fakes sphere shading.
-              .fill(Paint::radial({kKerbinR * 0.60f, kKerbinR * 0.50f},
-                                  kKerbinR * 1.35f,
-                                  {{0.0f, mskia::lighten(kOceanLit, 0.05f)},
-                                   {0.34f, kOceanLit},
-                                   {0.72f, hexColor(0x1B4260)},
-                                   {1.0f, kOceanDark}}))
+              .fill(Paint::radial(
+                  {kKerbinR * 0.60f, kKerbinR * 0.50f}, kKerbinR * 1.35f,
+                  {{0.0f, sigil::material::lighten(kOceanLit, 0.05f)},
+                   {0.34f, kOceanLit},
+                   {0.72f, hexColor(0x1B4260)},
+                   {1.0f, kOceanDark}}))
               .overflow(Overflow::Clip),
           kKerbin, d, d)
            .children(
@@ -126,9 +126,9 @@ auto KspMapView::planet() -> Element {
   // Fresnel limb: one SDF pass, border + exponential glow.
   const sdf::Style rim{.fill = {0, 0, 0, 0},
                        .borderWidth = 1.6f,
-                       .borderColor = toColor(mskia::withAlpha(kAtmo, 0.68f)),
+                       .borderColor = sigil::material::withAlpha(kAtmo, 0.68f),
                        .glowRadius = 8.0f,
-                       .glowColor = toColor(mskia::withAlpha(kAtmo, 0.26f))};
+                       .glowColor = sigil::material::withAlpha(kAtmo, 0.26f)};
   const float boxSize = sdf::minBoxFor(rim, d);
   g.children({at(box().fill(Paint::recipe(sdf::material(sdf::circle(), rim))),
                  kKerbin, boxSize, boxSize)});
@@ -151,18 +151,20 @@ auto KspMapView::orbits(sketch::SketchContext& ctx) -> Element {
   g.children(
       {full(box()
                 .shape(trajectory(tgt, {-118, 118, 260}))
-                .stroke(MarchingDots{.width = 1.4f,
-                                     .color = mskia::withAlpha(kTarget, 0.80f),
-                                     .intervals = {1.6f, 5.4f},
-                                     .phase = &dashSlow,
-                                     .speed = 1.0f})),
+                .stroke(MarchingDots{
+                    .width = 1.4f,
+                    .color = sigil::material::withAlpha(kTarget, 0.80f),
+                    .intervals = {1.6f, 5.4f},
+                    .phase = &dashSlow,
+                    .speed = 1.0f})),
        // …plus its bright solid near-edge, the way the reference frame shows
        // one lit segment of that same orbit crossing the top of the screen.
        full(box()
                 .shape(trajectory(tgt, {-46, 46, 90}))
-                .stroke(PathFormat{.width = 1.5f,
-                                   .strokeFill = Fill::color(
-                                       mskia::withAlpha(kTarget, 0.95f))}))});
+                .stroke(PathFormat{
+                    .width = 1.5f,
+                    .strokeFill = Fill::color(
+                        sigil::material::withAlpha(kTarget, 0.95f))}))});
 
   // Escape / flyby hyperbola — open, not a closed shape. The window is
   // hand-fitted to the part that crosses the frame rather than run out
@@ -173,13 +175,14 @@ auto KspMapView::orbits(sketch::SketchContext& ctx) -> Element {
   g.children(
       {full(box()
                 .shape(trajectory(esc, {nuA, nuB, 260}))
-                .stroke(MarchingDots{.width = 1.2f,
-                                     .color = mskia::withAlpha(kEscape, 0.50f),
-                                     .intervals = {1.4f, 5.8f},
-                                     .phase = &dashFast,
-                                     .speed = 0.55f})),
+                .stroke(MarchingDots{
+                    .width = 1.2f,
+                    .color = sigil::material::withAlpha(kEscape, 0.50f),
+                    .intervals = {1.4f, 5.8f},
+                    .phase = &dashFast,
+                    .speed = 0.55f})),
        full(t("ESCAPE  ·  KERBIN SOI EXIT  T+ 1h 12m",
-              body(8.5f, mskia::withAlpha(kEscape, 0.6f), 1.3f))
+              body(8.5f, sigil::material::withAlpha(kEscape, 0.6f), 1.3f))
                 .textOnPath(TextPath{.path = trajectory(esc, {nuA, nuB, 260}),
                                      .at = 0.80f,
                                      .align = TextPath::Align::Center,
@@ -188,17 +191,17 @@ auto KspMapView::orbits(sketch::SketchContext& ctx) -> Element {
        // The hero: the current orbit, drawn on with a trim reveal and dressed
        // in the organic 4-layer additive glow (a LayeredBrush, not a
        // frame-level filter()).
-       full(
-           box()
-               .shape(trajectory(cur, {0, 360, 360}))
-               .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                           {900ms, ch::easeOutQuad})),
-                       brush::presets::filament(mskia::withAlpha(kOrbit, 0.30f),
-                                                kOrbitCore, 0.26f))),
+       full(box()
+                .shape(trajectory(cur, {0, 360, 360}))
+                .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                            {900ms, ch::easeOutQuad})),
+                        brush::presets::filament(
+                            sigil::material::withAlpha(kOrbit, 0.30f),
+                            kOrbitCore, 0.26f))),
        // One arc label riding the orbit itself — shaped once, placed by arc
        // length, per-glyph tangent rotation. (Text::textOnPath.)
        full(t("KERBIN  ·  Ap 213,904 m  ·  Pe 88,012 m",
-              body(9.5f, mskia::withAlpha(kOrbit, 0.9f), 1.6f))
+              body(9.5f, sigil::material::withAlpha(kOrbit, 0.9f), 1.6f))
                 .textOnPath(TextPath{.path = trajectory(cur, {0, 360, 360}),
                                      .at = 0.855f,
                                      .align = TextPath::Align::Center,
@@ -211,7 +214,7 @@ auto KspMapView::targetLabel(sketch::SketchContext& ctx) -> Element {
   using namespace ksp;
   const Conic tgt = targetOrbit();
   return t("TGT · MUN TRANSFER",
-           body(8.5f, mskia::withAlpha(kTarget, 0.85f), 1.4f))
+           body(8.5f, sigil::material::withAlpha(kTarget, 0.85f), 1.4f))
       .textOnPath(TextPath{.path = trajectory(tgt, {-118, 118, 260}),
                            .at = 0.30f,
                            .align = TextPath::Align::Center,
@@ -222,8 +225,8 @@ auto KspMapView::targetLabel(sketch::SketchContext& ctx) -> Element {
       .height(ctx.size.height());
 }
 
-auto KspMapView::marker(const char* label, SkPoint p, SkColor4f c, bool filled,
-                        SkVector lift) -> Element {
+auto KspMapView::marker(const char* label, SkPoint p, sigil::material::Color c,
+                        bool filled, SkVector lift) -> Element {
   using namespace ksp;
   Element g = stack();
   Element d = at(box().shape(shapes::polygon(4)), p, 9, 9);
@@ -257,14 +260,14 @@ auto KspMapView::gizmo() -> Element {
   Element g = stack().inset(0).staggerChildren(55ms);
 
   // one shared builder, two lengths, two fill modes
-  auto arm = [&](const char* k, float bearing, float len, SkColor4f c,
-                 bool solid, bool jitter) {
+  auto arm = [&](const char* k, float bearing, float len,
+                 sigil::material::Color c, bool solid, bool jitter) {
     Element e = box().width(len).height(20).shape(paddle(len));
     if (solid)
       e.fill(Paint::solid(c));
     else
       e.stroke(PathFormat{.width = 1.8f, .strokeFill = Fill::color(c)})
-          .fill(Paint::solid(mskia::withAlpha(c, 0.22f)));
+          .fill(Paint::solid(sigil::material::withAlpha(c, 0.22f)));
     const float rad2 = bearing * 0.017453293f;
     e.centerAt(arrange::onEllipse(hub, {len * 0.5f + 9, len * 0.5f + 9}, rad2))
         .rotate(bearing)
@@ -274,14 +277,16 @@ auto KspMapView::gizmo() -> Element {
     if (jitter) e.translateX(&jitterX).translateY(&jitterY);
     return e;
   };
-  auto glyph = [&](const char* k, float bearing, SkColor4f c, bool solid) {
+  auto glyph = [&](const char* k, float bearing, sigil::material::Color c,
+                   bool solid) {
     const float rad2 = bearing * 0.017453293f;
     Element e =
         box()
             .width(18)
             .height(18)
             .shape(solid ? shapes::ring(2.6f, 3.0f) : shapes::ring(2.2f))
-            .fill(Paint::solid(solid ? c : mskia::withAlpha(c, 0.62f)))
+            .fill(
+                Paint::solid(solid ? c : sigil::material::withAlpha(c, 0.62f)))
             .centerAt(arrange::onEllipse(hub, {40, 40}, rad2))
             .key(k)
             .scale(&armPulse)
@@ -290,7 +295,7 @@ auto KspMapView::gizmo() -> Element {
   };
   // the two out-of-plane glyphs ride a short spoke, so the fan reads as
   // six axes off one hub rather than two loose dots
-  auto spoke = [&](float bearing, SkColor4f c) {
+  auto spoke = [&](float bearing, sigil::material::Color c) {
     const float r2 = bearing * 0.017453293f;
     const SkPoint a = arrange::onEllipse(hub, {11, 11}, r2);
     const SkPoint b = arrange::onEllipse(hub, {31, 31}, r2);
@@ -303,9 +308,9 @@ auto KspMapView::gizmo() -> Element {
                             p.lineTo(b);
                             return p.detach();
                           }))
-        .stroke(
-            PathFormat{.width = 2.0f,
-                       .strokeFill = Fill::color(mskia::withAlpha(c, 0.75f))});
+        .stroke(PathFormat{
+            .width = 2.0f,
+            .strokeFill = Fill::color(sigil::material::withAlpha(c, 0.75f))});
   };
 
   g.children({arm("pro", aPro, 54, kProgradeC, true, true),
@@ -313,17 +318,17 @@ auto KspMapView::gizmo() -> Element {
               spoke(aNorm, kNormalC), glyph("nrm", aNorm, kNormalC, true),
               arm("ret", aPro + 180, 54, kProgradeC, false, false),
               arm("rin", aRad + 180, 42, kRadialC, false, false),
-              spoke(aAnti, mskia::withAlpha(kNormalC, 0.6f)),
+              spoke(aAnti, sigil::material::withAlpha(kNormalC, 0.6f)),
               glyph("anrm", aAnti, kNormalC, false)});
 
   // Hub: one SDF pass — fill, ring, and a breathing glow bound to a
   // quantised Output (instrument sampling, not a cinematic pulse).
   const sdf::Style hs{
-      .fill = toColor(hexColor(0x12181C, 0.72f)),
+      .fill = hexColor(0x12181C, 0.72f),
       .borderWidth = 1.6f,
-      .borderColor = toColor(hexColor(0xF0F4F5)),
+      .borderColor = hexColor(0xF0F4F5),
       .glowRadius = 9.0f,
-      .glowColor = toColor(mskia::withAlpha(kProgradeC, 0.85f))};
+      .glowColor = sigil::material::withAlpha(kProgradeC, 0.85f)};
   const float hbox = sdf::minBoxFor(hs, 19.0f);
   Paint hm = Paint::recipe(sdf::material(sdf::circle(), hs))
                  .uniform("uGlowR", &hubGlow);
@@ -340,10 +345,10 @@ auto KspMapView::gizmo() -> Element {
                                         hub.fY + pro.y * 96);
                                return b.detach();
                              }))
-           .stroke(lines::Line{
-               .width = 1.2f,
-               .fill = Fill::color(mskia::withAlpha(kProgradeC, 0.5f)),
-               .dashIntervals = {4, 4}})});
+           .stroke(lines::Line{.width = 1.2f,
+                               .fill = Fill::color(sigil::material::withAlpha(
+                                   kProgradeC, 0.5f)),
+                               .dashIntervals = {4, 4}})});
   return g;
 }
 
@@ -357,19 +362,20 @@ auto KspMapView::burnCard() -> Element {
           .fill(Paint::solid(hexColor(0x12181C, 0.86f)))
           .stroke(PathFormat{.width = 1.0f,
                              .strokeFill = Fill::color(hexColor(0x3A4148))})
-          .children({box()
-                         .row()
-                         .gap(6)
-                         .alignItems(Align::Baseline)
-                         .children({t("Δv", body(10.5f, hexColor(0x9AA4AA))),
-                                    t("164.9", lcd(16, kLcd)),
-                                    t("m/s",
-                                      body(10, mskia::withAlpha(kLcd, 0.8f)))}),
-                     slot("burn"),
-                     box()
-                         .height(1)
-                         .fill(Paint::solid(hexColor(0x2C3238)))
-                         .margin(2)}),
+          .children(
+              {box()
+                   .row()
+                   .gap(6)
+                   .alignItems(Align::Baseline)
+                   .children({t("Δv", body(10.5f, hexColor(0x9AA4AA))),
+                              t("164.9", lcd(16, kLcd)),
+                              t("m/s", body(10, sigil::material::withAlpha(
+                                                    kLcd, 0.8f)))}),
+               slot("burn"),
+               box()
+                   .height(1)
+                   .fill(Paint::solid(hexColor(0x2C3238)))
+                   .margin(2)}),
       646, 566, 190, 88);
 }
 

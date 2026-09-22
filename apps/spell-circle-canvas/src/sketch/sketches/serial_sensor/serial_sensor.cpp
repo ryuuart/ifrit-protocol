@@ -52,6 +52,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
@@ -66,6 +67,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace data = sigil::data;
@@ -83,7 +85,7 @@ const char* kPort = "serial:///dev/tty.usbmodem1101?baud=115200";
 const char* kRecording = "data/readings.feed";  // what a capture replays
 
 constexpr SkSize kCanvas = {1280, 720};
-constexpr SkColor4f kGround = {0.03f, 0.035f, 0.06f, 1};
+constexpr material::Color kGround = {0.03f, 0.035f, 0.06f, 1};
 /** By here the light has climbed and the board has leaned, which is the
  *  frame that shows both readings doing their work at once. */
 constexpr double kCaptureAt = 3.0;
@@ -125,7 +127,7 @@ constexpr std::array<Ribbon, 6> kRibbons = {{{46, -14, 13},
                                              {26, 11, 7}}};
 
 /** The colours the ribbons are tinted from, in turn, at full light. */
-constexpr std::array<SkColor4f, 3> kTints = {{{0.46f, 0.66f, 0.94f, 0.80f},
+constexpr std::array<material::Color, 3> kTints = {{{0.46f, 0.66f, 0.94f, 0.80f},
                                               {0.58f, 0.52f, 0.90f, 0.76f},
                                               {0.38f, 0.78f, 0.86f, 0.72f}}};
 
@@ -252,7 +254,7 @@ struct SerialSensor {
     // A paint program runs after the describe scope has closed, where
     // the theme in force is no longer this page's, so the colours the
     // field is drawn in are read here and carried in by value.
-    const SkColor4f rule = sketch::kit::theme().palette.rule;
+    const material::Color rule = sketch::kit::theme().palette.rule;
     std::vector<compose::Element> parts;
     parts.push_back(compose::pen("serial_sensor.field", [this, rule](Pen& pen) {
                       draw(pen, rule);
@@ -276,7 +278,7 @@ struct SerialSensor {
   }
 
   /** The field, or the placeholder where no reading has come. */
-  void draw(Pen& pen, SkColor4f rule) {
+  void draw(Pen& pen, material::Color rule) {
     pen.noStroke();
     if (!heard) {
       horizon(pen, rule);
@@ -287,7 +289,7 @@ struct SerialSensor {
 
   /** THE QUIET PLACEHOLDER: one dim line where the field would lie, so
    *  a canvas nothing has reached still says where the sky is. */
-  void horizon(Pen& pen, SkColor4f rule) {
+  void horizon(Pen& pen, material::Color rule) {
     pen.stroke(rule);
     pen.strokeWeight(1);
     pen.line(kMargin, pen.height * 0.5f, pen.width - kMargin,
@@ -311,11 +313,11 @@ struct SerialSensor {
     size_t index = 0;
     for (float y = kTop; y < pen.height + kOverhang; y += kSpacing) {
       const Ribbon& ribbon = kRibbons[index % kRibbons.size()];
-      SkColor4f tint = kTints[index % kTints.size()];
+      material::Color tint = kTints[index % kTints.size()];
       // THE LIGHT IS WHAT THE SKY IS WORTH, and a dark room is a sky
       // still there rather than a canvas gone black: the colour keeps
       // its hue and loses its value.
-      tint = {tint.fR * lit, tint.fG * lit, tint.fB * lit, tint.fA * lit};
+      tint = {tint.r * lit, tint.g * lit, tint.b * lit, tint.a * lit};
       pen.fill(tint);
       const double travelled = carried + (double)ribbon.speed * seconds;
       const float phase =

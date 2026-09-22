@@ -127,10 +127,9 @@ lightening a nearly-white base wants the saturated answer rather than a
 channel above 1 that the next blend reads as glow. All three are
 constexpr, as `rgb` is, because a palette is a list of constants and the
 verbs an authored constant is written through have to fold where it is
-written. `skia::withAlpha`, `skia::scale`, `skia::lighten` and
-`skia::mixLinear` are the same four answered in `SkColor4f`, for the
-consumer whose slots are Skia's — the arithmetic is not restated there,
-only crossed.
+written. There is no Skia-coloured spelling of them: a consumer holding
+Skia's colour crosses once, with `skia::toColor`, and reaches the verbs
+themselves.
 
 **Two ways to name a colour, for two different jobs.** `rgb()` is how an
 authored palette is typed in; `hsv(hueDegrees, saturation, value)` is how
@@ -158,8 +157,7 @@ sdf::Style style{.fill = kInk, .borderColor = kEdge};
 ```
 
 `skia::toSkColor` is the way BACK, which a colour cannot carry without
-naming Skia, and `skia::toColors` converts a palette in one call;
-`skia::toColor` is the same conversion under a name, for a call that
+naming Skia; `skia::toColor` is the way in under a name, for a call that
 wants to say so (`<sigilmaterial/skia/Color.h>`). The mapping is written
 once because a copy of it spelled at a call site is a place where a
 channel order or an alpha convention drifts silently.

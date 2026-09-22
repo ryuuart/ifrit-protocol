@@ -82,7 +82,8 @@ auto Minard1869::cardScale(const data::Json& said) -> Element {
   auto ruleRow = [&](const data::Json& n, size_t i) -> Element {
     const float y = 118 + 56.0f * (float)i;
     const float t0 = tScale + (float)n["t0"].number();
-    const SkColor4f col = n["class"].text() == "claim" ? kClaimRed : kBlue;
+    const sigil::material::Color col =
+        n["class"].text() == "claim" ? kClaimRed : kBlue;
     return box()
         .inset(0)
         .ink(col)
@@ -467,8 +468,9 @@ auto Minard1869::consoleStrip() -> Element {
                           {"measured", hexColor(0x64a8d8)},
                           {"heading", hexColor(0xf0e8d8)}});
   // The heading runs a shade larger; set() replaces it where it sits.
-  s.styles.set("heading",
-               weave::Type{.size = 8.8f, .color = hexColor(0xf0e8d8)});
+  s.styles.set("heading", weave::Type{.size = 8.8f,
+                                      .color = sigil::material::skia::toSkColor(
+                                          hexColor(0xf0e8d8))});
   s.window.gap = 0.0f;
   s.window.visible = 20;
   return kit::console({.feeds = {&colA, &colB, &colC, &colD, &colE},

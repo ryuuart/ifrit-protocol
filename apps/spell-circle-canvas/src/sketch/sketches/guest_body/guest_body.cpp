@@ -56,6 +56,7 @@
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -86,7 +87,7 @@ const char* kPublication = "Guest";
 const char* kApplication = "";
 
 constexpr SkSize kCanvas = {1000, 620};
-constexpr SkColor4f kGround = {0.016f, 0.02f, 0.031f, 1.0f};
+constexpr material::Color kGround = {0.016f, 0.02f, 0.031f, 1.0f};
 
 /** How large the screen stands, and how much bezel shows around it. The
  *  screen is 16:9 because that is the shape a canvas publishing to it

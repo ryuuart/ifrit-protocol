@@ -5,6 +5,7 @@
 
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Engine.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <array>
@@ -43,8 +44,8 @@ std::vector<SkPoint> positions(std::span<const Sample> samples) {
 // --------------------------------------------
 
 void Engine::paintWash(Pen& pen, std::span<const SkPoint> points) const {
-  SkColor4f color = m_washColor;
-  color.fA *= m_washOpacity;
+  material::Color color = m_washColor;
+  color.a *= m_washOpacity;
   pen.noStroke();
   pen.fill(color);
   pen.beginShape();

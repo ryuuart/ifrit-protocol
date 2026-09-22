@@ -28,6 +28,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -56,6 +57,7 @@
 
 namespace arrange = sigil::geometry::arrange;
 namespace data = sigil::data;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 namespace skia = sigil::material::skia;
@@ -78,7 +80,8 @@ namespace sigillum_aemeth {}
 using namespace sigillum_aemeth;
 namespace sigillum_aemeth {
 
-using sigil::compose::hexColor;  // 0xRRGGBB (+ optional alpha) → SkColor4f
+using sigil::compose::hexColor;  // 0xRRGGBB (+ optional alpha) →
+                                 // material::Color
 
 // ---------------------------------------------------------------------------
 // palette — beeswax, four centuries old, under museum light: one hue and
@@ -86,24 +89,24 @@ using sigil::compose::hexColor;  // 0xRRGGBB (+ optional alpha) → SkColor4f
 // (the large disc) and .c (the small one); the cut is not a colour, it is a
 // shadowed wall and a lit wall.
 
-constexpr SkColor4f kVitrine = hexColor(0x14161c);
+constexpr material::Color kVitrine = hexColor(0x14161c);
 // THE DISC IS WAX, and the record says which wax: a dull olive-brown
 // beeswax, matte, scuffed, green-stained where the graver went in. A warm
 // parchment tan with a golden sheen is new vellum, and on new vellum a
 // line is drawn; on wax it is CUT.
-constexpr SkColor4f kWaxDeep = hexColor(0x5c4c26);
-constexpr SkColor4f kWaxMid = hexColor(0x7d6a37);
-constexpr SkColor4f kWaxLit = hexColor(0x9c8949);
-constexpr SkColor4f kWaxPale = hexColor(0xb3a267);
-constexpr SkColor4f kCutDark = hexColor(0x2b2210);  // the groove's floor
-constexpr SkColor4f kCutLite =
+constexpr material::Color kWaxDeep = hexColor(0x5c4c26);
+constexpr material::Color kWaxMid = hexColor(0x7d6a37);
+constexpr material::Color kWaxLit = hexColor(0x9c8949);
+constexpr material::Color kWaxPale = hexColor(0xb3a267);
+constexpr material::Color kCutDark = hexColor(0x2b2210);  // the groove's floor
+constexpr material::Color kCutLite =
     hexColor(0xc4b485);  // the wall that catches light
-constexpr SkColor4f kInk = hexColor(0x2b2118);
-constexpr SkColor4f kInkSoft = hexColor(0x6a5a42);
-constexpr SkColor4f kRubric = hexColor(0x8c2f22);
-constexpr SkColor4f kTrace = hexColor(0x1f6f9c);
-constexpr SkColor4f kGold = hexColor(0xb8862c);
-constexpr SkColor4f kVellum = hexColor(0xece1c8);
+constexpr material::Color kInk = hexColor(0x2b2118);
+constexpr material::Color kInkSoft = hexColor(0x6a5a42);
+constexpr material::Color kRubric = hexColor(0x8c2f22);
+constexpr material::Color kTrace = hexColor(0x1f6f9c);
+constexpr material::Color kGold = hexColor(0xb8862c);
+constexpr material::Color kVellum = hexColor(0xece1c8);
 
 // ---------------------------------------------------------------------------
 // canvas & the seal's frame
@@ -447,10 +450,10 @@ inline Fill grooveFill(float rad, float w, float darkA, float liteA) {
   const float m = (a + b) * 0.5f, e = (b - a) * 0.24f;
   return radialGradient(
       {rad, rad}, g,
-      {SkColor4f{kCutDark.fR, kCutDark.fG, kCutDark.fB, darkA},
-       SkColor4f{kCutDark.fR, kCutDark.fG, kCutDark.fB, darkA},
-       SkColor4f{kCutLite.fR, kCutLite.fG, kCutLite.fB, liteA},
-       SkColor4f{kCutLite.fR, kCutLite.fG, kCutLite.fB, liteA}},
+      {material::Color{kCutDark.r, kCutDark.g, kCutDark.b, darkA},
+       material::Color{kCutDark.r, kCutDark.g, kCutDark.b, darkA},
+       material::Color{kCutLite.r, kCutLite.g, kCutLite.b, liteA},
+       material::Color{kCutLite.r, kCutLite.g, kCutLite.b, liteA}},
       {0.0f, m - e, m + e, 1.0f});
 }
 

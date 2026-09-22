@@ -36,6 +36,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -43,6 +44,7 @@
 #include <memory>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace paint = sigil::material::skia;
 

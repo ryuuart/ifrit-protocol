@@ -19,6 +19,7 @@
 #include <sigilimage/decode/ChannelData.h>
 #include <sigilimage/decode/Decode.h>
 #include <sigilimage/encode/Encode.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -44,7 +45,7 @@ constexpr int kSize = 192;     // the fixture's edge, px
 constexpr float kPeak = 4.0f;  // the red plane's authored peak
 constexpr SkSize kCanvas = {1100, 820};
 
-constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
+constexpr material::Color kCellGround{0.12f, 0.12f, 0.14f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -242,10 +243,12 @@ struct ExrChannels {
         .gap(10)
         .padding(40)
         .ink(sheet.palette.ink)
-        .children({text("no float source here").font({.size = 20}),
-                   text(why)
-                       .font({.size = 12, .color = sheet.palette.ash})
-                       .width(620.0f)});
+        .children(
+            {text("no float source here").font({.size = 20}),
+             text(why)
+                 .font({.size = 12,
+                        .color = material::skia::toSkColor(sheet.palette.ash)})
+                 .width(620.0f)});
   }
 };
 

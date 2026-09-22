@@ -37,6 +37,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -52,6 +53,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
@@ -80,23 +82,23 @@ constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 // applies to a saturated reading of the same list, and a black mortar
 // under it turns the Purbeck framework — which is the pavement's
 // STRONGEST structure — into void.
-constexpr SkColor4f kPorphyry = hexColor(0x74494A);  // Mons Claudianus, purple
-constexpr SkColor4f kPorphyryLo = hexColor(0x4C2F31);
-constexpr SkColor4f kSerpentine = hexColor(0x5B6552);  // lapis lacedaemonius
-constexpr SkColor4f kSerpentineLo = hexColor(0x3E4739);
-constexpr SkColor4f kGiallo = hexColor(0xC3AA76);  // yellow limestone
-constexpr SkColor4f kGialloLo = hexColor(0x9A8455);
-constexpr SkColor4f kMarble = hexColor(0xDED6C4);
-constexpr SkColor4f kMarbleLo = hexColor(0xB9B0A0);
-constexpr SkColor4f kOnyx = hexColor(0xCDBB94);
-constexpr SkColor4f kPurbeck = hexColor(0x77756B);  // the framework, not marble
-constexpr SkColor4f kPurbeckLo = hexColor(0x4F4E47);
-constexpr SkColor4f kGlassRed = hexColor(0x9A5348);
-constexpr SkColor4f kGlassTurq = hexColor(0x62867F);
-constexpr SkColor4f kGlassCobalt = hexColor(0x4E5A7E);
-constexpr SkColor4f kMortar = hexColor(0x6C695F);
-constexpr SkColor4f kInk = hexColor(0xE8E1CE);
-constexpr SkColor4f kInkDim = hexColor(0x9A9078);
+constexpr material::Color kPorphyry = hexColor(0x74494A);  // Mons Claudianus, purple
+constexpr material::Color kPorphyryLo = hexColor(0x4C2F31);
+constexpr material::Color kSerpentine = hexColor(0x5B6552);  // lapis lacedaemonius
+constexpr material::Color kSerpentineLo = hexColor(0x3E4739);
+constexpr material::Color kGiallo = hexColor(0xC3AA76);  // yellow limestone
+constexpr material::Color kGialloLo = hexColor(0x9A8455);
+constexpr material::Color kMarble = hexColor(0xDED6C4);
+constexpr material::Color kMarbleLo = hexColor(0xB9B0A0);
+constexpr material::Color kOnyx = hexColor(0xCDBB94);
+constexpr material::Color kPurbeck = hexColor(0x77756B);  // the framework, not marble
+constexpr material::Color kPurbeckLo = hexColor(0x4F4E47);
+constexpr material::Color kGlassRed = hexColor(0x9A5348);
+constexpr material::Color kGlassTurq = hexColor(0x62867F);
+constexpr material::Color kGlassCobalt = hexColor(0x4E5A7E);
+constexpr material::Color kMortar = hexColor(0x6C695F);
+constexpr material::Color kInk = hexColor(0xE8E1CE);
+constexpr material::Color kInkDim = hexColor(0x9A9078);
 
 // The field is square because the pavement is square.
 constexpr float kFieldSide = 556;
@@ -115,10 +117,10 @@ constexpr float kInner = kFieldSide - 2 * kBandW;
  *  that must never read as rainbow terrazzo. `contrast` is how hard the
  *  veining reads, and the framework band asks for less of it than the
  *  tesserae do so that the Purbeck reads as one stone. */
-inline Paint stone(SkColor4f hi, SkColor4f lo, float angleDeg = 24,
+inline Paint stone(material::Color hi, material::Color lo, float angleDeg = 24,
                    float contrast = 0.35f) {
-  return Paint::recipe(mkit::stone({.hi = mskia::toColor(hi),
-                                    .lo = mskia::toColor(lo),
+  return Paint::recipe(mkit::stone({.hi = mskia::toColor(material::skia::toSkColor(hi)),
+                                    .lo = mskia::toColor(material::skia::toSkColor(lo)),
                                     .bedAngle = angleDeg,
                                     .grainContrast = contrast,
                                     .speckle = 0.30f,
@@ -216,7 +218,7 @@ struct Cosmati {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     rake = 0;
@@ -235,7 +237,7 @@ struct Cosmati {
 
   /** One roundel: an onyx or porphyry eye inside ring courses of
    *  lozenges, bounded by a marble fillet. */
-  Element roundel(SkPoint at, float r, SkColor4f eyeHi, SkColor4f eyeLo,
+  Element roundel(SkPoint at, float r, material::Color eyeHi, material::Color eyeLo,
                   int seed) {
     namespace cs = cosmati;
     namespace ch = choreograph;
@@ -462,7 +464,7 @@ struct Cosmati {
               "· MVNDVM · PRIMVM · "
               "TRIPLEX ·")
              .font({.size = 9,
-                    .color = cs::kGiallo,
+                    .color = material::skia::toSkColor(cs::kGiallo),
                     .track = 2.0f,
                     .weight = 600})
              .width(big * 1.50f)
@@ -497,7 +499,7 @@ struct Cosmati {
              .children(
                  {text("OPUS SECTILE")
                       .font({.size = 21,
-                             .color = cs::kInk,
+                             .color = material::skia::toSkColor(cs::kInk),
                              .track = 3.4f,
                              .weight = 640}),
                   text("Cosmatesque · Westminster "
@@ -510,11 +512,11 @@ struct Cosmati {
                       .margin(12, 0)
                       .fill(Paint::linear({0, 0}, {190, 0},
                                           {{0.0f,
-                                            {cs::kGiallo.fR, cs::kGiallo.fG,
-                                             cs::kGiallo.fB, 0.7f}},
+                                            {cs::kGiallo.r, cs::kGiallo.g,
+                                             cs::kGiallo.b, 0.7f}},
                                            {1.0f,
-                                            {cs::kGiallo.fR, cs::kGiallo.fG,
-                                             cs::kGiallo.fB, 0.0f}}})),
+                                            {cs::kGiallo.r, cs::kGiallo.g,
+                                             cs::kGiallo.b, 0.0f}}})),
                   text("The governing figure is the QUINCUNX "
                        "— four roundels about a "
                        "fifth. The Great Pavement is a "
@@ -527,7 +529,7 @@ struct Cosmati {
     // the quarry legend: every stone named, with a real sample of it
     struct Quarry {
       const char* label;
-      SkColor4f hi, lo;
+      material::Color hi, lo;
     };
     static const Quarry kQuarries[] = {
         {"porphyry · Mons Claudianus", cs::kPorphyry, cs::kPorphyryLo},
@@ -552,8 +554,8 @@ struct Cosmati {
                        .height(13.0f)
                        .fill(cs::stone(q.hi, q.lo, 34))
                        .foreground(stroke(
-                           1.0f, Fill::color({cs::kMarble.fR, cs::kMarble.fG,
-                                              cs::kMarble.fB, 0.55f}))),
+                           1.0f, Fill::color({cs::kMarble.r, cs::kMarble.g,
+                                              cs::kMarble.b, 0.55f}))),
            .opacity = animate(motion::from(0.0f).to(1.0f), {320ms}),
            .slide = animate(motion::from(-14.0f).to(0.0f), {400ms})});
     {

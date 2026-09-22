@@ -36,6 +36,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -43,6 +44,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
 namespace arrange = sigil::geometry::arrange;
@@ -60,10 +62,10 @@ constexpr float kRadius = 86;  // the frame's r = 1, px
 constexpr float kUnits = 7;    // the Grid's canvas px per artefact unit
 constexpr float kSnap = 7;     // the pitch it rounds results to, px
 
-constexpr SkColor4f kFaint{0.28f, 0.29f, 0.34f, 1};
-constexpr SkColor4f kFigure{0.88f, 0.82f, 0.66f, 1};
-constexpr SkColor4f kWarm{0.96f, 0.62f, 0.30f, 1};
-constexpr SkColor4f kCool{0.44f, 0.72f, 0.96f, 1};
+constexpr material::Color kFaint{0.28f, 0.29f, 0.34f, 1};
+constexpr material::Color kFigure{0.88f, 0.82f, 0.66f, 1};
+constexpr material::Color kWarm{0.96f, 0.62f, 0.30f, 1};
+constexpr material::Color kCool{0.44f, 0.72f, 0.96f, 1};
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
@@ -77,7 +79,7 @@ SkPoint middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
 /** THE PEN A LINE OF THIS SHEET IS DRAWN WITH: a colour, a width, and no
  *  fill under it — every mark on these plates is a stroke except the discs
  *  a reading stands on. */
-void pen(draw::Pen& p, SkColor4f colour, float width) {
+void pen(draw::Pen& p, material::Color colour, float width) {
   p.noFill();
   p.stroke(colour);
   p.strokeWeight(width);
@@ -97,7 +99,7 @@ void dial(draw::Pen& p, const path::PolarFrame& frame) {
 /** A reading at (deg, rNorm): a spoke out to it, a disc on it, and the
  *  unit direction the frame says runs outward there. */
 void reading(draw::Pen& p, const path::PolarFrame& frame, float deg,
-             SkColor4f colour) {
+             material::Color colour) {
   const SkPoint at = frame.at(deg, 0.78f);
   const SkPoint out = frame.at(deg, 0.90f);
   const SkVector dir = frame.dir(deg);
@@ -234,7 +236,7 @@ struct FrameGrid {
                                   -2.3561945f;  // 135 deg from +x
                               constexpr float kSweep = 4.712389f;
                               const auto ring = [&](float r, arrange::Turn turn,
-                                                    SkColor4f colour) {
+                                                    material::Color colour) {
                                 pen(p, kFaint, 1.0f);
                                 p.arc(c.fX, c.fY, 2 * r, 2 * r, -135, 135,
                                       draw::OPEN);
@@ -275,7 +277,7 @@ struct FrameGrid {
                             "to a 7 px lattice.",
                             [unit, snapped, figure](draw::Pen& p) {
                               const auto trace = [&](const path::Grid& grid,
-                                                     SkColor4f colour,
+                                                     material::Color colour,
                                                      float dy) {
                                 pen(p, colour, 1.8f);
                                 p.beginShape();

@@ -8,6 +8,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/Story.h>
@@ -17,19 +18,20 @@
 #include <string>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
 
 namespace {
-constexpr SkColor4f kBody{0.85f, 0.86f, 0.89f, 1};
-constexpr SkColor4f kContinuation{0.55f, 0.77f, 0.94f, 1};
-weave::TextStyle serif(float size, SkColor4f color = kBody) {
+constexpr material::Color kBody{0.85f, 0.86f, 0.89f, 1};
+constexpr material::Color kContinuation{0.55f, 0.77f, 0.94f, 1};
+weave::TextStyle serif(float size, material::Color color = kBody) {
   return weave::textStyle(
       {.face = weave::ports::face(
            {"Iowan Old Style", "Georgia", "Times New Roman", "serif"}),
        .size = size,
-       .color = color,
+       .color = material::skia::toSkColor(color),
        .track = 0});
 }
 

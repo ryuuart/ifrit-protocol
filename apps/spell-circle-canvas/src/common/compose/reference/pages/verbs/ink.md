@@ -21,7 +21,7 @@ it, wherever the code that built a child ran.
 ## Syntax
 
 ```cpp
-Element& ink(SkColor4f colour);
+Element& ink(material::Color colour);
 Element& ink(VarRef reference);
 ```
 
@@ -33,7 +33,7 @@ def ink(self, value: ElementInkLike) -> Element: ...
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `SkColor4f` | The colour outright. | `hexColor(0xRRGGBB)`, or the four channels |
+| `material::Color` | The colour outright. | `hexColor(0xRRGGBB)`, or the four channels |
 | `VarRef` | The custom property to read it from: `ink(var("accent"))`. | [`VarRef`](../../VALUES.md#the-custom-properties), through `compose::var` |
 
 In Python the parameter is `ElementInkLike`: a colour in any of its

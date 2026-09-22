@@ -67,9 +67,9 @@ TEST(SketchKitLegend, AnEntryIsASwatchAndItsWords) {
  *  spelling. */
 TEST(SketchKitLegend, AnEntryCanCarryItsOwnEdgeAndItsOwnInk) {
   const kit::Theme& house = kit::houseTheme();
-  const SkColor4f rare{0.98f, 0.86f, 0.32f, 1};
+  const sigil::material::Color rare{0.98f, 0.86f, 0.32f, 1};
   const Fill body =
-      Fill::color({rare.fR * 0.35f, rare.fG * 0.35f, rare.fB * 0.35f, 1});
+      Fill::color({rare.r * 0.35f, rare.g * 0.35f, rare.b * 0.35f, 1});
   Element byHand =
       compose::box()
           .column()
@@ -163,7 +163,7 @@ TEST(SketchKitLegend, AStripLightsTheStepsItsReadingIsTakenAt) {
   const kit::Theme& house = kit::houseTheme();
   const std::vector<compose::SurfacePaint> steps{Fill::color({1, 0, 0, 1}),
                                                  Fill::color({0, 1, 0, 1})};
-  const SkColor4f lit{0.2f, 0.4f, 1.0f, 1};
+  const sigil::material::Color lit{0.2f, 0.4f, 1.0f, 1};
   Element byHand =
       compose::box()
           .row()

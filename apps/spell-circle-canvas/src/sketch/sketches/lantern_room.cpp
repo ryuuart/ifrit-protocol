@@ -27,6 +27,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
@@ -109,10 +110,10 @@ namespace {
 
 struct LanternRoom {
   void setup(sketch::SetContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = {900, 600},
-                        .captureAt = 1.6,
-                        .background = SkColor4f{0.010f, 0.012f, 0.020f, 1.0f}});
+    sketch::kit::stage(
+        ctx, {.size = {900, 600},
+              .captureAt = 1.6,
+              .background = material::Color{0.010f, 0.012f, 0.020f, 1.0f}});
   }
 
   world::Frame describe(float seconds) {

@@ -10,7 +10,9 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/Draw.h>
 
 #include <cmath>
@@ -53,18 +55,31 @@ TEST(Pen, BackgroundCoversTheCanvasWhateverTheTransform) {
 
 TEST(Pen, ColourArgumentsReadAsP5Reads) {
   Pen pen;
-  EXPECT_EQ(pen.color(255, 0, 0).toSkColor(), SK_ColorRED);
-  EXPECT_EQ(pen.color("#00ff00").toSkColor(), SK_ColorGREEN);
-  EXPECT_EQ(pen.color("#00f").toSkColor(), SK_ColorBLUE);
-  EXPECT_EQ(pen.color("blue").toSkColor(), SK_ColorBLUE);
-  EXPECT_EQ(pen.color(128).toSkColor(), SkColorSetARGB(255, 128, 128, 128));
-  EXPECT_EQ(pen.color(0, 51).toSkColor(), SkColorSetARGB(51, 0, 0, 0));
+  EXPECT_EQ(sigil::material::skia::toSkColor(pen.color(255, 0, 0)).toSkColor(),
+            SK_ColorRED);
+  EXPECT_EQ(sigil::material::skia::toSkColor(pen.color("#00ff00")).toSkColor(),
+            SK_ColorGREEN);
+  EXPECT_EQ(sigil::material::skia::toSkColor(pen.color("#00f")).toSkColor(),
+            SK_ColorBLUE);
+  EXPECT_EQ(sigil::material::skia::toSkColor(pen.color("blue")).toSkColor(),
+            SK_ColorBLUE);
+  EXPECT_EQ(sigil::material::skia::toSkColor(pen.color(128)).toSkColor(),
+            SkColorSetARGB(255, 128, 128, 128));
+  EXPECT_EQ(sigil::material::skia::toSkColor(pen.color(0, 51)).toSkColor(),
+            SkColorSetARGB(51, 0, 0, 0));
   pen.colorMode(HSB);
-  EXPECT_EQ(pen.color(0, 100, 100).toSkColor(), SK_ColorRED);
-  EXPECT_EQ(pen.color(120, 100, 100).toSkColor(), SK_ColorGREEN);
-  EXPECT_EQ(pen.color(240, 100, 100).toSkColor(), SK_ColorBLUE);
+  EXPECT_EQ(
+      sigil::material::skia::toSkColor(pen.color(0, 100, 100)).toSkColor(),
+      SK_ColorRED);
+  EXPECT_EQ(
+      sigil::material::skia::toSkColor(pen.color(120, 100, 100)).toSkColor(),
+      SK_ColorGREEN);
+  EXPECT_EQ(
+      sigil::material::skia::toSkColor(pen.color(240, 100, 100)).toSkColor(),
+      SK_ColorBLUE);
   pen.colorMode(RGB, 1);
-  EXPECT_EQ(pen.color(1, 1, 1).toSkColor(), SK_ColorWHITE);
+  EXPECT_EQ(sigil::material::skia::toSkColor(pen.color(1, 1, 1)).toSkColor(),
+            SK_ColorWHITE);
 }
 
 TEST(Pen, BlendModeAddPutsLightTogetherAndClamps) {

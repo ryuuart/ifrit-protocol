@@ -302,7 +302,7 @@ struct HitmanVerlet {
   /** ONE LISTED LINE out of the document — its words in @p c, and the
    *  caret and the alarm colour where the document marks it as a line the
    *  paper prints wrong. */
-  Element codeLine(const sigil::data::Json& listed, SkColor4f c);
+  Element codeLine(const sigil::data::Json& listed, sigil::material::Color c);
 
   Element panelA1();
 

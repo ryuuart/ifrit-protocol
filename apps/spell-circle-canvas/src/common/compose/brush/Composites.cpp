@@ -39,7 +39,7 @@ void LayeredBrush::paint(SkCanvas& c, const PaintContext& ctx) const {
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(layer.width);
     p.setStrokeCap(layer.roundCap ? SkPaint::kRound_Cap : SkPaint::kButt_Cap);
-    p.setColor4f(layer.color, nullptr);
+    p.setColor4f(material::skia::toSkColor(layer.color), nullptr);
     p.setBlendMode(layer.blend);
     if (layer.blurSigma > 0)
       p.setMaskFilter(

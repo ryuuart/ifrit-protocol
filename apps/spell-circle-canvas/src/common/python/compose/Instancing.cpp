@@ -118,22 +118,22 @@ struct LaneTraits<float> {
 };
 
 template <>
-struct LaneTraits<SkColor4f> {
+struct LaneTraits<material::Color> {
   using Scalar = float;
-  using Input = SkColor4f;
+  using Input = material::Color;
   static constexpr const char* name = "ColorLane";
   static constexpr const char* refusal =
       "A lane of colours holds a Color, a CSS string, or three or four "
       "channels.";
   static constexpr py::ssize_t width = 4;
-  static SkColor4f read(py::handle value) { return color(value); }
-  static void write(const SkColor4f& item, float* row) {
-    row[0] = item.fR;
-    row[1] = item.fG;
-    row[2] = item.fB;
-    row[3] = item.fA;
+  static material::Color read(py::handle value) { return color(value); }
+  static void write(const material::Color& item, float* row) {
+    row[0] = item.r;
+    row[1] = item.g;
+    row[2] = item.b;
+    row[3] = item.a;
   }
-  static SkColor4f item(const float* row) {
+  static material::Color item(const float* row) {
     return {row[0], row[1], row[2], row[3]};
   }
 };
@@ -760,7 +760,7 @@ void bindPool(py::module_& module) {
       .def(
           "add",
           [](Pool& self, py::handle position, int frame, float rotateRadians,
-             float scale, SkColor4f tint) {
+             float scale, material::Color tint) {
             return self.add(
                 pointFrom(position,
                           "An instance stands at a Point, or an x and a y."),
@@ -821,7 +821,7 @@ void bindPool(py::module_& module) {
   poolLane<float>(
       pool, "scales", +[](Pool& self) { return self.scales(); },
       "Each instance's uniform scale.");
-  poolLane<SkColor4f>(
+  poolLane<material::Color>(
       pool, "tints", +[](Pool& self) { return self.tints(); },
       "Each instance's tint, which MULTIPLIES the cell's colours. That "
       "makes it wrong for exact-palette work: bake one cell per palette "
@@ -989,7 +989,7 @@ void bindComposeInstancing(py::module_& root) {
       module,
       "A pool's lane of numbers, on the same terms as a lane of points; "
       "as a buffer it is one float per instance.");
-  bindLane<SkColor4f>(
+  bindLane<material::Color>(
       module,
       "A pool's lane of colours, on the same terms as a lane of points; "
       "as a buffer it is one row of red, green, blue and alpha per "

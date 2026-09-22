@@ -13,9 +13,11 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
@@ -38,8 +40,8 @@ sketch::kit::Theme sheetTheme() {
  *  than they are wide, so a wide box has to do something about it. */
 constexpr const char* kBolt = "M62 4 L18 78 H44 L30 148 L86 62 H56 Z";
 
-constexpr SkColor4f kBoxRule{0.26f, 0.28f, 0.33f, 1};
-constexpr SkColor4f kFigure{0.98f, 0.80f, 0.34f, 1};
+constexpr material::Color kBoxRule{0.26f, 0.28f, 0.33f, 1};
+constexpr material::Color kFigure{0.98f, 0.80f, 0.34f, 1};
 
 /** One specimen: the box the outline was asked to fill, keylined so the
  *  box and the figure are separately visible, with an ordinary node

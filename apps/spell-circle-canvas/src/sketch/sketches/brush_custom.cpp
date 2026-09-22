@@ -13,11 +13,13 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
@@ -25,9 +27,9 @@ using namespace sigil::draw;
 
 namespace {
 
-constexpr SkColor4f kInk{0.09f, 0.10f, 0.14f, 1.0f};
-constexpr SkColor4f kRust{0.72f, 0.28f, 0.14f, 1.0f};
-constexpr SkColor4f kSea{0.10f, 0.36f, 0.44f, 1.0f};
+constexpr material::Color kInk{0.09f, 0.10f, 0.14f, 1.0f};
+constexpr material::Color kRust{0.72f, 0.28f, 0.14f, 1.0f};
+constexpr material::Color kSea{0.10f, 0.36f, 0.44f, 1.0f};
 
 /** The shape source: a chisel with a soft edge, dark on white, which is
  *  the artwork a tip is usually drawn as. */
@@ -68,7 +70,7 @@ sk_sp<SkImage> paperGrain() {
 }
 
 /** A brush whose whole look is its two pictures. */
-brush::Tool imported(sk_sp<SkImage> shape, SkColor4f color, float width) {
+brush::Tool imported(sk_sp<SkImage> shape, material::Color color, float width) {
   brush::Tool tool = brush::marker(color, width);
   tool.tip = brush::Tip::Image;
   tool.opacity = 0.75f;

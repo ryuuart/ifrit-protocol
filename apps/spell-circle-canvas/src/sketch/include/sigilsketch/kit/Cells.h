@@ -14,6 +14,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -76,8 +77,8 @@ struct Well {
      *  edge under the blur, which says where the surface breaks while the
      *  blur says how deep it goes. Unset draws no lip, for the recess
      *  that is all softness. */
-    std::optional<SkColor4f> lipLight;
-    std::optional<SkColor4f> lipDark;
+    std::optional<material::Color> lipLight;
+    std::optional<material::Color> lipDark;
     float lipWidth = 1;
     bool operator==(const Recess&) const = default;
   };
@@ -97,8 +98,8 @@ struct Well {
     /** Where the light stands, in degrees. */
     float angleDeg = 120;
     /** What the lit edge and the shaded one are painted in. */
-    SkColor4f light{1, 1, 1, 0.65f};
-    SkColor4f shade{0, 0, 0, 0.45f};
+    material::Color light{1, 1, 1, 0.65f};
+    material::Color shade{0, 0, 0, 0.45f};
     bool operator==(const Relief&) const = default;
   };
   std::optional<Relief> relief;

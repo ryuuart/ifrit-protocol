@@ -52,6 +52,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -61,6 +62,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 namespace weave = sigil::weave;
@@ -78,15 +80,15 @@ constexpr float kBodyH = 100;
 /// Seconds per pass of the shared phase.
 constexpr double kPeriod = 3.0;
 
-constexpr SkColor4f kGround{0.043f, 0.043f, 0.058f, 1};
-constexpr SkColor4f kBone{0.930f, 0.920f, 0.890f, 1};
-constexpr SkColor4f kFaint{0.540f, 0.540f, 0.590f, 0.28f};
-constexpr SkColor4f kAccent{0.980f, 0.360f, 0.250f, 1};
+constexpr material::Color kGround{0.043f, 0.043f, 0.058f, 1};
+constexpr material::Color kBone{0.930f, 0.920f, 0.890f, 1};
+constexpr material::Color kFaint{0.540f, 0.540f, 0.590f, 0.28f};
+constexpr material::Color kAccent{0.980f, 0.360f, 0.250f, 1};
 /// Where `fx::tint` wipes FROM. The specimen is set in kAccent, its
 /// DESTINATION, and the effect multiplies down to this — so every channel
 /// here has to be darker than the destination's, since a multiplier
 /// cannot brighten and a channel it could not reach simply holds.
-constexpr SkColor4f kPale{0.180f, 0.090f, 0.060f, 1};
+constexpr material::Color kPale{0.180f, 0.090f, 0.060f, 1};
 
 /** The one cascade every cell beats on, so the nine differ in their
  *  effect and in nothing else. Its span is what the shared phase maps
@@ -241,7 +243,7 @@ struct KineticCard {
          "down to the origin",
          "TINT",
          fx::tint(kPale, kAccent),
-         {.color = kAccent}},
+         {.color = material::skia::toSkColor(kAccent)}},
         {"wave", "fx::waveLoop(0.10, 0.5)",
          "the one that never lands: a loop on the same wrapping phase, so "
          "its meter never fills",
@@ -297,7 +299,7 @@ struct KineticCard {
     for (const Row& row : kRows)
       root.children(
           {kit::trackMeter(composer, row.key, 0, kAccent,
-                           {kAccent.fR, kAccent.fG, kAccent.fB, 0.14f},
+                           {kAccent.r, kAccent.g, kAccent.b, 0.14f},
                            {.where = kit::MeterPlacement::Where::Under,
                             .thickness = 3.0f,
                             .gap = 7.0f,

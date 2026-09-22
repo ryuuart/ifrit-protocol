@@ -12,6 +12,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -22,6 +23,7 @@
 #include <cmath>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace weave = sigil::weave;
@@ -32,11 +34,11 @@ using namespace std::chrono_literals;
 using sigil::draw::Pen;
 
 namespace {
-constexpr SkColor4f kPale{0.90f, 0.93f, 0.97f, 1};
-constexpr SkColor4f kTeal{0.38f, 0.85f, 0.80f, 1};
-constexpr SkColor4f kWarm{1.00f, 0.67f, 0.28f, 1};
-constexpr SkColor4f kCool{0.44f, 0.64f, 1.00f, 1};
-constexpr SkColor4f kPanel{0.05f, 0.07f, 0.10f, 1};
+constexpr material::Color kPale{0.90f, 0.93f, 0.97f, 1};
+constexpr material::Color kTeal{0.38f, 0.85f, 0.80f, 1};
+constexpr material::Color kWarm{1.00f, 0.67f, 0.28f, 1};
+constexpr material::Color kCool{0.44f, 0.64f, 1.00f, 1};
+constexpr material::Color kPanel{0.05f, 0.07f, 0.10f, 1};
 constexpr double kSwitchAt = 0.30;
 constexpr auto kFade = 900ms;
 constexpr double kCapture = 0.70;
@@ -90,10 +92,12 @@ Element editorialCard(bool cooled) {
                weave::rich()
                    .add(u8"The base inherits. ")
                    .add(u8"This run changes only color. ",
-                        weave::Type{.color = kTeal})
+                        weave::Type{.color = material::skia::toSkColor(kTeal)})
                    .add(u8"A whole style stands alone.",
                         weave::textStyle(
-                            {.size = 12, .color = kPale, .track = 0})))
+                            {.size = 12,
+                             .color = material::skia::toSkColor(kPale),
+                             .track = 0})))
                .width(612),
            box().row().gap(22).children(
                {box()
@@ -139,7 +143,7 @@ Element adoption() {
 }
 
 struct Accent {
-  SkColor4f color{0.42f, 0.45f, 0.52f, 1};
+  material::Color color{0.42f, 0.45f, 0.52f, 1};
   bool operator==(const Accent&) const = default;
 };
 
@@ -199,7 +203,7 @@ Element penCell() {
 Element trailCell() {
   return box().width(501).height(178).ink(kTeal).children(
       {compose::graphics("cascade.trail", [](Pen& pen) {
-        pen.background(kPanel.fR * 255, kPanel.fG * 255, kPanel.fB * 255, 14);
+        pen.background(kPanel.r * 255, kPanel.g * 255, kPanel.b * 255, 14);
         const float angle = static_cast<float>(pen.millis()) / 1000 * 3;
         pen.noStroke();
         pen.circle(pen.width * 0.5f + std::cos(angle) * 58,

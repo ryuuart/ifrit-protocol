@@ -17,6 +17,7 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -47,25 +48,25 @@ inline sk_sp<SkTypeface> heavyFace() {
 /** A positional shorthand over the library's designated-init `textStyle`,
  *  for the one display line that names its own face. */
 inline sigil::weave::TextStyle faced(sk_sp<SkTypeface> face, float size,
-                                     SkColor4f color, float track = 0.0f) {
+                                     sigil::material::Color color, float track = 0.0f) {
   return sigil::weave::textStyle(
-      {.face = std::move(face), .size = size, .color = color, .track = track});
+      {.face = std::move(face), .size = size, .color = sigil::material::skia::toSkColor(color), .track = track});
 }
 
 /** The registers a panel is set in. */
-inline sigil::weave::TextStyle mono(float size, SkColor4f color,
+inline sigil::weave::TextStyle mono(float size, sigil::material::Color color,
                                     float track = 0.0f) {
   return faced(monoFace(), size, color, track);
 }
-inline sigil::weave::TextStyle monoB(float size, SkColor4f color,
+inline sigil::weave::TextStyle monoB(float size, sigil::material::Color color,
                                      float track = 0.0f) {
   return faced(monoBoldFace(), size, color, track);
 }
-inline sigil::weave::TextStyle ui(float size, SkColor4f color,
+inline sigil::weave::TextStyle ui(float size, sigil::material::Color color,
                                   float track = 0.0f) {
   return faced(uiFace(), size, color, track);
 }
-inline sigil::weave::TextStyle uiB(float size, SkColor4f color,
+inline sigil::weave::TextStyle uiB(float size, sigil::material::Color color,
                                    float track = 0.0f) {
   return faced(uiBoldFace(), size, color, track);
 }

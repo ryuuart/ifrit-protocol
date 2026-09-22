@@ -15,6 +15,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -26,6 +27,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace image = sigil::image;
@@ -44,7 +46,7 @@ constexpr float kScale = 2.5f;  // sheet pixels per source pixel
  *  these run across two of them and the frames come round again. */
 constexpr double kSamples[] = {0, 150, 320, 480, 640, 900, 1150, 1420};
 
-constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
+constexpr material::Color kCellGround{0.12f, 0.12f, 0.14f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -183,12 +185,14 @@ struct GifFrames {
         .gap(10)
         .padding(40)
         .ink(sheet.palette.ink)
-        .children({text("no animated document here").font({.size = 20}),
-                   text(std::string(kSource) +
-                        " did not decode: the hub reached neither the "
-                        "network nor a cached copy of it")
-                       .font({.size = 12, .color = sheet.palette.ash})
-                       .width(620.0f)});
+        .children(
+            {text("no animated document here").font({.size = 20}),
+             text(std::string(kSource) +
+                  " did not decode: the hub reached neither the "
+                  "network nor a cached copy of it")
+                 .font({.size = 12,
+                        .color = material::skia::toSkColor(sheet.palette.ash)})
+                 .width(620.0f)});
   }
 };
 

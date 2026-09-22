@@ -53,9 +53,9 @@ struct ChevreulCircle {
   static constexpr float kQCellW = 68.0f, kQCellH = 6.0f;
   static constexpr float kQGapX = 2.0f, kQGapY = 1.0f;
 
-  std::array<SkColor4f, 72> corrected{}, scanned{};
+  std::array<sigil::material::Color, 72> corrected{}, scanned{};
   std::array<Lab, 72> lab{};
-  std::array<SkColor4f, 20> gamme{}, gammeCode{};
+  std::array<sigil::material::Color, 20> gamme{}, gammeCode{};
 
   ch::Output<float> demo{0};
   Verdict v;
@@ -83,7 +83,7 @@ struct ChevreulCircle {
    *  a wall: chroma scaled about the colour's own luminance, so the hue
    *  and the value the medians establish are both left alone and only the
    *  distance from grey changes. */
-  static SkColor4f wallLift(SkColor4f c);
+  static sigil::material::Color wallLift(sigil::material::Color c);
 
   void computeColours();
 
@@ -128,7 +128,7 @@ struct ChevreulCircle {
    *  no size of its own, so an effect there opens a layer the size of the
    *  canvas and runs the LUT over every pixel of the plate every frame.
    *  Twenty bounded layers of one band each are the same picture. */
-  Element aStaircase(const std::array<SkColor4f, 20>& ramp, float y, float h,
+  Element aStaircase(const std::array<sigil::material::Color, 20>& ramp, float y, float h,
                      const char* keyBase, bool withGap, bool graded = false);
 
   Element theIllusion();

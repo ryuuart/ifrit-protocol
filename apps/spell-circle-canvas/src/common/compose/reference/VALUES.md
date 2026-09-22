@@ -63,7 +63,7 @@ read before the four rows under *The surface*.
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
 | `VarRef` | A custom property's NAME as a value, interned once, so two references to one name compare as an integer. | `compose::var`, and `varName` reads the name back | `Element::ink`, `Fill::var`, `Dimension`, `VarTable::set` |
-| `VarValue` | What a property HOLDS: a colour, or a length that resolves where it is read. | Either half outright — an `SkColor4f` or a `Dimension` | `VarTable::set`, and `Element::var` through its two overloads |
+| `VarValue` | What a property HOLDS: a colour, or a length that resolves where it is read. | Either half outright — a `material::Color` or a `Dimension` | `VarTable::set`, and `Element::var` through its two overloads |
 | `VarTable` | Every property in force at a node, nearest ancestor winning, as one comparable value. | `VarTable::set` per entry, or `VarTable::overlay` over another | `Element::varDefaults`, and `PaintContext` carries it to a program |
 
 A reference stands in for a value until the tree resolves it, so it is

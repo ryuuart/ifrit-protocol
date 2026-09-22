@@ -46,11 +46,13 @@ TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
   // the two rules spelled out below.
   const sigil::weave::StyleSheet classes{
       {"label",
-       {.face = house.type.mono, .size = 10.5f, .color = house.palette.ink}},
+       {.face = house.type.mono,
+        .size = 10.5f,
+        .color = sigil::material::skia::toSkColor(house.palette.ink)}},
       {"caption",
        {.face = house.type.sans,
         .size = 10,
-        .color = house.palette.ash,
+        .color = sigil::material::skia::toSkColor(house.palette.ash),
         .track = 0.2f}}};
   Element byHand =
       compose::kit::cell(voice, "border(1.8, ink, inset 7)",
@@ -154,8 +156,8 @@ TEST(SketchKitCells, APlateIsAGroundedWellWithCornersAndOneKeyline) {
 TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
   const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});
   const kit::Well::Recess hole{
-      .lipLight = SkColor4f{0.42f, 0.38f, 0.31f, 0.30f},
-      .lipDark = SkColor4f{0, 0, 0, 0.55f}};
+      .lipLight = sigil::material::Color{0.42f, 0.38f, 0.31f, 0.30f},
+      .lipDark = sigil::material::Color{0, 0, 0, 0.55f}};
   EXPECT_TRUE(sameDrawing(
       compose::box()
           .width(140)

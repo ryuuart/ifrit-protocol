@@ -230,7 +230,7 @@ struct KumikoAsanoha {
     Element g = kit::at(0, y0, kW, kBandH)
                     .fill(Fill::color(hexColor(0x120C07)))
                     .font({.size = 10.5f,
-                           .color = hexColor(0xC9B78F, 0.75f),
+                           .color = sigil::material::skia::toSkColor(hexColor(0xC9B78F, 0.75f)),
                            .track = 0.9f});
     // the drawing's own ground: a hairline ruled off the room above it
     g.children(
@@ -286,7 +286,7 @@ struct KumikoAsanoha {
                          {.alignment = weave::TextAlignment::kCenter})});
               }),
          text(jigs["note"])
-             .font({.color = hexColor(0xB7A281, 0.55f), .track = 0.5f})
+             .font({.color = sigil::material::skia::toSkColor(hexColor(0xB7A281, 0.55f)), .track = 0.5f})
              .left(392)
              .top(24)
              .width(300),
@@ -298,7 +298,7 @@ struct KumikoAsanoha {
              .children(
                  {text(doc["reading"]["title"])
                       .font({.size = 12,
-                             .color = hexColor(0xE4D5B2, 0.86f),
+                             .color = sigil::material::skia::toSkColor(hexColor(0xE4D5B2, 0.86f)),
                              .track = 1.3f}),
                   each(doc["reading"]["lines"].items(),
                        [](const data::Json& line) { return text(line); })})});
@@ -337,7 +337,7 @@ struct KumikoAsanoha {
                    post(0, 146), post(kW - 146, 146), beam(0, 122, true),
                    beam(kRoom - 122, 122, false),
                    text(doc["caption"])
-                       .font({.size = 12, .color = kCaption, .track = 1.1f})
+                       .font({.size = 12, .color = sigil::material::skia::toSkColor(kCaption), .track = 1.1f})
                        .left(950)
                        .top(916)
                        .width(300)

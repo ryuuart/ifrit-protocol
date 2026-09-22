@@ -24,6 +24,7 @@
 #include <sigildraw/brush/Stroke.h>
 #include <sigildraw/brush/Tool.h>
 #include <sigildraw/brush/Wash.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <optional>
@@ -61,8 +62,9 @@ class Engine {
    *  and changes nothing. */
   const Tool* pick(std::string_view name);
   /** Selects a tool, its colour and its weight in one word. */
-  const Tool* set(std::string_view name, SkColor4f color, float weight = 1.0f);
-  void stroke(SkColor4f color);
+  const Tool* set(std::string_view name, material::Color color,
+                  float weight = 1.0f);
+  void stroke(material::Color color);
   void noStroke();
   void strokeWeight(float weight);
   [[nodiscard]] bool hasStroke() const;
@@ -78,9 +80,9 @@ class Engine {
    *  @{ */
   /** The pigment wash and the flat wash are independent and can be
    *  active together. */
-  void fill(SkColor4f color, float opacity = 150.0f / 255.0f);
+  void fill(material::Color color, float opacity = 150.0f / 255.0f);
   void noFill();
-  void wash(SkColor4f color, float opacity = 150.0f / 255.0f);
+  void wash(material::Color color, float opacity = 150.0f / 255.0f);
   void noWash();
   /** The bleed angle is radians. */
   void fillBleed(float bleed, BleedDirection direction = BleedDirection::Out,
@@ -96,9 +98,9 @@ class Engine {
   /** A dedicated hatch tool; until one is set the hatch uses the
    *  selected tool. */
   const Tool* hatchStyle(std::string_view name,
-                         SkColor4f color = SkColors::kBlack,
+                         material::Color color = SkColors::kBlack,
                          float weight = 1.0f);
-  const Tool* mass(std::string_view name, SkColor4f color,
+  const Tool* mass(std::string_view name, material::Color color,
                    const Mass& style = {});
   void noMass();
   /** @} */
@@ -242,12 +244,12 @@ class Engine {
 
   struct State {
     std::string selected;
-    SkColor4f color;
+    material::Color color;
     float weight;
     bool strokeActive;
     Wash fill;
     bool fillActive;
-    SkColor4f washColor;
+    material::Color washColor;
     float washOpacity;
     bool washActive;
     std::optional<Hatch> hatch;
@@ -282,7 +284,7 @@ class Engine {
 
   Catalogue m_catalogue;
   std::string m_selected = "HB";
-  SkColor4f m_color{0, 0, 0, 1};
+  material::Color m_color{0, 0, 0, 1};
   float m_weight = 1.0f;
   bool m_strokeActive = false;
   Sampler m_sampler;
@@ -296,7 +298,7 @@ class Engine {
   float m_shapeCurvature = 0.0f;
   Wash m_fill;
   bool m_fillActive = false;
-  SkColor4f m_washColor{0, 0, 0, 1};
+  material::Color m_washColor{0, 0, 0, 1};
   float m_washOpacity = 150.0f / 255.0f;
   bool m_washActive = false;
   std::optional<Hatch> m_hatch;

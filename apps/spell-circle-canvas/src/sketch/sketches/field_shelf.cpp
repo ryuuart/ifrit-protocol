@@ -35,6 +35,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -62,7 +63,7 @@ constexpr float kSpacing = 9;       // the halftone lattice pitch, px
 constexpr float kNoiseHz = 0.035f;  // features per px
 constexpr float kSeed = 4;          // the seed every generated field offsets by
 
-constexpr SkColor4f kScreen{0.72f, 0.80f, 0.62f, 1};
+constexpr material::Color kScreen{0.72f, 0.80f, 0.62f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -138,7 +139,7 @@ sketch::kit::ComparisonCase aged(const char* caseTitle, const char* call,
               [paint = std::move(paint), face = whole()](
                   SkCanvas& canvas, const material::FrameData& frame) {
                 SkPaint ground;
-                ground.setColor4f(kScreen);
+                ground.setColor4f(material::skia::toSkColor(kScreen));
                 canvas.drawPath(face, ground);
                 material::skia::fill(canvas, face, paint, frame);
               });

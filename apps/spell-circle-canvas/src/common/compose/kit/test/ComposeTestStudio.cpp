@@ -261,17 +261,17 @@ TEST(ComposeReport, ATableLandsInTheFeedRowByRowInTheInkOfItsStanding) {
 
 TEST(ComposeStudio, TheColourOpsAreOneNamePerLookInsteadOfOneBodyPerCallSite) {
   // hexColor() is the one colour spelling this library carries, and it
-  // answers SigilMaterial's arithmetic in Skia's colour.
-  constexpr SkColor4f rubric = hexColor(0x8C2F22);
-  static_assert(hexColor(0xFFFFFF).fR == 1.0f,
+  // answers in SigilMaterial's colour.
+  constexpr sigil::material::Color rubric = hexColor(0x8C2F22);
+  static_assert(hexColor(0xFFFFFF).r == 1.0f,
                 "must stay constexpr — the "
                 "palettes are constexpr");
-  EXPECT_FLOAT_EQ(rubric.fR, 0x8C / 255.0f);
-  EXPECT_FLOAT_EQ(rubric.fG, 0x2F / 255.0f);
-  EXPECT_FLOAT_EQ(rubric.fB, 0x22 / 255.0f);
-  EXPECT_FLOAT_EQ(rubric.fA, 1.0f);
-  EXPECT_FLOAT_EQ(hexColor(0x000000, 0.25f).fA, 0.25f);
-  EXPECT_EQ(rubric, material::skia::toSkColor(material::rgb(0x8C2F22)))
+  EXPECT_FLOAT_EQ(rubric.r, 0x8C / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.g, 0x2F / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.b, 0x22 / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.a, 1.0f);
+  EXPECT_FLOAT_EQ(hexColor(0x000000, 0.25f).a, 0.25f);
+  EXPECT_EQ(rubric, sigil::material::rgb(0x8C2F22))
       << "the same colour SigilMaterial's own spelling answers";
 
   // phase() wraps and never NaNs on a zero period.
@@ -289,14 +289,14 @@ TEST(ComposeStudio, ATypedOptionsValueCarriesWhatPositionalArgumentsCannot) {
   // test asserts exactly the fields a positional two-argument helper could
   // not reach; if it ever shrinks to size+colour, the extraction has failed
   // the same way its predecessor did.
-  const sigil::weave::TextStyle s =
-      weave::textStyle({.size = 18.0f,
-                        .color = SkColor4f{0.2f, 0.4f, 0.6f, 1},
-                        .track = 1.25f,
-                        .condense = 0.94f,
-                        .weight = 650.0f,
-                        .slant = -10.0f,
-                        .aliased = true});
+  const sigil::weave::TextStyle s = weave::textStyle(
+      {.size = 18.0f,
+       .color = material::skia::toSkColor(SkColor4f{0.2f, 0.4f, 0.6f, 1}),
+       .track = 1.25f,
+       .condense = 0.94f,
+       .weight = 650.0f,
+       .slant = -10.0f,
+       .aliased = true});
   EXPECT_FLOAT_EQ(s.shaping.fontSize, 18.0f);
   EXPECT_FLOAT_EQ(s.shaping.letterSpacing, 1.25f);
   EXPECT_FLOAT_EQ(s.shaping.scaleX, 0.94f);

@@ -19,6 +19,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilvideo/decode/Decode.h>
@@ -34,6 +35,7 @@
 #include <string_view>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace io = sigil::io;
 namespace mskia = sigil::material::skia;
@@ -109,7 +111,7 @@ struct VideoCompose {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
                              .captureAt = 4.25,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
 
     Documents documents;
     io::Hub& hub = ctx.assets.hub();
@@ -157,7 +159,9 @@ struct VideoCompose {
     const auto cells = std::views::iota(0, kCells);
 
     const weave::TextStyle title = weave::textStyle(
-        {.size = 27, .color = SkColor4f{1, 1, 1, 0.96f}, .track = 5.5f});
+        {.size = 27,
+         .color = material::skia::toSkColor(material::Color{1, 1, 1, 0.96f}),
+         .track = 5.5f});
     ctx.composer.render(stack().width(kWidth).height(kHeight).children(
         {// A sky under every cell, and an effect source over it.
          each(cells, [&](int cell) { return leafAt(cell & 1, cell, false); }),

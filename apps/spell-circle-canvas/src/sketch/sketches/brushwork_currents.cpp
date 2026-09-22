@@ -16,12 +16,14 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
 #include <array>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
@@ -31,11 +33,11 @@ namespace {
 
 /** THE PAPER. The canvas is cleared to it and the pen lays it again as
  *  the sheet the marks are made on, so one colour says both. */
-constexpr SkColor4f kPaper{241 / 255.0f, 234 / 255.0f, 215 / 255.0f, 1};
+constexpr material::Color kPaper{241 / 255.0f, 234 / 255.0f, 215 / 255.0f, 1};
 
 constexpr int kStreams = 34;
 constexpr int kOrbitMarks = 13;
-constexpr std::array<SkColor4f, 5> kPalette{{
+constexpr std::array<material::Color, 5> kPalette{{
     {0.05f, 0.30f, 0.38f, 1.0f},
     {0.11f, 0.48f, 0.52f, 1.0f},
     {0.82f, 0.24f, 0.15f, 1.0f},

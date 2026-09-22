@@ -38,11 +38,13 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
 #include "tategaki/VerticalSpecimen.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 namespace shapes = sigil::geometry::shapes;
@@ -73,7 +75,7 @@ struct Mawarikomi {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 1.0,
-                             .background = SkColor4f{1, 1, 1, 1}});
+                             .background = material::Color{1, 1, 1, 1}});
     ctx.composer.render(describe());
   }
 

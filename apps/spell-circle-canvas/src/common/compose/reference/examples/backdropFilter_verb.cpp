@@ -7,9 +7,11 @@
  */
 
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace skia = sigil::material::skia;
 
@@ -18,11 +20,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 280};
-constexpr SkColor4f kGround = hexColor(0x10161b);
-constexpr SkColor4f kInk = hexColor(0xf0f5f8);
-constexpr SkColor4f kVeil = hexColor(0xdcecf4, 0.18f);
-constexpr SkColor4f kLight = hexColor(0x26414d);
-constexpr SkColor4f kDark = hexColor(0x14242c);
+constexpr material::Color kGround = hexColor(0x10161b);
+constexpr material::Color kInk = hexColor(0xf0f5f8);
+constexpr material::Color kVeil = hexColor(0xdcecf4, 0.18f);
+constexpr material::Color kLight = hexColor(0x26414d);
+constexpr material::Color kDark = hexColor(0x14242c);
 constexpr float kTile = 28;
 
 /** The ground the panels stand on: a lattice of real elements, so a
@@ -43,7 +45,8 @@ Element panel(const char* caption, Element plate) {
       .fill(kVeil)
       .justifyContent(Justify::Center)
       .alignItems(Align::Center)
-      .children({text(caption).font({.size = 14, .color = kInk})});
+      .children({text(caption).font(
+          {.size = 14, .color = material::skia::toSkColor(kInk)})});
 }
 
 }  // namespace

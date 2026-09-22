@@ -30,8 +30,8 @@ TEST(ComposeValues, AStaticPaintCollapsesToTheFillItResolvesTo) {
       material::skia::Paint::solid({0.25f, 0.5f, 0.75f, 1.0f});
   const Fill collapsed = toFill(solid);
   EXPECT_EQ(collapsed.kind, Fill::Kind::Color);
-  EXPECT_FLOAT_EQ(collapsed.colorValue.fR, 0.25f);
-  EXPECT_FLOAT_EQ(collapsed.colorValue.fB, 0.75f);
+  EXPECT_FLOAT_EQ(collapsed.colorValue.r, 0.25f);
+  EXPECT_FLOAT_EQ(collapsed.colorValue.b, 0.75f);
 
   PaintContext ctx;
   ctx.size = {40, 20};

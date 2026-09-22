@@ -1,3 +1,4 @@
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -15,9 +16,9 @@ weave::Type Theme::font(const Register& line) const {
           .track = line.track};
 }
 
-weave::Type Theme::font(const Register& line, SkColor4f color) const {
+weave::Type Theme::font(const Register& line, material::Color color) const {
   weave::Type type = font(line);
-  type.color = color;
+  type.color = material::skia::toSkColor(color);
   return type;
 }
 
@@ -49,25 +50,33 @@ weave::StyleSheet Theme::styleSheet() const {
   // curve dimmed so the curve still reads over it. Only `tick` and `label`
   // carry type, because only they set words; the rest name a colour alone
   // and a recording paints in it as the ink in force.
-  classes.set("plotAxis", weave::Type{.color = palette.ash});
+  classes.set("plotAxis",
+              weave::Type{.color = material::skia::toSkColor(palette.ash)});
   classes.set("plotTick", font(type.captionLabel, palette.ash));
-  classes.set("plotRule", weave::Type{.color = palette.rule});
-  classes.set("plotTrace", weave::Type{.color = palette.figure});
-  classes.set("plotArea", weave::Type{.color = material::skia::withAlpha(
-                                          palette.figure, 0.25f)});
-  classes.set("plotMark", weave::Type{.color = palette.figure});
-  classes.set("plotBar", weave::Type{.color = palette.figure});
+  classes.set("plotRule",
+              weave::Type{.color = material::skia::toSkColor(palette.rule)});
+  classes.set("plotTrace",
+              weave::Type{.color = material::skia::toSkColor(palette.figure)});
+  classes.set(
+      "plotArea",
+      weave::Type{.color = material::skia::toSkColor(
+                      sigil::material::withAlpha(palette.figure, 0.25f))});
+  classes.set("plotMark",
+              weave::Type{.color = material::skia::toSkColor(palette.figure)});
+  classes.set("plotBar",
+              weave::Type{.color = material::skia::toSkColor(palette.figure)});
   classes.set("plotLabel", font(type.captionLabel, palette.ink));
   return classes;
 }
 
 Provide::Provide(Theme look) : m_look(std::move(look)) {}
 
-weave::TextStyle Theme::style(const Register& line, SkColor4f color) const {
+weave::TextStyle Theme::style(const Register& line,
+                              material::Color color) const {
   return weave::textStyle(
       {.face = line.face ? line.face : (line.mono ? type.mono : type.sans),
        .size = line.size,
-       .color = color,
+       .color = material::skia::toSkColor(color),
        .track = line.track});
 }
 
@@ -86,14 +95,16 @@ weave::TextStyle Theme::style(const Register& line,
     case compose::Fill::Kind::None:
       break;
   }
-  return style(line, SkColor4f{0, 0, 0, 0});
+  return style(line, material::Color{0, 0, 0, 0});
 }
 
-weave::TextStyle Theme::sans(float size, SkColor4f color, float track) const {
+weave::TextStyle Theme::sans(float size, material::Color color,
+                             float track) const {
   return style({.size = size, .track = track, .mono = false}, color);
 }
 
-weave::TextStyle Theme::mono(float size, SkColor4f color, float track) const {
+weave::TextStyle Theme::mono(float size, material::Color color,
+                             float track) const {
   return style({.size = size, .track = track, .mono = true}, color);
 }
 

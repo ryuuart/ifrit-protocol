@@ -94,12 +94,13 @@ auto Minard1869::provenance() -> Element {
         .at({(float)n["x"].number() - r, (float)n["y"].number() - r * 0.66f})
         .shape(shapes::circle())
         .stroke(stroke(1.5f, Fill::color(kStampRed)))
-        .children({text(n["words"])
-                       .font({.face = faceRoman,
-                              .size = 7.5f,
-                              .color = kStampRed,
-                              .track = 0.3f})
-                       .at({r * 0.35f, r * 0.42f})})
+        .children(
+            {text(n["words"])
+                 .font({.face = faceRoman,
+                        .size = 7.5f,
+                        .color = sigil::material::skia::toSkColor(kStampRed),
+                        .track = 0.3f})
+                 .at({r * 0.35f, r * 0.42f})})
         .key(std::string(n["key"].text()))
         .scale(animate(from(0.0f).to(1.0f),
                        ramp(t0 * 1000, 420, ch::EaseOutBack())))
@@ -162,19 +163,21 @@ auto Minard1869::caliper() -> Element {
                .gap(4)
                .font({.face = faceUi})
                .key("calread")
-               .children(
-                   {text(kit::formatted("%.2f mm", r.mm))
-                        .font({.face = faceUiBold, .size = 17}),
-                    text(kit::formatted("÷ %.0f = %.4f mm / 10.000", r.men,
-                                        r.mm / (r.men / 10000.0f)))
-                        .font({.size = 9.5f}),
-                    text(std::string(r.where) + "\n" +
-                         word("caliper", "provenance"))
-                        .font({.size = 9, .color = hexColor(0x2f6f9c, 0.9f)}),
-                    text(word("caliper", "claim"))
-                        .font({.face = faceUiBold,
-                               .size = 10,
-                               .color = kClaimRed})})});
+               .children({text(kit::formatted("%.2f mm", r.mm))
+                              .font({.face = faceUiBold, .size = 17}),
+                          text(kit::formatted("÷ %.0f = %.4f mm / 10.000",
+                                              r.men, r.mm / (r.men / 10000.0f)))
+                              .font({.size = 9.5f}),
+                          text(std::string(r.where) + "\n" +
+                               word("caliper", "provenance"))
+                              .font({.size = 9,
+                                     .color = sigil::material::skia::toSkColor(
+                                         hexColor(0x2f6f9c, 0.9f))}),
+                          text(word("caliper", "claim"))
+                              .font({.face = faceUiBold,
+                                     .size = 10,
+                                     .color = sigil::material::skia::toSkColor(
+                                         kClaimRed)})})});
 }
 
 auto Minard1869::hannibalSea() -> Element {
@@ -286,8 +289,8 @@ auto Minard1869::lehmann(const std::vector<std::array<float, 4>>& ridges,
                    const float ux = -gx / (slope + 1e-6f),
                                uy = -gy / (slope + 1e-6f);
                    p.strokeWeight(0.45f + 0.75f * k);
-                   p.stroke({kInkThin.fR, kInkThin.fG, kInkThin.fB,
-                             0.30f + 0.62f * k});
+                   p.stroke(
+                       {kInkThin.r, kInkThin.g, kInkThin.b, 0.30f + 0.62f * k});
                    p.line(x - ux * len * 0.5f, y - uy * len * 0.5f,
                           x + ux * len * 0.5f, y + uy * len * 0.5f);
                  }
@@ -300,7 +303,8 @@ auto Minard1869::lehmann(const std::vector<std::array<float, 4>>& ridges,
 }
 
 auto Minard1869::river(const std::vector<SkPoint>& pts, float width,
-                       SkColor4f colour, const char* key, float t0) -> Element {
+                       sigil::material::Color colour, const char* key, float t0)
+    -> Element {
   return inked(smooth(pts), stroke(width, Fill::color(colour)), t0, t0 + 0.4f)
       .key(key);
 }
@@ -329,7 +333,8 @@ auto Minard1869::hannibalPanel() -> Element {
         : p.kind == 3
             ? weave::Type{.face = faceItalic,
                           .size = 10,
-                          .color = hexColor(0x4e4436),
+                          .color = sigil::material::skia::toSkColor(
+                              hexColor(0x4e4436)),
                           .track = 1.2f}
             : weave::Type{.face = faceItalic, .size = 9, .track = 0.2f};
     return text(p.name)
@@ -413,8 +418,8 @@ auto Minard1869::legendBox() -> Element {
                                      })})});
 }
 
-auto Minard1869::flowRibbon(const WidthProfile& prof, SkColor4f colour)
-    -> brush::Ribbon {
+auto Minard1869::flowRibbon(const WidthProfile& prof,
+                            sigil::material::Color colour) -> brush::Ribbon {
   brush::Ribbon r =
       brush::ribbon(FlowWidth{prof, &mmScale}, Fill::color(colour));
   r.step = 2.0f;
@@ -423,8 +428,9 @@ auto Minard1869::flowRibbon(const WidthProfile& prof, SkColor4f colour)
 }
 
 auto Minard1869::bandElement(const SkPath& spine, const WidthProfile& prof,
-                             SkColor4f colour, const std::string& key,
-                             Animatable<float> reveal) -> Element {
+                             sigil::material::Color colour,
+                             const std::string& key, Animatable<float> reveal)
+    -> Element {
   // `pathFigure` is the route in its own bounding box: the node's rect
   // is the route's bounds and the shape is the route re-based into it.
   // No bleed — the band overflows that box by up to w/2 on each side by
@@ -448,8 +454,11 @@ auto Minard1869::bandNumber(SkPoint at, SkVector tangent, float men, float size,
     n = {-n.x(), -n.y()};
   }
   // a whole style, because the run is measured in it before it is placed
-  const weave::TextStyle style = weave::textStyle(
-      {.face = faceNum, .size = size, .color = kInk, .track = 0.2f});
+  const weave::TextStyle style =
+      weave::textStyle({.face = faceNum,
+                        .size = size,
+                        .color = sigil::material::skia::toSkColor(kInk),
+                        .track = 0.2f});
   float runLen = 0;
   float slack = size * 0.3f;  // metrics-free fallback, same shape
   if (fonts) {
@@ -562,7 +571,8 @@ auto Minard1869::napoleonPanel() -> Element {
                    text(w.label)
                        .font({.face = faceItalic,
                               .size = 8,
-                              .color = hexColor(0x4e4436),
+                              .color = sigil::material::skia::toSkColor(
+                                  hexColor(0x4e4436)),
                               .track = 0.6f})
                        .at(w.at)
                        .key(std::string(w.key) + "L")
@@ -683,8 +693,11 @@ auto Minard1869::napoleonPanel() -> Element {
       {box()
            .inset(0)
            .styleSheet(weave::StyleSheet{
-               {"amberInk", weave::Type{.color = kAmber}},
-               {"amberQuiet", weave::Type{.color = hexColor(0xb5761e, 0.9f)}}})
+               {"amberInk",
+                weave::Type{.color = sigil::material::skia::toSkColor(kAmber)}},
+               {"amberQuiet",
+                weave::Type{.color = sigil::material::skia::toSkColor(
+                                hexColor(0xb5761e, 0.9f))}}})
            .children({lettering(napoleon["bar.remarks"], 0.0f, tBar)}),
        scaleBar(mapX(33.4f), 930.0f, 4.985f * 0.6549f, 50, 5,
                 word("napoleon", "bar"), "nbar", tAdv + 1.7f)});
@@ -835,7 +848,9 @@ auto Minard1869::temperaturePanel() -> Element {
            .at({mapX(29.2f) - 26, tempY(-11) + 16})
            .width(260)
            .gap(3)
-           .font({.face = faceUi, .size = 8, .color = kBlue})
+           .font({.face = faceUi,
+                  .size = 8,
+                  .color = sigil::material::skia::toSkColor(kBlue)})
            .children({each(temperature["recoveries"].items(),
                            [this](const data::Json& n, size_t i) -> Element {
                              const float t0 = tTemp + 1.35f + 0.15f * (float)i;

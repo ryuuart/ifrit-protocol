@@ -63,13 +63,14 @@ auto KspMapView::navball() -> Element {
                          .top(y - 0.9f)
                          .width(halfW * 2.0f)
                          .height(1.8f)
-                         .fill(Paint::solid(
-                             mskia::withAlpha(hexColor(0xEAF4F8), 0.88f)))});
+                         .fill(Paint::solid(sigil::material::withAlpha(
+                             hexColor(0xEAF4F8), 0.88f)))});
       const std::string num = std::to_string(deg);
       for (int e = 0; e < 2; ++e)
         deck.children(
             {t(num.c_str(),
-               bold(7.0f, mskia::withAlpha(hexColor(0xEAF4F8), 0.9f), 0.3f))
+               bold(7.0f, sigil::material::withAlpha(hexColor(0xEAF4F8), 0.9f),
+                    0.3f))
                  .left(e ? mid + halfW + 3.0f : mid - halfW - 13.0f)
                  .top(y - 5.0f)});
     };
@@ -95,7 +96,7 @@ auto KspMapView::navball() -> Element {
   // Curved dial tapes on the bezel annulus — THROTTLE left, G FORCE right,
   // exactly as the reference draws them. sector() gives the closed,
   // fillable annular segment; textOnPath gives the curved lettering.
-  auto tape = [&](float startDeg, float sweep, SkColor4f fillC) {
+  auto tape = [&](float startDeg, float sweep, sigil::material::Color fillC) {
     return at(
         box()
             .shape(shapes::sector(startDeg, sweep, 0.845f))
@@ -121,13 +122,14 @@ auto KspMapView::navball() -> Element {
     for (int i = 0; i <= 10; ++i) {
       const bool major = i % 5 == 0;
       const float a = from + sweep * (float)i / 10.0f;
-      g.children({at(
-          box()
-              .shape(shapes::sector(-0.42f, 0.84f, major ? 0.79f : 0.86f))
-              .fill(Paint::solid(mskia::withAlpha(hexColor(0xC6CFD3), 0.85f)))
-              .rotate(a)
-              .transformOrigin(pct(50), pct(50)),
-          kBall, kBezelR * 2, kBezelR * 2)});
+      g.children(
+          {at(box()
+                  .shape(shapes::sector(-0.42f, 0.84f, major ? 0.79f : 0.86f))
+                  .fill(Paint::solid(
+                      sigil::material::withAlpha(hexColor(0xC6CFD3), 0.85f)))
+                  .rotate(a)
+                  .transformOrigin(pct(50), pct(50)),
+              kBall, kBezelR * 2, kBezelR * 2)});
     }
   }
 
@@ -148,8 +150,8 @@ auto KspMapView::navball() -> Element {
                      .transformOrigin(pct(50), pct(50)),
                  kBall, kBezelR * 2, kBezelR * 2)});
 
-  auto arcLabel = [&](const char* s, float atFrac, float sz, SkColor4f c,
-                      float off) {
+  auto arcLabel = [&](const char* s, float atFrac, float sz,
+                      sigil::material::Color c, float off) {
     return at(t(s, body(sz, c, 1.1f))
                   .textOnPath(TextPath{.path = shapes::circle(),
                                        .at = atFrac,
@@ -173,7 +175,8 @@ auto KspMapView::navball() -> Element {
   for (int i = 0; i < 4; ++i)
     ring.children(
         {t(kHdg[i],
-           bold(9.0f, mskia::withAlpha(hexColor(0xEAF4F8), 0.85f), 0.6f))
+           bold(9.0f, sigil::material::withAlpha(hexColor(0xEAF4F8), 0.85f),
+                0.6f))
              .inset(0)
              .textOnPath(TextPath{.path = shapes::circle(),
                                   .at = 0.75f + (float)i / 4.0f,
@@ -211,20 +214,20 @@ auto KspMapView::navball() -> Element {
           kBall.fX - 52, kBall.fY + kBezelR - 8, 104, 24)});
 
   // RCS / SAS toggles, flanking the ball's shoulders.
-  auto toggle = [&](const char* label, SkColor4f c, float x) {
-    return at(
-        kit::centred()
-            .borderRadius({3})
+  auto toggle = [&](const char* label, sigil::material::Color c, float x) {
+    return at(kit::centred()
+                  .borderRadius({3})
 
-            .fill(Paint::linearUnit(
-                {0, 0}, {0, 1}, {{0.0f, mskia::lighten(c, 0.14f)}, {1.0f, c}}))
-            .stroke(
-                PathFormat{.width = 1.0f,
-                           .strokeFill = Fill::color(hexColor(0xE8EDEF, 0.5f)),
-                           .align = PathFormat::Align::Inner})
-            .opacity(&rcsPulse)
-            .children({t(label, bold(10, hexColor(0xFFFFFF)))}),
-        x, kBall.fY - kBezelR + 4, 40, 20);
+                  .fill(Paint::linearUnit(
+                      {0, 0}, {0, 1},
+                      {{0.0f, sigil::material::lighten(c, 0.14f)}, {1.0f, c}}))
+                  .stroke(PathFormat{
+                      .width = 1.0f,
+                      .strokeFill = Fill::color(hexColor(0xE8EDEF, 0.5f)),
+                      .align = PathFormat::Align::Inner})
+                  .opacity(&rcsPulse)
+                  .children({t(label, bold(10, hexColor(0xFFFFFF)))}),
+              x, kBall.fY - kBezelR + 4, 40, 20);
   };
   g.children(
       {toggle("RCS", kRcs, kBall.fX - kBezelR + 6),
@@ -234,8 +237,9 @@ auto KspMapView::navball() -> Element {
        at(box()
               .shape(shapes::arc(-72, 144))
               .stroke(spans::upTo(&dvSweep),
-                      brush::presets::filament(mskia::withAlpha(kDvArc, 0.5f),
-                                               hexColor(0xEBFFDA), 0.5f)),
+                      brush::presets::filament(
+                          sigil::material::withAlpha(kDvArc, 0.5f),
+                          hexColor(0xEBFFDA), 0.5f)),
           kBall, (kBezelR + 16) * 2, (kBezelR + 16) * 2),
        at(kit::centred()
               .row()
@@ -324,19 +328,19 @@ auto KspMapView::staging() -> Element {
             .overflow(Overflow::Clip)
             // scaleX + transformOrigin: the drain is a transform,
             // not a re-laid-out width
-            .children(
-                {box()
-                     .inset(1)
-                     .fill(Paint::linearUnit(
-                         {0, 0}, {0, 1},
-                         {{0.0f, mskia::lighten(kFuel, 0.10f)}, {1.0f, kFuel}}))
-                     .scaleX(fill)
-                     .transformOrigin(pct(0), pct(50)),
-                 box()
-                     .inset(0, 0, 0, 4)
-                     .alignItems(Align::Center)
-                     .children(
-                         {t("LiquidFuel", body(9, hexColor(0xF0F3F0)))})}),
+            .children({box()
+                           .inset(1)
+                           .fill(Paint::linearUnit(
+                               {0, 0}, {0, 1},
+                               {{0.0f, sigil::material::lighten(kFuel, 0.10f)},
+                                {1.0f, kFuel}}))
+                           .scaleX(fill)
+                           .transformOrigin(pct(0), pct(50)),
+                       box()
+                           .inset(0, 0, 0, 4)
+                           .alignItems(Align::Center)
+                           .children({t("LiquidFuel",
+                                        body(9, hexColor(0xF0F3F0)))})}),
         x + 37, py, 96, 13);
   };
 

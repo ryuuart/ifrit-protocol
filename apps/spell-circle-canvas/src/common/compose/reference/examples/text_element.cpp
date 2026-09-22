@@ -7,10 +7,12 @@
  */
 
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/style/Style.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
@@ -19,10 +21,10 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 300};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kInk = hexColor(0xe2e9ee);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
-constexpr SkColor4f kAccent = hexColor(0xe0a03c);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kInk = hexColor(0xe2e9ee);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kAccent = hexColor(0xe0a03c);
 
 /** A total style: a `weave::TextStyle` states every field itself, so a
  *  leaf set in one inherits nothing from the tree above it. */
@@ -35,7 +37,9 @@ weave::TextStyle stated() {
 
 Element row(const char* caption, Element leaf) {
   return box().column().gap(6).children(
-      {text(caption).font({.size = 12, .color = kAsh}), std::move(leaf)});
+      {text(caption).font(
+           {.size = 12, .color = material::skia::toSkColor(kAsh)}),
+       std::move(leaf)});
 }
 
 }  // namespace
@@ -58,10 +62,12 @@ struct TextElement {
             row("text(utf8)", text("Set in the font and ink in force.")),
             row("text(utf8, style)",
                 text("Set in a style of its own.", stated())),
-            row("text(rich)", text(weave::rich()
-                                       .add("Mixed text as ")
-                                       .add("one comparable value",
-                                            weave::Type{.color = kAccent}))),
+            row("text(rich)",
+                text(weave::rich()
+                         .add("Mixed text as ")
+                         .add("one comparable value",
+                              weave::Type{.color = material::skia::toSkColor(
+                                              kAccent)}))),
         });
   }
 };

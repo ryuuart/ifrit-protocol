@@ -53,6 +53,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
@@ -67,6 +68,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace data = sigil::data;
@@ -108,7 +110,7 @@ constexpr int kStrobeChannel = kFirstPatch + 4;
 constexpr size_t kShownChannels = 8;
 
 constexpr SkSize kCanvas = {1280, 720};
-constexpr SkColor4f kGround = {0.03f, 0.03f, 0.07f, 1};
+constexpr material::Color kGround = {0.03f, 0.03f, 0.07f, 1};
 /** The wash has turned twice and the wind is running by here, and the
  *  strobe has not been opened yet. */
 constexpr double kCaptureAt = 2.0;
@@ -206,8 +208,8 @@ float dimmer(const data::Json& channels, int number) {
 /** How bright a colour reads, which is what says which three of them
  *  are the brightest: the three primaries do not weigh the same to an
  *  eye, so a green at half is brighter than a blue at full. */
-float brightness(const SkColor4f& colour) {
-  return 0.2126f * colour.fR + 0.7152f * colour.fG + 0.0722f * colour.fB;
+float brightness(const material::Color& colour) {
+  return 0.2126f * colour.r + 0.7152f * colour.g + 0.0722f * colour.b;
 }
 
 int levelOf(float unit) {
@@ -346,7 +348,7 @@ struct ArtNetLights {
    *  universe that goes back to the desk have to be the same colours —
    *  a desk lighting the room from a canvas it is not looking at cannot
    *  be told two different things. */
-  SkColor4f tint(size_t index) const {
+  material::Color tint(size_t index) const {
     const float weight = kBands[index % kBands.size()].weight * flash();
     return {red() * weight, green() * weight, blue() * weight, kBandAlpha};
   }
@@ -371,19 +373,19 @@ struct ArtNetLights {
    *  A window with no desk answering at that address sends into a door
    *  that says so, which is false and costs the frame nothing. */
   void relight() {
-    std::array<SkColor4f, kBands.size()> lit{};
+    std::array<material::Color, kBands.size()> lit{};
     for (size_t index = 0; index != kBands.size(); ++index)
       lit[index] = tint(index);
     std::sort(lit.begin(), lit.end(),
-              [](const SkColor4f& a, const SkColor4f& b) {
+              [](const material::Color& a, const material::Color& b) {
                 return brightness(a) > brightness(b);
               });
 
     std::array<int, kAnsweringChannels> levels{};
     for (size_t lamp = 0; lamp != kLamps; ++lamp) {
-      levels[lamp * kLampChannels] = levelOf(lit[lamp].fR);
-      levels[lamp * kLampChannels + 1] = levelOf(lit[lamp].fG);
-      levels[lamp * kLampChannels + 2] = levelOf(lit[lamp].fB);
+      levels[lamp * kLampChannels] = levelOf(lit[lamp].r);
+      levels[lamp * kLampChannels + 1] = levelOf(lit[lamp].g);
+      levels[lamp * kLampChannels + 2] = levelOf(lit[lamp].b);
     }
     if (levels == told) return;
     told = levels;
@@ -433,9 +435,9 @@ struct ArtNetLights {
     // the theme in force is no longer this page's, so the colours the
     // dimmer row is drawn in are read here and carried in by value.
     const sketch::kit::Theme& look = sketch::kit::theme();
-    const SkColor4f rule = look.palette.rule;
-    const SkColor4f figure = look.palette.figure;
-    const SkColor4f ash = look.palette.ash;
+    const material::Color rule = look.palette.rule;
+    const material::Color figure = look.palette.figure;
+    const material::Color ash = look.palette.ash;
     compose::Element picture =
         compose::stack()
             .width(kCanvas.width())
@@ -486,7 +488,7 @@ struct ArtNetLights {
    *  are drawn rather than written because a description carrying a
    *  number that changes every frame is a description rebuilt every
    *  frame. */
-  void rack(Pen& pen, SkColor4f rule, SkColor4f figure, SkColor4f ash) {
+  void rack(Pen& pen, material::Color rule, material::Color figure, material::Color ash) {
     constexpr float kHeight = 120.0f;
     constexpr float kWidth = 22.0f;
     constexpr float kColumnGap = 12.0f;

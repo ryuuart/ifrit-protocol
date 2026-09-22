@@ -36,8 +36,10 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Constants.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 
@@ -48,8 +50,8 @@ namespace {
 
 /** The overlay a subscriber receives, and nothing behind it. */
 constexpr SkSize kCanvas = {640, 360};
-constexpr SkColor4f kGround = {0, 0, 0, 0};
-constexpr SkColor4f kInk = {0.96f, 0.84f, 0.43f, 1};
+constexpr material::Color kGround = {0, 0, 0, 0};
+constexpr material::Color kInk = {0.96f, 0.84f, 0.43f, 1};
 
 constexpr float kRadius = 84;      // how far out the ring stands
 constexpr int kTicks = 24;         // how many marks go round it

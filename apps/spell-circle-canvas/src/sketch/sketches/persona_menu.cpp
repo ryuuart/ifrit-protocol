@@ -54,6 +54,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -72,6 +73,7 @@
 #include <string_view>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 namespace mpattern = sigil::material::pattern;
@@ -94,42 +96,44 @@ constexpr float kW = kSceneSize.fWidth;
 constexpr float kH = kSceneSize.fHeight;
 
 // The menu's palette, taken verbatim from the recreation.
-constexpr SkColor4f kGround{0.0039f, 0.3725f, 0.8000f, 1};         // #015FCC
-constexpr SkColor4f kGroundDark{0.0118f, 0.1216f, 0.3922f, 1};     // #031F64
-constexpr SkColor4f kCyanA{0.0863f, 0.8118f, 0.9843f, 1};          // #16CFFB
-constexpr SkColor4f kCyanB{0.4902f, 0.9020f, 0.9922f, 1};          // #7DE6FD
-constexpr SkColor4f kCyanC{0.4667f, 0.9961f, 0.9882f, 1};          // #77FEFC
-constexpr SkColor4f kPink{0.9922f, 0.4667f, 0.8510f, 1};           // #FD77D9
-constexpr SkColor4f kRedC{1, 0, 0, 1};                             // #F00
-constexpr SkColor4f kLut0{0.0235f, 0.0392f, 0.1686f, 1};           // #060A2B
-constexpr SkColor4f kLut1{0.0471f, 0.0706f, 0.2980f, 1};           // #0C124C
-constexpr SkColor4f kLut2{0.1059f, 0.2196f, 0.9412f, 1};           // #1B38F0
-constexpr SkColor4f kLut3{0.2000f, 0.3176f, 1.0000f, 1};           // #3351FF
-constexpr SkColor4f kLut4{0.9882f, 0.9961f, 0.9961f, 1};           // #FCFEFE
-constexpr SkColor4f kCausLight{0.5882f, 0.8902f, 0.9412f, 0.47f};  // #96E3F0
-constexpr SkColor4f kCausBub{0.3294f, 0.9294f, 0.9176f, 0.255f};   // #54EDEA
-constexpr SkColor4f kBotDark{0, 0.0627f, 0.4275f, 1};              // #00106D
+constexpr material::Color kGround{0.0039f, 0.3725f, 0.8000f, 1};      // #015FCC
+constexpr material::Color kGroundDark{0.0118f, 0.1216f, 0.3922f, 1};  // #031F64
+constexpr material::Color kCyanA{0.0863f, 0.8118f, 0.9843f, 1};       // #16CFFB
+constexpr material::Color kCyanB{0.4902f, 0.9020f, 0.9922f, 1};       // #7DE6FD
+constexpr material::Color kCyanC{0.4667f, 0.9961f, 0.9882f, 1};       // #77FEFC
+constexpr material::Color kPink{0.9922f, 0.4667f, 0.8510f, 1};        // #FD77D9
+constexpr material::Color kRedC{1, 0, 0, 1};                          // #F00
+constexpr material::Color kLut0{0.0235f, 0.0392f, 0.1686f, 1};        // #060A2B
+constexpr material::Color kLut1{0.0471f, 0.0706f, 0.2980f, 1};        // #0C124C
+constexpr material::Color kLut2{0.1059f, 0.2196f, 0.9412f, 1};        // #1B38F0
+constexpr material::Color kLut3{0.2000f, 0.3176f, 1.0000f, 1};        // #3351FF
+constexpr material::Color kLut4{0.9882f, 0.9961f, 0.9961f, 1};        // #FCFEFE
+constexpr material::Color kCausLight{0.5882f, 0.8902f, 0.9412f,
+                                     0.47f};  // #96E3F0
+constexpr material::Color kCausBub{0.3294f, 0.9294f, 0.9176f,
+                                   0.255f};                  // #54EDEA
+constexpr material::Color kBotDark{0, 0.0627f, 0.4275f, 1};  // #00106D
 // The top framing gradient, at a third of the strength the recreation
 // gives it: over the LUT's own near-black first band a bright cyan at
 // four tenths IS the top third of the screen, and the bands under it
 // stop being readable as bands.
-constexpr SkColor4f kTopCyan{0, 0.9882f, 0.9490f, 0.14f};  // #00FCF2
+constexpr material::Color kTopCyan{0, 0.9882f, 0.9490f, 0.14f};  // #00FCF2
 // THE VEIL IS A TINT, NOT A WASH. At the strength this carried, a
 // bright cyan over the LUT's near-black top band lifted the whole
 // sea to a mid teal, and nothing on the screen was dark enough for
 // anything to pop off. P3R's sea of souls runs navy to black with
 // the bands reading as hard steps.
-constexpr SkColor4f kTintVeil{0, 0.4980f, 0.8235f, 0.12f};  // #007FD2
+constexpr material::Color kTintVeil{0, 0.4980f, 0.8235f, 0.12f};  // #007FD2
 // THE INDEX NUMERAL IS BEHIND THE MENU, and behind means screened:
 // P3R tints the sea with an oversized digit pair rather than laying
 // an opaque slab over it. Painted at #787878 it competed with the
 // selection and read as a graphical fault crossing the party rail.
-constexpr SkColor4f kNumeral{0.235f, 0.290f, 0.470f, 1};
-constexpr SkColor4f kRing{0.3647f, 0.4157f, 0.5333f, 1};  // #5D6A88
-constexpr SkColor4f kPaper{1, 1, 1, 1};
-constexpr SkColor4f kInk{0, 0, 0, 1};
+constexpr material::Color kNumeral{0.235f, 0.290f, 0.470f, 1};
+constexpr material::Color kRing{0.3647f, 0.4157f, 0.5333f, 1};  // #5D6A88
+constexpr material::Color kPaper{1, 1, 1, 1};
+constexpr material::Color kInk{0, 0, 0, 1};
 
-constexpr SkColor4f kCyans[3] = {kCyanA, kCyanB, kCyanC};
+constexpr material::Color kCyans[3] = {kCyanA, kCyanB, kCyanC};
 
 // The sticker scatter is NOT invented any more: every row's offset,
 // rotation and colour comes from Ultipuk/persona_3_reload_pause_menu
@@ -153,7 +157,7 @@ struct Row {
   const char* label;
   float dx, y, rot;
   int z;
-  SkColor4f color;
+  material::Color color;
 };
 constexpr Row kRows[] = {
     {"SKILL", 1.9f, 106.0f, -24.60f, 3, {0.4157f, 0.9020f, 0.9843f, 1}},
@@ -201,11 +205,11 @@ inline sk_sp<SkTypeface> menuFace(bool italic = true) {
  *  2px #5D6A88 ring underlay — the outline ring the original's text
  *  shadows produce. A partial: the colour is the reference's own ARGB
  *  word, so it takes the 8-bit ladder. */
-inline sigil::weave::Type menuType(float size, SkColor4f fill, float ringW,
-                                   bool italic = true) {
+inline sigil::weave::Type menuType(float size, material::Color fill,
+                                   float ringW, bool italic = true) {
   sigil::weave::Type t{.face = menuFace(italic),
                        .size = size,
-                       .color = fill,
+                       .color = material::skia::toSkColor(fill),
                        // The original tracks around -0.14em on Rodin; Avenir
                        // Condensed is already tighter, so it needs less
                        // taken out.
@@ -216,15 +220,19 @@ inline sigil::weave::Type menuType(float size, SkColor4f fill, float ringW,
                        .condense = 0.94f,
                        .color8 = true};
   if (ringW > 0)
-    t.underlays =
-        std::vector<sigil::weave::PaintLayer>{sigil::weave::kit::outline(
-            kRing.toSkColor(), ringW, SkPaint::kRound_Join)};
+    t.underlays = std::vector<sigil::weave::PaintLayer>{
+        sigil::weave::kit::outline(material::skia::toSkColor(kRing).toSkColor(),
+                                   ringW, SkPaint::kRound_Join)};
   return t;
 }
 
 /** The small caps-and-figures voice, in the default family. */
-inline sigil::weave::Type smallType(float size, SkColor4f c, float track = 1) {
-  return {.size = size, .color = c, .track = track, .color8 = true};
+inline sigil::weave::Type smallType(float size, material::Color c,
+                                    float track = 1) {
+  return {.size = size,
+          .color = material::skia::toSkColor(c),
+          .track = track,
+          .color8 = true};
 }
 
 }  // namespace persona_menu
@@ -248,7 +256,7 @@ struct PersonaMenu {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     causticFx = compileCaustic();
@@ -409,17 +417,17 @@ struct PersonaMenu {
                        .children({box().inset(0).fill(Paint::linear(
                                       {0, nn::kH * 0.60f}, {0, nn::kH},
                                       {{0.0f,
-                                        {nn::kBotDark.fR, nn::kBotDark.fG,
-                                         nn::kBotDark.fB, 0}},
+                                        {nn::kBotDark.r, nn::kBotDark.g,
+                                         nn::kBotDark.b, 0}},
                                        {1.0f,
-                                        {nn::kBotDark.fR, nn::kBotDark.fG,
-                                         nn::kBotDark.fB, 0.88f}}})),
+                                        {nn::kBotDark.r, nn::kBotDark.g,
+                                         nn::kBotDark.b, 0.88f}}})),
                                   box().inset(0).fill(Paint::linear(
                                       {0, 0}, {0, nn::kH * 0.42f},
                                       {{0.0f, nn::kTopCyan},
                                        {1.0f,
-                                        {nn::kTopCyan.fR, nn::kTopCyan.fG,
-                                         nn::kTopCyan.fB, 0}}}))})});
+                                        {nn::kTopCyan.r, nn::kTopCyan.g,
+                                         nn::kTopCyan.b, 0}}}))})});
   }
 
   /** Unselected sticker: one of the three cyans, soft black under-glow +
@@ -552,8 +560,8 @@ struct PersonaMenu {
         .width(32)
         .height(32)
         .shape(shapes::squircle(2.0f))
-        .fill(SkColor4f{nn::kGroundDark.fR, nn::kGroundDark.fG,
-                        nn::kGroundDark.fB, 0.8f})
+        .fill(material::Color{nn::kGroundDark.r, nn::kGroundDark.g,
+                              nn::kGroundDark.b, 0.8f})
         .ink(nn::kPaper)
         .stroke(stroke(3))
 
@@ -620,15 +628,16 @@ struct PersonaMenu {
         {"JUNPEI", 41, 355, 355, 42, 96},
         {"MITSURU", 43, 241, 302, 149, 188},
     };
-    constexpr SkColor4f kHp{0.549f, 0.910f, 0.627f, 1};  // #8CE8A0
-    constexpr SkColor4f kSp{0.416f, 0.722f, 1.000f, 1};  // #6ABBFF
+    constexpr material::Color kHp{0.549f, 0.910f, 0.627f, 1};  // #8CE8A0
+    constexpr material::Color kSp{0.416f, 0.722f, 1.000f, 1};  // #6ABBFF
 
     // A ROW, NOT `sketch::kit::meter`. That component sets the label and
     // the reading OVER the bar and the rail under them, which is the
     // reading a specimen sheet wants; P3R runs the three across one line
     // with the label ranged left of the rail and the numbers right of it,
     // and the two are different pictures rather than one with a field set.
-    auto bar = [&](const char* label, int value, int max, SkColor4f color) {
+    auto bar = [&](const char* label, int value, int max,
+                   material::Color color) {
       const float frac = max > 0 ? (float)value / (float)max : 0.0f;
       const std::string numbers = kit::formatted("%d/%d", value, max);
       return box()
@@ -651,9 +660,9 @@ struct PersonaMenu {
                                   .fill(Paint::linear(
                                       {0, 0}, {0, 6},
                                       {{0.0f,
-                                        {std::min(1.0f, color.fR * 1.4f),
-                                         std::min(1.0f, color.fG * 1.4f),
-                                         std::min(1.0f, color.fB * 1.4f), 1}},
+                                        {std::min(1.0f, color.r * 1.4f),
+                                         std::min(1.0f, color.g * 1.4f),
+                                         std::min(1.0f, color.b * 1.4f), 1}},
                                        {1.0f, color}}))}),
                text(numbers).font(nn::smallType(9, nn::kPaper, 0.6f))});
     };
@@ -779,28 +788,26 @@ struct PersonaMenu {
                                      box()
                                          .width(120)
                                          .height(2)
-                                         .fill(SkColor4f{1, 1, 1, 0.8f})
+                                         .fill(material::Color{1, 1, 1, 0.8f})
                                          .margin(0, 0, 0, 8)})})})
         // ---- button prompts, bottom-right ----
-        .children(
-            {box()
-                 .key("prompts")
-                 .right(41)
-                 .bottom(28)
-                 .row()
-                 .alignItems(Align::Center)
-                 .zIndex(8)
-                 .opacity(animate(motion::from(0.0f).to(1.0f),
-                                  {400ms, &ch::easeOutQuad, 250ms}))
-                 .children(
-                     {promptCircle("O"),
-                      text("CONFIRM")
-                          .font(nn::smallType(11, nn::kCyanB, 1.5f))
-                          .margin(0, 22, 0, 8),
-                      promptCircle("X"),
-                      text("BACK")
-                          .font(nn::smallType(11, nn::kCyanB, 1.5f))
-                          .margin(0, 0, 0, 8)})});
+        .children({box()
+                       .key("prompts")
+                       .right(41)
+                       .bottom(28)
+                       .row()
+                       .alignItems(Align::Center)
+                       .zIndex(8)
+                       .opacity(animate(motion::from(0.0f).to(1.0f),
+                                        {400ms, &ch::easeOutQuad, 250ms}))
+                       .children({promptCircle("O"),
+                                  text("CONFIRM")
+                                      .font(nn::smallType(11, nn::kCyanB, 1.5f))
+                                      .margin(0, 22, 0, 8),
+                                  promptCircle("X"),
+                                  text("BACK")
+                                      .font(nn::smallType(11, nn::kCyanB, 1.5f))
+                                      .margin(0, 0, 0, 8)})});
   }
 };
 

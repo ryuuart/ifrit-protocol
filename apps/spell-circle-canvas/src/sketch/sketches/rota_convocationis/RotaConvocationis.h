@@ -138,13 +138,15 @@ struct RotaConvocationis {
    *  sweep lays down carries the hand's wobble; the box is the whole panel
    *  because the path is in the panel's own px. */
   [[nodiscard]] Element rule(const char* key, int chalkIndex, float width,
-                             SkColor4f color, double from, double dur);
+                             sigil::material::Color color, double from,
+                             double dur);
 
   /** The same, for a path this sketch holds directly rather than in the
    *  chalk table — the spoke sets and the node rings, which are perfect
    *  by construction because a node is a bead and not a rule. */
   [[nodiscard]] Element line(const char* key, const SkPath& path, float width,
-                             SkColor4f color, double from, double dur);
+                             sigil::material::Color color, double from,
+                             double dur);
 
   /** THE IGNITED LINE — white-hot core, saturated halo, two grades of
    *  bloom. The value hierarchy is the drawing: the core carries the
@@ -157,8 +159,8 @@ struct RotaConvocationis {
    *  mark print it darker than either weight meant to. */
   [[nodiscard]] Element ladder(const char* key, int divisions, int skipEvery,
                                float outer, float inner, float width,
-                               SkColor4f color, double from, double dur,
-                               float fromDeg = 0.0f);
+                               sigil::material::Color color, double from,
+                               double dur, float fromDeg = 0.0f);
 
   // ------------------------------------------------------------------
   // the bands

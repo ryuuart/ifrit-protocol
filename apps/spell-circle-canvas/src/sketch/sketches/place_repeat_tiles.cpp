@@ -37,6 +37,7 @@
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -45,6 +46,7 @@
 #include <string>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
@@ -62,12 +64,12 @@ constexpr int kTiles = 4;      // slices the strip is cut into
 constexpr SkSize kMotif = {34, 34};
 constexpr SkISize kTile = {44, 128};
 
-constexpr SkColor4f kWarm{0.86f, 0.52f, 0.34f, 1};
+constexpr material::Color kWarm{0.86f, 0.52f, 0.34f, 1};
 
 /** THE ONE MOTIF every chain repeats and the strip is built from, in the
  *  ink it is stamped in — the theme's figure for a chain's cell, and the
  *  strip's own warm for every third star of the run. */
-Element motif(SkColor4f ink) {
+Element motif(material::Color ink) {
   return box()
       .width(kMotif.width())
       .height(kMotif.height())
@@ -120,7 +122,7 @@ struct PlaceRepeatTiles {
                       .fill(linearGradient({0, 0}, {(float)kTile.width(), 0},
                                            {{0.09f, 0.10f, 0.12f, 1},
                                             {0.30f, 0.32f, 0.36f, 1}}));
-    const SkColor4f figure = sketch::kit::theme().palette.figure;
+    const material::Color figure = sketch::kit::theme().palette.figure;
     run.children({each(kTiles * 3, [&](int i) {
       return motif(i % 3 == 0 ? kWarm : figure);
     })});

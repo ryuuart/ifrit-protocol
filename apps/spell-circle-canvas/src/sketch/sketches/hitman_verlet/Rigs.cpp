@@ -210,7 +210,7 @@ auto HitmanVerlet::writeDotPool() -> void {
   const float f = bodyFade.value();
   if (f < 1.0f) {
     auto tints = dotPool->tints();
-    for (SkColor4f& t : tints) t.fA = f;
+    for (sigil::material::Color& t : tints) t.a = f;
   }
 }
 

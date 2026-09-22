@@ -12,6 +12,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -62,33 +63,33 @@ namespace worldhud {
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
 // voxygen/src/hud/mod.rs, verbatim.
-constexpr SkColor4f kHp = hexColor(0x54A100);
-constexpr SkColor4f kLowHp = hexColor(0xED9608);
-constexpr SkColor4f kCritHp = hexColor(0xC9302B);
-constexpr SkColor4f kStamina = hexColor(0x4A9EBF);
-constexpr SkColor4f kXp = hexColor(0x9669AB);
-constexpr SkColor4f kPoise = hexColor(0xB30099);
-constexpr SkColor4f kPoiseTick = hexColor(0xB3E600);
-constexpr SkColor4f kEnemyHp = hexColor(0xED1A4A);
-constexpr SkColor4f kBuff = hexColor(0x10B01F);
-constexpr SkColor4f kDebuff = hexColor(0xC9302B);
-constexpr SkColor4f kQualityLow = hexColor(0x999999);
-constexpr SkColor4f kQualityCommon = hexColor(0xC9FFFF);
-constexpr SkColor4f kQualityModerate = hexColor(0x10B01F);
-constexpr SkColor4f kQualityHigh = hexColor(0x2E52E6);
-constexpr SkColor4f kQualityEpic = hexColor(0x944AED);
-constexpr SkColor4f kQualityLegendary = hexColor(0xEBC200);
-constexpr SkColor4f kQualityArtifact = hexColor(0xBD3D1C);
+constexpr material::Color kHp = hexColor(0x54A100);
+constexpr material::Color kLowHp = hexColor(0xED9608);
+constexpr material::Color kCritHp = hexColor(0xC9302B);
+constexpr material::Color kStamina = hexColor(0x4A9EBF);
+constexpr material::Color kXp = hexColor(0x9669AB);
+constexpr material::Color kPoise = hexColor(0xB30099);
+constexpr material::Color kPoiseTick = hexColor(0xB3E600);
+constexpr material::Color kEnemyHp = hexColor(0xED1A4A);
+constexpr material::Color kBuff = hexColor(0x10B01F);
+constexpr material::Color kDebuff = hexColor(0xC9302B);
+constexpr material::Color kQualityLow = hexColor(0x999999);
+constexpr material::Color kQualityCommon = hexColor(0xC9FFFF);
+constexpr material::Color kQualityModerate = hexColor(0x10B01F);
+constexpr material::Color kQualityHigh = hexColor(0x2E52E6);
+constexpr material::Color kQualityEpic = hexColor(0x944AED);
+constexpr material::Color kQualityLegendary = hexColor(0xEBC200);
+constexpr material::Color kQualityArtifact = hexColor(0xBD3D1C);
 
 // The frame material: Veloren's UI is carved bone over dark wood.
-constexpr SkColor4f kBoneHi = hexColor(0xD8CBA8);
-constexpr SkColor4f kBone = hexColor(0xA2947A);
-constexpr SkColor4f kBoneLo = hexColor(0x584E3D);
-constexpr SkColor4f kWood = hexColor(0x2A2118);
-constexpr SkColor4f kWoodLo = hexColor(0x160F0A);
-constexpr SkColor4f kTrack = hexColor(0x0B0906);
-constexpr SkColor4f kInk = hexColor(0xEDE6D4);
-constexpr SkColor4f kInkDim = hexColor(0x8C8271);
+constexpr material::Color kBoneHi = hexColor(0xD8CBA8);
+constexpr material::Color kBone = hexColor(0xA2947A);
+constexpr material::Color kBoneLo = hexColor(0x584E3D);
+constexpr material::Color kWood = hexColor(0x2A2118);
+constexpr material::Color kWoodLo = hexColor(0x160F0A);
+constexpr material::Color kTrack = hexColor(0x0B0906);
+constexpr material::Color kInk = hexColor(0xEDE6D4);
+constexpr material::Color kInkDim = hexColor(0x8C8271);
 
 // skillbar.rs dimensions, unscaled — the stage is wide enough to take
 // them, and scaling them would be the one thing that loses the study.
@@ -180,7 +181,7 @@ inline Element boneFrame(float w, float h, float radius = 3) {
  *  mark every sixth, three wide and ten tall, declared as the rail it is. */
 struct Bar {
   float frameW = 0, frameH = 0, innerW = 0, innerH = 0;
-  SkColor4f color{1, 1, 1, 1};
+  material::Color color{1, 1, 1, 1};
   float fraction = 1.0f;
   float decay = 0.0f;
   const choreograph::Output<float>* live = nullptr;
@@ -190,23 +191,23 @@ struct Bar {
 inline Element bar(const Bar& b) {
   const float padX = (b.frameW - b.innerW) * 0.5f;
   const float padY = (b.frameH - b.innerH) * 0.5f;
-  const SkColor4f c = b.color;
+  const material::Color c = b.color;
   const Paint body =
       Paint::linear({0, 0}, {0, b.innerH},
                     {{0.0f,
-                      {std::min(1.0f, c.fR * 1.45f + 0.06f),
-                       std::min(1.0f, c.fG * 1.45f + 0.06f),
-                       std::min(1.0f, c.fB * 1.45f + 0.06f), 1}},
+                      {std::min(1.0f, c.r * 1.45f + 0.06f),
+                       std::min(1.0f, c.g * 1.45f + 0.06f),
+                       std::min(1.0f, c.b * 1.45f + 0.06f), 1}},
                      {0.5f, c},
-                     {1.0f, {c.fR * 0.62f, c.fG * 0.62f, c.fB * 0.62f, 1}}});
+                     {1.0f, {c.r * 0.62f, c.g * 0.62f, c.b * 0.62f, 1}}});
   Element e = boneFrame(b.frameW, b.frameH, 2)
                   .children({track(b.innerW, b.innerH).at({padX, padY})});
   if (b.decay > 0.0f)
     e.children({box()
                     .rect(SkRect::MakeXYWH(padX + b.innerW * (1.0f - b.decay),
                                            padY, b.innerW * b.decay, b.innerH))
-                    .fill(Paint::solid({kQualityEpic.fR, kQualityEpic.fG,
-                                        kQualityEpic.fB, 0.55f}))});
+                    .fill(Paint::solid({kQualityEpic.r, kQualityEpic.g,
+                                        kQualityEpic.b, 0.55f}))});
   // the live fill rides on top of the static frame so only IT repaints
   if (b.live)
     e.children({box()

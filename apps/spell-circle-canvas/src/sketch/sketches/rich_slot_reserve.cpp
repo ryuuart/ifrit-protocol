@@ -10,26 +10,28 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/paragraph/RichText.h>
 
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
 
 namespace {
 constexpr float kMeasure = 288;
-constexpr SkColor4f kInk{0.85f, 0.87f, 0.90f, 1};
-constexpr SkColor4f kChip{0.88f, 0.53f, 0.34f, 1};
-constexpr SkColor4f kBand{0.15f, 0.20f, 0.25f, 1};
+constexpr material::Color kInk{0.85f, 0.87f, 0.90f, 1};
+constexpr material::Color kChip{0.88f, 0.53f, 0.34f, 1};
+constexpr material::Color kBand{0.15f, 0.20f, 0.25f, 1};
 
 weave::Type voice() {
   return {.face = sketch::kit::houseFace(sketch::kit::Voice::Interface),
           .size = 14,
-          .color = kInk,
+          .color = material::skia::toSkColor(kInk),
           .track = 0};
 }
 

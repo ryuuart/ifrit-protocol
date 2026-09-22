@@ -9,6 +9,7 @@
 
 #include <include/core/SkColor.h>
 #include <sigildraw/Constants.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <string_view>
 
@@ -34,21 +35,21 @@ struct ColorMode {
 
 /** Three channels and an alpha, read in @p mode. Values are clamped to
  *  their channel's range. */
-SkColor4f colorFrom(const ColorMode& mode, float v1, float v2, float v3,
-                    float alpha);
+material::Color colorFrom(const ColorMode& mode, float v1, float v2, float v3,
+                          float alpha);
 
 /** A grey and an alpha, read in @p mode: the grey is taken over the
  *  third channel's maximum, which is the brightness or lightness of a
  *  hue model and the blue of RGB, exactly as p5 reads it. */
-SkColor4f colorFrom(const ColorMode& mode, float gray, float alpha);
+material::Color colorFrom(const ColorMode& mode, float gray, float alpha);
 
 /** Alpha at @p mode's own maximum. */
-inline SkColor4f colorFrom(const ColorMode& mode, float v1, float v2,
-                           float v3) {
+inline material::Color colorFrom(const ColorMode& mode, float v1, float v2,
+                                 float v3) {
   return colorFrom(mode, v1, v2, v3, mode.maxA);
 }
 /** A grey at @p mode's own alpha maximum. */
-inline SkColor4f colorFrom(const ColorMode& mode, float gray) {
+inline material::Color colorFrom(const ColorMode& mode, float gray) {
   return colorFrom(mode, gray, mode.maxA);
 }
 
@@ -56,6 +57,6 @@ inline SkColor4f colorFrom(const ColorMode& mode, float gray) {
  *  `#rrggbbaa`, and the named colours a sketch reaches for. Anything
  *  else is opaque black, which is what a canvas gives an unparseable
  *  colour too. */
-SkColor4f parseColor(std::string_view css);
+material::Color parseColor(std::string_view css);
 
 }  // namespace sigil::draw

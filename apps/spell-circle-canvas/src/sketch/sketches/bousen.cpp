@@ -43,6 +43,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/kit/Features.h>
@@ -54,6 +55,7 @@
 
 #include "tategaki/VerticalSpecimen.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 namespace motion = sigil::motion;
@@ -85,7 +87,7 @@ const weave::Block kColumn{.writingMode = weave::WritingMode::kVerticalRL};
  *  for a column: punctuation pulled onto the column axis, full-width marks
  *  set to the space their ink needs, small kana cut for a column. What the
  *  installed face answers is what the plate shows. */
-inline weave::TextStyle columnFitted(float size, SkColor4f color) {
+inline weave::TextStyle columnFitted(float size, material::Color color) {
   weave::TextStyle s = body(size, color);
   s.shaping.fontFeatures = {weave::features::verticalAlternates,
                             weave::features::proportionalVerticalMetrics,
@@ -95,13 +97,13 @@ inline weave::TextStyle columnFitted(float size, SkColor4f color) {
 
 /** The wash a highlight covers a column's pitch with: the left-hand
  *  band's own indigo, thin enough to read the letters through. */
-const SkColor4f kAiWash{kAi.fR, kAi.fG, kAi.fB, 0.13f};
+const material::Color kAiWash{kAi.r, kAi.g, kAi.b, 0.13f};
 
 /** A paint that draws its glyphs in @p ink and carries one band beside
  *  the column: `kUnderline` runs down the RIGHT of the column, `kOverline`
  *  down the left, `kHighlight` across the whole pitch. */
-inline weave::PaintStyle banded(SkColor4f ink, weave::Decoration::Kind kind,
-                                SkColor4f band, float thickness) {
+inline weave::PaintStyle banded(material::Color ink, weave::Decoration::Kind kind,
+                                material::Color band, float thickness) {
   weave::PaintStyle p(ink.toSkColor());
   p.foreground.setAntiAlias(true);
   weave::Decoration decoration;
@@ -125,7 +127,7 @@ struct Bousen {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 2.6,
-                             .background = SkColor4f{1, 1, 1, 1}});
+                             .background = material::Color{1, 1, 1, 1}});
     ctx.composer.render(describe());
   }
 
@@ -134,7 +136,7 @@ struct Bousen {
    *  say the three in words; a specimen says them in the same terms the
    *  page above uses. */
   Element bandSpecimen(const char* caption, weave::Decoration::Kind kind,
-                       SkColor4f band, float thickness) {
+                       material::Color band, float thickness) {
     namespace bs = bousen;
     weave::TextStyle style = bs::body(18, bs::kSumi);
     style.paint = bs::banded(bs::kSumi, kind, band, thickness);
@@ -234,7 +236,7 @@ struct Bousen {
                                         weave::rich()
                                             .add("mark() ",
                                                  weave::Type{.size = 11,
-                                                             .color = bs::kAka,
+                                                             .color = material::skia::toSkColor(bs::kAka),
                                                              .track = 1})
                                             .add("— anchored to "
                                                  "the phrase,\nnot to a "
@@ -252,10 +254,10 @@ struct Bousen {
                       kit::line({.length = Dimension(120),
                                  .fill = Fill::color(bs::kAka)}),
                       document::eyebrow("THE COLUMN'S FURNITURE")
-                          .font({.size = 13, .color = bs::kAi, .track = 3}),
+                          .font({.size = 13, .color = material::skia::toSkColor(bs::kAi), .track = 3}),
                       document::lead("a band beside the column, not beneath a\n"
                                      "line · a mark on the phrase it names")
-                          .font({.size = 13, .color = bs::kSumi, .track = 0.4f})
+                          .font({.size = 13, .color = material::skia::toSkColor(bs::kSumi), .track = 0.4f})
                           .width(260.0f),
                       box().height(20.0f),
                       box().row().gap(30).children(

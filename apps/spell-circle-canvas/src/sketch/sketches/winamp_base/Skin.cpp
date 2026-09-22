@@ -46,13 +46,13 @@ auto WinampBase::buildMaterials() -> void {
     std::vector<mskia::Stop> steps;
     constexpr int kFrames = 28;
     const auto ramp = [](float u) {
-      return u < 0.46f ? mskia::mixLinear(kEqTop, kEqMid, u / 0.46f)
-                       : mskia::mixLinear(kEqMid, kEqBot, (u - 0.46f) / 0.54f);
+      return u < 0.46f ? sigil::material::mixLinear(kEqTop, kEqMid, u / 0.46f)
+                       : sigil::material::mixLinear(kEqMid, kEqBot, (u - 0.46f) / 0.54f);
     };
     for (int i = 0; i < kFrames; ++i) {
       const float lo = (float)i / (float)kFrames;
       const float hi = (float)(i + 1) / (float)kFrames;
-      const SkColor4f c = ramp((lo + hi) * 0.5f);
+      const sigil::material::Color c = ramp((lo + hi) * 0.5f);
       steps.push_back({lo, c});
       steps.push_back({hi, c});
     }
@@ -64,18 +64,18 @@ auto WinampBase::buildMaterials() -> void {
   // The title-bar grip: horizontal hairlines, as a rotated stripe tile.
   // TITLEBAR.BMP's grip rails are CREAM, not the body's blue-grey — the
   // one warm thing on an otherwise cold window.
-  gripTile = patterns::stripes(n(1), n(1), mskia::toColor(hexColor(0xC8BC98)));
+  gripTile = patterns::stripes(n(1), n(1), mskia::toColor(sigil::material::skia::toSkColor(hexColor(0xC8BC98))));
   gripTile.rotate(90.0f);
   // The preview-visualiser swatch's default checkerboard art.
-  previewCheck = patterns::checker(n(2), mskia::toColor(hexColor(0x2B2B44)),
-                                   mskia::toColor(hexColor(0x14141F)));
+  previewCheck = patterns::checker(n(2), mskia::toColor(sigil::material::skia::toSkColor(hexColor(0x2B2B44))),
+                                   mskia::toColor(sigil::material::skia::toSkColor(hexColor(0x14141F))));
   // The visualiser well's baked dot grid (MAIN.BMP paints these under the
   // bars, in VISCOLOR's own "grey for dots").
-  visDots = patterns::halftone(n(2), n(0.5f), mskia::toColor(kUnlit), false);
+  visDots = patterns::halftone(n(2), n(0.5f), mskia::toColor(sigil::material::skia::toSkColor(kUnlit)), false);
   // The EQ graph's dashed rules.
   graphGrid = Pattern::tile({n(4), n(4)}, [](SkCanvas& c, SkSize, uint32_t) {
     SkPaint p;
-    p.setColor4f(kGrid, nullptr);
+    p.setColor4f(sigil::material::skia::toSkColor(kGrid), nullptr);
     c.drawRect(SkRect::MakeWH(n(2), n(1)), p);
   });
 }
@@ -85,7 +85,7 @@ auto WinampBase::key(float x, float y, float w, float h, Element glyph)
   using namespace wa;
   Element e = at(box(), x, y, w, h);
   e.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                  {{0.0f, mskia::lighten(kBtnFace, 0.10f)},
+                                  {{0.0f, sigil::material::lighten(kBtnFace, 0.10f)},
                                    {0.55f, kBtnFace},
                                    {1.0f, dark(kBtnFace, 0.22f)}}));
   // WINAMP'S DOUBLED BUTTON EDGE: the skin's bevel with a second ring
@@ -97,7 +97,7 @@ auto WinampBase::key(float x, float y, float w, float h, Element glyph)
   // corners the outer ring lights.
   kit::Bevel edge = kit::bevels::skin(kBtnHi, kBtnLo, n(1));
   edge.inner = kit::BevelInner{.gap = n(1),
-                               .shadow = mskia::withAlpha(kBtnLo, 0.45f),
+                               .shadow = sigil::material::withAlpha(kBtnLo, 0.45f),
                                .depth = n(1),
                                .edges = path::Edge::Bottom | path::Edge::Right,
                                .ends = styles::BevelEnds::Sliced};
@@ -135,7 +135,7 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
                       .fill(dark(kTitle, 0.35f))
                       .justifyContent(Justify::Center)
                       .alignItems(Align::Center),
-                  mskia::withAlpha(hexColor(0x5A5A82), 0.8f),
+                  sigil::material::withAlpha(hexColor(0x5A5A82), 0.8f),
                   hexColor(0x0E0E16))
         .children({t(g, pix(3.6f))});
   };
@@ -153,10 +153,10 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
   return raised(at(box(), 0, 0, wN, hN)
                     .fill(mskia::Paint::linearUnit(
                         {0, 0}, {0, 1},
-                        {{0.0f, mskia::lighten(kTitle, 0.06f)},
+                        {{0.0f, sigil::material::lighten(kTitle, 0.06f)},
                          {1.0f, dark(kTitle, 0.25f)}}))
                     .ink(kGold),
-                mskia::withAlpha(hexColor(0x5A5A82), 0.85f), hexColor(0x101018))
+                sigil::material::withAlpha(hexColor(0x5A5A82), 0.85f), hexColor(0x101018))
       .children(
           {at(box(), 24, gy, gripW, 7).fill(gripTile.material()),
            at(box(), wN - 24 - gripW, gy, gripW, 7).fill(gripTile.material()),

@@ -10,6 +10,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/MaterialKit.h>
 
 #include <string>
@@ -72,13 +73,13 @@ constexpr char kFillPrefix[] = "material.kit.surface.";
 
 /** A one-pixel texture of @p color, shared by key so two undressed
  *  surfaces compare equal. */
-Texture flat(const char* key, SkColor4f color) {
+Texture flat(const char* key, material::Color color) {
   return Texture::produce(std::string(kFillPrefix) + key,
                           [color]() -> sk_sp<SkImage> {
                             sk_sp<SkSurface> s = SkSurfaces::Raster(
                                 SkImageInfo::MakeN32Premul(1, 1));
                             if (!s) return nullptr;
-                            s->getCanvas()->clear(color);
+                            s->getCanvas()->clear(skia::toSkColor(color));
                             return s->makeImageSnapshot();
                           })
       .tile(SkTileMode::kClamp);
@@ -90,7 +91,7 @@ Texture flat(const char* key, SkColor4f color) {
 Material dress(Material m) {
   const Texture white = flat("white", SkColors::kWhite);
   m.slot(kBaseColorSlot, white);
-  m.slot(kNormalSlot, flat("normal", SkColor4f{0.5f, 0.5f, 1.0f, 1.0f}));
+  m.slot(kNormalSlot, flat("normal", material::Color{0.5f, 0.5f, 1.0f, 1.0f}));
   m.slot(kRoughnessSlot, white);
   m.slot(kMetallicSlot, white);
   m.slot(kOcclusionSlot, white);

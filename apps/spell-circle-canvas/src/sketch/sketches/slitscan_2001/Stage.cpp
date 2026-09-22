@@ -14,13 +14,13 @@ auto SlitScan2001::header() -> Element {
       .font({.face = uiFace()})
       .children(
           {t("TIME AS AN AXIS OF THE IMAGE",
-             {.size = 10, .color = kType2, .track = 2.6f})
+             {.size = 10, .color = sigil::material::skia::toSkColor(sigil::material::skia::toSkColor(kType)2), .track = 2.6f})
                .key("eyebrow")
                .opacity(animate(from(0.0f).to(1.0f), {260ms, ch::easeOutQuad}))
                .translateY(
                    animate(from(8.0f).to(0.0f), {260ms, ch::easeOutQuad})),
            t("THE SLIT-SCAN MACHINE, 1966–68",
-             {.face = uiBoldFace(), .size = 40, .color = kType, .track = 0.4f})
+             {.face = uiBoldFace(), .size = 40, .color = sigil::material::skia::toSkColor(kType), .track = 0.4f})
                .key("title")
                .textStroke(0.6f, Fill::color(kInk))
                .fx(std::move(rise)),
@@ -29,7 +29,7 @@ auto SlitScan2001::header() -> Element {
              "451–453, June 1968 (READ DIRECTLY) · Cinefex 85, April "
              "2001 · Super Panavision 70, 65 mm 5-perf spherical, "
              "2.20:1, 24 fps, f/1.8",
-             {.size = 11, .color = kType2})
+             {.size = 11, .color = sigil::material::skia::toSkColor(kType2)})
                .key("cite")
                .opacity(animate(from(0.0f).to(1.0f),
                                 {240ms, ch::easeOutQuad, 400ms}))});
@@ -89,7 +89,7 @@ auto SlitScan2001::filmFrame() -> Element {
           .opacity(0.55f);
 
   auto hud = [&](const std::string& str, float l, float tp, float r, float b,
-                 SkColor4f col) {
+                 sigil::material::Color col) {
     Element e = t(str, {.color = col}).absolute();
     if (l >= 0) e.left(l);
     if (r >= 0) e.right(r);
@@ -205,7 +205,7 @@ auto SlitScan2001::rigStrip() -> Element {
                                                          SkBlendMode::kPlus)})
                         .filter(Effect::shader(transfer, {{"k", 2.4f}})),
                     t("THIS EXPOSURE",
-                      {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})
+                      {.size = 8, .color = sigil::material::skia::toSkColor(al(kCold, 0.85f)), .track = 1.4f})
                         .at({8, 5}),
                     slot("expo").left(8).bottom(19),
                     t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "

@@ -85,8 +85,9 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
 
 /** The shared gas-giant recipe: solid body, torn bands as an overlay(),
  *  and one shading child for the highlight and the hard limb. */
-inline Element gasGiant(SkPoint c, float r, SkColor4f body, SkColor4f limb,
-                        SkColor4f hi, Bands bands) {
+inline Element gasGiant(SkPoint c, float r, sigil::material::Color body,
+                        sigil::material::Color limb, sigil::material::Color hi,
+                        Bands bands) {
   Element d =
       sphere(c, r, mskia::Paint::solid(body))
           .overflow(Overflow::Clip)
@@ -94,8 +95,8 @@ inline Element gasGiant(SkPoint c, float r, SkColor4f body, SkColor4f limb,
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
   d.children({box().inset(0).fill(
       mskia::Paint::glowUnit({0.34f, 0.28f}, 1.35f,
-                             {{0.0f, mskia::withAlpha(hi, 0.42f)},
-                              {0.34f, mskia::withAlpha(hi, 0.10f)},
+                             {{0.0f, sigil::material::withAlpha(hi, 0.42f)},
+                              {0.34f, sigil::material::withAlpha(hi, 0.10f)},
                               {0.62f, {0, 0, 0, 0}},
                               {0.90f, {0, 0, 0, 0.30f}},
                               {1.0f, {0, 0, 0, 0.62f}}}))});
@@ -285,9 +286,9 @@ inline shapes::OutlineFunction tri(float ax, float ay, float bx, float by,
 
 inline Element artPressBox(sigil::weave::FontContext& f) {
   const float W = S(131), H = S(56);
-  const SkColor4f hull = C5(0xFF0042), hullLo = C5(0xCE0031),
-                  hullHi = C5(0xFF8CA5), grn = C5(0x319431),
-                  grnLo = C5(0x101800), gold = C5(0xFFFF00);
+  const sigil::material::Color hull = C5(0xFF0042), hullLo = C5(0xCE0031),
+                               hullHi = C5(0xFF8CA5), grn = C5(0x319431),
+                               grnLo = C5(0x101800), gold = C5(0xFFFF00);
 
   // The measured body axis runs from the tail at (4.5, 41) to the nose at
   // (125, 14): atan2(-27, 120) = -12.6 degrees.
@@ -320,7 +321,7 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
        // dorsal ridge highlight
        rect(S(28), S(25), S(72), S(3))
            .shape(shapes::squircle(2.0f))
-           .fill(Fill::color(mskia::withAlpha(C5(0xFFC6D6), 0.85f))),
+           .fill(Fill::color(sigil::material::withAlpha(C5(0xFFC6D6), 0.85f))),
        // nose spike
        rect(S(108), S(27), S(24), S(8))
            .shape(shapes::arrow(0.28f, 0.90f))

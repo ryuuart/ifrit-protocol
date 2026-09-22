@@ -14,6 +14,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilgeometry/path/Lattice.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
@@ -60,25 +61,25 @@ namespace {
 // setts under an overcast sky, and because a φ²-weighted majority of the field
 // is fat rhombs: at the catalogue value the plaza blows out to paper.
 
-const SkColor4f kWhiteBase = hexColor(0xBFBCB2);  // Royal White, weathered
-const SkColor4f kWhiteLit = hexColor(0xD4D0C6);   // Royal White, sun side
-const SkColor4f kWhiteVein =
+const mat::Color kWhiteBase = hexColor(0xBFBCB2);  // Royal White, weathered
+const mat::Color kWhiteLit = hexColor(0xD4D0C6);   // Royal White, sun side
+const mat::Color kWhiteVein =
     hexColor(0x2B2A28);  // black feather-vein inclusions
-const SkColor4f kGreyBase = hexColor(0x82858A);  // Kobra grey
-const SkColor4f kGreyLit = hexColor(0x969A9E);   // Kobra grey, sun side
-const SkColor4f kGreyVein = hexColor(0x3E4042);  // Kobra's tighter speckle
+const mat::Color kGreyBase = hexColor(0x82858A);  // Kobra grey
+const mat::Color kGreyLit = hexColor(0x969A9E);   // Kobra grey, sun side
+const mat::Color kGreyVein = hexColor(0x3E4042);  // Kobra's tighter speckle
 
-const SkColor4f kSteelBase =
+const mat::Color kSteelBase =
     hexColor(0xEEF1F2);  // polished stainless, overcast
-const SkColor4f kSteelSpec = hexColor(0xFEFEFE);  // direct catch-light
-const SkColor4f kSteelEdge = hexColor(0xC9CED1);  // the insert's chamfered lip
-const SkColor4f kGroove =
+const mat::Color kSteelSpec = hexColor(0xFEFEFE);  // direct catch-light
+const mat::Color kSteelEdge = hexColor(0xC9CED1);  // the insert's chamfered lip
+const mat::Color kGroove =
     hexColor(0x5A5F63, 0.38f);  // occlusion in the milled slot
 
-const SkColor4f kJointBed =
+const mat::Color kJointBed =
     hexColor(0x33363A);  // saw-cut joint / bedding mortar
-const SkColor4f kNight = hexColor(0x101112);
-const SkColor4f kCaption = hexColor(0x9CA0A2);
+const mat::Color kNight = hexColor(0x101112);
+const mat::Color kCaption = hexColor(0x9CA0A2);
 
 // ---------------------------------------------------------------------------
 // Composition. The artefact is a PLAZA, so the paving runs full bleed: the
@@ -376,7 +377,7 @@ Audit verify(const std::vector<Tile>& tiles, float module) {
 // stamped texture.
 
 struct Granite {
-  SkColor4f base, lit, vein;
+  mat::Color base, lit, vein;
   float speckleFreq;   // features/px — the mineral grain
   float speckleAmp;    // soft-light contrast
   float blotchFreq;    // the slow tonal drift across a slab
@@ -399,7 +400,7 @@ const Granite kKobraGrey{kGreyBase, kGreyLit, kGreyVein, 1.00f,
 // 80 instead of one per sett. Because the instance is HELD rather than
 // re-minted per describe, its identity is stable and a re-describe prunes.
 //
-// The stone itself is `material::kit::stone`: a quarry's two tones on a
+// The stone itself is `mat::kit::stone`: a quarry's two tones on a
 // diagonal bed, veined with grain and flecked with a speckle in its own
 // colours, generated per pixel from its parameters and a seed. The BUCKET is
 // what varies a piece — a seed the recipe reads, and a jitter on the tone,
@@ -410,8 +411,8 @@ class GraniteBank {
     // The species is the parameters' bytes and the bucket is the seed, so the
     // two rhombs of one granite at one bucket are ONE material.
     const matkit::StoneParameters species{
-        .hi = skia::toColor(g.lit),
-        .lo = skia::toColor(g.base),
+        .hi = g.lit,
+        .lo = g.base,
         // The bed runs across the sett rather than along it, so a rotated
         // prototile does not read as a stripe following its own long axis,
         // and it is LONG compared with a 78 px sett: a shallow ramp from the

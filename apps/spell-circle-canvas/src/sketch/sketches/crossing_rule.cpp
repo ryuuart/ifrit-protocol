@@ -31,6 +31,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Crossings.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -38,6 +39,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace arrange = sigil::geometry::arrange;
 namespace path = sigil::geometry::path;
@@ -51,9 +53,9 @@ constexpr float kCell = 240;        // the drawn square of one cell
 constexpr float kReach = 15;        // a strand's full mark width, px
 constexpr float kPatchRadius = 30;  // the cap on one patch's reach, px
 
-constexpr SkColor4f kCasing{0.05f, 0.05f, 0.06f, 1};
-constexpr SkColor4f kCore{0.86f, 0.80f, 0.66f, 1};
-constexpr SkColor4f kPin{0.92f, 0.36f, 0.30f, 1};
+constexpr material::Color kCasing{0.05f, 0.05f, 0.06f, 1};
+constexpr material::Color kCore{0.86f, 0.80f, 0.66f, 1};
+constexpr material::Color kPin{0.92f, 0.36f, 0.30f, 1};
 
 /** The specimen sheet, in this one's own look.
  *
@@ -116,10 +118,10 @@ void paintWeave(SkCanvas& canvas, const std::vector<SkPath>& strands,
   casing.setStyle(SkPaint::kStroke_Style);
   casing.setStrokeWidth(kReach);
   casing.setStrokeCap(SkPaint::kRound_Cap);
-  casing.setColor4f(kCasing);
+  casing.setColor4f(material::skia::toSkColor(kCasing));
   SkPaint core = casing;
   core.setStrokeWidth(kReach - 5);
-  core.setColor4f(kCore);
+  core.setColor4f(material::skia::toSkColor(kCore));
 
   const auto strand = [&](size_t i) {
     canvas.drawPath(strands[i], casing);
@@ -140,7 +142,7 @@ void paintWeave(SkCanvas& canvas, const std::vector<SkPath>& strands,
       mark.setAntiAlias(true);
       mark.setStyle(SkPaint::kStroke_Style);
       mark.setStrokeWidth(1.5f);
-      mark.setColor4f(kPin);
+      mark.setColor4f(material::skia::toSkColor(kPin));
       canvas.drawCircle(x.at, kReach, mark);
     }
   }

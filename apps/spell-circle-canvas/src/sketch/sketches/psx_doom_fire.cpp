@@ -49,6 +49,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/schedule/Cascade.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Time.h>
@@ -67,6 +68,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace motion = sigil::motion;
@@ -91,12 +93,12 @@ constexpr uint32_t kPalette[37] = {
     0xEFEFC7, 0xFFFFFF};
 
 // Chrome palette — the study's own UI, not the simulation.
-constexpr SkColor4f kInk = hexColor(0x0B0B0F);
-constexpr SkColor4f kPanelInk = hexColor(0x090909);
-constexpr SkColor4f kBone = hexColor(0xEDE9DE);
-constexpr SkColor4f kSteel = hexColor(0x6E7B91);
-constexpr SkColor4f kKeyline = hexColor(0x3A3A42);
-constexpr SkColor4f kAmber = hexColor(0xFFB000);
+constexpr material::Color kInk = hexColor(0x0B0B0F);
+constexpr material::Color kPanelInk = hexColor(0x090909);
+constexpr material::Color kBone = hexColor(0xEDE9DE);
+constexpr material::Color kSteel = hexColor(0x6E7B91);
+constexpr material::Color kKeyline = hexColor(0x3A3A42);
+constexpr material::Color kAmber = hexColor(0xFFB000);
 
 // Geometry. The buffer dimensions are the source's; everything else is
 // this study's layout, sized so the blit stays an integer scale.
@@ -148,12 +150,12 @@ sk_sp<SkTypeface> uiFace() {
  *  is set rather than described: face and size on the type, colour on the
  *  fill, as p5 colours text. The header's voice is the retained tree's
  *  own, stated once on the header. */
-void mono(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
+void mono(Pen& pen, float size, material::Color c, float track = 0.0f) {
   pen.textFont(weave::Type{.face = monoFace(), .size = size, .track = track});
   pen.fill(c);
 }
 
-SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, c.fA * a}; }
+material::Color fade(material::Color c, float a) { return {c.r, c.g, c.b, c.a * a}; }
 
 /** A PART'S ENTRANCE, as time arithmetic: 0 before @p delayMs, 1 after
  *  @p delayMs + @p durationMs, and the curve between. What a described
@@ -305,7 +307,7 @@ struct PsxDoomFire {
         // The header's voice: the eyebrow and the provenance line are set
         // in it and name only their size and tracking; the title names its
         // own face and colour over it.
-        .font({.face = uiFace(), .color = kSteel})
+        .font({.face = uiFace(), .color = material::skia::toSkColor(kSteel)})
         .children(
             {compose::text("CELLULAR AUTOMATON")
                  .font({.size = 12, .track = 2.6f})
@@ -316,7 +318,7 @@ struct PsxDoomFire {
              compose::text(kTitle)
                  .font({.face = heavyFace(),
                         .size = 50,
-                        .color = kBone,
+                        .color = material::skia::toSkColor(kBone),
                         .track = -0.6f})
                  .key("title")
                  .fx({.effect = compose::fx::rise(24),
@@ -347,7 +349,7 @@ struct PsxDoomFire {
   compose::Element doomWord() {
     weave::TextStyle s = weave::textStyle({.face = heavyFace(),
                                            .size = 186,
-                                           .color = hexColor(0xC23A1C),
+                                           .color = material::skia::toSkColor(hexColor(0xC23A1C)),
                                            .track = 34.0f});
     s.paint.addUnderlay(sigil::weave::kit::outline(
         hexColor(0x2A0805).toSkColor(), 7.0f, SkPaint::kRound_Join));
@@ -372,12 +374,12 @@ struct PsxDoomFire {
    *  white-hot cells. The pen measures the line it is about to set, which
    *  is what sizes the chip. */
   void chip(Pen& pen, const char* s, float x, float y, float size,
-            SkColor4f color, float track, float ground, float a) {
+            material::Color color, float track, float ground, float a) {
     mono(pen, size, color, track);
     const float w = pen.textWidth(s) + 14.0f;
     const float h = size + 12.0f;
     if (ground > 0.0f) {
-      pen.fill(SkColor4f{0, 0, 0, ground * a});
+      pen.fill(material::Color{0, 0, 0, ground * a});
       pen.stroke(fade(hexColor(0x3A3A42, 0.8f), a));
       pen.strokeWeight(1);
       pen.rect(x, y, w, h);
@@ -390,7 +392,7 @@ struct PsxDoomFire {
 
   /** A corner tick — the placard's registration mark. */
   void tick(Pen& pen, float x, float y, float a) {
-    pen.fill(SkColor4f{0, 0, 0, 0.6f * a});
+    pen.fill(material::Color{0, 0, 0, 0.6f * a});
     pen.stroke(fade(kAmber, 0.8f * a));
     pen.strokeWeight(1);
     pen.rect(x, y, 11, 11);
@@ -414,7 +416,7 @@ struct PsxDoomFire {
       const float a = cue(ms, 480, 400);
       pen.noSmooth();
       pen.push();
-      pen.fill(SkColor4f{1, 1, 1, a});
+      pen.fill(material::Color{1, 1, 1, a});
       pen.image(frame, x, y, kPanelW, kPanelH);
       pen.pop();
       pen.smooth();
@@ -582,7 +584,7 @@ struct PsxDoomFire {
   }
 
   void statRow(Pen& pen, float x, float w, float y, const char* label,
-               const std::string& value, SkColor4f color) {
+               const std::string& value, material::Color color) {
     mono(pen, 10.5f, kSteel, 0.8f);
     pen.textAlign(LEFT, TOP);
     pen.text(label, x, y);
@@ -700,10 +702,10 @@ struct PsxDoomFire {
       pen.push();
       pen.clip([&] { pen.rect(0, 0, bw, bh); });
       pen.noSmooth();
-      pen.fill(SkColor4f{1, 1, 1, a});
+      pen.fill(material::Color{1, 1, 1, a});
       pen.image(frame, 0, 0, bw, bh, (float)kCropX, (float)kCropY,
                 (float)kInspectCells, (float)kInspectRows);
-      pen.stroke(fade({kKeyline.fR, kKeyline.fG, kKeyline.fB, 0.55f}, a));
+      pen.stroke(fade({kKeyline.r, kKeyline.g, kKeyline.b, 0.55f}, a));
       pen.strokeWeight(1);
       for (int i = 0; i <= kInspectCells; ++i)
         pen.line((float)(i * kInspectZoom) + 0.5f, 0,

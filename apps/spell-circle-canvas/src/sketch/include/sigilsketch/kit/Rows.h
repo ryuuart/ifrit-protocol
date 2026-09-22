@@ -12,6 +12,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -45,7 +46,7 @@ struct Reading {
    *  the theme's, which is the common case. WHICH rows are lit is the
    *  data's business, which is why this is a colour on the row and not a
    *  register on the theme. */
-  std::optional<SkColor4f> ink;
+  std::optional<material::Color> ink;
 };
 
 /** HOW A ROW IS SET — the widths and the mark, with none of the words. */
@@ -100,7 +101,7 @@ struct Row {
   /** THE COLOUR THIS ROW IS SET IN, over the theme's own — the foot a
    *  table's own reading is, the row a verdict lights. Unset is the
    *  theme's. */
-  std::optional<SkColor4f> ink;
+  std::optional<material::Color> ink;
 };
 
 /** ONE COLUMN OF A TABLE. */
@@ -177,7 +178,7 @@ struct Bars {
   /** ONE INK PER ROW, in the values' own order, over the bar's paint and
    *  the row's two lines — the row that IS the reading lit, the rest
    *  quiet. Empty leaves every row as the props say. */
-  std::span<const SkColor4f> inks;
+  std::span<const material::Color> inks;
 };
 
 /** THE BARS — one row per value, @p labels read in the same order.

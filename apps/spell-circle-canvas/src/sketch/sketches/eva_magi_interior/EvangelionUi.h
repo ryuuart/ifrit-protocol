@@ -24,9 +24,10 @@
 #include <include/core/SkTypeface.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Crt.h>
-#include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Bloom.h>
+#include <sigilmaterial/skia/Effect.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -257,12 +258,14 @@ inline sigil::material::skia::Effect crt(float width, float height) {
  *  WHOLE style rather than a partial for the cascade: a stand-in below
  *  extra-bold is thickened with a stroke on its paint, which a partial
  *  cannot state. */
-inline sigil::weave::TextStyle minchoDisplay(float size, SkColor4f color,
+inline sigil::weave::TextStyle minchoDisplay(float size,
+                                             sigil::material::Color color,
                                              float scaleX = 1.30f) {
   sigil::weave::TextStyle style =
       sigil::weave::textStyle({.face = minchoHeavy(),
                                .size = size,
-                               .color = color,
+                               .color = sigil::material::skia::toSkColor(
+                                   sigil::material::skia::toSkColor(color)),
                                .condense = scaleX});
   if (style.shaping.typeface && style.shaping.typeface->fontStyle().weight() <
                                     SkFontStyle::kExtraBold_Weight) {

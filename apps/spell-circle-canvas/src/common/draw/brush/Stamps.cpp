@@ -8,6 +8,8 @@
 #include <include/core/SkSamplingOptions.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilskia/draw/Direct.h>
 
 #include <algorithm>
@@ -65,7 +67,7 @@ void drawStampsDirect(Pen& pen, std::span<const Stamp> stamps) {
   pen.noStroke();
   pen.ellipseMode(CENTER);
   for (const Stamp& stamp : stamps) {
-    pen.fill(SkColor4f::FromColor(stamp.color));
+    pen.fill(material::skia::toColor(SkColor4f::FromColor(stamp.color)));
     SkAutoCanvasRestore restore(canvas, true);
     canvas->translate(stamp.position.fX, stamp.position.fY);
     canvas->rotate(degrees(stamp.angle));
@@ -171,8 +173,9 @@ DabStyle styleDab(Pen& pen, const Tool& tool, const Dab& dab,
 
 void depositNib(const Tool& tool, const DabStyle& style,
                 std::vector<Stamp>& stamps) {
-  stamps.push_back({style.position, style.size, style.size * style.aspect,
-                    style.angle, pigment(tool, style.opacity).toSkColor()});
+  stamps.push_back(
+      {style.position, style.size, style.size * style.aspect, style.angle,
+       material::skia::toSkColor(pigment(tool, style.opacity)).toSkColor()});
 }
 
 void depositDust(Pen& pen, const Tool& tool, const Dab& dab,
@@ -201,8 +204,9 @@ void depositDust(Pen& pen, const Tool& tool, const Dab& dab,
                     diameter,
                     diameter,
                     0.0f,
-                    pigment(tool, style.opacity * std::max(0.8f, pressure) *
-                                      pen.random(0.75f, 1.1f))
+                    material::skia::toSkColor(
+                        pigment(tool, style.opacity * std::max(0.8f, pressure) *
+                                          pen.random(0.75f, 1.1f)))
                         .toSkColor()});
 }
 
@@ -216,7 +220,9 @@ void depositScatter(Pen& pen, const Tool& tool, const Dab& dab,
     const float radius = std::sqrt(pen.random()) * std::max(0.0f, tool.scatter);
     const float angle = pen.random(TWO_PI);
     const SkColor color =
-        pigment(tool, style.opacity * pen.random(0.45f, 1.0f)).toSkColor();
+        material::skia::toSkColor(
+            pigment(tool, style.opacity * pen.random(0.45f, 1.0f)))
+            .toSkColor();
     const float diameter =
         std::max(0.18f, style.size * pen.random(0.72f, 1.18f));
     stamps.push_back({{style.position.fX + std::cos(angle) * radius,

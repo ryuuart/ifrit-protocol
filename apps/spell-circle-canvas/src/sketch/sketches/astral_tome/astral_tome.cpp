@@ -22,7 +22,7 @@ struct AstralTome {
     return box().at({x, y}).children(
         {text(s)
              .font({.face = serif, .size = 19.0f, .track = 2.4f})
-             .ink(mskia::scale(at::kInk, 1.0f, kInkAlphaOf()))});
+             .ink(sigil::material::scale(at::kInk, 1.0f, kInkAlphaOf()))});
   }
 
   // ------------------------------------------------------------- the plate
@@ -64,12 +64,12 @@ struct AstralTome {
             .fill(Paint::blend(
                 {{Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
                  {Paint::radialUnit({0.42f, 0.38f}, 0.85f,
-                                    {{0.0f, mskia::scale(at::kNebula, 2.2f)},
+                                    {{0.0f, sigil::material::scale(at::kNebula, 2.2f)},
                                      {0.5f, at::kNebula},
                                      {1.0f, {0, 0, 0, 1}}}),
                   SkBlendMode::kPlus},
                  {Paint::radialUnit({0.78f, 0.74f}, 0.55f,
-                                    {{0.0f, mskia::scale(at::kNebula, 1.6f)},
+                                    {{0.0f, sigil::material::scale(at::kNebula, 1.6f)},
                                      {1.0f, {0, 0, 0, 0}}}),
                   SkBlendMode::kPlus}}));
     // The field. Six scatter runs on lissajous routes with a wide normal
@@ -94,7 +94,7 @@ struct AstralTome {
               .width(1.5f * r.mag)
               .height(1.5f * r.mag)
               .shape(shapes::star(4, 0.26f, 0.14f))
-              .fill(Fill::color(mskia::scale(at::kFieldStar, 1.0f, r.alpha)));
+              .fill(Fill::color(sigil::material::scale(at::kFieldStar, 1.0f, r.alpha)));
       p.children({box()
                       .inset(-60)
                       .key(std::string("field") + std::to_string(i))
@@ -124,17 +124,17 @@ struct AstralTome {
    *  hues on one spread makes the page a colour key. This mixes each
    *  tier's own colour most of the way to the page's silver and keeps its
    *  hue as the difference. */
-  static SkColor4f paled(SkColor4f c) {
+  static sigil::material::Color paled(sigil::material::Color c) {
     constexpr float k = 0.66f;
-    constexpr SkColor4f kSilver{0.80f, 0.84f, 0.93f, 1.0f};
-    return {c.fR + (kSilver.fR - c.fR) * k, c.fG + (kSilver.fG - c.fG) * k,
-            c.fB + (kSilver.fB - c.fB) * k, c.fA};
+    constexpr sigil::material::Color kSilver{0.80f, 0.84f, 0.93f, 1.0f};
+    return {c.r + (kSilver.r - c.r) * k, c.g + (kSilver.g - c.g) * k,
+            c.b + (kSilver.b - c.b) * k, c.a};
   }
 
   Element linkPass(const at::Con& c, int li, int pass, int key) const {
     const SkPoint a = at::starAt(c, c.links[(size_t)li].first);
     const SkPoint b = at::starAt(c, c.links[(size_t)li].second);
-    const SkColor4f col = paled(at::hexColor(c.color));
+    const sigil::material::Color col = paled(at::hexColor(c.color));
     const float half = at::g(at::kLineBreadth);  // 6 canvas px
     const float band = half * 2.0f;              // 12 canvas px
 
@@ -146,10 +146,10 @@ struct AstralTome {
     rails.rails = {
         {.across = 0,
          .width = band * (25.0f / 64.0f),
-         .fill = Fill::color(mskia::scale(col, 1.0f, 0.309f))},
+         .fill = Fill::color(sigil::material::scale(col, 1.0f, 0.309f))},
         {.across = 0,
          .width = band * (9.0f / 64.0f),
-         .fill = Fill::color(mskia::scale(col, 1.45f, 0.580f))},
+         .fill = Fill::color(sigil::material::scale(col, 1.45f, 0.580f))},
         // the two dotted flanks — the departure, and the per-rail phase test:
         // same width, same fill, same dash, HALF A PERIOD apart, so the two
         // rows of dots interleave down the link the way a plate's register
@@ -167,12 +167,12 @@ struct AstralTome {
         // dash is exactly that near-zero kind.
         {.across = -half * 1.9f,
          .width = 1.4f,
-         .fill = Fill::color(mskia::scale(col, 1.35f, 0.52f)),
+         .fill = Fill::color(sigil::material::scale(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
          .cap = SkPaint::kRound_Cap},
         {.across = half * 1.9f,
          .width = 1.4f,
-         .fill = Fill::color(mskia::scale(col, 1.35f, 0.52f)),
+         .fill = Fill::color(sigil::material::scale(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
          .dashPhase = 5.8f,
          .cap = SkPaint::kRound_Cap},
@@ -182,12 +182,12 @@ struct AstralTome {
     // reads as drawn FROM star TO star. Two Ribbons: a wide bloom and the
     // sprite's own 12-px body.
     brush::Ribbon bloom;
-    bloom.fill = Fill::color(mskia::scale(col, 1.0f, 0.055f));
+    bloom.fill = Fill::color(sigil::material::scale(col, 1.0f, 0.055f));
     bloom.step = 6.0f;
     bloom.width = at::LinkTaper{band * 2.1f};
 
     brush::Ribbon body;
-    body.fill = Fill::color(mskia::scale(col, 1.0f, 0.135f));
+    body.fill = Fill::color(sigil::material::scale(col, 1.0f, 0.135f));
     body.step = 4.0f;
     body.width = at::LinkTaper{band};
 
@@ -217,7 +217,7 @@ struct AstralTome {
    *  the one piece of magnitude information the graph actually carries. */
   Element starEl(const at::Con& c, int si, int key) const {
     const SkPoint p = at::starAt(c, si);
-    const SkColor4f col = paled(at::hexColor(c.color));
+    const sigil::material::Color col = paled(at::hexColor(c.color));
     const int deg = at::degreeOf(c, si);
     const float base = at::g(at::kUlen * 2.0f);  // 18.39 canvas px
     const float r = base * (0.74f + 0.15f * (float)std::min(deg, 4));
@@ -238,14 +238,14 @@ struct AstralTome {
     grp.children(
         {box().inset(0).fill(
              Paint::glowUnit({0.5f, 0.5f}, 0.62f,
-                             {{0.0f, mskia::scale(col, 1.0f, 0.60f)},
-                              {0.22f, mskia::scale(col, 1.0f, 0.30f)},
-                              {0.55f, mskia::scale(col, 1.0f, 0.09f)},
-                              {1.0f, mskia::scale(col, 1.0f, 0.0f)}})),
+                             {{0.0f, sigil::material::scale(col, 1.0f, 0.60f)},
+                              {0.22f, sigil::material::scale(col, 1.0f, 0.30f)},
+                              {0.55f, sigil::material::scale(col, 1.0f, 0.09f)},
+                              {1.0f, sigil::material::scale(col, 1.0f, 0.0f)}})),
          box()
              .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
              .shape(shapes::star(4, 0.24f, 0.16f))
-             .fill(Fill::color(mskia::scale(col, 1.15f, 0.74f)))});
+             .fill(Fill::color(sigil::material::scale(col, 1.15f, 0.74f)))});
     // the white-hot core. The one kPlus on this canvas, declared as a
     // departure on the plate: the source is GL_SRC_ALPHA/ONE_MINUS_SRC_ALPHA
     // throughout (Blending.java:23).
@@ -276,7 +276,7 @@ struct AstralTome {
             .fill(Paint::linearUnit(
                 {0, 0}, {0, 1}, {{0.0f, at::kOlive}, {1.0f, at::kOliveDim}}))
             .foreground(decorations::border(
-                1.2f, Fill::color(mskia::scale(at::kGilt, 1.0f, 0.7f))));
+                1.2f, Fill::color(sigil::material::scale(at::kGilt, 1.0f, 0.7f))));
     if (hovered)
       e.scale(1.1f);
     else
@@ -310,13 +310,13 @@ struct AstralTome {
         {text("ASTRAL SORCERY · "
               "GuiJournalConstellationCluster, PAGE 1 OF 4")
              .font({.size = 13.0f, .track = 2.6f})
-             .ink(SkColor4f{0.72f, 0.66f, 0.50f, 1.0f}),
+             .ink(sigil::material::Color{0.72f, 0.66f, 0.50f, 1.0f}),
          text("Four charts on one page at the mod's own numbers: a "
               "95x95 SQUARE render box hung on an 80x110 hit cell, the "
               "offsetMap's zig-zag placing them, and every star's "
               "twinkle on its own divisor between 12 and 21.")
              .font({.size = 11.0f, .track = 0.4f})
-             .ink(SkColor4f{0.50f, 0.46f, 0.38f, 1.0f})});
+             .ink(sigil::material::Color{0.50f, 0.46f, 0.38f, 1.0f})});
     return band;
   }
 
@@ -339,11 +339,11 @@ struct AstralTome {
               .fill(Paint::linearUnit(
                   {0, 0}, {1, 0},
                   {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
-                   {0.6f, mskia::scale(at::kLeatherMid, 0.8f)},
+                   {0.6f, sigil::material::scale(at::kLeatherMid, 0.8f)},
                    {1.0f, at::kLeatherDark}}))
               .foreground(
                   decorations::border(1.2f,
-                                      Fill::color(mskia::scale(
+                                      Fill::color(sigil::material::scale(
                                           at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
                                       1.0f));
         })});
@@ -354,7 +354,7 @@ struct AstralTome {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = SkSize::Make(at::kCanvasW, at::kCanvasH),
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = sigil::material::Color{0, 0, 0, 1}});
 
     serif = weave::ports::face({"Baskerville", "Charter", "Palatino",
                                 "Times New Roman", "Georgia", "Helvetica"});

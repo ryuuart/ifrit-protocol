@@ -35,6 +35,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -42,6 +43,7 @@
 
 #include <cmath>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 
@@ -70,7 +72,7 @@ constexpr float kCL = 9, kCT = kCaption + 1, kCR = 9, kCB = 9;
 constexpr float kTaskbarH = 40;
 
 // Win7 "Sky" accent (registry): #74B8FC.
-constexpr SkColor4f kSky{0.455f, 0.722f, 0.988f, 1};
+constexpr material::Color kSky{0.455f, 0.722f, 0.988f, 1};
 
 // The aurora wallpaper: deep vertical ground, flowing diagonal light
 // bands, fine filaments + speckle stars (high-frequency detail so the
@@ -161,7 +163,7 @@ inline Paint glassTint(float w, float h) {
       // blurred desktop, and the glass stops reading as glass; lower it and
       // the Sky character goes, along with the contrast the dark caption text
       // needs to stay legible.
-      {Paint::solid({kSky.fR, kSky.fG, kSky.fB, 0.19f}), SkBlendMode::kSrcOver},
+      {Paint::solid({kSky.r, kSky.g, kSky.b, 0.19f}), SkBlendMode::kSrcOver},
       // afterglow stand-in: brighter accent breathing down from the top
       {Paint::linear({0, 0}, {0, h},
                      {{0.00f, {0.62f, 0.82f, 1.00f, 0.24f}},
@@ -250,7 +252,7 @@ struct AeroDesktop {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace ch = choreograph;
@@ -348,7 +350,8 @@ struct AeroDesktop {
         .children(
             {text("Aurora Borealis — Aero Glass")
                  .font({.size = 12.5f,
-                        .color = SkColor4f{0.05f, 0.05f, 0.05f, 1}})
+                        .color = material::skia::toSkColor(
+                            material::Color{0.05f, 0.05f, 0.05f, 1})})
                  .inset(0)
                  .filter(styles::textGlow({1, 1, 1, 0.90f}, 2.2f)
                              .then(styles::textGlow({1, 1, 1, 0.50f}, 4.5f)))});
@@ -358,7 +361,7 @@ struct AeroDesktop {
   Element clientArea() {
     namespace ad = aero_desktop;
     // every label in the pane is 12 px; each names its own grey
-    const auto gray = [](float g) { return SkColor4f{g, g, g, 1}; };
+    const auto gray = [](float g) { return material::Color{g, g, g, 1}; };
     const float clientH = ad::kWH - ad::kCT - ad::kCB;
     // THE NAVIGATION TREE AND THE FILE LIST ARE TWO TABLES: a heading is set
     // at the left margin in the darker grey and an item is indented under it,
@@ -507,13 +510,14 @@ struct AeroDesktop {
         .scale(animate(motion::from(0.96f).to(1.0f), {220ms}))
         .opacity(animate(motion::from(0.0f).to(1.0f), {180ms}))
         // the DWM soft drop shadow (SDF ring -- no filter, no overflow)
-        .children(
-            {box()
-                 .inset(ad::kWY - 30, ad::kW - ad::kWX - ad::kWW - 34, ad::kH - ad::kWY - ad::kWH - 40, ad::kWX - 34)
-                 .cache(Cache::Texture)  // static SDF shadow: bake once
-                 .fill(Paint::sksl(windowShadow)
-                           .uniform("uMargins", SkColor4f{34, 30, 34, 40})),
-             std::move(frame)});
+        .children({box()
+                       .inset(ad::kWY - 30, ad::kW - ad::kWX - ad::kWW - 34,
+                              ad::kH - ad::kWY - ad::kWH - 40, ad::kWX - 34)
+                       .cache(Cache::Texture)  // static SDF shadow: bake once
+                       .fill(Paint::sksl(windowShadow)
+                                 .uniform("uMargins",
+                                          material::Color{34, 30, 34, 40})),
+                   std::move(frame)});
   }
 
   // ---- Start orb + taskbar ---------------------------------------------
@@ -523,7 +527,7 @@ struct AeroDesktop {
     // the four-pane flag: one quarter each of a 16x14 box
     struct Pane {
       float l, t, r, b;
-      SkColor4f ink;
+      material::Color ink;
     };
     const Pane kFlag[4] = {{0, 0, 8.5f, 7.5f, {0.91f, 0.31f, 0.22f, 1}},
                            {8.5f, 0, 0, 7.5f, {0.50f, 0.76f, 0.24f, 1}},
@@ -638,7 +642,7 @@ struct AeroDesktop {
              box().inset(0).fill(Paint::blend({
                  {Paint::solid({0.02f, 0.05f, 0.10f, 0.52f}),
                   SkBlendMode::kSrcOver},
-                 {Paint::solid({ad::kSky.fR, ad::kSky.fG, ad::kSky.fB, 0.16f}),
+                 {Paint::solid({ad::kSky.r, ad::kSky.g, ad::kSky.b, 0.16f}),
                   SkBlendMode::kSrcOver},
                  {Paint::linear({0, 0}, {0, th},
                                 {{0.00f, {1, 1, 1, 0.22f}},
@@ -648,9 +652,7 @@ struct AeroDesktop {
                   SkBlendMode::kSrcOver},
              })),
              // 1px light top edge over a dark seam
-             box()
-                 .inset(0, 0, th - 1, 0)
-                 .fill(Fill::color({1, 1, 1, 0.30f})),
+             box().inset(0, 0, th - 1, 0).fill(Fill::color({1, 1, 1, 0.30f})),
              startOrb(),
              // one running-app glass button
              box()
@@ -676,11 +678,15 @@ struct AeroDesktop {
                               1, Fill::color({0.55f, 0.40f, 0.10f, 0.8f})))}),
              // tray clock, pinned to the right edge (right-aligned for free)
              text("4:20 PM")
-                 .font({.size = 12, .color = SkColor4f{1, 1, 1, 0.92f}})
+                 .font({.size = 12,
+                        .color = material::skia::toSkColor(
+                            material::Color{1, 1, 1, 0.92f})})
                  .top(13)
                  .right(10),
              text("11/8/2006")
-                 .font({.size = 10, .color = SkColor4f{1, 1, 1, 0.65f}})
+                 .font({.size = 10,
+                        .color = material::skia::toSkColor(
+                            material::Color{1, 1, 1, 0.65f})})
                  .top(27)
                  .right(10)});
   }
@@ -688,7 +694,7 @@ struct AeroDesktop {
   // Desktop icons: white label over a soft dark shadow (the Win7 look).
   Element desktopIcon(float x, float y, Element glyph, const char* label) {
     namespace ad = aero_desktop;
-    auto lbl = [&](SkColor4f c) {
+    auto lbl = [&](material::Color c) {
       return box()
           .inset(52, 0, 0, 0)
           .row()

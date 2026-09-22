@@ -27,11 +27,3 @@ TEST(SkiaColor, AChannelAboveOneIsCarriedRatherThanClamped) {
   EXPECT_FLOAT_EQ(c.r, 1.5f);
   EXPECT_FLOAT_EQ(c.g, -0.25f);
 }
-
-TEST(SkiaColor, APaletteConvertsInOrder) {
-  const std::vector<SkColor4f> palette{{1, 0, 0, 1}, {0, 1, 0, 1}};
-  const std::vector<Color> out = skia::toColors(palette);
-  ASSERT_EQ(out.size(), 2u);
-  EXPECT_EQ(out[0], (Color{1, 0, 0, 1}));
-  EXPECT_EQ(out[1], (Color{0, 1, 0, 1}));
-}

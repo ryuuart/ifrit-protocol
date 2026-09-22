@@ -42,6 +42,7 @@
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Spring.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -52,6 +53,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 namespace weave = sigil::weave;
@@ -67,20 +69,21 @@ constexpr float kTau = 0.6f;     // the decay's time constant, seconds
 constexpr float kHz = 4.0f;      // the rate the clock is posterised at
 constexpr float kPeriod = 0.8f;  // the phase's loop and the spring's period
 
-constexpr SkColor4f kGrid{0.17f, 0.18f, 0.21f, 1};
-constexpr SkColor4f kSecond{0.46f, 0.72f, 0.92f, 1};
-constexpr SkColor4f kThird{0.86f, 0.46f, 0.36f, 1};
+constexpr material::Color kGrid{0.17f, 0.18f, 0.21f, 1};
+constexpr material::Color kSecond{0.46f, 0.72f, 0.92f, 1};
+constexpr material::Color kThird{0.86f, 0.46f, 0.36f, 1};
 
 /** THE SHEET THESE PLOTS ARE DRESSED BY: the grid in its own grey, the
  *  zero line a step quieter than a curve, and a name for each series a
  *  multi-curve cell puts beside the first. */
 weave::StyleSheet plotSheet(const sketch::kit::Theme& look) {
   weave::StyleSheet dressed = look.styleSheet();
-  dressed.set("plotAxis", {.color = look.palette.rule});
-  dressed.set("plotRule", {.color = kGrid});
-  dressed.set("ramp", {.color = look.palette.ash});
-  dressed.set("second", {.color = kSecond});
-  dressed.set("third", {.color = kThird});
+  dressed.set("plotAxis",
+              {.color = material::skia::toSkColor(look.palette.rule)});
+  dressed.set("plotRule", {.color = material::skia::toSkColor(kGrid)});
+  dressed.set("ramp", {.color = material::skia::toSkColor(look.palette.ash)});
+  dressed.set("second", {.color = material::skia::toSkColor(kSecond)});
+  dressed.set("third", {.color = material::skia::toSkColor(kThird)});
   return dressed;
 }
 

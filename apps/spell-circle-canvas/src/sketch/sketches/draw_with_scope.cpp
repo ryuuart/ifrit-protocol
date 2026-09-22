@@ -24,6 +24,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Layouts.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -32,6 +33,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 using namespace sigil::compose;
 
@@ -96,7 +98,7 @@ Element card(const Service& service) {
 
 /** THE PROGRAM: a wire per call, as wide as the load, labelled midway. */
 void drawTraffic(sigil::draw::Pen& pen, const Scope& scope) {
-  const SkColor4f ink = sketch::kit::theme().palette.figure;
+  const material::Color ink = sketch::kit::theme().palette.figure;
   pen.noFill();
   for (const Scope::Node* node : scope.having("calls")) {
     const float load = node->number("load").value_or(1.0f);

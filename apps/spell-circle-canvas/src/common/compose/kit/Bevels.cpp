@@ -8,6 +8,7 @@
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
@@ -22,9 +23,9 @@ namespace mskia = sigil::material::skia;
  *  sides of that choice, so the two mechanisms differ only in which value
  *  is built here. */
 void ring(SkCanvas& c, const PaintContext& ctx, const Bevel& b,
-          const SkColor4f& light, const SkColor4f& shadow, float depth,
-          float shadowDepth, bool sunken, geometry::path::Edge edges,
-          styles::BevelEnds ends) {
+          const material::Color& light, const material::Color& shadow,
+          float depth, float shadowDepth, bool sunken,
+          geometry::path::Edge edges, styles::BevelEnds ends) {
   const float lit = depth;
   const float drop = shadowDepth > 0 ? shadowDepth : depth;
   if (lit <= 0 && drop <= 0) return;
@@ -93,7 +94,8 @@ Element& bevelled(Element& e, const Bevel& b) {
 
 namespace bevels {
 
-Bevel motif(SkColor4f light, SkColor4f shadow, float depth, bool sunken) {
+Bevel motif(material::Color light, material::Color shadow, float depth,
+            bool sunken) {
   Bevel b;
   b.light = light;
   b.shadow = shadow;
@@ -105,7 +107,8 @@ Bevel motif(SkColor4f light, SkColor4f shadow, float depth, bool sunken) {
   return b;
 }
 
-Bevel motifEtched(SkColor4f light, SkColor4f shadow, float depth, bool sunken) {
+Bevel motifEtched(material::Color light, material::Color shadow, float depth,
+                  bool sunken) {
   // Half of one pixel is no pixel: below two the groove has no room for
   // two rings and is the plain shadow.
   const float half = std::floor(depth * 0.5f);
@@ -116,23 +119,25 @@ Bevel motifEtched(SkColor4f light, SkColor4f shadow, float depth, bool sunken) {
   return b;
 }
 
-Bevel flash(SkColor4f face, float gap) {
+Bevel flash(material::Color face, float gap) {
   Bevel b;
-  b.light = mskia::lighten(face, 0.15f);
-  b.shadow = mskia::scale(face, 0.40f);
+  b.light = sigil::material::lighten(face, 0.15f);
+  b.shadow = sigil::material::scale(face, 0.40f);
   b.depth = 3;
   b.shadowDepth = 2;
   if (gap > 0)
-    b.inner = BevelInner{gap,
-                         mskia::withAlpha(mskia::lighten(face, 0.16f), 0.8f),
-                         mskia::withAlpha(mskia::scale(face, 0.45f), 0.85f),
-                         2,
-                         1,
-                         false};
+    b.inner = BevelInner{
+        gap,
+        sigil::material::withAlpha(sigil::material::lighten(face, 0.16f), 0.8f),
+        sigil::material::withAlpha(sigil::material::scale(face, 0.45f), 0.85f),
+        2,
+        1,
+        false};
   return b;
 }
 
-Bevel skin(SkColor4f light, SkColor4f shadow, float depth, bool sunken) {
+Bevel skin(material::Color light, material::Color shadow, float depth,
+           bool sunken) {
   Bevel b;
   b.light = light;
   b.shadow = shadow;
@@ -142,8 +147,8 @@ Bevel skin(SkColor4f light, SkColor4f shadow, float depth, bool sunken) {
   return b;
 }
 
-Bevel plate(SkColor4f light, SkColor4f shadow, float depth, float softness,
-            bool sunken) {
+Bevel plate(material::Color light, material::Color shadow, float depth,
+            float softness, bool sunken) {
   Bevel b;
   b.light = light;
   b.shadow = shadow;

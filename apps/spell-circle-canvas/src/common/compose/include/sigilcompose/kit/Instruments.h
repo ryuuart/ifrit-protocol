@@ -16,6 +16,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/typography/Track.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
@@ -81,8 +82,8 @@ struct MeterPlacement {
  *  does. */
 [[nodiscard]] inline Element trackMeter(const Composer& composer,
                                         std::string_view key, size_t trackIndex,
-                                        SkColor4f fill,
-                                        SkColor4f bed = {1, 1, 1, 0.10f},
+                                        material::Color fill,
+                                        material::Color bed = {1, 1, 1, 0.10f},
                                         MeterPlacement placement = {}) {
   Element overlay = positioned();
   const bool under = placement.where == MeterPlacement::Where::Under;
@@ -131,9 +132,10 @@ struct MeterPlacement {
  *  keyed `-rest` after the original — is `Text::atRest`'s statement;
  *  this adds the one ink, over whatever the style paints, and drops any
  *  glyph stroke so the ghost reads as one flat colour. */
-[[nodiscard]] inline Element restGhost(Text moving, SkColor4f colour) {
+[[nodiscard]] inline Element restGhost(Text moving, material::Color colour) {
   Text ghost = moving.atRest();
-  ghost.textFill(material::skia::Paint::solid(colour))
+  ghost
+      .textFill(material::skia::Paint::solid(material::skia::toSkColor(colour)))
       .textStroke(0.0f, Fill{})
       // Pinned at the origin so the two copies share one origin, and
       // absolute so the MOVING copy is what sizes the box around them.

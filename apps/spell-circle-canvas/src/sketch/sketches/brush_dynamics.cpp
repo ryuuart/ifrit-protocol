@@ -11,12 +11,14 @@
 #include <sigildraw/Constants.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
@@ -24,7 +26,7 @@ using namespace sigil::draw;
 
 namespace {
 
-constexpr std::array<SkColor4f, 4> kInk{{
+constexpr std::array<material::Color, 4> kInk{{
     {0.10f, 0.28f, 0.38f, 1},
     {0.77f, 0.20f, 0.14f, 1},
     {0.16f, 0.46f, 0.33f, 1},

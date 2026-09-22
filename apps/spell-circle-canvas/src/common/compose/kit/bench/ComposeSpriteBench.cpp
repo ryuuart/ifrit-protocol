@@ -30,11 +30,11 @@ std::vector<std::string> icon(int seed) {
   return rows;
 }
 
-const std::vector<SkColor4f> kPalette{{0, 0, 0, 0},
-                                      {0.9f, 0.2f, 0.2f, 1},
-                                      {0.2f, 0.7f, 0.3f, 1},
-                                      {0.2f, 0.3f, 0.9f, 1},
-                                      {0.9f, 0.9f, 0.2f, 1}};
+const std::vector<sigil::material::Color> kPalette{{0, 0, 0, 0},
+                                                   {0.9f, 0.2f, 0.2f, 1},
+                                                   {0.2f, 0.7f, 0.3f, 1},
+                                                   {0.2f, 0.3f, 0.9f, 1},
+                                                   {0.9f, 0.9f, 0.2f, 1}};
 
 kit::Sprite spriteOf(int seed) {
   return kit::pixelMap(icon(seed), {" abcd", kPalette}).value_or(kit::Sprite{});

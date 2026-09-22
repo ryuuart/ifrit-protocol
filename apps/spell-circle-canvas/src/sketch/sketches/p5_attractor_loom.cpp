@@ -17,6 +17,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -24,6 +25,7 @@
 
 #include <cmath>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace field = sigil::material::field;
@@ -82,8 +84,8 @@ struct P5AttractorLoom {
     // first moment.
     sketch::kit::stage(context, {.size = {900, 720},
                                  .captureAt = 0.05,
-                                 .background = SkColor4f{4 / 255.0f, 6 / 255.0f,
-                                                         14 / 255.0f, 1}});
+                                 .background = material::Color{
+                                     4 / 255.0f, 6 / 255.0f, 14 / 255.0f, 1}});
 
     context.composer.render(compose::graphics("p5_attractor_loom.loop",
                                               [this](Pen& pen) { draw(pen); }));

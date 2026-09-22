@@ -23,6 +23,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -43,6 +44,7 @@
 
 #include "ResearchWeb.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
@@ -149,20 +151,20 @@ constexpr uint32_t kMortuus = 0x6A0005, kInstrumentum = 0x4040EE;
 }  // namespace aspect
 
 // Reconstructed ink/parchment.
-const SkColor4f kInkDeep = hexColor(0x0E0A06);
-const SkColor4f kInkBody = hexColor(0xEADCBC);
-const SkColor4f kPaper = hexColor(0xA0865E);
-const SkColor4f kPaperLit = hexColor(0xCDAE7B);
-const SkColor4f kPaperDark = hexColor(0x2A2113);
-const SkColor4f kBrass = hexColor(0x8A6E38);
-const SkColor4f kBrassLit = hexColor(0xC9A860);
-const SkColor4f kBrassDark = hexColor(0x2A200F);
+const material::Color kInkDeep = hexColor(0x0E0A06);
+const material::Color kInkBody = hexColor(0xEADCBC);
+const material::Color kPaper = hexColor(0xA0865E);
+const material::Color kPaperLit = hexColor(0xCDAE7B);
+const material::Color kPaperDark = hexColor(0x2A2113);
+const material::Color kBrass = hexColor(0x8A6E38);
+const material::Color kBrassLit = hexColor(0xC9A860);
+const material::Color kBrassDark = hexColor(0x2A200F);
 
 // Text colours, converted from the source's decimal literals.
-const SkColor4f kTextGold = hexColor(0xFFAA00);    // §6
-const SkColor4f kTextRed = hexColor(0xFF5555);     // §c
-const SkColor4f kTextYellow = hexColor(0xFFFF55);  // §e
-const SkColor4f kTextWhite = hexColor(0xFFFFFF);
+const material::Color kTextGold = hexColor(0xFFAA00);    // §6
+const material::Color kTextRed = hexColor(0xFF5555);     // §c
+const material::Color kTextYellow = hexColor(0xFFFF55);  // §e
+const material::Color kTextWhite = hexColor(0xFFFFFF);
 
 // ---------------------------------------------------------------------------
 // THE EDGE TIERS — genResearchBackgroundZoomable:550-571. The web itself
@@ -172,11 +174,11 @@ const SkColor4f kTextWhite = hexColor(0xFFFFFF);
 inline float tierMul(EdgeTier t) {
   return t == kParentKnown ? 0.6f : t == kParentUnknown ? 0.2f : 0.3f;
 }
-inline SkColor4f tierTint(EdgeTier t, SkColor4f base) {
+inline material::Color tierTint(EdgeTier t, material::Color base) {
   const float k = tierMul(t);
-  SkColor4f c = mskia::scale(base, k);
+  material::Color c = material::scale(base, k);
   if (t == kSiblingKnown)
-    c.fB = base.fB * 0.4f;  // 0.3,0.3,0.4 — the one tier with a hue
+    c.b = base.b * 0.4f;  // 0.3,0.3,0.4 — the one tier with a hue
   return c;
 }
 inline int tierZ(EdgeTier t) {
@@ -250,7 +252,7 @@ inline Router thaumRoute() {
  *  hairline outriders are the pen's own casing, and a scatter of spatter
  *  grains. An edge's state moves its VALUE and never its width, so every tier
  *  of edge lays down the same weight of line. */
-inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
+inline Brush penBrush(material::Color tint, float k, const Element& spatter,
                       float bow = 0.0f) {
   Brush br;
   if (bow > 0)
@@ -263,15 +265,15 @@ inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
   // one of the hundred-plus stamps a frame of routes costs. Art stamped that
   // often has to be flat geometry.
   br.layer(LayeredBrush{{
-      {g(4.0f) * k, mskia::scale(kInkDeep, 1.0f, 0.34f * tint.fA)},
-      {g(2.6f) * k, mskia::scale(kInkDeep, 1.0f, 0.92f * tint.fA)},
+      {g(4.0f) * k, material::scale(kInkDeep, 1.0f, 0.34f * tint.a)},
+      {g(2.6f) * k, material::scale(kInkDeep, 1.0f, 0.92f * tint.a)},
   }});
   // the body: one rule — state moves VALUE, never width
   br.layer(lines::Line{.width = g(1.3f) * k, .fill = Fill::color(tint)});
   // the dry edge: a hairline offset to one side, where the nib lifted
   br.layer(lines::Line{.width = g(0.45f) * k,
                        .fill = Fill::color(
-                           mskia::scale(tint, 1.35f, 0.85f * tint.fA))},
+                           material::scale(tint, 1.35f, 0.85f * tint.a))},
            {shapers::Offset{.px = g(0.85f), .step = g(2)}});
   br.layer(brush::Scatter{.art = spatter,
                           .spacing = g(13),
@@ -286,19 +288,19 @@ inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
 }
 
 /** One ink grain — the brush::Scatter cell. */
-inline Element spatterCell(SkColor4f tint) {
+inline Element spatterCell(material::Color tint) {
   return box()
       .width(g(1.2f))
       .height(g(1.2f))
       .shape(shapes::circle())
-      .fill(Fill::color(mskia::scale(tint, 0.85f, 0.7f * tint.fA)));
+      .fill(Fill::color(material::scale(tint, 0.85f, 0.7f * tint.a)));
 }
 
 /** One 24x24 straight tile, authored 28 GUI px wide so successive stamps
  *  overlap by 2 px and the sketchy jitter never opens a seam. The KNOT at the
  *  tile's centre is what makes the 24-px repeat legible as a repeat — the run
  *  has to read as a chain of stamped cells, because that is what it is. */
-inline Element straightTile(SkColor4f tint, const Element& spatter,
+inline Element straightTile(material::Color tint, const Element& spatter,
                             const Element& knot) {
   const float w = g(28), h = g(14);
   Brush br = penBrush(tint, 1.0f, spatter, 0.45f);
@@ -321,15 +323,15 @@ inline Element straightTile(SkColor4f tint, const Element& spatter,
 }
 
 /** The knot: a small inked lozenge, one per straight tile. */
-inline Element knotCell(SkColor4f tint) {
+inline Element knotCell(material::Color tint) {
   Element e = box()
                   .width(g(4.4f))
                   .height(g(3.2f))
                   .shape(shapes::polygon(4, 0))
-                  .fill(Fill::color(mskia::scale(tint, 1.12f)));
+                  .fill(Fill::color(material::scale(tint, 1.12f)));
   e.stroke(PathFormat{
       .width = g(1.1f),
-      .strokeFill = Fill::color(mskia::scale(kInkDeep, 1, 0.9f * tint.fA))});
+      .strokeFill = Fill::color(material::scale(kInkDeep, 1, 0.9f * tint.a))});
   return e;
 }
 
@@ -347,7 +349,7 @@ inline Element knotCell(SkColor4f tint) {
  *  front. `arm` is the reserved length, kCell/2 for the 24x24 elbow and
  *  1.5*kCell for the 48x48 one. The turn is HARD: the mod stamps a cell, it
  *  does not round a join. */
-inline Element elbowTile(float arm, float handed, SkColor4f tint,
+inline Element elbowTile(float arm, float handed, material::Color tint,
                          const Element& spatter, const Element& knot) {
   const float pad = g(7);
   const float half = arm + pad;
@@ -376,7 +378,7 @@ inline Element elbowTile(float arm, float handed, SkColor4f tint,
 
 /** The arrowhead stamped near the child end of an edge, authored pointing
  *  along +x and rotated onto the edge's final direction by arrowEl(). */
-inline Element arrowCell(SkColor4f tint) {
+inline Element arrowCell(material::Color tint) {
   return box()
       .width(g(9))
       .height(g(7.5f))
@@ -384,7 +386,7 @@ inline Element arrowCell(SkColor4f tint) {
       .fill(Fill::color(tint))
       .stroke(PathFormat{.width = g(1),
                          .strokeFill = Fill::color(
-                             mskia::scale(kInkDeep, 1, 0.6f * tint.fA))});
+                             material::scale(kInkDeep, 1, 0.6f * tint.a))});
 }
 
 // ---------------------------------------------------------------------------
@@ -454,19 +456,21 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element& spatter) {
   else if (meta & kHex)
     shape = shapes::polygon(6, 90);
 
-  const SkColor4f face = hidden ? mskia::scale(kPaper, 0.80f) : kPaper;
-  const SkColor4f lit = hidden ? mskia::scale(kPaperLit, 0.80f) : kPaperLit;
+  const material::Color face = hidden ? material::scale(kPaper, 0.80f) : kPaper;
+  const material::Color lit =
+      hidden ? material::scale(kPaperLit, 0.80f) : kPaperLit;
 
   Element e =
       box()
           .width(g(32))
           .height(g(32))
           .shape(shape)
-          .fill(Paint::radialUnit(
-              {0.38f, 0.32f}, 1.05f,
-              {{0.0f, lit}, {0.55f, face}, {1.0f, mskia::scale(face, 0.42f)}}))
+          .fill(Paint::radialUnit({0.38f, 0.32f}, 1.05f,
+                                  {{0.0f, lit},
+                                   {0.55f, face},
+                                   {1.0f, material::scale(face, 0.42f)}}))
           .overlay(lines::Hatch{
-              .strokeFill = Fill::color(mskia::scale(kPaperDark, 1, 0.13f)),
+              .strokeFill = Fill::color(material::scale(kPaperDark, 1, 0.13f)),
               .spacing = g(3.2f),
               .width = g(0.6f),
               .angleDeg = 32});
@@ -476,11 +480,12 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element& spatter) {
       .segmentLength = g(5), .deviation = g(0.7f), .seed = seed});
   lines::Line outer;
   outer.width = g(1.6f);
-  outer.fill = Fill::color(mskia::scale(kInkDeep, 1.0f, hidden ? 0.55f : 0.9f));
+  outer.fill =
+      Fill::color(material::scale(kInkDeep, 1.0f, hidden ? 0.55f : 0.9f));
   rule.layer(outer);
   lines::Line inner;
   inner.width = g(0.8f);
-  inner.fill = Fill::color(mskia::scale(kBrassLit, hidden ? 0.35f : 0.75f));
+  inner.fill = Fill::color(material::scale(kBrassLit, hidden ? 0.35f : 0.75f));
   inner.dashIntervals = {g(2.0f), g(hidden ? 4.0f : 2.5f)};
   rule.layer(inner, {shapers::Offset{.px = -g(2.4f), .step = g(2)}});
   e.stroke(rule);
@@ -494,13 +499,13 @@ inline Element spikyOverlay(uint32_t seed) {
   Element e = box()
                   .inset(0)
                   .shape(shapes::star(8, 0.74f, 0.35f))
-                  .fill(Fill::color(mskia::scale(kBrass, 1.0f, 0.30f)));
+                  .fill(Fill::color(material::scale(kBrass, 1.0f, 0.30f)));
   Brush br;
   br.shaped(shapers::Jitter{
       .segmentLength = g(4), .deviation = g(0.6f), .seed = seed});
   lines::Line l;
   l.width = g(1.1f);
-  l.fill = Fill::color(mskia::scale(kBrassLit, 0.9f, 0.85f));
+  l.fill = Fill::color(material::scale(kBrassLit, 0.9f, 0.85f));
   br.layer(l);
   e.stroke(br);
   return e;
@@ -519,7 +524,7 @@ inline uint32_t mulHex(uint32_t word, float k) {
 }
 
 /** A stoppered phial/bottle silhouette shared by several icons. */
-inline void glassVessel(kit::Sprite& k, SkColor4f liquid, float top = 4) {
+inline void glassVessel(kit::Sprite& k, material::Color liquid, float top = 4) {
   k.rect(6, top - 1, 4, 2, hexColor(0x6B5030));  // cork
   k.rect(6, top + 1, 4, 1, hexColor(0x8A8FA0));  // neck
   k.rect(5, top + 2, 6, 11 - (top - 4), hexColor(0xB6C6D6, 0.35f));
@@ -539,7 +544,7 @@ inline kit::Sprite glyphSprite(int glyph) {
   };
   switch (glyph) {
     case gAspect: {  // cat_alchemy.png — the alkimia aspect medallion
-      const SkColor4f c = a(aspect::kAlkimia);
+      const material::Color c = a(aspect::kAlkimia);
       for (int i = 0; i < 6; ++i) {
         const float ang = arrange::along(0.0f, 6.2831853f, (size_t)i, 6,
                                          arrange::Turn::Closed);
@@ -805,16 +810,16 @@ inline Element frameRun() {
         k.rect(0, 2, W, H - 4, kBrass);
         k.rect(0, 2, W, 1, kBrassLit);
         k.rect(0, H - 3, W, 1, kBrassDark);
-        k.rect(0, 5, W, 1, mskia::scale(kBrassDark, 1, 0.55f));
-        k.rect(0, H - 6, W, 1, mskia::scale(kBrassLit, 1, 0.35f));
+        k.rect(0, 5, W, 1, material::scale(kBrassDark, 1, 0.55f));
+        k.rect(0, H - 6, W, 1, material::scale(kBrassLit, 1, 0.35f));
         // beading: a lens every 8 px, and a rivet every 16
         for (int i = 0; i < (int)W; i += 8) {
-          k.rect((float)i + 2, 7, 4, H - 14, mskia::scale(kBrass, 1.22f));
-          k.rect((float)i + 3, 8, 2, H - 16, mskia::scale(kBrass, 0.72f));
+          k.rect((float)i + 2, 7, 4, H - 14, material::scale(kBrass, 1.22f));
+          k.rect((float)i + 3, 8, 2, H - 16, material::scale(kBrass, 0.72f));
         }
         for (int i = 8; i < (int)W; i += 16) {
           k.rect((float)i - 1, H / 2 - 1, 2, 2, kBrassLit);
-          k.px((float)i - 1, H / 2, mskia::scale(kBrassDark, 1, 0.8f));
+          k.px((float)i - 1, H / 2, material::scale(kBrassDark, 1, 0.8f));
         }
       }));
 }
@@ -828,23 +833,26 @@ inline Element frameRun() {
  *
  *  The box is 24 GUI px, one px of bleed on each side of the 22-px cell, which
  *  is why every caller offsets it by an extra -1 in both axes. */
-inline Element cornerPlate(SkColor4f tint) {
+inline Element cornerPlate(material::Color tint) {
   const float s = g(24);
   return box().width(s).height(s).background(
       prog([tint](SkCanvas& c, const PaintContext& in) {
         const float m = in.size.width() * 0.5f;
-        auto T = [tint](SkColor4f a) {
-          return SkColor4f{a.fR * tint.fR, a.fG * tint.fG, a.fB * tint.fB,
-                           a.fA};
+        auto T = [tint](material::Color a) {
+          return material::Color{a.r * tint.r, a.g * tint.g, a.b * tint.b, a.a};
         };
         SkPaint p;
         p.setAntiAlias(true);
         // the seating shadow, then the boss body as a lit sphere
-        p.setColor4f(T(mskia::scale(kBrassDark, 0.7f, 0.85f)), nullptr);
+        p.setColor4f(material::skia::toSkColor(
+                         T(material::scale(kBrassDark, 0.7f, 0.85f))),
+                     nullptr);
         c.drawCircle(m + g(0.6f), m + g(0.8f), g(10.6f), p);
         for (int i = 0; i < 9; ++i) {
           const float f = (float)i / 8.0f;
-          p.setColor4f(T(mskia::scale(kBrass, 1.55f - 0.85f * f)), nullptr);
+          p.setColor4f(material::skia::toSkColor(
+                           T(material::scale(kBrass, 1.55f - 0.85f * f))),
+                       nullptr);
           c.drawCircle(m - g(1.5f) * (1 - f), m - g(1.8f) * (1 - f),
                        g(10.0f) * (1.0f - 0.62f * f), p);
         }
@@ -854,9 +862,13 @@ inline Element cornerPlate(SkColor4f tint) {
               arrange::onRing((size_t)i, 4, {m, m}, {g(7.2f), g(7.2f)},
                               0.7853982f, 6.2831853f, arrange::Turn::Closed);
           const float x = stud.fX, y = stud.fY;
-          p.setColor4f(T(mskia::scale(kBrassDark, 1.0f, 0.9f)), nullptr);
+          p.setColor4f(material::skia::toSkColor(
+                           T(material::scale(kBrassDark, 1.0f, 0.9f))),
+                       nullptr);
           c.drawCircle(x, y, g(1.9f), p);
-          p.setColor4f(T(mskia::scale(kBrassLit, 1.15f)), nullptr);
+          p.setColor4f(
+              material::skia::toSkColor(T(material::scale(kBrassLit, 1.15f))),
+              nullptr);
           c.drawCircle(x - g(0.35f), y - g(0.4f), g(1.2f), p);
         }
         // the bevel: a bright arc up-left, a dark arc down-right
@@ -864,17 +876,27 @@ inline Element cornerPlate(SkColor4f tint) {
         p.setStrokeWidth(g(1.3f));
         const SkRect ring =
             SkRect::MakeLTRB(m - g(10), m - g(10), m + g(10), m + g(10));
-        p.setColor4f(T(mskia::scale(kBrassLit, 1.25f, 0.9f)), nullptr);
+        p.setColor4f(material::skia::toSkColor(
+                         T(material::scale(kBrassLit, 1.25f, 0.9f))),
+                     nullptr);
         c.drawArc(ring, 150, 150, false, p);
-        p.setColor4f(T(mskia::scale(kBrassDark, 1.0f, 0.9f)), nullptr);
+        p.setColor4f(material::skia::toSkColor(
+                         T(material::scale(kBrassDark, 1.0f, 0.9f))),
+                     nullptr);
         c.drawArc(ring, 330, 150, false, p);
         // the recess and its catchlight
         p.setStyle(SkPaint::kFill_Style);
-        p.setColor4f(T(mskia::scale(kBrassDark, 1.1f)), nullptr);
+        p.setColor4f(
+            material::skia::toSkColor(T(material::scale(kBrassDark, 1.1f))),
+            nullptr);
         c.drawCircle(m, m, g(4.4f), p);
-        p.setColor4f(T(mskia::scale(kBrass, 1.35f)), nullptr);
+        p.setColor4f(
+            material::skia::toSkColor(T(material::scale(kBrass, 1.35f))),
+            nullptr);
         c.drawCircle(m, m, g(3.1f), p);
-        p.setColor4f(T(mskia::scale(kBrassLit, 1.3f, 0.85f)), nullptr);
+        p.setColor4f(material::skia::toSkColor(
+                         T(material::scale(kBrassLit, 1.3f, 0.85f))),
+                     nullptr);
         c.drawCircle(m - g(1.0f), m - g(1.1f), g(1.3f), p);
       }));
 }
@@ -917,18 +939,19 @@ inline constexpr float kPixSizePx = 10.0f;
 
 inline PixText bakeText(const std::string& s, weave::FontContext& fonts,
                         const sk_sp<SkTypeface>& face, float sizePx) {
-  const weave::TextStyle st = weave::textStyle({.face = face,
-                                                .size = sizePx,
-                                                .color = SkColor4f{1, 1, 1, 1},
-                                                .aliased = true,
-                                                .color8 = true});
+  const weave::TextStyle st = weave::textStyle(
+      {.face = face,
+       .size = sizePx,
+       .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
+       .aliased = true,
+       .color8 = true});
   const std::u8string u8(reinterpret_cast<const char8_t*>(s.c_str()));
   return ::sigil::compose::kit::bakeRun(u8, fonts, st);
 }
 
 /** Draw a baked mask at 2x, nearest, with the +1 GUI px 25% shadow. */
 inline void blitText(SkCanvas& c, const PixText& t, float x, float y,
-                     SkColor4f col, bool shadow = true) {
+                     material::Color col, bool shadow = true) {
   ::sigil::compose::kit::draw(
       c, t, {g(x), g(y)},
       {.colour = col,

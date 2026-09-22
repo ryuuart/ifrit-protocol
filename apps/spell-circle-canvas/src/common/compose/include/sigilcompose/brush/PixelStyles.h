@@ -31,6 +31,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -103,8 +104,8 @@ enum class BevelEnds : uint8_t {
  *  a 3 px lift over a 2 px drop is one common spelling, 1 px over 1 px
  *  the other. */
 struct BevelPair {
-  SkColor4f light = {1, 1, 1, 0.6f};
-  SkColor4f dark = {0, 0, 0, 0.5f};
+  material::Color light = {1, 1, 1, 0.6f};
+  material::Color dark = {0, 0, 0, 0.5f};
   float lightWidth = 1.0f;
   float darkWidth = 1.0f;
   /** Light on the far edges, dark on the near ones. */
@@ -143,8 +144,8 @@ struct BevelPair {
 };
 
 /** A bevel pair in two stated tones, @p width px each. */
-inline BevelPair bevelPair(SkColor4f light, SkColor4f dark, float width = 1.0f,
-                           bool sunken = false) {
+inline BevelPair bevelPair(material::Color light, material::Color dark,
+                           float width = 1.0f, bool sunken = false) {
   return BevelPair{light, dark, width, width, sunken};
 }
 
@@ -155,10 +156,10 @@ inline BevelPair bevelPair(SkColor4f light, SkColor4f dark, float width = 1.0f,
  *  and saturates there, while a shadow keeps the face's hue. A face near
  *  white has nowhere to lighten to and wants its tones stated
  *  outright. */
-inline BevelPair bevelPair(SkColor4f base, float lift, float drop,
+inline BevelPair bevelPair(material::Color base, float lift, float drop,
                            float width = 1.0f, bool sunken = false) {
-  return BevelPair{material::skia::lighten(base, lift),
-                   material::skia::scale(base, 1.0f - drop), width, width,
+  return BevelPair{sigil::material::lighten(base, lift),
+                   sigil::material::scale(base, 1.0f - drop), width, width,
                    sunken};
 }
 
@@ -173,7 +174,7 @@ inline BevelPair bevelPair(SkColor4f base, float lift, float drop,
  *  stands the brackets outside the box, and the decoration declares that
  *  reach. */
 struct Brackets {
-  SkColor4f color = {1, 1, 1, 1};
+  material::Color color = {1, 1, 1, 1};
   float arm = 18.0f;
   float width = 2.0f;
   float gap = 0.0f;
@@ -189,7 +190,8 @@ struct Brackets {
 };
 
 inline Brackets brackets(
-    SkColor4f color, float arm = 18.0f, float width = 2.0f, float gap = 0.0f,
+    material::Color color, float arm = 18.0f, float width = 2.0f,
+    float gap = 0.0f,
     geometry::shapes::Corner corners = geometry::shapes::Corner::All) {
   return Brackets{color, arm, width, gap, corners};
 }
@@ -207,7 +209,7 @@ inline Brackets brackets(
  *  value. The radial ladder is SigilGeometry's `shapes::ticks`, which
  *  states the angle convention this rail has no use for. */
 struct TickRail {
-  SkColor4f color = {1, 1, 1, 0.5f};
+  material::Color color = {1, 1, 1, 0.5f};
   float pitch = 8.0f;
   float minor = 4.0f;
   float major = 9.0f;
@@ -226,8 +228,9 @@ struct TickRail {
 };
 
 inline TickRail tickRail(
-    SkColor4f color, float pitch = 8.0f, float minor = 4.0f, float major = 9.0f,
-    int majorEvery = 4, geometry::path::Edge edge = geometry::path::Edge::Top) {
+    material::Color color, float pitch = 8.0f, float minor = 4.0f,
+    float major = 9.0f, int majorEvery = 4,
+    geometry::path::Edge edge = geometry::path::Edge::Top) {
   return TickRail{color, pitch, minor, major, 1.0f, majorEvery, 0.5f, edge};
 }
 
@@ -242,7 +245,7 @@ inline TickRail tickRail(
  *  reading; source-over in a low black alpha is the print reading.
  *  @p phase slides the rows, in px. */
 struct Scanlines {
-  SkColor4f color = {0, 0, 0, 0.2f};
+  material::Color color = {0, 0, 0, 0.2f};
   float period = 4.0f;
   float on = 2.0f;
   float phase = 0.0f;
@@ -256,7 +259,7 @@ struct Scanlines {
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
 
-inline Scanlines scanlines(SkColor4f color, float period = 4.0f,
+inline Scanlines scanlines(material::Color color, float period = 4.0f,
                            float on = 2.0f,
                            SkBlendMode blend = SkBlendMode::kSrcOver) {
   return Scanlines{color, period, on, 0.0f, blend};
@@ -283,7 +286,7 @@ inline Scanlines scanlines(SkColor4f color, float period = 4.0f,
  *  stipple would need one tile per palette per colour, where one mask
  *  serves every colour it is ever drawn in. */
 struct Stipple {
-  SkColor4f color = {0, 0, 0, 1};
+  material::Color color = {0, 0, 0, 1};
   /** The 50 % checkerboard: cells (0,0) and (1,1) of a 2 × 2 lattice. */
   uint64_t bits = 0b1001;
   int size = 2;
@@ -297,7 +300,7 @@ struct Stipple {
 
 /** The 50 % checkerboard in @p color — `stipple(x, y) = (x + y) & 1`,
  *  which is the one every toolkit greyed a dead control out with. */
-inline Stipple stipple(SkColor4f color, float cell = 1.0f) {
+inline Stipple stipple(material::Color color, float cell = 1.0f) {
   return Stipple{color, 0b1001, 2, cell};
 }
 
@@ -305,6 +308,6 @@ inline Stipple stipple(SkColor4f color, float cell = 1.0f) {
  *  order a Bayer threshold matrix fills them — the ordered dither, one
  *  tone of it. @p size is 2, 4 or 8; @p on runs from 0 (nothing) to
  *  `size * size` (solid). */
-Stipple dither(SkColor4f color, int on, int size = 4, float cell = 1.0f);
+Stipple dither(material::Color color, int on, int size = 4, float cell = 1.0f);
 
 }  // namespace sigil::compose::styles

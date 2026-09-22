@@ -4,6 +4,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildata/scale/Scale.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -14,13 +15,14 @@
 #include <vector>
 
 namespace data = sigil::data;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 using namespace sigil::compose;
 
 namespace {
 constexpr float kWidth = 336;
 constexpr float kHeight = 158;
-constexpr SkColor4f kInk{0.30f, 0.83f, 0.78f, 1};
+constexpr material::Color kInk{0.30f, 0.83f, 0.78f, 1};
 
 struct Mapping {
   const char* title;
@@ -34,14 +36,16 @@ struct Mapping {
  *  is drawn as a curve, as a band or as a point. */
 sigil::weave::StyleSheet scaleSheet() {
   sigil::weave::StyleSheet dressed = sketch::kit::houseTheme().styleSheet();
-  dressed.set("plotRule", {.color = SkColor4f{0.20f, 0.25f, 0.29f, 1}});
+  dressed.set("plotRule", {.color = material::skia::toSkColor(
+                               material::Color{0.20f, 0.25f, 0.29f, 1})});
   dressed.set("plotTick", {.face = sigil::weave::defaultFace(),
                            .size = 11,
-                           .color = SkColor4f{0.64f, 0.70f, 0.76f, 1},
+                           .color = material::skia::toSkColor(
+                               material::Color{0.64f, 0.70f, 0.76f, 1}),
                            .track = 0});
-  dressed.set("plotTrace", {.color = kInk});
-  dressed.set("plotBar", {.color = kInk});
-  dressed.set("plotMark", {.color = kInk});
+  dressed.set("plotTrace", {.color = material::skia::toSkColor(kInk)});
+  dressed.set("plotBar", {.color = material::skia::toSkColor(kInk)});
+  dressed.set("plotMark", {.color = material::skia::toSkColor(kInk)});
   return dressed;
 }
 

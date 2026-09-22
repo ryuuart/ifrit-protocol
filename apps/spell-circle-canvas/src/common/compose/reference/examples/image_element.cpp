@@ -12,9 +12,11 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace skia = sigil::material::skia;
 
@@ -23,9 +25,9 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 260};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kCell = hexColor(0x1c232a);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kCell = hexColor(0x1c232a);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
 
 /** Eight by four pixels of checker, twice as wide as it is tall, so a
  *  square box is a box the fit has to do something about. */
@@ -64,7 +66,8 @@ Element cell(const char* caption, Element leaf) {
                      .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({std::move(leaf)}),
-                 text(caption).font({.size = 12, .color = kAsh})});
+                 text(caption).font(
+                     {.size = 12, .color = material::skia::toSkColor(kAsh)})});
 }
 
 }  // namespace

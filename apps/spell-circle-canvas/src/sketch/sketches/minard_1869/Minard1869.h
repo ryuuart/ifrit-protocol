@@ -137,8 +137,8 @@ struct Minard1869 {
 
   /** A COAST OR A RIVER: a smooth path the placed points steer, stroked
    *  along as the beat runs. */
-  Element river(const std::vector<SkPoint>& pts, float width, SkColor4f colour,
-                const char* key, float t0);
+  Element river(const std::vector<SkPoint>& pts, float width,
+                sigil::material::Color colour, const char* key, float t0);
 
   // =======================================================================
   // HANNIBAL — the panel nobody has seen
@@ -164,13 +164,14 @@ struct Minard1869 {
    *  on the width Profile seam, bevelled on the outside of each turn — the
    *  chord a lithographer's overlapping treads leave. The audit reads the
    *  same value, so what it measures is what the sheet shows. */
-  brush::Ribbon flowRibbon(const WidthProfile& prof, SkColor4f colour);
+  brush::Ribbon flowRibbon(const WidthProfile& prof,
+                           sigil::material::Color colour);
 
   /** One band, on a node sized to the ROUTE's bounding box so that the
    *  profile's `max()` is actually load bearing (the band overflows that
    *  box by up to w/2 on each side). */
   Element bandElement(const SkPath& spine, const WidthProfile& prof,
-                      SkColor4f colour, const std::string& key,
+                      sigil::material::Color colour, const std::string& key,
                       Animatable<float> reveal);
 
   /** A strength written ACROSS its zone — Minard's "écrits en travers des

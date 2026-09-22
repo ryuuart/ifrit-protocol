@@ -109,16 +109,14 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   }
 
   // --- generated materials, built ONCE and HELD (identity = pruning) ---
-  hazard = patterns::stripes(6, 10, mskia::toColor(kChromeHi));
+  hazard = patterns::stripes(6, 10, kChromeHi);
   hazard.rotate(45);
-  hatchA = patterns::stripes(1, 7, mskia::toColor(mskia::withAlpha(kD4, 0.5f)));
+  hatchA = patterns::stripes(1, 7, sigil::material::withAlpha(kD4, 0.5f));
   hatchA.rotate(45);
-  hatchB =
-      patterns::stripes(1, 7, mskia::toColor(mskia::withAlpha(kD1, 0.55f)));
+  hatchB = patterns::stripes(1, 7, sigil::material::withAlpha(kD1, 0.55f));
   hatchB.rotate(-45);
-  dither =
-      patterns::checker(1.5f, mskia::toColor(mskia::withAlpha(kPanelSh, 0.28f)),
-                        mskia::toColor(mskia::withAlpha(kPanelHi, 0.15f)));
+  dither = patterns::checker(1.5f, sigil::material::withAlpha(kPanelSh, 0.28f),
+                             sigil::material::withAlpha(kPanelHi, 0.15f));
   // LUMINANCE grain (one channel, not three), so the kOverlay pass
   // reads as LIGHT on the oxblood ramp instead of hue-shifting it —
   // `field::noise()` is fractal RGB and turns the page into rainbow

@@ -36,12 +36,14 @@
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/path/Band.h>
 #include <sigilgeometry/path/Profile.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
 #include <functional>
 #include <string>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
 namespace shapers = sigil::geometry::shapers;
@@ -59,10 +61,10 @@ constexpr float kAmplitude = 11;   // the wave law's swing, px
 constexpr float kWavelength = 54;  // px per cycle of it
 constexpr float kRail = 15;        // the constant offset, px
 
-constexpr SkColor4f kSpine{0.44f, 0.70f, 0.95f, 1};
-constexpr SkColor4f kFigure{0.86f, 0.80f, 0.66f, 1};
-constexpr SkColor4f kBandFill{0.95f, 0.62f, 0.30f, 0.34f};
-constexpr SkColor4f kBandEdge{0.95f, 0.62f, 0.30f, 1};
+constexpr material::Color kSpine{0.44f, 0.70f, 0.95f, 1};
+constexpr material::Color kFigure{0.86f, 0.80f, 0.66f, 1};
+constexpr material::Color kBandFill{0.95f, 0.62f, 0.30f, 0.34f};
+constexpr material::Color kBandEdge{0.95f, 0.62f, 0.30f, 1};
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
@@ -83,19 +85,19 @@ SkPath spine() {
           SkMatrix::Translate((kCell - art) * 0.5f, (kPicture - art) * 0.5f));
 }
 
-SkPaint strokePaint(SkColor4f color, float width) {
+SkPaint strokePaint(material::Color color, float width) {
   SkPaint p;
   p.setAntiAlias(true);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(width);
-  p.setColor4f(color);
+  p.setColor4f(material::skia::toSkColor(color));
   return p;
 }
 
-SkPaint fillPaint(SkColor4f color) {
+SkPaint fillPaint(material::Color color) {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(color);
+  p.setColor4f(material::skia::toSkColor(color));
   return p;
 }
 

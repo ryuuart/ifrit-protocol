@@ -53,7 +53,7 @@ void Ribbon::paint(SkCanvas& c, const PaintContext& ctx) const {
   const Fill band =
       fillMaterial ? resolveFill(*fillMaterial, ctx) : resolveRef(fill, ctx);
   if (band.kind == Fill::Kind::Color)
-    p.setColor4f(band.colorValue, nullptr);
+    p.setColor4f(material::skia::toSkColor(band.colorValue), nullptr);
   else if (band.kind == Fill::Kind::Shader)
     p.setShader(band.shaderValue);
   c.drawPath(region, p);

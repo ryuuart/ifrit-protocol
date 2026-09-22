@@ -16,6 +16,7 @@
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Sprites.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -26,6 +27,7 @@
 #include <string>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
@@ -39,7 +41,7 @@ constexpr float kPicture = 190;
 
 constexpr float kBakeSizes[3] = {9, 12, 16};      // the sweep in the first cell
 constexpr float kScale = 3;                       // integer, always
-constexpr SkColor4f kOn{0.62f, 0.98f, 0.72f, 1};  // what a mask is tinted
+constexpr material::Color kOn{0.62f, 0.98f, 0.72f, 1};  // what a mask is tinted
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -57,10 +59,11 @@ weave::TextStyle bakeFace(float size, bool proportional = false) {
       weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
   const sk_sp<SkTypeface> text = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
-  return weave::textStyle({.face = proportional ? text : code,
-                           .size = size,
-                           .color = SkColor4f{1, 1, 1, 1},
-                           .aliased = true});
+  return weave::textStyle(
+      {.face = proportional ? text : code,
+       .size = size,
+       .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
+       .aliased = true});
 }
 
 sketch::kit::ComparisonCase example(const char* title, const char* control,
@@ -203,7 +206,7 @@ struct PixFontDotSprite {
         "The transparent ring prevents square edges.",
         custom("pixfont.dot",
                [image](SkCanvas& canvas, const PaintContext& pc) {
-                 static constexpr SkColor4f kTints[3] = {
+                 static constexpr material::Color kTints[3] = {
                      {1, 1, 1, 1}, kOn, {1.0f, 0.55f, 0.35f, 1}};
                  const float side = std::min(90.0f, pc.size.width() / 3.4f);
                  // A white stamp is TINTED by modulating it —
@@ -213,7 +216,8 @@ struct PixFontDotSprite {
                  SkPaint paint;
                  for (int i = 0; i < 3; ++i) {
                    paint.setColorFilter(SkColorFilters::Blend(
-                       kTints[i], nullptr, SkBlendMode::kModulate));
+                       material::skia::toSkColor(kTints[i]), nullptr,
+                       SkBlendMode::kModulate));
                    canvas.drawImageRect(
                        image, SkRect::MakeXYWH(i * (side + 8), 10, side, side),
                        SkSamplingOptions(SkFilterMode::kLinear), &paint);
@@ -221,8 +225,9 @@ struct PixFontDotSprite {
                  // …and the same stamp small enough that the
                  // transparent margin is the only reason its edge
                  // is not a square.
-                 paint.setColorFilter(SkColorFilters::Blend(
-                     kOn, nullptr, SkBlendMode::kModulate));
+                 paint.setColorFilter(
+                     SkColorFilters::Blend(material::skia::toSkColor(kOn),
+                                           nullptr, SkBlendMode::kModulate));
                  for (int i = 0; i < 9; ++i)
                    canvas.drawImageRect(
                        image, SkRect::MakeXYWH(i * 38.0f, side + 26, 14, 14),

@@ -240,8 +240,8 @@ void GenesisFire::writePlanPool() {
     } else {
       const float k = std::clamp(1.0f - since / 96.0f, 0.0f, 1.0f);
       fr[i] = 1;
-      const SkColor4f hot = overlap(12);
-      tn[i] = {hot.fR, hot.fG, hot.fB, 0.35f + 0.65f * k};
+      const sigil::material::Color hot = overlap(12);
+      tn[i] = {hot.r, hot.g, hot.b, 0.35f + 0.65f * k};
       sc[i] = 1.0f + 0.5f * k;
     }
   }

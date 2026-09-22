@@ -46,6 +46,7 @@
 
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
@@ -131,7 +132,7 @@ struct ReflectionLab {
     sketch::kit::stage(ctx,
                        {.size = {880, 520},
                         .captureAt = 1.6,
-                        .background = SkColor4f{0.02f, 0.024f, 0.035f, 1.0f}});
+                        .background = material::Color{0.02f, 0.024f, 0.035f, 1.0f}});
     row = balls();
     // The lower half of a bake is a floor, and a sphere reflects it
     // straight down where nothing interesting is; a flat ground colour

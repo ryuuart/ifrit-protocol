@@ -8,6 +8,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Operations.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Color.h>
@@ -54,16 +55,16 @@ using kit::ring;
 // couple of stops under it and only the arris reaches the daylight value —
 // otherwise cream wood and cream light have no separation and the fretwork
 // stops silhouetting, which is the whole point of a ranma.
-const SkColor4f kHinoki = hexColor(0xD6BC89);      // planed cypress, room-side
-const SkColor4f kHinokiLit = hexColor(0xF5E6C4);   // #E9D3A0's daylight arris
-const SkColor4f kHinokiDark = hexColor(0x8E6C3B);  // notch shadow
-const SkColor4f kKeyaki = hexColor(0x76472A);      // zelkova frame
-const SkColor4f kKeyakiLit = hexColor(0x9C6B3E);
-const SkColor4f kKeyakiDark = hexColor(0x4B2A12);
-const SkColor4f kGlow = hexColor(0xF4E3B8);  // the far room's lamp
-const SkColor4f kNight = hexColor(0x0D0906);
-const SkColor4f kSeam = hexColor(0x4A3620, 0.55f);
-const SkColor4f kCaption = hexColor(0xD8C9A8, 0.60f);
+const mat::Color kHinoki = hexColor(0xD6BC89);      // planed cypress, room-side
+const mat::Color kHinokiLit = hexColor(0xF5E6C4);   // #E9D3A0's daylight arris
+const mat::Color kHinokiDark = hexColor(0x8E6C3B);  // notch shadow
+const mat::Color kKeyaki = hexColor(0x76472A);      // zelkova frame
+const mat::Color kKeyakiLit = hexColor(0x9C6B3E);
+const mat::Color kKeyakiDark = hexColor(0x4B2A12);
+const mat::Color kGlow = hexColor(0xF4E3B8);  // the far room's lamp
+const mat::Color kNight = hexColor(0x0D0906);
+const mat::Color kSeam = hexColor(0x4A3620, 0.55f);
+const mat::Color kCaption = hexColor(0xD8C9A8, 0.60f);
 
 // ---------------------------------------------------------------------------
 // Composition. The field is FIXED; the pitch is the free constant —
@@ -127,7 +128,7 @@ inline float clamp01(double v) { return (float)std::clamp(v, 0.0, 1.0); }
 // ---------------------------------------------------------------------------
 // The timber material — ONE SkSL recipe, seeded per strip.
 //
-// EVERY PIECE IS A BOARD, and `material::kit::timber` is what a board is: a
+// EVERY PIECE IS A BOARD, and `mat::kit::timber` is what a board is: a
 // flat face between a narrow lit arris and a narrow shadowed one, with grain
 // running down the piece and a fine tooth over the whole face — generated
 // per pixel from its parameters and a seed, never from an image.
@@ -146,7 +147,7 @@ inline float clamp01(double v) { return (float)std::clamp(v, 0.0, 1.0); }
 // identity is stable and a re-describe prunes.
 
 struct Timber {
-  SkColor4f base, light, dark;
+  mat::Color base, light, dark;
   float grain;
   float figure;
 };
@@ -164,9 +165,9 @@ class TimberBank {
             bool along = false) {
     return Paint::recipe(m_bank.get(
         matkit::timberRecipe(),
-        matkit::TimberParameters{.base = skia::toColor(t.base),
-                                 .light = skia::toColor(t.light),
-                                 .dark = skia::toColor(t.dark),
+        matkit::TimberParameters{.base = skia::toColor(sigil::material::skia::toSkColor(t.base)),
+                                 .light = skia::toColor(sigil::material::skia::toSkColor(t.light)),
+                                 .dark = skia::toColor(sigil::material::skia::toSkColor(t.dark)),
                                  .span = span,
                                  .flip = flip ? 1.0f : 0.0f,
                                  .along = along ? 1.0f : 0.0f,

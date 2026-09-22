@@ -66,6 +66,7 @@
 
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -84,6 +85,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace weave = sigil::weave;
@@ -111,11 +113,11 @@ constexpr float kSweep = 0.28f;  // the three threshold weights: they sum to 1
 constexpr float kSpeckle = 0.30f;
 constexpr float kPatch = 0.42f;
 
-const SkColor4f kPlate{0.027f, 0.024f, 0.031f, 1};
-const SkColor4f kInk{0.96f, 0.91f, 0.82f, 1};    // the resolved letter
-const SkColor4f kEmber{1.00f, 0.47f, 0.13f, 1};  // the crossing band
-const SkColor4f kLabel{0.62f, 0.55f, 0.50f, 1};
-const SkColor4f kFaint{0.38f, 0.33f, 0.31f, 1};
+const material::Color kPlate{0.027f, 0.024f, 0.031f, 1};
+const material::Color kInk{0.96f, 0.91f, 0.82f, 1};    // the resolved letter
+const material::Color kEmber{1.00f, 0.47f, 0.13f, 1};  // the crossing band
+const material::Color kLabel{0.62f, 0.55f, 0.50f, 1};
+const material::Color material::skia::toSkColor(kFaint){0.38f, 0.33f, 0.31f, 1};
 
 // ---------------------------------------------------------------------------
 // The pass
@@ -221,7 +223,7 @@ struct EmberDecode {
     const auto burnt = [&](float size, float track) {
       return weave::Type{.face = face,
                          .size = size,
-                         .color = SkColor4f{1, 1, 1, 1},
+                         .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
                          .track = track};
     };
     const mskia::Paint burn = burnMaterial(recipe);
@@ -249,10 +251,10 @@ struct EmberDecode {
         .fill(mskia::Paint::solid(kPlate))
         // The faint remark is the sheet's own voice: every line is set in it
         // unless it says otherwise.
-        .font({.size = 10.5f, .color = kFaint, .track = 0.8f})
+        .font({.size = 10.5f, .color = material::skia::toSkColor(kFaint), .track = 0.8f})
         .children(
             {text("TEXT AS A SAMPLER · ONE SkSL PASS OVER ONE RENDERED LINE")
-                 .font({.size = 11.5f, .color = kLabel, .track = 1.6f}),
+                 .font({.size = 11.5f, .color = material::skia::toSkColor(kLabel), .track = 1.6f}),
              text(u8"EMBER DECODE")
                  .font(burnt(78, 5.0f))
                  .key("burn-display")

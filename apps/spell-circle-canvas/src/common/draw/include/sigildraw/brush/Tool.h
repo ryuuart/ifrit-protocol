@@ -7,13 +7,14 @@
  */
 
 #include <include/core/SkColor.h>
+#include <sigilcore/callable/Callable.h>
 #include <sigildraw/Constants.h>
 #include <sigildraw/brush/Dab.h>
 #include <sigildraw/brush/Dynamics.h>
 #include <sigildraw/brush/Grain.h>
 #include <sigildraw/brush/Pressure.h>
 #include <sigildraw/brush/Shape.h>
-#include <sigilcore/callable/Callable.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <functional>
 #include <optional>
@@ -64,7 +65,7 @@ enum class Rotation {
  *  input only, a stored path carrying no clock. */
 struct Tool {
   Tip tip = Tip::Dust;
-  SkColor4f color{0, 0, 0, 1};
+  material::Color color{0, 0, 0, 1};
   float width = 8.0f;
   float spacing = 1.0f;
   float opacity = 0.45f;
@@ -105,19 +106,19 @@ struct Tool {
 
 /** Stock tools. Every field is public on the returned value, so a sketch
  *  tunes one or describes a tool of its own without a catalogue. */
-[[nodiscard]] Tool pencil(SkColor4f color, float width = 1.4f);
+[[nodiscard]] Tool pencil(material::Color color, float width = 1.4f);
 /** Dry-media particles dispersed around the centreline — the smudging,
  *  grainy stick. */
-[[nodiscard]] Tool charcoal(SkColor4f color, float width = 9.0f);
+[[nodiscard]] Tool charcoal(material::Color color, float width = 9.0f);
 /** One continuous pressure-width mark with a chisel tip — the flat,
  *  saturated pen. */
-[[nodiscard]] Tool marker(SkColor4f color, float width = 16.0f);
+[[nodiscard]] Tool marker(material::Color color, float width = 16.0f);
 /** A wet, translucent load that pools and bleeds where the stroke
  *  slows. */
-[[nodiscard]] Tool watercolor(SkColor4f color, float width = 22.0f);
+[[nodiscard]] Tool watercolor(material::Color color, float width = 22.0f);
 /** Particles scattered around each sample rather than laid on it — the
  *  airbrush. */
-[[nodiscard]] Tool spray(SkColor4f color, float width = 18.0f);
+[[nodiscard]] Tool spray(material::Color color, float width = 18.0f);
 
 /** Rolls the stroke-wide randomness once — the pressure envelope's jitter
  *  or variation and the opacity noise — from the pen's stream. A live

@@ -40,12 +40,14 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
 #include <memory>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
@@ -61,8 +63,8 @@ constexpr float kArt = 176;  // the cut-out's box inside a cell
 constexpr float kWash = 0.30f;  // the faint cut-out's alpha, under 0.5
 constexpr float kGlow = 11;     // the outer glow's blur extent, px
 
-constexpr SkColor4f kFigure{0.86f, 0.79f, 0.62f, 1};
-constexpr SkColor4f kHalo{0.36f, 0.72f, 1.00f, 0.95f};
+constexpr material::Color kFigure{0.86f, 0.79f, 0.62f, 1};
+constexpr material::Color kHalo{0.36f, 0.72f, 1.00f, 0.95f};
 
 /** The cut-out: a six-pointed star with a hole punched clean through it,
  *  on nothing at all. Its box is a rectangle, its silhouette is neither a
@@ -76,7 +78,7 @@ std::shared_ptr<const sigil::image::ImageAsset> cutOut(float alpha) {
   canvas->clear(SK_ColorTRANSPARENT);
   SkPaint paint;
   paint.setAntiAlias(true);
-  paint.setColor4f({kFigure.fR, kFigure.fG, kFigure.fB, alpha});
+  paint.setColor4f({kFigure.r, kFigure.g, kFigure.b, alpha});
   canvas->drawPath(shapes::star(6, 0.46f, 0.14f).path({kSide, kSide}), paint);
   SkPaint punch;
   punch.setAntiAlias(true);

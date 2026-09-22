@@ -66,7 +66,7 @@ namespace {
 constexpr float kCell = 170;    // one cell's width, px
 constexpr float kSwatch = 100;  // the painted square in it, px
 
-constexpr SkColor4f kEdge{1, 1, 1, 0.22f};
+constexpr mat::Color kEdge{1, 1, 1, 0.22f};
 
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {

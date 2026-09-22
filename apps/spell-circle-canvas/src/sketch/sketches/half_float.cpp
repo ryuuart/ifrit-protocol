@@ -16,6 +16,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilskia/graphite/Pixels.h>
@@ -28,6 +29,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace img = sigil::image;
 namespace skia = sigil::skia;

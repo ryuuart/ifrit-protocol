@@ -11,6 +11,8 @@
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/core/Shelf.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilskia/draw/Direct.h>
 
 #include <algorithm>
@@ -21,7 +23,7 @@
 namespace sigil::compose::instancing {
 
 size_t Pool::add(SkPoint position, int frame, float rotateRadians, float scale,
-                 SkColor4f tint) {
+                 material::Color tint) {
   m_positions.push_back(position);
   m_rotations.push_back(rotateRadians);
   m_scales.push_back(scale);
@@ -274,10 +276,10 @@ void stamp(SkCanvas& canvas, const PaintContext& ctx, CellSheet& atlas,
         cellTex.width() * 0.5f, cellTex.height() * 0.5f));
     tex.push_back(cellTex);
     if (nonUniform) sizes.push_back(sizeMul);
-    SkColor4f t = tints[i];
+    material::Color t = tints[i];
     if (pool.hasAlphas())
-      t.fA *= pool.alphas()[i];  // the fade lane composes with the tint
-    const SkColor tint = t.toSkColor();
+      t.a *= pool.alphas()[i];  // the fade lane composes with the tint
+    const SkColor tint = material::skia::toSkColor(t).toSkColor();
     tinted |= tint != SK_ColorWHITE;
     colors.push_back(tint);
   }

@@ -31,6 +31,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/brush/Decorations.h>  // PathFormat keylines in the presets
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -57,7 +58,7 @@ namespace sigil::compose::styles {
 
 /** Drop shadow — `shadow` under the name it has in this family.
  *  Attach as the FIRST background, so everything else paints over it. */
-inline Shadow dropShadow(SkColor4f color = {0, 0, 0, 0.5f},
+inline Shadow dropShadow(material::Color color = {0, 0, 0, 0.5f},
                          SkVector offset = {3, 3}, float size = 6) {
   return shadow(color, offset, size);
 }
@@ -72,7 +73,7 @@ inline Shadow dropShadow(SkColor4f color = {0, 0, 0, 0.5f},
  *  through a mask filter — has device-dependent bounds, so it floods the
  *  whole interior when the node is cached at a non-origin offset. */
 struct InnerShadow {
-  SkColor4f color = {0, 0, 0, 0.5f};
+  material::Color color = {0, 0, 0, 0.5f};
   SkVector offset = {0, 3};
   float size = 5;  ///< blur extent, px
 
@@ -82,14 +83,14 @@ struct InnerShadow {
 };
 
 /** Inner Glow: an inner shadow with no offset — edges light up inward. */
-inline InnerShadow innerGlow(SkColor4f color, float size) {
+inline InnerShadow innerGlow(material::Color color, float size) {
   return InnerShadow{color, {0, 0}, size};
 }
 
 /** Outer Glow: the shape re-drawn blurred (optionally spread wider) —
  *  attach as a background; the fill covers the center. */
 struct OuterGlow {
-  SkColor4f color = {1, 1, 1, 0.8f};
+  material::Color color = {1, 1, 1, 0.8f};
   float size = 8;    ///< blur extent, px
   float spread = 0;  ///< hard expansion before the blur, px
 
@@ -109,8 +110,8 @@ struct BevelEmboss {
   float depth = 3;  ///< plane offset, px
   float size = 4;   ///< soften blur, px
   float angleDeg = 120;
-  SkColor4f highlight = {1, 1, 1, 0.65f};
-  SkColor4f shadow = {0, 0, 0, 0.45f};
+  material::Color highlight = {1, 1, 1, 0.65f};
+  material::Color shadow = {0, 0, 0, 0.45f};
 
   bool operator==(const BevelEmboss&) const = default;
 
@@ -141,10 +142,11 @@ struct Overlay {
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
 
-inline Overlay colorOverlay(SkColor4f color,
+inline Overlay colorOverlay(material::Color color,
                             SkBlendMode blend = SkBlendMode::kSrcOver,
                             float opacity = 1.0f) {
-  return Overlay{material::skia::Paint::solid(color), blend, opacity};
+  return Overlay{material::skia::Paint::solid(material::skia::toSkColor(color)),
+                 blend, opacity};
 }
 inline Overlay gradientOverlay(material::skia::Paint gradient,
                                SkBlendMode blend = SkBlendMode::kSrcOver,
@@ -157,8 +159,8 @@ inline Overlay gradientOverlay(material::skia::Paint gradient,
  *  on top. Attach with `.filter()`, and chain with `.then()` for a tighter
  *  core over a wider halo: `text(...).filter(styles::textGlow(cyan, 6))`.
  *  The kernel's `Effect::glow`, under the name this family gives it. */
-inline material::skia::Effect textGlow(SkColor4f color, float sigma) {
-  return material::skia::Effect::glow(color, sigma);
+inline material::skia::Effect textGlow(material::Color color, float sigma) {
+  return material::skia::Effect::glow(material::skia::toSkColor(color), sigma);
 }
 
 /** The water/heat warp: the node's rendered layer resampled through a sine

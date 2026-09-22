@@ -17,6 +17,7 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -67,32 +68,36 @@ constexpr float kW = 1016.0f, kH = 720.0f;
 // that way on purpose: a colour with an alpha would have to darken something
 // to read, and nothing in this interface darkens anything.
 
-const SkColor4f kGround = hexColor(0x060719);  // the plate's own p10; #0F1023,
-                                               // its p50, is what the CONTRIB-
-                                               // UTIONS above are taken against
-const SkColor4f kProse = hexColor(0x1B2138);  // Japanese glyph peaks, +46+54+77
-const SkColor4f kPanel = hexColor(0x101F27);  // the lightened panel, +16+31+39
-const SkColor4f kBodyMid = hexColor(0x475F86);   // pedestal centre  (#334D83)
-const SkColor4f kBodyEdge = hexColor(0x040A24);  // pedestal edge    (#151E52)
-const SkColor4f kBarTopHi =
+const mat::Color kGround =
+    hexColor(0x060719);  // the plate's own p10; #0F1023,
+                         // its p50, is what the CONTRIB-
+                         // UTIONS above are taken against
+const mat::Color kProse =
+    hexColor(0x1B2138);  // Japanese glyph peaks, +46+54+77
+const mat::Color kPanel = hexColor(0x101F27);  // the lightened panel, +16+31+39
+const mat::Color kBodyMid = hexColor(0x475F86);   // pedestal centre  (#334D83)
+const mat::Color kBodyEdge = hexColor(0x040A24);  // pedestal edge    (#151E52)
+const mat::Color kBarTopHi =
     hexColor(0x587962);  // top bar bright edge   (#67899E)
-const SkColor4f kBarTopLo =
+const mat::Color kBarTopLo =
     hexColor(0x234A3C);  // top bar dark middle   (#325A74)
-const SkColor4f kBarBotHi = hexColor(0x6FA586);  // bottom bar peak (#7EB5CA)
-const SkColor4f kBarBotLo = hexColor(0x578C70);  // bottom bar middle (#669CB1)
-const SkColor4f kRail = hexColor(0x1D3242);  // side hairlines, dimmer than bars
-const SkColor4f kConsoleInk =
+const mat::Color kBarBotHi = hexColor(0x6FA586);  // bottom bar peak (#7EB5CA)
+const mat::Color kBarBotLo = hexColor(0x578C70);  // bottom bar middle (#669CB1)
+const mat::Color kRail =
+    hexColor(0x1D3242);  // side hairlines, dimmer than bars
+const mat::Color kConsoleInk =
     hexColor(0x46C89A);  // ~ #84FFFF - #425689, the add the
                          // reference's own body demands; the
                          // green is trimmed against the
                          // measured core #72F9F5, not guessed
-const SkColor4f kWire = hexColor(0x3A6257);   // hairline peak #5683AD on a
+const mat::Color kWire = hexColor(0x3A6257);  // hairline peak #5683AD on a
                                               // #1C2156 ground, dLuma +55
-const SkColor4f kMinds = hexColor(0xA6B7BE);  // `no double minds`, +166+183+190
-const SkColor4f kAlright = hexColor(0xB3B6BF);   // `make me feel alright?` core
-const SkColor4f kCover = hexColor(0x7A3416);     // `COVer me`, dr-db = +40
-const SkColor4f kMagenta = hexColor(0x3A1B3C);   // the streaks, p90 #603871
-const SkColor4f kWordmark = hexColor(0x2B3A54);  // the rotated Copland lockup
+const mat::Color kMinds =
+    hexColor(0xA6B7BE);  // `no double minds`, +166+183+190
+const mat::Color kAlright = hexColor(0xB3B6BF);  // `make me feel alright?` core
+const mat::Color kCover = hexColor(0x7A3416);    // `COVer me`, dr-db = +40
+const mat::Color kMagenta = hexColor(0x3A1B3C);  // the streaks, p90 #603871
+const mat::Color kWordmark = hexColor(0x2B3A54);  // the rotated Copland lockup
 
 // ---------------------------------------------------------------------------
 // THE WINDOW. Measured off Layer 04 and shifted +58 in x, so the reconstruction
@@ -132,15 +137,15 @@ inline shapes::OutlineFunction barOutline(float shear) {
  *  89 ... 85 83 89 99 101 107 125 137 122 93 66 down its 30 rows), which is
  *  where the "brushed capstan" reading comes from — it is not a highlight, it
  *  is a cylinder lit from outside its own silhouette. */
-inline mskia::Paint barBevel(SkColor4f hi, SkColor4f lo, float bias) {
-  auto at = [&](float k) { return mskia::mixLinear(lo, hi, k); };
+inline mskia::Paint barBevel(mat::Color hi, mat::Color lo, float bias) {
+  auto at = [&](float k) { return mat::mixLinear(lo, hi, k); };
   return mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                  {{0.00f, mskia::scale(at(0.05f), bias)},
-                                   {0.13f, mskia::scale(at(1.00f), bias)},
-                                   {0.30f, mskia::scale(at(0.32f), bias)},
-                                   {0.62f, mskia::scale(at(0.28f), bias)},
-                                   {0.87f, mskia::scale(at(1.00f), bias)},
-                                   {1.00f, mskia::scale(at(0.02f), bias)}});
+                                  {{0.00f, mat::scale(at(0.05f), bias)},
+                                   {0.13f, mat::scale(at(1.00f), bias)},
+                                   {0.30f, mat::scale(at(0.32f), bias)},
+                                   {0.62f, mat::scale(at(0.28f), bias)},
+                                   {0.87f, mat::scale(at(1.00f), bias)},
+                                   {1.00f, mat::scale(at(0.02f), bias)}});
 }
 
 // ---------------------------------------------------------------------------
@@ -165,8 +170,8 @@ inline mskia::Paint pedestal() {
   stops.reserve(20);
   for (int i = 0; i < 19; ++i)
     stops.push_back(
-        {kEyeAt[i] / 359.0f, mskia::mixLinear(kBodyEdge, kBodyMid, kEyeK[i])});
-  stops.push_back({1.0f, mskia::scale(kBodyEdge, 0.55f)});
+        {kEyeAt[i] / 359.0f, mat::mixLinear(kBodyEdge, kBodyMid, kEyeK[i])});
+  stops.push_back({1.0f, mat::scale(kBodyEdge, 0.55f)});
   // radius01 is a fraction of the HALF-DIAGONAL (513 px for this body), so
   // 0.70 puts the last measured annulus (r=336) at its own radius.
   return mskia::Paint::radialUnit({0.483f, 0.456f}, 0.70f, std::move(stops));
@@ -326,10 +331,12 @@ inline sk_sp<SkTypeface> phraseFace() {
  *  fifteen cached mask draws and zero layers. That is the whole answer to the
  *  varying-blur problem described in the header. */
 inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
-                             SkColor4f c, float sigma = 0.0f,
+                             mat::Color c, float sigma = 0.0f,
                              float track = 0.0f) {
-  weave::TextStyle s =
-      weave::textStyle({.face = tf, .size = size, .color = c, .track = track});
+  weave::TextStyle s = weave::textStyle({.face = tf,
+                                         .size = size,
+                                         .color = mat::skia::toSkColor(c),
+                                         .track = track});
   s.paint.foreground.setBlendMode(SkBlendMode::kPlus);
   if (sigma > 0.01f)
     s.paint.foreground.setMaskFilter(
@@ -520,7 +527,7 @@ inline sk_sp<SkRuntimeEffect> plateEffect() {
  *  lives on the pass, so a stratum of strokes is path draws and not a layer.
  *  `blurSigma` is an SkMaskFilter on the stroke mask, bounded by the shape,
  *  so the blur costs a cached mask rather than a full-layer filter. */
-inline LayeredBrush add(float width, SkColor4f c, float sigma = 0.0f,
+inline LayeredBrush add(float width, mat::Color c, float sigma = 0.0f,
                         std::vector<SkScalar> dash = {}) {
   return LayeredBrush{
       {{width, c, sigma, std::move(dash), 0, SkBlendMode::kPlus, true}}};

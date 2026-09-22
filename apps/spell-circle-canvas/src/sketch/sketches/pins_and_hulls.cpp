@@ -27,6 +27,7 @@
 #include <sigilcompose/kit/Pin.h>
 #include <sigilcompose/kit/Stamp.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -36,6 +37,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 using namespace sigil::compose;
@@ -98,8 +100,8 @@ Operator dialBand() {
 }
 
 Operator chosenHull() {
-  SkColor4f glow = sketch::kit::theme().palette.figure;
-  glow.fA = 0.18f;
+  material::Color glow = sketch::kit::theme().palette.figure;
+  glow.a = 0.18f;
   return Operator(outline::Hull{.styleClass = "chosen",
                                 .margin = 18,
                                 .fill = Fill::color(glow)})

@@ -117,6 +117,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -133,6 +134,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
@@ -154,10 +156,10 @@ constexpr bool kMeter = false;
 // The type is SET in the head colour and every later moment is a multiplier
 // down from it: `colorMultiplier` can only darken, so the brightest state must
 // be the one the style owns.
-constexpr SkColor4f kVoid = {0.004f, 0.012f, 0.006f, 1};
-constexpr SkColor4f kHead = {0.97f, 1.0f, 0.98f, 1};
-constexpr SkColor4f kBedInk = {0.030f, 0.095f, 0.042f, 1};
-constexpr SkColor4f kLabel = {0.24f, 0.42f, 0.28f, 1};
+constexpr material::Color kVoid = {0.004f, 0.012f, 0.006f, 1};
+constexpr material::Color kHead = {0.97f, 1.0f, 0.98f, 1};
+constexpr material::Color kBedInk = {0.030f, 0.095f, 0.042f, 1};
+constexpr material::Color kLabel = {0.24f, 0.42f, 0.28f, 1};
 
 /** One falling curtain. The three differ in size (depth), rate and period,
  *  so no column of one ever keeps step with a column of another. */
@@ -441,7 +443,8 @@ struct MatrixRain {
                  // them.
                  churning(
                      text(bedText)
-                         .font({.size = kBedSize, .color = kBedInk})
+                         .font({.size = kBedSize,
+                                .color = material::skia::toSkColor(kBedInk)})
                          .key("rain-bed")
                          .inset(0)
                          .overflow(Overflow::Clip)
@@ -472,12 +475,11 @@ struct MatrixRain {
                  kit::at(0, kH - 52, kW, 52)
                      .key("caption-scrim")
                      .hitTestable(false)
-                     .fill(
-                         linearGradient({0, 0}, {0, 52},
-                                        {{kVoid.fR, kVoid.fG, kVoid.fB, 0.0f},
-                                         {kVoid.fR, kVoid.fG, kVoid.fB, 0.72f},
-                                         {kVoid.fR, kVoid.fG, kVoid.fB, 0.92f}},
-                                        {0.0f, 0.45f, 1.0f})),
+                     .fill(linearGradient({0, 0}, {0, 52},
+                                          {{kVoid.r, kVoid.g, kVoid.b, 0.0f},
+                                           {kVoid.r, kVoid.g, kVoid.b, 0.72f},
+                                           {kVoid.r, kVoid.g, kVoid.b, 0.92f}},
+                                          {0.0f, 0.45f, 1.0f})),
                  // NO GLYPH COUNT. A caption states the DECLARATION, never a
                  // probe against the host's own fonts: a count read off the
                  // installed faces is stable per font set and therefore the
@@ -489,10 +491,11 @@ struct MatrixRain {
                       "HALF-WIDTH KATAKANA AND DIGITS, "
                       "MIRRORED PER GLYPH, HELD UPRIGHT · THE LIGHT FALLS, "
                       "THE TYPE STANDS STILL",
-                      weave::textStyle({.face = faceLabel,
-                                        .size = 10.5f,
-                                        .color = kLabel,
-                                        .track = 2.2f}))
+                      weave::textStyle(
+                          {.face = faceLabel,
+                           .size = 10.5f,
+                           .color = material::skia::toSkColor(kLabel),
+                           .track = 2.2f}))
                      .key("caption")
                      .at({26, kH - 30})});
 

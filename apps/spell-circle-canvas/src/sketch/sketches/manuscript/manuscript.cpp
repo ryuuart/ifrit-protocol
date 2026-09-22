@@ -61,6 +61,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Passage.h>
@@ -74,6 +75,7 @@
 #include <string>
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
@@ -144,8 +146,10 @@ struct Manuscript {
 
   /** The book hand at a size, in a colour, shaped as Latin — over the
    *  page's own face. */
-  weave::Type body(float size, SkColor4f colour) {
-    return {.size = px(size), .color = colour, .language = "la"};
+  weave::Type body(float size, material::Color colour) {
+    return {.size = px(size),
+            .color = material::skia::toSkColor(colour),
+            .language = "la"};
   }
 
   /** The bianchi girari frieze: eight half-edge bands, each corner
@@ -208,7 +212,7 @@ struct Manuscript {
         .children({text(u8"T · LIVII · PATAVINI · AB · "
                         u8"VRBE · CONDITA · LIBER · PRIMVS")
                        .font({.size = px(kBodySize * 0.86f),
-                              .color = pal.gold,
+                              .color = material::skia::toSkColor(pal.gold),
                               .track = px(0.5f)})});
   }
 
@@ -223,7 +227,8 @@ struct Manuscript {
     // stated as a delimiter so an edit moves it.
     const std::u8string letter(1, pages[page][0]);
     const std::u8string rest = pages[page].substr(1);
-    weave::Type capitals{.size = px(kBodySize * 0.92f), .color = rubric.stem};
+    weave::Type capitals{.size = px(kBodySize * 0.92f),
+                         .color = material::skia::toSkColor(rubric.stem)};
     capitals.language = "la";
     capitals.features = {weave::features::smallCaps,
                          weave::features::capitalsToSmallCaps};
@@ -243,13 +248,15 @@ struct Manuscript {
     fillet.width = px(0.7f);
     fillet.strokeFill = Fill::color(pal.gold);
     const float versal = px(kPitch * (float)kCapLines);
-    Element initial = kit::at(kit::centred(text(letter).font(
-                                  {.size = versal * 0.74f, .color = pal.gold})),
-                              0.0f, 0.0f, versal, versal)
-                          .key("versal")
-                          .fill(Fill::color(pal.stem))
-                          .foreground(fillet)
-                          .zIndex(3);
+    Element initial =
+        kit::at(kit::centred(text(letter).font(
+                    {.size = versal * 0.74f,
+                     .color = material::skia::toSkColor(pal.gold)})),
+                0.0f, 0.0f, versal, versal)
+            .key("versal")
+            .fill(Fill::color(pal.stem))
+            .foreground(fillet)
+            .zIndex(3);
 
     weave::ParagraphStyle block;
     block.leading = weave::Leading::absolute(px(kPitch));
@@ -306,8 +313,7 @@ struct Manuscript {
     // is dropped only when the page turns.
     PathFormat rule;
     rule.width = px(0.4f);
-    rule.strokeFill =
-        Fill::color({pal.gold.fR, pal.gold.fG, pal.gold.fB, 0.45f});
+    rule.strokeFill = Fill::color({pal.gold.r, pal.gold.g, pal.gold.b, 0.45f});
     // the whole leaf is written in the book hand; each line says its
     // size, its colour and, where it is Latin, its language
     return stack()
@@ -323,9 +329,10 @@ struct Manuscript {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(ctx, {.size = kSceneSize,
-                             .captureAt = 3.5,
-                             .background = SkColor4f{0.11f, 0.09f, 0.075f, 1}});
+    sketch::kit::stage(
+        ctx, {.size = kSceneSize,
+              .captureAt = 3.5,
+              .background = material::Color{0.11f, 0.09f, 0.075f, 1}});
     book = weave::ports::face(kBookFaces, 400);
     pages[0] = sketch::kit::passage(ctx, "data/manuscript_1.txt");
     pages[1] = sketch::kit::passage(ctx, "data/manuscript_2.txt");

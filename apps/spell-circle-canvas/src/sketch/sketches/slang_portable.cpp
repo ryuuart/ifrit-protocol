@@ -33,6 +33,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -60,8 +61,8 @@ constexpr float kCell = 500;
 constexpr float kPicture = 260;
 constexpr bool kLit = false;  // defines SIGIL_LIT in the session
 
-constexpr SkColor4f kFigure{0.60f, 0.88f, 0.72f, 1};
-constexpr SkColor4f kFault{0.96f, 0.52f, 0.46f, 1};
+constexpr material::Color kFigure{0.60f, 0.88f, 0.72f, 1};
+constexpr material::Color kFault{0.96f, 0.52f, 0.46f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -118,10 +119,10 @@ VSOut vsCover(uint id : SV_VertexID) {
 float4 fsCover(VSOut input) : SV_Target { return surface(input.uv); }
 )SLANG";
 
-weave::TextStyle mono(float size, SkColor4f color) {
+weave::TextStyle mono(float size, material::Color color) {
   const sk_sp<SkTypeface> face =
       weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
+  return weave::textStyle({.face = face, .size = size, .color = material::skia::toSkColor(color)});
 }
 
 /** A readout cell: a block of monospaced text in the plate, which is
@@ -129,7 +130,7 @@ weave::TextStyle mono(float size, SkColor4f color) {
 sketch::kit::ComparisonCase readout(const char* caseTitle, const char* call,
                                     const std::string& note,
                                     const std::string& body,
-                                    SkColor4f colour = kFigure,
+                                    material::Color colour = kFigure,
                                     float height = kPicture) {
   return {.title = caseTitle,
           .control = call,

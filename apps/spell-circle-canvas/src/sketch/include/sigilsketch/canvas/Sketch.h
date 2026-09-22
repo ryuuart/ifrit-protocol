@@ -50,6 +50,7 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Device.h>
@@ -164,7 +165,7 @@ struct SketchContext {
    *
    *  Null only where the host lent no fonts. */
   [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
-      SkISize size, SkColor4f background = {0, 0, 0, 0});
+      SkISize size, sigil::material::Color background = {0, 0, 0, 0});
 
   /** A LIT SET RENDERED ONCE INTO AN IMAGE @p size pixels across, over
    *  @p background — the picture INSIDE a page. A canvas plate is
@@ -202,7 +203,8 @@ struct SketchContext {
    *  not what this is for. */
   [[nodiscard]] sk_sp<SkImage> bakeSet(
       const world::Frame& frame, const geometry::mesh::camera::Camera& camera,
-      SkISize size, SkColor4f background = {0, 0, 0, 0}, double seconds = 0.0);
+      SkISize size, sigil::material::Color background = {0, 0, 0, 0},
+      double seconds = 0.0);
 
   /** The host is taking a capture that will be DIFFED, so anything the
    *  sketch measured about its own execution must be pinned. See
@@ -267,7 +269,7 @@ struct SketchContext {
     size = {width, height};  // visible immediately
   }
   /** The colour behind the scene. */
-  void background(SkColor4f color) {
+  void background(sigil::material::Color color) {
     if (specification) specification->background = color;
   }
   /** Declare the scene time a STILL of this sketch should be taken at —

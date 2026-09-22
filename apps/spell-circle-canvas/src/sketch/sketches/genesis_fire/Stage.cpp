@@ -18,9 +18,9 @@ void GenesisFire::seedStars() {
   const int bin[5] = {1, 5, 19, 76, 319};
   // B-V ramp [S82]: Carpenter "deduced the colors of the individual
   // stars" from the Yale Bright Star Catalogue.
-  const SkColor4f bv[6] = {hexColor(0xAEC6FF), hexColor(0xD6E2FF),
-                           hexColor(0xFFFFFF), hexColor(0xFFE9B8),
-                           hexColor(0xFFC48A), hexColor(0xFF9E6E)};
+  const sigil::material::Color bv[6] = {hexColor(0xAEC6FF), hexColor(0xD6E2FF),
+                                        hexColor(0xFFFFFF), hexColor(0xFFE9B8),
+                                        hexColor(0xFFC48A), hexColor(0xFF9E6E)};
   const int bvWeight[6] = {6, 12, 20, 26, 24, 12};
   starPool = std::make_shared<instancing::Pool>();
   rng.reseed(0x5EED1982u);
@@ -37,8 +37,8 @@ void GenesisFire::seedStars() {
         acc += bvWeight[c];
         if (pick < acc) break;
       }
-      SkColor4f col = bv[std::min(c, 5)];
-      col.fA = 0.30f + 0.55f * rng.unit();
+      sigil::material::Color col = bv[std::min(c, 5)];
+      col.a = 0.30f + 0.55f * rng.unit();
       starPool->add({x, y}, m, 0.0f, 0.60f + 0.45f * rng.unit(), col);
     }
   }
@@ -138,19 +138,18 @@ Element GenesisFire::dipper() {
 Element GenesisFire::regolith() {
   // A generated surface, plus the ONE hand-added light in the shot
   // (Tom Duff's), riding the wavefront.
-  Paint ground =
-      Paint::blend({{Paint::radialUnit({0.5f, 0.723f}, 0.50f,
-                                       {{0.0f, hexColor(0x3B3933)},
-                                        {0.42f, hexColor(0x232119)},
-                                        {1.0f, hexColor(0x0A0A0C)}}),
-                     SkBlendMode::kSrc},
-                    {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
-                     SkBlendMode::kSoftLight},
-                    {Pattern(patterns::speckle(170, 17, 0.9f, 3.4f,
-                                               {toColor(hexColor(0x6A655B)),
-                                                toColor(hexColor(0x171512))}))
-                         .material(),
-                     SkBlendMode::kOverlay}});
+  Paint ground = Paint::blend(
+      {{Paint::radialUnit({0.5f, 0.723f}, 0.50f,
+                          {{0.0f, hexColor(0x3B3933)},
+                           {0.42f, hexColor(0x232119)},
+                           {1.0f, hexColor(0x0A0A0C)}}),
+        SkBlendMode::kSrc},
+       {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
+        SkBlendMode::kSoftLight},
+       {Pattern(patterns::speckle(170, 17, 0.9f, 3.4f,
+                                  {hexColor(0x6A655B), hexColor(0x171512)}))
+            .material(),
+        SkBlendMode::kOverlay}});
 
   return box()
       .inset(0)
@@ -322,14 +321,15 @@ void GenesisFire::blurCallout(Pen& pen, float x0, float y0, float w, float h,
   // across the cross-section by the fills between its vertices
   const float sx = x0 + 11, sy = cy + h * 0.30f;
   const float x1 = sx + 5, x2 = sx + 141;
-  const SkColor4f hot = overlap(9);
-  const SkColor4f edge = {hot.fR, hot.fG, hot.fB, 0.0f};
+  const sigil::material::Color hot = overlap(9);
+  const sigil::material::Color edge = {hot.r, hot.g, hot.b, 0.0f};
   pen.noStroke();
   pen.beginShape(sigil::draw::TRIANGLE_STRIP);
   pen.fill(edge);
   pen.vertex(x1, sy - 5);
   pen.vertex(x2, sy - 5);
-  pen.fill(hexColor(hot.toSkColor() & 0xFFFFFFu, a));
+  pen.fill(hexColor(
+      sigil::material::skia::toSkColor(hot).toSkColor() & 0xFFFFFFu, a));
   pen.vertex(x1, sy);
   pen.vertex(x2, sy);
   pen.fill(edge);

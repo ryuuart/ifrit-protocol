@@ -29,6 +29,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Profile.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -54,6 +55,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 namespace skia = sigil::material::skia;
@@ -80,44 +82,50 @@ namespace minard_1869 {
 constexpr float kPi = 3.14159265358979f;
 constexpr float kDeg = kPi / 180.0f;
 
-using sigil::compose::hexColor;  // hexColor(0xRRGGBB[, a]) -> SkColor4f, usable
-                                 // constexpr
+using sigil::compose::hexColor;  // hexColor(0xRRGGBB[, a]) -> material::Color,
+                                 // usable constexpr
 
 // ---------------------------------------------------------------------------
 // palette — sampled by percentile over masked regions of the two scans.
 // TWO worlds, deliberately kept apart: the aged artefact, and the audit.
 
-constexpr SkColor4f kDesk = hexColor(0x1b1a18);  // the table the sheet lies on
-constexpr SkColor4f kPaperShadow = hexColor(0xb9ad98);  // p10: edges, foxing
-constexpr SkColor4f kPaperBody = hexColor(0xcbbfab);  // p50: the sheet's ground
-constexpr SkColor4f kPaperLight = hexColor(0xd6cab6);  // p90
+constexpr material::Color kDesk =
+    hexColor(0x1b1a18);  // the table the sheet lies on
+constexpr material::Color kPaperShadow =
+    hexColor(0xb9ad98);  // p10: edges, foxing
+constexpr material::Color kPaperBody =
+    hexColor(0xcbbfab);  // p50: the sheet's ground
+constexpr material::Color kPaperLight = hexColor(0xd6cab6);  // p90
 // "LE ROUGE", AS THE SHEET PRINTS IT. Minard names the advance zone red
 // and the 1869 lithograph lays it as a pale buff ochre — a warm cream a
 // shade off the paper, not a rose. A pinker, darker zone competes with
 // the black retreat band instead of sitting under it, which inverts the
 // sheet's whole reading: the black is the figure and the zone the ground.
-constexpr SkColor4f kZoneDark = hexColor(0xcfb890);
-constexpr SkColor4f kZone = hexColor(0xd8c39b);
-constexpr SkColor4f kZoneLight = hexColor(0xe0cda8);
+constexpr material::Color kZoneDark = hexColor(0xcfb890);
+constexpr material::Color kZone = hexColor(0xd8c39b);
+constexpr material::Color kZoneLight = hexColor(0xe0cda8);
 // The engraved strengths. They are what the band's WIDTH is for, so they
 // are set firm and black on the lithograph and have to be readable off
 // the plate at plate size; smaller than this and the sheet's own subject
 // cannot be checked against the drawing that carries it.
 constexpr float kNumSize = 11.4f;
 
-constexpr SkColor4f kInk = hexColor(0x25211d);  // p50 printed black
-constexpr SkColor4f kInkDeep = hexColor(0x0a0806);
-constexpr SkColor4f kInkThin = hexColor(0x4e4436);     // hairlines, hachures
-constexpr SkColor4f kManuscript = hexColor(0x3b3a46);  // iron-gall, colder
-constexpr SkColor4f kStampRed = hexColor(0x8e3b34);
+constexpr material::Color kInk = hexColor(0x25211d);  // p50 printed black
+constexpr material::Color kInkDeep = hexColor(0x0a0806);
+constexpr material::Color kInkThin = hexColor(0x4e4436);  // hairlines, hachures
+constexpr material::Color kManuscript =
+    hexColor(0x3b3a46);  // iron-gall, colder
+constexpr material::Color kStampRed = hexColor(0x8e3b34);
 
-constexpr SkColor4f kCard = hexColor(0xf2ece0);  // the audit's cooler paper
-constexpr SkColor4f kCardInk = hexColor(0x1c1a17);
-constexpr SkColor4f kBlue = hexColor(0x2f6f9c);      // MEASURED
-constexpr SkColor4f kClaimRed = hexColor(0x8c2f22);  // WHAT THE LEGEND SAYS
-constexpr SkColor4f kPass = hexColor(0x3e6b4a);
-constexpr SkColor4f kAmber = hexColor(0xb5761e);
-constexpr SkColor4f kGrey = hexColor(0x6d675c);
+constexpr material::Color kCard =
+    hexColor(0xf2ece0);  // the audit's cooler paper
+constexpr material::Color kCardInk = hexColor(0x1c1a17);
+constexpr material::Color kBlue = hexColor(0x2f6f9c);  // MEASURED
+constexpr material::Color kClaimRed =
+    hexColor(0x8c2f22);  // WHAT THE LEGEND SAYS
+constexpr material::Color kPass = hexColor(0x3e6b4a);
+constexpr material::Color kAmber = hexColor(0xb5761e);
+constexpr material::Color kGrey = hexColor(0x6d675c);
 
 // ---------------------------------------------------------------------------
 // composition — canvas 2560 x 1600
@@ -579,10 +587,12 @@ inline SkPath rectPath(float l, float t, float r, float bm) {
  *  for the line a card is headed with: a PARTIAL over what the card
  *  inherits. Every other line writes its partial in place and names only
  *  what differs from the sheet or the card it stands in. */
-inline weave::Type partial(sk_sp<SkTypeface> face, float size, SkColor4f color,
-                           float tracking = 0) {
-  return {
-      .face = std::move(face), .size = size, .color = color, .track = tracking};
+inline weave::Type partial(sk_sp<SkTypeface> face, float size,
+                           material::Color color, float tracking = 0) {
+  return {.face = std::move(face),
+          .size = size,
+          .color = material::skia::toSkColor(color),
+          .track = tracking};
 }
 
 /** The French thousands separator the plate actually engraves: 422.000,

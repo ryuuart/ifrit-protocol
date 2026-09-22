@@ -16,6 +16,7 @@
 #include <sigilgeometry/mesh/codec/Encode.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -30,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace gm = sigil::geometry::mesh;
@@ -49,7 +51,7 @@ constexpr float kR = 62, kr = 23;  // the torus, major and minor radius
 constexpr int kNu = 48, kNv = 24;  // how finely it is tessellated
 constexpr int kMotes = 2600;       // points for the cloud round trip
 
-constexpr SkColor4f kFigure{0.98f, 0.78f, 0.36f, 1};
+constexpr material::Color kFigure{0.98f, 0.78f, 0.36f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -60,10 +62,11 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-weave::TextStyle mono(float size, SkColor4f color) {
+weave::TextStyle mono(float size, material::Color color) {
   const sk_sp<SkTypeface> face =
       weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
+  return weave::textStyle(
+      {.face = face, .size = size, .color = material::skia::toSkColor(color)});
 }
 
 camera::Camera stageCamera() {

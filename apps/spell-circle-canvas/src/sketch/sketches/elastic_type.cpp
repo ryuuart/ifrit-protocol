@@ -87,6 +87,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Page.h>
@@ -101,6 +102,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 namespace motion = sigil::motion;
@@ -113,13 +115,13 @@ namespace {
 constexpr float kW = 1080.0f;
 constexpr float kH = 620.0f;
 
-constexpr SkColor4f kPaper = hexColor(0x101014);
-constexpr SkColor4f kInk = hexColor(0xF6F2E9);
-constexpr SkColor4f kLabel = hexColor(0x848B99);
-constexpr SkColor4f kFaint = hexColor(0x2E3440);
-constexpr SkColor4f kX = hexColor(0xFF7A59);  // scaleX / skewX
-constexpr SkColor4f kY = hexColor(0x5AC8F5);  // scaleY
-constexpr SkColor4f kRest = hexColor(0x4A5262);
+constexpr material::Color kPaper = hexColor(0x101014);
+constexpr material::Color kInk = hexColor(0xF6F2E9);
+constexpr material::Color kLabel = hexColor(0x848B99);
+constexpr material::Color kFaint = hexColor(0x2E3440);
+constexpr material::Color kX = hexColor(0xFF7A59);  // scaleX / skewX
+constexpr material::Color kY = hexColor(0x5AC8F5);  // scaleY
+constexpr material::Color kRest = hexColor(0x4A5262);
 
 constexpr float kWordSize = 68.0f;
 constexpr float kEachMs = 62.0f;
@@ -210,10 +212,10 @@ using Ticks = std::vector<Tick>;
  *  against, the rest pose, and one per lane. */
 weave::StyleSheet graphSheet() {
   weave::StyleSheet dressed;
-  dressed.set("plotRule", {.color = kFaint});
-  dressed.set("rest", {.color = kRest});
-  dressed.set("x", {.color = kX});
-  dressed.set("y", {.color = kY});
+  dressed.set("plotRule", {.color = material::skia::toSkColor(kFaint)});
+  dressed.set("rest", {.color = material::skia::toSkColor(kRest)});
+  dressed.set("x", {.color = material::skia::toSkColor(kX)});
+  dressed.set("y", {.color = material::skia::toSkColor(kY)});
   return dressed;
 }
 
@@ -345,7 +347,7 @@ struct ElasticType {
   [[nodiscard]] Element row(const char* word, const char* caption,
                             TextEffect effect) {
     const sigil::weave::TextStyle set = weave::textStyle(
-        {.face = face, .size = kWordSize, .color = kInk, .track = 3.0f});
+        {.face = face, .size = kWordSize, .color = material::skia::toSkColor(kInk), .track = 3.0f});
 
     // THE GHOST: the same word, same style, no track — the rest position
     // the deviation is measured against. A track's deviation is per glyph

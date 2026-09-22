@@ -4,6 +4,7 @@
 #include <sigilcompose/core/Measure.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Composer.h>
@@ -30,6 +31,7 @@
 #include "Session.h"
 
 namespace sigil::sketch::python {
+namespace material = sigil::material;
 namespace py = pybind11;
 
 using detail::AssetsView;
@@ -180,7 +182,8 @@ void bindContext(py::module_& module) {
           "bakeSet",
           [](const Context& ctx, const world::Frame& frame,
              const geometry::mesh::camera::Camera& camera,
-             std::array<int, 2> size, SkColor4f background, double seconds) {
+             std::array<int, 2> size, material::Color background,
+             double seconds) {
             if (!std::isfinite(seconds) || seconds < 0)
               throw py::value_error(
                   "A bake's moment must be finite and nonnegative");
@@ -189,7 +192,7 @@ void bindContext(py::module_& module) {
                                                   background, seconds);
           },
           py::arg("frame"), py::arg("camera"), py::arg("size"),
-          py::arg("background") = SkColor4f{0, 0, 0, 0},
+          py::arg("background") = material::Color{0, 0, 0, 0},
           py::arg("seconds") = 0.0)
       .def(
           "local",

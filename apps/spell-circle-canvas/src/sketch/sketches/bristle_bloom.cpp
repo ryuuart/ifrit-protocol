@@ -18,12 +18,14 @@
 #include <sigildraw/Constants.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
 #include <array>
 #include <cmath>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 using namespace sigil::draw;
@@ -32,7 +34,7 @@ namespace {
 
 /** THE PAPER. The canvas is cleared to it and the pen lays it again as
  *  the ground the bloom is painted on, so one colour says both. */
-constexpr SkColor4f kPaper{18 / 255.0f, 15 / 255.0f, 24 / 255.0f, 1};
+constexpr material::Color kPaper{18 / 255.0f, 15 / 255.0f, 24 / 255.0f, 1};
 
 constexpr int kPetals = 30;
 constexpr int kBristles = 22;

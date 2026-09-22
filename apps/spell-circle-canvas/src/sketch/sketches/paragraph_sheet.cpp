@@ -42,6 +42,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/Hyphenation.h>
@@ -55,6 +56,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -72,11 +74,11 @@ constexpr float kMargin = 64;
 constexpr float kMeasure = 330;
 constexpr float kGrid = 21;
 
-const SkColor4f kPaper{0.965f, 0.957f, 0.937f, 1};
-const SkColor4f kInk{0.114f, 0.106f, 0.098f, 1};
-const SkColor4f kFaint{0.114f, 0.106f, 0.098f, 0.30f};
-const SkColor4f kRule{0.78f, 0.30f, 0.20f, 0.28f};
-const SkColor4f kMark{0.78f, 0.30f, 0.20f, 1};
+const material::Color kPaper{0.965f, 0.957f, 0.937f, 1};
+const material::Color kInk{0.114f, 0.106f, 0.098f, 1};
+const material::Color kFaint{0.114f, 0.106f, 0.098f, 0.30f};
+const material::Color kRule{0.78f, 0.30f, 0.20f, 0.28f};
+const material::Color kMark{0.78f, 0.30f, 0.20f, 1};
 
 /// The one hyphenator on the sheet: the justified panel asks for it, and
 /// every layout it reaches keeps a share of it.
@@ -99,8 +101,8 @@ sk_sp<SkTypeface> mono() {
 }
 
 weave::Type label(float size = 9.0f, float track = 1.6f,
-                  SkColor4f colour = kFaint) {
-  return {.face = grotesque(), .size = size, .color = colour, .track = track};
+                  material::Color colour = kFaint) {
+  return {.face = grotesque(), .size = size, .color = material::skia::toSkColor(colour), .track = track};
 }
 
 /// THIS SHEET'S LOOK: paper and its ink, set in the grotesque, with the

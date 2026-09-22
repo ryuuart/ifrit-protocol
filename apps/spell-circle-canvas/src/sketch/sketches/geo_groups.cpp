@@ -37,6 +37,7 @@
 #include <sigilgeometry/mesh/codec/Encode.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
@@ -45,6 +46,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
@@ -73,11 +75,11 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
-const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
-const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
-const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
-const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
+const material::Color kGround{0.055f, 0.06f, 0.085f, 1};
+const material::Color kRule{0.19f, 0.20f, 0.26f, 1};
+const material::Color kInk{0.90f, 0.93f, 0.97f, 1};
+const material::Color kDim{0.55f, 0.60f, 0.70f, 1};
+const material::Color kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** The grid this study saves: a flat lattice with N up, a tint sweep
  *  across x, and a 0/1 lane "ring" — a point group's own spelling on this

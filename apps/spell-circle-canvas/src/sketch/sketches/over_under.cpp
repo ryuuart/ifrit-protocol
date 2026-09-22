@@ -35,6 +35,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Corners.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/mask/Mask.h>

@@ -6,8 +6,10 @@
  */
 
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -15,11 +17,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {640, 260};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kCard = hexColor(0x1e252c);
-constexpr SkColor4f kInk = hexColor(0xdde6ec);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
-constexpr SkColor4f kAccent = hexColor(0x5fb0a4);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kCard = hexColor(0x1e252c);
+constexpr material::Color kInk = hexColor(0xdde6ec);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kAccent = hexColor(0x5fb0a4);
 
 /** A card: a column of boxes, one of which is a bare leaf standing in as
  *  a rule. Nothing here is a kit component — every line is a factory and
@@ -33,9 +35,11 @@ Element card(const char* title, const char* body) {
       .flexGrow(1)
       .borderRadius({10})
       .fill(kCard)
-      .children({text(title).font({.size = 17, .color = kInk}),
+      .children({text(title).font(
+                     {.size = 17, .color = material::skia::toSkColor(kInk)}),
                  box().height(2).width(36).fill(kAccent),
-                 text(body).font({.size = 13, .color = kAsh})});
+                 text(body).font(
+                     {.size = 13, .color = material::skia::toSkColor(kAsh)})});
 }
 
 }  // namespace

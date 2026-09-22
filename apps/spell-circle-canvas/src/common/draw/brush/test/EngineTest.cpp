@@ -178,20 +178,20 @@ TEST(Engine, HatchUsesTheCurrentToolUntilOverridden) {
   paper.begin();
   engine.hatch(paper.pen, polygon);
   ASSERT_FALSE(recording->fills.empty());
-  EXPECT_FLOAT_EQ(recording->fills.back().fB, 1.0f);
+  EXPECT_FLOAT_EQ(recording->fills.back().b, 1.0f);
 
   recording->fills.clear();
   ASSERT_NE(engine.hatchStyle("recorder", SkColors::kRed), nullptr);
   engine.hatch(paper.pen, polygon);
   ASSERT_FALSE(recording->fills.empty());
-  EXPECT_FLOAT_EQ(recording->fills.back().fR, 1.0f);
+  EXPECT_FLOAT_EQ(recording->fills.back().r, 1.0f);
 
   recording->fills.clear();
   engine.noHatch();
   engine.hatch({.spacing = 12.0f, .angle = 0.0f});
   engine.hatch(paper.pen, polygon);
   ASSERT_FALSE(recording->fills.empty());
-  EXPECT_FLOAT_EQ(recording->fills.back().fB, 1.0f);
+  EXPECT_FLOAT_EQ(recording->fills.back().b, 1.0f);
   paper.end();
 }
 

@@ -138,6 +138,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bound.h>
@@ -160,6 +161,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace shapes = sigil::geometry::shapes;
@@ -182,13 +184,13 @@ constexpr float kDeg = kPi / 180.0f;
 // chrome palette — this study's own (film-base warm black, deliberately
 // warmer than a neutral UI near-black)
 
-constexpr SkColor4f kInk = hexColor(0x0A0806);   // canvas
-constexpr SkColor4f kPlate = hexColor(0x110D0A); // sidebar plates
-constexpr SkColor4f kBone = hexColor(0xEDE6D8);  // primary type
-constexpr SkColor4f kSteel = hexColor(0x8A7D68); // secondary type
-constexpr SkColor4f kSteelDim = hexColor(0x8A7D68, 0.62f);
-constexpr SkColor4f kKeyline = hexColor(0x3A342C);  // panel keylines
-constexpr SkColor4f kSolidInk = hexColor(0x050403); // "solid black capitals"
+constexpr material::Color kInk = hexColor(0x0A0806);   // canvas
+constexpr material::Color kPlate = hexColor(0x110D0A); // sidebar plates
+constexpr material::Color kBone = hexColor(0xEDE6D8);  // primary type
+constexpr material::Color kSteel = hexColor(0x8A7D68); // secondary type
+constexpr material::Color kSteelDim = hexColor(0x8A7D68, 0.62f);
+constexpr material::Color kKeyline = hexColor(0x3A342C);  // panel keylines
+constexpr material::Color kSolidInk = hexColor(0x050403); // "solid black capitals"
 
 // ---------------------------------------------------------------------------
 // canvas / panel geometry — 1480x800 is the film's own 1.85:1
@@ -212,7 +214,7 @@ struct Card {
   float k;           // precession (table turns per radian of swing)
   float amp;         // R, px, before the 0.88 fit scale
   float damp;        // exp(-damp·t) envelope — this study's addition
-  SkColor4f core;    // ink colour
+  material::Color core;    // ink colour
   const char *line1; // sidebar index caption
   const char *line2;
 };
@@ -271,11 +273,11 @@ Element figureBox(SkPoint centre, float radius) {
  *  spiral is visible straight through the counters. Typotheque: "outline
  *  type through which the image beneath can be seen." A WHOLE style: a
  *  stroked foreground is paint, which a partial cannot state. */
-weave::TextStyle hollow(sk_sp<SkTypeface> face, float size, SkColor4f color,
+weave::TextStyle hollow(sk_sp<SkTypeface> face, float size, material::Color color,
                         float width, float tracking = 0) {
   weave::TextStyle s = weave::textStyle({.face = std::move(face),
                                          .size = size,
-                                         .color = color,
+                                         .color = material::skia::toSkColor(color),
                                          .track = tracking});
   s.paint.foreground =
       sigil::weave::kit::outline(color.toSkColor(), width).paint;
@@ -301,7 +303,7 @@ shapes::KeyedParametric ringPath() {
 
 /** A concentric ring on the panel — the pupil edge and the limbus, which
  *  are what make a radial ramp read as an EYE rather than a vignette. */
-Element ring(float r, SkColor4f color, float width) {
+Element ring(float r, material::Color color, float width) {
   return kit::disc(kEye, r)
       .borderRadius({r})
       .fill(Fill::none())
@@ -473,7 +475,7 @@ struct VertigoTitles {
     // Text::textOnPath() — one text leaf where hand-placing curved
     // lettering would have been one leaf and one measure() per glyph.
     const weave::Type legend{
-        .size = 11, .color = hexColor(0xEDE6D8, 0.42f), .track = 3.4f};
+        .size = 11, .color = material::skia::toSkColor(hexColor(0xEDE6D8, 0.42f)), .track = 3.4f};
     panel.children(
         {text("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE")
              .font(legend)
@@ -571,7 +573,7 @@ struct VertigoTitles {
              .key("spec-solid"),
          text("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
               "— BOTH CLARENDON.")
-             .font({.size = 10, .color = kSteel, .track = 0.6f})
+             .font({.size = 10, .color = material::skia::toSkColor(kSteel), .track = 0.6f})
              .key("spec-cap")});
     return p;
   }
@@ -603,7 +605,7 @@ struct VertigoTitles {
                box().column().flexGrow(1).gap(2).children(
                    {text(c.line1).font(
                         {.face = faceGothicBold, .size = 11, .track = 0.7f}),
-                    text(c.line2).font({.size = 9, .color = kSteel})})});
+                    text(c.line2).font({.size = 9, .color = material::skia::toSkColor(kSteel)})})});
     };
     return plate(240).gap(8).children({each(kCards, row)});
   }
@@ -620,7 +622,7 @@ struct VertigoTitles {
     // ONE LINE PER FACT, each entering a beat after the one above it.
     const auto fact = [](const char *words, size_t i) {
       return text(words)
-          .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
+          .font({.size = 10.5f, .color = material::skia::toSkColor(kSteel), .track = 0.3f})
           .key("rig" + std::to_string(i))
           .opacity(animate(from(0.0f).to(1.0f),
                            ramp(900.0f + (float)i * 90.0f, 300)));
@@ -632,7 +634,7 @@ struct VertigoTitles {
          each(kFacts, fact), box().flexGrow(1),
          text("hitchcocksvertigo.substack.com · rhizome.org "
               "· diyphotography.net")
-             .font({.size = 9, .color = kSteelDim})
+             .font({.size = 9, .color = material::skia::toSkColor(kSteelDim)})
              .key("rig-cite")});
   }
 

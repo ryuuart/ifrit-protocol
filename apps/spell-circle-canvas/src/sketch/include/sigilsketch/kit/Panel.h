@@ -15,6 +15,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -41,7 +42,7 @@ struct Backdrop {
    *  vignette is a shadow. Its own alpha is ignored — `vignette` is how
    *  far it reaches. A warm sheet usually wants its own darkest ink here
    *  rather than a neutral black. */
-  std::optional<SkColor4f> edge;
+  std::optional<material::Color> edge;
   /** How far the grain reaches, 0 to 1. 0 grains nothing. */
   float grain = 0;
   /** Features per px of the grain: about 0.8 is film, about 0.05 is

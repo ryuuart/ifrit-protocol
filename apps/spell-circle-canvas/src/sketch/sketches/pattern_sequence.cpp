@@ -29,6 +29,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Paint.h>

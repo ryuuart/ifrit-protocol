@@ -15,6 +15,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilskia/draw/Direct.h>
@@ -25,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
@@ -43,10 +45,10 @@ constexpr float kPanelW = 250, kPanelH = 96;
  *  slice's density. */
 constexpr float kFrameDensity = 2.0f;
 
-constexpr SkColor4f kInk{0.86f, 0.88f, 0.94f, 1};
-constexpr SkColor4f kAsh{0.60f, 0.64f, 0.73f, 1};
-constexpr SkColor4f kRule{0.22f, 0.23f, 0.30f, 1};
-constexpr SkColor4f kQuest{0.169f, 0.110f, 0.043f, 1};
+constexpr material::Color kInk{0.86f, 0.88f, 0.94f, 1};
+constexpr material::Color kAsh{0.60f, 0.64f, 0.73f, 1};
+constexpr material::Color kRule{0.22f, 0.23f, 0.30f, 1};
+constexpr material::Color kQuest{0.169f, 0.110f, 0.043f, 1};
 
 /** THIS SHEET'S LOOK, and its one voice: the call over the panel, what
  *  it did under it. The page's ground is a shade off the canvas's, which
@@ -70,7 +72,7 @@ sketch::kit::Theme sheetTheme() {
  *  size, with room inside it for a line of type. 24 clears the carved
  *  corner bosses, which reach 0.215 of the 96-unit band in from the
  *  edge. */
-Element panel(Slice frame, Utf8 caption, SkColor4f ink) {
+Element panel(Slice frame, Utf8 caption, material::Color ink) {
   return kit::centred()
       .width(kPanelW)
       .height(kPanelH)
@@ -214,7 +216,7 @@ struct NineSlice {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     oak = generate(oakPalette());
     crimson = generate(crimsonPalette());
     azurePlain = generate(azurePalette(), 1.0f);

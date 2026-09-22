@@ -8,8 +8,10 @@
  */
 
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -17,10 +19,10 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 240};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kPlate = hexColor(0x6fb3a6);
-constexpr SkColor4f kDisc = hexColor(0x27343d);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kPlate = hexColor(0x6fb3a6);
+constexpr material::Color kDisc = hexColor(0x27343d);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
 
 /** A card with an overlapping child, at one opacity. */
 Element card(float value, const char* caption) {
@@ -39,7 +41,8 @@ Element card(float value, const char* caption) {
                           .fill(kDisc)
                           .left(20)
                           .top(28)}),
-                 text(caption).font({.size = 12, .color = kAsh})});
+                 text(caption).font(
+                     {.size = 12, .color = material::skia::toSkColor(kAsh)})});
 }
 
 }  // namespace

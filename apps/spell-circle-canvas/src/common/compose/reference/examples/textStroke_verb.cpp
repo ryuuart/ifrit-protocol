@@ -7,8 +7,10 @@
  */
 
 #include <sigilcompose/core/Core.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -16,11 +18,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {600, 250};
-constexpr SkColor4f kGround = hexColor(0x14181d);
-constexpr SkColor4f kBusy = hexColor(0x6a8f7f);
-constexpr SkColor4f kInk = hexColor(0xf4f7f9);
-constexpr SkColor4f kOutline = hexColor(0x121a1e);
-constexpr SkColor4f kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = hexColor(0x14181d);
+constexpr material::Color kBusy = hexColor(0x6a8f7f);
+constexpr material::Color kInk = hexColor(0xf4f7f9);
+constexpr material::Color kOutline = hexColor(0x121a1e);
+constexpr material::Color kAsh = hexColor(0x8ea0ad);
 
 /** The same word over the same ground, once plain and once engraved. */
 Element cell(const char* caption, Element label) {
@@ -38,7 +40,8 @@ Element cell(const char* caption, Element label) {
                      .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({std::move(label)}),
-                 text(caption).font({.size = 12, .color = kAsh})});
+                 text(caption).font(
+                     {.size = 12, .color = material::skia::toSkColor(kAsh)})});
 }
 
 }  // namespace
@@ -52,10 +55,14 @@ struct TextStrokeVerb {
   Element describe() const {
     return box().row().gap(18).padding(24).children({
         cell("the letterforms alone",
-             text("LEGIBLE").font({.size = 34, .color = kInk, .track = 1})),
+             text("LEGIBLE").font({.size = 34,
+                                   .color = material::skia::toSkColor(kInk),
+                                   .track = 1})),
         cell("textStroke(4, outline)",
              text("LEGIBLE")
-                 .font({.size = 34, .color = kInk, .track = 1})
+                 .font({.size = 34,
+                        .color = material::skia::toSkColor(kInk),
+                        .track = 1})
                  .textStroke(4, Fill::color(kOutline))),
     });
   }

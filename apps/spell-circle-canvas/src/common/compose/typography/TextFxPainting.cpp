@@ -11,6 +11,8 @@
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkShader.h>
 #include <sigilgeometry/path/Numeric.h>  // radians — the degree conversion
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Pass.h>
 #include <sigilweave/decoration/DecorationRects.h>
 
@@ -312,7 +314,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // snapping on a ladder of its own: two independent 32-step alphas
         // would be a thousand buckets where one is thirty-two.
         const float alpha =
-            snap(modifier.alpha * modifier.colorMultiplier.fA, 1.0f);
+            snap(modifier.alpha * modifier.colorMultiplier.a, 1.0f);
         if (alpha <= 0.0f) {
           noteBeatsAndDrop();
           return;
@@ -321,22 +323,22 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // ceiling is only there so a runaway number cannot mint buckets
         // without bound.
         constexpr float kTintCeiling = 4.0f;
-        const SkColor4f tint{snap(modifier.colorMultiplier.fR, kTintCeiling),
-                             snap(modifier.colorMultiplier.fG, kTintCeiling),
-                             snap(modifier.colorMultiplier.fB, kTintCeiling),
-                             1.0f};
+        const material::Color tint{
+            snap(modifier.colorMultiplier.r, kTintCeiling),
+            snap(modifier.colorMultiplier.g, kTintCeiling),
+            snap(modifier.colorMultiplier.b, kTintCeiling), 1.0f};
         // The additive and screen terms ride the same 32-step ladder,
         // ceilinged at 1: an add past full is clamped at the draw anyway,
         // and a screen past full has no headroom left to lift. RGB only —
         // their alpha components state nothing at a draw. The snap is what
         // bounds the memoized filter population, and Track::continuous
         // lifts it here exactly as it does for the multiplier.
-        const SkColor4f flash{snap(modifier.colorAdd.fR, 1.0f),
-                              snap(modifier.colorAdd.fG, 1.0f),
-                              snap(modifier.colorAdd.fB, 1.0f), 0.0f};
-        const SkColor4f glow{snap(modifier.colorScreen.fR, 1.0f),
-                             snap(modifier.colorScreen.fG, 1.0f),
-                             snap(modifier.colorScreen.fB, 1.0f), 0.0f};
+        const material::Color flash{snap(modifier.colorAdd.r, 1.0f),
+                                    snap(modifier.colorAdd.g, 1.0f),
+                                    snap(modifier.colorAdd.b, 1.0f), 0.0f};
+        const material::Color glow{snap(modifier.colorScreen.r, 1.0f),
+                                   snap(modifier.colorScreen.g, 1.0f),
+                                   snap(modifier.colorScreen.b, 1.0f), 0.0f};
         float cosv = 1.0f, sinv = 0.0f;
         if (modifier.rotateDeg != 0) {
           const float radians = geometry::path::radians(modifier.rotateDeg);
@@ -384,9 +386,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // textFill/textStroke override, when the node carries one.
         sigil::weave::GlyphDress dress;
         dress.alphaScale = alpha;
-        dress.colorMultiplier = tint;
-        dress.colorAdd = flash;
-        dress.colorScreen = glow;
+        dress.colorMultiplier = material::skia::toSkColor(tint);
+        dress.colorAdd = material::skia::toSkColor(flash);
+        dress.colorScreen = material::skia::toSkColor(glow);
         if (pose.centreOffset) dress.centreOffset = &*pose.centreOffset;
         if (modifier.axis && placed.shaped)
           dress.face =

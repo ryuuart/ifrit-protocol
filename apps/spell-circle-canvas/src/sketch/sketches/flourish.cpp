@@ -37,6 +37,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -47,6 +48,7 @@
 #include <string>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
@@ -123,15 +125,15 @@ struct Flourish {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 16));
     SkCanvas& c = *s->getCanvas();
     c.clear(SK_ColorTRANSPARENT);
-    const SkColor4f gems[4] = {
+    const material::Color gems[4] = {
         st.rubric, {0.20f, 0.36f, 0.52f, 1}, st.leaf, st.goldBright};
     for (int i = 0; i < 4; ++i) {
       const float ox = (float)i * 16;
       drawDiamond(c, {ox + 8, 8}, 6.0f, gems[i]);
-      SkColor4f hi = gems[i];
-      hi.fR = std::min(1.f, hi.fR + 0.3f);
-      hi.fG = std::min(1.f, hi.fG + 0.3f);
-      hi.fB = std::min(1.f, hi.fB + 0.3f);
+      material::Color hi = gems[i];
+      hi.r = std::min(1.f, hi.r + 0.3f);
+      hi.g = std::min(1.f, hi.g + 0.3f);
+      hi.b = std::min(1.f, hi.b + 0.3f);
       drawDiamond(c, {ox + 7, 6}, 2.2f, hi);
     }
     return std::make_shared<sigil::image::ImageAsset>(
@@ -188,13 +190,13 @@ struct Flourish {
     ContourWalk glow;
     glow.spacing = 26.0f;
     glow.animatedWalk = true;
-    const SkColor4f g = st.goldBright;
+    const material::Color g = st.goldBright;
     glow.draw = [g](SkCanvas& c, const PathSample& s, const PaintContext& ctx) {
       SkPaint p;
       p.setAntiAlias(true);
       const float w = 0.5f + 0.5f * std::sin(s.fraction * 18.85f +
                                              (float)ctx.elapsedSeconds * 2.4f);
-      p.setColor4f({g.fR, g.fG, g.fB, 0.14f + 0.45f * w}, nullptr);
+      p.setColor4f({g.r, g.g, g.b, 0.14f + 0.45f * w}, nullptr);
       c.drawCircle(0, 0, 1.0f + 1.5f * w, p);
     };
     return box()
@@ -266,7 +268,7 @@ struct Flourish {
   std::vector<Operator> filaments() const {
     PathFormat gild;
     gild.width = 1.1f;
-    gild.strokeFill = Fill::color({st.gold.fR, st.gold.fG, st.gold.fB, 0.7f});
+    gild.strokeFill = Fill::color({st.gold.r, st.gold.g, st.gold.b, 0.7f});
 
     SkPathBuilder dot;
     dot.addCircle(0, 0, 1.3f);
@@ -322,8 +324,8 @@ struct Flourish {
                            .width(3)
                            .height(3)
                            .shape(shapes::star(4, 0.4f))
-                           .fill(Fill::color({st.bronze.fR, st.bronze.fG,
-                                              st.bronze.fB, 0.5f}))
+                           .fill(Fill::color({st.bronze.r, st.bronze.g,
+                                              st.bronze.b, 0.5f}))
                            .opacity(0.5f));
 
     std::vector<Element> frieze;
@@ -335,7 +337,7 @@ struct Flourish {
               .width(16)
               .height(16));
 
-    auto titleLayer = [this](SkColor4f color, bool bloom) {
+    auto titleLayer = [this](material::Color color, bool bloom) {
       auto t = text(u8"AURELIA")
                    .font({.size = 34, .track = 5.0f})
                    .ink(color)
@@ -381,9 +383,9 @@ struct Flourish {
                  .width(258)
                  .height(66)
                  .shape(scallopOutline(12))
-                 .fill(Fill::color({st.parchment.fR * 1.05f,
-                                    st.parchment.fG * 1.05f,
-                                    st.parchment.fB * 1.02f, 1}))
+                 .fill(Fill::color({st.parchment.r * 1.05f,
+                                    st.parchment.g * 1.05f,
+                                    st.parchment.b * 1.02f, 1}))
                  .foreground(sigil::compose::stroke(1.3f, Fill::color(st.gold)))
                  .children({titleLayer(st.goldBright, true),
                             titleLayer({0.34f, 0.20f, 0.09f, 1}, false)}),
@@ -497,7 +499,7 @@ struct Flourish {
   // ---- live overlays ------------------------------------------------------
 
   Element goldDust() const {
-    const SkColor4f g = st.goldBright;
+    const material::Color g = st.goldBright;
     // KEYLESS: every mote's place and alpha is a function of the paint's own
     // clock, which no key can name.
     return sigil::compose::pen([g](Pen& p) {
@@ -509,7 +511,7 @@ struct Flourish {
                    std::fmod(fx + t * (7.0f + (float)(i % 5)), p.width);
                const float y = std::fmod(fx * 0.618f + 40.0f, p.height);
                p.fill(
-                   {g.fR, g.fG, g.fB,
+                   {g.r, g.g, g.b,
                     0.05f + 0.15f * (0.5f + 0.5f * std::sin(t * 1.6f +
                                                             (float)i * 2.1f))});
                p.circle(x, y + 10.0f * std::sin(t * 0.7f + (float)i),
@@ -523,7 +525,7 @@ struct Flourish {
   }
 
   Element shimmer() const {
-    const SkColor4f g = st.goldBright;
+    const material::Color g = st.goldBright;
     // KEYLESS: the sweep's position is the paint's own clock.
     return sigil::compose::pen([g](Pen& p) {
              const float w = p.width, h = p.height;
@@ -535,7 +537,7 @@ struct Flourish {
              p.noStroke();
              p.fill(Paint::linear({sweep, 0}, {sweep + 130, h},
                                   {{0.0f, {1, 1, 1, 0}},
-                                   {0.5f, {g.fR, g.fG, g.fB, 0.22f}},
+                                   {0.5f, {g.r, g.g, g.b, 0.22f}},
                                    {1.0f, {1, 1, 1, 0}}}));
              p.rect(0, 0, w, h);
            })
@@ -573,7 +575,7 @@ struct Flourish {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     sceneTicker = &ticker;

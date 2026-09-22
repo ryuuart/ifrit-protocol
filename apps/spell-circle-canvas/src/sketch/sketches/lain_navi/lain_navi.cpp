@@ -39,7 +39,8 @@ struct LainNavi {
           const SkPoint at{kTextX, y - monoSize * 0.98f};
           return box().inset(0).children(
               {text(line, type(monoFace(), monoSize,
-                               mskia::scale(kConsoleInk, 0.40f), sigma + 2.4f))
+                               sigil::material::scale(kConsoleInk, 0.40f),
+                               sigma + 2.4f))
                    .at(at)
                    .key("halo" + std::to_string(i)),
                text(line, type(monoFace(), monoSize, kConsoleInk, sigma))
@@ -66,14 +67,15 @@ struct LainNavi {
         {box()
              .inset(0)
              .shape(keyedShape(phi, [phi] { return generatrices(phi, 7); }))
-             .foreground(add(1.5f, mskia::scale(kWire, 0.44f), 0.0f))
+             .foreground(add(1.5f, sigil::material::scale(kWire, 0.44f), 0.0f))
              .key("ruling")});
 
     // the two rims and the waist — DOTTED, never solid (1.6 on 4.4 with a
     // round cap is the frame's own broken hairline)
     const std::vector<SkScalar> dot{1.6f, 4.4f};
-    auto ellArc = [&](SkPoint c, float a, float b, float tilt, SkColor4f col,
-                      float w, float t0, float t1, const char* key) {
+    auto ellArc = [&](SkPoint c, float a, float b, float tilt,
+                      sigil::material::Color col, float w, float t0, float t1,
+                      const char* key) {
       g.children(
           {box()
                .inset(0)
@@ -84,17 +86,17 @@ struct LainNavi {
                .foreground(add(w, col, 0.0f, dot))
                .key(key)});
     };
-    auto ell = [&](SkPoint c, float a, float b, float tilt, SkColor4f col,
-                   float w, const char* key) {
+    auto ell = [&](SkPoint c, float a, float b, float tilt,
+                   sigil::material::Color col, float w, const char* key) {
       ellArc(c, a, b, tilt, col, w, 0.0f, 6.2831853f, key);
     };
     // The rims are PARTIAL. A full rim ellipse plus a full waist plus a full
     // tilted orbit is three concentric dotted rings and reads as a lampshade;
     // the plate shows arcs that leave frame and never close.
     ellArc({kAxis.fX, kAxis.fY - kHalfH}, kRim, kRim * kEcc, 0,
-           mskia::scale(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
+           sigil::material::scale(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
     ellArc({kAxis.fX, kAxis.fY + kHalfH}, kRim, kRim * kEcc, 0,
-           mskia::scale(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
+           sigil::material::scale(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
     ell(kAxis, waist, waist * kEcc, 0, kWire, 2.0f, "waist");
     ell(kOrbit2C, kOrbit2A, kOrbit2B, tilt2, kWire, 2.0f, "orbit2");
 
@@ -118,7 +120,8 @@ struct LainNavi {
                                                  524 + kWireShift.fY);
                                         return b.detach();
                                       }))
-                    .foreground(add(2.4f, mskia::scale(kWire, 0.72f), 0.7f)),
+                    .foreground(
+                        add(2.4f, sigil::material::scale(kWire, 0.72f), 0.7f)),
                 text(u8"make me feel alright?",
                      type(phraseFace(), 44.0f, kAlright, 1.2f))
                     .centerAt({455, 392})
@@ -144,7 +147,7 @@ struct LainNavi {
         k = (float)std::max(0.0, 1.0 - (u - p.hold) / 0.9);
       if (k <= 0.01f) continue;
       k = k * k * (3.0f - 2.0f * k);
-      const SkColor4f c = mskia::scale(kMinds, k);
+      const sigil::material::Color c = sigil::material::scale(kMinds, k);
       // the bloom is a second, blurred pass DECLARED FIRST so it paints under
       // the core; kPlus makes the order irrelevant for colour but not for the
       // core's own crispness
@@ -155,13 +158,14 @@ struct LainNavi {
           {box()
                .centerAt(p.centre)
                .key("ph" + std::to_string(i))
-               .children({text(p.text, type(serifFace(), p.size,
-                                            mskia::scale(c, 0.42f), 6.5f))
-                              .inset(0),
-                          text(p.text, type(serifFace(), p.size,
-                                            mskia::scale(c, 0.55f), 2.2f))
-                              .inset(0),
-                          text(p.text, type(serifFace(), p.size, c, 0.7f))})});
+               .children(
+                   {text(p.text, type(serifFace(), p.size,
+                                      sigil::material::scale(c, 0.42f), 6.5f))
+                        .inset(0),
+                    text(p.text, type(serifFace(), p.size,
+                                      sigil::material::scale(c, 0.55f), 2.2f))
+                        .inset(0),
+                    text(p.text, type(serifFace(), p.size, c, 0.7f))})});
     }
     return g;
   }
@@ -207,9 +211,9 @@ struct LainNavi {
                        .fill(mskia::Paint::radialUnit(
                            {0.48f, 0.46f}, 0.95f,
                            {{0.0f, kPanel},
-                            {0.55f, mskia::scale(kPanel, 0.86f)},
-                            {0.86f, mskia::scale(kPanel, 0.30f)},
-                            {1.0f, mskia::scale(kPanel, 0.0f)}}))
+                            {0.55f, sigil::material::scale(kPanel, 0.86f)},
+                            {0.86f, sigil::material::scale(kPanel, 0.30f)},
+                            {1.0f, sigil::material::scale(kPanel, 0.0f)}}))
                        .blendMode(SkBlendMode::kPlus)
                        .cache(Cache::Texture)
                        .key("panel")});
@@ -318,14 +322,16 @@ struct LainNavi {
                        type(serifItalicFace(), 34, kWordmark, 1.9f, 1.0f)),
                   text(u8"Produced By Tachibana Lab",
                        type(serifItalicFace(), 16,
-                            mskia::scale(kWordmark, 0.7f), 1.6f, 0.8f))}),
+                            sigil::material::scale(kWordmark, 0.7f), 1.6f,
+                            0.8f))}),
          slot("wire"),
          box()
              .centerAt({730, 182})
              .key("cover")
              .children(
                  {text(u8"cover me",
-                       type(phraseFace(), 62, mskia::scale(kCover, 0.5f), 6.5f))
+                       type(phraseFace(), 62,
+                            sigil::material::scale(kCover, 0.5f), 6.5f))
                       .centerAt({0, 0}),
                   text(u8"cover me", type(phraseFace(), 62, kCover, 1.4f))})});
 
@@ -346,16 +352,17 @@ struct LainNavi {
                                  {640, 574, 190, 0.85f},
                                  {742, 604, 118, 0.48f}};
       for (const auto& b : bands)
-        g.children({box()
-                        .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
-                        .fill(mskia::Paint::linearUnit(
-                            {0, 0}, {1, 0},
-                            {{0.0f, mskia::scale(kMagenta, 0.0f)},
-                             {0.30f, mskia::scale(kMagenta, b[3])},
-                             {0.68f, mskia::scale(kMagenta, b[3] * 0.8f)},
-                             {1.0f, mskia::scale(kMagenta, 0.0f)}}))
-                        .blendMode(SkBlendMode::kPlus)
-                        .cache(Cache::Texture)});
+        g.children(
+            {box()
+                 .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
+                 .fill(mskia::Paint::linearUnit(
+                     {0, 0}, {1, 0},
+                     {{0.0f, sigil::material::scale(kMagenta, 0.0f)},
+                      {0.30f, sigil::material::scale(kMagenta, b[3])},
+                      {0.68f, sigil::material::scale(kMagenta, b[3] * 0.8f)},
+                      {1.0f, sigil::material::scale(kMagenta, 0.0f)}}))
+                 .blendMode(SkBlendMode::kPlus)
+                 .cache(Cache::Texture)});
       root.children({std::move(g)});
     }
 

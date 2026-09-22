@@ -11,6 +11,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -19,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
@@ -27,16 +29,16 @@ namespace {
 constexpr float kMeasure = 288;
 constexpr float kBodySize = 14;
 constexpr float kHang = 22;
-constexpr SkColor4f kBody{0.85f, 0.86f, 0.89f, 1};
+constexpr material::Color kBody{0.85f, 0.86f, 0.89f, 1};
 constexpr const char* kPassage =
     "When the first words set the tone, the reader finds a way into the page. "
     "An opening can carry a quiet initial, a change of voice, or a mark at "
     "the margin. The paragraph keeps its own rhythm.";
 
-weave::Type serif(float size, SkColor4f color, float tracking = 0) {
+weave::Type serif(float size, material::Color color, float tracking = 0) {
   return {.face = weave::ports::face({"Iowan Old Style", "Georgia", "serif"}),
           .size = size,
-          .color = color,
+          .color = material::skia::toSkColor(color),
           .track = tracking};
 }
 

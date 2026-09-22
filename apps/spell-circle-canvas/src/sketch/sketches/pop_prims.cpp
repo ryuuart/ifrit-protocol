@@ -110,10 +110,10 @@ struct PopPrims {
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sketch::kit::studyTheme());
-    sketch::kit::stage(ctx,
-                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
-                        .captureAt = 1.0,
-                        .background = SkColor4f{0.051f, 0.051f, 0.075f, 1}});
+    sketch::kit::stage(
+        ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+              .captureAt = 1.0,
+              .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
 
     // 1 — a primitive lane written straight onto a formed body.
     facets = mesh::torus(130, 46, 34, 14);

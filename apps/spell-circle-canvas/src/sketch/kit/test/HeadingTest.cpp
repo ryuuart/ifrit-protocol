@@ -33,7 +33,7 @@ using sigil::sketch::test::fonts;
  *  the theme's registers, spaced by its subtitle gap. */
 TEST(SketchKitHeading, TitleCardDrawsTheHandSpelledColumn) {
   const kit::Theme& house = kit::houseTheme();
-  const auto line = [&](const kit::Register& r, SkColor4f c) {
+  const auto line = [&](const kit::Register& r, sigil::material::Color c) {
     return house.style(r, c);
   };
   Element byHand =
@@ -76,7 +76,7 @@ TEST(SketchKitHeading, AMissingLineSpendsNoGap) {
  *  note sits on the card's last line. */
 TEST(SketchKitHeading, ACardWithNotesIsTheHandSpelledRow) {
   const kit::Theme& house = kit::houseTheme();
-  const auto line = [&](const kit::Register& reg, SkColor4f ink) {
+  const auto line = [&](const kit::Register& reg, sigil::material::Color ink) {
     return house.style(reg, ink);
   };
   Element byHand =
@@ -135,10 +135,11 @@ TEST(SketchKitHeading, ARegisterNamesItsOwnFace) {
           .alignItems(compose::Align::Start)
           .children({compose::text(
               u8"THE STROKE ATLAS",
-              sigil::weave::textStyle({.face = paper.type.mono,
-                                       .size = paper.type.title.size,
-                                       .color = paper.palette.ink,
-                                       .track = paper.type.title.track}))});
+              sigil::weave::textStyle(
+                  {.face = paper.type.mono,
+                   .size = paper.type.title.size,
+                   .color = sigil::material::skia::toSkColor(paper.palette.ink),
+                   .track = paper.type.title.track}))});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::titleCard({.title = {u8"THE STROKE ATLAS"}})));
 }

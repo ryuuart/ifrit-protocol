@@ -66,8 +66,8 @@ TEST(SketchKitTicker, TheInkColoursTheWordsAsWellAsTheTicks) {
   auto amberIn = [](const SkBitmap& shot, int fromRow) {
     for (int y = fromRow; y < kTall; ++y)
       for (int x = 0; x < kWide; ++x) {
-        const SkColor4f pixel = shot.getColor4f(x, y);
-        if (pixel.fR > 0.5f && pixel.fR > pixel.fB * 2) return true;
+        const sigil::material::Color pixel = shot.getColor4f(x, y);
+        if (pixel.r > 0.5f && pixel.r > pixel.b * 2) return true;
       }
     return false;
   };

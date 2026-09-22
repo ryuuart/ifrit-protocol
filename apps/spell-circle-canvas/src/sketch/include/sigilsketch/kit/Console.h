@@ -12,6 +12,7 @@
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <cstddef>
@@ -35,7 +36,7 @@ struct Console {
   /** The colours a row may name, beside the base one every unnamed row is
    *  set in. The names are the caller's rows' — this library has no
    *  vocabulary of levels, because no two studies agree on one. */
-  std::vector<std::pair<std::string, SkColor4f>> levels;
+  std::vector<std::pair<std::string, material::Color>> levels;
   /** Unset is the theme's caption-label size, in the face a CALL is set
    *  in. */
   std::optional<float> size;

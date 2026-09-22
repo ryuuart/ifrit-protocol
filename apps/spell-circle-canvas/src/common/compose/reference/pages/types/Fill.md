@@ -50,13 +50,13 @@ version of its top.
 
 | Spelling | Language | What it gives |
 | --- | --- | --- |
-| `Fill::color(colour)` | C++ | a flat `SkColor4f` |
+| `Fill::color(colour)` | C++ | a flat `material::Color` |
 | `Fill::shader(shader)` | C++ | any `sk_sp<SkShader>`, gradients included |
 | `Fill::none()` | C++ | the value that paints nothing |
 | `Fill::currentInk()` | C++ | the ink in force where the mark lands |
 | `Fill::var(reference)` | C++ | the colour a custom property holds |
 | `Fill::var(name)` | C++ | the same, interning the name through `compose::var` — C++ only, since Python's `Fill.var` takes the reference alone |
-| `compose::hexColor(0x1f2933)` | C++ | a packed sRGB integer, constexpr, as an `SkColor4f` a `Fill::color` takes |
+| `compose::hexColor(0x1f2933)` | C++ | a packed sRGB integer, constexpr, as the `material::Color` a `Fill::color` takes |
 | `compose::linearGradient(from, to, colours)` | C++ | a two-point ramp, as a shader fill |
 | `compose::radialGradient(centre, radius, colours)` | C++ | a circular ramp, as a shader fill |
 | `compose::toFill(paint)` | C++ | the static collapse of a material paint — a solid or a built shader, and nothing for a paint that needs a frame |

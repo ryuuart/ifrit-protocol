@@ -50,6 +50,7 @@
 #include <include/core/SkImageInfo.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/mask/Mask.h>
@@ -105,7 +106,7 @@ sk_sp<SkImage> generated(const F& texel) {
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(kMapSide, kMapSide));
   for (int y = 0; y < kMapSide; ++y)
     for (int x = 0; x < kMapSide; ++x) {
-      const SkColor4f colour = texel(x, y);
+      const material::Color colour = texel(x, y);
       *bitmap.getAddr32(x, y) = colour.toSkColor();
     }
   bitmap.setImmutable();
@@ -141,7 +142,7 @@ sk_sp<SkImage> domes(int cells, float bulge) {
       ny /= len;
       nz /= len;
     }
-    return SkColor4f{nx * 0.5f + 0.5f, ny * 0.5f + 0.5f, nz * 0.5f + 0.5f,
+    return material::Color{nx * 0.5f + 0.5f, ny * 0.5f + 0.5f, nz * 0.5f + 0.5f,
                      1.0f};
   });
 }
@@ -155,7 +156,7 @@ sk_sp<SkImage> domes(int cells, float bulge) {
 sk_sp<SkImage> occlusionRoughnessMetallic() {
   return generated([](int, int y) {
     const float down = (float)y / (float)(kMapSide - 1);
-    return SkColor4f{1.0f, 0.94f - 0.88f * down, 0.02f + 0.80f * down, 1.0f};
+    return material::Color{1.0f, 0.94f - 0.88f * down, 0.02f + 0.80f * down, 1.0f};
   });
 }
 
@@ -172,7 +173,7 @@ sk_sp<SkImage> patches() {
                         0.10f * std::sin(u * 0.31f + v * 0.27f);
     const float t = std::clamp((field - 0.34f) * 2.6f, 0.0f, 1.0f);
     const float smooth = t * t * (3.0f - 2.0f * t);
-    return SkColor4f{smooth, smooth, smooth, 1.0f};
+    return material::Color{smooth, smooth, smooth, 1.0f};
   });
 }
 
@@ -186,7 +187,7 @@ sk_sp<SkImage> filaments(int period) {
   };
   return generated([&](int x, int y) {
     const float lit = std::clamp(rule(x) + rule(y), 0.0f, 1.0f);
-    return SkColor4f{lit, lit, lit, 1.0f};
+    return material::Color{lit, lit, lit, 1.0f};
   });
 }
 
@@ -318,7 +319,7 @@ struct MaterialLab {
     sketch::kit::stage(ctx,
                        {.size = {880, 520},
                         .captureAt = 1.1,
-                        .background = SkColor4f{0.035f, 0.038f, 0.05f, 1.0f}});
+                        .background = material::Color{0.035f, 0.038f, 0.05f, 1.0f}});
     row = cards();
     // The floor wears the set: a texture that repeats is what says how
     // large the room is.

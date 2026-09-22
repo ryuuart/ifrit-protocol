@@ -11,6 +11,7 @@
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Sampler.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <array>
@@ -237,9 +238,9 @@ TEST(Deposit, ACustomTipGetsThePigmentAndTheDefaultModesEveryDab) {
 
   ASSERT_GT(recording->fills.size(), 2u);
   EXPECT_EQ(recording->fills.size(), recording->dabs.size());
-  for (const SkColor4f& fill : recording->fills) {
-    EXPECT_FLOAT_EQ(fill.fB, 1.0f);
-    EXPECT_FLOAT_EQ(fill.fA, 1.0f);
+  for (const sigil::material::Color& fill : recording->fills) {
+    EXPECT_FLOAT_EQ(fill.b, 1.0f);
+    EXPECT_FLOAT_EQ(fill.a, 1.0f);
   }
 }
 
@@ -247,7 +248,7 @@ TEST(Deposit, AFibreStrokeUnderAnAdvancedBlendCompositesOnce) {
   Paper paper(400, 200, SK_ColorWHITE);
   paper.begin();
   brush::Tool tool =
-      brush::watercolor(SkColor4f{0.5f, 0.5f, 0.5f, 1.0f}, 40.0f);
+      brush::watercolor(sigil::material::Color{0.5f, 0.5f, 0.5f, 1.0f}, 40.0f);
   tool.opacity = 1.0f;
   tool.blend = MULTIPLY;
   brush::line(paper.pen, tool, {10, 100}, {390, 100});

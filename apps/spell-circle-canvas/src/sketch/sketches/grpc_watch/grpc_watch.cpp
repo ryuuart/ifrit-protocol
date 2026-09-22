@@ -44,6 +44,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
@@ -58,6 +59,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace data = sigil::data;
@@ -74,7 +76,7 @@ const char* kMethod = "/Sky/Watch";          // the one method this door serves
 const char* kRecording = "data/watch.feed";  // what a capture replays
 
 constexpr SkSize kCanvas = {1280, 720};
-constexpr SkColor4f kGround = {0.05f, 0.05f, 0.08f, 1};
+constexpr material::Color kGround = {0.05f, 0.05f, 0.08f, 1};
 /** Both palette turns have landed and a gust is half a second old,
  *  which is the frame that shows both things a caller can do. */
 constexpr double kCaptureAt = 2.5;
@@ -104,7 +106,7 @@ constexpr float kBandAlpha = 0.84f;  // what a colour off the wire is drawn at
 
 /** The colours the bands are tinted from, in turn. */
 constexpr size_t kTints = 3;
-using Palette = std::array<SkColor4f, kTints>;
+using Palette = std::array<material::Color, kTints>;
 
 /** What the sky is tinted from until a caller turns it — the first of
  *  the three a caller sends. */
@@ -308,10 +310,10 @@ struct GrpcWatch {
                              {"height", (double)kBands[index].height},
                              {"offset", toTheCaller(phaseOf(index))}});
     data::Json::Array colours;
-    for (const SkColor4f& tint : palette)
-      colours.push_back(data::Json::Array{toTheCaller(tint.fR),
-                                          toTheCaller(tint.fG),
-                                          toTheCaller(tint.fB), tint.fA});
+    for (const material::Color& tint : palette)
+      colours.push_back(data::Json::Array{toTheCaller(tint.r),
+                                          toTheCaller(tint.g),
+                                          toTheCaller(tint.b), tint.a});
     return data::Json::Object{{"kind", "Sky"},
                               {"width", (double)kCanvas.width()},
                               {"height", (double)kCanvas.height()},

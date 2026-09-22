@@ -4,6 +4,7 @@
 
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
@@ -58,7 +59,7 @@ struct LootGrid {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 5.1,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = sigil::material::Color{0, 0, 0, 1}});
     displayFace = weave::ports::face({"Papyrus", "Baskerville", "Hoefler Text",
                                       "Iowan Old Style", "Georgia"},
                                      600);
@@ -129,7 +130,7 @@ struct LootGrid {
     // the items, each on its rarity-tinted cell
     for (const auto& item : lt::kItems) {
       const float w = lt::spanW(item.w), h = lt::spanW(item.h);
-      const SkColor4f rc = lt::rarityColor(item.rarity);
+      const sigil::material::Color rc = lt::rarityColor(item.rarity);
       const bool lit =
           item.rarity == lt::Rarity::Unique || item.rarity == lt::Rarity::Set;
       Element cell =
@@ -149,7 +150,7 @@ struct LootGrid {
                                   {{0.0f, {0.10f, 0.095f, 0.082f, 0.92f}},
                                    {1.0f, {0.05f, 0.048f, 0.042f, 0.92f}}}))
               .foreground(stroke(
-                  1.0f, Fill::color({rc.fR, rc.fG, rc.fB, lit ? 0.8f : 0.34f})))
+                  1.0f, Fill::color({rc.r, rc.g, rc.b, lit ? 0.8f : 0.34f})))
               .row()
               .alignItems(Align::Center)
               .justifyContent(Justify::Center)
@@ -159,7 +160,7 @@ struct LootGrid {
       // name that says what a thing is worth.
       if (lit)
         cell.background(
-            styles::dropShadow({rc.fR, rc.fG, rc.fB, 0.62f}, {0, 0}, 13));
+            styles::dropShadow({rc.r, rc.g, rc.b, 0.62f}, {0, 0}, 13));
       // uniques catch a light band that sweeps them
       if (item.rarity == lt::Rarity::Unique)
         cell.children(
@@ -271,7 +272,7 @@ struct LootGrid {
     struct Worn {
       int slot;
       lt::Rarity rarity;
-      SkColor4f tint;
+      sigil::material::Color tint;
     };
     static const Worn kWorn[] = {
         {0, lt::Rarity::Rare, hexColor(0x9AA0A6)},
@@ -293,7 +294,7 @@ struct LootGrid {
               .rect(SkRect::MakeXYWH(pad + 17 + s.x, pad + 22 + s.y, w, h))
               .children({lt::well(w, h).inset(0)});
       if (equipped) {
-        const SkColor4f rc = lt::rarityColor(equipped->rarity);
+        const sigil::material::Color rc = lt::rarityColor(equipped->rarity);
         socket.children(
             {box()
                  .inset(2)
@@ -304,7 +305,7 @@ struct LootGrid {
                                      {{0.0f, {0.10f, 0.095f, 0.082f, 0.95f}},
                                       {1.0f, {0.05f, 0.048f, 0.042f, 0.95f}}}))
                  .foreground(
-                     stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.5f}))),
+                     stroke(1.0f, Fill::color({rc.r, rc.g, rc.b, 0.5f}))),
              kit::centred()
                  .inset(0)
                  .row()
@@ -342,7 +343,7 @@ struct LootGrid {
     // the stat block D2 puts under the paperdoll: two columns of
     // label-dots-value rows, laid out rather than absolutely stacked
     auto statRow = [&](const char* label, const char* value,
-                       SkColor4f valueColor) {
+                       sigil::material::Color valueColor) {
       return box()
           .row()
           .width(166.0f)
@@ -363,7 +364,7 @@ struct LootGrid {
     struct Reading {
       const char* name;
       const char* figure;
-      SkColor4f ink;
+      sigil::material::Color ink;
     };
     static const std::array<std::array<Reading, 4>, 2> kColumns{
         {{{{"STRENGTH", "142", lt::kParch},
@@ -402,7 +403,7 @@ struct LootGrid {
   Element tooltip() {
     namespace lt = loot;
     using namespace std::chrono_literals;
-    const SkColor4f rc = lt::rarityColor(lt::Rarity::Unique);
+    const sigil::material::Color rc = lt::rarityColor(lt::Rarity::Unique);
     return box()
         .width(300.0f)
         .at({500, 300})
@@ -412,7 +413,7 @@ struct LootGrid {
         .gap(2)
         .borderRadius({2})
         .fill(Paint::solid({0.02f, 0.02f, 0.02f, 0.90f}))
-        .foreground(stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.45f})))
+        .foreground(stroke(1.0f, Fill::color({rc.r, rc.g, rc.b, 0.45f})))
         .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 5}, 12))
         .key("tooltip")
         .opacity(animate(motion::from(0.0f).to(1.0f), {380ms}))
@@ -431,11 +432,12 @@ struct LootGrid {
             {text("Doomslinger")
                  .font({.face = displayFace,
                         .size = 17,
-                        .color = rc,
+                        .color = sigil::material::skia::toSkColor(rc),
                         .track = 1.2f,
                         .weight = 620}),
              text("Colossus Blade")
-                 .font({.color = lt::kParch, .track = 0.8f})
+                 .font({.color = sigil::material::skia::toSkColor(lt::kParch),
+                        .track = 0.8f})
                  .margin(0, 0, 6, 0),
              text("189% Enhanced Damage").styleClass("affix"),
              text("+2 to Fire Skills").styleClass("affix"),
@@ -446,9 +448,9 @@ struct LootGrid {
                  .height(1.0f)
                  .margin(7, 0, 5, 0)
                  .fill(Paint::linear({0, 0}, {180, 0},
-                                     {{0.0f, {rc.fR, rc.fG, rc.fB, 0.0f}},
-                                      {0.5f, {rc.fR, rc.fG, rc.fB, 0.5f}},
-                                      {1.0f, {rc.fR, rc.fG, rc.fB, 0.0f}}})),
+                                     {{0.0f, {rc.r, rc.g, rc.b, 0.0f}},
+                                      {0.5f, {rc.r, rc.g, rc.b, 0.5f}},
+                                      {1.0f, {rc.r, rc.g, rc.b, 0.0f}}})),
              text("Required Strength: 189"),
              text("Required Level: 63").ink(hexColor(0xD04040))});
   }
@@ -542,11 +544,14 @@ struct LootGrid {
    *  its own. */
   static weave::StyleSheet classes(const sketch::kit::Theme& look) {
     weave::StyleSheet sheet = look.styleSheet();
-    sheet.set(
-        "heading",
-        {.size = 12, .color = loot::kBronzeLit, .track = 4.5f, .weight = 650});
+    sheet.set("heading",
+              {.size = 12,
+               .color = sigil::material::skia::toSkColor(loot::kBronzeLit),
+               .track = 4.5f,
+               .weight = 650});
     sheet.set("value", {.size = 12, .track = 0.5f, .weight = 620});
-    sheet.set("affix", {.color = loot::rarityColor(loot::Rarity::Magic)});
+    sheet.set("affix", {.color = sigil::material::skia::toSkColor(
+                            loot::rarityColor(loot::Rarity::Magic))});
     return sheet;
   }
 
@@ -608,7 +613,7 @@ struct LootGrid {
          box().column().at({30, 34}).children(
              {text("HOARD OF THE HORADRIM")
                   .font({.size = 23,
-                         .color = lt::kParch,
+                         .color = sigil::material::skia::toSkColor(lt::kParch),
                          .track = 3.4f,
                          .weight = 640}),
               text("grid inventory — generated "
@@ -633,10 +638,12 @@ struct LootGrid {
                                     {{0.0f, hexColor(0xFFE9A8)},
                                      {0.6f, hexColor(0xD8A93C)},
                                      {1.0f, hexColor(0x7A5C15)}})),
-                  text(goldText).font({.size = 17,
-                                       .color = hexColor(0xD8B95C),
-                                       .track = 1.6f,
-                                       .weight = 620}),
+                  text(goldText).font(
+                      {.size = 17,
+                       .color =
+                           sigil::material::skia::toSkColor(hexColor(0xD8B95C)),
+                       .track = 1.6f,
+                       .weight = 620}),
                   text("GOLD").font({.size = 10, .track = 2.2f})})});
 
     // The two keys, bottom left and bottom right. Both are
@@ -644,9 +651,9 @@ struct LootGrid {
     // inside a bright edge is the entry's `keyline`, and the rarity
     // ladder's words are set in what they name through its `ink`.
     auto tier = [](lt::Rarity r, const char* label) {
-      const SkColor4f c = lt::rarityColor(r);
+      const sigil::material::Color c = lt::rarityColor(r);
       return sketch::kit::LegendEntry{
-          Fill::color({c.fR * 0.35f, c.fG * 0.35f, c.fB * 0.35f, 1}),
+          Fill::color({c.r * 0.35f, c.g * 0.35f, c.b * 0.35f, 1}),
           label,
           {},
           Fill::color(c),

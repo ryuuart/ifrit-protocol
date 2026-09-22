@@ -7,8 +7,8 @@
  * behind it, and the moment a still of it is worth taking.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkSize.h>
+#include <sigilmaterial/color/Color.h>
 
 namespace sigil::sketch {
 
@@ -47,7 +47,7 @@ namespace sigil::sketch {
  *  its own grid, and it is the reason the number outranks the width. */
 struct CanvasSpecification {
   SkSize size = {900, 640};
-  SkColor4f background = {0.043f, 0.039f, 0.078f, 1};
+  sigil::material::Color background = {0.043f, 0.039f, 0.078f, 1};
   double captureSeconds = -1.0;
   int oversample = 0;
 

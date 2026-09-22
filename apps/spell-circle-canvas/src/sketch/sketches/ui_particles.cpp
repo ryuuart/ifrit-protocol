@@ -116,7 +116,7 @@ struct UiParticles {
   // ---- chip components (one component, many skins) ------------------------
 
   struct ChipTheme {
-    SkColor4f fill, edge, ink;
+    material::Color fill, edge, ink;
   };
   /** One chip's skin, read off the wheel: the hue is walked rather than
    *  authored, so the fill, the edge and the ink are one hue at three
@@ -127,7 +127,7 @@ struct UiParticles {
           material::hsv(hueDegrees, saturation, value));
     };
     return {tone(0.62f, 0.94f), tone(0.80f, 0.45f),
-            darkInk ? tone(0.85f, 0.22f) : SkColor4f{1, 1, 1, 1}};
+            darkInk ? tone(0.85f, 0.22f) : material::Color{1, 1, 1, 1}};
   }
 
   /** THE SHELL EVERY STAMPED CHIP SHARES: a label standing in the middle
@@ -172,7 +172,7 @@ struct UiParticles {
                             .dashIntervals = {5, 4}};
     // The paper is the chip's own fill taken most of the way to white.
     const auto pale = [](float c) { return 0.75f + c * 0.25f; };
-    const SkColor4f paper{pale(t.fill.fR), pale(t.fill.fG), pale(t.fill.fB), 1};
+    const material::Color paper{pale(t.fill.r), pale(t.fill.g), pale(t.fill.b), 1};
     return box()
         .width(kSprite - 10)
         .height(kSprite - 18)
@@ -250,7 +250,7 @@ struct UiParticles {
         .ink(s.ink)
         .children(
             {text(cfg.title).font({.size = 15}), text(cfg.body1),
-             text(cfg.body2).ink({s.bronze.fR, s.bronze.fG, s.bronze.fB, 1})});
+             text(cfg.body2).ink({s.bronze.r, s.bronze.g, s.bronze.b, 1})});
   }
   Element carvedPost(const PostConfig& cfg) {
     const Palette& pal = carvedPalettes()[(unsigned)cfg.paletteIndex & 3u];
@@ -268,9 +268,9 @@ struct UiParticles {
   }
   Element plainPost(const PostConfig& cfg) {
     // A modern dark UI card — the counterpoint to the ornate borders.
-    const SkColor4f accents[2] = {{0.42f, 0.66f, 0.98f, 1},   // cobalt
+    const material::Color accents[2] = {{0.42f, 0.66f, 0.98f, 1},   // cobalt
                                   {0.98f, 0.72f, 0.34f, 1}};  // amber
-    const SkColor4f accent = accents[(unsigned)cfg.paletteIndex & 1u];
+    const material::Color accent = accents[(unsigned)cfg.paletteIndex & 1u];
     return box()
         .width(kPostW - 6)
         .height(kPostH - 6)
@@ -440,7 +440,7 @@ struct UiParticles {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     buildChipAtlas();

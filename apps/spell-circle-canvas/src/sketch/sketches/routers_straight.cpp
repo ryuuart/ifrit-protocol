@@ -41,6 +41,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -48,6 +49,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -63,7 +65,7 @@ constexpr float kRadius = 12;    // the corner radius, px
 constexpr float kChamfer = 14;   // the 45 degree cut, which wins over a radius
 constexpr float kBulge = 0.26f;  // the arc's bulge, as a fraction of the chord
 
-constexpr SkColor4f kNodeFill{0.17f, 0.18f, 0.21f, 1};
+constexpr material::Color kNodeFill{0.17f, 0.18f, 0.21f, 1};
 
 /** The two nodes every cell routes between, at the same two places in
  *  every cell, so the ROUTER is the only thing that differs. */

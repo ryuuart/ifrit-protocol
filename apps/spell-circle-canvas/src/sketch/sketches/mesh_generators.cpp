@@ -66,12 +66,14 @@
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Sweep.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 namespace sections = sigil::geometry::sections;
@@ -123,10 +125,10 @@ struct MeshGenerators {
     // Every body is that steel with its own colour, and two of them with
     // one more dial moved — so the row is read by its tints rather than by
     // five copies of one style.
-    const auto tinted = [&steel](SkColor4f colour, float specular = 0.9f,
+    const auto tinted = [&steel](material::Color colour, float specular = 0.9f,
                                  float shininess = 64) {
       render::MeshStyle style = steel;
-      style.baseColor = colour;
+      style.baseColor = material::skia::toSkColor(colour);
       style.specular = specular;
       style.shininess = shininess;
       return style;
@@ -168,7 +170,7 @@ struct MeshGenerators {
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,
-                        .background = SkColor4f{0.04f, 0.04f, 0.062f, 1}});
+                        .background = material::Color{0.04f, 0.04f, 0.062f, 1}});
 
     // The bodies are built once. A generator's cost belongs to the
     // description, not to the frame: nothing below changes per frame, so

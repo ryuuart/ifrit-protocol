@@ -28,6 +28,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
@@ -88,10 +89,10 @@ namespace {
 
 struct DartFlight {
   void setup(sketch::SetContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = {880, 600},
-                        .captureAt = 1.5,
-                        .background = SkColor4f{0.028f, 0.032f, 0.046f, 1.0f}});
+    sketch::kit::stage(
+        ctx, {.size = {880, 600},
+              .captureAt = 1.5,
+              .background = material::Color{0.028f, 0.032f, 0.046f, 1.0f}});
   }
 
   world::Frame describe(float seconds) {

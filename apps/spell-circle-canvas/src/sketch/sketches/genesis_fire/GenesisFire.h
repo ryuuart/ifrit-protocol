@@ -231,8 +231,8 @@ struct GenesisFire {
    *  are composited and a black edge would darken the ramp's middle. */
   void blurCallout(Pen& pen, float x0, float y0, float w, float h, float a);
 
-  static SkColor4f fadeTo(SkColor4f c, float a) {
-    return {c.fR, c.fG, c.fB, c.fA * a};
+  static sigil::material::Color fadeTo(sigil::material::Color c, float a) {
+    return {c.r, c.g, c.b, c.a * a};
   }
 
   // =========================================================================
@@ -260,7 +260,7 @@ struct GenesisFire {
 
   /** One cell of a census row: the @p column-th of those widths, in the
    *  register the row states and its own colour. */
-  Element censusCell(const Utf8& s, size_t column, SkColor4f c) {
+  Element censusCell(const Utf8& s, size_t column, sigil::material::Color c) {
     return text(s).ink(c).width(kCensusW[column]).flexShrink(0);
   }
 
@@ -271,7 +271,7 @@ struct GenesisFire {
    *  fraction and the rail clips, which is what keeps a bar that
    *  overshoots inside its own track. The live row names its bar, since
    *  that row is described again every frame. */
-  Element censusBar(float frac, SkColor4f c, const char* key);
+  Element censusBar(float frac, sigil::material::Color c, const char* key);
 
   /** ONE FIGURE'S ROW, out of the document: its four cells and the bar
    *  that says its share of the largest census. */
@@ -287,14 +287,14 @@ struct GenesisFire {
 
   Element rampPanel();
 
-  Element benchCell(Element content, const Utf8& caption, SkColor4f cc);
+  Element benchCell(Element content, const Utf8& caption, sigil::material::Color cc);
 
   /** The bench's third cell is EMPTY in the tree: the pen draws the quads
    *  into it afterwards, at the cell's own box, because those quads are
    *  the field's renderer and the field is the pen's. */
   Element renderModelPanel();
 
-  Element prodLine(const Utf8& s, SkColor4f c) {
+  Element prodLine(const Utf8& s, sigil::material::Color c) {
     return text(s).styleClass("line").ink(c).height(10).flexShrink(0);
   }
 

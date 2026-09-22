@@ -17,6 +17,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -39,7 +40,7 @@ struct Card {
 
 /** The one ink every line on the sheet is set in; the sheet's own lines
  *  differ from a card's in size alone. */
-constexpr SkColor4f kInk{0.94f, 0.95f, 0.98f, 1};
+constexpr material::Color kInk{0.94f, 0.95f, 0.98f, 1};
 
 Element card(const Card& properties, Element content) {
   return kit::well(

@@ -17,6 +17,7 @@
 #include <sigilcompose/core/Attributes.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/cache/Policy.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Length.h>
 
 #include <bit>
@@ -226,7 +227,7 @@ enum class Justify : uint8_t {
  *  rather than duplicate sibling nodes. */
 struct Echo {
   SkVector offset = {3, 3};
-  SkColor4f color = {0, 0, 0, 1};
+  material::Color color = {0, 0, 0, 1};
   bool operator==(const Echo&) const = default;
 };
 

@@ -118,6 +118,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -139,6 +140,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
@@ -162,12 +164,12 @@ namespace {
 // dense star fills #181511). Rag paper this age reads lighter in the hand,
 // so the base is lifted and the sampled tone becomes the vignette end.
 
-constexpr SkColor4f kPaper = hexColor(0xe3d7b6);
-constexpr SkColor4f kPaperEdge = hexColor(0xa08757);
-constexpr SkColor4f kInk = hexColor(0x211c14);     // the dense star fills
-constexpr SkColor4f kInkLine = hexColor(0x362e23); // hairline rims and rules
-constexpr SkColor4f kInkSoft = hexColor(0x3a3125, 0.72f);
-constexpr SkColor4f kFox = hexColor(0x9c7f57, 0.10f);
+constexpr material::Color kPaper = hexColor(0xe3d7b6);
+constexpr material::Color kPaperEdge = hexColor(0xa08757);
+constexpr material::Color kInk = hexColor(0x211c14);     // the dense star fills
+constexpr material::Color kInkLine = hexColor(0x362e23); // hairline rims and rules
+constexpr material::Color kInkSoft = hexColor(0x3a3125, 0.72f);
+constexpr material::Color kFox = hexColor(0x9c7f57, 0.10f);
 
 // ---------------------------------------------------------------------------
 // geometry — canvas = the 1600x2072 scan x 0.975, so every measured pixel
@@ -730,8 +732,8 @@ struct ChladniTab1 {
                         box().inset(0).fill(radialGradient(
                             {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
                             {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
-                             SkColor4f{kPaperEdge.fR, kPaperEdge.fG,
-                                       kPaperEdge.fB, 0.26f}},
+                             material::Color{kPaperEdge.r, kPaperEdge.g,
+                                       kPaperEdge.b, 0.26f}},
                             {0.0f, 0.62f, 1.0f}))})
              .cache(Cache::Texture)});
 
@@ -807,10 +809,10 @@ struct ChladniTab1 {
     paperMat = Paint::recipe(field::grain(0.013f, 4, 9.0f));
     // Sparse, and NOT on a grid you can see: the tile has to be big
     // enough that its repeat is not the strongest mark on the page.
-    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {skia::toColor(kFox)});
+    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {skia::toColor(material::skia::toSkColor(kFox))});
     foxing.seed(17);
     foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f,
-                                 {skia::toColor(hexColor(0x94764c, 0.09f))});
+                                 {skia::toColor(material::skia::toSkColor(hexColor(0x94764c, 0.09f)))});
     foxingLL.seed(53);
     // Ink on rag paper is never flat: luminance noise, so it shades the
     // fill rather than hue-shifting it.

@@ -96,7 +96,7 @@ auto TwoAdvancedV4::waterFx() -> sk_sp<SkRuntimeEffect> {
   return e;
 }
 
-auto TwoAdvancedV4::tickDots(int cluster, SkColor4f c) -> Element {
+auto TwoAdvancedV4::tickDots(int cluster, sigil::material::Color c) -> Element {
   const auto dotAt = [this, cluster, c](int i) {
     return box().width(5).height(5).fill(c).opacity(
         &dot[(size_t)cluster * 3 + (size_t)i]);
@@ -108,13 +108,15 @@ auto TwoAdvancedV4::tickDots(int cluster, SkColor4f c) -> Element {
       .children({each(3, dotAt)});
 }
 
-auto TwoAdvancedV4::radarSweep(int i, SkColor4f tint, float inner) -> Element {
+auto TwoAdvancedV4::radarSweep(int i, sigil::material::Color tint, float inner)
+    -> Element {
   return box()
       .inset(0)
       .shape(shapes::sector(-100, 78, inner))
-      .fill(mskia::Paint::linearUnit({0, 0}, {1, 1},
-                                     {{0.0f, mskia::withAlpha(tint, 0.85f)},
-                                      {1.0f, mskia::withAlpha(tint, 0.05f)}}))
+      .fill(mskia::Paint::linearUnit(
+          {0, 0}, {1, 1},
+          {{0.0f, sigil::material::withAlpha(tint, 0.85f)},
+           {1.0f, sigil::material::withAlpha(tint, 0.05f)}}))
       .rotate(&gauge[(size_t)i])
       .opacity(&gaugeAlpha[(size_t)i]);
 }
@@ -146,8 +148,9 @@ auto TwoAdvancedV4::statusBar() -> Element {
                                                   {{0.0f, kCyanRing},
                                                    {0.55f, kTealBar},
                                                    {1.0f, hexColor(0x0C2A2C)}}))
-                   .stroke(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.7f)),
-                                  PathFormat::Align::Inner))
+                   .stroke(stroke(
+                       1, Fill::color(sigil::material::withAlpha(kCyan, 0.7f)),
+                       PathFormat::Align::Inner))
 
                    .children({box().width(9).height(9).borderRadius({5}).stroke(
                        stroke(2, Fill::color(kCyan)))}),
@@ -157,13 +160,14 @@ auto TwoAdvancedV4::statusBar() -> Element {
                t("INITREQ 2A", micro(12, kNear, 240)),
                kit::line({.length = Dimension(14),
                           .column = true,
-                          .fill = Fill::color(mskia::withAlpha(kCyan, 0.4f))}),
+                          .fill = Fill::color(
+                              sigil::material::withAlpha(kCyan, 0.4f))}),
                t("› GLOBAL AMBIENCE",
-                 micro(11, mskia::withAlpha(kCyan, 0.9f), 240)),
+                 micro(11, sigil::material::withAlpha(kCyan, 0.9f), 240)),
                box().flexGrow(1),
                box().width(90).height(12).foreground(
-                   styles::TickRail{mskia::withAlpha(kNear, 0.45f), 6, 3, 8, 1,
-                                    3, 0.5f, path::Edge::Bottom}),
+                   styles::TickRail{sigil::material::withAlpha(kNear, 0.45f), 6,
+                                    3, 8, 1, 3, 0.5f, path::Edge::Bottom}),
                box().width(46)});
 
   Element maroon =
@@ -189,9 +193,9 @@ auto TwoAdvancedV4::statusBar() -> Element {
                box()
                    .height(24)
                    .padding(0, 9)
-                   .stroke(stroke(1,
-                                  Fill::color(mskia::withAlpha(kNear, 0.75f)),
-                                  PathFormat::Align::Inner))
+                   .stroke(stroke(
+                       1, Fill::color(sigil::material::withAlpha(kNear, 0.75f)),
+                       PathFormat::Align::Inner))
                    .row()
                    .alignItems(Align::Center)
                    .children({t("V4.PROPHECY", heavy(14, kNear, 80))})});
@@ -211,12 +215,14 @@ auto TwoAdvancedV4::audioModule() -> Element {
         .alignItems(Align::Center)
         .padding(0, 6)
         .gap(6)
-        .fill(playing ? kChromeHi : mskia::withAlpha(hexColor(0x2A0A0C), 0.85f))
+        .fill(playing ? kChromeHi
+                      : sigil::material::withAlpha(hexColor(0x2A0A0C), 0.85f))
         .foreground(onEdges(
             path::Edge::Left,
             stroke(
                 2,
-                Fill::color(playing ? kCyan : mskia::withAlpha(kDust, 0.35f)),
+                Fill::color(playing ? kCyan
+                                    : sigil::material::withAlpha(kDust, 0.35f)),
                 PathFormat::Align::Inner)))
         .children({t(playing ? "▸" : " ", micro(11, kCyan, 0)),
                    t(name, cut(blackFace(), 13, playing ? kNear : kHeadDim, 60,
@@ -232,10 +238,11 @@ auto TwoAdvancedV4::audioModule() -> Element {
           .shape(shapes::chamfered(8, shapes::Corner::AntiDiagonal))
           .fill(spectrum)
           .foreground(styles::Scanlines{{0, 0, 0, 0.16f}, 3, 1})
-          .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.6f), 10, 2, 3,
-                                       shapes::Corner::All})
-          .foreground(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.35f)),
-                             PathFormat::Align::Inner));
+          .foreground(styles::Brackets{sigil::material::withAlpha(kCyan, 0.6f),
+                                       10, 2, 3, shapes::Corner::All})
+          .foreground(
+              stroke(1, Fill::color(sigil::material::withAlpha(kCyan, 0.35f)),
+                     PathFormat::Align::Inner));
 
   auto key = [&](const char* glyph, bool hot) {
     return kit::centred()
@@ -247,12 +254,13 @@ auto TwoAdvancedV4::audioModule() -> Element {
                                      {{0.0f, hot ? kCtaHi : hexColor(0x5A2226)},
                                       {0.5f, hot ? kCta : hexColor(0x3A0F12)},
                                       {1.0f, hexColor(0x240607)}}))
-        .stroke(stroke(1, Fill::color(mskia::withAlpha(kDust, 0.35f)),
+        .stroke(stroke(1, Fill::color(sigil::material::withAlpha(kDust, 0.35f)),
                        PathFormat::Align::Inner))
 
         .children({t(glyph, micro(11, hot ? kNear : kDust, 0))});
   };
-  auto meter = [&](float w, const ch::Output<float>* bind, SkColor4f c) {
+  auto meter = [&](float w, const ch::Output<float>* bind,
+                   sigil::material::Color c) {
     return box()
         .width(w)
         .height(6)
@@ -273,26 +281,27 @@ auto TwoAdvancedV4::audioModule() -> Element {
       .gridArea("audio")
       .foreground(styles::Brackets{
           kCyan, 18, 3, 4, shapes::Corner::TopLeft | shapes::Corner::TopRight})
-      .foreground(styles::TickRail{mskia::withAlpha(kDust, 0.45f), 7, 3, 6, 1,
-                                   4, 0.5f, path::Edge::Bottom})
+      .foreground(styles::TickRail{sigil::material::withAlpha(kDust, 0.45f), 7,
+                                   3, 6, 1, 4, 0.5f, path::Edge::Bottom})
       .children(
           {box().row().gap(8).height(100).children({list, scope}),
            box()
                .row()
                .gap(5)
                .alignItems(Align::Center)
-               .children(
-                   {key("◂◂", false), key("■", false), key("▸", true),
-                    key("▸▸", false), box().width(8),
-                    meter(64, &vuLeft, mskia::withAlpha(kCyan, 0.85f)),
-                    box().flexGrow(1), t("VOL", micro(10, kDustDim, 200)),
-                    meter(56, &vuRight, mskia::withAlpha(kCyanRing, 0.8f))}),
+               .children({key("◂◂", false), key("■", false), key("▸", true),
+                          key("▸▸", false), box().width(8),
+                          meter(64, &vuLeft,
+                                sigil::material::withAlpha(kCyan, 0.85f)),
+                          box().flexGrow(1), t("VOL", micro(10, kDustDim, 200)),
+                          meter(56, &vuRight,
+                                sigil::material::withAlpha(kCyanRing, 0.8f))}),
            box()
                .height(18)
                .row()
                .alignItems(Align::Center)
                .padding(0, 6)
-               .fill(mskia::withAlpha(kChrome, 0.9f))
+               .fill(sigil::material::withAlpha(kChrome, 0.9f))
                .children(
                    {t("AUDIO PREFERENCES", micro(11, kDust, 240)),
                     box().flexGrow(1),

@@ -55,7 +55,7 @@ auto Fallout2CharSheet::specialColumn() -> Element {
                         {0, 0}, {0, 1},
                         {{0.0f, kParchLit2}, {1.0f, hexColor(0x8C6428)}})),
                 at(box(), kPlaqueX - 4, y + 15, 2, 7)
-                    .fill(mskia::withAlpha(kParchLit, 0.85f)),
+                    .fill(sigil::material::withAlpha(kParchLit, 0.85f)),
                 bodyAt(descriptor(value), kDescX, y + 8)});
   }
   return g;
@@ -199,8 +199,9 @@ auto Fallout2CharSheet::folder() -> Element {
     const float x0 = 34 + nameW + gap * 2;
     const float x1 = 314 - countW - gap * 2;
     if (x1 > x0)
-      g.children({at(box(), x0, y + kRowPitch11 * 0.5f - 1.0f, x1 - x0, 1)
-                      .fill(Fill::color(mskia::withAlpha(kGreen, 0.85f)))});
+      g.children(
+          {at(box(), x0, y + kRowPitch11 * 0.5f - 1.0f, x1 - x0, 1)
+               .fill(Fill::color(sigil::material::withAlpha(kGreen, 0.85f)))});
   }
 
   // The scroll arrows at x = 317 (characterEditorFolderViewClear).
@@ -217,7 +218,7 @@ auto Fallout2CharSheet::folder() -> Element {
     // `shapes::polygon(3)` — it is a triangle keyed on the one thing it
     // is a function of, which is the direction it points.
     a.children({at(box(), 2, 3, 7, 6)
-                    .fill(Fill::color(mskia::withAlpha(kGold, 0.9f)))
+                    .fill(Fill::color(sigil::material::withAlpha(kGold, 0.9f)))
                     .shape(keyedShape(up, [up](SkSize s) {
                       SkPathBuilder b;
                       if (up) {
@@ -242,9 +243,9 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
   Element g = box().inset(0);
   for (int i = 0; i < 18; ++i) {
     const float y = 27 + kRowPitch11 * (float)i;
-    const SkColor4f c = i == selected       ? kSelected
-                        : tagged[(size_t)i] ? kTagged
-                                            : kGreen;
+    const sigil::material::Color c = i == selected       ? kSelected
+                                     : tagged[(size_t)i] ? kTagged
+                                                         : kGreen;
     int pct = skillPct[(size_t)i];
     if (i == selected)
       pct += 2 * presses;  // 1 point = 2% on a tagged skill (editor.msg {500})
@@ -276,7 +277,9 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
                .inset(0)
 
                .children({text(k == 0 ? "+" : "-")
-                              .font({.size = n(7.0f), .color = kGold})})});
+                              .font({.size = n(7.0f),
+                                     .color = sigil::material::skia::toSkColor(
+                                         kGold)})})});
     slider.children({btn});
   }
   slider.children({at(box(), 2, 6, 16, 12)

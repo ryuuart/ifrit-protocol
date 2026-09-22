@@ -67,7 +67,8 @@ std::optional<material::skia::Paint> SurfacePaint::collapsedPaint() const {
     const Fill* plain = fill->plain();
     if (!plain || plain->references()) return std::nullopt;
     if (plain->kind == Fill::Kind::Color)
-      return material::skia::Paint::solid(plain->colorValue);
+      return material::skia::Paint::solid(
+          material::skia::toSkColor(plain->colorValue));
     if (plain->kind == Fill::Kind::Shader)
       return material::skia::Paint::shader(plain->shaderValue);
     return std::nullopt;

@@ -30,6 +30,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -59,6 +60,7 @@
 
 #include "../twoadvanced_v3/TwoAdvanced.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace camera = sigil::geometry::mesh::camera;
@@ -86,38 +88,41 @@ using namespace twoadvanced;
 // Palette — every value sampled from one of the reference artefacts above,
 // never picked by eye.
 
-constexpr SkColor4f kBgTop = hexColor(0x4A100F);  // page gradient, top
-constexpr SkColor4f kBgMid = hexColor(0x1A0001);
-constexpr SkColor4f kBgBot = hexColor(0x0A0000);   // …faded to near-black
-constexpr SkColor4f kChrome = hexColor(0x571119);  // THE chrome maroon
-constexpr SkColor4f kChromeHi = hexColor(0x6A1B21);
-constexpr SkColor4f kD1 = hexColor(0x180707);  // footer-dock HUD darks
-constexpr SkColor4f kD2 = hexColor(0x260909);
-constexpr SkColor4f kD3 = hexColor(0x370C0D);
-constexpr SkColor4f kD4 = hexColor(0x400E0F);
-constexpr SkColor4f kD5 = hexColor(0x4C1010);
-constexpr SkColor4f kD6 = hexColor(0x7A2626);    // dock hairline/label ink
-constexpr SkColor4f kD7 = hexColor(0xA34040);    // dock title ink
-constexpr SkColor4f kCyan = hexColor(0x7BDAD6);  // logo wordmark core
-constexpr SkColor4f kCyanRing = hexColor(0x95C9CC);
-constexpr SkColor4f kDust = hexColor(0x8D7777);  // the dusty-rose third neutral
-constexpr SkColor4f kDustDim = hexColor(0x735757);
-constexpr SkColor4f kTealBar = hexColor(0x2C7B80);  // status-bar segment
-constexpr SkColor4f kGlow = hexColor(0x01D0D5);     // MAINFRAME portal core
-constexpr SkColor4f kPanel = hexColor(0x579797);    // monitor-panel body
-constexpr SkColor4f kPanelHi = hexColor(0x84B8B6);
-constexpr SkColor4f kPanelSh = hexColor(0x3C8282);
-constexpr SkColor4f kCta = hexColor(0x700000);  // LAUNCH / ARCHIVES core
-constexpr SkColor4f kCtaHi = hexColor(0xB27E82);
-constexpr SkColor4f kNear = hexColor(0xF3F3F3);
-constexpr SkColor4f kBody = hexColor(0xC9DEDD);
-constexpr SkColor4f kDate = hexColor(0x1C4040);
-constexpr SkColor4f kHeadDim = hexColor(0xB8A0A0);
+constexpr material::Color kBgTop = hexColor(0x4A100F);  // page gradient, top
+constexpr material::Color kBgMid = hexColor(0x1A0001);
+constexpr material::Color kBgBot = hexColor(0x0A0000);   // …faded to near-black
+constexpr material::Color kChrome = hexColor(0x571119);  // THE chrome maroon
+constexpr material::Color kChromeHi = hexColor(0x6A1B21);
+constexpr material::Color kD1 = hexColor(0x180707);  // footer-dock HUD darks
+constexpr material::Color kD2 = hexColor(0x260909);
+constexpr material::Color kD3 = hexColor(0x370C0D);
+constexpr material::Color kD4 = hexColor(0x400E0F);
+constexpr material::Color kD5 = hexColor(0x4C1010);
+constexpr material::Color kD6 = hexColor(0x7A2626);  // dock hairline/label ink
+constexpr material::Color kD7 = hexColor(0xA34040);  // dock title ink
+constexpr material::Color kCyan = hexColor(0x7BDAD6);  // logo wordmark core
+constexpr material::Color kCyanRing = hexColor(0x95C9CC);
+constexpr material::Color kDust =
+    hexColor(0x8D7777);  // the dusty-rose third neutral
+constexpr material::Color kDustDim = hexColor(0x735757);
+constexpr material::Color kTealBar = hexColor(0x2C7B80);  // status-bar segment
+constexpr material::Color kGlow = hexColor(0x01D0D5);   // MAINFRAME portal core
+constexpr material::Color kPanel = hexColor(0x579797);  // monitor-panel body
+constexpr material::Color kPanelHi = hexColor(0x84B8B6);
+constexpr material::Color kPanelSh = hexColor(0x3C8282);
+constexpr material::Color kCta = hexColor(0x700000);  // LAUNCH / ARCHIVES core
+constexpr material::Color kCtaHi = hexColor(0xB27E82);
+constexpr material::Color kNear = hexColor(0xF3F3F3);
+constexpr material::Color kBody = hexColor(0xC9DEDD);
+constexpr material::Color kDate = hexColor(0x1C4040);
+constexpr material::Color kHeadDim = hexColor(0xB8A0A0);
 
-/** The shadow tone: the complement spelling of `mskia::scale()`, because a
+/** The shadow tone: the complement spelling of `material::scale()`, because a
  * bevel is authored as "how much darker" rather than as a surviving fraction.
  */
-inline SkColor4f dark(SkColor4f c, float k) { return mskia::scale(c, 1 - k); }
+inline material::Color dark(material::Color c, float k) {
+  return material::scale(c, 1 - k);
+}
 
 // ---------------------------------------------------------------------------
 // Type — the studio's chassis (the faces, the 1/1000-em tracking unit and
@@ -130,21 +135,23 @@ inline SkColor4f dark(SkColor4f c, float k) { return mskia::scale(c, 1 - k); }
 // condensation, the headline face, the uncondensed prose face.
 
 /** The chrome register: tracking quoted in 1/1000 em of @p size. */
-inline sigil::weave::Type micro(float size, SkColor4f c, float tr = 200) {
-  return {.size = size, .color = c, .track = size * tr / 1000.0f};
+inline sigil::weave::Type micro(float size, material::Color c, float tr = 200) {
+  return {.size = size,
+          .color = material::skia::toSkColor(c),
+          .track = size * tr / 1000.0f};
 }
 /** The chrome, condensed further: the section labels. */
-inline sigil::weave::Type label(float size, SkColor4f c, float tr = 100) {
+inline sigil::weave::Type label(float size, material::Color c, float tr = 100) {
   return {.size = size,
-          .color = c,
+          .color = material::skia::toSkColor(c),
           .track = size * tr / 1000.0f,
           .condense = 0.88f};
 }
 /** The headline weight. */
-inline sigil::weave::Type heavy(float size, SkColor4f c, float tr = 40) {
+inline sigil::weave::Type heavy(float size, material::Color c, float tr = 40) {
   return {.face = blackFace(),
           .size = size,
-          .color = c,
+          .color = material::skia::toSkColor(c),
           .track = size * tr / 1000.0f,
           .condense = 0.94f};
 }
@@ -153,16 +160,20 @@ inline sigil::weave::Type heavy(float size, SkColor4f c, float tr = 40) {
  *  same fields the registers set, as a PARTIAL, so the line still
  *  inherits everything it does not name. */
 inline sigil::weave::Type cut(const sk_sp<SkTypeface>& face, float size,
-                              SkColor4f c, float tr, float condense = 1.0f) {
+                              material::Color c, float tr,
+                              float condense = 1.0f) {
   return {.face = face,
           .size = size,
-          .color = c,
+          .color = material::skia::toSkColor(c),
           .track = size * tr / 1000.0f,
           .condense = condense};
 }
 /** The prose register: untracked, uncondensed. */
-inline sigil::weave::Type prose(float size, SkColor4f c) {
-  return {.face = arial(), .size = size, .color = c, .condense = 1.0f};
+inline sigil::weave::Type prose(float size, material::Color c) {
+  return {.face = arial(),
+          .size = size,
+          .color = material::skia::toSkColor(c),
+          .condense = 1.0f};
 }
 
 // ---------------------------------------------------------------------------
@@ -189,7 +200,7 @@ inline Shape ray(float dirX, float dirY) {
  *  it once per `period`. The rail is 24 px wide at this ×2 scale, so a
  *  90 px flare has to lean about 8° off VERTICAL to fit inside it. */
 struct RailFlares {
-  SkColor4f color = hexColor(0x99AAAA);
+  material::Color color = hexColor(0x99AAAA);
   float period = 6.0f, phase = 0.0f;
 
   bool operator==(const RailFlares&) const = default;
@@ -211,19 +222,21 @@ struct RailFlares {
       b.moveTo(x0, y0);
       b.lineTo(x0 + lean, y0 + len);
       const SkPath path = b.detach();
-      p.setColor4f(mskia::withAlpha(color, 0.55f), nullptr);
+      p.setColor4f(material::skia::toSkColor(material::withAlpha(color, 0.55f)),
+                   nullptr);
       c.drawPath(path, p);
       SkPaint f;
       f.setAntiAlias(true);
-      f.setColor4f(mskia::withAlpha(color, 0.8f), nullptr);
+      f.setColor4f(material::skia::toSkColor(material::withAlpha(color, 0.8f)),
+                   nullptr);
       c.drawRect(SkRect::MakeXYWH(x0 + lean - 3, y0 + len, 6, 3), f);
       SkPaint g;
       g.setAntiAlias(true);
       g.setStyle(SkPaint::kStroke_Style);
       g.setStrokeWidth(2);
-      g.setColor4f(
-          mskia::withAlpha(kCyan, 0.9f * (1.0f - std::abs(scan - 0.5f) * 2)),
-          nullptr);
+      g.setColor4f(material::skia::toSkColor(material::withAlpha(
+                       kCyan, 0.9f * (1.0f - std::abs(scan - 0.5f) * 2))),
+                   nullptr);
       SkPathBuilder hb;
       hb.moveTo(x0 + lean * scan, y0 + len * scan);
       const float s2 = std::min(1.0f, scan + 0.16f);
@@ -249,7 +262,7 @@ struct RailFlares {
  *  bevel on the chamfers with nothing said about corners, and the inner
  *  ring rides OVER the content because at a three-pixel gap on a
  *  three-pixel padding it stands exactly on the padding line. */
-inline Element bevelPanel(Element e, SkColor4f base, float gap = 0) {
+inline Element bevelPanel(Element e, material::Color base, float gap = 0) {
   e.fill(base);
   kit::bevelled(e, kit::bevels::flash(base, gap));
   return e;

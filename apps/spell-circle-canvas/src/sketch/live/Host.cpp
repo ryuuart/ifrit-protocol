@@ -14,6 +14,8 @@
 #include <sigilcore/schedule/ConcurrentIo.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/core/Sources.h>
 #include <signal.h>
 #include <unistd.h>
@@ -356,7 +358,7 @@ SkSize Host::canvasSize() const {
   return m_session ? m_session->canvas().size : kUnloaded.size;
 }
 
-SkColor4f Host::background() const {
+sigil::material::Color Host::background() const {
   return m_session ? m_session->canvas().background : kUnloaded.background;
 }
 
@@ -797,7 +799,7 @@ SkBitmap Host::still(float scale) {
   SkCanvas* through =
       m_captureBackend.canvasOf ? m_captureBackend.canvasOf(*surface) : nullptr;
   SkCanvas& canvas = through ? *through : *surface->getCanvas();
-  canvas.clear(specification.background.toSkColor());
+  canvas.clear(material::skia::toSkColor(specification.background).toSkColor());
   canvas.scale(scale, scale);
   try {
     m_session->repaint(canvas);

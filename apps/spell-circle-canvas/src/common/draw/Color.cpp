@@ -3,6 +3,7 @@
  */
 
 #include <sigildraw/Color.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <cmath>
@@ -19,7 +20,7 @@ float unit(float v, float max) {
 }
 
 /** Hue in [0, 1), saturation and value in [0, 1] to RGB. */
-SkColor4f fromHsb(float h, float s, float v, float a) {
+material::Color fromHsb(float h, float s, float v, float a) {
   h = h - std::floor(h);
   const float c = v * s;
   const float x = c * (1.0f - std::fabs(std::fmod(h * 6.0f, 2.0f) - 1.0f));
@@ -56,7 +57,7 @@ SkColor4f fromHsb(float h, float s, float v, float a) {
 }
 
 /** Hue in [0, 1), saturation and lightness in [0, 1] to RGB. */
-SkColor4f fromHsl(float h, float s, float l, float a) {
+material::Color fromHsl(float h, float s, float l, float a) {
   const float c = (1.0f - std::fabs(2.0f * l - 1.0f)) * s;
   const float v = l + c / 2.0f;
   const float sv = v > 0.0f ? c / v : 0.0f;
@@ -97,8 +98,8 @@ ColorMode ColorMode::standard(Constant mode) {
   return {RGB, 255.0f, 255.0f, 255.0f, 255.0f};
 }
 
-SkColor4f colorFrom(const ColorMode& mode, float v1, float v2, float v3,
-                    float alpha) {
+material::Color colorFrom(const ColorMode& mode, float v1, float v2, float v3,
+                          float alpha) {
   const float a = unit(alpha, mode.maxA);
   const float c2 = unit(v2, mode.max2);
   const float c3 = unit(v3, mode.max3);
@@ -112,12 +113,12 @@ SkColor4f colorFrom(const ColorMode& mode, float v1, float v2, float v3,
   }
 }
 
-SkColor4f colorFrom(const ColorMode& mode, float gray, float alpha) {
+material::Color colorFrom(const ColorMode& mode, float gray, float alpha) {
   const float g = unit(gray, mode.max3);
   return {g, g, g, unit(alpha, mode.maxA)};
 }
 
-SkColor4f parseColor(std::string_view css) {
+material::Color parseColor(std::string_view css) {
   if (!css.empty() && css.front() == '#') {
     const std::string_view hex = css.substr(1);
     int digits[8];

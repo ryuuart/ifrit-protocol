@@ -9,6 +9,7 @@
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Dab.h>
 #include <sigildraw/brush/Tool.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <memory>
 #include <vector>
@@ -17,7 +18,7 @@ namespace sigil::draw::brush::testing {
 
 struct Recording {
   std::vector<Dab> dabs;
-  std::vector<SkColor4f> fills;
+  std::vector<material::Color> fills;
 };
 
 /** A marker whose tip is a callback into @p recording, with every jitter

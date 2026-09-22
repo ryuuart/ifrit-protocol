@@ -44,6 +44,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/layout/Story.h>
@@ -56,6 +57,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -76,11 +78,11 @@ constexpr float kNarrow = 210;
 constexpr float kWide = 320;
 constexpr float kColumnGutter = 24;
 
-const SkColor4f kPaper{0.949f, 0.945f, 0.933f, 1};
-const SkColor4f kInk{0.098f, 0.106f, 0.118f, 1};
-const SkColor4f kFaint{0.098f, 0.106f, 0.118f, 0.30f};
-const SkColor4f kMark{0.643f, 0.310f, 0.157f, 1};
-const SkColor4f kDisc{0.643f, 0.310f, 0.157f, 0.16f};
+const material::Color kPaper{0.949f, 0.945f, 0.933f, 1};
+const material::Color kInk{0.098f, 0.106f, 0.118f, 1};
+const material::Color kFaint{0.098f, 0.106f, 0.118f, 0.30f};
+const material::Color kMark{0.643f, 0.310f, 0.157f, 1};
+const material::Color kDisc{0.643f, 0.310f, 0.157f, 0.16f};
 
 sk_sp<SkTypeface> serif() {
   return weave::ports::face(
@@ -91,8 +93,8 @@ sk_sp<SkTypeface> grotesque() {
 }
 
 /** A caption line: a partial over what the cell inherits. */
-weave::Type label(float size, SkColor4f colour, float track) {
-  return {.face = grotesque(), .size = size, .color = colour, .track = track};
+weave::Type label(float size, material::Color colour, float track) {
+  return {.face = grotesque(), .size = size, .color = material::skia::toSkColor(colour), .track = track};
 }
 
 /** The one voice both chains are captioned in: the measure named over the
@@ -212,7 +214,7 @@ struct ThreadedStory {
     return box()
         .fill(Fill::color(s::kPaper))
         .font({.face = s::grotesque(), .size = 9.5f})
-        .ink(s::kFaint)
+        .ink(material::skia::toSkColor(s::kFaint))
         .children(
             {box()
                  .inset(s::kMargin - 14, 0, 0, s::kMargin)
@@ -220,7 +222,7 @@ struct ThreadedStory {
                  .gap(5)
                  .children(
                      {document::h1("ONE STORY, THREE FRAMES, TWICE")
-                          .font({.size = 11, .color = s::kInk, .track = 3.4f}),
+                          .font({.size = 11, .color = material::skia::toSkColor(s::kInk), .track = 3.4f}),
                       document::lead(
                           "the cut is a word index — the "
                           "remainder the frame before reported — so a "

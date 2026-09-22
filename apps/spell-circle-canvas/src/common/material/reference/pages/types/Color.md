@@ -77,6 +77,7 @@ parameter that takes a colour takes every row of it.
 | `deltaE`, `luminance`, `toOklab`, `toOklch`, `toLab` | function | SigilMaterial |
 | `closestEntry` | function | SigilMaterial |
 | `skia::toSkColor` | function | SigilMaterial — the crossing back to a Skia colour |
+| `skia::Stop::color`, `skia::Paint::solid`, `skia::Paint::uniform`, `skia::Effect::glow` | field, function | SigilMaterial — the paint model states its colours in this one |
 
 Outside this library a colour is what a fill, an ink, a shadow and a
 light are stated in; those slots belong to the libraries that own them

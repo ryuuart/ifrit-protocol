@@ -17,6 +17,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -30,6 +31,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace motion = sigil::motion;
@@ -53,12 +55,12 @@ constexpr float kGap = 20;
 constexpr float kCanvasW = 1120;
 constexpr float kCanvasH = 710;
 
-constexpr SkColor4f kGround{0.03f, 0.03f, 0.07f, 1};
-constexpr SkColor4f kInk{0.84f, 0.87f, 0.94f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.60f, 0.70f, 1};
-constexpr SkColor4f kRule{0.16f, 0.17f, 0.24f, 1};
+constexpr material::Color kGround{0.03f, 0.03f, 0.07f, 1};
+constexpr material::Color kInk{0.84f, 0.87f, 0.94f, 1};
+constexpr material::Color kAsh{0.55f, 0.60f, 0.70f, 1};
+constexpr material::Color kRule{0.16f, 0.17f, 0.24f, 1};
 /** What a re-recorded chunk is washed in. */
-constexpr SkColor4f kFlash{1.0f, 0.58f, 0.20f, 0.55f};
+constexpr material::Color kFlash{1.0f, 0.58f, 0.20f, 0.55f};
 
 /** This page's look: the map's own near-black, and a header set close
  *  enough to the grid that the chunks keep the width they ask for. */

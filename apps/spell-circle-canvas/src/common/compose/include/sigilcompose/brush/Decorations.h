@@ -35,8 +35,9 @@
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Lines.h>  // cornerBrackets, cornerGaps
-#include <sigilimage/asset/ImageAsset.h>
 #include <sigilcore/callable/Callable.h>
+#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>  // Wash — the material-valued decoration
 
 #include <algorithm>
@@ -200,7 +201,7 @@ inline PathFormat stroke(float width,
  *  (so a static shadowed node prunes without memo). Attach with .background()
  *  *before* the fill so the fill paints over it. */
 struct Shadow {
-  SkColor4f color = {0, 0, 0, 1};
+  material::Color color = {0, 0, 0, 1};
   SkVector offset = {0, 0};
   float blur = 0;
 
@@ -235,7 +236,7 @@ struct Shadow {
 
 /** A blurred copy of the node's outline cast at @p offset — attach it
  *  as the FIRST background so everything else paints over it. */
-inline Shadow shadow(SkColor4f color, SkVector offset, float blur) {
+inline Shadow shadow(material::Color color, SkVector offset, float blur) {
   return Shadow{color, offset, blur};
 }
 

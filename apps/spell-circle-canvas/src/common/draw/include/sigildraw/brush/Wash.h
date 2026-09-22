@@ -9,6 +9,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkPoint.h>
 #include <sigildraw/Constants.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <optional>
 #include <span>
@@ -29,7 +30,7 @@ enum class BleedDirection { Out, In };
  *  many independently perturbed deposits form the body; a bleed angle, in
  *  radians, pushes the layers that way. */
 struct Wash {
-  SkColor4f color{0, 0, 0, 1};
+  material::Color color{0, 0, 0, 1};
   float opacity = 150.0f / 255.0f;
   float bleed = 0.07f;
   float texture = 0.8f;

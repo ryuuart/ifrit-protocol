@@ -72,8 +72,9 @@ struct Thaumonomicon {
         const float x = (0.5f + 0.5f * noise1(i, 1, 5)) * in.size.width();
         const float y = (0.5f + 0.5f * noise1(i, 2, 5)) * in.size.height();
         const float r = g(26.0f + 72.0f * (0.5f + 0.5f * noise1(i, 3, 5)));
-        p.setColor4f((i % 2 != 0) ? hexColor(0xB03CC0, 0.055f)
-                                  : hexColor(0x120618, 0.20f),
+        p.setColor4f(sigil::material::skia::toSkColor(
+                         (i % 2 != 0) ? hexColor(0xB03CC0, 0.055f)
+                                      : hexColor(0x120618, 0.20f)),
                      nullptr);
         c.drawCircle(x, y, r, p);
       }
@@ -83,20 +84,24 @@ struct Thaumonomicon {
         const float x = (0.5f + 0.5f * noise1(i, 11, 7)) * in.size.width();
         const float y = (0.5f + 0.5f * noise1(i, 12, 7)) * in.size.height();
         const float m = 0.5f + 0.5f * noise1(i, 13, 7);
-        p.setColor4f(hexColor(0xF2E4FF, 0.16f + 0.60f * m * m), nullptr);
+        p.setColor4f(sigil::material::skia::toSkColor(
+                         hexColor(0xF2E4FF, 0.16f + 0.60f * m * m)),
+                     nullptr);
         c.drawCircle(x, y, g(m > 0.86f ? 1.3f : 0.7f), p);
       }
       p.setStyle(SkPaint::kStroke_Style);
       // the wheel: four rules and three rings, plus a 72-tick limb
       for (int i = 0; i < 6; ++i) {
         p.setStrokeWidth(g(i % 3 == 0 ? 2.0f : 0.9f));
-        p.setColor4f(
-            mskia::scale(kBrassLit, 1.0f, 0.13f + 0.05f * (float)(i % 3)),
-            nullptr);
+        p.setColor4f(sigil::material::skia::toSkColor(sigil::material::scale(
+                         kBrassLit, 1.0f, 0.13f + 0.05f * (float)(i % 3))),
+                     nullptr);
         c.drawCircle(o.fX, o.fY, g(46.0f + (float)i * 30.0f), p);
       }
       p.setStrokeWidth(g(1.0f));
-      p.setColor4f(mskia::scale(kBrassLit, 1.0f, 0.17f), nullptr);
+      p.setColor4f(sigil::material::skia::toSkColor(
+                       sigil::material::scale(kBrassLit, 1.0f, 0.17f)),
+                   nullptr);
       SkPathBuilder t;
       for (int i = 0; i < 72; ++i) {
         const float r0 = g(i % 6 == 0 ? 182.0f : 192.0f), r1 = g(200.0f);
@@ -120,7 +125,8 @@ struct Thaumonomicon {
       }
       c.drawPath(t.detach(), p);
       // strata: long diagonal scrapes across the plate
-      p.setColor4f(hexColor(0xD8C08A, 0.055f), nullptr);
+      p.setColor4f(sigil::material::skia::toSkColor(hexColor(0xD8C08A, 0.055f)),
+                   nullptr);
       SkPathBuilder s2;
       for (int i = 0; i < 22; ++i) {
         const float y0 = (0.5f + 0.5f * noise1(i, 9, 4)) * in.size.height();
@@ -237,7 +243,7 @@ struct Thaumonomicon {
     }
     if (travel.fX == 0 && travel.fY == 0) return box().width(0).height(0);
     const SkPoint c = centreOf(child.col, child.row);
-    const SkColor4f tint = tierTint(e.tier, kInkBody);
+    const sigil::material::Color tint = tierTint(e.tier, kInkBody);
     return arrowCell(tint)
         .centerAt({c.fX - travel.fX * g(20), c.fY - travel.fY * g(20)})
         .rotate(std::atan2(travel.fY, travel.fX) * 57.29578f)
@@ -348,11 +354,11 @@ struct Thaumonomicon {
     Brush br;
     lines::Line outer;
     outer.width = g(1.2f);
-    outer.fill = Fill::color(mskia::scale(kBrassDark, 1.0f, 0.85f));
+    outer.fill = Fill::color(sigil::material::scale(kBrassDark, 1.0f, 0.85f));
     br.layer(outer);
     lines::Line dotted;
     dotted.width = g(0.8f);
-    dotted.fill = Fill::color(mskia::scale(kBrassLit, 0.85f, 0.65f));
+    dotted.fill = Fill::color(sigil::material::scale(kBrassLit, 0.85f, 0.65f));
     dotted.dashIntervals = {g(1.2f), g(3.0f)};
     br.layer(dotted, {shapers::Offset{.px = -g(2.5f), .step = g(3)}});
     e.stroke(br);
@@ -424,8 +430,8 @@ struct Thaumonomicon {
       const float y = 10.0f + (float)(i + 1) * 24.0f;
       const bool selected = i == 2;
       return box().inset(0).children(
-          {cornerPlate(selected ? SkColor4f{0.6f, 1.0f, 1.0f, 1}
-                                : SkColor4f{1, 1, 1, 1})
+          {cornerPlate(selected ? sigil::material::Color{0.6f, 1.0f, 1.0f, 1}
+                                : sigil::material::Color{1, 1, 1, 1})
                .left(g(-2 - 1))
                .top(g(y - 3 - 1))
                .opacity(selected ? 1.0f : 0.86f),
@@ -437,7 +443,7 @@ struct Thaumonomicon {
                .opacity(selected ? 1.0f : 0.8f)
                .background(prog([cat, selected](SkCanvas& c) {
                  const kit::PixelInk k{c, U};
-                 const SkColor4f col =
+                 const sigil::material::Color col =
                      hexColor(cat.aspect, selected ? 1.0f : 0.66f);
                  for (const Stroke& mark : cat.rune)
                    k.rect(mark.x, mark.y, mark.w, mark.h, col);
@@ -456,7 +462,9 @@ struct Thaumonomicon {
                          p.setAntiAlias(true);
                          p.setStyle(SkPaint::kStroke_Style);
                          p.setStrokeWidth(g(1.6f));
-                         p.setColor4f(kBrassLit, nullptr);
+                         p.setColor4f(
+                             sigil::material::skia::toSkColor(kBrassLit),
+                             nullptr);
                          c.drawCircle(g(6.5f), g(6.5f), g(4.2f), p);
                          c.drawLine(g(9.5f), g(9.5f), g(13.5f), g(13.5f), p);
                        }))});
@@ -494,14 +502,17 @@ struct Thaumonomicon {
       // plus its 1 px shadow, which then cross the inner border.
       const SkRect r =
           SkRect::MakeLTRB(g(x - 4), g(y - 4), g(x + wd + 4), g(y + ht + 3));
-      p.setColor4f(hexColor(0x100010, 0.94f), nullptr);
+      p.setColor4f(sigil::material::skia::toSkColor(hexColor(0x100010, 0.94f)),
+                   nullptr);
       c.drawRect(r, p);
       // the vanilla two-tone inner border
       p.setStyle(SkPaint::kStroke_Style);
       p.setStrokeWidth(g(1));
-      p.setColor4f(hexColor(0x5000FF, 0.31f), nullptr);
+      p.setColor4f(sigil::material::skia::toSkColor(hexColor(0x5000FF, 0.31f)),
+                   nullptr);
       c.drawRect(r.makeInset(g(1), g(1)), p);
-      p.setColor4f(hexColor(0x28007F, 0.31f), nullptr);
+      p.setColor4f(sigil::material::skia::toSkColor(hexColor(0x28007F, 0.31f)),
+                   nullptr);
       c.drawRect(r.makeInset(g(2), g(2)), p);
       blitText(c, a, x, y, kTextGold);
       blitText(c, b, x, y + 10, kTextRed);
@@ -534,7 +545,7 @@ struct Thaumonomicon {
     }
 
     for (int t = 0; t < 3; ++t) {
-      const SkColor4f tint = tierTint((EdgeTier)t, kInkBody);
+      const sigil::material::Color tint = tierTint((EdgeTier)t, kInkBody);
       spatter[t] = spatterCell(tint);
       knot[t] = knotCell(tint);
       straight[t] = straightTile(tint, spatter[t], knot[t]);

@@ -63,6 +63,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -84,6 +85,7 @@
 
 #include "SkillTreeData.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace arrange = sigil::geometry::arrange;
@@ -105,17 +107,17 @@ namespace skill_tree {
 namespace data = skill_tree_data;
 
 // Near-black ground, and PoE's own colour ladder for edge and socket state.
-constexpr SkColor4f kBg{0.098f, 0.082f, 0.071f, 1};      // #191512
-constexpr SkColor4f kBgLift{0.125f, 0.104f, 0.086f, 1};  // center lift
-constexpr SkColor4f kBgSink{0.072f, 0.060f, 0.052f, 1};  // vignette edge
-constexpr SkColor4f kSocket{0.129f, 0.106f, 0.082f, 1};  // socket well
-constexpr SkColor4f kPewter{0.306f, 0.275f, 0.235f, 1};  // #4E463C
-constexpr SkColor4f kRimLit{0.541f, 0.478f, 0.361f, 1};  // #8A7A5C
-constexpr SkColor4f kGold{0.788f, 0.663f, 0.416f, 1};    // #C9A96A
-constexpr SkColor4f kHalo{1.0f, 0.788f, 0.439f, 1};      // #FFC970
-constexpr SkColor4f kBone{0.835f, 0.769f, 0.616f, 1};
-constexpr SkColor4f kAsh{0.447f, 0.404f, 0.337f, 1};
-constexpr SkColor4f kSearch{0.541f, 0.902f, 0.510f, 1};  // the search green
+constexpr material::Color kBg{0.098f, 0.082f, 0.071f, 1};      // #191512
+constexpr material::Color kBgLift{0.125f, 0.104f, 0.086f, 1};  // center lift
+constexpr material::Color kBgSink{0.072f, 0.060f, 0.052f, 1};  // vignette edge
+constexpr material::Color kSocket{0.129f, 0.106f, 0.082f, 1};  // socket well
+constexpr material::Color kPewter{0.306f, 0.275f, 0.235f, 1};  // #4E463C
+constexpr material::Color kRimLit{0.541f, 0.478f, 0.361f, 1};  // #8A7A5C
+constexpr material::Color kGold{0.788f, 0.663f, 0.416f, 1};    // #C9A96A
+constexpr material::Color kHalo{1.0f, 0.788f, 0.439f, 1};      // #FFC970
+constexpr material::Color kBone{0.835f, 0.769f, 0.616f, 1};
+constexpr material::Color kAsh{0.447f, 0.404f, 0.337f, 1};
+constexpr material::Color kSearch{0.541f, 0.902f, 0.510f, 1};  // the search green
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
@@ -154,7 +156,7 @@ inline int edgeState(data::State a, data::State b) {
   return allocated == 2 ? 2 : allocated == 1 ? 1 : 0;
 }
 
-inline SkColor4f ringColor(data::State s) {
+inline material::Color ringColor(data::State s) {
   return s == data::State::Allocated     ? kGold
          : s == data::State::CanAllocate ? kRimLit
                                          : kPewter;
@@ -234,7 +236,7 @@ struct PassiveTree {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
-                             .background = SkColor4f{0, 0, 0, 1}});
+                             .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     pulseS = 0;
@@ -293,11 +295,11 @@ struct PassiveTree {
     const float dia = pt::diameterOf(n.kind);
     const bool alloc = n.state == treedata::State::Allocated;
     const bool can = n.state == treedata::State::CanAllocate;
-    const sdf::Style st{.fill = mskia::toColor(pt::kSocket),
+    const sdf::Style st{.fill = mskia::toColor(material::skia::toSkColor(pt::kSocket)),
                         .borderWidth = alloc ? 2.6f : 1.9f,
-                        .borderColor = mskia::toColor(pt::ringColor(n.state)),
+                        .borderColor = mskia::toColor(material::skia::toSkColor(pt::ringColor(n.state))),
                         .glowRadius = can ? 12.0f : (alloc ? 11.0f : 0.0f),
-                        .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
+                        .glowColor = {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
                                       alloc ? 0.45f : 0.40f}};
     // The declared glowRadius reserves the box pad (exp falloff reaches ~0
     // before the edge); the ACTUAL halo runs shorter, via a uniform.
@@ -318,13 +320,13 @@ struct PassiveTree {
     const float dia = pt::diameterOf(n.kind);
     const bool alloc = n.state == treedata::State::Allocated;
     const bool can = n.state == treedata::State::CanAllocate;
-    const SkColor4f ring = pt::ringColor(n.state);
+    const material::Color ring = pt::ringColor(n.state);
     const sdf::Style outer{
-        .fill = mskia::toColor(pt::kSocket),
+        .fill = mskia::toColor(material::skia::toSkColor(pt::kSocket)),
         .borderWidth = alloc ? 3.2f : 2.4f,
-        .borderColor = mskia::toColor(ring),
+        .borderColor = mskia::toColor(material::skia::toSkColor(ring)),
         .glowRadius = 14,
-        .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
+        .glowColor = {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
                       alloc ? 0.5f
                       : can ? 0.4f
                             : 0.0f}};
@@ -343,7 +345,7 @@ struct PassiveTree {
          pt::socket(nullptr, at, dia - 11,
                     {.fill = {0, 0, 0, 0},
                      .borderWidth = 1.6f,
-                     .borderColor = mskia::toColor(ring)},
+                     .borderColor = mskia::toColor(material::skia::toSkColor(ring))},
                     nullptr, 4),
          box()
              .width(dia + 10)
@@ -355,7 +357,7 @@ struct PassiveTree {
              // is the same circle at a different size. Deeper notches, a
              // heavier stroke.
              .shape(pt::notchRing(8, 0.60f, 1.0f))
-             .stroke(stroke(2.4f, Fill::color({ring.fR, ring.fG, ring.fB,
+             .stroke(stroke(2.4f, Fill::color({ring.r, ring.g, ring.b,
                                                alloc ? 1.0f : 0.72f})))
              .zIndex(4),
          box()
@@ -364,7 +366,7 @@ struct PassiveTree {
              .centerAt(at)
              .shape(shapes::star(4, 0.34f))
              .fill(Paint::solid(
-                 {ring.fR, ring.fG, ring.fB, alloc ? 0.95f : 0.6f}))
+                 {ring.r, ring.g, ring.b, alloc ? 0.95f : 0.6f}))
              .zIndex(4)});
   }
 
@@ -373,7 +375,7 @@ struct PassiveTree {
     const treedata::Node& n = treedata::kNodes[i];
     const SkPoint at{n.x, n.y};
     const float dia = pt::diameterOf(n.kind);
-    const SkColor4f ring = pt::ringColor(n.state);
+    const material::Color ring = pt::ringColor(n.state);
     // A diamond, so a group's centre node never reads as one more socket.
     parent.children({box()
                          .width(dia)
@@ -389,7 +391,7 @@ struct PassiveTree {
                          .height(dia * 0.42f)
                          .centerAt(at)
                          .shape(shapes::polygon(4))
-                         .fill(Paint::solid({ring.fR, ring.fG, ring.fB, 0.75f}))
+                         .fill(Paint::solid({ring.r, ring.g, ring.b, 0.75f}))
                          .zIndex(4)});
   }
 
@@ -398,16 +400,16 @@ struct PassiveTree {
     const treedata::Node& n = treedata::kNodes[i];
     const SkPoint at{n.x, n.y};
     const float dia = pt::diameterOf(n.kind);
-    const SkColor4f ring = pt::ringColor(n.state);
+    const material::Color ring = pt::ringColor(n.state);
     const bool alloc = n.state == treedata::State::Allocated;
     // Halo well first, so the octagon frame sits inside its own light.
     // A keystone's plate carries the heaviest sigil in the tree.
     parent.children(
         {pt::socket(nullptr, at, dia - 6,
-                    {.fill = mskia::toColor(pt::kSocket),
+                    {.fill = mskia::toColor(material::skia::toSkColor(pt::kSocket)),
                      .borderWidth = 0,
                      .glowRadius = 22,
-                     .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
+                     .glowColor = {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
                                    alloc ? 0.42f : 0.12f}},
                     nullptr, 2),
          box()
@@ -427,7 +429,7 @@ struct PassiveTree {
              .centerAt(at)
              .shape(shapes::polygon(8, 22.5f))
              .stroke(
-                 stroke(1.2f, Fill::color({ring.fR, ring.fG, ring.fB, 0.6f})))
+                 stroke(1.2f, Fill::color({ring.r, ring.g, ring.b, 0.6f})))
              .zIndex(4),
          box()
              .width(dia + 16)
@@ -435,7 +437,7 @@ struct PassiveTree {
              .centerAt(at)
              .shape(pt::notchRing(16, 0.86f, 1.0f))
              .stroke(
-                 stroke(1.3f, Fill::color({ring.fR, ring.fG, ring.fB, 0.55f})))
+                 stroke(1.3f, Fill::color({ring.r, ring.g, ring.b, 0.55f})))
              .zIndex(4),
          box()
              .width(dia * 0.60f)
@@ -445,9 +447,9 @@ struct PassiveTree {
              .fill(Paint::radial(
                  {dia * 0.30f, dia * 0.30f}, dia * 0.34f,
                  {{0.0f,
-                   {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
+                   {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
                     alloc ? 1.0f : 0.55f}},
-                  {1.0f, {ring.fR, ring.fG, ring.fB, alloc ? 0.85f : 0.40f}}}))
+                  {1.0f, {ring.r, ring.g, ring.b, alloc ? 0.85f : 0.40f}}}))
              .zIndex(4)});
   }
 
@@ -456,7 +458,7 @@ struct PassiveTree {
     const treedata::Node& n = treedata::kNodes[i];
     const SkPoint at{n.x, n.y};
     const float dia = pt::diameterOf(n.kind);
-    const SkColor4f ring = pt::ringColor(n.state);
+    const material::Color ring = pt::ringColor(n.state);
     parent.children({box()
                          .width(dia)
                          .height(dia)
@@ -511,8 +513,8 @@ struct PassiveTree {
                  .centerAt({g.x, g.y})
                  .shape(pt::circleOutline())
                  .stroke(
-                     stroke(1.0f, Fill::color({pt::kPewter.fR, pt::kPewter.fG,
-                                               pt::kPewter.fB, 0.30f})))
+                     stroke(1.0f, Fill::color({pt::kPewter.r, pt::kPewter.g,
+                                               pt::kPewter.b, 0.30f})))
                  .zIndex(0)});
       }
     }
@@ -544,7 +546,7 @@ struct PassiveTree {
              .shape(pt::circleOutline())
              .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
                      brush::presets::pulse(
-                         {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.22f},
+                         {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b, 0.22f},
                          {1, 1, 1, 0.75f}, 0.72f))
              .zIndex(2)});
   }
@@ -649,7 +651,7 @@ struct PassiveTree {
          Operator(connect::Along{
                       .stops = anchors,
                       .wire = brush::presets::pulse(
-                          {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.35f},
+                          {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b, 0.35f},
                           {1, 1, 1, 0.9f}, 1.25f),
                       .where = spans::range(&pulseS, &pulseE),
                       .key = "spine-packet"})
@@ -671,8 +673,8 @@ struct PassiveTree {
                .centerAt({n.x, n.y})
                .shape(pt::circleOutline())
                .opacity(&searchPulse)
-               .stroke(stroke(1.6f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
-                                                 pt::kSearch.fB, 0.85f})))
+               .stroke(stroke(1.6f, Fill::color({pt::kSearch.r, pt::kSearch.g,
+                                                 pt::kSearch.b, 0.85f})))
                .zIndex(5)});
     }
     const treedata::Node& sel = treedata::kNodes[selectedIndex()];
@@ -684,8 +686,8 @@ struct PassiveTree {
              .centerAt({sel.x, sel.y})
              .rotate(&selectSpin)
              .shape(shapes::star(12, 0.82f))
-             .stroke(stroke(1.2f, Fill::color({pt::kHalo.fR, pt::kHalo.fG,
-                                               pt::kHalo.fB, 0.55f})))
+             .stroke(stroke(1.2f, Fill::color({pt::kHalo.r, pt::kHalo.g,
+                                               pt::kHalo.b, 0.55f})))
              .zIndex(5)});
   }
 
@@ -717,14 +719,14 @@ struct PassiveTree {
                                 {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
                                  {1.0f, {0.043f, 0.036f, 0.031f, 0.96f}}}))
             .background(styles::dropShadow({0, 0, 0, 0.6f}, {0, 6}, 14))
-            .foreground(stroke(1.2f, Fill::color({pt::kGold.fR, pt::kGold.fG,
-                                                  pt::kGold.fB, 0.45f})))
+            .foreground(stroke(1.2f, Fill::color({pt::kGold.r, pt::kGold.g,
+                                                  pt::kGold.b, 0.45f})))
             .zIndex(7)
             .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
             .translateY(animate(motion::from(10.0f).to(0.0f), {520ms}))
             .children(
                 {text(detail->name)
-                     .font({.size = 17, .color = pt::kHalo, .track = 2.4f}),
+                     .font({.size = 17, .color = material::skia::toSkColor(pt::kHalo), .track = 2.4f}),
                  text(detail->kind)
                      .font({.size = 9.5f, .track = 3.2f})
                      .margin(3, 0, 0, 0),
@@ -735,9 +737,9 @@ struct PassiveTree {
                      .fill(Paint::linear(
                          {0, 0}, {kCardW - 32, 0},
                          {{0.0f,
-                           {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB, 0.55f}},
+                           {pt::kGold.r, pt::kGold.g, pt::kGold.b, 0.55f}},
                           {1.0f,
-                           {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB,
+                           {pt::kGold.r, pt::kGold.g, pt::kGold.b,
                             0.0f}}}))});
     // one bulleted line per modifier the node carries
     card.children({each(detail->stats, [](const char* line) -> Element {
@@ -751,11 +753,11 @@ struct PassiveTree {
                          .height(3.0f)
                          .margin(6, 0, 0, 0)
                          .borderRadius({1.5f})
-                         .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
-                                             pt::kRimLit.fB, 0.9f})),
+                         .fill(Paint::solid({pt::kRimLit.r, pt::kRimLit.g,
+                                             pt::kRimLit.b, 0.9f})),
                      text(line)
                          .font({.size = 12,
-                                .color = SkColor4f{0.62f, 0.68f, 0.90f, 1},
+                                .color = material::skia::toSkColor(material::Color{0.62f, 0.68f, 0.90f, 1}),
                                 .track = 0.2f})
                          .flexGrow(1)});
     })});
@@ -763,7 +765,7 @@ struct PassiveTree {
       card.children(
           {text(detail->flavour)
                .font({.size = 11.5f,
-                      .color = SkColor4f{0.42f, 0.38f, 0.32f, 1},
+                      .color = material::skia::toSkColor(material::Color{0.42f, 0.38f, 0.32f, 1}),
                       .track = 0.3f,
                       .slant = -10.0f})
                .margin(9, 0, 0, 0)});
@@ -771,9 +773,9 @@ struct PassiveTree {
     root.operators({Operator(connect::Along{
                                  .stops = {{"detail"}, {nodeKey(sel)}},
                                  .wire = stroke(
-                                     1.0f, Fill::color({pt::kGold.fR,
-                                                        pt::kGold.fG,
-                                                        pt::kGold.fB, 0.35f}))})
+                                     1.0f, Fill::color({pt::kGold.r,
+                                                        pt::kGold.g,
+                                                        pt::kGold.b, 0.35f}))})
                         .zIndex(6)});
     root.children({card.key("detail")});
   }
@@ -822,7 +824,7 @@ struct PassiveTree {
              .zIndex(8)
              .children(
                  {text(points).font(
-                      {.size = 21, .color = pt::kGold, .track = 2}),
+                      {.size = 21, .color = material::skia::toSkColor(pt::kGold), .track = 2}),
                   text("passive points")
                       .font({.size = 10.5f, .track = 1.5f})
                       .margin(4, 0, 0, 0)}),
@@ -837,11 +839,11 @@ struct PassiveTree {
              .borderRadius({3})
              .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
              .foreground(
-                 stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
-                                           pt::kSearch.fB, 0.4f})))
+                 stroke(1.0f, Fill::color({pt::kSearch.r, pt::kSearch.g,
+                                           pt::kSearch.b, 0.4f})))
              .children({text("search").font({.size = 10, .track = 1.8f}),
                         text("fire").font(
-                            {.size = 12, .color = pt::kSearch, .track = 0.6f}),
+                            {.size = 12, .color = material::skia::toSkColor(pt::kSearch), .track = 0.6f}),
                         text(found).font({.size = 10, .track = 1.2f})})});
 
     // THE KEY TO THE THREE RAILS. Its mark is not a patch of colour but a

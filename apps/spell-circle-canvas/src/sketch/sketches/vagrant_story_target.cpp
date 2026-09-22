@@ -102,6 +102,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/kit/Meter.h>
 #include <sigilsketch/set/Set.h>
@@ -308,18 +309,18 @@ constexpr float kChest = 104.0f;
 
 /** The palette. Bone type over cold slate, the reach wire cyan, RISK
  *  amber running to blood. */
-constexpr SkColor4f kBone{0.910f, 0.894f, 0.847f, 1.0f};
-constexpr SkColor4f kCyan{0.498f, 0.847f, 0.910f, 1.0f};
-constexpr SkColor4f kAmber{0.847f, 0.628f, 0.220f, 1.0f};
-constexpr SkColor4f kBlood{0.659f, 0.094f, 0.125f, 1.0f};
+constexpr material::Color kBone{0.910f, 0.894f, 0.847f, 1.0f};
+constexpr material::Color kCyan{0.498f, 0.847f, 0.910f, 1.0f};
+constexpr material::Color kAmber{0.847f, 0.628f, 0.220f, 1.0f};
+constexpr material::Color kBlood{0.659f, 0.094f, 0.125f, 1.0f};
 
 /** A wire of the reach sphere: a torus thin enough to be a line at this
  *  distance, unlit so the room's emitters do not shade it. A wire is its
  *  own light in the reference too — the sphere is drawn, not lit. */
 material::Material wire(float alpha, float glow) {
   return material::kit::unlit(
-      {.baseColor = {kCyan.fR, kCyan.fG, kCyan.fB, alpha},
-       .emissive = {kCyan.fR, kCyan.fG, kCyan.fB, 1.0f},
+      {.baseColor = {kCyan.r, kCyan.g, kCyan.b, alpha},
+       .emissive = {kCyan.r, kCyan.g, kCyan.b, 1.0f},
        .emissiveStrength = glow});
 }
 
@@ -466,7 +467,7 @@ constexpr SkVector kShadow{kHudScale, kHudScale};
 
 /** A run of the baked face, placed at the text grid's own step: 2.5 px
  *  horizontally, 4 px vertically. */
-compose::Element run(const ck::Mask& mask, float x, float y, SkColor4f colour) {
+compose::Element run(const ck::Mask& mask, float x, float y, material::Color colour) {
   return ck::masked(mask, {.colour = colour,
                            .scale = kHudScale,
                            .shadowOffset = kShadow,
@@ -478,10 +479,10 @@ compose::Element run(const ck::Mask& mask, float x, float y, SkColor4f colour) {
  *  hairline round it, which is what every Vagrant Story panel is. */
 compose::Element plate(float x, float y, float w, float h, float alpha) {
   return ck::at(compose::box()
-                    .fill(SkColor4f{0.043f, 0.055f, 0.098f, alpha})
+                    .fill(material::Color{0.043f, 0.055f, 0.098f, alpha})
                     .stroke(compose::decorations::border(
                         2.0f, compose::Fill::color(
-                                  {kBone.fR, kBone.fG, kBone.fB, 0.55f}))),
+                                  {kBone.r, kBone.g, kBone.b, 0.55f}))),
                 x, y, w, h);
 }
 
@@ -489,7 +490,7 @@ compose::Element plate(float x, float y, float w, float h, float alpha) {
  *  heavy and sit hard in the corner, which is the kit's meter with its
  *  keyline set and its bar held off the frame. */
 compose::Element gauge(float x, float y, float w, float h, float fraction,
-                       SkColor4f colour) {
+                       material::Color colour) {
   return sketch::kit::meter(
              {.fraction = fraction,
               .width = compose::Dimension(w),
@@ -497,7 +498,7 @@ compose::Element gauge(float x, float y, float w, float h, float fraction,
               .track = compose::Fill::color({0.031f, 0.039f, 0.071f, 0.86f}),
               .bar = compose::Fill::color(colour),
               .keyline =
-                  compose::Fill::color({kBone.fR, kBone.fG, kBone.fB, 0.72f}),
+                  compose::Fill::color({kBone.r, kBone.g, kBone.b, 0.72f}),
               .keylineWidth = 2.0f,
               .inset = 4.0f})
       .at({x, y});
@@ -552,11 +553,11 @@ struct VagrantStoryTarget {
     // registers differ in size and in how far they are condensed, and
     // each bakes against the initial values, as a run of pixel type does.
     const weave::Type pixel{
-        .color = SkColor4f{1, 1, 1, 1}, .aliased = true, .antiAlias = false};
+        .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}), .aliased = true, .antiAlias = false};
     weave::Type title = pixel, body = pixel;
     weave::merge(title, {.size = 13.0f, .condense = 0.92f});
     weave::merge(body, {.size = 9.0f, .condense = 0.95f});
-    const auto label = [&](compose::Utf8 words, float x, float y, SkColor4f c,
+    const auto label = [&](compose::Utf8 words, float x, float y, material::Color c,
                            bool large) {
       return run(ck::bakeRun(words.bytes(), *fonts, large ? title : body), x, y,
                  c);
@@ -570,7 +571,7 @@ struct VagrantStoryTarget {
     struct Rail {
       compose::Utf8 name, reading;
       float fraction;
-      SkColor4f bar, ink;
+      material::Color bar, ink;
     };
     const std::array<Rail, 3> rails{
         Rail{"HP",
@@ -594,7 +595,7 @@ struct VagrantStoryTarget {
     // THE SIX LIMBS as one strip along the bottom — the struct's own
     // order, with the selected one picked out.
     const auto limbCard = [&](const Limb& limb, std::size_t i) {
-      const SkColor4f c = (int)i == kSelected ? kCyan : kBone;
+      const material::Color c = (int)i == kSelected ? kCyan : kBone;
       return ck::at(534.0f + (float)i * 119.0f, 824.0f, 110.0f, 64.0f)
           .children(
               {label(limb.name, 0.0f, 0.0f, c, false),

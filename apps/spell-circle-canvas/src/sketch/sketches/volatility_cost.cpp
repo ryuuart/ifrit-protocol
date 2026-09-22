@@ -80,6 +80,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Time.h>
@@ -95,6 +96,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace draw = sigil::draw;
 namespace shapes = sigil::geometry::shapes;
@@ -115,9 +117,9 @@ constexpr float kFieldWidth = 620.0f;
 constexpr float kFieldHeight = 560.0f;
 constexpr float kCellsWidth = 620.0f;
 
-constexpr SkColor4f kInk{0.92f, 0.94f, 0.98f, 1};
-constexpr SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
-constexpr SkColor4f kAccent{0.95f, 0.35f, 0.18f, 1};
+constexpr material::Color kInk{0.92f, 0.94f, 0.98f, 1};
+constexpr material::Color kDim{0.56f, 0.61f, 0.72f, 1};
+constexpr material::Color kAccent{0.95f, 0.35f, 0.18f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -141,7 +143,7 @@ sketch::kit::Theme sheetTheme() {
  *  The map and its key cannot disagree when they read one table. */
 struct Tier {
   Composer::CacheState state;
-  SkColor4f color;
+  material::Color color;
   const char* name;
   const char* what;
 };

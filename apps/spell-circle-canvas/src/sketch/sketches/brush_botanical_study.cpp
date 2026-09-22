@@ -16,6 +16,7 @@
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -24,6 +25,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
@@ -63,7 +65,7 @@ constexpr std::array<LeafSpec, 10> kLeaves{{
     {{865, 147}, 115, 33, -0.63f, -0.06f},
 }};
 
-constexpr std::array<SkColor4f, 5> kGreens{{
+constexpr std::array<material::Color, 5> kGreens{{
     {0.10f, 0.31f, 0.22f, 1},
     {0.20f, 0.47f, 0.31f, 1},
     {0.05f, 0.40f, 0.42f, 1},
@@ -125,7 +127,7 @@ SkPoint spine(const Leaf& leaf, float t, float lean) {
       leaf.base.fY + leaf.axis.fY * leaf.length * t + leaf.normal.fY * across};
 }
 
-void vein(Pen& pen, const Leaf& leaf, SkColor4f color) {
+void vein(Pen& pen, const Leaf& leaf, material::Color color) {
   brush::Tool lead = brush::pencil(color, 1.25f);
   lead.opacity = 0.62f;
   lead.scatter = 0.08f;
@@ -198,9 +200,9 @@ struct BrushBotanicalStudy {
 
     for (size_t index = 0; index < kLeaves.size(); ++index) {
       Leaf leaf = makeLeaf(pen, kLeaves[index]);
-      const SkColor4f pigment = kGreens[index % kGreens.size()];
-      const SkColor4f edge{pigment.fR * 0.47f, pigment.fG * 0.48f,
-                           pigment.fB * 0.43f, 1};
+      const material::Color pigment = kGreens[index % kGreens.size()];
+      const material::Color edge{pigment.r * 0.47f, pigment.g * 0.48f,
+                                 pigment.b * 0.43f, 1};
 
       brushes.push();
       brushes.set("HB", edge, 0.78f);

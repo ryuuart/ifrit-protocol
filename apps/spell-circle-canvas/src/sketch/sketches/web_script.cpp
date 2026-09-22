@@ -12,6 +12,7 @@
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
 #include <sigilscry/platform/Runtime.h>
@@ -28,6 +29,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace scry = sigil::scry;
 
@@ -48,7 +50,7 @@ constexpr const char* kScript =
 
 constexpr SkSize kCanvas = {1360, 660};
 
-constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
+constexpr material::Color kCellGround{0.12f, 0.12f, 0.14f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -333,11 +335,14 @@ struct WebScript {
         .column()
         .gap(10)
         .padding(40)
-        .children({text("no web engine here")
-                       .font({.size = 20, .color = sheet.palette.ink}),
-                   text(why)
-                       .font({.size = 12, .color = sheet.palette.ash})
-                       .width(620.0f)});
+        .children(
+            {text("no web engine here")
+                 .font({.size = 20,
+                        .color = material::skia::toSkColor(sheet.palette.ink)}),
+             text(why)
+                 .font({.size = 12,
+                        .color = material::skia::toSkColor(sheet.palette.ash)})
+                 .width(620.0f)});
   }
 };
 

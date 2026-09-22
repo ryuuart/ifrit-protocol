@@ -7,6 +7,8 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilworld/frame/Frame.h>
@@ -15,7 +17,7 @@
 namespace sigil::sketch {
 
 std::shared_ptr<compose::TextureScene> SketchContext::textureScene(
-    SkISize size, SkColor4f background) {
+    SkISize size, sigil::material::Color background) {
   if (!fonts) return nullptr;
   std::shared_ptr<compose::TextureScene> scene =
       compose::TextureScene::make(size, *fonts, background);
@@ -32,12 +34,12 @@ std::shared_ptr<compose::TextureScene> SketchContext::textureScene(
 
 sk_sp<SkImage> SketchContext::bakeSet(
     const world::Frame& frame, const geometry::mesh::camera::Camera& camera,
-    SkISize size, SkColor4f background, double seconds) {
+    SkISize size, sigil::material::Color background, double seconds) {
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(size.width(), size.height()));
   if (!surface) return nullptr;
   SkCanvas& canvas = *surface->getCanvas();
-  canvas.clear(background);
+  canvas.clear(material::skia::toSkColor(background));
   // The caller's viewpoint is written onto the frame rather than handed
   // to the draw, which is what lets a tree carrying its own camera win:
   // forming and presenting then read the ONE viewpoint, and a frame that

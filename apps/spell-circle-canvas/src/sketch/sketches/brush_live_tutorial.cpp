@@ -20,6 +20,7 @@
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
@@ -29,6 +30,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
@@ -38,7 +40,7 @@ namespace {
 
 constexpr float kSceneSeconds = 5.0f;
 constexpr float kScale = 1.4f;
-constexpr std::array<SkColor4f, 5> kPalette{{
+constexpr std::array<material::Color, 5> kPalette{{
     {0.00f, 0.13f, 0.52f, 1},
     {0.00f, 0.24f, 0.20f, 1},
     {0.99f, 0.83f, 0.00f, 1},
@@ -46,7 +48,7 @@ constexpr std::array<SkColor4f, 5> kPalette{{
     {0.42f, 0.58f, 0.02f, 1},
 }};
 
-constexpr std::array<SkColor4f, 6> kRainColors{{
+constexpr std::array<material::Color, 6> kRainColors{{
     {0.17f, 0.41f, 0.35f, 1},
     {0.29f, 0.84f, 0.69f, 1},
     {0.50f, 0.67f, 0.78f, 1},
@@ -103,11 +105,11 @@ struct BrushLiveTutorial {
    *  on from the frame before — and the signature over the drawing. */
   struct Scene {
     void (BrushLiveTutorial::*body)(Pen&, float local);
-    SkColor4f ground;
+    material::Color ground;
     bool kept = false;
     uint64_t seed = 0;
     std::string_view word;
-    SkColor4f ink;
+    material::Color ink;
   };
 
   static const std::array<Scene, 6> kScenes;
@@ -163,7 +165,7 @@ struct BrushLiveTutorial {
   void rain(Pen& pen, float) {
     brushes.field("seabed");
     const std::string_view name = pick(pen, kBrushes);
-    const SkColor4f color = pick(pen, kRainColors);
+    const material::Color color = pick(pen, kRainColors);
     brushes.set(name, color, pen.random(0.7f, 1.6f));
     brushes.flowLine(pen, {pen.random(600), pen.random(600)},
                      pen.random(140, 240), pen.random(360));
@@ -236,7 +238,7 @@ struct BrushLiveTutorial {
   void watercolor(Pen& pen, float) {
     if (pen.frameCount % 5 != 0) return;
     brushes.set("marker", {0.88f, 0.71f, 0.07f, 1}, 0.08f);
-    const SkColor4f pigment = pick(pen, kPalette);
+    const material::Color pigment = pick(pen, kPalette);
     brushes.fill(pigment, pen.random(60, 110) / 255.0f);
     brushes.fillBleed(pen.random(0.10f, 0.55f));
     brushes.fillTexture(0.4f, 0.4f, true);

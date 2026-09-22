@@ -7,6 +7,8 @@
 #include <include/core/SkPaint.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Wash.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <cmath>
@@ -28,8 +30,9 @@ constexpr float kLayerAlphaCeiling = 0.18f;
 constexpr float kGrainArea = 52.0f;
 constexpr int kGrainCap = 5000;
 
-SkColor4f withAlpha(SkColor4f color, float alpha) {
-  color.fA = std::clamp(color.fA * alpha, 0.0f, 1.0f);
+/** @p color at a FRACTION of the alpha it already carries, clamped. */
+material::Color fadedBy(material::Color color, float fraction) {
+  color.a = std::clamp(color.a * fraction, 0.0f, 1.0f);
   return color;
 }
 
@@ -94,7 +97,7 @@ void wash(Pen& pen, const Wash& pigment, std::span<const SkPoint> polygon) {
   // only the finished wash meets the canvas.
   pen.push();
   pen.blendMode(pigment.blend);
-  pen.fill(SkColor4f{1, 1, 1, 1});
+  pen.fill(material::Color{1, 1, 1, 1});
   SkPaint composite = *pen.fillPaint();
   composite.setShader(nullptr);
   composite.setColor4f({1, 1, 1, 1}, nullptr);
@@ -113,7 +116,7 @@ void wash(Pen& pen, const Wash& pigment, std::span<const SkPoint> polygon) {
         pen.randomGaussian(0.0f, scale * (0.004f + bleed * 0.018f)) +
         signedBleed * bleed * scale * 0.012f * (1.0f - depth);
     const float roughness = scale * (0.008f + bleed * 0.045f);
-    pen.fill(withAlpha(pigment.color, layerAlpha * pen.random(0.72f, 1.18f)));
+    pen.fill(fadedBy(pigment.color, layerAlpha * pen.random(0.72f, 1.18f)));
     SkPath layerPath =
         wetPath(pen, polygon, expansion, roughness, pen.random(0.0f, 1024.0f));
     if (pigment.bleedAngle) {
@@ -124,7 +127,7 @@ void wash(Pen& pen, const Wash& pigment, std::span<const SkPoint> polygon) {
     }
     pen.shape(layerPath);
     if (layer % 3 == 0) {
-      pen.fill(withAlpha(pigment.color, layerAlpha * 0.42f));
+      pen.fill(fadedBy(pigment.color, layerAlpha * 0.42f));
       pen.shape(wetPath(pen, polygon,
                         expansion - scale * pen.random(0.01f, 0.05f),
                         roughness * 1.35f, pen.random(0.0f, 1024.0f)));
@@ -136,7 +139,7 @@ void wash(Pen& pen, const Wash& pigment, std::span<const SkPoint> polygon) {
     pen.push();
     pen.clip([&] { pen.shape(polygonPath(polygon)); });
     pen.noStroke();
-    pen.fill(SkColor4f{1, 1, 1, texture * 15.0f / 255.0f});
+    pen.fill(material::Color{1, 1, 1, texture * 15.0f / 255.0f});
     pen.blendMode(REMOVE);
     const int blooms =
         pigment.scatter ? 80 + (int)std::round(texture * 170.0f) : 0;
@@ -158,7 +161,9 @@ void wash(Pen& pen, const Wash& pigment, std::span<const SkPoint> polygon) {
         (int)(bounds.width() * bounds.height() * texture / kGrainArea), 0,
         kGrainCap);
     const SkColor grainColor =
-        withAlpha(pigment.color, pigment.opacity * 0.08f).toSkColor();
+        material::skia::toSkColor(
+            fadedBy(pigment.color, pigment.opacity * 0.08f))
+            .toSkColor();
     std::vector<Stamp> grainStamps;
     grainStamps.reserve((size_t)grains);
     for (int grain = 0; grain < grains; ++grain) {
@@ -177,8 +182,8 @@ void wash(Pen& pen, const Wash& pigment, std::span<const SkPoint> polygon) {
   if (border > 0.0f) {
     pen.noFill();
     for (int edge = 0; edge < 3; ++edge) {
-      pen.stroke(withAlpha(
-          pigment.color, pigment.opacity * border * pen.random(0.12f, 0.24f)));
+      pen.stroke(fadedBy(pigment.color,
+                         pigment.opacity * border * pen.random(0.12f, 0.24f)));
       pen.strokeWeight(scale * pen.random(0.002f, 0.008f));
       pen.shape(wetPath(pen, polygon, pen.random(-1.0f, 1.5f), scale * 0.025f,
                         pen.random(0.0f, 1024.0f)));

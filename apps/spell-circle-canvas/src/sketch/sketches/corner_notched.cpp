@@ -34,9 +34,11 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
@@ -54,8 +56,8 @@ constexpr float kCut = 30;         // the chamfer, px
 constexpr float kNotchWidth = 38;  // the notch's width, px
 constexpr float kNotchDepth = 18;  // …and its depth
 
-constexpr SkColor4f kPlate{0.20f, 0.22f, 0.27f, 1};
-constexpr SkColor4f kEdge{0.92f, 0.84f, 0.66f, 1};
+constexpr material::Color kPlate{0.20f, 0.22f, 0.27f, 1};
+constexpr material::Color kEdge{0.92f, 0.84f, 0.66f, 1};
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {

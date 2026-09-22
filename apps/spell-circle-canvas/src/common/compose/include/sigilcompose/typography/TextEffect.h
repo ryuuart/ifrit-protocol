@@ -22,6 +22,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkPoint.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/BoundFloat.h>
 #include <sigilweave/style/ShapingStyle.h>
@@ -101,7 +102,7 @@ struct GlyphModifier {
    *  pass painting a flat colour multiplies it; a pass painting a shader
    *  takes the equivalent modulation, so a gradient keeps its ramp and
    *  wears the tint over it. White is no tint. */
-  SkColor4f colorMultiplier = {1, 1, 1, 1};
+  material::Color colorMultiplier = {1, 1, 1, 1};
   /** A per-channel ADDITIVE term over every pass the glyph's style draws —
    *  the hard flash a multiplier cannot say, because a multiplier only
    *  moves a colour toward black and moves a zero channel not at all. The
@@ -111,7 +112,7 @@ struct GlyphModifier {
    *  full one. RGB only: the alpha component rides the algebra but reaches
    *  no draw — coverage is the multiplicative lane's (`alpha`,
    *  `colorMultiplier.fA`). Zero is no flash and costs nothing. */
-  SkColor4f colorAdd = {0, 0, 0, 0};
+  material::Color colorAdd = {0, 0, 0, 0};
   /** A per-channel SCREEN term — the painted colour c becomes
    *  1 − (1 − c)(1 − colorScreen) — the phosphor glow that lifts each
    *  channel in proportion to its headroom and never clips. Screens
@@ -120,7 +121,7 @@ struct GlyphModifier {
    * `colorMultiplier` and `colorAdd`, which is what makes one colour-matrix
    * carry all three. RGB only, as `colorAdd` is. Zero is no glow and costs
    *  nothing. */
-  SkColor4f colorScreen = {0, 0, 0, 0};
+  material::Color colorScreen = {0, 0, 0, 0};
   /** Non-uniform scale and shear on each axis (degrees). An RSXform encodes
    *  a rotation and ONE scale and no shear at all, so a glyph whose composed
    *  deviation uses any of these draws under its own matrix — same passes,

@@ -10,11 +10,13 @@
 #include <sigildraw/Constants.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
@@ -32,7 +34,7 @@ struct Seabed {
   }
 };
 
-constexpr std::array<SkColor4f, 6> kPigments{{
+constexpr std::array<material::Color, 6> kPigments{{
     {0.08f, 0.31f, 0.27f, 1},
     {0.20f, 0.66f, 0.54f, 1},
     {0.29f, 0.52f, 0.68f, 1},
@@ -46,7 +48,7 @@ constexpr std::array<SkColor4f, 6> kPigments{{
  *  watercolour stands in two of the seven, so it falls twice as often as
  *  the rest. */
 struct Mark {
-  brush::Tool (*make)(SkColor4f, float);
+  brush::Tool (*make)(material::Color, float);
   float low, high;
   int bristles = 0;  // 0: the tool's own
 };
@@ -76,7 +78,8 @@ struct BrushRain {
     pen.background(249, 246, 231);
 
     for (int stroke = 0; stroke < 112; ++stroke) {
-      const SkColor4f color = kPigments[(size_t)pen.random(kPigments.size())];
+      const material::Color color =
+          kPigments[(size_t)pen.random(kPigments.size())];
       const Mark& mark = kCycle[(size_t)(stroke % (int)kCycle.size())];
       brush::Tool tool = mark.make(color, pen.random(mark.low, mark.high));
       if (mark.bristles != 0) tool.bristles = mark.bristles;

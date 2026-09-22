@@ -36,6 +36,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
@@ -44,6 +45,7 @@
 #include <cmath>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -70,7 +72,7 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
+const material::Color kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** A thin vertical loop: points scatter along it with a radial spread,
  *  so the cloud is a fuzzy column standing on the y axis. */

@@ -17,6 +17,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -47,6 +48,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 namespace field = sigil::material::field;
@@ -78,12 +80,12 @@ namespace {
 // ground and its grain as ONE node rather than a flat fill with a
 // multiplied noise laid over it.
 
-constexpr SkColor4f kCard = hexColor(0xE8E2D6);
-constexpr SkColor4f kWell = hexColor(0xDCD4C4);
-constexpr SkColor4f kRule = hexColor(0x8A8478);
-constexpr SkColor4f kInk = hexColor(0x1A1815);
-constexpr SkColor4f kInk2 = hexColor(0x5A554C);
-constexpr SkColor4f kRed = hexColor(0x9A3324);
+constexpr material::Color kCard = hexColor(0xE8E2D6);
+constexpr material::Color kWell = hexColor(0xDCD4C4);
+constexpr material::Color kRule = hexColor(0x8A8478);
+constexpr material::Color kInk = hexColor(0x1A1815);
+constexpr material::Color kInk2 = hexColor(0x5A554C);
+constexpr material::Color kRed = hexColor(0x9A3324);
 
 // ---------------------------------------------------------------------------
 // The colours. Codes are the register's: K black, B blue, G green, Y yellow,
@@ -109,7 +111,7 @@ constexpr std::array<Palette, 5> kPalettes{{
 constexpr uint32_t kHexY = 0xE8C000;  // "Yellow"
 constexpr uint32_t kHexW = 0xE5DDD1;  // "White"
 
-using Shades = std::array<SkColor4f, 5>;
+using Shades = std::array<material::Color, 5>;
 inline Shades shadesOf(const Palette& p) {
   return {hexColor(p.k), hexColor(p.b), hexColor(p.g), hexColor(kHexY),
           hexColor(kHexW)};
@@ -370,7 +372,7 @@ sk_sp<SkImage> bakeCloth(const std::vector<uint8_t>& S, const Shades& sh,
  *  at thread scale. The same generator as the cloth — a one-thread sett each
  *  way — so if these disagree with the main panel then one of the two is
  *  wrong. */
-sk_sp<SkImage> bakeBlend(SkColor4f a, SkColor4f b, int threads) {
+sk_sp<SkImage> bakeBlend(material::Color a, material::Color b, int threads) {
   return patterns::clothImage(
       {.warp = {0}, .weft = {1}, .shades = {a, b}, .weave = kTwill}, {0, 0},
       SkISize::Make(threads, threads));
@@ -445,8 +447,10 @@ inline const weave::StyleSheet& classes() {
   static const weave::StyleSheet look =
       sheet()
           .styleSheet()
-          .set("heading",
-               {.face = mono(), .size = 9, .color = kInk, .track = 0.5f})
+          .set("heading", {.face = mono(),
+                           .size = 9,
+                           .color = material::skia::toSkColor(kInk),
+                           .track = 0.5f})
           .set("tag", {.size = 7, .track = 0.6f})
           .set("note", {.size = 8, .track = 0.2f})
           .set("quote", {.face = serif(), .size = 10.5f})
@@ -468,7 +472,7 @@ inline Element centred(const Utf8& s, float x, float y, float w) {
                      .block({.alignment = weave::TextAlignment::kCenter})
                      .width(w)});
 }
-inline Element rule(float x, float y, float w, float h, SkColor4f c) {
+inline Element rule(float x, float y, float w, float h, material::Color c) {
   return at(x, y, w, h).fill(c);
 }
 

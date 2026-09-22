@@ -28,11 +28,16 @@ using sigil::sketch::test::fonts;
 
 TEST(SketchKitTheme, TheHouseSheetIsTheHouseColours) {
   const kit::Theme& house = kit::houseTheme();
-  EXPECT_EQ(house.palette.ground, (SkColor4f{0.07f, 0.07f, 0.085f, 1}));
-  EXPECT_EQ(house.palette.cellGround, (SkColor4f{0.105f, 0.11f, 0.125f, 1}));
-  EXPECT_EQ(house.palette.ink, (SkColor4f{0.90f, 0.90f, 0.92f, 1}));
-  EXPECT_EQ(house.palette.ash, (SkColor4f{0.55f, 0.56f, 0.62f, 1}));
-  EXPECT_EQ(house.palette.rule, (SkColor4f{0.20f, 0.21f, 0.25f, 1}));
+  EXPECT_EQ(house.palette.ground,
+            (sigil::material::Color{0.07f, 0.07f, 0.085f, 1}));
+  EXPECT_EQ(house.palette.cellGround,
+            (sigil::material::Color{0.105f, 0.11f, 0.125f, 1}));
+  EXPECT_EQ(house.palette.ink,
+            (sigil::material::Color{0.90f, 0.90f, 0.92f, 1}));
+  EXPECT_EQ(house.palette.ash,
+            (sigil::material::Color{0.55f, 0.56f, 0.62f, 1}));
+  EXPECT_EQ(house.palette.rule,
+            (sigil::material::Color{0.20f, 0.21f, 0.25f, 1}));
 }
 
 /** The mono face is resolved once. Two reads that answered two faces
@@ -50,7 +55,7 @@ TEST(SketchKitTheme, ComparesExactly) {
   kit::Theme one = kit::houseTheme();
   const kit::Theme two = kit::houseTheme();
   EXPECT_EQ(one, two);
-  one.palette.ink.fR += 0.001f;
+  one.palette.ink.r += 0.001f;
   EXPECT_NE(one, two);
 
   kit::Theme spaced = kit::houseTheme();
@@ -77,7 +82,8 @@ TEST(SketchKitTheme, AScopeBindsAndAnInnerScopeShadows) {
     darker.palette.ground = {0, 0, 0, 1};
     {
       const kit::Provide inner(darker);
-      EXPECT_EQ(kit::theme().palette.ground, (SkColor4f{0, 0, 0, 1}));
+      EXPECT_EQ(kit::theme().palette.ground,
+                (sigil::material::Color{0, 0, 0, 1}));
     }
     EXPECT_EQ(kit::theme().palette.ground, paper.palette.ground);
   }
@@ -152,7 +158,9 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
 TEST(SketchKitTheme, ARegisterIsTheStyleTheCallSiteWouldHaveWritten) {
   const kit::Theme& house = kit::houseTheme();
   const sigil::weave::TextStyle byHand = sigil::weave::textStyle(
-      {.size = 14, .color = house.palette.ink, .track = 2.4f});
+      {.size = 14,
+       .color = sigil::material::skia::toSkColor(house.palette.ink),
+       .track = 2.4f});
   const sigil::weave::TextStyle byTheme =
       house.style(house.type.title, house.palette.ink);
   EXPECT_EQ(byTheme.shaping.fontSize, byHand.shaping.fontSize);

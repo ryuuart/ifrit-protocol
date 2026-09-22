@@ -50,6 +50,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
@@ -78,7 +79,7 @@ constexpr int kCells = 4;           // the index chart is kCells x kCells
 
 constexpr float kMaskContrast = 3.2f;  // how hard the grain field's cut is
 
-constexpr SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
+constexpr mat::Color kFrame{0.20f, 0.24f, 0.32f, 1};
 constexpr float kPanel = 188.0f;
 
 /** The specimen sheet, in this one's own look. */

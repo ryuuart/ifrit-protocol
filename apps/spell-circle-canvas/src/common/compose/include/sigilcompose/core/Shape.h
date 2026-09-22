@@ -19,6 +19,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <any>
@@ -606,7 +607,7 @@ struct LayerStyle {
   /** THE MISPRINT PRESET: one echo at @p offset in a flat @p color.
    *  Applied again, it stacks another beneath the real pass, bottom
    *  first. */
-  static LayerStyle echo(SkVector offset, SkColor4f color) {
+  static LayerStyle echo(SkVector offset, material::Color color) {
     return LayerStyle{.echoes = {Echo{offset, color}}};
   }
 };

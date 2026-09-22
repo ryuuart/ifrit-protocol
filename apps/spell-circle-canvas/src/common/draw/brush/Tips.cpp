@@ -11,6 +11,8 @@
 #include <include/core/SkShader.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <utility>
@@ -77,10 +79,11 @@ void depositShape(Pen& pen, const Tool& tool, const SkPaint& base,
   if (sk_sp<SkColorFilter> mask = shapeCoverage(tool.shape->mask))
     shape = shape->makeWithColorFilter(std::move(mask));
 
-  sk_sp<SkShader> mark =
-      SkShaders::Blend(SkBlendMode::kDstIn,
-                       SkShaders::Color(pigment(tool, style.opacity), nullptr),
-                       std::move(shape));
+  sk_sp<SkShader> mark = SkShaders::Blend(
+      SkBlendMode::kDstIn,
+      SkShaders::Color(material::skia::toSkColor(pigment(tool, style.opacity)),
+                       nullptr),
+      std::move(shape));
   if (tool.grain && tool.grain->space == GrainSpace::Dab) {
     // The grain travels and turns with the stamp but keeps its size in
     // the pen's space, so one scale means the same thing whichever space
@@ -107,7 +110,7 @@ void depositCustom(Pen& pen, const Tool& tool, const Dab& dab,
   // set to the tip's contract — the pigment as fill and stroke, the
   // default modes — rather than saved and restored, since a full style
   // copy per dab is what a stroke of a thousand dabs cannot afford.
-  const SkColor4f color = pigment(tool, style.opacity);
+  const material::Color color = pigment(tool, style.opacity);
   pen.fill(color);
   pen.stroke(color);
   pen.rectMode(CORNER);

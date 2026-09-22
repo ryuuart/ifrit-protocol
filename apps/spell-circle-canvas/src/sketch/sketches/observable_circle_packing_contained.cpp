@@ -7,11 +7,13 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 using namespace sigil::draw;
@@ -22,7 +24,7 @@ struct Circle {
   SkPoint centre;
   float radius = 5.0f;
   bool growing = true;
-  SkColor4f colour;
+  material::Color colour;
 };
 
 struct ObservableCirclePackingContained {

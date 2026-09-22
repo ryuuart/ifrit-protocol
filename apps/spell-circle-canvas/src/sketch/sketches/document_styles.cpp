@@ -7,6 +7,7 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -15,6 +16,7 @@
 
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
@@ -23,15 +25,16 @@ namespace {
 constexpr float kColumn = 501;
 constexpr float kInset = 28;
 constexpr float kMeasure = kColumn - kInset * 2;
-constexpr SkColor4f kWarm = hexColor(0x9e4c31);
-constexpr SkColor4f kCool = hexColor(0x246579);
-constexpr SkColor4f kInline = hexColor(0x8c4561);
+constexpr material::Color kWarm = hexColor(0x9e4c31);
+constexpr material::Color kCool = hexColor(0x246579);
+constexpr material::Color kInline = hexColor(0x8c4561);
 
 Element article() {
   const weave::RichText passage =
       weave::rich()
           .add(u8"A paragraph is one shaped passage. ")
-          .add(u8"This phrase keeps its own ink", weave::Type{.color = kInline})
+          .add(u8"This phrase keeps its own ink",
+               weave::Type{.color = material::skia::toSkColor(kInline)})
           .add(
               u8", while the surrounding words follow the document. "
               u8"Changing the sheet changes its voice without rebuilding "
@@ -71,25 +74,44 @@ weave::StyleSheet voice(bool editorial) {
       editorial ? weave::ports::face({"Iowan Old Style", "Georgia", "serif"})
                 : weave::ports::face({"Helvetica Neue", "Arial", "sans-serif"});
   const auto mono = weave::ports::face({"Menlo", "Consolas", "monospace"});
-  const SkColor4f ink = editorial ? hexColor(0x352f29) : hexColor(0x22333c);
-  const SkColor4f muted = editorial ? hexColor(0x776858) : hexColor(0x647984);
-  const SkColor4f accent = editorial ? kWarm : kCool;
+  const material::Color ink =
+      editorial ? hexColor(0x352f29) : hexColor(0x22333c);
+  const material::Color muted =
+      editorial ? hexColor(0x776858) : hexColor(0x647984);
+  const material::Color accent = editorial ? kWarm : kCool;
   weave::StyleSheet sheet;
   sheet.set(weave::rule("article")
-                .font({.face = body, .size = 17, .color = ink, .track = 0})
+                .font({.face = body,
+                       .size = 17,
+                       .color = material::skia::toSkColor(ink),
+                       .track = 0})
                 .block({.leading = weave::Leading::multiple(1.4f)}));
   sheet.set("h1", {.face = body,
                    .size = editorial ? 32.0f : 30.0f,
-                   .color = accent,
+                   .color = material::skia::toSkColor(accent),
                    .track = 0});
-  sheet.set("h2", {.face = body, .size = 22, .color = ink, .track = 0});
-  sheet.set("lead", {.face = body, .size = 19, .color = muted, .track = 0});
-  sheet.set("eyebrow",
-            {.face = mono, .size = 10, .color = accent, .track = 1.1f});
-  sheet.set("caption", {.face = body, .size = 13, .color = muted, .track = 0});
-  sheet.set("footer", {.face = mono, .size = 10, .color = muted, .track = 0});
-  sheet.set("quote", {.color = accent});
-  sheet.set("accent", {.color = accent});
+  sheet.set("h2", {.face = body,
+                   .size = 22,
+                   .color = material::skia::toSkColor(ink),
+                   .track = 0});
+  sheet.set("lead", {.face = body,
+                     .size = 19,
+                     .color = material::skia::toSkColor(muted),
+                     .track = 0});
+  sheet.set("eyebrow", {.face = mono,
+                        .size = 10,
+                        .color = material::skia::toSkColor(accent),
+                        .track = 1.1f});
+  sheet.set("caption", {.face = body,
+                        .size = 13,
+                        .color = material::skia::toSkColor(muted),
+                        .track = 0});
+  sheet.set("footer", {.face = mono,
+                       .size = 10,
+                       .color = material::skia::toSkColor(muted),
+                       .track = 0});
+  sheet.set("quote", {.color = material::skia::toSkColor(accent)});
+  sheet.set("accent", {.color = material::skia::toSkColor(accent)});
   return sheet;
 }
 

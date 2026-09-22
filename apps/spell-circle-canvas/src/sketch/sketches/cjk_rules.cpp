@@ -9,6 +9,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/LineTables.h>
@@ -17,19 +18,20 @@
 
 #include <utility>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
 
 namespace {
-constexpr SkColor4f kInk{0.88f, 0.89f, 0.92f, 1};
+constexpr material::Color kInk{0.88f, 0.89f, 0.92f, 1};
 constexpr float kSize = 22;
 
 weave::Type mincho(float size = kSize) {
   return {.face = weave::ports::face(
               {"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP"}),
           .size = size,
-          .color = kInk,
+          .color = material::skia::toSkColor(kInk),
           .track = 0,
           .language = "ja"};
 }

@@ -7,6 +7,7 @@
 #include <include/core/SkColor.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/PenTypes.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Type.h>
 
 #include "support/Paper.h"
@@ -150,14 +151,15 @@ TEST(PenInherit, ThePairIsRememberedForWhateverIsSeededFromThePen) {
   Pen fresh;
   // A pen nobody told: black ink and the initial type, so whatever is
   // seeded from one reads a usable pair whether a host spoke or not.
-  EXPECT_EQ(fresh.inheritedInk(), SkColor4f({0, 0, 0, 1}));
+  EXPECT_EQ(fresh.inheritedInk(), sigil::material::Color({0, 0, 0, 1}));
   EXPECT_TRUE(fresh.inheritedFont().size.has_value());
 
   Paper paper;
   paper.begin();
   paper.pen.inherit({0.25f, 0.5f, 0.75f, 1}, typeAt(18));
   paper.end();
-  EXPECT_EQ(paper.pen.inheritedInk(), SkColor4f({0.25f, 0.5f, 0.75f, 1}));
+  EXPECT_EQ(paper.pen.inheritedInk(),
+            sigil::material::Color({0.25f, 0.5f, 0.75f, 1}));
   EXPECT_FLOAT_EQ(paper.pen.inheritedFont().size.value().value, 18.0f);
 }
 

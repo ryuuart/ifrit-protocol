@@ -54,6 +54,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -62,6 +63,7 @@
 #include <ranges>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
@@ -85,8 +87,8 @@ render::Runtime painter() { return sketch::painterRuntime(); }
  *  rows, a two-sector gauge and a bar row. Sized in px because it is
  *  baked to a picture of a stated size rather than laid out in a
  *  window. */
-Element card(float w, float h, SkColor4f accent) {
-  const SkColor4f ink = {1, 1, 1, 0.25f};
+Element card(float w, float h, material::Color accent) {
+  const material::Color ink = {1, 1, 1, 0.25f};
   const float gauge = 108;
   return stack()
       .width(w)
@@ -101,7 +103,7 @@ Element card(float w, float h, SkColor4f accent) {
                .children(
                    {// the header pill
                     box().width(w - 32).height(14).borderRadius({7}).fill(
-                        Fill::color({accent.fR, accent.fG, accent.fB, 0.9f})),
+                        Fill::color({accent.r, accent.g, accent.b, 0.9f})),
                     // the tick rows, each shorter than the one above it
                     box().column().gap(14).children(
                         {each(4,
@@ -128,8 +130,8 @@ Element card(float w, float h, SkColor4f accent) {
                                               (0.5f + 0.5f * std::sin(t * 9.0f +
                                                                       1.7f)))
                                   .borderRadius({2})
-                                  .fill(Fill::color({accent.fR, accent.fG,
-                                                     accent.fB, 0.85f}));
+                                  .fill(Fill::color({accent.r, accent.g,
+                                                     accent.b, 0.85f}));
                             })})}),
            sketch::kit::gauge({.fraction = 200.0f / 280.0f,
                                .diameter = gauge,
@@ -199,7 +201,7 @@ struct FloatingPanels {
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,
-                        .background = SkColor4f{0.027f, 0.027f, 0.047f, 1}});
+                        .background = material::Color{0.027f, 0.027f, 0.047f, 1}});
 
     cardA = bake(ctx, card(360, 240, {0.2f, 0.85f, 1.0f, 1}), 360, 240);
     cardB = bake(ctx, card(360, 240, {1.0f, 0.6f, 0.25f, 1}), 360, 240);

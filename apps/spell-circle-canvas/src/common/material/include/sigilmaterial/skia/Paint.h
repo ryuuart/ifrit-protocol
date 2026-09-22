@@ -82,7 +82,7 @@ enum class Fit : uint8_t {
  *  colour there, authored in the working colour space. */
 struct Stop {
   float pos = 0.0f;
-  SkColor4f color = {0, 0, 0, 1};
+  material::Color color = {0, 0, 0, 1};
   bool operator==(const Stop&) const = default;
 };
 
@@ -97,7 +97,7 @@ class Paint {
    *  gradients, an image or a caller-owned raster, a hand-built
    *  shader, an SkSL body, and a recipe instance.
    *  @{ */
-  static Paint solid(SkColor4f color);
+  static Paint solid(material::Color color);
   /** N-stop linear ramp between two points (working-space colors). */
   static Paint linear(SkPoint a, SkPoint b, std::vector<Stop> stops,
                       SkTileMode tile = SkTileMode::kClamp);
@@ -216,9 +216,10 @@ class Paint {
   Paint& uniform(std::string name, std::array<float, 2> value);
   /** Constant float4 uniform set from a color (straight, not premultiplied —
    *  what the SkSL declares as `uniform float4`). */
-  Paint& uniform(std::string name, SkColor4f value);
+  Paint& uniform(std::string name, material::Color value);
   /** Constant float4 uniform from plain numbers — a rect, a quaternion,
-   *  anything that is not a colour. Same slot the SkColor4f form fills. */
+   *  anything that is not a colour. Same slot the material::Color form fills.
+   */
   Paint& uniform(std::string name, std::array<float, 4> value);
   /** CONSTANT ARRAY, stored flat and matched against the declared
    *  uniform's TOTAL float count — 12 floats fill `float4 uRect[3]`,
@@ -347,7 +348,7 @@ class Paint {
     return !m_isSolid && !m_shader && !m_live && !m_backed;
   }
   bool isSolid() const { return m_isSolid; }
-  SkColor4f solidColor() const { return m_solid; }
+  material::Color solidColor() const { return m_solid; }
   /** Always produces a shader — a solid becomes a colour shader — which
    *  is what blend() composes. For a live paint it builds a fresh shader
    *  sampling bound values at their CURRENT readings: a snapshot, not a
@@ -448,7 +449,7 @@ class Paint {
   // The bound pan (x, y) — see offset(). Recipe: compared as an
   // animatable is, so a live axis compares by its Output's identity.
   std::array<std::optional<motion::Animatable<float>>, 2> m_boundOffset{};
-  SkColor4f m_solid = {0, 0, 0, 0};
+  material::Color m_solid = {0, 0, 0, 0};
   sk_sp<SkShader> m_shader;      // static resolution: null for solid/none; for
                                  // sksl a constants-only snapshot (live paint
                                  // ignores it and goes through resolve())

@@ -37,9 +37,9 @@ The short answer, before the detail:
          - Ref::CurrentInk           material::Material
          - Ref::Var                   - a recipe, and its bytes
               |                       - bindings, slots, settings
-        an SkColor4f                          |
-              |                        material::Color fields
-      material::Color                         |
+              |                                |
+      material::Color                 material::Color fields
+              |                                |
               |                    the reasoning spaces:
     Oklab   Oklch   Lab   LinearRgb   never painted from directly
 ```

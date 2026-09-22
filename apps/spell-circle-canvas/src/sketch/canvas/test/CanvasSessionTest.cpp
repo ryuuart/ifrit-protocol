@@ -15,6 +15,7 @@
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -45,6 +46,7 @@ namespace {
 
 using namespace sigil::sketch;
 using namespace sigil::compose;
+namespace material = sigil::material;
 namespace world = sigil::world;
 namespace gm = sigil::geometry::mesh;
 
@@ -62,7 +64,7 @@ constexpr float kCardW = 100.0f;
 constexpr float kCardH = 60.0f;
 constexpr float kEyeZ = 300.0f;
 constexpr SkISize kBakeSize{128, 96};
-constexpr SkColor4f kGround{0.1f, 0.1f, 0.1f, 1};
+constexpr material::Color kGround{0.1f, 0.1f, 0.1f, 1};
 /** The entrance the bake's moment is read against: how far a card slides
  *  in, how long one card's own motion lasts, and how far apart the
  *  cascade starts the two of them. */
@@ -98,7 +100,8 @@ float pixelsPerUnit(const gm::camera::Camera& lens, SkISize size) {
 /** The box the drawn pixels stand in, against the ground every bake
  *  here is cleared to. */
 SkIRect silhouetteOf(const SkBitmap& pixels) {
-  return sigil::sketch::test::silhouetteOf(pixels, kGround.toSkColor());
+  return sigil::sketch::test::silhouetteOf(
+      pixels, material::skia::toSkColor(kGround).toSkColor());
 }
 
 /** A sketch that asks for a texture scene while declaring itself, paints
@@ -411,7 +414,8 @@ TEST(CanvasDoors, BakesASetAsTheCameraProjectsIt) {
   // Nothing but the card is in the tree, so the corner is the ground it
   // was cleared to and the middle of the card is the card's own colour —
   // unlit, so it is that colour exactly.
-  EXPECT_EQ(pixels.getColor(1, 1), kGround.toSkColor());
+  EXPECT_EQ(pixels.getColor(1, 1),
+            material::skia::toSkColor(kGround).toSkColor());
   EXPECT_EQ(pixels.getColor(kBakeSize.width() / 2, kBakeSize.height() / 2),
             SK_ColorWHITE);
 
@@ -597,14 +601,15 @@ struct Shaded {
     sigil::weave::Type type;
     type.face = sigil::test::instrument::sans();
     type.size = 56.0f;
-    type.color = SkColor4f{1, 1, 1, 1};
+    type.color =
+        sigil::material::skia::toSkColor(sigil::material::Color{1, 1, 1, 1});
     type.overlays = std::vector<sigil::weave::PaintLayer>{pass};
     Element word = text(u8"AB");
     word.font(type);
     ctx.composer.render(box()
                             .width(kShadedWidth)
                             .height(kShadedHeight)
-                            .fill(Fill::color(SkColor4f{0, 0, 0, 1}))
+                            .fill(Fill::color(material::Color{0, 0, 0, 1}))
                             .children({std::move(word)}));
   }
 };

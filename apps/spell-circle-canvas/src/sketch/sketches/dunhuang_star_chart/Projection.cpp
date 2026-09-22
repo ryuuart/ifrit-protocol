@@ -87,12 +87,12 @@ auto DunhuangStarChart::rebuild(float epoch, float fold) -> void {
     const float f = smooth((fold - p.fold0) / 0.42f);
     pos[(size_t)i] = {p.sky.fX + (p.paper.fX - p.sky.fX) * f,
                       p.sky.fY + (p.paper.fY - p.sky.fY) * f};
-    SkColor4f t{1, 1, 1, 1};
+    sigil::material::Color t{1, 1, 1, 1};
     // The sky the chart does NOT carry — the +45..+52 band between the
     // cylindrical maps and the disc, everything south of -45 — leaves the
     // plate entirely rather than lingering as ghosts ON the paper, where it
     // reads as dots. The count is in the feed instead.
-    if (!p.onPaper) t.fA = 1.0f - f;
+    if (!p.onPaper) t.a = 1.0f - f;
     tint[(size_t)i] = t;
   }
   pool->commit();

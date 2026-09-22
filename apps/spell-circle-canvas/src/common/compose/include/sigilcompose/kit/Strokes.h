@@ -35,6 +35,8 @@
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilgeometry/kit/Shapers.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
@@ -247,7 +249,8 @@ inline std::vector<brush::Strand> braid(int n, float amplitude,
  *  beneath. A comparable paint, so a plate of seventy grooves prunes;
  *  `toFill` turns it into the `Fill` a `lines::Rail` takes. */
 inline material::skia::Paint grooveRamp(float radius, float width,
-                                        SkColor4f dark, SkColor4f lite,
+                                        material::Color dark,
+                                        material::Color lite,
                                         float shoulder = 0.22f) {
   const float reach = radius + width;
   const float inner = (radius - width * 0.5f) / reach;
@@ -256,13 +259,16 @@ inline material::skia::Paint grooveRamp(float radius, float width,
   const float half = (outer - inner) * std::clamp(shoulder, 0.0f, 0.5f);
   return material::skia::Paint::radial(
       {radius, radius}, reach,
-      {{0.0f, dark}, {mid - half, dark}, {mid + half, lite}, {1.0f, lite}});
+      {{0.0f, material::skia::toSkColor(dark)},
+       {mid - half, material::skia::toSkColor(dark)},
+       {mid + half, material::skia::toSkColor(lite)},
+       {1.0f, material::skia::toSkColor(lite)}});
 }
 
 /** The groove as the stroke a disc's outline wears: @p width px centred
  *  on the outline, painted with `grooveRamp`. */
-inline PathFormat groove(float radius, float width, SkColor4f dark,
-                         SkColor4f lite, float shoulder = 0.22f) {
+inline PathFormat groove(float radius, float width, material::Color dark,
+                         material::Color lite, float shoulder = 0.22f) {
   PathFormat cut;
   cut.width = width;
   cut.strokeFill = grooveRamp(radius, width, dark, lite, shoulder);
@@ -305,13 +311,13 @@ namespace brush::presets {
 /** An organic glowing filament: four strokes bottom-up — wide additive
  *  glow, mid glow, bright core, white centre. `scale` sets the envelope;
  *  at 1.0 that is a 14 px envelope over a 2.5 px core. */
-inline LayeredBrush filament(SkColor4f glow = {0.435f, 0.847f, 1.0f, 1},
-                             SkColor4f core = {0.875f, 0.965f, 1.0f, 1},
+inline LayeredBrush filament(material::Color glow = {0.435f, 0.847f, 1.0f, 1},
+                             material::Color core = {0.875f, 0.965f, 1.0f, 1},
                              float scale = 1.0f) {
-  SkColor4f g18 = glow, g45 = glow, c90 = core;
-  g18.fA = 0.18f;
-  g45.fA = 0.45f;
-  c90.fA = 0.90f;
+  material::Color g18 = glow, g45 = glow, c90 = core;
+  g18.a = 0.18f;
+  g45.a = 0.45f;
+  c90.a = 0.90f;
   return LayeredBrush{{
       {14 * scale, g18, 8 * scale, {}, 0, SkBlendMode::kPlus},
       {7 * scale, g45, 3 * scale, {}, 0, SkBlendMode::kPlus},
@@ -324,21 +330,21 @@ inline LayeredBrush filament(SkColor4f glow = {0.435f, 0.847f, 1.0f, 1},
  *  85%), 2 = power (4 px over an 8 px under-glow). Pair it with an
  *  orthogonal or octilinear router cutting its corners at 45° — see
  *  `routers::manhattan`'s `chamferCut` — for the full look. */
-inline LayeredBrush circuit(SkColor4f color = {0.208f, 0.878f, 0.824f, 1},
+inline LayeredBrush circuit(material::Color color = {0.208f, 0.878f, 0.824f, 1},
                             int tier = 1) {
-  SkColor4f c = color;
+  material::Color c = color;
   LayeredBrush b;
   if (tier >= 2) {
-    SkColor4f under = color;
-    under.fA = 0.15f;
+    material::Color under = color;
+    under.a = 0.15f;
     b.layers.push_back({8, under, 4});
-    c.fA = 1.0f;
+    c.a = 1.0f;
     b.layers.push_back({4, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
   } else if (tier == 1) {
-    c.fA = 0.85f;
+    c.a = 0.85f;
     b.layers.push_back({2, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
   } else {
-    c.fA = 0.55f;
+    c.a = 0.55f;
     b.layers.push_back({1, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
   }
   return b;
@@ -354,7 +360,7 @@ inline LayeredBrush circuit(SkColor4f color = {0.208f, 0.878f, 0.824f, 1},
  *  dense cluster wants around 0.6. */
 inline LayeredBrush rope(int state, float scale = 1.0f) {
   struct P {
-    SkColor4f body, ridge;
+    material::Color body, ridge;
   };
   static constexpr P kStates[3] = {
       {{0.227f, 0.200f, 0.165f, 1},
@@ -365,10 +371,10 @@ inline LayeredBrush rope(int state, float scale = 1.0f) {
        {0.780f, 0.659f, 0.420f, 1}},  // #8A7248/#C7A86B
   };
   const P& p = kStates[state < 0 ? 0 : state > 2 ? 2 : state];
-  SkColor4f bodyLit = {p.body.fR * 1.15f, p.body.fG * 1.15f, p.body.fB * 1.15f,
-                       1};
-  SkColor4f ridgeLit = {p.ridge.fR * 1.3f, p.ridge.fG * 1.3f, p.ridge.fB * 1.3f,
-                        0.6f};
+  material::Color bodyLit = {p.body.r * 1.15f, p.body.g * 1.15f,
+                             p.body.b * 1.15f, 1};
+  material::Color ridgeLit = {p.ridge.r * 1.3f, p.ridge.g * 1.3f,
+                              p.ridge.b * 1.3f, 0.6f};
   const float k = scale <= 0 ? 1.0f : scale;
   LayeredBrush b;
   if (state >= 2)
@@ -384,11 +390,11 @@ inline LayeredBrush rope(int state, float scale = 1.0f) {
  *  white-hot core. Claim a SHORT window of a rail
  *  (`spans::wrap(&phase, &phaseEnd)`) and march the window along it — the
  *  energy packet on any connector. */
-inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
-                          SkColor4f core = {1, 1, 1, 0.9f},
+inline LayeredBrush pulse(material::Color halo = {1.0f, 0.79f, 0.44f, 0.35f},
+                          material::Color core = {1, 1, 1, 0.9f},
                           float scale = 1.0f) {
-  SkColor4f body = halo;
-  body.fA = std::min(1.0f, halo.fA * 2.2f);
+  material::Color body = halo;
+  body.a = std::min(1.0f, halo.a * 2.2f);
   return LayeredBrush{{
       {12 * scale, halo, 5 * scale, {}, 0, SkBlendMode::kPlus},
       {5 * scale, body, 2 * scale, {}, 0, SkBlendMode::kPlus},
@@ -401,8 +407,9 @@ inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
  *  which uses no ties at all. Two decorations as one LayerStyle, so attach
  *  with `Element::layerStyle()`. */
 inline LayerStyle railwayCarto(float scale = 1.0f,
-                               SkColor4f dark = {0.439f, 0.439f, 0.439f, 1},
-                               SkColor4f light = {1, 1, 1, 1}) {
+                               material::Color dark = {0.439f, 0.439f, 0.439f,
+                                                       1},
+                               material::Color light = {1, 1, 1, 1}) {
   lines::Line base;
   base.width = 3.0f * scale;
   base.fill = Fill::color(dark);

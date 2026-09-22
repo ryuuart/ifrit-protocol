@@ -17,6 +17,8 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkTileMode.h>
 #include <sigilcompose/brush/PixelStyles.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <cmath>
 #include <map>
@@ -36,9 +38,9 @@ namespace {
  *  negative one to the far band. It is half a pixel because that is the
  *  distance from a corner to the centre of the pixel the corner names.
  */
-void paintMitredRing(SkCanvas& c, SkRect box, const SkColor4f& near,
-                     const SkColor4f& far, float nearWidth, float farWidth,
-                     float bias, bool antiAlias) {
+void paintMitredRing(SkCanvas& c, SkRect box, const material::Color& near,
+                     const material::Color& far, float nearWidth,
+                     float farWidth, float bias, bool antiAlias) {
   // A bevel deeper than half the box is the whole box; the far band would
   // otherwise cross the near one and the ring would turn inside out.
   const float half = std::min(box.width(), box.height()) * 0.5f;
@@ -56,14 +58,14 @@ void paintMitredRing(SkCanvas& c, SkRect box, const SkColor4f& near,
   ring.addRect(box);
   ring.addRect(SkRect::MakeLTRB(l + wn, t + wn, r - wf, b - wf),
                SkPathDirection::kCCW);
-  if (far.fA > 0.0f && wf > 0.0f) {
-    p.setColor4f(far, nullptr);
+  if (far.a > 0.0f && wf > 0.0f) {
+    p.setColor4f(material::skia::toSkColor(far), nullptr);
     c.drawPath(ring.detach(), p);
   } else {
     ring.reset();
   }
 
-  if (near.fA <= 0.0f || wn <= 0.0f) return;
+  if (near.a <= 0.0f || wn <= 0.0f) return;
   // The near region: the top and left bands, cut at the top-right and the
   // bottom-left by the two diagonals. Each diagonal is clamped where it
   // leaves the box, which is what the bias moves it past.
@@ -85,7 +87,7 @@ void paintMitredRing(SkCanvas& c, SkRect box, const SkColor4f& near,
     n.lineTo(l, b + bias);
   }
   n.close();
-  p.setColor4f(near, nullptr);
+  p.setColor4f(material::skia::toSkColor(near), nullptr);
   c.drawPath(n.detach(), p);
 }
 
@@ -161,8 +163,8 @@ void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
   using geometry::path::has;
   // The near edges are the top and the left; sunken swaps the tones (and
   // their widths) onto the far ones and changes nothing else.
-  const SkColor4f& near = sunken ? dark : light;
-  const SkColor4f& far = sunken ? light : dark;
+  const material::Color& near = sunken ? dark : light;
+  const material::Color& far = sunken ? light : dark;
   const float nearWidth = sunken ? darkWidth : lightWidth;
   const float farWidth = sunken ? lightWidth : darkWidth;
   // A full ring is drawn exactly as it was before there was a mask to
@@ -228,10 +230,10 @@ void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeCap(SkPaint::kButt_Cap);
   p.setStrokeJoin(SkPaint::kMiter_Join);
-  const auto edge = [&](Edge which, const SkColor4f& tone, float width) {
-    if (width <= 0.0f || tone.fA <= 0.0f || !has(edges, which)) return;
+  const auto edge = [&](Edge which, const material::Color& tone, float width) {
+    if (width <= 0.0f || tone.a <= 0.0f || !has(edges, which)) return;
     p.setStrokeWidth(width * 2.0f);
-    p.setColor4f(tone, nullptr);
+    p.setColor4f(material::skia::toSkColor(tone), nullptr);
     if (whole) {
       c.drawPath(geometry::path::edges(shape, which, step), p);
       return;
@@ -268,7 +270,7 @@ void Brackets::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (arm <= 0.0f || width <= 0.0f) return;
   SkPaint p;
   p.setAntiAlias(antiAlias);
-  p.setColor4f(color, nullptr);
+  p.setColor4f(material::skia::toSkColor(color), nullptr);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(width);
   p.setStrokeCap(SkPaint::kButt_Cap);
@@ -296,7 +298,7 @@ void TickRail::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (pitch <= 0.0f || width <= 0.0f) return;
   SkPaint p;
   p.setAntiAlias(antiAlias);
-  p.setColor4f(color, nullptr);
+  p.setColor4f(material::skia::toSkColor(color), nullptr);
   const float w = ctx.size.width(), h = ctx.size.height();
   const auto rail = [&](Edge which) {
     const bool vertical = which == Edge::Left || which == Edge::Right;
@@ -338,7 +340,7 @@ void Scanlines::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.clipPath(ctx.outline, false);
   SkPaint p;
   p.setAntiAlias(false);
-  p.setColor4f(color, nullptr);
+  p.setColor4f(material::skia::toSkColor(color), nullptr);
   p.setBlendMode(blend);
   const float w = ctx.size.width(), h = ctx.size.height();
   // Start one period above the top so a phase in either direction keeps
@@ -363,15 +365,15 @@ void Stipple::paint(SkCanvas& c, const PaintContext& ctx) const {
                                &local));
   // The mask carries coverage, not colour: kSrcIn stamps the one colour
   // into every set cell and leaves the clear ones alone.
-  p.setColorFilter(
-      SkColorFilters::Blend(color.toSkColor(), SkBlendMode::kSrcIn));
+  p.setColorFilter(SkColorFilters::Blend(
+      material::skia::toSkColor(color).toSkColor(), SkBlendMode::kSrcIn));
   c.save();
   c.clipPath(ctx.outline, SkClipOp::kIntersect, false);
   c.drawRect(ctx.outline.getBounds(), p);
   c.restore();
 }
 
-Stipple dither(SkColor4f color, int on, int size, float cell) {
+Stipple dither(material::Color color, int on, int size, float cell) {
   // The Bayer threshold matrix, built by the recursion that defines it:
   // each step quadruples the lattice, the four quadrants offset by
   // 0, 2, 3, 1 quarters of the range, which is what spreads a tone's

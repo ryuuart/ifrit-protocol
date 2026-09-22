@@ -4,8 +4,9 @@ auto TwoAdvancedV4::specPair(const sigil::data::Json& spec) -> Element {
   using namespace tav;
   return box().column().gap(2).children(
       {t(spec["name"],
-         micro(9, mskia::withAlpha(hexColor(0x123B3D), 0.75f), 260)),
-       kit::line({.fill = Fill::color(mskia::withAlpha(kDate, 0.28f))}),
+         micro(9, sigil::material::withAlpha(hexColor(0x123B3D), 0.75f), 260)),
+       kit::line(
+           {.fill = Fill::color(sigil::material::withAlpha(kDate, 0.28f))}),
        t(spec["value"], cut(blackFace(), 11, hexColor(0x0E3234), 40, 0.92f))});
 }
 
@@ -21,21 +22,22 @@ auto TwoAdvancedV4::featureSystem() -> Element {
           .fill(mskia::Paint::linearUnit(
               {0, 0}, {0, 1},
               {{0.0f, hexColor(0x06232A)}, {1.0f, hexColor(0x011114)}}))
-          .stroke(
-              stroke(1, Fill::color(mskia::withAlpha(hexColor(0x0B3B40), 0.9f)),
-                     PathFormat::Align::Inner))
-          .children(
-              {box().inset(0).fill(mskia::Paint::radialUnit(
-                   {0.5f, 0.72f}, 0.95f,
-                   {{0.0f, mskia::withAlpha(kGlow, 0.8f)},
-                    {0.5f, mskia::withAlpha(kTealBar, 0.28f)},
-                    {1.0f, mskia::withAlpha(kTealBar, 0.0f)}})),
-               at(box().fill(hexColor(0x010A0C)), 18, 74, 30, 60),
-               at(box().fill(hexColor(0x02171B)), 52, 46, 44, 88),
-               at(box().fill(hexColor(0x010A0C)), 100, 62, 34, 72),
-               at(box().fill(mskia::withAlpha(kGlow, 0.6f)), 0, 108, 150, 1)})
-          .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.85f), 12, 2, 4,
-                                       shapes::Corner::All})
+          .stroke(stroke(
+              1,
+              Fill::color(sigil::material::withAlpha(hexColor(0x0B3B40), 0.9f)),
+              PathFormat::Align::Inner))
+          .children({box().inset(0).fill(mskia::Paint::radialUnit(
+                         {0.5f, 0.72f}, 0.95f,
+                         {{0.0f, sigil::material::withAlpha(kGlow, 0.8f)},
+                          {0.5f, sigil::material::withAlpha(kTealBar, 0.28f)},
+                          {1.0f, sigil::material::withAlpha(kTealBar, 0.0f)}})),
+                     at(box().fill(hexColor(0x010A0C)), 18, 74, 30, 60),
+                     at(box().fill(hexColor(0x02171B)), 52, 46, 44, 88),
+                     at(box().fill(hexColor(0x010A0C)), 100, 62, 34, 72),
+                     at(box().fill(sigil::material::withAlpha(kGlow, 0.6f)), 0,
+                        108, 150, 1)})
+          .foreground(styles::Brackets{sigil::material::withAlpha(kCyan, 0.85f),
+                                       12, 2, 4, shapes::Corner::All})
           .foreground(styles::Scanlines{{0, 0, 0, 0.22f}, 3, 1});
 
   Element copy = box().flexGrow(1).column().gap(6).children(
@@ -50,7 +52,8 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                     .shape(shapes::polygon(3, 90))
                     .fill(kDate),
                 t(feature["date"], cut(blackFace(), 14, kDate, 40, 0.95f)),
-                kit::line({.fill = Fill::color(mskia::withAlpha(kDate, 0.35f))})
+                kit::line({.fill = Fill::color(
+                               sigil::material::withAlpha(kDate, 0.35f))})
                     .flexGrow(1)}),
        t(feature["headline"],
          cut(blackFace(), 17, hexColor(0x0E3234), 40, 0.92f)),
@@ -58,8 +61,9 @@ auto TwoAdvancedV4::featureSystem() -> Element {
            .height(84)
            .padding(9)
            .fill(dither.material())
-           .foreground(stroke(1, Fill::color(mskia::withAlpha(kPanelSh, 0.9f)),
-                              PathFormat::Align::Inner))
+           .foreground(stroke(
+               1, Fill::color(sigil::material::withAlpha(kPanelSh, 0.9f)),
+               PathFormat::Align::Inner))
            // the ONE place this interface is not tracked caps
            .children({t(feature["body"], prose(13, hexColor(0x0B2C2E)))}),
        // the related-work strip: four chamfered stills over the
@@ -82,7 +86,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                 box()
                     .width(150)
                     .height(6)
-                    .fill(mskia::withAlpha(kPanelSh, 0.7f))
+                    .fill(sigil::material::withAlpha(kPanelSh, 0.7f))
                     .children({box().left(0).top(0).width(112).height(6).fill(
                         hexColor(0x0E3234))}),
                 t("74%", micro(10, hexColor(0x123B3D), 160)),
@@ -96,13 +100,15 @@ auto TwoAdvancedV4::featureSystem() -> Element {
            .gap(4)
            .padding(8)
            .fill(dither.material())
-           .foreground(stroke(1, Fill::color(mskia::withAlpha(kPanelSh, 0.9f)),
-                              PathFormat::Align::Inner))
+           .foreground(stroke(
+               1, Fill::color(sigil::material::withAlpha(kPanelSh, 0.9f)),
+               PathFormat::Align::Inner))
            .children(
                {t("CREDITS",
-                  micro(9, mskia::withAlpha(hexColor(0x123B3D), 0.8f), 260)),
-                kit::line(
-                    {.fill = Fill::color(mskia::withAlpha(kDate, 0.28f))}),
+                  micro(9, sigil::material::withAlpha(hexColor(0x123B3D), 0.8f),
+                        260)),
+                kit::line({.fill = Fill::color(
+                               sigil::material::withAlpha(kDate, 0.28f))}),
                 t("DIRECTION", micro(9, kDate, 200)),
                 t("ERIC JORDAN",
                   cut(blackFace(), 11, hexColor(0x0E3234), 40, 0.92f)),
@@ -115,7 +121,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                     .gap(4)
                     .alignItems(Align::Center)
                     .children({box().width(7).height(7).fill(
-                                   mskia::withAlpha(kDate, 0.8f)),
+                                   sigil::material::withAlpha(kDate, 0.8f)),
                                t("ARCHIVED", micro(9, kDate, 200))})})});
 
   Element bodyArea =
@@ -162,13 +168,14 @@ auto TwoAdvancedV4::pressList() -> Element {
              .row()
              .gap(7)
              .alignItems(Align::Center)
-             .fill(mskia::withAlpha(kPanelSh, 0.55f))
+             .fill(sigil::material::withAlpha(kPanelSh, 0.55f))
              .padding(3, 6)
-             .children({t(e["date"], cut(blackFace(), 13, kDate, 40, 0.95f)),
-                        kit::line({.fill = Fill::color(
-                                       mskia::withAlpha(kDate, 0.3f))})
-                            .flexGrow(1),
-                        t("▸", micro(9, kDate, 0))}),
+             .children(
+                 {t(e["date"], cut(blackFace(), 13, kDate, 40, 0.95f)),
+                  kit::line({.fill = Fill::color(
+                                 sigil::material::withAlpha(kDate, 0.3f))})
+                      .flexGrow(1),
+                  t("▸", micro(9, kDate, 0))}),
          t(e["headline"], cut(blackFace(), 13, hexColor(0x0E3234), 50, 0.92f)),
          t(e["body"], prose(12.5f, hexColor(0x0C2E30)))});
   };
@@ -201,8 +208,9 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
                    .fill(mskia::Paint::linearUnit(
                        {0, 0}, {1, 0},
                        {{0.0f, hexColor(0xCFEFEC)}, {1.0f, kPanelHi}}))
-                   .stroke(stroke(1, Fill::color(mskia::withAlpha(kDate, 0.4f)),
-                                  PathFormat::Align::Inner)),
+                   .stroke(stroke(
+                       1, Fill::color(sigil::material::withAlpha(kDate, 0.4f)),
+                       PathFormat::Align::Inner)),
            .scrolled = well,
            // The list's own scroll, in the thumb's units. A list that
            // fits has no travel and the target collapses to nothing;
@@ -211,7 +219,7 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
                            .source(0.0f, -std::max(pressOverflow, 1.0f))
                            .target(0.0f, well.thumb().travel),
            .thumbInset = 2,
-           .track = Fill::color(mskia::withAlpha(kPanelSh, 0.6f))})
+           .track = Fill::color(sigil::material::withAlpha(kPanelSh, 0.6f))})
           .width(16)
           .gap(3);
 
@@ -222,9 +230,9 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
                 .overflow(Overflow::Clip)
                 .padding(9)
                 .fill(dither.material())
-                .foreground(
-                    stroke(1, Fill::color(mskia::withAlpha(kPanelSh, 0.9f)),
-                           PathFormat::Align::Inner))
+                .foreground(stroke(
+                    1, Fill::color(sigil::material::withAlpha(kPanelSh, 0.9f)),
+                    PathFormat::Align::Inner))
                 .children({list}),
             scrollbar}),
        box()
@@ -267,15 +275,17 @@ auto TwoAdvancedV4::auxView() -> Element {
       .height(17)
       .fill(mskia::Paint::linearUnit(
           {0, 0}, {0, 1}, {{0.0f, kPanelHi}, {0.5f, kPanel}, {1.0f, kPanelSh}}))
-      .stroke(stroke(1, Fill::color(mskia::withAlpha(hexColor(0xCFEFEC), 0.6f)),
-                     PathFormat::Align::Inner))
+      .stroke(stroke(
+          1, Fill::color(sigil::material::withAlpha(hexColor(0xCFEFEC), 0.6f)),
+          PathFormat::Align::Inner))
 
       .children({t("VIEW", label(11, kDate, 200))});
 }
 
 auto TwoAdvancedV4::auxiliary() -> Element {
   using namespace tav;
-  const SkColor4f kCopy = hexColor(0x7FD4D0);  // the module copy teal
+  const sigil::material::Color kCopy =
+      hexColor(0x7FD4D0);  // the module copy teal
   const sigil::data::Json& aux = doc()["aux"];
 
   // Column 1: one row per record in the document — the glyph on its own
@@ -295,8 +305,9 @@ auto TwoAdvancedV4::auxiliary() -> Element {
                  .fill(mskia::Paint::linearUnit(
                      {0, 0}, {0, 1},
                      {{0.0f, hexColor(0x8E2A2A)}, {1.0f, hexColor(0x3A0C0E)}}))
-                 .stroke(stroke(1, Fill::color(mskia::withAlpha(kNear, 0.4f)),
-                                PathFormat::Align::Inner))
+                 .stroke(stroke(
+                     1, Fill::color(sigil::material::withAlpha(kNear, 0.4f)),
+                     PathFormat::Align::Inner))
 
                  .children({t(it["glyph"], micro(11, kPanelHi, 0))}),
              box().flexGrow(1).column().children(
@@ -304,7 +315,8 @@ auto TwoAdvancedV4::auxiliary() -> Element {
                   box().row().children(
                       {t(it["second"], prose(11.5f, kCopy)), box().flexGrow(1),
                        t(it["link"],
-                         micro(9, mskia::withAlpha(kNear, 0.85f), 160))})})});
+                         micro(9, sigil::material::withAlpha(kNear, 0.85f),
+                               160))})})});
   };
   Element supplementals =
       box().flexGrow(1).flexBasis(0).column().gap(3).children(
@@ -345,7 +357,8 @@ auto TwoAdvancedV4::auxiliary() -> Element {
            .fill(mskia::Paint::linearUnit(
                {0, 0}, {0, 1},
                {{0.0f, hexColor(0x2A0A0C)}, {1.0f, hexColor(0x140404)}}))
-           .stroke(stroke(1, Fill::color(mskia::withAlpha(kDust, 0.4f)),
+           .stroke(stroke(1,
+                          Fill::color(sigil::material::withAlpha(kDust, 0.4f)),
                           PathFormat::Align::Inner))
            .children({box()
                           .width(20)
@@ -391,7 +404,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
         .fill(mskia::Paint::linearUnit(
             {0, 0}, {0, 1},
             {{0.0f, hexColor(0x6A1B21)}, {1.0f, hexColor(0x220608)}}))
-        .stroke(stroke(1, Fill::color(mskia::withAlpha(kDust, 0.5f)),
+        .stroke(stroke(1, Fill::color(sigil::material::withAlpha(kDust, 0.5f)),
                        PathFormat::Align::Inner))
 
         .children({t(glyph, heavy(15, kCyan, 0))});
@@ -417,8 +430,9 @@ auto TwoAdvancedV4::subSystem() -> Element {
                  .fill(mskia::Paint::radialUnit(
                      {0.5f, 0.76f}, 1.1f,
                      {{0.0f, hexColor(0x0A4148)}, {1.0f, hexColor(0x010D10)}}))
-                 .stroke(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.5f)),
-                                PathFormat::Align::Inner)),
+                 .stroke(stroke(
+                     1, Fill::color(sigil::material::withAlpha(kCyan, 0.5f)),
+                     PathFormat::Align::Inner)),
              bank(one["name"].text(),
                   box()
                       .row()
@@ -453,10 +467,10 @@ auto TwoAdvancedV4::subSystem() -> Element {
 
   std::vector<Element> run;
   for (Element& station : stations) {
-    run.push_back(
-        kit::line({.length = Dimension(30),
-                   .column = true,
-                   .fill = Fill::color(mskia::withAlpha(kDust, 0.35f))}));
+    run.push_back(kit::line(
+        {.length = Dimension(30),
+         .column = true,
+         .fill = Fill::color(sigil::material::withAlpha(kDust, 0.35f))}));
     run.push_back(std::move(station));
   }
 
@@ -473,8 +487,8 @@ auto TwoAdvancedV4::subSystem() -> Element {
           styles::Overlay{hazard.material(), SkBlendMode::kSrcOver, 0.16f})
       .opacity(animate(motion::from(0.0f).to(1.0f),
                        {400ms, &ch::easeOutQuad, 3650ms}))
-      .foreground(styles::TickRail{mskia::withAlpha(kDust, 0.35f), 9, 4, 8, 1,
-                                   4, 0.5f, path::Edge::Top})
+      .foreground(styles::TickRail{sigil::material::withAlpha(kDust, 0.35f), 9,
+                                   4, 8, 1, 4, 0.5f, path::Edge::Top})
       .children(
           {t("SUB", heavy(15, kNear, 40)),
            t("SYSTEM", cut(arial(), 14, kHeadDim, 40, 0.95f)), std::move(run),
@@ -483,11 +497,12 @@ auto TwoAdvancedV4::subSystem() -> Element {
                .column()
                .alignItems(Align::End)
                .gap(3)
-               .children({t(sub["bandwidth"],
-                            micro(11, mskia::withAlpha(kCyan, 0.85f), 200)),
-                          t(sub["uptime"], micro(10, kDustDim, 200))}),
+               .children(
+                   {t(sub["bandwidth"],
+                      micro(11, sigil::material::withAlpha(kCyan, 0.85f), 200)),
+                    t(sub["uptime"], micro(10, kDustDim, 200))}),
            box().width(70).height(40).foreground(
-               styles::TickRail{mskia::withAlpha(kCyan, 0.45f), 6, 4, 10, 1, 3,
-                                0.5f, path::Edge::Bottom})});
+               styles::TickRail{sigil::material::withAlpha(kCyan, 0.45f), 6, 4,
+                                10, 1, 3, 0.5f, path::Edge::Bottom})});
   return row;
 }

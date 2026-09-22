@@ -36,6 +36,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/skia/Draw.h>
@@ -62,9 +63,9 @@ constexpr float kPicture = 220;
 
 constexpr int kFaceSide = 128;  // each cube face's resolution
 constexpr float kBevel = 30;    // the disc's shoulder, px
-constexpr SkColor4f kGroundColour{0.14f, 0.12f, 0.10f, 1};
+constexpr material::Color kGroundColour{0.14f, 0.12f, 0.10f, 1};
 
-constexpr SkColor4f kGround{0.06f, 0.06f, 0.075f, 1};
+constexpr material::Color kGround{0.06f, 0.06f, 0.075f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -76,11 +77,11 @@ sketch::kit::Theme sheetTheme() {
 
 /** One cube face: a flat ground under a bar and a disc, in the face's own
  *  colour, so the resample and the unpack can be told apart by eye. */
-sk_sp<SkImage> face(SkColor4f tint, float bar) {
+sk_sp<SkImage> face(material::Color tint, float bar) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kFaceSide, kFaceSide));
   SkCanvas* canvas = surface->getCanvas();
-  canvas->clear(tint.toSkColor());
+  canvas->clear(material::skia::toSkColor(tint).toSkColor());
   SkPaint mark;
   mark.setAntiAlias(true);
   mark.setColor4f({1, 1, 1, 0.85f});
@@ -88,7 +89,7 @@ sk_sp<SkImage> face(SkColor4f tint, float bar) {
       SkRect::MakeXYWH(0, kFaceSide * bar, kFaceSide, kFaceSide * 0.10f), mark);
   mark.setStyle(SkPaint::kStroke_Style);
   mark.setStrokeWidth(kFaceSide * 0.08f);
-  mark.setColor4f({tint.fR * 0.45f, tint.fG * 0.45f, tint.fB * 0.45f, 1});
+  mark.setColor4f({tint.r * 0.45f, tint.g * 0.45f, tint.b * 0.45f, 1});
   canvas->drawCircle(kFaceSide * 0.5f, kFaceSide * 0.5f, kFaceSide * 0.24f,
                      mark);
   return surface->makeImageSnapshot();
@@ -194,8 +195,8 @@ struct EnvFaces {
     const material::EnvironmentMap rewrapped =
         material::EnvironmentMap::fromEquirectangular(resampled.image(0));
     const material::EnvironmentMap grounded =
-        resampled.withGround(kGroundColour);
-    const SkColor4f mean = resampled.average();
+        resampled.withGround(material::skia::toSkColor(kGroundColour));
+    const material::Color mean = material::skia::toColor(resampled.average());
 
     ctx.composer.render(sketch::kit::page(
         {.title = "From a sky to a reflection",
@@ -277,8 +278,8 @@ struct EnvFaces {
                            document::caption(
                                kit::formatted(
                                    "Mean radiance\nR %.2f  G %.2f  B %.2f",
-                                   (double)mean.fR, (double)mean.fG,
-                                   (double)mean.fB))
+                                   (double)mean.r, (double)mean.g,
+                                   (double)mean.b))
                                .width(328)})})})));
   }
 };

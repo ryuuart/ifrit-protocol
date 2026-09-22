@@ -34,6 +34,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
@@ -58,6 +59,7 @@
 
 #include "../genesis_fire/Instrument.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace measure = sigil::measure;
 namespace patterns = sigil::material::pattern;
@@ -125,37 +127,37 @@ constexpr float kScaleDen = kX0In * kCellPxPerIn;  // 504.3
 // ---------------------------------------------------------------------------
 // Chrome -- a darkroom / optical-bench register
 
-constexpr SkColor4f kInk{0.047f, 0.039f, 0.031f, 1};      // #0C0A08
-constexpr SkColor4f kPanelBg{0.078f, 0.067f, 0.063f, 1};  // #141110
-constexpr SkColor4f kRule{0.133f, 0.114f, 0.102f, 1};     // #221D1A
-constexpr SkColor4f kType{0.929f, 0.910f, 0.874f, 1};     // #EDE8DF
+constexpr material::Color kInk{0.047f, 0.039f, 0.031f, 1};      // #0C0A08
+constexpr material::Color kPanelBg{0.078f, 0.067f, 0.063f, 1};  // #141110
+constexpr material::Color kRule{0.133f, 0.114f, 0.102f, 1};     // #221D1A
+constexpr material::Color kType{0.929f, 0.910f, 0.874f, 1};     // #EDE8DF
 // THE SECONDARY REGISTER READS AT PLATE SCALE. At #8C8378 on
 // #100E0C a seven-point line is a texture rather than a
 // sentence, and the right column is nearly all seven-point
 // lines. The pair goes up a step each, which keeps the
 // hierarchy and makes the lower half of it legible.
-constexpr SkColor4f kType2{0.694f, 0.655f, 0.604f, 1};
-constexpr SkColor4f kAmber{0.839f, 0.506f, 0.227f, 1};  // #D6813A
-constexpr SkColor4f kCold{0.918f, 0.949f, 1.0f, 1};     // #EAF2FF
-constexpr SkColor4f kRed{0.769f, 0.220f, 0.180f, 1};    // #C4382E
-constexpr SkColor4f kSolid{0.106f, 0.090f, 0.078f, 1};  // #1B1714
-constexpr SkColor4f kTick{0.494f, 0.455f, 0.408f, 1};
-constexpr SkColor4f kBlack{0, 0, 0, 1};  // "the room was painted
+constexpr material::Color kType2{0.694f, 0.655f, 0.604f, 1};
+constexpr material::Color kAmber{0.839f, 0.506f, 0.227f, 1};  // #D6813A
+constexpr material::Color kCold{0.918f, 0.949f, 1.0f, 1};     // #EAF2FF
+constexpr material::Color kRed{0.769f, 0.220f, 0.180f, 1};    // #C4382E
+constexpr material::Color kSolid{0.106f, 0.090f, 0.078f, 1};  // #1B1714
+constexpr material::Color kTick{0.494f, 0.455f, 0.408f, 1};
+constexpr material::Color kBlack{0, 0, 0, 1};  // "the room was painted
                                          //  totally black" [C85]
-constexpr SkColor4f kWhite{1, 1, 1, 1};
+constexpr material::Color kWhite{1, 1, 1, 1};
 
 // The gels. RECONSTRUCTED from the process -- saturated subtractive filters
 // on black, ADDED -- never eyedropped from a transfer of a 1968 print.
-constexpr SkColor4f kGelRed{1.0f, 0.180f, 0.122f, 1};      // #FF2E1F
-constexpr SkColor4f kGelAmber{1.0f, 0.541f, 0.039f, 1};    // #FF8A0A
-constexpr SkColor4f kGelStraw{1.0f, 0.890f, 0.302f, 1};    // #FFE34D
-constexpr SkColor4f kGelGreen{0.231f, 0.878f, 0.541f, 1};  // #3BE08A
-constexpr SkColor4f kGelCyan{0.145f, 0.714f, 1.0f, 1};     // #25B6FF
-constexpr SkColor4f kGelViolet{0.478f, 0.298f, 1.0f, 1};   // #7A4CFF
-constexpr SkColor4f kGelMag{1.0f, 0.247f, 0.627f, 1};      // #FF3FA0
+constexpr material::Color kGelRed{1.0f, 0.180f, 0.122f, 1};      // #FF2E1F
+constexpr material::Color kGelAmber{1.0f, 0.541f, 0.039f, 1};    // #FF8A0A
+constexpr material::Color kGelStraw{1.0f, 0.890f, 0.302f, 1};    // #FFE34D
+constexpr material::Color kGelGreen{0.231f, 0.878f, 0.541f, 1};  // #3BE08A
+constexpr material::Color kGelCyan{0.145f, 0.714f, 1.0f, 1};     // #25B6FF
+constexpr material::Color kGelViolet{0.478f, 0.298f, 1.0f, 1};   // #7A4CFF
+constexpr material::Color kGelMag{1.0f, 0.247f, 0.627f, 1};      // #FF3FA0
 
-inline SkColor4f al(SkColor4f c, float a) {
-  c.fA = a;
+inline material::Color al(material::Color c, float a) {
+  c.a = a;
   return c;
 }
 
@@ -194,15 +196,15 @@ inline Element t(std::string_view line, weave::Type partial) {
 
 /** The quotation register: the interface face, condensed 0.94 with 0.4
  *  of tracking, over the panel's font. */
-inline weave::Type quo(float s, SkColor4f c) {
+inline weave::Type quo(float s, material::Color c) {
   return {.face = uiFace(),
           .size = s,
-          .color = c,
+          .color = material::skia::toSkColor(c),
           .track = 0.4f,
           .condense = 0.94f};
 }
 
-inline Element rule(float w, SkColor4f c, float h = 1.0f) {
+inline Element rule(float w, material::Color c, float h = 1.0f) {
   return box().width(w).height(h).flexShrink(0).fill(c);
 }
 
@@ -376,7 +378,7 @@ inline Element artCircuit(Pattern& grid, Pattern& spek) {
 struct WallSpec {
   SkPoint vp{0, 0};
   float phiDeg = 0;
-  SkColor4f gel = kGelStraw;
+  material::Color gel = kGelStraw;
   float uFar = kUFar;
   float gain = 1.0f;
   float artLeft = 0.0f;
@@ -451,8 +453,8 @@ inline void buildWall(instancing::Pool& p, const WallSpec& s) {
       w *= wpx;
     }
     sz[j] = {sx, 1.0f};
-    ti[j] = {s.gel.fR, s.gel.fG, s.gel.fB, std::clamp(w, 0.0f, 1.0f)};
-    if (s.upTo >= 0.0f && f > s.upTo) ti[j].fA = 0.0f;
+    ti[j] = {s.gel.r, s.gel.g, s.gel.b, std::clamp(w, 0.0f, 1.0f)};
+    if (s.upTo >= 0.0f && f > s.upTo) ti[j].a = 0.0f;
     // Pool::texWindows() -- ONE bake of the twelve-foot panel, addressed at
     // a different sub-rect per stamp, so the artwork crawl is continuous.
     // The alternative is pre-registering a cell per crawl position, which

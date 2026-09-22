@@ -36,6 +36,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Atlas.h>
 #include <sigilmaterial/texture/Texture.h>

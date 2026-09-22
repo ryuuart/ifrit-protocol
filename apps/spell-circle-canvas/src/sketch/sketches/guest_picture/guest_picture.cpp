@@ -53,6 +53,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Guest.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
@@ -64,6 +65,7 @@
 #include <utility>
 #include <vector>
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 
@@ -76,7 +78,7 @@ const char* kPublication = "Guest";
 const char* kApplication = "";
 
 constexpr SkSize kCanvas = {1280, 900};
-constexpr SkColor4f kGround = {0.05f, 0.052f, 0.06f, 1};
+constexpr material::Color kGround = {0.05f, 0.052f, 0.06f, 1};
 /** The body: the page's whole content width — the canvas less the
  *  theme's two side margins — at 16:9. */
 constexpr SkSize kFrame = {1232, 693};

@@ -109,7 +109,7 @@ from either front door.
 ```cpp
 const StyleSheet house{
     rule(".card").font({.size = 18}),
-    rule(".card > .title").ink(SkColor4f{0, 0, 0, 1}),
+    rule(".card > .title").ink(material::Color{0, 0, 0, 1}),
     rule("heading:first-of-type").var("gutter", 24.0f),
 };
 ```

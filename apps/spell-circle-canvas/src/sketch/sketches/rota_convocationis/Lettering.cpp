@@ -1,4 +1,5 @@
 #include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/color/Color.h>
 
 #include "RotaConvocationis.h"
 
@@ -58,7 +59,7 @@ auto RotaConvocationis::fitToRing(sketch::SketchContext &ctx, Element probe,
 }
 
 auto RotaConvocationis::rule(const char *key, int chalkIndex, float width,
-                             SkColor4f color, double from, double dur)
+                             sigil::material::Color color, double from, double dur)
     -> Element {
   return layer(key)
       .shape(heldPath(chalk[(size_t)chalkIndex]))
@@ -68,7 +69,7 @@ auto RotaConvocationis::rule(const char *key, int chalkIndex, float width,
 }
 
 auto RotaConvocationis::line(const char *key, const SkPath &path, float width,
-                             SkColor4f color, double from, double dur)
+                             sigil::material::Color color, double from, double dur)
     -> Element {
   return layer(key)
       .shape(heldPath(path))
@@ -96,7 +97,7 @@ auto RotaConvocationis::emissive(const std::string &key, const Glow &g,
   // as the core coming up a shade later, which is what a filament does.
   const SkRect groupBox = g.bloom.box;
   const auto inside = [&](const std::string &name, const Grade &r,
-                          SkColor4f ink, float alpha) {
+                          sigil::material::Color ink, float alpha) {
     return box()
         .key(name)
         .absolute()
@@ -105,7 +106,7 @@ auto RotaConvocationis::emissive(const std::string &key, const Glow &g,
                                r.box.height()))
         .hitTestable(false)
         .shape(heldPath(r.local))
-        .fill(Fill::color({ink.fR, ink.fG, ink.fB, alpha}))
+        .fill(Fill::color({ink.r, ink.g, ink.b, alpha}))
         .blendMode(SkBlendMode::kPlus);
   };
   return box()
@@ -124,7 +125,7 @@ auto RotaConvocationis::emissive(const std::string &key, const Glow &g,
 
 auto RotaConvocationis::ladder(const char *key, int divisions, int skipEvery,
                                float outer, float inner, float width,
-                               SkColor4f color, double from, double dur,
+                               sigil::material::Color color, double from, double dur,
                                float fromDeg) -> Element {
   shapes::Ticks t{.divisions = divisions,
                   .from = fromDeg,
@@ -169,7 +170,7 @@ auto RotaConvocationis::invocatio() -> Element {
 
 auto RotaConvocationis::registrum() -> Element {
   return onRing(text(runeText).font(
-                    {.size = runeSize, .color = kRuneInk, .track = 2.0f}),
+                    {.size = runeSize, .color = sigil::material::skia::toSkColor(kRuneInk), .track = 2.0f}),
                 "registrum", rRune, &runeDrift, -runeSize * 0.34f)
       .fx({.effect = fx::hold(fx::pop(0.55f)),
            .stagger = {.eachMs = 7,
@@ -202,7 +203,7 @@ auto RotaConvocationis::nomina() -> Element {
   Text names =
       text(nomText)
           .styleClass("ring")
-          .font({.size = nomSize, .color = kGold, .track = 4.2f})
+          .font({.size = nomSize, .color = sigil::material::skia::toSkColor(kGold), .track = 4.2f})
           .key("nomina")
           .filter(styles::textGlow(kHalo, 6.0f))
           .rect(sigil::geometry::path::centred(kEye,
@@ -251,7 +252,7 @@ auto RotaConvocationis::nomina() -> Element {
 }
 
 auto RotaConvocationis::textura() -> Element {
-  return onRing(text(texText).font({.size = texSize, .color = kAsh}), "textura",
+  return onRing(text(texText).font({.size = texSize, .color = sigil::material::skia::toSkColor(kAsh)}), "textura",
                 rTex, &texDrift, -texSize * 0.30f)
       .fx({.effect = fx::hold(fx::rise(texSize * 0.9f)),
            .stagger = {.eachMs = 4,

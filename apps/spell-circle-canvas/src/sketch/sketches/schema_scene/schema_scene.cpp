@@ -47,6 +47,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 
@@ -62,6 +63,7 @@
 #include "schema_scene_generated.h"
 #include "schema_scene_values.h"
 
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace data = sigil::data;
@@ -97,9 +99,10 @@ struct SchemaScene {
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide presentation(sketch::kit::studyTheme());
-    sketch::kit::stage(ctx, {.size = {1280, 720},
-                             .captureAt = 2.0,
-                             .background = SkColor4f{0.04f, 0.04f, 0.09f, 1}});
+    sketch::kit::stage(ctx,
+                       {.size = {1280, 720},
+                        .captureAt = 2.0,
+                        .background = material::Color{0.04f, 0.04f, 0.09f, 1}});
     // THE SKETCH'S OWN SCHEMA DECODES THE SKETCH'S OWN SCENE. The
     // generated root carries the schema, so the hub converts the JSON
     // form through it and verifies what it made; registering the root
@@ -142,7 +145,7 @@ struct SchemaScene {
          .note = "The schema owns the bands, wind and palette. The renderer "
                  "draws the verified value."},
         compose::pen("schema_scene.sky", [this](Pen& pen) { draw(pen); })
-            .fill(SkColor4f{0.04f, 0.04f, 0.09f, 1}),
+            .fill(material::Color{0.04f, 0.04f, 0.09f, 1}),
         compose::box().column().gap(18).children(
             {compose::document::eyebrow("DOCUMENT"),
              compose::text("data/sky.json"),

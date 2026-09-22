@@ -15,6 +15,7 @@
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -23,6 +24,7 @@
 #include <cmath>
 
 namespace arrange = sigil::geometry::arrange;
+namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
@@ -33,7 +35,7 @@ using namespace sigil::draw;
 namespace {
 
 constexpr int kRibbons = 6;
-constexpr std::array<SkColor4f, 4> kPigment{{
+constexpr std::array<material::Color, 4> kPigment{{
     {0.08f, 0.82f, 0.88f, 1.0f},
     {0.56f, 0.18f, 0.94f, 1.0f},
     {1.00f, 0.36f, 0.16f, 1.0f},
@@ -53,7 +55,7 @@ mskia::Paint graphPaper() {
         SkBlendMode::kSrcOver}});
 }
 
-brush::Tool liquidNib(SkColor4f colour, float width) {
+brush::Tool liquidNib(material::Color colour, float width) {
   brush::Tool tool;
   tool.tip = brush::Tip::Nib;
   tool.color = colour;
@@ -127,7 +129,7 @@ struct P5LiquidLayers {
     pen.endShape(CLOSE);
 
     for (int ribbon = 0; ribbon < kRibbons; ++ribbon) {
-      const SkColor4f colour = kPigment[ribbon % kPigment.size()];
+      const material::Color colour = kPigment[ribbon % kPigment.size()];
       const std::array<brush::Sample, 6> path =
           controls(ribbon, clock, pen.width, pen.height);
 

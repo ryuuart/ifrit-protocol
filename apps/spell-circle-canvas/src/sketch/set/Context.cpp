@@ -4,12 +4,13 @@
  */
 
 #include <sigilcompose/texture/Texture.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilsketch/set/Set.h>
 
 namespace sigil::sketch {
 
 std::shared_ptr<compose::TextureScene> SetContext::textureScene(
-    SkISize size, SkColor4f background) {
+    SkISize size, sigil::material::Color background) {
   std::shared_ptr<compose::TextureScene> scene =
       compose::TextureScene::make(size, fonts, background);
   // A CAPTURE THAT WILL BE DIFFED pins the scene's promoter off, as every

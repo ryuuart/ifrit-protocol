@@ -35,6 +35,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
@@ -66,7 +67,7 @@ constexpr float kBias = 0.45f;     // roughness added to every surface
 constexpr float kBackdrop = 1.0f;  // how much sky is shown
 constexpr float kBlur = 0.35f;     // …and how soft
 
-constexpr SkColor4f kCellGround{0.06f, 0.065f, 0.08f, 1};
+constexpr material::Color kCellGround{0.06f, 0.065f, 0.08f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {

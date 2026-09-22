@@ -71,7 +71,7 @@ auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
 
   // --- the LED atlas: ONE cell, a 3x1 native quad, tinted per instance.
   ledAtlas = std::make_shared<instancing::CellSheet>(2.0f);
-  ledAtlas->cell(box().fill(SkColor4f{1, 1, 1, 1}), {n(3), n(1)});
+  ledAtlas->cell(box().fill(sigil::material::Color{1, 1, 1, 1}), {n(3), n(1)});
   ledPool = std::make_shared<instancing::Pool>();
   ledPool->resize((size_t)kCols * (size_t)kRows + (size_t)kCols);
   {
@@ -84,18 +84,19 @@ auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
       for (int r = 0; r < kRows; ++r) {
         const size_t i = (size_t)c * (size_t)kRows + (size_t)r;
         pos[i] = {n(4.0f * (float)c + 1.5f), n((float)(kRows - 1 - r) + 0.5f)};
-        tint[i] = mskia::withAlpha(kVis[(size_t)r], 0.0f);
+        tint[i] = sigil::material::withAlpha(kVis[(size_t)r], 0.0f);
       }
     for (int c = 0; c < kCols; ++c) {
       const size_t i = (size_t)kCols * (size_t)kRows + (size_t)c;
       pos[i] = {n(4.0f * (float)c + 1.5f), n(0.5f)};
-      tint[i] = mskia::withAlpha(kPeak, 0.0f);
+      tint[i] = sigil::material::withAlpha(kPeak, 0.0f);
     }
   }
 
   // --- playlist row backgrounds: three tint states, one stamp.
   rowAtlas = std::make_shared<instancing::CellSheet>(1.0f);
-  rowAtlas->cell(box().fill(SkColor4f{1, 1, 1, 1}), {n(368), n(13)});
+  rowAtlas->cell(box().fill(sigil::material::Color{1, 1, 1, 1}),
+                 {n(368), n(13)});
   rowPool = std::make_shared<instancing::Pool>();
   rowPool->resize(25);
   {
@@ -223,13 +224,14 @@ auto WinampBase::step(double dt) -> void {
       const int lit = (int)colLevel[(size_t)c];
       for (int r = 0; r < kRows; ++r) {
         const size_t i = (size_t)c * (size_t)kRows + (size_t)r;
-        tint[i] = mskia::withAlpha(kVis[(size_t)r], r < lit ? 1.0f : 0.0f);
+        tint[i] =
+            sigil::material::withAlpha(kVis[(size_t)r], r < lit ? 1.0f : 0.0f);
       }
       const size_t pi = (size_t)kCols * (size_t)kRows + (size_t)c;
       const float pk = colPeak[(size_t)c];
       pos[pi] = {n(4.0f * (float)c + 1.5f),
                  n((float)kRows - std::clamp(pk, 0.0f, (float)kRows) + 0.5f)};
-      tint[pi] = mskia::withAlpha(kPeak, pk > 0.6f ? 0.85f : 0.0f);
+      tint[pi] = sigil::material::withAlpha(kPeak, pk > 0.6f ? 0.85f : 0.0f);
     }
   }
 
@@ -241,10 +243,11 @@ auto WinampBase::step(double dt) -> void {
       const double start = 2.4 + 0.13 * (double)group;
       const float u = (float)std::clamp((t - start) / 0.13, 0.0, 1.0);
       rowIn[(size_t)i] = u * u;
-      SkColor4f c = i == selected     ? kPlSel
-                    : i == nowPlaying ? SkColor4f{1, 1, 1, 0.10f}
-                                      : SkColor4f{0, 0, 0, 0};
-      c.fA *= u;
+      sigil::material::Color c = i == selected ? kPlSel
+                                 : i == nowPlaying
+                                     ? sigil::material::Color{1, 1, 1, 0.10f}
+                                     : sigil::material::Color{0, 0, 0, 0};
+      c.a *= u;
       tint[(size_t)i] = c;
     }
   }

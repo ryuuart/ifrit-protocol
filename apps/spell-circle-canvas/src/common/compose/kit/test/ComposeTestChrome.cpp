@@ -19,9 +19,9 @@ namespace {
 // The tones are the three primaries so a pixel names the band it came
 // from with no tolerance anywhere: red is the lit edge, blue the shaded
 // one, green the face they are drawn on, white and black the inner ring.
-constexpr SkColor4f kLit{1, 0, 0, 1};
-constexpr SkColor4f kShade{0, 0, 1, 1};
-constexpr SkColor4f kFace{0, 1, 0, 1};
+constexpr sigil::material::Color kLit{1, 0, 0, 1};
+constexpr sigil::material::Color kShade{0, 0, 1, 1};
+constexpr sigil::material::Color kFace{0, 1, 0, 1};
 
 constexpr int kX = 20, kY = 20, kW = 100, kH = 60;
 
@@ -183,7 +183,7 @@ TEST(KitChrome, DressingAPanelPutsTheInnerRingOverItsContent) {
       kit::bevelled(face, b);
     else
       face.overlay(b);
-    face.children({box().flexGrow(1).fill(SkColor4f{1, 0, 1, 1})});
+    face.children({box().flexGrow(1).fill(sigil::material::Color{1, 0, 1, 1})});
     return box().padding(kX).children({std::move(face)});
   };
 
@@ -375,18 +375,18 @@ TEST(KitChrome, TheFourEraTokenSetsResolveToTheirOwnEdge) {
 
   // Flash: an antialiased asymmetric pair derived from the face, and a
   // second fainter pair where a gap is asked for.
-  const SkColor4f mid{0.4f, 0.4f, 0.5f, 1};
+  const sigil::material::Color mid{0.4f, 0.4f, 0.5f, 1};
   const kit::Bevel flat = kit::bevels::flash(mid);
   EXPECT_TRUE(flat.antiAlias);
   EXPECT_EQ(flat.depth, 3);
   EXPECT_EQ(flat.shadowDepth, 2);
   EXPECT_FALSE(flat.inner.has_value());
-  EXPECT_GT(flat.light.fG, mid.fG);   // the lift walks toward white
-  EXPECT_LT(flat.shadow.fG, mid.fG);  // the drop keeps the hue
+  EXPECT_GT(flat.light.g, mid.g);   // the lift walks toward white
+  EXPECT_LT(flat.shadow.g, mid.g);  // the drop keeps the hue
   const kit::Bevel doubled = kit::bevels::flash(mid, 6);
   ASSERT_TRUE(doubled.inner.has_value());
   EXPECT_EQ(doubled.inner->gap, 6);
-  EXPECT_LT(doubled.inner->light.fA, 1.0f);
+  EXPECT_LT(doubled.inner->light.a, 1.0f);
   EXPECT_FALSE(doubled.inner->inverted);
 
   // A skin: stated tones, one depth, square, nothing derived.

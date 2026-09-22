@@ -20,6 +20,8 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilweave/style/Style.h>
 
 #include <algorithm>
@@ -39,14 +41,15 @@ namespace sigil::compose::kit {
  *  {trace, warn, alert}), so there is no fixed vocabulary in the library and
  *  a name is only what the caller's rows say. */
 [[nodiscard]] inline sigil::weave::StyleSheet tinted(
-    const sk_sp<SkTypeface>& face, float size, SkColor4f base,
-    std::vector<std::pair<std::string, SkColor4f>> named) {
-  sigil::weave::StyleSheet sheet(
-      weave::textStyle({.face = face, .size = size, .color = base}));
+    const sk_sp<SkTypeface>& face, float size, material::Color base,
+    std::vector<std::pair<std::string, material::Color>> named) {
+  sigil::weave::StyleSheet sheet(weave::textStyle(
+      {.face = face, .size = size, .color = material::skia::toSkColor(base)}));
   // Each level is a CLASS over the base: the colour alone, the face and
   // the size inherited from it.
   for (auto& [name, color] : named)
-    sheet.set(std::move(name), weave::Type{.color = color});
+    sheet.set(std::move(name),
+              weave::Type{.color = material::skia::toSkColor(color)});
   return sheet;
 }
 
