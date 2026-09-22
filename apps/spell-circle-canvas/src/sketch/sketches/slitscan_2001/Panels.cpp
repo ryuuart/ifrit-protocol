@@ -9,14 +9,18 @@ auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
   // panel is also measured on its own, by the layout self-check.
   weave::StyleSheet classes;
   classes.set("type", {.color = sigil::material::skia::toSkColor(kType)})
-      .set("cold", {.color = sigil::material::skia::toSkColor(al(kCold, 0.95f))})
-      .set("coldQuiet", {.color = sigil::material::skia::toSkColor(al(kCold, 0.8f))})
+      .set("cold",
+           {.color = sigil::material::skia::toSkColor(al(kCold, 0.95f))})
+      .set("coldQuiet",
+           {.color = sigil::material::skia::toSkColor(al(kCold, 0.8f))})
       .set("amber", {.color = sigil::material::skia::toSkColor(kAmber)})
       .set("red", {.color = sigil::material::skia::toSkColor(kRed)})
       .set("tick", {.color = sigil::material::skia::toSkColor(kTick)})
       .set("quote", quo(9.1f, kType))
       .set("quoteQuiet", quo(8.4f, al(kType, 0.82f)))
-      .set("headline", {.face = uiBoldFace(), .color = sigil::material::skia::toSkColor(kType), .track = 0.2f});
+      .set("headline", {.face = uiBoldFace(),
+                        .color = sigil::material::skia::toSkColor(kType),
+                        .track = 0.2f});
   return box()
       .styleSheet(std::move(classes))
       .column()
@@ -174,14 +178,17 @@ auto SlitScan2001::readoutEl() -> Element {
   return box().column().gap(2).width(262).children(
       {box().row().gap(12).children(
            {t(kit::formatted("z = %06.2f in", z),
-              {.face = monoBoldFace(), .size = 9, .color = sigil::material::skia::toSkColor(kAmber)}),
+              {.face = monoBoldFace(),
+               .size = 9,
+               .color = sigil::material::skia::toSkColor(kAmber)}),
             t(kit::formatted("m = ×%0.3f", kZ0In / std::max(z, 1e-3f)),
               {.size = 9, .color = sigil::material::skia::toSkColor(kType2)})}),
        box().row().gap(12).children(
            {t(kit::formatted("stamp %04d / %d", stampIdx, kKDisplay),
               {.size = 9, .color = sigil::material::skia::toSkColor(kType2)}),
             t(kit::formatted("ω = %0.4f", omega),
-              {.size = 9, .color = sigil::material::skia::toSkColor(al(kCold, 0.9f))})}),
+              {.size = 9,
+               .color = sigil::material::skia::toSkColor(al(kCold, 0.9f))})}),
        t(kit::formatted("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
                         "texWindows()",
                         sheetW, sheetH, bakeMs),
@@ -193,7 +200,8 @@ auto SlitScan2001::expoEl() -> Element {
   return t(kit::formatted("SWEEP %3d%%  ·  z %06.2f in  ·  %d / %d STAMPS LAID",
                           (int)(tau * 100.0), kZ0In * std::pow(kR, -(float)tau),
                           (int)(tau * (double)kK), kK),
-           {.size = 7.2f, .color = sigil::material::skia::toSkColor(al(kCold, 0.8f))});
+           {.size = 7.2f,
+            .color = sigil::material::skia::toSkColor(al(kCold, 0.8f))});
 }
 
 auto SlitScan2001::fitEl() -> Element {
@@ -204,7 +212,9 @@ auto SlitScan2001::fitEl() -> Element {
   return box().column().gap(1).children(
       {t(kit::formatted("FIT  E(u) = C / u^p     p = %0.4f     R² = %0.5f",
                         fitP, fitR2),
-         {.face = monoBoldFace(), .size = 8.2f, .color = sigil::material::skia::toSkColor(al(kCold, 0.95f))}),
+         {.face = monoBoldFace(),
+          .size = 8.2f,
+          .color = sigil::material::skia::toSkColor(al(kCold, 0.95f))}),
        t(kit::formatted("RESIDUAL u ∈ [8, 520] px  p95 %0.2f%%  max %0.2f%%  "
                         "(%d rays, %d pts)",
                         fitP95 * 100.0f, fitResid * 100.0f, fitRays, fitPts),
@@ -217,9 +227,11 @@ auto SlitScan2001::rippleEl() -> Element {
       {t(kit::formatted("AND K_min REMOVES GAPS, NOT RIPPLE: AT K = 406 THE "
                         "MEASURED MAX RESIDUAL IS %0.0f%%,",
                         fitResidMin * 100.0f),
-         {.size = 7.0f, .color = sigil::material::skia::toSkColor(al(kCold, 0.85f))}),
+         {.size = 7.0f,
+          .color = sigil::material::skia::toSkColor(al(kCold, 0.85f))}),
        t(kit::formatted("AT 4× IT IS %0.0f%% — AND p MOVES ONLY %0.4f → %0.4f. "
                         "THE LAW SURVIVES ITS OWN QUANTISATION.",
                         fitResid * 100.0f, fitPMin, fitP),
-         {.size = 7.0f, .color = sigil::material::skia::toSkColor(al(kCold, 0.85f))})});
+         {.size = 7.0f,
+          .color = sigil::material::skia::toSkColor(al(kCold, 0.85f))})});
 }

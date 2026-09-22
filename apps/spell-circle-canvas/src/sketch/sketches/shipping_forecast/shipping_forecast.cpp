@@ -298,63 +298,91 @@ struct ShippingForecast {
    *  not draw; the base is the forecast paragraph's own voice, which is
    *  also what the synopsis's spanStyle grades against. */
   [[nodiscard]] sigil::weave::StyleSheet registers() const {
-    return {
-        weave::textStyle({.face = faceBody, .size = 19.5f, .color = material::skia::toSkColor(kBone)}),
-        {
-            // The line that names a block — seven of them, one per panel.
-            {"eyebrow",
-             {.face = faceBold,
-              .size = 11.0f,
-              .color = material::skia::toSkColor(kSlateDim),
-              .track = 3.0f}},
-            // A sea area on the ring: a name rather than a label, so it is
-            // set a shade under the body ink.
-            {"area",
-             {.face = faceBold,
-              .size = 11.5f,
-              .color = material::skia::toSkColor(hexColor(0xBFC7D1)),
-              .track = 1.1f}},
-            // The wind direction: the one thing in the sentence that is a
-            // heading, so it is set as one — condensed, tracked, and a shade
-            // brighter. It states only that: the size and the colour are
-            // the base's.
-            {"dir", {.face = faceBold, .track = 0.6f, .condense = 0.94f}},
-            // A defined term. A serif italic inside a grotesque paragraph
-            // reads as a citation of a glossary, which is exactly what
-            // these words are.
-            {"term",
-             {.face = faceTerm, .size = 20.5f, .color = material::skia::toSkColor(kAmber), .track = 0.2f}},
-            // A Beaufort numeral. NO COLOUR: the number and the bar over it
-            // are one fact, so the cell sets the ink and both take it.
-            {"force", {.face = faceBold, .size = 10.5f, .track = 0.4f}},
-            // The barometer, and the column a station's reading stands in.
-            {"readout",
-             {.face = faceMono, .size = 27.0f, .color = material::skia::toSkColor(kBone), .track = 3.0f}},
-            {"station",
-             {.face = faceMono, .size = 12.0f, .color = material::skia::toSkColor(kSlate), .track = 0.4f}},
-            // The area being read, the compass points, the gale strip.
-            {"hero",
-             {.face = faceDisplay,
-              .size = kHero,
-              .color = material::skia::toSkColor(kBone),
-              .track = 1.5f}},
-            {"cardinal",
-             {.face = faceBold, .size = 12.0f, .color = material::skia::toSkColor(kAmber), .track = 2.0f}},
-            {"warning", {.face = faceBold, .size = 13.5f, .track = 2.8f}},
-            // The small print: a note under a readout, a station's name and
-            // its wind, the Beaufort bands, the spine, the foot.
-            {"note", {.size = 12.0f, .color = material::skia::toSkColor(kSlateDim), .track = 0.6f}},
-            {"place", {.size = 12.5f, .color = material::skia::toSkColor(kBone), .track = 0.8f}},
-            {"wind",
-             {.face = faceBold, .size = 12.5f, .color = material::skia::toSkColor(kSlate), .track = 1.4f}},
-            {"bands", {.size = 10.5f, .color = material::skia::toSkColor(kSlateDim), .track = 0.8f}},
-            {"spine",
-             {.face = faceBold,
-              .size = 12.5f,
-              .color = material::skia::toSkColor(kSlateDim),
-              .track = 2.6f}},
-            {"foot", {.size = 11.0f, .color = material::skia::toSkColor(kSlateDim), .track = 0.5f}},
-        }};
+    return {weave::textStyle({.face = faceBody,
+                              .size = 19.5f,
+                              .color = material::skia::toSkColor(kBone)}),
+            {
+                // The line that names a block — seven of them, one per panel.
+                {"eyebrow",
+                 {.face = faceBold,
+                  .size = 11.0f,
+                  .color = material::skia::toSkColor(kSlateDim),
+                  .track = 3.0f}},
+                // A sea area on the ring: a name rather than a label, so it is
+                // set a shade under the body ink.
+                {"area",
+                 {.face = faceBold,
+                  .size = 11.5f,
+                  .color = material::skia::toSkColor(hexColor(0xBFC7D1)),
+                  .track = 1.1f}},
+                // The wind direction: the one thing in the sentence that is a
+                // heading, so it is set as one — condensed, tracked, and a
+                // shade brighter. It states only that: the size and the colour
+                // are the base's.
+                {"dir", {.face = faceBold, .track = 0.6f, .condense = 0.94f}},
+                // A defined term. A serif italic inside a grotesque paragraph
+                // reads as a citation of a glossary, which is exactly what
+                // these words are.
+                {"term",
+                 {.face = faceTerm,
+                  .size = 20.5f,
+                  .color = material::skia::toSkColor(kAmber),
+                  .track = 0.2f}},
+                // A Beaufort numeral. NO COLOUR: the number and the bar over it
+                // are one fact, so the cell sets the ink and both take it.
+                {"force", {.face = faceBold, .size = 10.5f, .track = 0.4f}},
+                // The barometer, and the column a station's reading stands in.
+                {"readout",
+                 {.face = faceMono,
+                  .size = 27.0f,
+                  .color = material::skia::toSkColor(kBone),
+                  .track = 3.0f}},
+                {"station",
+                 {.face = faceMono,
+                  .size = 12.0f,
+                  .color = material::skia::toSkColor(kSlate),
+                  .track = 0.4f}},
+                // The area being read, the compass points, the gale strip.
+                {"hero",
+                 {.face = faceDisplay,
+                  .size = kHero,
+                  .color = material::skia::toSkColor(kBone),
+                  .track = 1.5f}},
+                {"cardinal",
+                 {.face = faceBold,
+                  .size = 12.0f,
+                  .color = material::skia::toSkColor(kAmber),
+                  .track = 2.0f}},
+                {"warning", {.face = faceBold, .size = 13.5f, .track = 2.8f}},
+                // The small print: a note under a readout, a station's name and
+                // its wind, the Beaufort bands, the spine, the foot.
+                {"note",
+                 {.size = 12.0f,
+                  .color = material::skia::toSkColor(kSlateDim),
+                  .track = 0.6f}},
+                {"place",
+                 {.size = 12.5f,
+                  .color = material::skia::toSkColor(kBone),
+                  .track = 0.8f}},
+                {"wind",
+                 {.face = faceBold,
+                  .size = 12.5f,
+                  .color = material::skia::toSkColor(kSlate),
+                  .track = 1.4f}},
+                {"bands",
+                 {.size = 10.5f,
+                  .color = material::skia::toSkColor(kSlateDim),
+                  .track = 0.8f}},
+                {"spine",
+                 {.face = faceBold,
+                  .size = 12.5f,
+                  .color = material::skia::toSkColor(kSlateDim),
+                  .track = 2.6f}},
+                {"foot",
+                 {.size = 11.0f,
+                  .color = material::skia::toSkColor(kSlateDim),
+                  .track = 0.5f}},
+            }};
   }
 
   /** The line that names a panel: seven of them, each arriving on its
@@ -660,8 +688,10 @@ struct ShippingForecast {
             .key("forecast")
             .width(pct(100))
             .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
-            .spanPaint(weave::selectors::regex(u8"[0-9]+"),
-                       sigil::weave::PaintStyle(sigil::material::skia::toSkColor(kAmber).toSkColor()))
+            .spanPaint(
+                weave::selectors::regex(u8"[0-9]+"),
+                sigil::weave::PaintStyle(
+                    sigil::material::skia::toSkColor(kAmber).toSkColor()))
             .fx(std::move(initials))
             .fx(std::move(grade))
             .fx(std::move(bodies)),
@@ -740,8 +770,10 @@ struct ShippingForecast {
             .width(pct(100))
             .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
             .spanStyle(weave::selectors::regex(u8"[0-9]+"), graded)
-            .spanPaint(weave::selectors::regex(u8"[0-9]+"),
-                       sigil::weave::PaintStyle(sigil::material::skia::toSkColor(kAmber).toSkColor()))
+            .spanPaint(
+                weave::selectors::regex(u8"[0-9]+"),
+                sigil::weave::PaintStyle(
+                    sigil::material::skia::toSkColor(kAmber).toSkColor()))
             .fx({.effect = fx::slide(-22.0f),
                  .stagger = {.eachMs = 150, .durationMs = 620},
                  .unit = weave::Unit::Line,

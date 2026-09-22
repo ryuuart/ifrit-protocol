@@ -20,7 +20,8 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   // arithmetic here, over the substituted faces' own measured metrics —
   // alignItems(Align::Baseline) would be the kernel spelling, but the two
   // runs are absolutely positioned at documented x/y, not laid out in a row.
-  g.children({sigil::material::skia::toSkColor(ink)(t(d.name, titleType()), 348 - 345, 272 - 267, titleRise)});
+  g.children({sigil::material::skia::toSkColor(ink)(
+      t(d.name, titleType()), 348 - 345, 272 - 267, titleRise)});
   const int walkIdx = skill == 0 ? 0 : (skill == 7 ? 1 : 2);
   const float advance = titleAdvance[walkIdx] / kScale;
   // ---- the rule: two 1-px lines at y = 300, 301 ------------------------
@@ -89,10 +90,11 @@ auto Fallout2CharSheet::card() -> Element {
       {at(box(), -40, -20, 60, 260)
            .rotate(-16.0f)
            .translateX(n(120))
-           .fill(Paint::linearUnit({0, 0}, {1, 0},
-                                   {{0.0f, sigil::material::withAlpha(kRust, 0.0f)},
-                                    {0.5f, sigil::material::withAlpha(kRust, 0.16f)},
-                                    {1.0f, sigil::material::withAlpha(kRust, 0.0f)}})),
+           .fill(Paint::linearUnit(
+               {0, 0}, {1, 0},
+               {{0.0f, sigil::material::withAlpha(kRust, 0.0f)},
+                {0.5f, sigil::material::withAlpha(kRust, 0.16f)},
+                {1.0f, sigil::material::withAlpha(kRust, 0.0f)}})),
        at(box(), -40, -20, 34, 260)
            .rotate(9.0f)
            .translateX(n(232))
@@ -120,7 +122,8 @@ auto Fallout2CharSheet::card() -> Element {
            .fill(Paint::radialUnit(
                {0.60f, 0.85f}, 1.0f,
                {{0.0f, sigil::material::withAlpha(hexColor(0x3A2A12), 0.18f)},
-                {1.0f, sigil::material::withAlpha(hexColor(0x3A2A12), 0.0f)}}))});
+                {1.0f,
+                 sigil::material::withAlpha(hexColor(0x3A2A12), 0.0f)}}))});
   c.stroke(stroke(n(1.5f), Fill::color(hexColor(0x2A1C08, 0.75f)),
                   PathFormat::Align::Inner));
   c.children({box().inset(0).children({slot("card")})});
@@ -186,7 +189,9 @@ auto Fallout2CharSheet::captionBand() -> Element {
                    fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
                      .at({30, 14}),
                  line(audited.c_str(), 41)
-                     .font({.size = 14.5f, .color = sigil::material::skia::toSkColor(kGreen), .track = 0.2f}),
+                     .font({.size = 14.5f,
+                            .color = sigil::material::skia::toSkColor(kGreen),
+                            .track = 0.2f}),
                  line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
                       "palette has no pure green, so what reached the CRT is "
                       "#3CF800.",

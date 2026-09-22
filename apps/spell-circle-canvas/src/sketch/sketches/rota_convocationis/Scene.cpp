@@ -53,8 +53,8 @@ auto RotaConvocationis::wheel() -> Element {
   };
   const Ladder kLadders[] = {
       {"teeth", 240, 12, rEdge, rEdgeIn, 0.7f, kIron, 0.5, 1.7, 0.0f},
-      {"ticks-long", kStations, 0, rTickOut, rTickMid - 0.028f, 1.3f, sigil::material::skia::toSkColor(kAsh)Dim,
-       0.9, 1.4, 0.0f},
+      {"ticks-long", kStations, 0, rTickOut, rTickMid - 0.028f, 1.3f,
+       sigil::material::skia::toSkColor(kAsh) Dim, 0.9, 1.4, 0.0f},
       {"ticks-mid", 24, 2, rTickOut, rTickMid - 0.010f, 0.9f, kIron, 0.9, 1.6,
        kPitch * 0.5f},
       {"ticks-short", 144, 6, rTickOut, rTickMid, 0.7f, kIron, 0.9, 2.1, 0.0f},
@@ -178,7 +178,9 @@ auto RotaConvocationis::colophon() -> Element {
       .styleClass("label")
       .children(
           {text("ROTA CONVOCATIONIS")
-               .font({.size = 12.0f, .color = sigil::material::skia::toSkColor(kAshDim), .track = 5.2f})
+               .font({.size = 12.0f,
+                      .color = sigil::material::skia::toSkColor(kAshDim),
+                      .track = 5.2f})
                .key("titulus")
                // A lozenge stands at the word the whole figure
                // converges on, anchored to the rect the selector
@@ -203,7 +205,8 @@ auto RotaConvocationis::colophon() -> Element {
                 "TVRNING LAYERS · EVERY START CHAINED FROM A "
                 "SPAN, NONE FITTED BY HAND")
                .font({.size = 8.5f,
-                      .color = sigil::material::skia::toSkColor(hexColor(0x8A8299, 0.42f)),
+                      .color = sigil::material::skia::toSkColor(
+                          hexColor(0x8A8299, 0.42f)),
                       .track = 2.4f})
                .key("colophon-2")
                .opacity(beat(tIgnite + 0.4, tIgnite + 1.2))});

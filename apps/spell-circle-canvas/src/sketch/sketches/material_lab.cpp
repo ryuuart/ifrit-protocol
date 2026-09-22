@@ -107,7 +107,8 @@ sk_sp<SkImage> generated(const F& texel) {
   for (int y = 0; y < kMapSide; ++y)
     for (int x = 0; x < kMapSide; ++x) {
       const material::Color colour = texel(x, y);
-      *bitmap.getAddr32(x, y) = sigil::material::skia::toSkColor(colour).toSkColor();
+      *bitmap.getAddr32(x, y) =
+          sigil::material::skia::toSkColor(colour).toSkColor();
     }
   bitmap.setImmutable();
   return bitmap.asImage();
@@ -156,7 +157,8 @@ sk_sp<SkImage> domes(int cells, float bulge) {
 sk_sp<SkImage> occlusionRoughnessMetallic() {
   return generated([](int, int y) {
     const float down = (float)y / (float)(kMapSide - 1);
-    return material::Color{1.0f, 0.94f - 0.88f * down, 0.02f + 0.80f * down, 1.0f};
+    return material::Color{1.0f, 0.94f - 0.88f * down, 0.02f + 0.80f * down,
+                           1.0f};
   });
 }
 
@@ -316,10 +318,10 @@ struct MaterialLab {
   std::optional<material::Material> floorSurface;
 
   void setup(sketch::SetContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = {880, 520},
-                        .captureAt = 1.1,
-                        .background = material::Color{0.035f, 0.038f, 0.05f, 1.0f}});
+    sketch::kit::stage(
+        ctx, {.size = {880, 520},
+              .captureAt = 1.1,
+              .background = material::Color{0.035f, 0.038f, 0.05f, 1.0f}});
     row = cards();
     // The floor wears the set: a texture that repeats is what says how
     // large the room is.

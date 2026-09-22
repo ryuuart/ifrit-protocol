@@ -467,7 +467,8 @@ constexpr SkVector kShadow{kHudScale, kHudScale};
 
 /** A run of the baked face, placed at the text grid's own step: 2.5 px
  *  horizontally, 4 px vertically. */
-compose::Element run(const ck::Mask& mask, float x, float y, material::Color colour) {
+compose::Element run(const ck::Mask& mask, float x, float y,
+                     material::Color colour) {
   return ck::masked(mask, {.colour = colour,
                            .scale = kHudScale,
                            .shadowOffset = kShadow,
@@ -553,12 +554,14 @@ struct VagrantStoryTarget {
     // registers differ in size and in how far they are condensed, and
     // each bakes against the initial values, as a run of pixel type does.
     const weave::Type pixel{
-        .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}), .aliased = true, .antiAlias = false};
+        .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
+        .aliased = true,
+        .antiAlias = false};
     weave::Type title = pixel, body = pixel;
     weave::merge(title, {.size = 13.0f, .condense = 0.92f});
     weave::merge(body, {.size = 9.0f, .condense = 0.95f});
-    const auto label = [&](compose::Utf8 words, float x, float y, material::Color c,
-                           bool large) {
+    const auto label = [&](compose::Utf8 words, float x, float y,
+                           material::Color c, bool large) {
       return run(ck::bakeRun(words.bytes(), *fonts, large ? title : body), x, y,
                  c);
     };

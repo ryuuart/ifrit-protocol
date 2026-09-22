@@ -70,9 +70,11 @@ constexpr float kTilt = 38;            // the plate's pitch, degrees
 // A restrained palette: paper, ink, and one accent per panel.
 constexpr material::Color kGround{0.055f, 0.06f, 0.075f, 1};
 constexpr material::Color kPanel{0.09f, 0.10f, 0.12f, 1};
-constexpr material::Color material::skia::toSkColor(kPaper){0.93f, 0.91f, 0.86f, 1};
+constexpr material::Color material::skia::toSkColor(kPaper){0.93f, 0.91f, 0.86f,
+                                                            1};
 constexpr material::Color kInk{0.10f, 0.10f, 0.12f, 1};
-constexpr material::Color material::skia::toSkColor(kAsh){0.56f, 0.57f, 0.62f, 1};
+constexpr material::Color material::skia::toSkColor(kAsh){0.56f, 0.57f, 0.62f,
+                                                          1};
 constexpr material::Color kCardFront{0.88f, 0.34f, 0.24f, 1};
 constexpr material::Color kCardBack{0.16f, 0.42f, 0.78f, 1};
 constexpr material::Color kEdge{1, 1, 1, 0.22f};
@@ -117,7 +119,9 @@ Element panel(const char* caption, Element content) {
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
       .children({text(caption)
-                     .font({.size = 13, .color = material::skia::toSkColor(kAsh), .track = 2})
+                     .font({.size = 13,
+                            .color = material::skia::toSkColor(kAsh),
+                            .track = 2})
                      .absolute()
                      .left(18)
                      .bottom(14)});
@@ -155,8 +159,8 @@ struct CardFlip {
    *  hides its back, so whichever faces the viewer is the one drawn. */
   Element card() const {
     constexpr float w = 220, h = 320;
-    const auto face = [](const char* title, const char* line, material::Color fill,
-                         float turn) {
+    const auto face = [](const char* title, const char* line,
+                         material::Color fill, float turn) {
       return kit::at(0, 0, w, h)
           .borderRadius({16})
           .fill(Fill::color(fill))
@@ -237,7 +241,9 @@ struct CardFlip {
         .ink(look.palette.ink)
         .children(
             {text("THE DEPTH LANES — A NODE IS A PLANE")
-                 .font({.size = 14, .color = material::skia::toSkColor(kAsh), .track = 3})
+                 .font({.size = 14,
+                        .color = material::skia::toSkColor(kAsh),
+                        .track = 3})
                  .absolute()
                  .left(gap)
                  .top(14),

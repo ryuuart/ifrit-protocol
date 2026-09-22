@@ -148,9 +148,10 @@ struct StickerCollection {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
-                             .captureAt = 2.35,
-                             .background = material::Color{0.97f, 0.97f, 0.95f, 1}});
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kWidth, kHeight),
+                        .captureAt = 2.35,
+                        .background = material::Color{0.97f, 0.97f, 0.95f, 1}});
 
     io::Hub& hub = ctx.assets.hub();
     const Shelf shelf{
@@ -191,7 +192,9 @@ struct StickerCollection {
             });
 
     const weave::TextStyle title = weave::textStyle(
-        {.size = 29, .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}), .track = 3.4f});
+        {.size = 29,
+         .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
+         .track = 3.4f});
     ctx.composer.render(stack().width(kWidth).height(kHeight).children(
         {std::move(stage),
          text(u8"SIGIL STICKERS / GIF · WEBP · AVIFS · WEBM", title)

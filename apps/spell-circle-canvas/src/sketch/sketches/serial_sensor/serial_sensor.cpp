@@ -127,9 +127,10 @@ constexpr std::array<Ribbon, 6> kRibbons = {{{46, -14, 13},
                                              {26, 11, 7}}};
 
 /** The colours the ribbons are tinted from, in turn, at full light. */
-constexpr std::array<material::Color, 3> kTints = {{{0.46f, 0.66f, 0.94f, 0.80f},
-                                              {0.58f, 0.52f, 0.90f, 0.76f},
-                                              {0.38f, 0.78f, 0.86f, 0.72f}}};
+constexpr std::array<material::Color, 3> kTints = {
+    {{0.46f, 0.66f, 0.94f, 0.80f},
+     {0.58f, 0.52f, 0.90f, 0.76f},
+     {0.38f, 0.78f, 0.86f, 0.72f}}};
 
 /** WHAT THE READOUT SAYS, and the whole of what says to write it again:
  *  the door's own figures, and the newest reading as the board wrote

@@ -102,7 +102,8 @@ const material::Color kAiWash{kAi.r, kAi.g, kAi.b, 0.13f};
 /** A paint that draws its glyphs in @p ink and carries one band beside
  *  the column: `kUnderline` runs down the RIGHT of the column, `kOverline`
  *  down the left, `kHighlight` across the whole pitch. */
-inline weave::PaintStyle banded(material::Color ink, weave::Decoration::Kind kind,
+inline weave::PaintStyle banded(material::Color ink,
+                                weave::Decoration::Kind kind,
                                 material::Color band, float thickness) {
   weave::PaintStyle p(sigil::material::skia::toSkColor(ink).toSkColor());
   p.foreground.setAntiAlias(true);
@@ -229,19 +230,23 @@ struct Bousen {
                          // phrase's edge, so it lands where the anchor is
                          // rather than where a coordinate would have put
                          // it.
-                         .children({kit::at(box().key("leader").absolute().fill(
-                                                Fill::color(bs::kAka)),
-                                            0.0f, 42.0f, 168.0f, 1.0f),
-                                    document::paragraph(
-                                        weave::rich()
-                                            .add("mark() ",
-                                                 weave::Type{.size = 11,
-                                                             .color = material::skia::toSkColor(bs::kAka),
-                                                             .track = 1})
-                                            .add("— anchored to "
-                                                 "the phrase,\nnot to a "
-                                                 "coordinate"))
-                                        .width(150.0f)})),
+                         .children(
+                             {kit::at(box().key("leader").absolute().fill(
+                                          Fill::color(bs::kAka)),
+                                      0.0f, 42.0f, 168.0f, 1.0f),
+                              document::paragraph(
+                                  weave::rich()
+                                      .add("mark() ",
+                                           weave::Type{
+                                               .size = 11,
+                                               .color =
+                                                   material::skia::toSkColor(
+                                                       bs::kAka),
+                                               .track = 1})
+                                      .add("— anchored to "
+                                           "the phrase,\nnot to a "
+                                           "coordinate"))
+                                  .width(150.0f)})),
              // The plate names itself in the other writing mode, so the two
              // stand side by side.
              box()
@@ -254,10 +259,14 @@ struct Bousen {
                       kit::line({.length = Dimension(120),
                                  .fill = Fill::color(bs::kAka)}),
                       document::eyebrow("THE COLUMN'S FURNITURE")
-                          .font({.size = 13, .color = material::skia::toSkColor(bs::kAi), .track = 3}),
+                          .font({.size = 13,
+                                 .color = material::skia::toSkColor(bs::kAi),
+                                 .track = 3}),
                       document::lead("a band beside the column, not beneath a\n"
                                      "line · a mark on the phrase it names")
-                          .font({.size = 13, .color = material::skia::toSkColor(bs::kSumi), .track = 0.4f})
+                          .font({.size = 13,
+                                 .color = material::skia::toSkColor(bs::kSumi),
+                                 .track = 0.4f})
                           .width(260.0f),
                       box().height(20.0f),
                       box().row().gap(30).children(

@@ -167,10 +167,10 @@ struct MeshGenerators {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
-                        .captureAt = 1.0,
-                        .background = material::Color{0.04f, 0.04f, 0.062f, 1}});
+    sketch::kit::stage(
+        ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+              .captureAt = 1.0,
+              .background = material::Color{0.04f, 0.04f, 0.062f, 1}});
 
     // The bodies are built once. A generator's cost belongs to the
     // description, not to the frame: nothing below changes per frame, so

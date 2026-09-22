@@ -204,25 +204,22 @@ struct Zellige {
         // layer (the root fill and the pattern can't share one slot).
         .children(
             {box().inset(0).fill(grain.material()),
-             box()
-                 .column()
-                 .inset(44, 50)
-                 .gap(14)
-                 .children({box()
-                                .row()
-                                .alignItems(Align::Baseline)
-                                .gap(14)
-                                .children({text("ZELLIJE").font(
-                                               {.size = 34, .track = 3}),
-                                           text("Hankin PIC · 4.8.8 · "
-                                                "θ swept 30–60°")
-                                               .font({.size = 14,
-                                                      .color = material::skia::toSkColor(zw::kSub),
-                                                      .track = 1})}),
-                            box().row().flexGrow(1).gap(22).children({each(
-                                panels, [this](const zellige_wall::Panel& one) {
-                                  return panel(one);
-                                })})})});
+             box().column().inset(44, 50).gap(14).children(
+                 {box()
+                      .row()
+                      .alignItems(Align::Baseline)
+                      .gap(14)
+                      .children({text("ZELLIJE").font({.size = 34, .track = 3}),
+                                 text("Hankin PIC · 4.8.8 · "
+                                      "θ swept 30–60°")
+                                     .font({.size = 14,
+                                            .color = material::skia::toSkColor(
+                                                zw::kSub),
+                                            .track = 1})}),
+                  box().row().flexGrow(1).gap(22).children(
+                      {each(panels, [this](const zellige_wall::Panel& one) {
+                        return panel(one);
+                      })})})});
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) {

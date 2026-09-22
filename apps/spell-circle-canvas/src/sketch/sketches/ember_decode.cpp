@@ -221,10 +221,11 @@ struct EmberDecode {
     // The letters are set WHITE: the pass reads the layer's coverage and
     // supplies every colour itself, so the type's own colour never lands.
     const auto burnt = [&](float size, float track) {
-      return weave::Type{.face = face,
-                         .size = size,
-                         .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
-                         .track = track};
+      return weave::Type{
+          .face = face,
+          .size = size,
+          .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
+          .track = track};
     };
     const mskia::Paint burn = burnMaterial(recipe);
 
@@ -251,10 +252,14 @@ struct EmberDecode {
         .fill(mskia::Paint::solid(kPlate))
         // The faint remark is the sheet's own voice: every line is set in it
         // unless it says otherwise.
-        .font({.size = 10.5f, .color = material::skia::toSkColor(kFaint), .track = 0.8f})
+        .font({.size = 10.5f,
+               .color = material::skia::toSkColor(kFaint),
+               .track = 0.8f})
         .children(
             {text("TEXT AS A SAMPLER · ONE SkSL PASS OVER ONE RENDERED LINE")
-                 .font({.size = 11.5f, .color = material::skia::toSkColor(kLabel), .track = 1.6f}),
+                 .font({.size = 11.5f,
+                        .color = material::skia::toSkColor(kLabel),
+                        .track = 1.6f}),
              text(u8"EMBER DECODE")
                  .font(burnt(78, 5.0f))
                  .key("burn-display")

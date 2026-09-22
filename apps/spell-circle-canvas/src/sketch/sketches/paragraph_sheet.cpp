@@ -102,7 +102,10 @@ sk_sp<SkTypeface> mono() {
 
 weave::Type label(float size = 9.0f, float track = 1.6f,
                   material::Color colour = kFaint) {
-  return {.face = grotesque(), .size = size, .color = material::skia::toSkColor(colour), .track = track};
+  return {.face = grotesque(),
+          .size = size,
+          .color = material::skia::toSkColor(colour),
+          .track = track};
 }
 
 /// THIS SHEET'S LOOK: paper and its ink, set in the grotesque, with the

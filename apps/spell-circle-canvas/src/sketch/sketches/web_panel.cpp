@@ -175,7 +175,9 @@ Element note(std::u8string heading, std::u8string body) {
       .column()
       .gap(6)
       .children({text(std::move(heading)).font({.size = 14}),
-                 text(std::move(body)).font({.size = 11.5f, .color = material::skia::toSkColor(kDim)})});
+                 text(std::move(body))
+                     .font({.size = 11.5f,
+                            .color = material::skia::toSkColor(kDim)})});
 }
 
 }  // namespace
@@ -312,7 +314,9 @@ struct WebPanelSketch {
                  .column()
                  .gap(10)
                  .children({text(u8"no web engine here").font({.size = 22}),
-                            text(why).font({.size = 13, .color = material::skia::toSkColor(kDim)})})});
+                            text(why).font(
+                                {.size = 13,
+                                 .color = material::skia::toSkColor(kDim)})})});
   }
 
  private:

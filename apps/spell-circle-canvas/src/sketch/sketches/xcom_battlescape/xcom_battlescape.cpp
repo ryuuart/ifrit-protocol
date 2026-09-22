@@ -159,7 +159,8 @@ struct XcomBattlescape {
     // 252/255, which lands each one two units below its palette entry: a
     // handful of off-palette colours that are invisible to the eye and caught
     // only by the colour census.
-    cellFontPx = fontAtlas->cell(box().fill(sigil::material::Color{1, 1, 1, 1}), {PX, PX});
+    cellFontPx = fontAtlas->cell(box().fill(sigil::material::Color{1, 1, 1, 1}),
+                                 {PX, PX});
   }
 
   // ---- the font pool: a 4x4 white cell, tinted -----------------------------

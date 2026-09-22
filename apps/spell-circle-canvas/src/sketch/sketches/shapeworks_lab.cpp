@@ -293,10 +293,10 @@ struct ShapeworksLab {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = {1280, 780},
-                        .captureAt = 2.6,
-                        .background = material::Color{0.05f, 0.048f, 0.088f, 1}});
+    sketch::kit::stage(
+        ctx, {.size = {1280, 780},
+              .captureAt = 2.6,
+              .background = material::Color{0.05f, 0.048f, 0.088f, 1}});
 
     studio = material::kit::studioEnvironment();
 

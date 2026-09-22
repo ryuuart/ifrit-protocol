@@ -198,10 +198,10 @@ struct FloatingPanels {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
-                        .captureAt = 1.0,
-                        .background = material::Color{0.027f, 0.027f, 0.047f, 1}});
+    sketch::kit::stage(
+        ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+              .captureAt = 1.0,
+              .background = material::Color{0.027f, 0.027f, 0.047f, 1}});
 
     cardA = bake(ctx, card(360, 240, {0.2f, 0.85f, 1.0f, 1}), 360, 240);
     cardB = bake(ctx, card(360, 240, {1.0f, 0.6f, 0.25f, 1}), 360, 240);

@@ -155,7 +155,9 @@ void mono(Pen& pen, float size, material::Color c, float track = 0.0f) {
   pen.fill(c);
 }
 
-material::Color fade(material::Color c, float a) { return {c.r, c.g, c.b, c.a * a}; }
+material::Color fade(material::Color c, float a) {
+  return {c.r, c.g, c.b, c.a * a};
+}
 
 /** A PART'S ENTRANCE, as time arithmetic: 0 before @p delayMs, 1 after
  *  @p delayMs + @p durationMs, and the curve between. What a described
@@ -347,12 +349,14 @@ struct PsxDoomFire {
    *  rasterizer's alpha-0 for heat 0 lets the cold core show it through,
    *  breathing as the simulation runs. */
   compose::Element doomWord() {
-    weave::TextStyle s = weave::textStyle({.face = heavyFace(),
-                                           .size = 186,
-                                           .color = material::skia::toSkColor(hexColor(0xC23A1C)),
-                                           .track = 34.0f});
+    weave::TextStyle s = weave::textStyle(
+        {.face = heavyFace(),
+         .size = 186,
+         .color = material::skia::toSkColor(hexColor(0xC23A1C)),
+         .track = 34.0f});
     s.paint.addUnderlay(sigil::weave::kit::outline(
-        sigil::material::skia::toSkColor(hexColor(0x2A0805)).toSkColor(), 7.0f, SkPaint::kRound_Join));
+        sigil::material::skia::toSkColor(hexColor(0x2A0805)).toSkColor(), 7.0f,
+        SkPaint::kRound_Join));
     return compose::text("DOOM", std::move(s))
         .width(kPanelW)
         .block({.alignment = weave::TextAlignment::kCenter})

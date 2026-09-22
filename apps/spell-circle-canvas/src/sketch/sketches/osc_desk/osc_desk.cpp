@@ -360,7 +360,8 @@ struct OscDesk {
    *  and the gust standing over it. They are drawn rather than
    *  written because a description carrying a number that changes every
    *  frame is a description rebuilt every frame. */
-  void faders(Pen& pen, material::Color rule, material::Color figure, material::Color ash) {
+  void faders(Pen& pen, material::Color rule, material::Color figure,
+              material::Color ash) {
     constexpr float kLength = 220.0f;
     constexpr float kThickness = 6.0f;
     constexpr float kLabelGap = 56.0f;  // room for the word beside a bar

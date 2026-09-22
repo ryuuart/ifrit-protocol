@@ -378,10 +378,12 @@ auto SigillumAemeth::colophon() -> Element {
            text(doc.phrase("seal"))
                .font({.face = faceItalic,
                       .size = 17,
-                      .color = sigil::material::skia::toSkColor(hexColor(0xb59a6c))})
+                      .color =
+                          sigil::material::skia::toSkColor(hexColor(0xb59a6c))})
                .width(690),
            text(doc.phrase("imprint"))
                .font({.face = faceMono,
                       .size = 12,
-                      .color = sigil::material::skia::toSkColor(hexColor(0x6f5f45))})});
+                      .color = sigil::material::skia::toSkColor(
+                          hexColor(0x6f5f45))})});
 }

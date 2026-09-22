@@ -48,9 +48,13 @@ inline sk_sp<SkTypeface> heavyFace() {
 /** A positional shorthand over the library's designated-init `textStyle`,
  *  for the one display line that names its own face. */
 inline sigil::weave::TextStyle faced(sk_sp<SkTypeface> face, float size,
-                                     sigil::material::Color color, float track = 0.0f) {
+                                     sigil::material::Color color,
+                                     float track = 0.0f) {
   return sigil::weave::textStyle(
-      {.face = std::move(face), .size = size, .color = sigil::material::skia::toSkColor(color), .track = track});
+      {.face = std::move(face),
+       .size = size,
+       .color = sigil::material::skia::toSkColor(color),
+       .track = track});
 }
 
 /** The registers a panel is set in. */

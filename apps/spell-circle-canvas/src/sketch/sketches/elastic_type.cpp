@@ -346,8 +346,11 @@ struct ElasticType {
    *  and its marks are one body and squash together. */
   [[nodiscard]] Element row(const char* word, const char* caption,
                             TextEffect effect) {
-    const sigil::weave::TextStyle set = weave::textStyle(
-        {.face = face, .size = kWordSize, .color = material::skia::toSkColor(kInk), .track = 3.0f});
+    const sigil::weave::TextStyle set =
+        weave::textStyle({.face = face,
+                          .size = kWordSize,
+                          .color = material::skia::toSkColor(kInk),
+                          .track = 3.0f});
 
     // THE GHOST: the same word, same style, no track — the rest position
     // the deviation is measured against. A track's deviation is per glyph

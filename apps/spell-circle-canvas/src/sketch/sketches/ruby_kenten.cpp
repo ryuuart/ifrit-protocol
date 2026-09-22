@@ -211,7 +211,9 @@ struct RubyKenten {
                        f::body(30, f::kSumi)),
                   box().height(6),
                   document::eyebrow("A READING IS PART OF THE TEXT")
-                      .font({.size = 11, .color = sigil::material::skia::toSkColor(f::kAi), .track = 3.0f}),
+                      .font({.size = 11,
+                             .color = sigil::material::skia::toSkColor(f::kAi),
+                             .track = 3.0f}),
                   document::lead("the band it needs is in the base's strut "
                                  "before the base is broken, so the column "
                                  "pitch opens once\nand the reading is "

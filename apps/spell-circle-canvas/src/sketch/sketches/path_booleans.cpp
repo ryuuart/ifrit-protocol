@@ -148,10 +148,10 @@ struct PathBooleans {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = {1240, 720},
-                        .captureAt = 1.0,
-                        .background = material::Color{0.063f, 0.063f, 0.078f, 1}});
+    sketch::kit::stage(
+        ctx, {.size = {1240, 720},
+              .captureAt = 1.0,
+              .background = material::Color{0.063f, 0.063f, 0.078f, 1}});
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
     ctx.composer.render(

@@ -80,7 +80,8 @@ Element atlasSheet(float cell) {
        {shapes::polygon(4), {0.6f, 1.0f, 0.6f, 1}},
        {shapes::star(4, 0.35f), {1.0f, 0.8f, 0.3f, 1}}}};
   return stack().width(cell * 2).height(cell * 2).children(each(
-      motifs, [cell](const std::pair<Shape, material::Color>& motif, std::size_t i) {
+      motifs,
+      [cell](const std::pair<Shape, material::Color>& motif, std::size_t i) {
         return kit::at((float)(i % 2) * cell, (float)(i / 2) * cell, cell, cell)
             .padding(cell * 0.12f)
             .children({box()
@@ -157,10 +158,10 @@ struct PopStamps {
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sketch::kit::studyTheme());
-    sketch::kit::stage(ctx,
-                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
-                        .captureAt = 1.0,
-                        .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
+    sketch::kit::stage(
+        ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+              .captureAt = 1.0,
+              .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
 
     atlas = bake(ctx, atlasSheet(128), 256);
 

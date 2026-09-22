@@ -172,7 +172,8 @@ struct UiParticles {
                             .dashIntervals = {5, 4}};
     // The paper is the chip's own fill taken most of the way to white.
     const auto pale = [](float c) { return 0.75f + c * 0.25f; };
-    const material::Color paper{pale(t.fill.r), pale(t.fill.g), pale(t.fill.b), 1};
+    const material::Color paper{pale(t.fill.r), pale(t.fill.g), pale(t.fill.b),
+                                1};
     return box()
         .width(kSprite - 10)
         .height(kSprite - 18)

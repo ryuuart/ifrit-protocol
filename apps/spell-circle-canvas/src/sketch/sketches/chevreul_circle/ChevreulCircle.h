@@ -128,8 +128,9 @@ struct ChevreulCircle {
    *  no size of its own, so an effect there opens a layer the size of the
    *  canvas and runs the LUT over every pixel of the plate every frame.
    *  Twenty bounded layers of one band each are the same picture. */
-  Element aStaircase(const std::array<sigil::material::Color, 20>& ramp, float y, float h,
-                     const char* keyBase, bool withGap, bool graded = false);
+  Element aStaircase(const std::array<sigil::material::Color, 20>& ramp,
+                     float y, float h, const char* keyBase, bool withGap,
+                     bool graded = false);
 
   Element theIllusion();
 

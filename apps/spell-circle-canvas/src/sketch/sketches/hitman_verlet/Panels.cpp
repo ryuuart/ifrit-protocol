@@ -1,7 +1,7 @@
 #include "HitmanVerlet.h"
 
-auto HitmanVerlet::codeLine(const sigil::data::Json& listed, sigil::material::Color c)
-    -> Element {
+auto HitmanVerlet::codeLine(const sigil::data::Json& listed,
+                            sigil::material::Color c) -> Element {
   // A MARKED LINE is one the paper prints wrong: the caret and the alarm
   // colour are the document's own flag, not the panel's.
   const bool marked = listed["marked"].boolean();
@@ -16,15 +16,18 @@ auto HitmanVerlet::panelA1() -> Element {
   const sigil::data::Json& a1 = doc()["a1"];
   return panel(kPanelAH[0], a1["heading"].text(), 1)
       .gap(4)
-      .children(
-          {t(a1["law"], monoB(12.0f, sigil::material::skia::toSkColor(kBone), 0.2f)).height(16).flexShrink(0),
-           each(a1["code"].items(),
-                [this](const sigil::data::Json& line) {
-                  return codeLine(line, kBlue);
-                }),
-           box().flexGrow(1), t(a1["alarm"], ui(7.5f, kRed, 0.5f)),
-           t(a1["working"], mono(7.5f, sigil::material::skia::toSkColor(kSteel), 0.1f)),
-           t(a1["note"], ui(7.0f, kTick, 0.4f))});
+      .children({t(a1["law"],
+                   monoB(12.0f, sigil::material::skia::toSkColor(kBone), 0.2f))
+                     .height(16)
+                     .flexShrink(0),
+                 each(a1["code"].items(),
+                      [this](const sigil::data::Json& line) {
+                        return codeLine(line, kBlue);
+                      }),
+                 box().flexGrow(1), t(a1["alarm"], ui(7.5f, kRed, 0.5f)),
+                 t(a1["working"],
+                   mono(7.5f, sigil::material::skia::toSkColor(kSteel), 0.1f)),
+                 t(a1["note"], ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::panelA2() -> Element {

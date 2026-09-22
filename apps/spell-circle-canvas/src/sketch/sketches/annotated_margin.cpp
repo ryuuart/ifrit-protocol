@@ -87,8 +87,10 @@ sk_sp<SkTypeface> grotesque() {
 
 weave::TextStyle note(float size = 8.5f, material::Color colour = kFaint,
                       float track = 0.4f) {
-  return weave::textStyle(
-      {.face = grotesque(), .size = size, .color = material::skia::toSkColor(colour), .track = track});
+  return weave::textStyle({.face = grotesque(),
+                           .size = size,
+                           .color = material::skia::toSkColor(colour),
+                           .track = track});
 }
 
 /** The cascade the playhead rides, and the ms its master must span for it
@@ -143,10 +145,12 @@ struct AnnotatedMargin {
                  .inset(44, 0, 0, 52)
                  .column()
                  .gap(6)
-                 .children({text("BESIDE THE TEXT", m::note(12, m::kInk, 4.0f)),
-                            text("one element per unit, placed from "
-                                 "the unit's own rect",
-                                 m::note(10, material::skia::toSkColor(m::kFaint), 0.3f))}),
+                 .children(
+                     {text("BESIDE THE TEXT", m::note(12, m::kInk, 4.0f)),
+                      text("one element per unit, placed from "
+                           "the unit's own rect",
+                           m::note(10, material::skia::toSkColor(m::kFaint),
+                                   0.3f))}),
              // The passage itself: one leaf, keyed, and annotated by
              // nothing — everything below reads it from outside.
              document::paragraph(m::kPassage)
@@ -181,10 +185,12 @@ struct AnnotatedMargin {
                              // and the line it landed on — because a label
                              // that only repeated the word would be showing
                              // nothing the word does not already show.
-                             return text(std::to_string(unit.range.start) +
-                                             "–" +
-                                             std::to_string(unit.range.end),
-                                         m::note(7.5f, material::skia::toSkColor(m::kMark), 0.2f));
+                             return text(
+                                 std::to_string(unit.range.start) + "–" +
+                                     std::to_string(unit.range.end),
+                                 m::note(7.5f,
+                                         material::skia::toSkColor(m::kMark),
+                                         0.2f));
                            })
                  .inset(0),
              // ── One note per line, in the gutter, with a leader
@@ -221,7 +227,8 @@ struct AnnotatedMargin {
                          .colour = m::kMark})
                  .inset(0),
              // ── The playhead, riding the cascade
-             kit::trackMeter(composer, "cascade", 0, material::skia::toSkColor(m::kHot),
+             kit::trackMeter(composer, "cascade", 0,
+                             material::skia::toSkColor(m::kHot),
                              {m::kHot.r, m::kHot.g, m::kHot.b, 0.12f},
                              {.where = kit::MeterPlacement::Where::Under,
                               .thickness = 3.0f,

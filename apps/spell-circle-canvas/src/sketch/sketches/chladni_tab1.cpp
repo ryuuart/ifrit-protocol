@@ -167,7 +167,8 @@ namespace {
 constexpr material::Color kPaper = hexColor(0xe3d7b6);
 constexpr material::Color kPaperEdge = hexColor(0xa08757);
 constexpr material::Color kInk = hexColor(0x211c14);     // the dense star fills
-constexpr material::Color kInkLine = hexColor(0x362e23); // hairline rims and rules
+constexpr material::Color kInkLine =
+    hexColor(0x362e23);  // hairline rims and rules
 constexpr material::Color kInkSoft = hexColor(0x3a3125, 0.72f);
 constexpr material::Color kFox = hexColor(0x9c7f57, 0.10f);
 
@@ -809,10 +810,12 @@ struct ChladniTab1 {
     paperMat = Paint::recipe(field::grain(0.013f, 4, 9.0f));
     // Sparse, and NOT on a grid you can see: the tile has to be big
     // enough that its repeat is not the strongest mark on the page.
-    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {material::skia::toSkColor(kFox)});
+    foxing = patterns::speckle(640, 22, 1.4f, 5.0f,
+                               {material::skia::toSkColor(kFox)});
     foxing.seed(17);
-    foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f,
-                                 {skia::toColor(material::skia::toSkColor(hexColor(0x94764c, 0.09f)))});
+    foxingLL = patterns::speckle(
+        520, 14, 2.0f, 7.0f,
+        {skia::toColor(material::skia::toSkColor(hexColor(0x94764c, 0.09f)))});
     foxingLL.seed(53);
     // Ink on rag paper is never flat: luminance noise, so it shades the
     // fill rather than hue-shifting it.

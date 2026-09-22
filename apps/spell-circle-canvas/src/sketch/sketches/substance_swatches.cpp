@@ -122,10 +122,13 @@ Element notice(Utf8 heading, Utf8 detail) {
       .foreground(stroke(1.0f, Fill::color(hexColor(0xffb46b, 0.24f))))
       .column()
       .gap(10)
-      .children({text(std::move(heading),
-                      weave::textStyle({.size = 22, .color = material::skia::toSkColor(kInk)})),
-                 text(std::move(detail),
-                      weave::textStyle({.size = 13, .color = material::skia::toSkColor(kDim)}))});
+      .children(
+          {text(std::move(heading),
+                weave::textStyle(
+                    {.size = 22, .color = material::skia::toSkColor(kInk)})),
+           text(std::move(detail),
+                weave::textStyle(
+                    {.size = 13, .color = material::skia::toSkColor(kDim)}))});
 }
 
 }  // namespace

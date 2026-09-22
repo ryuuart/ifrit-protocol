@@ -65,7 +65,8 @@ constexpr material::Color kInk = hexColor(0x0A0A0C);
 constexpr material::Color kPanel = hexColor(0x101116);
 constexpr material::Color kKeyline = hexColor(0x191B22);
 constexpr material::Color kBone = hexColor(0xE8E6E1);
-constexpr material::Color material::skia::toSkColor(kSteel) = hexColor(0x8A8F9C);
+constexpr material::Color material::skia::toSkColor(kSteel) =
+    hexColor(0x8A8F9C);
 constexpr material::Color kBlue = hexColor(0x6FA8DC);
 constexpr material::Color kRed = hexColor(0xC8402F);
 constexpr material::Color kSolid = hexColor(0x2A2E38);
@@ -182,11 +183,13 @@ using instrument::uiFace;
 
 /** The same three registers on the PEN: a pen carries one type and one
  *  fill, so a register is set rather than described. */
-inline void penMono(Pen& pen, float size, material::Color c, float track = 0.0f) {
+inline void penMono(Pen& pen, float size, material::Color c,
+                    float track = 0.0f) {
   pen.textFont(instrument::penType(monoFace(), size, track));
   pen.fill(c);
 }
-inline void penMonoB(Pen& pen, float size, material::Color c, float track = 0.0f) {
+inline void penMonoB(Pen& pen, float size, material::Color c,
+                     float track = 0.0f) {
   pen.textFont(instrument::penType(monoBoldFace(), size, track));
   pen.fill(c);
 }
@@ -212,13 +215,24 @@ inline float cue(double ms, float delayMs, float durationMs,
  *  one column of its five that the shipped code lands on. */
 inline weave::StyleSheet plotClasses() {
   weave::StyleSheet look;
-  look.set("plotAxis", {.color = material::skia::toSkColor(hexColor(0x2A2E38))});
-  look.set("plotRule", {.color = material::skia::toSkColor(hexColor(0x2A2E38))});
-  look.set("plotTick", {.face = monoFace(), .size = 7.0f, .color = material::skia::toSkColor(kTick)});
-  look.set("plotLabel", {.face = monoFace(), .size = 7.0f, .color = material::skia::toSkColor(kSteel)});
-  look.set("plotBar", {.color = material::skia::toSkColor(hexColor(0x6FA8DC, 0.42f))});
-  look.set("exact", {.face = monoFace(), .size = 7.0f, .color = material::skia::toSkColor(kSteel)});
-  look.set("approx", {.face = monoFace(), .size = 7.0f, .color = material::skia::toSkColor(kBlue)});
+  look.set("plotAxis",
+           {.color = material::skia::toSkColor(hexColor(0x2A2E38))});
+  look.set("plotRule",
+           {.color = material::skia::toSkColor(hexColor(0x2A2E38))});
+  look.set("plotTick", {.face = monoFace(),
+                        .size = 7.0f,
+                        .color = material::skia::toSkColor(kTick)});
+  look.set("plotLabel", {.face = monoFace(),
+                         .size = 7.0f,
+                         .color = material::skia::toSkColor(kSteel)});
+  look.set("plotBar",
+           {.color = material::skia::toSkColor(hexColor(0x6FA8DC, 0.42f))});
+  look.set("exact", {.face = monoFace(),
+                     .size = 7.0f,
+                     .color = material::skia::toSkColor(kSteel)});
+  look.set("approx", {.face = monoFace(),
+                      .size = 7.0f,
+                      .color = material::skia::toSkColor(kBlue)});
   look.set("hit", {.color = material::skia::toSkColor(kBlue)});
   return look;
 }

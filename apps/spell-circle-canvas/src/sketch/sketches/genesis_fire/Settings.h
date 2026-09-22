@@ -206,7 +206,8 @@ inline weave::StyleSheet registers() {
 
 /** The same register on the PEN: a pen carries one type and one fill, so
  *  a register is set rather than described. */
-inline void penMono(Pen& pen, float size, material::Color c, float track = 0.0f) {
+inline void penMono(Pen& pen, float size, material::Color c,
+                    float track = 0.0f) {
   pen.textFont(instrument::penType(monoFace(), size, track));
   pen.fill(c);
 }

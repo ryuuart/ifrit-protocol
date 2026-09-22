@@ -33,31 +33,49 @@ struct SigillumAemeth {
    *  archangel, the seal face of a letter on the fan. */
   [[nodiscard]] weaveNs::StyleSheet voices() const {
     return weaveNs::StyleSheet{
-        {"h1",
-         weaveNs::Type{
-             .face = faceDisplay, .size = 46, .color = sigil::material::skia::toSkColor(kVellum), .track = 2.6f}},
-        {"lead",
-         weaveNs::Type{
-             .face = faceItalic, .size = 19, .color = sigil::material::skia::toSkColor(hexColor(0xc7ab74))}},
+        {"h1", weaveNs::Type{.face = faceDisplay,
+                             .size = 46,
+                             .color = sigil::material::skia::toSkColor(kVellum),
+                             .track = 2.6f}},
+        {"lead", weaveNs::Type{.face = faceItalic,
+                               .size = 19,
+                               .color = sigil::material::skia::toSkColor(
+                                   hexColor(0xc7ab74))}},
         {"serif", weaveNs::Type{.face = faceSerif}},
         {"italic", weaveNs::Type{.face = faceItalic}},
-        {"gloss",
-         weaveNs::Type{
-             .face = faceItalic, .size = 14, .color = sigil::material::skia::toSkColor(hexColor(0x6f5f45))}},
-        {"legend",
-         weaveNs::Type{.face = faceSerif, .color = sigil::material::skia::toSkColor(hexColor(0x9d8a66))}},
+        {"gloss", weaveNs::Type{.face = faceItalic,
+                                .size = 14,
+                                .color = sigil::material::skia::toSkColor(
+                                    hexColor(0x6f5f45))}},
+        {"legend", weaveNs::Type{.face = faceSerif,
+                                 .color = sigil::material::skia::toSkColor(
+                                     hexColor(0x9d8a66))}},
         {"index", weaveNs::Type{.size = 17}},
         {"name",
-         weaveNs::Type{
-             .face = faceDisplay, .size = 30, .color = sigil::material::skia::toSkColor(kVellum), .track = 1.2f}},
-        {"raw", weaveNs::Type{.face = faceItalic, .color = sigil::material::skia::toSkColor(hexColor(0x6f5f45))}},
-        {"chain", weaveNs::Type{.size = 14, .color = sigil::material::skia::toSkColor(kTrace)}},
-        {"archangel",
-         weaveNs::Type{
-             .face = faceQuill, .size = 21, .color = sigil::material::skia::toSkColor(hexColor(0xd8c08a))}},
-        {"fan", weaveNs::Type{.face = faceSeal, .size = 23, .color = sigil::material::skia::toSkColor(kVellum)}},
-        {"rubric", weaveNs::Type{.color = sigil::material::skia::toSkColor(kRubric)}},
-        {"heading", weaveNs::Type{.size = 15, .color = sigil::material::skia::toSkColor(kRubric), .track = 1.6f}},
+         weaveNs::Type{.face = faceDisplay,
+                       .size = 30,
+                       .color = sigil::material::skia::toSkColor(kVellum),
+                       .track = 1.2f}},
+        {"raw", weaveNs::Type{.face = faceItalic,
+                              .color = sigil::material::skia::toSkColor(
+                                  hexColor(0x6f5f45))}},
+        {"chain",
+         weaveNs::Type{.size = 14,
+                       .color = sigil::material::skia::toSkColor(kTrace)}},
+        {"archangel", weaveNs::Type{.face = faceQuill,
+                                    .size = 21,
+                                    .color = sigil::material::skia::toSkColor(
+                                        hexColor(0xd8c08a))}},
+        {"fan",
+         weaveNs::Type{.face = faceSeal,
+                       .size = 23,
+                       .color = sigil::material::skia::toSkColor(kVellum)}},
+        {"rubric",
+         weaveNs::Type{.color = sigil::material::skia::toSkColor(kRubric)}},
+        {"heading",
+         weaveNs::Type{.size = 15,
+                       .color = sigil::material::skia::toSkColor(kRubric),
+                       .track = 1.6f}},
     };
   }
 

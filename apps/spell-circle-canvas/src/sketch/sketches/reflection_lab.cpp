@@ -129,10 +129,10 @@ struct ReflectionLab {
     // Far enough into the turn that the sky has moved off its start and
     // the crossfade is under way, so the plate is a picture of the
     // study rather than of its first frame.
-    sketch::kit::stage(ctx,
-                       {.size = {880, 520},
-                        .captureAt = 1.6,
-                        .background = material::Color{0.02f, 0.024f, 0.035f, 1.0f}});
+    sketch::kit::stage(
+        ctx, {.size = {880, 520},
+              .captureAt = 1.6,
+              .background = material::Color{0.02f, 0.024f, 0.035f, 1.0f}});
     row = balls();
     // The lower half of a bake is a floor, and a sphere reflects it
     // straight down where nothing interesting is; a flat ground colour

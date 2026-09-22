@@ -193,9 +193,10 @@ struct StrokeAtlasSketch {
               kInkSoft)
              .at({1064, 710})});
     {
-      plate.children({box()
-                          .rect(SkRect::MakeXYWH(1058, 732, 486, 300))
-                          .fill(sigil::material::Color{0.055f, 0.055f, 0.068f, 1})});
+      plate.children(
+          {box()
+               .rect(SkRect::MakeXYWH(1058, 732, 486, 300))
+               .fill(sigil::material::Color{0.055f, 0.055f, 0.068f, 1})});
       float y = 748;
       for (Style& s : stackStyles()) {
         plate.children(
@@ -264,7 +265,8 @@ struct StrokeAtlasSketch {
                  lines::presets::concentric(red(), 14, 0.8f)),
            field(1224, 2, "decorations::wash(halftoneRamp)", shapes::circle(),
                  decorations::wash(mskia::Paint::recipe(field::halftoneRamp(
-                                       8, 1.0f, 3.2f, sigil::material::skia::toSkColor(kInk))),
+                                       8, 1.0f, 3.2f,
+                                       sigil::material::skia::toSkColor(kInk))),
                                    SkBlendMode::kSrcOver, 0.95f)),
            field(1370, 26, "hatch on shapes::chamfered(22)",
                  shapes::chamfered(22.0f),

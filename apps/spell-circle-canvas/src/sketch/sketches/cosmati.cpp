@@ -82,16 +82,19 @@ constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 // applies to a saturated reading of the same list, and a black mortar
 // under it turns the Purbeck framework — which is the pavement's
 // STRONGEST structure — into void.
-constexpr material::Color kPorphyry = hexColor(0x74494A);  // Mons Claudianus, purple
+constexpr material::Color kPorphyry =
+    hexColor(0x74494A);  // Mons Claudianus, purple
 constexpr material::Color kPorphyryLo = hexColor(0x4C2F31);
-constexpr material::Color kSerpentine = hexColor(0x5B6552);  // lapis lacedaemonius
+constexpr material::Color kSerpentine =
+    hexColor(0x5B6552);  // lapis lacedaemonius
 constexpr material::Color kSerpentineLo = hexColor(0x3E4739);
 constexpr material::Color kGiallo = hexColor(0xC3AA76);  // yellow limestone
 constexpr material::Color kGialloLo = hexColor(0x9A8455);
 constexpr material::Color kMarble = hexColor(0xDED6C4);
 constexpr material::Color kMarbleLo = hexColor(0xB9B0A0);
 constexpr material::Color kOnyx = hexColor(0xCDBB94);
-constexpr material::Color kPurbeck = hexColor(0x77756B);  // the framework, not marble
+constexpr material::Color kPurbeck =
+    hexColor(0x77756B);  // the framework, not marble
 constexpr material::Color kPurbeckLo = hexColor(0x4F4E47);
 constexpr material::Color kGlassRed = hexColor(0x9A5348);
 constexpr material::Color kGlassTurq = hexColor(0x62867F);
@@ -237,8 +240,8 @@ struct Cosmati {
 
   /** One roundel: an onyx or porphyry eye inside ring courses of
    *  lozenges, bounded by a marble fillet. */
-  Element roundel(SkPoint at, float r, material::Color eyeHi, material::Color eyeLo,
-                  int seed) {
+  Element roundel(SkPoint at, float r, material::Color eyeHi,
+                  material::Color eyeLo, int seed) {
     namespace cs = cosmati;
     namespace ch = choreograph;
     using namespace std::chrono_literals;

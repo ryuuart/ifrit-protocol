@@ -26,13 +26,17 @@ struct Bg3DiceRoll {
   // ------------------------------------------------------------------- type
   /** A line's own fields over the serif the root sets every line in: the
    *  mono face only where a figure asks for it. */
-  weave::Type line(float size, sigil::material::Color col, float track, bool useMono) const {
-    weave::Type t{.size = size, .color = sigil::material::skia::toSkColor(col), .track = track};
+  weave::Type line(float size, sigil::material::Color col, float track,
+                   bool useMono) const {
+    weave::Type t{.size = size,
+                  .color = sigil::material::skia::toSkColor(col),
+                  .track = track};
     if (useMono) t.face = mono;
     return t;
   }
   Element label(const std::string& s, float x, float y, float size,
-                sigil::material::Color col, float track = 0.0f, bool useMono = false) const {
+                sigil::material::Color col, float track = 0.0f,
+                bool useMono = false) const {
     return box().left(x).top(y).children(
         {text(bg3::u8(s)).font(line(size, col, track, useMono))});
   }
@@ -124,11 +128,16 @@ struct Bg3DiceRoll {
                into.lineTo(proj[e.to]);
              }
              edge.setStrokeWidth(1.1f);
-             edge.setColor4f(sigil::material::skia::toSkColor(sigil::material::withAlpha(bg3::kGiltDark, opacity * 0.75f)),
-                             nullptr);
+             edge.setColor4f(
+                 sigil::material::skia::toSkColor(sigil::material::withAlpha(
+                     bg3::kGiltDark, opacity * 0.75f)),
+                 nullptr);
              c.drawPath(interior.detach(), edge);
              edge.setStrokeWidth(2.6f);
-             edge.setColor4f(sigil::material::skia::toSkColor(sigil::material::withAlpha(bg3::kInk, opacity)), nullptr);
+             edge.setColor4f(
+                 sigil::material::skia::toSkColor(
+                     sigil::material::withAlpha(bg3::kInk, opacity)),
+                 nullptr);
              c.drawPath(silhouette.detach(), edge);
 
              if (!numerals || !serif) return;
@@ -137,7 +146,10 @@ struct Bg3DiceRoll {
              // away.
              SkPaint glyph;
              glyph.setAntiAlias(true);
-             glyph.setColor4f(sigil::material::skia::toSkColor(sigil::material::withAlpha(bg3::kInk, opacity)), nullptr);
+             glyph.setColor4f(
+                 sigil::material::skia::toSkColor(
+                     sigil::material::withAlpha(bg3::kInk, opacity)),
+                 nullptr);
              for (int f = 0; f < nf; ++f) {
                if (nz[(size_t)f] < 0.34f) continue;
                const bg3::V3 r = attitude * solid.centroid[(size_t)f];
@@ -177,14 +189,14 @@ struct Bg3DiceRoll {
                         .foreground(stroke(0.9f, bg3::giltDark(0.85f)));
     // A four-pointed rosette, symmetric about its own bisector: an
     // ORNAMENT, which is what Bisector is for.
-    ornament.corner =
-        brush::CornerArt{box()
-                             .width(22)
-                             .height(22)
-                             .shape(shapes::star(4, 0.34f, 0.14f))
-                             .fill(sigil::material::withAlpha(bg3::kGilt, 0.92f))
-                             .foreground(stroke(0.8f, bg3::ink(0.55f))),
-                         brush::CornerAlign::Bisector};
+    ornament.corner = brush::CornerArt{
+        box()
+            .width(22)
+            .height(22)
+            .shape(shapes::star(4, 0.34f, 0.14f))
+            .fill(sigil::material::withAlpha(bg3::kGilt, 0.92f))
+            .foreground(stroke(0.8f, bg3::ink(0.55f))),
+        brush::CornerAlign::Bisector};
     ornament.advance = 21.0f;
     ornament.cornerLength = 26.0f;
     ornament.bleedPx = 26.0f;
@@ -377,18 +389,19 @@ struct Bg3DiceRoll {
       const float y0 = yOf(blk.first);
       const float y1 = yOf(blk.first + blk.count - 1);
       // A bracket that only exists at the block's ends.
-      g.children({kit::at(box()
-                              .shape(shapes::chamfered(
-                                  5.0f, shapes::Corner::AntiDiagonal))
-                              .stroke(spans::corners(11.0f, 24.0f),
-                                      brush::solid(1.6f, bg3::giltDark())),
-                          kX - 14.0f, y0 - 6.0f, 14.0f, y1 - y0 + 12.0f),
-                  // The header sits in the gap ABOVE its block, on its own row.
-                  label(blk.ability, kX + 22.0f, y0 - 21.0f, 9.0f,
-                        sigil::material::withAlpha(bg3::kGiltDark, 0.95f), 2.4f, true),
-                  label("AbilityId " + std::to_string(blk.abilityOrdinal),
-                        kX + 128.0f, y0 - 20.0f, 7.5f,
-                        sigil::material::withAlpha(bg3::kInk, 0.34f), 0.8f, true)});
+      g.children(
+          {kit::at(
+               box()
+                   .shape(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
+                   .stroke(spans::corners(11.0f, 24.0f),
+                           brush::solid(1.6f, bg3::giltDark())),
+               kX - 14.0f, y0 - 6.0f, 14.0f, y1 - y0 + 12.0f),
+           // The header sits in the gap ABOVE its block, on its own row.
+           label(blk.ability, kX + 22.0f, y0 - 21.0f, 9.0f,
+                 sigil::material::withAlpha(bg3::kGiltDark, 0.95f), 2.4f, true),
+           label("AbilityId " + std::to_string(blk.abilityOrdinal), kX + 128.0f,
+                 y0 - 20.0f, 7.5f, sigil::material::withAlpha(bg3::kInk, 0.34f),
+                 0.8f, true)});
     }
 
     for (const auto& sk : bg3::kSkills) {
@@ -399,12 +412,14 @@ struct Bg3DiceRoll {
                kX, y, live ? 26.0f : 15.0f,
                stroke(live ? 2.4f : 1.0f, live ? bg3::gilt() : bg3::ink(0.55f)),
                live ? 2.4f : 1.0f),
-           label(sk.name, kX + (live ? 34.0f : 22.0f), y - 8.0f,
-                 live ? 15.0f : 11.5f,
-                 live ? bg3::kInk : sigil::material::withAlpha(bg3::kInk, 0.58f),
-                 live ? 1.6f : 0.6f),
+           label(
+               sk.name, kX + (live ? 34.0f : 22.0f), y - 8.0f,
+               live ? 15.0f : 11.5f,
+               live ? bg3::kInk : sigil::material::withAlpha(bg3::kInk, 0.58f),
+               live ? 1.6f : 0.6f),
            labelR(std::to_string(sk.ordinal), kX - 19.0f, y - 6.0f, 9.5f,
-                  sigil::material::withAlpha(bg3::kInk, live ? 0.85f : 0.34f), true)});
+                  sigil::material::withAlpha(bg3::kInk, live ? 0.85f : 0.34f),
+                  true)});
     }
     return g.cache(Cache::Texture);
   }
@@ -450,7 +465,8 @@ struct Bg3DiceRoll {
                         1.0f),
                    label(b.sourceName, 96.0f, 2.0f, 21.0f, bg3::kInk, 0.8f),
                    label(b.description, 96.0f, 26.0f, 9.5f,
-                         sigil::material::withAlpha(bg3::kInk, 0.45f), 0.7f, true),
+                         sigil::material::withAlpha(bg3::kInk, 0.45f), 0.7f,
+                         true),
                    labelR(amount, kRowW - 16.0f, 0.0f,
                           b.numDice > 0 ? 20.0f : 24.0f, bg3::kInk, false,
                           kRowW)});
@@ -484,7 +500,8 @@ struct Bg3DiceRoll {
   Element outcome() const {
     if (!outcomeMounted) return kit::at(0, 0, 1, 1);
     lines::Hatch wash;
-    wash.strokeFill = Fill::color(sigil::material::withAlpha(bg3::kViridian, 0.34f));
+    wash.strokeFill =
+        Fill::color(sigil::material::withAlpha(bg3::kViridian, 0.34f));
     wash.width = 1.5f;
     wash.spacingBinding = &hatchSpacing;
     wash.angleBinding = &hatchAngle;
@@ -498,7 +515,8 @@ struct Bg3DiceRoll {
             .children(
                 {label("SUCCESS", 34.0f, 12.0f, 30.0f, bg3::kViridian, 8.0f),
                  label("RollCritical.None 0  ·  Total 20 ≥ DC 15", 34.0f, 44.0f,
-                       9.0f, sigil::material::withAlpha(bg3::kInk, 0.55f), 0.9f, true)})
+                       9.0f, sigil::material::withAlpha(bg3::kInk, 0.55f), 0.9f,
+                       true)})
             .opacity(animate(from(0.0f).to(1.0f),
                              {380ms, choreograph::easeOutQuad})),
         636.0f, 1094.0f, 452.0f, 64.0f);
@@ -515,22 +533,23 @@ struct Bg3DiceRoll {
             .layerStyle(decorations::doubleBorder(
                 decorations::border(1.8f, bg3::ink(0.9f)),
                 decorations::border(0.7f, bg3::giltDark(), 5.0f)))
-            .children({box()
-                           .left(16.0f)
-                           .top(16.0f)
-                           .width(r * 2)
-                           .height(r * 2)
-                           .shape(shapes::polygon(20, 9.0f))
-                           .fill(radialGradient(
-                               {r, r * 0.8f}, r * 1.25f,
-                               {sigil::material::withAlpha(bg3::kVellum, 1.0f),
-                                sigil::material::withAlpha(bg3::kGiltDark, 0.55f)}))
-                           .overlay(lines::presets::concentric(
-                               bg3::giltDark(0.45f), 4, 0.6f))
-                           .overlay(lines::presets::radialHatch(
-                               bg3::giltDark(0.3f), 20, 0.5f))
-                           .stroke(spans::corners(10.0f, bg3::kCornerAngle),
-                                   brush::solid(2.0f, bg3::ink(0.8f)))})
+            .children(
+                {box()
+                     .left(16.0f)
+                     .top(16.0f)
+                     .width(r * 2)
+                     .height(r * 2)
+                     .shape(shapes::polygon(20, 9.0f))
+                     .fill(radialGradient(
+                         {r, r * 0.8f}, r * 1.25f,
+                         {sigil::material::withAlpha(bg3::kVellum, 1.0f),
+                          sigil::material::withAlpha(bg3::kGiltDark, 0.55f)}))
+                     .overlay(lines::presets::concentric(bg3::giltDark(0.45f),
+                                                         4, 0.6f))
+                     .overlay(lines::presets::radialHatch(bg3::giltDark(0.3f),
+                                                          20, 0.5f))
+                     .stroke(spans::corners(10.0f, bg3::kCornerAngle),
+                             brush::solid(2.0f, bg3::ink(0.8f)))})
             .cache(Cache::Texture),
         cx - r - 16.0f, cy - r - 16.0f, r * 2 + 32.0f, r * 2 + 32.0f);
   }
@@ -546,11 +565,12 @@ struct Bg3DiceRoll {
     auto yOf = [](float dc) { return kBottom - (dc - 5.0f) / 5.0f * kStep; };
 
     Element g = kit::at(stack(), 0, 0, bg3::kW, bg3::kH);
-    g.children({rule(kX, yOf(30.0f) - 14.0f, 1.2f,
-                     lines::presets::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
-                     kBottom - yOf(30.0f) + 28.0f),
-                label("DC LADDER", kX - 30.0f, yOf(30.0f) - 34.0f, 9.0f,
-                      sigil::material::withAlpha(bg3::kInk, 0.5f), 2.2f, true)});
+    g.children(
+        {rule(kX, yOf(30.0f) - 14.0f, 1.2f,
+              lines::presets::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
+              kBottom - yOf(30.0f) + 28.0f),
+         label("DC LADDER", kX - 30.0f, yOf(30.0f) - 34.0f, 9.0f,
+               sigil::material::withAlpha(bg3::kInk, 0.5f), 2.2f, true)});
 
     for (int dc = 5; dc <= 30; dc += 5) {
       const float y = yOf((float)dc);
@@ -561,7 +581,8 @@ struct Bg3DiceRoll {
                        target ? 2.6f : 1.0f),
                   label(std::to_string(dc), kX + 8.0f, y - 8.0f,
                         target ? 15.0f : 11.5f,
-                        target ? bg3::kInk : sigil::material::withAlpha(bg3::kInk, 0.55f),
+                        target ? bg3::kInk
+                               : sigil::material::withAlpha(bg3::kInk, 0.55f),
                         target ? 1.4f : 0.6f)});
     }
     // The margin actually cleared: DC 15 -> Total 20, five points.
@@ -610,16 +631,17 @@ struct Bg3DiceRoll {
     // ladder and the bezel. The leader running from it down to the discarded
     // die is NOT part of this block — see advantageLeader() below.
     constexpr float kAx2 = 56.0f, kAy2 = 138.0f;
-    g.children({label("ADVANTAGE", kAx2, kAy2, 12.0f,
-                      sigil::material::withAlpha(bg3::kAdvantage, 0.95f), 3.2f),
-                rule(kAx2, kAy2 + 17.0f, 188.0f,
-                     stroke(1.2f, Fill::color(sigil::material::withAlpha(bg3::kAdvantage,
-                                                               0.75f))),
-                     1.2f),
-                label("2d20 keep highest · DiscardedDiceTotal  " +
-                          std::to_string(bg3::kDiscardedDiceTotal),
-                      kAx2, kAy2 + 22.0f, 9.0f,
-                      sigil::material::withAlpha(bg3::kInk, 0.55f), 0.8f, true)});
+    g.children(
+        {label("ADVANTAGE", kAx2, kAy2, 12.0f,
+               sigil::material::withAlpha(bg3::kAdvantage, 0.95f), 3.2f),
+         rule(kAx2, kAy2 + 17.0f, 188.0f,
+              stroke(1.2f, Fill::color(sigil::material::withAlpha(
+                               bg3::kAdvantage, 0.75f))),
+              1.2f),
+         label("2d20 keep highest · DiscardedDiceTotal  " +
+                   std::to_string(bg3::kDiscardedDiceTotal),
+               kAx2, kAy2 + 22.0f, 9.0f,
+               sigil::material::withAlpha(bg3::kInk, 0.55f), 0.8f, true)});
     // The leader to the discarded die is NOT drawn here — see
     // advantageLeader(). Marginalia paints under the roundel, and the rosette
     // is opaque by design, so a leader laid down at this point loses its last
@@ -706,8 +728,8 @@ struct Bg3DiceRoll {
                   return SkPoint{-1.0f + 2.0f * t, -1.0f + 2.0f * t * t};
                 },
                 0.0f, 1.0f, 48))
-            .background(
-                stroke(1.0f, Fill::color(sigil::material::withAlpha(bg3::kInk, 0.32f)))),
+            .background(stroke(1.0f, Fill::color(sigil::material::withAlpha(
+                                         bg3::kInk, 0.32f)))),
         kAx2 + 238.0f, kAy2 + 64.0f, 232.0f, 196.0f);
   }
 
@@ -789,8 +811,8 @@ struct Bg3DiceRoll {
     band.children(
         {label("BALDUR’S GATE 3 · DIALOGUE ABILITY "
                "CHECK, THE INSTANT AFTER THE DIE LANDS",
-               0.0f, 0.0f, 12.0f, sigil::material::withAlpha(bg3::kGilt, 0.92f), 2.8f,
-               true)
+               0.0f, 0.0f, 12.0f, sigil::material::withAlpha(bg3::kGilt, 0.92f),
+               2.8f, true)
              .left(0.0f)
              .top(0.0f)
              .absolute()
@@ -799,8 +821,8 @@ struct Bg3DiceRoll {
          label("Every ordinal and enum name off Norbyte/bg3se's generated Lua "
                "type surface · the modifiers are added AFTER the "
                "natural roll",
-               56.0f, 58.0f, 10.0f, sigil::material::withAlpha(bg3::kInk, 0.46f), 0.6f,
-               true)});
+               56.0f, 58.0f, 10.0f,
+               sigil::material::withAlpha(bg3::kInk, 0.46f), 0.6f, true)});
     return band;
   }
 

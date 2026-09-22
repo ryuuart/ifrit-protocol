@@ -14,13 +14,19 @@ auto SlitScan2001::header() -> Element {
       .font({.face = uiFace()})
       .children(
           {t("TIME AS AN AXIS OF THE IMAGE",
-             {.size = 10, .color = sigil::material::skia::toSkColor(sigil::material::skia::toSkColor(kType)2), .track = 2.6f})
+             {.size = 10,
+              .color = sigil::material::skia::toSkColor(
+                  sigil::material::skia::toSkColor(kType) 2),
+              .track = 2.6f})
                .key("eyebrow")
                .opacity(animate(from(0.0f).to(1.0f), {260ms, ch::easeOutQuad}))
                .translateY(
                    animate(from(8.0f).to(0.0f), {260ms, ch::easeOutQuad})),
            t("THE SLIT-SCAN MACHINE, 1966–68",
-             {.face = uiBoldFace(), .size = 40, .color = sigil::material::skia::toSkColor(kType), .track = 0.4f})
+             {.face = uiBoldFace(),
+              .size = 40,
+              .color = sigil::material::skia::toSkColor(kType),
+              .track = 0.4f})
                .key("title")
                .textStroke(0.6f, Fill::color(kInk))
                .fx(std::move(rise)),
@@ -90,7 +96,8 @@ auto SlitScan2001::filmFrame() -> Element {
 
   auto hud = [&](const std::string& str, float l, float tp, float r, float b,
                  sigil::material::Color col) {
-    Element e = t(str, {.color = sigil::material::skia::toSkColor(col)}).absolute();
+    Element e =
+        t(str, {.color = sigil::material::skia::toSkColor(col)}).absolute();
     if (l >= 0) e.left(l);
     if (r >= 0) e.right(r);
     if (tp >= 0) e.top(tp);
@@ -148,19 +155,23 @@ auto SlitScan2001::filmFrame() -> Element {
                             {t(kit::formatted("MACHINE TIME %lld h %02lld m  @ "
                                               "2880 : 1%s",
                                               mh, mm, everClamped ? "  *" : ""),
-                               {.color = sigil::material::skia::toSkColor(al(kTick, 0.95f))}),
+                               {.color = sigil::material::skia::toSkColor(
+                                    al(kTick, 0.95f))}),
                              t("2.20 : 1 · 65 mm 5-PERF · f/1.8",
-                               {.color = sigil::material::skia::toSkColor(al(kTick, 0.95f))})}),
+                               {.color = sigil::material::skia::toSkColor(
+                                    al(kTick, 0.95f))})}),
                     t("THE FRAME IS HELD, NOT TWEENED. addFixed’s "
                       "INTERPOLANT DRIVES THE SHUTTER BAR AND NOTHING "
                       "IN THE PICTURE.",
-                      {.color = sigil::material::skia::toSkColor(al(kTick, 0.8f))}),
+                      {.color =
+                           sigil::material::skia::toSkColor(al(kTick, 0.8f))}),
                     t("THE SWEEP BEGINS 5 px FROM THE VANISHING POINT = "
                       "15 FEET FROM THE LENS, AND ENDS AT 600 px = 1½ "
                       "INCHES · THE FRAME IS THE SCAN, 120 : 1, DRAWN "
                       "TO ITS OWN SCALE — THE 5 px HOLE AT THE APEX IS "
                       "THAT FAR LIMIT, VISIBLE",
-                      {.color = sigil::material::skia::toSkColor(al(kType2, 0.95f))})})});
+                      {.color = sigil::material::skia::toSkColor(
+                           al(kType2, 0.95f))})})});
 }
 
 auto SlitScan2001::rigStrip() -> Element {
@@ -205,12 +216,17 @@ auto SlitScan2001::rigStrip() -> Element {
                                                          SkBlendMode::kPlus)})
                         .filter(Effect::shader(transfer, {{"k", 2.4f}})),
                     t("THIS EXPOSURE",
-                      {.size = 8, .color = sigil::material::skia::toSkColor(al(kCold, 0.85f)), .track = 1.4f})
+                      {.size = 8,
+                       .color =
+                           sigil::material::skia::toSkColor(al(kCold, 0.85f)),
+                       .track = 1.4f})
                         .at({8, 5}),
                     slot("expo").left(8).bottom(19),
                     t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
                       "[C85]. ×18.",
-                      {.size = 7, .color = sigil::material::skia::toSkColor(al(kTick, 0.95f))})
+                      {.size = 7,
+                       .color =
+                           sigil::material::skia::toSkColor(al(kTick, 0.95f))})
                         .left(8)
                         .bottom(6)}),
            slot("readout").at({20, 130})});

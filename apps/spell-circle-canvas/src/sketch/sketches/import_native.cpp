@@ -201,10 +201,10 @@ struct ImportNative {
   }
 
   void setup(sketch::SetContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = {880, 480},
-                        .captureAt = 0.4,
-                        .background = material::Color{0.02f, 0.024f, 0.036f, 1.0f}});
+    sketch::kit::stage(
+        ctx, {.size = {880, 480},
+              .captureAt = 0.4,
+              .background = material::Color{0.02f, 0.024f, 0.036f, 1.0f}});
     gm::camera::Camera lens;
     lens.eye = kEye;
     lens.target = {0.0f, 0.0f, 0.0f};

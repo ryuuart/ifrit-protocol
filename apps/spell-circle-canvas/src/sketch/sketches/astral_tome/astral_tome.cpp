@@ -63,14 +63,16 @@ struct AstralTome {
             .cache(Cache::Texture)
             .fill(Paint::blend(
                 {{Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-                 {Paint::radialUnit({0.42f, 0.38f}, 0.85f,
-                                    {{0.0f, sigil::material::scale(at::kNebula, 2.2f)},
-                                     {0.5f, at::kNebula},
-                                     {1.0f, {0, 0, 0, 1}}}),
+                 {Paint::radialUnit(
+                      {0.42f, 0.38f}, 0.85f,
+                      {{0.0f, sigil::material::scale(at::kNebula, 2.2f)},
+                       {0.5f, at::kNebula},
+                       {1.0f, {0, 0, 0, 1}}}),
                   SkBlendMode::kPlus},
-                 {Paint::radialUnit({0.78f, 0.74f}, 0.55f,
-                                    {{0.0f, sigil::material::scale(at::kNebula, 1.6f)},
-                                     {1.0f, {0, 0, 0, 0}}}),
+                 {Paint::radialUnit(
+                      {0.78f, 0.74f}, 0.55f,
+                      {{0.0f, sigil::material::scale(at::kNebula, 1.6f)},
+                       {1.0f, {0, 0, 0, 0}}}),
                   SkBlendMode::kPlus}}));
     // The field. Six scatter runs on lissajous routes with a wide normal
     // jitter — a brush, seeded, not a table of hand-placed dots. The measured
@@ -89,12 +91,12 @@ struct AstralTome {
         {9, 8, 15, 88, 0.7f, 0.24f},  {4, 11, 75, 168, 2.1f, 0.75f}};
     for (int i = 0; i < 6; ++i) {
       const Run& r = kRuns[i];
-      Element art =
-          box()
-              .width(1.5f * r.mag)
-              .height(1.5f * r.mag)
-              .shape(shapes::star(4, 0.26f, 0.14f))
-              .fill(Fill::color(sigil::material::scale(at::kFieldStar, 1.0f, r.alpha)));
+      Element art = box()
+                        .width(1.5f * r.mag)
+                        .height(1.5f * r.mag)
+                        .shape(shapes::star(4, 0.26f, 0.14f))
+                        .fill(Fill::color(sigil::material::scale(
+                            at::kFieldStar, 1.0f, r.alpha)));
       p.children({box()
                       .inset(-60)
                       .key(std::string("field") + std::to_string(i))
@@ -236,12 +238,12 @@ struct AstralTome {
     // further and holds more of the light than the glyph does.
     // the glyph
     grp.children(
-        {box().inset(0).fill(
-             Paint::glowUnit({0.5f, 0.5f}, 0.62f,
-                             {{0.0f, sigil::material::scale(col, 1.0f, 0.60f)},
-                              {0.22f, sigil::material::scale(col, 1.0f, 0.30f)},
-                              {0.55f, sigil::material::scale(col, 1.0f, 0.09f)},
-                              {1.0f, sigil::material::scale(col, 1.0f, 0.0f)}})),
+        {box().inset(0).fill(Paint::glowUnit(
+             {0.5f, 0.5f}, 0.62f,
+             {{0.0f, sigil::material::scale(col, 1.0f, 0.60f)},
+              {0.22f, sigil::material::scale(col, 1.0f, 0.30f)},
+              {0.55f, sigil::material::scale(col, 1.0f, 0.09f)},
+              {1.0f, sigil::material::scale(col, 1.0f, 0.0f)}})),
          box()
              .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
              .shape(shapes::star(4, 0.24f, 0.16f))
@@ -276,7 +278,8 @@ struct AstralTome {
             .fill(Paint::linearUnit(
                 {0, 0}, {0, 1}, {{0.0f, at::kOlive}, {1.0f, at::kOliveDim}}))
             .foreground(decorations::border(
-                1.2f, Fill::color(sigil::material::scale(at::kGilt, 1.0f, 0.7f))));
+                1.2f,
+                Fill::color(sigil::material::scale(at::kGilt, 1.0f, 0.7f))));
     if (hovered)
       e.scale(1.1f);
     else

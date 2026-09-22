@@ -99,10 +99,18 @@ constexpr int kTapeHeight = 160;
  *  statement. */
 weave::StyleSheet screenType() {
   weave::StyleSheet sheet;
-  sheet.set("h1", {.size = 22.0f, .color = material::skia::toSkColor(compose::hexColor(0xbfd4ef))});
-  sheet.set("note", {.size = 19.0f, .color = material::skia::toSkColor(compose::hexColor(0x7e93b4))});
-  sheet.set("display", {.size = 46.0f, .color = material::skia::toSkColor(compose::hexColor(0xf2ebdc))});
-  sheet.set("caption", {.size = 20.0f, .color = material::skia::toSkColor(compose::hexColor(0x9eb8d9))});
+  sheet.set("h1",
+            {.size = 22.0f,
+             .color = material::skia::toSkColor(compose::hexColor(0xbfd4ef))});
+  sheet.set("note",
+            {.size = 19.0f,
+             .color = material::skia::toSkColor(compose::hexColor(0x7e93b4))});
+  sheet.set("display",
+            {.size = 46.0f,
+             .color = material::skia::toSkColor(compose::hexColor(0xf2ebdc))});
+  sheet.set("caption",
+            {.size = 20.0f,
+             .color = material::skia::toSkColor(compose::hexColor(0x9eb8d9))});
   return sheet;
 }
 
@@ -110,7 +118,8 @@ weave::StyleSheet screenType() {
  *  on, its air, the aliasing a display's glyphs are set with, and the sheet
  *  its registers are named through. A screen below states its own ground
  *  and its own gap and nothing else about itself. */
-compose::Element screen(float gap, material::Color ground, float padding = 16.0f) {
+compose::Element screen(float gap, material::Color ground,
+                        float padding = 16.0f) {
   return compose::box()
       .width(compose::pct(100))
       .height(compose::pct(100))
@@ -153,8 +162,8 @@ compose::Element trace(float seconds, material::Color accent) {
     return compose::box()
         .width(compose::pct(100))
         .height(44.0f)
-        .fill(
-            material::Color{accent.r * lit, accent.g * lit, accent.b * lit, 1.0f});
+        .fill(material::Color{accent.r * lit, accent.g * lit, accent.b * lit,
+                              1.0f});
   };
   return screen(10.0f, compose::hexColor(0x0f141c))
       .children(
@@ -290,10 +299,10 @@ struct SceneSurfaces {
   gm::Mesh rail;
 
   void setup(sketch::SetContext& ctx) {
-    sketch::kit::stage(ctx,
-                       {.size = {960, 620},
-                        .captureAt = 1.35,
-                        .background = material::Color{0.025f, 0.028f, 0.038f, 1.0f}});
+    sketch::kit::stage(
+        ctx, {.size = {960, 620},
+              .captureAt = 1.35,
+              .background = material::Color{0.025f, 0.028f, 0.038f, 1.0f}});
     for (Screen& card : cards) card.scene = ctx.textureScene({320, 214});
     strip.scene = ctx.textureScene({1024, 128});
     loop.scene = ctx.textureScene({kTapeWidth, kTapeHeight});

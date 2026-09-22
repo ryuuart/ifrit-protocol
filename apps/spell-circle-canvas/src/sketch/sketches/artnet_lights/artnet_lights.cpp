@@ -488,7 +488,8 @@ struct ArtNetLights {
    *  are drawn rather than written because a description carrying a
    *  number that changes every frame is a description rebuilt every
    *  frame. */
-  void rack(Pen& pen, material::Color rule, material::Color figure, material::Color ash) {
+  void rack(Pen& pen, material::Color rule, material::Color figure,
+            material::Color ash) {
     constexpr float kHeight = 120.0f;
     constexpr float kWidth = 22.0f;
     constexpr float kColumnGap = 12.0f;

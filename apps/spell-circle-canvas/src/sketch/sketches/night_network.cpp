@@ -113,10 +113,10 @@ inline Element station(const char* key, float x, float y, float size = 16) {
       .width(size)
       .height(size)
       .centerAt({x, y})
-      .fill(Paint::recipe(
-          sdf::material(sdf::circle(), {.fill = material::skia::toSkColor(kBone),
-                                        .borderWidth = 2.5f,
-                                        .borderColor = material::skia::toSkColor(kInk)})))
+      .fill(Paint::recipe(sdf::material(
+          sdf::circle(), {.fill = material::skia::toSkColor(kBone),
+                          .borderWidth = 2.5f,
+                          .borderColor = material::skia::toSkColor(kInk)})))
       .zIndex(6);
 }
 
@@ -369,12 +369,13 @@ struct NightNetwork {
             .height(72)
             .centerAt({436, 320})
             .fill(Paint::recipe(
-                      sdf::material(sdf::star(8, 3.2f),
-                                    {.fill = material::skia::toSkColor(nn::kBone),
-                                     .borderWidth = 2,
-                                     .borderColor = material::skia::toSkColor(nn::kInk),
-                                     .glowRadius = 6,
-                                     .glowColor = material::skia::toSkColor(nn::kEmber)}))
+                      sdf::material(
+                          sdf::star(8, 3.2f),
+                          {.fill = material::skia::toSkColor(nn::kBone),
+                           .borderWidth = 2,
+                           .borderColor = material::skia::toSkColor(nn::kInk),
+                           .glowRadius = 6,
+                           .glowColor = material::skia::toSkColor(nn::kEmber)}))
                       .uniform("uGlowR", &hubGlow))
             .zIndex(7);
 

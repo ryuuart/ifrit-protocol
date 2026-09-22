@@ -80,15 +80,19 @@ constexpr material::Color kSelected =
     hexColor(0xFCFC7C);  // _colorTable[32747], req #F8F858
 constexpr material::Color kInactive =
     hexColor(0x183018);  // _colorTable[1313],  req #084808
-constexpr material::Color kTagged = hexColor(0xA0A0A0);  // _colorTable[21140], exact
+constexpr material::Color kTagged =
+    hexColor(0xA0A0A0);  // _colorTable[21140], exact
 constexpr material::Color kGold =
     hexColor(0x907824);  // _colorTable[18979], req #908818
 constexpr material::Color kGoldDim = hexColor(0x7C6818);  // engraving shadow
-constexpr material::Color kInk = hexColor(0x000000);  // ALL card text and its rule
+constexpr material::Color kInk =
+    hexColor(0x000000);  // ALL card text and its rule
 
-constexpr material::Color kWell = hexColor(0x040C00);   // inset interior: near-black,
-                                                  // GREEN-cast, not pure black
-constexpr material::Color kPlate = hexColor(0x383020);  // metal plate, base olive
+constexpr material::Color kWell =
+    hexColor(0x040C00);  // inset interior: near-black,
+                         // GREEN-cast, not pure black
+constexpr material::Color kPlate =
+    hexColor(0x383020);  // metal plate, base olive
 constexpr material::Color kPlateLit = hexColor(0x483828);   // lit facet
 constexpr material::Color kPlateDark = hexColor(0x302820);  // shadowed facet
 constexpr material::Color kRust = hexColor(0x7C581C);
@@ -99,9 +103,10 @@ constexpr material::Color kParchDark = hexColor(0x8C6428);
 constexpr material::Color kParchScuff = hexColor(0x947C60);
 constexpr material::Color kLampOff = hexColor(0x580000);
 constexpr material::Color kLampOn = hexColor(0xF80000);  // _colorTable[31744]
-constexpr material::Color kDigit = hexColor(0xFFFFFF);  // the odometer sprite sheet's
-                                                  // first half (the second half
-                                                  // is red, for stats above 10)
+constexpr material::Color kDigit =
+    hexColor(0xFFFFFF);  // the odometer sprite sheet's
+                         // first half (the second half
+                         // is red, for stats above 10)
 
 // ---------------------------------------------------------------------------
 // GEOMETRY. Source tag: (code) = character_editor.cc; (measured) = scanned off

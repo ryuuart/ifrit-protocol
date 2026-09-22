@@ -122,7 +122,8 @@ float4 fsCover(VSOut input) : SV_Target { return surface(input.uv); }
 weave::TextStyle mono(float size, material::Color color) {
   const sk_sp<SkTypeface> face =
       weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = material::skia::toSkColor(color)});
+  return weave::textStyle(
+      {.face = face, .size = size, .color = material::skia::toSkColor(color)});
 }
 
 /** A readout cell: a block of monospaced text in the plate, which is

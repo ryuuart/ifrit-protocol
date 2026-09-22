@@ -287,7 +287,8 @@ struct GenesisFire {
 
   Element rampPanel();
 
-  Element benchCell(Element content, const Utf8& caption, sigil::material::Color cc);
+  Element benchCell(Element content, const Utf8& caption,
+                    sigil::material::Color cc);
 
   /** The bench's third cell is EMPTY in the tree: the pen draws the quads
    *  into it afterwards, at the cell's own box, because those quads are

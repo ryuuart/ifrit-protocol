@@ -94,7 +94,10 @@ sk_sp<SkTypeface> grotesque() {
 
 /** A caption line: a partial over what the cell inherits. */
 weave::Type label(float size, material::Color colour, float track) {
-  return {.face = grotesque(), .size = size, .color = material::skia::toSkColor(colour), .track = track};
+  return {.face = grotesque(),
+          .size = size,
+          .color = material::skia::toSkColor(colour),
+          .track = track};
 }
 
 /** The one voice both chains are captioned in: the measure named over the
@@ -222,7 +225,9 @@ struct ThreadedStory {
                  .gap(5)
                  .children(
                      {document::h1("ONE STORY, THREE FRAMES, TWICE")
-                          .font({.size = 11, .color = material::skia::toSkColor(s::kInk), .track = 3.4f}),
+                          .font({.size = 11,
+                                 .color = material::skia::toSkColor(s::kInk),
+                                 .track = 3.4f}),
                       document::lead(
                           "the cut is a word index — the "
                           "remainder the frame before reported — so a "
