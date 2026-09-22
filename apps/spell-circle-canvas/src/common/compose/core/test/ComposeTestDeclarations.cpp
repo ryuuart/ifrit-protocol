@@ -281,3 +281,37 @@ TEST(ComposeDeclarations, ASizeAfterCoverPutsTheNodeBackInTheFlowUndeclared) {
   host.frame();
   EXPECT_FLOAT_EQ(require(host.composer.bounds("pinned")).fLeft, 8.0f);
 }
+
+TEST(ComposeDeclarations, AnInheritedPropertyThatMovedBehindAPruneEases) {
+  // The child's description is the SAME in both frames — one keyword and
+  // one transition — so it never reaches the patch, and the patch is
+  // where a lane used to be retargeted. Its fill still moves, because the
+  // answer it takes from above moved, and a property that moved eases
+  // wherever the movement was found.
+  Host host(200, 200);
+  const auto tree = [](material::Color fill) {
+    return box().fill(Fill::color(fill)).children({box()
+                                                       .key("child")
+                                                       .width(40)
+                                                       .height(40)
+                                                       .inherit(Property::Fill)
+                                                       .transition({
+                                                           .duration = 200ms,
+                                                       })});
+  };
+  host.composer.render(tree({1, 0, 0, 1}));
+  host.frame();
+  ASSERT_EQ(host.pixel(20, 20), SK_ColorRED);
+  host.composer.render(tree({0, 0, 1, 1}));
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorRED)
+      << "the lane has begun and stands at the colour it begins at";
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLUE)
+      << "the node that STATED the fill has no transition and snapped";
+  host.frame(0.1);
+  const SkColor mid = host.pixel(20, 20);
+  EXPECT_NE(mid, SK_ColorRED);
+  EXPECT_NE(mid, SK_ColorBLUE);
+  host.frame(0.3);
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorBLUE);
+}

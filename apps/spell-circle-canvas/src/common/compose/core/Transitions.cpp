@@ -252,15 +252,14 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev) {
   }
 }
 
-void Composer::Impl::retargetInk(Instance& inst,
-                                 const std::optional<SkColor4f>& resolved,
-                                 const std::optional<motion::Transition>&
-                                     nodeTransition,
-                                 bool recordOnly) {
+void Composer::Impl::retargetInk(
+    Instance& inst, const std::optional<SkColor4f>& resolved,
+    const std::optional<motion::Transition>& nodeTransition, bool recordOnly) {
   const std::optional<material::Color> previous = inst.inkTarget;
-  inst.inkTarget = resolved ? std::optional<material::Color>(
-                                  material::skia::toColor(*resolved))
-                            : std::nullopt;
+  inst.inkTarget =
+      resolved
+          ? std::optional<material::Color>(material::skia::toColor(*resolved))
+          : std::nullopt;
   auto& anim = inst.anims[Instance::kInkLerp];
   // RECORDED AND NOTHING ELSE, for the two nodes with nothing to ease: one
   // resolving its first colour, which has no previous target, and one

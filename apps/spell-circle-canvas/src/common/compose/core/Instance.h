@@ -324,7 +324,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
-  Fill fillFrom, fillTo;             // endpoints for kFillLerp
+  Fill fillFrom, fillTo;  // endpoints for kFillLerp
   material::Color inkFrom{0, 0, 0, 1};  // where kInkLerp started
   // THE INK TARGET IN FORCE, as the cascade pass last resolved it: the
   // colour kInkLerp is headed for, and the one a freshly resolved colour
