@@ -251,11 +251,18 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   std::vector<InkRange> inheritedInkRanges;
 
   // WHAT THE ADDING OPERATORS BUILT UNDER THIS NODE, kept from the last
-  // time they ran: the elements reconciled beside the authored children,
-  // after them, out of their flow. The reconciler reads them through the
-  // host's children() beside the description's own list, so one pass
-  // mounts, patches and retires both.
-  std::vector<Element> additions;
+  // time they ran, one slice per SCOPE that attached here: a node can be
+  // attached to by its own operators and by every scope above it, and
+  // each scope's pass replaces only its own slice. `addedChildren` is
+  // the slices flattened in slice order — what the reconciler reads
+  // through the host's children() beside the description's own list, so
+  // one pass mounts, patches and retires both.
+  struct AdditionSlice {
+    Instance* source = nullptr;
+    std::vector<Element> elements;
+  };
+  std::vector<AdditionSlice> additions;
+  std::vector<Element> addedChildren;
 
   // Transition state, keyed by property slot
   // The FIXED property slots — one per property every node can carry, so the

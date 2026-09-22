@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "ComposeRuntime.h"
@@ -89,14 +90,41 @@ void Composer::Impl::collectScope(Instance& from, SkPoint origin, Scope& scope,
 
 bool Composer::Impl::phaseAdditions() {
   bool changed = false;
-  std::vector<Instance*> touched;
-  const auto settle = [&](Instance& owner, std::vector<Element> list) {
-    touched.push_back(&owner);
-    if (listsEqual(owner.additions, list)) return;
-    owner.additions = std::move(list);
+  // Which (owner, source) slices this pass wrote, so a slice a scope no
+  // longer attaches to is retired rather than left standing.
+  std::vector<std::pair<Instance*, Instance*>> touched;
+  const auto flatten = [](Instance& owner) {
+    owner.addedChildren.clear();
+    for (const Instance::AdditionSlice& slice : owner.additions)
+      owner.addedChildren.insert(owner.addedChildren.end(),
+                                 slice.elements.begin(), slice.elements.end());
+  };
+  const auto remount = [&](Instance& owner) {
+    flatten(owner);
     reconciler.patchChildren(owner, children(owner, owner.description));
     owner.markPaintDirtyUp();
     changed = true;
+  };
+  // ONE SCOPE'S SLICE OF ONE OWNER: replaced when it differs, left alone
+  // when it is the same list, so a node attached to by its own operators
+  // and by a scope above it keeps both.
+  const auto settle = [&](Instance& owner, Instance& source,
+                          std::vector<Element> list) {
+    touched.emplace_back(&owner, &source);
+    auto slice = std::find_if(
+        owner.additions.begin(), owner.additions.end(),
+        [&](const Instance::AdditionSlice& s) { return s.source == &source; });
+    if (slice == owner.additions.end()) {
+      if (list.empty()) return;
+      owner.additions.push_back({&source, std::move(list)});
+    } else {
+      if (listsEqual(slice->elements, list)) return;
+      if (list.empty())
+        owner.additions.erase(slice);
+      else
+        slice->elements = std::move(list);
+    }
+    remount(owner);
   };
   for (Instance* inst : addingInstances) {
     const OperatorData& operators = *inst->description->operatorData;
@@ -131,13 +159,23 @@ bool Composer::Impl::phaseAdditions() {
         lists[owner].push_back(std::move(element));
       }
     }
-    for (auto& [owner, list] : lists) settle(*owner, std::move(list));
+    for (auto& [owner, list] : lists) settle(*owner, *inst, std::move(list));
   }
-  // An owner nothing attached to this pass keeps nothing from the last.
+  // A slice no scope wrote this pass — its scope stopped attaching, or
+  // stopped applying operators at all — keeps nothing from the last.
   const std::vector<Instance*> owners = additionOwners;
-  for (Instance* owner : owners)
-    if (std::find(touched.begin(), touched.end(), owner) == touched.end())
-      settle(*owner, {});
+  for (Instance* owner : owners) {
+    bool retired = false;
+    std::erase_if(owner->additions, [&](const Instance::AdditionSlice& slice) {
+      const bool written =
+          std::find(touched.begin(), touched.end(),
+                    std::pair<Instance*, Instance*>(owner, slice.source)) !=
+          touched.end();
+      if (!written) retired = true;
+      return !written;
+    });
+    if (retired) remount(*owner);
+  }
   if (changed) {
     // What was mounted inherits from where it stands and is indexed by
     // key like anything else; the layout runs again with it standing.

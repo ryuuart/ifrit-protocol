@@ -421,6 +421,29 @@ TEST(ComposeOperators, ANestedScopeIsOneNodeFromOutside) {
   EXPECT_TRUE(host.composer.bounds("outer->panel").has_value());
 }
 
+TEST(ComposeOperators, TwoScopesAttachingToOneNodeKeepBothTheirSlices) {
+  // The inner box applies MarkEach to its own children and the outer box
+  // applies MarkEach over its scope, where the inner box is one node: the
+  // inner box carries a mark from each scope, and the inner child its
+  // own, every frame.
+  Host host;
+  auto tree = [] {
+    return box().width(200).height(200)
+        .children({box().key("inner").left(50).top(50).width(100).height(100)
+                       .operators({MarkEach{.size = 4}})
+                       .children({box().key("leaf").left(20).top(20).width(10)
+                                      .height(10)})})
+        .operators({MarkEach{.size = 8}});
+  };
+  host.composer.render(tree());
+  host.frame();
+  host.frame();  // a second frame reruns the passes; nothing is clobbered
+  EXPECT_TRUE(host.composer.bounds("inner-mark").has_value());
+  EXPECT_TRUE(host.composer.bounds("leaf-mark").has_value());
+  EXPECT_NEAR(host.composer.bounds("inner-mark")->width(), 8, 0.5f);
+  EXPECT_NEAR(host.composer.bounds("leaf-mark")->width(), 4, 0.5f);
+}
+
 TEST(ComposeOperators, AnOperatorWithNoEqualityNeverPrunes) {
   struct Opaque {
     void arrange(Arrangement&) const {}

@@ -107,7 +107,7 @@ void Composer::Impl::rebuildKeyIndex() {
           }
         }
       }
-      if (!inst.additions.empty()) additionOwners.push_back(&inst);
+      if (!inst.addedChildren.empty()) additionOwners.push_back(&inst);
       if (node.kind == Kind::Text && node.textData && node.textData->onPath &&
           !node.textData->marks.empty())
         pathMarkInstances.push_back(&inst);

@@ -404,7 +404,7 @@ struct Composer::Impl {
   };
   static ChildRange children(const detail::Instance& inst,
                              const Description& description) {
-    return {&description->children, &inst.additions};
+    return {&description->children, &inst.addedChildren};
   }
   static const Description& descriptionOf(const Element& child) {
     return child.node();
