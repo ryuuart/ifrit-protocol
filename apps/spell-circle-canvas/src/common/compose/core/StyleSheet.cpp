@@ -57,14 +57,19 @@ Rule& Rule::ink(SurfacePaint paint, PaintAnchor anchor) {
       paint.writtenAsPaint() ? std::nullopt : paint.collapsedFill();
   if (flat && flat->kind == Fill::Kind::Color && !flat->references())
     return ink(flat->colorValue);
+  if (paint.none()) {
+    m_statesInk = true;
+    m_inkPaint.reset();
+    m_inkAnchor = anchor;
+    return *this;
+  }
+  // Nothing is written until there is something to write, so a fill the
+  // slot cannot hold leaves a standing paint where it is.
+  std::optional<material::skia::Paint> stored = paint.collapsedPaint();
+  if (!stored) return *this;
   m_statesInk = true;
-  m_inkPaint.reset();
+  m_inkPaint = std::move(stored);
   m_inkAnchor = anchor;
-  if (paint.none()) return *this;
-  if (std::optional<material::skia::Paint> stored = paint.collapsedPaint())
-    m_inkPaint = std::move(stored);
-  else
-    m_statesInk = false;
   return *this;
 }
 
@@ -85,7 +90,9 @@ Rule rule(ElementSelector subject) { return Rule(std::move(subject)); }
 // ---------------------------------------------------------------------------
 // A sheet
 
-StyleSheet::Statement::Statement(Rule one) { m_rules.push_back(std::move(one)); }
+StyleSheet::Statement::Statement(Rule one) {
+  m_rules.push_back(std::move(one));
+}
 
 StyleSheet::Statement::Statement(const StyleSheet& included)
     : m_rules(included.rules()) {}
@@ -93,7 +100,8 @@ StyleSheet::Statement::Statement(const StyleSheet& included)
 StyleSheet::StyleSheet(std::initializer_list<Statement> statements) {
   std::vector<Rule> flat;
   size_t total = 0;
-  for (const Statement& statement : statements) total += statement.rules().size();
+  for (const Statement& statement : statements)
+    total += statement.rules().size();
   if (total == 0) return;
   flat.reserve(total);
   for (const Statement& statement : statements)

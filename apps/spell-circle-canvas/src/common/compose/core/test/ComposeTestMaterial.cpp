@@ -858,13 +858,20 @@ TEST(ComposeMaterial, AFillOnTheContentBoxStartsInsideThePadding) {
   inset.composer.render(page(BackgroundOrigin::ContentBox));
   whole.frame();
   inset.frame();
-  // Both painted the same 100x40 box.
+  // Both painted the same 100x40 box: the origin moves where the paint
+  // begins and never what is covered.
   EXPECT_GT(SkColorGetA(whole.pixel(2, 20)), 200u);
   EXPECT_GT(SkColorGetA(inset.pixel(2, 20)), 200u);
-  // The inset ramp is 60 wide and begins 20 in, so at x=70 it is already
-  // past its end and clamped to blue while the whole-box one is not.
-  EXPECT_GT(SkColorGetB(inset.pixel(70, 20)),
-            SkColorGetB(whole.pixel(70, 20)) + 40u);
+  EXPECT_GT(SkColorGetA(whole.pixel(98, 20)), 200u);
+  EXPECT_GT(SkColorGetA(inset.pixel(98, 20)), 200u);
+  // The inset ramp is narrower and starts further in, so the two pictures
+  // differ: where the whole-box one is still climbing, the inset one has
+  // reached its end and is clamped.
+  EXPECT_FALSE(identicalPixels(whole, inset, 120, 60));
+  EXPECT_GE(SkColorGetB(inset.pixel(82, 20)),
+            SkColorGetB(inset.pixel(98, 20)));
+  EXPECT_LT(SkColorGetB(whole.pixel(82, 20)),
+            SkColorGetB(whole.pixel(98, 20)));
 }
 
 TEST(ComposeMaterial, APaddingBoxFillNamesTheSameRectangleABorderBoxOneDoes) {

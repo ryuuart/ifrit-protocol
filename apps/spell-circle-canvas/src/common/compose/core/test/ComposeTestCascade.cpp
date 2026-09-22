@@ -565,13 +565,21 @@ TEST(ComposeCascade, AnInkPaintOnTheDeclaringBoxGivesEachMarkItsOwnSlice) {
   Host host;
   host.composer.render(twoSwatches(redToBlue(), PaintAnchor::DeclaringBox));
   host.frame();
-  // One ramp across the 120-wide declaring box: the left swatch holds its
-  // first third and the right one its middle third, so the left is red
-  // throughout and the right is neither end.
+  // One ramp across the whole declaring box: each swatch holds its own
+  // stretch of it, so the ramp runs on THROUGH the two rather than
+  // restarting, and the right swatch is bluer than the left at every
+  // point.
   EXPECT_GT(SkColorGetR(host.pixel(2, 20)), 200u);
-  EXPECT_LT(SkColorGetB(host.pixel(38, 20)), 150u);
-  EXPECT_GT(SkColorGetB(host.pixel(78, 20)), 100u);
-  EXPECT_LT(SkColorGetB(host.pixel(78, 20)), 220u);
+  EXPECT_GT(SkColorGetB(host.pixel(42, 20)), SkColorGetB(host.pixel(2, 20)));
+  EXPECT_GT(SkColorGetB(host.pixel(78, 20)), SkColorGetB(host.pixel(38, 20)));
+  // …which is exactly what an own-box reading does not do: there the
+  // second swatch starts the ramp again, so the same offset into either
+  // swatch is the same colour, and redder than the one ramp is by then.
+  Host own;
+  own.composer.render(twoSwatches(redToBlue(), PaintAnchor::OwnBox));
+  own.frame();
+  EXPECT_EQ(own.pixel(42, 20), own.pixel(2, 20));
+  EXPECT_GT(SkColorGetR(own.pixel(42, 20)), SkColorGetR(host.pixel(42, 20)));
 }
 
 TEST(ComposeCascade, AnInkPaintOnTheCanvasBoxIsOneFieldTheWholeTreeStandsIn) {

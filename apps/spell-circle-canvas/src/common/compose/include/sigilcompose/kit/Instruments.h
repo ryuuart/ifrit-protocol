@@ -134,7 +134,10 @@ struct MeterPlacement {
  *  glyph stroke so the ghost reads as one flat colour. */
 [[nodiscard]] inline Element restGhost(Text moving, material::Color colour) {
   Text ghost = moving.atRest();
-  ghost.ink(colour)
+  // The ink is written as a PAINT and not as a colour: an ink colour is
+  // the inherited lane, which a leaf's own style overrides, and the ghost
+  // has to read in @p colour whatever that style paints.
+  ghost.ink(material::skia::Paint::solid(colour))
       .textStroke(0.0f, Fill{})
       // Pinned at the origin so the two copies share one origin, and
       // absolute so the MOVING copy is what sizes the box around them.

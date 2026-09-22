@@ -116,7 +116,8 @@ Fill resolveInk(const material::skia::Paint& paint, const PaintContext& ctx) {
   frame.toRoot = ctx.inkAnchorToRoot;
   material::skia::Paint anchored = paint;
   anchored.worldSpace(true);
-  if (sk_sp<SkShader> s = anchored.shaderFor(frame)) return Fill::shader(std::move(s));
+  if (sk_sp<SkShader> shader = anchored.shaderFor(frame))
+    return Fill::shader(std::move(shader));
   return Fill::none();
 }
 
@@ -126,8 +127,8 @@ Fill resolveFill(const material::skia::Paint& paint, const PaintContext& ctx) {
   // the shader path entirely.
   if (paint.isSolid()) return Fill::color(paint.solidColor());
   if (paint.isNone()) return Fill::none();
-  if (sk_sp<SkShader> s = paint.shaderFor(frameOf(ctx)))
-    return Fill::shader(std::move(s));
+  if (sk_sp<SkShader> shader = paint.shaderFor(frameOf(ctx)))
+    return Fill::shader(std::move(shader));
   return Fill::none();
 }
 

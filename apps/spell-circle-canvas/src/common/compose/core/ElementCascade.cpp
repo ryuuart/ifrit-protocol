@@ -71,19 +71,24 @@ Derived& CascadeVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor) {
       paint.writtenAsPaint() ? std::nullopt : paint.collapsedFill();
   if (flat && flat->kind == Fill::Kind::Color && !flat->references())
     return ink(flat->colorValue);
-  cascade.statesInk = true;
-  cascade.inkPaint.reset();
-  cascade.inkAnchor = anchor;
   // An empty paint STATES the lane and holds nothing, which clears an
-  // ancestor's paint and leaves the colour in force standing. A fill the
-  // slot cannot hold — a live binding, the ink in force, a custom
-  // property — leaves the ink where it was: a reference to the ink is
-  // the ink, and a bound fill has no paint to inherit.
-  if (paint.none()) return self();
-  if (std::optional<material::skia::Paint> stored = paint.collapsedPaint())
-    cascade.inkPaint = std::move(stored);
-  else
-    cascade.statesInk = false;
+  // ancestor's paint and leaves the colour in force standing.
+  if (paint.none()) {
+    cascade.statesInk = true;
+    cascade.inkPaint.reset();
+    cascade.inkAnchor = anchor;
+    return self();
+  }
+  // A fill the slot cannot hold — a live binding, the ink in force, a
+  // custom property — leaves the ink exactly where it was, paint
+  // included: a reference to the ink IS the ink, and a bound fill has no
+  // paint to inherit. Nothing is written until there is something to
+  // write, so a standing paint survives the asking.
+  std::optional<material::skia::Paint> stored = paint.collapsedPaint();
+  if (!stored) return self();
+  cascade.statesInk = true;
+  cascade.inkPaint = std::move(stored);
+  cascade.inkAnchor = anchor;
   return self();
 }
 

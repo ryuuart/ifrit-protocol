@@ -431,12 +431,12 @@ TEST(ComposeText, AGlyphOutlineTakesTheInkWhenAPaintHasNoOneColour) {
   EXPECT_GT(green, 200) << "the outline painted something other than the ink";
 }
 
-TEST(ComposeText, AGlyphPaintTheSlotCannotStoreLeavesTheOneItHas) {
+TEST(ComposeText, AnInkPaintTheSlotCannotStoreLeavesTheOneItHas) {
   // A reference is not a paint: it reads the ink in force where it
-  // lands, and a glyph paint is stored as one paint resolved without the
+  // lands, and an ink paint is stored as one paint resolved without the
   // tree. Writing one over a ramp must therefore leave the ramp alone —
   // blanking it would repaint the letters in a colour nobody named,
-  // while an EMPTY paint is how the override is meant to be cleared.
+  // while an EMPTY paint is how the paint is meant to be cleared.
   const auto ramp = material::skia::Paint::linearUnit(
       {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   auto rampedPixels = [&](SurfacePaint after) {
