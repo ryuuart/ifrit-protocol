@@ -73,6 +73,20 @@ is placed.
 | [`gridArea`](pages/verbs/gridArea.md) | Which NAMED region of the scheme above it this child claims. |
 | `gridCellAlign` | Where the child sits inside the cell box its span makes. |
 
+## Facts and operators
+
+What a node states about itself for whoever reads it, and what it runs
+over its own children. A fact is inert until an operator or a scheme on
+the parent reads it; an operator is a comparable value applied here,
+arranging the children during layout or adding elements once it has
+settled.
+
+| Verb | What it says |
+|---|---|
+| [`attribute`](pages/verbs/attribute.md) | A typed fact under a name, read back in the type it was written in. |
+| `attributes` | A whole table of facts laid over the node's own, same names replaced. |
+| [`operators`](pages/verbs/operators.md) | The operators run over the children, in list order: arranging first, adding after layout settles. |
+
 ## Size and spacing
 
 What a node asks to be, and the air around and inside it. Every length

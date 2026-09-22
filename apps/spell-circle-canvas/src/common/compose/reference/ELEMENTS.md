@@ -34,6 +34,7 @@ its own; nothing on this page needs it.
 | [`box`](pages/elements/box.md) | A flex container, and a leaf when it has no children. | Laid out in a row or a column. |
 | [`stack`](pages/elements/stack.md) | An overlap container: every child shares the box. | Absolute, painted in zIndex then declaration order. |
 | `positioned` | A container whose children carry their own rects and skip flexbox entirely. | Placed by their own insets, Yoga-free. |
+| [`point`](pages/elements/point.md) | A node with no extent that carries a key and facts and draws nothing. | None; it is out of the flow and out of hit testing. |
 | [`text`](pages/elements/text.md) | A text leaf, in four content forms, as a `Text`. | Its marks and its slot mounts. |
 | `frame` | One frame of a story, as a `Text`, which `key` names and `textThreadTo` links to the next. | The same. |
 | [`image`](pages/elements/image.md) | An image asset, or a picture already rendered under one of three fits, as an `Image`. | None. |
@@ -91,8 +92,8 @@ content.
 
 ## Where they live
 
-- `core/Factories.h` — `box`, `stack`, `positioned`, `text`, `frame`,
-  `image`, `picture`, `pathFigure`, `custom`, `layout`, `slot`, `memo`
+- `core/Factories.h` — `box`, `stack`, `positioned`, `point`, `text`,
+  `frame`, `image`, `picture`, `pathFigure`, `custom`, `layout`, `slot`, `memo`
   and `each`; the fit a picture meets its box under is
   `material::skia::Fit`.
 - `core/Derive.h` — `connector`, `rail` and `band`, with the `Anchor` a
