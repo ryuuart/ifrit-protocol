@@ -20,6 +20,7 @@
 
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/style/Type.h>
@@ -57,7 +58,7 @@ struct DeviceImportProbe {
             .justifyContent(Justify::Center)
             .children({text(
                 imported ? u8"imported" : u8"no device",
-                weave::textStyle({.size = 22, .color = hexColor(0xd8e2f0)}))}));
+                weave::textStyle({.size = 22, .color = sigil::material::skia::toSkColor(hexColor(0xd8e2f0))}))}));
   }
 };
 
