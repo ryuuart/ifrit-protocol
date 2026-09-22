@@ -37,7 +37,8 @@ sigil_library(SigilGeometryPath
           Neighbours.h
           Noise.h Numeric.h Operations.h Polyline.h Pose.h Profile.h Projection.h
           Scatter.h
-          Segments.h Shaper.h Skia.h Stride.h Symmetry.h Tidy.h Trace.h
+          Segments.h Shaper.h Skia.h Stride.h Stroke.h StrokeSkia.h
+          Symmetry.h Tidy.h Trace.h
           Triangulate.h
   PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute
   # Boost's hash map buckets the nodes two of these files join strands by,

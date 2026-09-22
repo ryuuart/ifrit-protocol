@@ -87,7 +87,10 @@ Every signature in the library speaks glm — `glm::vec2` for a point on a
 path as much as `glm::vec3` for a vertex — and Skia types appear only
 where the object *is* a Skia path, image, canvas or paint. `path/Skia.h`
 holds the two conversions, `toSk()` and `fromSk()`, so a caller drawing
-a result never spells the swizzle itself.
+a result never spells the swizzle itself. A DECISION a drawing makes is
+not a Skia type either: `path/Stroke.h` owns `Join` and `Cap`, the words
+an offset, a set of mitred strips and a stroke over an outline all
+state, and `path/StrokeSkia.h` carries them onto a paint.
 
 ## Using it
 

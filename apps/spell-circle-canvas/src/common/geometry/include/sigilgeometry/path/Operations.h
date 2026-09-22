@@ -27,6 +27,8 @@
 #include <span>
 #include <vector>
 
+#include "sigilgeometry/path/Stroke.h"
+
 /** THE PATHFINDER PANEL AND THE DISTORT MENU, as values: the booleans
  *  over two outlines, the self-intersection cleanup and the stroke
  *  expansion beside them, the corner treatments over a polyline, and the
@@ -67,11 +69,6 @@ SkPath unite(R&& paths) {
 /** Resolve self-intersections and redundant winding into a clean
  *  even-odd-equivalent outline (Pathfinder's Merge, roughly). */
 SkPath simplify(const SkPath& path);
-
-/** How two pieces of an offset mark meet at a corner. */
-enum class Join : uint8_t { Round, Miter, Bevel };
-/** How an offset mark ends where the source has an end. */
-enum class Cap : uint8_t { Butt, Round, Square };
 
 /** THE DIALS OF ONE OFFSET. `position` is what makes this a single
  *  operator rather than a family, and it is CONTINUOUS: 0 is the single

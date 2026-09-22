@@ -158,7 +158,7 @@ TEST(StripJoinery, TheMitreLimitBluntsANeedleAndBevelStopsEveryPointShort) {
   EXPECT_NEAR(nearest, 3.0f * 5.0f, 1e-2f);
 
   const std::vector<glm::vec2> bevelled = cornersOf(
-      operations::stripOutlines(needle, {.join = operations::Join::Bevel})[0]);
+      operations::stripOutlines(needle, {.join = Join::Bevel})[0]);
   for (glm::vec2 p : bevelled)
     if (std::hypot(p.x, p.y) < 50.0f)
       EXPECT_NEAR(std::hypot(p.x, p.y), 5.0f, 1e-2f);
@@ -167,7 +167,7 @@ TEST(StripJoinery, TheMitreLimitBluntsANeedleAndBevelStopsEveryPointShort) {
 TEST(StripJoinery, ARoundJoinFinishesEachEndWithAnArcOfItsOwnHalfWidth) {
   const Strip alone[1] = {{{0, 0}, {50, 0}, 20}};
   const SkPath outline =
-      operations::stripOutlines(alone, {.join = operations::Join::Round})[0];
+      operations::stripOutlines(alone, {.join = Join::Round})[0];
   // A rectangle with a half-disc on either end: the arc stands its own
   // half-width past each node and nowhere else.
   const SkRect box = outline.getBounds();

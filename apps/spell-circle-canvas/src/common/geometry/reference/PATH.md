@@ -310,6 +310,16 @@ in no header.
   focus in the middle of the ellipse has said something false.
 - **`path/Skia.h`** — `toSk()` and `fromSk()` between `glm::vec2` and
   `SkPoint`, and `centre()` of an `SkRect`.
+- **`path/Stroke.h`** — the two words every widened mark decides:
+  `Join` (`Round`, `Miter`, `Bevel`) at a corner and `Cap` (`Butt`,
+  `Round`, `Square`) at an end. They are the library's, not a drawing
+  library's: the offset that straddles a contour, the joinery that cuts
+  a set of strips and a stroke laid over an outline all state the same
+  two things, so a consumer says which it wants without naming a paint.
+- **`path/StrokeSkia.h`** — `toSk()` from either of those onto
+  `SkPaint`'s nested enumerations, for the moment a paint is filled in.
+  It is a header of its own because naming `SkPaint::Join` needs the
+  paint's definition.
 - **`path/Edges.h`** — narrowing an outline before something is drawn on
   it. `Edge` and `has()`, `edges()` (the sub-contours facing chosen box
   edges, classified against the bounds centre and cut by bisection at

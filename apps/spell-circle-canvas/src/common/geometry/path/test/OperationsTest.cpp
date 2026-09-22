@@ -248,12 +248,12 @@ TEST(PathOffset, StraddlingTheSourceIsTheStrokeExpansionItReplaces) {
 TEST(PathOffset, TheMitredButtJoinedOffsetIsTheConcentricFrameItReplaces) {
   for (const SkPath& source : {SkPath::Circle(0, 0, 50), star()}) {
     EXPECT_TRUE(operations::offset(source, -6.0f,
-                                   {.join = operations::Join::Miter,
-                                    .cap = operations::Cap::Butt}) ==
+                                   {.join = Join::Miter,
+                                    .cap = Cap::Butt}) ==
                 operations::simplify(mitredInset(source, 6.0f)));
     EXPECT_TRUE(operations::offset(source, 6.0f,
-                                   {.join = operations::Join::Miter,
-                                    .cap = operations::Cap::Butt}) ==
+                                   {.join = Join::Miter,
+                                    .cap = Cap::Butt}) ==
                 mitredInset(source, -6.0f));
   }
 }
@@ -270,9 +270,9 @@ TEST(PathOffset, EitherEndOfThePositionDialIsTheParallelWalk) {
 
 TEST(PathOffset, ARectangleGrowsByTheDistanceOnEveryAxisForEveryJoin) {
   const SkPath source = rect(0, 0, 100, 60);
-  for (const operations::Join join :
-       {operations::Join::Round, operations::Join::Miter,
-        operations::Join::Bevel}) {
+  for (const Join join :
+       {Join::Round, Join::Miter,
+        Join::Bevel}) {
     const SkRect grown =
         operations::offset(source, 10.0f, {.join = join}).computeTightBounds();
     EXPECT_NEAR(grown.width(), 120, 0.5f);

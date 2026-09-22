@@ -77,7 +77,7 @@ SkPath insetOutline(const SkPath& outline, float px) {
   // positive px shrinks. The arithmetic is the operator's.
   return operations::offset(
       outline, -px,
-      {.join = operations::Join::Miter, .cap = operations::Cap::Butt});
+      {.join = Join::Miter, .cap = Cap::Butt});
 }
 
 std::vector<glm::vec2> insetPolygon(std::span<const glm::vec2> polygon,

@@ -22,6 +22,7 @@
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Segments.h"
 #include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/path/StrokeSkia.h"
 
 namespace sigil::geometry::path::operations {
 
@@ -31,30 +32,6 @@ SkPath binary(const SkPath& a, const SkPath& b, SkPathOp operation) {
   SkPath out;
   if (!Op(a, b, operation, &out)) return SkPath();
   return out;
-}
-
-SkPaint::Join skJoin(Join join) {
-  switch (join) {
-    case Join::Round:
-      return SkPaint::kRound_Join;
-    case Join::Miter:
-      return SkPaint::kMiter_Join;
-    case Join::Bevel:
-      return SkPaint::kBevel_Join;
-  }
-  return SkPaint::kRound_Join;
-}
-
-SkPaint::Cap skCap(Cap cap) {
-  switch (cap) {
-    case Cap::Butt:
-      return SkPaint::kButt_Cap;
-    case Cap::Round:
-      return SkPaint::kRound_Cap;
-    case Cap::Square:
-      return SkPaint::kSquare_Cap;
-  }
-  return SkPaint::kButt_Cap;
 }
 
 /** The unit vector 90 degrees to the LEFT of travel, in Skia's y-down
@@ -176,8 +153,8 @@ SkPath offset(const SkPath& path, float distance,
   SkPaint stroke;
   stroke.setStyle(SkPaint::kStroke_Style);
   stroke.setStrokeWidth(halfWidth * 2.0f);
-  stroke.setStrokeJoin(skJoin(options.join));
-  stroke.setStrokeCap(skCap(options.cap));
+  stroke.setStrokeJoin(toSk(options.join));
+  stroke.setStrokeCap(toSk(options.cap));
   stroke.setStrokeMiter(options.miterLimit);
   const SkPath band = skpathutils::FillPathWithPaint(spine, stroke);
 
