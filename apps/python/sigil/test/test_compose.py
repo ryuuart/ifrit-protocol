@@ -69,6 +69,15 @@ class Compose(unittest.TestCase):
         self.assertIsNone(compose.parseDimension("12vh"))
         with self.assertRaisesRegex(ValueError, "written as text"):
             Dimension("12vh")
+        # A leading plus is the number's sign, as it is in CSS; the words
+        # for infinity and for no number are numbers a reader will take
+        # and distances nothing can lay out, so they are not lengths.
+        self.assertEqual(Dimension("+12px"), Dimension(12))
+        self.assertEqual(compose.parseDimension("+1.5em"), compose.em(1.5))
+        for refused in ("inf", "infinity", "inf%", "-inf", "nan"):
+            self.assertIsNone(compose.parseDimension(refused), refused)
+            with self.assertRaisesRegex(ValueError, "written as text"):
+                Dimension(refused)
 
     def test_a_property_may_be_written_as_one_of_the_three_keywords(self):
         # Every value a node may state has a name, and the one table that
@@ -83,8 +92,23 @@ class Compose(unittest.TestCase):
         ):
             self.assertIsInstance(element, raw.Element)
         # The keywords are SigilWeave's, beside the text partials written
-        # with the same three.
+        # with the same three — and a partial here can be written with one:
+        # the field names are bound, so the enum is a surface an author
+        # reaches rather than one they can only read.
         self.assertEqual(len(list(weave.Keyword.__members__)), 3)
+        font = weave.Type(size=24)
+        font.keyword(weave.TypeField.Size, weave.Keyword.Inherit)
+        self.assertEqual(font.keywordOf(weave.TypeField.Size), weave.Keyword.Inherit)
+        self.assertIsNone(font.keywordOf(weave.TypeField.Face))
+        font.clearKeyword(weave.TypeField.Size)
+        self.assertIsNone(font.keywordOf(weave.TypeField.Size))
+        block = weave.Block()
+        self.assertTrue(block.empty())
+        block.keyword(weave.BlockField.Alignment, weave.Keyword.Initial)
+        self.assertEqual(
+            block.keywordOf(weave.BlockField.Alignment), weave.Keyword.Initial
+        )
+        self.assertFalse(block.empty())
 
     def test_edge_dimensions_take_their_names_at_every_arity(self):
         for element in (

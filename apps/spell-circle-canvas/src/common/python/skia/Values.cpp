@@ -13,6 +13,7 @@
 #include <sigilpython/Bindings.h>
 #include <sigilpython/skia/Registration.h>
 #include <sigilpython/skia/Values.h>
+#include <sigilpython/weave/Keywords.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -393,6 +394,29 @@ void bindValues(py::module_& module) {
       .value("Inherit", weave::Keyword::Inherit)
       .value("Initial", weave::Keyword::Initial)
       .value("Unset", weave::Keyword::Unset);
+  // Every field of a text style inherits, so `Initial` is the keyword
+  // that says something new about one.
+  py::enum_<weave::TypeField>(weave, "TypeField")
+      .value("Face", weave::TypeField::Face)
+      .value("Size", weave::TypeField::Size)
+      .value("Color", weave::TypeField::Color)
+      .value("Track", weave::TypeField::Track)
+      .value("Condense", weave::TypeField::Condense)
+      .value("Weight", weave::TypeField::Weight)
+      .value("Slant", weave::TypeField::Slant)
+      .value("Aliased", weave::TypeField::Aliased)
+      .value("AntiAlias", weave::TypeField::AntiAlias)
+      .value("Color8", weave::TypeField::Color8)
+      .value("Variations", weave::TypeField::Variations)
+      .value("Language", weave::TypeField::Language)
+      .value("Features", weave::TypeField::Features)
+      .value("OpticalKerning", weave::TypeField::OpticalKerning)
+      .value("WordSpacing", weave::TypeField::WordSpacing)
+      .value("TextTransform", weave::TypeField::TextTransform)
+      .value("VerticalForm", weave::TypeField::VerticalForm)
+      .value("Decorations", weave::TypeField::Decorations)
+      .value("Underlays", weave::TypeField::Underlays)
+      .value("Overlays", weave::TypeField::Overlays);
   auto length = py::class_<weave::Length>(weave, "Length");
   py::enum_<weave::Length::Unit>(length, "Unit")
       .value("Px", weave::Length::Unit::Px)
@@ -417,7 +441,8 @@ void bindValues(py::module_& module) {
       .def("lh", &weave::lh, py::arg("value"))
       .def("ch", &weave::ch, py::arg("value"))
       .def("pt", &weave::pt, py::arg("value"));
-  py::class_<weave::Type>(weave, "Type")
+  auto type = py::class_<weave::Type>(weave, "Type");
+  type
       .def(py::init([](py::kwargs kwargs) {
         return keywordValue<weave::Type>(kwargs, "Unknown Type field: ");
       }))
@@ -487,5 +512,6 @@ void bindValues(py::module_& module) {
       .def("empty", &weave::Type::empty)
       .def("copy", [](const weave::Type& self) { return self; })
       .def(py::self == py::self);
+  bindKeywords<weave::Type, weave::TypeField>(type);
 }
 }  // namespace sigil::python

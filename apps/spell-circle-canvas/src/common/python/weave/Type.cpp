@@ -3,6 +3,7 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/skia/Values.h>
+#include <sigilpython/weave/Keywords.h>
 #include <sigilpython/weave/Registration.h>
 #include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/layout/Story.h>
@@ -385,6 +386,29 @@ void bindWeave(py::module_& module) {
           })
       .def("classOf", &MojikumiTable::classOf, py::arg("character"))
       .def("empty", &MojikumiTable::empty);
+  // Every field of a block inherits, as every field of a text style
+  // does, so `Initial` is the keyword that says something new about one.
+  py::enum_<BlockField>(text, "BlockField")
+      .value("Leading", BlockField::Leading)
+      .value("HalfLeading", BlockField::HalfLeading)
+      .value("Alignment", BlockField::Alignment)
+      .value("Justification", BlockField::Justification)
+      .value("Hyphenation", BlockField::Hyphenation)
+      .value("TabStops", BlockField::TabStops)
+      .value("FirstLineIndent", BlockField::FirstLineIndent)
+      .value("LastLineIndent", BlockField::LastLineIndent)
+      .value("WidowLines", BlockField::WidowLines)
+      .value("OrphanLines", BlockField::OrphanLines)
+      .value("BalanceRaggedLines", BlockField::BalanceRaggedLines)
+      .value("WritingMode", BlockField::WritingMode)
+      .value("LineBreakLocale", BlockField::LineBreakLocale)
+      .value("LineBreak", BlockField::LineBreak)
+      .value("LastLineAlignment", BlockField::LastLineAlignment)
+      .value("JustifyLastLine", BlockField::JustifyLastLine)
+      .value("Kinsoku", BlockField::Kinsoku)
+      .value("Hanging", BlockField::Hanging)
+      .value("Mojikumi", BlockField::Mojikumi)
+      .value("Tsume", BlockField::Tsume);
   auto block = py::class_<Block>(text, "Block");
   block
       .def(py::init(
@@ -415,6 +439,7 @@ void bindWeave(py::module_& module) {
   optionalField(block, "kinsoku", &Block::kinsoku);
   optionalField(block, "hanging", &Block::hanging);
   optionalField(block, "mojikumi", &Block::mojikumi);
+  bindKeywords<Block, BlockField>(block);
   text.def("toParagraphStyle", &toParagraphStyle, py::arg("block"));
   py::class_<Rule>(text, "Rule")
       .def(py::init<std::string>(), py::arg("name"))
