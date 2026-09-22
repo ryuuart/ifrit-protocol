@@ -33,6 +33,31 @@ TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
   EXPECT_FALSE(host.ticker.active());  // motion removed on finish
 }
 
+TEST(ComposeTransitions, RetargetsFromTheStyleTheNodeStoodInAcrossAPrune) {
+  // A patch retargets from the style the node STOOD in, which is the one
+  // standing on the instance — not from the description it was handed last,
+  // because a describe that PRUNED swapped a description in without ever
+  // patching. The two agree only while the prune's own promise holds: a
+  // pruned description carries the same properties. Prune once between the
+  // two real changes and the ramp must still begin where the node is.
+  Host host;
+  auto at = [&](float target) {
+    return box().children(
+        {box().key("m").width(50).height(50).fill(red()).translateX(animate(
+            sigil::motion::to(target), {400ms, &choreograph::easeNone}))});
+  };
+  host.composer.render(at(0.0f));
+  host.frame();
+  host.composer.render(at(0.0f));  // identical: this one prunes
+  host.frame();
+  host.composer.render(at(100.0f));            // 0 → 100 over 400ms
+  host.frame(0.2);                             // half way
+  EXPECT_EQ(host.pixel(75, 25), SK_ColorRED);  // the box spans x=50..100
+  EXPECT_EQ(host.pixel(10, 25), SK_ColorBLACK);
+  host.frame(1.0);
+  EXPECT_EQ(host.pixel(125, 25), SK_ColorRED);
+}
+
 TEST(ComposeTransitions, AStaggerLeadsAnEntranceBeforeItsOwnDelay) {
   // The fade a card says as it arrives is the entrance value at the lane
   // it moves — opacity — and a staggered container LEADS it rather than

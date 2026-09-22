@@ -499,3 +499,45 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
   host.frame();
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
 }
+
+TEST(ComposeReconcile, APrunedPatchLeavesTheComputedStyleStanding) {
+  // The style a mounted node stands in is written where the description is
+  // PATCHED. A pruned describe swaps a description in without patching, so
+  // nothing writes the style that frame — and nothing has to, because the
+  // description it swapped in was proved to carry the same properties.
+  //
+  // That is the whole invariant, and it is silent when it breaks: the style
+  // would simply keep an older answer, which is indistinguishable from a
+  // node that did not change until the frame a real change lands on top of
+  // it. So: prune, then change, and assert the change takes in full.
+  Host host(200, 200);
+  auto describe = [](float width, float opacity) {
+    return box().children({box()
+                               .key("a")
+                               .width(width)
+                               .height(20)
+                               .borderRadius({0})
+                               .opacity(opacity)
+                               .fill(red())});
+  };
+  host.composer.render(describe(100, 1.0f));
+  host.frame();
+  ASSERT_TRUE(host.composer.bounds("a").has_value());
+  EXPECT_FLOAT_EQ(host.composer.bounds("a")->width(), 100.0f);
+  EXPECT_EQ(host.pixel(50, 10), SK_ColorRED);
+
+  host.composer.render(describe(100, 1.0f));  // identical: prunes
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_FLOAT_EQ(host.composer.bounds("a")->width(), 100.0f);
+  EXPECT_EQ(host.pixel(50, 10), SK_ColorRED);
+
+  host.composer.render(describe(40, 1.0f));  // the layout property moves
+  host.frame();
+  EXPECT_FLOAT_EQ(host.composer.bounds("a")->width(), 40.0f);
+  EXPECT_EQ(host.pixel(50, 10), SK_ColorBLACK);
+
+  host.composer.render(describe(40, 0.0f));  // …and a paint property
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 10), SK_ColorBLACK);
+}
