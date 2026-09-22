@@ -179,13 +179,17 @@ def {factory}(children: collections.abc.Iterable[_t.NodeLike], /) -> Element: ..
 def {factory}(*children: _t.NodeLike) -> Element: ...
 """,
         )
+    # Each stock scheme has a typed overload of its own and one more
+    # takes everything else an operator is built from, which is the set
+    # the alias names — the stock schemes among them, so these two
+    # spellings state the whole verb.
     table.declares(
         "_sigil.compose",
         "layout",
         """@typing.overload
-def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.Jitter | layouts.AlongPath, *children: _t.NodeLike) -> Element: ...
+def layout(scheme: _t.OperatorLike, *children: _t.NodeLike) -> Element: ...
 @typing.overload
-def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.Jitter | layouts.AlongPath, children: collections.abc.Iterable[_t.NodeLike], /) -> Element: ...
+def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLike], /) -> Element: ...
 """,
     )
     table.erased("_sigil.compose.LayerStyle", "echo", "_t.PointLike", "_t.ColorLike")

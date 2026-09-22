@@ -32,6 +32,7 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.compose.brush.presets": "sigil.compose.brush.presets",
     "_sigil.compose.brush.strand": "sigil.compose.brush.strand",
     "_sigil.compose.by": "sigil.compose.by",
+    "_sigil.compose.connect": "sigil.compose.connect",
     "_sigil.compose.decorations": "sigil.compose.decorations",
     "_sigil.compose.derive": "sigil.compose.derive",
     "_sigil.compose.document": "sigil.compose.document",
