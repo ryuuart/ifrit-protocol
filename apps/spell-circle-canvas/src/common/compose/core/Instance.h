@@ -206,9 +206,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // Whether THIS node is the one that stated that paint — the box an
   // ink anchored to a declaring box maps onto.
   bool inkPaintOrigin = false;
-  // THE BLOCK IN FORCE at this node: the parent's, with what this node's
-  // description declares folded over. A partial, since an unset field is
-  // the layout's own answer and nothing engages it. Written by the pass
+  // THE PARAGRAPH SETTING IN FORCE at this node: the parent's, with what this
+  // node's description declares folded over. A partial, since an unset field
+  // is the layout's own answer and nothing engages it. Written by the pass
   // before layout; read when a text leaf's layout options are built.
   sigil::weave::ParagraphBlock block;
   // THE IMAGE SAMPLING IN FORCE at this node, or none stated, which an

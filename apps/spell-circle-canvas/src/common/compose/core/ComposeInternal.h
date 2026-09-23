@@ -230,9 +230,9 @@ struct TextOptions {
   /// leaves the rest plain, which is what a heading over a body wants.
   std::vector<sigil::weave::ParagraphStyle> blocks;
   /// paragraphStyles(names): one name per block, matched as a class of a
-  /// virtual child of the leaf against the rules in force where it lands,
-  /// and laid over the block in force when the leaf lays out — so a named
-  /// block keeps the leading it inherits and changes only what its name
+  /// virtual child of the leaf against the rules in force where it lands, and
+  /// laid over the paragraph setting in force when the leaf lays out — so a
+  /// named block keeps the leading it inherits and changes only what its name
   /// says.
   std::vector<std::string> blockClassNames;
   /// initialLetter(): the passage's opening set large, applied to the

@@ -1,6 +1,6 @@
-// The block in force: what a text leaf's blocks are set in when the leaf
-// says nothing about them — leading, alignment, writing mode and the rest
-// a passage inherits — flowing down the tree beside the font and the ink.
+// The paragraph setting in force: what a text leaf's blocks are set in when
+// the leaf says nothing about them — leading, alignment, writing mode and the
+// rest a passage inherits — flowing down the tree beside the font and the ink.
 // Each case asserts one thing the headers promise.
 
 #include <include/core/SkCanvas.h>
@@ -93,11 +93,11 @@ TEST(ComposeParagraphLane, AWholeParagraphStyleInheritsNothing) {
 }
 
 TEST(ComposeParagraphLane, AClassCarriesBothHalves) {
-  // One name in both sheets: the text half sets the size, the block half
+  // One name in both sheets: the text half sets the size, the paragraph half
   // the leading, and styleClass folds both.
   ParagraphBlock wide;
   wide.leading = Leading::multiple(2.0f);
-  // One class, both halves: the type half and the block half under one
+  // One class, both halves: the type half and the paragraph half under one
   // name.
   const sigil::compose::StyleSheet look{
       sigil::compose::rule(".body").font({.size = 24.0f}),

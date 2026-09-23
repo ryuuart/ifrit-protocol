@@ -32,7 +32,7 @@ alignment is made on, whether the following lines wrap the box or the
 glyph, the standoff, and the style it is set in.
 
 **It applies to the FIRST block of this passage**, whichever way that
-block is styled — a whole style, a name, or the block in force.
+block is styled — a whole style, a name, or the paragraph setting in force.
 
 ## See also
 

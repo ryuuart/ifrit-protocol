@@ -70,11 +70,11 @@ block and leaves the rest to the passage. `Text::paragraphStyles` with whole
 styles sets every block alike and inherits nothing, and `Text::paragraphStyles`
 also takes NAMES, each matched as a virtual child of the leaf whose class is
 the name against the rules of the sheets in force where the leaf lands; the
-block partials they state are laid over the block in force when the leaf lays
-out — the same discipline `weave::rich().add(text, name)` follows for character
-styles. A name no rule in force speaks about WARNS ONCE and changes nothing
-about its block, because a block quietly set in a default nobody asked for
-looks exactly like a style that did not take.
+paragraph partials they state are laid over the paragraph setting in force when
+the leaf lays out — the same discipline `weave::rich().add(text, name)` follows
+for character styles. A name no rule in force speaks about WARNS ONCE and
+changes nothing about its block, because a block quietly set in a default
+nobody asked for looks exactly like a style that did not take.
 
 `Text::textFirstBaseline` and `Text::textVerticalAlign` are the two
 decisions a FRAME makes that no line makes for itself: where baseline 0 sits

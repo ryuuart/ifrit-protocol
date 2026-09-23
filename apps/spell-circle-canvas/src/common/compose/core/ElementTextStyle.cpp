@@ -42,10 +42,9 @@ template <class Derived>
 Derived& TextStyleVerbs<Derived>::initialLetter(
     sigil::weave::InitialLetter initial) {
   detail::TextOptions& options = declarations()->textData.ensure().options;
-  // The initial belongs to the passage's first block, whichever way that
-  // block is styled — a whole style, a name, or the block in force — so
-  // it is kept apart and applied to the first block when the leaf lays
-  // out.
+  // The initial belongs to the passage's first block, whichever way that block
+  // is styled — a whole style, a name, or the paragraph setting in force — so
+  // it is kept apart and applied to the first block when the leaf lays out.
   options.initial = std::move(initial);
   options.set |= detail::TextOptions::kInitialLetter;
   return self();

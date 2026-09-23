@@ -100,29 +100,27 @@ so a partial inside it resolves against the bake's root.
 **A sheet is a value applied to a subtree, and a role or class is a name
 its rules speak about.** `Element::applyStyleSheet` puts a
 `compose::StyleSheet` in force for that node and everything under it, so a
-subtree carries a look of its own; [the selectors chapter](SELECTORS.md)
-is the whole of how a rule is written and which one wins. A rule states
-what an element states, with the verbs a tree is written with:
+subtree carries a look of its own; [the selectors chapter](SELECTORS.md) is the
+whole of how a rule is written and which one wins. A rule states what an
+element states, with the verbs a tree is written with:
 `rule("body").font({.size = 19.5f}).paragraph({.leading =
 Leading::multiple(1.35f)})`, and `rule(".card").padding(8)` as well.
-`Element::styleClass` names classes: several in one call, separated by
-spaces as CSS's class attribute lists them. The cascade pass matches the
-rules in force where the element LANDS, and the fields a matched rule
-sets inherit down the tree like any `font()` or `paragraph()`. The order is
-CSS's: role defaults stand below every rule, a rule for a class stands
-over a rule for a role by its weight, rules of one weight fall to the
-nearer and later sheet and then to the later rule, and every rule loses to
-the node's own `font()` or `paragraph()`, so `styleClass("cell").font({.color
-= c})` is the cell class in this cell's colour. A class no rule in force
-names warns once and sets nothing. A run of a `weave::rich()` value
-written with a name resolves the same way when the leaf is shaped, as a
-virtual child of the leaf whose class is the name, unless the value names
-a `weave::TypeSheet` of its own.
-`weave::rich()` started with no base
-is an inheriting passage: a run added with a partial keeps the inherited
-face and size in every field it does not name, and only a run added with
-a whole style keeps the style it was written with. Blocks have the same
-discipline through the block half of the sheet and `Text::paragraphStyles`.
+`Element::styleClass` names classes: several in one call, separated by spaces
+as CSS's class attribute lists them. The cascade pass matches the rules in
+force where the element LANDS, and the fields a matched rule sets inherit down
+the tree like any `font()` or `paragraph()`. The order is CSS's: role defaults
+stand below every rule, a rule for a class stands over a rule for a role by its
+weight, rules of one weight fall to the nearer and later sheet and then to the
+later rule, and every rule loses to the node's own `font()` or `paragraph()`,
+so `styleClass("cell").font({.color = c})` is the cell class in this cell's
+colour. A class no rule in force names warns once and sets nothing. A run of a
+`weave::rich()` value written with a name resolves the same way when the leaf
+is shaped, as a virtual child of the leaf whose class is the name, unless the
+value names a `weave::TypeSheet` of its own. `weave::rich()` started with no
+base is an inheriting passage: a run added with a partial keeps the inherited
+face and size in every field it does not name, and only a run added with a
+whole style keeps the style it was written with. Blocks have the same
+discipline through the paragraph half of the sheet and `Text::paragraphStyles`.
 
 **A custom property is set on a node and read by anything under it.**
 `Element::var` sets one; `var(name)` reads it as a `Dimension`,

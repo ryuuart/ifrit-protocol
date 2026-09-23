@@ -957,9 +957,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           // `textVerticalAlign` spends is known.
           const bool distributesRoom =
               node.textData && node.textData->distributesRoom(inst.textOptions);
-          // The alignment the leaf lays out under is the block in force —
-          // its own `textAlign()` is that lane's spelling at the leaf —
-          // over whatever the full-control overload's options carry.
+          // The alignment the leaf lays out under is the paragraph setting in
+          // force — its own `textAlign()` is that lane's spelling at the leaf
+          // — over whatever the full-control overload's options carry.
           const bool aligned =
               node.textData && inst.block.alignment.value_or(
                                    node.textData->layoutOptions.alignment) !=

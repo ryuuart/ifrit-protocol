@@ -72,10 +72,10 @@ bool sameVars(const std::shared_ptr<const VarTable>& a,
 }
 
 /** What the sheets in force say about each name @p leaf's rich runs and
- *  paragraph styles were written with, each matched as a virtual child of
- *  the leaf: the font partial and the ink the matched rules state, folded
- *  weakest first, and the block partial they state. A name no rule speaks
- *  about is left out, so it resolves as an unregistered name always has. */
+ *  paragraph styles were written with, each matched as a virtual child of the
+ *  leaf: the font partial and the ink the matched rules state, folded weakest
+ *  first, and the paragraph partial they state. A name no rule speaks about is
+ *  left out, so it resolves as an unregistered name always has. */
 void namedStylesOf(
     const Instance& leaf, const TextOptions& options, const SheetChain& chain,
     const HasNames& names, sigil::weave::TypeSheet& runs,
@@ -539,9 +539,9 @@ void Composer::Impl::resolveCascade(
     std::optional<VarRef> inkVar;
     VarTable ruleVars;
     VarTable ruleVarDefaults;
-    // Where a rule wrote the font, the block or the custom properties as
-    // `initial`, the layers above it are laid over the initial value
-    // rather than over the one inherited.
+    // Where a rule wrote the font, the paragraph setting or the custom
+    // properties as `initial`, the layers above it are laid over the initial
+    // value rather than over the one inherited.
     bool fontFromInitial = false;
     bool blockFromInitial = false;
     bool varsFromInitial = false;
@@ -792,12 +792,12 @@ void Composer::Impl::resolveCascade(
     inst.zeroAdvance = zeroAdvanceAt(font);
   }
 
-  // A text leaf: text reconcile left owed is shaped here, once, in the
-  // font and the block it lands in. After that, a change of face, size or
-  // any other shaping field of an inheriting leaf, or of the writing mode
-  // or locale in force, is a new paragraph and a new layout; a change of
-  // any other block field is the same paragraph laid out again; a change
-  // of colour alone is set on the paragraph it already has.
+  // A text leaf: text reconcile left owed is shaped here, once, in the font
+  // and the paragraph setting it lands in. After that, a change of face, size
+  // or any other shaping field of an inheriting leaf, or of the writing mode
+  // or locale in force, is a new paragraph and a new layout; a change of any
+  // other block field is the same paragraph laid out again; a change of colour
+  // alone is set on the paragraph it already has.
   if (node.kind == Kind::Text && node.textData) {
     const bool inherits = node.textData->inherits;
     const bool reshapes = inherits && !sameFontButColour(font, inst.textFont);

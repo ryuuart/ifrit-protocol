@@ -104,11 +104,11 @@ void Composer::Impl::materializeText(
   } else {
     inst.paragraph->appendText(text.utf8, text.style);
   }
-  // The writing mode and the line-break locale belong to the Paragraph,
-  // not to the layout options, so the block in force lands them here. A
-  // field the block leaves unset leaves a passed-in paragraph's own
-  // standing. A path run has no columns to advance — its baseline IS the
-  // geometry — so the path wins and says so.
+  // The writing mode and the line-break locale belong to the Paragraph, not to
+  // the layout options, so the paragraph setting in force lands them here. A
+  // field the block leaves unset leaves a passed-in paragraph's own standing.
+  // A path run has no columns to advance — its baseline IS the geometry — so
+  // the path wins and says so.
   if (inst.block.writingMode)
     inst.paragraph->setWritingMode(*inst.block.writingMode);
   if (inst.block.lineBreakLocale)
@@ -291,15 +291,15 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
   // The options in force: the leaf's own over what its matched rules say.
   const TextOptions& inForce = inst.textOptions;
   inForce.applyTo(options);
-  // The layout-wide fields the block in force states — alignment, the
-  // breaking strategy, hyphenation, justification, tab stops, the line
+  // The layout-wide fields the paragraph setting in force states — alignment,
+  // the breaking strategy, hyphenation, justification, tab stops, the line
   // tables — over what the leaf's own options and a passed-in layout hold.
   sigil::weave::apply(options, inst.block);
-  // THE BLOCK IN FORCE: what every block the leaf's own list does not
-  // reach is set in, and what a named block's partial is laid over. A
-  // whole style the leaf wrote inherits nothing, as a whole text style
-  // does. The initial letter lands on the first block whichever way that
-  // block was styled.
+  // THE PARAGRAPH SETTING IN FORCE: what every block the leaf's own list does
+  // not reach is set in, and what a named block's partial is laid over. A
+  // whole style the leaf wrote inherits nothing, as a whole text style does.
+  // The initial letter lands on the first block whichever way that block was
+  // styled.
   const sigil::weave::ParagraphStyle lane =
       sigil::weave::toParagraphStyle(inst.block);
   options.blockDefault = lane;

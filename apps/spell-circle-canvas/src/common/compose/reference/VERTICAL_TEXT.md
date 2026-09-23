@@ -4,12 +4,12 @@ A chapter of [TYPOGRAPHY.md](../TYPOGRAPHY.md), the type chapter of
 [SigilCompose](../README.md).
 
 `paragraph({.writingMode = …})` sets the passage running down the page.
-`sigil::weave::WritingMode::kVerticalRL` is the CJK book layout: characters
-top to bottom, columns advancing RIGHT TO LEFT from the node's right edge.
-It is one field of the block lane, set on the passage or on any node above
-it and inherited by every text leaf under that — plain text, `weave::rich()`
-spans, and the paragraph overload alike, where a mode nobody names leaves
-the paragraph's own mode standing.
+`sigil::weave::WritingMode::kVerticalRL` is the CJK book layout: characters top
+to bottom, columns advancing RIGHT TO LEFT from the node's right edge. It is
+one field of the paragraph lane, set on the passage or on any node above it and
+inherited by every text leaf under that — plain text, `weave::rich()` spans,
+and the paragraph overload alike, where a mode nobody names leaves the
+paragraph's own mode standing.
 
 ```cpp
 text(weave::rich(mincho)

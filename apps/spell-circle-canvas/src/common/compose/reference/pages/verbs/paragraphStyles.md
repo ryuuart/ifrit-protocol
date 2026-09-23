@@ -30,7 +30,7 @@ the four indents, the keeps, and whichever of the four layout-wide
 settings the block overrides; each of those falls back to this leaf's
 own where the block leaves it unset.
 
-**The name form resolves through the block half of the sheet in force
+**The name form resolves through the paragraph half of the sheet in force
 where the leaf LANDS**, when it lays out, and lies over the block in
 force there — so a named block keeps the leading it inherits and changes
 only what its rule says. A name no sheet in force carries warns once and
