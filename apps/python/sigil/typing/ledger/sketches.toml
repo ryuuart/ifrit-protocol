@@ -1037,7 +1037,7 @@ requires = []
 needs = "Runtime shaders; child shader slot; per-frame vector uniforms; canvas-mapped paints; additive blending; Bezier curves"
 requires = []
 
-[sketch.paint_anchors]
+[sketch.paint_boxes]
 needs = "Unit-square ramp as ink over each paint box; a fill stretched over the canvas through a row of cards; wells"
 requires = []
 

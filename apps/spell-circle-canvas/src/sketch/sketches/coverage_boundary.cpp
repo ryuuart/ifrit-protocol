@@ -145,29 +145,30 @@ struct CoverageBoundary {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Which edge receives the style?",
+        {.title = "Which edge receives the layer style?",
          .subtitle =
              "A rectangle, an alpha silhouette, and the limits of tracing",
          .footer = "Coverage is a raster-derived outline. An empty trace falls "
                    "back to the node’s own shape."},
         box().column().gap(28).children(
             {sketch::kit::sectionHeader(
-                 {.label = "ONE IMAGE · TWO BOUNDARIES", .note = ""}),
+                 {.label = "ONE IMAGE · TWO OUTLINES", .note = ""}),
              sketch::kit::comparison(
                  {.cases = {cell("SOURCE", "image(cutOut)",
                                  "An opaque star with a transparent hole.",
                                  art(cut)),
                             cell("THE BOX",
                                  "…"
-                                 ".style(halo)",
-                                 "Automatic boundary: the image rectangle "
-                                 "receives the style.",
+                                 ".layerStyle(halo)",
+                                 "Automatic outline: the image rectangle "
+                                 "receives the layer style.",
                                  art(cut).layerStyle(halo())),
                             cell("THE DRAWN SILHOUETTE",
                                  "…"
-                                 ".boundary(Coverage).style(halo)",
-                                 "Coverage boundary: the visible star and its "
-                                 "hole receive the same style.",
+                                 ".decorationOutline(Coverage)"
+                                 ".layerStyle(halo)",
+                                 "Coverage outline: the visible star and its "
+                                 "hole receive the same layer style.",
                                  art(cut)
                                      .decorationOutline(Boundary::Coverage)
                                      .layerStyle(halo()))},
@@ -195,7 +196,7 @@ struct CoverageBoundary {
                                           cell(
                                               "CHILDREN AS ONE OUTLINE",
                                               "children only · "
-                                              "boundary(Coverage)",
+                                              "decorationOutline(Coverage)",
                                               "Three children make one "
                                               "silhouette after drawing. No "
                                               "explicit path describes it.",
@@ -222,7 +223,8 @@ struct CoverageBoundary {
                                .width(328),
                            document::caption(
                                "The halo and recessed shadow are identical "
-                               "throughout. Only the boundary changes.")
+                               "throughout. Only the decoration outline "
+                               "changes.")
                                .width(328)})})})));
   }
 };

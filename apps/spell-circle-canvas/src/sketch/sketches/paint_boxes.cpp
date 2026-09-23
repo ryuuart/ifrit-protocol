@@ -76,22 +76,23 @@ Element cards() {
 
 }  // namespace
 
-struct PaintAnchors {
+struct PaintBoxes {
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sketch::kit::studyTheme());
     sketch::kit::stage(ctx, {.size = {1100, 760}, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "The box a paint is stretched over",
-         .subtitle = "One unit-square ramp · the ink on a subtree under each "
-                     "anchor, and one canvas-anchored fill through three cards",
-         .footer = "A text leaf's own box is its text-metric box, which is "
-                   "why the own-box row repeats the whole ramp per word."},
+         .subtitle = "One unit-square ramp · the ink on a subtree over each "
+                     "paint box, and one fill over the canvas through three "
+                     "cards",
+         .footer = "A text leaf's Element box is its text-metric box, which "
+                   "is why the Element row repeats the whole ramp per word."},
         box().column().gap(26).children(
             {box().row().gap(20).children(
-                 {panel("INK · OWN BOX",
+                 {panel("INK · ELEMENT BOX",
                         "Each word maps the ramp onto its own metrics.",
                         subtree(PaintBox::Element)),
-                  panel("INK · DECLARING BOX",
+                  panel("INK · SUBTREE BOX",
                         "One ramp across the row; each word its own slice.",
                         subtree(PaintBox::Subtree)),
                   panel("INK · CANVAS BOX",
@@ -104,6 +105,6 @@ struct PaintAnchors {
   }
 };
 
-SIGIL_SKETCH(PaintAnchors, "Study · Paint",
+SIGIL_SKETCH(PaintBoxes, "Study · Paint",
              "one unit-square ramp stretched over every paint box — the ink "
              "on a subtree and one fill over the canvas across three cards")
