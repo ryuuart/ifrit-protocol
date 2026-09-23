@@ -105,15 +105,23 @@ alone cannot tell a node that STATES the default from one that says
 nothing about it — and those are different nodes to a rule, to an
 inherited value and to the prune. Inside the library every property has
 one writer, and the writer is the declaration: it sets the property's bit
-as it hands back the field, and nothing else reaches the field, so a verb
-that skipped the bit would not compile. The reconciler compares the mask
-before it compares a single number.
+as it hands back the field. For the properties the computed style carries
+— the box, the flex line, the placement, the corners, the clip, the paint
+and the 2D transform — nothing else reaches the field, so a verb that
+skipped the bit would not compile. The seventeen kept on the element
+itself — the depth lanes, the shape, the grid area, the decoration outline
+and the five the cascade resolves — have writers that set their bits the
+same way, but their storage can still be reached around the writer. The
+reconciler compares the mask before it compares a single number.
 
 A few values a node starts with are defaults rather than statements, and
 carry no bit: the zero size and the out-of-flow placement of a `point()`,
 the flag that makes a `positioned()` container, and the z-index an
-operator gives the elements it adds. A rule that matches such a node
-stands over them, as it stands over any default.
+operator gives the elements it adds where they state none. Only those
+sites can write a value without its bit. A rule that matches such a node
+stands over them, as it stands over any default, and an element's own
+statement stands over its operator's z-index even where it states the
+default.
 
 ## See also
 

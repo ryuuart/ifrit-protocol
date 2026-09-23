@@ -65,6 +65,21 @@ void staleWorldSpaceBelow(Instance& inst) {
   }
 }
 
+/** What a memo's shell says about the node it stands for, carried onto
+ *  the produced description the reconciler retains: which node it is
+ *  (the key, which the reconciler matches on itself) and how its
+ *  recording is held. The painter reads cacheMode and bakeScale off the
+ *  description alone, so an explicit choice on the shell would otherwise
+ *  never reach it. The shell's Cache::Auto and unit bakeScale are its
+ *  silence, and the produce's own values stand. */
+void mergeMemoShell(ElementNode& produced, const ElementNode& shell) {
+  if (shell.cacheMode != Cache::Auto) produced.cacheMode = shell.cacheMode;
+  if (shell.bakeScale != 1.0f) produced.bakeScale = shell.bakeScale;
+  warnIgnoredMemoShellProps(shell);
+}
+
+}  // namespace
+
 /** A property set on a memo's SHELL — the element memo() returned, after
  *  `.key()`, `.cache()` and `.cacheScale()` — that describes nothing: the
  *  produced element is the node's whole look, and the reconciler retains
@@ -73,7 +88,7 @@ void staleWorldSpaceBelow(Instance& inst) {
  *  effect must not be silent. Each group is judged by the structural
  *  compare itself, over a node carrying only that group, so a lane the
  *  compare rules on is a lane this warning sees. */
-void warnIgnoredMemoShellProps(const ElementNode& shell) {
+void detail::warnIgnoredMemoShellProps(const ElementNode& shell) {
   const ElementNode blank;
   const auto only = [&](auto&& copy) {
     ElementNode probe;
@@ -85,17 +100,18 @@ void warnIgnoredMemoShellProps(const ElementNode& shell) {
     bool set;
   };
   // A probe carries one group's values and states nothing, so the compare
-  // answers for the values alone.
+  // answers for the values alone; only this probe may write them so.
+  const DefaultsKey key{};
   const Probe probes[] = {
       {"a layout property", only([&](ElementNode& n) {
-         n.fields.defaults().layout = shell.fields.layout();
+         n.fields.defaults(key).layout = shell.fields.layout();
        })},
       {"a fill, opacity, blend, transform or zIndex", only([&](ElementNode& n) {
-         n.fields.defaults().paint = shell.fields.paint();
+         n.fields.defaults(key).paint = shell.fields.paint();
          n.materialData = shell.materialData;
        })},
       {"corners or a shape", only([&](ElementNode& n) {
-         n.fields.defaults().corners = shell.fields.corners();
+         n.fields.defaults(key).corners = shell.fields.corners();
          n.shapeFn = shell.shapeFn;
        })},
       {"a decoration",
@@ -121,21 +137,6 @@ void warnIgnoredMemoShellProps(const ElementNode& shell) {
         probe.what);
   }
 }
-
-/** What a memo's shell says about the node it stands for, carried onto
- *  the produced description the reconciler retains: which node it is
- *  (the key, which the reconciler matches on itself) and how its
- *  recording is held. The painter reads cacheMode and bakeScale off the
- *  description alone, so an explicit choice on the shell would otherwise
- *  never reach it. The shell's Cache::Auto and unit bakeScale are its
- *  silence, and the produce's own values stand. */
-void mergeMemoShell(ElementNode& produced, const ElementNode& shell) {
-  if (shell.cacheMode != Cache::Auto) produced.cacheMode = shell.cacheMode;
-  if (shell.bakeScale != 1.0f) produced.bakeScale = shell.bakeScale;
-  warnIgnoredMemoShellProps(shell);
-}
-
-}  // namespace
 
 void Composer::Impl::invalidate(Instance& inst) {
   inst.markPaintDirtyUp();

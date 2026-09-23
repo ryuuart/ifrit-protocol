@@ -61,22 +61,33 @@ void detail::DeclaredFields::keyword(Property property,
     warnPropertyAnswersNoKeyword(property);
     return;
   }
-  m_declared.set(property);
-  m_keywords.ensure().set(property, keyword);
+  m_storage.declared.set(property);
+  m_storage.keywords.ensure().set(property, keyword);
+}
+
+void detail::DeclaredFields::cover() {
+  const Absolute placed = absolute();
+  placed.absolute = true;
+  placed.hasInsets = true;
+  top() = Dimension(0.0f);
+  right() = Dimension(0.0f);
+  bottom() = Dimension(0.0f);
+  left() = Dimension(0.0f);
+  m_storage.layout.covering = true;
 }
 
 void detail::DeclaredFields::leaveCover() {
   // The placement is withdrawn rather than overwritten: the node states
   // nothing about where it sits any more, and a mask that still said so
   // would make it unequal to a node that never covered.
-  if (!m_layout.covering) return;
-  m_layout.absolute = false;
-  m_layout.hasInsets = false;
-  m_layout.insets = EdgeDims{};
-  m_layout.covering = false;
+  if (!m_storage.layout.covering) return;
+  m_storage.layout.absolute = false;
+  m_storage.layout.hasInsets = false;
+  m_storage.layout.insets = EdgeDims{};
+  m_storage.layout.covering = false;
   for (Property side : {Property::Absolute, Property::Left, Property::Top,
                         Property::Right, Property::Bottom})
-    m_declared.clear(side);
+    m_storage.declared.clear(side);
 }
 
 }  // namespace sigil::compose

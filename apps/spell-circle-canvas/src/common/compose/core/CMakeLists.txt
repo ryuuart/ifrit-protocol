@@ -128,6 +128,7 @@ sigil_test(compose_test
           test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp
           test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp
           test/ComposeTestMask.cpp test/ComposeTestFieldPins.cpp
+          test/ComposeTestDeclareDoor.cpp
           test/ComposeTestSlotConsumers.cpp
           test/ComposeTestDepth.cpp
           test/ComposeTestInstances.cpp test/ComposeTestOperators.cpp

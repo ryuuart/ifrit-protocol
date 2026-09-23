@@ -41,7 +41,7 @@ Element stack() {
 Element positioned() {
   Element e;
   // What kind of container the node is, not a property it states.
-  e.node()->fields.defaults().layout.positioned = true;
+  e.node()->fields.defaults(detail::DefaultsKey{}).layout.positioned = true;
   return e;
 }
 
@@ -194,7 +194,8 @@ Element point() {
   // because a point has no box to be hit in. These are the factory's
   // starting values, not statements: a rule that sizes or places a point
   // stands over them, as it could not over the point's own verbs.
-  detail::LayoutProps& layout = e.node()->fields.defaults().layout;
+  detail::LayoutProps& layout =
+      e.node()->fields.defaults(detail::DefaultsKey{}).layout;
   layout.absolute = true;
   layout.width = Dimension(0.0f);
   layout.height = Dimension(0.0f);

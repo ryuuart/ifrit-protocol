@@ -116,9 +116,13 @@ enum class Property : uint8_t {
  *  different nodes to the cascade, to a rule and to the prune.
  *
  *  A bit set beside every write is what keeps them apart, and it is
- *  compared by value. A node's property fields are written only through
- *  the writer named for each property, which sets its bit, so a field
- *  written without one does not compile. */
+ *  compared by value. Every property has one writer, which sets its bit.
+ *  @trap Only the fields the computed style carries are closed to any
+ *  other write, so skipping the bit there does not compile; the
+ *  properties kept on the node itself (the depth lanes, the shape, the
+ *  grid area, the decoration outline and the five the cascade pass
+ *  resolves) keep storage a kernel verb can still reach around its
+ *  writer. */
 class PropertyMask {
  public:
   constexpr void set(Property property) {

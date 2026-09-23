@@ -63,6 +63,11 @@ void layClassesUnder(ElementNode& node, std::string_view names) {
 
 }  // namespace
 
+void detail::startWithOperatorZIndex(DeclaredFields& added, int zIndex) {
+  if (added.declared().has(Property::ZIndex)) return;
+  added.defaults(DefaultsKey{}).paint.zIndex = zIndex;
+}
+
 void Composer::Impl::collectScope(Instance& from, SkPoint origin, Scope& scope,
                                   std::vector<Instance*>& owners) {
   for (const auto& child : from.children) {
@@ -149,11 +154,8 @@ bool Composer::Impl::phaseAdditions() {
             *std::static_pointer_cast<Element>(attachment.element);
         ElementNode* node = NodeAccess::declarations(element);
         node->operatorData.ensure().added = true;
-        // The operator's own properties, where the element states none.
-        // A default rather than a statement: a rule that matches the added
-        // element stands over the operator's value, as over any default.
-        if (op.zIndexStated() && !node->fields.declared().has(Property::ZIndex))
-          node->fields.defaults().paint.zIndex = *op.zIndexStated();
+        if (op.zIndexStated())
+          startWithOperatorZIndex(node->fields, *op.zIndexStated());
         layClassesUnder(*node, op.classesStated());
         Instance* owner = attachment.owner == Scope::Attachment::kScope
                               ? inst

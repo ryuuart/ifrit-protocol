@@ -17,11 +17,7 @@ Derived& PlacementVerbs<Derived>::absolute() {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::cover() {
-  inset(Dimension(0.0f));
-  // Whether the placement was stated as a cover is not a property of its
-  // own but a note on how the one above was written, which a size stated
-  // later reads to put the node back in the flow.
-  declarations()->fields.defaults().layout.covering = true;
+  declarations()->fields.cover();
   return self();
 }
 

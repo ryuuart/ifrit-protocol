@@ -719,6 +719,12 @@ void warnRuleHoldsOnlyStaticValues(Property property);
  *  the statement is left out rather than dropped unsaid. */
 void warnRuleCannotState(Property property);
 
+/** The once-per-property diagnostic behind a memo's shell carrying
+ *  something other than its key and how its recording is held: the
+ *  shell's look is what the deferred describe produces, so the rest is
+ *  ignored, and said so. */
+void warnIgnoredMemoShellProps(const ElementNode& shell);
+
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */
 bool selectorNeedsLayout(const sigil::weave::Selector& selector);

@@ -280,6 +280,16 @@ struct Sheet {
   }
 };
 
+/** The same box, stating a z-index of its own. */
+struct SheetAt {
+  int zIndex = 0;
+  bool operator==(const SheetAt&) const = default;
+  void add(Scope& scope) const {
+    scope.attach(
+        box().key("sheet").rect(scope.box).fill(red()).zIndex(zIndex));
+  }
+};
+
 /** A wire between two keyed nodes, centre to centre. */
 struct Wire {
   std::string from, to;
@@ -342,6 +352,17 @@ TEST(ComposeOperators, TheOperatorsZIndexPutsItsAdditionsBehind) {
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);  // the child, over the sheet
   EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);      // the sheet, everywhere else
+}
+
+TEST(ComposeOperators, AnAdditionsOwnZIndexStandsOverItsOperators) {
+  // The addition states the default z-index, which is still a statement:
+  // the operator's value is where it starts, and it states otherwise.
+  Host host;
+  host.composer.render(box().width(200).height(200).children(
+      {box().key("a").left(50).top(50).width(100).height(100).fill(green())})
+                           .operators({Operator(SheetAt{0}).zIndex(-1)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);  // the sheet, over the child
 }
 
 TEST(ComposeOperators, AdditionsAreNeitherArrangedNorCountedAsSiblings) {

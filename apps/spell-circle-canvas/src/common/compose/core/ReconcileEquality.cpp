@@ -404,11 +404,11 @@ namespace detail {
 /** THE STRUCTURAL PRUNE. Every field of ElementNode is ruled on here, and
  *  every field of the three blocks it compares INLINE (PaintProps,
  *  ImageData, CustomData, MotionPath) with it; the rest delegate to the
- *  helpers above, each with its own pin. The declared fields are a class
- *  with private state, which no count can pin: its six parts — the layout,
- *  the paint, the corners, the clip, the mask and the keywords — are each
- *  compared below, and the field walk over every property's writer is
- *  what fails when one is not.
+ *  helpers above, each with its own pin. The declared fields keep their
+ *  six parts — the layout, the paint, the corners, the clip, the mask and
+ *  the keywords — in one aggregate, `DeclaredFields::Storage`, which is
+ *  counted here like the rest and walked part by part, so a part left out
+ *  below fails the walk and a part added fails this count.
  *
  *  The two legitimate exclusions, stated rather than assumed:
  *  `memoData` is compared EARLIER and more strictly by resolveMemo()
@@ -416,7 +416,9 @@ namespace detail {
  * reaches here, because `inst.description` holds the memo's PRODUCED payload;
  * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 25 && kFieldCount<PaintProps> == 15 &&
+static_assert(kFieldCount<ElementNode> == 25 &&
+                  kFieldCount<DeclaredFields::Storage> == 6 &&
+                  kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 2 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 5,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
