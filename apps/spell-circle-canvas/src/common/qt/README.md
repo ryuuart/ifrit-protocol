@@ -60,9 +60,12 @@ sets `contentFillsViewport: true`, which places the children over the
 whole viewport instead, and draws the canvas itself: `viewScale` viewport
 units per canvas unit, its centre `canvasOffset` from the viewport's
 centre (the pan, plus the half of `leftContentInset` that centring beside
-the inset adds), clipped to itself. The gestures, the badges, the shadow
-and the border are the same in both modes, and a point under the pointer
-stays under it through `zoomAt()` either way.
+the inset adds), clipped to itself. `canvasRect` is where the canvas
+stands in the viewport at the current scale and pan, for whatever such a
+child keeps to the canvas alone, a handler or a ground under it. The
+gestures, the badges, the shadow and the border are the same in both
+modes, and a point under the pointer stays under it through `zoomAt()`
+either way.
 
 The font controls follow the injection rule. `FontFamilyField` takes a
 `searchFamilies(query)` function and emits `familyChosen`; `FontSelector`

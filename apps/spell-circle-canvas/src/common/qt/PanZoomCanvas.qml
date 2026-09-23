@@ -54,6 +54,10 @@ Item {
      *  centring beside the inset adds to it. What a child that fills the
      *  viewport offsets its drawing of the canvas by. */
     readonly property point canvasOffset: Qt.point(leftContentInset / 2 + horizontalPan, verticalPan)
+    /** Where the canvas stands in the viewport, in viewport units, at
+     *  the current scale and pan: what a child that fills the viewport
+     *  bounds whatever belongs to the canvas alone by. */
+    readonly property rect canvasRect: Qt.rect(scaledCanvas.x, scaledCanvas.y, scaledCanvas.width, scaledCanvas.height)
 
     readonly property real fitScale: {
         const availableWidth = width - leftContentInset - 60;

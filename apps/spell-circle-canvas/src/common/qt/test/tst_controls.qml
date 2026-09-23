@@ -122,6 +122,12 @@ TestCase {
         const after = canvasPoint(250, 120);
         fuzzyCompare(after.x, before.x, 1e-6);
         fuzzyCompare(after.y, before.y, 1e-6);
+        // The canvas's rectangle stands where its centre and scale say.
+        const rect = viewport.canvasRect;
+        fuzzyCompare(rect.width, viewport.canvasWidth * viewport.viewScale, 1e-6);
+        fuzzyCompare(rect.height, viewport.canvasHeight * viewport.viewScale, 1e-6);
+        fuzzyCompare(rect.x + rect.width / 2, viewport.width / 2 + viewport.canvasOffset.x, 1e-6);
+        fuzzyCompare(rect.y + rect.height / 2, viewport.height / 2 + viewport.canvasOffset.y, 1e-6);
     }
 
     function cleanup() {
