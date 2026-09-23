@@ -123,7 +123,7 @@ static void BM_Draw_KineticColumns(benchmark::State& state) {
         {text(u8"縦組みの文章は上から下へ流れ右から左へと列が進む", style)
              .width(160)
              .height(1100)
-             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+             .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
              .fx({.effect = fx::rise(24),
                   .stagger = {.eachMs = 120},
                   .unit = sigil::weave::Unit::Line,

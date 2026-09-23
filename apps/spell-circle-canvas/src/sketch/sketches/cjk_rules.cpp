@@ -46,7 +46,7 @@ weave::MojikumiTable brackets() {
 }
 
 Element column(const char8_t* copy, float depth) {
-  return text(copy).font(mincho()).width(112).height(depth).block(
+  return text(copy).font(mincho()).width(112).height(depth).paragraph(
       {.writingMode = weave::WritingMode::kVerticalRL,
        .lineBreakLocale = "ja"});
 }
@@ -72,9 +72,9 @@ Element tracking(bool tightened) {
       .children({text(u8"文字の間に流れる白い空間")
                      .font(mincho(26))
                      .width(461)
-                     .block({.lineBreakLocale = "ja",
-                             .mojikumi = brackets(),
-                             .tsume = tightened ? -0.12f : 0.0f})});
+                     .paragraph({.lineBreakLocale = "ja",
+                                 .mojikumi = brackets(),
+                                 .tsume = tightened ? -0.12f : 0.0f})});
 }
 }  // namespace
 
@@ -98,7 +98,7 @@ struct CjkRules {
                         .control = "House rule: 組 may not start a column",
                         .figure = paired(column(u8"日本語と組版を学ぶ。", 88),
                                          column(u8"日本語と組版を学ぶ。", 88)
-                                             .block({.kinsoku = house}),
+                                             .paragraph({.kinsoku = house}),
                                          88),
                         .note =
                             "The house rule carries the preceding character "
@@ -107,12 +107,13 @@ struct CjkRules {
                         .control = "End aligned · hanging::japanese()",
                         .figure = paired(
                             column(u8"文字を組む。", 132)
-                                .block(
+                                .paragraph(
                                     {.alignment = weave::TextAlignment::kEnd}),
                             column(u8"文字を組む。", 132)
-                                .block({.alignment = weave::TextAlignment::kEnd,
-                                        .hanging =
-                                            weave::kit::hanging::japanese()}),
+                                .paragraph(
+                                    {.alignment = weave::TextAlignment::kEnd,
+                                     .hanging =
+                                         weave::kit::hanging::japanese()}),
                             132),
                         .note = "Both sentences align to the gold edge. With "
                                 "hanging, the full stop sits beyond it."},
@@ -121,7 +122,7 @@ struct CjkRules {
                         .figure =
                             paired(column(u8"「組版」「余白」「行間」", 132),
                                    column(u8"「組版」「余白」「行間」", 132)
-                                       .block({.mojikumi = brackets()}),
+                                       .paragraph({.mojikumi = brackets()}),
                                    132),
                         .note =
                             "Two half-empty bracket cells share less white. "

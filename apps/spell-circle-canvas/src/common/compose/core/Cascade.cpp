@@ -79,7 +79,7 @@ bool sameVars(const std::shared_ptr<const VarTable>& a,
 void namedStylesOf(
     const Instance& leaf, const TextOptions& options, const SheetChain& chain,
     const HasNames& names, sigil::weave::TypeSheet& runs,
-    std::vector<std::pair<std::string, sigil::weave::Block>>& blocks) {
+    std::vector<std::pair<std::string, sigil::weave::ParagraphBlock>>& blocks) {
   runs = {};
   blocks.clear();
   if (chain.empty()) return;
@@ -115,9 +115,9 @@ void namedStylesOf(
       const std::vector<MatchedRule> matched =
           matchRulesForName(chain, leaf, name, names);
       if (matched.empty()) continue;
-      sigil::weave::Block partial;
+      sigil::weave::ParagraphBlock partial;
       for (const MatchedRule& one : matched)
-        sigil::weave::merge(partial, one.rule->block());
+        sigil::weave::merge(partial, one.rule->paragraph());
       blocks.emplace_back(name, std::move(partial));
     }
 }
@@ -380,7 +380,7 @@ void Composer::Impl::runCascade() {
 void Composer::Impl::resolveCascade(
     Instance& inst, const sigil::weave::Type& parentFont,
     float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars,
-    const sigil::weave::Block& parentBlock,
+    const sigil::weave::ParagraphBlock& parentBlock,
     const std::optional<SkSamplingOptions>& parentSampling,
     const SheetChain& parentSheets, const InkInForce& parentInkPaint,
     const std::optional<material::Color>& parentInkTarget) {
@@ -398,7 +398,7 @@ void Composer::Impl::resolveCascade(
   // from the parent's target rather than from the colour it arrived as.
   bool statesOwnInk = false;
   std::shared_ptr<const VarTable> vars = parentVars;
-  sigil::weave::Block block = parentBlock;
+  sigil::weave::ParagraphBlock block = parentBlock;
   std::optional<SkSamplingOptions> sampling = parentSampling;
   const CascadeData* const cascade =
       node.cascadeData ? &*node.cascadeData : nullptr;
@@ -534,7 +534,7 @@ void Composer::Impl::resolveCascade(
     // size resolves once against the parent's font rather than
     // compounding.
     sigil::weave::Type ownFont;
-    sigil::weave::Block ownBlock;
+    sigil::weave::ParagraphBlock ownBlock;
     // The property the ink reads, from whichever layer last said so.
     std::optional<VarRef> inkVar;
     VarTable ruleVars;
@@ -560,7 +560,7 @@ void Composer::Impl::resolveCascade(
     for (const MatchedRule& one : matched) {
       const Rule& rule = *one.rule;
       sigil::weave::merge(ownFont, rule.type());
-      sigil::weave::merge(ownBlock, rule.block());
+      sigil::weave::merge(ownBlock, rule.paragraph());
       if (rule.inkVar()) {
         inkVar = rule.inkVar();
         ownFont.color.reset();
@@ -595,7 +595,7 @@ void Composer::Impl::resolveCascade(
             fontFromInitial = !fromParent;
             break;
           }
-          case Property::Block:
+          case Property::Paragraph:
             ownBlock = {};
             blockFromInitial = !fromParent;
             break;
@@ -640,7 +640,7 @@ void Composer::Impl::resolveCascade(
     // field written as a keyword takes the inherited value or none at
     // all. A merge could not: it has no base to inherit from.
     block = sigil::weave::overlay(
-        blockFromInitial ? sigil::weave::Block{} : block, ownBlock);
+        blockFromInitial ? sigil::weave::ParagraphBlock{} : block, ownBlock);
     if (cascade != nullptr && cascade->sampling) sampling = cascade->sampling;
     const bool anyOwnVars =
         cascade != nullptr &&
@@ -717,8 +717,8 @@ void Composer::Impl::resolveCascade(
           inkPaint = fromParent ? parentInkPaint : InkInForce{};
           inkPaintOrigin = false;
           break;
-        case Property::Block:
-          block = fromParent ? parentBlock : sigil::weave::Block{};
+        case Property::Paragraph:
+          block = fromParent ? parentBlock : sigil::weave::ParagraphBlock{};
           break;
         case Property::ImageRendering:
           if (fromParent)
@@ -824,13 +824,14 @@ void Composer::Impl::resolveCascade(
     // changed what a name means under the leaf is a new paragraph as a new
     // face is.
     sigil::weave::TypeSheet runStyles;
-    std::vector<std::pair<std::string, sigil::weave::Block>> blockStyles;
+    std::vector<std::pair<std::string, sigil::weave::ParagraphBlock>>
+        blockStyles;
     namedStylesOf(inst, inst.textOptions, *sheets, hasNames, runStyles,
                   blockStyles);
-    const bool namesMoved =
-        !(runStyles == inst.runStyles) || !(blockStyles == inst.blockStyles);
+    const bool namesMoved = !(runStyles == inst.runStyles) ||
+                            !(blockStyles == inst.paragraphBlockStyles);
     inst.runStyles = std::move(runStyles);
-    inst.blockStyles = std::move(blockStyles);
+    inst.paragraphBlockStyles = std::move(blockStyles);
     inst.sheetsInForce = !sheets->empty();
     const bool remakes =
         block.writingMode != inst.textBlock.writingMode ||

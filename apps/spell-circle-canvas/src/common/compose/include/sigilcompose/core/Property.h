@@ -102,7 +102,7 @@ enum class Property : uint8_t {
   // The cascade: the four values everything under a node inherits, and
   // the sampling an image leaf reads.
   Font,
-  Block,
+  Paragraph,
   Ink,
   CustomProperties,
   ImageRendering,
@@ -154,19 +154,18 @@ static_assert(static_cast<size_t>(Property::kCount) <= 128,
 
 /** WHETHER A PROPERTY IS TAKEN FROM THE PARENT where nothing states it.
  *
- *  CSS's inherited set, as this library spells it: the type, the block,
- *  the ink, the custom properties and the image sampling. Nothing in the
- *  box, the flex line, the placement, the fill, the silhouette, the
- *  transforms or the plane inherits — each of those is a statement about
- *  ONE box, and a box that took its parent's padding would apply it
- *  again at every depth.
+ *  CSS's inherited set, as this library spells it: the type, the paragraph,
+ *  the ink, the custom properties and the image sampling. Nothing in the box,
+ *  the flex line, the placement, the fill, the silhouette, the transforms or
+ *  the plane inherits — each of those is a statement about ONE box, and a box
+ *  that took its parent's padding would apply it again at every depth.
  *
  *  This is the whole of the set: adding a property to it is adding one
  *  line here, and the fold walks the list this table builds. */
 constexpr bool inheritsByDefault(Property property) {
   switch (property) {
     case Property::Font:
-    case Property::Block:
+    case Property::Paragraph:
     case Property::Ink:
     case Property::CustomProperties:
     case Property::ImageRendering:

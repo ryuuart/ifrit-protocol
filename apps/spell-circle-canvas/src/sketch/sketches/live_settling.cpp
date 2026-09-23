@@ -95,10 +95,11 @@ const char* kPassage =
 /** The passage at one measure. `live` and the floor are what the cells
  *  vary; everything else is one setting. */
 Element passage(float measure, bool live, int candidates) {
-  Text leaf = text(kPassage, body())
-                  .key("para")
-                  .width(measure)
-                  .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass});
+  Text leaf =
+      text(kPassage, body())
+          .key("para")
+          .width(measure)
+          .paragraph({.lineBreak = weave::LineBreakStrategy::kKnuthPlass});
   if (live) leaf.textWillChange(true, candidates);
   return leaf;
 }

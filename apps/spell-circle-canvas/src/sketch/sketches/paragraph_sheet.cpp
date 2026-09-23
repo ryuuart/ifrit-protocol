@@ -333,18 +333,19 @@ struct ParagraphSheet {
 
     const auto column = [&](const char* caption,
                             const weave::JustificationOptions& spec) {
-      return kit::cell(s::callVoice(s::kMeasure * 0.31f), caption, "",
-                       document::paragraph(passage)
-                           .styleClass("body")
-                           .font({.size = 11.0f})
-                           .width(s::kMeasure * 0.31f)
-                           .block({.alignment = weave::TextAlignment::kJustify,
-                                   .justification = spec,
-                                   .hyphenation =
-                                       weave::HyphenationOptions{
-                                           .patterns = s::hyphenator()},
-                                   .lineBreak =
-                                       weave::LineBreakStrategy::kKnuthPlass}))
+      return kit::cell(
+                 s::callVoice(s::kMeasure * 0.31f), caption, "",
+                 document::paragraph(passage)
+                     .styleClass("body")
+                     .font({.size = 11.0f})
+                     .width(s::kMeasure * 0.31f)
+                     .paragraph(
+                         {.alignment = weave::TextAlignment::kJustify,
+                          .justification = spec,
+                          .hyphenation =
+                              weave::HyphenationOptions{.patterns =
+                                                            s::hyphenator()},
+                          .lineBreak = weave::LineBreakStrategy::kKnuthPlass}))
           .applyStyleSheet(s::callClasses())
           .width(s::kMeasure * 0.31f);
     };
@@ -380,7 +381,7 @@ struct ParagraphSheet {
             .styleClass("figures")
             .font({.size = 11.5f})
             .width(520.0f)
-            .block({.tabStops = stops}));
+            .paragraph({.tabStops = stops}));
   }
 
   Element columnPanel() {
@@ -406,7 +407,7 @@ struct ParagraphSheet {
             .font({.size = 15.0f})
             .width(210.0f)
             .height(250.0f)
-            .block({.writingMode = weave::WritingMode::kVerticalRL})
+            .paragraph({.writingMode = weave::WritingMode::kVerticalRL})
             .paragraphStyles({heading, verse}));
   }
 

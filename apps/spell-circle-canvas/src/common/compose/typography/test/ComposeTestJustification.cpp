@@ -18,8 +18,8 @@ std::vector<float> justifiedEdges(sigil::weave::JustificationOptions spec,
       {text(body, whiteStyle(12))
            .key("t")
            .width(measure)
-           .block({.alignment = sigil::weave::TextAlignment::kJustify})
-           .block({.justification = spec})}));
+           .paragraph({.alignment = sigil::weave::TextAlignment::kJustify})
+           .paragraph({.justification = spec})}));
   host.frame();
   std::vector<float> edges;
   for (const TextUnit& line : host.composer.units(
@@ -65,8 +65,8 @@ TEST(ComposeJustification, ASingleWordFitReachesTheGlyphsHandedToTheCanvas) {
     host.composer.render(box().children(
         {text("Alone.", whiteStyle(12))
              .width(130.0f)
-             .block({.alignment = sigil::weave::TextAlignment::kJustify,
-                     .justification = options})}));
+             .paragraph({.alignment = sigil::weave::TextAlignment::kJustify,
+                         .justification = options})}));
     sigil::test::GlyphCanvas canvas(200, 80);
     host.composer.draw(canvas);
     return canvas.glyphs;

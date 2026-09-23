@@ -387,59 +387,60 @@ void bindWeave(py::module_& module) {
       .def("empty", &MojikumiTable::empty);
   // Every field of a block inherits, as every field of a text style
   // does, so `Initial` is the keyword that says something new about one.
-  py::enum_<BlockField>(text, "BlockField")
-      .value("Leading", BlockField::Leading)
-      .value("HalfLeading", BlockField::HalfLeading)
-      .value("Alignment", BlockField::Alignment)
-      .value("Justification", BlockField::Justification)
-      .value("Hyphenation", BlockField::Hyphenation)
-      .value("TabStops", BlockField::TabStops)
-      .value("FirstLineIndent", BlockField::FirstLineIndent)
-      .value("LastLineIndent", BlockField::LastLineIndent)
-      .value("WidowLines", BlockField::WidowLines)
-      .value("OrphanLines", BlockField::OrphanLines)
-      .value("BalanceRaggedLines", BlockField::BalanceRaggedLines)
-      .value("WritingMode", BlockField::WritingMode)
-      .value("LineBreakLocale", BlockField::LineBreakLocale)
-      .value("LineBreak", BlockField::LineBreak)
-      .value("LastLineAlignment", BlockField::LastLineAlignment)
-      .value("JustifyLastLine", BlockField::JustifyLastLine)
-      .value("Kinsoku", BlockField::Kinsoku)
-      .value("Hanging", BlockField::Hanging)
-      .value("Mojikumi", BlockField::Mojikumi)
-      .value("Tsume", BlockField::Tsume);
-  auto block = py::class_<Block>(text, "Block");
+  py::enum_<ParagraphField>(text, "ParagraphField")
+      .value("Leading", ParagraphField::Leading)
+      .value("HalfLeading", ParagraphField::HalfLeading)
+      .value("Alignment", ParagraphField::Alignment)
+      .value("Justification", ParagraphField::Justification)
+      .value("Hyphenation", ParagraphField::Hyphenation)
+      .value("TabStops", ParagraphField::TabStops)
+      .value("FirstLineIndent", ParagraphField::FirstLineIndent)
+      .value("LastLineIndent", ParagraphField::LastLineIndent)
+      .value("WidowLines", ParagraphField::WidowLines)
+      .value("OrphanLines", ParagraphField::OrphanLines)
+      .value("BalanceRaggedLines", ParagraphField::BalanceRaggedLines)
+      .value("WritingMode", ParagraphField::WritingMode)
+      .value("LineBreakLocale", ParagraphField::LineBreakLocale)
+      .value("LineBreak", ParagraphField::LineBreak)
+      .value("LastLineAlignment", ParagraphField::LastLineAlignment)
+      .value("JustifyLastLine", ParagraphField::JustifyLastLine)
+      .value("Kinsoku", ParagraphField::Kinsoku)
+      .value("Hanging", ParagraphField::Hanging)
+      .value("Mojikumi", ParagraphField::Mojikumi)
+      .value("Tsume", ParagraphField::Tsume);
+  auto block = py::class_<ParagraphBlock>(text, "ParagraphBlock");
   block
-      .def(py::init(
-          [](py::kwargs fields) { return keywordValue<Block>(fields); }))
+      .def(py::init([](py::kwargs fields) {
+        return keywordValue<ParagraphBlock>(fields);
+      }))
       .def_property(
-          "leading", [](const Block& self) { return self.leading; },
-          [](Block& self, std::optional<Leading> value) {
+          "leading", [](const ParagraphBlock& self) { return self.leading; },
+          [](ParagraphBlock& self, std::optional<Leading> value) {
             self.leading = std::move(value);
           })
-      .def_readwrite("halfLeading", &Block::halfLeading)
-      .def_readwrite("alignment", &Block::alignment)
-      .def_readwrite("firstLineIndent", &Block::firstLineIndent)
-      .def_readwrite("lastLineIndent", &Block::lastLineIndent)
-      .def_readwrite("widowLines", &Block::widowLines)
-      .def_readwrite("orphanLines", &Block::orphanLines)
-      .def_readwrite("balanceRaggedLines", &Block::balanceRaggedLines)
-      .def_readwrite("writingMode", &Block::writingMode)
-      .def_readwrite("lineBreakLocale", &Block::lineBreakLocale)
-      .def_readwrite("lineBreak", &Block::lineBreak)
-      .def_readwrite("lastLineAlignment", &Block::lastLineAlignment)
-      .def_readwrite("justifyLastLine", &Block::justifyLastLine)
-      .def_readwrite("tsume", &Block::tsume)
-      .def("empty", &Block::empty)
+      .def_readwrite("halfLeading", &ParagraphBlock::halfLeading)
+      .def_readwrite("alignment", &ParagraphBlock::alignment)
+      .def_readwrite("firstLineIndent", &ParagraphBlock::firstLineIndent)
+      .def_readwrite("lastLineIndent", &ParagraphBlock::lastLineIndent)
+      .def_readwrite("widowLines", &ParagraphBlock::widowLines)
+      .def_readwrite("orphanLines", &ParagraphBlock::orphanLines)
+      .def_readwrite("balanceRaggedLines", &ParagraphBlock::balanceRaggedLines)
+      .def_readwrite("writingMode", &ParagraphBlock::writingMode)
+      .def_readwrite("lineBreakLocale", &ParagraphBlock::lineBreakLocale)
+      .def_readwrite("lineBreak", &ParagraphBlock::lineBreak)
+      .def_readwrite("lastLineAlignment", &ParagraphBlock::lastLineAlignment)
+      .def_readwrite("justifyLastLine", &ParagraphBlock::justifyLastLine)
+      .def_readwrite("tsume", &ParagraphBlock::tsume)
+      .def("empty", &ParagraphBlock::empty)
       .def(py::self == py::self);
-  optionalField(block, "justification", &Block::justification);
-  optionalField(block, "hyphenation", &Block::hyphenation);
-  optionalField(block, "tabStops", &Block::tabStops);
-  optionalField(block, "kinsoku", &Block::kinsoku);
-  optionalField(block, "hanging", &Block::hanging);
-  optionalField(block, "mojikumi", &Block::mojikumi);
-  bindKeywords<Block, BlockField>(block);
-  text.def("toParagraphStyle", &toParagraphStyle, py::arg("block"));
+  optionalField(block, "justification", &ParagraphBlock::justification);
+  optionalField(block, "hyphenation", &ParagraphBlock::hyphenation);
+  optionalField(block, "tabStops", &ParagraphBlock::tabStops);
+  optionalField(block, "kinsoku", &ParagraphBlock::kinsoku);
+  optionalField(block, "hanging", &ParagraphBlock::hanging);
+  optionalField(block, "mojikumi", &ParagraphBlock::mojikumi);
+  bindKeywords<ParagraphBlock, ParagraphField>(block);
+  text.def("toParagraphStyle", &toParagraphStyle, py::arg("partial"));
   py::class_<TypeSheet>(text, "TypeSheet")
       .def(py::init<>())
       .def(py::init<TextStyle>(), py::arg("style"))

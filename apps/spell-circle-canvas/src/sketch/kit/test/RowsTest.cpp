@@ -275,7 +275,7 @@ TEST(SketchKitRows, AReadoutClassKeepsTheParagraphRoleAndOverridesItsType) {
           .font(house.font(house.type.captionLabel, SkColors::kBlue)),
       compose::rule("paragraph")
           .font({.size = 32, .color = SkColors::kRed})
-          .block({.leading = sigil::weave::Leading::multiple(2.0f)})};
+          .paragraph({.leading = sigil::weave::Leading::multiple(2.0f)})};
   const auto under = [&](Element content) {
     return compose::box().applyStyleSheet(sheet).children({std::move(content)});
   };

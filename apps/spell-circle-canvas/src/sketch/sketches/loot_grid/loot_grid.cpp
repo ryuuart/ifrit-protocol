@@ -336,7 +336,8 @@ struct LootGrid {
                .left(0)
                .right(0)
                .bottom(3)
-               .block({.alignment = sigil::weave::TextAlignment::kCenter})});
+               .paragraph(
+                   {.alignment = sigil::weave::TextAlignment::kCenter})});
       return socket;
     })});
 

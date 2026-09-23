@@ -81,7 +81,8 @@ constexpr float kBlockH = 430;
 constexpr float kBlockRight = 60;
 
 /** A COLUMN: the one block every vertical leaf on this plate is set in. */
-const weave::Block kColumn{.writingMode = weave::WritingMode::kVerticalRL};
+const weave::ParagraphBlock kColumn{.writingMode =
+                                        weave::WritingMode::kVerticalRL};
 
 /** The same body style asking the face for the metrics and forms it keeps
  *  for a column: punctuation pulled onto the column axis, full-width marks
@@ -153,10 +154,12 @@ struct Bousen {
     namespace bs = bousen;
     weave::TextStyle style = bs::body(18, bs::kSumi);
     style.paint = bs::banded(bs::kSumi, kind, band, thickness);
-    return bs::specimen(
-        caption, bs::labelType(9, bs::kUsu, 0.6f),
-        text(u8"傍線例", style).width(28.0f).height(62.0f).block(bs::kColumn),
-        132.0f, 8.0f);
+    return bs::specimen(caption, bs::labelType(9, bs::kUsu, 0.6f),
+                        text(u8"傍線例", style)
+                            .width(28.0f)
+                            .height(62.0f)
+                            .paragraph(bs::kColumn),
+                        132.0f, 8.0f);
   }
 
   /** One punctuation column, captioned: the same characters set twice,
@@ -167,7 +170,7 @@ struct Bousen {
                         text(u8"「あっ」、。", style)
                             .width(42.0f)
                             .height(150.0f)
-                            .block(bs::kColumn),
+                            .paragraph(bs::kColumn),
                         96.0f, 10.0f);
   }
 
@@ -201,7 +204,7 @@ struct Bousen {
                  .top(96)
                  .width(bs::kBlockW)
                  .height(bs::kBlockH)
-                 .block(bs::kColumn)
+                 .paragraph(bs::kColumn)
                  // The band the plate is named for: down the RIGHT of the
                  // column, the length of the phrase it dresses.
                  .span(weave::selectors::text(u8"傍線"),
@@ -230,7 +233,7 @@ struct Bousen {
                          // A mark is a child of the column and inherits
                          // its writing mode; the note is Latin and reads
                          // across, so the callout says so.
-                         .block(
+                         .paragraph(
                              {.writingMode = weave::WritingMode::kHorizontal})
                          .left(-168.0f)
                          .top(pct(0))
@@ -295,7 +298,7 @@ struct Bousen {
                  .inset(150, 0, 0, 352)
                  .width(120.0f)
                  .height(300.0f)
-                 .block(bs::kColumn)
+                 .paragraph(bs::kColumn)
                  .span(weave::selectors::text(u8"右から左へ"),
                        bs::bandedSpan(bs::kAi,
                                       weave::Decoration::Kind::kUnderline,

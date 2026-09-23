@@ -15,79 +15,79 @@ namespace {
  *  inherits, so `unset` reads as `inherit` and `inherit` is the base's
  *  own; `initial` is a field nobody stated, which is the paragraph
  *  layout's own answer. */
-void applyKeyword(Block& total, const Block& base, BlockField field,
-                  Keyword keyword) {
-  const Block initial;
-  const Block& from = keyword == Keyword::Initial ? initial : base;
+void applyKeyword(ParagraphBlock& total, const ParagraphBlock& base,
+                  ParagraphField field, Keyword keyword) {
+  const ParagraphBlock initial;
+  const ParagraphBlock& from = keyword == Keyword::Initial ? initial : base;
   switch (field) {
-    case BlockField::Leading:
+    case ParagraphField::Leading:
       total.leading = from.leading;
       return;
-    case BlockField::HalfLeading:
+    case ParagraphField::HalfLeading:
       total.halfLeading = from.halfLeading;
       return;
-    case BlockField::Alignment:
+    case ParagraphField::Alignment:
       total.alignment = from.alignment;
       return;
-    case BlockField::Justification:
+    case ParagraphField::Justification:
       total.justification = from.justification;
       return;
-    case BlockField::Hyphenation:
+    case ParagraphField::Hyphenation:
       total.hyphenation = from.hyphenation;
       return;
-    case BlockField::TabStops:
+    case ParagraphField::TabStops:
       total.tabStops = from.tabStops;
       return;
-    case BlockField::FirstLineIndent:
+    case ParagraphField::FirstLineIndent:
       total.firstLineIndent = from.firstLineIndent;
       return;
-    case BlockField::LastLineIndent:
+    case ParagraphField::LastLineIndent:
       total.lastLineIndent = from.lastLineIndent;
       return;
-    case BlockField::WidowLines:
+    case ParagraphField::WidowLines:
       total.widowLines = from.widowLines;
       return;
-    case BlockField::OrphanLines:
+    case ParagraphField::OrphanLines:
       total.orphanLines = from.orphanLines;
       return;
-    case BlockField::BalanceRaggedLines:
+    case ParagraphField::BalanceRaggedLines:
       total.balanceRaggedLines = from.balanceRaggedLines;
       return;
-    case BlockField::WritingMode:
+    case ParagraphField::WritingMode:
       total.writingMode = from.writingMode;
       return;
-    case BlockField::LineBreakLocale:
+    case ParagraphField::LineBreakLocale:
       total.lineBreakLocale = from.lineBreakLocale;
       return;
-    case BlockField::LineBreak:
+    case ParagraphField::LineBreak:
       total.lineBreak = from.lineBreak;
       return;
-    case BlockField::LastLineAlignment:
+    case ParagraphField::LastLineAlignment:
       total.lastLineAlignment = from.lastLineAlignment;
       return;
-    case BlockField::JustifyLastLine:
+    case ParagraphField::JustifyLastLine:
       total.justifyLastLine = from.justifyLastLine;
       return;
-    case BlockField::Kinsoku:
+    case ParagraphField::Kinsoku:
       total.kinsoku = from.kinsoku;
       return;
-    case BlockField::Hanging:
+    case ParagraphField::Hanging:
       total.hanging = from.hanging;
       return;
-    case BlockField::Mojikumi:
+    case ParagraphField::Mojikumi:
       total.mojikumi = from.mojikumi;
       return;
-    case BlockField::Tsume:
+    case ParagraphField::Tsume:
       total.tsume = from.tsume;
       return;
-    case BlockField::kCount:
+    case ParagraphField::kCount:
       return;
   }
 }
 
 }  // namespace
 
-Block& merge(Block& into, const Block& over) {
+ParagraphBlock& merge(ParagraphBlock& into, const ParagraphBlock& over) {
   if (over.leading) into.leading = over.leading;
   if (over.halfLeading) into.halfLeading = over.halfLeading;
   if (over.alignment) into.alignment = over.alignment;
@@ -116,19 +116,20 @@ Block& merge(Block& into, const Block& over) {
   return into;
 }
 
-Block overlay(const Block& base, const Block& over) {
-  Block total = base;
+ParagraphBlock overlay(const ParagraphBlock& base, const ParagraphBlock& over) {
+  ParagraphBlock total = base;
   merge(total, over);
   // A field written as a keyword takes the base's value or none at all,
   // over whatever the merge copied: the two are ONE layer and the keyword
   // is the statement that wins. A resolved block states none of them.
-  for (const KeywordTable<BlockField>::Entry& entry : over.keywords.entries())
+  for (const KeywordTable<ParagraphField>::Entry& entry :
+       over.keywords.entries())
     applyKeyword(total, base, entry.field, entry.keyword);
   total.keywords = {};
   return total;
 }
 
-ParagraphStyle overlay(ParagraphStyle base, const Block& over) {
+ParagraphStyle overlay(ParagraphStyle base, const ParagraphBlock& over) {
   // A block handed straight to a whole style stands under NO ancestor.
   // `inherit` therefore comes to the field nobody stated, which is what
   // the style already carries, and resolving against an empty block is
@@ -137,7 +138,8 @@ ParagraphStyle overlay(ParagraphStyle base, const Block& over) {
   // style beneath it is already a whole value, so there is nothing to
   // reset it to without a second table mapping every block field onto the
   // style's. State the field's value where a block must reset one.
-  if (!over.keywords.empty()) return overlay(base, overlay(Block{}, over));
+  if (!over.keywords.empty())
+    return overlay(base, overlay(ParagraphBlock{}, over));
   if (over.leading) base.leading = *over.leading;
   if (over.halfLeading) base.halfLeading = *over.halfLeading;
   if (over.alignment) base.alignment = over.alignment;
@@ -153,13 +155,13 @@ ParagraphStyle overlay(ParagraphStyle base, const Block& over) {
   return base;
 }
 
-ParagraphStyle toParagraphStyle(const Block& block) {
+ParagraphStyle toParagraphStyle(const ParagraphBlock& block) {
   return overlay(ParagraphStyle{}, block);
 }
 
-void apply(ParagraphLayoutOptions& options, const Block& block) {
+void apply(ParagraphLayoutOptions& options, const ParagraphBlock& block) {
   if (!block.keywords.empty()) {
-    apply(options, overlay(Block{}, block));
+    apply(options, overlay(ParagraphBlock{}, block));
     return;
   }
   if (block.alignment) options.alignment = *block.alignment;

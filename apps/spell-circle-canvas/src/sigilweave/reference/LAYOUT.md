@@ -687,13 +687,13 @@ other when it names none. A full-width character the table does not name
 is an ideograph, which the caller decides by asking the character and not
 this table.
 
-## Block: the block partial
+## ParagraphBlock: the paragraph partial
 
-`Block` is a block's setting as a PARTIAL: every field optional, so a
+`ParagraphBlock` is a block's setting as a PARTIAL: every field optional, so a
 call site states the one thing it changes and says nothing about the
 rest. Beside it are the merges — `merge` folds one partial into another,
 `overlay` resolves one against a whole `ParagraphStyle` — and the style a
-partial alone names, `toParagraphStyle`. `Block` is to `ParagraphStyle`
+partial alone names, `toParagraphStyle`. `ParagraphBlock` is to `ParagraphStyle`
 what `Type` is to `TextStyle`.
 
 It carries the settings a block takes from the passage it stands in when
@@ -712,7 +712,7 @@ own. `overlay` is one step of that, onto a whole style, and
 `toParagraphStyle` is what a partial names with nothing above it: the
 layout's own answer for every field it leaves unset.
 
-`Block::lastLineAlignment` and `Block::justifyLastLine` are stated apart
+`ParagraphBlock::lastLineAlignment` and `ParagraphBlock::justifyLastLine` are stated apart
 from the rest of the justification so a passage can name the last line
 without restating everything else about it.
 

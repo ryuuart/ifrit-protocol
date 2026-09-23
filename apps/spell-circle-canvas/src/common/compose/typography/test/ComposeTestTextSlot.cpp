@@ -84,7 +84,7 @@ TEST(TextSlot, AVerticalChildReceivesThePhysicalSlotRect) {
            .key("caption")
            .width(180)
            .height(240)
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .children({box().key("pill").fill(red())})}));
   host.frame();
   const auto rect = host.composer.bounds("pill");

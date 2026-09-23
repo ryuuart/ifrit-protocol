@@ -159,13 +159,13 @@ layout of the text BEFORE the span: it does not chase its own result, so a
 span that moves the line breaks leaves the selection where the first
 breaking put it.
 
-**Layout options, fluently.** `Element::block` states every layout-wide
+**Layout options, fluently.** `Element::paragraph` states every layout-wide
 field a passage inherits, as one partial: its alignment, its breaking strategy
 (greedy or Knuth-Plass), its hyphenation, its last line, its justification, its
 tab stops, the three tables a house's own setting is stated in
-(`Block::kinsoku`, `Block::hanging`, `Block::mojikumi` with `Block::tsume`),
-and the tailoring the segmentation runs under (`Block::lineBreakLocale`), which
-belongs to the Paragraph and lands there the way `Block::writingMode` does.
+(`ParagraphBlock::kinsoku`, `ParagraphBlock::hanging`, `ParagraphBlock::mojikumi` with `ParagraphBlock::tsume`),
+and the tailoring the segmentation runs under (`ParagraphBlock::lineBreakLocale`), which
+belongs to the Paragraph and lands there the way `ParagraphBlock::writingMode` does.
 `Text::textOverflow`, `Text::maxTextLines`, `Text::textLineMargin` and
 `Text::textWillChange` are the leaf's own, set on any content form. The rest
 of that struct — Knuth-Plass tolerance, line-metric overrides — stays behind

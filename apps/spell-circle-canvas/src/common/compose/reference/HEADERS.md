@@ -125,7 +125,7 @@ sound model; nothing below them changes kernel semantics.
   `fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, `letterSpacing`,
   and `ink` — the type and the colour every passage under a node is set
   in.
-- `core/verbs/Cascade.h` — `CascadeVerbs`: `block` and its longhands
+- `core/verbs/Cascade.h` — `CascadeVerbs`: `paragraph` and its longhands
   `lineHeight`, `textAlign`, `textIndent`, `writingMode`, `hyphens`,
   `var`, `varDefaults`, `imageRendering`, and the keywords `inherit`,
   `initial`, `unset` — what a node declares to everything under it.

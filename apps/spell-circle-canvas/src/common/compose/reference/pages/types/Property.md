@@ -37,7 +37,7 @@ arrangement, so `Property::PaddingLeft` is a thing you can inherit while
 | Transform | `TranslateX` `TranslateY` `Rotate` `Scale` `ScaleX` `ScaleY` `SkewX` `SkewY` `TransformOrigin` |
 | Depth | `RotateX` `RotateY` `TranslateZ` `ScaleZ` `Perspective` `PerspectiveOrigin` `TransformOriginZ` `Preserve3d` `Backface` |
 | Decoration | `DecorationOutline` |
-| Cascade | `Font` `Block` `Ink` `CustomProperties` `ImageRendering` |
+| Cascade | `Font` `Paragraph` `Ink` `CustomProperties` `ImageRendering` |
 
 `compose::propertyName` answers a property's authored spelling, which is
 what a diagnostic prints. `compose::answersKeyword` answers whether a
@@ -50,7 +50,7 @@ than taken and dropped.
 ## What inherits
 
 `compose::inheritsByDefault` is the one table, and its answer is CSS's
-set as this library spells it: `Font`, `Block`, `Ink`,
+set as this library spells it: `Font`, `Paragraph`, `Ink`,
 `CustomProperties` and `ImageRendering`. Everything else is a statement
 about ONE box — a padding taken from the parent would be applied again at
 every depth — so nothing in the box, the flex line, the placement, the

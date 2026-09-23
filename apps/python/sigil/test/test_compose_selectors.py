@@ -254,9 +254,9 @@ class Rules(unittest.TestCase):
         stated.font(weave.Type(color="#ff0000"))
         self.assertEqual(stated.type().size.value, 18)
         self.assertEqual(stated.type().color, material.Color("#ff0000"))
-        stated.block(weave.Block(widowLines=3))
-        self.assertEqual(stated.block().widowLines, 3)
-        self.assertFalse(stated.block().empty())
+        stated.paragraph(weave.ParagraphBlock(widowLines=3))
+        self.assertEqual(stated.paragraph().widowLines, 3)
+        self.assertFalse(stated.paragraph().empty())
 
     def test_a_rule_states_an_ink_and_a_custom_property(self):
         coloured = compose.rule(".card").ink("#00ff00")
@@ -339,13 +339,13 @@ class Rules(unittest.TestCase):
         )
         self.assertEqual(
             compose.rule(".a").textAlign(weave.TextAlignment.Center),
-            compose.rule(".a").block(
-                weave.Block(alignment=weave.TextAlignment.Center)
+            compose.rule(".a").paragraph(
+                weave.ParagraphBlock(alignment=weave.TextAlignment.Center)
             ),
         )
         self.assertEqual(
             compose.rule(".a").textIndent(24),
-            compose.rule(".a").block(weave.Block(firstLineIndent=24)),
+            compose.rule(".a").paragraph(weave.ParagraphBlock(firstLineIndent=24)),
         )
         for name in ("fontFamily", "fontStyle", "lineHeight", "writingMode",
                      "hyphens"):

@@ -75,7 +75,7 @@ class Rule : public detail::Declaring,
  public:
   explicit Rule(ElementSelector subject);
 
-  using CascadeVerbs<Rule>::block;
+  using CascadeVerbs<Rule>::paragraph;
 
   /** HOW A MATCHED ELEMENT'S VALUES CHANGE when a later describe moves
    *  them: the element's `transition`, stated by the rule, so a class
@@ -100,8 +100,8 @@ class Rule : public detail::Declaring,
   [[nodiscard]] const ElementSelector& selector() const { return m_selector; }
   /** The font half of what it states. */
   [[nodiscard]] const sigil::weave::Type& type() const;
-  /** The block half of what it states. */
-  [[nodiscard]] const sigil::weave::Block& block() const;
+  /** The paragraph half of what it states. */
+  [[nodiscard]] const sigil::weave::ParagraphBlock& paragraph() const;
   /** The property the ink reads, where it was written as one. */
   [[nodiscard]] const std::optional<VarRef>& inkVar() const;
   /** The paint the ink is, where it was written as one. */

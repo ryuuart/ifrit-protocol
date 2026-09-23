@@ -358,7 +358,7 @@ struct PsxDoomFire {
         sigil::geometry::path::Join::Round));
     return compose::text("DOOM", std::move(s))
         .width(kPanelW)
-        .block({.alignment = weave::TextAlignment::kCenter})
+        .paragraph({.alignment = weave::TextAlignment::kCenter})
         .opacity(motion::animate(motion::from(0.0f).to(1.0f),
                                  {.duration = 600ms, .delay = 380ms}));
   }

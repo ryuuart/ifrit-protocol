@@ -122,7 +122,7 @@ struct RubyKenten {
     return text(std::move(utf8), f::body(f::kBodySize, f::kSumi))
         .width(f::kColumnW)
         .height(height)
-        .block({.writingMode = weave::WritingMode::kVerticalRL});
+        .paragraph({.writingMode = weave::WritingMode::kVerticalRL});
   }
 
   weave::Type rubyType() {

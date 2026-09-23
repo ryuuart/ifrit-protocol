@@ -305,12 +305,13 @@ auto ChaucerAstrolabe::backPanel() -> Element {
             }),
        dot(c, 8, brass(0.82f))});
 
-  return card(page,
-              box().children(
-                  {std::move(face),
-                   text(page["reading"])
-                       .styleClass("gloss")
-                       .block({.alignment = weave::TextAlignment::kCenter})}));
+  return card(
+      page,
+      box().children(
+          {std::move(face),
+           text(page["reading"])
+               .styleClass("gloss")
+               .paragraph({.alignment = weave::TextAlignment::kCenter})}));
 }
 
 auto ChaucerAstrolabe::specCard() -> Element {

@@ -139,8 +139,8 @@ std::string_view propertyName(Property property) {
       return "decorationOutline";
     case Property::Font:
       return "font";
-    case Property::Block:
-      return "block";
+    case Property::Paragraph:
+      return "paragraph";
     case Property::Ink:
       return "ink";
     case Property::CustomProperties:
@@ -344,7 +344,7 @@ void copyProperty(Property property, const ComputedStyle& from,
     case Property::Backface:
     case Property::DecorationOutline:
     case Property::Font:
-    case Property::Block:
+    case Property::Paragraph:
     case Property::Ink:
     case Property::CustomProperties:
     case Property::ImageRendering:

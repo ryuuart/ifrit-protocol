@@ -313,8 +313,9 @@ TEST(TextOptionSetters, HyphenationRendersTheHyphenAtASoftBreak) {
     host.composer.render(box().padding(4).children(
         {text(body, base)
              .width(200)
-             .block({.hyphenation =
-                         sigil::weave::HyphenationOptions{.enabled = enabled}})
+             .paragraph(
+                 {.hyphenation =
+                      sigil::weave::HyphenationOptions{.enabled = enabled}})
              .key("t")}));
     host.frame();
     const auto* layout = host.composer.paragraphLayout("t");
@@ -362,8 +363,11 @@ TEST(TextOptionSetters, KnuthPlassBreaksARaggedParagraphDifferently) {
       u8"a longer word then tiny bits of text and an extraordinarily "
       u8"lengthy one to finish the measure";
   const auto lineStartsUnder = [&](sigil::weave::LineBreakStrategy strategy) {
-    host.composer.render(box().padding(4).children(
-        {text(body, base).width(240).block({.lineBreak = strategy}).key("t")}));
+    host.composer.render(
+        box().padding(4).children({text(body, base)
+                                       .width(240)
+                                       .paragraph({.lineBreak = strategy})
+                                       .key("t")}));
     host.frame();
     std::vector<uint32_t> starts;
     const auto* layout = host.composer.paragraphLayout("t");

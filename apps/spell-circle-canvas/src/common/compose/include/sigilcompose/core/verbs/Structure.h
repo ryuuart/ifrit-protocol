@@ -45,7 +45,7 @@ class StructureVerbs {
   /** @name The cascade a node NAMES
    *  The sheets applied to this node's subtree, the semantic role its
    *  rules and a component's defaults speak about, and the classes. What
-   *  a node DECLARES to its descendants — the font, the block, the ink,
+   *  a node DECLARES to its descendants — the font, the paragraph, the ink,
    *  the custom properties and the sampling — is the cascade mixin's.
    *  @{ */
   /** APPLIES @p sheet to this node and everything under it: a value
@@ -61,20 +61,20 @@ class StructureVerbs {
    *  stands as the only child of nothing for these rules. */
   Derived& applyStyleSheet(StyleSheet sheet);
   /** A SEMANTIC ROLE — what a bare word in a selector names — with the
-   *  typography a component falls back to for it: @p font and @p block
+   *  typography a component falls back to for it: @p font and @p paragraph
    *  sit under every rule that matches the node, and the node's own
-   *  `font()` and `block()` stand over everything. Unstated fields
+   *  `font()` and `paragraph()` stand over everything. Unstated fields
    *  inherit. A later call replaces the role and its defaults together. */
   Derived& role(std::string name, sigil::weave::Type font,
-                sigil::weave::Block block = {});
-  /** A semantic role whose default is a block partial alone. */
-  Derived& role(std::string name, sigil::weave::Block block);
+                sigil::weave::ParagraphBlock paragraph = {});
+  /** A semantic role whose default is a paragraph partial alone. */
+  Derived& role(std::string name, sigil::weave::ParagraphBlock paragraph);
   /** A semantic role with no default fields, styled by the sheets in force. */
   Derived& role(std::string name);
   /** CLASSES: the names in @p names — several, separated by spaces, as
    *  CSS's class attribute lists them — which the `.name` compounds of the
    *  rules in force speak about, resolved by the cascade pass where the
-   *  element LANDS and laid under the node's own `font()` and `block()`,
+   *  element LANDS and laid under the node's own `font()` and `paragraph()`,
    *  as an inline style stands over a class. A name no rule in force
    *  names warns once and sets nothing. */
   Derived& styleClass(std::string_view names);

@@ -348,9 +348,9 @@ only the paint, for a consumer that can repaint a range without setting
 it again.
 
 A field may also be written as one of CSS's three wide keywords rather
-than as a value: `Type::keywords` and `Block::keywords` name the fields
+than as a value: `Type::keywords` and `ParagraphBlock::keywords` name the fields
 written as `weave::Keyword::Inherit`, `::Initial` or `::Unset`
-(`weave::TypeField`, `weave::BlockField`). `merge` ACCUMULATES them,
+(`weave::TypeField`, `weave::ParagraphField`). `merge` ACCUMULATES them,
 because folding two partials into one has no style in force to resolve
 `inherit` against; `overlay` is where they land, and the total it answers
 states none. Every field of a text style and of a block inherits, so
@@ -382,7 +382,7 @@ reaches, so the paragraph layer shapes a rich run's named runs through it.
 
 A block has the same two forms. `ParagraphStyle` is total: the pitch, the
 air around the block, its indents, keeps, initial letter and the four
-settings it may override. **`Block`** is the partial: what a block
+settings it may override. **`ParagraphBlock`** is the partial: what a block
 INHERITS from the passage it stands in — leading and where its room goes,
 alignment, justification and its last line, hyphenation, tab stops, the
 first- and last-line indents, widows and orphans, balanced ragging, the

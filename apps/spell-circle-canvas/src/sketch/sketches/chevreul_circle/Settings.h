@@ -355,14 +355,15 @@ inline Element centred(const Utf8& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.7_em)
       .children({text(s)
-                     .block({.alignment = weave::TextAlignment::kCenter})
+                     .paragraph({.alignment = weave::TextAlignment::kCenter})
                      .width(w)});
 }
 inline Element rightAt(const Utf8& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.7_em)
-      .children(
-          {text(s).block({.alignment = weave::TextAlignment::kEnd}).width(w)});
+      .children({text(s)
+                     .paragraph({.alignment = weave::TextAlignment::kEnd})
+                     .width(w)});
 }
 
 /** The rim baseline: a circle wound COUNTER-CLOCKWISE and starting at

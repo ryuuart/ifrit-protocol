@@ -73,7 +73,7 @@ auto content = document::article({
 }).applyStyleSheet(compose::StyleSheet{
     compose::rule("h1").font({.size = 36}),
     compose::rule("h2").font({.size = 24}),
-    compose::rule("paragraph").block({.leading = weave::Leading::multiple(1.5f)}),
+    compose::rule("paragraph").paragraph({.leading = weave::Leading::multiple(1.5f)}),
     compose::rule("caption").font({.size = 12}),
 });
 ```
@@ -90,7 +90,7 @@ Roles are independent of class membership: a bare word in a selector names
 a role, `.name` a class. Resolution at each node is inherited type and
 block, then role defaults, the matched rules by CSS's specificity — so a
 rule for a class stands over a rule for a role — and finally direct
-`font()` and `block()` declarations. A later `styleClass("warning")`
+`font()` and `paragraph()` declarations. A later `styleClass("warning")`
 therefore keeps the element's paragraph role; the `.warning` rule overrides
 only what it states. Relative sizes are resolved once against the inherited
 font. Content built before its parent still adopts that parent's rules,

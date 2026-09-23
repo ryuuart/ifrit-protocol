@@ -81,7 +81,7 @@ sigil::compose::StyleSheet voice(bool editorial) {
   sigil::compose::StyleSheet sheet{
       sigil::compose::rule("article")
           .font({.face = body, .size = 17, .color = ink, .track = 0})
-          .block({.leading = weave::Leading::multiple(1.4f)}),
+          .paragraph({.leading = weave::Leading::multiple(1.4f)}),
       sigil::compose::rule("h1").font({.face = body,
                                        .size = editorial ? 32.0f : 30.0f,
                                        .color = accent,

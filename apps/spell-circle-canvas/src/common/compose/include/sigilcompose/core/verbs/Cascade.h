@@ -3,8 +3,8 @@
 /** @file
  * @ingroup compose-core
  *
- * What a node hands DOWN the tree, as verbs: the block and its
- * longhands, the custom properties, how image leaves under it sample, and
+ * What a node hands DOWN the tree, as verbs: the paragraph setting and
+ * its longhands, the custom properties, how image leaves under it sample, and
  * the three keywords. The font and the ink are the font family's.
  */
 
@@ -31,33 +31,33 @@ namespace sigil::compose {
 template <class Derived>
 class CascadeVerbs {
  public:
-  /** THE BLOCK everything under this node is set in, as a PARTIAL, in
-   *  the same way the font is: the fields it names override the
-   *  inherited block and the rest inherit. This is the one spelling of
-   *  every block field — the leading, the alignment, the indents, the
-   *  writing mode and the rest; the five longhands below each write one
-   *  field of it, CSS's names for the fields CSS has. */
-  Derived& block(sigil::weave::Block partial);
+  /** HOW EVERY PARAGRAPH under this node is set, as a PARTIAL, in the
+   *  same way the font is: the fields it names override the inherited
+   *  setting and the rest inherit. The one spelling of every paragraph
+   *  field — the leading, the alignment, the indents, the writing mode
+   *  and the rest; the five longhands below each write one field of it,
+   *  CSS's names for the fields CSS has. */
+  Derived& paragraph(sigil::weave::ParagraphBlock partial);
   /** THE PITCH OF THE LINES — CSS `line-height`: the face's own, a
    *  multiple of the size, an absolute pitch, or a baseline grid. The
-   *  `leading` field of `block()`. The face's own when nothing states
+   *  `leading` field of `paragraph()`. The face's own when nothing states
    *  one. */
   Derived& lineHeight(sigil::weave::Leading leading);
   /** WHERE THE LINES SIT ACROSS THE MEASURE — CSS `text-align`: start,
-   *  centre, end or justified. The `alignment` field of `block()`. Start
+   *  centre, end or justified. The `alignment` field of `paragraph()`. Start
    *  when nothing states one. */
   Derived& textAlign(sigil::weave::TextAlignment alignment);
   /** THE FIRST LINE OF EVERY BLOCK INDENTED by @p px — CSS
    *  `text-indent`; negative hangs it out. The `firstLineIndent` field of
-   *  `block()`. Zero when nothing states one. */
+   *  `paragraph()`. Zero when nothing states one. */
   Derived& textIndent(float px);
   /** WHICH WAY THE LINES RUN — CSS `writing-mode`: horizontal, or
    *  vertical columns right to left. The `writingMode` field of
-   *  `block()`. Horizontal when nothing states one. */
+   *  `paragraph()`. Horizontal when nothing states one. */
   Derived& writingMode(sigil::weave::WritingMode mode);
   /** WHETHER AND WHERE A WORD MAY BREAK WITH A HYPHEN — CSS `hyphens`:
    *  `enabled = false` is `none`, soft hyphens alone are `manual`, and a
-   *  pattern set is `auto`. The `hyphenation` field of `block()`. */
+   *  pattern set is `auto`. The `hyphenation` field of `paragraph()`. */
   Derived& hyphens(sigil::weave::HyphenationOptions hyphenation);
   /** A CUSTOM PROPERTY set on this node and inherited by everything
    *  under it, read back through `var(name)`, `Fill::var` or

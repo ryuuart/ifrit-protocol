@@ -48,7 +48,7 @@ TEST(ComposeText, TextAlignCentersWithinWideBox) {
   center.composer.render(box().children(
       {text(u8"II", whiteStyle(30))
            .width(Dimension(300.0f))
-           .block({.alignment = sigil::weave::TextAlignment::kCenter})}));
+           .paragraph({.alignment = sigil::weave::TextAlignment::kCenter})}));
   start.frame();
   center.frame();
   const int startX = leftmostLit(start), centerX = leftmostLit(center);

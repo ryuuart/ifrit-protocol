@@ -163,7 +163,7 @@ text (its own section below).
   or as the `_em`, `_rem`, `_lh`, `_ch` suffixes beside them, with `pt`
   and `_pt` for the absolute printer's point. Pixels are implicit, so a
   plain number already is a length and no pixel suffix is declared here.
-- **`layout/Block.h`** — `Block`, the PARTIAL a call site names a block's
+- **`layout/Block.h`** — `ParagraphBlock`, the PARTIAL a call site names a block's
   setting in, every field optional: what a block inherits — leading, half
   leading, alignment, justification, hyphenation, tab stops, first- and
   last-line indents, widows and orphans, balanced ragging, the breaking

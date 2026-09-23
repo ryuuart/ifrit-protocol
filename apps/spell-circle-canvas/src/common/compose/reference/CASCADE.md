@@ -57,30 +57,28 @@ keeps the prune exact. A bake is a root: `snapshot`, an atlas cell, a
 pattern tile and `compose::texture` resolve against the initial values,
 as an image placed on a page inherits nothing from it.
 
-**A block is the same kind of partial.** `Element::block` takes a
-`weave::Block`, every field optional — leading and where its room goes,
-alignment and the last line, justification, hyphenation, tab stops, the
-first- and last-line indents, widows and orphans, balanced ragging, the
-breaking strategy, the writing mode, the line-break locale and the line
-tables CJK text is set by, CSS's inherited block properties — and every
-text leaf under it sets its paragraphs in the block in force, a partial
-on the leaf itself included. A whole `weave::ParagraphStyle` the leaf
-wrote through `paragraphStyles` inherits nothing, as a whole text style does,
-and a block named through `paragraphStyles(names)` is that name's partial laid
-over the block in force when the leaf lays out. `block()` is the ONE
-spelling of every one of those fields — `block({.alignment =
-TextAlignment::kCenter})` on any node centres every line under it,
-`block({.writingMode = WritingMode::kVerticalRL})` sets the text under it
-in vertical columns — and a sheet's rule states the same partial under a
-name, so there is one property under each name and it inherits. What a
-node keeps to itself is what CSS
-keeps there: its ellipsis and line count, its frame's first baseline and
+**A paragraph setting is the same kind of partial.** `Element::paragraph`
+takes a `weave::ParagraphBlock`, every field optional — leading and where its
+room goes, alignment and the last line, justification, hyphenation, tab stops,
+the first- and last-line indents, widows and orphans, balanced ragging, the
+breaking strategy, the writing mode, the line-break locale and the line tables
+CJK text is set by, CSS's inherited block properties — and every text leaf
+under it sets its paragraphs in the setting in force, a partial on the leaf
+itself included. A whole `weave::ParagraphStyle` the leaf wrote through
+`paragraphStyles` inherits nothing, as a whole text style does, and a block
+named through `paragraphStyles(names)` is that name's partial laid over the
+setting in force when the leaf lays out. `paragraph()` is the ONE spelling of
+every one of those fields — `paragraph({.alignment = TextAlignment::kCenter})`
+on any node centres every line under it, `paragraph({.writingMode =
+WritingMode::kVerticalRL})` sets the text under it in vertical columns — and a
+sheet's rule states the same partial under a name, so there is one property
+under each name and it inherits. What a node keeps to itself is what CSS keeps
+there: its ellipsis and line count, its frame's first baseline and
 distribution, its reservation, its threading, its exclusions, its initial
-letter, and a whole style — and, on a whole style, the block's air before
-and after, its keeps with the next block and its every-line insets, as a
-margin is a box's own. Image sampling inherits the same way, as CSS's
-`image-rendering` does: `Element::imageRendering` on any node reaches every
-image leaf under it.
+letter, and a whole style — and, on a whole style, the block's air before and
+after, its keeps with the next block and its every-line insets, as a margin is
+a box's own. Image sampling inherits the same way, as CSS's `image-rendering`
+does: `Element::imageRendering` on any node reaches every image leaf under it.
 
 **A range and a reading take the same partial.** `Text::span` lays
 the font fields and the ink its `SpanDeclarations` state over the style the
@@ -105,16 +103,16 @@ its rules speak about.** `Element::applyStyleSheet` puts a
 subtree carries a look of its own; [the selectors chapter](SELECTORS.md)
 is the whole of how a rule is written and which one wins. A rule states
 what an element states, with the verbs a tree is written with:
-`rule("body").font({.size = 19.5f}).block({.leading =
+`rule("body").font({.size = 19.5f}).paragraph({.leading =
 Leading::multiple(1.35f)})`, and `rule(".card").padding(8)` as well.
 `Element::styleClass` names classes: several in one call, separated by
 spaces as CSS's class attribute lists them. The cascade pass matches the
 rules in force where the element LANDS, and the fields a matched rule
-sets inherit down the tree like any `font()` or `block()`. The order is
+sets inherit down the tree like any `font()` or `paragraph()`. The order is
 CSS's: role defaults stand below every rule, a rule for a class stands
 over a rule for a role by its weight, rules of one weight fall to the
 nearer and later sheet and then to the later rule, and every rule loses to
-the node's own `font()` or `block()`, so `styleClass("cell").font({.color
+the node's own `font()` or `paragraph()`, so `styleClass("cell").font({.color
 = c})` is the cell class in this cell's colour. A class no rule in force
 names warns once and sets nothing. A run of a `weave::rich()` value
 written with a name resolves the same way when the leaf is shaped, as a
@@ -177,7 +175,7 @@ for a decoration that resolves a fill by hand through `resolveRef`.
 own verbs.** `Element::applyStyleSheet` puts a `compose::StyleSheet` in
 force at a node and everything under it, and a rule of it whose
 selector matched folds over the role, its sheet rule and the classes,
-and under the node's own `font`, `block`, `ink` and `var` — into the
+and under the node's own `font`, `paragraph`, `ink` and `var` — into the
 same partial, so a relative size is still laid over the parent's font
 at one point. That sheet sees only that subtree: every compound of a
 selector must match the applying node or one below it, so nothing

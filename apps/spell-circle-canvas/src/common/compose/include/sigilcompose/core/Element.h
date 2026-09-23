@@ -70,8 +70,8 @@
  *  The vocabulary is CSS's wherever CSS has a word for it: flex layout,
  *  the box model, `align-items`, `z-index`, custom properties and
  *  inheritance, transforms including the 3D ones, blend modes, backdrop
- *  filters. What inherits down the tree is the font, the block, the ink,
- *  the style sheet and the custom properties; everything else a node
+ *  filters. What inherits down the tree is the font, the paragraph, the
+ *  ink, the style sheet and the custom properties; everything else a node
  *  says stays on that node.
  *
  *  The features beside the kernel: `brush/` for marks along a boundary

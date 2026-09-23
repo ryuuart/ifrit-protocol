@@ -210,7 +210,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // description declares folded over. A partial, since an unset field is
   // the layout's own answer and nothing engages it. Written by the pass
   // before layout; read when a text leaf's layout options are built.
-  sigil::weave::Block block;
+  sigil::weave::ParagraphBlock block;
   // THE IMAGE SAMPLING IN FORCE at this node, or none stated, which an
   // image leaf reads as linear.
   std::optional<SkSamplingOptions> sampling;
@@ -268,7 +268,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // On a text leaf: the block the paragraph was last built under,
   // compared against `block` to tell a change that re-materialises (the
   // writing mode, the locale) from one that lays out again.
-  sigil::weave::Block textBlock;
+  sigil::weave::ParagraphBlock textBlock;
   // On a text leaf: what the selector sheets in force say about each NAME
   // its rich runs and its paragraph styles were written with, each name
   // matched as a virtual child of the leaf — the font partial a run named
@@ -277,7 +277,8 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // pass and compared there, so a sheet that changes what a name means
   // re-materialises the leaf.
   sigil::weave::TypeSheet runStyles;
-  std::vector<std::pair<std::string, sigil::weave::Block>> blockStyles;
+  std::vector<std::pair<std::string, sigil::weave::ParagraphBlock>>
+      paragraphBlockStyles;
   // On a text leaf: whether any sheet is in force where it stands, which is
   // what a paragraph style no rule speaks about is warned against.
   bool sheetsInForce = false;

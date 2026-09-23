@@ -43,8 +43,8 @@ const sigil::weave::Type& Rule::type() const {
   return cascade && cascade->font ? *cascade->font : none;
 }
 
-const sigil::weave::Block& Rule::block() const {
-  static const sigil::weave::Block none;
+const sigil::weave::ParagraphBlock& Rule::paragraph() const {
+  static const sigil::weave::ParagraphBlock none;
   const detail::CascadeData* cascade = cascadeOf(*node());
   return cascade && cascade->block ? *cascade->block : none;
 }

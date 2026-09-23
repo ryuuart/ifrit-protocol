@@ -425,7 +425,7 @@ struct ShippingForecast {
                 .styleClass("hero")
                 .key(key)
                 .width(pct(100))
-                .block({.alignment = sigil::weave::TextAlignment::kCenter})
+                .paragraph({.alignment = sigil::weave::TextAlignment::kCenter})
                 // The ramp is pinned to the line's METRIC BAND, not to
                 // the glyphs — so a letter still under the mask is
                 // painted with the bottom of the ramp and arrives into
@@ -671,7 +671,8 @@ struct ShippingForecast {
             .font({.size = 19.5f})
             .key("forecast")
             .width(pct(100))
-            .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
+            .paragraph(
+                {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
             .span(weave::selectors::regex(u8"[0-9]+"),
                   SpanDeclarations().ink(kAmber).font({.color8 = true}))
             .fx(std::move(initials))
@@ -749,7 +750,8 @@ struct ShippingForecast {
             .font({.size = 19.5f})
             .key("synopsis")
             .width(pct(100))
-            .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
+            .paragraph(
+                {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
             .span(weave::selectors::regex(u8"[0-9]+"),
                   SpanDeclarations().font(graded))
             .span(weave::selectors::regex(u8"[0-9]+"),
@@ -770,8 +772,7 @@ struct ShippingForecast {
     rule.width = 1.0f;
     rule.strokeFill = Fill::color(kKeyline);
     return box().column().gap(0).children({
-        eyebrow(page["eyebrow"], "st-eyebrow", 2.66f, 3.16f)
-            .margin(0, 0, 8, 0),
+        eyebrow(page["eyebrow"], "st-eyebrow", 2.66f, 3.16f).margin(0, 0, 8, 0),
         each(page["rows"].items(),
              [&](const data::Json& r, size_t i) {
                return box()
@@ -784,10 +785,13 @@ struct ShippingForecast {
                        beat(2.80f + (float)i * 0.14f, 3.40f + (float)i * 0.14f))
                    .children({
                        text(r["place"]).styleClass("place").flexGrow(1),
-                       text(r["wind"]).styleClass("wind").width(74).block(
+                       text(r["wind"]).styleClass("wind").width(74).paragraph(
                            {.alignment = sigil::weave::TextAlignment::kEnd}),
-                       text(r["baro"]).styleClass("station").width(166).block(
-                           {.alignment = sigil::weave::TextAlignment::kEnd}),
+                       text(r["baro"])
+                           .styleClass("station")
+                           .width(166)
+                           .paragraph({.alignment =
+                                           sigil::weave::TextAlignment::kEnd}),
                    });
              }),
     });
@@ -859,7 +863,7 @@ struct ShippingForecast {
         .top(196)
         .width(28)
         .height(560)
-        .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+        .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
         .fx({.effect = fx::rise(11.0f),
              .stagger = {.eachMs = 0,
                          .amountMs = 780,

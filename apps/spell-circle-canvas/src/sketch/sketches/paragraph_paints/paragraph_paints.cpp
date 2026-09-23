@@ -54,7 +54,7 @@ Element passage(std::u8string_view words, float size, float width,
              .language = "en-US"})
       .width(width)
       .paragraphStyles({paragraph})
-      .block(
+      .paragraph(
           {.alignment = weave::TextAlignment::kJustify,
            .hyphenation = weave::HyphenationOptions{.patterns = hyphenator()},
            .lineBreak = weave::LineBreakStrategy::kKnuthPlass})

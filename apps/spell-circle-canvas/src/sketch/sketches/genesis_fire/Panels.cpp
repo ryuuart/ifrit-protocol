@@ -129,7 +129,7 @@ Element GenesisFire::benchCell(Element content, const Utf8& caption,
            .stroke(stroke(1.0f, Fill::color(hexColor(0x1B2029)),
                           PathFormat::Align::Inner))
            .children({std::move(content)}),
-       text(caption).styleClass("label").ink(cc).width(130).block(
+       text(caption).styleClass("label").ink(cc).width(130).paragraph(
            {.alignment = sigil::weave::TextAlignment::kCenter})});
 }
 

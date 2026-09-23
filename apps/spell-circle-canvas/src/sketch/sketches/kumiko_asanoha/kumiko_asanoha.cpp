@@ -282,7 +282,7 @@ struct KumikoAsanoha {
                          .stroke(stroke(0.9f,
                                         Fill::color(hexColor(0xC79A57, 0.55f)),
                                         PathFormat::Align::Inner)),
-                     text(angle).left(x - 30).top(150).width(60).block(
+                     text(angle).left(x - 30).top(150).width(60).paragraph(
                          {.alignment = weave::TextAlignment::kCenter})});
               }),
          text(jigs["note"])
@@ -341,7 +341,7 @@ struct KumikoAsanoha {
                        .left(950)
                        .top(916)
                        .width(300)
-                       .block({.alignment = weave::TextAlignment::kEnd})})
+                       .paragraph({.alignment = weave::TextAlignment::kEnd})})
         // A faint vertical vignette — the near-side room, in shadow. It
         // stops at the room's floor: the shop drawing under it is a
         // drawing, not part of the room.

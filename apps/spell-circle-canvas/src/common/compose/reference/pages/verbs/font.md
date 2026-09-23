@@ -34,5 +34,5 @@ from before.
 
 ## See also
 
-[`ink`](ink.md), [`block`](block.md), `weave::Type`, `styleClass`,
+[`ink`](ink.md), [`paragraph`](paragraph.md), `weave::Type`, `styleClass`,
 `role`.

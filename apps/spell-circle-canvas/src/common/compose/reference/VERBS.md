@@ -37,7 +37,7 @@ about it.
 Three things to know before reading a group:
 
 - **A verb that names a CSS-inherited property writes the lane and
-  inherits.** `font`, `block` and `ink` reach every node under the one
+  inherits.** `font`, `paragraph` and `ink` reach every node under the one
   that said them, wherever the code that built the child ran. Everything
   else a node says about itself stays on that node.
 - **Paint-only verbs never relayout.** The transforms, the masks, the
@@ -227,12 +227,12 @@ the code that built a child ran.
 | `fontWeight` | The weight, as the face's `wght` axis — one field of `font`. |
 | `fontStyle` | The lean, as the face's `slnt` axis — one field of `font`. |
 | `letterSpacing` | The tracking after each cluster — one field of `font`. |
-| [`block`](pages/verbs/block.md) | The paragraph settings everything under it is set in, as a partial in the same way. |
-| `lineHeight` | The pitch of the lines — one field of `block`. |
-| `textAlign` | Where the lines sit across the measure — one field of `block`. |
-| `textIndent` | The first line of every block indented — one field of `block`. |
-| `writingMode` | Which way the lines run — one field of `block`. |
-| `hyphens` | Whether and where a word may break with a hyphen — one field of `block`. |
+| [`paragraph`](pages/verbs/paragraph.md) | The paragraph settings everything under it is set in, as a partial in the same way. |
+| `lineHeight` | The pitch of the lines — one field of `paragraph`. |
+| `textAlign` | Where the lines sit across the measure — one field of `paragraph`. |
+| `textIndent` | The first line of every block indented — one field of `paragraph`. |
+| `writingMode` | Which way the lines run — one field of `paragraph`. |
+| `hyphens` | Whether and where a word may break with a hyphen — one field of `paragraph`. |
 | `applyStyleSheet` | A sheet of selector rules put in force on this subtree; applying another adds it. |
 | `styleClass` | The classes the rules of the sheets in force speak about, laid under the node's own type. |
 | `role` | A semantic role — what a bare word in a selector names — with the defaults every matching rule stands over. |
@@ -242,7 +242,7 @@ the code that built a child ran.
 | `initial` | This property takes its own initial value, whatever an ancestor or a rule says — the way an inheriting one is stopped. |
 | `unset` | Whichever of the two the property's own behaviour asks for: CSS's `unset`. |
 
-`font` and `block` are the SHORTHANDS: each longhand is the shorthand
+`font` and `paragraph` are the SHORTHANDS: each longhand is the shorthand
 with one field, so `fontSize(18)` and `font({.size = 18})` are one
 statement, and the later of two statements wins field by field whichever
 spelling each used.
@@ -365,7 +365,7 @@ spelling is the feature's.
 - `core/verbs/Mask.h` — `mask`.
 - `core/verbs/Font.h` — the font verbs `font`, `fontFamily`, `fontSize`,
   `fontWeight`, `fontStyle`, `letterSpacing`, and `ink`.
-- `core/verbs/Cascade.h` — the cascade verbs `block`, `lineHeight`,
+- `core/verbs/Cascade.h` — the cascade verbs `paragraph`, `lineHeight`,
   `textAlign`, `textIndent`, `writingMode`, `hyphens`, `var`,
   `varDefaults`, `imageRendering`, and the three wide keywords
   `inherit`, `initial`, `unset`.

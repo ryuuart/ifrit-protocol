@@ -7,7 +7,7 @@ header: sigilcompose/core/Factories.h
 group: Leaves
 status: stable
 example: text_element
-common_verbs: [font, ink, block, maxTextLines, textOverflow, textStroke, paragraphStyles]
+common_verbs: [font, ink, paragraph, maxTextLines, textOverflow, textStroke, paragraphStyles]
 ---
 
 # text

@@ -127,11 +127,11 @@ class Compose(unittest.TestCase):
         self.assertIsNone(font.keywordOf(weave.TypeField.Face))
         font.clearKeyword(weave.TypeField.Size)
         self.assertIsNone(font.keywordOf(weave.TypeField.Size))
-        block = weave.Block()
+        block = weave.ParagraphBlock()
         self.assertTrue(block.empty())
-        block.keyword(weave.BlockField.Alignment, weave.Keyword.Initial)
+        block.keyword(weave.ParagraphField.Alignment, weave.Keyword.Initial)
         self.assertEqual(
-            block.keywordOf(weave.BlockField.Alignment), weave.Keyword.Initial
+            block.keywordOf(weave.ParagraphField.Alignment), weave.Keyword.Initial
         )
         self.assertFalse(block.empty())
 
@@ -456,7 +456,7 @@ class Scene:
         copy = title.copy()
         copy.font(weave.Type(size=50))
         self.assertEqual(title.type().size.value, 32)
-        block = weave.Block(
+        block = weave.ParagraphBlock(
             leading=weave.Leading.multiple(1.5), alignment=weave.TextAlignment.Center
         )
         self.assertEqual(block.leading.value, 1.5)
@@ -481,7 +481,7 @@ class Scene:
         self.assertEqual(
             (axis.tag, axis.value, feature.tag, feature.value), ("wght", 600, "liga", 0)
         )
-        block = weave.Block(leading=weave.Leading.multiple(1.5))
+        block = weave.ParagraphBlock(leading=weave.Leading.multiple(1.5))
         leading = block.leading
         block.leading = None
         del block

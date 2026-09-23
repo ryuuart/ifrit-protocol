@@ -157,7 +157,7 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
           .styleClass("mapno")
           .at({w - 20, -19})
           .width(18)
-          .block({.alignment = weave::TextAlignment::kEnd})};
+          .paragraph({.alignment = weave::TextAlignment::kEnd})};
 
   // the RA ladder: a tick every 6°, numbered every 12°
   for (int t = -24; t <= 24; t += 6) {
@@ -172,12 +172,13 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
             .rect(SkRect::MakeXYWH(x - 0.4f, kFrameH - reach, 0.9f, reach))
             .fill(ink));
     if ((t % 12) == 0)
-      marks.push_back(text(kit::formatted("%d", (int)std::lround(wrap360(
-                                                    mapCentre(k) + (float)t))))
-                          .styleClass("tick")
-                          .at({x - 11, kFrameH + 3})
-                          .width(24)
-                          .block({.alignment = weave::TextAlignment::kCenter}));
+      marks.push_back(
+          text(kit::formatted(
+                   "%d", (int)std::lround(wrap360(mapCentre(k) + (float)t))))
+              .styleClass("tick")
+              .at({x - 11, kFrameH + 3})
+              .width(24)
+              .paragraph({.alignment = weave::TextAlignment::kCenter}));
   }
 
   // THE MANSION BOUNDARIES, ruled where the DETERMINATIVE STARS put them
@@ -204,16 +205,18 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
                             .dashIntervals = {7, 5},
                             .trimStart = 0.06f,
                             .trimEnd = 0.94f}));
-    marks.push_back(text(cat.xiu(m).native)
-                        .styleClass("han")
-                        .at({x - 9, -32})
-                        .width(18)
-                        .block({.alignment = weave::TextAlignment::kCenter}));
-    marks.push_back(text(cat.xiu(m).pinyin)
-                        .styleClass("xiu")
-                        .at({x - 20, -45})
-                        .width(40)
-                        .block({.alignment = weave::TextAlignment::kCenter}));
+    marks.push_back(
+        text(cat.xiu(m).native)
+            .styleClass("han")
+            .at({x - 9, -32})
+            .width(18)
+            .paragraph({.alignment = weave::TextAlignment::kCenter}));
+    marks.push_back(
+        text(cat.xiu(m).pinyin)
+            .styleClass("xiu")
+            .at({x - 20, -45})
+            .width(40)
+            .paragraph({.alignment = weave::TextAlignment::kCenter}));
   }
 
   return box()
@@ -317,7 +320,7 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
                 arrange::onEllipse({rOut, rOut}, {rOut - 16.0f, rOut - 16.0f},
                                    ang * kD),
                 {16, 16}))
-            .block({.alignment = weave::TextAlignment::kCenter}));
+            .paragraph({.alignment = weave::TextAlignment::kCenter}));
   }
   // the DISC'S CENTRE and the TRUE POLE are not the same point: Table 3
   // puts the centre at DEC +87.6°, so the +700 pole sits 4.7 mm away.
@@ -396,7 +399,7 @@ auto DunhuangStarChart::raRuler(int seg) -> Element {
                         .styleClass("ruler")
                         .at({xr - 26, y + 13})
                         .width(28)
-                        .block({.alignment = weave::TextAlignment::kEnd}));
+                        .paragraph({.alignment = weave::TextAlignment::kEnd}));
     spans.push_back(text(kit::formatted("%d°", (int)std::lround(wrap360(
                                                    mapCentre(k) + 24.0f))))
                         .styleClass("ruler")
@@ -425,8 +428,7 @@ auto DunhuangStarChart::breakMark() -> Element {
       .rect(SkRect::MakeXYWH(kBreakL - 8, kBandTop - 16, w, h))
       .key("break")
       .opacity(gate(tPaper + 0.4f, tPaper + 1.4f))
-      .children({box().cover().fill(
-                     Fill::color(hexColor(0x171410, 0.96f))),
+      .children({box().cover().fill(Fill::color(hexColor(0x171410, 0.96f))),
                  each(2,
                       [w, h](int i) {
                         return box()
@@ -456,5 +458,5 @@ auto DunhuangStarChart::breakMark() -> Element {
                      .styleClass("caption")
                      .at({-16, h + 4})
                      .width(w + 32)
-                     .block({.alignment = weave::TextAlignment::kCenter})});
+                     .paragraph({.alignment = weave::TextAlignment::kCenter})});
 }

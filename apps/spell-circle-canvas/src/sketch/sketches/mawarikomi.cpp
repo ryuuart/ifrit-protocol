@@ -90,7 +90,7 @@ struct Mawarikomi {
             .font(style)
             .width(46.0f)
             .height(216.0f)
-            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
             .maxTextLines(1)
             .textOverflow(u8"…"),
         150.0f, 8.0f);
@@ -135,7 +135,8 @@ struct Mawarikomi {
                      u8"四分の一だけ回した列に対しても同じように働く。")
                      .font(mw::bodyType(21)),
                  mw::kBlockLeft, mw::kBlockTop, mw::kBlockW, mw::kBlockH)
-                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 .paragraph(
+                     {.writingMode = sigil::weave::WritingMode::kVerticalRL})
                  .contentFlowAround("hinomaru", 11)
                  .contentFlowAround("in", 9)
                  .zIndex(1),

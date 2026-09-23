@@ -19,7 +19,8 @@ TextSettling settlingAt(Host& host, float measure, int candidates) {
       {text(longPassage(), whiteStyle(13))
            .key("t")
            .width(measure)
-           .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
+           .paragraph(
+               {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
            .textWillChange(true, candidates)}));
   host.frame();
   return host.composer.settling("t");
@@ -51,7 +52,8 @@ TextSettling sweptSettling(bool live, int candidates, float endAt) {
             whiteStyle(11.5f))
             .key("para")
             .width(measure)
-            .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass});
+            .paragraph(
+                {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass});
     if (live) leaf.textWillChange(true, candidates);
     host.composer.render(box().padding(10).children({std::move(leaf)}));
     host.frame();
@@ -109,7 +111,7 @@ TEST(ComposeLiveText, ASettledTextDecidesItsBreaksOnceAndThenComposesNothing) {
       {text(longPassage(), whiteStyle(13))
            .key("t")
            .width(340.0f)
-           .block(
+           .paragraph(
                {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})});
   host.composer.render(leaf);
   host.frame();
@@ -152,7 +154,7 @@ TEST(ComposeLiveText, AnInheritingPassageSettlesExactlyAsATotalOneDoes) {
           {std::move(leaf)
                .key("t")
                .width(measure)
-               .block(
+               .paragraph(
                    {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
                .textWillChange(true, 1)}));
       host.frame();
@@ -263,8 +265,9 @@ TEST(ComposeLiveText,
                 {text(longPassage(), whiteStyle(13))
                      .key("t")
                      .width(measure)
-                     .block({.lineBreak =
-                                 sigil::weave::LineBreakStrategy::kKnuthPlass})
+                     .paragraph(
+                         {.lineBreak =
+                              sigil::weave::LineBreakStrategy::kKnuthPlass})
                      .textWillChange(true, candidates)}));
     host.frame();
     return host.composer.settling("t");

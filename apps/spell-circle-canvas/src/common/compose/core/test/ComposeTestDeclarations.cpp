@@ -47,7 +47,7 @@ TEST(ComposeDeclarations, UnsetIsInheritWhereThePropertyInheritsAndInitialElse) 
   // sampling. Nothing about a box inherits — a padding taken from the
   // parent would be applied again at every depth.
   EXPECT_TRUE(inheritsByDefault(Property::Font));
-  EXPECT_TRUE(inheritsByDefault(Property::Block));
+  EXPECT_TRUE(inheritsByDefault(Property::Paragraph));
   EXPECT_TRUE(inheritsByDefault(Property::Ink));
   EXPECT_TRUE(inheritsByDefault(Property::CustomProperties));
   EXPECT_TRUE(inheritsByDefault(Property::ImageRendering));
@@ -332,12 +332,12 @@ TEST(ComposeDeclarations, ALonghandIsItsShorthandWithOneField) {
       sameDescription(box().letterSpacing(2), box().font({.track = 2})));
   EXPECT_TRUE(sameDescription(
       box().textAlign(sigil::weave::TextAlignment::kCenter),
-      box().block({.alignment = sigil::weave::TextAlignment::kCenter})));
+      box().paragraph({.alignment = sigil::weave::TextAlignment::kCenter})));
   EXPECT_TRUE(sameDescription(box().textIndent(24),
-                              box().block({.firstLineIndent = 24})));
+                              box().paragraph({.firstLineIndent = 24})));
   EXPECT_TRUE(sameDescription(
       box().lineHeight(sigil::weave::Leading::multiple(1.4f)),
-      box().block({.leading = sigil::weave::Leading::multiple(1.4f)})));
+      box().paragraph({.leading = sigil::weave::Leading::multiple(1.4f)})));
   EXPECT_TRUE(
       sameDescription(box().font({.size = 12, .weight = 700}).fontSize(18),
                       box().font({.size = 18, .weight = 700})));

@@ -109,7 +109,7 @@ struct Composer::Impl {
   float rootLineHeight = 0.0f;
   // What the root inherits as its block: nothing stated, so every block
   // under nothing is set in the layout's own answer.
-  sigil::weave::Block rootBlock;
+  sigil::weave::ParagraphBlock rootBlock;
   std::optional<SkSamplingOptions> rootSampling;
   // Whether the resolved fonts, inks and properties on the instances may
   // be stale: set by every reconcile that changed anything and by
@@ -479,14 +479,15 @@ struct Composer::Impl {
    *  colour moved is marked to repaint. Runs before layout whenever
    *  `cascadeDirty` says the answers may have moved. */
   void runCascade();
-  void resolveCascade(
-      detail::Instance& inst, const sigil::weave::Type& parentFont,
-      float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars,
-      const sigil::weave::Block& parentBlock,
-      const std::optional<SkSamplingOptions>& parentSampling,
-      const detail::SheetChain& parentSheets,
-      const detail::InkInForce& parentInkPaint,
-      const std::optional<material::Color>& parentInkTarget);
+  void resolveCascade(detail::Instance& inst,
+                      const sigil::weave::Type& parentFont,
+                      float parentLineHeight,
+                      const std::shared_ptr<const VarTable>& parentVars,
+                      const sigil::weave::ParagraphBlock& parentBlock,
+                      const std::optional<SkSamplingOptions>& parentSampling,
+                      const detail::SheetChain& parentSheets,
+                      const detail::InkInForce& parentInkPaint,
+                      const std::optional<material::Color>& parentInkTarget);
   /** An inheriting text leaf whose ink alone changed: the new colour set
    *  on its inherited ranges in place, the restyles replayed over them,
    *  and nothing re-shaped or re-broken. */

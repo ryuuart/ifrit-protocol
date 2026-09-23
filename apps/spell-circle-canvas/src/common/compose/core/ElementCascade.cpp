@@ -16,41 +16,43 @@
 namespace sigil::compose {
 
 template <class Derived>
-Derived& CascadeVerbs<Derived>::block(sigil::weave::Block partial) {
-  detail::CascadeData& cascade = declare(Property::Block)->cascadeData.ensure();
+Derived& CascadeVerbs<Derived>::paragraph(
+    sigil::weave::ParagraphBlock partial) {
+  detail::CascadeData& cascade =
+      declare(Property::Paragraph)->cascadeData.ensure();
   if (!cascade.block) cascade.block.emplace();
   sigil::weave::merge(*cascade.block, partial);
   return self();
 }
 
-// The block's longhands: each is `block()` with one field, so the two
+// The block's longhands: each is `paragraph()` with one field, so the two
 // spellings fold into one partial and the later statement wins.
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::lineHeight(sigil::weave::Leading leading) {
-  return block({.leading = leading});
+  return paragraph({.leading = leading});
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::textAlign(
     sigil::weave::TextAlignment alignment) {
-  return block({.alignment = alignment});
+  return paragraph({.alignment = alignment});
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::textIndent(float px) {
-  return block({.firstLineIndent = px});
+  return paragraph({.firstLineIndent = px});
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::writingMode(sigil::weave::WritingMode mode) {
-  return block({.writingMode = mode});
+  return paragraph({.writingMode = mode});
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::hyphens(
     sigil::weave::HyphenationOptions hyphenation) {
-  return block({.hyphenation = std::move(hyphenation)});
+  return paragraph({.hyphenation = std::move(hyphenation)});
 }
 
 template <class Derived>
@@ -144,21 +146,22 @@ Derived& StructureVerbs<Derived>::applyStyleSheet(StyleSheet sheet) {
 template <class Derived>
 Derived& StructureVerbs<Derived>::role(std::string name,
                                        sigil::weave::Type font,
-                                       sigil::weave::Block block) {
+                                       sigil::weave::ParagraphBlock paragraph) {
   declarations()->cascadeData.ensure().role = detail::RoleDefaults{
-      std::move(name), std::move(font), std::move(block)};
+      std::move(name), std::move(font), std::move(paragraph)};
   return self();
 }
 
 template <class Derived>
 Derived& StructureVerbs<Derived>::role(std::string name,
-                                       sigil::weave::Block block) {
-  return role(std::move(name), sigil::weave::Type{}, std::move(block));
+                                       sigil::weave::ParagraphBlock paragraph) {
+  return role(std::move(name), sigil::weave::Type{}, std::move(paragraph));
 }
 
 template <class Derived>
 Derived& StructureVerbs<Derived>::role(std::string name) {
-  return role(std::move(name), sigil::weave::Type{}, sigil::weave::Block{});
+  return role(std::move(name), sigil::weave::Type{},
+              sigil::weave::ParagraphBlock{});
 }
 
 // The members of the structure family this file defines, named one
@@ -169,8 +172,9 @@ Derived& StructureVerbs<Derived>::role(std::string name) {
   template Node& StructureVerbs<Node>::styleClass(std::string_view);         \
   template Node& StructureVerbs<Node>::applyStyleSheet(StyleSheet);          \
   template Node& StructureVerbs<Node>::role(                                 \
-      std::string, sigil::weave::Type, sigil::weave::Block);                 \
-  template Node& StructureVerbs<Node>::role(std::string, sigil::weave::Block); \
+      std::string, sigil::weave::Type, sigil::weave::ParagraphBlock);        \
+  template Node& StructureVerbs<Node>::role(std::string,                     \
+                                            sigil::weave::ParagraphBlock);   \
   template Node& StructureVerbs<Node>::role(std::string);
 SIGIL_COMPOSE_CASCADE_NAMES(Element)
 SIGIL_COMPOSE_CASCADE_NAMES(Text)

@@ -40,4 +40,4 @@ changes nothing about its block.
 
 ## See also
 
-`block`, `initialLetter`, `weave::ParagraphStyle`, `applyStyleSheet`.
+`paragraph`, `initialLetter`, `weave::ParagraphStyle`, `applyStyleSheet`.

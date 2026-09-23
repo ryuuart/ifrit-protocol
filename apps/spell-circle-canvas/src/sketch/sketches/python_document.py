@@ -7,7 +7,7 @@ from sigil.compose import Element, StyleSheet, row, rule
 from sigil.compose import document as doc
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import Typeface
-from sigil.weave import Block, Leading, Type
+from sigil.weave import ParagraphBlock, Leading, Type
 
 
 def passage() -> Element:
@@ -48,7 +48,7 @@ def voice(
         [
             rule("article")
             .font(Type(face=face, size=size, color=ink))
-            .block(Block(leading=Leading.multiple(1.45))),
+            .paragraph(ParagraphBlock(leading=Leading.multiple(1.45))),
             rule("h1").font(
                 Type(face=face, size=34, weight=600, track=0, color=accent)
             ),

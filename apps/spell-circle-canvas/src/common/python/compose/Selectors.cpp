@@ -388,8 +388,8 @@ void bindRule(py::module_& composition) {
            "Which elements this rule speaks about.")
       .def("type", &Rule::type, py::return_value_policy::copy,
            "The font half of what it states.")
-      .def("block", py::overload_cast<>(&Rule::block, py::const_),
-           py::return_value_policy::copy, "The block half of what it states.")
+      .def("paragraph", py::overload_cast<>(&Rule::paragraph, py::const_),
+           py::return_value_policy::copy, "The paragraph half of what it states.")
       .def("copy", [](const Rule& self) { return self; })
       .def(py::self == py::self)
       .def(py::self != py::self)

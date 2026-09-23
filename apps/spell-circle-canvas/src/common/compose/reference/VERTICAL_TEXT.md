@@ -3,7 +3,7 @@
 A chapter of [TYPOGRAPHY.md](../TYPOGRAPHY.md), the type chapter of
 [SigilCompose](../README.md).
 
-`block({.writingMode = …})` sets the passage running down the page.
+`paragraph({.writingMode = …})` sets the passage running down the page.
 `sigil::weave::WritingMode::kVerticalRL` is the CJK book layout: characters
 top to bottom, columns advancing RIGHT TO LEFT from the node's right edge.
 It is one field of the block lane, set on the passage or on any node above
@@ -17,7 +17,7 @@ text(weave::rich(mincho)
          .add(u8"31", tateChuYoko)
          .add(u8"年、縦組みに対応した。"))
     .width(260).height(300)
-    .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+    .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
     .fx({.effect = fx::rise(24)});
 ```
 

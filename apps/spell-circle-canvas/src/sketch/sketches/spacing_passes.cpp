@@ -91,9 +91,9 @@ const char* kPassage =
 Element passage(weave::JustificationOptions options) {
   return text(kPassage, body())
       .width(kMeasure)
-      .block({.alignment = weave::TextAlignment::kJustify})
-      .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
-      .block({.justification = options});
+      .paragraph({.alignment = weave::TextAlignment::kJustify})
+      .paragraph({.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
+      .paragraph({.justification = options});
 }
 
 Element singleWord(weave::JustificationOptions options) {
@@ -106,8 +106,8 @@ Element singleWord(weave::JustificationOptions options) {
              .ink(sheet.palette.ash),
          text("Alone.", body())
              .width(kMeasure)
-             .block({.alignment = weave::TextAlignment::kJustify,
-                     .justification = justification})});
+             .paragraph({.alignment = weave::TextAlignment::kJustify,
+                         .justification = justification})});
   };
   return box().column().gap(16).children(
       {sample("ALIGNED", {}), sample("JUSTIFIED", options)});

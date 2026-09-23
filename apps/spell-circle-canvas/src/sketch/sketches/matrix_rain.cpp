@@ -359,7 +359,8 @@ struct MatrixRain {
     const SkSize one = ctx.measure(
         text(probe)
             .font(voice(size))
-            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}));
+            .paragraph(
+                {.writingMode = sigil::weave::WritingMode::kVerticalRL}));
     const float step = std::max(1.0f, one.height() / 8.0f);
     const float pitch = std::max(1.0f, one.width());
     const int rows = std::max(1, (int)std::floor(kH / step));
@@ -417,7 +418,7 @@ struct MatrixRain {
             .key(f.key)
             .inset(0)
             .overflow(Overflow::Clip)
-            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
             .opacity(f.alpha)
             .fx({.effect = streak(),
                  .stagger = cascade,
@@ -441,15 +442,15 @@ struct MatrixRain {
                  // — these glyphs are never bright and never absent, they
                  // only churn, mirrored and lifted like the curtains above
                  // them.
-                 churning(
-                     text(bedText)
-                         .font({.size = kBedSize, .color = kBedInk})
-                         .key("rain-bed")
-                         .inset(0)
-                         .overflow(Overflow::Clip)
-                         .block({.writingMode =
-                                     sigil::weave::WritingMode::kVerticalRL}),
-                     &bedChurn),
+                 churning(text(bedText)
+                              .font({.size = kBedSize, .color = kBedInk})
+                              .key("rain-bed")
+                              .inset(0)
+                              .overflow(Overflow::Clip)
+                              .paragraph(
+                                  {.writingMode =
+                                       sigil::weave::WritingMode::kVerticalRL}),
+                          &bedChurn),
                  each(kFields,
                       [this](const FieldSpec& f, std::size_t j) {
                         return curtain(f, (int)j);

@@ -406,7 +406,7 @@ TEST(TextPass, ThePassFollowsAVerticalColumn) {
            .key("col")
            .width(160)
            .height(180)
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .fx({.effect = fx::pass(passOver(kIdentitySksl))})}));
   host.frame();
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));

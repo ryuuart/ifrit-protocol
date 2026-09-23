@@ -36,4 +36,4 @@ block is styled — a whole style, a name, or the block in force.
 
 ## See also
 
-[`paragraphStyles`](paragraphStyles.md), `block`, `weave::InitialLetter`.
+[`paragraphStyles`](paragraphStyles.md), `paragraph`, `weave::InitialLetter`.

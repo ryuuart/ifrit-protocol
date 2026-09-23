@@ -260,7 +260,7 @@ auto DunhuangStarChart::poleText() -> Element {
                     .styleClass("caption")
                     .at({bw - 40, 12})
                     .width(40)
-                    .block({.alignment = weave::TextAlignment::kEnd})}),
+                    .paragraph({.alignment = weave::TextAlignment::kEnd})}),
            text(doc.phrase("poleSweep")).styleClass("caption gold")});
 }
 

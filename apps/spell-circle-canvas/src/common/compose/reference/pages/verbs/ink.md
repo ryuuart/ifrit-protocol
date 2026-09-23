@@ -131,6 +131,6 @@ says so once, as every silent no-op in this library does.
 
 [`fill`](fill.md) for the node's own box and the same two anchors,
 [`textStroke`](textStroke.md) for the pass under the glyphs, `font` and
-`block` for the other two inherited lanes, `var` and `varDefaults` for
+`paragraph` for the other two inherited lanes, `var` and `varDefaults` for
 the properties an ink can be read from, and the *cascade* group on [the
 verb index](../../VERBS.md).

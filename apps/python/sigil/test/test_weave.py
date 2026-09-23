@@ -56,7 +56,7 @@ class Typography(unittest.TestCase):
             stops=(weave.TabStop(position=90, align=weave.TabStop.Align.Character),),
             interval=48,
         )
-        block = weave.Block(
+        block = weave.ParagraphBlock(
             justification=weave.JustificationOptions(spaceStretch=0.8),
             hyphenation=weave.HyphenationOptions(consecutiveLimit=2),
             tabStops=tabs,

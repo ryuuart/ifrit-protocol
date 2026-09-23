@@ -19,15 +19,16 @@ const SkColor4f kBlue{0.0f, 0.0f, 1.0f, 1.0f};
 }  // namespace
 
 TEST(ComposeStyleSheet, ARuleIsASelectorAndTheSamePartialsAVerbWrites) {
-  const Rule stated = sigil::compose::rule(".card")
-                          .font({.size = 18})
-                          .block({.leading = sigil::weave::Leading::multiple(1.5f)})
-                          .ink(kRed)
-                          .var("accent", kBlue)
-                          .var("gutter", sigil::compose::Dimension(12.0f));
+  const Rule stated =
+      sigil::compose::rule(".card")
+          .font({.size = 18})
+          .paragraph({.leading = sigil::weave::Leading::multiple(1.5f)})
+          .ink(kRed)
+          .var("accent", kBlue)
+          .var("gutter", sigil::compose::Dimension(12.0f));
   EXPECT_TRUE(stated.selector() == sigil::compose::selector(".card"));
   EXPECT_TRUE(stated.type().size.has_value());
-  EXPECT_TRUE(stated.block().leading.has_value());
+  EXPECT_TRUE(stated.paragraph().leading.has_value());
   EXPECT_TRUE(stated.type().color == kRed);
   EXPECT_FALSE(stated.inkVar().has_value());
   EXPECT_EQ(stated.vars().entries().size(), 2u);

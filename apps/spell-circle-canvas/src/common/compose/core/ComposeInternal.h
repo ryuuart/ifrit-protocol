@@ -581,7 +581,7 @@ struct InkInForce {
 struct RoleDefaults {
   std::string name;
   sigil::weave::Type font;
-  sigil::weave::Block block;
+  sigil::weave::ParagraphBlock block;
   bool operator==(const RoleDefaults&) const = default;
 };
 
@@ -601,9 +601,9 @@ struct CascadeData {
    *  value, so the equality reconcile makes over this list is a run of
    *  pointer compares. */
   std::vector<StyleSheet> appliedSheets;
-  /** The block partial this node declares for everything under it:
-   *  Element::block, and the block half of a class. */
-  std::optional<sigil::weave::Block> block;
+  /** The paragraph partial this node declares for everything under it:
+   *  Element::paragraph, and the paragraph half of a class. */
+  std::optional<sigil::weave::ParagraphBlock> block;
   /** How image leaves under this node sample their source
    *  (Element::imageRendering), inherited as CSS's image-rendering is. */
   std::optional<SkSamplingOptions> sampling;

@@ -165,7 +165,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cacheScale.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textThreadBalance.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/blendMode.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/block.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/paragraph.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/decorationOutline.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/gridCells.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/children.md

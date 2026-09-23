@@ -333,7 +333,7 @@ void bindCompose(py::module_& module) {
       .value("Backface", Property::Backface)
       .value("DecorationOutline", Property::DecorationOutline)
       .value("Font", Property::Font)
-      .value("Block", Property::Block)
+      .value("Paragraph", Property::Paragraph)
       .value("Ink", Property::Ink)
       .value("CustomProperties", Property::CustomProperties)
       .value("ImageRendering", Property::ImageRendering);

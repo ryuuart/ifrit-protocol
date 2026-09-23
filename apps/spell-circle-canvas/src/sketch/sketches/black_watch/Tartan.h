@@ -467,7 +467,7 @@ inline Element centred(const Utf8& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.6_em)
       .children({text(s)
-                     .block({.alignment = weave::TextAlignment::kCenter})
+                     .paragraph({.alignment = weave::TextAlignment::kCenter})
                      .width(w)});
 }
 inline Element rule(float x, float y, float w, float h, material::Color c) {

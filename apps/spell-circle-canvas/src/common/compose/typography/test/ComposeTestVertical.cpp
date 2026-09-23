@@ -104,7 +104,7 @@ TEST(TextVertical, ColumnsRunTopToBottomAndAdvanceRightToLeft) {
       {text(kProse, jp(22, SK_ColorWHITE))
            .width(200)
            .height(180)
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
@@ -140,7 +140,7 @@ TEST(TextVertical, IntrinsicMeasurementSwapsTheAxes) {
       text(kProse, jp(20, SK_ColorWHITE)), fonts());
   const SkSize tall = sigil::compose::intrinsicSize(
       text(kProse, jp(20, SK_ColorWHITE))
-          .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
+          .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
       fonts());
   EXPECT_GT(wide.width(), wide.height());
   EXPECT_GT(tall.height(), tall.width())
@@ -157,7 +157,7 @@ TEST(TextVertical, MaxLinesClampsColumns) {
       {text(kProse, jp(20, SK_ColorWHITE))
            .width(300)
            .height(120)
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .maxTextLines(2)
            .key("t")}));
   host.frame();
@@ -176,7 +176,7 @@ TEST(TextVertical, ALineSelectorAddressesAColumn) {
       {text(kProse, jp(22, SK_ColorWHITE))
            .width(200)
            .height(180)
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .span(sigil::weave::selectors::line(0), inked(SK_ColorRED))
            .key("t")}));
   host.frame();
@@ -205,7 +205,7 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
       {text(u8"一二三四五六七八九十", jp(24, SK_ColorWHITE))
            .width(60)
            .height(300)
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .fx({.effect = fx::rise(30),
                 .stagger = {.eachMs = 90},
                 .unit = sigil::weave::Unit::Cluster,
@@ -245,11 +245,12 @@ TEST(TextVertical, APaintSpanRecolorsAColumnWithoutReshaping) {
   };
 
   const auto describe = [&](bool restyled) {
-    Text t = text(body, jp(24, SK_ColorWHITE))
-                 .width(200)
-                 .height(220)
-                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-                 .key("t");
+    Text t =
+        text(body, jp(24, SK_ColorWHITE))
+            .width(200)
+            .height(220)
+            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+            .key("t");
     if (restyled)
       t.span(sigil::weave::selectors::text(u8"赤い"), inked(SK_ColorRED));
     return box().padding(10).children({std::move(t)});
@@ -292,7 +293,7 @@ TEST(TextVertical, TheParagraphOverloadKeepsTheFieldMaskContract) {
       {text(vertical, {})
            .width(200)
            .height(180)
-           .block({.writingMode = sigil::weave::WritingMode::kHorizontal})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kHorizontal})
            .key("t2")}));
   host.frame();
   const auto* overridden = host.composer.paragraphLayout("t2");
@@ -310,7 +311,7 @@ TEST(TextVertical, OnPathIgnoresWritingModeAndSaysSoOnce) {
            .width(200)
            .height(200)
            .centerAt({120, 120})
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .textOnPath({.path = geometry::shapes::circle()})
            .key("t")}));
   host.frame();
@@ -341,11 +342,12 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
   // quarter of a line height rather than a rounding error.
   Host host(240, 300);
   const auto describe = [&](bool shrunk) {
-    Text t = text(u8"一二三四五", jp(28, SK_ColorWHITE))
-                 .width(60)
-                 .height(260)
-                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-                 .key("t");
+    Text t =
+        text(u8"一二三四五", jp(28, SK_ColorWHITE))
+            .width(60)
+            .height(260)
+            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+            .key("t");
     if (shrunk)
       t.fx({.effect = fx::effect(
                 "quarter",
@@ -395,7 +397,7 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
            .key("col")
            .width(180)
            .height(240)
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .fx({.effect = fx::rise(10),
                 .stagger = {.eachMs = 40},
                 .unit = sigil::weave::Unit::Cluster})}));
@@ -469,7 +471,7 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
     host.composer.render(box().padding(10).children(
         {text(u8"AAA", style)
              .key("k")
-             .block({.writingMode = mode})
+             .paragraph({.writingMode = mode})
              .fx({.effect = fx::effect(
                       point ? "sub" : "rest",
                       [mod](const GlyphInfo&, float,
@@ -515,7 +517,7 @@ TEST(TextVertical, TheUnitReadBackNamesHowEachOneStandsInItsColumn) {
       {text(mixed, jp(22, SK_ColorWHITE))
            .width(200)
            .height(180)
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .span(sigil::weave::selectors::text(u8"30"), tcy)
            .key("t")}));
   host.frame();
@@ -546,7 +548,7 @@ TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
       {text(kProse, jp(22, SK_ColorWHITE))
            .width(200)
            .height(200)
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .textAttach(sigil::weave::selectors::text(u8"縦組み"),
                        box().key("rule").width(3.0f).fill(red()))
            .key("t")}));
@@ -574,11 +576,12 @@ TEST(TextVertical, ASizeSpanReshapesOnlyTheRunItNames) {
   // pen steps DOWN.
   Host host(300, 300);
   const auto describe = [&](bool dressed) {
-    Text t = text(u8"縦組みの文章", jp(24, SK_ColorWHITE))
-                 .width(80)
-                 .height(260)
-                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-                 .key("t");
+    Text t =
+        text(u8"縦組みの文章", jp(24, SK_ColorWHITE))
+            .width(80)
+            .height(260)
+            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+            .key("t");
     if (dressed) {
       t.span(sigil::weave::selectors::text(u8"文章"),
              SpanDeclarations().fontSize(40));
@@ -613,7 +616,7 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
       {text(kProse, jp(22, SK_ColorWHITE))
            .width(200)
            .height(200)
-           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .fx({.effect = fx::typeOn(),
                 .stagger = {.eachMs = 400},
                 .unit = sigil::weave::Unit::Line,
@@ -657,7 +660,7 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
         {text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
              .width(60)
              .height(220)
-             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+             .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
              .span(sigil::weave::selectors::text(u8"三四五六"), sidelined)
              .fx({.effect = fx::rise(24),
                   .stagger = {.eachMs = 90},
@@ -743,7 +746,7 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
         {text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
              .width(60)
              .height(220)
-             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+             .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
              .span(sigil::weave::selectors::text(u8"三四五六"), sidelined)
              .key("t")});
   };
@@ -797,7 +800,7 @@ TEST(TextVertical, AGroupReadingSplitsWithItsCompoundDownTheColumns) {
              .key("t")
              .width(220.0f)
              .height(columnLength)
-             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+             .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
              .textAnnotation(kit::ruby(sigil::weave::selectors::text(compound),
                                        sigil::weave::Unit::Selection,
                                        {u8"こくごじてん"}, furigana, 2.0f))});

@@ -930,7 +930,7 @@ any extra `styleClass` names the author gives it.
 ```python
 from sigil.compose import StyleSheet, rule
 from sigil.compose import document as doc
-from sigil.weave import Block, Leading, Type, em
+from sigil.weave import ParagraphBlock, Leading, Type, em
 
 content = doc.article(
     doc.eyebrow("FIELD JOURNAL"),
@@ -941,7 +941,7 @@ content = doc.article(
 )
 look = StyleSheet([
     rule("h1").font(Type(size=34, color="#88492e")),
-    rule("paragraph").block(Block(leading=Leading.multiple(1.45))),
+    rule("paragraph").paragraph(ParagraphBlock(leading=Leading.multiple(1.45))),
     rule("quote").font(Type(color="#687969")),
 ])
 page = content.applyStyleSheet(look).var(doc.measure, em(34))
@@ -950,7 +950,7 @@ page = content.applyStyleSheet(look).var(doc.measure, em(34))
 A rule for the bare word `h1` styles every heading with that role in the
 subtree; `.name` names a class. The cascade applies inherited type, the
 component's fallback role, the matched rules by CSS's specificity — a class
-over a role — then direct `font`/`block` declarations.
+over a role — then direct `font`/`paragraph` declarations.
 Build the children before their parent if useful; role styling resolves where
 they land. A nested stylesheet can change one region's voice. The native
 specimen theme uses `h1`, `lead`, `h2`, `label`, `caption`, `eyebrow` and `footer`
@@ -1033,7 +1033,7 @@ delays and keyframe times are **seconds**. Native easing values live in
 `sigil.motion.ease`. The existing `entrance` and `transition` functions
 remain concise wrappers over native declarations.
 
-`sigil.weave` supplies native `Type`, `TextStyle`, `Block` and `TypeSheet`
+`sigil.weave` supplies native `Type`, `TextStyle`, `ParagraphBlock` and `TypeSheet`
 values. A partial type inherits unspecified fields; a complete text style
 describes its own look. A page applies its theme's stylesheet on its root,
 and `styleClass` on a native element names a class its rules speak about.
@@ -1078,7 +1078,7 @@ read warns once and matches nothing, which `matchesNothing()` reports.
 Sheets join with `+` and may hold one another. A rule's verbs are a
 node's own, bound once for both — the box (`padding`, `width`,
 `borderRadius`, `fill`, `opacity`, the 2D transform and the rest), the
-cascade (`font` and its longhands, `block` and its longhands, `ink`,
+cascade (`font` and its longhands, `paragraph` and its longhands, `ink`,
 `var`) and the text properties (`maxTextLines`, `textStroke` and the
 rest), which a rule states for the text leaves it matches — and the
 node's own verb stands over the rule's: `rule(".card").padding(8)`.
@@ -1088,7 +1088,7 @@ selector — the subject and every ancestor or sibling it names — must match
 the applying node or something below it, so a sheet that must name an
 outer element is applied at or above that element. The applying node is
 inside its own sheet and is that sheet's `:root`. Among matched rules the
-order is CSS's, specificity first; the node's own `font`, `block`, `ink`
+order is CSS's, specificity first; the node's own `font`, `paragraph`, `ink`
 and `var` still stand over all of them.
 
 ## Typography
@@ -1100,12 +1100,12 @@ a child by its key:
 
 ```python
 from sigil.compose import box, text
-from sigil.weave import Block, Leading, Type, rich
+from sigil.weave import ParagraphBlock, Leading, Type, rich
 
 passage = (rich().add("A ").add("warm", Type(color="#e39a60"))
            .add(" signal ").slot("status", (12, 12)).add(" arrives."))
 label = (text(passage).width(320).font(Type(size=22, color="#d8e3e8"))
-         .block(Block(leading=Leading.multiple(1.3)))
+         .paragraph(ParagraphBlock(leading=Leading.multiple(1.3)))
          .children(box().key("status").fill("#8bd0bd")))
 ```
 
@@ -1117,7 +1117,7 @@ selection from `weave.selectors` with a `compose.SpanDeclarations` — the font 
 ink verbs, re-shaping only where a shaping field is stated; Compose's `selectors.style` and `selectors.inFrame`
 address named runs and story frames. Selector ranges use native UTF-16 offsets.
 
-`Block` exposes leading, alignment, justification, hyphenation settings, tab
+`ParagraphBlock` exposes leading, alignment, justification, hyphenation settings, tab
 stops, CJK line tables and writing mode. `ParagraphStyle` adds per-paragraph
 spacing, indents, keeps, reservations and an initial letter. Give
 `paragraphStyles` a list or tuple of those styles, or of stylesheet names.

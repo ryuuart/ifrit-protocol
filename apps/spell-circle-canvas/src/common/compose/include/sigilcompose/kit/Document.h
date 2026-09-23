@@ -1,10 +1,11 @@
 #pragma once
 
 /** @file
- * Document components with semantic roles and a stock type hierarchy.
- * A role supplies fallback type; a rule of a sheet in force naming the
- * role styles every element that carries it. Rules for authored classes
- * and direct font/block declarations stand above the role's. Every result is an Element.
+ * Document components with semantic roles and a stock type hierarchy. A role
+ * supplies fallback type; a rule of a sheet in force naming the role styles
+ * every element that carries it. Rules for authored classes and direct
+ * font/paragraph declarations stand above the role's. Every result is an
+ * Element.
  */
 
 #include <sigilcompose/core/Element.h>
@@ -44,7 +45,8 @@ inline constexpr std::string_view quoteInset = "document.quoteInset";
 [[nodiscard]] Text h5(Utf8 words);
 [[nodiscard]] Text h6(Utf8 words);
 
-/** Prose in the inherited font and block, with role `paragraph`. Rich text
+/** Prose in the inherited font and paragraph setting, with role `paragraph`.
+Rich text
  *  stays one shaped passage; inline styles retain their own precedence. */
 [[nodiscard]] Text paragraph(Utf8 words);
 [[nodiscard]] Text paragraph(const weave::RichText& words);
@@ -59,7 +61,7 @@ inline constexpr std::string_view quoteInset = "document.quoteInset";
 /** A closing note at 0.875 em, role `footer`. */
 [[nodiscard]] Text footer(Utf8 words);
 /** Literal text in a monospace face, role `code`. Line breaks stay in the
- *  passage; its font, block and measure are ordinary fluent overrides. */
+ *  passage; its font, paragraph and measure are ordinary fluent overrides. */
 [[nodiscard]] Text code(Utf8 words);
 
 /** An indented content group, role `quote`. */

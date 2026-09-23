@@ -5,7 +5,7 @@ from sigil.compose import selectors as compose_selectors
 from sigil.motion import Output
 from sigil.skia import Paint, Path
 from sigil.weave import (
-    Block,
+    ParagraphBlock,
     Decoration,
     FrameOptions,
     HyphenationOptions,
@@ -34,7 +34,7 @@ passage = (
     .slot("marker", (12, 12))
     .add(" text", type=Type(size=18))
 )
-layout = Block(
+layout = ParagraphBlock(
     leading=Leading.multiple(1.3),
     hyphenation=HyphenationOptions(consecutiveLimit=2),
     justification=JustificationOptions(spaceStretch=0.6),
@@ -54,7 +54,7 @@ selection = selectors.each(Unit.Word).take(1) | compose_selectors.style("accent"
 node: Text = (
     text(passage)
     .font(voice)
-    .block(layout)
+    .paragraph(layout)
     .paragraphStyles((heading,))
     .span(selection, SpanDeclarations().fontWeight(700))
     .textFirstBaseline(FrameOptions.FirstBaseline.CapHeight)

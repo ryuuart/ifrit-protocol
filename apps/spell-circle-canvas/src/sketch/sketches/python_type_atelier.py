@@ -21,7 +21,7 @@ from sigil.compose import selectors as selected
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import PathBuilder
 from sigil.weave import (
-    Block,
+    ParagraphBlock,
     Decoration,
     InitialLetter,
     KeepOptions,
@@ -63,7 +63,7 @@ def specimen(content: Element, height: float) -> Element:
 
 def run_figure(mode: int) -> Element:
     line = text(passage(mode == 1)).font(Type(size=29, color=PAPER))
-    line.block(Block(leading=Leading.absolute(39)))
+    line.paragraph(ParagraphBlock(leading=Leading.absolute(39)))
     if mode == 1:
         line.children(
             box()

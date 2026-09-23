@@ -59,10 +59,10 @@ struct Note {
     const float half = split.band * 0.5f;
     const auto line = [&](const std::u8string& copy, float at) {
       Element leaf = text(copy).font(type).absolute();
-      return vertical
-                 ? kit::at(std::move(leaf), at, 0, half, split.advance)
-                       .block({.writingMode = weave::WritingMode::kVerticalRL})
-                 : std::move(leaf.left(0).top(at).width(split.advance));
+      return vertical ? kit::at(std::move(leaf), at, 0, half, split.advance)
+                            .paragraph({.writingMode =
+                                            weave::WritingMode::kVerticalRL})
+                      : std::move(leaf.left(0).top(at).width(split.advance));
     };
     return box().children(
         {line(first, vertical ? half : 0), line(second, vertical ? 0 : half)});
@@ -131,23 +131,23 @@ struct WarichuPlaceholder {
                            .width(284)});
     Element vertical =
         sketch::kit::well({.width = 328, .height = 234, .padding = 22})
-            .children(
-                {text(weave::rich()
-                          .add(u8"割注は")
-                          .slot("note",
-                                {japanese.split.advance, japanese.split.band})
-                          .add(u8"本文の途中に置く。"))
-                     .font({.face = japanese.type.face,
-                            .size = 24,
-                            .track = 0,
-                            .language = "ja"})
-                     .width(284)
-                     .height(190)
-                     .block({.writingMode = weave::WritingMode::kVerticalRL})
-                     .children({box()
-                                    .key("note")
-                                    .fill(Fill::color(kSlot))
-                                    .children({japanese.lines(true)})})});
+            .children({text(weave::rich()
+                                .add(u8"割注は")
+                                .slot("note", {japanese.split.advance,
+                                               japanese.split.band})
+                                .add(u8"本文の途中に置く。"))
+                           .font({.face = japanese.type.face,
+                                  .size = 24,
+                                  .track = 0,
+                                  .language = "ja"})
+                           .width(284)
+                           .height(190)
+                           .paragraph(
+                               {.writingMode = weave::WritingMode::kVerticalRL})
+                           .children({box()
+                                          .key("note")
+                                          .fill(Fill::color(kSlot))
+                                          .children({japanese.lines(true)})})});
     Element reading =
         sketch::kit::well({.width = 328, .height = 234, .padding = 22})
             .column()

@@ -119,7 +119,7 @@ sketch::kit::page({.title = "THE STROKE ATLAS"},
 
 A role rule overrides the component's fallback fields. A rule for an
 authored `styleClass()` outweighs a rule for the role, and direct
-`font()` or `block()` overrides both. A later or nearer sheet's rule of
+`font()` or `paragraph()` overrides both. A later or nearer sheet's rule of
 the same weight overrides the fields it names; other fields remain in
 force. A component's stock role is separate from its classes, so adding a
 class never removes its semantic identity.

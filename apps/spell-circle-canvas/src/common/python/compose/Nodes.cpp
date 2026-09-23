@@ -293,8 +293,9 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
       .def("borderRadius", py::overload_cast<Corners>(&Node::borderRadius),
            py::arg("radii"), fluent)
       .def("overflow", &Node::overflow, py::arg("overflow"), fluent)
-      .def("block", py::overload_cast<weave::Block>(&Node::block),
-           py::arg("block"), fluent)
+      .def("paragraph",
+           py::overload_cast<weave::ParagraphBlock>(&Node::paragraph),
+           py::arg("partial"), fluent)
       .def("lineHeight", &Node::lineHeight, py::arg("leading"), fluent)
       .def("textAlign", &Node::textAlign, py::arg("alignment"), fluent)
       .def("textIndent", &Node::textIndent, py::arg("px"), fluent)
@@ -411,17 +412,17 @@ void bindNodeVerbs(py::class_<Node>& element) {
       .def(
           "role",
           [](Node& self, std::string name, std::optional<weave::Type> font,
-             std::optional<weave::Block> block) -> Node& {
+             std::optional<weave::ParagraphBlock> paragraph) -> Node& {
             return self.role(std::move(name), font.value_or(weave::Type{}),
-                             block.value_or(weave::Block{}));
+                             paragraph.value_or(weave::ParagraphBlock{}));
           },
           py::arg("name"), py::arg("font") = py::none(),
-          py::arg("block") = py::none(), fluent,
+          py::arg("paragraph") = py::none(), fluent,
           "A semantic role — what a bare word in a selector names — with "
-          "the font and block partials a component falls back to for it, "
-          "under every rule that matches the node; the node's own `font` "
-          "and `block` stand over everything. A later call replaces the "
-          "role and its defaults together.")
+          "the font and paragraph partials a component falls back to for "
+          "it, under every rule that matches the node; the node's own "
+          "`font` and `paragraph` stand over everything. A later call "
+          "replaces the role and its defaults together.")
       .def("hitTestable", &Node::hitTestable, py::arg("enabled"), fluent)
       .def("decorationOutline", &Node::decorationOutline, py::arg("source"),
            py::arg("coverage") = 0.5f, fluent)

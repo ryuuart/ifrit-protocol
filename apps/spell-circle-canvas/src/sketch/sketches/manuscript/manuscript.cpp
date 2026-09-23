@@ -275,11 +275,11 @@ struct Manuscript {
                  prose.key("block")
                      .width(px(kMeasure))
                      .paragraphStyles({block})
-                     .block(
+                     .paragraph(
                          {.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
-                     .block({.hyphenation =
-                                 sigil::weave::HyphenationOptions{
-                                     .patterns = hyphenator()}})
+                     .paragraph({.hyphenation =
+                                     sigil::weave::HyphenationOptions{
+                                         .patterns = hyphenator()}})
                      .contentFlowAround("note", px(3.0f))
                      .contentFlowAround("sprig", px(2.4f)),
                  kit::at(illuminatedPanel(rubric),

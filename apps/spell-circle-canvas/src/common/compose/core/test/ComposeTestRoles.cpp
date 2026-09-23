@@ -43,7 +43,7 @@ TEST(ComposeRoles, AStandaloneRoleSuppliesTypeAndBlockDefaults) {
   direct.composer.render(
       page(text("AAAA\nAAAA")
                .font({.size = 36})
-               .block({.leading = Leading::multiple(1.0f)})));
+               .paragraph({.leading = Leading::multiple(1.0f)})));
   EXPECT_EQ(contentRect(role), contentRect(direct));
   EXPECT_TRUE(anyWhiteIn(role, SkIRect::MakeXYWH(10, 10, 170, 90)));
 }
@@ -52,20 +52,22 @@ TEST(ComposeRoles, ClassesAndDirectDeclarationsBeatRolesInEitherSheetOrder) {
   const sigil::compose::Rule selected =
       sigil::compose::rule("heading")
           .font({.size = 24})
-          .block({.leading = Leading::multiple(1.5f)});
+          .paragraph({.leading = Leading::multiple(1.5f)});
   const sigil::compose::Rule authored =
       sigil::compose::rule(".authored")
           .font({.size = 18})
-          .block({.leading = Leading::multiple(2.0f)});
+          .paragraph({.leading = Leading::multiple(2.0f)});
   Host expectedRole, expectedClass, expectedDirect;
-  expectedRole.composer.render(
-      page(text("AAAA\nAAAA").font(selected.type()).block(selected.block())));
-  expectedClass.composer.render(
-      page(text("AAAA\nAAAA").font(authored.type()).block(authored.block())));
+  expectedRole.composer.render(page(text("AAAA\nAAAA")
+                                        .font(selected.type())
+                                        .paragraph(selected.paragraph())));
+  expectedClass.composer.render(page(text("AAAA\nAAAA")
+                                         .font(authored.type())
+                                         .paragraph(authored.paragraph())));
   expectedDirect.composer.render(
       page(text("AAAA\nAAAA")
                .font({.size = 14})
-               .block({.leading = Leading::multiple(1.25f)})));
+               .paragraph({.leading = Leading::multiple(1.25f)})));
   const SkRect roleRect = contentRect(expectedRole);
   const SkRect classRect = contentRect(expectedClass);
   const SkRect directRect = contentRect(expectedDirect);
@@ -79,7 +81,7 @@ TEST(ComposeRoles, ClassesAndDirectDeclarationsBeatRolesInEitherSheetOrder) {
     direct.composer.render(
         page(text("AAAA\nAAAA")
                  .font({.size = 14})
-                 .block({.leading = Leading::multiple(1.25f)})
+                 .paragraph({.leading = Leading::multiple(1.25f)})
                  .styleClass("authored")
                  .role("heading", {.size = 36}))
             .applyStyleSheet(sheet));
@@ -93,7 +95,7 @@ TEST(ComposeRoles, ANearerRoleRuleChangesOnlyItsDeclaredFields) {
   const sigil::compose::StyleSheet outer{
       sigil::compose::rule("heading")
           .font({.size = 24})
-          .block({.leading = Leading::multiple(2.0f)})};
+          .paragraph({.leading = Leading::multiple(2.0f)})};
   const sigil::compose::StyleSheet inner{
       sigil::compose::rule("heading").font({.size = 18})};
   Element adopted = heading().applyStyleSheet(inner);
@@ -102,7 +104,7 @@ TEST(ComposeRoles, ANearerRoleRuleChangesOnlyItsDeclaredFields) {
   direct.composer.render(
       page(text("AAAA\nAAAA")
                .font({.size = 18})
-               .block({.leading = Leading::multiple(2.0f)})));
+               .paragraph({.leading = Leading::multiple(2.0f)})));
   EXPECT_EQ(contentRect(role), contentRect(direct));
 }
 

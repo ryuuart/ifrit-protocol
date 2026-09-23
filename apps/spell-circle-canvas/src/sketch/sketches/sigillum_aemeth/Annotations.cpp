@@ -211,7 +211,7 @@ auto SigillumAemeth::basketFan() -> Element {
                                                             : "fan")
               .rect(path::centred(fanPt(r, c, 0.0f), {30, 30}))
               .rotate(fanAngle(c))
-              .block({.alignment = weaveNs::TextAlignment::kCenter})
+              .paragraph({.alignment = weaveNs::TextAlignment::kCenter})
               .opacity(
                   lit(tBirds * 1000 + (float)r * 260 + (float)c * 34, 300)));
   return box()

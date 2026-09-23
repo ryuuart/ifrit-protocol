@@ -3,12 +3,12 @@
 /** @file
  * @ingroup weave-layout
  *
- * `Block` — a block's setting as a PARTIAL: every field optional, so a call
- * site states the one thing it changes and says nothing about the rest.
+ * `ParagraphBlock` — a block's setting as a PARTIAL: every field optional, so a
+ * call site states the one thing it changes and says nothing about the rest.
  * Beside it the merges (`merge` folds one partial into another, `overlay`
  * resolves one against a whole `ParagraphStyle`) and the style a partial
- * alone names (`toParagraphStyle`). `Block` is to `ParagraphStyle` what
- * `Type` is to `TextStyle`.
+ * alone names (`toParagraphStyle`). `ParagraphBlock` is to `ParagraphStyle`
+ * what `Type` is to `TextStyle`.
  */
 
 #include <optional>
@@ -29,7 +29,7 @@ namespace sigil::weave {
 /** ONE FIELD OF A BLOCK PARTIAL, named so a keyword can be said about
  *  it. Every one of them inherits, as every field of a text style does,
  *  so `initial` is the keyword that says something new. */
-enum class BlockField : uint8_t {
+enum class ParagraphField : uint8_t {
   Leading,
   HalfLeading,
   Alignment,
@@ -60,7 +60,7 @@ enum class BlockField : uint8_t {
  *  @trap What a block keeps to ITSELF — its air before and after, its
  *  reservation, its keeps with the next block, its initial letter, its
  *  every-line insets — is not here but on the whole `ParagraphStyle`. */
-struct Block {
+struct ParagraphBlock {
   std::optional<Leading> leading;
   std::optional<bool> halfLeading;
   std::optional<TextAlignment> alignment;
@@ -98,9 +98,9 @@ struct Block {
 
   /** The fields written as `inherit`, `initial` or `unset` rather than
    *  as a value, resolved by `overlay` against the block in force above. */
-  KeywordTable<BlockField> keywords;
+  KeywordTable<ParagraphField> keywords;
 
-  bool operator==(const Block&) const = default;
+  bool operator==(const ParagraphBlock&) const = default;
 
   /** Whether it states NOTHING — the partial that changes no field. */
   [[nodiscard]] bool empty() const {
@@ -119,23 +119,25 @@ struct Block {
  *  @trap The keywords ACCUMULATE and are not applied: a merge has no
  *  block in force to resolve `inherit` against. `overlay` is where a
  *  keyword lands. */
-Block& merge(Block& into, const Block& over);
+ParagraphBlock& merge(ParagraphBlock& into, const ParagraphBlock& over);
 
 /** `over` RESOLVED AGAINST `base` — one step of a cascade between two
  *  partials, `over` winning where it states a field, and every field it
  *  wrote as a keyword taking `base`'s value (`inherit`, `unset`) or none
  *  at all (`initial`). The answer states no keywords. */
-[[nodiscard]] Block overlay(const Block& base, const Block& over);
+[[nodiscard]] ParagraphBlock overlay(const ParagraphBlock& base,
+                                     const ParagraphBlock& over);
 
 /** THE SET FIELDS OF `over` APPLIED TO A WHOLE STYLE — one step of a
  *  cascade whose base is a `ParagraphStyle`. The writing mode and the
  *  locale are not the style's to hold and pass through untouched; a
  *  consumer reads them from the partial. */
-[[nodiscard]] ParagraphStyle overlay(ParagraphStyle base, const Block& over);
+[[nodiscard]] ParagraphStyle overlay(ParagraphStyle base,
+                                     const ParagraphBlock& over);
 
 /** The `ParagraphStyle` a partial names with nothing above it: the
  *  layout's own answer for every field it leaves unset. */
-[[nodiscard]] ParagraphStyle toParagraphStyle(const Block& block);
+[[nodiscard]] ParagraphStyle toParagraphStyle(const ParagraphBlock& block);
 
 /** THE LAYOUT-WIDE FIELDS OF @p options THE BLOCK IN FORCE SETS — the
  *  alignment, the breaking strategy, the hyphenation, the justification
@@ -143,6 +145,6 @@ Block& merge(Block& into, const Block& over);
  *  partial states it.
  *  @silent the field is per-block, which is `overlay`'s, or the writing
  *  mode or the locale, which are the Paragraph's. */
-void apply(ParagraphLayoutOptions& options, const Block& block);
+void apply(ParagraphLayoutOptions& options, const ParagraphBlock& block);
 
 }  // namespace sigil::weave

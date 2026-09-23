@@ -128,7 +128,8 @@ TEST(ComposeLineTables, TsumeClosesTheGapsBetweenFullWidthCharacters) {
                        .key("t")
                        .width(360.0f);
     if (tsume != 0)
-      leaf.block({.mojikumi = sigil::weave::MojikumiTable{}, .tsume = tsume});
+      leaf.paragraph(
+          {.mojikumi = sigil::weave::MojikumiTable{}, .tsume = tsume});
     host.composer.render(box().children({std::move(leaf)}));
     host.frame();
     const std::vector<TextUnit> line = host.composer.units(

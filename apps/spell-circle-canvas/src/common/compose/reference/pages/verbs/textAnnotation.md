@@ -17,7 +17,7 @@ down a column, a gloss under a phrase.
 
 ```cpp
 text(passage, body)
-    .block({.writingMode = weave::WritingMode::kVerticalRL})
+    .paragraph({.writingMode = weave::WritingMode::kVerticalRL})
     .textAnnotation({.where = weave::selectors::text(u8"漢字"),
                .unit = weave::Unit::Selection,     // group ruby
                .readings = {u8"かんじ"},

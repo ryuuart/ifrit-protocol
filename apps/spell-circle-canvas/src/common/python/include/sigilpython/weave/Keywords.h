@@ -2,7 +2,7 @@
 
 /** @file
  * The three wide keywords on a PARTIAL, as Python reaches them: the
- * surface a bound `Type` or `Block` takes so a field can be written as
+ * surface a bound `Type` or `ParagraphBlock` takes so a field can be written as
  * `inherit`, `initial` or `unset` rather than as a value.
  *
  * A field's Python attribute takes the field's own type, and none of
@@ -19,7 +19,7 @@ namespace sigil::python {
  *  one, `keywordOf(field)` reads it back or answers `None`, and
  *  `clearKeyword(field)` takes it off again. @p Field is whatever
  *  enumerates the partial's fields — `weave.TypeField`,
- *  `weave.BlockField` — and the partial keeps the value the field held,
+ *  `weave.ParagraphField` — and the partial keeps the value the field held,
  *  because the keyword and the value are one layer whose later statement
  *  the writer decides. */
 template <class Partial, class Field>

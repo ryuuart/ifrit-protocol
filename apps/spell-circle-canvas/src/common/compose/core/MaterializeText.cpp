@@ -310,9 +310,9 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
     options.blocks.clear();
     for (const std::string& name : inForce.blockClassNames) {
       const auto matched = std::find_if(
-          inst.blockStyles.begin(), inst.blockStyles.end(),
+          inst.paragraphBlockStyles.begin(), inst.paragraphBlockStyles.end(),
           [&](const auto& entry) { return entry.first == name; });
-      if (matched == inst.blockStyles.end()) {
+      if (matched == inst.paragraphBlockStyles.end()) {
         warnNoSuchParagraphStyle(name, inst.sheetsInForce);
         options.blocks.push_back(lane);
       } else {

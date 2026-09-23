@@ -105,7 +105,7 @@ struct Tategaki {
             .font(std::move(style))
             .width(46.0f)
             .height(140.0f)
-            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
+            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
         0.0f, 12.0f);
   }
 
@@ -154,7 +154,8 @@ struct Tategaki {
                  .top(92)
                  .width(tg::kColumnBlockW)
                  .height(tg::kColumnBlockH)
-                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 .paragraph(
+                     {.writingMode = sigil::weave::WritingMode::kVerticalRL})
                  // The phrase the plate is about, in vermilion — paint only,
                  // so the glyphs are exactly the glyphs the passage shaped.
                  .span(weave::selectors::text(u8"縦組み"),
