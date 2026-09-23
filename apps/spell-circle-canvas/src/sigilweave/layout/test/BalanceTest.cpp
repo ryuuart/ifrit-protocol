@@ -142,5 +142,7 @@ TEST(Balance, ARaggedBlockKeepsEveryLineInsideItsMeasure) {
   ASSERT_GE(loose.size(), 3u);
   ASSERT_EQ(loose.size(), balanced.size());
   for (float width : balanced) EXPECT_LE(width, 180.0f + 0.5f);
-  EXPECT_LT(spread(balanced), spread(loose));
+  EXPECT_LT(*std::max_element(balanced.begin(), balanced.end()),
+            *std::max_element(loose.begin(), loose.end()) - 1.0f)
+      << "the search found no narrower measure";
 }
