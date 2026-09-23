@@ -6,11 +6,14 @@
 
 #include <sigilcompose/core/Property.h>
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilcompose/typography/TextUnit.h>
 
+#include <cmath>
 #include <concepts>
 #include <functional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "support/CoreTestSupport.h"
 
@@ -461,28 +464,32 @@ TEST(ComposeRuleScope, ALeafsFirstBaselineStandsBesideARulesVerticalAlign) {
   // Two properties of one frame: the leaf's first-baseline rule covers
   // that property alone, and the rule's vertical alignment stands.
   using sigil::weave::FrameOptions;
-  const auto scene = [](bool alignFromRule, bool align) {
-    Text leaf = text(u8"Low", styleAt(18));
-    leaf.styleClass("low").width(90).height(150).textFirstBaseline(
-        FrameOptions::FirstBaseline::kCapHeight);
+  const auto lineTop = [](bool alignFromRule, bool align) {
+    Text leaf = text(u8"Low", whiteStyle(18));
+    leaf.key("passage")
+        .styleClass("low")
+        .width(90)
+        .height(150)
+        .textFirstBaseline(FrameOptions::FirstBaseline::kCapHeight);
     if (align && !alignFromRule)
       leaf.textVerticalAlign(FrameOptions::Distribute::kEnd);
-    return box()
-        .applyStyleSheet(align && alignFromRule
-                             ? StyleSheet{rule(".low").textVerticalAlign(
-                                   FrameOptions::Distribute::kEnd)}
-                             : StyleSheet{})
-        .alignItems(Align::Start)
-        .children({leaf});
+    Host host;
+    host.composer.render(
+        box()
+            .applyStyleSheet(align && alignFromRule
+                                 ? StyleSheet{rule(".low").textVerticalAlign(
+                                       FrameOptions::Distribute::kEnd)}
+                                 : StyleSheet{})
+            .alignItems(Align::Start)
+            .children({leaf}));
+    host.frame();
+    const std::vector<TextUnit> line = host.composer.units(
+        "passage", sigil::weave::selectors::line(0), sigil::weave::Unit::Line);
+    return line.empty() ? std::nanf("") : line.front().rect.top();
   };
-  Host ruled, stated, top;
-  ruled.composer.render(scene(true, true));
-  ruled.frame();
-  stated.composer.render(scene(false, true));
-  stated.frame();
-  top.composer.render(scene(false, false));
-  top.frame();
-  EXPECT_TRUE(identicalPixels(ruled, stated, 200, 200));
-  EXPECT_FALSE(identicalPixels(ruled, top, 200, 200))
+  const float top = lineTop(false, false);
+  ASSERT_FALSE(std::isnan(top)) << "the passage laid out a line";
+  EXPECT_FLOAT_EQ(lineTop(true, true), lineTop(false, true));
+  EXPECT_GT(lineTop(true, true), top + 60.0f)
       << "the rule's alignment still moved the line down";
 }
