@@ -112,9 +112,10 @@ Ui.Panel {
                     return dimensions.length === 2 && value > 0 ? value : 640;
                 }
                 checkerboardVisible: false
-                // The largest registry canvases still fit inside the
-                // common 16K texture limit at 4× on a Retina screen.
-                maximumScale: 4.0
+                // The view below draws the canvas under the zoom itself,
+                // so it stays the size of the pane and its texture never
+                // grows with the zoom.
+                contentFillsViewport: true
                 panButtons: Qt.MiddleButton
                 showPanCursor: false
                 // A set sketch owns the ordinary wheel for camera
@@ -125,6 +126,8 @@ Ui.Panel {
                     id: view
 
                     anchors.fill: parent
+                    canvasScale: canvasViewport.viewScale
+                    canvasOffset: canvasViewport.canvasOffset
                     // Captures run on the render thread; the saved path
                     // (or an empty string on failure) arrives
                     // asynchronously.

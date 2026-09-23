@@ -26,7 +26,6 @@
 #include <include/core/SkSurface.h>
 #include <rhi/qrhi.h>
 #include <sigilmeasure/time/Stopwatch.h>
-#include <sigilsketch/core/Placement.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
@@ -52,6 +51,7 @@
 #include <thread>
 #include <utility>
 
+#include "CanvasView.h"
 #include "PipelineWarm.h"
 #include "SketchCatalog.h"
 #include "SketchbookView.h"
@@ -191,6 +191,8 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   }
   m_publicationRequest = view->m_publicationRequest;
   m_logicalSize = QSizeF(view->width(), view->height());
+  m_canvasScale = (float)view->m_canvasScale;
+  m_canvasOffset = view->m_canvasOffset;
   m_deviceRatio = view->window()
                       ? (float)view->window()->effectiveDevicePixelRatio()
                       : 1.0f;
@@ -483,55 +485,43 @@ sk_sp<SkImage> SketchbookRenderer::renderPublication(
 void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize,
                                     const SkImage* published) {
   sketch::Host* host = SketchbookView::host;
-  // WHAT THE SCENE GRAPH WILL DO TO THIS TEXTURE, UNDONE IN ADVANCE. The
-  // texture is stretched over the item whatever resolution it stands at,
-  // so the frame is composed into a rectangle of the ITEM'S SHAPE and
-  // that rectangle is scaled to fill the texture. A zoom grows the item
-  // without changing its shape, so the two rectangles are the same one
-  // and the matrix below is bit for bit the matrix of the frame before —
-  // which is what lets every cached raster in the scene stand while the
-  // gesture runs, since a cache asks whether its node is exactly where it
-  // was. Only a shape that has really changed is compensated, and only
-  // until the resolution settles on it.
-  float width = (float)pixelSize.width();
-  float height = (float)pixelSize.height();
-  const double itemAspect = m_logicalSize.height() > 0
-                                ? m_logicalSize.width() / m_logicalSize.height()
-                                : 0.0;
-  const double heldAspect =
-      (double)pixelSize.width() / (double)pixelSize.height();
-  if (itemAspect > 0 && std::abs(itemAspect - heldAspect) > 0.002 * heldAspect)
-    height = (float)((double)width / itemAspect);
-  // Letterbox to the SKETCH's own canvas rather than to the item: a
-  // sketch declares its own dimensions and they do not share an aspect
-  // ratio, so stretching one to fill would distort what it shows. The
-  // matte around it stays dark so the sketch's own edge reads; inside
-  // the clip its declared background takes over.
-  canvas.clear(SkColorSetRGB(0x0b, 0x0a, 0x14));
-  if (!host || !host->live()) return;
-  const SkSize size = host->canvasSize();
-  const sketch::Placement fit =
-      sketch::fitInto(size, SkRect::MakeWH(width, height));
-  canvas.save();
-  // The compensation above, applied. It is the identity whenever the item
-  // and the texture agree in shape, which is every frame of a zoom.
-  canvas.scale((float)pixelSize.width() / width,
-               (float)pixelSize.height() / height);
-  canvas.translate(fit.x, fit.y);
-  canvas.scale(fit.scale, fit.scale);
-  canvas.clipRect(SkRect::MakeWH(size.width(), size.height()));
-  if (published)
-    // THE FRAME THAT HAS ALREADY LEFT, shown rather than drawn again.
-    // It stands at the canvas's own pixels and the fit above magnifies
-    // it, which is the one difference a publishing window shows. Over
-    // the matte and not in place of it, so a sketch grounded in nothing
-    // reads against this window's own dark instead of against whatever
-    // the texture last held.
-    canvas.drawImage(published, 0, 0,
-                     SkSamplingOptions(SkFilterMode::kLinear));
-  else
-    paintFrame(canvas, *host);
-  canvas.restore();
+  if (!host || !host->live()) {
+    // Nothing to show, so nothing is covered: the pane shows its own
+    // ground until a sketch is live.
+    canvas.clear(SK_ColorTRANSPARENT);
+    return;
+  }
+  // THE TEXTURE IS THE PANE. It is sized from the item, the item fills
+  // the pane, and a zoom or a pan moves the view below rather than the
+  // item — so the pixels a frame covers are the pixels on screen at any
+  // zoom, the texture never outgrows what the device can allocate, and
+  // the canvas off the pane is clipped away before it is drawn. The view
+  // is spelled in item units and drawn in pixels, and the ratio between
+  // the two is the texture's own.
+  const SkSize pane =
+      SkSize::Make((float)pixelSize.width(), (float)pixelSize.height());
+  const float pixelsPerUnit = m_logicalSize.width() > 0
+                                  ? pane.width() / (float)m_logicalSize.width()
+                                  : 1.0f;
+  const CanvasView view =
+      CanvasView{m_canvasScale,
+                 {(float)m_canvasOffset.x(), (float)m_canvasOffset.y()}}
+          .scaled(pixelsPerUnit);
+  // The SKETCH's own canvas is placed on the pane and never stretched to
+  // it: a sketch declares its own dimensions and they do not share an
+  // aspect ratio, so stretching one to fill would distort what it shows.
+  drawPane(canvas, pane, host->canvasSize(), view,
+           [this, host, published](SkCanvas& into) {
+             if (published)
+               // THE FRAME THAT HAS ALREADY LEFT, shown rather than drawn
+               // again. It stands at the canvas's own pixels and the view
+               // magnifies it, which is the one difference a publishing
+               // window shows.
+               into.drawImage(published, 0, 0,
+                              SkSamplingOptions(SkFilterMode::kLinear));
+             else
+               paintFrame(into, *host);
+           });
   host->markPresented();
   if (++m_frameCount % 15 == 0) m_metricsDirty = true;
 }

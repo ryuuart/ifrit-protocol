@@ -9,6 +9,7 @@
 #include <include/core/SkRefCnt.h>
 #include <sigilmotion/clock/FrameClock.h>
 
+#include <QtCore/QPointF>
 #include <QtCore/QSize>
 #include <QtCore/QSizeF>
 #include <QtQuick/QQuickRhiItem>
@@ -50,13 +51,14 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   ~SketchbookRenderer() override;
 
  private:
-  /** Draws the window's own view of the presented sketch into @p canvas:
-   *  the dark matte, the sketch letterboxed into it at the resolution
-   *  the item stands at, and the zoom that magnifies both. @p published
-   *  is the frame that has ALREADY left by the publication door this
-   *  tick, drawn here in place of the sketch — a sketch is stateful, so
-   *  one tick is one frame and the window shows the same one its
-   *  subscribers received. Null draws the sketch itself. */
+  /** Draws the window's own view of the presented sketch into @p canvas,
+   *  a texture the size of the pane: the sketch's canvas under the
+   *  reader's zoom and pan, clipped to the pane, with the matte behind
+   *  it and nothing around it. @p published is the frame that has
+   *  ALREADY left by the publication door this tick, drawn here in place
+   *  of the sketch — a sketch is stateful, so one tick is one frame and
+   *  the window shows the same one its subscribers received. Null draws
+   *  the sketch itself. */
   void drawSketch(SkCanvas& canvas, QSize pixelSize, const SkImage* published);
   /** Clears @p canvas to the ground the running sketch declared — the
    *  alpha with it, so a sketch grounded in a translucent or fully
@@ -161,9 +163,14 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   bool m_presentsYUp = false;
   std::vector<uint32_t> m_rasterPixels;
   /** THE ITEM'S OWN RECTANGLE, in its own units and not rounded to
-   *  them: what the texture will be stretched over, which is only the
-   *  same shape as the texture while the render size is settled on it. */
+   *  them: the pane the texture covers, and the units the reader's view
+   *  below is spelled in. */
   QSizeF m_logicalSize;
+  /** THE READER'S VIEW OF THE CANVAS, in item units: how far it is
+   *  magnified and where its centre has been moved to. The view's, read
+   *  on every synchronize and carried into pixels for each frame. */
+  float m_canvasScale = 0.0f;
+  QPointF m_canvasOffset;
   /** THE DENSITY A SKETCH'S CACHED RASTERS ARE BAKED AT: the screen's,
    *  and not the viewport's. A sketch declares a canvas and this window
    *  magnifies it, so a raster taken at the screen's density is the

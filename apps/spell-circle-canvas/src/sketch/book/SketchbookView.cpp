@@ -5,7 +5,6 @@
 #include "SketchbookView.h"
 
 #include <WindowChrome.h>
-#include <sigilsketch/core/Placement.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>
 
@@ -15,6 +14,7 @@
 #include <cmath>
 #include <string>
 
+#include "CanvasView.h"
 #include "Keys.h"
 #include "SketchCatalog.h"
 #include "SketchbookRenderer.h"
@@ -34,26 +34,14 @@ bool SketchbookView::oneSessionAtATime = false;
 // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 QMutex SketchbookView::hostMutex;
 
-namespace {
-
-/** How long a resize gesture must be quiet before the render target
- *  follows it. Long enough that consecutive steps of one wheel spin or
- *  one drag fall inside it, short enough that letting go and looking is
- *  not a wait. */
-constexpr int kResizeSettleMs = 180;
-
-}  // namespace
-
 SketchbookView::SketchbookView(QQuickItem* parent)
     : QQuickRhiItem(parent), m_publishing(publishAtStart) {
   // We draw into colorTexture() directly; no QRhi render target or depth
   // buffer is needed for this item.
   setAutoRenderTarget(false);
-  setAlphaBlending(false);
-  m_settle.setSingleShot(true);
-  m_settle.setInterval(kResizeSettleMs);
-  QObject::connect(&m_settle, &QTimer::timeout, this,
-                   [this] { settleRenderSize(); });
+  // BLENDED, because the item covers the whole pane and the frame covers
+  // only the canvas: around it the pane's own ground shows through.
+  setAlphaBlending(true);
   m_timer.setInterval(16);
   QObject::connect(&m_timer, &QTimer::timeout, this, [this] {
     {
@@ -88,45 +76,26 @@ QQuickRhiItemRenderer* SketchbookView::createRenderer() {
   return new SketchbookRenderer;
 }
 
-void SketchbookView::settleRenderSize() {
-  m_settle.stop();
-  // Nothing to pin to before the item has been laid out; the first real
-  // geometry brings one.
-  if (!(width() > 0) || !(height() > 0)) return;
-  const qreal ratio = window() ? window()->effectiveDevicePixelRatio() : 1.0;
-  // Truncate then multiply, which is how the item's own automatic sizing
-  // reaches the same number, so a settle that lands on the size already
-  // held is a no-op rather than a rebuild by one pixel.
-  const int pixelWidth = std::max(1, (int)std::lround((int)width() * ratio));
-  const int pixelHeight = std::max(1, (int)std::lround((int)height() * ratio));
-  if (pixelWidth == fixedColorBufferWidth() &&
-      pixelHeight == fixedColorBufferHeight())
-    return;
-  setFixedColorBufferWidth(pixelWidth);
-  setFixedColorBufferHeight(pixelHeight);
-}
-
-void SketchbookView::geometryChange(const QRectF& newGeometry,
-                                    const QRectF& oldGeometry) {
-  QQuickRhiItem::geometryChange(newGeometry, oldGeometry);
-  // A PURE TRANSLATION COSTS NOTHING: the frame on the texture is the
-  // same frame wherever the item stands, so panning never reaches here.
-  if (newGeometry.size() == oldGeometry.size()) return;
-  // Every step defers, the first one included: a width and a height
-  // arrive as two changes, so a gesture is never one event to recognise,
-  // and the first frame of a resize is exactly the one worth not paying
-  // for. Restarting the same single-shot timer is what keeps at most one
-  // resize pending, with the last size the one that is taken.
-  m_settle.start();
-}
-
 void SketchbookView::itemChange(ItemChange change, const ItemChangeData& data) {
   QQuickRhiItem::itemChange(change, data);
   if (change == ItemSceneChange && data.window && m_publishing)
     WindowChrome::keepRendering(data.window);
-  if (change == ItemDevicePixelRatioHasChanged ||
-      (change == ItemSceneChange && data.window))
-    settleRenderSize();
+}
+
+void SketchbookView::setCanvasScale(qreal scale) {
+  if (!std::isfinite(scale) || scale < 0.0) scale = 0.0;
+  if (scale == m_canvasScale) return;
+  m_canvasScale = scale;
+  emit canvasViewChanged();
+  update();
+}
+
+void SketchbookView::setCanvasOffset(const QPointF& offset) {
+  if (!std::isfinite(offset.x()) || !std::isfinite(offset.y())) return;
+  if (offset == m_canvasOffset) return;
+  m_canvasOffset = offset;
+  emit canvasViewChanged();
+  update();
 }
 
 void SketchbookView::setSketchIndex(int index) {
@@ -196,14 +165,25 @@ void SketchbookView::pointer(qreal x, qreal y, bool pressed) {
   if (!host || !host->live()) return;
   sketch::Session* session = host->session();
   if (!session) return;
-  // THE SAME FIT THE FRAME IS DRAWN WITH, in this item's own units: the
-  // canvas letterboxed into the item, so a point on the item is a point
-  // on the declared canvas by the inverse of that fit.
+  // THE SAME PLACEMENT THE FRAME IS DRAWN WITH, in this item's own
+  // units: the canvas under the reader's view of it, so a point on the
+  // item is a point on the declared canvas by the inverse of that view.
   const SkSize size = host->canvasSize();
-  const sketch::Placement fit =
-      sketch::fitInto(size, SkRect::MakeWH((float)width(), (float)height()));
-  session->pointer(((float)x - fit.x) / fit.scale,
-                   ((float)y - fit.y) / fit.scale, pressed);
+  const sketch::Placement placement = placeCanvas(
+      size, SkSize::Make((float)width(), (float)height()),
+      CanvasView{(float)m_canvasScale,
+                 {(float)m_canvasOffset.x(), (float)m_canvasOffset.y()}});
+  if (!(placement.scale > 0.0f)) return;
+  const float canvasX = ((float)x - placement.x) / placement.scale;
+  const float canvasY = ((float)y - placement.y) / placement.scale;
+  // The item is the whole pane and the canvas may be a part of it: a
+  // pointer off the canvas reaches the sketch only as the end of a press
+  // that began on it.
+  const bool onCanvas =
+      SkRect::MakeSize(size).contains(canvasX, canvasY);
+  if (!m_pointerHeld && !onCanvas) return;
+  m_pointerHeld = pressed;
+  session->pointer(canvasX, canvasY, pressed);
 }
 
 void SketchbookView::key(int qtKey, const QString& text, bool pressed) {

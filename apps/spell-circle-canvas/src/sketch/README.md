@@ -825,21 +825,24 @@ not come up is reported and the app carries on — unlike the sweep's
 `--gpu`, which must fail rather than put two different pictures under one
 plate's name.
 
-**The canvas zooms without redrawing what it is showing.** The live view
-sits in a pan-zoom pasteboard, so a ctrl-wheel spin grows the item the
-frame is drawn into. It does not grow the frame: the view renders at the
-scale it had when the gesture began and the scene graph stretches that
-last frame over the growing item, so the picture follows the wheel
-immediately and pays for it only in sharpness. It re-renders at the
-settled scale once the gesture has been quiet — one pending resize, the
-last scale winning, however many steps the spin had — and a pure pan
-never re-renders at all, because the frame on the texture is the same
-frame wherever the item stands. Underneath it, the sketch's cached
+**The canvas zooms without growing what it draws into.** The live view
+sits in a pan-zoom pasteboard, but it is not scaled by it: the item fills
+the pane, its texture is the pane's size in device pixels, and the zoom
+and the pan are a view the frame is drawn through — the sketch's canvas
+letterboxed, then magnified and moved, and clipped to the pane, so
+everything off screen is rejected before it is drawn. A frame at 4× fills
+the pane's pixels and not sixteen times them, a wheel spin never waits on
+a new texture, and no zoom asks the device for a texture
+larger than it can allocate. A pointer is read back through the same
+view, so a sketch sees canvas units wherever the reader has moved it,
+and hears nothing from a pointer off its canvas unless a press that began
+on it was dragged there. Underneath it, the sketch's cached
 rasters are pinned to the screen's density rather than to the viewport's
 scale (`Session::setBakeDensity`), so a generated material is baked once
 and magnified through the zoom the way a bitmap the sketch loaded would
 be, instead of being rasterized again at every rung of the composer's
-bake ladder the gesture passes through. The **Capture** action raises the
+bake ladder the gesture passes through; a pan moves the matrix and takes
+no bake again either. The **Capture** action raises the
 density for the photograph, so an explicitly asked-for still is written
 at its own resolution rather than at the reader's. The plate ledger does
 the same before the first frame it steps: it declares the plate's density

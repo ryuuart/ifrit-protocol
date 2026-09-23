@@ -9,6 +9,7 @@
 #include <sigilsketch/live/Residency.h>
 
 #include <QtCore/QMutex>
+#include <QtCore/QPointF>
 #include <QtCore/QTimer>
 #include <QtCore/QVariantList>
 #include <QtCore/QVariantMap>
@@ -64,6 +65,18 @@ class SketchbookView : public QQuickRhiItem {
   Q_PROPERTY(qreal orbitYaw READ orbitYaw NOTIFY orbitChanged)
   Q_PROPERTY(qreal orbitPitch READ orbitPitch NOTIFY orbitChanged)
   Q_PROPERTY(qreal orbitDistance READ orbitDistance NOTIFY orbitChanged)
+  /** HOW FAR THE CANVAS IS MAGNIFIED on this item: item units per canvas
+   *  unit. Zero, the default, fits the whole canvas into the item. A
+   *  pan-zoom host sets it rather than growing the item, so the texture
+   *  a frame is drawn into stays the size of what is on screen however
+   *  far the reader zooms in, and the canvas off the item is clipped
+   *  away before it is drawn. */
+  Q_PROPERTY(qreal canvasScale READ canvasScale WRITE setCanvasScale NOTIFY
+                 canvasViewChanged)
+  /** Where the canvas's centre stands from this item's centre, in item
+   *  units: the pan a host has moved it by. */
+  Q_PROPERTY(QPointF canvasOffset READ canvasOffset WRITE setCanvasOffset
+                 NOTIFY canvasViewChanged)
 
  public:
   explicit SketchbookView(QQuickItem* parent = nullptr);
@@ -88,9 +101,11 @@ class SketchbookView : public QQuickRhiItem {
   Q_INVOKABLE void orbit(float yawDeg, float pitchDeg, float distance);
   /** WHERE THE POINTER STANDS over this item, in its own coordinates,
    *  and whether its button is down. The item puts the point into the
-   *  sketch's canvas units through the same fit the frame is drawn
-   *  with, so a sketch reads the pointer on the canvas it declared
-   *  whatever the window did to that canvas. */
+   *  sketch's canvas units through the same view the frame is drawn
+   *  through, so a sketch reads the pointer on the canvas it declared
+   *  however far the reader has zoomed or panned it. A pointer off the
+   *  canvas reaches the sketch only while a press begun on it is
+   *  held. */
   Q_INVOKABLE void pointer(qreal x, qreal y, bool pressed);
   /** A KEY GOING DOWN OR UP, as Qt reports it: its key and the text it
    *  types. The sketch is handed the name a keyboard spells it by —
@@ -119,6 +134,10 @@ class SketchbookView : public QQuickRhiItem {
   [[nodiscard]] qreal orbitYaw() const { return m_orbit.yawDeg; }
   [[nodiscard]] qreal orbitPitch() const { return m_orbit.pitchDeg; }
   [[nodiscard]] qreal orbitDistance() const { return m_orbit.distance; }
+  [[nodiscard]] qreal canvasScale() const { return m_canvasScale; }
+  void setCanvasScale(qreal scale);
+  [[nodiscard]] QPointF canvasOffset() const { return m_canvasOffset; }
+  void setCanvasOffset(const QPointF& offset);
 
   /** WHAT MOUNTS AT res:// FOR THE SESSIONS THIS WINDOW OPENS: the
    *  command line's `--assets`, else the demo root for a launch on the
@@ -171,6 +190,7 @@ class SketchbookView : public QQuickRhiItem {
   void timeScaleChanged();
   void metricsChanged();
   void orbitChanged();
+  void canvasViewChanged();
   void stateChanged();
   void captureReady(const QString& path);
   /** THE SKETCH ON SCREEN HAS BEEN PHOTOGRAPHED for the thumbnail store,
@@ -181,38 +201,14 @@ class SketchbookView : public QQuickRhiItem {
   void thumbnailCaptured(int index);
 
  protected:
-  /** A RESIZE IS NOT A RESOLUTION CHANGE UNTIL IT HAS STOPPED. The
-   *  item's texture is sized from its geometry, so a host that animates
-   *  that geometry — a pan-zoom viewport under the wheel, a splitter
-   *  under the mouse — would otherwise reallocate the render target and
-   *  re-render the whole scene at a new resolution, re-baking every
-   *  cached raster in it, on every step of the gesture. This defers the
-   *  resolution instead: the frame is composed for the item's rectangle
-   *  and the texture holding it is stretched over the growing item, so
-   *  the picture follows the gesture at once and pays only in
-   *  sharpness. */
-  void geometryChange(const QRectF& newGeometry,
-                      const QRectF& oldGeometry) override;
-  /** A window dragged onto a screen of another density changes the pixels
-   *  behind an unchanged geometry, which no resize reports. */
+  /** A window that is publishing keeps rendering whatever covers it, so
+   *  the item asks that of each window it is placed in. */
   void itemChange(ItemChange change, const ItemChangeData& data) override;
 
  private:
   friend class SketchbookRenderer;
 
-  /** Pins the render target to the item's geometry as it stands now,
-   *  in device pixels, and cancels any deferral waiting to do so. */
-  void settleRenderSize();
-
   QTimer m_timer;
-  /** HOW LONG A GESTURE MUST BE QUIET before the frame is re-rendered at
-   *  the scale it settled on. Wall clock rather than a frame count: it is
-   *  the frames themselves that stall while the resolution is wrong, so
-   *  counting them would stretch the wait exactly for the sketches that
-   *  can least afford it. Single-shot and restarted by each step, so a
-   *  burst of wheel steps leaves one resize pending and the last scale
-   *  wins. */
-  QTimer m_settle;
   /** NOTHING IS PRESENTED UNTIL SOMETHING IS OPENED. The window comes up
    *  on the browser, and the canvas stays dark until a sketch is chosen —
    *  which is what leaves the machine to the thumbnail fill while the
@@ -233,6 +229,15 @@ class SketchbookView : public QQuickRhiItem {
   /** Published by the renderer from the running session: where the
    *  sketch is seen from, whether or not a pointer has moved it. */
   sigil::geometry::mesh::camera::Orbit m_orbit;
+  /** The reader's view of the canvas, in item units; read by the
+   *  renderer on every synchronize, and by the pointer as it arrives. */
+  qreal m_canvasScale = 0.0;
+  QPointF m_canvasOffset;
+  /** Whether the sketch has been told its pointer's button is down. A
+   *  press begun off the canvas is not the sketch's, and nor is a pointer
+   *  hovering there, but a press begun on it is followed wherever it is
+   *  dragged until it lets go. */
+  bool m_pointerHeld = false;
   QVariantMap m_metrics = {
       {QStringLiteral("backend"), QStringLiteral("Waiting for a sketch")}};
   QString m_status;

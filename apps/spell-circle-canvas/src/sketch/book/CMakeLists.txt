@@ -15,6 +15,7 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 qt_add_executable(Sketchbook
   main.cpp
   Arguments.cpp Arguments.h
+  CanvasView.cpp CanvasView.h
   PythonEnvironment.cpp PythonEnvironment.h
   Workspace.cpp Workspace.h
   FrameLane.cpp FrameLane.h
@@ -109,10 +110,23 @@ target_link_libraries(Sketchbook PRIVATE
   Qt6::QuickDialogs2)
 
 sigil_test(sketch_test
-  SOURCES Arguments.cpp Workspace.cpp PipelineStore.cpp
+  SOURCES Arguments.cpp Workspace.cpp PipelineStore.cpp CanvasView.cpp
           test/ArgumentsTest.cpp test/WorkspaceTest.cpp
-          test/PipelineStoreTest.cpp
+          test/PipelineStoreTest.cpp test/CanvasViewTest.cpp
   LIBRARIES SigilSketch Qt6::Core)
+
+# WHAT A FRAME OF THE PANE COSTS AS THE READER ZOOMS, over a registry
+# sketch whose tiling is drawn afresh every frame. The sketch is compiled
+# into the bench by itself, against the same surface the sketch library
+# compiles every sketch against, so the bench carries one scene and not
+# the whole registry.
+get_target_property(sketchbook_sketch_surface SigilSketches
+  INTERFACE_LINK_LIBRARIES)
+sigil_bench(sketch_bench
+  SOURCES CanvasView.cpp bench/PaneBench.cpp bench/PenrosePaving.cpp
+  LIBRARIES ${sketchbook_sketch_surface}
+  DEFINITIONS SIGIL_SKETCH_DIR="${SIGIL_SKETCH_DIR}"
+  SUPPORT_DIRS ${SIGIL_SKETCH_DIR})
 
 target_compile_definitions(Sketchbook PRIVATE
   SIGIL_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}"
