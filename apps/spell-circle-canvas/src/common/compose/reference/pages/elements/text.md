@@ -48,7 +48,7 @@ def text(content: weave.RichText) -> Text: ...
 
 Python's first overload is the friendly one: `size` and `color` write
 the two fields a caption usually wants, and everything else is a fluent
-verb — `fontSize`, `fontTrack`, `fontWeight`, `ink`.
+verb — `fontSize`, `letterSpacing`, `fontWeight`, `ink`.
 
 ## Description
 

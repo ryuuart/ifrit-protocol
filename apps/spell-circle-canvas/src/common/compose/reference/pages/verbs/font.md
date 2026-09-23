@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: font
 qualified: sigil::compose::Element::font
-header: sigilcompose/core/verbs/Cascade.h
+header: sigilcompose/core/verbs/Font.h
 group: The cascade
 status: stable
 ---

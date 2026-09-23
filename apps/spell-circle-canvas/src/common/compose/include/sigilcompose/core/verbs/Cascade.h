@@ -3,8 +3,9 @@
 /** @file
  * @ingroup compose-core
  *
- * What a node hands DOWN the tree, as verbs: the font, the block, the
- * ink, the custom properties, and how image leaves under it sample.
+ * What a node hands DOWN the tree, as verbs: the block and its
+ * longhands, the custom properties, how image leaves under it sample, and
+ * the three keywords. The font and the ink are the font family's.
  */
 
 #include <include/core/SkSamplingOptions.h>
@@ -30,37 +31,34 @@ namespace sigil::compose {
 template <class Derived>
 class CascadeVerbs {
  public:
-  /** THE FONT EVERYTHING UNDER THIS NODE IS SET IN, as a PARTIAL: the
-   *  fields @p partial names override the inherited font and the rest
-   *  inherit. Written twice, the later call wins field by field. A
-   *  relative size resolves against the PARENT's font. */
-  Derived& font(sigil::weave::Type partial);
   /** THE BLOCK everything under this node is set in, as a PARTIAL, in
    *  the same way the font is: the fields it names override the
    *  inherited block and the rest inherit. This is the one spelling of
    *  every block field — the leading, the alignment, the indents, the
-   *  writing mode and the rest. */
+   *  writing mode and the rest; the five longhands below each write one
+   *  field of it, CSS's names for the fields CSS has. */
   Derived& block(sigil::weave::Block partial);
-  /** THE INK: the colour text under this node is set in, and every
-   *  mark that names no colour is painted in — CSS's `color`.
-   *  `Fill::currentInk()` reads it back. A node whose ink changes under
-   *  a `transition()` eases it however the change was written — this
-   *  verb, a class, a rule, a custom property — and everything under it
-   *  follows the ramp rather than running one of its own. */
-  Derived& ink(material::Color colour);
-  /** The ink read from a custom property in force here. A property
-   *  nobody set, or one holding a length, leaves the inherited ink
-   *  standing and says so once. */
-  Derived& ink(VarRef reference);
-  /** THE INK AS A WHOLE PAINT — a ramp, a sprite, a recipe, SkSL —
-   *  taking everything `fill` takes. A plain colour behaves as the
-   *  colour form above does; any other paint inherits the same way but
-   *  SNAPS under a transition rather than easing, as a fill does. @p
-   *  anchor is the box the paint's unit square maps onto, own box by
-   *  default, which for a text leaf is its text-metric box.
-   *  @trap An empty paint clears an ancestor's ink paint and leaves the
-   *  inherited colour standing. */
-  Derived& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox);
+  /** THE PITCH OF THE LINES — CSS `line-height`: the face's own, a
+   *  multiple of the size, an absolute pitch, or a baseline grid. The
+   *  `leading` field of `block()`. The face's own when nothing states
+   *  one. */
+  Derived& lineHeight(sigil::weave::Leading leading);
+  /** WHERE THE LINES SIT ACROSS THE MEASURE — CSS `text-align`: start,
+   *  centre, end or justified. The `alignment` field of `block()`. Start
+   *  when nothing states one. */
+  Derived& textAlign(sigil::weave::TextAlignment alignment);
+  /** THE FIRST LINE OF EVERY BLOCK INDENTED by @p px — CSS
+   *  `text-indent`; negative hangs it out. The `firstLineIndent` field of
+   *  `block()`. Zero when nothing states one. */
+  Derived& textIndent(float px);
+  /** WHICH WAY THE LINES RUN — CSS `writing-mode`: horizontal, or
+   *  vertical columns right to left. The `writingMode` field of
+   *  `block()`. Horizontal when nothing states one. */
+  Derived& writingMode(sigil::weave::WritingMode mode);
+  /** WHETHER AND WHERE A WORD MAY BREAK WITH A HYPHEN — CSS `hyphens`:
+   *  `enabled = false` is `none`, soft hyphens alone are `manual`, and a
+   *  pattern set is `auto`. The `hyphenation` field of `block()`. */
+  Derived& hyphens(sigil::weave::HyphenationOptions hyphenation);
   /** A CUSTOM PROPERTY set on this node and inherited by everything
    *  under it, read back through `var(name)`, `Fill::var` or
    *  `ink(var(name))`. The nearest ancestor that set a name wins. */

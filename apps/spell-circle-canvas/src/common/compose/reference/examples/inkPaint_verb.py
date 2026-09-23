@@ -38,8 +38,8 @@ class TextFillVerb:
     def describe(self) -> compose.Element:
         return (
             compose.box(
-                compose.text("CHROME", size=64).fontTrack(2).ink(chrome()),
-                compose.text("SET SMALLER", size=26).fontTrack(2).ink(chrome()),
+                compose.text("CHROME", size=64).letterSpacing(2).ink(chrome()),
+                compose.text("SET SMALLER", size=26).letterSpacing(2).ink(chrome()),
                 compose.text(
                     "One ramp, two sizes, the same horizon.", size=13, color=ASH
                 ),

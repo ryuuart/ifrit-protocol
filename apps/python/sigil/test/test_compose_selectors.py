@@ -328,6 +328,30 @@ class Rules(unittest.TestCase):
         self.assertNotEqual(outlined, compose.rule(".caption"))
         self.assertFalse(hasattr(compose.Element, "maxTextLines"))
 
+    def test_a_longhand_is_its_shorthand_with_one_field(self):
+        self.assertEqual(
+            compose.rule(".a").fontSize(18),
+            compose.rule(".a").font(weave.Type(size=18)),
+        )
+        self.assertEqual(
+            compose.rule(".a").fontWeight(700).letterSpacing(2),
+            compose.rule(".a").font(weave.Type(weight=700, track=2)),
+        )
+        self.assertEqual(
+            compose.rule(".a").textAlign(weave.TextAlignment.Center),
+            compose.rule(".a").block(
+                weave.Block(alignment=weave.TextAlignment.Center)
+            ),
+        )
+        self.assertEqual(
+            compose.rule(".a").textIndent(24),
+            compose.rule(".a").block(weave.Block(firstLineIndent=24)),
+        )
+        for name in ("fontFamily", "fontStyle", "lineHeight", "writingMode",
+                     "hyphens"):
+            self.assertTrue(hasattr(compose.Element, name), name)
+            self.assertTrue(hasattr(Rule, name), name)
+
     def test_what_only_an_element_says_is_not_on_a_rule(self):
         # Structure, identity, decorations, filters, depth and callbacks
         # are the element's own; a rule has nowhere to put them.

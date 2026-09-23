@@ -21,6 +21,7 @@
 #include <sigilcompose/core/verbs/Cascade.h>
 #include <sigilcompose/core/verbs/Effects.h>
 #include <sigilcompose/core/verbs/Flex.h>
+#include <sigilcompose/core/verbs/Font.h>
 #include <sigilcompose/core/verbs/Paint.h>
 #include <sigilcompose/core/verbs/Placement.h>
 #include <sigilcompose/core/verbs/Shape.h>
@@ -66,6 +67,7 @@ class Rule : public detail::Declaring,
              public PlacementVerbs<Rule>,
              public ShapeVerbs<Rule>,
              public CascadeVerbs<Rule>,
+             public FontVerbs<Rule>,
              public PaintVerbs<Rule>,
              public EffectVerbs<Rule>,
              public TransformVerbs<Rule>,

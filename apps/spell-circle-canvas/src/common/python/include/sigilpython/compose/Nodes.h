@@ -11,6 +11,18 @@
 
 namespace sigil::python {
 
+/** The font and the ink — `font`, its longhands and `ink` — defined on
+ *  @p element: a node's class, `compose.Rule`'s, or the declarations a
+ *  text span states. */
+template <class Declaring>
+void bindFontVerbs(pybind11::class_<Declaring>& element);
+
+extern template void bindFontVerbs(pybind11::class_<compose::Element>&);
+extern template void bindFontVerbs(pybind11::class_<compose::Text>&);
+extern template void bindFontVerbs(pybind11::class_<compose::Image>&);
+extern template void bindFontVerbs(pybind11::class_<compose::Band>&);
+extern template void bindFontVerbs(pybind11::class_<compose::Rule>&);
+
 /** Every verb a rule states as well as a node — the box, the flex line,
  *  the placement, the silhouette's corners and overflow, the paint, the
  *  compositing lanes, the 2D transform and the cascade — defined on

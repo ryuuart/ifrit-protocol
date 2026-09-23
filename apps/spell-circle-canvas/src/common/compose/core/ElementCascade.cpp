@@ -1,7 +1,7 @@
 /** @file
- * The cascade verbs — the inherited font and its colour, the block,
- * the custom properties a node sets for everything under it, and how
- * image leaves under it sample.
+ * The cascade verbs — the block and its longhands, the custom properties
+ * a node sets for everything under it, how image leaves under it sample,
+ * and the three keywords — with the identity a node names in the cascade.
  */
 
 #include <sigilmaterial/color/Color.h>
@@ -16,23 +16,6 @@
 namespace sigil::compose {
 
 template <class Derived>
-Derived& CascadeVerbs<Derived>::font(sigil::weave::Type partial) {
-  detail::CascadeData& cascade = declare(Property::Font)->cascadeData.ensure();
-  if (!cascade.font) cascade.font.emplace();
-  // Later wins field by field: the partial written last replaces what it
-  // names and leaves the rest as an earlier call or a class left it.
-  sigil::weave::merge(*cascade.font, partial);
-  // A colour written here is the ink, so a property the ink was read from
-  // before no longer stands, and neither does a paint.
-  if (partial.color) {
-    cascade.inkVar.reset();
-    cascade.inkPaint.reset();
-    cascade.statesInk = true;
-  }
-  return self();
-}
-
-template <class Derived>
 Derived& CascadeVerbs<Derived>::block(sigil::weave::Block partial) {
   detail::CascadeData& cascade = declare(Property::Block)->cascadeData.ensure();
   if (!cascade.block) cascade.block.emplace();
@@ -40,56 +23,34 @@ Derived& CascadeVerbs<Derived>::block(sigil::weave::Block partial) {
   return self();
 }
 
+// The block's longhands: each is `block()` with one field, so the two
+// spellings fold into one partial and the later statement wins.
+
 template <class Derived>
-Derived& CascadeVerbs<Derived>::ink(material::Color colour) {
-  detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
-  if (!cascade.font) cascade.font.emplace();
-  cascade.font->color = material::skia::toSkColor(colour);
-  cascade.inkVar.reset();
-  cascade.inkPaint.reset();
-  cascade.statesInk = true;
-  return self();
+Derived& CascadeVerbs<Derived>::lineHeight(sigil::weave::Leading leading) {
+  return block({.leading = leading});
 }
 
 template <class Derived>
-Derived& CascadeVerbs<Derived>::ink(VarRef reference) {
-  detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
-  cascade.inkVar = reference;
-  if (cascade.font) cascade.font->color.reset();
-  cascade.inkPaint.reset();
-  cascade.statesInk = true;
-  return self();
+Derived& CascadeVerbs<Derived>::textAlign(
+    sigil::weave::TextAlignment alignment) {
+  return block({.alignment = alignment});
 }
 
 template <class Derived>
-Derived& CascadeVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor) {
-  detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
-  // A PLAIN COLOUR is the ink lane as it has always been. A paint that
-  // happens to be flat is not one: it overrides the glyphs of a leaf set
-  // in a style of its own, which an inherited colour does not reach.
-  const std::optional<Fill> flat =
-      paint.writtenAsPaint() ? std::nullopt : paint.collapsedFill();
-  if (flat && flat->kind == Fill::Kind::Color && !flat->references())
-    return ink(flat->colorValue);
-  // An empty paint STATES the lane and holds nothing, which clears an
-  // ancestor's paint and leaves the colour in force standing.
-  if (paint.none()) {
-    cascade.statesInk = true;
-    cascade.inkPaint.reset();
-    cascade.inkAnchor = anchor;
-    return self();
-  }
-  // A fill the slot cannot hold — a live binding, the ink in force, a
-  // custom property — leaves the ink exactly where it was, paint
-  // included: a reference to the ink IS the ink, and a bound fill has no
-  // paint to inherit. Nothing is written until there is something to
-  // write, so a standing paint survives the asking.
-  std::optional<material::skia::Paint> stored = paint.collapsedPaint();
-  if (!stored) return self();
-  cascade.statesInk = true;
-  cascade.inkPaint = std::move(stored);
-  cascade.inkAnchor = anchor;
-  return self();
+Derived& CascadeVerbs<Derived>::textIndent(float px) {
+  return block({.firstLineIndent = px});
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::writingMode(sigil::weave::WritingMode mode) {
+  return block({.writingMode = mode});
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::hyphens(
+    sigil::weave::HyphenationOptions hyphenation) {
+  return block({.hyphenation = std::move(hyphenation)});
 }
 
 template <class Derived>

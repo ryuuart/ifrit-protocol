@@ -47,12 +47,12 @@ class TextStrokeVerb:
             compose.box(
                 cell(
                     "the letterforms alone",
-                    compose.text("LEGIBLE", size=34, color=INK).fontTrack(1),
+                    compose.text("LEGIBLE", size=34, color=INK).letterSpacing(1),
                 ),
                 cell(
                     "textStroke(4, outline)",
                     compose.text("LEGIBLE", size=34, color=INK)
-                    .fontTrack(1)
+                    .letterSpacing(1)
                     .textStroke(4, OUTLINE),
                 ),
             )

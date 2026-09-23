@@ -28,7 +28,7 @@ plane it turns in, `shape`, `gridArea`, `travel` and `cover` — is the
 element's alone. [The selectors chapter](SELECTORS.md) lists what a rule
 states.
 
-One hundred and fifteen of them, in fourteen concerns. Each row says
+One hundred and twenty-five of them, in fourteen concerns. Each row says
 what the verb SAYS, in one line; the page behind a linked name says what
 it takes, what Python spells, and shows it drawn. An unlinked name has no
 page yet, and its line here is the whole of what this reference claims
@@ -222,7 +222,17 @@ the code that built a child ran.
 | Verb | What it says |
 |---|---|
 | [`font`](pages/verbs/font.md) | The type everything under this node is set in, as a PARTIAL over what it inherits. |
+| `fontFamily` | The face — one field of `font`. |
+| `fontSize` | The type size — one field of `font`. |
+| `fontWeight` | The weight, as the face's `wght` axis — one field of `font`. |
+| `fontStyle` | The lean, as the face's `slnt` axis — one field of `font`. |
+| `letterSpacing` | The tracking after each cluster — one field of `font`. |
 | [`block`](pages/verbs/block.md) | The paragraph settings everything under it is set in, as a partial in the same way. |
+| `lineHeight` | The pitch of the lines — one field of `block`. |
+| `textAlign` | Where the lines sit across the measure — one field of `block`. |
+| `textIndent` | The first line of every block indented — one field of `block`. |
+| `writingMode` | Which way the lines run — one field of `block`. |
+| `hyphens` | Whether and where a word may break with a hyphen — one field of `block`. |
 | `applyStyleSheet` | A sheet of selector rules put in force on this subtree; applying another adds it. |
 | `styleClass` | The classes the rules of the sheets in force speak about, laid under the node's own type. |
 | `role` | A semantic role — what a bare word in a selector names — with the defaults every matching rule stands over. |
@@ -231,6 +241,11 @@ the code that built a child ran.
 | `inherit` | This property takes the PARENT's computed value, whether or not it is one that inherits. |
 | `initial` | This property takes its own initial value, whatever an ancestor or a rule says — the way an inheriting one is stopped. |
 | `unset` | Whichever of the two the property's own behaviour asks for: CSS's `unset`. |
+
+`font` and `block` are the SHORTHANDS: each longhand is the shorthand
+with one field, so `fontSize(18)` and `font({.size = 18})` are one
+statement, and the later of two statements wins field by field whichever
+spelling each used.
 
 The third inherited lane is `ink`, in *Paint* above: it is CSS's `color`,
 and it reaches every text leaf and every unnamed mark under the node.
@@ -300,6 +315,8 @@ stylesheet's vocabulary carries over as it is written, in camel case:
 `boxSizing`, `flexDirection`, `flexWrap`, `flexGrow`, `flexShrink`,
 `flexBasis`, `justifyContent`, `alignItems`, `alignSelf`, `aspectRatio`,
 `gridArea`, `borderRadius`, `overflow`, `opacity`, `blendMode`,
+`fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, `letterSpacing`,
+`lineHeight`, `textAlign`, `textIndent`, `writingMode`, `hyphens`,
 `filter`, `backdropFilter`, `imageRendering`, `zIndex`,
 `transformOrigin`, `perspectiveOrigin`, `transition` and
 `textOverflow`. The rest are named for what they act on, with no second
@@ -323,9 +340,8 @@ spelling:
 Four verbs have no Python binding: `fx`, `variationDrive`, `textAttach`
 and `mask`.
 
-Six spellings exist only in Python, each composing verbs that C++ writes
-out: `size(width, height)` is `width` then `height`; `fontSize`,
-`fontTrack` and `fontWeight` each write one field of `font`; and `copy`
+Three spellings exist only in Python, each composing verbs that C++
+writes out: `size(width, height)` is `width` then `height`; and `copy`
 (with `__copy__`) takes the value copy that C++ gets from assignment.
 
 ## Where they live
@@ -348,8 +364,11 @@ spelling is the feature's.
 - `core/Band.h` — the band's own `bandAlignment`, and the `Band` leaf
   that has it.
 - `core/verbs/Mask.h` — `mask`.
-- `core/verbs/Cascade.h` — the cascade verbs `font`, `block`, `ink`,
-  `var`, `varDefaults`, `imageRendering`, and the three wide keywords
+- `core/verbs/Font.h` — the font verbs `font`, `fontFamily`, `fontSize`,
+  `fontWeight`, `fontStyle`, `letterSpacing`, and `ink`.
+- `core/verbs/Cascade.h` — the cascade verbs `block`, `lineHeight`,
+  `textAlign`, `textIndent`, `writingMode`, `hyphens`, `var`,
+  `varDefaults`, `imageRendering`, and the three wide keywords
   `inherit`, `initial`, `unset`.
 - `core/verbs/Paint.h` — `fill`.
 - `core/verbs/Decoration.h` — the decoration slots `stroke`,

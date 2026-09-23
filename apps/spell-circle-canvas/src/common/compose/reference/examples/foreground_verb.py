@@ -29,7 +29,7 @@ def tile(caption: str, plate: compose.Element) -> compose.Element:
             .borderRadius(10)
             .children(
                 compose.box(
-                    compose.text("A FULL-BLEED CHILD", size=14, color=INK).fontTrack(2)
+                    compose.text("A FULL-BLEED CHILD", size=14, color=INK).letterSpacing(2)
                 )
                 .cover()
                 .borderRadius(10)

@@ -70,10 +70,68 @@ using compose::Image;
 using compose::Rule;
 using compose::Spans;
 using compose::Text;
+
+/** A length a font field takes: a `weave.Length`, or a bare number of
+ *  pixels. */
+weave::Length fontLength(py::handle value) {
+  return py::isinstance<weave::Length>(value)
+             ? value.cast<weave::Length>()
+             : weave::Length{value.cast<float>()};
+}
 }  // namespace
 
 template <class Node>
+void bindFontVerbs(py::class_<Node>& element) {
+  element.def("font", &Node::font, py::arg("type"), fluent)
+      .def("fontFamily", &Node::fontFamily, py::arg("face"), fluent)
+      .def(
+          "fontSize",
+          [](Node& self, py::object value) -> Node& {
+            return self.fontSize(fontLength(value));
+          },
+          py::arg("size"), fluent)
+      .def("fontWeight", &Node::fontWeight, py::arg("weight"), fluent)
+      .def("fontStyle", &Node::fontStyle, py::arg("slant"), fluent)
+      .def(
+          "letterSpacing",
+          [](Node& self, py::object value) -> Node& {
+            return self.letterSpacing(fontLength(value));
+          },
+          py::arg("tracking"), fluent)
+      .def(
+          "ink",
+          [](Node& self, py::object value,
+             compose::PaintAnchor anchor) -> Node& {
+            if (py::isinstance<compose::VarRef>(value))
+              return self.ink(value.cast<compose::VarRef>());
+            // The ink takes everything a surface takes. A colour — the
+            // ordinary case, and the one an author writes as a tuple or
+            // a name — is the inherited, easing lane it has always been;
+            // anything else is a paint, and a paint that will not resolve
+            // without the tree says so rather than leaving a standing ink
+            // untouched and the author guessing why.
+            const compose::SurfacePaint paint = surfacePaint(value);
+            if (!paint.none() && !paint.collapsedPaint())
+              throw py::type_error(
+                  "An ink paint is stored as one paint and resolved without "
+                  "the tree, so the ink in force, a custom property and a "
+                  "bound fill have no paint to give it. State a colour, or "
+                  "clear the paint with None.");
+            return self.ink(paint, anchor);
+          },
+          py::arg("value"), py::arg("anchor") = compose::PaintAnchor::OwnBox,
+          fluent);
+}
+
+template void bindFontVerbs(py::class_<Element>&);
+template void bindFontVerbs(py::class_<Text>&);
+template void bindFontVerbs(py::class_<Image>&);
+template void bindFontVerbs(py::class_<Band>&);
+template void bindFontVerbs(py::class_<Rule>&);
+
+template <class Node>
 void bindDeclarationVerbs(py::class_<Node>& element) {
+  bindFontVerbs(element);
   element.def("row", &Node::row, fluent)
       .def("column", &Node::column, fluent)
       .def("flexGrow", &Node::flexGrow, py::arg("factor") = 1.0f, fluent)
@@ -113,54 +171,6 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
           },
           py::arg("value"), py::arg("anchor") = compose::PaintAnchor::OwnBox,
           py::arg("origin") = compose::BackgroundOrigin::BorderBox, fluent)
-      .def(
-          "ink",
-          [](Node& self, py::object value,
-             compose::PaintAnchor anchor) -> Node& {
-            if (py::isinstance<compose::VarRef>(value))
-              return self.ink(value.cast<compose::VarRef>());
-            // The ink takes everything a surface takes. A colour — the
-            // ordinary case, and the one an author writes as a tuple or
-            // a name — is the inherited, easing lane it has always been;
-            // anything else is a paint, and a paint that will not resolve
-            // without the tree says so rather than leaving a standing ink
-            // untouched and the author guessing why.
-            const compose::SurfacePaint paint = surfacePaint(value);
-            if (!paint.none() && !paint.collapsedPaint())
-              throw py::type_error(
-                  "An ink paint is stored as one paint and resolved without "
-                  "the tree, so the ink in force, a custom property and a "
-                  "bound fill have no paint to give it. State a colour, or "
-                  "clear the paint with None.");
-            return self.ink(paint, anchor);
-          },
-          py::arg("value"), py::arg("anchor") = compose::PaintAnchor::OwnBox,
-          fluent)
-      .def("font", &Node::font, py::arg("type"), fluent)
-      .def(
-          "fontTrack",
-          [](Node& self, py::object value) -> Node& {
-            return self.font(
-                {.track = py::isinstance<weave::Length>(value)
-                              ? value.cast<weave::Length>()
-                              : weave::Length{value.cast<float>()}});
-          },
-          py::arg("tracking"), fluent)
-      .def(
-          "fontSize",
-          [](Node& self, py::object value) -> Node& {
-            return self.font(
-                {.size = py::isinstance<weave::Length>(value)
-                             ? value.cast<weave::Length>()
-                             : weave::Length{value.cast<float>()}});
-          },
-          py::arg("size"), fluent)
-      .def(
-          "fontWeight",
-          [](Node& self, float value) -> Node& {
-            return self.font({.weight = value});
-          },
-          py::arg("weight"), fluent)
       .def(
           "borderRadius",
           [](Node& self, float all) -> Node& {
@@ -284,6 +294,11 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
       .def("overflow", &Node::overflow, py::arg("overflow"), fluent)
       .def("block", py::overload_cast<weave::Block>(&Node::block),
            py::arg("block"), fluent)
+      .def("lineHeight", &Node::lineHeight, py::arg("leading"), fluent)
+      .def("textAlign", &Node::textAlign, py::arg("alignment"), fluent)
+      .def("textIndent", &Node::textIndent, py::arg("px"), fluent)
+      .def("writingMode", &Node::writingMode, py::arg("mode"), fluent)
+      .def("hyphens", &Node::hyphens, py::arg("hyphenation"), fluent)
       .def(
           "var",
           [](Node& self, const std::string& name, py::object value) -> Node& {

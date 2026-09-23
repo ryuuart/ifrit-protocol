@@ -317,3 +317,28 @@ TEST(ComposeDeclarations, AnInheritedPropertyThatMovedBehindAPruneEases) {
   host.frame(0.3);
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLUE);
 }
+
+TEST(ComposeDeclarations, ALonghandIsItsShorthandWithOneField) {
+  // One statement, two spellings: a longhand writes the one field of the
+  // partial its shorthand writes, into the same lane, so the two describe
+  // the same node and the later of two statements wins field by field.
+  EXPECT_TRUE(sameDescription(box().fontSize(18), box().font({.size = 18})));
+  EXPECT_TRUE(
+      sameDescription(box().fontWeight(700), box().font({.weight = 700})));
+  EXPECT_TRUE(
+      sameDescription(box().fontStyle(-12), box().font({.slant = -12})));
+  EXPECT_TRUE(
+      sameDescription(box().letterSpacing(2), box().font({.track = 2})));
+  EXPECT_TRUE(sameDescription(
+      box().textAlign(sigil::weave::TextAlignment::kCenter),
+      box().block({.alignment = sigil::weave::TextAlignment::kCenter})));
+  EXPECT_TRUE(sameDescription(box().textIndent(24),
+                              box().block({.firstLineIndent = 24})));
+  EXPECT_TRUE(sameDescription(
+      box().lineHeight(sigil::weave::Leading::multiple(1.4f)),
+      box().block({.leading = sigil::weave::Leading::multiple(1.4f)})));
+  EXPECT_TRUE(
+      sameDescription(box().font({.size = 12, .weight = 700}).fontSize(18),
+                      box().font({.size = 18, .weight = 700})));
+  EXPECT_FALSE(sameDescription(box().fontSize(18), box().fontSize(19)));
+}

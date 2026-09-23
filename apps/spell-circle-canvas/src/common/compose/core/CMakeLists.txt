@@ -44,7 +44,7 @@ sigil_library(SigilComposeCore
     ElementTextStyle.cpp ElementText.cpp
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
     ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
-    ElementCascade.cpp
+    ElementCascade.cpp ElementFont.cpp
     # the facts a node states, the operator seam that reads them, and the
     # pass that mounts what the adding operators build
     Attributes.cpp Operator.cpp Additions.cpp

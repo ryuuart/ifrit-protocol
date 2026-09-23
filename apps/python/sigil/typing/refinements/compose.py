@@ -121,7 +121,7 @@ def inset(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike |
         "opacity rotate scale scaleX scaleY skewX skewY translateX translateY",
         "_t.ScalarLike",
     )
-    table.erased(node, "fontSize fontTrack", "_t.FloatLike | _sigil.weave.Length")
+    table.erased(node, "fontSize letterSpacing", "_t.FloatLike | _sigil.weave.Length")
     table.erased(node, "fill", "_t.SurfacePaintLike")
     table.erased(node, "ink", "_t.ElementInkLike")
     table.erased(node, "alignItems alignSelf", "_t.AlignLike")

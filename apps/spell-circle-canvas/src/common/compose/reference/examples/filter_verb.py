@@ -28,7 +28,7 @@ def cell(caption: str, plate: compose.Element) -> compose.Element:
             .justifyContent("center")
             .alignItems("center")
             .children(
-                compose.text("SIGNAL", size=26, color=INK).fontTrack(3),
+                compose.text("SIGNAL", size=26, color=INK).letterSpacing(3),
                 compose.box().width(58).height(4).fill(INK),
             ),
             compose.text(caption, size=12, color=ASH),
