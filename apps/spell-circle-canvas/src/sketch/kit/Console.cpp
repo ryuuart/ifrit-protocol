@@ -18,8 +18,8 @@ compose::Element console(const Console& panel) {
   const Register voice{.size = size, .mono = true};
   weave::TypeSheet styles(look.style(
       voice, panel.ink.value_or(compose::Fill::color(look.palette.ink))));
-  // Each level is a CLASS over that base: its colour alone, the voice's
-  // face and size inherited.
+  // Each level is an entry over that base: its colour alone, the voice's
+  // face and size the base's.
   for (const auto& [name, color] : panel.levels)
     styles.set(name, weave::Type{.color = material::skia::toSkColor(color)});
   compose::Element plate = compose::kit::console(

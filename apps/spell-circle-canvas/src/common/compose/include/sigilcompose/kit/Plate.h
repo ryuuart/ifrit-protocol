@@ -32,9 +32,12 @@
 
 namespace sigil::compose::kit {
 
-/** A style sheet of one face and one size whose classes differ only in
- *  COLOUR — the shape `feed::height` measures exactly, and the usual shape
- *  for rows that are all one voice with levels marked in ink.
+/** A feed's ROW VOICES by name: a `weave::TypeSheet` whose base is one
+ *  face at one size and whose entries differ from it only in COLOUR — the
+ *  shape `feed::height` measures exactly, and the usual shape for rows
+ *  that are all one voice with levels marked in ink. A row names its
+ *  entry; no selector rule reaches a feed row, which is set in this
+ *  voice alone.
  *
  *  The names mean nothing here, deliberately: callers do not agree on what
  *  the levels are (one reads them as {dim, heading, pass, fail}, another as
@@ -45,8 +48,8 @@ namespace sigil::compose::kit {
     std::vector<std::pair<std::string, material::Color>> named) {
   sigil::weave::TypeSheet sheet(weave::textStyle(
       {.face = face, .size = size, .color = material::skia::toSkColor(base)}));
-  // Each level is a CLASS over the base: the colour alone, the face and
-  // the size inherited from it.
+  // Each level is an entry over the base: the colour alone, the face and
+  // the size the base's.
   for (auto& [name, color] : named)
     sheet.set(std::move(name),
               weave::Type{.color = material::skia::toSkColor(color)});
