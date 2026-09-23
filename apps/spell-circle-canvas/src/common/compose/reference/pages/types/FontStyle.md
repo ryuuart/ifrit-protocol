@@ -30,6 +30,10 @@ the lean under `Oblique`, POSITIVE LEANING RIGHT, zero otherwise.
 | `compose.FontStyle.Normal`, `compose.FontStyle.Italic` | Python | the two keywords |
 | `compose.FontStyle.oblique(12)`, `compose.FontStyle(12)` | Python | a lean of 12 degrees |
 
+Two styles compare equal when they say the same thing, and in Python they
+hash alike, so a style can key a table. Anything else handed to Python's
+`fontStyle` — a string, say — is a `TypeError`.
+
 ## Pass it to
 
 [`fontStyle`](../verbs/fontStyle.md), on an element, a text leaf, a rule

@@ -25,7 +25,9 @@ axis counts a lean to the right as negative: `fontStyle(12)` and
 `font({.slant = -12})` describe the same node.
 
 **An oblique leans only a face with a `slnt` axis.** A face without one
-stands upright under it; nothing is sheared.
+stands upright under it; nothing is sheared, so an italic falling back
+to the oblique on such a face stands upright too, and the warning is the
+one sign of it.
 
 **`Italic` is a different face, not a lean.** The family's italic face
 where it has one, else its `ital` axis set to 1, else — the family having
@@ -35,7 +37,12 @@ further down is found at its italic, and `FontStyle::Normal` under an
 italic stands the type upright again.
 
 **A style written after another replaces it**: an oblique after an
-italic is the oblique alone.
+italic is the oblique alone. A rule, a span and a rule about a rich run's
+name state the style the same way.
+
+**A face loaded from a file is its own only face.** Its italic is its
+`ital` axis or the lean, never an installed family's face that happens
+to share its family's name.
 
 ## See also
 

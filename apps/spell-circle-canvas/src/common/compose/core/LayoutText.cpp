@@ -133,8 +133,13 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   const auto flowRect = [&](float across, float down) {
     return SkRect::MakeXYWH(pad.left, pad.top, across, down);
   };
+  // A percentage indent is one of the INLINE size, which down a vertical
+  // passage is its columns' height.
+  const bool vertical =
+      inst.paragraph &&
+      inst.paragraph->writingMode() == sigil::weave::WritingMode::kVerticalRL;
   sigil::weave::ParagraphLayoutOptions options =
-      textLayoutOptions(inst, constraint);
+      textLayoutOptions(inst, vertical ? downConstraint : constraint);
   // HOW DEEP THE FRAME IS is a fact only this side knows: weave is handed a
   // geometry, not a box, and its vertical distribution and first-baseline
   // rule need the depth the node resolved to. A leaf sized by its own
@@ -148,9 +153,6 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // here, it is where the first column stands. That is why a vertical leaf
   // must be laid out again at its RESOLVED width before it paints, the way
   // aligned horizontal text must (StackingPainter.cpp).
-  const bool vertical =
-      inst.paragraph &&
-      inst.paragraph->writingMode() == sigil::weave::WritingMode::kVerticalRL;
   // One weave flow shape per resolved target, in the form the derive pass
   // resolved it to: an outline for a target whose boundary answered one, an
   // analytic circle for a round one, its box for a target that answered

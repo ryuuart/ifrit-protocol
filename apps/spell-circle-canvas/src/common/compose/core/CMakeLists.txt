@@ -53,6 +53,7 @@ sigil_library(SigilComposeCore
     Selector.cpp SelectorParse.cpp StyleSheet.cpp SelectorMatch.cpp
     # the composer and its phases
     Composer.cpp Measure.cpp Tiles.cpp Cascade.cpp CascadeDiagnostics.cpp
+    LonghandFold.cpp NamedStyles.cpp
     Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
     LayoutProps.cpp ReconcileHost.cpp Layout.cpp LayoutText.cpp Rects.cpp
     Derive.cpp FlowAround.cpp Threads.cpp Routes.cpp
@@ -79,7 +80,7 @@ sigil_library(SigilComposeCore
     ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
     ComputedStyle.h DeclaredFields.h PropertyBlocks.h HeapBox.h
     SelectorInternal.h SelectorMatch.h SheetBody.h Calc.h
-    TextState.h SlotSpecs.h FaceChoice.h
+    TextState.h SlotSpecs.h FaceChoice.h LonghandFold.h
     Lanes.h
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
     PaintInternal.h PaintPass.h GlyphInk.h
@@ -140,7 +141,7 @@ sigil_test(compose_test
           test/ComposeTestSelector.cpp test/ComposeTestStyleSheet.cpp
           test/ComposeTestMatching.cpp test/ComposeTestHas.cpp
           test/ComposeTestTypedLeaves.cpp test/ComposeTestRuleScope.cpp
-          test/ComposeTestLonghandValues.cpp
+          test/ComposeTestLonghandValues.cpp test/ComposeTestTextIndent.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore

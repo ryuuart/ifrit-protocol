@@ -495,6 +495,17 @@ struct Composer::Impl {
                       const detail::SheetChain& parentSheets,
                       const detail::InkInForce& parentInkPaint,
                       const std::optional<material::Color>& parentInkTarget);
+  /** WHAT THE SHEETS IN FORCE SAY ABOUT EACH NAME @p leaf's rich runs and
+   *  paragraph styles were written with, each matched as a virtual child
+   *  of the leaf and folded weakest first: the font partial and the ink a
+   *  run named so is set in, with the face a family or an italic the rules
+   *  state chooses, and the block partial a paragraph named so is laid out
+   *  in, with an indent in another unit resolved at the leaf. A name no
+   *  rule speaks about is left out (NamedStyles.cpp). */
+  void namedStylesOf(const detail::Instance& leaf,
+                     const detail::SheetChain& chain,
+                     sigil::weave::TypeSheet& runs,
+                     std::vector<detail::NamedParagraphStyle>& blocks) const;
   /** An inheriting text leaf whose ink alone changed: the new colour set
    *  on its inherited ranges in place, the restyles replayed over them,
    *  and nothing re-shaped or re-broken. */

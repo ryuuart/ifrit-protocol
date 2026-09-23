@@ -1,8 +1,8 @@
-// The three longhands that take CSS's value spaces: `fontFamily` over a
-// family's name, `fontStyle` over upright, italic and an oblique angle, and
-// `textIndent` over any length. The family and style cases ask the machine's
-// own families, so their suites carry the `fonts` label; the indent is
-// measured in the instrument face and needs nothing.
+// The face a family's name and a style choose: `fontFamily` over a
+// family's name and `fontStyle` over upright, italic and an oblique angle.
+// The cases that ask the machine's own families carry the `fonts` label
+// through their suites; the lean and the italic axis are asked of the
+// instrument faces and need nothing.
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkFontStyle.h>
@@ -10,9 +10,11 @@
 #include <sigilcompose/core/FontStyle.h>
 #include <sigilcompose/core/SpanDeclarations.h>
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/query/Selector.h>
 
 #include <string>
+#include <string_view>
 
 #include "support/CoreTestSupport.h"
 
@@ -45,6 +47,12 @@ std::vector<uint32_t> render(const Element& page) {
 /** The leaf every face case sets: white words at a size where two faces
  *  differ by whole pixels. */
 Text words() { return text(kWords).fontSize(28).ink({1, 1, 1, 1}).key("t"); }
+
+/** Every character of the words, for a span over all of them. */
+sigil::weave::Selector allOfTheWords() {
+  return sigil::weave::selectors::range(
+      {0, (uint32_t)std::u8string_view(kWords).size()});
+}
 
 /** A family's face at a style, as the font context finds it. */
 sk_sp<SkTypeface> faceOf(const char* family,
@@ -84,10 +92,53 @@ TEST(ComposeFontFamily, ARuleAndASpanNameAFamilyAsTheElementDoes) {
   EXPECT_EQ(
       named,
       render(box().applyStyleSheet(sheet).children({words().styleClass("t")})));
-  EXPECT_EQ(named, render(box().children({words().span(
-                       sigil::weave::selectors::range(
-                           {0, (uint32_t)std::u8string_view(kWords).size()}),
-                       SpanDeclarations().fontFamily("Georgia"))})));
+  EXPECT_EQ(named,
+            render(box().children({words().span(
+                allOfTheWords(), SpanDeclarations().fontFamily("Georgia"))})));
+}
+
+TEST(ComposeFontFamily, ARunARuleNamesTakesItsFamily) {
+  // A run named so is a virtual child of the leaf, and a rule about the
+  // name finds its face as it would a child's.
+  const StyleSheet sheet{sigil::compose::rule(".g").fontFamily("Georgia")};
+  EXPECT_EQ(render(box().applyStyleSheet(sheet).children(
+                {text(sigil::weave::rich().add(std::u8string_view(kWords), "g"))
+                     .fontSize(28)
+                     .ink({1, 1, 1, 1})})),
+            render(box().fontFamily("Georgia").children({words()})));
+}
+
+TEST(ComposeFontFamily, AWeightBelowAFamilyFindsTheFamilysFaceAtIt) {
+  // CSS matches a face per element from the family, the weight and the
+  // style in force there, so a weight stated below the family is the same
+  // statement as one stated beside it.
+  ASSERT_TRUE(faceOf("Georgia", SkFontStyle::Bold()));
+  const auto bold =
+      render(box().fontFamily("Georgia").fontWeight(700).children({words()}));
+  EXPECT_NE(bold, render(box().fontFamily("Georgia").children({words()})));
+  EXPECT_EQ(
+      render(box().fontFamily("Georgia").children({words().fontWeight(700)})),
+      bold);
+  EXPECT_EQ(render(box().fontFamily("Georgia").children({words().span(
+                allOfTheWords(), SpanDeclarations().fontWeight(700))})),
+            bold);
+}
+
+TEST(ComposeFontFamily, AFaceKeywordInAStrongerLayerStandsOverAFamily) {
+  // The element's own `initial` on the face is stronger than the rule's
+  // family, and `inherit` takes the parent's face over it.
+  sigil::weave::Type initialFace, inheritedFace;
+  initialFace.keywords.set(sigil::weave::TypeField::Face,
+                           sigil::weave::Keyword::Initial);
+  inheritedFace.keywords.set(sigil::weave::TypeField::Face,
+                             sigil::weave::Keyword::Inherit);
+  const StyleSheet sheet{sigil::compose::rule(".t").fontFamily("Georgia")};
+  EXPECT_EQ(render(box().applyStyleSheet(sheet).children(
+                {words().styleClass("t").font(initialFace)})),
+            render(box().children({words()})));
+  EXPECT_EQ(render(box().fontFamily("Impact").applyStyleSheet(sheet).children(
+                {words().styleClass("t").font(inheritedFace)})),
+            render(box().fontFamily("Impact").children({words()})));
 }
 
 TEST(ComposeFontStatements, TheLaterOfAFamilyAndAFaceStands) {
@@ -164,81 +215,117 @@ TEST(ComposeFontStyle, NormalUnderAnItalicStandsUprightAgain) {
       render(box().fontFamily("Georgia").children({words()})));
 }
 
-TEST(ComposeFontStyle, AFamilyWithNoItalicLeansFourteenDegreesAndSaysSo) {
-  // Impact has one face and no axis: its italic is the oblique CSS falls
-  // back to, and the composer says which family had none.
-  const sk_sp<SkTypeface> impact = faceOf("Impact");
-  ASSERT_TRUE(impact);
-  ::testing::internal::CaptureStderr();
-  const auto italic = render(box()
-                                 .fontFamily("Impact")
-                                 .fontStyle(FontStyle::Italic)
-                                 .children({words()}));
-  const std::string said = ::testing::internal::GetCapturedStderr();
-  EXPECT_EQ(
-      italic,
-      render(box().font({.face = impact}).fontStyle(14).children({words()})));
-  EXPECT_NE(said.find("Impact"), std::string::npos) << said;
-}
-
 // ---------------------------------------------------------------------------
-// textIndent
+// The lean and the italic axis, asked of the instruments
 
 namespace {
 
-/** A passage long enough to wrap, set in the instrument so an indent
- *  moves its first line by exactly the pixels asked for. */
-Text passage(float width) {
-  return text(u8"AAAA AAAA AAAA AAAA AAAA AAAA")
-      .font({.face = sigil::test::instrument::sans(), .size = 10})
-      .ink({1, 1, 1, 1})
-      .width(width);
+/** One letter in @p face, large, white on black. */
+Text letterIn(sk_sp<SkTypeface> face) {
+  return text(u8"I")
+      .font({.face = std::move(face), .size = 60})
+      .ink({1, 1, 1, 1});
+}
+
+/** The leftmost inked column across the top and the bottom quarter of the
+ *  ink's rows: a letter leaning right has the first further right. */
+struct Lean {
+  int top = 0;
+  int bottom = 0;
+};
+
+Lean leanOf(const std::vector<uint32_t>& pixels, int width) {
+  const int height = static_cast<int>(pixels.size()) / width;
+  const auto inked = [&](int x, int y) {
+    return (pixels[y * width + x] & 0x00FFFFFFu) != 0;
+  };
+  const auto leftmost = [&](int y) {
+    for (int x = 0; x < width; ++x)
+      if (inked(x, y)) return x;
+    return width;
+  };
+  int first = -1, last = -1;
+  for (int y = 0; y < height; ++y)
+    if (leftmost(y) < width) {
+      if (first < 0) first = y;
+      last = y;
+    }
+  Lean lean{width, width};
+  if (first < 0) return lean;
+  const int quarter = std::max((last - first + 1) / 4, 1);
+  for (int y = first; y < first + quarter; ++y)
+    lean.top = std::min(lean.top, leftmost(y));
+  for (int y = last - quarter + 1; y <= last; ++y)
+    lean.bottom = std::min(lean.bottom, leftmost(y));
+  return lean;
 }
 
 }  // namespace
 
-TEST(ComposeTextIndent, ALengthInTheFontIsResolvedWhereItIsStated) {
-  // 2 em at 10 px is 20 px, and the leaf under a larger size inherits the
-  // twenty pixels, not the two em.
-  const auto pixels = render(box().textIndent(20).children({passage(160)}));
-  EXPECT_EQ(render(box()
-                       .fontSize(10)
-                       .textIndent(sigil::weave::em(2))
-                       .children({passage(160)})),
-            pixels);
-  EXPECT_EQ(
-      render(box().textIndent(sigil::weave::pt(15)).children({passage(160)})),
-      pixels);
-  EXPECT_NE(render(box().children({passage(160)})), pixels);
+TEST(ComposeOblique, APositiveAngleLeansRight) {
+  // CSS's sign, written onto the face's slnt axis negated: the top of the
+  // letter stands to the right of its foot.
+  const Lean leaning =
+      leanOf(render(box().children(
+                 {letterIn(sigil::test::instrument::oblique()).fontStyle(12)})),
+             320);
+  EXPECT_GT(leaning.top, leaning.bottom + 3);
+  const Lean upright = leanOf(
+      render(box().children({letterIn(sigil::test::instrument::oblique())})),
+      320);
+  EXPECT_EQ(upright.top, upright.bottom);
 }
 
-TEST(ComposeTextIndent, APercentageIsOneOfEachPassagesOwnMeasure) {
-  // Inherited as the percentage: the same ten percent is 16 px of one
-  // passage and 24 px of the other.
-  EXPECT_NE(render(box().textIndent(pct(10)).children({passage(160)})),
-            render(box().children({passage(160)})));
-  EXPECT_EQ(render(box().textIndent(pct(10)).children({passage(160)})),
-            render(box().textIndent(16).children({passage(160)})));
-  EXPECT_EQ(render(box().textIndent(pct(10)).children(
-                {box().children({passage(240)})})),
-            render(box().textIndent(24).children({passage(240)})));
-}
-
-TEST(ComposeTextIndent, AutoIsNoIndentAndIsRefused) {
+TEST(ComposeOblique, AFamilyWithNoItalicLeansFourteenDegreesAndSaysSo) {
+  // No italic face and no ital axis: the italic is the oblique CSS falls
+  // back to, and the composer names the family that had neither.
   ::testing::internal::CaptureStderr();
-  const Element refused = box().textIndent(autoDimension());
+  const auto italic =
+      render(box().children({letterIn(sigil::test::instrument::oblique())
+                                 .fontStyle(FontStyle::Italic)}));
   const std::string said = ::testing::internal::GetCapturedStderr();
-  EXPECT_TRUE(sameDescription(refused, box()));
-  EXPECT_NE(said.find("textIndent"), std::string::npos) << said;
+  EXPECT_EQ(italic,
+            render(box().children(
+                {letterIn(sigil::test::instrument::oblique()).fontStyle(14)})));
+  const Lean lean = leanOf(italic, 320);
+  EXPECT_GT(lean.top, lean.bottom + 3);
+  EXPECT_NE(said.find("Sigil Instrument Oblique"), std::string::npos) << said;
 }
 
-TEST(ComposeTextIndent, TheLaterOfPixelsAndAnotherUnitStands) {
-  EXPECT_TRUE(
-      sameDescription(box().textIndent(sigil::weave::em(2)).textIndent(8),
-                      box().textIndent(8)));
-  EXPECT_TRUE(sameDescription(box().textIndent(8).textIndent(pct(5)),
-                              box().textIndent(pct(5))));
-  EXPECT_TRUE(sameDescription(
-      box().textIndent(pct(5)).paragraph({.firstLineIndent = 8}),
-      box().textIndent(8)));
+TEST(ComposeOblique, AnItalicAxisIsTheItalicOnANodeARuleAndASpan) {
+  sigil::weave::Type onTheAxis;
+  onTheAxis.face = sigil::test::instrument::italic();
+  onTheAxis.variations.emplace_back("ital", 1.0f);
+  const auto axis = render(box().children(
+      {letterIn(sigil::test::instrument::italic()).font(onTheAxis)}));
+  EXPECT_NE(
+      axis,
+      render(box().children({letterIn(sigil::test::instrument::italic())})));
+  EXPECT_EQ(render(box().children({letterIn(sigil::test::instrument::italic())
+                                       .fontStyle(FontStyle::Italic)})),
+            axis);
+  const StyleSheet sheet{
+      sigil::compose::rule(".i").fontStyle(FontStyle::Italic)};
+  EXPECT_EQ(render(box().applyStyleSheet(sheet).children(
+                {letterIn(sigil::test::instrument::italic()).styleClass("i")})),
+            axis);
+  EXPECT_EQ(render(box().children(
+                {letterIn(sigil::test::instrument::italic())
+                     .span(sigil::weave::selectors::range({0, 1}),
+                           SpanDeclarations().fontStyle(FontStyle::Italic))})),
+            axis);
+  // A run a rule makes italic by name is set on the axis too.
+  EXPECT_EQ(
+      render(box().applyStyleSheet(sheet).children(
+          {text(sigil::weave::rich().add(std::u8string_view(u8"I"), "i"))
+               .font({.face = sigil::test::instrument::italic(), .size = 60})
+               .ink({1, 1, 1, 1})})),
+      axis);
+  // Normal under the italic sets the axis back.
+  EXPECT_EQ(
+      render(box()
+                 .fontStyle(FontStyle::Italic)
+                 .children({letterIn(sigil::test::instrument::italic())
+                                .fontStyle(FontStyle::Normal)})),
+      render(box().children({letterIn(sigil::test::instrument::italic())})));
 }

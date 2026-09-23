@@ -85,6 +85,17 @@ struct Exclusion {
   }
 };
 
+/** WHAT THE SHEETS IN FORCE SAY ABOUT ONE PARAGRAPH STYLE'S NAME on a text
+ *  leaf: the block partial a paragraph named so is laid out in, and an
+ *  indent the rules gave as a percentage, which is one of the measure the
+ *  passage is laid out at and so waits for it. */
+struct NamedParagraphStyle {
+  std::string name;
+  sigil::weave::ParagraphBlock block;
+  std::optional<float> indentPercent;
+  bool operator==(const NamedParagraphStyle&) const = default;
+};
+
 /** The retained node. The tree skeleton — `parent`, `description` (the
  * resolved, post-memo description), `memoShell` (the memo element, if any) and
  *  `children` — is SigilCore's Node, which is what the reconciler walks;
@@ -214,6 +225,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // Whether the style in force is ITALIC, which the face alone cannot say:
   // a family with no italic stands in with a lean. Inherited beside `font`.
   bool italic = false;
+  // THE FAMILY IN FORCE BY NAME, which a weight or an italic stated further
+  // down finds its face in again; empty where the face in force was stated
+  // as a face, or no family was named. Inherited beside `font`.
+  std::string family;
   // THE FIRST-LINE INDENT IN FORCE AS A PERCENTAGE of each passage's
   // measure, which `block` cannot hold in pixels until the measure is
   // known; absent where the indent in force is pixels or none.
@@ -284,8 +299,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // pass and compared there, so a sheet that changes what a name means
   // re-materialises the leaf.
   sigil::weave::TypeSheet runStyles;
-  std::vector<std::pair<std::string, sigil::weave::ParagraphBlock>>
-      paragraphBlockStyles;
+  std::vector<NamedParagraphStyle> paragraphBlockStyles;
   // On a text leaf: whether any sheet is in force where it stands, which is
   // what a paragraph style no rule speaks about is warned against.
   bool sheetsInForce = false;

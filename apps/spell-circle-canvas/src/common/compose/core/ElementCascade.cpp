@@ -73,6 +73,8 @@ Derived& CascadeVerbs<Derived>::textIndent(Dimension indent) {
       detail::CascadeData& cascade = declarations()->paragraph();
       if (cascade.block) {
         cascade.block->firstLineIndent.reset();
+        cascade.block->keywords.clear(
+            sigil::weave::ParagraphField::FirstLineIndent);
         if (cascade.block->empty()) cascade.block.reset();
       }
       cascade.textIndent = std::move(indent);

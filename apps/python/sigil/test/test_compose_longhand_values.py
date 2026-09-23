@@ -41,6 +41,15 @@ class FontStyleTest(unittest.TestCase):
         # A lean written after an italic replaces it.
         self.assertEqual(rule().fontStyle(FontStyle.Italic).fontStyle(8), rule().fontStyle(8))
 
+    def test_a_style_is_a_value(self):
+        # Equal styles hash alike, so a style can key a table.
+        self.assertEqual(hash(FontStyle.oblique(14)), hash(FontStyle(14)))
+        self.assertEqual({FontStyle.Italic: "italic"}[FontStyle.Italic], "italic")
+
+    def test_anything_else_is_refused_as_a_type(self):
+        with self.assertRaises(TypeError):
+            rule().fontStyle("italic")
+
 
 class TextIndentTest(unittest.TestCase):
     def test_a_bare_number_is_pixels(self):

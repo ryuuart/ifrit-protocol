@@ -16,6 +16,17 @@ namespace sigil::compose {
 
 using namespace detail;
 
+namespace {
+
+/** An indent of @p percent of @p measure — the passage's inline size —
+ *  and none where the measure is unbounded, which has no percentage. */
+float percentOfMeasure(float percent, float measure) {
+  return measure < Composer::Impl::kUnbounded ? percent / 100.0f * measure
+                                              : 0.0f;
+}
+
+}  // namespace
+
 sigil::weave::TextStyle Composer::Impl::leafStyle(const Instance& inst) const {
   const TextData& text = *inst.description->textData;
   if (text.inherits)
@@ -263,19 +274,16 @@ sigil::weave::TextStyle Composer::Impl::styleOfSpan(
     const sigil::weave::TextStyle& base, const SpanRestyle& span,
     const Instance& inst) const {
   sigil::weave::Type partial = span.partial;
-  // A family or an italic the span states chooses the range's face as one
-  // a node states chooses the node's: over the face the range is set in,
-  // at the weight the span or that face carries.
-  if (span.fontFamily || span.italic) {
-    sigil::weave::Type chosen = partial;
-    if (!chosen.face) chosen.face = base.shaping.typeface;
-    const bool italic = span.italic.value_or(inst.italic);
-    chooseFace(fonts, chosen, span.fontFamily ? &*span.fontFamily : nullptr,
-               italic);
-    partial.face = chosen.face;
-    partial.slant = chosen.slant;
-    partial.variations = chosen.variations;
-  }
+  // A family, an italic or a weight the span states chooses the range's
+  // face as one a node states chooses the node's: over the face the range
+  // is set in, at the weight in force there. A leaf set in a whole style
+  // of its own inherits no family and no italic.
+  const bool inherits = inst.description && inst.description->textData &&
+                        inst.description->textData->inherits;
+  chooseRangeFace(fonts, partial, base,
+                  inherits && !inst.family.empty() ? &inst.family : nullptr,
+                  inherits && inst.italic,
+                  span.fontFamily ? &*span.fontFamily : nullptr, span.italic);
   if (span.inkVar) {
     const VarValue* value = inst.vars ? inst.vars->find(*span.inkVar) : nullptr;
     const material::Color* colour =
@@ -319,7 +327,7 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
   sigil::weave::ParagraphBlock inForceBlock = inst.block;
   if (inst.indentPercent)
     inForceBlock.firstLineIndent =
-        measure < kUnbounded ? *inst.indentPercent / 100.0f * measure : 0.0f;
+        percentOfMeasure(*inst.indentPercent, measure);
   const sigil::weave::ParagraphStyle lane =
       sigil::weave::toParagraphStyle(inForceBlock);
   options.blockDefault = lane;
@@ -331,12 +339,15 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
     for (const std::string& name : inForce.blockClassNames) {
       const auto matched = std::find_if(
           inst.paragraphBlockStyles.begin(), inst.paragraphBlockStyles.end(),
-          [&](const auto& entry) { return entry.first == name; });
+          [&](const auto& entry) { return entry.name == name; });
       if (matched == inst.paragraphBlockStyles.end()) {
         warnNoSuchParagraphStyle(name, inst.sheetsInForce);
         options.blocks.push_back(lane);
       } else {
-        options.blocks.push_back(sigil::weave::overlay(lane, matched->second));
+        options.blocks.push_back(sigil::weave::overlay(lane, matched->block));
+        if (matched->indentPercent)
+          options.blocks.back().indent.firstLine =
+              percentOfMeasure(*matched->indentPercent, measure);
       }
     }
   }

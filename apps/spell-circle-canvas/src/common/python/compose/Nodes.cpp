@@ -97,10 +97,15 @@ void bindFontVerbs(py::class_<Node>& element) {
           [](Node& self, py::object style) -> Node& {
             // A FontStyle, or a bare number of degrees, which is the
             // oblique of that lean.
+            if (py::isinstance<compose::FontStyle>(style))
+              return self.fontStyle(style.cast<compose::FontStyle>());
+            if (!py::isinstance<py::int_>(style) &&
+                !py::isinstance<py::float_>(style))
+              throw py::type_error(
+                  "fontStyle() takes a FontStyle or a number of degrees, not " +
+                  py::str(py::type::of(style)).cast<std::string>());
             return self.fontStyle(
-                py::isinstance<compose::FontStyle>(style)
-                    ? style.cast<compose::FontStyle>()
-                    : compose::FontStyle::oblique(style.cast<float>()));
+                compose::FontStyle::oblique(style.cast<float>()));
           },
           py::arg("style"), fluent)
       .def(

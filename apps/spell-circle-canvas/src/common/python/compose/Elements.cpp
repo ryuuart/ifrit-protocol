@@ -396,6 +396,11 @@ void bindCompose(py::module_& module) {
                     "The lean under Oblique, positive to the right; 0 "
                     "otherwise.")
       .def(py::self == py::self)
+      .def("__hash__",
+           [](const FontStyle& style) {
+             return py::hash(
+                 py::make_tuple(static_cast<int>(style.kind), style.degrees));
+           })
       .def("__repr__", [](const FontStyle& style) -> std::string {
         switch (style.kind) {
           case FontStyle::Kind::Normal:

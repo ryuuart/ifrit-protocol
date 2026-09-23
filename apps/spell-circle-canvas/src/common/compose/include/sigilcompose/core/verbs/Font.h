@@ -37,7 +37,8 @@ class FontVerbs {
   Derived& font(sigil::weave::Type partial);
   /** THE FAMILY — CSS `font-family`, by name: `fontFamily("Georgia")`.
    *  The composer's font context finds the family's face at the weight
-   *  and the style in force; an empty name is its default family. It and
+   *  and the style in force, and again wherever either moves below it;
+   *  an empty name is its default family. It and
    *  the `face` field of `font()` are one statement, so the later wins.
    *  @trap A family the context cannot find leaves the inherited face
    *  standing and says so once. */

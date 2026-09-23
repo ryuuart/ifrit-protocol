@@ -21,6 +21,7 @@
 #include "Calc.h"
 #include "ComposeRuntime.h"
 #include "FaceChoice.h"
+#include "LonghandFold.h"
 #include "SelectorMatch.h"
 
 namespace sigil::compose {
@@ -68,57 +69,6 @@ bool sameVars(const std::shared_ptr<const VarTable>& a,
   if (a == b) return true;
   if (!a || !b) return (a ? a->empty() : true) && (b ? b->empty() : true);
   return *a == *b;
-}
-
-/** What the sheets in force say about each name @p leaf's rich runs and
- *  paragraph styles were written with, each matched as a virtual child of the
- *  leaf: the font partial and the ink the matched rules state, folded weakest
- *  first, and the paragraph partial they state. A name no rule speaks about is
- *  left out, so it resolves as an unregistered name always has. */
-void namedStylesOf(
-    const Instance& leaf, const TextOptions& options, const SheetChain& chain,
-    const HasNames& names, sigil::weave::TypeSheet& runs,
-    std::vector<std::pair<std::string, sigil::weave::ParagraphBlock>>& blocks) {
-  runs = {};
-  blocks.clear();
-  if (chain.empty()) return;
-  const TextData& text = *leaf.description->textData;
-  const auto fontFor = [&](std::string_view name) {
-    std::optional<sigil::weave::Type> partial;
-    for (const MatchedRule& one : matchRulesForName(chain, leaf, name, names)) {
-      if (!partial) partial.emplace();
-      sigil::weave::merge(*partial, one.rule->type());
-      if (const std::optional<VarRef>& reference = one.rule->inkVar()) {
-        const VarValue* value =
-            leaf.vars ? leaf.vars->find(*reference) : nullptr;
-        if (const material::Color* colour =
-                value ? std::get_if<material::Color>(value) : nullptr)
-          partial->color = *colour;
-        else
-          warnNoSuchVar(*reference, true);
-      }
-    }
-    return partial;
-  };
-  if (!text.rich.hasStyles())
-    for (const sigil::weave::RichText::Run& run : text.rich.runs())
-      if (!run.styleName.empty() && !runs.contains(run.styleName))
-        if (std::optional<sigil::weave::Type> partial = fontFor(run.styleName))
-          runs.set(run.styleName, std::move(*partial));
-  if (options.set & TextOptions::kBlockClasses)
-    for (const std::string& name : options.blockClassNames) {
-      const bool seen =
-          std::any_of(blocks.begin(), blocks.end(),
-                      [&](const auto& entry) { return entry.first == name; });
-      if (seen) continue;
-      const std::vector<MatchedRule> matched =
-          matchRulesForName(chain, leaf, name, names);
-      if (matched.empty()) continue;
-      sigil::weave::ParagraphBlock partial;
-      for (const MatchedRule& one : matched)
-        sigil::weave::merge(partial, one.rule->paragraph());
-      blocks.emplace_back(name, std::move(partial));
-    }
 }
 
 /** What the rules of @p matched state about a text leaf's text
@@ -343,19 +293,19 @@ void Composer::Impl::resolveCascade(
   const ElementNode& node = *inst.description;
   const bool first = !inst.cascadeResolved;
   sigil::weave::Type font = parentFont;
-  // WHETHER THE STYLE IN FORCE IS ITALIC, inherited beside the font: the
-  // face alone cannot say so, since a family with no italic stands in with
-  // a lean.
+  // THE FAMILY BY NAME, WHETHER THE STYLE IS ITALIC, AND AN INDENT AS A
+  // PERCENTAGE OF THE MEASURE, each inherited beside the font and the
+  // block, which cannot hold them: a face does not say which name found it
+  // or whether it stands in for an italic, and a percentage waits for the
+  // measure.
   const bool parentItalic = inst.parent != nullptr && inst.parent->italic;
-  bool italic = parentItalic;
-  // The first-line indent as a percentage of each passage's measure,
-  // inherited as the percentage and resolved where a passage is laid out.
-  const std::optional<float> parentIndentPercent =
-      inst.parent != nullptr ? inst.parent->indentPercent : std::nullopt;
-  std::optional<float> indentPercent = parentIndentPercent;
-  // An indent a layer states in a unit resolved below, once this node's
-  // font is known.
-  std::optional<Dimension> indent;
+  const std::string* parentFamily =
+      inst.parent != nullptr && !inst.parent->family.empty()
+          ? &inst.parent->family
+          : nullptr;
+  LonghandFold longhands(
+      parentFamily, parentItalic,
+      inst.parent != nullptr ? inst.parent->indentPercent : std::nullopt);
   // The ink's paint inherits exactly as the font's colour does, and the
   // node that STATED it is the box a declaring-box anchor maps onto.
   InkInForce inkPaint = parentInkPaint;
@@ -514,39 +464,10 @@ void Composer::Impl::resolveCascade(
     bool fontFromInitial = false;
     bool blockFromInitial = false;
     bool varsFromInitial = false;
-    // The family and the style the layers state, the last statement
-    // standing: a face stated after a family stands over it, and one stated
-    // under an italic is asked for its italic.
-    const std::string* family = nullptr;
-    std::optional<bool> italicStated;
-    bool faceStated = false;
-    // Whether the last indent a layer stated was in pixels, which stands
-    // over a percentage arriving from above.
-    bool indentInPixels = false;
-    const auto stateFaceAndIndent =
-        [&](const sigil::weave::Type* type,
-            const sigil::weave::ParagraphBlock* paragraphBlock,
-            const CascadeData* said) {
-          if (type != nullptr && type->face) {
-            family = nullptr;
-            faceStated = true;
-          }
-          if (paragraphBlock != nullptr && paragraphBlock->firstLineIndent) {
-            indent.reset();
-            indentInPixels = true;
-          }
-          if (said == nullptr) return;
-          if (said->fontFamily) family = &*said->fontFamily;
-          if (said->italic) italicStated = said->italic;
-          if (said->textIndent) {
-            indent = said->textIndent;
-            indentInPixels = false;
-          }
-        };
     if (cascade != nullptr && cascade->role) {
       sigil::weave::merge(ownFont, cascade->role->font);
       sigil::weave::merge(ownBlock, cascade->role->block);
-      stateFaceAndIndent(&cascade->role->font, &cascade->role->block, nullptr);
+      longhands.state(&cascade->role->font, &cascade->role->block, nullptr);
     }
     // A class is unknown only where no rule of the sheets in force names
     // it, whether that rule matched this node or not.
@@ -574,8 +495,8 @@ void Composer::Impl::resolveCascade(
       const ElementNode& stated = *rule.node();
       if (const CascadeData* said =
               stated.cascadeData ? &*stated.cascadeData : nullptr) {
-        stateFaceAndIndent(said->font ? &*said->font : nullptr,
-                           said->block ? &*said->block : nullptr, said);
+        longhands.state(said->font ? &*said->font : nullptr,
+                        said->block ? &*said->block : nullptr, said);
         if (said->sampling) sampling = said->sampling;
         if (!said->varDefaults.empty())
           ruleVarDefaults.overlay(said->varDefaults);
@@ -594,18 +515,13 @@ void Composer::Impl::resolveCascade(
             ownFont = {};
             ownFont.color = colour;
             fontFromInitial = !fromParent;
-            family = nullptr;
-            italicStated.reset();
-            faceStated = false;
+            longhands.fontKeyword(fromParent);
             break;
           }
           case Property::Paragraph:
             ownBlock = {};
             blockFromInitial = !fromParent;
-            indent.reset();
-            indentInPixels = false;
-            indentPercent =
-                fromParent ? parentIndentPercent : std::optional<float>{};
+            longhands.paragraphKeyword(fromParent);
             break;
           case Property::Ink:
             inkVar.reset();
@@ -638,8 +554,8 @@ void Composer::Impl::resolveCascade(
         if (cascade->font->color) inkVar.reset();
       }
       if (cascade->block) sigil::weave::merge(ownBlock, *cascade->block);
-      stateFaceAndIndent(cascade->font ? &*cascade->font : nullptr,
-                         cascade->block ? &*cascade->block : nullptr, cascade);
+      longhands.state(cascade->font ? &*cascade->font : nullptr,
+                      cascade->block ? &*cascade->block : nullptr, cascade);
       if (cascade->inkVar) inkVar = cascade->inkVar;
       if (cascade->statesInk) {
         inkPaint = {cascade->inkPaint, cascade->inkAnchor, cascade->inkUnit};
@@ -651,7 +567,6 @@ void Composer::Impl::resolveCascade(
     // all. A merge could not: it has no base to inherit from.
     block = sigil::weave::overlay(
         blockFromInitial ? sigil::weave::ParagraphBlock{} : block, ownBlock);
-    if (indentInPixels) indentPercent.reset();
     if (cascade != nullptr && cascade->sampling) sampling = cascade->sampling;
     const bool anyOwnVars =
         cascade != nullptr &&
@@ -681,11 +596,16 @@ void Composer::Impl::resolveCascade(
       font = sigil::weave::overlay(parentFont, ownFont, fontSizePx(rootFont),
                                    parentLineHeight);
     }
-    // A FAMILY NAMED, OR AN ITALIC TURNED ON OR OFF, CHOOSES THE FACE —
-    // through the composer's font context, which is why it is done here
-    // and not by the verb — and so does a face stated under an italic.
-    italic = italicStated.value_or(fontFromInitial ? false : parentItalic);
-    if (family != nullptr || italic != parentItalic || (faceStated && italic))
+    // A FAMILY NAMED, AN ITALIC TURNED ON OR OFF, OR A WEIGHT MOVED UNDER A
+    // FAMILY NAMED ABOVE, CHOOSES THE FACE — through the composer's font
+    // context, which is why it is done here and not by the verb — and so
+    // does a face stated under an italic. The face is the family's at the
+    // weight and style in force, as CSS matches one per element.
+    const bool italic = longhands.italic();
+    const std::string* family = longhands.familyInForce();
+    if (longhands.familyNamed() != nullptr || italic != parentItalic ||
+        (longhands.faceStated() && italic) ||
+        (family != nullptr && font.weight != parentFont.weight))
       chooseFace(fonts, font, family, italic);
     if (ownFont.color) statesOwnInk = true;
     if (inkVar) {
@@ -720,7 +640,7 @@ void Composer::Impl::resolveCascade(
           const std::optional<material::Color> ink = font.color;
           font = fromParent ? parentFont : sigil::weave::initialType();
           font.color = ink;
-          italic = fromParent && parentItalic;
+          longhands.fontKeyword(fromParent);
           break;
         }
         case Property::Ink:
@@ -737,9 +657,7 @@ void Composer::Impl::resolveCascade(
           break;
         case Property::Paragraph:
           block = fromParent ? parentBlock : sigil::weave::ParagraphBlock{};
-          indent.reset();
-          indentPercent =
-              fromParent ? parentIndentPercent : std::optional<float>{};
+          longhands.paragraphKeyword(fromParent);
           break;
         case Property::ImageRendering:
           if (fromParent)
@@ -805,7 +723,12 @@ void Composer::Impl::resolveCascade(
     inst.hasWorldSpaceMaterial = true;
   inst.inkPaintOrigin = inkPaintOrigin;
   inst.vars = vars;
-  inst.italic = italic;
+  inst.italic = longhands.italic();
+  if (const std::string* family = longhands.familyInForce()) {
+    if (inst.family != *family) inst.family = *family;
+  } else if (!inst.family.empty()) {
+    inst.family.clear();
+  }
   if (shapeChanged) {
     inst.lineHeight = lineHeightAt(font);
     inst.zeroAdvance = zeroAdvanceAt(font);
@@ -813,7 +736,9 @@ void Composer::Impl::resolveCascade(
   // AN INDENT IN A RELATIVE UNIT BECOMES PIXELS HERE, against this node's
   // own font, line and properties, and is inherited as the pixels, as
   // CSS computes it; a percentage of the measure waits for the measure.
-  if (indent) resolveTextIndent(inst, *indent, block, indentPercent);
+  std::optional<float>& indentPercent = longhands.indentPercent();
+  if (longhands.indent())
+    resolveTextIndent(inst, *longhands.indent(), block, indentPercent);
   const bool indentPercentMoved = indentPercent != inst.indentPercent;
   inst.indentPercent = indentPercent;
   inst.block = block;
@@ -852,10 +777,8 @@ void Composer::Impl::resolveCascade(
     // changed what a name means under the leaf is a new paragraph as a new
     // face is.
     sigil::weave::TypeSheet runStyles;
-    std::vector<std::pair<std::string, sigil::weave::ParagraphBlock>>
-        paragraphBlockStyles;
-    namedStylesOf(inst, inst.textOptions, *sheets, hasNames, runStyles,
-                  paragraphBlockStyles);
+    std::vector<NamedParagraphStyle> paragraphBlockStyles;
+    namedStylesOf(inst, *sheets, runStyles, paragraphBlockStyles);
     const bool namesMoved =
         !(runStyles == inst.runStyles) ||
         !(paragraphBlockStyles == inst.paragraphBlockStyles);

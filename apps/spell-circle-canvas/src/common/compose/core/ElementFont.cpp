@@ -85,6 +85,7 @@ Derived& FontVerbs<Derived>::fontFamily(std::string family) {
   detail::CascadeData& cascade = declarations()->font();
   if (cascade.font) {
     cascade.font->face.reset();
+    cascade.font->keywords.clear(sigil::weave::TypeField::Face);
     if (cascade.font->empty()) cascade.font.reset();
   }
   cascade.fontFamily = std::move(family);
