@@ -11,6 +11,7 @@
  */
 
 #include <include/core/SkFontMgr.h>
+#include <include/core/SkFontStyle.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 
@@ -65,6 +66,16 @@ class FontContext {
   /** Returns the typeface used when a shaping style has none. */
   [[nodiscard]] const sk_sp<SkTypeface>& defaultTypeface() const;
 
+  /** THE FACE @p family NAMES AT @p style, found through the font manager
+   *  and kept: two asks for one family and style return the SAME face, so
+   *  its unique id is a stable shape-cache identity. The manager picks the
+   *  family's nearest face to the style, which is an upright one where the
+   *  family has no italic.
+   *  @trap Null where the manager knows no family of that name, never
+   *  another family standing in for it; an empty name is null too. */
+  [[nodiscard]] sk_sp<SkTypeface> familyTypeface(
+      std::string_view family, SkFontStyle style = SkFontStyle::Normal());
+
   /** Returns the typeface to shape @p codePoint with: the primary, or
    * the default, when it covers the code point, and otherwise the
    * resolver's match. Memoized per primary, code point and language.
@@ -117,9 +128,10 @@ class FontContext {
 
   /** Drops every cache this context owns: shape results, the
    * per-typeface HarfBuzz faces and fonts, coverage and fallback memos,
-   * varied clones, optical-kerning measurements and interned language
-   * ids. Safe while shaped words are outstanding, since they own their
-   * data; the next analysis re-fills at first-use cost.
+   * varied clones, the faces found by family name, optical-kerning
+   * measurements and interned language ids. Safe while shaped words are
+   * outstanding, since they own their data; the next analysis re-fills at
+   * first-use cost.
    */
   void purgeAllCaches();
 

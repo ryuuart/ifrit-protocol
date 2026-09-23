@@ -254,6 +254,11 @@ struct FontContext::Impl {
   // `ch`. In ems because the advance scales with the size under linear
   // metrics, so one measurement answers every size.
   boost::unordered_flat_map<uint32_t, float> zeroAdvanceEms;
+  // (family name, weight, width, slant) -> the face the manager matched,
+  // or null where it knows no such family: asked once per distinct
+  // request, because a manager walks its family list to answer, and held
+  // so one request always answers with one face.
+  boost::unordered_flat_map<std::string, sk_sp<SkTypeface>> familyTypefaces;
 
   // Reused scratch object (the context is single-threaded by contract).
   hb_buffer_t* shapingBuffer = nullptr;

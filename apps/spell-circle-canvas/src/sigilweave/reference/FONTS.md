@@ -44,6 +44,17 @@ otherwise the configured resolver's match. It is memoized per primary,
 code point and language, so warm itemization passes never invoke the
 resolver.
 
+### A face by its family's name
+
+`FontContext::familyTypeface` finds the face a family name names at a
+style — a weight, a width and a slant — through the context's font
+manager, which picks the family's nearest face: the italic where the
+family has one, an upright one where it does not. The answer is kept, so
+one family asked at one style is the same `SkTypeface` object every
+time, and its id is a stable shape-cache identity for the same reason a
+varied clone's is. It is null where the manager knows no family of that
+name; it never hands back another family standing in for the one asked.
+
 ### Varied faces
 
 `FontContext::variedTypeface` returns the memoized varied clone of a base
@@ -121,12 +132,13 @@ the FACE. It is zero when both the base and the context default are null.
 `FontContext::purgeShapeCache` drops every cached shape result, and
 nothing else. `FontContext::purgeAllCaches` drops every cache this
 context owns: shape results, the per-typeface HarfBuzz faces and fonts,
-glyph-coverage and fallback memos, varied clones, optical-kerning
-measurements and interned language ids. It is for long-lived processes
-whose typeface population changes over time — the per-typeface and
-per-typeface-and-code-point maps are otherwise never pruned. It is safe
-while shaped words are outstanding, because they own their data; the next
-analysis simply re-fills at first-use cost.
+glyph-coverage and fallback memos, varied clones, the faces found by
+family name, optical-kerning measurements and interned language ids. It
+is for long-lived processes whose typeface population changes over time
+— the per-typeface and per-typeface-and-code-point maps are otherwise
+never pruned. It is safe while shaped words are outstanding, because
+they own their data; the next analysis simply re-fills at first-use
+cost.
 
 `FontContext::Stats` is cache observability for tests and benchmarks, and
 `FontContext::resetStats` clears the counters without clearing any cache.

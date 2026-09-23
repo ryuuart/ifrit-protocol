@@ -8,6 +8,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkFontStyle.h>
 
+#include <string>
 #include <string_view>
 
 #include "FontContextImpl.h"
@@ -126,6 +127,30 @@ const sk_sp<SkTypeface>& FontContext::defaultTypeface() const {
           m_impl->fontManager->legacyMakeTypeface(nullptr, SkFontStyle());
   }
   return m_impl->defaultTypeface;
+}
+
+sk_sp<SkTypeface> FontContext::familyTypeface(std::string_view family,
+                                              SkFontStyle style) {
+  if (family.empty() || !m_impl->fontManager) return nullptr;
+  // The name, then the three numbers a style is, after a separator no
+  // family name carries, so two requests share an entry exactly when they
+  // agree on all four.
+  std::string key(family);
+  key.push_back('\n');
+  key.append(std::to_string(style.weight()))
+      .append("/")
+      .append(std::to_string(style.width()))
+      .append("/")
+      .append(std::to_string(static_cast<int>(style.slant())));
+  const auto held = m_impl->familyTypefaces.find(key);
+  if (held != m_impl->familyTypefaces.end()) return held->second;
+  // The manager reads a C string, and the key begins with the name, so the
+  // name is terminated in a copy of its own.
+  const std::string name(family);
+  sk_sp<SkTypeface> found =
+      m_impl->fontManager->matchFamilyStyle(name.c_str(), style);
+  return m_impl->familyTypefaces.emplace(std::move(key), std::move(found))
+      .first->second;
 }
 
 sk_sp<SkTypeface> FontContext::resolveTypeface(
@@ -302,6 +327,7 @@ void FontContext::purgeAllCaches() {
   m_impl->glyphProfiles.clear();
   m_impl->referenceGaps.clear();
   m_impl->zeroAdvanceEms.clear();
+  m_impl->familyTypefaces.clear();
   m_impl->fallbackLanguageIds.clear();
   m_impl->asciiFallbackTypefaces.clear();
   // Every memo below borrows from a map cleared above; leaving any of them

@@ -22,6 +22,15 @@ sigil_test(weave_test
   SOURCES test/FontContextTest.cpp
   LIBRARIES SigilWeaveFonts SigilWeavePorts)
 
+# A face found by its family's name, which only the machine's font list
+# can answer: the one promise of this directory a runner needs fonts for,
+# so it is the one that carries the label.
+sigil_test(weave_test
+  SOURCES test/FamilyTypefaceTest.cpp
+  LIBRARIES SigilWeaveFonts SigilWeavePorts
+  LABELS fonts
+  SUITES FamilyTypeface)
+
 # The vertical OpenType features, asked of the face committed under
 # test/assets/ rather than of this machine's. Its own binary because it is
 # its own promise about what a runner needs: nothing. A label here would
