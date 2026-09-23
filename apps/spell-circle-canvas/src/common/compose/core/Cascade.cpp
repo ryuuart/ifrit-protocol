@@ -370,8 +370,12 @@ void Composer::Impl::runCascade() {
   indexRoot(*root);
   const SheetChain none;
   const InkInForce noInkPaint;
+  const std::optional<material::Color> rootInk =
+      rootFont.color ? std::optional<material::Color>(
+                           material::skia::toColor(*rootFont.color))
+                     : std::nullopt;
   resolveCascade(*root, rootFont, rootLineHeight, nullptr, rootBlock,
-                 rootSampling, none, noInkPaint);
+                 rootSampling, none, noInkPaint, rootInk);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
   // says otherwise.
@@ -383,7 +387,8 @@ void Composer::Impl::resolveCascade(
     float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars,
     const sigil::weave::Block& parentBlock,
     const std::optional<SkSamplingOptions>& parentSampling,
-    const SheetChain& parentSheets, const InkInForce& parentInkPaint) {
+    const SheetChain& parentSheets, const InkInForce& parentInkPaint,
+    const std::optional<material::Color>& parentInkTarget) {
   const ElementNode& node = *inst.description;
   const bool first = !inst.cascadeResolved;
   sigil::weave::Type font = parentFont;
@@ -394,8 +399,8 @@ void Composer::Impl::resolveCascade(
   // Whether the colour resolved below is one this node produced — a
   // layer of its own fold said so — rather than one that simply arrived
   // from its parent. Only the second kind can be a colour an ancestor is
-  // in the middle of easing, which is the one case the node's own lane
-  // must stand aside for.
+  // in the middle of easing, so only the second takes its lane's target
+  // from the parent's target rather than from the colour it arrived as.
   bool statesOwnInk = false;
   std::shared_ptr<const VarTable> vars = parentVars;
   sigil::weave::Block block = parentBlock;
@@ -741,29 +746,35 @@ void Composer::Impl::resolveCascade(
   // patch: a node whose own declarations did not move never reaches the
   // patch, and a node whose ink arrives through a rule has none that did.
   // A node resolving its first colour has nothing to ease from, so it
-  // records the target and starts nothing. A node whose colour ARRIVES
-  // from an ancestor has no lane of its own at all: the ancestor that
-  // states the colour is the one easing it, everything under follows the
-  // ramp through the inherited value, and a second lane here would run a
-  // whole duration behind the one above it.
+  // records the target and starts nothing.
   //
-  // THIS IS WHERE INK PARTS FROM THE PROPERTY LANES, whose inherited
-  // answer a child DOES ease for itself, and the difference is mechanical
-  // rather than a matter of taste. The ink ramp is read back into the
-  // resolved colour just below, so it propagates down the tree on its own
-  // and a child that ran a lane would be easing an input already in
-  // flight. A property ramp stays on the node that runs it — the paint
-  // layer reads it, the fold does not — so a child inherits the property's
-  // TARGET, and its own lane is the only thing that can move it.
-  retargetInk(inst, statesOwnInk ? font.color : std::nullopt,
-              inst.transitionInForce(), first);
-  // …and the ramp is read into the resolved colour here, so every node
-  // under this one inherits the colour in flight and repaints with it.
+  // THE TARGET IS NEVER A COLOUR IN FLIGHT. A node that states its ink
+  // heads for the colour it states; one that inherits heads for the
+  // TARGET its parent heads for, not the colour the parent's ramp stands
+  // at this frame, which moves every frame and would restart the lane on
+  // each. So a node under its own `transition()` eases what it inherits
+  // with a lane of its own, over its own duration, as it eases a fill.
+  const std::optional<material::Color> inkTarget =
+      statesOwnInk
+          ? (font.color ? std::optional<material::Color>(
+                              material::skia::toColor(*font.color))
+                        : std::nullopt)
+          : parentInkTarget;
+  const std::optional<motion::Transition>& inkTransition =
+      inst.transitionInForce();
+  retargetInk(inst, inkTarget, inkTransition, first);
+  // …and the colour this node shows is read here, so every node under it
+  // inherits it and repaints with it: the lane's colour while it runs,
+  // else its target. A node with NO transition of its own keeps the
+  // colour that arrived from above, so it follows an ancestor's ramp as
+  // that ramp happens.
   if (const auto& anim = inst.anims[Instance::kInkLerp];
       anim && anim->started && anim->value.isConnected() && inst.inkTarget) {
     font.color = material::skia::toSkColor(
         lerpColour(inst.inkFrom, *inst.inkTarget, anim->value.value()));
     inkAnimating = true;
+  } else if (inkTransition && inst.inkTarget) {
+    font.color = material::skia::toSkColor(*inst.inkTarget);
   }
 
   const bool shapeChanged = first || !sameFontButColour(font, inst.font);
@@ -887,7 +898,7 @@ void Composer::Impl::resolveCascade(
   if (inst.hasSummaryPass != cascadePass) indexSiblings(inst);
   for (auto& child : inst.children)
     resolveCascade(*child, font, inst.lineHeight, vars, block, sampling,
-                   *sheets, inkPaint);
+                   *sheets, inkPaint, inst.inkTarget);
 }
 
 void Composer::Impl::refreshInheritedInk(Instance& inst) {

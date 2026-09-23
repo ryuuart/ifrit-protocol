@@ -285,11 +285,12 @@ TEST(ComposeDeclarations, ASizeAfterCoverPutsTheNodeBackInTheFlowUndeclared) {
 }
 
 TEST(ComposeDeclarations, AnInheritedPropertyThatMovedBehindAPruneEases) {
-  // The child's description is the SAME in both frames — one keyword and
-  // one transition — so it never reaches the patch, and the patch is
-  // where a lane used to be retargeted. Its fill still moves, because the
-  // answer it takes from above moved, and a property that moved eases
-  // wherever the movement was found.
+  // ONE RULE FOR EVERY INHERITED PROPERTY: a node stating a transition of
+  // its own eases what it inherits with a lane of its own, toward the
+  // target the ancestor is headed for. The child's description is the
+  // SAME in both frames — one keyword and one transition — so it never
+  // reaches the patch; its fill still moves, because the answer it takes
+  // from above moved, and it eases wherever the movement was found.
   Host host(200, 200);
   const auto tree = [](material::Color fill) {
     return box().fill(Fill::color(fill)).children({box()

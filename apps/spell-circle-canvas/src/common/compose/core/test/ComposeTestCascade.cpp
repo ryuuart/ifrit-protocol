@@ -398,31 +398,47 @@ TEST(ComposeCascade, AnInkChangedThroughAClassEasesAsTheVerbsChangeDoes) {
   EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 0, 0, 255));
 }
 
-TEST(ComposeCascade, ANodeThatInheritsItsInkRunsNoLaneOfItsOwn) {
-  // The lane belongs to the node that STATES the colour; everything under
-  // it follows through the inherited value. The box between states a
-  // transition of its own and no ink, and it must add no second ramp —
-  // one there would still be moving a whole duration after the node above
-  // had landed.
+TEST(ComposeCascade, AnInheritedInkEasesUnderTheNodesOwnTransition) {
+  // ONE RULE FOR EVERY INHERITED PROPERTY: a node stating a transition of
+  // its own eases what it inherits with a lane of its own, toward the
+  // target the ancestor is headed for; a node with none follows the
+  // ancestor's ramp as it runs. The ancestor here eases over 100 ms. The
+  // box on the left has no transition and lands with it; the one on the
+  // right states 400 ms and is still on its way when the ancestor has
+  // landed.
   Host host;
   const auto page = [](SkColor4f ink) {
     return box()
         .ink(ink)
-        .transition({.duration = 200ms})
-        .children({box()
-                       .transition({.duration = 200ms})
-                       .children({box().width(60).height(60).fill(
-                           Fill::currentInk())})});
+        .transition({.duration = 100ms})
+        .children({box().row().children({
+            box().width(60).height(60).fill(Fill::currentInk()),
+            box()
+                .transition({.duration = 400ms})
+                .children({box().width(60).height(60).fill(
+                    Fill::currentInk())}),
+        })});
   };
   host.composer.render(page({1, 0, 0, 1}));
   host.frame();
-  EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 255, 0, 0)) << "start";
+  ASSERT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 255, 0, 0));
+  ASSERT_EQ(host.pixel(90, 30), SkColorSetARGB(255, 255, 0, 0));
   host.composer.render(page({0, 0, 1, 1}));
   host.frame();
-  EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 255, 0, 0)) << "begun";
-  host.frame(0.25);
+  EXPECT_EQ(host.pixel(90, 30), SkColorSetARGB(255, 255, 0, 0))
+      << "the lane has begun and stands at the colour it begins at";
+  host.frame(0.15);
   EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 0, 0, 255))
-      << "settled with the ancestor, not a second duration behind it";
+      << "no transition of its own: it landed with the ancestor";
+  const SkColor mid = host.pixel(90, 30);
+  EXPECT_GT(SkColorGetR(mid), 0u) << "its own lane is still easing";
+  EXPECT_LT(SkColorGetR(mid), 255u);
+  EXPECT_GT(SkColorGetB(mid), 0u);
+  host.frame(0.35);
+  EXPECT_EQ(host.pixel(90, 30), SkColorSetARGB(255, 0, 0, 255))
+      << "settled on the target the ancestor is headed for";
+  host.frame(0.1);
+  EXPECT_FALSE(host.composer.active());
 }
 
 TEST(ComposeCascade, AnInkReadFromACustomPropertyEasesWhenThePropertyMoves) {

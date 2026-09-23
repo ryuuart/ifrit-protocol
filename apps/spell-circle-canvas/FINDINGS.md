@@ -308,27 +308,3 @@ meant to be complete over the kit's operators. `stockOperator` should
 take each of the four, the readings should return for `Along`'s stops,
 `OperatorLike` should name them and `PARITY.md` should move them across;
 a test should build each from Python and assert its additions by key.
-
-## An inherited value under a node's own transition eases for a fill and not for an ink
-
-`Composer::Impl::retargetInk` runs a lane only for a node whose own fold
-produced its colour (the `ink()` verb, a class, a matched rule, a custom
-property or an `initial` keyword); a node that inherits its ink runs no
-lane of its own and follows the ancestor's ramp, because that ramp is
-written back into the resolved colour its children read.
-`retargetProperties` does the opposite for a fill and every slot
-property: a node whose inherited computed value moved gets a lane of its
-own toward the inherited target, since a fill's ramp stays in the paint
-layer and a child inherits only the target.
-
-The intended rule is the fill's, which is also CSS's: a node stating
-`transition()` eases whatever its computed value does, including what it
-inherits, with a lane of its own toward the inherited target, so it lags
-the ancestor by its own duration; a node with no transition of its own
-follows the ancestor's ramp as it happens.
-
-Once the ink lane follows it, `ComposeCascade.ANodeThatInheritsItsInkRunsNoLaneOfItsOwn`
-is replaced by a case asserting that an inheriting node with its own
-transition eases the inherited ink, and it and
-`ComposeDeclarations.AnInheritedPropertyThatMovedBehindAPruneEases`
-assert one rule for both kinds of property.

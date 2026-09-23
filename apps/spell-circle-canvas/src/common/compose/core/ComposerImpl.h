@@ -485,7 +485,8 @@ struct Composer::Impl {
       const sigil::weave::Block& parentBlock,
       const std::optional<SkSamplingOptions>& parentSampling,
       const detail::SheetChain& parentSheets,
-      const detail::InkInForce& parentInkPaint);
+      const detail::InkInForce& parentInkPaint,
+      const std::optional<material::Color>& parentInkTarget);
   /** An inheriting text leaf whose ink alone changed: the new colour set
    *  on its inherited ranges in place, the restyles replayed over them,
    *  and nothing re-shaped or re-broken. */
@@ -542,15 +543,17 @@ struct Composer::Impl {
   void retargetProperties(detail::Instance& inst, detail::StyledNode prev,
                           std::vector<detail::Lane>& prevLanes,
                           std::vector<detail::Lane>& nextLanes);
-  /** THE INK LANE. @p resolved is the colour the cascade pass just folded
-   *  for the node, which becomes its target in force; the lane eases from
-   *  the target that stood before it, under @p nodeTransition, and snaps
-   *  where there is none. An unset @p resolved is a node with no colour
-   *  of its own — it inherits, so it runs no lane. @p recordOnly keeps
-   *  the target and starts nothing, for a node resolving its colour for
-   *  the first time, which has none to ease from. */
+  /** THE INK LANE. @p target is where the node's colour is headed: the
+   *  colour its own fold resolved, or for a node that inherits, the
+   *  target its parent is headed for. It becomes the target in force; the
+   *  lane eases from the target that stood before it, under
+   *  @p nodeTransition, and stands down where there is none. An unset
+   *  @p target is a node that resolves no colour and runs no lane.
+   *  @p recordOnly keeps the target and starts nothing, for a node
+   *  resolving its colour for the first time, which has none to ease
+   *  from. */
   void retargetInk(detail::Instance& inst,
-                   const std::optional<SkColor4f>& resolved,
+                   const std::optional<material::Color>& target,
                    const std::optional<motion::Transition>& nodeTransition,
                    bool recordOnly);
   /** A patch: the property lanes, then the positional families a changed

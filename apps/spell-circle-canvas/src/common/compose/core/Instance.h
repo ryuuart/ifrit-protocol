@@ -343,10 +343,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kScaleZ,
     kPerspective,
     // The ink easing from one colour to another under this node's
-    // transition. It belongs to the node the cascade RESOLVED a colour of
-    // its own for, however that colour was written; the pass reads the
-    // ramp back into the colour of `font` each frame, so everything under
-    // the node follows it and a node that only inherits runs none.
+    // transition, whether the node states the colour or inherits it; the
+    // pass reads the ramp back into the colour of `font` each frame, so
+    // everything under the node with no transition of its own follows it.
     kInkLerp,
     kSlots
   };
@@ -357,10 +356,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // colour kInkLerp is headed for, and the one a freshly resolved colour
   // is compared against to decide the lane moves. It is the RESOLVED
   // colour and not the declared one, so a change arriving through a
-  // class, a matched rule or a custom property is a change here too.
-  // Unset until the pass has resolved this node once, and wherever it
-  // resolves no colour at all — a lane with no previous target has
-  // nothing to ease from.
+  // class, a matched rule or a custom property is a change here too; for
+  // a node that inherits its ink it is the parent's target, never the
+  // colour a running ramp stands at. Unset until the pass has resolved
+  // this node once, and wherever it resolves no colour at all — a lane
+  // with no previous target has nothing to ease from.
   std::optional<material::Color> inkTarget;
   // THE TRANSITION A MATCHED RULE STATES for this node — the strongest of
   // the rules that matched it at the last cascade pass and state one —

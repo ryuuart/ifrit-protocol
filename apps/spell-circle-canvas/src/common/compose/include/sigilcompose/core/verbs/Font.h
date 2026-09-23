@@ -53,8 +53,9 @@ class FontVerbs {
    *  mark that names no colour is painted in — CSS's `color`.
    *  `Fill::currentInk()` reads it back. A node whose ink changes under
    *  a `transition()` eases it however the change was written — this
-   *  verb, a class, a rule, a custom property — and everything under it
-   *  follows the ramp rather than running one of its own. */
+   *  verb, a class, a rule, a custom property. A node under it with no
+   *  transition of its own follows the ramp; one with its own eases the
+   *  inherited ink over its own duration. */
   Derived& ink(material::Color colour);
   /** The ink read from a custom property in force here. A property
    *  nobody set, or one holding a length, leaves the inherited ink

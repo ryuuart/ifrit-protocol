@@ -22,7 +22,6 @@
  */
 
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 
 #include <chrono>
 
@@ -254,13 +253,10 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
 }
 
 void Composer::Impl::retargetInk(
-    Instance& inst, const std::optional<SkColor4f>& resolved,
+    Instance& inst, const std::optional<material::Color>& target,
     const std::optional<motion::Transition>& nodeTransition, bool recordOnly) {
   const std::optional<material::Color> previous = inst.inkTarget;
-  inst.inkTarget =
-      resolved
-          ? std::optional<material::Color>(material::skia::toColor(*resolved))
-          : std::nullopt;
+  inst.inkTarget = target;
   auto& anim = inst.anims[Instance::kInkLerp];
   // RECORDED AND NOTHING ELSE, for the node resolving its colour for the
   // first time: there is no previous target to ease from, and the colour
