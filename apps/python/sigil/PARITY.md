@@ -626,7 +626,7 @@ model, arithmetic and data become Python code and are not listed.
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
 | `ink_units` | Unit-square ramp as ink over the passage, letters, words and lines; wells | — |
-| `paint_anchors` | Unit-square ramp as ink over each paint box; a fill stretched over the canvas through a row of cards; wells | — |
+| `paint_boxes` | Unit-square ramp as ink over each paint box; a fill stretched over the canvas through a row of cards; wells | — |
 
 #### Study · Motion
 
