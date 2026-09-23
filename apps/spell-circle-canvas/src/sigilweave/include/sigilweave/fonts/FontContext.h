@@ -71,6 +71,11 @@ class FontContext {
    *  its unique id is a stable shape-cache identity. The manager picks the
    *  family's nearest face to the style, which is an upright one where the
    *  family has no italic.
+   *  `ports::face` holds answers too, but for the process's system
+   *  manager rather than this context's, and with the default family
+   *  standing in for a name it cannot find, so a caller could not tell a
+   *  miss from a match; this door asks the context's own manager and says
+   *  when it found nothing.
    *  @trap Null where the manager knows no family of that name, never
    *  another family standing in for it; an empty name is null too. */
   [[nodiscard]] sk_sp<SkTypeface> familyTypeface(

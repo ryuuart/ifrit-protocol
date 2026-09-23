@@ -54,6 +54,10 @@ one family asked at one style is the same `SkTypeface` object every
 time, and its id is a stable shape-cache identity for the same reason a
 varied clone's is. It is null where the manager knows no family of that
 name; it never hands back another family standing in for the one asked.
+That is where it parts from `ports::face` below, which also holds its
+answers but asks the process's system manager and stands the default
+family in for a name it cannot find, so a caller there cannot tell a miss
+from a match.
 
 ### Varied faces
 
