@@ -8,6 +8,7 @@
  * tracks lives here too, beside the axis gate it consults.
  */
 
+#include <include/core/SkTypes.h>  // SkDebugf — the span's paint diagnostic
 #include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
@@ -22,6 +23,21 @@ namespace sigil::compose {
 using namespace detail;
 
 namespace {
+
+/** The once-per-process diagnostic behind a span stating an ink paint it
+ *  has no one shader for, so a range left in its own ink is not mistaken
+ *  for one the paint took. */
+void warnSpanInkHasNoOneShader() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "[compose] span() states an ink paint that animates or is resolved "
+      "against a box, and a range has neither a frame nor a box of its own "
+      "to resolve it in — the paint was left out and the range keeps the "
+      "ink it is set in. State a colour or a static paint, or put the paint "
+      "on the leaf's own ink(). (warned once)\n");
+}
 
 /** The engine as a TextPainterOperations: every operation forwards to the
  *  engine's own body with the instance's composer. One value for every
@@ -206,8 +222,10 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
     // A static paint collapses to one fill: a flat colour is the ink's
     // colour, anything else a shader over the range. A live or
     // geometry-dependent paint has no one shader to give a range.
-    if (said.inkPaint && !said.inkPaint->isAnimated() &&
-        !said.inkPaint->geometryDependent()) {
+    if (said.inkPaint &&
+        (said.inkPaint->isAnimated() || said.inkPaint->geometryDependent())) {
+      warnSpanInkHasNoOneShader();
+    } else if (said.inkPaint) {
       const Fill flat = toFill(*said.inkPaint);
       if (flat.kind == Fill::Kind::Color)
         restyle.partial.color = material::skia::toSkColor(flat.colorValue);

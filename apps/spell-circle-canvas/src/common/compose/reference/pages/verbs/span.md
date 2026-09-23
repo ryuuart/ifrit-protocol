@@ -55,8 +55,21 @@ property, `ink(var("accent"))`, is read where the leaf lands. A static
 paint collapses to one shader laid in the passage's own coordinates, as
 it is — a ramp meant to span the whole leaf belongs on the leaf's own
 [`ink`](ink.md), which maps it onto the leaf's box. A live or
-geometry-dependent paint has no one shader to give a range and is left
-out.
+geometry-dependent paint has no one shader to give a range: it is left
+out and said once.
+
+**What a span does not state.** The range's foreground stays the
+passage's own paint with the colour or shader above laid on it; a span
+does not hand over a whole `SkPaint` for the glyphs. What such a paint
+carried lives here instead:
+
+- a mask filter, a colour filter, a blend mode or a stroke style — on a
+  pass of its own, `font({.overlays = {weave::PaintLayer(paint)}})` or
+  `.underlays`, drawn above or beneath the glyphs with its own stroke,
+  blur and offset;
+- a paint that animates, or one resolved against a box — on the leaf's
+  own [`ink`](ink.md), or in an `fx` track for motion per glyph;
+- a raised or sunk range — `font({.baselineShift = ...})`.
 
 ## Several spans
 

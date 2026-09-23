@@ -155,8 +155,36 @@ TEST(TextSpans, ABaselineShiftSpanMovesItsRangeWithoutReshaping) {
   raised.frame();
   EXPECT_EQ(runShapes(raised, "t"), runShapes(plain, "t"))
       << "a baseline shift re-shaped a word";
-  EXPECT_FALSE(identicalPixels(plain, raised, 400, 120))
-      << "the digits stand where they stood";
+  // The digits and the capital stand equally tall at rest, so the highest
+  // inked row is where the digits' tops are once they rise.
+  const auto highestInk = [](Host& host) {
+    for (int row = 0; row < 120; ++row)
+      if (countColor(host, SkIRect::MakeXYWH(0, row, 400, 1), SK_ColorWHITE) >
+          0)
+        return row;
+    return 120;
+  };
+  EXPECT_LE(highestInk(raised), highestInk(plain) - 6)
+      << "the digits rose by the shift";
+}
+
+TEST(TextSpans, AnInkPaintResolvedAgainstABoxIsLeftOut) {
+  // A range has no box of its own to lay a unit ramp on, so the span
+  // states nothing and the range keeps the ink it is set in.
+  const sigil::weave::TextStyle base = coloredStyle(28, SK_ColorWHITE);
+  const std::u8string body = u8"Count 1234 now";
+  Host plain(400, 120);
+  plain.composer.render(box().padding(10).children({text(body, base)}));
+  plain.frame();
+  Host spanned(400, 120);
+  spanned.composer.render(box().padding(10).children(
+      {text(body, base)
+           .span(sigil::weave::selectors::regex(u8"[0-9]+"),
+                 Declarations().ink(material::skia::Paint::linearUnit(
+                     {0, 0}, {1, 0},
+                     {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))}));
+  spanned.frame();
+  EXPECT_TRUE(identicalPixels(plain, spanned, 400, 120));
 }
 
 TEST(TextSpans, ASizeSpanReshapesOnlyTheWordsItCovers) {
