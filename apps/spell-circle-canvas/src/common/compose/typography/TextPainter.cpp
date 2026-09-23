@@ -44,10 +44,14 @@ void warnSpanInkHasNoOneShader() {
  *  the field is excluded from equality regardless. */
 struct TextEngine final : TextPainterOperations {
   bool operator==(const TextEngine&) const { return true; }
-  void paint(Instance& inst, SkCanvas& canvas,
-             const sigil::weave::PaintStyle* override, const TextPath* onPath,
-             SkSize size, const PaintContext& ctx) const override {
-    paintTextFx(*inst.owner, inst, canvas, override, onPath, size, ctx);
+  void paint(Instance& inst, SkCanvas& canvas, const TextInk& ink,
+             const TextPath* onPath, SkSize size,
+             const PaintContext& ctx) const override {
+    paintTextFx(*inst.owner, inst, canvas, ink, onPath, size, ctx);
+  }
+  void inkByUnit(Instance& inst, const TextInk& ink,
+                 GlyphInk& glyphs) const override {
+    inkAtRestByUnit(inst, ink, glyphs);
   }
   void marks(Instance& inst) const override {
     resolveTextMarks(*inst.owner, inst);
@@ -219,17 +223,25 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
     if (said.font) restyle.partial = *said.font;
     restyle.inkVar = said.inkVar;
     // A static paint collapses to one fill: a flat colour is the ink's
-    // colour, anything else a shader over the range. A live or
-    // geometry-dependent paint has no one shader to give a range.
-    if (said.inkPaint &&
-        (said.inkPaint->isAnimated() || said.inkPaint->geometryDependent())) {
+    // colour, anything else a shader over the range. A live paint has no
+    // one shader to give a range, and nor has a geometry-dependent one —
+    // unless it restarts per unit, when its box is the unit square the
+    // engine lays on each unit.
+    const bool restarts = said.inkUnit && said.inkAnchor == PaintAnchor::OwnBox;
+    if (said.inkPaint && (said.inkPaint->isAnimated() ||
+                          (said.inkPaint->geometryDependent() && !restarts))) {
       warnSpanInkHasNoOneShader();
     } else if (said.inkPaint) {
-      const Fill flat = toFill(*said.inkPaint);
-      if (flat.kind == Fill::Kind::Color)
+      PaintContext unitSquare;
+      unitSquare.size = {1.0f, 1.0f};
+      const Fill flat = restarts ? resolveFill(*said.inkPaint, unitSquare)
+                                 : toFill(*said.inkPaint);
+      if (flat.kind == Fill::Kind::Color) {
         restyle.partial.color = flat.colorValue;
-      else if (flat.kind == Fill::Kind::Shader)
+      } else if (flat.kind == Fill::Kind::Shader) {
         restyle.inkShader = flat;
+        if (restarts) restyle.inkUnit = said.inkUnit;
+      }
     }
   }
   dressedText(declarations()->textData.ensure())

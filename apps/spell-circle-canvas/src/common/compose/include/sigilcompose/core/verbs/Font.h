@@ -13,8 +13,11 @@
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/style/Length.h>
 #include <sigilweave/style/Type.h>
+
+#include <optional>
 
 namespace sigil::compose {
 
@@ -66,10 +69,15 @@ class FontVerbs {
    *  colour form above does; any other paint inherits the same way but
    *  SNAPS under a transition rather than easing, as a fill does. @p
    *  anchor is the box the paint's unit square maps onto, own box by
-   *  default, which for a text leaf is its text-metric box.
+   *  default, which for a text leaf is its text-metric box. @p unit
+   *  restarts the paint on each `Glyph`, `Cluster`, `Word`, `Line` or
+   *  `Sentence` of a passage, its unit square on that unit's own
+   *  text-metric box; absent, the default, is the whole passage.
    *  @trap An empty paint clears an ancestor's ink paint and leaves the
-   *  inherited colour standing. */
-  Derived& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox);
+   *  inherited colour standing. A unit is read under `OwnBox` alone, and
+   *  `Selection` names no unit: both paint the passage whole. */
+  Derived& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox,
+               std::optional<sigil::weave::Unit> unit = std::nullopt);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

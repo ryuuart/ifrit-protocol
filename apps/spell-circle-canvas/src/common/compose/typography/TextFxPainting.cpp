@@ -42,9 +42,8 @@ float passUnitSeed(uint32_t outer, uint32_t inner) {
 }
 
 void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
-                         const sigil::weave::PaintStyle* override,
-                         const TextPath* onPath, SkSize size,
-                         const PaintContext& ctx) {
+                         const TextInk& ink, const TextPath* onPath,
+                         SkSize size, const PaintContext& ctx) {
   if (!inst.paragraph) return;  // no content materialized: nothing to draw
   static thread_local std::vector<Track> joinedTracks;
   const std::span<const Track> tracks = paintedTracksOf(inst, joinedTracks);
@@ -174,13 +173,13 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   static thread_local std::vector<std::pair<SkRect, SkPaint>> aboveBands;
   aboveBands.clear();
   sigil::weave::detail::forEachDecorationRect(
-      layout.runs, inst.paragraph->spans(), override,
+      layout.runs, inst.paragraph->spans(), ink.override(),
       sigil::weave::detail::DecorationPhase::kBelowGlyphs,
       [&](SkRect rect, const SkPaint& bandPaint) {
         canvas.drawRect(rect, bandPaint);
       });
   sigil::weave::detail::forEachDecorationRect(
-      layout.runs, inst.paragraph->spans(), override,
+      layout.runs, inst.paragraph->spans(), ink.override(),
       sigil::weave::detail::DecorationPhase::kAboveGlyphs,
       [&](SkRect rect, const SkPaint& bandPaint) {
         aboveBands.emplace_back(rect, bandPaint);
@@ -237,6 +236,21 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     lane->batches.subpixel = batches.subpixel;
 
   const PoseContext poseCtx{&inst, &layout, onPath, ridesPath, phaseArc};
+
+  // AN INK THAT RESTARTS PER UNIT is laid on each unit where the unit
+  // stands at rest in THIS layout — on the curve for a path run — and a
+  // letter in flight carries its unit's paint with it.
+  static thread_local GlyphInk glyphInk;
+  const bool byUnit = ink.restarts();
+  if (byUnit) inkByUnit(layout, inst, structure, poseCtx, ink, glyphInk);
+  const sigil::weave::PaintStyle* override = ink.override();
+  const auto styleOf = [&](uint32_t g, const sigil::weave::PlacedGlyph& placed)
+      -> const sigil::weave::PaintStyle& {
+    if (byUnit && g < glyphInk.styleOfGlyph.size() &&
+        glyphInk.styleOfGlyph[g] < glyphInk.styles.size())
+      return glyphInk.styles[glyphInk.styleOfGlyph[g]];
+    return override ? *override : *placed.paint;
+  };
 
   uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(
@@ -436,16 +450,15 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         for (const std::unique_ptr<PassLane>& lane : passes) {
           if (!(*lane->source->selected)[g]) continue;
           inPass = true;
-          lane->batches.addGlyph(placed.shaped,
-                                 override ? *override : *placed.paint, glyph,
+          lane->batches.addGlyph(placed.shaped, styleOf(g, placed), glyph,
                                  halfAdvance, dress);
           // The beat this glyph belongs to, and its box joined into that
           // beat's rect — the same (outer, inner) walk beatsOfTrack takes.
           noteBeat(*lane);
         }
         if (!inPass)
-          batches.addGlyph(placed.shaped, override ? *override : *placed.paint,
-                           glyph, halfAdvance, dress);
+          batches.addGlyph(placed.shaped, styleOf(g, placed), glyph,
+                           halfAdvance, dress);
       });
   batches.draw(&canvas);
 

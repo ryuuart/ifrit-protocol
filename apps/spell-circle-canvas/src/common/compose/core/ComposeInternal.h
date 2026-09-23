@@ -18,6 +18,7 @@
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -178,8 +179,12 @@ struct SpanRestyle {
   sigil::weave::Type partial;
   /** The ink read from a custom property in force at the leaf. */
   std::optional<VarRef> inkVar;
-  /** The ink as a shader, laid in the passage's own coordinates. */
+  /** The ink as a shader, laid in the passage's own coordinates — or,
+   *  under `inkUnit`, on the unit square of each unit it reaches. */
   std::optional<Fill> inkShader;
+  /** The unit of the range the ink shader restarts on; absent for the
+   *  shader laid as it is. */
+  std::optional<sigil::weave::Unit> inkUnit;
   bool operator==(const SpanRestyle&) const = default;
 };
 
@@ -568,11 +573,13 @@ struct DepthData {
  *  on the instance (Instance::font, Instance::vars), written by the cascade
  *  pass from the parent's resolved values and this block. */
 /** THE INK IN FORCE AS A PAINT, as it flows down the tree: the paint
- *  `Element::ink` was given and the box its unit square maps onto. The
+ *  `Element::ink` was given, the box its unit square maps onto, and the
+ *  unit of a passage it restarts on — absent for the whole passage. The
  *  ordinary ink is a colour and holds no paint at all. */
 struct InkInForce {
   std::optional<material::skia::Paint> paint;
   PaintAnchor anchor = PaintAnchor::OwnBox;
+  std::optional<sigil::weave::Unit> unit;
   bool operator==(const InkInForce&) const = default;
 };
 
@@ -617,6 +624,9 @@ struct CascadeData {
    *  paint beside a stated lane is the colour case. */
   std::optional<material::skia::Paint> inkPaint;
   PaintAnchor inkAnchor = PaintAnchor::OwnBox;
+  /** The unit of a passage the paint restarts on; absent for the whole
+   *  passage. */
+  std::optional<sigil::weave::Unit> inkUnit;
   bool statesInk = false;
   /** Properties supplied only where no ancestor or this node states a
    *  value, so component defaults do not override their document. */

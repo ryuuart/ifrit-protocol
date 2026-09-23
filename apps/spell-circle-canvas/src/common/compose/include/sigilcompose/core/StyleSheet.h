@@ -30,6 +30,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilweave/layout/ParagraphBlock.h>
+#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/style/Type.h>
 
 #include <initializer_list>
@@ -108,6 +109,9 @@ class Rule : public detail::Declaring,
   [[nodiscard]] const std::optional<material::skia::Paint>& inkPaint() const;
   /** The box that paint's unit square maps onto. */
   [[nodiscard]] PaintAnchor inkAnchor() const;
+  /** The unit of a passage that paint restarts on; absent for the whole
+   *  passage. */
+  [[nodiscard]] std::optional<sigil::weave::Unit> inkUnit() const;
   /** Whether this rule writes the ink lane at all — a colour, a
    *  property, a paint, or an empty paint, which is the lane cleared. */
   [[nodiscard]] bool statesInk() const;

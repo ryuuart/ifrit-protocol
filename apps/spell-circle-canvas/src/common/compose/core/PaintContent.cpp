@@ -2,12 +2,10 @@
  * paintContent: what one node emits, in stacking order — backgrounds, the
  * clip, the fill, the echoes and overlays, the leaf content, the children,
  * the foregrounds — with the masking family applied over it, the silhouette
- * the marks are dressed along, and the one glyph-paint override
- * ink(paint)/textStroke() ask for.
+ * the marks are dressed along.
  */
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkFontMetrics.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
@@ -24,7 +22,6 @@
 #include <sigilshaders/ComposeCore.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — the ink band's cap-height metrics
 
 #include <algorithm>
 #include <cmath>
@@ -152,145 +149,6 @@ const SkPath& Composer::Impl::resolveOutline(Instance& inst,
     inst.outlineCacheSize = size;
   }
   return inst.outlineCache;
-}
-
-// ---------------------------------------------------------------------------
-// ink(paint)/textStroke(): the one glyph-paint override
-
-std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
-    Instance& inst, const PaintContext& paintCtx) {
-  const ElementNode& node = *inst.description;
-  const material::skia::Paint* metricMat = inkPaintOf(inst);
-  // The outline in force: the leaf's own where it states one, else the
-  // strongest matched rule's.
-  const RuleTextLayer* ruleText = inst.ruleText.get();
-  const bool ownStroke = node.textData && (node.textData->options.set &
-                                           TextOptions::kTextStroke) != 0;
-  const bool ruleStroke = !ownStroke && ruleText && ruleText->statesStroke;
-  const bool stroked = ruleStroke
-                           ? ruleText->hasTextStroke
-                           : node.textData && node.textData->hasTextStroke;
-  if (!metricMat && !stroked) return std::nullopt;
-  if (!inst.paragraph.has_value()) return std::nullopt;
-  const sigil::weave::Paragraph& paragraph = inst.paragraph.value();
-
-  // Chrome type: the material's unit square mapped to the text's metric
-  // band — x across the widest line, y from the first line's cap top (real
-  // cap height when the face reports one) to the last line's baseline.
-  //
-  // The override replaces the whole PaintStyle for every run, so it starts
-  // as a COPY of the paragraph's own style and swaps only the foreground —
-  // an ink paint supersedes the fill, not the underlays, overlays and
-  // decorations around it (a chrome wordmark keeps its cast shadow and dark
-  // keyline).
-  sigil::weave::PaintStyle metric = paragraph.spans().empty()
-                                        ? sigil::weave::PaintStyle{}
-                                        : paragraph.spans().front().style.paint;
-  metric.foreground.setShader(nullptr);
-  bool havePaint = false;
-  // textStroke(): a stroke pass on the glyphs, UNDER the fill. It joins the
-  // style's own underlays rather than replacing them, so an engraved face
-  // keeps its cast shadow.
-  if (stroked) {
-    sigil::weave::PaintLayer outline;
-    outline.paint.setAntiAlias(true);
-    outline.paint.setStyle(SkPaint::kStroke_Style);
-    outline.paint.setStrokeWidth(ruleStroke ? ruleText->textStrokeWidth
-                                            : node.textData->textStrokeWidth);
-    outline.paint.setStrokeJoin(SkPaint::kRound_Join);
-    const Fill sf = resolveRef(
-        ruleStroke ? ruleText->textStrokeFill : node.textData->textStrokeFill,
-        paintCtx);
-    if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
-      outline.paint.setShader(sf.shaderValue);
-    else
-      outline.paint.setColor4f(
-          material::skia::toSkColor(sf.kind == Fill::Kind::Color
-                                        ? sf.colorValue
-                                        : material::Color{0, 0, 0, 1}),
-          nullptr);
-    metric.addUnderlay(outline);
-    havePaint = true;
-  }
-  if (!metricMat) return havePaint ? std::optional(metric) : std::nullopt;
-
-  // AN ANCHORED INK is already resolved in this node's own space — the
-  // slice it stands on of the box the ink was anchored to — so nothing
-  // maps it onto the metric band, which is the own-box reading.
-  if (inst.inkPaint.anchor != PaintAnchor::OwnBox) {
-    const Fill anchored = resolveInk(*metricMat, paintCtx);
-    if (anchored.kind == Fill::Kind::Shader && anchored.shaderValue) {
-      metric.foreground.setShader(anchored.shaderValue);
-      havePaint = true;
-    } else if (anchored.kind == Fill::Kind::Color) {
-      metric.foreground.setColor4f(
-          material::skia::toSkColor(anchored.colorValue), nullptr);
-      havePaint = true;
-    }
-    return havePaint ? std::optional(metric) : std::nullopt;
-  }
-
-  // Geometry-dependent materials resolve against a UNIT box here, not the
-  // node's. The local matrix below already maps the shader's [0,1]² onto
-  // the metric band, so uResolution baked from the node's layout size
-  // would divide a second time and a unit-space ramp would collapse onto
-  // its first stop, flat and silently. A ramp authored in [0,1]² crosses
-  // the type because the band is what it is mapped onto.
-  PaintContext metricCtx = paintCtx;
-  metricCtx.size = {1.0f, 1.0f};
-  const Fill f = (metricMat->isAnimated() || metricMat->geometryDependent())
-                     ? resolveFill(*metricMat, metricCtx)
-                     : toFill(*metricMat);
-  if (f.kind == Fill::Kind::Shader && f.shaderValue && !inst.columns.empty()) {
-    // A VERTICAL passage has no cap band to hang the ramp on: a column's
-    // glyphs centre across its axis rather than standing on a baseline. The
-    // unit square maps onto the COLUMN BLOCK instead — x across the columns,
-    // y down them — so a ramp authored in [0,1]² still crosses the type,
-    // reading down the page rather than across it.
-    SkRect block = SkRect::MakeEmpty();
-    for (const sigil::weave::ColumnMetrics& column : inst.columns)
-      block.join(column.rect());
-    SkMatrix map = SkMatrix::Translate(block.left(), block.top());
-    map.preScale(std::max(block.width(), 1.0f), std::max(block.height(), 1.0f));
-    metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
-    havePaint = true;
-  } else if (f.kind == Fill::Kind::Shader && f.shaderValue &&
-             !inst.lines.empty()) {
-    // The first run that carries glyphs is the face the cap band is read
-    // from — the runs in draw order, and no walk of every glyph in the
-    // passage to reach the first one.
-    const sigil::weave::ShapedWord* firstFont = nullptr;
-    for (const sigil::weave::PositionedRun& run : inst.textLayout.runs)
-      if (run.shaped) {
-        firstFont = run.shaped;
-        break;
-      }
-    float capH = 0;
-    if (firstFont && firstFont->typeface) {
-      SkFontMetrics fm;
-      sigil::weave::makeFont(firstFont->typeface, firstFont->fontSize)
-          .getMetrics(&fm);
-      capH = fm.fCapHeight;
-    }
-    const sigil::weave::LineMetrics& first = inst.lines.front();
-    if (capH <= 0) capH = first.ascent;  // face reports none — the ascent band
-    float left = first.left, right = first.right;
-    for (const sigil::weave::LineMetrics& line : inst.lines) {
-      left = std::min(left, line.left);
-      right = std::max(right, line.right);
-    }
-    const float top = first.baseline - capH;
-    const float bottom = inst.lines.back().baseline;
-    SkMatrix map = SkMatrix::Translate(left, top);
-    map.preScale(std::max(right - left, 1.0f), std::max(bottom - top, 1.0f));
-    metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
-    havePaint = true;
-  } else if (f.kind == Fill::Kind::Color) {
-    metric.foreground.setColor4f(material::skia::toSkColor(f.colorValue),
-                                 nullptr);
-    havePaint = true;
-  }
-  return havePaint ? std::optional(metric) : std::nullopt;
 }
 
 // ---------------------------------------------------------------------------
@@ -1010,21 +868,33 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           // and every draw that takes one takes the SAME one: a letter in
           // flight, and a letter on a curve, are painted exactly as a
           // resting letter is.
-          const std::optional<sigil::weave::PaintStyle> metric =
-              metricTextStyle(inst, paintCtx);
-          const sigil::weave::PaintStyle* glyphPaint =
-              metric ? &*metric : nullptr;
+          const detail::TextInk ink = textInkOf(inst, paintCtx);
           // One draw for both: the baseline places the glyph and the tracks
           // deviate from that placement. Neither wins over the other.
           // Dressed type draws through the painter its description carries;
           // a description that dresses its text without one (built from the
           // data blocks directly, never through a text verb) draws at rest.
           const TextPainterOperations* painter = textPainterOf(inst);
+          const TextPainterOperations* engine =
+              painter ? painter : detail::registeredTextEngine();
           if ((hasTextFx(inst) || onPath) && painter) {
-            painter->paint(inst, canvas, glyphPaint, onPath,
+            painter->paint(inst, canvas, ink, onPath,
                            {bounds.width(), bounds.height()}, paintCtx);
+          } else if (ink.restarts() && engine) {
+            // AN INK THAT RESTARTS PER UNIT draws the passage with a style
+            // per glyph, one per unit, which the engine reads off the
+            // layout drawn here. A passage whose ink does not never comes
+            // this way.
+            static thread_local detail::GlyphInk glyphs;
+            engine->inkByUnit(inst, ink, glyphs);
+            inst.textLayout.drawBatched(
+                &canvas, *inst.paragraph,
+                sigil::weave::ParagraphLayout::GlyphStyles{glyphs.styleOfGlyph,
+                                                           glyphs.styles},
+                ink.override());
           } else {
-            inst.textLayout.drawBatched(&canvas, *inst.paragraph, glyphPaint);
+            inst.textLayout.drawBatched(&canvas, *inst.paragraph,
+                                        ink.override());
           }
           // The readings beside the type. They stand AT REST while the
           // letters move, as a mark and a band do: a reading that travelled

@@ -358,14 +358,12 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
     const float scaleX = word.scaleX * run.fit.glyphScale;
     Bucket* bucket = nullptr;
     uint32_t bucketNamed = kSpanStyle;
-    for (size_t glyphIndex = 0; glyphIndex < word.glyphs.size();
-         ++glyphIndex) {
+    for (size_t glyphIndex = 0; glyphIndex < word.glyphs.size(); ++glyphIndex) {
       const uint32_t named = styleAt(first + (uint32_t)glyphIndex);
       if (!bucket || named != bucketNamed) {
-        bucket = bucketFor(word, scaleX,
-                           named == kSpanStyle ? spanStyle
-                                               : glyphStyles.styles[named],
-                           named);
+        bucket = bucketFor(
+            word, scaleX,
+            named == kSpanStyle ? spanStyle : glyphStyles.styles[named], named);
         bucketNamed = named;
       }
       bucket->glyphs.push_back(word.glyphs[glyphIndex]);
@@ -393,9 +391,8 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
   const auto eachBucket = [&](auto&& drawBucket) {
     for (const Bucket& bucket : active) {
       if (bucket.glyphs.empty()) continue;
-      const SkFont font =
-          makeFont(bucket.font->typeface, bucket.font->fontSize, bucket.scaleX,
-                   bucket.font->aliased);
+      const SkFont font = makeFont(bucket.font->typeface, bucket.font->fontSize,
+                                   bucket.scaleX, bucket.font->aliased);
       const SkSpan<const SkGlyphID> glyphs(bucket.glyphs.data(),
                                            bucket.glyphs.size());
       const SkSpan<const SkPoint> positions(bucket.positions.data(),

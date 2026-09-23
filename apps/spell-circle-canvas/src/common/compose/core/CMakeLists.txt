@@ -66,7 +66,7 @@ sigil_library(SigilComposeCore
     PromotionTier.cpp SplitBake.cpp GroupBake.cpp TextureBake.cpp
     PictureTier.cpp
     # text
-    TextPainter.cpp
+    TextPainter.cpp TextInk.cpp
     # the instanced leaf
     Instances.cpp Shelf.cpp
     # paint values
@@ -82,7 +82,7 @@ sigil_library(SigilComposeCore
     TextState.h SlotSpecs.h
     Lanes.h
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
-    PaintInternal.h PaintPass.h
+    PaintInternal.h PaintPass.h GlyphInk.h
     PaintProfile.h InstanceStamp.h
   HEADERS ../Compose.h Band.h Cascade.h Composer.h Core.h Declarations.h
           Derive.h Element.h

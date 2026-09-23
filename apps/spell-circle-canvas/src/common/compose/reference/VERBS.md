@@ -129,7 +129,7 @@ content and children, then foregrounds and the unqualified strokes.
 | Verb | What it says |
 |---|---|
 | [`fill`](pages/verbs/fill.md) | The paint of the node's own box — a colour, a paint, a transition or a live binding. |
-| [`ink`](pages/verbs/ink.md) | The colour text under this node is set in, and every mark that names none. Inherits. |
+| [`ink`](pages/verbs/ink.md) | The colour text under this node is set in, and every mark that names none; a paint may restart on each glyph, word or line. Inherits. |
 | [`stroke`](pages/verbs/stroke.md) | Dress the node's boundary with a brush, whole or on the runs a span claims. |
 | [`background`](pages/verbs/background.md) | A decoration painted BENEATH the fill. |
 | [`overlay`](pages/verbs/overlay.md) | A decoration painted over the fill and under the content and children. |
@@ -278,7 +278,7 @@ compile.
 | [`textThreadBalance`](pages/verbs/textThreadBalance.md) | This frame opens a balanced run: every frame of it resolves to one shallowest depth. |
 | [`contentFlowAround`](pages/verbs/contentFlowAround.md) | Flow this paragraph around the keyed node, by its silhouette or its box. |
 | [`textAnnotation`](pages/verbs/textAnnotation.md) | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
-| [`span`](pages/verbs/span.md) | Restyle the range a selector finds with the font and ink declarations; re-shapes only where a shaping field is stated, and only the words it covers. |
+| [`span`](pages/verbs/span.md) | Restyle the range a selector finds with the font and ink declarations, an ink paint restarting per unit where it names one; re-shapes only where a shaping field is stated, and only the words it covers. |
 | `textFx` | Append a text-fx track: which glyphs, what deviation, how the beats spread, what drives it. |
 | [`variationDrive`](pages/verbs/variationDrive.md) | Drive a variable-font axis from a bound output at draw time, with no reshape. |
 | [`textAttach`](pages/verbs/textAttach.md) | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |

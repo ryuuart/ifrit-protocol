@@ -65,6 +65,7 @@ Derived& FontVerbs<Derived>::ink(material::Color colour) {
   cascade.font->color = colour;
   cascade.inkVar.reset();
   cascade.inkPaint.reset();
+  cascade.inkUnit.reset();
   cascade.statesInk = true;
   return self();
 }
@@ -75,12 +76,14 @@ Derived& FontVerbs<Derived>::ink(VarRef reference) {
   cascade.inkVar = reference;
   if (cascade.font) cascade.font->color.reset();
   cascade.inkPaint.reset();
+  cascade.inkUnit.reset();
   cascade.statesInk = true;
   return self();
 }
 
 template <class Derived>
-Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor) {
+Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor,
+                                 std::optional<sigil::weave::Unit> unit) {
   detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
   // A PLAIN COLOUR is the ink lane as it has always been. A paint that
   // happens to be flat is not one: it overrides the glyphs of a leaf set
@@ -91,10 +94,14 @@ Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor) {
     return ink(flat->colorValue);
   // An empty paint STATES the lane and holds nothing, which clears an
   // ancestor's paint and leaves the colour in force standing.
+  // The extent the caller named is not a size a passage is cut at, so it
+  // is the passage whole, as an absent unit is.
+  if (unit == sigil::weave::Unit::Selection) unit.reset();
   if (paint.none()) {
     cascade.statesInk = true;
     cascade.inkPaint.reset();
     cascade.inkAnchor = anchor;
+    cascade.inkUnit = unit;
     return self();
   }
   // A fill the slot cannot hold — a live binding, the ink in force, a
@@ -107,6 +114,7 @@ Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor) {
   cascade.statesInk = true;
   cascade.inkPaint = std::move(stored);
   cascade.inkAnchor = anchor;
+  cascade.inkUnit = unit;
   return self();
 }
 

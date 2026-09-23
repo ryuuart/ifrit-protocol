@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "ComposeRuntime.h"
+#include "GlyphInk.h"
 
 namespace sigil::core {
 
@@ -39,6 +40,10 @@ struct IntervalEnds<sigil::weave::CharRange> {
 };
 
 }  // namespace sigil::core
+
+namespace sigil::compose {
+struct PoseContext;
+}  // namespace sigil::compose
 
 namespace sigil::compose::detail {
 
@@ -208,8 +213,17 @@ uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane = 0);
  *  once over that layer; `ctx` is the node's paint context, which that
  *  resolve reads for its clock, box and injected uniforms. */
 void paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
-                 const sigil::weave::PaintStyle* override,
-                 const TextPath* onPath, SkSize size, const PaintContext& ctx);
+                 const TextInk& ink, const TextPath* onPath, SkSize size,
+                 const PaintContext& ctx);
+/** THE INK RESTARTED ON EACH UNIT, for the glyphs of @p layout as
+ *  @p structure numbers them and @p poses places them: one style per unit
+ *  an ink in @p ink or in the leaf's spans restarts on, its paint's unit
+ *  square on the text-metric box of the glyphs of that unit it reaches. */
+void inkByUnit(const sigil::weave::ParagraphLayout& layout,
+               const Instance& inst, const GlyphStructure& structure,
+               const PoseContext& poses, const TextInk& ink, GlyphInk& glyphs);
+/** The same, for the passage at rest: the layout the kernel draws. */
+void inkAtRestByUnit(Instance& inst, const TextInk& ink, GlyphInk& glyphs);
 /** Breaks the run across the baseline's contours through SigilWeave's
  *  contour-interval geometry, and caches the result on the instance. */
 void ensurePathLayout(Composer::Impl& impl, Instance& inst,

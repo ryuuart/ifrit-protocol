@@ -22,6 +22,7 @@
 #include <limits>
 #include <optional>
 
+#include "GlyphInk.h"
 #include "Instance.h"
 #include "Lanes.h"
 #include "NodeTransform.h"
@@ -827,12 +828,13 @@ struct Composer::Impl {
   // ---- paint (StackingPainter.cpp and the paint-phase files beside it) ----
   float hostScale = 1.0f;  // device px per layout px at draw() entry
   void paint(detail::Instance& inst, SkCanvas& canvas);
-  /** The glyph-paint override ink(paint)/textStroke() ask for, or nullopt
-   *  when the node asks for neither. ONE body, called by the resting draw
-   *  and by the textFx() draw — a letter in flight is painted exactly as a
-   *  resting one is. */
-  std::optional<sigil::weave::PaintStyle> metricTextStyle(
-      detail::Instance& inst, const PaintContext& paintCtx);
+  /** The ink a text leaf's glyphs are painted with this draw: the
+   *  glyph-paint override ink(paint)/textStroke() ask for, and the paint an
+   *  ink restarting per unit lays on each unit. ONE body, read by the
+   *  resting draw and by the textFx() draw — a letter in flight is painted
+   *  exactly as a resting one is. */
+  detail::TextInk textInkOf(detail::Instance& inst,
+                            const PaintContext& paintCtx);
   /** Which half of a node's paint to emit.
    *
    *  The node's own paint is a CONTIGUOUS PREFIX of paintContent —

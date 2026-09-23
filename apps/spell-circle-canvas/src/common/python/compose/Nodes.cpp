@@ -21,6 +21,7 @@
 #include <sigilpython/compose/Operators.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
+#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 
 #include <chrono>
@@ -100,8 +101,8 @@ void bindFontVerbs(py::class_<Node>& element) {
           py::arg("tracking"), fluent)
       .def(
           "ink",
-          [](Node& self, py::object value,
-             compose::PaintAnchor anchor) -> Node& {
+          [](Node& self, py::object value, compose::PaintAnchor anchor,
+             std::optional<sigil::weave::Unit> unit) -> Node& {
             if (py::isinstance<compose::VarRef>(value))
               return self.ink(value.cast<compose::VarRef>());
             // The ink takes everything a surface takes. A colour — the
@@ -117,10 +118,10 @@ void bindFontVerbs(py::class_<Node>& element) {
                   "the tree, so the ink in force, a custom property and a "
                   "bound fill have no paint to give it. State a colour, or "
                   "clear the paint with None.");
-            return self.ink(paint, anchor);
+            return self.ink(paint, anchor, unit);
           },
           py::arg("value"), py::arg("anchor") = compose::PaintAnchor::OwnBox,
-          fluent);
+          py::arg("unit") = py::none(), fluent);
 }
 
 template void bindFontVerbs(py::class_<Element>&);

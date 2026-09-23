@@ -298,8 +298,7 @@ TEST(PaintPasses, AStylePerGlyphDrawsEachGlyphInTheStyleItNames) {
       for (int x = 0; x < 200; ++x) {
         const SkColor c = pixmap.getColor(x, y);
         const bool left = (float)x < split;
-        if (SkColorGetR(c) > 200 && SkColorGetB(c) < 60 &&
-            SkColorGetG(c) < 60)
+        if (SkColorGetR(c) > 200 && SkColorGetB(c) < 60 && SkColorGetG(c) < 60)
           (left ? ink.redLeft : ink.redRight)++;
         if (SkColorGetB(c) > 200 && SkColorGetR(c) < 60 &&
             SkColorGetG(c) < 60 && !left)

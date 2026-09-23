@@ -58,6 +58,20 @@ it is — a ramp meant to span the whole leaf belongs on the leaf's own
 geometry-dependent paint has no one shader to give a range: it is left
 out and said once.
 
+**Or it restarts on each unit of the range.** An `ink` that names a
+unit — `ink(ramp, PaintAnchor::OwnBox, weave::Unit::Glyph)` — lays the
+paint's unit square on the text-metric box of each glyph, cluster, word,
+line or sentence the range reaches, so a unit-square ramp, which has no
+one shader to give a range, has one per unit instead. A unit the range
+only partly covers is painted over the part it covers, and text a later
+span repaints leaves the unit there.
+
+```cpp
+text(copy).span(weave::selectors::word(1),
+                SpanDeclarations().ink(ramp, PaintAnchor::OwnBox,
+                                       weave::Unit::Glyph));
+```
+
 **What a span does not state.** The range's foreground stays the
 passage's own paint with the colour or shader above laid on it; a span
 does not hand over a whole `SkPaint` for the glyphs. What such a paint

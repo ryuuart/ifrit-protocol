@@ -50,6 +50,8 @@ struct Annotation;
 struct TextPath;
 namespace detail {
 struct Instance;
+struct TextInk;
+struct GlyphInk;
 }  // namespace detail
 
 namespace detail {
@@ -111,14 +113,18 @@ class TextPainterOperations {
   virtual ~TextPainterOperations() = default;
   /** THE GLYPH DRAW for dressed text: the rest pose comes from the baseline
    *  — level on a plain run, on the curve and turned to it on a path run —
-   *  and every textFx() track's deviation applies on top of it. @p override is
-   *  the glyph-paint override ink(paint)/textStroke() ask for, or null;
-   *  @p onPath is null for text with no baseline path; @p size is the
-   *  node's box; @p ctx is the node's paint context. */
+   *  and every textFx() track's deviation applies on top of it. @p ink is
+   *  what ink(paint)/textStroke() resolve to, restarting per unit where an
+   *  ink says so; @p onPath is null for text with no baseline path;
+   *  @p size is the node's box; @p ctx is the node's paint context. */
   virtual void paint(detail::Instance& inst, SkCanvas& canvas,
-                     const sigil::weave::PaintStyle* override,
-                     const TextPath* onPath, SkSize size,
-                     const PaintContext& ctx) const = 0;
+                     const detail::TextInk& ink, const TextPath* onPath,
+                     SkSize size, const PaintContext& ctx) const = 0;
+  /** WHAT EACH GLYPH OF THE PASSAGE AT REST IS PAINTED WITH where @p ink
+   *  restarts on each unit: one style per unit, its paint's unit square on
+   *  that unit's text-metric box, read off the layout the kernel draws. */
+  virtual void inkByUnit(detail::Instance& inst, const detail::TextInk& ink,
+                         detail::GlyphInk& glyphs) const = 0;
   /** WHERE EACH textAttach() ANCHORS: refills the instance's mark rects
    *  from the layout the letters are drawn from, one rect per anchor. */
   virtual void marks(detail::Instance& inst) const = 0;

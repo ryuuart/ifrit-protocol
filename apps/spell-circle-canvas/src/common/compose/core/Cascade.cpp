@@ -568,7 +568,7 @@ void Composer::Impl::resolveCascade(
         inkVar.reset();
       }
       if (rule.statesInk()) {
-        inkPaint = {rule.inkPaint(), rule.inkAnchor()};
+        inkPaint = {rule.inkPaint(), rule.inkAnchor(), rule.inkUnit()};
         inkPaintOrigin = rule.inkPaint().has_value();
       }
       if (!rule.vars().empty()) ruleVars.overlay(rule.vars());
@@ -632,7 +632,7 @@ void Composer::Impl::resolveCascade(
       if (cascade->block) sigil::weave::merge(ownBlock, *cascade->block);
       if (cascade->inkVar) inkVar = cascade->inkVar;
       if (cascade->statesInk) {
-        inkPaint = {cascade->inkPaint, cascade->inkAnchor};
+        inkPaint = {cascade->inkPaint, cascade->inkAnchor, cascade->inkUnit};
         inkPaintOrigin = cascade->inkPaint.has_value();
       }
     }

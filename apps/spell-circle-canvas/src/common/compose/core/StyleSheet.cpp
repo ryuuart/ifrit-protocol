@@ -66,6 +66,11 @@ PaintAnchor Rule::inkAnchor() const {
   return cascade ? cascade->inkAnchor : PaintAnchor::OwnBox;
 }
 
+std::optional<sigil::weave::Unit> Rule::inkUnit() const {
+  const detail::CascadeData* cascade = cascadeOf(*node());
+  return cascade ? cascade->inkUnit : std::nullopt;
+}
+
 bool Rule::statesInk() const {
   const detail::CascadeData* cascade = cascadeOf(*node());
   return cascade && cascade->statesInk;

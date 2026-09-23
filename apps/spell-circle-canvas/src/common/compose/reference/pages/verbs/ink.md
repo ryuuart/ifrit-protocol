@@ -29,11 +29,13 @@ and the glyphs under it are painted with it.
 ```cpp
 Element& ink(material::Color colour);
 Element& ink(VarRef reference);
-Element& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox);
+Element& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox,
+             std::optional<weave::Unit> unit = std::nullopt);
 ```
 
 ```python
-def ink(self, value: ElementInkLike, anchor: PaintAnchor = ...) -> Element: ...
+def ink(self, value: ElementInkLike, anchor: PaintAnchor = ...,
+        unit: weave.Unit | None = None) -> Element: ...
 ```
 
 ## Parameters
@@ -44,6 +46,7 @@ def ink(self, value: ElementInkLike, anchor: PaintAnchor = ...) -> Element: ...
 | `VarRef` | The custom property to read it from: `ink(var("accent"))`. | [`VarRef`](../../VALUES.md#the-custom-properties), through `compose::var` |
 | `SurfacePaint` | Everything a surface takes — a `Fill`, a material paint, a recipe — because the ink and the fill dress the same kinds of thing. | [`SurfacePaint`](../types/SurfacePaint.md) |
 | `PaintAnchor` | Which box a paint's unit square maps onto. | `PaintAnchor::OwnBox`, `DeclaringBox`, `CanvasBox` |
+| `weave::Unit` | The unit of a passage the paint restarts on; absent, the whole passage. | `Unit::Glyph`, `Cluster`, `Word`, `Line`, `Sentence` |
 
 A `Fill` holding one colour is that colour. A `Paint` holding one colour
 is a paint whose picture happens to be flat, and it overrides the glyphs
@@ -103,6 +106,27 @@ size, with no hand-positioned gradient. A vertical passage has no cap
 band to hang it on, so the unit square maps onto the column block
 instead and the ramp reads down the page.
 
+**A paint can restart on each unit of the passage.** Given a unit —
+`weave::Unit::Glyph`, `Cluster`, `Word`, `Line` or `Sentence` — the
+unit square lands on each such unit's own text-metric box instead:
+across the unit's advances, from its cap top down to its baseline, so
+a ramp runs afresh through every letter, every word or every line.
+With no unit, the default, the paint is laid once across the passage.
+Each unit is one more draw, so a passage that names none pays nothing:
+
+```cpp
+text(u8"EMBER GLASS").ink(ramp, PaintAnchor::OwnBox, weave::Unit::Glyph);
+```
+
+A unit is read under `OwnBox` alone — the other anchors already spread
+one field across the tree — and `Unit::Selection`, which names the
+extent a selector found rather than a size a passage is cut at, paints
+the passage whole. A letter in flight under a `textFx` track takes the
+paint of the unit it stands in at rest, and the decoration bands keep
+the passage's mapping, since a band spans a run rather than a unit. A
+[`span`](span.md) takes the same unit over the range it finds, and so
+does a rule.
+
 **The other two anchors spread one paint across several elements.**
 `DeclaringBox` maps the unit square onto the box of the element that
 stated the ink, so everything under it shows its own slice;
@@ -126,6 +150,8 @@ says so once, as every silent no-op in this library does.
 - `reference/examples/inkPaint_verb.cpp` — one unit-square ramp
   painting the same word at two sizes.
 - `reference/examples/inkPaint_verb.py` — the same picture in Python.
+- `src/sketch/sketches/ink_units.cpp` — one ramp laid across a passage
+  and restarted on every letter, word and line.
 
 ## See also
 

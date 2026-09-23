@@ -40,7 +40,7 @@ sigil_library(SigilComposeTypography
     TextEffect.cpp
     # the engine
     TextStructure.cpp TextSelection.cpp TextCascade.cpp TextFx.cpp
-    TextSubstitution.cpp TextUnitBox.cpp TextFxPainting.cpp
+    TextSubstitution.cpp TextUnitBox.cpp TextFxPainting.cpp TextInkUnits.cpp
     TextAnnotations.cpp TextMarks.cpp
     PathText.cpp TextPainter.cpp AxisGate.h TextEngine.h TextPose.h
     TextSubstitution.h
@@ -56,9 +56,10 @@ sigil_library(SigilComposeTypography
 # paragraph controls and the variation drive, then one file per subject of
 # the dressed-type suites: the feed's rows, a leaf in a layout, the kit's
 # entrances, the cascade, the combinators, the colour terms, the glyph
-# transforms, the schedule read back, rich spans, the folded axis restyle,
-# slots and marks. The kit is here because a path baseline and an upright
-# column are exercised on `shapes::` silhouettes. Every case sets the
+# transforms, the schedule read back, rich spans, an ink restarted per
+# unit, the folded axis restyle, slots and marks. The kit is here because
+# a path baseline and an upright column are exercised on `shapes::`
+# silhouettes. Every case sets the
 # instrument faces from src/test/assets/ except the vertical suite, whose
 # Japanese prose needs a whole CJK face from the machine; that one carries
 # the label.
@@ -77,7 +78,7 @@ sigil_test(compose_test
           test/ComposeTestTextFxColor.cpp
           test/ComposeTestTextFxTransforms.cpp
           test/ComposeTestTextFxSchedule.cpp test/ComposeTestTextSpans.cpp
-          test/ComposeTestNamedStyles.cpp
+          test/ComposeTestNamedStyles.cpp test/ComposeTestInkUnits.cpp
           test/ComposeTestTextSpanAxis.cpp test/ComposeTestTextSlot.cpp
           test/ComposeTestTextMarks.cpp
   LIBRARIES SigilComposeTypography SigilComposeKit SigilComposeTesting
