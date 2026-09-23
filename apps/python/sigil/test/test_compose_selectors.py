@@ -347,8 +347,34 @@ class Rules(unittest.TestCase):
             compose.rule(".a").textIndent(24),
             compose.rule(".a").paragraph(weave.ParagraphBlock(firstLineIndent=24)),
         )
+        self.assertEqual(
+            compose.rule(".a").textWrap(compose.TextWrap.Balance),
+            compose.rule(".a").paragraph(
+                weave.ParagraphBlock(
+                    balanceRaggedLines=True,
+                    lineBreak=weave.LineBreakStrategy.KnuthPlass,
+                )
+            ),
+        )
+        self.assertEqual(
+            compose.rule(".a").textWrap(compose.TextWrap.Stable),
+            compose.rule(".a").paragraph(
+                weave.ParagraphBlock(
+                    balanceRaggedLines=False,
+                    lineBreak=weave.LineBreakStrategy.Greedy,
+                )
+            ),
+        )
+        self.assertEqual(
+            compose.rule(".a").textJustify(compose.TextJustify.None_),
+            compose.rule(".a").paragraph(
+                weave.ParagraphBlock(
+                    justificationMethod=weave.JustificationMethod.None_
+                )
+            ),
+        )
         for name in ("fontFamily", "fontStyle", "lineHeight", "writingMode",
-                     "hyphens"):
+                     "hyphens", "textWrap", "textJustify"):
             self.assertTrue(hasattr(compose.Element, name), name)
             self.assertTrue(hasattr(Rule, name), name)
 

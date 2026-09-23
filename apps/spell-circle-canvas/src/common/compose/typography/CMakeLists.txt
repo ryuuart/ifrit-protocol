@@ -70,7 +70,7 @@ sigil_test(compose_test
           test/ComposeTestTypeset.cpp test/ComposeTestAnnotations.cpp
           test/ComposeTestStory.cpp test/ComposeTestLiveText.cpp
           test/ComposeTestGlyphBoundary.cpp
-          test/ComposeTestJustification.cpp
+          test/ComposeTestJustification.cpp test/ComposeTestLineSetting.cpp
           test/ComposeTestVariationDrive.cpp
           test/ComposeTestTextFeed.cpp test/ComposeTestTextLeaf.cpp
           test/ComposeTestKinetic.cpp test/ComposeTestTextFx.cpp

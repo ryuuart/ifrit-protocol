@@ -302,6 +302,8 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
       .def("textIndent", &Node::textIndent, py::arg("px"), fluent)
       .def("writingMode", &Node::writingMode, py::arg("mode"), fluent)
       .def("hyphens", &Node::hyphens, py::arg("hyphenation"), fluent)
+      .def("textWrap", &Node::textWrap, py::arg("wrap"), fluent)
+      .def("textJustify", &Node::textJustify, py::arg("method"), fluent)
       .def(
           "var",
           [](Node& self, const std::string& name, py::object value) -> Node& {

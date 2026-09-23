@@ -31,6 +31,42 @@ element.paragraph({.writingMode = weave::WritingMode::kVerticalRL});
 inherit**, exactly as the font does, and it cascades from wherever it
 is written.
 
+## Longhands
+
+Each longhand is this verb with the fields it names, so the two
+spellings fold into one partial and the later statement wins field by
+field. A rule states them as a node does.
+
+| Longhand | CSS | Field |
+|---|---|---|
+| `lineHeight` | `line-height` | `leading` |
+| `textAlign` | `text-align` | `alignment` |
+| `textIndent` | `text-indent` | `firstLineIndent` |
+| `writingMode` | `writing-mode` | `writingMode` |
+| `hyphens` | `hyphens` | `hyphenation` |
+| `textWrap` | `text-wrap-style` | `lineBreak` and `balanceRaggedLines` |
+| `textJustify` | `text-justify` | `justificationMethod` |
+
+**`textWrap` writes two fields every time**, so a later `Pretty` undoes
+an earlier `Balance`. `Auto` and `Stable` fill each line in turn;
+`Pretty` weighs the whole paragraph at once; `Balance` weighs it and
+then sets it in the narrowest measure that keeps its line count, which
+evens the rag.
+
+**`textJustify` is read only where `textAlign` justifies.** `Auto` opens
+the word gaps, the gaps between ideographs and whatever letter and glyph
+passes the justification is tuned for; `InterWord` opens the word
+separators alone; `InterCharacter` opens every grapheme cluster and
+every separator by the same amount, each up to a cap, and hands what the
+cap holds back to the separators; `None` sets a justified line at its
+start.
+
+```cpp
+element.textAlign(weave::TextAlignment::kJustify)
+    .textJustify(TextJustify::InterCharacter)
+    .textWrap(TextWrap::Pretty);
+```
+
 **A leaf that wrote a whole `weave::ParagraphStyle` inherits nothing**
 for that block; a block named through `paragraphStyles(names)` is that
 name's partial laid over the paragraph setting in force.
@@ -46,4 +82,5 @@ both warns once and the path wins.
 
 ## See also
 
-[`font`](font.md), `weave::ParagraphBlock`, `paragraphStyles`, `textOnPath`.
+[`font`](font.md), `weave::ParagraphBlock`, `weave::JustificationMethod`,
+`paragraphStyles`, `textOnPath`.

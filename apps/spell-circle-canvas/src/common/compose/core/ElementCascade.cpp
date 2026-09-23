@@ -1,5 +1,5 @@
 /** @file
- * The cascade verbs — the block and its longhands, the custom properties
+ * The cascade verbs — the paragraph and its longhands, the custom properties
  * a node sets for everything under it, how image leaves under it sample,
  * and the three keywords — with the identity a node names in the cascade.
  */
@@ -25,7 +25,7 @@ Derived& CascadeVerbs<Derived>::paragraph(
   return self();
 }
 
-// The block's longhands: each is `paragraph()` with one field, so the two
+// The paragraph's longhands: each is `paragraph()` with one field, so the two
 // spellings fold into one partial and the later statement wins.
 
 template <class Derived>
@@ -53,6 +53,40 @@ template <class Derived>
 Derived& CascadeVerbs<Derived>::hyphens(
     sigil::weave::HyphenationOptions hyphenation) {
   return paragraph({.hyphenation = std::move(hyphenation)});
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::textWrap(TextWrap wrap) {
+  // The breaker and the balancing are one choice here, so both are stated
+  // every time: a later `Pretty` must clear an earlier `Balance`.
+  const bool weighsTheParagraph =
+      wrap == TextWrap::Pretty || wrap == TextWrap::Balance;
+  return paragraph(
+      {.balanceRaggedLines = wrap == TextWrap::Balance,
+       .lineBreak = weighsTheParagraph
+                        ? sigil::weave::LineBreakStrategy::kKnuthPlass
+                        : sigil::weave::LineBreakStrategy::kGreedy});
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::textJustify(TextJustify method) {
+  using sigil::weave::JustificationMethod;
+  JustificationMethod stated = JustificationMethod::kAuto;
+  switch (method) {
+    case TextJustify::Auto:
+      stated = JustificationMethod::kAuto;
+      break;
+    case TextJustify::InterWord:
+      stated = JustificationMethod::kInterWord;
+      break;
+    case TextJustify::InterCharacter:
+      stated = JustificationMethod::kInterCharacter;
+      break;
+    case TextJustify::None:
+      stated = JustificationMethod::kNone;
+      break;
+  }
+  return paragraph({.justificationMethod = stated});
 }
 
 template <class Derived>

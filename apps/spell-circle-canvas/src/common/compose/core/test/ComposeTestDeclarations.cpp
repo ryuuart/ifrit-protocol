@@ -338,6 +338,21 @@ TEST(ComposeDeclarations, ALonghandIsItsShorthandWithOneField) {
   EXPECT_TRUE(sameDescription(
       box().lineHeight(sigil::weave::Leading::multiple(1.4f)),
       box().paragraph({.leading = sigil::weave::Leading::multiple(1.4f)})));
+  EXPECT_TRUE(sameDescription(
+      box().textWrap(TextWrap::Balance),
+      box().paragraph(
+          {.balanceRaggedLines = true,
+           .lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})));
+  EXPECT_TRUE(sameDescription(
+      box().textWrap(TextWrap::Stable),
+      box().paragraph(
+          {.balanceRaggedLines = false,
+           .lineBreak = sigil::weave::LineBreakStrategy::kGreedy})));
+  EXPECT_TRUE(sameDescription(
+      box().textJustify(TextJustify::InterCharacter),
+      box().paragraph(
+          {.justificationMethod =
+               sigil::weave::JustificationMethod::kInterCharacter})));
   EXPECT_TRUE(
       sameDescription(box().font({.size = 12, .weight = 700}).fontSize(18),
                       box().font({.size = 18, .weight = 700})));

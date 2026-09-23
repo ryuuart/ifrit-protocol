@@ -4,6 +4,7 @@
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/LineSetting.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
@@ -358,6 +359,16 @@ void bindCompose(py::module_& module) {
   py::enum_<Overflow>(composition, "Overflow")
       .value("Visible", Overflow::Visible)
       .value("Clip", Overflow::Clip);
+  py::enum_<TextWrap>(composition, "TextWrap")
+      .value("Auto", TextWrap::Auto)
+      .value("Balance", TextWrap::Balance)
+      .value("Stable", TextWrap::Stable)
+      .value("Pretty", TextWrap::Pretty);
+  py::enum_<TextJustify>(composition, "TextJustify")
+      .value("Auto", TextJustify::Auto)
+      .value("InterWord", TextJustify::InterWord)
+      .value("InterCharacter", TextJustify::InterCharacter)
+      .value("None_", TextJustify::None);
   py::enum_<Align>(composition, "Align")
       .value("Auto", Align::Auto)
       .value("Start", Align::Start)

@@ -233,6 +233,8 @@ the code that built a child ran.
 | `textIndent` | The first line of every block indented — one field of `paragraph`. |
 | `writingMode` | Which way the lines run — one field of `paragraph`. |
 | `hyphens` | Whether and where a word may break with a hyphen — one field of `paragraph`. |
+| `textWrap` | How the lines break — `Auto`, `Stable`, `Pretty` or `Balance` — the breaker and balancing fields of `paragraph`. |
+| `textJustify` | Where a justified line spends its slack — `Auto`, `InterWord`, `InterCharacter` or `None` — one field of `paragraph`. |
 | `applyStyleSheet` | A sheet of selector rules put in force on this subtree; applying another adds it. |
 | `styleClass` | The classes the rules of the sheets in force speak about, laid under the node's own type. |
 | `role` | A semantic role — what a bare word in a selector names — with the defaults every matching rule stands over. |
@@ -316,7 +318,7 @@ stylesheet's vocabulary carries over as it is written, in camel case:
 `gridArea`, `borderRadius`, `overflow`, `opacity`, `blendMode`,
 `fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, `letterSpacing`,
 `lineHeight`, `textAlign`, `textIndent`, `writingMode`, `hyphens`,
-`filter`, `backdropFilter`, `imageRendering`, `zIndex`,
+`textWrap`, `textJustify`, `filter`, `backdropFilter`, `imageRendering`, `zIndex`,
 `transformOrigin`, `perspectiveOrigin`, `transition` and
 `textOverflow`. The rest are named for what they act on, with no second
 spelling:
@@ -366,7 +368,8 @@ spelling is the feature's.
 - `core/verbs/Font.h` — the font verbs `font`, `fontFamily`, `fontSize`,
   `fontWeight`, `fontStyle`, `letterSpacing`, and `ink`.
 - `core/verbs/Cascade.h` — the cascade verbs `paragraph`, `lineHeight`,
-  `textAlign`, `textIndent`, `writingMode`, `hyphens`, `var`,
+  `textAlign`, `textIndent`, `writingMode`, `hyphens`, `textWrap`,
+  `textJustify`, `var`,
   `varDefaults`, `imageRendering`, and the three wide keywords
   `inherit`, `initial`, `unset`.
 - `core/verbs/Paint.h` — `fill`.

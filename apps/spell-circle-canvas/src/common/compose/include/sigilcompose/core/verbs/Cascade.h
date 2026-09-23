@@ -12,6 +12,7 @@
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/LineSetting.h>
 #include <sigilcompose/core/PaintAnchor.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Var.h>
@@ -35,8 +36,8 @@ class CascadeVerbs {
    *  same way the font is: the fields it names override the inherited
    *  setting and the rest inherit. The one spelling of every paragraph
    *  field — the leading, the alignment, the indents, the writing mode
-   *  and the rest; the five longhands below each write one field of it,
-   *  CSS's names for the fields CSS has. */
+   *  and the rest; the longhands below each write one field of it, CSS's
+   *  names for the fields CSS has. */
   Derived& paragraph(sigil::weave::ParagraphBlock partial);
   /** THE PITCH OF THE LINES — CSS `line-height`: the face's own, a
    *  multiple of the size, an absolute pitch, or a baseline grid. The
@@ -59,6 +60,20 @@ class CascadeVerbs {
    *  `enabled = false` is `none`, soft hyphens alone are `manual`, and a
    *  pattern set is `auto`. The `hyphenation` field of `paragraph()`. */
   Derived& hyphens(sigil::weave::HyphenationOptions hyphenation);
+  /** HOW THE LINES BREAK — CSS `text-wrap`: `Auto` and `Stable` fill
+   *  each line in turn, `Pretty` weighs the whole paragraph, `Balance`
+   *  weighs it and evens the rag. The `lineBreak` and `balanceRaggedLines`
+   *  fields of `paragraph()`, always written together, so a later call
+   *  undoes an earlier `Balance`. Filling in turn when nothing states
+   *  one. */
+  Derived& textWrap(TextWrap wrap);
+  /** WHERE A JUSTIFIED LINE SPENDS ITS SLACK — CSS `text-justify`: the
+   *  word gaps and whatever passes the justification is tuned for, the
+   *  word separators alone, every grapheme cluster, or nowhere. The
+   *  `justificationMethod` field of `paragraph()`. `Auto` when nothing
+   *  states one.
+   *  @trap It is read only where `textAlign` justifies. */
+  Derived& textJustify(TextJustify method);
   /** A CUSTOM PROPERTY set on this node and inherited by everything
    *  under it, read back through `var(name)`, `Fill::var` or
    *  `ink(var(name))`. The nearest ancestor that set a name wins. */
