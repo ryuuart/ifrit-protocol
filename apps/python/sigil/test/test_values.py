@@ -159,6 +159,35 @@ class Colors(unittest.TestCase):
                 compose.box().ink(ramp, anchor=anchor), compose.Element
             )
 
+    def test_an_ink_paint_restarts_on_the_unit_it_names(self):
+        # A unit restarts the paint on each letter, word or line; None, the
+        # default, lays it once across the passage. The rule and the span
+        # take the same keyword the element does.
+        ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#f00"), (1, "#00f")])
+        for unit in (
+            None,
+            weave.Unit.Glyph,
+            weave.Unit.Cluster,
+            weave.Unit.Word,
+            weave.Unit.Line,
+            weave.Unit.Sentence,
+        ):
+            with self.subTest(unit=unit):
+                self.assertIsInstance(
+                    compose.text("two words").ink(ramp, unit=unit), compose.Text
+                )
+        self.assertNotEqual(
+            compose.rule(".chrome").ink(ramp, unit=weave.Unit.Glyph),
+            compose.rule(".chrome").ink(ramp),
+        )
+        self.assertIsInstance(
+            compose.text("two words").span(
+                weave.selectors.word(1),
+                compose.SpanDeclarations().ink(ramp, unit=weave.Unit.Word),
+            ),
+            compose.Text,
+        )
+
     def test_a_uniform_is_written_the_same_way_on_a_paint_and_an_effect(self):
         source = skia.RuntimeEffect.MakeForShader(
             "uniform float4 tint; half4 main(float2 p) { return half4(tint); }"
