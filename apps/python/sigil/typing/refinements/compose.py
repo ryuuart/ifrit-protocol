@@ -25,6 +25,8 @@ def register(table: Table) -> None:
     # The glyph OUTLINE is one comparable Fill on the node, measured with no
     # frame in hand, so it takes the flat-mark set and not the surface one.
     table.erased(TEXT, "textStroke", "_t.FillLike")
+    # A rule states the text properties too, glyph outline included.
+    table.erased(RULE, "textStroke", "_t.FillLike")
     table.erased(IMAGE, "imageRegion", "_t.RectLike")
     registerValues(table)
 

@@ -488,35 +488,57 @@ template void bindNodeVerbs(py::class_<Text>&);
 template void bindNodeVerbs(py::class_<Image>&);
 template void bindNodeVerbs(py::class_<Band>&);
 
-void bindTextVerbs(py::class_<Text>& element) {
+template <class Declaring>
+void bindTextPropertyVerbs(py::class_<Declaring>& element) {
   element
       .def("paragraphStyles",
            py::overload_cast<std::vector<weave::ParagraphStyle>>(
-               &Text::paragraphStyles),
+               &Declaring::paragraphStyles),
            py::arg("blocks"), fluent)
       .def(
           "paragraphStyles",
-          [](Text& self, const std::vector<std::string>& names) -> Text& {
+          [](Declaring& self,
+             const std::vector<std::string>& names) -> Declaring& {
             std::vector<std::string_view> views(names.begin(), names.end());
             return self.paragraphStyles(views);
           },
           py::arg("names"), fluent)
-      .def("initialLetter", &Text::initialLetter, py::arg("initial"), fluent)
-      .def("textFirstBaseline", &Text::textFirstBaseline, py::arg("rule"),
+      .def("initialLetter", &Declaring::initialLetter, py::arg("initial"),
+           fluent)
+      .def("textFirstBaseline", &Declaring::textFirstBaseline, py::arg("rule"),
            py::arg("offset") = 0.0f, fluent)
-      .def("textVerticalAlign", &Text::textVerticalAlign, py::arg("rule"),
+      .def("textVerticalAlign", &Declaring::textVerticalAlign, py::arg("rule"),
            py::arg("maximumInterlineSpacing") = 0.0f, fluent)
-      .def("textLineMargin", &Text::textLineMargin, py::arg("band"), fluent)
-      .def("textWillChange", &Text::textWillChange, py::arg("enabled") = true,
-           py::arg("candidates") = 0, fluent)
+      .def("textLineMargin", &Declaring::textLineMargin, py::arg("band"),
+           fluent)
+      .def("textWillChange", &Declaring::textWillChange,
+           py::arg("enabled") = true, py::arg("candidates") = 0, fluent)
       .def(
           "textOverflow",
-          [](Text& self, const std::string& marker) -> Text& {
+          [](Declaring& self, const std::string& marker) -> Declaring& {
             return self.textOverflow(marker);
           },
           py::arg("marker"), fluent)
-      .def("maxTextLines", &Text::maxTextLines, py::arg("lines"), fluent)
-      .def("textThreadTo", &Text::textThreadTo, py::arg("key"), fluent)
+      .def("maxTextLines", &Declaring::maxTextLines, py::arg("lines"), fluent)
+      .def(
+          "textStroke",
+          [](Declaring& self, float width, py::object value) -> Declaring& {
+            // The outline is one comparable Fill on the node, so the
+            // flat-mark reading is the widest set it can honour: a
+            // static paint collapses onto it and a live or
+            // geometry-dependent one raises, naming the verb that does
+            // resolve against the frame.
+            return self.textStroke(width, fill(value));
+          },
+          py::arg("width"), py::arg("paint"), fluent);
+}
+
+template void bindTextPropertyVerbs(py::class_<Text>&);
+template void bindTextPropertyVerbs(py::class_<Rule>&);
+
+void bindTextVerbs(py::class_<Text>& element) {
+  bindTextPropertyVerbs(element);
+  element.def("textThreadTo", &Text::textThreadTo, py::arg("key"), fluent)
       .def("textThreadBalance", &Text::textThreadBalance,
            py::arg("throughLine") = ~0u, fluent)
       .def("contentFlowAround", &Text::contentFlowAround, py::arg("key"),
@@ -532,18 +554,7 @@ void bindTextVerbs(py::class_<Text>& element) {
            py::overload_cast<weave::Selector, weave::Type>(&Text::spanStyle),
            py::arg("where"), py::arg("type"), fluent)
       .def("textAnnotation", &Text::textAnnotation, py::arg("reading"), fluent)
-      .def("atRest", &Text::atRest)
-      .def(
-          "textStroke",
-          [](Text& self, float width, py::object value) -> Text& {
-            // The outline is one comparable Fill on the node, so the
-            // flat-mark reading is the widest set it can honour: a
-            // static paint collapses onto it and a live or
-            // geometry-dependent one raises, naming the verb that does
-            // resolve against the frame.
-            return self.textStroke(width, fill(value));
-          },
-          py::arg("width"), py::arg("paint"), fluent);
+      .def("atRest", &Text::atRest);
 }
 
 void bindImageVerbs(py::class_<Image>& element) {

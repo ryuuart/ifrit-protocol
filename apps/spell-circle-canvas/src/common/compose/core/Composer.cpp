@@ -551,10 +551,8 @@ TextSettling Composer::settling(std::string_view key) const {
   auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end() || !it->second->paragraph) return {};
   const detail::Instance& inst = *it->second;
-  return {.live = inst.description && inst.description->textData &&
-                  (inst.description->textData->options.set &
-                   detail::TextOptions::kLive) != 0 &&
-                  inst.description->textData->options.live,
+  return {.live = (inst.textOptions.set & detail::TextOptions::kLive) != 0 &&
+                  inst.textOptions.live,
           .reused = inst.textReusedBlocks,
           .degraded = inst.textDegradedBlocks};
 }

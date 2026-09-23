@@ -1,11 +1,13 @@
-// What a rule states about the BOX: the element's own verbs, written in a
-// rule, folded between the parent's answers and the element's own
-// declarations — and folded again when a rule moves while the element's
-// own description does not.
+// What a rule states: the element's own verbs, written in a rule, folded
+// between the parent's answers and the element's own declarations — and
+// folded again when a rule moves while the element's own description does
+// not. The box first, then the text properties, which a rule states and an
+// element cannot.
 
 #include <sigilcompose/core/Property.h>
 #include <sigilcompose/core/StyleSheet.h>
 
+#include <concepts>
 #include <string_view>
 
 #include "support/CoreTestSupport.h"
@@ -32,6 +34,37 @@ Element page(const StyleSheet& sheet, std::string_view classes) {
 }
 
 }  // namespace
+
+// -------------------------------------------------------------------------
+// What a rule can say. Each question is a concept over the value, so the
+// answers are checked by every build of this file.
+
+template <class Value>
+concept SaysPadding = requires(Value value) { value.padding(4); };
+template <class Value>
+concept SaysMaxTextLines = requires(Value value) { value.maxTextLines(2); };
+template <class Value>
+concept SaysShape = requires(Value value) { value.shape(Shape{}); };
+template <class Value>
+concept SaysCover = requires(Value value) { value.cover(); };
+template <class Value>
+concept SaysKey = requires(Value value) { value.key("k"); };
+template <class Value>
+concept SaysContentFlowAround =
+    requires(Value value) { value.contentFlowAround("k"); };
+
+static_assert(SaysPadding<Rule>);
+static_assert(SaysMaxTextLines<Rule>);
+static_assert(!SaysShape<Rule>);
+static_assert(!SaysCover<Rule>);
+static_assert(!SaysKey<Rule>);
+static_assert(!SaysContentFlowAround<Rule>);
+static_assert(
+    std::same_as<decltype(std::declval<Rule&>().padding(4).maxTextLines(2)),
+                 Rule&>);
+
+// -------------------------------------------------------------------------
+// The box.
 
 TEST(ComposeRuleScope, ARuleStatesTheBoxWithTheElementsOwnVerbs) {
   Host host(400, 200);
@@ -175,4 +208,80 @@ TEST(ComposeRuleScope, ARuleHoldsStaticValuesAndLeavesALiveOneOut) {
               {box().styleClass("faded").width(60).height(60).fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
+}
+
+// -------------------------------------------------------------------------
+// The text properties.
+
+namespace {
+
+const char8_t* const kPassage = u8"one two three four five six seven eight";
+
+/** The height the keyed passage laid out to under @p sheet, clamped to
+ *  @p ownLines where the leaf states a clamp of its own. */
+float passageHeight(const StyleSheet& sheet, int ownLines = 0) {
+  Host host(400, 400);
+  Text leaf = text(kPassage, styleAt(18));
+  leaf.key("passage").styleClass("clamp").width(90);
+  if (ownLines > 0) leaf.maxTextLines(ownLines);
+  host.composer.render(
+      box().applyStyleSheet(sheet).alignItems(Align::Start).children({leaf}));
+  host.frame();
+  return rectOf(host, "passage").height();
+}
+
+}  // namespace
+
+TEST(ComposeRuleScope, ARuleStatesATextPropertyTheLeafReads) {
+  const float one = passageHeight(StyleSheet{}, 1);
+  const float two = passageHeight(StyleSheet{}, 2);
+  ASSERT_LT(one, two);
+  EXPECT_FLOAT_EQ(passageHeight(StyleSheet{rule(".clamp").maxTextLines(1)}),
+                  one);
+  EXPECT_FLOAT_EQ(passageHeight(StyleSheet{rule(".clamp").maxTextLines(1)}, 2),
+                  two)
+      << "the leaf's own clamp stands over the rule's";
+}
+
+TEST(ComposeRuleScope, ATextRuleThatMovedReachesALeafWhoseDescriptionDidNot) {
+  Host host(400, 400);
+  const auto scene = [](int lines) {
+    Text leaf = text(kPassage, styleAt(18));
+    leaf.key("passage").styleClass("clamp").width(90);
+    return box()
+        .applyStyleSheet(StyleSheet{rule(".clamp").maxTextLines(lines)})
+        .alignItems(Align::Start)
+        .children({leaf});
+  };
+  host.composer.render(scene(1));
+  host.frame();
+  const float one = rectOf(host, "passage").height();
+  host.composer.render(scene(2));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u)
+      << "only the root's description moved";
+  host.frame();
+  EXPECT_FLOAT_EQ(rectOf(host, "passage").height(), passageHeight({}, 2));
+  EXPECT_LT(one, rectOf(host, "passage").height());
+}
+
+TEST(ComposeRuleScope, AGlyphOutlineFromARuleDrawsAsTheVerbsDoes) {
+  const auto scene = [](bool fromRule) {
+    Text leaf = text(u8"Outline", styleAt(40));
+    leaf.styleClass("engraved");
+    if (!fromRule) leaf.textStroke(3, red());
+    return box()
+        .applyStyleSheet(
+            fromRule ? StyleSheet{rule(".engraved").textStroke(3, red())}
+                     : StyleSheet{})
+        .children({leaf});
+  };
+  Host ruled, stated, plain;
+  ruled.composer.render(scene(true));
+  ruled.frame();
+  stated.composer.render(scene(false));
+  stated.frame();
+  plain.composer.render(box().children({text(u8"Outline", styleAt(40))}));
+  plain.frame();
+  EXPECT_TRUE(identicalPixels(ruled, stated, 200, 200));
+  EXPECT_FALSE(identicalPixels(ruled, plain, 200, 200));
 }

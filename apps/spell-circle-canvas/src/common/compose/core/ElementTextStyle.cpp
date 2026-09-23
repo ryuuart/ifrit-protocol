@@ -110,6 +110,7 @@ template <class Derived>
 Derived& TextStyleVerbs<Derived>::textStroke(float width,
                                              SurfacePaint paint) {
   detail::TextData& text = declarations()->textData.ensure();
+  text.options.set |= detail::TextOptions::kTextStroke;
   text.hasTextStroke = width > 0.0f;
   text.textStrokeWidth = width;
   // The outline is one comparable Fill on the node, so a plain fill and
@@ -134,6 +135,7 @@ Derived& TextStyleVerbs<Derived>::contentFlowAround(std::string_view key,
 }
 
 template class TextStyleVerbs<Text>;
+template class TextStyleVerbs<Rule>;
 
 void detail::TextOptions::applyTo(
     sigil::weave::ParagraphLayoutOptions& options) const {
@@ -146,6 +148,24 @@ void detail::TextOptions::applyTo(
     options.knuthPlass.candidates = candidates;
   }
   if (set & kReserved) options.reserved = reserved;
+}
+
+void detail::TextOptions::overlay(const TextOptions& over) {
+  if (over.set & kEllipsis) ellipsis = over.ellipsis;
+  if (over.set & kMaxLines) maxLines = over.maxLines;
+  if (over.set & (kBlocks | kBlockClasses)) {
+    blocks = over.blocks;
+    blockClassNames = over.blockClassNames;
+    set &= ~(uint32_t)(kBlocks | kBlockClasses);
+  }
+  if (over.set & kFrame) frame = over.frame;
+  if (over.set & kLive) {
+    live = over.live;
+    candidates = over.candidates;
+  }
+  if (over.set & kReserved) reserved = over.reserved;
+  if (over.set & kInitialLetter) initial = over.initial;
+  set |= over.set;
 }
 
 }  // namespace sigil::compose

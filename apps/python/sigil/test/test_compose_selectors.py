@@ -320,6 +320,14 @@ class Rules(unittest.TestCase):
             compose.rule(".card").inherit(compose.Property.Width),
         )
 
+    def test_a_rule_states_the_text_properties_an_element_cannot(self):
+        clamped = compose.rule(".caption").maxTextLines(2).textOverflow("…")
+        self.assertIsInstance(clamped, Rule)
+        self.assertNotEqual(clamped, compose.rule(".caption").maxTextLines(2))
+        outlined = compose.rule(".caption").textStroke(1.5, "#ff0000")
+        self.assertNotEqual(outlined, compose.rule(".caption"))
+        self.assertFalse(hasattr(compose.Element, "maxTextLines"))
+
     def test_what_only_an_element_says_is_not_on_a_rule(self):
         # Structure, identity, decorations, filters, depth and callbacks
         # are the element's own; a rule has nowhere to put them.
@@ -334,6 +342,8 @@ class Rules(unittest.TestCase):
             "filter",
             "backdropFilter",
             "travel",
+            "contentFlowAround",
+            "textAttach",
             "rotateX",
             "background",
             "stroke",

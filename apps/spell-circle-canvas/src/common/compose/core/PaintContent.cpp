@@ -161,7 +161,15 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
     Instance& inst, const PaintContext& paintCtx) {
   const ElementNode& node = *inst.description;
   const material::skia::Paint* metricMat = inkPaintOf(inst);
-  const bool stroked = node.textData && node.textData->hasTextStroke;
+  // The outline in force: the leaf's own where it states one, else the
+  // strongest matched rule's.
+  const RuleTextLayer* ruleText = inst.ruleText.get();
+  const bool ownStroke = node.textData && (node.textData->options.set &
+                                           TextOptions::kTextStroke) != 0;
+  const bool ruleStroke = !ownStroke && ruleText && ruleText->statesStroke;
+  const bool stroked = ruleStroke
+                           ? ruleText->hasTextStroke
+                           : node.textData && node.textData->hasTextStroke;
   if (!metricMat && !stroked) return std::nullopt;
   if (!inst.paragraph.has_value()) return std::nullopt;
   const sigil::weave::Paragraph& paragraph = inst.paragraph.value();
@@ -187,9 +195,12 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
     sigil::weave::PaintLayer outline;
     outline.paint.setAntiAlias(true);
     outline.paint.setStyle(SkPaint::kStroke_Style);
-    outline.paint.setStrokeWidth(node.textData->textStrokeWidth);
+    outline.paint.setStrokeWidth(ruleStroke ? ruleText->textStrokeWidth
+                                            : node.textData->textStrokeWidth);
     outline.paint.setStrokeJoin(SkPaint::kRound_Join);
-    const Fill sf = resolveRef(node.textData->textStrokeFill, paintCtx);
+    const Fill sf = resolveRef(
+        ruleStroke ? ruleText->textStrokeFill : node.textData->textStrokeFill,
+        paintCtx);
     if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
       outline.paint.setShader(sf.shaderValue);
     else
@@ -946,7 +957,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           // measure callback at all, so this is the only place the depth
           // `textVerticalAlign` spends is known.
           const bool distributesRoom =
-              node.textData && node.textData->distributesRoom();
+              node.textData && node.textData->distributesRoom(inst.textOptions);
           // The alignment the leaf lays out under is the block in force —
           // its own `textAlign()` is that lane's spelling at the leaf —
           // over whatever the full-control overload's options carry.

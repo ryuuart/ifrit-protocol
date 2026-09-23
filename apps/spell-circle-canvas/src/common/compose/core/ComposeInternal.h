@@ -216,6 +216,9 @@ struct TextOptions {
     kReserved = 1u << 13u,
     kBlockClasses = 1u << 15u,
     kInitialLetter = 1u << 16u,
+    /// textStroke(): the glyph outline, whose fields stand on TextData.
+    /// Set by a stroke of width zero too, which states "no outline".
+    kTextStroke = 1u << 17u,
   };
   uint32_t set = 0;  ///< which fields below were written
 
@@ -247,6 +250,11 @@ struct TextOptions {
 
   /** Writes every SET field over @p options, leaving the rest alone. */
   void applyTo(sigil::weave::ParagraphLayoutOptions& options) const;
+  /** Every field @p over sets written over this one's, the rest left
+   *  standing — how a leaf's own options stand over a rule's. The two
+   *  spellings of `paragraphStyles` are alternatives, so the one @p over
+   *  sets clears the other. */
+  void overlay(const TextOptions& over);
 
   bool operator==(const TextOptions&) const = default;
 };
@@ -312,20 +320,33 @@ struct TextData {
   TextPainter painter;
 
   /** WHETHER THIS LEAF SPENDS THE ROOM LEFT OVER DOWN ITS BOX — the rule
-   *  `textVerticalAlign()` wrote, otherwise whatever the full-control
-   * overload's options carry.
+   *  `textVerticalAlign()` wrote, on the leaf or in a style rule, which
+   *  @p inForce carries; otherwise whatever the full-control overload's
+   *  options carry.
    *
    *  Only the resolved box knows how much room there is, so a leaf that
    *  answers true must be laid out at its RESOLVED DEPTH and not at an
    *  open one, exactly as an aligned leaf must be laid out at its resolved
    *  width. A leaf that answers false never reads the depth and is free to
    *  grow down the page. */
-  bool distributesRoom() const {
+  bool distributesRoom(const TextOptions& inForce) const {
     const sigil::weave::FrameOptions& frame =
-        (options.set & TextOptions::kFrame) ? options.frame
+        (inForce.set & TextOptions::kFrame) ? inForce.frame
                                             : layoutOptions.frame;
     return frame.distribute != sigil::weave::FrameOptions::Distribute::kStart;
   }
+};
+
+/** WHAT THE MATCHED RULES STATE about a text leaf's text properties,
+ *  folded weakest first: the options, and the glyph outline where a rule
+ *  states one. The leaf's own statements stand over it. */
+struct RuleTextLayer {
+  TextOptions options;
+  bool statesStroke = false;
+  bool hasTextStroke = false;
+  float textStrokeWidth = 0.0f;
+  Fill textStrokeFill;
+  bool operator==(const RuleTextLayer&) const = default;
 };
 
 struct ImageData {

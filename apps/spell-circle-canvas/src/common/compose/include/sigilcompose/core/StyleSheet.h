@@ -24,6 +24,7 @@
 #include <sigilcompose/core/verbs/Paint.h>
 #include <sigilcompose/core/verbs/Placement.h>
 #include <sigilcompose/core/verbs/Shape.h>
+#include <sigilcompose/core/verbs/TextStyle.h>
 #include <sigilcompose/core/verbs/Transform.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Transition.h>
@@ -51,12 +52,14 @@ struct SheetAccess;
  *  over the rule's. What a rule leaves unsaid the element inherits or
  *  keeps at its initial value, as the property's own behaviour says.
  *
- *  It never states the element's structure, identity or callbacks.
+ *  A rule states the TEXT PROPERTIES too, which an element cannot: they
+ *  reach the text leaves a rule matches and nothing else. It never states
+ *  the element's structure, identity or callbacks.
  *  @trap A rule holds STATIC values. A live binding, an entrance and an
  *  animation stay verbs on the element; one written here is left out of
  *  the fold and said once. What a rule cannot carry at all — a shape
- *  generator, a grid area, a filter, a travel path, `cover()`'s flag —
- *  does not compile on a rule. */
+ *  generator, a grid area, a filter, a travel path, `cover()`'s flag, an
+ *  exclusion — does not compile on a rule. */
 class Rule : public detail::Declaring,
              public BoxVerbs<Rule>,
              public FlexVerbs<Rule>,
@@ -65,7 +68,8 @@ class Rule : public detail::Declaring,
              public CascadeVerbs<Rule>,
              public PaintVerbs<Rule>,
              public EffectVerbs<Rule>,
-             public TransformVerbs<Rule> {
+             public TransformVerbs<Rule>,
+             public TextStyleVerbs<Rule> {
  public:
   explicit Rule(ElementSelector subject);
 
@@ -88,6 +92,7 @@ class Rule : public detail::Declaring,
   Rule& filter(material::skia::Effect) = delete;
   Rule& backdropFilter(material::skia::Effect) = delete;
   Rule& travel(MotionPath) = delete;
+  Rule& contentFlowAround(std::string_view, float = 0.0f) = delete;
 
   /** Which elements this rule speaks about. */
   [[nodiscard]] const ElementSelector& selector() const { return m_selector; }

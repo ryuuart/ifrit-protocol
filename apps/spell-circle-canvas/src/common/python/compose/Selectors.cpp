@@ -368,8 +368,10 @@ void bindRule(py::module_& composition) {
   rule.def(py::init<ElementSelector>(), py::arg("subject"),
            "A rule speaking about the elements `subject` names, stating "
            "nothing yet.");
-  // The verbs a rule shares with every node, bound once for both.
+  // The verbs a rule shares with every node, and the text properties it
+  // shares with a text leaf, each bound once for both.
   bindDeclarationVerbs(rule);
+  bindTextPropertyVerbs(rule);
   rule.def(
           "transition",
           [](Rule& self, motion::Transition how) -> Rule& {

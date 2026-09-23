@@ -7,6 +7,7 @@
 
 #include <pybind11/pybind11.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/StyleSheet.h>
 
 namespace sigil::python {
 
@@ -36,6 +37,14 @@ extern template void bindNodeVerbs(pybind11::class_<compose::Element>&);
 extern template void bindNodeVerbs(pybind11::class_<compose::Text>&);
 extern template void bindNodeVerbs(pybind11::class_<compose::Image>&);
 extern template void bindNodeVerbs(pybind11::class_<compose::Band>&);
+
+/** The text properties — how a passage is set — which a text leaf and a
+ *  rule state and an element cannot, defined on @p element. */
+template <class Declaring>
+void bindTextPropertyVerbs(pybind11::class_<Declaring>& element);
+
+extern template void bindTextPropertyVerbs(pybind11::class_<compose::Text>&);
+extern template void bindTextPropertyVerbs(pybind11::class_<compose::Rule>&);
 
 /** The text leaf's own: the text properties and its content verbs. */
 void bindTextVerbs(pybind11::class_<compose::Text>& element);

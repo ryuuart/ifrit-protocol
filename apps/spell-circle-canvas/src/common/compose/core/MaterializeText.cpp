@@ -267,7 +267,9 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
   // The passed value is the ground the setters are written over, so a
   // full-control caller keeps every field no setter named.
   options = text.layoutOptions;
-  text.options.applyTo(options);
+  // The options in force: the leaf's own over what its matched rules say.
+  const TextOptions& inForce = inst.textOptions;
+  inForce.applyTo(options);
   // The layout-wide fields the block in force states — alignment, the
   // breaking strategy, hyphenation, justification, tab stops, the line
   // tables — over what the leaf's own options and a passed-in layout hold.
@@ -280,12 +282,12 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
   const sigil::weave::ParagraphStyle lane =
       sigil::weave::toParagraphStyle(inst.block);
   options.blockDefault = lane;
-  if (text.options.set & TextOptions::kBlockClasses) {
+  if (inForce.set & TextOptions::kBlockClasses) {
     // The names resolve against the rules of the sheets in force here; a
     // name no rule speaks about changes nothing about its block, and says
     // so.
     options.blocks.clear();
-    for (const std::string& name : text.options.blockClassNames) {
+    for (const std::string& name : inForce.blockClassNames) {
       const auto matched = std::find_if(
           inst.blockStyles.begin(), inst.blockStyles.end(),
           [&](const auto& entry) { return entry.first == name; });
@@ -297,10 +299,9 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
       }
     }
   }
-  if ((text.options.set & TextOptions::kInitialLetter) &&
-      text.options.initial) {
+  if ((inForce.set & TextOptions::kInitialLetter) && inForce.initial) {
     if (options.blocks.empty()) options.blocks.push_back(lane);
-    options.blocks.front().initial = *text.options.initial;
+    options.blocks.front().initial = *inForce.initial;
   }
   // OVERFLOW IS THE NORMAL CASE ON EVERY FRAME BUT THE LAST. A frame that
   // threads into another has a remainder by design, and a marker there

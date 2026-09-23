@@ -148,13 +148,19 @@ is spelled once whichever side says it. A rule states:
   the 2D transform and `zIndex`;
 - the cascade — `font`, `block`, `ink`, `var`, `varDefaults`,
   `imageRendering` — and `inherit`, `initial` and `unset` about any
-  property.
+  property;
+- the TEXT PROPERTIES, which an element cannot state: `maxTextLines`,
+  `textOverflow`, `paragraphStyles`, `initialLetter`,
+  `textFirstBaseline`, `textVerticalAlign`, `textLineMargin`,
+  `textWillChange` and `textStroke`. They reach the text leaves a rule
+  matches and nothing else, and a leaf's own statement of one stands
+  over the rule's.
 
 What is kept on the element's description rather than in the style the
 cascade folds — a shape generator, a grid area, a filter, a travel
-path, the plane a node turns in, `cover()`'s flag, the decorations —
-does not compile on a rule, and neither do the element's structure,
-identity and callbacks.
+path, the plane a node turns in, `cover()`'s flag, the decorations, an
+exclusion — does not compile on a rule, and neither do the element's
+structure, identity and callbacks.
 
 The element's own verb stands over every rule, property by property:
 `styleClass("card").width(50)` is a card fifty wide with the card's

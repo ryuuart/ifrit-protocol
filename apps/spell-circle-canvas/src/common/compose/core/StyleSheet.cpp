@@ -82,12 +82,17 @@ const std::optional<motion::Transition>& Rule::transition() const {
 }
 
 bool Rule::operator==(const Rule& other) const {
+  if (!(m_selector == other.m_selector)) return false;
+  if (node() == other.node()) return true;
   // The declarations are compared as the reconcile compares two
   // descriptions, so two rules are equal exactly where no element could
-  // tell them apart.
-  return m_selector == other.m_selector &&
-         (node() == other.node() ||
-          detail::propertiesEqual(*node(), *other.node()));
+  // tell them apart — with the text properties added, which the reconcile
+  // reads only on a text leaf and a rule states for the leaves it matches.
+  const detail::ElementNode &a = *node(), &b = *other.node();
+  const detail::TextOptions none;
+  const detail::TextOptions& optionsA = a.textData ? a.textData->options : none;
+  const detail::TextOptions& optionsB = b.textData ? b.textData->options : none;
+  return optionsA == optionsB && detail::propertiesEqual(a, b);
 }
 
 Rule rule(std::string_view cssText) { return Rule(selector(cssText)); }

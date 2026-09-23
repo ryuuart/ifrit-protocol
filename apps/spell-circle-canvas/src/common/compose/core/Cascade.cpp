@@ -78,8 +78,8 @@ bool sameVars(const std::shared_ptr<const VarTable>& a,
  *  weakest first, and the block partial they state. A name no rule speaks
  *  about is left out, so it resolves as an unregistered name always has. */
 void namedStylesOf(
-    const Instance& leaf, const SheetChain& chain, const HasNames& names,
-    sigil::weave::TypeSheet& runs,
+    const Instance& leaf, const TextOptions& options, const SheetChain& chain,
+    const HasNames& names, sigil::weave::TypeSheet& runs,
     std::vector<std::pair<std::string, sigil::weave::Block>>& blocks) {
   runs = {};
   blocks.clear();
@@ -107,8 +107,8 @@ void namedStylesOf(
       if (!run.styleName.empty() && !runs.contains(run.styleName))
         if (std::optional<sigil::weave::Type> partial = fontFor(run.styleName))
           runs.set(run.styleName, std::move(*partial));
-  if (text.options.set & TextOptions::kBlockClasses)
-    for (const std::string& name : text.options.blockClassNames) {
+  if (options.set & TextOptions::kBlockClasses)
+    for (const std::string& name : options.blockClassNames) {
       const bool seen =
           std::any_of(blocks.begin(), blocks.end(),
                       [&](const auto& entry) { return entry.first == name; });
@@ -121,6 +121,33 @@ void namedStylesOf(
         sigil::weave::merge(partial, one.rule->block());
       blocks.emplace_back(name, std::move(partial));
     }
+}
+
+/** What the rules of @p matched state about a text leaf's text
+ *  properties, folded weakest first, or null where none states one. */
+std::unique_ptr<const RuleTextLayer> ruleTextLayerOf(
+    const std::vector<MatchedRule>& matched) {
+  std::unique_ptr<RuleTextLayer> layer;
+  for (const MatchedRule& one : matched) {
+    const ElementNode& stated = *one.rule->node();
+    if (!stated.textData) continue;
+    const TextData& said = *stated.textData;
+    if (said.options.set == 0) continue;
+    if (!layer) layer = std::make_unique<RuleTextLayer>();
+    layer->options.overlay(said.options);
+    if (said.options.set & TextOptions::kTextStroke) {
+      layer->statesStroke = true;
+      layer->hasTextStroke = said.hasTextStroke;
+      layer->textStrokeWidth = said.textStrokeWidth;
+      layer->textStrokeFill = said.textStrokeFill;
+    }
+  }
+  return layer;
+}
+
+bool sameRuleText(const RuleTextLayer* a, const RuleTextLayer* b) {
+  if (a == nullptr || b == nullptr) return a == b;
+  return *a == *b;
 }
 
 material::Color lerpColour(const material::Color& from,
@@ -733,12 +760,30 @@ void Composer::Impl::resolveCascade(
   if (node.kind == Kind::Text && node.textData) {
     const bool inherits = node.textData->inherits;
     const bool reshapes = inherits && !sameFontButColour(font, inst.textFont);
+    // THE TEXT PROPERTIES IN FORCE: what the matched rules state, with the
+    // leaf's own statements standing over it. A rule that moved one is a
+    // new layout of the same words; one that moved the outline alone is a
+    // repaint.
+    std::unique_ptr<const RuleTextLayer> ruleText = ruleTextLayerOf(matched);
+    const bool ruleTextMoved =
+        !sameRuleText(inst.ruleText.get(), ruleText.get());
+    if (ruleTextMoved) inst.ruleText = std::move(ruleText);
+    TextOptions options =
+        inst.ruleText ? inst.ruleText->options : TextOptions{};
+    options.overlay(node.textData->options);
+    const bool optionsMoved = !(options == inst.textOptions);
+    if (optionsMoved) inst.textOptions = std::move(options);
+    if (ruleTextMoved && !first) {
+      inst.markPaintDirtyUp();
+      contentDirty = true;
+    }
     // A named run resolves through the sheets in force, so a sheet that
     // changed what a name means under the leaf is a new paragraph as a new
     // face is.
     sigil::weave::TypeSheet runStyles;
     std::vector<std::pair<std::string, sigil::weave::Block>> blockStyles;
-    namedStylesOf(inst, *sheets, hasNames, runStyles, blockStyles);
+    namedStylesOf(inst, inst.textOptions, *sheets, hasNames, runStyles,
+                  blockStyles);
     const bool namesMoved =
         !(runStyles == inst.runStyles) || !(blockStyles == inst.blockStyles);
     inst.runStyles = std::move(runStyles);
@@ -746,7 +791,8 @@ void Composer::Impl::resolveCascade(
     inst.sheetsInForce = !sheets->empty();
     const bool remakes =
         block.writingMode != inst.textBlock.writingMode ||
-        block.lineBreakLocale != inst.textBlock.lineBreakLocale || namesMoved;
+        block.lineBreakLocale != inst.textBlock.lineBreakLocale || namesMoved ||
+        optionsMoved;
     if (inst.textDirty || !inst.paragraph) {
       inst.textDirty = false;
       materializeText(inst);

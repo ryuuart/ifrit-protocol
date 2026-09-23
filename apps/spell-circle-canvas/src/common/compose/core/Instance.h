@@ -277,6 +277,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // On a text leaf: whether any sheet is in force where it stands, which is
   // what a paragraph style no rule speaks about is warned against.
   bool sheetsInForce = false;
+  // On a text leaf: what the matched rules state about its text
+  // properties, and the options in force — those, with the leaf's own
+  // standing over them. Resolved by the cascade pass, and read wherever a
+  // leaf's options are, so a rule that moved a text property reaches a
+  // leaf whose own description did not.
+  std::unique_ptr<const RuleTextLayer> ruleText;
+  TextOptions textOptions;
   // On a text leaf: its text changed at reconcile and the
   // paragraph is owed. The pass materialises it once, in the font it lands
   // in; reconcile shaping it against the root first would be a second

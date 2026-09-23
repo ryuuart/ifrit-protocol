@@ -21,10 +21,10 @@
 namespace sigil::compose {
 
 /** THE TEXT PROPERTIES. Each is a property of the SETTING rather than
- *  of the words, which is why a style sheet may state one and a node
- *  that holds no text simply never reads it. The text leaf is the one
- *  node that declares them, so writing one anywhere else does not
- *  compile. */
+ *  of the words, which is why a rule may state one for the text leaves
+ *  it matches. The text leaf is the one NODE that declares them, so
+ *  writing one on any other node does not compile, and the leaf's own
+ *  statement stands over a rule's. */
 template <class Derived>
 class TextStyleVerbs {
  public:
@@ -80,7 +80,9 @@ class TextStyleVerbs {
   /** Flow this paragraph around the keyed node, with @p margin px of
    *  standoff. A target that declares a silhouette is subtracted by
    *  that outline; one that declares none is subtracted by its box.
-   *  Call repeatedly to weave around several. */
+   *  Call repeatedly to weave around several.
+   *  @trap Not in a rule: it reads the keyed node's outline, which is a
+   *  read the leaf itself registers. */
   Derived& contentFlowAround(std::string_view key, float margin = 0.0f);
 
  private:

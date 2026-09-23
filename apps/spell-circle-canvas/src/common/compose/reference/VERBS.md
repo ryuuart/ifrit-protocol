@@ -21,7 +21,8 @@ that leaf ALONE, so writing one on a box does not compile rather than
 doing nothing.
 
 A `compose::Rule` states most of them too, with the same signatures:
-every verb whose value the cascade folds. What is kept on the node
+every verb whose value the cascade folds, and the text properties,
+which it states for the text leaves it matches. What is kept on the node
 itself — its structure and identity, the decorations, the filters, the
 plane it turns in, `shape`, `gridArea`, `travel` and `cover` — is the
 element's alone. [The selectors chapter](SELECTORS.md) lists what a rule
