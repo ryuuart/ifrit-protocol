@@ -1,6 +1,7 @@
-"""Verb: check — format and lint, as one command: clang-format, ruff, qmllint.
+"""Verb: check — format, lint and drift: clang-format, ruff, qmllint, and
+every derived file against its generator.
 
-    sigil.py check              # the branch's work, all three tools
+    sigil.py check              # the branch's work, every tool, every drift check
     sigil.py check --all        # whole tree
     sigil.py check --fix        # apply the format fixes, then report
     sigil.py check FILE...      # exactly these files
@@ -12,13 +13,18 @@ ignored. Work is committed freely and verified once, so a scope that saw
 only uncommitted changes would miss most of what a branch is by the time
 anyone runs this.
 
+Every derived file the checkout carries is judged tree-wide whatever the
+scope: each generator's --check is a ctest case of the configured tree
+named `*_drift`, and this verb runs them all.
+
 Exit status is non-zero when any tool reports a finding. The configs live
 at the repository root (.clang-format with .clang-format-ignore,
 ruff.toml); this verb only selects files and runs the tools against those
 configs. Every tool is required: a missing one fails the run rather than
 letting it pass on partial coverage — except the documentation tier,
 which is opt-in: it needs Doxygen and a configured tree, and what it
-finds is a page that reads wrong rather than code that is wrong.
+finds is a page that reads wrong rather than code that is wrong. The
+drift tier needs a configured tree too, and says so when there is none.
 """
 
 import argparse
@@ -52,7 +58,8 @@ def git(command: list) -> str:
 
 
 def section(title: str) -> None:
-    print(f"\n=== {title}")
+    # Flushed, so a tool the tier runs writes below its heading.
+    print(f"\n=== {title}", flush=True)
 
 
 def branch_files() -> list:
@@ -150,6 +157,30 @@ def check_ruff(files: list, fix: bool, whole_tree: bool) -> bool:
     if passed:
         print("ruff clean")
     return passed
+
+
+# Each generator's own --check registers as a ctest case ending in this,
+# so running the matching cases is running every --check.
+DRIFT_TESTS = "_drift$"
+
+
+def check_derived() -> bool:
+    """Every derived file the checkout carries, against its generator."""
+    section("derived files (every generator's --check)")
+    build = tree.build_dir()
+    if not (build / "CTestTestfile.cmake").exists():
+        print("SKIPPED: no build tree — run sigil.py setup, then build sigil_python")
+        return True
+    listing = ["ctest", "--test-dir", build, "-C", "Release", "-R", DRIFT_TESTS]
+    listed = run([*listing, "-N"])
+    total = re.search(r"Total Tests: (\d+)", listed.stdout)
+    if not total or total.group(1) == "0":
+        print(
+            "SKIPPED: this tree registers no drift check; its configure found "
+            "no interpreter that matches the Python extension"
+        )
+        return True
+    return run([*listing, "--output-on-failure"], capture=False) == 0
 
 
 def check_qmllint(files: list) -> bool:
@@ -297,7 +328,8 @@ def main(argv: list) -> int:
     parser = argparse.ArgumentParser(
         prog="sigil.py check",
         description="Format and lint: clang-format, ruff and qmllint over "
-        "the work this branch carries",
+        "the work this branch carries, and every derived file against its "
+        "generator",
     )
     parser.add_argument(
         "--all",
@@ -351,6 +383,7 @@ def main(argv: list) -> int:
             with_suffixes(scope, {".py", ".pyi"}), arguments.fix, arguments.all
         ),
         "qmllint": check_qmllint(with_suffixes(scope, {".qml"})),
+        "derived": check_derived(),
     }
     if arguments.docs or arguments.docs_undocumented:
         documents = with_suffixes(scope, {".h", ".hpp", ".md", ".dox"})

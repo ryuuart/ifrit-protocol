@@ -120,6 +120,33 @@ tree, no Doxygen, and registered whether or not Doxygen is installed,
 since the checkout without it is the one where nothing else would
 notice.
 
+## What derives from what
+
+Nothing derived is maintained by hand. Every derived file is written by
+Python that lives beside its source, and every one the checkout carries
+has a `--check` that fails when the file no longer says what its
+generator would; that check is a ctest case named `*_drift`, and
+`sigil.py check` runs them all. CMake holds no generation logic: the
+build runs a generator only where its output is a build product, and the
+one `generate` target calls the generators of committed files in order.
+
+| Source of truth | Derived | Generator | Check |
+| --- | --- | --- | --- |
+| The bindings over the headers, as the built extension, with `typing/surface.py`, `typing/refinements` and `typing/additions` | The `.pyi` declarations under `build/python/sigil`, never in the checkout | `typing/generate.py --declarations`, run when `sigil_python` links | `python_declaration_surface` and the strict typing cases; a build product cannot drift |
+| The built extension and `typing/surface.py` | The package's own modules under `apps/python/sigil/sigil`, committed because the wheel ships them | `typing/generate.py` | `--check`, as `python_package_drift` |
+| The built extension, the sketch registrations and the audit in `typing/ledger` | `apps/python/sigil/PARITY.md`, except the prose between its markers | `typing/parity.py` | `--check`, as `python_parity_drift` |
+| Each library's headers | Nothing is written: the names a README and its chapters spell are checked against the headers | `src/test/docs/api_doc_probes.py`, through `sigil_doc_probes()` | `<library>_api_doc_probes` compiles; `api_doc_probes_self_test` |
+| The headers, through Doxygen's XML, and the declarations | A reference page's Syntax, both languages, in the site under `build/docs` | `sigil.py docs`, the reference layer under `scripts/sigil/reference` | written with the site, never committed; `reference_generator` |
+| `SpellCircle.fbs` | The Python schema modules under `apps/python/spellcircle` | `sigil.py flatbuffers`, by hand | none yet |
+| Decided, not built: Compose's property table, beside the kernel | The property enumeration, the declared-field writers, the one-line verbs and their Python rows | Python beside the table | its `--check`, as a `*_drift` case |
+| Decided, not built: the protocol's definition, a FlatBuffers schema | The domain agents, the C++ and Python clients and a reference page per domain | Python beside the definition | its `--check`, as a `*_drift` case |
+
+`cmake --build build --config Release --target generate` rewrites every
+derived file the checkout carries — the package modules, then the
+ledger that reads them — after building the extension they come from.
+It exists when configure found an interpreter that matches the
+extension.
+
 ## Configuring — `setup`
 
 The setup verb discovers Qt 6.11 or newer and vcpkg, writes the uncommitted
@@ -163,7 +190,8 @@ network and every other port still downloads normally.
 ## Formatting and linting — `check`
 
 One command covering clang-format (Google C++ style, stock), ruff (lint
-and format for Python source) and qmllint.
+and format for Python source), qmllint, and every derived file against
+its generator.
 THE DEFAULT SCOPE IS THE BRANCH'S WORK:
 everything this branch changed since it left `main`, committed or not,
 plus untracked files that are not ignored — work is committed freely and
@@ -189,7 +217,15 @@ the re-exports spliced above them. The Python package's own modules are
 generated too, and the generator owns their formatting; its drift check
 verifies them.
 
-`--docs` adds a fourth tier, and it is the one tier that is OPT-IN: it
+The derived-file tier ignores the scope, since a derived file drifts
+when its source moves and the source may be anywhere: it runs every
+`*_drift` case the configured tree registers — each generator's own
+`--check`, listed under "What derives from what". It needs the tree and
+the Python extension built, and says SKIPPED without a tree or when the
+tree registers no such case because its configure found no interpreter
+that matches the extension.
+
+`--docs` adds a further tier, and it is the one tier that is OPT-IN: it
 parses the scoped libraries with Doxygen and reports every comment that
 does not reach a page. A comment can be perfect and still be lost — an
 `@file` whose first word was eaten as a filename, an `@ingroup` naming a
