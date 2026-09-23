@@ -284,6 +284,32 @@ compile.
 |---|---|
 | [`children`](pages/verbs/children.md) | What is in the node, in order, after every verb that says what is done to it. |
 
+## Coming from CSS
+
+A verb takes CSS's own name wherever CSS has the property, so most of a
+stylesheet's vocabulary carries over as it is written, in camel case:
+`padding`, `margin`, `inset`, `gap`, `width`, `height`, `display`,
+`boxSizing`, `flexDirection`, `flexWrap`, `flexGrow`, `flexShrink`,
+`flexBasis`, `justifyContent`, `alignItems`, `alignSelf`, `aspectRatio`,
+`gridArea`, `borderRadius`, `overflow`, `opacity`, `blendMode`,
+`filter`, `backdropFilter`, `imageRendering`, `zIndex`,
+`transformOrigin`, `perspectiveOrigin`, `transition` and
+`textOverflow`. The rest are named for what they act on, with no second
+spelling:
+
+| CSS | Here |
+| --- | --- |
+| `color` | `ink` — the colour, or a whole paint, everything under the node is set in |
+| `background` | `fill` — the node's own shape filled; `background` here is a decoration under it |
+| `-webkit-line-clamp` | `maxTextLines` on the text leaf |
+| `pointer-events: none` | `hitTestable(false)` |
+| `shape-outside` | `contentFlowAround` on the text leaf |
+| `initial-letter` | `initialLetter` on the text leaf |
+| a `<style>` element | `applyStyleSheet` — see [the selectors chapter](SELECTORS.md) |
+| `class="a b"` | `styleClass("a b")` |
+| the element's tag | `role` |
+| `calc()` | `+`, `-`, `*` and `/` on a length |
+
 ## What Python spells differently
 
 Four verbs have no Python binding: `fx`, `variationDrive`, `textAttach`
