@@ -493,7 +493,8 @@ gap.
 `JustificationOptions::letterSpacing` is applied to every justified line
 whatever its fit; its two limits bound what the pass may add on top, and
 the pass may always undo its own desired value where the line will not
-take it. All three zero leaves the pass out.
+take it. It opens after every glyph but the line's last, so the last
+letter meets the measure. All three zero leaves the pass out.
 `JustificationOptions::glyphScale` and its limits work the same way, all
 three at 1 leaving the pass out — scaling letters is the last thing a
 page should do and the defaults never do it.
@@ -508,18 +509,22 @@ the word gaps, the ideographic gaps and the passes as they are tuned.
 The two methods that name their opportunities leave the letter pass, the
 glyph pass and the single-word rule out. `kInterWord` opens the word
 separators alone, so an ideographic line with no spaces stays short of
-the measure; both breakers weigh the ideographic gaps as rigid under it.
-`kInterCharacter` counts EVERY GRAPHEME CLUSTER on the line and every
-word separator as one opportunity each and opens them all by the same
-amount — the cluster's share lands after it, which covers the gap to
-the next word as well — up to
+the measure; the optimizing breaker weighs the ideographic gaps as rigid
+under it. `kInterCharacter` counts EVERY GRAPHEME CLUSTER on the line but
+the last, and every word separator, as one opportunity each and opens
+them all by the same amount — the cluster's share lands after it, which
+covers the gap to the next word as well, and the line's last glyph takes
+none, so its ink meets the measure — up to
 `JustificationOptions::maxInterCharacterExpansion` times the size; what
 that cap holds back goes to the word separators, and a line with none
-stays short. A cluster is what the shaper grouped, so a base and its
-marks move together and a ligature is one. A line that shrinks, and a
-line holding a tab, spend their gaps as `kAuto` does. `kNone` justifies
-nothing: the line is set at its start, the breakers treat the block as
-ragged, and the hyphenation zone applies.
+stays short. The optimizing breaker does not weigh the clusters: it
+scores each candidate line on its gaps' stretch, as `kAuto` does, and
+the placement then spends the slack between the clusters. A cluster is
+what the shaper grouped, so a base and its marks move together and a
+ligature is one. A line that shrinks, and a line holding a tab, spend
+their gaps as `kAuto` does. `kNone` justifies nothing: the line is set
+at its start, the breakers treat the block as ragged, and the
+hyphenation zone applies.
 
 ## The frame
 

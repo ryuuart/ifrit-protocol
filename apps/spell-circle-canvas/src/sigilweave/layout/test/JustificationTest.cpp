@@ -277,6 +277,19 @@ float fittedEnd(const PositionedRun& run) {
   return run.origin.x() + run.advance;
 }
 
+/// Where a run's last glyph ends: its position under the fit plus its own
+/// scaled advance, and nothing the fit adds after it. This is the ink a
+/// justified line squares on the measure.
+float lastGlyphEnd(const PositionedRun& run) {
+  const ShapedWord& word = *run.shaped;
+  const size_t last = word.glyphs.size() - 1;
+  uint32_t clustersBefore = 0;
+  for (size_t glyphIndex = 0; glyphIndex < last; ++glyphIndex)
+    clustersBefore += GlyphFit::endsCluster(word, glyphIndex) ? 1u : 0u;
+  return run.origin.x() + run.fit.offsetOf(word, last, clustersBefore) +
+         word.advances[last] * run.fit.glyphScale;
+}
+
 /// Every line of a setting, as the runs it holds.
 std::vector<std::vector<const PositionedRun*>> linesOf(const LaidOut& set) {
   std::vector<std::vector<const PositionedRun*>> lines(
@@ -314,11 +327,90 @@ TEST(JustificationMethod, InterCharacterOpensEveryClusterByOneAmount) {
     EXPECT_TRUE(run->fit.plain()) << "the last line was respaced";
 }
 
+TEST(JustificationMethod, InterCharacterEndsTheLineOnInk) {
+  // The spacing goes BETWEEN clusters: the last glyph of every justified
+  // line ends on the measure, and the run that closes the line reports
+  // that end as its advance, so the line's band stops at the ink too.
+  const LaidOut set = justified(under(JustificationMethod::kInterCharacter),
+                                kTightPassage, kMeasure);
+  const auto lines = linesOf(set);
+  ASSERT_GE(lines.size(), 4u);
+  for (size_t line = 0; line + 1 < lines.size(); ++line) {
+    const PositionedRun& closing = *lines[line].back();
+    ASSERT_GT(closing.fit.clusterSpacing, 0.0f) << "line " << line;
+    EXPECT_TRUE(closing.fit.closesLine) << "line " << line;
+    EXPECT_NEAR(lastGlyphEnd(closing), kMeasure, 0.01f) << "line " << line;
+    EXPECT_NEAR(fittedEnd(closing), lastGlyphEnd(closing), 0.001f)
+        << "line " << line;
+    for (size_t index = 0; index + 1 < lines[line].size(); ++index)
+      EXPECT_FALSE(lines[line][index]->fit.closesLine) << "line " << line;
+  }
+}
+
+TEST(JustificationMethod, TheLetterPassEndsTheLineOnInk) {
+  // A lone word stretched across the measure by letter spacing alone:
+  // the space after its last letter is not the pass's to open, so the
+  // last letter lands on the measure.
+  JustificationOptions spec;
+  spec.justifyLastLine = true;
+  spec.singleWord = JustificationOptions::SingleWord::kJustify;
+  const LaidOut set = justified(spec, u8"abcd", 160.0f);
+  const auto runs = wordRuns(set.layout);
+  ASSERT_EQ(runs.size(), 1u);
+  EXPECT_GT(runs.front()->fit.letterSpacing, 0.0f);
+  EXPECT_NEAR(lastGlyphEnd(*runs.front()), 160.0f, 0.01f);
+  EXPECT_NEAR(fittedEnd(*runs.front()), 160.0f, 0.01f);
+
+  // The same holds on every line of a passage whose gaps may not stretch,
+  // so the letters take what they can and the gaps the rest.
+  JustificationOptions letters;
+  letters.letterSpacingMaximum = 0.1f;
+  letters.spaceStretch = 0.0f;
+  const LaidOut passage = justified(letters, kTightPassage, kMeasure);
+  const auto lines = linesOf(passage);
+  ASSERT_GE(lines.size(), 4u);
+  for (size_t line = 0; line + 1 < lines.size(); ++line) {
+    const PositionedRun& closing = *lines[line].back();
+    EXPECT_GT(closing.fit.letterSpacing, 0.0f) << "line " << line;
+    EXPECT_NEAR(lastGlyphEnd(closing), kMeasure, 0.01f) << "line " << line;
+  }
+}
+
+TEST(JustificationMethod, ATakenHyphenFollowsItsWordAndEndsOnTheMeasure) {
+  // "ab cd-" justified: the hyphen stands right after the last letter of
+  // its word, with no cluster spacing between them, and ends the line.
+  JustificationOptions spec = under(JustificationMethod::kInterCharacter);
+  Paragraph paragraph = makeParagraph(u8"ab cd\u00adef gh", 12.0f);
+  BlockFlow flow(SkRect::MakeWH(44.0f, 400));
+  ParagraphLayoutOptions options;
+  options.alignment = TextAlignment::kJustify;
+  options.hyphenation.enabled = true;
+  options.justification = spec;
+  const ParagraphLayout layout =
+      layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
+  ASSERT_TRUE(paragraph.words()[1].hyphenBreak);
+  const ShapedWord* hyphen = paragraph.words()[1].hyphenGlyph.get();
+  const PositionedRun* word = nullptr;
+  const PositionedRun* mark = nullptr;
+  for (const PositionedRun& run : layout.runs) {
+    if (run.lineIndex != 0 || !run.shaped) continue;
+    if (run.shaped == hyphen)
+      mark = &run;
+    else
+      word = &run;
+  }
+  ASSERT_NE(mark, nullptr) << "the first line did not take the hyphen";
+  ASSERT_NE(word, nullptr);
+  ASSERT_GT(word->fit.clusterSpacing, 0.0f);
+  EXPECT_NEAR(mark->origin.x(), lastGlyphEnd(*word), 0.001f);
+  EXPECT_NEAR(mark->origin.x() + mark->advance, 44.0f, 0.01f);
+}
+
 TEST(JustificationMethod, InterCharacterSpacingStopsAtItsCap) {
-  // Two words in a wide measure: each of the five opportunities — the
-  // four clusters and the one separator — would open far past the cap,
-  // so the clusters stop at it and the separator takes the rest; the
-  // line still reaches the measure.
+  // Two words in a wide measure: each of the four opportunities — the
+  // three clusters before the last and the one separator — would open far
+  // past the cap, so the clusters stop at it and the separator takes the
+  // rest; the line's last letter still reaches the measure.
   JustificationOptions spec = under(JustificationMethod::kInterCharacter);
   spec.justifyLastLine = true;
   spec.maxInterCharacterExpansion = 0.25f;
@@ -327,7 +419,7 @@ TEST(JustificationMethod, InterCharacterSpacingStopsAtItsCap) {
   const auto runs = wordRuns(set.layout);
   ASSERT_EQ(runs.size(), 2u);
   EXPECT_FLOAT_EQ(runs.front()->fit.clusterSpacing, 0.25f * 12.0f);
-  EXPECT_NEAR(fittedEnd(*runs.back()), 160.0f, 0.75f);
+  EXPECT_NEAR(lastGlyphEnd(*runs.back()), 160.0f, 0.01f);
 
   // One word has no separator to hand the rest to, and stays short.
   const LaidOut alone = justified(spec, u8"abcd", 160.0f);

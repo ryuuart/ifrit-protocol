@@ -148,7 +148,7 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
       // somewhere the reader cannot see them.
       placed.advance =
           placed.shaped->advances[glyphIndex] * run.fit.glyphScale +
-          run.fit.letterSpacing + (endsCluster ? run.fit.clusterSpacing : 0.0f);
+          run.fit.spacingAfter(*placed.shaped, glyphIndex);
       placed.pen = run.penOffset + penLocal + placed.advance * 0.5f;
       if (run.transformed && interval) {
         SkPoint centre;

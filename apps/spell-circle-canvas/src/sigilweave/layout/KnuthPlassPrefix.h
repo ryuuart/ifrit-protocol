@@ -114,6 +114,9 @@ class LinePrefixSums {
         stretch = fontSize * 0.25f;
         shrink = fontSize * 0.03f;
       }
+      // Stretch is the gaps' alone. Under inter-character justification a
+      // line also opens after every cluster, which is not weighed here: a
+      // candidate line is scored as though the gaps took all its slack.
       // The room a mojikumi table or tsume puts after this word is part of
       // the gap and none of it is elastic: a table states a distance and a
       // justified line spends its slack in the gaps the face gave it. A

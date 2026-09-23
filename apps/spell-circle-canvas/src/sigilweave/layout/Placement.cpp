@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <numeric>
+#include <span>
 #include <vector>
 
 #include "Blobs.h"
@@ -336,6 +337,19 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
         lineShapedWidth += segment.shaped->advance;
       }
   const bool laterPasses = extendedJustify && laterPassesAllowed;
+  // THE GLYPH THAT ENDS THE LINE TAKES NO SPACING AFTER IT: its ink meets
+  // the measure. It is the last glyph of the visually last word, when that
+  // word holds glyphs at all, and it is one glyph and one cluster fewer
+  // for either pass to open after.
+  const bool endsOnGlyph =
+      justifying && !visualWordOrder.empty() &&
+      std::ranges::any_of(words[visualWordOrder.back()].segments(),
+                          [](const WordSegment& segment) {
+                            return !segment.shaped->glyphs.empty();
+                          });
+  const float lineEndOpportunities = endsOnGlyph ? 1.0f : 0.0f;
+  const float letterOpportunities =
+      std::max(0.0f, lineGlyphs - lineEndOpportunities);
   const float desiredLetterSpacing =
       laterPasses ? justification.letterSpacing * em : 0.0f;
   const float desiredGlyphWidening =
@@ -373,7 +387,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       // AIMED at, and each elasticity is measured from there.
       const float extraWidth =
           extraWidthNatural - wordSpacingDelta * stretchableGlue -
-          desiredLetterSpacing * lineGlyphs - desiredGlyphWidening;
+          desiredLetterSpacing * letterOpportunities - desiredGlyphWidening;
       // INTER-CHARACTER: every grapheme cluster and every word separator
       // is one opportunity and each opens by the same amount, up to its
       // cap; what the cap holds back goes to the separators. A cluster's
@@ -381,9 +395,11 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       // exactly that and no more. A tabbed line falls through to its gaps.
       if (justification.method == JustificationMethod::kInterCharacter &&
           extraWidth > 0 && !hasTab) {
-        const float clusters = clustersOn(words, firstWordIndex, endWordIndex);
+        const float clusters =
+            clustersOn(words, firstWordIndex, endWordIndex) -
+            lineEndOpportunities;
         const float opportunities =
-            clusters + static_cast<float>(spaceGapCount);
+            std::max(0.0f, clusters) + static_cast<float>(spaceGapCount);
         if (opportunities > 0) {
           const float each =
               std::min(extraWidth / opportunities,
@@ -465,22 +481,22 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
 
       float letterSpacing = desiredLetterSpacing;
       const bool loneWord = spaceGapCount + ideographicGapCount == 0;
-      if (lineGlyphs > 0 && loneWord &&
+      if (letterOpportunities > 0 && loneWord &&
           justification.singleWord ==
               JustificationOptions::SingleWord::kJustify) {
         // A LINE HOLDING ONE WORD has no gaps at all: asked to justify, it
         // spends the whole measure between its letters and no limit could
         // mean anything, because there is nothing else to spend it on.
-        letterSpacing += residual / lineGlyphs;
+        letterSpacing += residual / letterOpportunities;
         residual = 0;
         startOffset = 0;
-      } else if (lineGlyphs > 0) {
-        const float wanted = letterSpacing + residual / lineGlyphs;
+      } else if (letterOpportunities > 0) {
+        const float wanted = letterSpacing + residual / letterOpportunities;
         const float bounded = std::clamp(
             wanted,
             std::min(letterSpacing, justification.letterSpacingMinimum * em),
             std::max(letterSpacing, justification.letterSpacingMaximum * em));
-        residual -= (bounded - letterSpacing) * lineGlyphs;
+        residual -= (bounded - letterSpacing) * letterOpportunities;
         letterSpacing = bounded;
       }
 
@@ -547,12 +563,26 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
     } else {
       // Under a fit the segments' own offsets no longer hold: each one is
       // as wide as the fit makes it, so the word's pen is walked here and
-      // its advance is what that walk reached.
+      // its advance is what that walk reached. The last segment holding
+      // glyphs in the visually last word closes the line.
+      const std::span<const WordSegment> segments = word.segments();
+      size_t closingSegment = segments.size();
+      if (visualIndex + 1 == visualWordOrder.size())
+        for (size_t segmentIndex = segments.size(); segmentIndex-- > 0;)
+          if (!segments[segmentIndex].shaped->glyphs.empty()) {
+            closingSegment = segmentIndex;
+            break;
+          }
       float local = 0;
-      for (const WordSegment& segment : word.segments()) {
+      for (size_t segmentIndex = 0; segmentIndex < segments.size();
+           ++segmentIndex) {
+        const WordSegment& segment = segments[segmentIndex];
+        GlyphFit segmentFit = fit;
+        segmentFit.closesLine = segmentIndex == closingSegment;
         emitSegment(result, flatInterval, segment, wordIndex,
-                    penPosition + local, options, fit, shiftOf(segment));
-        local += advanceUnder(fit, *segment.shaped);
+                    penPosition + local, options, segmentFit,
+                    shiftOf(segment));
+        local += advanceUnder(segmentFit, *segment.shaped);
       }
       if (!word.segments().empty()) wordAdvance = local;
     }

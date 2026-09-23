@@ -14,9 +14,12 @@ namespace sigil::weave {
 /** WHERE A JUSTIFIED LINE SPENDS ITS SLACK — CSS's `text-justify`.
  *  `kAuto` is the three passes below as they are tuned; `kInterWord`
  *  spends it in the word separators alone; `kInterCharacter` spends it
- *  after every grapheme cluster and every word separator alike, each
- *  opening at most `maxInterCharacterExpansion` of the size; `kNone`
- *  justifies nothing, and a justified line is set at its start. */
+ *  after every grapheme cluster but the line's last and every word
+ *  separator alike, each opening at most `maxInterCharacterExpansion` of
+ *  the size; `kNone` justifies nothing, and a justified line is set at
+ *  its start. No method moves the space after a line's last glyph.
+ *  @trap The optimizing breaker weighs the gaps' stretch alone, so under
+ *  `kInterCharacter` it breaks as it would under `kAuto`. */
 enum class JustificationMethod : uint8_t {
   kAuto,
   kInterWord,

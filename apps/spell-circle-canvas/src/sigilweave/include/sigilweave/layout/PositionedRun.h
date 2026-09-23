@@ -26,15 +26,17 @@ namespace sigil::weave {
  *  after every glyph, extra advance after every grapheme cluster, and a
  *  horizontal scale on the glyphs themselves. The identity is none of
  *  them, which every run of a line fitted on its word gaps alone carries,
- *  and it is baked into the run's blob.
+ *  and it is baked into the run's blob. The glyph that ends a line takes
+ *  no spacing after it, so its ink, not its spacing, meets the measure.
  *  @trap A caller that reads the glyphs BACK must apply it, or it reads
  *  the shaper's positions instead of the ones the line was set at: walk
  *  the glyphs in order, counting the clusters `endsCluster` closes, and
- *  ask `offsetOf` where each one stands. */
+ *  ask `offsetOf` where each one stands and `spacingAfter` what follows. */
 struct GlyphFit {
   float letterSpacing = 0;   ///< px added after each glyph
   float glyphScale = 1.0f;   ///< horizontal scale on the glyphs
   float clusterSpacing = 0;  ///< px added after each grapheme cluster
+  bool closesLine = false;   ///< the run's last glyph ends its line
   [[nodiscard]] bool plain() const {
     return letterSpacing == 0 && clusterSpacing == 0 && glyphScale == 1.0f;
   }
@@ -55,6 +57,14 @@ struct GlyphFit {
            letterSpacing * static_cast<float>(glyphIndex) +
            clusterSpacing * static_cast<float>(clustersBefore);
   }
+  /** The spacing this fit adds after glyph @p glyphIndex of @p word: none
+   *  after the glyph that closes the line. */
+  [[nodiscard]] float spacingAfter(const ShapedWord& word,
+                                   size_t glyphIndex) const {
+    if (closesLine && glyphIndex + 1 >= word.glyphs.size()) return 0.0f;
+    return letterSpacing +
+           (endsCluster(word, glyphIndex) ? clusterSpacing : 0.0f);
+  }
   /** The advance @p word takes under this fit, from the advance the
    *  shaper gave it. */
   [[nodiscard]] float advanceOf(const ShapedWord& word) const {
@@ -66,6 +76,10 @@ struct GlyphFit {
         clusters += endsCluster(word, glyphIndex) ? 1u : 0u;
       advance += clusterSpacing * static_cast<float>(clusters);
     }
+    // The last glyph always closes a cluster, so the line's end drops
+    // exactly one of each.
+    if (closesLine && !word.glyphs.empty())
+      advance -= letterSpacing + clusterSpacing;
     return advance;
   }
   bool operator==(const GlyphFit&) const = default;
