@@ -515,8 +515,8 @@ void Composer::Impl::resolveCascade(
   // THIS IS WHERE INK PARTS FROM THE PROPERTY LANES, whose inherited
   // answer a child DOES ease for itself, and the difference is mechanical
   // rather than a matter of taste. The ink ramp is read back into the
-  // resolved colour ten lines below, so it propagates down the tree on its
-  // own and a child that ran a lane would be easing an input already in
+  // resolved colour just below, so it propagates down the tree on its own
+  // and a child that ran a lane would be easing an input already in
   // flight. A property ramp stays on the node that runs it — the paint
   // layer reads it, the fold does not — so a child inherits the property's
   // TARGET, and its own lane is the only thing that can move it.
