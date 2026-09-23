@@ -158,6 +158,7 @@ directory reaches for them, so a rename has somewhere to be noticed:
 | `stock_materials` | One of every stock material, painted from a sketch dylib and wired up as the `sketch_reload_materials` test — so a helper added to a shader fails the build instead of failing someone's sketch three weeks later. |
 | `guest_picture` | The only sketch whose subject is not in this repository: it wears whatever another application on this machine is publishing under the name `Guest`. `publish/README.md` points at it as what a subscription looks like in a scene, and its plate is the waiting card, because a capture subscribes to nothing. |
 | `guest_body` | `guest_picture`'s subject on a BODY: the same publication in a surface's base-colour slot, on a screen turning in a lit set. `publish/README.md` points at it as what a subscription looks like on a body, and its plate is the waiting card it paints itself, because a capture subscribes to nothing. |
+| `alpha_ground` | The one sketch grounded in `{0, 0, 0, 0}`: what `sketch_transparent_ground` sweeps, on the raster surface and the device, to prove a ground's alpha survives the clear, and what the publication door in `../README.md` points at as a frame meant to be composited. `python_alpha_ground` is its twin. |
 
 The Evangelion studies share their type and phosphor treatment in
 `eva_magi_interior/EvangelionUi.h`. Japanese display type prefers an installed Matisse EB;

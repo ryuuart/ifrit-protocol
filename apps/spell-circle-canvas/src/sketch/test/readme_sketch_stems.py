@@ -86,6 +86,7 @@ EXEMPT = {
     "sketch_reload_runs_the_file": "a ctest case",
     "sketch_reload_materials": "a ctest case",
     "sketch_reload_surface": "a ctest case",
+    "sketch_transparent_ground": "a ctest case",
     "sigil_sketch": "the registration macro",
     "sigil_sketch_only": "a CMake cache variable",
     "sigil_sketch_dir": "a CMake cache variable",
