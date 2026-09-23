@@ -21,71 +21,11 @@ is the one place the build knows a probe;
 `apps/spell-circle-canvas/scripts/README.md` states exactly what the
 guard checks and what it cannot see.
 
-- `apps/spell-circle-canvas/README.md` — the product: the data path,
-  authoring scenes in Python, building and running
-- `apps/python/README.md` — the Python workspace: independent SpellCircle
-  transport and native Sigil authoring distributions
-  - `apps/python/spellcircle/README.md` — scene model, FlatBuffers codec,
-    authoring and transport, independent of a renderer
-  - `apps/python/sigil/README.md` — Python bindings, authoring, installation
-    and live sketches, with `PARITY.md` beside it for supported coverage
-- `src/sigilweave/README.md` — text shaping and layout, with
-  `src/sigilweave/FEATURES.md` beside it for the feature catalogue and
-  `src/sigilweave/PARITY.md` for the control-by-control table; the
-  paragraph engine is rooted here
-  - `src/sigilweave/kit/README.md` — the companion utilities for
-    SigilWeave consumers
-- `src/common/compose/README.md` — data-driven drawable components, with
-  `src/common/compose/TYPOGRAPHY.md` beside it for the type chapter
-- `src/common/draw/README.md` — SigilDraw: an immediate-mode pen with
-  p5's verbs, the imperative way beside compose
-  - `src/common/draw/brush/README.md` — the brush chapter: natural media
-    over the pen, and the brush formats
-- `src/sketch/README.md` — SigilSketch: every renderable thing as one
-  sketch, with Sketchbook, the live host and the plates
-  - `src/sketch/kit/README.md` — the sheet a sketch stands on: the
-    theme, the page and the furniture a specimen is built out of
-  - `src/sketch/sketches/README.md` — the reference studies, one row
-    per sketch that rebuilds a real artefact
-- `src/common/geometry/README.md` — higher-level drawing over Skia, the
-  geometry kit, the point operators
-- `src/common/world/README.md` — 3D surfaces on Diligent Engine
-- `src/common/material/README.md` — recipes, textures, environment maps,
-  and colour: ramps, palettes, harmonies, dithering
-- `src/common/motion/README.md` — animation: clock, values, bindings,
-  physics
-- `src/common/core/README.md` — the kernels a retained runtime hosts:
-  the reconciler, the caching proof, the device seam, and the compute
-  values a drawing is drawn from
-- `src/common/image/README.md` — image decoding, encoding and distance
-  fields
-- `src/common/video/README.md` — SigilVideo: streaming decode, GPU
-  composition, MP4 encode
-- `src/common/io/publish/README.md` — SigilIOPublish: native inter-application
-  texture publication and subscription
-- `src/common/io/README.md` — SigilIO: resource access: URIs, mounts,
-  caching, hot reload, byte sinks
-- `src/common/data/README.md` — SigilData: tabular data and the one
-  value that maps a domain onto a range
-- `src/common/measure/README.md` — timing, statistics and check
-  reporting
-- `src/common/scry/README.md` — HTML and CSS rendered to Skia images
-- `src/common/skia/README.md` — SigilSkia: Skia Graphite on a device
-  someone else owns
-- `src/common/substance/README.md`, `src/common/usd/README.md` —
-  optional SDK integrations
-- `src/seer/README.md` — message inspection, SpellCircle scenes, shared-texture
-  preview and capture
-- `src/common/qt/README.md` — reusable Qt Quick controls
-- `src/common/python/README.md` — reusable native Python bindings and
-  callback ownership; the sketch session adapter stays under `src/sketch/python/`
-- `apps/spell-circle-canvas/scripts/README.md` — `sigil.py` and its
-  verbs: the checks and the ledgers
-- `docs/README.md` — the generated C++ API reference, with
-  `docs/REFERENCE.md` beside it as the canon for the overview and
-  reference site built over it; that site reads an entity's page from
-  the library's own `reference/` directory, beside its README, and its
-  overviews and guides from `docs/overview/` and `docs/guides/`
+Every library under `apps/spell-circle-canvas/src/` has a `README.md`
+beside its code, some with `FEATURES.md`, `PARITY.md` or `TYPOGRAPHY.md`
+chapters beside it; `apps/spell-circle-canvas/scripts/README.md` covers
+`sigil.py`, and `docs/README.md` with `docs/REFERENCE.md` the API
+reference site.
 
 Defects found while working go to `apps/spell-circle-canvas/FINDINGS.md`
 — create it when needed. Each entry states what the code does, what it
@@ -224,50 +164,11 @@ sanitizer pin.
 
 Everything renderable is a **sketch**: one file (or one directory) under
 `src/sketch/sketches/`, addressed by its stem, in one registry;
-`src/sketch/README.md` is the canon. **Sketchbook** drives all of it and
-is an app bundle, so headless runs go through the binary inside it:
-
-```sh
-build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook \
-  --headless <outdir> [--gpu] [--sketch <name>] [--kind canvas|set]
-```
-
-Pointed at a file with no `--headless`, Sketchbook opens on it, from
-anywhere on disk, and hot-swaps the recompiled sketch on every save;
-`--frame out.png` renders one still, `--bench` measures it against the
-60 FPS gate on a raster surface, `--window-bench` presents it in the
-real window, `--shot <png>` captures the app. `--video <out.mp4>
-[--video-frames <n>] [--video-size <WxH>] [--video-bitrate <bits>]`
-encodes the selection into one vertical montage, and needs `--gpu` for a
-selection holding a set exactly as the sweep does. `--compare <dir-a>
-<dir-b>` differences two directories of plates channel by channel, which
-is how the plate ledger's device tier judges. A headless sweep is opened
-deterministic and a deterministic session holds automatic texture
-promotion off, so `--promotion` is the one door that lets the promoter
-go with every other pin standing, and `--no-promotion` pins it off on a
-backend whose default would not; the plate ledger's promotion tier
-renders each scene both ways and judges the pair. `--thumbnails [--sketch
-<name>] [--kind canvas|set]` renders the browser's missing or stale
-thumbnails headless and exits non-zero naming any that failed — the app
-owns its thumbnails, rendering them on demand into a cache under the
-platform cache location (`--thumbnails-dir` overrides it); the plate
-ledger does not write them.
+`src/sketch/README.md` is the canon. **Sketchbook** drives all of it; the
+`sketchbook` skill holds its flags for headless sweeps, stills, benches,
+video, plate comparison and thumbnails.
 
 ## Layout
-
-```
-apps/spell-circle-canvas/src/
-  common/          the libraries — see the README in each
-  sketch/          SigilSketch: the sketches, and Sketchbook over them
-  sigilweave/      the text engine
-  spellcircle/     the product: shared/ core embedded by qt/ and mac/
-  test/            test support belonging to no library, and the
-                   instrument faces every binary shapes against
-apps/python/       virtual Python workspace
-  spellcircle/     lightweight scene model, codec, authoring and transport
-  sigil/           native Sigil package, typing, tests and wheel tooling
-touchdesigner/     TouchDesigner project and editor tooling
-```
 
 **Naming**: libraries intended for extraction into their own repositories
 carry the `Sigil` prefix; product-side integrations keep `Ifrit`.
