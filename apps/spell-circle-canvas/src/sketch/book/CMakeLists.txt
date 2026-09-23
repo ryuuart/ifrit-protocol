@@ -115,18 +115,12 @@ sigil_test(sketch_test
           test/PipelineStoreTest.cpp test/CanvasViewTest.cpp
   LIBRARIES SigilSketch Qt6::Core)
 
-# WHAT A FRAME OF THE PANE COSTS AS THE READER ZOOMS, over a registry
-# sketch whose tiling is drawn afresh every frame. The sketch is compiled
-# into the bench by itself, against the same surface the sketch library
-# compiles every sketch against, so the bench carries one scene and not
-# the whole registry.
-get_target_property(sketchbook_sketch_surface SigilSketches
-  INTERFACE_LINK_LIBRARIES)
+# WHAT A FRAME OF THE PANE COSTS AS THE READER ZOOMS, over a fixture
+# scene the bench declares itself, so no sketch the owner edits moves it
+# and no library pass that leaves a sketch behind stops it building.
 sigil_bench(sketch_bench
-  SOURCES CanvasView.cpp bench/PaneBench.cpp bench/PenrosePaving.cpp
-  LIBRARIES ${sketchbook_sketch_surface}
-  DEFINITIONS SIGIL_SKETCH_DIR="${SIGIL_SKETCH_DIR}"
-  SUPPORT_DIRS ${SIGIL_SKETCH_DIR})
+  SOURCES CanvasView.cpp bench/PaneBench.cpp
+  LIBRARIES SigilSketch SigilComposeDraw SigilWeavePorts)
 
 target_compile_definitions(Sketchbook PRIVATE
   SIGIL_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}"

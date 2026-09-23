@@ -162,9 +162,13 @@ void SketchbookView::pointer(qreal x, qreal y, bool pressed) {
   // is: the session is one object, and the frame it is drawing is not
   // interrupted by a point arriving.
   QMutexLocker lock(&hostMutex);
-  if (!host || !host->live()) return;
-  sketch::Session* session = host->session();
-  if (!session) return;
+  sketch::Session* session = host && host->live() ? host->session() : nullptr;
+  if (!session) {
+    // Nothing hears it, but the gate is still told: a press begun while
+    // no sketch was live is not the next sketch's either.
+    (void)m_pointerGate.admit(pressed, false);
+    return;
+  }
   // THE SAME PLACEMENT THE FRAME IS DRAWN WITH, in this item's own
   // units: the canvas under the reader's view of it, so a point on the
   // item is a point on the declared canvas by the inverse of that view.
@@ -174,16 +178,11 @@ void SketchbookView::pointer(qreal x, qreal y, bool pressed) {
       CanvasView{(float)m_canvasScale,
                  {(float)m_canvasOffset.x(), (float)m_canvasOffset.y()}});
   if (!(placement.scale > 0.0f)) return;
-  const float canvasX = ((float)x - placement.x) / placement.scale;
-  const float canvasY = ((float)y - placement.y) / placement.scale;
-  // The item is the whole pane and the canvas may be a part of it: a
-  // pointer off the canvas reaches the sketch only as the end of a press
-  // that began on it.
-  const bool onCanvas =
-      SkRect::MakeSize(size).contains(canvasX, canvasY);
-  if (!m_pointerHeld && !onCanvas) return;
-  m_pointerHeld = pressed;
-  session->pointer(canvasX, canvasY, pressed);
+  const SkPoint point = canvasPointAt(placement, {(float)x, (float)y});
+  // The item is the whole pane and the canvas may be a part of it.
+  const bool onCanvas = SkRect::MakeSize(size).contains(point.x(), point.y());
+  if (m_pointerGate.admit(pressed, onCanvas))
+    session->pointer(point.x(), point.y(), pressed);
 }
 
 void SketchbookView::key(int qtKey, const QString& text, bool pressed) {

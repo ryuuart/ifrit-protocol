@@ -116,11 +116,31 @@ Ui.Panel {
                 // so it stays the size of the pane and its texture never
                 // grows with the zoom.
                 contentFillsViewport: true
+                // WHAT A SKETCH KEEPS AT THE SCALE IT IS DRAWN AT STILL
+                // GROWS WITH THE ZOOM: a graphics() buffer is formed at
+                // the canvas's size times that scale, and the zoom is
+                // part of it. So the deepest zoom is the one at which a
+                // buffer the canvas's size, on this screen, still fits
+                // the 16384-pixel texture edge devices commonly allow —
+                // never short of actual size, never past the viewport's
+                // own ceiling.
+                maximumScale: Math.max(1.0, Math.min(16.0, 16384 / (Math.max(canvasViewport.canvasWidth, canvasViewport.canvasHeight) * Screen.devicePixelRatio)))
                 panButtons: Qt.MiddleButton
                 showPanCursor: false
                 // A set sketch owns the ordinary wheel for camera
                 // distance. Ctrl-wheel still reaches zoom below.
                 mouseWheelZoomEnabled: !view.orbitable
+
+                // The canvas's own dark, under the view: what shows in
+                // the canvas's place while no sketch is live and the view
+                // covers nothing. A live frame covers it.
+                Rectangle {
+                    x: canvasViewport.canvasRect.x
+                    y: canvasViewport.canvasRect.y
+                    width: canvasViewport.canvasRect.width
+                    height: canvasViewport.canvasRect.height
+                    color: "#0b0a14"
+                }
 
                 SketchbookView {
                     id: view
@@ -149,37 +169,55 @@ Ui.Panel {
                     property real pitch: 0
                     property real distance: 0
 
-                    DragHandler {
-                        enabled: view.orbitable
-                        target: null
-                        property real startYaw: 0
-                        property real startPitch: 0
-                        onActiveChanged: {
-                            if (active) {
-                                startYaw = view.orbitYaw;
-                                startPitch = view.orbitPitch;
-                                view.distance = view.orbitDistance;
+                    // THE CANVAS'S OWN PART OF THE VIEW. The view fills
+                    // the pane, but orbiting, the wheel's distance and
+                    // the click that takes the keyboard belong to the
+                    // canvas: off it, a drag, a wheel and a touchpad
+                    // scroll reach the pasteboard beneath, as they do
+                    // around any canvas.
+                    Item {
+                        id: canvasArea
+
+                        x: canvasViewport.canvasRect.x
+                        y: canvasViewport.canvasRect.y
+                        width: canvasViewport.canvasRect.width
+                        height: canvasViewport.canvasRect.height
+
+                        DragHandler {
+                            enabled: view.orbitable
+                            target: null
+                            property real startYaw: 0
+                            property real startPitch: 0
+                            onActiveChanged: {
+                                if (active) {
+                                    startYaw = view.orbitYaw;
+                                    startPitch = view.orbitPitch;
+                                    view.distance = view.orbitDistance;
+                                }
+                            }
+                            onTranslationChanged: {
+                                view.yaw = startYaw - translation.x * 0.4;
+                                view.pitch = startPitch + translation.y * 0.3;
+                                view.orbit(view.yaw, view.pitch, view.distance);
                             }
                         }
-                        onTranslationChanged: {
-                            view.yaw = startYaw - translation.x * 0.4;
-                            view.pitch = startPitch + translation.y * 0.3;
-                            view.orbit(view.yaw, view.pitch, view.distance);
-                        }
-                    }
-                    WheelHandler {
-                        enabled: view.orbitable
-                        onWheel: event => {
-                            if (event.modifiers & Qt.ControlModifier) {
-                                const point = view.mapToItem(canvasViewport, event.x, event.y);
-                                const factor = Math.pow(1.4, event.angleDelta.y / 120.0);
-                                canvasViewport.zoomAt(factor, point.x, point.y);
-                                return;
+                        WheelHandler {
+                            enabled: view.orbitable
+                            onWheel: event => {
+                                if (event.modifiers & Qt.ControlModifier) {
+                                    const point = canvasArea.mapToItem(canvasViewport, event.x, event.y);
+                                    const factor = Math.pow(1.4, event.angleDelta.y / 120.0);
+                                    canvasViewport.zoomAt(factor, point.x, point.y);
+                                    return;
+                                }
+                                view.yaw = view.orbitYaw;
+                                view.pitch = view.orbitPitch;
+                                view.distance = Math.max(40, view.orbitDistance - event.angleDelta.y * 0.5);
+                                view.orbit(view.yaw, view.pitch, view.distance);
                             }
-                            view.yaw = view.orbitYaw;
-                            view.pitch = view.orbitPitch;
-                            view.distance = Math.max(40, view.orbitDistance - event.angleDelta.y * 0.5);
-                            view.orbit(view.yaw, view.pitch, view.distance);
+                        }
+                        TapHandler {
+                            onTapped: view.forceActiveFocus()
                         }
                     }
 
@@ -207,9 +245,6 @@ Ui.Panel {
                             if (active)
                                 view.pointer(point.position.x, point.position.y, true);
                         }
-                    }
-                    TapHandler {
-                        onTapped: view.forceActiveFocus()
                     }
                     Keys.onPressed: event => {
                         view.key(event.key, event.text, true);

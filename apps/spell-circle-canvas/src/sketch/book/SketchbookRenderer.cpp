@@ -103,6 +103,8 @@ void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   // would be freed against a context that is no longer there.
   SketchbookView::sessions.clear();
   SketchbookView::host = nullptr;
+  // The layer a held zoom is drawn into was made on the old backend too.
+  m_paneLayer = {};
 #ifdef SIGILSKETCH_BOOK_GPU
   // …and the warm-up goes before the context too: it is precompiling
   // through the very context below, on another thread.
@@ -507,21 +509,39 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize,
       CanvasView{m_canvasScale,
                  {(float)m_canvasOffset.x(), (float)m_canvasOffset.y()}}
           .scaled(pixelsPerUnit);
+  const SkSize canvasSize = host->canvasSize();
+  // WHILE A ZOOM MOVES, THE SKETCH IS DRAWN AT THE SCALE IT STOOD AT, and
+  // the frame is magnified to the view: what the sketch keeps at the
+  // scale it is drawn at stays kept through the gesture instead of being
+  // made again at each step of it. A session just opened starts from the
+  // view's own scale. A published frame is an image already drawn at
+  // the canvas's own pixels, so it is shown at the view's.
+  if (host->session() != m_heldSession) {
+    m_zoomHold.release();
+    m_heldSession = host->session();
+  }
+  const float drawnScale =
+      published ? 0.0f
+                : m_zoomHold.drawnScale(
+                      placeCanvas(canvasSize, pane, view).scale,
+                      ZoomHold::Clock::now());
   // The SKETCH's own canvas is placed on the pane and never stretched to
   // it: a sketch declares its own dimensions and they do not share an
   // aspect ratio, so stretching one to fill would distort what it shows.
-  drawPane(canvas, pane, host->canvasSize(), view,
-           [this, host, published](SkCanvas& into) {
-             if (published)
-               // THE FRAME THAT HAS ALREADY LEFT, shown rather than drawn
-               // again. It stands at the canvas's own pixels and the view
-               // magnifies it, which is the one difference a publishing
-               // window shows.
-               into.drawImage(published, 0, 0,
-                              SkSamplingOptions(SkFilterMode::kLinear));
-             else
-               paintFrame(into, *host);
-           });
+  drawPane(
+      canvas, pane, canvasSize, view,
+      [this, host, published](SkCanvas& into) {
+        if (published)
+          // THE FRAME THAT HAS ALREADY LEFT, shown rather than drawn
+          // again. It stands at the canvas's own pixels and the view
+          // magnifies it, which is the one difference a publishing
+          // window shows.
+          into.drawImage(published, 0, 0,
+                         SkSamplingOptions(SkFilterMode::kLinear));
+        else
+          paintFrame(into, *host);
+      },
+      drawnScale, &m_paneLayer);
   host->markPresented();
   if (++m_frameCount % 15 == 0) m_metricsDirty = true;
 }

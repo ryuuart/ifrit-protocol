@@ -19,6 +19,8 @@
 #include <mutex>
 #include <vector>
 
+#include "CanvasView.h"
+
 class SkCanvas;
 class SkImage;
 class SkPixmap;
@@ -27,6 +29,7 @@ class SketchbookView;
 
 namespace sigil::sketch {
 class Host;
+class Session;
 class ThumbnailWriter;
 }  // namespace sigil::sketch
 
@@ -171,6 +174,13 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  on every synchronize and carried into pixels for each frame. */
   float m_canvasScale = 0.0f;
   QPointF m_canvasOffset;
+  /** The scale the sketch is drawn at while the view's zoom is moving,
+   *  the layer a frame drawn at it is magnified from, and the session it
+   *  was held for — a session opened since starts from the view's
+   *  scale. */
+  ZoomHold m_zoomHold;
+  PaneLayer m_paneLayer;
+  const sigil::sketch::Session* m_heldSession = nullptr;
   /** THE DENSITY A SKETCH'S CACHED RASTERS ARE BAKED AT: the screen's,
    *  and not the viewport's. A sketch declares a canvas and this window
    *  magnifies it, so a raster taken at the screen's density is the

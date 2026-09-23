@@ -831,12 +831,25 @@ the pane, its texture is the pane's size in device pixels, and the zoom
 and the pan are a view the frame is drawn through — the sketch's canvas
 letterboxed, then magnified and moved, and clipped to the pane, so
 everything off screen is rejected before it is drawn. A frame at 4× fills
-the pane's pixels and not sixteen times them, a wheel spin never waits on
-a new texture, and no zoom asks the device for a texture
-larger than it can allocate. A pointer is read back through the same
-view, so a sketch sees canvas units wherever the reader has moved it,
-and hears nothing from a pointer off its canvas unless a press that began
-on it was dragged there. Underneath it, the sketch's cached
+the pane's pixels and not sixteen times them, and a wheel spin never
+waits on a new texture. While the zoom is moving the sketch is drawn at
+the scale it stood at and that frame is magnified to the view; it is
+drawn at the view's own scale again once the zoom has held still for a
+moment, or at once when the zoom has run past twice or half the held
+scale. So what a sketch keeps at the scale it is drawn at — a
+`graphics()` buffer, a recording traced at that scale — is formed again
+at most once per doubling of a gesture rather than at every step of it.
+That buffer still follows the zoom, which is why the pane's deepest zoom
+is the one at which a buffer the canvas's size, on the window's screen,
+fits a 16384-pixel texture edge (never less than actual size, never more
+than 16×). A pointer is read back through the view, so a sketch sees
+canvas units wherever the reader has moved it. It hears nothing from a
+pointer off its canvas unless a press that began on it was dragged there,
+and nothing from a press that began off it, wherever that press is
+dragged. Orbiting a set, the wheel's
+distance and the click that gives the sketch the keyboard belong to the
+canvas too; off it a drag, a wheel and a touchpad scroll reach the
+pasteboard. Underneath it, the sketch's cached
 rasters are pinned to the screen's density rather than to the viewport's
 scale (`Session::setBakeDensity`), so a generated material is baked once
 and magnified through the zoom the way a bitmap the sketch loaded would

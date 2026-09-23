@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+#include "CanvasView.h"
+
 namespace sigil::sketch {
 class Host;
 }
@@ -233,11 +235,11 @@ class SketchbookView : public QQuickRhiItem {
    *  renderer on every synchronize, and by the pointer as it arrives. */
   qreal m_canvasScale = 0.0;
   QPointF m_canvasOffset;
-  /** Whether the sketch has been told its pointer's button is down. A
-   *  press begun off the canvas is not the sketch's, and nor is a pointer
-   *  hovering there, but a press begun on it is followed wherever it is
-   *  dragged until it lets go. */
-  bool m_pointerHeld = false;
+  /** Which pointer events reach the sketch: a press begun off the canvas
+   *  is not the sketch's, and nor is a pointer hovering there, but a
+   *  press begun on it is followed wherever it is dragged until it lets
+   *  go. */
+  PointerGate m_pointerGate;
   QVariantMap m_metrics = {
       {QStringLiteral("backend"), QStringLiteral("Waiting for a sketch")}};
   QString m_status;
