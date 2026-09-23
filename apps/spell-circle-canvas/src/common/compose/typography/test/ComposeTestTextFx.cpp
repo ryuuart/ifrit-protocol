@@ -22,12 +22,12 @@ struct FxSample {
  *  cascade put them in, what local time they saw — is answerable from the
  *  samples one frame collects, without reading a single pixel. */
 TextEffect probe(std::string key, std::vector<FxSample>* into) {
-  return fx::effect(std::move(key),
-                    [into](const GlyphInfo& g, float t,
-                           sigil::core::noise::Mix64Stream& rng) {
-                      into->push_back({g, t, rng.unit()});
-                      return GlyphModifier{};
-                    });
+  return textFx::effect(std::move(key),
+                        [into](const GlyphInfo& g, float t,
+                               sigil::core::noise::Mix64Stream& rng) {
+                          into->push_back({g, t, rng.unit()});
+                          return GlyphModifier{};
+                        });
 }
 
 /** The walk-order indices the samples cover. */
@@ -63,8 +63,8 @@ TEST(ComposeTextFx, AWordCascadeBeatsOncePerWordAndInOrder) {
   host.composer.render(box().padding(10).children(
       {text(u8"AAA BBB CCC", whiteStyle(20))
            .key("k")
-           .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
-                          0.5f, sigil::weave::Unit::Word))}));
+           .textFx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
+                              0.5f, sigil::weave::Unit::Word))}));
   host.frame();
   ASSERT_EQ(samples.size(), 9u) << "the probe did not see every glyph";
 
@@ -88,8 +88,8 @@ TEST(ComposeTextFx, ASentenceCascadeBeatsOncePerSentence) {
       {text(u8"One two. Three four. Five.", whiteStyle(16))
            .key("k")
            .width(pct(100))
-           .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
-                          0.5f, sigil::weave::Unit::Sentence))}));
+           .textFx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
+                              0.5f, sigil::weave::Unit::Sentence))}));
   host.frame();
   ASSERT_FALSE(samples.empty());
   EXPECT_EQ(samples.front().info.unitCount, 3u)
@@ -118,8 +118,8 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
   host.composer.render(box().padding(10).children(
       {text(u8"x́ýz", markStyle(28))
            .key("k")
-           .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
-                          0.5f))}));
+           .textFx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
+                              0.5f))}));
   host.frame();
   ASSERT_FALSE(samples.empty());
   const uint32_t beats = samples.front().info.unitCount;
@@ -141,8 +141,8 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
   host.composer.render(box().padding(10).children(
       {text(u8"x́ýz", markStyle(28))
            .key("k")
-           .fx(probeTrack(&raw, {}, {.eachMs = 100, .durationMs = 400}, 0.5f,
-                          sigil::weave::Unit::Glyph))}));
+           .textFx(probeTrack(&raw, {}, {.eachMs = 100, .durationMs = 400},
+                              0.5f, sigil::weave::Unit::Glyph))}));
   host.frame();
   ASSERT_EQ(raw.size(), samples.size());
   EXPECT_EQ(raw.front().info.unitCount, (uint32_t)raw.size());
@@ -167,10 +167,11 @@ TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
                  .key("k")
                  .ink(material::skia::Paint::solid({0, 1, 0, 1}));
     if (moving)
-      t.fx({.effect = fx::effect("still", [](const GlyphInfo&, float,
-                                             sigil::core::noise::Mix64Stream&) {
-              return GlyphModifier{};
-            })});
+      t.textFx({.effect = textFx::effect("still",
+                                         [](const GlyphInfo&, float,
+                                            sigil::core::noise::Mix64Stream&) {
+                                           return GlyphModifier{};
+                                         })});
     return box().padding(10).children({std::move(t)});
   };
   const auto greenPixels = [&] {
@@ -204,7 +205,7 @@ TEST(ComposeTextFx, SelectorsAddressWhatTheyName) {
     host.composer.render(box().padding(10).children(
         {text(u8"AAA BBB CCC", whiteStyle(20))
              .key("k")
-             .fx(probeTrack(&samples, std::move(where)))}));
+             .textFx(probeTrack(&samples, std::move(where)))}));
     host.frame();
     return addressed(samples);
   };
@@ -232,7 +233,7 @@ TEST(ComposeTextFx, SelectorAlgebraUnionsIntersectsAndComplements) {
     host.composer.render(box().padding(10).children(
         {text(u8"AAA BBB CCC", whiteStyle(20))
              .key("k")
-             .fx(probeTrack(&samples, std::move(where)))}));
+             .textFx(probeTrack(&samples, std::move(where)))}));
     host.frame();
     return addressed(samples);
   };
@@ -259,7 +260,7 @@ TEST(ComposeTextFx, EachTakeAndDropPartitionEveryUnitExactly) {
     host.composer.render(box().padding(10).children(
         {text(u8"AAA BBB CCC", whiteStyle(20))
              .key("k")
-             .fx(probeTrack(&samples, std::move(where)))}));
+             .textFx(probeTrack(&samples, std::move(where)))}));
     host.frame();
     return addressed(samples);
   };
@@ -285,11 +286,11 @@ TEST(ComposeTextFx, RandomOriginIsAStableScatterAcrossFrames) {
     return box().padding(10).children(
         {text(u8"AAA BBB CCC", whiteStyle(20))
              .key("k")
-             .fx(probeTrack(into, {},
-                            {.eachMs = 100,
-                             .durationMs = 100,
-                             .from = sigil::motion::Spread::From::Random},
-                            0.5f))});
+             .textFx(probeTrack(into, {},
+                                {.eachMs = 100,
+                                 .durationMs = 100,
+                                 .from = sigil::motion::Spread::From::Random},
+                                0.5f))});
   };
   // TWO HOSTS, one paint each: re-describing the same tracks into one host
   // prunes and replays the recording, which is the right behaviour and
@@ -329,7 +330,7 @@ TEST(ComposeTextFx, RandomSeedDealsItsOwnScatterAndZeroKeepsTheDefault) {
     host.composer.render(box().padding(10).children(
         {text(u8"AAA BBB CCC", whiteStyle(20))
              .key("k")
-             .fx({.effect = fx::rise(6), .stagger = scatter})}));
+             .textFx({.effect = textFx::rise(6), .stagger = scatter})}));
     host.frame();
     const std::vector<Beat> beats = host.composer.beatsOf("k", 0);
     std::vector<int> ranks;
@@ -373,8 +374,8 @@ TEST(ComposeTextFx, NestedStaggerDelaysGlyphsInsideTheirWordsBeat) {
   host.composer.render(box().padding(10).children(
       {text(u8"AAA BBB", whiteStyle(20))
            .key("k")
-           .fx(probeTrack(&samples, {}, cascade, 0.3f,
-                          sigil::weave::Unit::Word))}));
+           .textFx(probeTrack(&samples, {}, cascade, 0.3f,
+                              sigil::weave::Unit::Word))}));
   host.frame();
   ASSERT_EQ(samples.size(), 6u);
   // Inside a word the glyphs no longer share a time — the inner ladder ran.
@@ -390,7 +391,7 @@ TEST(ComposeTextFx, TwoTracksComposeByAddingOffsets) {
   // stacking tracks is composition rather than replacement.
   Host host(220, 120);
   const auto shove = [](float dx) {
-    return fx::effect(
+    return textFx::effect(
         "shove" + std::to_string((int)dx),
         [dx](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
           GlyphModifier m;
@@ -402,8 +403,8 @@ TEST(ComposeTextFx, TwoTracksComposeByAddingOffsets) {
   host.composer.render(
       box().padding(10).children({text(u8"I", whiteStyle(40))
                                       .key("k")
-                                      .fx({.effect = shove(30)})
-                                      .fx({.effect = shove(30)})}));
+                                      .textFx({.effect = shove(30)})
+                                      .textFx({.effect = shove(30)})}));
   host.frame();
   auto b = host.composer.bounds("k");
   ASSERT_TRUE(b.has_value());
@@ -433,15 +434,15 @@ TEST(ComposeTextFx, ATrackedRunSurvivesTheBakeItIsCachedInto) {
   const auto tracked = [](bool cached) {
     Element leaf = text(u8"I", whiteStyle(40))
                        .key("k")
-                       .fx({.effect = fx::effect(
-                                "drop",
-                                [](const GlyphInfo&, float,
-                                   sigil::core::noise::Mix64Stream&) {
-                                  GlyphModifier m;
-                                  m.dy = 60;
-                                  return m;
-                                },
-                                /*reach=*/80.0f)});
+                       .textFx({.effect = textFx::effect(
+                                    "drop",
+                                    [](const GlyphInfo&, float,
+                                       sigil::core::noise::Mix64Stream&) {
+                                      GlyphModifier m;
+                                      m.dy = 60;
+                                      return m;
+                                    },
+                                    /*reach=*/80.0f)});
     if (cached) leaf.cache(Cache::Texture);
     return box().padding(10).children({std::move(leaf)});
   };
@@ -466,7 +467,7 @@ TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
   // exactly the control below.
   Host host(220, 200);
   const auto drop = [](float reach) {
-    Track t{.effect = fx::effect(
+    Track t{.effect = textFx::effect(
                 "drop",
                 [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
                   GlyphModifier m;
@@ -478,10 +479,11 @@ TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
     return t;
   };
   const auto inkBelow = [&](float reach) {
-    host.composer.render(box().padding(10).children({text(u8"I", whiteStyle(40))
-                                                         .key("k")
-                                                         .cache(Cache::Texture)
-                                                         .fx(drop(reach))}));
+    host.composer.render(
+        box().padding(10).children({text(u8"I", whiteStyle(40))
+                                        .key("k")
+                                        .cache(Cache::Texture)
+                                        .textFx(drop(reach))}));
     host.frame();
     auto b = host.composer.bounds("k");
     EXPECT_TRUE(b.has_value());
@@ -501,34 +503,35 @@ TEST(ComposeTextFx, EqualTrackListsPruneAndAKeyedLambdaComparesByKey) {
   // on every frame, whatever its progress is doing.
   Host host(220, 120);
   const auto tree = [](TextEffect effect) {
-    return box().padding(10).children({text(u8"AAA", whiteStyle(20))
-                                           .key("k")
-                                           .fx({.effect = std::move(effect)})});
+    return box().padding(10).children(
+        {text(u8"AAA", whiteStyle(20))
+             .key("k")
+             .textFx({.effect = std::move(effect)})});
   };
-  host.composer.render(tree(fx::rise(20)));
+  host.composer.render(tree(textFx::rise(20)));
   host.frame();
-  host.composer.render(tree(fx::rise(20)));
+  host.composer.render(tree(textFx::rise(20)));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
       << "an unchanged track list did not prune";
-  host.composer.render(tree(fx::rise(24)));
+  host.composer.render(tree(textFx::rise(24)));
   host.frame();
   EXPECT_GT(host.composer.stats().patchedNodes, 0u)
       << "a changed preset parameter pruned anyway";
 
   // A keyed lambda compares by its KEY: same key prunes, different key does
-  // not. That is the whole contract fx::effect() asks of its caller.
+  // not. That is the whole contract textFx::effect() asks of its caller.
   const auto body = [](const GlyphInfo&, float,
                        sigil::core::noise::Mix64Stream&) {
     return GlyphModifier{};
   };
-  host.composer.render(tree(fx::effect("mine", body)));
+  host.composer.render(tree(textFx::effect("mine", body)));
   host.frame();
-  host.composer.render(tree(fx::effect("mine", body)));
+  host.composer.render(tree(textFx::effect("mine", body)));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
       << "two effects under one key did not compare equal";
-  host.composer.render(tree(fx::effect("other", body)));
+  host.composer.render(tree(textFx::effect("other", body)));
   host.frame();
   EXPECT_GT(host.composer.stats().patchedNodes, 0u)
       << "a re-keyed effect pruned onto the old one";
@@ -543,8 +546,8 @@ TEST(ComposeTextFx, SettledMultiTrackTextStopsPaintingLive) {
   host.composer.render(box().padding(10).children(
       {text(u8"AAA BBB", whiteStyle(20))
            .key("k")
-           .fx({.effect = fx::rise(12), .progress = &a})
-           .fx({.effect = fx::slide(-8), .progress = &b})}));
+           .textFx({.effect = textFx::rise(12), .progress = &a})
+           .textFx({.effect = textFx::slide(-8), .progress = &b})}));
   host.frame();
   a = 1.0f;
   b = 1.0f;

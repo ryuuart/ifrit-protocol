@@ -13,10 +13,10 @@
 // burns that unit in on that unit's own clock. All of it is ONE DECLARATION:
 //
 //     text(u8"EMBER DECODE", display)
-//         .fx({.effect = fx::pass(burn),
+//         .textFx({.effect = textFx::pass(burn),
 //              .stagger = stagger(weave::Unit::Cluster, {.eachMs = 260})});
 //
-// `fx::pass` makes the track's effect a PASS rather than a per-glyph
+// `textFx::pass` makes the track's effect a PASS rather than a per-glyph
 // deviation. The runtime renders the track's units into a layer, hands it to
 // the material as `uContent`, and hands the track's own schedule as uniform
 // data — `uUnitRect[N]` (each unit's box, node-local px) and `uUnitPhase[N]`
@@ -45,8 +45,8 @@
 // stagger — so the loop below drives the track's PROGRESS up, holds it, and
 // drives it back DOWN, which replays the cascade in reverse and burns the
 // line off right to left (the last unit to arrive is the first to lose
-// progress). And a pass is a whole-track statement: fx::sequence/mix/hold do
-// not consult it, so a pass that wants phases writes them in its own SkSL.
+// progress). And a pass is a whole-track statement: textFx::sequence/mix/hold
+// do not consult it, so a pass that wants phases writes them in its own SkSL.
 //
 // EDIT THESE FIRST
 //   kEachMs   — start-to-start between units. 0 decodes the whole line at
@@ -258,10 +258,10 @@ struct EmberDecode {
              text(u8"EMBER DECODE")
                  .font(burnt(78, 5.0f))
                  .key("burn-display")
-                 .fx({.effect = fx::pass(burn),
-                      .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                      .unit = weave::Unit::Cluster,
-                      .progress = &display}),
+                 .textFx({.effect = textFx::pass(burn),
+                          .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                          .unit = weave::Unit::Cluster,
+                          .progress = &display}),
              text("uUnitRect[N] · uUnitPhase[N] — a LETTER "
                   "is a unit; the bar under each one is the progress that "
                   "unit's uniform carries, read back from beatsOf"),
@@ -269,10 +269,10 @@ struct EmberDecode {
              text(u8"ONE PASS PER WORD PHASE")
                  .font(burnt(27, 3.0f))
                  .key("burn-words")
-                 .fx({.effect = fx::pass(burn),
-                      .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                      .unit = weave::Unit::Word,
-                      .progress = &words}),
+                 .textFx({.effect = textFx::pass(burn),
+                          .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                          .unit = weave::Unit::Word,
+                          .progress = &words}),
              text("the same pass, the same source at another count "
                   "— a WORD is a unit here, and the "
                   "runtime compiled and cached one variant per "

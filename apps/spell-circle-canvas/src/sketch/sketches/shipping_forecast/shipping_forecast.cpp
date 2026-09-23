@@ -393,7 +393,7 @@ struct ShippingForecast {
    *  where there are sixteen words for it to beat over.) */
   [[nodiscard]] Element heroLine(const Utf8& line, const char* key,
                                  float delay) {
-    Track rise{.effect = fx::rise(kHero * 1.24f),
+    Track rise{.effect = textFx::rise(kHero * 1.24f),
                .stagger = {.amountMs = 320,
                            .durationMs = 560,
                            .from = motion::Spread::From::Start},
@@ -409,7 +409,7 @@ struct ShippingForecast {
     // not show — and the swell keeps the memoized faces a bounded ladder
     // buys instead of minting one per frame.
     Track swell{
-        .effect = fx::variableAxisSweep("GRAD", 400.0f, 880.0f),
+        .effect = textFx::variableAxisSweep("GRAD", 400.0f, 880.0f),
         .stagger = {.eachMs = 34, .durationMs = 620},
         // A swell, not an arrival: `cosine()` is 0 at both ends of
         // its period and 1 in the middle, which is what a window —
@@ -432,8 +432,8 @@ struct ShippingForecast {
                 // the top of it. The gradient does not travel with the
                 // letter; the letter travels through the gradient.
                 .ink(heroInk)
-                .fx(std::move(rise))
-                .fx(std::move(swell)),
+                .textFx(std::move(rise))
+                .textFx(std::move(swell)),
         });
   }
 
@@ -533,9 +533,9 @@ struct ShippingForecast {
                                 .align = TextPath::Align::Center,
                                 .offset = 7.0f,
                                 .autoFlip = false})
-                   .fx({.effect = fx::rise(13.0f),
-                        .stagger = ringCascade(),
-                        .progress = beat(start, start + 0.62f)});
+                   .textFx({.effect = textFx::rise(13.0f),
+                            .stagger = ringCascade(),
+                            .progress = beat(start, start + 0.62f)});
              }),
         // The area being read, in the middle of its own ring.
         box()
@@ -563,8 +563,9 @@ struct ShippingForecast {
    *  into the settle's opening, so the strip arrives and compresses in one
    *  gesture. */
   [[nodiscard]] Element galeStrip() {
-    TextEffect arrive = fx::sequence(
-        fx::slide(-46.0f).until(0.46f).crossfade(0.20f), fx::pop(0.86f, 2.6f));
+    TextEffect arrive =
+        textFx::sequence(textFx::slide(-46.0f).until(0.46f).crossfade(0.20f),
+                         textFx::pop(0.86f, 2.6f));
     return sketch::kit::well({.ground = Fill::color(hexColor(0x1C1206)),
                               .padding = 13,
                               .paddingY = 10,
@@ -585,11 +586,11 @@ struct ShippingForecast {
             text(doc["gale"])
                 .styleClass("warning")
                 .key("gale")
-                .fx({.effect = std::move(arrive),
-                     .stagger = {.eachMs = 0,
-                                 .amountMs = 520,
-                                 .durationMs = 620},
-                     .progress = beat(0.25f, 1.85f)}),
+                .textFx({.effect = std::move(arrive),
+                         .stagger = {.eachMs = 0,
+                                     .amountMs = 520,
+                                     .durationMs = 620},
+                         .progress = beat(0.25f, 1.85f)}),
         });
   }
 
@@ -647,19 +648,19 @@ struct ShippingForecast {
       return motion::Spread{.eachMs = 46, .durationMs = durationMs};
     };
     Track initials{.where = everyInitial,
-                   .effect = fx::rise(16.0f),
+                   .effect = textFx::rise(16.0f),
                    .stagger = wordClock(460.0f),
                    .unit = weave::Unit::Word,
                    .beatsOver = beats::Text,
                    .progress = beat(1.75f, 4.10f)};
     Track grade{.where = everyInitial & !glossary,
-                .effect = fx::variableAxisSweep("GRAD", 400.0f, 900.0f),
+                .effect = textFx::variableAxisSweep("GRAD", 400.0f, 900.0f),
                 .stagger = wordClock(460.0f),
                 .unit = weave::Unit::Word,
                 .beatsOver = beats::Text,
                 .progress = beat(1.75f, 4.10f)};
     Track bodies{.where = weave::selectors::each(weave::Unit::Word).drop(1),
-                 .effect = fx::rise(9.0f),
+                 .effect = textFx::rise(9.0f),
                  .stagger = wordClock(500.0f),
                  .unit = weave::Unit::Word,
                  .beatsOver = beats::Text,
@@ -675,9 +676,9 @@ struct ShippingForecast {
                 {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
             .span(weave::selectors::regex(u8"[0-9]+"),
                   SpanDeclarations().ink(kAmber).font({.color8 = true}))
-            .fx(std::move(initials))
-            .fx(std::move(grade))
-            .fx(std::move(bodies)),
+            .textFx(std::move(initials))
+            .textFx(std::move(grade))
+            .textFx(std::move(bodies)),
     });
   }
 
@@ -700,12 +701,12 @@ struct ShippingForecast {
             // which is what a node-wide fade cannot be — each
             // character of the readout arrives on its own beat and
             // is simply absent before it.
-            .fx({.effect = fx::hold(
-                     fx::scramble(U"0123456789ABCDEFGHJKLMNPRSTUVWXYZ", 16)),
-                 .stagger = {.eachMs = 26,
-                             .durationMs = 520,
-                             .from = motion::Spread::From::Start},
-                 .progress = beat(2.25f, 4.10f)}),
+            .textFx({.effect = textFx::hold(textFx::scramble(
+                         U"0123456789ABCDEFGHJKLMNPRSTUVWXYZ", 16)),
+                     .stagger = {.eachMs = 26,
+                                 .durationMs = 520,
+                                 .from = motion::Spread::From::Start},
+                     .progress = beat(2.25f, 4.10f)}),
         text("SLOWLY — 0.1 TO 1.5 MB IN THREE HOURS")
             .styleClass("note")
             .key("baro-note")
@@ -756,10 +757,10 @@ struct ShippingForecast {
                   SpanDeclarations().font(graded))
             .span(weave::selectors::regex(u8"[0-9]+"),
                   SpanDeclarations().ink(kAmber).font({.color8 = true}))
-            .fx({.effect = fx::slide(-22.0f),
-                 .stagger = {.eachMs = 150, .durationMs = 620},
-                 .unit = weave::Unit::Line,
-                 .progress = beat(2.70f, 4.60f)}),
+            .textFx({.effect = textFx::slide(-22.0f),
+                     .stagger = {.eachMs = 150, .durationMs = 620},
+                     .unit = weave::Unit::Line,
+                     .progress = beat(2.70f, 4.60f)}),
     });
   }
 
@@ -864,12 +865,12 @@ struct ShippingForecast {
         .width(28)
         .height(560)
         .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-        .fx({.effect = fx::rise(11.0f),
-             .stagger = {.eachMs = 0,
-                         .amountMs = 780,
-                         .durationMs = 420,
-                         .from = motion::Spread::From::Start},
-             .progress = beat(0.45f, 2.70f)});
+        .textFx({.effect = textFx::rise(11.0f),
+                 .stagger = {.eachMs = 0,
+                             .amountMs = 780,
+                             .durationMs = 420,
+                             .from = motion::Spread::From::Start},
+                 .progress = beat(0.45f, 2.70f)});
   }
 
   // ------------------------------------------------------------------
@@ -904,7 +905,7 @@ struct ShippingForecast {
     return sketch::kit::titleCard(
         {.eyebrow = {.words = page["eyebrow"], .opacity = beat(0.05f, 0.55f)},
          .title = {.words = page["title"],
-                   .fx = Track{.effect = fx::rise(16.0f),
+                   .fx = Track{.effect = textFx::rise(16.0f),
                                .stagger = {.eachMs = 0,
                                            .amountMs = 420,
                                            .durationMs = 520},
@@ -971,10 +972,10 @@ struct ShippingForecast {
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) {
     // EVERY SCRAMBLE HAS RESOLVED. The barometer's readout runs an
-    // `fx::hold(fx::scramble(...))` to 4.10 s and the forecast paragraph's
-    // initials converge on their bodies after that, so a still taken
-    // before either lands photographs a nonsense word under a caption that
-    // defines the real one, and a paragraph that reads as a rendering
+    // `textFx::hold(textFx::scramble(...))` to 4.10 s and the forecast
+    // paragraph's initials converge on their bodies after that, so a still
+    // taken before either lands photographs a nonsense word under a caption
+    // that defines the real one, and a paragraph that reads as a rendering
     // fault. The grade swell peaks every 7.2 s, so the second peak is the
     // frame where the swell is at its height AND nothing is mid-decode.
     sketch::kit::stage(

@@ -243,7 +243,7 @@ class Composer {
    *  resolve to a zeroed value, as the rest of the query family does. */
   [[nodiscard]] TextSettling settling(std::string_view key) const;
 
-  /** THE SCHEDULE ONE fx() TRACK IS RUNNING: a `Beat` per beat of track
+  /** THE SCHEDULE ONE textFx() TRACK IS RUNNING: a `Beat` per beat of track
    *  @p trackIndex on the keyed text node, in draw order. Valid after a
    *  draw() (or any other call that runs layout), and computed on demand —
    *  nothing pays for it until it is asked for.
@@ -273,7 +273,7 @@ class Composer {
    *
    *  This is what anything BESIDE a text is placed from: a label per word,
    *  a note per line, a reading over a compound, a dot beside a character.
-   *  `beatsOf` answers the same rects under a schedule and needs an `fx()`
+   *  `beatsOf` answers the same rects under a schedule and needs an `textFx()`
    *  track to do it; this needs none, and reports the baseline (or the
    *  column's axis), the pitch, the face's own band, the writing mode, the
    *  vertical form, the text range and the style beside each rect —

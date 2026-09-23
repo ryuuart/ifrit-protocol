@@ -5,7 +5,7 @@
  * compile to, the one Paint→SkShader conversion every slot
  * performs, the two questions asked of a runtime effect before a name is
  * stored against it, and the pass specialization the text runtime draws a
- * `fx::pass` track through.
+ * `textFx::pass` track through.
  *
  * Declared apart from the paint class because these are shared
  * mechanisms used by the paint and effect implementations. Consumers

@@ -26,7 +26,7 @@ namespace sigil::compose {
  *  what `Composer::units` reports and what every annotation is placed
  *  from.
  *
- *  A `Beat` is the same rect under a schedule: it needs an `fx()` track, a
+ *  A `Beat` is the same rect under a schedule: it needs an `textFx()` track, a
  *  stagger and a progress, and it answers about a cascade. This answers
  *  about the TEXT — where a word, a cluster or a line landed, on which
  *  baseline, in which writing mode, set in which style — for a selector and

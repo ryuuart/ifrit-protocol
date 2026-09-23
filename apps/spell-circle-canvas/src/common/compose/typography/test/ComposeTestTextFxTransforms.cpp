@@ -12,7 +12,7 @@ TEST(ComposeTextFx, ScrambleChurnsDeterministicallyAndResolvesAtOne) {
   // settled scramble cache instead of boiling forever. And every glyph is
   // the letter the text actually says by the end: a decode that never
   // decodes is not the effect.
-  const TextEffect churn = fx::scramble(U"ABC");
+  const TextEffect churn = textFx::scramble(U"ABC");
   GlyphInfo glyph;
   glyph.index = 3;
   glyph.textIndex = 3;
@@ -34,9 +34,9 @@ TEST(ComposeTextFx, ScrambleChurnsDeterministicallyAndResolvesAtOne) {
 
   // A value like any other preset: comparable by its parameters, and the
   // charset is one of them.
-  EXPECT_TRUE(fx::scramble(U"ABC") == fx::scramble(U"ABC"));
-  EXPECT_FALSE(fx::scramble(U"ABC") == fx::scramble(U"ABD"));
-  EXPECT_FALSE(fx::scramble(U"ABC") == fx::scramble(U"ABC", 7));
+  EXPECT_TRUE(textFx::scramble(U"ABC") == textFx::scramble(U"ABC"));
+  EXPECT_FALSE(textFx::scramble(U"ABC") == textFx::scramble(U"ABD"));
+  EXPECT_FALSE(textFx::scramble(U"ABC") == textFx::scramble(U"ABC", 7));
 }
 
 TEST(ComposeTextFx, SkewAndNonUniformScaleTakeTheMatrixPath) {
@@ -50,7 +50,7 @@ TEST(ComposeTextFx, SkewAndNonUniformScaleTakeTheMatrixPath) {
     host.composer.render(box().padding(60).children(
         {text(u8"H", whiteStyle(60))
              .key("k")
-             .fx({.effect = fixed(std::move(key), mod)})}));
+             .textFx({.effect = fixed(std::move(key), mod)})}));
     host.frame();
   };
   Host upright(200, 200);
@@ -94,22 +94,22 @@ TEST(ComposeTextFx, AHeldTrackPaintsNothingBeforeItsBeatBesideAnOpenTrack) {
     host.composer.render(box().padding(20).children(
         {text(u8"HOLD", whiteStyle(36))
              .key("k")
-             .fx({.effect = std::move(decode),
-                  .stagger = {.eachMs = 40, .durationMs = 200},
-                  .progress = &progress})
-             .fx({.effect = fixed("lift", lift)})}));
+             .textFx({.effect = std::move(decode),
+                      .stagger = {.eachMs = 40, .durationMs = 200},
+                      .progress = &progress})
+             .textFx({.effect = fixed("lift", lift)})}));
     host.frame();
   };
   // The control first: unheld, the same tree at the same moment paints —
   // wrong letters, but it paints — so an empty surface below is the hold's
   // doing and not a scene that never drew.
   Host unheld(240, 140);
-  render(unheld, fx::scramble(U"XYZ", 6));
+  render(unheld, textFx::scramble(U"XYZ", 6));
   ASSERT_FALSE(inkBounds(unheld, 240, 140).isEmpty())
       << "the unheld decode drew nothing, so this test proves nothing";
 
   Host host(240, 140);
-  render(host, fx::hold(fx::scramble(U"XYZ", 6)));
+  render(host, textFx::hold(textFx::scramble(U"XYZ", 6)));
   EXPECT_TRUE(inkBounds(host, 240, 140).isEmpty())
       << "a decode drew before any of its beats had opened — either the "
          "hold let the effect through, or the second track's open beat "
@@ -130,7 +130,7 @@ TEST(ComposeTextFx, SkewYShearsTheOtherAxisAndTakesTheMatrixPath) {
     host.composer.render(box().padding(60).children(
         {text(u8"H", whiteStyle(60))
              .key("k")
-             .fx({.effect = fixed(std::move(key), mod)})}));
+             .textFx({.effect = fixed(std::move(key), mod)})}));
     host.frame();
   };
   Host upright(200, 200);
@@ -171,10 +171,10 @@ void expectFastPathLineUntouched(GlyphModifier lean) {
     Text t = text(u8"AAAA BBBB", style)
                  .key("k")
                  .width(70)
-                 .fx({.effect = fixed("lift", lift)});
+                 .textFx({.effect = fixed("lift", lift)});
     if (shearSecondLine)
-      t.fx({.where = sigil::weave::selectors::line(1),
-            .effect = fixed("lean", lean)});
+      t.textFx({.where = sigil::weave::selectors::line(1),
+                .effect = fixed("lean", lean)});
     return box().padding(10).children({std::move(t)});
   };
   Host plain(200, 200), mixed(200, 200);
@@ -253,7 +253,7 @@ TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {
     Track track{.effect = fixed("lean2", lean)};
     track.continuous = continuous;
     host.composer.render(box().padding(20).children(
-        {text(u8"HH", whiteStyle(64)).key("k").fx(std::move(track))}));
+        {text(u8"HH", whiteStyle(64)).key("k").textFx(std::move(track))}));
     host.frame();
   };
   Host snapped(200, 200), smooth(200, 200);
@@ -267,10 +267,10 @@ TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {
   // whose progress has stopped moving settles like any other.
   Host settling(200, 200);
   choreograph::Output<float> progress{0.0f};
-  Track track{.effect = fx::rise(14), .progress = &progress};
+  Track track{.effect = textFx::rise(14), .progress = &progress};
   track.continuous = true;
   settling.composer.render(box().padding(20).children(
-      {text(u8"SETTLE", whiteStyle(24)).key("k").fx(std::move(track))}));
+      {text(u8"SETTLE", whiteStyle(24)).key("k").textFx(std::move(track))}));
   settling.frame();
   progress = 1.0f;
   for (int i = 0; i < 12; ++i) settling.frame(0.016);

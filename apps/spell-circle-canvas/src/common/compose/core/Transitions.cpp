@@ -115,7 +115,7 @@ void Composer::Impl::lanes(StyledNode styled, std::vector<Lane>& out) {
         out.push_back({&m.with.fraction, {LaneFamily::Gate, i++}, 0.0f});
     }
   }
-  // Every fx() TRACK's master progress, in declaration order — the order
+  // Every textFx() TRACK's master progress, in declaration order — the order
   // Instance::trackAnims is indexed by.
   //
   // SEPARATE PER TRACK, which is the point: a rise and a loop on one text
@@ -156,8 +156,8 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
   //   per-description vector rather than a slot;
   //   mask gates: `.mask(by::spans(spans::upTo(animate(...))))` and
   //   `.mask(by::edge(90, animate(...)))`;
-  //   fx() tracks: `.fx({.progress = animate(...)})`, each track owning its
-  //   slot.
+  //   textFx() tracks: `.textFx({.progress = animate(...)})`, each track owning
+  //   its slot.
   // Each family's vector is sized to the description before its lanes run.
   static thread_local std::vector<Lane> nodeLanes;
   lanes(inst.styled(), nodeLanes);
@@ -313,7 +313,7 @@ void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
   // in the other and the shape changed — the motions drop, deliberately,
   // rather than carrying onto a number that now means something else.
   //
-  // fx() tracks: an element that writes the same NUMBER of tracks in both
+  // textFx() tracks: an element that writes the same NUMBER of tracks in both
   // branches of an if/else keeps stable slot indices, so `animate(to(1))`
   // on the second track ramps from wherever that track's progress is now.
   // Add or remove a track and the shape changed — the motions drop rather

@@ -1,6 +1,6 @@
 /** @file
  * The text painter — the value a text verb installs on a description, and
- * the verbs themselves. `fx()`, `textOnPath()`, `textAttach()`, `span()`
+ * the verbs themselves. `textFx()`, `textOnPath()`, `textAttach()`, `span()`
  * and `variationDrive()` are declared on the text leaf by the
  * kernel and defined here, so an element that dresses its type links this
  * tier and carries the engine that draws it; the kernel reaches the engine
@@ -127,7 +127,7 @@ Derived& TextContentVerbs<Derived>::textOnPath(TextPath spec) {
 }
 
 template <class Derived>
-Derived& TextContentVerbs<Derived>::fx(Track track) {
+Derived& TextContentVerbs<Derived>::textFx(Track track) {
   dressedText(declarations()->textData.ensure())
       .tracks.push_back(std::move(track));
   return self();
@@ -160,7 +160,7 @@ Derived& TextContentVerbs<Derived>::textAttach(sigil::weave::Selector where,
 template <class Derived>
 Derived& TextContentVerbs<Derived>::variationDrive(
     const char (&tag)[5], const choreograph::Output<float>* value) {
-  // SUGAR over fx(): an axis coordinate is a per-glyph deviation like a
+  // SUGAR over textFx(): an axis coordinate is a per-glyph deviation like a
   // shove or a fade, so the drive is a whole-text track and composes with
   // whatever other tracks the element carries. A second, parallel text path
   // would be hidden by any track drawn over it, which is why the drive is
@@ -241,7 +241,7 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
 // one by one: the family's other members are instantiated where they are
 // defined, in the kernel.
 template Text& TextContentVerbs<Text>::textOnPath(TextPath);
-template Text& TextContentVerbs<Text>::fx(Track);
+template Text& TextContentVerbs<Text>::textFx(Track);
 template Text& TextContentVerbs<Text>::textAnnotation(Annotation);
 template Text& TextContentVerbs<Text>::textAttach(sigil::weave::Selector,
                                                   Element);

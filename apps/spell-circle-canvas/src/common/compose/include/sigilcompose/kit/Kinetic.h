@@ -4,13 +4,13 @@
  * @ingroup compose-kit
  *
  * SigilCompose KIT — kinetic type: the stock entrances and loops for the
- * kernel's multi-track `fx()` seam, all as plain comparable `TextEffect`
+ * kernel's multi-track `textFx()` seam, all as plain comparable `TextEffect`
  * VALUES built from the same constructor any caller may use.
  *
  * One track:
  *
  *   text(u8"KINETIC", display)
- *       .fx({.effect = fx::rise(),
+ *       .textFx({.effect = textFx::rise(),
  *            .stagger = {.eachMs = 28, .durationMs = 480},
  *            .progress = with(1.0f, {900ms, &ch::easeOutQuad})});
  *
@@ -19,15 +19,15 @@
  * progress:
  *
  *   text(u8"ONE LINE, TWO MOVES", display)
- *       .fx({.effect = fx::rise(20), .unit = weave::Unit::Word})
- *       .fx({.where = weave::selectors::text(u8"TWO"),
- *            .effect = fx::waveLoop(),
+ *       .textFx({.effect = textFx::rise(20), .unit = weave::Unit::Word})
+ *       .textFx({.where = weave::selectors::text(u8"TWO"),
+ *            .effect = textFx::waveLoop(),
  *            .progress = &phase});
  *
- * The effects the runtime itself evaluates — `fx::keys`, `fx::sequence`,
- * `fx::mix`, `fx::hold`, `fx::scramble`, `fx::pass` and the `fx::effect`
- * door — are the seam's, declared with it in
- * <sigilcompose/typography/TextEffect.h>, with the structural catalogue
+ * The effects the runtime itself evaluates — `textFx::keys`,
+ * `textFx::sequence`, `textFx::mix`, `textFx::hold`, `textFx::scramble`,
+ * `textFx::pass` and the `textFx::effect` door — are the seam's, declared with
+ * it in <sigilcompose/typography/TextEffect.h>, with the structural catalogue
  * beside it in <sigilcompose/typography/TextFx.h>; this header holds the
  * presets,
  * which are values over that seam and need nothing it does not expose.
@@ -64,7 +64,7 @@
 #include <cmath>
 #include <utility>
 
-namespace sigil::compose::fx {
+namespace sigil::compose::textFx {
 
 // A scale-only effect's reach is read against `kNominalSizePx`, the
 // display size the seam declares reaches at when no effect knows its font
@@ -88,7 +88,7 @@ enum class Curve : uint8_t { OutCubic, OutExpo, OutBack };
  *  rise, a slide and a tumble is only WHICH LANES carry the displacement,
  *  so they are properties here and not six bodies.
  *
- *      text(u8"KINETIC", display).fx({.effect = fx::enter({.dy = 26})})
+ *      text(u8"KINETIC", display).textFx({.effect = textFx::enter({.dy = 26})})
  *
  *  The `scatter` lanes are the one lane that is not a constant: each
  *  glyph draws its own offset inside a `scatterPx` disc, and its own lean
@@ -254,7 +254,7 @@ struct Entrance {
  * glyph's style draws, and a multiplier can only take a colour toward black —
  * so the DESTINATION is what the style paints, and the origin is reached by
  *  dividing. The arguments still read in time order and the division is
- *  done here: `fx::tint(pale, sung)` on a line set in `sung` wipes it from
+ *  done here: `textFx::tint(pale, sung)` on a line set in `sung` wipes it from
  *  pale to sung. Set the line in `from` and it draws pale throughout,
  *  which is the obvious first mistake and has no diagnostic.
  *
@@ -265,7 +265,7 @@ struct Entrance {
  *  whatever @p from says there. The way UP is the other two colour terms:
  *  `GlyphModifier::colorAdd` is the hard flash over whatever the style paints,
  *  `GlyphModifier::colorScreen` the glow that brightens toward white without
- *  clipping — both usually spoken through a `fx::keys` table.
+ *  clipping — both usually spoken through a `textFx::keys` table.
  *
  *  Alpha is untouched: a reveal that also fades wants an alpha track, which
  *  composes with this one. The ramp is a smoothstep because a hard cut at
@@ -289,4 +289,4 @@ struct Entrance {
       0.0f, {}, /*displaces=*/false);
 }
 
-}  // namespace sigil::compose::fx
+}  // namespace sigil::compose::textFx

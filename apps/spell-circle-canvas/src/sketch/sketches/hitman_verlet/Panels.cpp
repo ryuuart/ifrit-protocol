@@ -277,7 +277,7 @@ auto HitmanVerlet::panelB3() -> Element {
 }
 
 auto HitmanVerlet::header() -> Element {
-  Track rise{.effect = fx::rise(22.0f),
+  Track rise{.effect = textFx::rise(22.0f),
              .stagger = {.eachMs = 24, .durationMs = 440},
              .progress = animate(from(0.0f).to(1.0f), {.duration = 1100ms,
                                                        .ease = ch::easeOutQuad,
@@ -289,7 +289,7 @@ auto HitmanVerlet::header() -> Element {
            .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
        t(head["title"], faced(heavyFace(), 42, kBone, -0.3f))
            .key("title")
-           .fx(std::move(rise)),
+           .textFx(std::move(rise)),
        t(head["credit"], ui(10.5f, kSteel, 0.1f))
            .opacity(animate(from(0.0f).to(1.0f),
                             {.duration = 240ms, .delay = 400ms})),

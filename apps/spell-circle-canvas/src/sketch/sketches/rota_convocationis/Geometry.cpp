@@ -24,9 +24,9 @@ auto RotaConvocationis::spur() -> Element {
            .key("spur-glyph")
            .centerAt(c)
            .hitTestable(false)
-           .fx({.effect = fx::hold(fx::pop(0.5f)),
-                .stagger = {.durationMs = 360},
-                .progress = beat(1.3, 1.8)}),
+           .textFx({.effect = textFx::hold(textFx::pop(0.5f)),
+                    .stagger = {.durationMs = 360},
+                    .progress = beat(1.3, 1.8)}),
        emissive("spur-lit", glows[kGlowSpur], &litSpur)});
 }
 
@@ -92,9 +92,9 @@ auto RotaConvocationis::limina() -> Element {
                          .align = TextPath::Align::Center,
                          .offset = 5.0f,
                          .autoFlip = true})
-            .fx({.effect = fx::typeOn(),
-                 .stagger = {.eachMs = 30, .durationMs = 120},
-                 .progress = beat(limenAt[k], limenAt[k] + limenSpanS)});
+            .textFx({.effect = textFx::typeOn(),
+                     .stagger = {.eachMs = 30, .durationMs = 120},
+                     .progress = beat(limenAt[k], limenAt[k] + limenSpanS)});
       }));
 }
 
@@ -184,7 +184,8 @@ auto RotaConvocationis::sigillum(int k) -> Element {
                                  .align = TextPath::Align::Start,
                                  .offset = -sealSize[k] * 0.34f,
                                  .autoFlip = false})
-                    .fx({.effect = fx::hold(fx::spinIn(70.0f, 9.0f)),
+                    .textFx(
+                        {.effect = textFx::hold(textFx::spinIn(70.0f, 9.0f)),
                          .stagger = {.eachMs = 30, .durationMs = 480},
                          .progress = beat(at + 0.25, at + 0.25 + sealSpanS)})}),
        // THE ORDINAL at the centre, decoding — held, so a numeral waiting
@@ -200,13 +201,14 @@ auto RotaConvocationis::sigillum(int k) -> Element {
            .hitTestable(false)
            .rotate(motion::bind(&sealUpright).target(0.0f, 360.0f))
            .filter(styles::textGlow(kHalo, 3.0f))
-           .fx({.effect = fx::hold(fx::scramble(U"IVXLC", 12)),
-                .stagger = {.eachMs = 90, .durationMs = 620},
-                .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)})
-           .fx({.effect = fx::keys({{0.00f, {}},
-                                    {0.80f, {}},
-                                    {0.90f, {.colorAdd = kCore}},
-                                    {1.00f, {}}}),
+           .textFx({.effect = textFx::hold(textFx::scramble(U"IVXLC", 12)),
+                    .stagger = {.eachMs = 90, .durationMs = 620},
+                    .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)})
+           .textFx(
+               {.effect = textFx::keys({{0.00f, {}},
+                                        {0.80f, {}},
+                                        {0.90f, {.colorAdd = kCore}},
+                                        {1.00f, {}}}),
                 .stagger = {.eachMs = 90, .durationMs = 620},
                 .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)})});
 }
@@ -246,9 +248,9 @@ auto RotaConvocationis::emblema() -> Element {
                                   .align = TextPath::Align::Start,
                                   .offset = 4.0f,
                                   .autoFlip = true})
-                     .fx({.effect = fx::hold(fx::typeOn()),
-                          .stagger = {.eachMs = 26, .durationMs = 260},
-                          .progress = beat(tHub - 0.3, tHub + 0.9)})});
+                     .textFx({.effect = textFx::hold(textFx::typeOn()),
+                              .stagger = {.eachMs = 26, .durationMs = 260},
+                              .progress = beat(tHub - 0.3, tHub + 0.9)})});
 }
 
 auto RotaConvocationis::monogramma() -> Element {
@@ -259,15 +261,15 @@ auto RotaConvocationis::monogramma() -> Element {
       .centerAt(kEye)
       .hitTestable(false)
       .filter(styles::textGlow(kHalo, 7.0f))
-      .fx({.effect = fx::hold(fx::spinIn(90.0f, 14.0f)),
-           .stagger = letters,
-           .progress = beat(tHub, tHub + hubSpanS)})
-      .fx({.effect = fx::keys({{0.00f, {}},
-                               {0.74f, {}},
-                               {0.88f, {.colorAdd = kHalo}},
-                               {1.00f, {}}}),
-           .stagger = letters,
-           .progress = beat(tHub, tHub + hubSpanS)});
+      .textFx({.effect = textFx::hold(textFx::spinIn(90.0f, 14.0f)),
+               .stagger = letters,
+               .progress = beat(tHub, tHub + hubSpanS)})
+      .textFx({.effect = textFx::keys({{0.00f, {}},
+                                       {0.74f, {}},
+                                       {0.88f, {.colorAdd = kHalo}},
+                                       {1.00f, {}}}),
+               .stagger = letters,
+               .progress = beat(tHub, tHub + hubSpanS)});
 }
 
 auto RotaConvocationis::bakeGeometry() -> void {

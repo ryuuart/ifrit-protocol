@@ -51,12 +51,12 @@ inline const material::skia::Paint* liveMaterialOf(const Instance& inst) {
 inline const material::skia::Paint* inkPaintOf(const Instance& inst) {
   return inst.inkPaint.paint ? &*inst.inkPaint.paint : nullptr;
 }
-/** The node's fx() tracks, or an empty span. */
+/** The node's textFx() tracks, or an empty span. */
 inline std::span<const Track> tracksOf(const ElementNode& n) {
   return n.textData ? std::span<const Track>(n.textData->tracks)
                     : std::span<const Track>();
 }
-/** Does this node draw its text through the fx() path? A track list whose
+/** Does this node draw its text through the textFx() path? A track list whose
  *  every effect is empty is not fx text — the same test the volatility
  *  walk, the paint dispatch and the echo exclusion all read. The instance's
  *  folded span axes count too: they are tracks, only decided against the

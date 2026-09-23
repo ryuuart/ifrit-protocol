@@ -206,10 +206,10 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
            .width(60)
            .height(300)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .fx({.effect = fx::rise(30),
-                .stagger = {.eachMs = 90},
-                .unit = sigil::weave::Unit::Cluster,
-                .progress = &progress})
+           .textFx({.effect = textFx::rise(30),
+                    .stagger = {.eachMs = 90},
+                    .unit = sigil::weave::Unit::Cluster,
+                    .progress = &progress})
            .key("t")}));
   host.frame();
   const int top = inkCount(host, SkIRect::MakeXYWH(0, 10, 200, 120));
@@ -349,14 +349,15 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
             .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
             .key("t");
     if (shrunk)
-      t.fx({.effect = fx::effect(
-                "quarter",
-                [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-                  GlyphModifier m;
-                  m.scale = 0.25f;
-                  return m;
-                },
-                40.0f)});
+      t.textFx(
+          {.effect = textFx::effect(
+               "quarter",
+               [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+                 GlyphModifier m;
+                 m.scale = 0.25f;
+                 return m;
+               },
+               40.0f)});
     return box().padding(10).children({std::move(t)});
   };
   const auto inkCentroidX = [&] {
@@ -398,9 +399,9 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
            .width(180)
            .height(240)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .fx({.effect = fx::rise(10),
-                .stagger = {.eachMs = 40},
-                .unit = sigil::weave::Unit::Cluster})}));
+           .textFx({.effect = textFx::rise(10),
+                    .stagger = {.eachMs = 40},
+                    .unit = sigil::weave::Unit::Cluster})}));
   host.frame();
 
   const std::vector<Beat> beats = host.composer.beatsOf("col", 0);
@@ -472,7 +473,8 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
         {text(u8"AAA", style)
              .key("k")
              .paragraph({.writingMode = mode})
-             .fx({.effect = fx::effect(
+             .textFx(
+                 {.effect = textFx::effect(
                       point ? "sub" : "rest",
                       [mod](const GlyphInfo&, float,
                             sigil::core::noise::Mix64Stream&) { return mod; },
@@ -617,10 +619,10 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
            .width(200)
            .height(200)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .fx({.effect = fx::typeOn(),
-                .stagger = {.eachMs = 400},
-                .unit = sigil::weave::Unit::Line,
-                .progress = &progress})
+           .textFx({.effect = textFx::typeOn(),
+                    .stagger = {.eachMs = 400},
+                    .unit = sigil::weave::Unit::Line,
+                    .progress = &progress})
            .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
@@ -662,10 +664,10 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
              .height(220)
              .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
              .span(sigil::weave::selectors::text(u8"三四五六"), sidelined)
-             .fx({.effect = fx::rise(24),
-                  .stagger = {.eachMs = 90},
-                  .unit = sigil::weave::Unit::Cluster,
-                  .progress = &progress})
+             .textFx({.effect = textFx::rise(24),
+                      .stagger = {.eachMs = 90},
+                      .unit = sigil::weave::Unit::Cluster,
+                      .progress = &progress})
              .key("t")});
   };
 

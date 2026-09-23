@@ -3,7 +3,7 @@
 /** @file
  * @ingroup compose-typography
  *
- * SigilCompose typography — THE `fx::` CATALOGUE: the effects the runtime
+ * SigilCompose typography — THE `textFx::` CATALOGUE: the effects the runtime
  * evaluates by STRUCTURE rather than by calling a preset's body. The
  * substitution, the shader pass, the keyframe table, the hold, the two
  * combinators, and the escape hatch an ad-hoc body goes through.
@@ -30,7 +30,7 @@ namespace sigil::compose {
 // the combinators over whole effects. Their bodies are the engine's; the
 // presets that are plain values are the kit's, in kit/Kinetic.h.
 
-/** THE TEXT-EFFECT CATALOGUE: what one `fx()` track does to each glyph
+/** THE TEXT-EFFECT CATALOGUE: what one `textFx()` track does to each glyph
  *  it addresses — a substitution, a shader pass, a keyframe table, a
  *  hold, the two combinators that compose whole effects, and the escape
  *  hatch an ad-hoc body goes through.
@@ -41,7 +41,7 @@ namespace sigil::compose {
  *  difference is who evaluates: a preset is a body this library calls,
  *  and one of these is a value it inspects. Both are the same
  *  `TextEffect` type and compose in one track list. */
-namespace fx {
+namespace textFx {
 
 /** THE DISPLAY SIZE A REACH IS DECLARED AGAINST when no effect knows the
  *  font size at construction: a glyph grown by a factor about its own
@@ -98,7 +98,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *      auto burn = material::skia::Paint::recipe(
  *          material::Material(dissolve, Burn{ink}));
  *      text(u8"EMBER DECODE", display)
- *          .fx({.effect = fx::pass(burn),
+ *          .textFx({.effect = textFx::pass(burn),
  *               .stagger = {.eachMs = 260}, .unit = weave::Unit::Cluster});
  *
  *  THE MATERIAL MUST BE RECIPE-BACKED (`material::skia::Paint::recipe`) over
@@ -155,12 +155,12 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  of this, so a pass rides both, with unit rects turned the way the
  *  layout turned the letters.
  *
- *  A pass is a WHOLE-TRACK statement: inside `fx::sequence`, `fx::mix` or
- *  `fx::hold` its material is not consulted and the operand contributes
- *  the identity. Sequence a pass by driving its progress; gate its onset
- *  in its own SkSL, which holds the whole schedule.
+ *  A pass is a WHOLE-TRACK statement: inside `textFx::sequence`, `textFx::mix`
+ *  or `textFx::hold` its material is not consulted and the operand contributes
+ *  the identity. Sequence a pass by driving its progress; gate its onset in
+ *  its own SkSL, which holds the whole schedule.
  *
- *  THE DECLARED REST — `fx::pass(m).restsAt(0)`, `.restsAt(1)`,
+ *  THE DECLARED REST — `textFx::pass(m).restsAt(0)`, `.restsAt(1)`,
  *  `.restsAt(0, 1)`: the author's promise that the SkSL is an EXACT
  *  pass-through at those unit phases — at a declared phase it returns its
  *  input pixels untouched. When every addressed unit's resolved local time
@@ -194,13 +194,13 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  `reach` is how far past the element's box the body may push a glyph;
  *  the default covers the shipped presets' range.
  *
- *  THE ONE PLACEMENT FACT THE LIBRARY CANNOT INFER lives here too. Every
- *  other effect answers `TextEffect::displaces` for itself — a preset knows
- *  its own deviation, `fx::keys` reads its table, `fx::sequence`, `fx::mix` and
- *  `fx::hold` derive from their operands — but a lambda is opaque until it
- *  runs, so this door assumes the moving answer and takes
- *  `.displacing(false)` as the promise that the body leaves every pen
- *  position alone. */
+ *  THE ONE PLACEMENT FACT THE LIBRARY CANNOT INFER lives here too. Every other
+ *  effect answers `TextEffect::displaces` for itself — a preset knows its own
+ *  deviation, `textFx::keys` reads its table, `textFx::sequence`,
+ *  `textFx::mix` and `textFx::hold` derive from their operands — but a lambda
+ *  is opaque until it runs, so this door assumes the moving answer and takes
+ *  `.displacing(false)` as the promise that the body leaves every pen position
+ *  alone. */
 [[nodiscard]] inline TextEffect effect(std::string key,
                                        GlyphModifierFunction program,
                                        float reach = 48.0f,
@@ -209,7 +209,7 @@ inline constexpr float kNominalSizePx = 96.0f;
                     reach);
 }
 
-/** ONE ENTRY OF A `fx::keys` TABLE: where it sits in local time, the
+/** ONE ENTRY OF A `textFx::keys` TABLE: where it sits in local time, the
  *  deviation there, and — optionally — the curve for the segment that
  *  STARTS at it. */
 struct Key {
@@ -224,7 +224,7 @@ struct Key {
 /** THE KEYFRAME TABLE: a list of (local time, deviation) entries, and the
  *  curve between them.
  *
- *      const TextEffect rubberBand = fx::keys({
+ *      const TextEffect rubberBand = textFx::keys({
  *          {0.00f, {}},
  *          {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
  *          {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
@@ -243,7 +243,7 @@ struct Key {
  *  of the last and run the middle at whatever slope the curve happened to
  *  have there. Unset, a segment is linear.
  *
- *  Interpolation is COMPONENTWISE and follows the `fx::sequence` crossfade
+ *  Interpolation is COMPONENTWISE and follows the `textFx::sequence` crossfade
  *  exactly, because it is the same arithmetic: `codepoint` cuts at the
  *  middle of the segment rather than lerping, since there is no half-way
  *  glyph between two outlines; `axis` lerps only when the two entries name
@@ -261,7 +261,7 @@ struct Key {
  *  A cascade hands every unit a local time clamped to [0,1], so a unit
  *  waiting its turn is handed 0 — and an effect that deviates at 0 is
  *  already performing before its beat. A substitution is the case that
- *  shows: `fx::scramble` churns from local 0, so a glyph still waiting
+ *  shows: `textFx::scramble` churns from local 0, so a glyph still waiting
  *  shows a WRONG letter rather than no letter. This says "not yet".
  *
  *  The hold is ALPHA 0, not the identity: the point is a glyph that has not
@@ -282,9 +282,10 @@ struct Key {
 [[nodiscard]] TextEffect hold(TextEffect effect);
 
 /** PHASES IN LOCAL TIME: each phase sees a renormalized 0→1 over its own
- *  window, so `fx::sequence(a.until(0.35f), b.until(0.75f).crossfade(0.10f),
- * c)` plays `a` over the first 35% of every unit's beat, `b` over the next 40%
- * and `c` over the rest — each running its full curve.
+ *  window, so `textFx::sequence(a.until(0.35f),
+ *  b.until(0.75f).crossfade(0.10f), c)` plays `a` over the first 35% of every
+ *  unit's beat, `b` over the next 40% and `c` over the rest — each running its
+ *  full curve.
  *
  *  The default joint is a hard cut. `.crossfade(f)` on the ENDING phase lerps
  *  its deviation into the next one's, componentwise, over the last `f` of
@@ -320,6 +321,6 @@ template <typename... Rest>
   return mix(std::move(effects));
 }
 
-}  // namespace fx
+}  // namespace textFx
 
 }  // namespace sigil::compose

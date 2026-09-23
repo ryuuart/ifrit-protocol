@@ -193,11 +193,11 @@ auto RotaConvocationis::colophon() -> Element {
                                .shape(shapes::polygon(4))
                                .fill(Fill::color(kGold))
                                .opacity(beat(tIgnite + 0.9, tIgnite + 1.5)))
-               .fx({.effect = fx::rise(10.0f),
-                    .stagger = {.eachMs = 0,
-                                .amountMs = 420,
-                                .durationMs = 520},
-                    .progress = beat(0.35, 1.8)}),
+               .textFx({.effect = textFx::rise(10.0f),
+                        .stagger = {.eachMs = 0,
+                                    .amountMs = 420,
+                                    .durationMs = 520},
+                        .progress = beat(0.35, 1.8)}),
            text(std::to_string(totalGlyphs) +
                 " GLYPHS · 23 CVRVED BASELINES · 10 "
                 "TVRNING LAYERS · EVERY START CHAINED FROM A "

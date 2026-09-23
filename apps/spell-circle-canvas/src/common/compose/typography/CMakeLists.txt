@@ -11,11 +11,11 @@
 # kernel stores, compares or evaluates is defined in the header that
 # declares it, and the kernel links nothing here to do so. What the
 # archive holds is the members that carry a diagnostic and the ENGINE
-# behind dressed type: fx() tracks resolved and
+# behind dressed type: textFx() tracks resolved and
 # drawn per glyph, a run laid along a path, mark() anchors, span restyles
 # folded into axis tracks, and the schedule read back — reached by the
 # kernel through the TextPainter value the text verbs install on a
-# description, which is why those verbs (`fx`, `textOnPath`, `textAttach`,
+# description, which is why those verbs (`textFx`, `textOnPath`, `textAttach`,
 # `span`, `variationDrive`, `textAnnotation`) are defined here
 # though the kernel declares them. With it the kit's legibility helpers
 # (kit/Legibility.h), spelled in this tier's types.

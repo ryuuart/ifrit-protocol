@@ -2,15 +2,15 @@
  * fx_scatter_mix — two composed glyph effects, and the three
  * schedule dials that decide who moves first.
  *
- * `fx::scatter` flies every glyph in from its own random offset inside a
+ * `textFx::scatter` flies every glyph in from its own random offset inside a
  * disc, with its own random lean. The stream is seeded from the GLYPH'S
  * IDENTITY rather than from the frame, so the draw is stable across
  * frames and relayouts — which is what lets a settled scatter cache
  * instead of jittering forever.
  *
- * `fx::mix` evaluates every operand at the same local t and composes the
+ * `textFx::mix` evaluates every operand at the same local t and composes the
  * results by the algebra stacked tracks use: dx, dy and rotation ADD,
- * scale and alpha MULTIPLY. It is not a sequence — `fx::sequence` re-clocks
+ * scale and alpha MULTIPLY. It is not a sequence — `textFx::sequence` re-clocks
  * its phases over windows, this one runs them all at once — and it is
  * comparable when its operands are, so a mixed track prunes like any
  * other.
@@ -85,7 +85,7 @@ Element figure(float width, const char* key, Track track) {
                      .width(width - 88)
                      .absolute()
                      .inset(48, 44, 20, 44)
-                     .fx(std::move(track))});
+                     .textFx(std::move(track))});
 }
 
 /** The one spread every cell starts from — the origin and the
@@ -137,7 +137,7 @@ struct FxScatterMix {
                         .control = "radius 34 px · lean 26° · from start",
                         .figure = figure(
                             498, "sc",
-                            {.effect = fx::scatter(kRadius, kLean),
+                            {.effect = textFx::scatter(kRadius, kLean),
                              .stagger = ladder(motion::Spread::From::Start)}),
                         .note = "Each glyph gets a stable, seeded offset and "
                                 "lean."},
@@ -145,8 +145,9 @@ struct FxScatterMix {
                         .control = "mix(scatter, tint) · same local time",
                         .figure = figure(
                             498, "mx",
-                            {.effect = fx::mix(fx::scatter(kRadius, kLean),
-                                               fx::tint(kHot, ink)),
+                            {.effect =
+                                 textFx::mix(textFx::scatter(kRadius, kLean),
+                                             textFx::tint(kHot, ink)),
                              .stagger = ladder(motion::Spread::From::Start)}),
                         .note = "Position follows scatter while colour "
                                 "changes alongside it."}},
@@ -157,17 +158,18 @@ struct FxScatterMix {
                  {.cases =
                       {{.title = "FROM THE END",
                         .control = "From::End",
-                        .figure = figure(328, "en",
-                                         {.effect = fx::scatter(kRadius, kLean),
-                                          .stagger = ladder(
-                                              motion::Spread::From::End)}),
+                        .figure =
+                            figure(
+                                328, "en",
+                                {.effect = textFx::scatter(kRadius, kLean),
+                                 .stagger = ladder(motion::Spread::From::End)}),
                         .note = "The final glyph starts first; the cascade "
                                 "travels backward."},
                        {.title = "FROM BOTH EDGES",
                         .control = "From::Edges",
                         .figure = figure(
                             328, "ed",
-                            {.effect = fx::scatter(kRadius, kLean),
+                            {.effect = textFx::scatter(kRadius, kLean),
                              .stagger = ladder(motion::Spread::From::Edges)}),
                         .note = "Both ends arrive together. The centre "
                                 "remains in flight."},
@@ -175,7 +177,7 @@ struct FxScatterMix {
                         .control = "From::Start · distribution t²",
                         .figure = figure(
                             328, "di",
-                            {.effect = fx::scatter(kRadius, kLean),
+                            {.effect = textFx::scatter(kRadius, kLean),
                              .stagger = ladder(motion::Spread::From::Start,
                                                [](float t) { return t * t; })}),
                         .note = "Only the delay spacing changes; each glyph "

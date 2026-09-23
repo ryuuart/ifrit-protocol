@@ -43,7 +43,8 @@ struct TextState {
   SkSize pathSize = {-1, -1};        // the box the baseline resolved against
   std::optional<TextPath> pathSpec;  // the value it was built from
 
-  // ---- fx() selection, resolved once per (content, layout, selector) -------
+  // ---- textFx() selection, resolved once per (content, layout, selector)
+  // -------
   //
   // A selector answers one byte per glyph, and answering it can mean an ICU
   // regular expression over the whole paragraph. That is a per-EDIT cost,

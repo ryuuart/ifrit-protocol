@@ -279,7 +279,7 @@ compile.
 | [`contentFlowAround`](pages/verbs/contentFlowAround.md) | Flow this paragraph around the keyed node, by its silhouette or its box. |
 | [`textAnnotation`](pages/verbs/textAnnotation.md) | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
 | [`span`](pages/verbs/span.md) | Restyle the range a selector finds with the font and ink declarations; re-shapes only where a shaping field is stated, and only the words it covers. |
-| `fx` | Append a text-fx track: which glyphs, what deviation, how the beats spread, what drives it. |
+| `textFx` | Append a text-fx track: which glyphs, what deviation, how the beats spread, what drives it. |
 | [`variationDrive`](pages/verbs/variationDrive.md) | Drive a variable-font axis from a bound output at draw time, with no reshape. |
 | [`textAttach`](pages/verbs/textAttach.md) | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |
 | `textOnPath` | Lay the run out along a path instead of a line. |
@@ -336,7 +336,7 @@ spelling:
 
 ## What Python spells differently
 
-Four verbs have no Python binding: `fx`, `variationDrive`, `textAttach`
+Four verbs have no Python binding: `textFx`, `variationDrive`, `textAttach`
 and `mask`.
 
 Three spellings exist only in Python, each composing verbs that C++
@@ -385,7 +385,7 @@ spelling is the feature's.
   `initialLetter`, `textFirstBaseline`, `textVerticalAlign`,
   `textLineMargin`, `textWillChange`,
   `textOverflow`, `maxTextLines`, `textStroke`, `contentFlowAround`.
-- `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
+- `core/Text.h` — the text leaf's own content `textFx`, `variationDrive`,
   `textAttach`, `textAnnotation`, `textThreadTo`, `textThreadBalance`,
   `textOnPath`, `span`, `atRest`, and the `Text` leaf
   that has both these and the text properties.

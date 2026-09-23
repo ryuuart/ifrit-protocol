@@ -4,7 +4,7 @@
 namespace sigil::python {
 
 void bindComposeTextEffects(pybind11::module_& module) {
-  submodule(module, "compose.fx");
+  submodule(module, "compose.textFx");
   submodule(module, "core.noise");
 }
 

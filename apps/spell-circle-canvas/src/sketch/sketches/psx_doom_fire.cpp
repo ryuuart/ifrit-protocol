@@ -310,37 +310,37 @@ struct PsxDoomFire {
         // in it and name only their size and tracking; the title names its
         // own face and colour over it.
         .font({.face = uiFace(), .color = kSteel})
-        .children(
-            {compose::text("CELLULAR AUTOMATON")
-                 .font({.size = 12, .track = 2.6f})
-                 .opacity(motion::animate(motion::from(0.0f).to(1.0f),
-                                          {.duration = 260ms}))
-                 .translateY(motion::animate(motion::from(8.0f).to(0.0f),
-                                             {.duration = 260ms})),
-             compose::text(kTitle)
-                 .font({.face = heavyFace(),
-                        .size = 50,
-                        .color = kBone,
-                        .track = -0.6f})
-                 .key("title")
-                 .fx({.effect = compose::fx::rise(24),
-                      .stagger = cascade,
-                      .progress = motion::animate(motion::from(0.0f).to(1.0f),
-                                                  {.duration = span,
-                                                   .ease = &ch::easeNone,
-                                                   .delay = 120ms})}),
-             compose::text(
+        .children({compose::text("CELLULAR AUTOMATON")
+                       .font({.size = 12, .track = 2.6f})
+                       .opacity(motion::animate(motion::from(0.0f).to(1.0f),
+                                                {.duration = 260ms}))
+                       .translateY(motion::animate(motion::from(8.0f).to(0.0f),
+                                                   {.duration = 260ms})),
+                   compose::text(kTitle)
+                       .font({.face = heavyFace(),
+                              .size = 50,
+                              .color = kBone,
+                              .track = -0.6f})
+                       .key("title")
+                       .textFx({.effect = compose::textFx::rise(24),
+                                .stagger = cascade,
+                                .progress =
+                                    motion::animate(motion::from(0.0f).to(1.0f),
+                                                    {.duration = span,
+                                                     .ease = &ch::easeNone,
+                                                     .delay = 120ms})}),
+                   compose::text(
 
-                 "id Software / Williams — PlayStation port "
-                 "title screen · algorithm reverse-engineered "
-                 "from the Doom 64 disassembly by Samuel Villarreal, "
-                 "documented by Fabien Sanglard "
-                 "· fabiensanglard.net/doom_fire_psx "
-                 "· DoomFirePSX/flames.html")
-                 .font({.size = 11.5f, .track = 0.2f})
-                 .opacity(
-                     motion::animate(motion::from(0.0f).to(1.0f),
-                                     {.duration = 320ms, .delay = 200ms}))});
+                       "id Software / Williams — PlayStation port "
+                       "title screen · algorithm reverse-engineered "
+                       "from the Doom 64 disassembly by Samuel Villarreal, "
+                       "documented by Fabien Sanglard "
+                       "· fabiensanglard.net/doom_fire_psx "
+                       "· DoomFirePSX/flames.html")
+                       .font({.size = 11.5f, .track = 0.2f})
+                       .opacity(motion::animate(
+                           motion::from(0.0f).to(1.0f),
+                           {.duration = 320ms, .delay = 200ms}))});
   }
 
   /** The logo voice: heavy, huge, wide-tracked, with a dark ring underlay

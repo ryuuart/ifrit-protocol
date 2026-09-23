@@ -16,9 +16,9 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
     return box().padding(10).children(
         {text(u8"IIIIIIIIIIII", whiteStyle(32))
              .key("k")
-             .fx({.effect = fx::rise(24),
-                  .stagger = {.eachMs = 40, .durationMs = 200},
-                  .progress = std::move(progress)})});
+             .textFx({.effect = textFx::rise(24),
+                      .stagger = {.eachMs = 40, .durationMs = 200},
+                      .progress = std::move(progress)})});
   };
   host.composer.render(tree(0.0f));
   host.frame();
@@ -77,9 +77,9 @@ TEST(ComposeKinetic, ATrackKeepsABlurredUnderlayBeneathTheStroke) {
         .key(key)
         .absolute()
         .inset(20)
-        .fx({.effect = fx::pop(),
-             .stagger = {.eachMs = 30, .durationMs = 480},
-             .progress = kMidCascade});
+        .textFx({.effect = textFx::pop(),
+                 .stagger = {.eachMs = 30, .durationMs = 480},
+                 .progress = kMidCascade});
   };
 
   Host actual(420, 140);
@@ -124,9 +124,9 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
     return box().padding(10).children(
         {text(u8"POP", whiteStyle(40))
              .key("k")
-             .fx({.effect = fx::pop(),
-                  .stagger = {.eachMs = 20, .durationMs = 150},
-                  .progress = std::move(progress)})});
+             .textFx({.effect = textFx::pop(),
+                      .stagger = {.eachMs = 20, .durationMs = 150},
+                      .progress = std::move(progress)})});
   };
   host.composer.render(tree(0.001f));
   host.frame();
@@ -161,9 +161,9 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
   host.composer.render(box().padding(10).children(
       {text(u8"IIIIIIIIIIII", whiteStyle(32))
            .key("k")
-           .fx({.effect = fx::rise(24),
-                .stagger = {.eachMs = 40, .durationMs = 200},
-                .progress = &progress})}));
+           .textFx({.effect = textFx::rise(24),
+                    .stagger = {.eachMs = 40, .durationMs = 200},
+                    .progress = &progress})}));
   host.frame();
   auto b = host.composer.bounds("k");
   ASSERT_TRUE(b.has_value());

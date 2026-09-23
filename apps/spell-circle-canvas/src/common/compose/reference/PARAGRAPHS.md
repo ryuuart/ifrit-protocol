@@ -112,27 +112,25 @@ warns once.
 
 **BEATS SPAN THE CHAIN.** A cascade over a threaded story runs one clock
 across the whole of it: with `beats::Text` the fortieth word is beat forty
-wherever it landed, so a staggered reveal carries on from one frame into
-the next instead of restarting, and a `fx::sequence` phase's crossfade stays
-put across a reflow that moves a word from one frame to another —
-its beat is the story's, not the frame's. The word, the sentence and the
-line are the three granularities this holds for, because each carries a
-story ordinal on the placed glyph. A CLUSTER AND A GLYPH DO NOT: their
-ordinal is a position in this frame's walk, so a cascade over either
-restarts at each frame.
-Overflow on any frame but the last is the normal case and draws no marker,
-whatever ellipsis the leaf asked for; the last frame is the one that
-threads nowhere. A frame's own geometry is its business: it may flow
-around a silhouette or carry exclusions like any other text leaf.
-`kit::textColumns` is N frames side by side threaded in order, which is what a
-Western multi-column measure is — the vertical writing mode keeps the word
-column for the thing it already meant. It is spelled either positionally,
-for a plain run of columns, or as a `kit::ColumnSet`, which is the same
-run plus the things that straddle it. Both take an ellipsis, and it ends
-the chain: the last column threads nowhere, so without one what
-it cannot hold draws past its box, and the marker lands on that column's
-last line instead. The columns before it take none whatever is passed,
-because a mark at every cut would read as three texts rather than one
+wherever it landed, so a staggered reveal carries on from one frame into the
+next instead of restarting, and a `textFx::sequence` phase's crossfade stays
+put across a reflow that moves a word from one frame to another — its beat is
+the story's, not the frame's. The word, the sentence and the line are the three
+granularities this holds for, because each carries a story ordinal on the
+placed glyph. A CLUSTER AND A GLYPH DO NOT: their ordinal is a position in this
+frame's walk, so a cascade over either restarts at each frame. Overflow on any
+frame but the last is the normal case and draws no marker, whatever ellipsis
+the leaf asked for; the last frame is the one that threads nowhere. A frame's
+own geometry is its business: it may flow around a silhouette or carry
+exclusions like any other text leaf. `kit::textColumns` is N frames side by
+side threaded in order, which is what a Western multi-column measure is — the
+vertical writing mode keeps the word column for the thing it already meant. It
+is spelled either positionally, for a plain run of columns, or as a
+`kit::ColumnSet`, which is the same run plus the things that straddle it. Both
+take an ellipsis, and it ends the chain: the last column threads nowhere, so
+without one what it cannot hold draws past its box, and the marker lands on
+that column's last line instead. The columns before it take none whatever is
+passed, because a mark at every cut would read as three texts rather than one
 story.
 
 The chain is walked in the derive pass, in chain order, with each frame

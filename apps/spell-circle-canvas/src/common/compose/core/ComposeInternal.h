@@ -284,7 +284,7 @@ struct TextData {
   // span(): the type treatment, addressed by selector and applied to the
   // materialized paragraph in declaration order.
   std::vector<SpanRestyle> spanRestyles;
-  // Text::fx(): the ordered track list. Empty on ordinary text.
+  // Text::textFx(): the ordered track list. Empty on ordinary text.
   // Text::variationDrive() appends one of these too — a driven axis is a
   // per-glyph deviation like any other, and has no plumbing of its own.
   std::vector<Track> tracks;
@@ -312,7 +312,7 @@ struct TextData {
   bool balanceChain = false;
   uint32_t balanceThroughLine = ~0u;
   // THE TEXT ENGINE, as the description carries it: installed by the verbs
-  // that dress type (fx, textOnPath, textAttach, span, variationDrive),
+  // that dress type (textFx, textOnPath, textAttach, span, variationDrive),
   // read by the kernel wherever it needs more than the paragraph drawn at
   // rest. Excluded from structural equality — it is the
   // same engine on every text that has one — so a field pin names it and

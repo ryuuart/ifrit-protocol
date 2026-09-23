@@ -319,7 +319,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
 
   // Transition state, keyed by property slot
   // The FIXED property slots — one per property every node can carry, so the
-  // count is a property of the KERNEL. Mask gates and fx() tracks are
+  // count is a property of the KERNEL. Mask gates and textFx() tracks are
   // deliberately not here: how many a node has is a property of its
   // description, so they live in the maskAnims and trackAnims vectors
   // instead.
@@ -414,7 +414,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // mask list drops the running motions rather than carrying them onto
   // numbers that now mean something else.
   std::vector<std::unique_ptr<AnimatedFloat>> maskAnims;
-  // Animated fx() TRACK progresses, one per track in declaration order.
+  // Animated textFx() TRACK progresses, one per track in declaration order.
   //
   // Positional and separately indexed for the same reason mask gates are:
   // three tracks on one text node may run at three rates, and a shared slot
@@ -508,7 +508,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   bool transformLive = false;
   // …and does what this node draws LAND SOMEWHERE ELSE next frame?
   // `transformLive` is the node's OWN declared motion; this is that, OR any
-  // ancestor's, OR — for text — a live fx() track whose effect moves glyphs
+  // ancestor's, OR — for text — a live textFx() track whose effect moves glyphs
   // off their pen positions. Text asks it: a run whose device placement
   // creeps needs its glyph origins on the subpixel grid, and a figure
   // rotating above the text, or a slide dragging every letter sideways,
@@ -604,7 +604,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
    *  set of floats to compare. A node animated only by a per-pass span falls
    *  back to per-frame content volatility and does not cache. */
   struct ContentScalars {
-    /** Every fx() track's master progress, resolved, in the order
+    /** Every textFx() track's master progress, resolved, in the order
      *  trackAnims indexes them. Empty on text carrying no tracks. */
     std::vector<float> tracks;
     /** Every mask gate's animated floats, resolved, in the order
@@ -854,7 +854,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
    *  the recording was BAKED with. Empty when the node carries no mask, or
    *  only shape/alpha gates, which have no numbers. */
   std::vector<float> resolveGateValues() const;
-  /** The same resolution over the fx() TRACKS: every track's master
+  /** The same resolution over the textFx() TRACKS: every track's master
    *  progress this frame, in the order trackAnims indexes them (and
    *  ContentScalars::tracks stores them). Empty when the node carries no
    *  tracks. */

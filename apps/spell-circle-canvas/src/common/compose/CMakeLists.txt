@@ -10,7 +10,7 @@
 #                                        reconciler, layout, paint,
 #                                        transitions, text at rest, the
 #                                        instanced sprite leaf
-#   SigilComposeTypography  typography/  the text engine (fx tracks, path
+#   SigilComposeTypography  typography/  the text engine (textFx tracks, path
 #                                        text, marks), type styles and the
 #                                        text-fx presets
 #   SigilComposeBrush       brush/       decorations, lines, brushes, layer

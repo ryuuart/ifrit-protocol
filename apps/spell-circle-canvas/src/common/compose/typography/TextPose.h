@@ -22,7 +22,7 @@
 
 namespace sigil::compose {
 
-/** The tracks a node's text draws with: the description's fx() tracks,
+/** The tracks a node's text draws with: the description's textFx() tracks,
  *  then the axis tracks its span restyles folded into. Indexed as one
  *  list by the painter's selection cache; a folded track sits past the
  *  end of trackAnims and so reads its progress at rest. */

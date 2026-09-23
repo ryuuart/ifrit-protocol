@@ -829,7 +829,7 @@ struct Composer::Impl {
   void paint(detail::Instance& inst, SkCanvas& canvas);
   /** The glyph-paint override ink(paint)/textStroke() ask for, or nullopt
    *  when the node asks for neither. ONE body, called by the resting draw
-   *  and by the fx() draw — a letter in flight is painted exactly as a
+   *  and by the textFx() draw — a letter in flight is painted exactly as a
    *  resting one is. */
   std::optional<sigil::weave::PaintStyle> metricTextStyle(
       detail::Instance& inst, const PaintContext& paintCtx);

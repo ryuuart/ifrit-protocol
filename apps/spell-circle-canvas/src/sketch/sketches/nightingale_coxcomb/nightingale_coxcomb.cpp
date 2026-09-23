@@ -44,7 +44,7 @@
 //   patterns::speckle()   the litho stipple, per band, over a colour wash
 //   field::grain()     plate tone + the ink-density wander inside a band
 //   Paint::blend()     wash + stipple + blot + density, one fill value
-//   fx::typeOn()          the pen writing the title and the legend
+//   textFx::typeOn()          the pen writing the title and the legend
 //   spans::upTo / scale / animate  the whole 13.6 s reading order
 //   Text::textOnPath       every label — ONE LEAF EACH, shaped once with
 //                         real kerning and placed by arc length. The months
@@ -592,24 +592,24 @@ struct NightingaleCoxcomb {
             {.face = faceGrotesque, .size = 27, .color = kInk, .track = 0.4f}),
         0.9f, kInk);
 
-    Track t1{.effect = fx::typeOn(),
+    Track t1{.effect = textFx::typeOn(),
              .stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 40},
              .progress = animate(from(0.0f).to(1.0f),
                                  ramp(tTitle1 * 1000, 700, ch::easeNone))};
     root.children({text("DIAGRAM of the CAUSES of MORTALITY", title1)
                        .key("title1")
-                       .fx(std::move(t1))
+                       .textFx(std::move(t1))
                        .layerStyle(LayerStyle::echo({0.8f, 0.5f},
                                                     hexColor(0x241c15, 0.8f)))
                        .centerAt({968, 38})});
 
-    Track t2{.effect = fx::typeOn(),
+    Track t2{.effect = textFx::typeOn(),
              .stagger = {.eachMs = 0, .amountMs = 340, .durationMs = 40},
              .progress = animate(from(0.0f).to(1.0f),
                                  ramp(tTitle2 * 1000, 400, ch::easeNone))};
     root.children({text("in the ARMY in the EAST.", title2)
                        .key("title2")
-                       .fx(std::move(t2))
+                       .textFx(std::move(t2))
                        .layerStyle(LayerStyle::echo({0.6f, 0.4f},
                                                     hexColor(0x241c15, 0.7f)))
                        .centerAt({945, 84})});
@@ -743,14 +743,14 @@ struct NightingaleCoxcomb {
     Element legend = stack().inset(0).staggerChildren(200ms).font(
         {.face = faceScript, .size = 27});
     for (size_t i = 0; i < legendText.size(); ++i) {
-      Track pen{.effect = fx::typeOn(),
+      Track pen{.effect = textFx::typeOn(),
                 .stagger = penStagger,
                 .progress = animate(
                     from(0.0f).to(1.0f),
                     ramp(tLegend * 1000, penStagger.spanMs(2), ch::easeNone))};
       legend.children({text(legendText[i].text)
                            .key("leg" + std::to_string(i))
-                           .fx(std::move(pen))
+                           .textFx(std::move(pen))
                            .at({171.0f + (float)legendText[i].indent * 22.0f,
                                 628.0f + (float)i * 30.7f})});
     }

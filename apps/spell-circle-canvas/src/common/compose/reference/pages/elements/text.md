@@ -72,7 +72,7 @@ say the content changed.
 
 A text leaf declares the whole *text leaf* group of verbs — the
 paragraph styling, the threading, the annotations, the span restyles,
-the fx tracks — and no other node declares them, so writing one on
+the textFx tracks — and no other node declares them, so writing one on
 anything else does not compile. Hold the leaf as a `Text` for as long as
 those verbs are still to be written; it converts to `Element` wherever a
 node is wanted. Its children are its marks and its slot mounts.

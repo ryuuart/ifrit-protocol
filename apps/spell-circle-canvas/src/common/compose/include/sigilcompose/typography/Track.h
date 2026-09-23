@@ -3,7 +3,7 @@
 /** @file
  * @ingroup compose-typography
  *
- * SigilCompose typography — the TRACK: one entry of a text leaf's `fx()`
+ * SigilCompose typography — the TRACK: one entry of a text leaf's `textFx()`
  * list, which is which glyphs (`weave::Selector`), what deviation from rest
  * (`TextEffect`), how the beats spread (`motion::Spread`), what a unit is,
  * and the master progress that drives it — with `Beats`, which list a

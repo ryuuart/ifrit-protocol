@@ -169,7 +169,7 @@ Element GenesisFire::productionPanel() {
 }
 
 Element GenesisFire::header() {
-  Track rise{.effect = fx::rise(22),
+  Track rise{.effect = textFx::rise(22),
              .stagger = {.eachMs = 26, .durationMs = 460},
              .progress = animate(
                  from(0.0f).to(1.0f),
@@ -193,7 +193,7 @@ Element GenesisFire::header() {
                .font({.face = heavyFace(), .size = 46, .track = -0.4f})
                .ink(kBone)
                .key("title")
-               .fx(std::move(rise)),
+               .textFx(std::move(rise)),
            text(head["credit"])
                .font({.size = 11.0f, .track = 0.1f})
                .opacity(animate(from(0.0f).to(1.0f),

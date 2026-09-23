@@ -26,13 +26,13 @@ namespace sigil::compose {
 // ---------------------------------------------------------------------------
 // The combinators
 
-namespace fx {
+namespace textFx {
 
 namespace {
 /** A combinator's placement fact, derived from what it may evaluate: it
  *  moves glyphs when any operand does. Deriving rather than declaring is
- *  what keeps the answer exact through nesting — a `fx::mix` of three tints
- *  and one `fx::rise` displaces, the same mix without the rise does not. */
+ *  what keeps the answer exact through nesting — a `textFx::mix` of three tints
+ *  and one `textFx::rise` displaces, the same mix without the rise does not. */
 template <typename Range>
 bool anyDisplaces(const Range& operands) {
   for (const auto& operand : operands)
@@ -150,9 +150,9 @@ float keysReach(const std::vector<Key>& table) {
                                   std::abs(m.scale * m.scaleY), 1.0f}) -
                         1.0f;
     const bool leans = m.rotateDeg != 0 || m.skewXDeg != 0 || m.skewYDeg != 0;
-    reach = std::max(reach,
-                     std::abs(m.dx) + std::abs(m.dy) +
-                         (grown + (leans ? 0.5f : 0.0f)) * fx::kNominalSizePx);
+    reach = std::max(
+        reach, std::abs(m.dx) + std::abs(m.dy) +
+                   (grown + (leans ? 0.5f : 0.0f)) * textFx::kNominalSizePx);
   }
   return reach;
 }
@@ -312,6 +312,6 @@ TextEffect pass(material::skia::Paint material) {
   return TextEffect::pass(std::move(material));
 }
 
-}  // namespace fx
+}  // namespace textFx
 
 }  // namespace sigil::compose

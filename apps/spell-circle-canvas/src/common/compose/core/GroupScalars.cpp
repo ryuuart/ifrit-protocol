@@ -87,7 +87,7 @@ void collectGroupScalars(const Instance& inst, bool root,
         pushGate(m.with.fraction);
     }
   }
-  // fx() track progresses: the same argument again, over the per-track
+  // textFx() track progresses: the same argument again, over the per-track
   // vector. Only LIVE values are pushed, so the vector's LENGTH still
   // carries a track's motion connecting or disconnecting.
   if (node.textData)

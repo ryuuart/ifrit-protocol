@@ -754,14 +754,14 @@ struct ChladniTab1 {
     }
 
     // ---- "Tab. I.", swash italic, above the frame at the right ----
-    Track pen{.effect = fx::typeOn(),
+    Track pen{.effect = textFx::typeOn(),
               .stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 60},
               .progress = animate(from(0.0f).to(1.0f),
                                   ramp(tTitle * 1000, 620, ch::easeNone))};
     root.children({text("Tab. I.")
                        .font({.face = faceSwash, .size = 62, .track = 1.0f})
                        .key("title")
-                       .fx(std::move(pen))
+                       .textFx(std::move(pen))
                        .centerAt({1436 * kScale, 106 * kScale})});
 
     // ---- the twelve figures ----

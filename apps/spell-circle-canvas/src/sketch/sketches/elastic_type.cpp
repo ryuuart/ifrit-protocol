@@ -35,7 +35,7 @@
 //                                            88.8%       -0.1953125°
 //                                           100.0%        0
 //
-// The table is ALL this file states. `fx::keys` takes the entries and does
+// The table is ALL this file states. `textFx::keys` takes the entries and does
 // the sampling, so the numbers above and the numbers below are the same
 // list read twice rather than a transcription and a sampler that have to
 // agree — and the graphs at the bottom plot the EFFECT, not the table, so
@@ -50,8 +50,8 @@
 //    single shear pair.
 //  * CSS crosses EACH KEYFRAME SEGMENT with its own timing function, `ease`
 //    by default, rather than running one curve across the whole list. That
-//    is what `fx::keys` means by a per-segment curve, and `cssEase` below is
-//    the curve itself: every segment eases in and out of its own endpoints,
+//    is what `textFx::keys` means by a per-segment curve, and `cssEase` below
+//    is the curve itself: every segment eases in and out of its own endpoints,
 //    which rounds the corners a linear reading leaves sharp.
 //
 // -----------------------------------------------------------------------------
@@ -132,7 +132,7 @@ constexpr float kPlotH = 112.0f;
 // ---------------------------------------------------------------------------
 // The tables, and the curve every segment of one is crossed with.
 
-using Table = std::vector<fx::Key>;
+using Table = std::vector<textFx::Key>;
 
 /** CSS's default `animation-timing-function`: cubic-bezier(0.25, 0.1, 0.25,
  *  1). A keyframe list that names no timing function is crossed with this
@@ -177,7 +177,7 @@ Table rubberTable() {
  *  is what makes the word rock on a diagonal rather than side to side. */
 Table jelloTable() {
   const auto shear = [](float at, float deg) {
-    return fx::Key{at, {.skewXDeg = deg, .skewYDeg = deg}};
+    return textFx::Key{at, {.skewXDeg = deg, .skewYDeg = deg}};
   };
   return {shear(0.000f, 0.0f),        shear(0.111f, 0.0f),
           shear(0.222f, -12.5f),      shear(0.333f, 6.25f),
@@ -275,7 +275,7 @@ const std::array<Lane, 3> kLanes{{
  *  the same frame the trace is drawn through, so a label names the line
  *  beside it and cannot slide off it. */
 Element lanePanel(const Lane& lane) {
-  const TextEffect effect = fx::keys(lane.table(), &cssEase);
+  const TextEffect effect = textFx::keys(lane.table(), &cssEase);
   const auto curve = [effect, read = lane.read](double t) {
     return (double)read(at(effect, (float)t));
   };
@@ -283,7 +283,8 @@ Element lanePanel(const Lane& lane) {
   for (const Tick& tick : lane.ticks())
     if (tick.value != lane.rest) ruled.push_back(tick.value);
   std::vector<double> published;
-  for (const fx::Key& keyframe : lane.table()) published.push_back(keyframe.at);
+  for (const textFx::Key& keyframe : lane.table())
+    published.push_back(keyframe.at);
   const auto dot = [](double, std::size_t) {
     return box()
         .width(5.2f)
@@ -354,7 +355,7 @@ struct ElasticType {
     // and lives only in the draw, so nothing else on the sheet says where
     // the undeformed letter was.
     return box().column().gap(8).children(
-        {text(caption), kit::restGhost(text(word, set).key(word).fx(
+        {text(caption), kit::restGhost(text(word, set).key(word).textFx(
                                            {.effect = std::move(effect),
                                             .stagger = {.eachMs = kEachMs,
                                                         .durationMs = kDurMs},
@@ -393,11 +394,11 @@ struct ElasticType {
                  .font({.size = 10.5f, .track = 0.6f})
                  .ink(kRest),
              row("RUBBERBAND", "rubberBand · SEVEN STOPS ON TWO SCALE AXES",
-                 fx::keys(rubberTable(), &cssEase)),
+                 textFx::keys(rubberTable(), &cssEase)),
              row("JELLO",
                  "jello · A HALVING, ALTERNATING SHEAR · "
                  "BOTH AXES",
-                 fx::keys(jelloTable(), &cssEase)),
+                 textFx::keys(jelloTable(), &cssEase)),
              box().flexGrow(1),
              box().row().gap(28).height(146).children(
                  {each(kLanes, lanePanel)}),

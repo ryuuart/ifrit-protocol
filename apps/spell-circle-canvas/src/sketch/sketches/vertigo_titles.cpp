@@ -424,7 +424,7 @@ struct VertigoTitles {
       spiralCard(panel, i);
 
     // VERTIGO — hollow Clarendon expanding out of the pupil: one text
-    // node, one fx::pop() track cascading the capitals 30 ms apart. The
+    // node, one textFx::pop() track cascading the capitals 30 ms apart. The
     // track's batched draw carries the style's whole paint — the blurred
     // stroke underlay stays beneath the hollow stroke while the letters
     // pop. The 3 px between capitals is tracking, not a gap: with one text
@@ -455,10 +455,10 @@ struct VertigoTitles {
           {text("VERTIGO", face)
                .key("vertigo")
                .centerAt(kEye)
-               .fx({.effect = fx::pop(0.30f),
-                    .stagger = cascade,
-                    .progress = animate(from(0.0f).to(1.0f),
-                                        ramp(780, cascade.spanMs(7)))})});
+               .textFx({.effect = textFx::pop(0.30f),
+                        .stagger = cascade,
+                        .progress = animate(from(0.0f).to(1.0f),
+                                            ramp(780, cascade.spanMs(7)))})});
     }
 
     // the other register — "solid black capitals of the SAME typeface"
@@ -693,7 +693,7 @@ struct VertigoTitles {
                                 animate(from(0.0f).to(1.0f), ramp(0, 260)),
                             .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
                 .title = {.words = "VERTIGO, 1958",
-                          .fx = Track{.effect = fx::rise(18.0f),
+                          .fx = Track{.effect = textFx::rise(18.0f),
                                       .stagger = {.eachMs = 26,
                                                   .amountMs = 0,
                                                   .durationMs = 420},

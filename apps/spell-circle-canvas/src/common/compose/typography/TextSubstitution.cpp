@@ -128,7 +128,7 @@ SkGlyphID substituteGlyph(sigil::weave::FontContext& fonts,
   static thread_local boost::unordered_flat_set<uint64_t> warned;
   if (warned.insert(((uint64_t)face->uniqueID() << 1u) | (uint64_t)axis).second)
     SkDebugf(
-        "sigilcompose fx: a code-point substitution on this font is "
+        "sigilcompose textFx: a code-point substitution on this font is "
         "proportional %s — refused (the replacement is drawn at the "
         "original's pen position, so a different advance would move every "
         "letter after it; substitute within an equal-advance charset, or "

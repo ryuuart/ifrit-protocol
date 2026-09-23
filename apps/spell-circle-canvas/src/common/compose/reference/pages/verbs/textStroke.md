@@ -52,7 +52,7 @@ it.
 **It composes with the rest of the text surface**: with
 [`ink`](ink.md), which paints the fill above it; with the
 style's own underlays and overlays, which it joins rather than replaces;
-and with the fx tracks, which carry every pass along as a glyph moves.
+and with the textFx tracks, which carry every pass along as a glyph moves.
 
 A caption over a photograph usually wants this and a dark outline
 rather than a box behind the words: the outline follows the letterforms,

@@ -28,7 +28,7 @@ faces is declined with a debug warning and the text draws at its shaped
 coordinates. Drive GRAD — the advance-invariant weight — or re-render
 discretely instead.
 
-**It is sugar over `fx()`**, and deliberately so: it appends a
+**It is sugar over `textFx()`**, and deliberately so: it appends a
 whole-text track whose deviation is a glyph modifier's axis, so a driven
 axis composes with entrances, loops and every other track instead of
 being a second text path they would hide. Being a track, it also draws
@@ -43,4 +43,4 @@ onto each other.
 
 ## See also
 
-`fx`, [`span`](span.md), `weave::FontVariation`.
+`textFx`, [`span`](span.md), `weave::FontVariation`.

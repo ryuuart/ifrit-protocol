@@ -18,7 +18,7 @@ namespace {
 /** An effect under `key` returning one fixed deviation — the readable way
  *  to drive a single GlyphModifier field from a test. */
 TextEffect fixed(std::string key, GlyphModifier mod) {
-  return fx::effect(
+  return textFx::effect(
       std::move(key),
       [mod](const GlyphInfo&, float, core::noise::Mix64Stream&) { return mod; },
       /*reach=*/120.0f);
@@ -39,9 +39,9 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
     Element root = box().padding(10).children(
         {text(u8"ABCD", whiteStyle(28))
              .key("word")
-             .fx({.effect = fx::rise(4),
-                  .stagger = {.eachMs = 100, .durationMs = 100},
-                  .progress = 0.5f})});
+             .textFx({.effect = textFx::rise(4),
+                      .stagger = {.eachMs = 100, .durationMs = 100},
+                      .progress = 0.5f})});
     if (withMeter)
       root.children(
           {kit::trackMeter(host.composer, "word", 0, {1, 0, 0, 1}, {0, 0, 1, 1})
@@ -111,7 +111,7 @@ TEST(ComposeDebug, RestGhostDrawsTheSameWordUndeformedUnderTheMovingOne) {
   host.composer.render(box().padding(10).children(
       {kit::restGhost(text(u8"AB", whiteStyle(40))
                           .key("word")
-                          .fx({.effect = fixed("shove", shove)}),
+                          .textFx({.effect = fixed("shove", shove)}),
                       ghostInk)}));
   host.frame();
   const auto countBlue = [&](SkIRect region) {

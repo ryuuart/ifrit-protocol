@@ -320,7 +320,7 @@ TEST(ComposeGpu, BatchedBlurredUnderlayStaysBeneathForeground) {
          "underlay composited over it";
 }
 
-// The same guarantee through the fx track path: a text node whose style
+// The same guarantee through the textFx track path: a text node whose style
 // carries the blurred underlay, drawn mid-cascade (per-glyph scale and
 // fade in flight), must composite underlay -> foreground identically on
 // both backends.
@@ -344,9 +344,9 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
   auto tree = [&] {
     return box().padding(20).children({text(u8"VERTIGO", style)
                                            .key("word")
-                                           .fx({.effect = fx::pop(),
-                                                .stagger = {.eachMs = 30, .durationMs = 480},
-                                                .progress = 0.55f})});
+                                           .textFx({.effect = textFx::pop(),
+                                                    .stagger = {.eachMs = 30, .durationMs = 480},
+                                                    .progress = 0.55f})});
   };
 
   sigil::motion::Ticker ticker;
@@ -373,7 +373,7 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
          "underlay composited over it";
 }
 
-// `Track::reach` on an fx::pass grows the pass's painted bounds and
+// `Track::reach` on an textFx::pass grows the pass's painted bounds and
 // nothing else, on Graphite exactly as on the CPU. The GPU backend turns
 // the pass's layer into an image through its own picture-to-image door, so
 // the CPU claim alone does not cover it: the layer's pixels must land
@@ -385,7 +385,7 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
   style.shaping.fontSize = 34.0f;
   style.paint.foreground.setColor(SK_ColorWHITE);
   const TextEffect lift =
-      fx::effect("gpu-lift", [](const GlyphInfo &, float, sigil::core::noise::Mix64Stream &) {
+      textFx::effect("gpu-lift", [](const GlyphInfo &, float, sigil::core::noise::Mix64Stream &) {
         GlyphModifier m;
         m.dy = -14.0f;
         return m;
@@ -399,10 +399,10 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
     return box().padding(60).children(
         {text(u8"HOIST", style)
              .key("hoist")
-             .fx({.effect = lift})
-             .fx({.effect = fx::pass(
-                      sigil::material::skia::Paint::recipe(sigil::material::Material(identity))),
-                  .reach = reach})});
+             .textFx({.effect = lift})
+             .textFx({.effect = textFx::pass(sigil::material::skia::Paint::recipe(
+                          sigil::material::Material(identity))),
+                      .reach = reach})});
   };
   const int w = 200, h = 200;
   sigil::motion::Ticker snugTicker;

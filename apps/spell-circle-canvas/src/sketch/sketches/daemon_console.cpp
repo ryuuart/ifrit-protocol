@@ -22,7 +22,7 @@
 //   entrances ...... chosen PER SEVERITY, and every one SETTLES: traces fade,
 //                    info types on, warnings rise glyph by glyph, breaches
 //                    slam in whole with a screened flash that decays to the
-//                    ink's own red. A cipher field is vetoed by fx::hold
+//                    ink's own red. A cipher field is vetoed by textFx::hold
 //                    until its beat opens, churns hex, and resolves. The
 //                    frame a track ends, its row is a cached static leaf
 //                    again.
@@ -511,17 +511,17 @@ struct DaemonConsole {
     switch (r.sev) {
       case dc::kTrace:
         // A trace merely surfaces: one quiet fade, no cascade.
-        leaf.fx({.effect = fx::keys({{0.0f, {.alpha = 0}}, {1.0f, {}}}),
-                 .progress = animate(motion::from(0.0f).to(1.0f),
-                                     {180ms, &choreograph::easeNone})});
+        leaf.textFx({.effect = textFx::keys({{0.0f, {.alpha = 0}}, {1.0f, {}}}),
+                     .progress = animate(motion::from(0.0f).to(1.0f),
+                                         {180ms, &choreograph::easeNone})});
         break;
       case dc::kFlux:
         // A warning rises glyph by glyph — more insistent than type-on,
         // still a sweep the eye can follow.
-        leaf.fx({.effect = fx::rise(6),
-                 .stagger = {.eachMs = 4, .durationMs = 120},
-                 .progress = animate(motion::from(0.0f).to(1.0f),
-                                     {300ms, &choreograph::easeNone})});
+        leaf.textFx({.effect = textFx::rise(6),
+                     .stagger = {.eachMs = 4, .durationMs = 120},
+                     .progress = animate(motion::from(0.0f).to(1.0f),
+                                         {300ms, &choreograph::easeNone})});
         break;
       case dc::kBreach:
         // A breach does not type: the whole line slams in at once, wide and
@@ -533,36 +533,38 @@ struct DaemonConsole {
         // decays back through its own colour, which is this console's
         // phosphor idiom (the glow underlays, the screen-blended scanline
         // pass) spoken per glyph.
-        leaf.fx({.effect = fx::keys({{0.0f,
-                                      {.alpha = 0,
-                                       .colorScreen = {0.9f, 0.85f, 0.8f, 0},
-                                       .scaleX = 1.45f,
-                                       .scaleY = 0.62f}},
-                                     {0.35f,
-                                      {.colorScreen = {0.4f, 0.28f, 0.22f, 0},
-                                       .scaleX = 0.97f}},
-                                     {1.0f, {}}}),
-                 .progress = animate(motion::from(0.0f).to(1.0f),
-                                     {240ms, &choreograph::easeOutQuad})});
+        leaf.textFx(
+            {.effect = textFx::keys(
+                 {{0.0f,
+                   {.alpha = 0,
+                    .colorScreen = {0.9f, 0.85f, 0.8f, 0},
+                    .scaleX = 1.45f,
+                    .scaleY = 0.62f}},
+                  {0.35f,
+                   {.colorScreen = {0.4f, 0.28f, 0.22f, 0}, .scaleX = 0.97f}},
+                  {1.0f, {}}}),
+             .progress = animate(motion::from(0.0f).to(1.0f),
+                                 {240ms, &choreograph::easeOutQuad})});
         break;
       default:
         // Info and seals type on — the terminal's own voice.
-        leaf.fx({.effect = fx::typeOn(),
-                 .stagger = {.eachMs = 6, .durationMs = 40},
-                 .progress = animate(motion::from(0.0f).to(1.0f),
-                                     {320ms, &choreograph::easeNone})});
+        leaf.textFx({.effect = textFx::typeOn(),
+                     .stagger = {.eachMs = 6, .durationMs = 40},
+                     .progress = animate(motion::from(0.0f).to(1.0f),
+                                         {320ms, &choreograph::easeNone})});
         break;
     }
     if (!r.cipher.empty())
       // The cipher decodes on its own clock: held to NOTHING until each
       // glyph's beat opens (an unheld scramble would show wrong letters out
       // of turn), then hex churn, resolved by the end of the beat.
-      leaf.fx({.where = selectors::style("cipher"),
-               .effect = fx::hold(fx::scramble(U"0123456789abcdef", 10)),
-               .stagger = {.eachMs = 30, .durationMs = 340},
-               .unit = weave::Unit::Cluster,
-               .progress = animate(motion::from(0.0f).to(1.0f),
-                                   {750ms, &choreograph::easeNone})});
+      leaf.textFx(
+          {.where = selectors::style("cipher"),
+           .effect = textFx::hold(textFx::scramble(U"0123456789abcdef", 10)),
+           .stagger = {.eachMs = 30, .durationMs = 340},
+           .unit = weave::Unit::Cluster,
+           .progress = animate(motion::from(0.0f).to(1.0f),
+                               {750ms, &choreograph::easeNone})});
 
     Element row =
         box()

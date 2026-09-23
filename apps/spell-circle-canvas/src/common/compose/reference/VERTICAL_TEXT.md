@@ -18,7 +18,7 @@ text(weave::rich(mincho)
          .add(u8"年、縦組みに対応した。"))
     .width(260).height(300)
     .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-    .fx({.effect = fx::rise(24)});
+    .textFx({.effect = textFx::rise(24)});
 ```
 
 **BOTH AXES ARE MEASURES.** A horizontal passage reads its width as the
@@ -71,7 +71,7 @@ reading DOWN the page.
 **Track deviations apply in the frame the layout placed the glyph in**, the
 same rule a path baseline follows — and in a column the placed frame is the
 glyph's own vertical pose. An UPRIGHT glyph is not turned, so its frame is
-the canvas frame: `fx::rise` lifts it up the page. A ROTATED one is turned
+the canvas frame: `textFx::rise` lifts it up the page. A ROTATED one is turned
 to the column, so its frame is turned with it and a rise lifts it off its own
 baseline, across the column. A glyph's pivot moves too: an upright glyph
 turns and scales about the point on the COLUMN AXIS its pen reached, not

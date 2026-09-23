@@ -21,7 +21,7 @@
  *  (brush/). What a node's `stroke`, `background`, `foreground` and
  *  `layerStyle` verbs take. */
 /** @defgroup compose-typography Type
- *  Everything a text leaf says beyond its words: the per-glyph fx tracks
+ *  Everything a text leaf says beyond its words: the per-glyph textFx tracks
  *  and their beats, the text effects, the selector vocabulary compose
  *  adds to SigilWeave's, the unit a passage is addressed by, readings
  *  beside the type, and type set along a path (typography/). */

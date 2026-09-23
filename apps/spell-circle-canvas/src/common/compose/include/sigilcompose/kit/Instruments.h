@@ -125,7 +125,7 @@ struct MeterPlacement {
  *  flow, which is what sizes the box. Drop it in where the text was:
  *
  *      box().children({kit::restGhost(
- *          text(u8"RUBBERBAND", set).key("word").fx({…}), rest)})
+ *          text(u8"RUBBERBAND", set).key("word").textFx({…}), rest)})
  *
  *  What the rest copy is — the same content, style, width and layout with
  *  no tracks, no span restyles and none of the moving copy's children,

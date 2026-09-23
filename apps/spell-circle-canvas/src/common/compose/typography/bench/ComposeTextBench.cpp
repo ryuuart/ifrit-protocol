@@ -81,7 +81,7 @@ static void BM_Draw_DenseText_SlugReplay(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_DenseText_SlugReplay);
 
-/** Kinetic typography on raster: a looping fx() reveal drives batched
+/** Kinetic typography on raster: a looping textFx() reveal drives batched
  *  RSXform glyph draws every frame across `lines` lines of text. */
 static void BM_Draw_KineticText(benchmark::State& state) {
   const int lines = (int)state.range(0);
@@ -91,8 +91,9 @@ static void BM_Draw_KineticText(benchmark::State& state) {
   style.shaping.fontSize = 22.0f;
   auto block = box().column().gap(8).padding(16);
   for (int i = 0; i < lines; ++i)
-    block.children({text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
-                        .fx({.effect = fx::rise(24), .progress = &progress})});
+    block.children(
+        {text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
+             .textFx({.effect = textFx::rise(24), .progress = &progress})});
   host.composer.render(block);
   host.draw();
   float t = 0;
@@ -124,10 +125,10 @@ static void BM_Draw_KineticColumns(benchmark::State& state) {
              .width(160)
              .height(1100)
              .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-             .fx({.effect = fx::rise(24),
-                  .stagger = {.eachMs = 120},
-                  .unit = sigil::weave::Unit::Line,
-                  .progress = &progress})});
+             .textFx({.effect = textFx::rise(24),
+                      .stagger = {.eachMs = 120},
+                      .unit = sigil::weave::Unit::Line,
+                      .progress = &progress})});
   host.composer.render(block);
   host.draw();
   float t = 0;
@@ -192,7 +193,7 @@ static void BM_Draw_DenseText_TextureBlit_Graphite(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_DenseText_TextureBlit_Graphite);
 
-/** Kinetic typography on Graphite: a looping fx() reveal drives batched
+/** Kinetic typography on Graphite: a looping textFx() reveal drives batched
  *  RSXform glyph draws every frame, which is the shape that stresses the
  *  glyph atlas hardest. The distinct glyph variants come from the kinetic
  *  path's own quantization (alpha to 32 steps, rotations snapped), so the
@@ -212,8 +213,9 @@ static void BM_Draw_KineticText_Graphite(benchmark::State& state) {
   style.shaping.fontSize = 22.0f;
   auto block = box().column().gap(8).padding(16);
   for (int i = 0; i < lines; ++i)
-    block.children({text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
-                        .fx({.effect = fx::rise(24), .progress = &progress})});
+    block.children(
+        {text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
+             .textFx({.effect = textFx::rise(24), .progress = &progress})});
   host.composer.render(block);
   host.composer.draw(target.canvas());
   target.submit();

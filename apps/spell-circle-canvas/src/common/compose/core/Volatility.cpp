@@ -264,7 +264,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const material::skia::Effect* backdropFx = backdropEffectOf(node);
   const bool liveLayerEffect = layerFx && layerFx->isAnimated();
   const bool liveBackdropEffect = backdropFx && backdropFx->isAnimated();
-  // A LIVE pass material on an fx() track — uTime, a bound uniform, a
+  // A LIVE pass material on an textFx() track — uTime, a bound uniform, a
   // bound block — repaints the pass's output every frame with no float the
   // scalar lane could compare, so it is opaque volatility, exactly as a
   // live ink paint is. A pass whose only motion is its track's
@@ -284,7 +284,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // GATES join here, because their count is a property of the description
   // and no fixed slot can hold them.
   scalarContent |= maskScalarLive;  // a moving gate re-cuts or re-clips
-  // fx() TRACKS: a moving master progress rebuilds glyph geometry, so it is
+  // textFx() TRACKS: a moving master progress rebuilds glyph geometry, so it is
   // content volatility — the memoizable half, because a progress is a float
   // this frame can read back. Every track counts, so a settled entrance
   // sitting under a live loop still declares.

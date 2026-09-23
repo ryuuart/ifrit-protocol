@@ -169,7 +169,7 @@ std::unique_ptr<Instance> Composer::Impl::create(const Description& node,
     // the whole list, but one item appended to a LIVE list enters with
     // no extra delay (it is the only new mount) instead of inheriting
     // its full-list ordinal.
-    // The SAME ordering an fx() track's units take, so `From` means one
+    // The SAME ordering an textFx() track's units take, so `From` means one
     // thing wherever it is written.
     static thread_local std::vector<float> order;
     // Child stagger has no seed knob: a Random child order is the

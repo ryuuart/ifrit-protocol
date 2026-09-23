@@ -99,7 +99,7 @@ inline TextMetrics metrics(const sigil::weave::Type& type,
  *  RUN and not a paragraph.
  *
  *  This is the STATIC answer, for a run that is not in the tree. For a
- *  MOUNTED, animated run — one a `text()` leaf is drawing and an `fx()`
+ *  MOUNTED, animated run — one a `text()` leaf is drawing and an `textFx()`
  *  track is cascading — `Composer::beatsOf` is the answer instead: it
  *  reports the rect the layout actually placed each unit in, which follows
  *  a wrap, a mixed-style run and a path baseline that no single-style

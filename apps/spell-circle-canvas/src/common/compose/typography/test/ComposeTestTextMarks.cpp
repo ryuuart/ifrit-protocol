@@ -9,7 +9,7 @@
 #include "DressedTypeProbes.h"
 
 // ---------------------------------------------------------------------------
-// fx::tint — the colour reveal, and the inversion it hides
+// textFx::tint — the colour reveal, and the inversion it hides
 
 TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
   // The arguments read in TIME ORDER while the mechanism runs the other
@@ -18,7 +18,7 @@ TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
   // therefore be white — anything else tints a line that has arrived.
   const sigil::material::Color pale{0.9f, 0.8f, 0.4f, 1};
   const sigil::material::Color sung{0.3f, 0.6f, 0.8f, 1};
-  const TextEffect ramp = fx::tint(pale, sung);
+  const TextEffect ramp = textFx::tint(pale, sung);
   GlyphInfo glyph;
   sigil::core::noise::Mix64Stream rng(1);
   const GlyphModifier start = ramp(glyph, 0.0f, rng);
@@ -45,12 +45,12 @@ TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
   // Alpha is left alone: a reveal that also fades is a separate track.
   EXPECT_FLOAT_EQ(start.colorMultiplier.a, 1.0f);
   // The value is comparable, which is what lets a re-described wipe prune.
-  EXPECT_TRUE(fx::tint(pale, sung) == ramp);
-  EXPECT_FALSE(fx::tint(sung, pale) == ramp);
+  EXPECT_TRUE(textFx::tint(pale, sung) == ramp);
+  EXPECT_FALSE(textFx::tint(sung, pale) == ramp);
   // A destination channel of zero cannot be departed from, and the ramp
   // says so by holding at 1 rather than dividing by nothing.
   const GlyphModifier dark =
-      fx::tint({1, 1, 1, 1}, {0, 0, 0, 1})(glyph, 0.0f, rng);
+      textFx::tint({1, 1, 1, 1}, {0, 0, 0, 1})(glyph, 0.0f, rng);
   EXPECT_FLOAT_EQ(dark.colorMultiplier.r, 1.0f);
 }
 
@@ -64,12 +64,12 @@ TEST(ComposeTextFx, TintComposesWithAnotherTrackByMultiplying) {
            .key("k")
            // Both tracks are AT REST (progress 0), where each contributes
            // its own origin: 0.5 on red and 0.5 on green.
-           .fx({.effect = fx::tint({0.5f, 1, 1, 1}, {1, 1, 1, 1}),
-                .stagger = {.eachMs = 0, .durationMs = 100},
-                .progress = 0.0f})
-           .fx({.effect = fx::tint({1, 0.5f, 1, 1}, {1, 1, 1, 1}),
-                .stagger = {.eachMs = 0, .durationMs = 100},
-                .progress = 0.0f})}));
+           .textFx({.effect = textFx::tint({0.5f, 1, 1, 1}, {1, 1, 1, 1}),
+                    .stagger = {.eachMs = 0, .durationMs = 100},
+                    .progress = 0.0f})
+           .textFx({.effect = textFx::tint({1, 0.5f, 1, 1}, {1, 1, 1, 1}),
+                    .stagger = {.eachMs = 0, .durationMs = 100},
+                    .progress = 0.0f})}));
   host.frame();
   bool sawProduct = false;
   for (int y = 0; y < 120 && !sawProduct; ++y)
@@ -106,7 +106,8 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
   host.composer.render(box().padding(10).children(
       {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
            .key("line")
-           .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
+           .textFx(
+               {.effect = textFx::rise(4), .unit = sigil::weave::Unit::Word})
            .textAttach(sigil::weave::selectors::word(1),
                        box().key("caret").fill(green()))}));
   host.frame();
@@ -171,9 +172,9 @@ TEST(ComposeTextFx, MarkStandsAtRestWhileACascadeDeviatesTheGlyphs) {
     host.composer.render(box().padding(10).children(
         {text(u8"ALPHA BETA", whiteStyle(24))
              .key("line")
-             .fx({.effect = fx::rise(40),
-                  .stagger = {.eachMs = 0, .durationMs = 100},
-                  .progress = progress})
+             .textFx({.effect = textFx::rise(40),
+                      .stagger = {.eachMs = 0, .durationMs = 100},
+                      .progress = progress})
              .textAttach(sigil::weave::selectors::word(1),
                          box().key("caret").fill(green()))}));
     host.frame();
@@ -199,7 +200,8 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
            .width(180)
            .height(180)
            .textOnPath({.path = geometry::shapes::circle()})
-           .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
+           .textFx(
+               {.effect = textFx::rise(4), .unit = sigil::weave::Unit::Word})
            .textAttach(sigil::weave::selectors::word(2),
                        box().key("caret").fill(green()))}));
   host.frame();
@@ -220,7 +222,8 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
            .key("ring")
            .width(180)
            .height(180)
-           .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
+           .textFx(
+               {.effect = textFx::rise(4), .unit = sigil::weave::Unit::Word})
            .textAttach(sigil::weave::selectors::word(2),
                        box().key("caret").fill(green()))}));
   straight.frame();

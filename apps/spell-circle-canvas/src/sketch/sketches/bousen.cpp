@@ -303,13 +303,13 @@ struct Bousen {
                        bs::bandedSpan(bs::kAi,
                                       weave::Decoration::Kind::kUnderline,
                                       bs::kAka, 2.0f))
-                 .fx({.effect = fx::rise(18),
-                      .stagger = bs::kColumnEntrance,
-                      .unit = weave::Unit::Line,
-                      .progress = animate(motion::from(0.0f).to(1.0f),
-                                          {std::chrono::milliseconds(
-                                               (int)bs::kColumnEntranceSpan),
-                                           &ch::easeNone, 220ms})}),
+                 .textFx({.effect = textFx::rise(18),
+                          .stagger = bs::kColumnEntrance,
+                          .unit = weave::Unit::Line,
+                          .progress = animate(motion::from(0.0f).to(1.0f),
+                                              {std::chrono::milliseconds((
+                                                   int)bs::kColumnEntranceSpan),
+                                               &ch::easeNone, 220ms})}),
              text("↑ this strip's entrance beats over\n"
                   "weave::Unit::Line — one COLUMN a beat,\n"
                   "and its band stands at rest")

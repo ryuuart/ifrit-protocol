@@ -14,7 +14,7 @@ for (const TextUnit &u :
   ;  // u.rect, u.axis, u.pitch, u.ascent, u.range, u.style, u.lineIndex
 ```
 
-`Beat` is the same rect under a schedule and needs an `fx()` track to
+`Beat` is the same rect under a schedule and needs an `textFx()` track to
 report it; this needs none, and carries the baseline (or the column's
 axis), the pitch, the face's band, the writing mode, the vertical form,
 the text range and the style beside each rect. It is read off the

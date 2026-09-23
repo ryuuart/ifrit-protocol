@@ -8,7 +8,7 @@
 #
 # The shelves of stock values are here: WHERE a child lands (`layouts::`),
 # WHAT JOINS two of them (`routers::`), HOW a glyph deviates from rest
-# (the `fx::` presets over the typography tier's effect seam in
+# (the `textFx::` presets over the typography tier's effect seam in
 # kit/Kinetic.h, with the marquee beside it in kit/Marquee.h), and HOW a
 # pool is filled (the placers). The
 # silhouette generators are the geometry library's, because a

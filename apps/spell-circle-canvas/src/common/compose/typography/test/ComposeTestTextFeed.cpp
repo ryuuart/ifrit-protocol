@@ -31,10 +31,10 @@ TEST(ComposeFeed, ATypedOnRowPaintsLiveThenCachesWhenItsTrackSettles) {
   const feed::TextOptions options = feedOptions(8, 16.0f);
   auto typed = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
-        .fx({.effect = fx::typeOn(),
-             .stagger = {.eachMs = 12, .durationMs = 40},
-             .progress = animate(motion::from(0.0f).to(1.0f),
-                                 {300ms, &choreograph::easeNone})});
+        .textFx({.effect = textFx::typeOn(),
+                 .stagger = {.eachMs = 12, .durationMs = 40},
+                 .progress = animate(motion::from(0.0f).to(1.0f),
+                                     {300ms, &choreograph::easeNone})});
   };
   Host host(240, 120);
   host.composer.render(
@@ -86,10 +86,10 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
     return box().row().gap(6).children(
         {box().width(3).height(10).fill(Fill::color(SkColors::kRed)),
          text(std::move(line))
-             .fx({.effect = fx::typeOn(),
-                  .stagger = {.eachMs = 5, .durationMs = 30},
-                  .progress = animate(motion::from(0.0f).to(1.0f),
-                                      {200ms, &choreograph::easeNone})})});
+             .textFx({.effect = textFx::typeOn(),
+                      .stagger = {.eachMs = 5, .durationMs = 30},
+                      .progress = animate(motion::from(0.0f).to(1.0f),
+                                          {200ms, &choreograph::easeNone})})});
   };
   constexpr size_t kRowNodes = 3;  // the row box, the stripe, the text leaf
 

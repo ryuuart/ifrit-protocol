@@ -175,7 +175,7 @@ struct TrackCascade {
 
 /** The composition algebra, in one place: offsets, rotations and shears ADD,
  *  scale, alpha and the colour multiplier MULTIPLY, the additive colour term
- *  ADDS and the screen term SCREENS. Stacked tracks, fx::mix, a sequence
+ *  ADDS and the screen term SCREENS. Stacked tracks, textFx::mix, a sequence
  *  crossfade and a keys segment all go through these two, so they cannot
  *  drift apart. */
 void compose(GlyphModifier& into, const GlyphModifier& next);
@@ -201,9 +201,9 @@ uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane = 0);
 /** THE ONE GLYPH DRAW for text that is not simply resting on its own
  *  straight baseline. The rest pose comes from the baseline — level on a
  *  plain run, on the curve and turned to it on a path run — and every
- *  fx() track's deviation applies ON TOP OF IT, in that pose's own frame.
+ *  textFx() track's deviation applies ON TOP OF IT, in that pose's own frame.
  *  `onPath` is null for text with no baseline path. A track whose effect
- *  is a PASS (fx::pass) renders its addressed glyphs — deviations
+ *  is a PASS (textFx::pass) renders its addressed glyphs — deviations
  *  applied — into a layer instead of the canvas and runs its material
  *  once over that layer; `ctx` is the node's paint context, which that
  *  resolve reads for its clock, box and injected uniforms. */

@@ -2,7 +2,7 @@
 
 auto SlitScan2001::header() -> Element {
   using namespace slit;
-  Track rise{.effect = fx::rise(18.0f),
+  Track rise{.effect = textFx::rise(18.0f),
              .stagger = {.eachMs = 22},
              .progress = animate(to(1.0f), {440ms, ch::easeOutExpo, 120ms})};
   // The masthead is set in the interface face; the title alone takes
@@ -23,7 +23,7 @@ auto SlitScan2001::header() -> Element {
              {.face = uiBoldFace(), .size = 40, .color = kType, .track = 0.4f})
                .key("title")
                .textStroke(0.6f, Fill::color(kInk))
-               .fx(std::move(rise)),
+               .textFx(std::move(rise)),
            t("Douglas Trumbull — ‘Creating Special Effects for 2001: A "
              "Space Odyssey’, American Cinematographer 49(6):416–420, "
              "451–453, June 1968 (READ DIRECTLY) · Cinefex 85, April "

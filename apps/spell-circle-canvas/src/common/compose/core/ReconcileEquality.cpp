@@ -81,7 +81,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   if ((bool)a.textData != (bool)b.textData) return false;
   if (!a.textData) return true;
   const TextData &ta = *a.textData, &tb = *b.textData;
-  // fx() tracks are comparable VALUES — selector, effect (preset id plus
+  // textFx() tracks are comparable VALUES — selector, effect (preset id plus
   // parameters, or the key an ad-hoc lambda was given), cascade, reach and
   // the continuous opt-out — so text that re-describes the same tracks
   // prunes like any other static leaf. The progress is an Animatable and is

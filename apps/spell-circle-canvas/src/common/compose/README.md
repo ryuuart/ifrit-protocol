@@ -33,7 +33,7 @@ comes from, with a page and a drawn example per entity under
 `reference/pages/`.
 
 **`TYPOGRAPHY.md` is the type chapter.** Everything a passage of type can
-be told past `text(utf8, style)` — the per-glyph fx tracks, a run on a
+be told past `text(utf8, style)` — the per-glyph textFx tracks, a run on a
 path, span restyling, the paragraph controls, threaded frames over a
 `weave::Story`, readings beside the type, a passage whose measure moves, and
 vertical CJK — is indexed there, one chapter under `reference/` apiece,
@@ -445,18 +445,18 @@ in.
 
 ### Type
 
-`text(utf8)`, set in the font in force where it lands, `text(utf8, style)`,
-set in one whole style, and `text(weave::rich(base).add(…))` are the three
-content forms — the text a `std::u8string` or a plain string holding UTF-8,
-a literal either way — and everything a passage can be told past that — the per-glyph fx
-tracks and their selectors, a run riding a path, span restyling, the
+`text(utf8)`, set in the font in force where it lands, `text(utf8, style)`, set
+in one whole style, and `text(weave::rich(base).add(…))` are the three content
+forms — the text a `std::u8string` or a plain string holding UTF-8, a literal
+either way — and everything a passage can be told past that — the per-glyph
+textFx tracks and their selectors, a run riding a path, span restyling, the
 paragraph controls, threaded frames over a `weave::Story`, readings set beside
 the type, a passage whose measure moves, and vertical CJK columns — is in
 **`TYPOGRAPHY.md`**, one file over, and the chapters it indexes. They are
 checked against the headers by the same probe this page is.
 
 The shape of it in one paragraph: a text leaf holds an ordered list of
-`fx()` TRACKS, each `(selector, effect, stagger, progress)` — which
+`textFx()` TRACKS, each `(selector, effect, stagger, progress)` — which
 glyphs, what deviation from rest, how their start times spread, what
 drives it — and the same `selectors::` vocabulary addresses glyphs for a track,
 characters for a `span`, and units for anything standing beside the

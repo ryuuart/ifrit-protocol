@@ -373,7 +373,7 @@ and `Row::key` do.
 sketch::kit::titleCard(
     {.eyebrow = {.words = "MET OFFICE", .opacity = beat(0.05f, 0.55f)},
      .title = {.words = "THE SHIPPING FORECAST",
-               .fx = Track{.effect = fx::rise(16.0f), .progress = …}},
+               .fx = Track{.effect = textFx::rise(16.0f), .progress = …}},
      .notes = std::move(slugs),
      .align = Align::Stretch,
      .key = "head"});
@@ -776,7 +776,7 @@ A leaf may not invent what an ancestor should own.
   theme's values into those; it does not build a shader.
 * Ring and grid arithmetic — `geometry::arrange`. Do not respell it with
   `std::cos` and `std::sin`; the two round differently.
-* Entrances, loops and the stagger cascade — `compose::kit::fx`, spelled
+* Entrances, loops and the stagger cascade — `compose::kit::textFx`, spelled
   in compose's own types.
 * A memoised typeface — `weave::ports::face()`. This library holds no
   font cache; it holds the one face its own theme is set in.

@@ -988,7 +988,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                         (node.textData && !node.textData->threadTo.empty())
                     ? bounds.height()
                     : Composer::Impl::kUnbounded);
-          // Misprint echoes of the TEXT, under the real pass (fx() text
+          // Misprint echoes of the TEXT, under the real pass (textFx() text
           // draws its own buckets — echoes skip it by contract).
           if (!echoesOf(node).empty() && !hasTextFx(inst)) {
             for (const Echo& e : echoesOf(node)) {

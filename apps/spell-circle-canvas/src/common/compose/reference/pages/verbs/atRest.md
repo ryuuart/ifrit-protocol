@@ -19,7 +19,7 @@ state of it.
 ## Description
 
 **The same content, style, measure and layout**, carrying nothing that
-deviates or restyles a glyph at paint time: no `fx()` tracks, no span
+deviates or restyles a glyph at paint time: no `textFx()` tracks, no span
 restyles, and no children, since a text node's children are its marks
 and its slot mounts and both are already on screen once.
 
@@ -36,4 +36,4 @@ and `kit::restGhost` draws it under the moving copy.
 
 ## See also
 
-`fx`, [`ink`](ink.md), `kit::restGhost`, `Composer::beatsOf`.
+`textFx`, [`ink`](ink.md), `kit::restGhost`, `Composer::beatsOf`.

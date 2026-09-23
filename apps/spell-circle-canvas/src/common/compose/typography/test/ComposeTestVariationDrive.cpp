@@ -217,8 +217,8 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
 }
 
 TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
-  // variationDrive() is sugar over fx(): the same axis coordinate reached by
-  // hand as a track must draw the same pixels. The equivalence is the point
+  // variationDrive() is sugar over textFx(): the same axis coordinate reached
+  // by hand as a track must draw the same pixels. The equivalence is the point
   // — if the verb kept a text path of its own, a track drawn over it would
   // hide the drive entirely.
   float gradeMin = 0, gradeMax = 0;
@@ -244,7 +244,7 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   byHand.composer.render(box().children(
       {text(u8"GRADE", style)
            .key("t")
-           .fx({.effect = TextEffect::variableAxis("GRAD", gradeMax)})
+           .textFx({.effect = TextEffect::variableAxis("GRAD", gradeMax)})
            .absolute()
            .inset(60, 20)}));
   byHand.frame();
@@ -264,13 +264,13 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   // …and the drive stays visible under a second track: a second
   // track that moves the glyphs leaves the grade in place.
   Host stacked;
-  stacked.composer.render(box().children(
-      {text(u8"GRADE", style)
-           .key("t")
-           .variationDrive("GRAD", &grade)
-           .fx({.effect = fx::rise(0)})
-           .absolute()
-           .inset(60, 20)}));
+  stacked.composer.render(
+      box().children({text(u8"GRADE", style)
+                          .key("t")
+                          .variationDrive("GRAD", &grade)
+                          .textFx({.effect = textFx::rise(0)})
+                          .absolute()
+                          .inset(60, 20)}));
   stacked.frame();
   SkBitmap composed;
   composed.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
@@ -320,12 +320,12 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
     choreograph::Output<float> phase{0.0f};
     // eachMs = 0: every glyph reads the one master phase, so the coordinate
     // is exactly the sequence driven below and nothing else.
-    Track track{.effect = fx::variableAxisSweep("GRAD", gradeMin, gradeMax),
+    Track track{.effect = textFx::variableAxisSweep("GRAD", gradeMin, gradeMax),
                 .stagger = {.eachMs = 0, .durationMs = 100},
                 .progress = &phase};
     track.continuous = continuous;
     composer.render(box().padding(10).children(
-        {text(u8"GRADE", style).key("t").fx(std::move(track))}));
+        {text(u8"GRADE", style).key("t").textFx(std::move(track))}));
     Retained out;
     double walk = 0.0;
     for (int f = 0; f < 2 * kHalf; ++f) {

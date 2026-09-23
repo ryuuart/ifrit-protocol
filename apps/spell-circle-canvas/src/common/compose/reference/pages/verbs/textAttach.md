@@ -46,7 +46,7 @@ write one mark per unit. A selector resolving nothing places nothing and
 warns once.
 
 **The rect is the REST rect** — where the layout put those glyphs, not
-where an `fx()` track has thrown them this frame. The mark therefore
+where an `textFx()` track has thrown them this frame. The mark therefore
 follows a reflow, a restyle and a resize exactly as the letters do, and
 stands still while a cascade deviates them. A deviation is per glyph and
 per track and several compose, so there is no one place a moving unit
@@ -68,5 +68,5 @@ the advance boxes where the baseline placed them, the same placement
 
 ## See also
 
-`fx`, [`textAnnotation`](textAnnotation.md), `Composer::beatsOf`,
+`textFx`, [`textAnnotation`](textAnnotation.md), `Composer::beatsOf`,
 `weave::selectors::`.

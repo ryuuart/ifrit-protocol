@@ -26,7 +26,7 @@
  *
  * What a row IS belongs to the caller: `feed()` takes a factory from the
  * row value to an Element, and whatever that factory declares — a mount
- * transition, an `fx()` track that settles — is the row's entrance, delayed
+ * transition, an `textFx()` track that settles — is the row's entrance, delayed
  * per row by `Options::entrance`.
  */
 
@@ -123,7 +123,7 @@ struct Options {
    *  the glyph engine and `staggerChildren()` already speak. `eachMs` is
    *  the delay step and `from` is where the cascade starts; the fields
    *  that describe a per-unit remap inside one element (`durationMs`,
-   *  `amountMs`, `distribution`, `inner`) belong to `fx()` tracks and a
+   *  `amountMs`, `distribution`, `inner`) belong to `textFx()` tracks and a
    *  feed does not read them — a ROW is the beat here.
    *
    *  It delays only rows that actually mount, which is what makes it usable

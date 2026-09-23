@@ -223,7 +223,7 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
       sigil::weave::rich(whiteStyle(13)).add(longPassage()));
   const auto reveal = [] {
     Track track;
-    track.effect = fx::rise(20.0f);
+    track.effect = textFx::rise(20.0f);
     track.unit = sigil::weave::Unit::Word;
     track.beatsOver = beats::Text;
     track.stagger = {.eachMs = 20.0f, .durationMs = 100.0f};
@@ -231,9 +231,13 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
     return track;
   };
   host.composer.render(box().row().children(
-      {frame(article).key("a").textThreadTo("b").width(160.0f).height(70.0f).fx(
-           reveal()),
-       frame(article).key("b").width(160.0f).height(400.0f).fx(reveal())}));
+      {frame(article)
+           .key("a")
+           .textThreadTo("b")
+           .width(160.0f)
+           .height(70.0f)
+           .textFx(reveal()),
+       frame(article).key("b").width(160.0f).height(400.0f).textFx(reveal())}));
   host.frame();
   const std::vector<Beat> first = host.composer.beatsOf("a", 0);
   const std::vector<Beat> second = host.composer.beatsOf("b", 0);

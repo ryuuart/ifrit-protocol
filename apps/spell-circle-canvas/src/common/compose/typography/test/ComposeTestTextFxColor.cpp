@@ -20,7 +20,7 @@ TEST(ComposeTextFx, ColorMulTintsEveryPassOfADressedGlyph) {
     host.composer.render(box().padding(10).children(
         {text(u8"I", shadowed)
              .key("k")
-             .fx({.effect = fixed(std::move(key), mod)})}));
+             .textFx({.effect = fixed(std::move(key), mod)})}));
     host.frame();
   };
   const auto count = [](Host& host, auto&& predicate) {
@@ -71,7 +71,7 @@ std::vector<uint8_t> renderColorTracks(
   Host host(140, 140);
   Text leaf = text(u8"I", greyStyle(52, greyLevel)).key("k");
   for (auto& [key, mod] : tracks)
-    leaf.fx({.effect = fixed(key, mod), .continuous = continuous});
+    leaf.textFx({.effect = fixed(key, mod), .continuous = continuous});
   host.composer.render(box().padding(10).children({std::move(leaf)}));
   host.frame();
   return surfaceBytes(host, 140, 140);
@@ -134,9 +134,9 @@ TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInAKeysTable) {
     host.composer.render(
         box().padding(10).children({text(u8"I", greyStyle(52, 0.25f))
                                         .key("k")
-                                        .fx({.effect = std::move(effect),
-                                             .stagger = {.eachMs = 0},
-                                             .progress = 0.5f})}));
+                                        .textFx({.effect = std::move(effect),
+                                                 .stagger = {.eachMs = 0},
+                                                 .progress = 0.5f})}));
     host.frame();
     return surfaceBytes(host, 140, 140);
   };
@@ -144,23 +144,23 @@ TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInAKeysTable) {
   fullAdd.colorAdd = {1.0f, 0, 0, 0};
   GlyphModifier halfAdd;
   halfAdd.colorAdd = {0.5f, 0, 0, 0};
-  EXPECT_EQ(renderKeysAt(fx::keys({{0.0f, {}}, {1.0f, fullAdd}})),
+  EXPECT_EQ(renderKeysAt(textFx::keys({{0.0f, {}}, {1.0f, fullAdd}})),
             renderKeysAt(fixed("halfAddK", halfAdd)))
       << "colorAdd did not lerp componentwise across a keys segment";
   GlyphModifier fullScreen;
   fullScreen.colorScreen = {0, 1.0f, 0, 0};
   GlyphModifier halfScreen;
   halfScreen.colorScreen = {0, 0.5f, 0, 0};
-  EXPECT_EQ(renderKeysAt(fx::keys({{0.0f, {}}, {1.0f, fullScreen}})),
+  EXPECT_EQ(renderKeysAt(textFx::keys({{0.0f, {}}, {1.0f, fullScreen}})),
             renderKeysAt(fixed("halfScreenK", halfScreen)))
       << "colorScreen did not lerp componentwise across a keys segment";
   // The terms are part of a table's identity: two tables differing only in
   // a colour term are two different effects, and must not prune onto each
   // other.
-  EXPECT_FALSE(fx::keys({{0.0f, {}}, {1.0f, fullAdd}}) ==
-               fx::keys({{0.0f, {}}, {1.0f, halfAdd}}));
-  EXPECT_FALSE(fx::keys({{0.0f, {}}, {1.0f, fullScreen}}) ==
-               fx::keys({{0.0f, {}}, {1.0f, halfScreen}}));
+  EXPECT_FALSE(textFx::keys({{0.0f, {}}, {1.0f, fullAdd}}) ==
+               textFx::keys({{0.0f, {}}, {1.0f, halfAdd}}));
+  EXPECT_FALSE(textFx::keys({{0.0f, {}}, {1.0f, fullScreen}}) ==
+               textFx::keys({{0.0f, {}}, {1.0f, halfScreen}}));
 }
 
 TEST(ComposeTextFx, NeutralColourTermsKeepTheFastPathByteIdentical) {
@@ -208,7 +208,7 @@ TEST(ComposeTextFx, TheFilterPathAgreesWithTheFlatColourPath) {
       style.paint.foreground.setShader(
           SkShaders::Color({0.5f, 0.5f, 0.5f, 1.0f}, nullptr));
     host.composer.render(box().padding(10).children(
-        {text(u8"I", style).key("k").fx({.effect = fixed("both", mod)})}));
+        {text(u8"I", style).key("k").textFx({.effect = fixed("both", mod)})}));
     host.frame();
   };
   Host flat(140, 140);

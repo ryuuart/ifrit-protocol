@@ -76,11 +76,11 @@
 //     table's head), decays through phosphor green, and is gone by local
 //     1 — so the head, the tail and the dark between streaks are ONE
 //     effect read at different local times, and a whole column costs no
-//     more declarations than one glyph. No `fx::hold`: a looping cascade
+//     more declarations than one glyph. No `textFx::hold`: a looping cascade
 //     has no waiting units to withhold — between beats a glyph rests at
 //     local 1, which this table paints dark — and the bright head IS the
 //     arrival.
-//   * THE CHURN is `fx::scramble` on two more tracks sharing one wrapping
+//   * THE CHURN is `textFx::scramble` on two more tracks sharing one wrapping
 //     progress — the field partitioned by a selector into its two advance
 //     classes, each churning within its own charset — composing with the
 //     streak by the track algebra: the substitution from one track, the
@@ -249,7 +249,7 @@ void appendUtf8(std::string& out, char32_t c) {
  *  dark between streaks is the table's own tail, no hold needed, and the
  *  re-opening flash is its head. */
 TextEffect streak() {
-  return fx::keys({
+  return textFx::keys({
       {0.000f, {}},
       {0.155f, {}},
       {0.300f, {.colorMultiplier = {0.27f, 0.96f, 0.42f, 1}}},
@@ -280,7 +280,7 @@ GlyphModifier phosphorLift(sigil::core::noise::Mix64Stream& rng) {
  *  mirrored glyph, this field's own deliberate load), digits stand
  *  unmirrored, and both classes take the phosphor lift. */
 TextEffect mirrorLift() {
-  return fx::effect(
+  return textFx::effect(
       "rain-mirror-lift",
       [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream& rng) {
         GlyphModifier m = phosphorLift(rng);
@@ -290,7 +290,7 @@ TextEffect mirrorLift() {
       0.0f);
 }
 TextEffect westLift() {
-  return fx::effect(
+  return textFx::effect(
       "rain-west-lift",
       [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream& rng) {
         return phosphorLift(rng);
@@ -304,14 +304,14 @@ TextEffect westLift() {
  *  one wrapping clock. A plane that also FALLS states its streak before
  *  this, since the track algebra reads them in the order they are written. */
 Element churning(Text plane, ch::Output<float>* progress) {
-  return plane.fx({.where = !westCells(), .effect = mirrorLift()})
-      .fx({.where = westCells(), .effect = westLift()})
-      .fx({.where = !westCells(),
-           .effect = fx::scramble(rainKana(), 20),
-           .progress = progress})
-      .fx({.where = westCells(),
-           .effect = fx::scramble(rainWest(), 20),
-           .progress = progress});
+  return plane.textFx({.where = !westCells(), .effect = mirrorLift()})
+      .textFx({.where = westCells(), .effect = westLift()})
+      .textFx({.where = !westCells(),
+               .effect = textFx::scramble(rainKana(), 20),
+               .progress = progress})
+      .textFx({.where = westCells(),
+               .effect = textFx::scramble(rainWest(), 20),
+               .progress = progress});
 }
 
 }  // namespace
@@ -420,11 +420,11 @@ struct MatrixRain {
             .overflow(Overflow::Clip)
             .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
             .opacity(f.alpha)
-            .fx({.effect = streak(),
-                 .stagger = cascade,
-                 .unit = weave::Unit::Line,
-                 .innerUnit = weave::Unit::Cluster,
-                 .progress = &fall[j]}),
+            .textFx({.effect = streak(),
+                     .stagger = cascade,
+                     .unit = weave::Unit::Line,
+                     .innerUnit = weave::Unit::Cluster,
+                     .progress = &fall[j]}),
         &churn[j]);
   }
 

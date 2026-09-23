@@ -78,7 +78,7 @@ using ::sigil::motion::ResolvedProperty;
 using ::sigil::motion::resolveProperty;
 
 // ---------------------------------------------------------------------------
-// TEXT FX — the runtime side of the fx() seam (TextFx.cpp)
+// TEXT FX — the runtime side of the textFx() seam (TextFx.cpp)
 
 /** Equal only when PROVABLY identical: two easing curves compare equal when
  *  both are the same plain function pointer, and a lambda-valued curve

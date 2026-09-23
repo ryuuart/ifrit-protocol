@@ -55,7 +55,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // means a rise lifts a letter off the curve along its own local
   // perpendicular rather than straight up the canvas, and a track's
   // rotation adds to the tangent it was already turned to. The two are not
-  // alternatives and neither wins: `fx()` and `textOnPath()` compose.
+  // alternatives and neither wins: `textFx()` and `textOnPath()` compose.
   if (onPath) ensurePathLayout(impl, inst, *onPath, size);
   const bool ridesPath = onPath && textStateOf(inst).pathValid;
   if (onPath && !ridesPath) return;  // no measurable baseline: nothing rides
@@ -186,7 +186,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         aboveBands.emplace_back(rect, bandPaint);
       });
 
-  // PASS TRACKS (fx::pass): each renders its addressed glyphs into its own
+  // PASS TRACKS (textFx::pass): each renders its addressed glyphs into its own
   // lane instead of the canvas, accumulating one rect and one local time
   // per (outer, inner) beat — the same enumeration beatsOfTrack reports,
   // from the same TrackCascade, so the pass and the query cannot disagree
@@ -215,7 +215,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // decides whether their origins go on Skia's subpixel phase grid or on
   // whole pixels. Three ways a run creeps: a driven baseline phase (the
   // marquee runs under the type), a driven transform at or above the node
-  // (the figure turns under the type), and a live fx() track whose effect
+  // (the figure turns under the type), and a live textFx() track whose effect
   // displaces (the letters travel under their own schedule). All three make
   // every letter's device position advance by a fraction of a pixel per
   // frame, which whole-pixel origins cannot express — each letter stands
@@ -368,7 +368,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
             pose.centreOffset.value_or(SkVector{halfAdvance, 0});
         // THE DEVIATION APPLIES IN THE REST POSE'S OWN FRAME. On a level
         // baseline that is the canvas frame and this is the identity, so a
-        // plain run is untouched; on a curve it is what makes `fx::rise`
+        // plain run is untouched; on a curve it is what makes `textFx::rise`
         // lift a letter off the CURVE rather than off the canvas, and what
         // keeps a stagger's shove tangential to the lettering it belongs
         // to. The rotations compose the same way: the track's angle turns
@@ -459,7 +459,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   for (const std::unique_ptr<PassLane>& lane : passes) {
     const auto n = (uint32_t)lane->keys.size();
     if (n == 0) continue;  // the selection resolved nothing: nothing to burn
-    // THE DECLARED REST (fx::pass(…).restsAt(…)): when EVERY beat's
+    // THE DECLARED REST (textFx::pass(…).restsAt(…)): when EVERY beat's
     // resolved local time sits on a declared pass-through phase, the layer
     // and the shader are skipped and the glyphs draw directly — the route
     // the compile refusal already takes, so a resting pass is

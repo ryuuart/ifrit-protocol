@@ -1,4 +1,4 @@
-"""The fx:: kinetic presets.
+"""The textFx:: kinetic presets.
 
 Input contracts for the erased signatures of the
 compose-kit/kinetic package, and nothing else: a fragment is one

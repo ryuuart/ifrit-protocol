@@ -141,7 +141,7 @@ class StructureVerbs {
   /** HOW THIS NODE'S PLAIN CONSTANTS CHANGE when a later describe gives
    *  them a new value: the duration, easing and delay that every
    *  animatable lane on the node — its transforms, its opacity, its
-   *  mask gates, its fx progresses, its fill, its ink — is retargeted
+   *  mask gates, its textFx progresses, its fill, its ink — is retargeted
    *  over. It is the value COMPUTED for the node that is watched, so a
    *  property moved by a class, a rule or an inherited answer eases
    *  exactly as the same change written with the verb does. None when

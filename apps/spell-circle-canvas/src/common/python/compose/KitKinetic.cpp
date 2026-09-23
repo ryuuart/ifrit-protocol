@@ -4,7 +4,7 @@
 namespace sigil::python {
 
 void bindComposeKitKinetic(pybind11::module_& module) {
-  submodule(module, "compose.fx");
+  submodule(module, "compose.textFx");
 }
 
 }  // namespace sigil::python

@@ -68,7 +68,7 @@ carried lives here instead:
   `.underlays`, drawn above or beneath the glyphs with its own stroke,
   blur and offset;
 - a paint that animates, or one resolved against a box — on the leaf's
-  own [`ink`](ink.md), or in an `fx` track for motion per glyph;
+  own [`ink`](ink.md), or in an `textFx` track for motion per glyph;
 - a raised or sunk range — `font({.baselineShift = ...})`.
 
 ## Several spans
@@ -103,5 +103,5 @@ selection where the first breaking put it.
 
 ## See also
 
-[`ink`](ink.md), [`font`](font.md), `fx`,
+[`ink`](ink.md), [`font`](font.md), `textFx`,
 [`variationDrive`](variationDrive.md), `weave::selectors::`.

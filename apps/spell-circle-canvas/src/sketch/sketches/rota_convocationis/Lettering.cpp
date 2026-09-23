@@ -143,45 +143,45 @@ auto RotaConvocationis::invocatio() -> Element {
   return onRing(text(voxText).styleClass("ring").font(
                     {.size = voxSize, .track = 2.2f}),
                 "vox", rVox, &voxDrift, -voxSize * 0.34f)
-      .fx({.effect = fx::hold(fx::rise(voxSize * 1.1f)),
-           .stagger = voxCascade(),
-           .unit = weave::Unit::Word,
-           .innerUnit = weave::Unit::Cluster,
-           .progress = beat(tVox, tVox + voxSpanS)})
-      .fx({.effect = fx::tint(kEmber, kBone),
-           .stagger = voxCascade(),
-           .unit = weave::Unit::Word,
-           .innerUnit = weave::Unit::Cluster,
-           .progress = beat(tVox, tVox + voxSpanS)})
+      .textFx({.effect = textFx::hold(textFx::rise(voxSize * 1.1f)),
+               .stagger = voxCascade(),
+               .unit = weave::Unit::Word,
+               .innerUnit = weave::Unit::Cluster,
+               .progress = beat(tVox, tVox + voxSpanS)})
+      .textFx({.effect = textFx::tint(kEmber, kBone),
+               .stagger = voxCascade(),
+               .unit = weave::Unit::Word,
+               .innerUnit = weave::Unit::Cluster,
+               .progress = beat(tVox, tVox + voxSpanS)})
       // THE STRIKE, per word: a letter does not fade up, it arrives lit
       // and cools. The screen term lifts each channel by the headroom it
       // has left rather than adding into a clip, so the flash reads as
       // the glyph glowing white for a beat and not as a white rectangle
       // where the glyph was.
-      .fx({.effect = fx::keys({{0.00f, {.colorScreen = kHalo}},
-                               {0.18f, {.colorScreen = kCore}},
-                               {1.00f, {}}},
-                              &ch::easeOutQuad),
-           .stagger = voxCascade(),
-           .unit = weave::Unit::Word,
-           .innerUnit = weave::Unit::Cluster,
-           .progress = beat(tVox, tVox + voxSpanS)});
+      .textFx({.effect = textFx::keys({{0.00f, {.colorScreen = kHalo}},
+                                       {0.18f, {.colorScreen = kCore}},
+                                       {1.00f, {}}},
+                                      &ch::easeOutQuad),
+               .stagger = voxCascade(),
+               .unit = weave::Unit::Word,
+               .innerUnit = weave::Unit::Cluster,
+               .progress = beat(tVox, tVox + voxSpanS)});
 }
 
 auto RotaConvocationis::registrum() -> Element {
   return onRing(text(runeText).font(
                     {.size = runeSize, .color = kRuneInk, .track = 2.0f}),
                 "registrum", rRune, &runeDrift, -runeSize * 0.34f)
-      .fx({.effect = fx::hold(fx::pop(0.55f)),
-           .stagger = {.eachMs = 7,
-                       .durationMs = 420,
-                       .from = motion::Spread::From::Random,
-                       .seed = 17},
-           .progress = beat(tRune, tRune + runeSpanS)})
-      .fx({.effect = fx::keys(
-               {{0.00f, {}}, {0.35f, {.colorScreen = kHalo}}, {1.00f, {}}}),
-           .stagger = shimmerCascade(),
-           .progress = &runePhase});
+      .textFx({.effect = textFx::hold(textFx::pop(0.55f)),
+               .stagger = {.eachMs = 7,
+                           .durationMs = 420,
+                           .from = motion::Spread::From::Random,
+                           .seed = 17},
+               .progress = beat(tRune, tRune + runeSpanS)})
+      .textFx({.effect = textFx::keys(
+                   {{0.00f, {}}, {0.35f, {.colorScreen = kHalo}}, {1.00f, {}}}),
+               .stagger = shimmerCascade(),
+               .progress = &runePhase});
 }
 
 auto RotaConvocationis::nomina() -> Element {
@@ -189,10 +189,10 @@ auto RotaConvocationis::nomina() -> Element {
   form.then({.eachMs = 24, .durationMs = 420});
 
   TextEffect swell =
-      fx::sequence(fx::variableAxisSweep("GRAD", 400.0f, 860.0f)
-                       .until(0.45f)
-                       .crossfade(0.25f),
-                   fx::variableAxisSweep("GRAD", 860.0f, 400.0f));
+      textFx::sequence(textFx::variableAxisSweep("GRAD", 400.0f, 860.0f)
+                           .until(0.45f)
+                           .crossfade(0.25f),
+                       textFx::variableAxisSweep("GRAD", 860.0f, 400.0f));
 
   // How far past the ring's snug box the pass may paint: the glyphs
   // straddle the baseline circle and stand proud of the box at its four
@@ -223,41 +223,43 @@ auto RotaConvocationis::nomina() -> Element {
                        .align = TextPath::Align::Start,
                        .offset = -nomSize * 0.34f,
                        .autoFlip = false})
-          .fx({.effect = fx::hold(fx::rise(nomSize * 0.8f)),
-               .stagger = form,
-               .unit = weave::Unit::Word,
-               .innerUnit = weave::Unit::Cluster,
-               .progress = beat(tNames, tNames + nomSpanS)})
-          .fx({.effect = std::move(swell),
-               .stagger = {.eachMs = 130, .durationMs = 900},
-               .unit = weave::Unit::Word,
-               .progress = beat(tIgnite, tIgnite + 2.6)})
+          .textFx({.effect = textFx::hold(textFx::rise(nomSize * 0.8f)),
+                   .stagger = form,
+                   .unit = weave::Unit::Word,
+                   .innerUnit = weave::Unit::Cluster,
+                   .progress = beat(tNames, tNames + nomSpanS)})
+          .textFx({.effect = std::move(swell),
+                   .stagger = {.eachMs = 130, .durationMs = 900},
+                   .unit = weave::Unit::Word,
+                   .progress = beat(tIgnite, tIgnite + 2.6)})
           // The charge reaching a name flashes it, on the pass's own
           // cascade so the letters and the shader open together.
-          .fx({.effect = fx::keys(
+          .textFx(
+              {.effect = textFx::keys(
                    {{0.00f, {}}, {0.30f, {.colorScreen = kCore}}, {1.00f, {}}},
                    &ch::easeInOutQuad),
                .stagger = {.eachMs = 170, .durationMs = 820},
                .unit = weave::Unit::Word,
                .progress = beat(tIgnite, tIgnite + 2.6)});
-  names.fx({.effect = fx::pass(mskia::Paint::recipe(
-                                   sigil::material::Material(chargeRecipe()))
-                                   .uniform("uGold", kGold))
-                          .restsAt(0.0f, 1.0f),
-            .stagger = {.eachMs = 170, .durationMs = 820},
-            .unit = weave::Unit::Word,
-            .progress = beat(tIgnite, tIgnite + 2.6),
-            .reach = kReach});
+  names.textFx(
+      {.effect = textFx::pass(mskia::Paint::recipe(
+                                  sigil::material::Material(chargeRecipe()))
+                                  .uniform("uGold", kGold))
+                     .restsAt(0.0f, 1.0f),
+       .stagger = {.eachMs = 170, .durationMs = 820},
+       .unit = weave::Unit::Word,
+       .progress = beat(tIgnite, tIgnite + 2.6),
+       .reach = kReach});
   return names;
 }
 
 auto RotaConvocationis::textura() -> Element {
   return onRing(text(texText).font({.size = texSize, .color = kAsh}), "textura",
                 rTex, &texDrift, -texSize * 0.30f)
-      .fx({.effect = fx::hold(fx::rise(texSize * 0.9f)),
-           .stagger = {.eachMs = 4,
-                       .durationMs = 300,
-                       .from = motion::Spread::From::Random,
-                       .seed = 61},
-           .progress = beat(tTex, tTex + texSpanS)});
+      .textFx({.effect = textFx::hold(textFx::rise(texSize * 0.9f)),
+               .stagger = {.eachMs = 4,
+                           .durationMs = 300,
+                           .from = motion::Spread::From::Random,
+                           .seed = 61},
+               .progress = beat(tTex, tTex + texSpanS)});
 }

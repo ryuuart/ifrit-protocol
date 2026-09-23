@@ -112,7 +112,6 @@ from . import (
     decorations,
     document,
     feed,
-    fx,
     instancing,
     kit,
     layouts,
@@ -123,6 +122,7 @@ from . import (
     selectors,
     spans,
     styles,
+    textFx,
     tiles,
 )
 
@@ -215,7 +215,6 @@ __all__ = [
     "em",
     "feed",
     "frame",
-    "fx",
     "graphics",
     "heldPath",
     "image",
@@ -257,6 +256,7 @@ __all__ = [
     "stroke",
     "styles",
     "text",
+    "textFx",
     "tiles",
     "var",
 ]

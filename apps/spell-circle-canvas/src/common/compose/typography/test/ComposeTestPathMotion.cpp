@@ -97,7 +97,7 @@ std::vector<SkPoint> ringTrack(float pixelSize) {
   return track;
 }
 
-/// The same ring wearing one fx track, with its baseline phase written as a
+/// The same ring wearing one textFx track, with its baseline phase written as a
 /// PLAIN NUMBER — the run declares nothing through the baseline, so whatever
 /// grid its glyphs land on is the track's answer and nobody else's.
 Element ringWith(float at, float pixelSize, Track track) {
@@ -111,7 +111,7 @@ Element ringWith(float at, float pixelSize, Track track) {
                              .textOnPath({.path = geometry::shapes::circle(),
                                           .at = at,
                                           .align = TextPath::Align::Center})
-                             .fx(std::move(track))});
+                             .textFx(std::move(track))});
 }
 
 /// The most distinct frames a WHOLE-PIXEL origin can produce over that
@@ -190,7 +190,7 @@ std::vector<SkPoint> turnedFigureTrack(float pixelSize) {
 /// letter across the device on its own schedule.
 ///
 /// The master is driven so the LETTER's travel is uniform, which is what a
-/// constant angular step buys the ring: `fx::slide` places a glyph at
+/// constant angular step buys the ring: `textFx::slide` places a glyph at
 /// (1-t)^3 of its distance, so stepping the inverse of that curve advances
 /// the letter by exactly half a pixel a frame. Half a pixel is the
 /// interval that separates the two placements -- two steps of the finer
@@ -208,15 +208,16 @@ std::vector<SkPoint> slidingTrack(float pixelSize) {
   std::vector<SkPoint> track;
   for (int i = 0; i < kSlideFrames; ++i) {
     progress = 1.0f - std::cbrt((kFromPx - kTravel * (float)i) / kDistance);
-    host.composer.render(box().children(
-        {text(u8"H", whiteStyle(pixelSize))
-             .key("run")
-             .width(kField)
-             .height(kField)
-             .absolute()
-             .left(0)
-             .top(0)
-             .fx({.effect = fx::slide(kDistance), .progress = &progress})}));
+    host.composer.render(
+        box().children({text(u8"H", whiteStyle(pixelSize))
+                            .key("run")
+                            .width(kField)
+                            .height(kField)
+                            .absolute()
+                            .left(0)
+                            .top(0)
+                            .textFx({.effect = textFx::slide(kDistance),
+                                     .progress = &progress})}));
     host.frame();
     track.push_back(inkCentroid(host, kField, kField));
   }
@@ -312,7 +313,7 @@ TEST(ComposePathMotion, TypeAtRestKeepsWholePixelOrigins) {
 TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
   Host host(kField, kField);
   choreograph::Output<float> progress{0.5f};  // bound: the track IS live
-  const TextEffect fade = fx::keys({{0.0f, {.alpha = 0.0f}}, {1.0f, {}}});
+  const TextEffect fade = textFx::keys({{0.0f, {.alpha = 0.0f}}, {1.0f, {}}});
   const int distinct = distinctFramesAcrossOnePixel(host, [&](float at) {
     return ringWith(at, 44.0f, {.effect = fade, .progress = &progress});
   });
@@ -326,9 +327,9 @@ TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
 // the lane the table publishes into differs.
 TEST(ComposePathMotion, AKeysTableEngagesTheGridOnlyWhereItMovesGlyphs) {
   choreograph::Output<float> progress{0.5f};
-  const TextEffect colourOnly = fx::keys(
+  const TextEffect colourOnly = textFx::keys(
       {{0.0f, {.colorMultiplier = {0.3f, 0.3f, 0.3f, 1.0f}}}, {1.0f, {}}});
-  const TextEffect offset = fx::keys({{0.0f, {.dx = 9.0f}}, {1.0f, {}}});
+  const TextEffect offset = textFx::keys({{0.0f, {.dx = 9.0f}}, {1.0f, {}}});
 
   Host cheapHost(kField, kField);
   const int cheap = distinctFramesAcrossOnePixel(cheapHost, [&](float at) {
@@ -363,9 +364,9 @@ TEST(ComposePathMotion, ASettledDisplacingTrackReturnsToWholePixels) {
   Host bare(kField, kField);
   const SkBitmap untracked = shot(bare, ringAt(0.05f, 44.0f));
   Host settled(kField, kField);
-  const SkBitmap withTrack =
-      shot(settled,
-           ringWith(0.05f, 44.0f, {.effect = fx::slide(), .progress = 1.0f}));
+  const SkBitmap withTrack = shot(
+      settled,
+      ringWith(0.05f, 44.0f, {.effect = textFx::slide(), .progress = 1.0f}));
   for (int y = 0; y < kField; ++y)
     for (int x = 0; x < kField; ++x)
       ASSERT_EQ(untracked.getColor(x, y), withTrack.getColor(x, y))
@@ -373,7 +374,7 @@ TEST(ComposePathMotion, ASettledDisplacingTrackReturnsToWholePixels) {
 
   Host sliding(kField, kField);
   const int distinct = distinctFramesAcrossOnePixel(sliding, [](float at) {
-    return ringWith(at, 44.0f, {.effect = fx::slide(), .progress = 1.0f});
+    return ringWith(at, 44.0f, {.effect = textFx::slide(), .progress = 1.0f});
   });
   EXPECT_LE(distinct, kWholePixelCeiling)
       << "a settled track is paying for the subpixel grid";
@@ -411,18 +412,18 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
     frames.reserve(kSteps);
     for (int i = 0; i < kSteps; ++i) {
       progress = (float)i / (float)(kSteps - 1);
-      host.composer.render(
-          box().children({text(u8"H", whiteStyle(size))
-                              .key("ring")
-                              .width(kField)
-                              .height(kField)
-                              .absolute()
-                              .left(0)
-                              .top(0)
-                              .textOnPath({.path = geometry::shapes::circle(),
-                                           .at = &phase,
-                                           .align = TextPath::Align::Center})
-                              .fx({.effect = turn, .progress = &progress})}));
+      host.composer.render(box().children(
+          {text(u8"H", whiteStyle(size))
+               .key("ring")
+               .width(kField)
+               .height(kField)
+               .absolute()
+               .left(0)
+               .top(0)
+               .textOnPath({.path = geometry::shapes::circle(),
+                            .at = &phase,
+                            .align = TextPath::Align::Center})
+               .textFx({.effect = turn, .progress = &progress})}));
       host.frame();
       SkBitmap bm;
       bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));

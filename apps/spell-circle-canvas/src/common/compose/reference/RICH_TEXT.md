@@ -134,7 +134,7 @@ text(copy, base).span(weave::selectors::regex(u8"[0-9]+"),
                       SpanDeclarations().font(graded));
 ```
 
-Such a span is carried as a track holding `fx::variableAxis`, and inherits
+Such a span is carried as a track holding `textFx::variableAxis`, and inherits
 what that means. The coordinate is a `GlyphModifier::axis`, so it goes
 through the same size-scaled ladder a driven axis does and composes with
 entrances and loops instead of being hidden by them; and the leaf then draws

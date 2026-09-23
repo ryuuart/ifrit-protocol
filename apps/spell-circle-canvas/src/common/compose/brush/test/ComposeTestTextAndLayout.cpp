@@ -488,7 +488,7 @@ TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
   // track deviates from that placement IN THE FRAME THE BASELINE PUT IT IN.
   //
   // The baseline here runs straight DOWN the canvas, so its local "up" —
-  // the direction fx::rise lifts from — points to canvas +x. The control is
+  // the direction textFx::rise lifts from — points to canvas +x. The control is
   // the same track on the same text with no baseline, where local up is
   // canvas up. Different directions from one description is the whole
   // claim.
@@ -500,12 +500,12 @@ TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
   // A bare offset, so the assertion is about DIRECTION and nothing else —
   // a preset that also fades would cull the glyphs it is being asked about.
   const TextEffect lift =
-      fx::effect("test.pathframe.lift",
-                 [](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
-                   GlyphModifier mod;
-                   mod.dy = -40.0f * (1.0f - t);
-                   return mod;
-                 });
+      textFx::effect("test.pathframe.lift",
+                     [](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
+                       GlyphModifier mod;
+                       mod.dy = -40.0f * (1.0f - t);
+                       return mod;
+                     });
   auto scene = [&](bool onPath, float progress) {
     Text t = text(u8"LIFT", whiteStyle(18))
                  .key("t")
@@ -517,7 +517,7 @@ TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
                  // ink clipped off the top would move the centroid for a
                  // reason that has nothing to do with the frame.
                  .top(onPath ? 0.0f : 90.0f)
-                 .fx({.effect = lift, .progress = progress});
+                 .textFx({.effect = lift, .progress = progress});
     if (onPath) t.textOnPath({.path = downward});
     return box().children({std::move(t)});
   };
@@ -580,14 +580,14 @@ TEST(ComposeTextPath, ATrackAndABaselineBothRunRatherThanOneWinning) {
                  .textOnPath({.path = geometry::shapes::circle(),
                               .align = TextPath::Align::Center});
     if (withTrack)
-      t.fx({.effect = fx::effect(
-                "test.pathframe.out",
-                [](const GlyphInfo&, float, core::noise::Mix64Stream&) {
-                  GlyphModifier mod;
-                  mod.dy = -22.0f;
-                  return mod;
-                }),
-            .progress = 1.0f});
+      t.textFx({.effect = textFx::effect(
+                    "test.pathframe.out",
+                    [](const GlyphInfo&, float, core::noise::Mix64Stream&) {
+                      GlyphModifier mod;
+                      mod.dy = -22.0f;
+                      return mod;
+                    }),
+                .progress = 1.0f});
     return box().children({std::move(t)});
   };
   plain.composer.render(ring(false));

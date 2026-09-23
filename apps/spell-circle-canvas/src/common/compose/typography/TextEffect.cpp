@@ -25,7 +25,7 @@ TextEffect TextEffect::pass(material::skia::Paint material) {
     if (!warned) {
       warned = true;
       SkDebugf(
-          "[compose] fx::pass: the material carries no SkSL recipe — a "
+          "[compose] textFx::pass: the material carries no SkSL recipe — a "
           "pass is compiled per unit count, which needs "
           "material::skia::Paint::recipe(...) over a recipe with an SkSL body. "
           "The "

@@ -47,7 +47,7 @@ namespace {
 
 /** HOW FAR OFF ITS BOX A NODE'S OWN PAINT REACHES, as one number: the
  *  largest bleed any decoration, stroke pass, band profile, echo offset,
- *  fx track or material declares. Every carrier here answers the same
+ *  textFx track or material declares. Every carrier here answers the same
  *  over-report-is-safe contract, because what this number is for is a
  *  bounds — a layer, a cull, a bake — and under-reporting one truncates
  *  ink with no diagnostic. */
@@ -74,7 +74,7 @@ float declaredBleed(const Instance& inst, SkSize size) {
   for (const Echo& e : echoesOf(node))
     bleed =
         std::max(bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
-  // An fx() track throws glyphs OUTSIDE the text's box — a rise starts
+  // An textFx() track throws glyphs OUTSIDE the text's box — a rise starts
   // below the line, a scatter starts anywhere in its disc — and a cull
   // taken at the box truncates them at the cached picture or texture
   // bounds, exactly as an under-reported decoration bleed does. Each track

@@ -111,7 +111,7 @@ tree line up and moving one of them moves which slice it shows.
 
 **A live paint re-resolves per frame**, so a ramp bound to an output
 moves under the letters without re-shaping them, and it composes with
-the fx tracks: a letter in flight is painted with it exactly as a
+the textFx tracks: a letter in flight is painted with it exactly as a
 resting one is.
 
 **A property that was never set leaves the inherited ink standing** and

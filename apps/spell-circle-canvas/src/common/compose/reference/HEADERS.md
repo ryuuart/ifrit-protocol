@@ -145,7 +145,7 @@ sound model; nothing below them changes kernel semantics.
   `initialLetter`, `textFirstBaseline`, `textVerticalAlign`,
   `textLineMargin`, `textWillChange`,
   `textOverflow`, `maxTextLines`, `textStroke`, `contentFlowAround`.
-- `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `textAttach`,
+- `core/Text.h` — `TextContentVerbs`: `textFx`, `variationDrive`, `textAttach`,
   `textAnnotation`, `textThreadTo`, `textThreadBalance`, `textOnPath`,
   `span`, `atRest`; and `Text`, the leaf that has them
   and the text properties both.
@@ -665,20 +665,20 @@ and is taken as it stands.
 
 **Type — `typography/`.** The DRESSING is this feature's, one header per
 value family: `typography/TextUnit.h` — `TextUnit`, one unit as the layout
-placed it; `typography/Selector.h` — `selectors::style` and `selectors::inFrame`, the
-two selector forms whose subject is a description of this library;
-`typography/TextEffect.h` — `GlyphInfo`, `GlyphModifier`, `GlyphModifierFunction`,
-`TextEffect` and `Phase`, the value the seam is made of;
-`typography/TextFx.h` — the effects the runtime evaluates by structure:
-`fx::scramble`, the `fx::keys` keyframe table, the `fx::pass` shader pass,
-the `fx::sequence`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
-door; `typography/Track.h` — `Track`, `Beats` and `Beat`;
-`typography/Annotation.h` — `Annotation`; `typography/TextPath.h` —
-`TextPath`; and `typography/Typography.h`, the umbrella over them. The
-TEXT ITSELF is SigilWeave's and is included from there: `weave::rich` /
-`weave::RichText` and `weave::Story` for the content, `weave::Unit` for
-the granularity, `weave::Selector` and `weave::selectors::` for what a track
-addresses.
+placed it; `typography/Selector.h` — `selectors::style` and
+`selectors::inFrame`, the two selector forms whose subject is a description of
+this library; `typography/TextEffect.h` — `GlyphInfo`, `GlyphModifier`,
+`GlyphModifierFunction`, `TextEffect` and `Phase`, the value the seam is made
+of; `typography/TextFx.h` — the effects the runtime evaluates by structure:
+`textFx::scramble`, the `textFx::keys` keyframe table, the `textFx::pass`
+shader pass, the `textFx::sequence`, `textFx::mix` and `textFx::hold`
+combinators, and the `textFx::effect` door; `typography/Track.h` — `Track`,
+`Beats` and `Beat`; `typography/Annotation.h` — `Annotation`;
+`typography/TextPath.h` — `TextPath`; and `typography/Typography.h`, the
+umbrella over them. The TEXT ITSELF is SigilWeave's and is included from there:
+`weave::rich` / `weave::RichText` and `weave::Story` for the content,
+`weave::Unit` for the granularity, `weave::Selector` and `weave::selectors::`
+for what a track addresses.
 
 The kernel describes its text leaf in that vocabulary — a description
 stores tracks, runs and readings — and every member it stores, compares or
@@ -801,175 +801,157 @@ its own checks; nothing that ships does, which is what keeps a
 point-sampled coverage scan out of a paint loop.
 
 **Kit — `kit/Kit.h`.** A tier above the library that adds no kernel state
-and no new equality: `kit::disc` (a node about a centre, at a radius or
-at a `geometry::path::PolarFrame`'s — a braced pair is the centre, and a
-frame is spelled as one) with `kit::ring` and `kit::dot` beside it, the
-stroked circle and the filled one, since a box of radius r about a point
-is not yet a circle and the three verbs that make it one are ceremony
-wherever they are written; and `kit::at` (a box pinned at absolute
-coordinates, for the plate that has no layout at all), `kit::dotSprite`
-(the round stamp a point sink draws each point with),
-`kit::PixFont` (aliased bitmap-font bakes, in `kit/PixelType.h`),
-`kit::line` (`kit/Frame.h`: a mark of `Line::thickness` running
-`Line::length` in the ink in force unless a fill is stated, across or —
-`Line::column` — down, held off at both ends by `Line::inset`, and
-stretched across the flow it stands in where no length is given; a
-hairline is its default thickness and a tick is the same call at another,
-which is why a separator, a rule, a tick, a caret and a whisker are one
-name — with `Line::pair`, the second rail a masthead, a colophon and a
-specimen sheet's row are ruled with, drawn as ONE node whose two rails
-share one route, so a dotted companion's dashes register against the
-heavy rule instead of drifting off it), `kit::ladder` (the same header:
-N rules at one PITCH, each sitting on its own line of the rhythm — the
-ruled bed behind a grid specimen and the baseline rhythm a page is set
-to, which a caller otherwise writes as a padded column at a gap of
-`pitch - thickness`, the one subtraction a ruled bed spells twice and
-gets wrong once) and `kit/Frame.h`'s nine-slice frame,
-`kit::centred` (a container whose content stands in the middle both ways,
-since `alignItems(Center)` and `justifyContent(Center)` always travel together
-and say one thing between them, with an overload round the one child most
-of them hold),
-the pixel art in `kit/Sprites.h` — `kit::PixelInk`, a canvas and a cell
-size with the three verbs a pixel artist has, and `kit::Sprite`, the same
-verbs recorded as `kit::SpriteRun` marks over a palette, so WHAT is
-painted is separate from WHICH COLOUR each mark takes; `kit::pixelMap`
-reads one out of a character grid through a `kit::SpriteKey` (and REFUSES
-a character the key does not carry rather than leave an unfindable hole),
-`kit::pixelSprite` presents it as nodes, `kit::spriteImage` bakes it,
-`kit::indexImage` bakes the INDICES instead for a shader that recolours
-per draw, and `kit::SpriteSheet` holds sprites under names and packs them
-onto one image, each handed the rectangle it occupies — `kit::Scrim` and the
-halo/shade legibility helpers, the stock text effects over the
-`Text::fx` seam in `kit/Kinetic.h` — `fx::enter`, the one entrance
-every unit-offset reveal is a setting of, with `fx::rise`, `fx::slide`,
-`fx::pop`, `fx::spinIn` and `fx::scatter` over it, and `fx::typeOn`,
-`fx::waveLoop`, `fx::variableAxisSweep` and `fx::tint` beside them, each
-a comparable `TextEffect` built from the constructor any caller may use —
-with `kit/Marquee.h`'s `kit::marquee`, the seamless ticker built from a
-clipped strip and a wrapping phase, whose every dial is one options
-struct,
-`kit/Board.h`'s `kit::board`, the ground a placed drawing stands on — a
-`stack` at its own size on its own ground, each child keeping the rect it
-was built with, which is the root of a plate that has no layout at all
-and names no class, applies no sheet and sets no font, so a page-less
-drawing applies its own with `Element::applyStyleSheet` on what it returns —
-with `kit::panel` beside it, the titled region a page divides itself
-into: an eyebrow over a title in the roles `eyebrow` and `h1`, a
-note at the far edge of the head's last line in `caption`, each of
-the three a part (`Panel::eyebrowLine`, `Panel::titleLine`,
-`Panel::noteLine`), a hairline under the head where `Panel::rule` names
-one, and the whole standing in `Panel::body`, which is a `kit::Well` —
-its head is `kit::sheet`'s, so the rule bisects the distance to the
-content instead of adding to it —
-`kit/Placers.h`'s `place::grid`, `place::ring` and `place::repeat`, the
-fillers of an instanced leaf's pool — the first two over the same ring
-and grid arithmetic the layout schemes use, which is SigilGeometry's —
-the two instruments in `kit/Instruments.h` —
-`kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its
-rect, filled by its local time — `MeterPlacement` stands the cells over
-the beats or under them as a rule, for a track whose own letters are
-what is being watched) and `kit::restGhost` (the same word
-undeformed under the moving one) — a component's own lines as parts in
-`kit/Part.h` — `kit::Part`, one such line as a function of what the
-component offers about it, the text and then the component, handed any
-callable whose parameters are a prefix of that offer (`core::Callable`
-over an Element, the one prefix search in the tree — the same one a paint
-program and an outline are taken through, and the same rule a range's
-children follow in taking a function of the item or of the item and its
+and no new equality: `kit::disc` (a node about a centre, at a radius or at a
+`geometry::path::PolarFrame`'s — a braced pair is the centre, and a frame is
+spelled as one) with `kit::ring` and `kit::dot` beside it, the stroked circle
+and the filled one, since a box of radius r about a point is not yet a circle
+and the three verbs that make it one are ceremony wherever they are written;
+and `kit::at` (a box pinned at absolute coordinates, for the plate that has no
+layout at all), `kit::dotSprite` (the round stamp a point sink draws each point
+with), `kit::PixFont` (aliased bitmap-font bakes, in `kit/PixelType.h`),
+`kit::line` (`kit/Frame.h`: a mark of `Line::thickness` running `Line::length`
+in the ink in force unless a fill is stated, across or — `Line::column` — down,
+held off at both ends by `Line::inset`, and stretched across the flow it stands
+in where no length is given; a hairline is its default thickness and a tick is
+the same call at another, which is why a separator, a rule, a tick, a caret and
+a whisker are one name — with `Line::pair`, the second rail a masthead, a
+colophon and a specimen sheet's row are ruled with, drawn as ONE node whose two
+rails share one route, so a dotted companion's dashes register against the
+heavy rule instead of drifting off it), `kit::ladder` (the same header: N rules
+at one PITCH, each sitting on its own line of the rhythm — the ruled bed behind
+a grid specimen and the baseline rhythm a page is set to, which a caller
+otherwise writes as a padded column at a gap of `pitch - thickness`, the one
+subtraction a ruled bed spells twice and gets wrong once) and `kit/Frame.h`'s
+nine-slice frame, `kit::centred` (a container whose content stands in the
+middle both ways, since `alignItems(Center)` and `justifyContent(Center)`
+always travel together and say one thing between them, with an overload round
+the one child most of them hold), the pixel art in `kit/Sprites.h` —
+`kit::PixelInk`, a canvas and a cell size with the three verbs a pixel artist
+has, and `kit::Sprite`, the same verbs recorded as `kit::SpriteRun` marks over
+a palette, so WHAT is painted is separate from WHICH COLOUR each mark takes;
+`kit::pixelMap` reads one out of a character grid through a `kit::SpriteKey`
+(and REFUSES a character the key does not carry rather than leave an unfindable
+hole), `kit::pixelSprite` presents it as nodes, `kit::spriteImage` bakes it,
+`kit::indexImage` bakes the INDICES instead for a shader that recolours per
+draw, and `kit::SpriteSheet` holds sprites under names and packs them onto one
+image, each handed the rectangle it occupies — `kit::Scrim` and the halo/shade
+legibility helpers, the stock text effects over the `Text::textFx` seam in
+`kit/Kinetic.h` — `textFx::enter`, the one entrance every unit-offset reveal is
+a setting of, with `textFx::rise`, `textFx::slide`, `textFx::pop`,
+`textFx::spinIn` and `textFx::scatter` over it, and `textFx::typeOn`,
+`textFx::waveLoop`, `textFx::variableAxisSweep` and `textFx::tint` beside them,
+each a comparable `TextEffect` built from the constructor any caller may use —
+with `kit/Marquee.h`'s `kit::marquee`, the seamless ticker built from a clipped
+strip and a wrapping phase, whose every dial is one options struct,
+`kit/Board.h`'s `kit::board`, the ground a placed drawing stands on — a `stack`
+at its own size on its own ground, each child keeping the rect it was built
+with, which is the root of a plate that has no layout at all and names no
+class, applies no sheet and sets no font, so a page-less drawing applies its
+own with `Element::applyStyleSheet` on what it returns — with `kit::panel`
+beside it, the titled region a page divides itself into: an eyebrow over a
+title in the roles `eyebrow` and `h1`, a note at the far edge of the head's
+last line in `caption`, each of the three a part (`Panel::eyebrowLine`,
+`Panel::titleLine`, `Panel::noteLine`), a hairline under the head where
+`Panel::rule` names one, and the whole standing in `Panel::body`, which is a
+`kit::Well` — its head is `kit::sheet`'s, so the rule bisects the distance to
+the content instead of adding to it — `kit/Placers.h`'s `place::grid`,
+`place::ring` and `place::repeat`, the fillers of an instanced leaf's pool —
+the first two over the same ring and grid arithmetic the layout schemes use,
+which is SigilGeometry's — the two instruments in `kit/Instruments.h` —
+`kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its rect,
+filled by its local time — `MeterPlacement` stands the cells over the beats or
+under them as a rule, for a track whose own letters are what is being watched)
+and `kit::restGhost` (the same word undeformed under the moving one) — a
+component's own lines as parts in `kit/Part.h` — `kit::Part`, one such line as
+a function of what the component offers about it, the text and then the
+component, handed any callable whose parameters are a prefix of that offer
+(`core::Callable` over an Element, the one prefix search in the tree — the same
+one a paint program and an outline are taken through, and the same rule a
+range's children follow in taking a function of the item or of the item and its
 index), so a sketch sets one line otherwise and nothing else under the
-component changes — the furniture of a specimen sheet in
-`kit/Specimen.h` — `kit::cell`, a body with a label and a note set
-beside it as a `kit::Caption` says (its `label` and `note` are parts
-that default to `captionLabel` and `captionNote`, leaves in the
-document roles `label` and `caption`; `Caption::Where` puts the note under
-the body, or both lines above it, or both below, and `labelMeasure` and
-`noteMeasure` wrap either line at a stated width so a long one does not
-widen the cell it captions; `Caption::body` states the body's own well, so
-a cell and its well are one call, `Caption::justify` makes that well HOLD
-the body rather than write itself onto it, so a picture smaller than its
-plate keeps the measure it was drawn at, and `Caption::reading` writes a
-figure over the body's corner on a scrim of that well's ground, in the
-class `readout`, through the part `readingLine`), `kit::well`, the fixed,
-clipped surface a specimen is drawn into with every size, fill, padding,
-corner radius and keyline supplied by the caller — the element it is
-handed IS the well, the spec written onto it, unless `Well::content`
-states the other reading, where the plate is a surface of its own and
-holds that element at its own measure, ranged both ways and centred where
-it says nothing else — `Well::placed` making it a `stack` rather
-than a box, for the plate whose children carry their own rects — `Well::paddingY` where a plate is set
-tighter down than across, and `Well::keyline` drawn INSIDE the well's own
-box, because a plate that is not the width it was given is the one thing a
-fixed surface may not be — `kit::formatted`, the dynamically sized
-printf-style reading those
-captions use, `kit::panelGrid`, equal-width panels that wrap at the stated
-column count and keep a short last row aligned (`PanelGrid::measure` is
-the width the shares are cut from, unset being the parent's — a grid in a
-column that sizes itself from its content has none to divide, and its
-cells would be dealt nothing and drawn over each other), and `kit::cells`, a run of
-them along one axis with a hairline between neighbours, and
-`kit::sheet`, the titled and footed page that rules its header and
-footer off from the content between them, its three lines the parts
-`Sheet::titleLine`, `Sheet::subtitleLine` and `Sheet::footerLine` over
-the leaves `kit::sheetTitle`, `kit::sheetSubtitle` and `kit::sheetFooter`;
-the props are the CONTENT and
-the arrangement, and every face, size and colour is the cascade's — a
-cell's label is set in the class `captionLabel` of the sheet in force
-and its note in `captionNote`, a page's three lines in `title`,
+component changes — the furniture of a specimen sheet in `kit/Specimen.h` —
+`kit::cell`, a body with a label and a note set beside it as a `kit::Caption`
+says (its `label` and `note` are parts that default to `captionLabel` and
+`captionNote`, leaves in the document roles `label` and `caption`;
+`Caption::Where` puts the note under the body, or both lines above it, or both
+below, and `labelMeasure` and `noteMeasure` wrap either line at a stated width
+so a long one does not widen the cell it captions; `Caption::body` states the
+body's own well, so a cell and its well are one call, `Caption::justify` makes
+that well HOLD the body rather than write itself onto it, so a picture smaller
+than its plate keeps the measure it was drawn at, and `Caption::reading` writes
+a figure over the body's corner on a scrim of that well's ground, in the class
+`readout`, through the part `readingLine`), `kit::well`, the fixed, clipped
+surface a specimen is drawn into with every size, fill, padding, corner radius
+and keyline supplied by the caller — the element it is handed IS the well, the
+spec written onto it, unless `Well::content` states the other reading, where
+the plate is a surface of its own and holds that element at its own measure,
+ranged both ways and centred where it says nothing else — `Well::placed` making
+it a `stack` rather than a box, for the plate whose children carry their own
+rects — `Well::paddingY` where a plate is set tighter down than across, and
+`Well::keyline` drawn INSIDE the well's own box, because a plate that is not
+the width it was given is the one thing a fixed surface may not be —
+`kit::formatted`, the dynamically sized printf-style reading those captions
+use, `kit::panelGrid`, equal-width panels that wrap at the stated column count
+and keep a short last row aligned (`PanelGrid::measure` is the width the shares
+are cut from, unset being the parent's — a grid in a column that sizes itself
+from its content has none to divide, and its cells would be dealt nothing and
+drawn over each other), and `kit::cells`, a run of them along one axis with a
+hairline between neighbours, and `kit::sheet`, the titled and footed page that
+rules its header and footer off from the content between them, its three lines
+the parts `Sheet::titleLine`, `Sheet::subtitleLine` and `Sheet::footerLine`
+over the leaves `kit::sheetTitle`, `kit::sheetSubtitle` and `kit::sheetFooter`;
+the props are the CONTENT and the arrangement, and every face, size and colour
+is the cascade's — a cell's label is set in the class `captionLabel` of the
+sheet in force and its note in `captionNote`, a page's three lines in `title`,
 `subtitle` and `footer` — so the kit decides no look and a text prop is a
-`compose::Utf8`, which takes `"…"` and `u8"…"` alike;
-`kit/Rows.h` — a name and the figure that answers it: `kit::reading`, one
-row of a `kit::Reading` set as a `kit::Rows` says (the name at the left,
-the figure at the far edge of `Rows::measure`, the swatch of a row that is
-also a key before both), `kit::readout`, a stack of them ruled between
-where `Rows::divider` names a fill, `kit::table`, N `kit::Column`s each at
-its own width — one head cell per column in the class `section`, a figure
-column's cells in `readout` and the rest in `captionNote`, one swatch and
-one key per row, with the swatch column reserved in the head and every row
-when any row has a mark. Every row is its own run of cells, so a short row stays
-short and a surplus word takes the last column's class; its `cellLine`
-names the ROW and that row's own CELLS as well as the column, which is
-what lets a table light one row and what lets a cell be a DRAWING read off
-the row it stands in — a bar, a swatch ramp, a sparkline — since a part
-may answer any element and not only a line, and `Reading::ink` is the colour a row is set in over whatever
-its lines' classes name, because WHICH rows are lit is the data's business
-and a sheet cannot say it — and `kit::bars`,
-one row per value against an extent DERIVED from the values
-(`Bars::largest` states it instead; `Bars::inks` is one colour per row,
-over the bar's paint and over the two lines' classes, because WHICH row
-is lit is the data's business — the same door `Reading::ink` gave a
-readout's rows), each bar in `Bars::bar` on the track
-`Bars::rest` holds, with the figure after it as a function of the VALUE
-because how a number reads is the data's business; a readout and a table
-are different readings and neither is the other with a field set, and
-`kit::figure` is the one leaf a measured figure is set by, in the class
-`readout`, wherever it stands;
-`kit/Ground.h`'s two dressings for a flat ground — `kit::vignette`, a
-radial ramp measured to the CORNER so it meets all four at one value on
-a surface that is not square, and `kit::grained`, value noise collapsed
-to one channel and soft-lit so a coloured ground takes a grain as light
-rather than as speckled hue, with mid grey soft light's identity and so
-the strength linear and zero exact — the furniture a page of set text
+`compose::Utf8`, which takes `"…"` and `u8"…"` alike; `kit/Rows.h` — a name and
+the figure that answers it: `kit::reading`, one row of a `kit::Reading` set as
+a `kit::Rows` says (the name at the left, the figure at the far edge of
+`Rows::measure`, the swatch of a row that is also a key before both),
+`kit::readout`, a stack of them ruled between where `Rows::divider` names a
+fill, `kit::table`, N `kit::Column`s each at its own width — one head cell per
+column in the class `section`, a figure column's cells in `readout` and the
+rest in `captionNote`, one swatch and one key per row, with the swatch column
+reserved in the head and every row when any row has a mark. Every row is its
+own run of cells, so a short row stays short and a surplus word takes the last
+column's class; its `cellLine` names the ROW and that row's own CELLS as well
+as the column, which is what lets a table light one row and what lets a cell be
+a DRAWING read off the row it stands in — a bar, a swatch ramp, a sparkline —
+since a part may answer any element and not only a line, and `Reading::ink` is
+the colour a row is set in over whatever its lines' classes name, because WHICH
+rows are lit is the data's business and a sheet cannot say it — and
+`kit::bars`, one row per value against an extent DERIVED from the values
+(`Bars::largest` states it instead; `Bars::inks` is one colour per row, over
+the bar's paint and over the two lines' classes, because WHICH row is lit is
+the data's business — the same door `Reading::ink` gave a readout's rows), each
+bar in `Bars::bar` on the track `Bars::rest` holds, with the figure after it as
+a function of the VALUE because how a number reads is the data's business; a
+readout and a table are different readings and neither is the other with a
+field set, and `kit::figure` is the one leaf a measured figure is set by, in
+the class `readout`, wherever it stands; `kit/Ground.h`'s two dressings for a
+flat ground — `kit::vignette`, a radial ramp measured to the CORNER so it meets
+all four at one value on a surface that is not square, and `kit::grained`,
+value noise collapsed to one channel and soft-lit so a coloured ground takes a
+grain as light rather than as speckled hue, with mid grey soft light's identity
+and so the strength linear and zero exact — the furniture a page of set text
 carries in `kit/Typeset.h` (`kit::ruby` and `kit::kenten`, the two stock
-`Annotation`s; `kit::bullets`, whose markers hang in the indent;
-`kit::rules`, cut to the extent a block's lines occupy;
-`kit::NestedStyle` with `kit::nestedRun`, where a block's opening words
-stop; and `kit::textColumns` over a `kit::ColumnSet`, N frames of one story
-threaded in order, with the `kit::Spanner`s that break the chain),
-what stands BESIDE that text in `kit/Annotations.h` (`kit::annotate`
-under `kit::Beside`, which does the arithmetic of the reading direction,
-or `kit::Anchored`, which takes the offset the author states; the unit is
-offered to the overlay it builds, so a mark that is the same at every unit
-names nothing) — and,
-shipped with the tiers whose
-types they are spelled in, `kit/Strokes.h`'s finished lines, braid,
-bracket spans, brush presets and `kit::groove` — the engraved cut across a disc's stroke, a
-radial ramp concentric with the circle so it is dark on the inner wall
-and lit on the outer, as the comparable `kit::grooveRamp` paint or the
+`Annotation`s; `kit::bullets`, whose markers hang in the indent; `kit::rules`,
+cut to the extent a block's lines occupy; `kit::NestedStyle` with
+`kit::nestedRun`, where a block's opening words stop; and `kit::textColumns`
+over a `kit::ColumnSet`, N frames of one story threaded in order, with the
+`kit::Spanner`s that break the chain), what stands BESIDE that text in
+`kit/Annotations.h` (`kit::annotate` under `kit::Beside`, which does the
+arithmetic of the reading direction, or `kit::Anchored`, which takes the offset
+the author states; the unit is offered to the overlay it builds, so a mark that
+is the same at every unit names nothing) — and, shipped with the tiers whose
+types they are spelled in, `kit/Strokes.h`'s finished lines, braid, bracket
+spans, brush presets and `kit::groove` — the engraved cut across a disc's
+stroke, a radial ramp concentric with the circle so it is dark on the inner
+wall and lit on the outer, as the comparable `kit::grooveRamp` paint or the
 `PathFormat` that wears it — with `kit/Plate.h`'s bordered feed plate and
-`kit/Ornament.h` and `kit/Flourish.h`, the pieces a manuscript border is
-made of (Brush), and
-`kit/Legibility.h` (Typography). The kit
-is a **separate CMake library** (`SigilComposeKit`) whose only include
-path is compose's public headers, which is how the public/internal
-boundary is proven rather than asserted. Note that `kit/Kit.h` does not
-pull in the headers shipped with other tiers; include them directly.
+`kit/Ornament.h` and `kit/Flourish.h`, the pieces a manuscript border is made
+of (Brush), and `kit/Legibility.h` (Typography). The kit is a **separate CMake
+library** (`SigilComposeKit`) whose only include path is compose's public
+headers, which is how the public/internal boundary is proven rather than
+asserted. Note that `kit/Kit.h` does not pull in the headers shipped with other
+tiers; include them directly.

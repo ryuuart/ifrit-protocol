@@ -250,7 +250,8 @@ struct Ds2Bench {
              .children(
                  {document::h1("CONTACT BEAM")
                       .key("title")
-                      .fx({.effect = fx::typeOn(),
+                      .textFx(
+                          {.effect = textFx::typeOn(),
                            .stagger = {.eachMs = 26, .durationMs = 190},
                            .progress = animate(from(0.0f).to(1.0f), {760ms})})
                       .filter(styles::textGlow(

@@ -4,7 +4,7 @@
  */
 
 // NINE PRESETS, ONE CLOCK. `kit/Kinetic.h` ships nine comparable
-// `TextEffect` values over the kernel's `fx()` seam, and a still of a
+// `TextEffect` values over the kernel's `textFx()` seam, and a still of a
 // moving effect is worth nothing unless it is caught while the effect is
 // moving — so every cell here is driven by ONE wrapping phase, and the
 // declared moment falls where every cascade is mid-flight.
@@ -84,7 +84,7 @@ constexpr material::Color kGround{0.043f, 0.043f, 0.058f, 1};
 constexpr material::Color kBone{0.930f, 0.920f, 0.890f, 1};
 constexpr material::Color kFaint{0.540f, 0.540f, 0.590f, 0.28f};
 constexpr material::Color kAccent{0.980f, 0.360f, 0.250f, 1};
-/// Where `fx::tint` wipes FROM. The specimen is set in kAccent, its
+/// Where `textFx::tint` wipes FROM. The specimen is set in kAccent, its
 /// DESTINATION, and the effect multiplies down to this — so every channel
 /// here has to be darker than the destination's, since a multiplier
 /// cannot brighten and a channel it could not reach simply holds.
@@ -186,22 +186,18 @@ struct KineticCard {
    *  — it is drawn over the whole composition, because `beatsOf` answers
    *  in the composer's space. */
   sketch::kit::ComparisonCase cell(const Row& row, float width) {
-    return {
-        .title = row.word,
-        .control = row.call,
-        .figure = box()
-                      .width(width)
-                      .height(kBodyH)
-                      .padding(22, 4)
-                      .children({text(row.word)
-                                     .styleClass("specimen")
-                                     .font(row.over)
-                                     .key(row.key)
-                                     .width(width - 8)
-                                     .fx({.effect = row.effect,
-                                          .stagger = kCascade,
-                                          .progress = &phase})}),
-        .note = row.note};
+    return {.title = row.word,
+            .control = row.call,
+            .figure = box().width(width).height(kBodyH).padding(22, 4).children(
+                {text(row.word)
+                     .styleClass("specimen")
+                     .font(row.over)
+                     .key(row.key)
+                     .width(width - 8)
+                     .textFx({.effect = row.effect,
+                              .stagger = kCascade,
+                              .progress = &phase})}),
+            .note = row.note};
   }
 
   Element describe(sketch::SketchContext& ctx) {
@@ -209,51 +205,51 @@ struct KineticCard {
     const Composer& composer = ctx.composer;
 
     static const Row kRows[9] = {
-        {"rise", "fx::rise(26)",
+        {"rise", "textFx::rise(26)",
          "up from below, fading in over the first "
          "third of its beat",
-         "RISE", fx::rise(26)},
-        {"slide", "fx::slide(-32)",
+         "RISE", textFx::rise(26)},
+        {"slide", "textFx::slide(-32)",
          "in from the side; negative is from the "
          "left",
-         "SLIDE", fx::slide(-32)},
-        {"pop", "fx::pop(0.35, 1.70158)",
+         "SLIDE", textFx::slide(-32)},
+        {"pop", "textFx::pop(0.35, 1.70158)",
          "scale overshoot — "
          "back.out(1.7)",
-         "POP", fx::pop(0.35f, 1.70158f)},
-        {"spin", "fx::spinIn(70, 14)",
+         "POP", textFx::pop(0.35f, 1.70158f)},
+        {"spin", "textFx::spinIn(70, 14)",
          "a tumble: rotation and a rise, "
          "eased out together",
-         "SPIN IN", fx::spinIn(70, 14)},
-        {"scatter", "fx::scatter(40, 24)",
+         "SPIN IN", textFx::spinIn(70, 14)},
+        {"scatter", "textFx::scatter(40, 24)",
          "each glyph from its own seeded "
          "offset and lean",
-         "SCATTER", fx::scatter(40, 24)},
-        {"typeon", "fx::typeOn()",
+         "SCATTER", textFx::scatter(40, 24)},
+        {"typeon", "textFx::typeOn()",
          "absent, then simply there — "
          "coverage only, no displacement",
-         "TYPE ON", fx::typeOn()},
+         "TYPE ON", textFx::typeOn()},
         {"axis",
          "GRAD axis · 400 → 1000",
          "a grade swept at draw time; advance-invariant, so nothing moves",
          "AXIS SWEEP",
-         fx::variableAxisSweep("GRAD", 400, 1000),
+         textFx::variableAxisSweep("GRAD", 400, 1000),
          {.face = graded()}},
         {"tint",
-         "fx::tint(pale, accent)",
+         "textFx::tint(pale, accent)",
          "the element is set in the destination and the effect multiplies "
          "down to the origin",
          "TINT",
-         fx::tint(kPale, kAccent),
+         textFx::tint(kPale, kAccent),
          {.color = kAccent}},
-        {"wave", "fx::waveLoop(0.10, 0.5)",
+        {"wave", "textFx::waveLoop(0.10, 0.5)",
          "the one that never lands: a loop on the same wrapping phase, so "
          "its meter never fills",
          // The loop reads the master as a phase rather than as an
          // entrance, so every glyph takes the SAME master and the
          // travelling wave comes from the glyph's own index inside the
          // effect.
-         "WAVE LOOP", fx::waveLoop(0.10f, 0.5f)},
+         "WAVE LOOP", textFx::waveLoop(0.10f, 0.5f)},
     };
 
     std::vector<sketch::kit::ComparisonCase> moving;

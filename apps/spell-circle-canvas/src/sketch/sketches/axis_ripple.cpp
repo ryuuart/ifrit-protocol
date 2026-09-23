@@ -44,7 +44,7 @@
 // -----------------------------------------------------------------------------
 // HOW THE RIPPLE IS SPELLED
 //
-// `fx::waveLoop` is this shape already, on dy. The axis version is the same
+// `textFx::waveLoop` is this shape already, on dy. The axis version is the same
 // three lines with the sine landing on `GlyphModifier::axis` instead — an
 // ad-hoc effect under a key, driven by a wrapping phase with `eachMs = 0` so
 // every glyph reads ONE master phase and the travelling wave comes from the
@@ -138,7 +138,7 @@ constexpr float kWghtLo = 300.0f;
 constexpr float kWghtHi = 900.0f;
 constexpr float kProofRowSize = 34.0f;
 
-/** The ripple: `fx::waveLoop`'s sine, landing on the axis coordinate.
+/** The ripple: `textFx::waveLoop`'s sine, landing on the axis coordinate.
  *
  *  The phase comes from the glyph's own index rather than from the cascade,
  *  so the track's stagger is one beat for the whole line and the effect
@@ -146,18 +146,18 @@ constexpr float kProofRowSize = 34.0f;
  *  START TIMES, which is right for an entrance and wrong for something that
  *  never ends. */
 TextEffect gradWave(float lo, float hi, float radPerGlyph) {
-  return fx::effect("gradWave",
-                    [lo, hi, radPerGlyph](const GlyphInfo& g, float t,
-                                          sigil::core::noise::Mix64Stream&) {
-                      const float s =
-                          0.5f + 0.5f * std::sin(t * 6.2831853f -
-                                                 (float)g.index * radPerGlyph);
-                      GlyphModifier m;
-                      m.axis = sigil::weave::FontVariation("GRAD",
-                                                           lo + (hi - lo) * s);
-                      return m;
-                    },
-                    0.0f, {lo, hi, radPerGlyph})
+  return textFx::effect(
+             "gradWave",
+             [lo, hi, radPerGlyph](const GlyphInfo& g, float t,
+                                   sigil::core::noise::Mix64Stream&) {
+               const float s =
+                   0.5f + 0.5f * std::sin(t * 6.2831853f -
+                                          (float)g.index * radPerGlyph);
+               GlyphModifier m;
+               m.axis = sigil::weave::FontVariation("GRAD", lo + (hi - lo) * s);
+               return m;
+             },
+             0.0f, {lo, hi, radPerGlyph})
       // The wave is a GRADE, and only an advance-invariant axis is honoured:
       // every letter keeps the pen position shaping gave it for the whole
       // ripple. The phase driving this is bound and never settles, so saying
@@ -238,14 +238,15 @@ struct AxisRipple {
   [[nodiscard]] Element ripplePanel() {
     const float width = pens.back();
     Element panel = box().column().gap(10).width(width);
-    panel.children({text("GRAD — DRIVEN AT DRAW TIME, "
-                         "ONE SHAPING, LETTERS FIXED"),
-                    text(kProof, proof)
-                        .key("ripple")
-                        .fx({.effect = gradWave(kGradLo, kGradHi, radPerGlyph),
-                             .stagger = {.eachMs = 0, .durationMs = 400},
-                             .progress = &phase}),
-                    meter(width)});
+    panel.children(
+        {text("GRAD — DRIVEN AT DRAW TIME, "
+              "ONE SHAPING, LETTERS FIXED"),
+         text(kProof, proof)
+             .key("ripple")
+             .textFx({.effect = gradWave(kGradLo, kGradHi, radPerGlyph),
+                      .stagger = {.eachMs = 0, .durationMs = 400},
+                      .progress = &phase}),
+         meter(width)});
     // One line, deliberately: the panel is the run's own width, so a
     // caption that wraps changes the sheet's height between frames.
     panel.children(

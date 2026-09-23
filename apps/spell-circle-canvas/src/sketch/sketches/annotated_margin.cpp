@@ -20,7 +20,7 @@
 //     the note to the line's own left edge.
 //   · THE RULE — a hairline cut to the extent the block's lines actually
 //     occupy, which is narrower than the box they sit in.
-//   · THE PLAYHEAD — a marker riding an fx() cascade over the same text,
+//   · THE PLAYHEAD — a marker riding an textFx() cascade over the same text,
 //     placed from the beat rather than from a coordinate, so it agrees
 //     with the letters whatever the cascade turns out to be.
 //
@@ -167,13 +167,13 @@ struct AnnotatedMargin {
                  .left(m::kTextLeft)
                  .top(m::kH - 210)
                  .width(m::kMeasure)
-                 .fx({.effect = fx::rise(14),
-                      .stagger = m::kRoll,
-                      .unit = weave::Unit::Word,
-                      .progress =
-                          animate(motion::from(0.0f).to(1.0f),
-                                  {std::chrono::milliseconds((int)m::kRollSpan),
-                                   &ch::easeNone, 200ms})}),
+                 .textFx({.effect = textFx::rise(14),
+                          .stagger = m::kRoll,
+                          .unit = weave::Unit::Word,
+                          .progress = animate(
+                              motion::from(0.0f).to(1.0f),
+                              {std::chrono::milliseconds((int)m::kRollSpan),
+                               &ch::easeNone, 200ms})}),
              // ── The label under every word of the opening phrase
              kit::annotate(composer, "passage", weave::selectors::words(0, 6),
                            weave::Unit::Word,

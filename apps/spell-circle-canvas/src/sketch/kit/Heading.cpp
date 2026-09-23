@@ -26,7 +26,7 @@ Element spoken(const Line& line, Text el, const std::string& key) {
   if (!key.empty()) el.key(key);
   if (line.opacity) el.opacity(*line.opacity);
   if (line.lift) el.translateY(*line.lift);
-  if (line.fx) el.fx(*line.fx);
+  if (line.fx) el.textFx(*line.fx);
   return el;
 }
 

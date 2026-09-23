@@ -94,10 +94,10 @@ struct TextScope {
 
 /** WHAT THE KERNEL ASKS OF DRESSED TYPE — every operation the composer
  *  needs from text that is not simply resting on its own straight baseline:
- *  a run carrying fx() tracks, riding a path, anchoring marks, or restyled
+ *  a run carrying textFx() tracks, riding a path, anchoring marks, or restyled
  *  by selector. The kernel holds the paragraph, lays it out and draws it at
  *  rest by itself; everything below is answered by the value a text verb
- *  installs on the description (`fx()`, `textOnPath()`, `textAttach()`,
+ *  installs on the description (`textFx()`, `textOnPath()`, `textAttach()`,
  *  `span()`, `variationDrive()`). A text node carrying
  *  none of those has no painter, and the kernel then draws its paragraph at
  *  rest, resolves no marks and restyles nothing — the same picture a painter
@@ -111,7 +111,7 @@ class TextPainterOperations {
   virtual ~TextPainterOperations() = default;
   /** THE GLYPH DRAW for dressed text: the rest pose comes from the baseline
    *  — level on a plain run, on the curve and turned to it on a path run —
-   *  and every fx() track's deviation applies on top of it. @p override is
+   *  and every textFx() track's deviation applies on top of it. @p override is
    *  the glyph-paint override ink(paint)/textStroke() ask for, or null;
    *  @p onPath is null for text with no baseline path; @p size is the
    *  node's box; @p ctx is the node's paint context. */

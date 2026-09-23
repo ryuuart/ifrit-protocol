@@ -45,7 +45,7 @@ class TextContentVerbs {
    *  Several tracks compose per glyph — dx/dy and rotation ADD, scale
    *  and alpha MULTIPLY — in declaration order, each keeping its own
    *  transition slot. */
-  Derived& fx(Track track);
+  Derived& textFx(Track track);
   /** Drive a variable-font axis from a bound output at DRAW time —
    *  paint-only volatility, no reshape, no relayout. An
    *  advance-variant axis is REFUSED with a warning and the text draws

@@ -172,7 +172,7 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
 TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   // What a row IS belongs to the caller. feed() windows the ring and keys
   // each row by its sequence id; everything else — the style, an entrance,
-  // an fx track — is whatever the factory returns. The hand-built column
+  // an textFx track — is whatever the factory returns. The hand-built column
   // below IS what feed() builds, so it reconciles onto it with nothing
   // patched, and an author who needs something the options do not carry can
   // write that column themselves without losing the identity discipline.

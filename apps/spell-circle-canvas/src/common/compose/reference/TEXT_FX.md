@@ -9,7 +9,7 @@ values — *which* glyphs (`weave::Selector`), *what* deviation from rest
 (`Track::unit`), and the master `Animatable<float>` progress that drives
 it. The spread is SigilMotion's and says nothing about text; `unit` is the
 whole of what makes it a cascade over glyphs rather than over a set's
-children or a feed's rows. `Text::fx` appends one;
+children or a feed's rows. `Text::textFx` appends one;
 several compose per glyph, with `GlyphModifier` offsets and rotations adding
 and scale and alpha multiplying. The seam is three headers:
 
@@ -17,7 +17,7 @@ and scale and alpha multiplying. The seam is three headers:
   a body is handed, `GlyphModifier` what it returns, `GlyphModifierFunction` the callable
   those two make, and `TextEffect` the comparable value one is wrapped
   in.
-- `typography/TextFx.h` — the `fx::` catalogue: the effects the runtime
+- `typography/TextFx.h` — the `textFx::` catalogue: the effects the runtime
   evaluates by STRUCTURE rather than by calling a body, and
   `kNominalSizePx`, the display size a preset's reach is declared
   against.
@@ -28,9 +28,9 @@ and scale and alpha multiplying. The seam is three headers:
 
 ```cpp
 text(u8"ONE LINE, TWO MOVES", display)
-    .fx({.effect = fx::rise(20), .unit = weave::Unit::Word})
-    .fx({.where = weave::selectors::text(u8"TWO"),
-         .effect = fx::waveLoop(),
+    .textFx({.effect = textFx::rise(20), .unit = weave::Unit::Word})
+    .textFx({.where = weave::selectors::text(u8"TWO"),
+         .effect = textFx::waveLoop(),
          .progress = &phase});
 ```
 
@@ -62,7 +62,7 @@ position: every run a `weave::rich()` value added under a style name
 ```cpp
 text(weave::rich(base).styles(set.types())
          .add(u8"gusting ").add(u8"soon", "term").add(u8", then rain"))
-    .fx({.where = !selectors::style("term"), .effect = fx::variableAxis("GRAD", 900)});
+    .textFx({.where = !selectors::style("term"), .effect = textFx::variableAxis("GRAD", 900)});
 ```
 
 A glossary set in one registered style stays addressable when the copy
@@ -92,7 +92,7 @@ a TABLE — one start time per unit, in ms — which is what caption, lyric
 and lip-sync timing actually is:
 
 ```cpp
-text(lyric).fx({.effect = fx::rise(12),
+text(lyric).textFx({.effect = textFx::rise(12),
                 .stagger = motion::Spread{.durationMs = 180}
                                .cues({0, 340, 720, 1180}),
                 .unit = weave::Unit::Word});
@@ -195,14 +195,14 @@ stop) is *declared* rather than faked by re-running a one-shot. The master
 stays the one clock, and one sweep 0→1 is exactly one cycle: unit *i* reads
 `clamp(((master·loopMs − startᵢ) mod loopMs) / durationMs)`, so master 0
 and master 1 name the same instant of the cycle and a **wrapping bound
-phase** — an `Output` stepped mod 1, the clock `fx::waveLoop` already reads
+phase** — an `Output` stepped mod 1, the clock `textFx::waveLoop` already reads
 — drives it seamlessly forever:
 
 ```cpp
 motion::Spread cascade = motion::Spread{}.cues(columnStartsMs);
 cascade.then({.eachMs = 80, .durationMs = 1400});
 cascade.loopMs = 5000;  // every column re-drops on its own cue, forever
-text(field, rain).fx({.effect = streak,
+text(field, rain).textFx({.effect = streak,
                       .stagger = cascade,
                       .unit = weave::Unit::Line,
                       .innerUnit = weave::Unit::Cluster,
@@ -214,7 +214,7 @@ landed deviation — and returns to 0 the instant the beat re-opens, so an
 effect that loops cleanly ends where nothing shows. Start offsets fold mod
 the period (a start past `loopMs` lands at start mod `loopMs`), and the
 fold means every unit is *always* somewhere in its cycle: there is no
-"before the first beat", which leaves `fx::hold` nothing to veto (local
+"before the first beat", which leaves `textFx::hold` nothing to veto (local
 time touches 0 only at the instant of re-opening) — an effect on a looping
 cascade gates its own arrival instead, the way a streak table's head is its
 own entrance. `Composer::cascadeSpanMs` and `Track::spanMs` answer the
@@ -267,32 +267,32 @@ slot mounts — keyed `-rest` after the original, its ink the caller's.
 
 **Effects are comparable values**, which is what lets text carrying tracks
 prune like any other static leaf. A preset compares by its name and its
-parameters; an ad-hoc body goes through `fx::effect`, which takes the key
-its author gives it — two different bodies under one key compare equal and
-one of them silently never draws. The one declaration an ad-hoc body
-carries, `TextEffect::displacing`, joins those parameters rather than
-sitting beside them, so two bodies under one key that disagree about
-placement do not prune onto each other. `fx::sequence` remaps local time so each
-phase sees a renormalised 0→1 (`TextEffect::until` sets the joint,
-`Phase::crossfade` lerps across it), and `fx::mix` evaluates several effects at
-one time and composes them by the same algebra stacked tracks use.
+parameters; an ad-hoc body goes through `textFx::effect`, which takes the key
+its author gives it — two different bodies under one key compare equal and one
+of them silently never draws. The one declaration an ad-hoc body carries,
+`TextEffect::displacing`, joins those parameters rather than sitting beside
+them, so two bodies under one key that disagree about placement do not prune
+onto each other. `textFx::sequence` remaps local time so each phase sees a
+renormalised 0→1 (`TextEffect::until` sets the joint, `Phase::crossfade` lerps
+across it), and `textFx::mix` evaluates several effects at one time and
+composes them by the same algebra stacked tracks use.
 
-Both are built through `TextEffect::composite`, which is also the door for
-a combinator of your own: the operands RIDE the value, so the result
-compares by structure — a `fx::sequence` of equal phases equals another built
-the same way — rather than by the closure that evaluates it. It is also
-where whether the result DISPLACES is derived rather than restated: a
-composite moves its glyphs when any operand it may evaluate does, so a
-sequence whose second phase lifts is displacing from the moment it is
-built, and nobody has to remember to say so.
+Both are built through `TextEffect::composite`, which is also the door for a
+combinator of your own: the operands RIDE the value, so the result compares by
+structure — a `textFx::sequence` of equal phases equals another built the same
+way — rather than by the closure that evaluates it. It is also where whether
+the result DISPLACES is derived rather than restated: a composite moves its
+glyphs when any operand it may evaluate does, so a sequence whose second phase
+lifts is displacing from the moment it is built, and nobody has to remember to
+say so.
 
 **Keyframe tables.** Every published web or motion reference is a list of
-(position, value) entries, and `fx::keys` is that list as an effect. A
-`fx::Key` is a moment in local time, a `GlyphModifier` at it, and optionally a
-curve of its own:
+(position, value) entries, and `textFx::keys` is that list as an effect. A
+`textFx::Key` is a moment in local time, a `GlyphModifier` at it, and
+optionally a curve of its own:
 
 ```cpp
-const TextEffect rubberBand = fx::keys({
+const TextEffect rubberBand = textFx::keys({
     {0.00f, {}},
     {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
     {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
@@ -300,23 +300,23 @@ const TextEffect rubberBand = fx::keys({
 }, &choreograph::easeInOutCubic);
 ```
 
-The curve applies **per segment** — every pair of entries runs the whole
-curve over its own span, which is what a keyframe list means and what one
-curve stretched across the table would not be. `fx::Key::ease` overrides it
-for the segment that *opens* at that entry; unset segments are linear.
-Interpolation is componentwise through the same arithmetic a `fx::sequence`
-crossfade uses, so `codepoint` cuts at the middle of a segment and `axis`
-lerps only between entries naming the same tag. The table is the identity:
-two `fx::keys` over the same numbers and the same named curves compare equal
+The curve applies **per segment** — every pair of entries runs the whole curve
+over its own span, which is what a keyframe list means and what one curve
+stretched across the table would not be. `textFx::Key::ease` overrides it for
+the segment that *opens* at that entry; unset segments are linear.
+Interpolation is componentwise through the same arithmetic a `textFx::sequence`
+crossfade uses, so `codepoint` cuts at the middle of a segment and `axis` lerps
+only between entries naming the same tag. The table is the identity: two
+`textFx::keys` over the same numbers and the same named curves compare equal
 and prune, and a table declares its own reach from the offsets, growths and
 leans it publishes. A sequence is not a table over effects and neither is the
 other's special case — a `Phase` is an effect re-clocked over its window, a
-`fx::Key` is one deviation standing still.
+`textFx::Key` is one deviation standing still.
 
-**Holding a beat.** `fx::hold` wraps an effect so a unit whose beat has not
+**Holding a beat.** `textFx::hold` wraps an effect so a unit whose beat has not
 opened paints *nothing*: a cascade hands a waiting unit a local time clamped
 to 0, and an effect that deviates at 0 is already performing out of turn.
-`fx::scramble` is the case that shows — it substitutes from local 0, so an
+`textFx::scramble` is the case that shows — it substitutes from local 0, so an
 unheld glyph still waiting shows a *wrong* letter rather than no letter. The
 hold is alpha 0 and not the identity, because the identity is a glyph sitting
 at rest, which for a substitution is exactly the answer the effect exists to
@@ -362,7 +362,7 @@ identity, so a scatter is the same scatter on every frame and after every
 relayout — which is what lets it settle and cache instead of jittering
 forever.
 
-**A shader per letter is one pass.** `fx::pass` makes a track's effect a
+**A shader per letter is one pass.** `textFx::pass` makes a track's effect a
 PASS rather than a per-glyph deviation: the runtime renders the units the
 track addresses into a layer and runs the material ONCE over it, handing
 the track's own schedule in as uniform data — `uContent` (the layer),
@@ -377,7 +377,7 @@ plus one pass whatever the unit count is:
 auto burn = material::skia::Paint::recipe(
     sigil::material::Material(emberDissolve, Burn{ink}));
 text(u8"EMBER DECODE", display)
-    .fx({.effect = fx::pass(burn), .stagger = {.eachMs = 260}});
+    .textFx({.effect = textFx::pass(burn), .stagger = {.eachMs = 260}});
 ```
 
 The paint must be RECIPE-BACKED — `material::skia::Paint::recipe` over a recipe
@@ -401,7 +401,7 @@ material for a pass effect, null for every per-glyph one. That is the
 whole of the distinction — a pass is not a kind of track, it is an effect
 carrying a material instead of a body.
 
-**A pass can declare where it rests.** `fx::pass(m).restsAt(0)`,
+**A pass can declare where it rests.** `textFx::pass(m).restsAt(0)`,
 `.restsAt(1)` and `.restsAt(0, 1)` promise the SkSL is an EXACT
 pass-through at those unit phases. When every addressed unit's resolved
 local time sits on a declared phase the runtime skips the layer and the
@@ -421,23 +421,23 @@ and for every per-glyph effect, which have no such promise to make. The
 declaration rides the effect's parameters, so two passes promising different
 phases do not prune onto each other.
 
-Order against everything else: deviation tracks apply FIRST, and the pass
-reads the deviated pixels — a pass is post-processing, and pixels are what
-it processes. A glyph a pass addresses draws only inside that pass's
-layer, never directly as well; several pass tracks run in declaration
-order, each over its own selection's layer, and a glyph two passes address
-renders in both. A path baseline and a vertical column place glyphs before
-any of this, so a pass rides both. A pass is a whole-track statement:
-inside `fx::sequence`, `fx::mix` and `fx::hold` its material is not consulted —
-sequence a pass by driving its progress, and gate its onset in its own
-SkSL, which holds the whole schedule.
+Order against everything else: deviation tracks apply FIRST, and the pass reads
+the deviated pixels — a pass is post-processing, and pixels are what it
+processes. A glyph a pass addresses draws only inside that pass's layer, never
+directly as well; several pass tracks run in declaration order, each over its
+own selection's layer, and a glyph two passes address renders in both. A path
+baseline and a vertical column place glyphs before any of this, so a pass rides
+both. A pass is a whole-track statement: inside `textFx::sequence`,
+`textFx::mix` and `textFx::hold` its material is not consulted — sequence a
+pass by driving its progress, and gate its onset in its own SkSL, which holds
+the whole schedule.
 
-**Colour as a cascade.** `fx::tint(from, to)` is the colour reveal — a
+**Colour as a cascade.** `textFx::tint(from, to)` is the colour reveal — a
 karaoke wipe, a highlight sweeping a word — and it carries one inversion
 worth stating once. `GlyphModifier::colorMultiplier` MULTIPLIES, and a multiplier only
 takes a colour toward black, so **the element is set in `to` and the effect
 multiplies down toward `from`**. The arguments still read in time order and
-the division is done inside: `fx::tint(pale, sung)` on a line set in `sung`
+the division is done inside: `textFx::tint(pale, sung)` on a line set in `sung`
 wipes pale to sung, while setting the line in `pale` draws pale throughout
 with no diagnostic. Multiplying is also what lets it tint a gradient-filled
 line without knowing what fills it, and why a destination channel of zero
@@ -452,7 +452,7 @@ the painted colour c becomes 1 − (1 − c)(1 − s), lifting each channel in
 proportion to its headroom, and screens combine *commutatively* across
 tracks — stacked glows compose order-free. Both are RGB-only (coverage
 stays the multiplicative lane's — `alpha` and the multiplier's own alpha),
-both lerp componentwise in a `fx::keys` table like every other continuous
+both lerp componentwise in a `textFx::keys` table like every other continuous
 field, and both are usually spoken through one: a keys table that opens
 bright and decays to zero is the flash-then-settle an entrance wants.
 Because screening against a constant is affine per channel, multiply, add
@@ -462,34 +462,33 @@ its colour. Neutral values (all zero) cost nothing: the untouched-paint
 fast path is byte-identical to a deviation that never mentions them.
 
 **What a `GlyphModifier` can say.** Beyond `dx`, `dy`, `scale`, `rotateDeg` and
-`alpha`: `colorMultiplier` multiplies every pass the glyph's style draws (a flat
-pass multiplies its colour, a shader pass takes an equivalent modulation,
+`alpha`: `colorMultiplier` multiplies every pass the glyph's style draws (a
+flat pass multiplies its colour, a shader pass takes an equivalent modulation,
 so a gradient keeps its ramp and wears the tint over it); `colorAdd` and
-`colorScreen` brighten over every pass the same way — the flash and the
-glow of the tint section above; `scaleX`,
-`scaleY`, `skewXDeg` and `skewYDeg` place the glyph with a full matrix,
-because an RSXform carries a rotation and one scale and no shear at all —
-the two shear angles read as `Element::skewX` and `Element::skewY` do, and a
-glyph naming both takes one shear pair rather than one shear after the
-other; `axis` drives a variable-font axis at draw time; and `codepoint`
-draws a different letter in this one's place. The last two are SUBSTITUTIONS and compose
-last-one-wins — a `fx::sequence` crossfade cuts them at the middle of its window
-rather than lerping, because there is no half-way glyph between two
-outlines. (Two phases driving the *same* axis are the exception, and lerp.)
+`colorScreen` brighten over every pass the same way — the flash and the glow of
+the tint section above; `scaleX`, `scaleY`, `skewXDeg` and `skewYDeg` place the
+glyph with a full matrix, because an RSXform carries a rotation and one scale
+and no shear at all — the two shear angles read as `Element::skewX` and
+`Element::skewY` do, and a glyph naming both takes one shear pair rather than
+one shear after the other; `axis` drives a variable-font axis at draw time; and
+`codepoint` draws a different letter in this one's place. The last two are
+SUBSTITUTIONS and compose last-one-wins — a `textFx::sequence` crossfade cuts
+them at the middle of its window rather than lerping, because there is no
+half-way glyph between two outlines. (Two phases driving the *same* axis are
+the exception, and lerp.)
 
 Both substitutions are GATED, because both keep the pen positions shaping
-computed. `axis` is honoured only for an advance-invariant axis — the
-runtime probes the face once per axis and refuses one that moves advances,
-drawing at the shaped face and warning once. `codepoint` is honoured only
-where the replacement has the original's advance ALONG THE AXIS ITS RUN
-ADVANCES ON — the width along a line, the height down an upright column; a
-swap that differs there would move every letter after it, which is a
-reshape and not a redraw.
-`fx::variableAxis` holds a coordinate and `fx::variableAxisSweep` sweeps between
-two across local progress
-and `fx::scramble` is the decoding-text preset built on the substitution:
-each glyph churns through a charset and resolves to the true letter by
-`t = 1`, seeded per glyph so it is the same churn on every frame.
+computed. `axis` is honoured only for an advance-invariant axis — the runtime
+probes the face once per axis and refuses one that moves advances, drawing at
+the shaped face and warning once. `codepoint` is honoured only where the
+replacement has the original's advance ALONG THE AXIS ITS RUN ADVANCES ON — the
+width along a line, the height down an upright column; a swap that differs
+there would move every letter after it, which is a reshape and not a redraw.
+`textFx::variableAxis` holds a coordinate and `textFx::variableAxisSweep`
+sweeps between two across local progress and `textFx::scramble` is the
+decoding-text preset built on the substitution: each glyph churns through a
+charset and resolves to the true letter by `t = 1`, seeded per glyph so it is
+the same churn on every frame.
 
 `Text::variationDrive` is sugar over a whole-text `axis` track, so a
 driven axis composes with entrances and loops instead of being a second
@@ -518,7 +517,7 @@ decoration's `bleed()` carries. Under-report and cached output is
 truncated with no diagnostic.
 
 A PRESET cannot know the size it will be drawn at, so the reach it
-declares is measured against `fx::kNominalSizePx` — the display size a
+declares is measured against `textFx::kNominalSizePx` — the display size a
 glyph grown about its own centre is read at, and the size a keyframe
 table's growths and leans are read against too. Drawn smaller than that,
 a preset reserves more than it needs, which costs nothing; drawn larger,

@@ -16,7 +16,7 @@ text(u8"SIGILLVM · DEI · AEMETH", inscription)
              .at = &phase,                       // the marquee
              .align = TextPath::Align::Center,
              .orient = TextPath::Orient::Tangent})
-    .fx({.effect = fx::rise(18)});
+    .textFx({.effect = textFx::rise(18)});
 ```
 
 **`at` is where along the baseline the run sits**, as a fraction of the whole
@@ -37,14 +37,15 @@ disconnected curves. A run that outlasts the last contour simply stops, and a
 run pushed off the end of an open baseline by its phase drops the glyphs that
 ran off rather than piling them on the last point.
 
-**`fx()` and `textOnPath()` compose; neither wins.** THE BASELINE PLACES THE
+**`textFx()` and `textOnPath()` compose; neither wins.** THE BASELINE PLACES
+*THE
 GLYPH, THEN THE TRACKS DEVIATE FROM THAT PLACEMENT, IN THE FRAME THE BASELINE
-PUT IT IN. On a curve that means `fx::rise` lifts a letter off the CURVE
+PUT IT IN. On a curve that means `textFx::rise` lifts a letter off the CURVE
 along its own local perpendicular rather than straight up the canvas, a
-stagger's shove stays tangential to the lettering it belongs to, and a
-track's rotation adds to the tangent the glyph was already turned to. Scale,
-alpha, the colour multiplier and both substitutions are per-glyph dressings
-and are untouched by the frame — so `variationDrive` and `fx::scramble` reach
+stagger's shove stays tangential to the lettering it belongs to, and a track's
+rotation adds to the tangent the glyph was already turned to. Scale, alpha, the
+colour multiplier and both substitutions are per-glyph dressings and are
+untouched by the frame — so `variationDrive` and `textFx::scramble` reach
 curved lettering exactly as they reach straight lettering.
 
 `Element::ink` and `Text::textStroke` reach a path run like any
@@ -76,7 +77,7 @@ fixes it. Three declarations put a run on the finer grid, all of them the
 question "does what this run draws land somewhere else next frame": a
 BOUND or animated `TextPath::at`; a bound or animated `rotate()` (or
 any other geometric transform) at or above the text node; and a live
-`fx()` track whose effect moves glyphs. A phase written
+`textFx()` track whose effect moves glyphs. A phase written
 as a plain number, or a figure turned by re-describing a literal angle,
 declares nothing and is treated as type at rest. The grid is read off the
 declaration and never off a frame-to-frame difference, so a marquee parked
@@ -100,21 +101,21 @@ puts the run on the subpixel grid exactly as a turning ancestor does.
 **A track declares through two facts, and needs both.** Its progress must
 be live — bound, or mid-transition — and its effect must actually move
 glyphs, which is what `TextEffect::displaces` answers. That answer is
-*inferred* almost everywhere: a preset knows its own deviation (`fx::rise`,
-`fx::slide`, `fx::pop`, `fx::spinIn`, `fx::scatter` and `fx::waveLoop`
-move glyphs; `fx::typeOn`, `fx::variableAxisSweep`, `fx::tint` and `fx::scramble` touch
-coverage, colour or the outline and leave every pen position alone),
-`fx::keys` reads its own table (any entry publishing an offset, a lean, a
-shear or a growth), and `fx::sequence`, `fx::mix` and `fx::hold` derive from
-their operands. `fx::pass` does not displace — its shader runs over pixels
-already rasterized at the resting origins, so refining those origins says
-nothing about where the pass puts its output. Only `fx::effect` has to be
-told, because a lambda is opaque until it runs: it assumes the moving
-answer, and `.displacing(false)` is the author's promise otherwise. A
-karaoke wipe, a decoding scramble and a staggered fade therefore keep
-whole-pixel origins and their bytes however hard they run, and a settled
-displacing track goes back to them — its glyphs are standing somewhere
-else and standing still.
+*inferred* almost everywhere: a preset knows its own deviation (`textFx::rise`,
+`textFx::slide`, `textFx::pop`, `textFx::spinIn`, `textFx::scatter` and
+`textFx::waveLoop` move glyphs; `textFx::typeOn`, `textFx::variableAxisSweep`,
+`textFx::tint` and `textFx::scramble` touch coverage, colour or the outline and
+leave every pen position alone), `textFx::keys` reads its own table (any entry
+publishing an offset, a lean, a shear or a growth), and `textFx::sequence`,
+`textFx::mix` and `textFx::hold` derive from their operands. `textFx::pass`
+does not displace — its shader runs over pixels already rasterized at the
+resting origins, so refining those origins says nothing about where the pass
+puts its output. Only `textFx::effect` has to be told, because a lambda is
+opaque until it runs: it assumes the moving answer, and `.displacing(false)` is
+the author's promise otherwise. A karaoke wipe, a decoding scramble and a
+staggered fade therefore keep whole-pixel origins and their bytes however hard
+they run, and a settled displacing track goes back to them — its glyphs are
+standing somewhere else and standing still.
 
 **The baseline declares its own reach.** A resolved path is not bounded by
 the node's box — a custom `Shape` may return a curve well outside it, and

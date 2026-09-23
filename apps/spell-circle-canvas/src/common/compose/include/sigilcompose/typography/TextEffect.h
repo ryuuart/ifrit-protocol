@@ -81,18 +81,17 @@ struct GlyphInfo {
  *  progress t ∈ [0,1]. alpha 0 skips the glyph entirely.
  *
  *  This is the type the composition algebra operates on: stacked tracks,
- *  `fx::mix`, a `fx::sequence` crossfade and a `fx::keys` segment all combine
- *  GlyphModifiers the same way — dx/dy, rotateDeg, skewXDeg and skewYDeg ADD;
- *  scale, scaleX, scaleY, alpha and colorMultiplier MULTIPLY; colorAdd ADDS and
- *  colorScreen SCREENS, each channelwise; and the two
- *  SUBSTITUTIONS, `axis` and
- *  `codepoint`, are last-one-wins. Substitutions do not blend because
- *  there is no half-way glyph between two outlines: a later track that
- *  names one replaces what an earlier one named, and a `fx::sequence`
- *  crossfade cuts them at the middle of its window rather than lerping.
- *  (An axis coordinate is the exception inside a crossfade: two phases
- *  driving the SAME axis lerp their values, because the face does have a
- *  continuum between them.) */
+ *  `textFx::mix`, a `textFx::sequence` crossfade and a `textFx::keys` segment
+ *  all combine GlyphModifiers the same way — dx/dy, rotateDeg, skewXDeg and
+ *  skewYDeg ADD; scale, scaleX, scaleY, alpha and colorMultiplier MULTIPLY;
+ *  colorAdd ADDS and colorScreen SCREENS, each channelwise; and the two
+ *  SUBSTITUTIONS, `axis` and `codepoint`, are last-one-wins. Substitutions do
+ *  not blend because there is no half-way glyph between two outlines: a later
+ *  track that names one replaces what an earlier one named, and a
+ *  `textFx::sequence` crossfade cuts them at the middle of its window rather
+ *  than lerping. (An axis coordinate is the exception inside a crossfade: two
+ *  phases driving the SAME axis lerp their values, because the face does have
+ *  a continuum between them.) */
 struct GlyphModifier {
   float dx = 0, dy = 0;
   float scale = 1;  ///< uniform; multiplies scaleX and scaleY below
@@ -170,13 +169,12 @@ using GlyphModifierFunction = std::function<GlyphModifier(
 /** THE EFFECT, as a comparable value: a name, its parameters, and any
  *  operand effects it was built from.
  *
- *  Two effects are equal when they carry the same name, the same
- *  parameters, equal operands and the same curves — so `fx::rise(26) ==
- *  fx::rise(26)`,
- *  `fx::rise(26) != fx::rise(30)`, and a `fx::sequence` of equal phases equals
- *  another built the same way. That equality is what lets a re-described
- *  element with unchanged tracks PRUNE instead of re-recording every
- *  frame.
+ *  Two effects are equal when they carry the same name, the same parameters,
+ *  equal operands and the same curves — so `textFx::rise(26) ==
+ *  textFx::rise(26)`, `textFx::rise(26) != textFx::rise(30)`, and a
+ *  `textFx::sequence` of equal phases equals another built the same way. That
+ *  equality is what lets a re-described element with unchanged tracks PRUNE
+ *  instead of re-recording every frame.
  *
  *  The name is a promise about the body: equal values must produce
  *  identical deviations for identical inputs. Two different lambdas given
@@ -293,11 +291,11 @@ class TextEffect {
     return true;
   }
 
-  /** A phase of `fx::sequence` ending at local `t` — `a.until(0.35f)`. */
+  /** A phase of `textFx::sequence` ending at local `t` — `a.until(0.35f)`. */
   [[nodiscard]] class Phase until(float t) const;
 
-  /** Builds a composite (`fx::sequence`, `fx::mix`) — the operands ride the
-   *  value so the result compares by structure. `displaces` is the fact
+  /** Builds a composite (`textFx::sequence`, `textFx::mix`) — the operands ride
+   *  the value so the result compares by structure. `displaces` is the fact
    *  DERIVED from those operands: a composite moves its glyphs when any
    *  operand it may evaluate does. */
   static TextEffect composite(std::string name, std::vector<float> parameters,
@@ -318,7 +316,7 @@ class TextEffect {
 
   /** A PASS EFFECT: the track's evaluation is one shader pass over the
    *  addressed units' rendered pixels, not a per-glyph deviation — the
-   *  factory behind `fx::pass` below, where the contract is
+   *  factory behind `textFx::pass` below, where the contract is
    *  documented. The material must be RECIPE-BACKED
    *  (`material::skia::Paint::recipe`)
    *  over a recipe with an SkSL body, because the runtime bakes the unit
@@ -337,12 +335,12 @@ class TextEffect {
    *  family as `isAnimated`, `bleed()` and `reach`. When every unit the
    *  track addresses sits at a declared phase, the runtime skips the layer
    *  and the shader and draws the glyphs directly. The contract, and what
-   *  a false promise looks like, is documented at `fx::pass` below.
+   *  a false promise looks like, is documented at `textFx::pass` below.
    *  Pass effects only: on any other effect this warns once and returns
    *  the effect unchanged. The declaration rides the effect's parameters, so
    *  it participates in equality as every parameter does. */
   [[nodiscard]] TextEffect restsAt(float phase) const;
-  /** Both ends: `fx::pass(m).restsAt(0, 1)`. */
+  /** Both ends: `textFx::pass(m).restsAt(0, 1)`. */
   [[nodiscard]] TextEffect restsAt(float a, float b) const;
   /** The declared pass-through phases — empty when none were declared,
    *  and for every per-glyph effect. */
@@ -368,19 +366,20 @@ class TextEffect {
   [[nodiscard]] bool displaces() const { return m_state && m_state->displaces; }
 
   /** DECLARES THE FACT ABOVE for a body the library cannot read — the one
-   *  knob `fx::effect` needs, since an ad-hoc lambda's deviation is opaque
+   *  knob `textFx::effect` needs, since an ad-hoc lambda's deviation is opaque
    *  until it runs. It defaults to TRUE, so an undeclared body is placed
-   *  smoothly; `fx::effect(key, body).displacing(false)` is the author's
+   *  smoothly; `textFx::effect(key, body).displacing(false)` is the author's
    *  promise that the body never moves a glyph, and the cost of a false
    *  promise is exactly the tick the grid exists to remove.
    *
    *  Every effect the library builds ANSWERS FOR ITSELF and needs no call
-   *  here: a preset knows its own deviation, `fx::keys` reads its table, and
-   *  `fx::sequence`, `fx::mix` and `fx::hold` derive from their operands. The
-   *  declaration rides the effect's parameters, so two bodies under one key
-   * that disagree about placement compare unequal and re-patch.
+   *  here: a preset knows its own deviation, `textFx::keys` reads its table,
+   *  and `textFx::sequence`, `textFx::mix` and `textFx::hold` derive from
+   *  their operands. The declaration rides the effect's parameters, so two
+   *  bodies under one key that disagree about placement compare unequal and
+   *  re-patch.
    *
-   *  A PASS is not a placement: `fx::pass` runs its shader over pixels that
+   *  A PASS is not a placement: `textFx::pass` runs its shader over pixels that
    *  were already rasterized at the glyphs' resting origins, so refining
    *  those origins says nothing about where the shader puts its output.
    *  Calling this on a pass warns once and returns the effect unchanged. */
@@ -409,8 +408,8 @@ class TextEffect {
   std::shared_ptr<const State> m_state;
 };
 
-/** One phase of a `fx::sequence`: an effect, where it ends in local time, and
- *  how long it crossfades into whatever follows. */
+/** One phase of a `textFx::sequence`: an effect, where it ends in local time,
+ *  and how long it crossfades into whatever follows. */
 class Phase {
  public:
   Phase(TextEffect e)  // NOLINT: implicit by design (sequence(a.until(…), b))

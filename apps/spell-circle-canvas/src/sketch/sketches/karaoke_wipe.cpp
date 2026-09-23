@@ -28,7 +28,7 @@
 // HOW EACH IS SPELLED
 //
 // THE WIPE IS A COLOUR MULTIPLIER ON A CASCADE. The line is set ONCE, in
-// the sung colour, and `fx::tint(pale, sung)` multiplies every glyph down
+// the sung colour, and `textFx::tint(pale, sung)` multiplies every glyph down
 // to the pale colour until its own beat arrives. It is a multiplier rather
 // than a colour because that is what a `GlyphModifier` carries — every pass the
 // glyph's style draws is modulated, so the same track would tint a
@@ -234,12 +234,12 @@ struct KaraokeWipe {
     // time order and does the division itself.
     return text(kLine1, lyric)
         .key("line1")
-        .fx({.effect = fx::tint(kPale, kSung),
-             .stagger = wipeCascade(),
-             .unit = weave::Unit::Word,
-             .innerUnit = weave::Unit::Cluster,
-             .progress = motion::bind(&cycle).window(
-                 (float)kLeadIn, (float)(kLeadIn + kLineSeconds))});
+        .textFx({.effect = textFx::tint(kPale, kSung),
+                 .stagger = wipeCascade(),
+                 .unit = weave::Unit::Word,
+                 .innerUnit = weave::Unit::Cluster,
+                 .progress = motion::bind(&cycle).window(
+                     (float)kLeadIn, (float)(kLeadIn + kLineSeconds))});
   }
 
   /** The ruler: one tick per BEAT, at the rect the engine placed it in, and

@@ -308,10 +308,10 @@ TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
   // rect says which word it is.
   const auto wordsAddressed = [&](sigil::weave::Selector where) {
     host.composer.render(box().padding(10).children(
-        {text(copy).key("t").fx({.where = std::move(where),
-                                 .effect = fx::rise(0),
-                                 .stagger = {.eachMs = 1, .durationMs = 1},
-                                 .unit = sigil::weave::Unit::Word})}));
+        {text(copy).key("t").textFx({.where = std::move(where),
+                                     .effect = textFx::rise(0),
+                                     .stagger = {.eachMs = 1, .durationMs = 1},
+                                     .unit = sigil::weave::Unit::Word})}));
     host.frame();
     return host.composer.beatsOf("t", 0);
   };
@@ -337,10 +337,10 @@ TEST(TextStyleSelector, ComposesUnderTheSelectorAlgebra) {
   // selection's size and the algebra can be checked as arithmetic.
   const auto glyphsAddressed = [&](sigil::weave::Selector where) {
     host.composer.render(box().padding(10).children(
-        {text(copy).key("t").fx({.where = std::move(where),
-                                 .effect = fx::rise(0),
-                                 .stagger = {.eachMs = 1, .durationMs = 1},
-                                 .unit = sigil::weave::Unit::Glyph})}));
+        {text(copy).key("t").textFx({.where = std::move(where),
+                                     .effect = textFx::rise(0),
+                                     .stagger = {.eachMs = 1, .durationMs = 1},
+                                     .unit = sigil::weave::Unit::Glyph})}));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
   };
@@ -372,10 +372,10 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
     return box().padding(10).children(
         {text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
              .key("t")
-             .fx({.where = selectors::style("unregistered-register"),
-                  .effect = fx::rise(0),
-                  .stagger = {.durationMs = 1},
-                  .unit = sigil::weave::Unit::Glyph})});
+             .textFx({.where = selectors::style("unregistered-register"),
+                      .effect = textFx::rise(0),
+                      .stagger = {.durationMs = 1},
+                      .unit = sigil::weave::Unit::Glyph})});
   };
   host.composer.render(describe());
   host.frame();
@@ -387,10 +387,10 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
   host.composer.render(box().padding(11).children(
       {text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
            .key("t")
-           .fx({.where = selectors::style("unregistered-register"),
-                .effect = fx::rise(0),
-                .stagger = {.durationMs = 1},
-                .unit = sigil::weave::Unit::Glyph})}));
+           .textFx({.where = selectors::style("unregistered-register"),
+                    .effect = textFx::rise(0),
+                    .stagger = {.durationMs = 1},
+                    .unit = sigil::weave::Unit::Glyph})}));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
   size_t seen = 0;
@@ -410,11 +410,11 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
 
   // Where the three betas actually sit, read off the layout rather than
   // guessed, so the assertions below can name one of them.
-  host.composer.render(box().padding(10).children(
-      {text(copy).key("t").fx({.where = sigil::weave::selectors::text(u8"beta"),
-                               .effect = fx::rise(0),
-                               .stagger = {.eachMs = 1, .durationMs = 1},
-                               .unit = sigil::weave::Unit::Word})}));
+  host.composer.render(box().padding(10).children({text(copy).key("t").textFx(
+      {.where = sigil::weave::selectors::text(u8"beta"),
+       .effect = textFx::rise(0),
+       .stagger = {.eachMs = 1, .durationMs = 1},
+       .unit = sigil::weave::Unit::Word})}));
   host.frame();
   const std::vector<Beat> betas = host.composer.beatsOf("t", 0);
   ASSERT_EQ(betas.size(), 3u);
@@ -471,10 +471,10 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
     host.composer.render(box().padding(10).children(
         {text(glossaryCopy(set))
              .key("t")
-             .fx({.where = selectors::style("term"),
-                  .effect = fx::rise(0),
-                  .stagger = {.eachMs = 1, .durationMs = 1},
-                  .unit = sigil::weave::Unit::Glyph})}));
+             .textFx({.where = selectors::style("term"),
+                      .effect = textFx::rise(0),
+                      .stagger = {.eachMs = 1, .durationMs = 1},
+                      .unit = sigil::weave::Unit::Glyph})}));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
   };

@@ -66,7 +66,7 @@ class DecorationVerbs {
    *  backgrounds, its `over` layers as foregrounds and its `echoes` as
    *  misprint re-stamps beneath the real pass, so one call dresses the
    *  node in a bundled treatment. An echo is not applied to text
-   *  carrying `fx()` tracks, nor to image or custom content. */
+   *  carrying `textFx()` tracks, nor to image or custom content. */
   Derived& layerStyle(LayerStyle s);
 
  private:

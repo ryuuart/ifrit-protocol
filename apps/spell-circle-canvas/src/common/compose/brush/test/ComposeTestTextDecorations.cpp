@@ -1,5 +1,5 @@
 // Decorations whose subject is text: a run dressed by a hatch or a
-// pattern, the fx track a dressed glyph carries, and the grid a repeat
+// pattern, the textFx track a dressed glyph carries, and the grid a repeat
 // is panned across, and what an edge gate does to a box that measured
 // to nothing.
 
