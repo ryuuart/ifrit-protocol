@@ -12,7 +12,7 @@
  * outline — and attaches new elements to one of them or to the scope. Both
  * run in list order, and each sees what the ones before it left.
  *
- * A placement scheme of the older shape — `place(const LayoutInput&)`
+ * A placement scheme — `place(const LayoutInput&)`
  * returning one rectangle per child — is an operator too: constructing
  * one from it adapts the call, so every `layouts::` value is applied by
  * the same verb.
@@ -266,7 +266,7 @@ struct AddingModel : OperatorOperations {
   void add(Scope& scope) const override { held.add(scope); }
 };
 
-/** The table an older placement scheme reads, built from the arrangement's
+/** The table a placement scheme reads, built from the arrangement's
  *  records, and the rectangles it answers written back onto them. */
 LayoutInput layoutInputOf(const Arrangement& arrangement);
 void placeFromRects(Arrangement& arrangement, const std::vector<SkRect>& rects);

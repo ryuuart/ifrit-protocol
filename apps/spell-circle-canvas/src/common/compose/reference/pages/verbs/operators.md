@@ -38,7 +38,7 @@ otherwise is reported once.
 **An operator is a comparable value** with `arrange(Arrangement&)` or
 `add(Scope&)` and an equality, so an unchanged list over unchanged facts
 prunes; a value with no equality is the escape hatch that never does. A
-scheme of the older `place(LayoutInput)` shape is an operator too,
+placement scheme, `place(LayoutInput)`, is an operator too,
 adapted when it is held; `layout(scheme)` is this verb under the
 shorter spelling.
 

@@ -100,8 +100,8 @@ class StructureVerbs {
   Derived& attributes(Attributes facts);
   /** THE OPERATORS THIS NODE RUNS OVER ITS CHILDREN, in list order: each
    *  is handed the children measured, with their facts and where the
-   *  operators before it left them, and places or turns them. A scheme
-   *  of the older `place(LayoutInput)` shape is an operator too. A later
+   *  operators before it left them, and places or turns them. A
+   *  placement scheme, `place(LayoutInput)`, is an operator too. A later
    *  call appends to the list. What the operators do runs inside the
    *  layout's converging rounds, so what they place is what every pass
    *  after layout reads. */
