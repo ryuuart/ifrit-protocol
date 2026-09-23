@@ -164,3 +164,13 @@ TEST(ComposeStyleSheet, ApplyingASheetAgainAddsItAfterTheOneBefore) {
   host.composer.render(page(true));
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
+
+TEST(ComposeStyleSheet, ARuleComparesTheTransitionItStates) {
+  using sigil::compose::rule;
+  EXPECT_TRUE(rule(".a").transition({.duration = 200ms}) ==
+              rule(".a").transition({.duration = 200ms}));
+  EXPECT_FALSE(rule(".a").transition({.duration = 200ms}) == rule(".a"));
+  EXPECT_FALSE(rule(".a").transition({.duration = 200ms}) ==
+               rule(".a").transition({.duration = 300ms}));
+  EXPECT_FALSE(rule(".a").transition()) << "unstated until a call states it";
+}

@@ -452,3 +452,37 @@ TEST(ComposeMatching, ATreeThatAppliesNoSheetResolvesExactlyAsItDid) {
   EXPECT_EQ(inkOf(host, 1), kGreen);
   EXPECT_EQ(inkOf(host, 2), kBlue);
 }
+
+TEST(ComposeMatching, ATransitionARuleStatesEasesAClassToggle) {
+  // The element states no transition of its own: the rule for its class
+  // does, so the colour a class toggle moves eases rather than snapping.
+  const StyleSheet sheet{rule(".panel").transition({.duration = 200ms}),
+                         rule(".hot").ink(kRedInk),
+                         rule(".cold").ink(kBlueInk)};
+  const auto page = [&](std::string_view name, bool slowOwnTransition) {
+    Element panel =
+        swatch().key("panel").styleClass(std::string("panel ") += name);
+    if (slowOwnTransition) panel.transition({.duration = 2000ms});
+    return column(sheet, {std::move(panel)});
+  };
+  Host host;
+  host.composer.render(page("hot", false));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kRed);
+  host.composer.render(page("cold", false));
+  host.frame(0.1);
+  const SkColor mid = inkOf(host, 0);
+  EXPECT_GT(SkColorGetR(mid), 0u) << "the toggle eased";
+  EXPECT_LT(SkColorGetR(mid), 255u);
+  host.frame(0.3);
+  EXPECT_EQ(inkOf(host, 0), kBlue);
+
+  // The element's own transition stands over the rule's.
+  Host own;
+  own.composer.render(page("hot", true));
+  own.frame();
+  own.composer.render(page("cold", true));
+  own.frame(0.1);
+  own.frame(0.3);
+  EXPECT_GT(SkColorGetR(inkOf(own, 0)), 0u) << "still easing, over 2s";
+}

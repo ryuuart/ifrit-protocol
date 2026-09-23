@@ -348,6 +348,15 @@ void Composer::Impl::resolveCascade(
   const std::vector<MatchedRule> matched =
       sheets->empty() ? std::vector<MatchedRule>{}
                       : matchRules(*sheets, inst, hasNames);
+  // The strongest matched rule stating a transition gives the node the
+  // one its own verb has not; the matches run weakest first.
+  const Rule* transitionRule = nullptr;
+  for (const MatchedRule& one : matched)
+    if (one.rule->transition()) transitionRule = one.rule;
+  if (transitionRule != nullptr)
+    inst.ruleTransition = transitionRule->transition();
+  else if (inst.ruleTransition)
+    inst.ruleTransition.reset();
   if (cascade != nullptr || !matched.empty()) {
     // The sheet this node states: its rules over the inherited ones by
     // name, its base standing, the result shared with everything under it.
@@ -536,7 +545,7 @@ void Composer::Impl::resolveCascade(
   // layer reads it, the fold does not — so a child inherits the property's
   // TARGET, and its own lane is the only thing that can move it.
   retargetInk(inst, statesOwnInk ? font.color : std::nullopt,
-              node.nodeTransition, first);
+              inst.transitionInForce(), first);
   // …and the ramp is read into the resolved colour here, so every node
   // under this one inherits the colour in flight and repaints with it.
   if (const auto& anim = inst.anims[Instance::kInkLerp];

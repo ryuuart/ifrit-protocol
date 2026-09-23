@@ -16,6 +16,7 @@
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/values/Transition.h>
 #include <sigilweave/layout/Block.h>
 #include <sigilweave/style/Type.h>
 
@@ -63,6 +64,12 @@ class Rule {
    *  element and everything under it. */
   Rule& var(std::string_view name, material::Color colour);
   Rule& var(std::string_view name, Dimension length);
+  /** HOW A MATCHED ELEMENT'S VALUES CHANGE when a later describe moves
+   *  them: the element's `transition`, stated by the rule, so a class
+   *  toggle that recolours an element eases rather than snapping. The
+   *  element's own `transition()` stands over it, and among matched rules
+   *  the strongest that states one wins. */
+  Rule& transition(motion::Transition how);
 
   /** Which elements this rule speaks about. */
   [[nodiscard]] const ElementSelector& selector() const { return m_selector; }
@@ -83,8 +90,12 @@ class Rule {
   [[nodiscard]] bool statesInk() const { return m_statesInk; }
   /** The custom properties it sets. */
   [[nodiscard]] const VarTable& vars() const { return m_vars; }
+  /** The transition it states, where it states one. */
+  [[nodiscard]] const std::optional<motion::Transition>& transition() const {
+    return m_transition;
+  }
 
-  bool operator==(const Rule&) const = default;
+  [[nodiscard]] bool operator==(const Rule& other) const;
 
  private:
   ElementSelector m_selector;
@@ -95,6 +106,7 @@ class Rule {
   PaintAnchor m_inkAnchor = PaintAnchor::OwnBox;
   bool m_statesInk = false;
   VarTable m_vars;
+  std::optional<motion::Transition> m_transition;
 };
 
 /** A rule speaking about the elements @p cssText names. A text this

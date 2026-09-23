@@ -87,6 +87,25 @@ Rule& Rule::var(std::string_view name, Dimension length) {
   return *this;
 }
 
+Rule& Rule::transition(motion::Transition how) {
+  m_transition = std::move(how);
+  return *this;
+}
+
+bool Rule::operator==(const Rule& other) const {
+  // A transition's curve is a function, so two are compared the way the
+  // motion library compares them rather than by the language's equality.
+  const bool sameTransition =
+      m_transition.has_value() == other.m_transition.has_value() &&
+      (!m_transition ||
+       motion::transitionEqual(*m_transition, *other.m_transition));
+  return sameTransition && m_selector == other.m_selector &&
+         m_type == other.m_type && m_block == other.m_block &&
+         m_inkVar == other.m_inkVar && m_inkPaint == other.m_inkPaint &&
+         m_inkAnchor == other.m_inkAnchor &&
+         m_statesInk == other.m_statesInk && m_vars == other.m_vars;
+}
+
 Rule rule(std::string_view cssText) { return Rule(selector(cssText)); }
 
 Rule rule(ElementSelector subject) { return Rule(std::move(subject)); }

@@ -864,7 +864,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       fill.kind = Fill::Kind::Color;
     } else {
       ResolvedProperty<Fill> resolved =
-          resolveProperty(*style.paint.fill, node.nodeTransition);
+          resolveProperty(*style.paint.fill, inst.transitionInForce());
       fill = resolved.target;
     }
     resolvedFill = resolveRef(fill, paintCtx);

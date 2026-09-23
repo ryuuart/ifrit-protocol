@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 
 from _sigil import compose as native
-from sigil import compose, image, material, weave
+from sigil import compose, image, material, motion, weave
 from sigil.compose import select
 from sigil.sketch import render_file
 
@@ -256,6 +256,13 @@ class Rules(unittest.TestCase):
             compose.rule(".card").font(weave.Type(size=18)),
             compose.rule(".card").font(weave.Type(size=19)),
         )
+
+    def test_a_rule_states_the_transition_a_class_toggle_eases_over(self):
+        eased = compose.rule(".panel").transition(motion.Transition(0.2))
+        self.assertEqual(
+            eased, compose.rule(".panel").transition(motion.Transition(0.2))
+        )
+        self.assertNotEqual(eased, compose.rule(".panel"))
 
 
 class Sheets(unittest.TestCase):

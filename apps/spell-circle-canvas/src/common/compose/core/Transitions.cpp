@@ -193,7 +193,7 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
                                         std::vector<Lane>& prevLanes,
                                         std::vector<Lane>& nextLanes) {
   const StyledNode next = inst.styled();
-  const auto& nd = next.node.nodeTransition;
+  const auto& nd = inst.transitionInForce();
   // Every slot the table can reach (kSlotSpecs, ComposeRuntime.h — the one
   // enumeration of Instance::Slot). A retarget asks nothing of a slot's
   // ROLE; what it needs is the pair of endpoints, and the ONE extra fact
@@ -290,7 +290,7 @@ void Composer::Impl::retargetInk(
 
 void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
   const StyledNode next = inst.styled();
-  const auto& nd = next.node.nodeTransition;
+  const auto& nd = inst.transitionInForce();
   // The two sides of the retarget, filled by the property half and read
   // again by the positional half below, so a patch walks each description
   // once between them. A lane holds a pointer INTO its description, so the

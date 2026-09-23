@@ -348,6 +348,17 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // resolves no colour at all — a lane with no previous target has
   // nothing to ease from.
   std::optional<material::Color> inkTarget;
+  // THE TRANSITION A MATCHED RULE STATES for this node — the strongest of
+  // the rules that matched it at the last cascade pass and state one —
+  // which the node's own `transition()` stands over.
+  std::optional<motion::Transition> ruleTransition;
+  /** How this node's values change when a describe moves them: its own
+   *  `transition()`, else the one a matched rule states, else none. */
+  [[nodiscard]] const std::optional<motion::Transition>& transitionInForce()
+      const {
+    return description->nodeTransition ? description->nodeTransition
+                                       : ruleTransition;
+  }
 
   // Derive-phase state
   std::vector<Exclusion>

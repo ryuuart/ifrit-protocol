@@ -6,6 +6,7 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/values/Transition.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
@@ -367,6 +368,17 @@ void bindRule(py::module_& composition) {
           "A custom property set on every element this rule matches, for "
           "that element and everything under it. The value is a colour or "
           "a length.")
+      .def(
+          "transition",
+          [](Rule& self, motion::Transition how) -> Rule& {
+            return self.transition(std::move(how));
+          },
+          py::arg("how"), fluent,
+          "How a matched element's values change when a later describe "
+          "moves them, so a class toggle that recolours an element eases "
+          "rather than snapping. The element's own `transition` stands "
+          "over it, and among matched rules the strongest that states one "
+          "wins.")
       .def("selector", &Rule::selector, py::return_value_policy::copy,
            "Which elements this rule speaks about.")
       .def("type", &Rule::type, py::return_value_policy::copy,

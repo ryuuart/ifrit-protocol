@@ -62,9 +62,8 @@ one. An `an+b` number too large to hold, and bracketed lists nested
 deeper than the parser reads, are refused the same way rather than
 clamped.
 
-Not yet: `calc()` on a length, a transition stated in a rule, and the
-box half of what a rule can state. Each of those is wanted and decided;
-none is in the rule yet.
+Not yet: `calc()` on a length and the box half of what a rule can
+state. Both are wanted and decided; neither is in the rule yet.
 
 ## The set algebra
 
@@ -142,6 +141,12 @@ field — so a property is spelled once whichever side says it.
 the rule matches, for that element and everything under it. What a
 rule leaves unsaid the element inherits. A rule holds STATIC values: a
 live binding, an entrance and an animation stay verbs on the element.
+
+`Rule::transition` states how a matched element's values change when a
+later describe moves them, exactly as `Element::transition` does, so a
+class toggle that recolours an element eases instead of snapping. The
+element's own `transition()` stands over every rule's, and among the
+matched rules that state one, the strongest wins.
 
 ## The sheet, and applying it
 
