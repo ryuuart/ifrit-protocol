@@ -39,6 +39,11 @@ CSS's filtered count, `:nth-child(an+b of S)`. A count is written as a
 number, as `an+b`, or as `odd` or `even`. `:is(...)`, `:where(...)` and
 `:not(...)` take selector lists.
 
+**`:empty` is CSS's**: an element with no children and no words. A text
+leaf's words are its content, as a text node is an HTML element's, so a
+leaf holding any text is not empty; one with no children and no text is.
+A named run matched as a virtual child of its leaf never matches it.
+
 **Type means ROLE**, and an element with no role has no type, so no
 of-type pseudo-class matches it.
 

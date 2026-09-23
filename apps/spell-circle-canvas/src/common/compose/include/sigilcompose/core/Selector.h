@@ -92,7 +92,8 @@ class ElementSelector {
   /** `:nth-of-type`, counted from the last sibling instead. */
   [[nodiscard]] ElementSelector nthLastOfType(int step, int offset) const;
 
-  /** The subject only where it has no children at all. */
+  /** CSS `:empty`: the subject only where it has no children and no
+   *  words — a text leaf holding any text is not empty. */
   [[nodiscard]] ElementSelector empty() const;
   /** The subject only where it is the root of the tree its sheet sees:
    *  the node that applied the sheet, or the tree's own root where the

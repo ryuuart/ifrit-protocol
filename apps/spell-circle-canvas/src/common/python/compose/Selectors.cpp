@@ -195,7 +195,8 @@ void bindElementSelector(py::module_& composition) {
            py::arg("offset"),
            "`nthOfType`, counted from the last sibling instead.")
       .def("empty", &ElementSelector::empty,
-           "The subject only where it has no children at all.")
+           "CSS :empty: the subject only where it has no children and no "
+           "words — a text leaf holding any text is not empty.")
       .def("root", &ElementSelector::root,
            "The subject only where it is the root of the tree its sheet "
            "sees: the node that applied the sheet, or the tree's own root "

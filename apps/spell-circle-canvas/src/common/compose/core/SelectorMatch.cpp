@@ -37,6 +37,17 @@ bool hasStyleClass(const Instance& inst, std::string_view name) {
   return false;
 }
 
+/** Whether @p node is a text leaf with any content at all: characters
+ *  in its words or its runs, or a paragraph handed to it whole. */
+bool holdsWords(const ElementNode& node) {
+  if (!node.textData) return false;
+  const TextData& text = *node.textData;
+  if (!text.utf8.empty() || text.paragraphOverride) return true;
+  for (const sigil::weave::RichText::Run& run : text.rich.runs())
+    if (!run.utf8.empty()) return true;
+  return false;
+}
+
 /** CSS's an+b over a 1-BASED position: the position is `step * n +
  *  offset` for some n at or above zero. A step of zero names the one
  *  position `offset`. */
@@ -197,8 +208,11 @@ bool matchesSimple(const Simple& simple, const Instance& inst,
       return place.typeCount > 0 &&
              countReaches(place.typeCount - place.typeIndex, simple.step,
                           simple.offset);
+    // CSS's :empty — no children and no words. A text leaf's words are
+    // its content, so a leaf holding any is not empty.
     case SimpleKind::Empty:
-      return inst.children.empty();
+      return !inst.virtualRunChild && inst.children.empty() &&
+             !holdsWords(*inst.description);
     case SimpleKind::Root:
       // The root of the tree the sheet sees, which is the node that
       // applied it where that node is not the tree's own root.
@@ -564,6 +578,7 @@ std::vector<MatchedRule> matchRulesForName(const SheetChain& chain,
   run.child.description = run.node;
   run.child.parent = const_cast<Instance*>(&leaf);
   run.child.place = SiblingPlace{0, 0, 0, 0};
+  run.child.virtualRunChild = true;
   run.child.hasSummaryPass = 0;
   run.child.hasSummaryCovers = 0;
   std::vector<MatchedRule> matched = matchRules(chain, run.child, names);

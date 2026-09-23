@@ -230,6 +230,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // and read by the structural pseudo-classes of a selector. The root
   // keeps the default: the only child of nothing.
   SiblingPlace place;
+  // Whether this is a NAMED RUN of a text leaf being matched as a virtual
+  // child of it rather than a mounted node: it is counted among no
+  // siblings, and `:empty` never matches it.
+  bool virtualRunChild = false;
   // WHAT THIS NODE'S SUBTREE HOLDS, for a `:has()`: one bit per name the
   // `:has()` arguments in force test for, over the node's own classes and
   // role, over its children's and over everything under it, the cascade

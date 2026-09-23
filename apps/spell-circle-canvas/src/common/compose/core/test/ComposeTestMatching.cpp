@@ -9,6 +9,7 @@
 // says which rule won there.
 
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilweave/paragraph/RichText.h>
 
 #include <string>
 #include <vector>
@@ -161,6 +162,46 @@ TEST(ComposeMatching, TheStructuralPseudoClassesCountPositionAndRole) {
   host.frame();
   EXPECT_EQ(inkOf(host, 2), kRed);
   EXPECT_EQ(inkOf(host, 0), kWhite);
+}
+
+TEST(ComposeMatching, AnElementWithNoChildrenAndNoWordsIsEmpty) {
+  // CSS's :empty. A box with nothing under it and a text leaf holding no
+  // text are both empty; a box holding a child is not.
+  Host host;
+  host.composer.render(
+      box()
+          .applyStyleSheet(StyleSheet{rule(":empty").width(77)})
+          .children({box().key("bare").height(10),
+                     box().key("holder").height(10).children(
+                         {box().width(5).height(5)}),
+                     text(u8"").key("blank")}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("bare")).width(), 77.0f);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("blank")).width(), 77.0f);
+  EXPECT_NE(require(host.composer.bounds("holder")).width(), 77.0f)
+      << "an element holding a child is not empty";
+}
+
+TEST(ComposeMatching, ATextLeafHoldingWordsIsNotEmpty) {
+  // A text leaf's words are its content, as a text node is an HTML
+  // element's, so a leaf holding any — plain or as runs — is not empty,
+  // though it has no children.
+  Host host;
+  const auto page = [](const StyleSheet& sheet) {
+    return box()
+        .font({.face = sigil::test::instrument::sans(), .size = 12})
+        .applyStyleSheet(sheet)
+        .children({text(u8"AAAA").key("plain"),
+                   text(sigil::weave::rich().add(u8"AA")).key("runs")});
+  };
+  host.composer.render(page(StyleSheet{rule(":empty").width(77)}));
+  host.frame();
+  EXPECT_NE(require(host.composer.bounds("plain")).width(), 77.0f);
+  EXPECT_NE(require(host.composer.bounds("runs")).width(), 77.0f);
+  host.composer.render(page(StyleSheet{rule(":not(:empty)").width(55)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("plain")).width(), 55.0f);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("runs")).width(), 55.0f);
 }
 
 TEST(ComposeMatching, AFilteredCountRunsOverTheSiblingsThatMatchTheFilter) {

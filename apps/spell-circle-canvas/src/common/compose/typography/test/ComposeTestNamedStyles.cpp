@@ -82,6 +82,26 @@ TEST(ComposeNamedStyles, ARunIsCountedAmongNoSiblings) {
   EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorWHITE);
 }
 
+TEST(ComposeNamedStyles, ARunIsNeverEmpty) {
+  // A run stands for words, so :empty never matches the virtual child a
+  // named run is matched as, and :not(:empty) always does.
+  Host host(300, 200);
+  host.composer.render(
+      box()
+          .applyStyleSheet(
+              StyleSheet{rule(".ts:empty").ink(SkColor4f{1, 0, 0, 1})})
+          .children({logLine("line", "log")}));
+  host.frame();
+  EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorWHITE);
+  host.composer.render(
+      box()
+          .applyStyleSheet(
+              StyleSheet{rule(".ts:not(:empty)").ink(SkColor4f{1, 0, 0, 1})})
+          .children({logLine("line", "log")}));
+  host.frame();
+  EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorRED);
+}
+
 TEST(ComposeNamedStyles, ARoleDefaultStandsUnderEveryMatchingRule) {
   Host host(300, 200);
   const auto page = [](bool withRule) {
