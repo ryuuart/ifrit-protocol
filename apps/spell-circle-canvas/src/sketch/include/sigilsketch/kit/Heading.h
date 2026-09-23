@@ -31,7 +31,7 @@ namespace sigil::sketch::kit {
  *  line written as words alone rests, which is what a set card is:
  *
  *      {.title = {"THE SHIPPING FORECAST"}}
- *      {.title = {.words = "VERTIGO, 1958", .fx = rise}}
+ *      {.title = {.words = "VERTIGO, 1958", .textFx = rise}}
  */
 struct Line {
   compose::Utf8 words;
@@ -47,7 +47,7 @@ struct Line {
   std::optional<motion::Animatable<float>> lift;
   /** An entrance over the line's own glyphs — a rise, a stagger. Unset
    *  attaches none. */
-  std::optional<compose::Track> fx;
+  std::optional<compose::Track> textFx;
 };
 
 /** THE PROSE A TITLE CARD CARRIES — an eyebrow over a title over a

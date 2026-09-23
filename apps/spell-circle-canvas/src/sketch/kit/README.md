@@ -373,7 +373,7 @@ and `Row::key` do.
 sketch::kit::titleCard(
     {.eyebrow = {.words = "MET OFFICE", .opacity = beat(0.05f, 0.55f)},
      .title = {.words = "THE SHIPPING FORECAST",
-               .fx = Track{.effect = textFx::rise(16.0f), .progress = …}},
+               .textFx = Track{.effect = textFx::rise(16.0f), .progress = …}},
      .notes = std::move(slugs),
      .align = Align::Stretch,
      .key = "head"});
