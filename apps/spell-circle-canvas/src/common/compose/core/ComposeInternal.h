@@ -555,11 +555,20 @@ struct InkInForce {
   bool operator==(const InkInForce&) const = default;
 };
 
+/** A NODE'S SEMANTIC ROLE, and the typography a component states for it
+ *  as a default: what every rule of every sheet stands over. */
+struct RoleDefaults {
+  std::string name;
+  sigil::weave::Type font;
+  sigil::weave::Block block;
+  bool operator==(const RoleDefaults&) const = default;
+};
+
 struct CascadeData {
   std::optional<sigil::weave::Type> font;
-  /** The node's semantic name and fallback typography. The matching
-   *  sheet rule overrides its defaults before ordinary classes apply. */
-  std::optional<sigil::weave::Rule> role;
+  /** The node's semantic name and fallback typography. Every sheet rule
+   *  that matches stands over its defaults. */
+  std::optional<RoleDefaults> role;
   /** The classes this node names (Element::styleClass), in the order they
    *  were written: resolved in the cascade pass against the sheets in
    *  force where the node lands, and laid under the node's own partials. */

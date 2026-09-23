@@ -79,6 +79,57 @@ bool sameSheet(const std::shared_ptr<const sigil::weave::StyleSheet>& a,
   return *a == *b;
 }
 
+/** What the sheets in force say about each name @p leaf's rich runs and
+ *  paragraph styles were written with, each matched as a virtual child of
+ *  the leaf: the font partial and the ink the matched rules state, folded
+ *  weakest first, and the block partial they state. A name no rule speaks
+ *  about is left out, so it resolves as an unregistered name always has. */
+void namedStylesOf(const Instance& leaf, const SheetChain& chain,
+                   const HasNames& names, sigil::weave::TypeSheet& runs,
+                   std::vector<std::pair<std::string, sigil::weave::Block>>&
+                       blocks) {
+  runs = {};
+  blocks.clear();
+  if (chain.empty()) return;
+  const TextData& text = *leaf.description->textData;
+  const auto fontFor = [&](std::string_view name) {
+    std::optional<sigil::weave::Type> partial;
+    for (const MatchedRule& one : matchRulesForName(chain, leaf, name, names)) {
+      if (!partial) partial.emplace();
+      sigil::weave::merge(*partial, one.rule->type());
+      if (const std::optional<VarRef>& reference = one.rule->inkVar()) {
+        const VarValue* value =
+            leaf.vars ? leaf.vars->find(*reference) : nullptr;
+        if (const material::Color* colour =
+                value ? std::get_if<material::Color>(value) : nullptr)
+          partial->color = material::skia::toSkColor(*colour);
+        else
+          warnNoSuchVar(*reference, true);
+      }
+    }
+    return partial;
+  };
+  if (!text.rich.hasStyles())
+    for (const sigil::weave::RichText::Run& run : text.rich.runs())
+      if (!run.styleName.empty() && !runs.contains(run.styleName))
+        if (std::optional<sigil::weave::Type> partial = fontFor(run.styleName))
+          runs.set(run.styleName, std::move(*partial));
+  if (text.options.set & TextOptions::kBlockClasses)
+    for (const std::string& name : text.options.blockClassNames) {
+      const bool seen =
+          std::any_of(blocks.begin(), blocks.end(),
+                      [&](const auto& entry) { return entry.first == name; });
+      if (seen) continue;
+      const std::vector<MatchedRule> matched =
+          matchRulesForName(chain, leaf, name, names);
+      if (matched.empty()) continue;
+      sigil::weave::Block partial;
+      for (const MatchedRule& one : matched)
+        sigil::weave::merge(partial, one.rule->block());
+      blocks.emplace_back(name, std::move(partial));
+    }
+}
+
 material::Color lerpColour(const material::Color& from,
                            const material::Color& to, float t) {
   return material::mixToward(from, to, t, from.a + (to.a - from.a) * t);
@@ -411,10 +462,10 @@ void Composer::Impl::resolveCascade(
     std::optional<VarRef> inkVar;
     VarTable ruleVars;
     if (cascade != nullptr && cascade->role) {
-      sigil::weave::merge(ownFont, cascade->role->type());
-      sigil::weave::merge(ownBlock, cascade->role->block());
+      sigil::weave::merge(ownFont, cascade->role->font);
+      sigil::weave::merge(ownBlock, cascade->role->block);
       if (const sigil::weave::Rule* rule =
-              sheet ? sheet->find(cascade->role->name()) : nullptr) {
+              sheet ? sheet->find(cascade->role->name) : nullptr) {
         sigil::weave::merge(ownFont, rule->type());
         sigil::weave::merge(ownBlock, rule->block());
       }
@@ -623,12 +674,20 @@ void Composer::Impl::resolveCascade(
   if (node.kind == Kind::Text && node.textData) {
     const bool inherits = node.textData->inherits;
     const bool reshapes = inherits && !sameFontButColour(font, inst.textFont);
-    // A named run resolves through the sheet in force, so a sheet that
-    // changed under the leaf is a new paragraph as a new face is.
+    // A named run resolves through the sheets in force, so a sheet that
+    // changed what a name means under the leaf is a new paragraph as a new
+    // face is.
+    sigil::weave::TypeSheet runStyles;
+    std::vector<std::pair<std::string, sigil::weave::Block>> blockStyles;
+    namedStylesOf(inst, *sheets, hasNames, runStyles, blockStyles);
+    const bool namesMoved =
+        !(runStyles == inst.runStyles) || !(blockStyles == inst.blockStyles);
+    inst.runStyles = std::move(runStyles);
+    inst.blockStyles = std::move(blockStyles);
     const bool remakes =
         block.writingMode != inst.textBlock.writingMode ||
         block.lineBreakLocale != inst.textBlock.lineBreakLocale ||
-        !sameSheet(sheet, inst.textSheet);
+        !sameSheet(sheet, inst.textSheet) || namesMoved;
     if (inst.textDirty || !inst.paragraph) {
       inst.textDirty = false;
       materializeText(inst);

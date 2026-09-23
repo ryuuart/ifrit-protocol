@@ -190,13 +190,27 @@ Derived& StructureVerbs<Derived>::applyStyleSheet(StyleSheet sheet) {
 
 template <class Derived>
 Derived& StructureVerbs<Derived>::role(sigil::weave::Rule defaults) {
-  declarations()->cascadeData.ensure().role = std::move(defaults);
+  return role(defaults.name(), defaults.type(), defaults.block());
+}
+
+template <class Derived>
+Derived& StructureVerbs<Derived>::role(std::string name,
+                                       sigil::weave::Type font,
+                                       sigil::weave::Block block) {
+  declarations()->cascadeData.ensure().role = detail::RoleDefaults{
+      std::move(name), std::move(font), std::move(block)};
   return self();
 }
 
 template <class Derived>
+Derived& StructureVerbs<Derived>::role(std::string name,
+                                       sigil::weave::Block block) {
+  return role(std::move(name), sigil::weave::Type{}, std::move(block));
+}
+
+template <class Derived>
 Derived& StructureVerbs<Derived>::role(std::string name) {
-  return role(sigil::weave::Rule(std::move(name)));
+  return role(std::move(name), sigil::weave::Type{}, sigil::weave::Block{});
 }
 
 // The five members of the structure family this file defines, named one
@@ -208,6 +222,9 @@ Derived& StructureVerbs<Derived>::role(std::string name) {
   template Node& StructureVerbs<Node>::styleSheet(sigil::weave::StyleSheet); \
   template Node& StructureVerbs<Node>::applyStyleSheet(StyleSheet);          \
   template Node& StructureVerbs<Node>::role(sigil::weave::Rule);             \
+  template Node& StructureVerbs<Node>::role(                                 \
+      std::string, sigil::weave::Type, sigil::weave::Block);                 \
+  template Node& StructureVerbs<Node>::role(std::string, sigil::weave::Block); \
   template Node& StructureVerbs<Node>::role(std::string);
 SIGIL_COMPOSE_CASCADE_NAMES(Element)
 SIGIL_COMPOSE_CASCADE_NAMES(Text)

@@ -26,7 +26,7 @@ namespace {
 std::string_view roleOf(const Instance& inst) {
   const ElementNode& node = *inst.description;
   if (!node.cascadeData || !node.cascadeData->role) return {};
-  return node.cascadeData->role->name();
+  return node.cascadeData->role->name;
 }
 
 bool hasStyleClass(const Instance& inst, std::string_view name) {
@@ -128,16 +128,19 @@ bool matchesSimple(const Simple& simple, const Instance& inst,
       return hasStyleClass(inst, simple.name);
     case SimpleKind::Role:
       return roleOf(inst) == simple.name;
+    // A node counted among no siblings — one an adding operator attached,
+    // or a named run matched as a virtual child — answers none of these.
     case SimpleKind::FirstChild:
-      return place.index == 0;
+      return place.count > 0 && place.index == 0;
     case SimpleKind::LastChild:
-      return place.index == place.count - 1;
+      return place.count > 0 && place.index == place.count - 1;
     case SimpleKind::OnlyChild:
       return place.count == 1;
     case SimpleKind::NthChild:
     case SimpleKind::NthLastChild: {
       const bool fromLast = simple.kind == SimpleKind::NthLastChild;
       if (simple.arguments.empty()) {
+        if (place.count == 0) return false;
         const int position =
             fromLast ? place.count - place.index : place.index + 1;
         return countReaches(position, simple.step, simple.offset);
@@ -238,7 +241,7 @@ uint64_t ownNameBits(const Instance& inst, const HasNames& names) {
   for (const std::string& carried : node.cascadeData->classes)
     bits |= names.bitOf(true, carried);
   if (node.cascadeData->role)
-    bits |= names.bitOf(false, node.cascadeData->role->name());
+    bits |= names.bitOf(false, node.cascadeData->role->name);
   return bits;
 }
 
@@ -509,6 +512,29 @@ void summariseForHas(Instance& root, const HasNames& names, uint32_t pass) {
   root.hasSummaryPass = pass;
 }
 
+std::vector<MatchedRule> matchRulesForName(const SheetChain& chain,
+                                           const Instance& leaf,
+                                           std::string_view name,
+                                           const HasNames& names) {
+  // One virtual child per thread, re-dressed for each name: a node whose
+  // one class is the name, hung under the leaf and counted among none of
+  // its siblings.
+  struct Virtual {
+    Instance child;
+    std::shared_ptr<ElementNode> node = std::make_shared<ElementNode>();
+  };
+  static thread_local Virtual run;
+  CascadeData& cascade = run.node->cascadeData.ensure();
+  cascade.classes.assign(1, std::string(name));
+  run.child.description = run.node;
+  run.child.parent = const_cast<Instance*>(&leaf);
+  run.child.place = SiblingPlace{0, 0, 0, 0};
+  run.child.hasSummaryPass = 0;
+  std::vector<MatchedRule> matched = matchRules(chain, run.child, names);
+  run.child.parent = nullptr;
+  return matched;
+}
+
 std::vector<MatchedRule> matchRules(const SheetChain& chain,
                                     const Instance& inst,
                                     const HasNames& names) {
@@ -529,7 +555,7 @@ std::vector<MatchedRule> matchRules(const SheetChain& chain,
           candidates.insert(candidates.end(), found->second.begin(),
                             found->second.end());
       if (node.cascadeData->role)
-        if (const auto found = body->byRole.find(node.cascadeData->role->name());
+        if (const auto found = body->byRole.find(node.cascadeData->role->name);
             found != body->byRole.end())
           candidates.insert(candidates.end(), found->second.begin(),
                             found->second.end());

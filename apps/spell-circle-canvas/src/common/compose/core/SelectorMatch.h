@@ -87,6 +87,16 @@ class HasNames {
  *  written bottom up over @p root's subtree and stamped with @p pass. */
 void summariseForHas(Instance& root, const HasNames& names, uint32_t pass);
 
+/** The rules of @p chain that speak about a NAME a text leaf's rich
+ *  runs or paragraph styles were written with, weakest first: each is
+ *  matched as a VIRTUAL CHILD of @p leaf whose one class is @p name — no
+ *  role, and no place among siblings, so no structural pseudo-class
+ *  matches it — which is what lets `.log .ts` style the runs named `ts`
+ *  inside an element of class `log`. */
+[[nodiscard]] std::vector<MatchedRule> matchRulesForName(
+    const SheetChain& chain, const Instance& leaf, std::string_view name,
+    const HasNames& names);
+
 /** Writes every child of @p parent its place among its siblings. Runs
  *  once per parent per cascade pass, so a structural pseudo-class is a
  *  lookup rather than a walk. */

@@ -270,6 +270,15 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // resolved through, compared against `sheet` to tell a change that
   // re-materialises.
   std::shared_ptr<const sigil::weave::StyleSheet> textSheet;
+  // On a text leaf: what the selector sheets in force say about each NAME
+  // its rich runs and its paragraph styles were written with, each name
+  // matched as a virtual child of the leaf — the font partial a run named
+  // so is set in, and the block partial a paragraph named so is laid out
+  // in. A name no rule speaks about is absent. Resolved by the cascade
+  // pass and compared there, so a sheet that changes what a name means
+  // re-materialises the leaf.
+  sigil::weave::TypeSheet runStyles;
+  std::vector<std::pair<std::string, sigil::weave::Block>> blockStyles;
   // On a text leaf: its text changed at reconcile and the
   // paragraph is owed. The pass materialises it once, in the font it lands
   // in; reconcile shaping it against the root first would be a second

@@ -77,6 +77,7 @@ sigil_test(compose_test
           test/ComposeTestTextFxColor.cpp
           test/ComposeTestTextFxTransforms.cpp
           test/ComposeTestTextFxSchedule.cpp test/ComposeTestTextSpans.cpp
+          test/ComposeTestNamedStyles.cpp
           test/ComposeTestTextSpanAxis.cpp test/ComposeTestTextSlot.cpp
           test/ComposeTestTextMarks.cpp
   LIBRARIES SigilComposeTypography SigilComposeKit SigilComposeTesting

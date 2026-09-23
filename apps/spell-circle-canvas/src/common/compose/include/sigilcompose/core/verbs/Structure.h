@@ -76,7 +76,16 @@ class StructureVerbs {
    *  not carry the role: the defaults make a component useful on its own.
    *  A later call replaces the role and its defaults together. */
   Derived& role(sigil::weave::Rule defaults);
-  /** A semantic role with no default fields, styled by the sheet in force. */
+  /** A SEMANTIC ROLE — what a bare word in a selector names — with the
+   *  typography a component falls back to for it: @p font and @p block
+   *  sit under every rule that matches the node, and the node's own
+   *  `font()` and `block()` stand over everything. Unstated fields
+   *  inherit. A later call replaces the role and its defaults together. */
+  Derived& role(std::string name, sigil::weave::Type font,
+                sigil::weave::Block block = {});
+  /** A semantic role whose default is a block partial alone. */
+  Derived& role(std::string name, sigil::weave::Block block);
+  /** A semantic role with no default fields, styled by the sheets in force. */
   Derived& role(std::string name);
   /** CLASSES: the partials the sheets in force register under each name
    *  in @p names — several, separated by spaces, as CSS's class attribute
