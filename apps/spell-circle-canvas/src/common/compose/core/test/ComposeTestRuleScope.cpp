@@ -136,6 +136,21 @@ TEST(ComposeRuleScope, TheElementsOwnVerbStandsOverTheRule) {
   EXPECT_FLOAT_EQ(rectOf(host, "card").height(), 40.0f);
 }
 
+TEST(ComposeRuleScope, ARuleSizesAPointOverTheSizeItStartsWith) {
+  // A point starts zero by zero and out of the flow without stating
+  // either: those are the factory's starting values, so a rule that sizes
+  // it stands over them as it would over any default.
+  Host host(400, 200);
+  host.composer.render(
+      box()
+          .applyStyleSheet(StyleSheet{rule(".mark").width(40).height(20)})
+          .children({point().key("mark").styleClass("mark").left(10).top(10)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(rectOf(host, "mark").width(), 40.0f);
+  EXPECT_FLOAT_EQ(rectOf(host, "mark").height(), 20.0f);
+  EXPECT_FLOAT_EQ(rectOf(host, "mark").left(), 10.0f);
+}
+
 TEST(ComposeRuleScope, TheHeavierRuleWinsWhateverOrderItStandsIn) {
   Host host(400, 200);
   host.composer.render(

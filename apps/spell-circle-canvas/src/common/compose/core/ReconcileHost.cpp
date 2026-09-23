@@ -84,6 +84,8 @@ void warnIgnoredMemoShellProps(const ElementNode& shell) {
     const char* what;
     bool set;
   };
+  // A probe carries one group's values and states nothing, so the compare
+  // answers for the values alone.
   const Probe probes[] = {
       {"a layout property", only([&](ElementNode& n) {
          n.fields.defaults().layout = shell.fields.layout();
