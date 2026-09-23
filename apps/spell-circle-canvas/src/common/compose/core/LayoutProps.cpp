@@ -4,6 +4,7 @@
  * measured against the font in force at the node first.
  */
 
+#include "Calc.h"
 #include "ComposeRuntime.h"
 
 namespace sigil::compose {
@@ -122,8 +123,7 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   bool canvas = false;
   // Pixels for everything that is not a parent-relative percent or auto.
   const auto px = [&](const Dimension& d) {
-    if (d.unit == Dimension::Unit::Pw || d.unit == Dimension::Unit::Ph)
-      canvas = true;
+    if (readsCanvas(d)) canvas = true;
     return resolveLength(inst, d, relative);
   };
   const auto applyDim = [&](const Dimension& raw,

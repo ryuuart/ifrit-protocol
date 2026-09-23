@@ -131,7 +131,8 @@ void bindCompose(py::module_& module) {
       .value("Pw", Dimension::Unit::Pw)
       .value("Ph", Dimension::Unit::Ph)
       .value("Ch", Dimension::Unit::Ch)
-      .value("Pt", Dimension::Unit::Pt);
+      .value("Pt", Dimension::Unit::Pt)
+      .value("Calc", Dimension::Unit::Calc);
   dim.def(py::init<>())
       .def(py::init([](py::object value) { return dimension(value); }),
            py::arg("value"))
@@ -139,7 +140,54 @@ void bindCompose(py::module_& module) {
       .def_readwrite("value", &Dimension::value)
       .def("relative", &Dimension::relative)
       .def("reference", &Dimension::reference)
-      .def(py::self == py::self);
+      .def(py::self == py::self)
+      // CSS's calc(), as arithmetic: lengths in one unit stay in it, a sum
+      // over several resolves where the node lands, a number stands for
+      // pixels, and a percentage mixes with nothing — refused, it warns
+      // once and stands as auto.
+      .def(
+          "__add__",
+          [](const Dimension& self, py::handle other) {
+            return self + dimension(other);
+          },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__radd__",
+          [](const Dimension& self, py::handle other) {
+            return dimension(other) + self;
+          },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__sub__",
+          [](const Dimension& self, py::handle other) {
+            return self - dimension(other);
+          },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__rsub__",
+          [](const Dimension& self, py::handle other) {
+            return dimension(other) - self;
+          },
+          py::arg("other"), py::is_operator())
+      .def(
+          "__mul__",
+          [](const Dimension& self, float factor) { return self * factor; },
+          py::arg("factor"), py::is_operator())
+      .def(
+          "__rmul__",
+          [](const Dimension& self, float factor) { return factor * self; },
+          py::arg("factor"), py::is_operator())
+      .def(
+          "__truediv__",
+          [](const Dimension& self, float divisor) {
+            if (divisor == 0.0f)
+              throw py::value_error("A length divided by zero is no length.");
+            return self / divisor;
+          },
+          py::arg("divisor"), py::is_operator())
+      .def(
+          "__neg__", [](const Dimension& self) { return -self; },
+          py::is_operator());
   composition.def("pct", &pct, py::arg("percent"))
       .def("pw", &pw, py::arg("percent"))
       .def("ph", &ph, py::arg("percent"))

@@ -156,3 +156,66 @@ TEST(ComposeLengths, ALeadingPlusIsTheNumbersSign) {
   EXPECT_EQ(parseDimension(" +50% "), pct(50.0f));
   EXPECT_FALSE(parseDimension("+").has_value());
 }
+
+TEST(ComposeLengths, ArithmeticInOneUnitStaysInThatUnit) {
+  EXPECT_EQ(2 * Dimension(1_em), Dimension(2_em));
+  EXPECT_EQ(12_px + 4_px, 16_px);
+  EXPECT_EQ(Dimension(3_em) / 3, Dimension(1_em));
+  EXPECT_EQ(50_pct * 2, 100_pct);
+  EXPECT_EQ(-(10_px), Dimension(-10.0f));
+  // A sum that cancels back to one unit is that unit again, so nothing
+  // downstream can tell it was ever a sum.
+  EXPECT_EQ(Dimension(1_em) + 12_px - 12_px, Dimension(1_em));
+  EXPECT_EQ((Dimension(1_em) + 12_px).unit, Dimension::Unit::Calc);
+  EXPECT_EQ(Dimension(1_em) + 12_px, 12_px + Dimension(1_em));
+}
+
+TEST(ComposeLengths, ASumInSeveralUnitsResolvesWithTheFontInForce) {
+  Host host(400, 200);
+  const Dimension sum = 2 * Dimension(1_em) + 12_px;
+  host.composer.render(pageWith(box().width(sum).height(10), 20.0f));
+  host.frame();
+  EXPECT_FLOAT_EQ(widthOf(host), 2.0f * 20.0f + 12.0f);
+  // The em moved, so the sum moves with it.
+  host.composer.render(pageWith(box().width(sum).height(10), 30.0f));
+  host.frame();
+  EXPECT_FLOAT_EQ(widthOf(host), 2.0f * 30.0f + 12.0f);
+}
+
+TEST(ComposeLengths, ASumReadsACustomPropertyAndTheCanvas) {
+  Host host(400, 200);
+  host.composer.render(box().var("gutter", 10_px).children(
+      {box()
+           .key("measured")
+           .width(Dimension(var("gutter")) * 3 + 10_pw)
+           .height(10)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(widthOf(host), 3.0f * 10.0f + 0.1f * 400.0f);
+}
+
+TEST(ComposeLengths, APercentageMixesWithNothingAndStandsAsAuto) {
+  // Yoga resolves a percentage of the parent itself and holds no sum, so
+  // the arithmetic refuses rather than guessing, and says so once.
+  EXPECT_EQ(50_pct + Dimension(1_em), autoDimension());
+  EXPECT_EQ(12_px - 50_pct, autoDimension());
+  EXPECT_EQ(autoDimension() * 2, autoDimension());
+  // A zero of pixels adds nothing, so it may stand beside one.
+  EXPECT_EQ(50_pct + 0_px, 50_pct);
+  EXPECT_EQ(50_pct + 25_pct, 75_pct);
+}
+
+TEST(ComposeLengths, CalcTextReadsAsTheArithmeticDoes) {
+  EXPECT_EQ(parseDimension("calc(2em + 12px)"), 2 * Dimension(1_em) + 12_px);
+  EXPECT_EQ(parseDimension("CALC( (1em + 2px) * 2 )"),
+            (Dimension(1_em) + 2_px) * 2);
+  EXPECT_EQ(parseDimension("calc(var(--gutter) / 2 + 1ch)"),
+            Dimension(var("gutter")) / 2 + Dimension(1_ch));
+  EXPECT_EQ(parseDimension("calc(3 * 4)"), 12_px) << "a bare number is px";
+  // A length times a length, a division by nothing or by a length, a sum
+  // with a gap in it, and a percentage in a sum are none of them lengths.
+  EXPECT_FALSE(parseDimension("calc(1em * 2px)"));
+  EXPECT_FALSE(parseDimension("calc(1em / 0)"));
+  EXPECT_FALSE(parseDimension("calc(1em / 1px)"));
+  EXPECT_FALSE(parseDimension("calc(1em +)"));
+  EXPECT_FALSE(parseDimension("calc(50% + 1em)"));
+}

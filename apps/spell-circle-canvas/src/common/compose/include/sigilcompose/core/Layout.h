@@ -70,11 +70,12 @@ struct Dimension {
     Pw,    ///< percent of the CANVAS's width
     Ph,    ///< percent of the CANVAS's height
     Ch,    ///< multiples of the advance of "0" in the font in force
-    Pt     ///< printer's points, four pixels to every three
+    Pt,    ///< printer's points, four pixels to every three
+    Calc   ///< a sum over several units, its interned id bit-cast into `value`
   };
   Unit unit = Unit::Auto;
-  /** The length, or under `Var` the reference id, bit-cast into the float
-   *  and never read as one. */
+  /** The length, or under `Var` and `Calc` an id, bit-cast into the
+   *  float and never read as one. */
   float value = 0.0f;
 
   constexpr Dimension() = default;
@@ -97,7 +98,7 @@ struct Dimension {
   [[nodiscard]] constexpr bool relative() const {
     return unit == Unit::Em || unit == Unit::Rem || unit == Unit::Lh ||
            unit == Unit::Ch || unit == Unit::Var || unit == Unit::Pw ||
-           unit == Unit::Ph;
+           unit == Unit::Ph || unit == Unit::Calc;
   }
   /** The custom property a `Var` length reads; meaningless otherwise. */
   [[nodiscard]] constexpr VarRef reference() const {
@@ -136,7 +137,8 @@ constexpr Dimension autoDimension() { return {}; }
 
 /** THE ONE PLACE A LENGTH WRITTEN AS TEXT IS READ — `"12"`, `"12px"`,
  *  `"1.5em"`, `"2rem"`, `".5lh"`, `"3ch"`, `"9pt"`, `"50%"`, `"10pw"`,
- *  `"10ph"`, `"auto"`, and `var(name)` naming a custom property — so a
+ *  `"10ph"`, `"auto"`, `var(name)` naming a custom property, and
+ *  `calc(...)` over any of them with `+ - * /` and brackets — so a
  *  rule's text and a length handed in from Python are one grammar with
  *  one set of units.
  *
@@ -146,6 +148,29 @@ constexpr Dimension autoDimension() { return {}; }
  *  string and a unit no `Dimension` carries; the caller says what an
  *  unreadable length means where it stands. */
 [[nodiscard]] std::optional<Dimension> parseDimension(std::string_view text);
+
+/** @name CSS's calc(), as arithmetic on lengths
+ *  `width(2 * 1_em + 12_px)`, `padding(var("gutter") / 2)`: a sum over
+ *  any of the units above, resolved to pixels by the cascade pass with
+ *  the font, the custom properties and the canvas in force. Lengths in
+ *  one unit stay in that unit, so `2 * 1_em` IS `2_em`. A number stands
+ *  for pixels, as it does everywhere here; a length may be scaled by a
+ *  number and divided by one, never by another length.
+ *  @trap A PERCENTAGE MIXES WITH NOTHING: Yoga resolves a percentage of
+ *  the parent itself and holds no sum, so `50_pct + 1_em` is REFUSED — it
+ *  warns once and stands as `autoDimension()` — and so is arithmetic on
+ *  auto. `pw` and `ph` measure the canvas and mix freely. A sum in
+ *  several units is kept for the life of the process, as a custom
+ *  property's name is, so build one from values a sketch states rather
+ *  than from a number that changes every frame.
+ *  @{ */
+[[nodiscard]] Dimension operator+(Dimension left, Dimension right);
+[[nodiscard]] Dimension operator-(Dimension left, Dimension right);
+[[nodiscard]] Dimension operator-(Dimension length);
+[[nodiscard]] Dimension operator*(Dimension length, float factor);
+[[nodiscard]] Dimension operator*(float factor, Dimension length);
+[[nodiscard]] Dimension operator/(Dimension length, float divisor);
+/** @} */
 
 /** `width(50_pct)`, `width(50_pw)`, `top(10_ph)`, `flexBasis(120_px)` — for the
  *  Dimension-valued setters; exposed by `using namespace sigil::compose` (or

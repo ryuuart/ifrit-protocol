@@ -195,6 +195,11 @@ def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLi
     table.erased("_sigil.compose.Composer", "hitTest", "_t.PointLike")
     table.erased("_sigil.compose.Decoration", "__init__", "_t.DecorationLike")
     table.erased("_sigil.compose.Dimension", "__init__", "_t.DimensionLike")
+    # A length is added to anything a length is written as.
+    table.erased(
+        "_sigil.compose.Dimension", "__add__ __radd__ __sub__ __rsub__",
+        "_t.DimensionLike",
+    )
     table.erased("_sigil.compose.Fill", "color", "_t.ColorLike")
     table.erased("_sigil.compose.Fill", "__init__", "_t.FillLike")
     table.erased(

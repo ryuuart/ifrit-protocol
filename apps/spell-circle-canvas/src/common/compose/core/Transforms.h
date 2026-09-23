@@ -16,6 +16,7 @@
 #include <cmath>
 #include <optional>
 
+#include "Calc.h"
 #include "Instance.h"
 
 namespace sigil::compose::detail {
@@ -249,9 +250,7 @@ inline bool originsFollowCascade(StyledNode styled) {
 /** Whether an origin this node declares is measured against the CANVAS,
  *  which only a canvas that changes size moves. */
 inline bool originsFollowCanvas(StyledNode styled) {
-  const auto follows = [](const Dimension& d) {
-    return d.unit == Dimension::Unit::Pw || d.unit == Dimension::Unit::Ph;
-  };
+  const auto follows = [](const Dimension& d) { return readsCanvas(d); };
   if (follows(styled.style.paint.originX) ||
       follows(styled.style.paint.originY))
     return true;

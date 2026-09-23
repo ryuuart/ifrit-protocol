@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "Calc.h"
 #include "ComposeRuntime.h"
 #include "SelectorMatch.h"
 
@@ -218,6 +219,38 @@ float Composer::Impl::resolveLength(const Instance& inst,
       // percent setter; a reference that reaches here names nothing.
       relative = true;
       return 0.0f;
+    case Dimension::Unit::Calc: {
+      // Every term in pixels here, where the font, the properties and the
+      // canvas in force are known. A property read inside a sum must hold
+      // a length a sum can hold: not a percentage, not auto, and not
+      // another property.
+      relative = true;
+      const CalcLength& sum = calcLength(length);
+      const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
+      float total = sum.px + sum.em * fontSizePx(inst.font) +
+                    sum.rem * fontSizePx(rootFont) + sum.lh * inst.lineHeight +
+                    sum.ch * inst.zeroAdvance +
+                    sum.pw * 0.01f * canvas.width() +
+                    sum.ph * 0.01f * canvas.height();
+      for (const auto& [id, coefficient] : sum.vars) {
+        const VarValue* value =
+            inst.vars ? inst.vars->find(VarRef{id}) : nullptr;
+        const Dimension* found =
+            value ? std::get_if<Dimension>(value) : nullptr;
+        if (found == nullptr || found->unit == Dimension::Unit::Var) {
+          if (inst.cascadeResolved) warnNoSuchVar(VarRef{id}, false);
+          continue;
+        }
+        if (found->unit == Dimension::Unit::Pct ||
+            found->unit == Dimension::Unit::Auto) {
+          warnRefusedSum(found->unit, Dimension::Unit::Calc);
+          continue;
+        }
+        bool inner = false;
+        total += coefficient * resolveLength(inst, *found, inner);
+      }
+      return total;
+    }
   }
   return length.value;
 }

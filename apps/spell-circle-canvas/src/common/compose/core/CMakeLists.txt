@@ -71,14 +71,14 @@ sigil_library(SigilComposeCore
     Instances.cpp Shelf.cpp
     # paint values
     Fills.cpp
-    # a length written as text
-    Dimensions.cpp
+    # a length written as text, and lengths summed as calc() sums them
+    Dimensions.cpp Calc.cpp
     # what a property is: its name, and where its value is kept
     Properties.cpp
     # internal headers
     ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
     ComputedStyle.h
-    SelectorInternal.h SelectorMatch.h SheetBody.h
+    SelectorInternal.h SelectorMatch.h SheetBody.h Calc.h
     TextState.h SlotSpecs.h
     Lanes.h
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h

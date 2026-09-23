@@ -62,8 +62,9 @@ one. An `an+b` number too large to hold, and bracketed lists nested
 deeper than the parser reads, are refused the same way rather than
 clamped.
 
-Not yet: `calc()` on a length and the box half of what a rule can
-state. Both are wanted and decided; neither is in the rule yet.
+Not yet: the box half of what a rule can state — padding, margin, gap,
+size, fill, corners and opacity. It is wanted and decided, and not in
+the rule yet.
 
 ## The set algebra
 

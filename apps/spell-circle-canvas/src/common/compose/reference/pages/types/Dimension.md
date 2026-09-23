@@ -9,19 +9,19 @@ status: stable
 
 # Dimension
 
-A LENGTH, in whichever of the eleven units it was written in: pixels,
+A LENGTH, in whichever of the twelve units it was written in: pixels,
 points, a percentage of the parent, a percentage of the canvas either
 way, a multiple of the font in force or of the root's, a multiple of the
 line height or of the width of a figure, a custom property read where it
-lands, or left for layout to decide. Constructing one from a bare number
+lands, a sum over several of those, or left for layout to decide. Constructing one from a bare number
 gives pixels, so the common case reads as a number and nothing else.
 
 ## Anatomy
 
-`Dimension::unit` is which of the eleven, and `Dimension::value` is the
-number — except under `Dimension::Unit::Var`, where the reference id is
-bit-cast into the float and never read as one; `Dimension::reference`
-reads it back.
+`Dimension::unit` is which of the twelve, and `Dimension::value` is the
+number — except under `Dimension::Unit::Var` and `Dimension::Unit::Calc`,
+where an id is bit-cast into the float and never read as one;
+`Dimension::reference` reads a property's back.
 
 The units, and what each is a fraction or a multiple OF:
 
@@ -37,6 +37,7 @@ The units, and what each is a fraction or a multiple OF:
 | `Dimension::Unit::Lh` | `0.5_lh` | the node's own line height |
 | `Dimension::Unit::Ch` | `3_ch` | the advance of "0" in the face in force |
 | `Dimension::Unit::Var` | `var("gutter")` | the length the nearest ancestor set under that name |
+| `Dimension::Unit::Calc` | `2 * 1_em + 12_px` | each term against what its own unit measures, summed |
 | `Dimension::Unit::Auto` | `autoDimension()` | nothing — layout decides |
 
 `Dimension::relative` answers whether resolving the length needs
@@ -67,6 +68,31 @@ own against half the type size, because a resolver holding numbers
 rather than faces cannot measure a glyph; SigilCompose holds the face
 and measures it.
 
+## Arithmetic, which is CSS's calc()
+
+`+`, `-`, `*` and `/` on lengths are CSS's `calc()`: `width(2 * 1_em +
+12_px)`, `padding(var("gutter") / 2)`. Lengths in one unit combine in
+that unit, so `2 * 1_em` IS `2_em` and a sum that cancels back to one
+unit is that unit again. Lengths in several units are one SUM, held as a
+`Dimension::Unit::Calc` and resolved to pixels by the cascade pass with
+the font, the custom properties and the canvas in force where the node
+lands — so a sum with an em in it follows the type exactly as the em
+alone does. A number beside a length is pixels, as it is everywhere
+here; a length is scaled by a number and divided by one, never by
+another length.
+
+A PERCENTAGE MIXES WITH NOTHING. Yoga lays out a percentage of the parent
+itself and holds no sum, so `50_pct + 1_em` is REFUSED: it warns once,
+naming the two units, and stands as `autoDimension()`. The canvas units
+`pw` and `ph` are resolved here rather than by Yoga, so they mix freely,
+and a percentage beside a zero of pixels is still that percentage. A
+custom property read inside a sum must hold a length a sum can hold.
+
+A sum in several units is interned for the life of the process, as a
+custom property's name is: build one from values a sketch states, not
+from a number that moves every frame. Python spells the same arithmetic
+on `compose.Dimension`, with a number or a length string on either side.
+
 ## A length written as text
 
 `compose::parseDimension` is the ONE place text becomes a length, so a
@@ -83,13 +109,14 @@ space is ignored; a bare number is pixels.
 | `"1.5em"`, `"2rem"`, `"0.5lh"`, `"3ch"` | the font units |
 | `"var(gutter)"`, `"var(--gutter)"` | a custom property |
 | `"auto"` | layout decides |
+| `"calc(2em + 12px)"`, `"calc((1em + var(--gutter)) / 2)"` | a sum, as the arithmetic above builds it |
 
 A leading sign is the number's, either way: `"+12px"` and `"-12px"` both
 read, as they do in CSS.
 
 Nothing is answered for text the grammar does not cover — an empty
 string, a unit no `Dimension` carries, a space between the number and
-its unit — so a caller can tell an unreadable length from a length that
+its unit, a length times a length, a percentage inside a sum — so a caller can tell an unreadable length from a length that
 was never stated. `"inf"`, `"infinity"` and `"nan"` are in that set
 rather than out of it: they are numbers the reader will take and
 distances nothing can lay out.

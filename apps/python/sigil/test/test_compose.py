@@ -42,6 +42,23 @@ class Compose(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "Unknown Type field"):
             weave.Type(szie=10)
 
+    def test_arithmetic_on_lengths_is_css_calc(self):
+        # One unit stays in its unit; several are one sum, resolved where
+        # the node lands; a number stands for pixels.
+        self.assertEqual(2 * compose.em(1), compose.em(2))
+        self.assertEqual(Dimension(12) + 4, Dimension(16))
+        self.assertEqual(compose.em(3) / 3, compose.em(1))
+        mixed = 2 * compose.em(1) + 12
+        self.assertEqual(mixed.unit, Dimension.Unit.Calc)
+        self.assertEqual(mixed, Dimension("calc(2em + 12px)"))
+        self.assertEqual(mixed - 12, compose.em(2))
+        self.assertEqual(-Dimension(10), Dimension(-10))
+        # A percentage mixes with nothing: refused, it stands as auto.
+        self.assertEqual((pct(50) + compose.em(1)).unit, Dimension.Unit.Auto)
+        self.assertEqual(pct(50) + pct(25), pct(75))
+        with self.assertRaises(ValueError):
+            compose.em(1) / 0
+
     def test_every_unit_is_spelled_here_and_read_from_text(self):
         # The font-relative units and the point answer a Dimension, so a
         # length written in this language needs no second type to pass
