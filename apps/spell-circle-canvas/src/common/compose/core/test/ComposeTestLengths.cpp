@@ -199,6 +199,9 @@ TEST(ComposeLengths, APercentageMixesWithNothingAndStandsAsAuto) {
   EXPECT_EQ(50_pct + Dimension(1_em), autoDimension());
   EXPECT_EQ(12_px - 50_pct, autoDimension());
   EXPECT_EQ(autoDimension() * 2, autoDimension());
+  // A division by zero is no length, refused as the calc() text refuses it.
+  EXPECT_EQ(Dimension(1_em) / 0.0f, autoDimension());
+  EXPECT_EQ((Dimension(1_em) + 12_px) / 0.0f, autoDimension());
   // A zero of pixels adds nothing, so it may stand beside one.
   EXPECT_EQ(50_pct + 0_px, 50_pct);
   EXPECT_EQ(50_pct + 25_pct, 75_pct);

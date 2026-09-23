@@ -16,6 +16,7 @@
 #include <deque>
 #include <mutex>
 #include <string>
+#include <utility>
 
 namespace sigil::compose {
 namespace detail {
@@ -45,8 +46,8 @@ std::string keyOf(const CalcLength& sum) {
     std::memcpy(bytes, &value, sizeof value);
     key.append(bytes, sizeof bytes);
   };
-  for (const float term : {sum.px, sum.em, sum.rem, sum.lh, sum.ch, sum.pw,
-                           sum.ph})
+  for (const float term :
+       {sum.px, sum.em, sum.rem, sum.lh, sum.ch, sum.pw, sum.ph})
     put(term);
   for (const auto& [id, coefficient] : sum.vars) {
     put(std::bit_cast<float>(id));
@@ -204,11 +205,25 @@ bool sameSimpleUnit(const Dimension& left, const Dimension& right) {
          left.unit != Dimension::Unit::Auto;
 }
 
+/** Says once that a length was divided by zero, which is no length, and
+ *  that it stands as auto instead — as the calc() text refuses it. */
+void warnDividedByZero() {
+  static thread_local bool warned = false;
+  if (std::exchange(warned, true)) return;
+  SkDebugf(
+      "[compose] a length was divided by zero, which is no length, so the "
+      "result is REFUSED and stands as auto. (warned once)\n");
+}
+
 /** @p length times @p factor, or divided by it where @p dividing — a
  *  plain unit divided exactly, so a third of three ems is one em. */
 Dimension scaled(const Dimension& length, float factor, bool dividing) {
   if (length.unit == Dimension::Unit::Auto) {
     warnRefusedSum(length.unit, Dimension::Unit::Px);
+    return autoDimension();
+  }
+  if (dividing && factor == 0.0f) {
+    warnDividedByZero();
     return autoDimension();
   }
   if (length.unit != Dimension::Unit::Var &&
@@ -263,8 +278,7 @@ const CalcLength& calcLength(const Dimension& length) {
   CalcTable& table = calcTable();
   const std::lock_guard<std::mutex> lock(table.mutex);
   const uint32_t id = std::bit_cast<uint32_t>(length.value);
-  if (length.unit != Dimension::Unit::Calc || id == 0 ||
-      id > table.sums.size())
+  if (length.unit != Dimension::Unit::Calc || id == 0 || id > table.sums.size())
     return *nothing;
   return table.sums[id - 1];
 }

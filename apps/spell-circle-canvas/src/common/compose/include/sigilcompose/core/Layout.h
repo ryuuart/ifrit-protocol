@@ -158,8 +158,9 @@ constexpr Dimension autoDimension() { return {}; }
  *  number and divided by one, never by another length.
  *  @trap A PERCENTAGE MIXES WITH NOTHING: Yoga resolves a percentage of
  *  the parent itself and holds no sum, so `50_pct + 1_em` is REFUSED — it
- *  warns once and stands as `autoDimension()` — and so is arithmetic on
- *  auto. `pw` and `ph` measure the canvas and mix freely. A sum in
+ *  warns once and stands as `autoDimension()` — and so are arithmetic on
+ *  auto and a division by zero. `pw` and `ph` measure the canvas and mix
+ *  freely. A sum in
  *  several units is kept for the life of the process, as a custom
  *  property's name is, so build one from values a sketch states rather
  *  than from a number that changes every frame.

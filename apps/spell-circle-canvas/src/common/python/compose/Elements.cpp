@@ -65,6 +65,34 @@ Element memo(py::object properties, py::function describe) {
         }
       });
 }
+
+/** Raises where @p length is auto, which is no length: native arithmetic
+ *  on it warns and stands as auto, and here the call says so instead. */
+void requireLength(const compose::Dimension& length) {
+  if (length.unit == compose::Dimension::Unit::Auto)
+    throw py::value_error("auto is no length, so no arithmetic takes it.");
+}
+
+/** @p left plus @p right times @p sign, raising where native arithmetic
+ *  refuses the pair: auto on either side, or a percentage beside another
+ *  unit — a zero of pixels aside, which adds nothing. */
+compose::Dimension combined(const compose::Dimension& left,
+                            const compose::Dimension& right, float sign) {
+  using Unit = compose::Dimension::Unit;
+  requireLength(left);
+  requireLength(right);
+  const bool leftPercent = left.unit == Unit::Pct;
+  const bool rightPercent = right.unit == Unit::Pct;
+  if (leftPercent != rightPercent) {
+    const compose::Dimension& other = leftPercent ? right : left;
+    if (!(other.unit == Unit::Px && other.value == 0.0f))
+      throw py::value_error(
+          "A percentage is laid out against the parent and shares a sum "
+          "with no other unit. Use pw or ph to measure the canvas, or state "
+          "the two on different properties.");
+  }
+  return sign > 0.0f ? left + right : left - right;
+}
 }  // namespace
 
 void bindCompose(py::module_& module) {
@@ -141,51 +169,62 @@ void bindCompose(py::module_& module) {
       .def("reference", &Dimension::reference)
       .def(py::self == py::self)
       // CSS's calc(), as arithmetic: lengths in one unit stay in it, a sum
-      // over several resolves where the node lands, a number stands for
-      // pixels, and a percentage mixes with nothing — refused, it warns
-      // once and stands as auto.
+      // over several resolves where the node lands, and a number stands
+      // for pixels. What native arithmetic refuses — a percentage beside
+      // another unit, auto, a division by zero — raises here, at the call.
       .def(
           "__add__",
           [](const Dimension& self, py::handle other) {
-            return self + dimension(other);
+            return combined(self, dimension(other), 1.0f);
           },
           py::arg("other"), py::is_operator())
       .def(
           "__radd__",
           [](const Dimension& self, py::handle other) {
-            return dimension(other) + self;
+            return combined(dimension(other), self, 1.0f);
           },
           py::arg("other"), py::is_operator())
       .def(
           "__sub__",
           [](const Dimension& self, py::handle other) {
-            return self - dimension(other);
+            return combined(self, dimension(other), -1.0f);
           },
           py::arg("other"), py::is_operator())
       .def(
           "__rsub__",
           [](const Dimension& self, py::handle other) {
-            return dimension(other) - self;
+            return combined(dimension(other), self, -1.0f);
           },
           py::arg("other"), py::is_operator())
       .def(
           "__mul__",
-          [](const Dimension& self, float factor) { return self * factor; },
+          [](const Dimension& self, float factor) {
+            requireLength(self);
+            return self * factor;
+          },
           py::arg("factor"), py::is_operator())
       .def(
           "__rmul__",
-          [](const Dimension& self, float factor) { return factor * self; },
+          [](const Dimension& self, float factor) {
+            requireLength(self);
+            return factor * self;
+          },
           py::arg("factor"), py::is_operator())
       .def(
           "__truediv__",
           [](const Dimension& self, float divisor) {
             if (divisor == 0.0f)
               throw py::value_error("A length divided by zero is no length.");
+            requireLength(self);
             return self / divisor;
           },
           py::arg("divisor"), py::is_operator())
       .def(
-          "__neg__", [](const Dimension& self) { return -self; },
+          "__neg__",
+          [](const Dimension& self) {
+            requireLength(self);
+            return -self;
+          },
           py::is_operator());
   composition.def("pct", &pct, py::arg("percent"))
       .def("pw", &pw, py::arg("percent"))
@@ -281,8 +320,7 @@ void bindCompose(py::module_& module) {
       .value("Ink", Property::Ink)
       .value("CustomProperties", Property::CustomProperties)
       .value("ImageRendering", Property::ImageRendering);
-  composition
-      .def("inheritsByDefault", &inheritsByDefault, py::arg("property"))
+  composition.def("inheritsByDefault", &inheritsByDefault, py::arg("property"))
       .def("propertyName", &propertyName, py::arg("property"));
   py::enum_<FlexDirection>(composition, "FlexDirection")
       .value("Column", FlexDirection::Column)

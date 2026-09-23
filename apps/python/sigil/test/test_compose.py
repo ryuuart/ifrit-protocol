@@ -53,11 +53,19 @@ class Compose(unittest.TestCase):
         self.assertEqual(mixed, Dimension("calc(2em + 12px)"))
         self.assertEqual(mixed - 12, compose.em(2))
         self.assertEqual(-Dimension(10), Dimension(-10))
-        # A percentage mixes with nothing: refused, it stands as auto.
-        self.assertEqual((pct(50) + compose.em(1)).unit, Dimension.Unit.Auto)
-        self.assertEqual(pct(50) + pct(25), pct(75))
+        # What native arithmetic refuses — it warns and stands as auto —
+        # raises here, at the call: a percentage beside another unit,
+        # arithmetic on auto, and a division by zero.
+        with self.assertRaises(ValueError):
+            pct(50) + compose.em(1)
+        with self.assertRaises(ValueError):
+            12 - pct(50)
+        with self.assertRaises(ValueError):
+            compose.autoDimension() * 2
         with self.assertRaises(ValueError):
             compose.em(1) / 0
+        self.assertEqual(pct(50) + pct(25), pct(75))
+        self.assertEqual(pct(50) + 0, pct(50))
 
     def test_every_unit_is_spelled_here_and_read_from_text(self):
         # The font-relative units and the point answer a Dimension, so a
