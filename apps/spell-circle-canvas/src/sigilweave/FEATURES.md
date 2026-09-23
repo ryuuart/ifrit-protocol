@@ -114,7 +114,10 @@ through two coordinates. Pair `kColumns` with
     `ParagraphLayout::initial` reports where they landed.
 13. **Draw.** `draw()` emits one blob per word; `drawBatched()` merges
     horizontal runs into one `drawGlyphs` call per (font, paint) bucket.
-    Both resolve paint per span at draw time.
+    Both resolve paint per span at draw time. `drawBatched()` also takes a
+    style per glyph (`ParagraphLayout::GlyphStyles`), which is how a caller
+    restarts a gradient on every word or letter without re-styling the
+    paragraph.
 
 ## The features and their headers
 

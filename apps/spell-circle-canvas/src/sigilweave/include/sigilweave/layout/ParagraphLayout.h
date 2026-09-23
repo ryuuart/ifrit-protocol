@@ -116,6 +116,29 @@ struct ParagraphLayout {
                    const PaintStyle* overridePaint = nullptr,
                    const LiveVariations* liveVariations = nullptr) const;
 
+  /** A STYLE PER GLYPH: which of @p styles each glyph draws with, by its
+   *  place in the walk `forEachPlacedGlyph` takes — every glyph of every
+   *  shaped run, in draw order. A glyph past the end of `styleOfGlyph`, or
+   *  naming no entry of `styles`, draws with its span's paint. Both spans
+   *  are borrowed for the draw. */
+  struct GlyphStyles {
+    std::span<const uint32_t> styleOfGlyph;
+    std::span<const PaintStyle> styles;
+  };
+
+  /** The batched draw with a style per glyph standing in for the spans'
+   *  paint and @p overridePaint on the glyphs — a gradient restarted on
+   *  every word is a style per word. The decoration bands still read
+   *  @p overridePaint or the spans. The passes draw BAND BY BAND, every
+   *  underlay beneath every foreground, so one glyph's shadow never lands
+   *  on its neighbour. One draw per bucket and pass, and a style is a
+   *  bucket of its own.
+   *  @trap A run the layout TURNED draws from its baked blob in one style,
+   *  the one its first glyph names. */
+  void drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
+                   const GlyphStyles& glyphStyles,
+                   const PaintStyle* overridePaint = nullptr) const;
+
   /// Where every inline placeholder landed, ready to draw pills/images into.
   struct PlacedPlaceholder {
     int index = 0;                      ///< into Paragraph::placeholders()

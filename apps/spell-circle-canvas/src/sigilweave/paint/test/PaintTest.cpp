@@ -251,6 +251,71 @@ TEST(PaintPasses, MaterialPassShadesThroughTheInstalledResolver) {
   }
 }
 
+TEST(PaintPasses, AStylePerGlyphDrawsEachGlyphInTheStyleItNames) {
+  // Two glyphs, two styles: the first glyph red, the second blue, and a
+  // shadow under each that lands beneath BOTH foregrounds — the passes draw
+  // band by band, so the second glyph's shadow never covers the first
+  // glyph's fill. The glyphs land exactly where the plain draw puts them.
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(u8"HH", 60.0f);
+  BlockFlow flow(SkRect::MakeWH(200, 100));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  PaintStyle red(SK_ColorRED), blue(SK_ColorBLUE);
+  red.addUnderlay(PaintLayer(SK_ColorGREEN, {-40, 0}));
+  blue.addUnderlay(PaintLayer(SK_ColorGREEN, {-40, 0}));
+  const std::vector<PaintStyle> styles = {red, blue};
+  const std::vector<uint32_t> styleOfGlyph = {0, 1};
+  const ParagraphLayout::GlyphStyles perGlyph{styleOfGlyph, styles};
+
+  sigil::test::GlyphCanvas plain(200, 100), styled(200, 100);
+  layout.drawBatched(&plain, paragraph);
+  layout.drawBatched(&styled, paragraph, perGlyph);
+  ASSERT_EQ(plain.glyphs.size(), 2u);
+  // Each glyph once per pass: the two shadows, then the two fills.
+  ASSERT_EQ(styled.glyphs.size(), 4u);
+  for (size_t index = 0; index < 2; ++index) {
+    EXPECT_EQ(styled.glyphs[2 + index].glyph, plain.glyphs[index].glyph);
+    EXPECT_FLOAT_EQ(styled.glyphs[2 + index].position.x(),
+                    plain.glyphs[index].position.x());
+  }
+
+  // Red and blue ink either side of where the second glyph begins.
+  const float split = plain.glyphs[1].position.x();
+  struct Ink {
+    int redLeft = 0, redRight = 0, blueRight = 0;
+  };
+  const auto inkOf = [&](const std::vector<PaintStyle>& drawn) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 100));
+    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+    layout.drawBatched(surface->getCanvas(), paragraph,
+                       ParagraphLayout::GlyphStyles{styleOfGlyph, drawn});
+    SkPixmap pixmap;
+    EXPECT_TRUE(surface->peekPixels(&pixmap));
+    Ink ink;
+    for (int y = 0; y < 100; ++y)
+      for (int x = 0; x < 200; ++x) {
+        const SkColor c = pixmap.getColor(x, y);
+        const bool left = (float)x < split;
+        if (SkColorGetR(c) > 200 && SkColorGetB(c) < 60 &&
+            SkColorGetG(c) < 60)
+          (left ? ink.redLeft : ink.redRight)++;
+        if (SkColorGetB(c) > 200 && SkColorGetR(c) < 60 &&
+            SkColorGetG(c) < 60 && !left)
+          ink.blueRight++;
+      }
+    return ink;
+  };
+  const Ink shadowed = inkOf(styles);
+  EXPECT_GT(shadowed.redLeft, 50) << "the first glyph took the first style";
+  EXPECT_GT(shadowed.blueRight, 50) << "the second took the second style";
+  EXPECT_EQ(shadowed.redRight, 0);
+  const Ink bare = inkOf({PaintStyle(SK_ColorRED), PaintStyle(SK_ColorBLUE)});
+  EXPECT_EQ(shadowed.redLeft, bare.redLeft)
+      << "the second glyph's shadow covered the first glyph's fill";
+}
+
 // ── The preset text paints a paint style can carry ───────────────────────
 
 namespace {
