@@ -55,24 +55,28 @@ const ElementNode* detail::NodeHandle::operator->() const {
   return value.get();
 }
 
-void detail::markDeclared(ElementNode* node, Property property) {
-  node->declared.set(property);
-  // A VALUE WRITTEN AFTER A KEYWORD is the later statement of the two, and
-  // the later statement wins: the keyword stops standing the moment the
-  // property is written as a value again. Nearly every node carries no
-  // keyword table at all, so what this costs the common case is one test
-  // of a null pointer.
-  if (node->keywords) node->keywords->clear(property);
-}
-
-void detail::markKeyword(ElementNode* node, Property property,
-                         sigil::weave::Keyword keyword) {
+void detail::DeclaredFields::keyword(Property property,
+                                     sigil::weave::Keyword keyword) {
   if (!answersKeyword(property)) {
     warnPropertyAnswersNoKeyword(property);
     return;
   }
-  node->declared.set(property);
-  node->keywords.ensure().set(property, keyword);
+  m_declared.set(property);
+  m_keywords.ensure().set(property, keyword);
+}
+
+void detail::DeclaredFields::leaveCover() {
+  // The placement is withdrawn rather than overwritten: the node states
+  // nothing about where it sits any more, and a mask that still said so
+  // would make it unequal to a node that never covered.
+  if (!m_layout.covering) return;
+  m_layout.absolute = false;
+  m_layout.hasInsets = false;
+  m_layout.insets = EdgeDims{};
+  m_layout.covering = false;
+  for (Property side : {Property::Absolute, Property::Left, Property::Top,
+                        Property::Right, Property::Bottom})
+    m_declared.clear(side);
 }
 
 }  // namespace sigil::compose

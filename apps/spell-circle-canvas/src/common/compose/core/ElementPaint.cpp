@@ -9,8 +9,8 @@ namespace sigil::compose {
 
 template <class Derived>
 Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
-  detail::ElementNode* node = declare(Property::Fill);
-  node->paint.fill = std::move(f);
+  detail::ElementNode* node = declarations();
+  node->fields.fill() = std::move(f);
   // Symmetric with fill(Material): the fill setters are last-wins — a plain
   // fill after a live-material fill must actually take effect (and release
   // the node from the live-volatile path). staticMaterial must drop too, or
@@ -23,17 +23,18 @@ Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
 
 template <class Derived>
 Derived& PaintVerbs<Derived>::fill(material::skia::Paint m) {
-  detail::ElementNode* node = declare(Property::Fill);
+  detail::ElementNode* node = declarations();
+  std::optional<motion::Animatable<Fill>>& fill = node->fields.fill();
   detail::MaterialData& slots = node->materialData.ensure();
   if (m.isAnimated() || m.geometryDependent()) {
     // Live paints re-resolve per frame; geometry-dependent ones resolve
     // when the node records (and re-record on size change) — both route
     // through the material slot so the painter resolves with the frame.
     slots.live = std::move(m);
-    node->paint.fill.reset();
+    fill.reset();
     slots.recipe.reset();
   } else {
-    node->paint.fill = motion::Animatable<Fill>{toFill(m)};
+    fill = motion::Animatable<Fill>{toFill(m)};
     slots.recipe = std::move(m);  // the prune signature
     slots.live.reset();
   }
@@ -48,7 +49,7 @@ Derived& PaintVerbs<Derived>::fill(material::skia::Paint m, PaintAnchor anchor,
   // one mechanism the paint library already resolves through. A fill does
   // not inherit, so DeclaringBox says nothing OwnBox does not.
   if (anchor == PaintAnchor::CanvasBox) m.worldSpace(true);
-  declare(Property::BackgroundOrigin)->paint.backgroundOrigin = origin;
+  declarations()->fields.backgroundOrigin() = origin;
   return fill(std::move(m));
 }
 

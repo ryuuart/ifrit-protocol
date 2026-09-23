@@ -103,9 +103,17 @@ The mask beside the values is the reason this enumeration exists at all.
 A field holds its type's default until a verb writes it, so the numbers
 alone cannot tell a node that STATES the default from one that says
 nothing about it — and those are different nodes to a rule, to an
-inherited value and to the prune. Every declaring verb sets its bit in
-the same statement that writes its field, and the reconciler compares the
-mask before it compares a single number.
+inherited value and to the prune. Inside the library every property has
+one writer, and the writer is the declaration: it sets the property's bit
+as it hands back the field, and nothing else reaches the field, so a verb
+that skipped the bit would not compile. The reconciler compares the mask
+before it compares a single number.
+
+A few values a node starts with are defaults rather than statements, and
+carry no bit: the zero size and the out-of-flow placement of a `point()`,
+the flag that makes a `positioned()` container, and the z-index an
+operator gives the elements it adds. A rule that matches such a node
+stands over them, as it stands over any default.
 
 ## See also
 

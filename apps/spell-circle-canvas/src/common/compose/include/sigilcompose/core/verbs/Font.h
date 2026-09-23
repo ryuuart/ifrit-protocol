@@ -82,8 +82,8 @@ class FontVerbs {
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }
-  detail::ElementNode* declare(Property property) {
-    return detail::NodeAccess::declare(self(), property);
+  detail::ElementNode* declarations() {
+    return detail::NodeAccess::declarations(self());
   }
 };
 

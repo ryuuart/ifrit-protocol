@@ -49,7 +49,7 @@ void warnInkUnitNeedsOwnBox() {
 
 template <class Derived>
 Derived& FontVerbs<Derived>::font(sigil::weave::Type partial) {
-  detail::CascadeData& cascade = declare(Property::Font)->cascadeData.ensure();
+  detail::CascadeData& cascade = declarations()->font();
   if (!cascade.font) cascade.font.emplace();
   // Later wins field by field: the partial written last replaces what it
   // names and leaves the rest as an earlier call or a class left it.
@@ -95,7 +95,7 @@ Derived& FontVerbs<Derived>::letterSpacing(sigil::weave::Length tracking) {
 
 template <class Derived>
 Derived& FontVerbs<Derived>::ink(material::Color colour) {
-  detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
+  detail::CascadeData& cascade = declarations()->ink();
   if (!cascade.font) cascade.font.emplace();
   cascade.font->color = colour;
   cascade.inkVar.reset();
@@ -107,7 +107,7 @@ Derived& FontVerbs<Derived>::ink(material::Color colour) {
 
 template <class Derived>
 Derived& FontVerbs<Derived>::ink(VarRef reference) {
-  detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
+  detail::CascadeData& cascade = declarations()->ink();
   cascade.inkVar = reference;
   if (cascade.font) cascade.font->color.reset();
   cascade.inkPaint.reset();
@@ -119,7 +119,7 @@ Derived& FontVerbs<Derived>::ink(VarRef reference) {
 template <class Derived>
 Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor,
                                  std::optional<sigil::weave::Unit> unit) {
-  detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
+  detail::CascadeData& cascade = declarations()->ink();
   // A PLAIN COLOUR is the ink lane as it has always been. A paint that
   // happens to be flat is not one: it overrides the glyphs of a leaf set
   // in a style of its own, which an inherited colour does not reach.

@@ -18,8 +18,7 @@ namespace sigil::compose {
 template <class Derived>
 Derived& CascadeVerbs<Derived>::paragraph(
     sigil::weave::ParagraphBlock partial) {
-  detail::CascadeData& cascade =
-      declare(Property::Paragraph)->cascadeData.ensure();
+  detail::CascadeData& cascade = declarations()->paragraph();
   if (!cascade.block) cascade.block.emplace();
   sigil::weave::merge(*cascade.block, partial);
   return self();
@@ -92,30 +91,25 @@ Derived& CascadeVerbs<Derived>::textJustify(TextJustify method) {
 template <class Derived>
 Derived& CascadeVerbs<Derived>::var(std::string_view name,
                                     material::Color colour) {
-  declare(Property::CustomProperties)
-      ->cascadeData.ensure()
-      .vars.set(compose::var(name), colour);
+  declarations()->customProperties().vars.set(compose::var(name), colour);
   return self();
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::var(std::string_view name, Dimension length) {
-  declare(Property::CustomProperties)
-      ->cascadeData.ensure()
-      .vars.set(compose::var(name), length);
+  declarations()->customProperties().vars.set(compose::var(name), length);
   return self();
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::varDefaults(VarTable defaults) {
-  declare(Property::CustomProperties)->cascadeData.ensure().varDefaults =
-      std::move(defaults);
+  declarations()->customProperties().varDefaults = std::move(defaults);
   return self();
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::imageRendering(SkSamplingOptions options) {
-  declare(Property::ImageRendering)->cascadeData.ensure().sampling = options;
+  declarations()->imageRendering().sampling = options;
   return self();
 }
 
@@ -126,19 +120,19 @@ Derived& CascadeVerbs<Derived>::imageRendering(SkSamplingOptions options) {
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::inherit(Property property) {
-  detail::markKeyword(declarations(), property, sigil::weave::Keyword::Inherit);
+  declarations()->fields.keyword(property, sigil::weave::Keyword::Inherit);
   return self();
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::initial(Property property) {
-  detail::markKeyword(declarations(), property, sigil::weave::Keyword::Initial);
+  declarations()->fields.keyword(property, sigil::weave::Keyword::Initial);
   return self();
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::unset(Property property) {
-  detail::markKeyword(declarations(), property, sigil::weave::Keyword::Unset);
+  declarations()->fields.keyword(property, sigil::weave::Keyword::Unset);
   return self();
 }
 
@@ -205,8 +199,8 @@ Derived& StructureVerbs<Derived>::role(std::string name) {
 #define SIGIL_COMPOSE_CASCADE_NAMES(Node)                                    \
   template Node& StructureVerbs<Node>::styleClass(std::string_view);         \
   template Node& StructureVerbs<Node>::applyStyleSheet(StyleSheet);          \
-  template Node& StructureVerbs<Node>::role(                                 \
-      std::string, sigil::weave::Type, sigil::weave::ParagraphBlock);        \
+  template Node& StructureVerbs<Node>::role(std::string, sigil::weave::Type, \
+                                            sigil::weave::ParagraphBlock);   \
   template Node& StructureVerbs<Node>::role(std::string,                     \
                                             sigil::weave::ParagraphBlock);   \
   template Node& StructureVerbs<Node>::role(std::string);

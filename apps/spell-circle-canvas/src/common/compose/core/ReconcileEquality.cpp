@@ -404,7 +404,11 @@ namespace detail {
 /** THE STRUCTURAL PRUNE. Every field of ElementNode is ruled on here, and
  *  every field of the three blocks it compares INLINE (PaintProps,
  *  ImageData, CustomData, MotionPath) with it; the rest delegate to the
- *  helpers above, each with its own pin.
+ *  helpers above, each with its own pin. The declared fields are a class
+ *  with private state, which no count can pin: its six parts — the layout,
+ *  the paint, the corners, the clip, the mask and the keywords — are each
+ *  compared below, and the field walk over every property's writer is
+ *  what fails when one is not.
  *
  *  The two legitimate exclusions, stated rather than assumed:
  *  `memoData` is compared EARLIER and more strictly by resolveMemo()
@@ -412,7 +416,7 @@ namespace detail {
  * reaches here, because `inst.description` holds the memo's PRODUCED payload;
  * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 30 && kFieldCount<PaintProps> == 15 &&
+static_assert(kFieldCount<ElementNode> == 25 && kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 2 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 5,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
@@ -429,9 +433,10 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   // inherited value gives it — and a comparator that read only the
   // numbers would call them equal, prune the node for good and leave the
   // rule unable to reach it ever again.
-  if (!(a.declared == b.declared)) return false;
-  if ((bool)a.keywords != (bool)b.keywords) return false;
-  if (a.keywords && !(*a.keywords == *b.keywords)) return false;
+  if (!(a.fields.declared() == b.fields.declared())) return false;
+  if ((bool)a.fields.keywords() != (bool)b.fields.keywords()) return false;
+  if (a.fields.keywords() && !(*a.fields.keywords() == *b.fields.keywords()))
+    return false;
   // Incomparable callables → conservative inequality.
   if (a.hitTestable != b.hitTestable) return false;
   if ((bool)a.customData != (bool)b.customData) return false;
@@ -461,9 +466,10 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
     if (!(a.backgrounds[i] == b.backgrounds[i])) return false;
   for (size_t i = 0; i < a.foregrounds.size(); ++i)
     if (!(a.foregrounds[i] == b.foregrounds[i])) return false;
-  if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
-      a.clipContent != b.clipContent || a.boundary != b.boundary ||
-      a.coverageThreshold != b.coverageThreshold ||
+  if (!(a.fields.layout() == b.fields.layout()) ||
+      !(a.fields.corners() == b.fields.corners()) ||
+      a.fields.clipContent() != b.fields.clipContent() ||
+      a.boundary != b.boundary || a.coverageThreshold != b.coverageThreshold ||
       a.cacheMode != b.cacheMode || a.bakeScale != b.bakeScale)
     return false;
   if (!fxEqual(a.fxData, b.fxData)) return false;
@@ -487,7 +493,7 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
       !transitionEqual(*a.nodeTransition, *b.nodeTransition))
     return false;
   // Paint.
-  const PaintProps &pa = a.paint, &pb = b.paint;
+  const PaintProps &pa = a.fields.paint(), &pb = b.fields.paint();
   if (pa.fill.has_value() != pb.fill.has_value()) return false;
   if (!materialEqual(a.materialData, b.materialData)) return false;
   // Material-set fills compare by RECIPE — the structural signature of how
@@ -566,7 +572,7 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
  *  descendant's W as a 2D rotation does. A lane present there and missing
  *  here is a world-space material left on a stale W. */
 bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
-  const PaintProps &pa = a.paint, &pb = b.paint;
+  const PaintProps &pa = a.fields.paint(), &pb = b.fields.paint();
   if (!propertyEqual(pa.translateX, pb.translateX) ||
       !propertyEqual(pa.translateY, pb.translateY) ||
       !propertyEqual(pa.rotate, pb.rotate) ||

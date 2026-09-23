@@ -9,13 +9,13 @@ namespace sigil::compose {
 
 template <class Derived>
 Derived& EffectVerbs<Derived>::opacity(motion::Animatable<float> o) {
-  declare(Property::Opacity)->paint.opacity = std::move(o);
+  declarations()->fields.opacity() = std::move(o);
   return self();
 }
 
 template <class Derived>
 Derived& EffectVerbs<Derived>::blendMode(SkBlendMode mode) {
-  declare(Property::BlendMode)->paint.blendMode = mode;
+  declarations()->fields.blendMode() = mode;
   return self();
 }
 

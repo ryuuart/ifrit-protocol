@@ -150,8 +150,10 @@ bool Composer::Impl::phaseAdditions() {
         ElementNode* node = NodeAccess::declarations(element);
         node->operatorData.ensure().added = true;
         // The operator's own properties, where the element states none.
-        if (op.zIndexStated() && !node->declared.has(Property::ZIndex))
-          node->paint.zIndex = *op.zIndexStated();
+        // A default rather than a statement: a rule that matches the added
+        // element stands over the operator's value, as over any default.
+        if (op.zIndexStated() && !node->fields.declared().has(Property::ZIndex))
+          node->fields.defaults().paint.zIndex = *op.zIndexStated();
         layClassesUnder(*node, op.classesStated());
         Instance* owner = attachment.owner == Scope::Attachment::kScope
                               ? inst
@@ -167,10 +169,9 @@ bool Composer::Impl::phaseAdditions() {
   for (Instance* owner : owners) {
     bool retired = false;
     std::erase_if(owner->additions, [&](const Instance::AdditionSlice& slice) {
-      const bool written =
-          std::find(touched.begin(), touched.end(),
-                    std::pair<Instance*, Instance*>(owner, slice.source)) !=
-          touched.end();
+      const bool written = std::find(touched.begin(), touched.end(),
+                                     std::pair<Instance*, Instance*>(
+                                         owner, slice.source)) != touched.end();
       if (!written) retired = true;
       return !written;
     });

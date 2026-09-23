@@ -11,16 +11,17 @@ namespace sigil::compose {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::absolute() {
-  detail::ElementNode* node = declare(Property::Absolute);
-  node->layout.absolute = true;
-  node->layout.covering = false;
+  declarations()->fields.absolute().absolute = true;
   return self();
 }
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::cover() {
   inset(Dimension(0.0f));
-  declarations()->layout.covering = true;
+  // Whether the placement was stated as a cover is not a property of its
+  // own but a note on how the one above was written, which a size stated
+  // later reads to put the node back in the flow.
+  declarations()->fields.defaults().layout.covering = true;
   return self();
 }
 
@@ -44,13 +45,14 @@ Derived& PlacementVerbs<Derived>::inset(Dimension top, Dimension horizontal,
 template <class Derived>
 Derived& PlacementVerbs<Derived>::inset(Dimension top, Dimension right,
                                         Dimension bottom, Dimension left) {
-  detail::ElementNode* node =
-      declare({Property::Absolute, Property::Left, Property::Top,
-               Property::Right, Property::Bottom});
-  node->layout.absolute = true;
-  node->layout.covering = false;
-  node->layout.hasInsets = true;
-  node->layout.insets = {left, top, right, bottom};
+  detail::DeclaredFields& fields = declarations()->fields;
+  const detail::DeclaredFields::Absolute placed = fields.absolute();
+  placed.absolute = true;
+  placed.hasInsets = true;
+  fields.top() = top;
+  fields.right() = right;
+  fields.bottom() = bottom;
+  fields.left() = left;
   return self();
 }
 
@@ -61,50 +63,49 @@ Derived& PlacementVerbs<Derived>::inset(Edges edges) {
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::left(Dimension d) {
-  detail::ElementNode* node = declare({Property::Absolute, Property::Left});
-  node->layout.absolute = true;
-  node->layout.covering = false;
-  node->layout.hasInsets = true;
-  node->layout.insets.left = d;
+  detail::DeclaredFields& fields = declarations()->fields;
+  const detail::DeclaredFields::Absolute placed = fields.absolute();
+  placed.absolute = true;
+  placed.hasInsets = true;
+  fields.left() = d;
   return self();
 }
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::top(Dimension d) {
-  detail::ElementNode* node = declare({Property::Absolute, Property::Top});
-  node->layout.absolute = true;
-  node->layout.covering = false;
-  node->layout.hasInsets = true;
-  node->layout.insets.top = d;
+  detail::DeclaredFields& fields = declarations()->fields;
+  const detail::DeclaredFields::Absolute placed = fields.absolute();
+  placed.absolute = true;
+  placed.hasInsets = true;
+  fields.top() = d;
   return self();
 }
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::right(Dimension d) {
-  detail::ElementNode* node = declare({Property::Absolute, Property::Right});
-  node->layout.absolute = true;
-  node->layout.covering = false;
-  node->layout.hasInsets = true;
-  node->layout.insets.right = d;
+  detail::DeclaredFields& fields = declarations()->fields;
+  const detail::DeclaredFields::Absolute placed = fields.absolute();
+  placed.absolute = true;
+  placed.hasInsets = true;
+  fields.right() = d;
   return self();
 }
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::bottom(Dimension d) {
-  detail::ElementNode* node = declare({Property::Absolute, Property::Bottom});
-  node->layout.absolute = true;
-  node->layout.covering = false;
-  node->layout.hasInsets = true;
-  node->layout.insets.bottom = d;
+  detail::DeclaredFields& fields = declarations()->fields;
+  const detail::DeclaredFields::Absolute placed = fields.absolute();
+  placed.absolute = true;
+  placed.hasInsets = true;
+  fields.bottom() = d;
   return self();
 }
 
 template <class Derived>
 Derived& PlacementVerbs<Derived>::centerAt(SkPoint p) {
-  detail::ElementNode* node = declare({Property::Absolute, Property::CenterAt});
-  node->layout.absolute = true;
-  node->layout.covering = false;
-  node->layout.centerAt = p;
+  detail::DeclaredFields& fields = declarations()->fields;
+  fields.absolute().absolute = true;
+  fields.centerAt() = p;
   return self();
 }
 
@@ -113,7 +114,8 @@ Derived& PlacementVerbs<Derived>::gridCells(int column, int row, int columns,
                                             int rows) {
   // A span of zero cells would place the child nowhere and size it to
   // nothing, which reads as "it vanished" rather than as a mistake.
-  CellSpan& claim = declare(Property::GridCells)->layout.cells;
+  const detail::DeclaredFields::GridCells claim =
+      declarations()->fields.gridCells();
   claim.column = std::max(column, 0);
   claim.row = std::max(row, 0);
   claim.columns = std::max(columns, 1);
@@ -133,7 +135,7 @@ Derived& PlacementVerbs<Derived>::gridArea(std::string_view name) {
   // the scheme's picture resolves them, and `declared` is left to that
   // resolution, so a name no picture carries flows exactly as an unspoken
   // child does rather than landing on cell (0, 0).
-  declare(Property::GridArea)->deriveData.ensure().cellArea = std::string(name);
+  declarations()->gridArea() = std::string(name);
   return self();
 }
 
@@ -142,10 +144,11 @@ Derived& PlacementVerbs<Derived>::gridCellAlign(Align across, Align down) {
   // An alignment says where the child sits in whatever cell it gets, and
   // nothing about WHICH cell: `declared` stays as it is, so a child that
   // states only this still flows.
-  CellSpan& claim = declare(Property::GridCellAlign)->layout.cells;
+  const detail::DeclaredFields::GridCellAlign claim =
+      declarations()->fields.gridCellAlign();
   claim.across = across;
   claim.down = down;
-  claim.alignDeclared = true;
+  claim.declared = true;
   return self();
 }
 

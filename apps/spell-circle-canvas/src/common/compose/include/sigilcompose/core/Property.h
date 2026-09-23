@@ -116,9 +116,9 @@ enum class Property : uint8_t {
  *  different nodes to the cascade, to a rule and to the prune.
  *
  *  A bit set beside every write is what keeps them apart, and it is
- *  compared by value: a verb that writes a field without its bit makes
- *  the two descriptions equal, the node prunes for good, and nothing
- *  reports it. */
+ *  compared by value. A node's property fields are written only through
+ *  the writer named for each property, which sets its bit, so a field
+ *  written without one does not compile. */
 class PropertyMask {
  public:
   constexpr void set(Property property) {

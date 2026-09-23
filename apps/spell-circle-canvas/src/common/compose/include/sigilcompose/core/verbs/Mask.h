@@ -34,14 +34,6 @@ class MaskVerbs {
   detail::ElementNode* declarations() {
     return detail::NodeAccess::declarations(self());
   }
-  detail::ElementNode* declare(Property property) {
-    return detail::NodeAccess::declare(self(), property);
-  }
-  detail::ElementNode* declare(std::initializer_list<Property> properties) {
-    detail::ElementNode* node = detail::NodeAccess::declarations(self());
-    for (Property property : properties) detail::markDeclared(node, property);
-    return node;
-  }
 };
 
 }  // namespace sigil::compose

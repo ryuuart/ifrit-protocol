@@ -77,7 +77,7 @@ sigil_library(SigilComposeCore
     Properties.cpp
     # internal headers
     ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
-    ComputedStyle.h
+    ComputedStyle.h DeclaredFields.h PropertyBlocks.h HeapBox.h
     SelectorInternal.h SelectorMatch.h SheetBody.h Calc.h
     TextState.h SlotSpecs.h
     Lanes.h

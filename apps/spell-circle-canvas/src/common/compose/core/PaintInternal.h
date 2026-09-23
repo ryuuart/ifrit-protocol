@@ -31,7 +31,7 @@ inline const material::skia::Paint* liveMaterialOf(const ElementNode& n) {
  *  where one states it as a value, else null. */
 inline const MaterialData* fillSlotOf(const Instance& inst) {
   const ElementNode& n = *inst.description;
-  if (n.declared.has(Property::Fill))
+  if (n.fields.declared().has(Property::Fill))
     return n.materialData ? &*n.materialData : nullptr;
   const RuleLayer* rules = inst.ruleLayer.get();
   if (rules == nullptr || !rules->material ||

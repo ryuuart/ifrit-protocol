@@ -10,52 +10,52 @@ namespace sigil::compose {
 
 template <class Derived>
 Derived& DepthVerbs<Derived>::rotateX(motion::Animatable<float> v) {
-  declare(Property::RotateX)->depthData.ensure().rotateX = std::move(v);
+  declarations()->rotateX() = std::move(v);
   return self();
 }
 
 template <class Derived>
 Derived& DepthVerbs<Derived>::rotateY(motion::Animatable<float> v) {
-  declare(Property::RotateY)->depthData.ensure().rotateY = std::move(v);
+  declarations()->rotateY() = std::move(v);
   return self();
 }
 
 template <class Derived>
 Derived& DepthVerbs<Derived>::translateZ(motion::Animatable<float> v) {
-  declare(Property::TranslateZ)->depthData.ensure().translateZ = std::move(v);
+  declarations()->translateZ() = std::move(v);
   return self();
 }
 
 template <class Derived>
 Derived& DepthVerbs<Derived>::scaleZ(motion::Animatable<float> v) {
-  declare(Property::ScaleZ)->depthData.ensure().scaleZ = std::move(v);
+  declarations()->scaleZ() = std::move(v);
   return self();
 }
 
 template <class Derived>
 Derived& DepthVerbs<Derived>::perspective(motion::Animatable<float> v) {
-  declare(Property::Perspective)->depthData.ensure().perspective = std::move(v);
+  declarations()->perspective() = std::move(v);
   return self();
 }
 
 template <class Derived>
 Derived& DepthVerbs<Derived>::perspectiveOrigin(Dimension x, Dimension y) {
-  detail::DepthData& depth =
-      declare(Property::PerspectiveOrigin)->depthData.ensure();
-  depth.perspectiveOriginX = x;
-  depth.perspectiveOriginY = y;
+  const detail::ElementNode::PerspectiveOrigin origin =
+      declarations()->perspectiveOrigin();
+  origin.x = x;
+  origin.y = y;
   return self();
 }
 
 template <class Derived>
 Derived& DepthVerbs<Derived>::preserve3d(bool on) {
-  declare(Property::Preserve3d)->depthData.ensure().preserve3d = on;
+  declarations()->preserve3d() = on;
   return self();
 }
 
 template <class Derived>
 Derived& DepthVerbs<Derived>::backface(material::Backface facing) {
-  declare(Property::Backface)->depthData.ensure().backface = facing;
+  declarations()->backface() = facing;
   return self();
 }
 

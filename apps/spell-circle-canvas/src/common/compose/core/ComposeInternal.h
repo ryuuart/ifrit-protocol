@@ -34,131 +34,12 @@
 // baseline path — which the kernel stores, compares and lays out without
 // linking the engine that dresses it: every member the kernel reaches is
 // defined in these headers.
+#include "DeclaredFields.h"
 #include "sigilcompose/typography/Typography.h"
 
 namespace sigil::compose::detail {
 
 enum class Kind : uint8_t { Box, Stack, Text, Image, Custom, Slot };
-
-/** Per-edge Dims: for absolute insets Auto is a side left unpinned; for
- *  padding and margin every side is a length, zero by default.
- *
- *  THE DECLARATION ORDER HERE IS NOT THE PUBLIC ONE. Storage runs left,
- *  top, right, bottom; the public `Edges` and every verb that takes one
- *  run in CSS's order, top, right, bottom, left. Assigning an `Edges`
- *  field by field means permuting it, never copying it across. */
-struct EdgeDims {
-  Dimension left, top, right, bottom;
-  bool operator==(const EdgeDims&) const = default;
-};
-
-/** THE SAME FOUR EDGES ONCE THEY ARE PIXELS — what a percent, an em or a
- *  custom property came to for one node, which is the form the layout and
- *  the paint read them in. */
-struct Insets {
-  float left = 0, top = 0, right = 0, bottom = 0;
-  float across() const { return left + right; }
-  float down() const { return top + bottom; }
-  bool any() const {
-    return left != 0 || top != 0 || right != 0 || bottom != 0;
-  }
-};
-
-struct LayoutProps {
-  FlexDirection direction = FlexDirection::Column;
-  FlexWrap wrap = FlexWrap::NoWrap;
-  Display display = Display::Flex;
-  BoxSizing boxSizing = BoxSizing::BorderBox;
-  Dimension gap = 0.0f;
-  EdgeDims padding{0.0f, 0.0f, 0.0f, 0.0f}, margin{0.0f, 0.0f, 0.0f, 0.0f};
-  Dimension width, height, minWidth, maxWidth, minHeight, maxHeight, basis;
-  float aspect = 0;
-  float grow = 0, shrink = 1;
-  Align alignItems = Align::Stretch;
-  Align alignSelf = Align::Auto;
-  Justify justify = Justify::Start;
-  bool absolute = false;
-  bool hasInsets = false;
-  /** Set by cover() alone: the node was taken out of the flow to fill
-   *  its parent's box, and nothing else placed it. A size stated after
-   *  that puts it back in the flow, since a box of its own is the one
-   *  other thing a covering node can be; a pin or an inset stated after
-   *  it is a placement, and stands. */
-  bool covering = false;
-  /** positioned() container: children (and their subtrees) get NO Yoga
-   *  nodes; instanceRect() resolves their rects straight from these
-   *  properties. */
-  bool positioned = false;
-  EdgeDims insets;
-  std::optional<SkPoint> centerAt;  // absolute: center ON this point
-                                    // (resolved post-measure)
-  /** The cells this child claims of a layout() container's scheme, read
-   *  by nothing else. Default means unspoken, and a scheme flows it.
-   *  `CellSpan::area` is NOT set here — a named claim is rare and its
-   *  string is in DeriveData; the layout pass merges the two. */
-  CellSpan cells;
-  bool operator==(const LayoutProps&) const = default;
-};
-
-/** Whether a container that runs @p direction has a HORIZONTAL main axis. */
-constexpr bool mainAxisHorizontal(FlexDirection direction) {
-  return direction == FlexDirection::Row ||
-         direction == FlexDirection::RowReverse;
-}
-
-struct PaintProps {
-  std::optional<motion::Animatable<Fill>> fill;
-  motion::Animatable<float> opacity = 1.0f;
-  SkBlendMode blendMode = SkBlendMode::kSrcOver;
-  // fill(paint, anchor, origin): which of the box's rectangles the
-  // paint's unit square begins at. Only where the paint is stretched
-  // over the box; the painted AREA never moves with it. Beside the blend
-  // mode because the two bytes share one word there and this struct is
-  // inline in every node.
-  BackgroundOrigin backgroundOrigin = BackgroundOrigin::BorderBox;
-  motion::Animatable<float> translateX = 0.0f, translateY = 0.0f;
-  motion::Animatable<float> rotate = 0.0f, scale = 1.0f;
-  // Per-axis scale, multiplied INTO `scale`. Bars, wipes, meters,
-  // cooldown sweeps and drain rings are the most common animated
-  // primitive in a UI and none of them are uniform.
-  motion::Animatable<float> scaleX = 1.0f, scaleY = 1.0f;
-  motion::Animatable<float> skewX = 0.0f, skewY = 0.0f;  // degrees (shear)
-  // The pivot: a percentage is of the node's own box, any other length is
-  // node-local pixels. Its depth is DepthData::originZ.
-  Dimension originX = pct(50.0f), originY = pct(50.0f);
-  int zIndex = 0;
-};
-
-/** Value-semantic heap box for ElementNode's rare-field blocks: absent
- *  costs one null pointer; copying deep-copies a present block (the COW
- *  clone in detail::NodeHandle::operator-> relies on ElementNode's
- *  defaulted copy constructor). ensure() is the builder-side entry. */
-template <class T>
-class Box {
- public:
-  Box() = default;
-  Box(const Box& other)
-      : m_ptr(other.m_ptr ? std::make_unique<T>(*other.m_ptr) : nullptr) {}
-  Box(Box&&) noexcept = default;
-  Box& operator=(const Box& other) {
-    m_ptr = other.m_ptr ? std::make_unique<T>(*other.m_ptr) : nullptr;
-    return *this;
-  }
-  Box& operator=(Box&&) noexcept = default;
-
-  explicit operator bool() const { return m_ptr != nullptr; }
-  T* operator->() { return m_ptr.get(); }
-  const T* operator->() const { return m_ptr.get(); }
-  T& operator*() { return *m_ptr; }
-  const T& operator*() const { return *m_ptr; }
-  T& ensure() {
-    if (!m_ptr) m_ptr = std::make_unique<T>();
-    return *m_ptr;
-  }
-
- private:
-  std::unique_ptr<T> m_ptr;
-};
 
 // ---- ElementNode blocks: rare/kind-specific fields live out-of-line so a
 // plain box costs a fraction of what one flat struct would, and each phase's
@@ -659,13 +540,12 @@ struct ElementNode {
   Boundary boundary = Boundary::Auto;
   float coverageThreshold = 0.5f;
   std::string key;
-  LayoutProps layout;
-  PaintProps paint;
-  Corners corners;
+  /** The declared fields the computed style carries, with the mask of
+   *  which properties this node stated and the keywords it stated. */
+  DeclaredFields fields;
   Shape shapeFn;  // custom silhouette; overrides corners. A comparable
                   // scheme prunes; a raw callable never compares equal, so
                   // its node re-patches on every describe.
-  bool clipContent = false;
   // Element::hitTestable(false): the node and its own box are skipped by
   // hitTest, though its CHILDREN are still tested. A keyed full-bleed
   // layout shell with no fill otherwise swallows every hit in the frame,
@@ -673,18 +553,7 @@ struct ElementNode {
   bool hitTestable = true;
   Cache cacheMode = Cache::Auto;
   float bakeScale = 1.0f;  // Texture-bake resolution multiplier (see Element)
-  /** WHICH PROPERTIES THIS DESCRIPTION STATED. A field holds its type's
-   *  default until a verb writes it, so the value alone cannot tell a
-   *  node that states the default from one that says nothing — and those
-   *  are different nodes to a rule, to an inherited value and to the
-   *  prune. Every declaring verb sets its bit in the same statement that
-   *  writes the field. */
-  PropertyMask declared;
   std::optional<motion::Transition> nodeTransition;
-  // The properties written as `inherit`, `initial` or `unset` rather than
-  // as a value (see KeywordTable): a block, because a description that
-  // writes one is rarer than any other kind of statement here.
-  Box<sigil::weave::KeywordTable<Property>> keywords;
 
   // Decoration layers (kernel seam; primitives live in Decorations.h)
   std::vector<Decoration> backgrounds;
@@ -715,6 +584,72 @@ struct ElementNode {
   Box<OperatorData> operatorData;
 
   std::vector<Element> children;
+
+  // ---- the writers of the properties the computed style does not
+  // carry: each marks its property stated, as a writer of `fields` does,
+  // and hands back where the value is kept on this node.
+  std::string& gridArea() {
+    return fields.state(Property::GridArea, deriveData.ensure().cellArea);
+  }
+  Shape& shape() { return fields.state(Property::Shape, shapeFn); }
+  motion::Animatable<float>& rotateX() {
+    return fields.state(Property::RotateX, depthData.ensure().rotateX);
+  }
+  motion::Animatable<float>& rotateY() {
+    return fields.state(Property::RotateY, depthData.ensure().rotateY);
+  }
+  motion::Animatable<float>& translateZ() {
+    return fields.state(Property::TranslateZ, depthData.ensure().translateZ);
+  }
+  motion::Animatable<float>& scaleZ() {
+    return fields.state(Property::ScaleZ, depthData.ensure().scaleZ);
+  }
+  motion::Animatable<float>& perspective() {
+    return fields.state(Property::Perspective, depthData.ensure().perspective);
+  }
+  struct PerspectiveOrigin {
+    Dimension& x;
+    Dimension& y;
+  };
+  PerspectiveOrigin perspectiveOrigin() {
+    fields.state(Property::PerspectiveOrigin);
+    DepthData& depth = depthData.ensure();
+    return {depth.perspectiveOriginX, depth.perspectiveOriginY};
+  }
+  /** The depth block, left absent: a pivot in the plane needs none. */
+  Box<DepthData>& transformOriginZ() {
+    return fields.state(Property::TransformOriginZ, depthData);
+  }
+  bool& preserve3d() {
+    return fields.state(Property::Preserve3d, depthData.ensure().preserve3d);
+  }
+  material::Backface& backface() {
+    return fields.state(Property::Backface, depthData.ensure().backface);
+  }
+  struct DecorationOutline {
+    Boundary& source;
+    float& coverage;
+  };
+  DecorationOutline decorationOutline() {
+    fields.state(Property::DecorationOutline);
+    return {boundary, coverageThreshold};
+  }
+  /** The five the cascade pass resolves, each kept in the cascade block. */
+  CascadeData& font() {
+    return fields.state(Property::Font, cascadeData.ensure());
+  }
+  CascadeData& paragraph() {
+    return fields.state(Property::Paragraph, cascadeData.ensure());
+  }
+  CascadeData& ink() {
+    return fields.state(Property::Ink, cascadeData.ensure());
+  }
+  CascadeData& customProperties() {
+    return fields.state(Property::CustomProperties, cascadeData.ensure());
+  }
+  CascadeData& imageRendering() {
+    return fields.state(Property::ImageRendering, cascadeData.ensure());
+  }
 
   /** Whether this node applies operators that place its children. */
   bool arranges() const { return operatorData && operatorData->arranges(); }

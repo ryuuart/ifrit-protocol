@@ -10,41 +10,34 @@ namespace sigil::compose {
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::gap(Dimension length) {
-  declare(Property::Gap)->layout.gap = length;
+  declarations()->fields.gap() = length;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::padding(Dimension all) {
-  declare({Property::PaddingTop, Property::PaddingRight,
-           Property::PaddingBottom, Property::PaddingLeft})
-      ->layout.padding = {all, all, all, all};
-  return self();
+  return padding(all, all, all, all);
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::padding(Dimension vertical, Dimension horizontal) {
-  declare({Property::PaddingTop, Property::PaddingRight,
-           Property::PaddingBottom, Property::PaddingLeft})
-      ->layout.padding = {horizontal, vertical, horizontal, vertical};
-  return self();
+  return padding(vertical, horizontal, vertical, horizontal);
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::padding(Dimension top, Dimension horizontal,
                                     Dimension bottom) {
-  declare({Property::PaddingTop, Property::PaddingRight,
-           Property::PaddingBottom, Property::PaddingLeft})
-      ->layout.padding = {horizontal, top, horizontal, bottom};
-  return self();
+  return padding(top, horizontal, bottom, horizontal);
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::padding(Dimension top, Dimension right,
                                     Dimension bottom, Dimension left) {
-  declare({Property::PaddingTop, Property::PaddingRight,
-           Property::PaddingBottom, Property::PaddingLeft})
-      ->layout.padding = {left, top, right, bottom};
+  detail::DeclaredFields& fields = declarations()->fields;
+  fields.paddingTop() = top;
+  fields.paddingRight() = right;
+  fields.paddingBottom() = bottom;
+  fields.paddingLeft() = left;
   return self();
 }
 
@@ -61,181 +54,150 @@ Dimension orZero(Dimension side) {
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::padding(Edges edges) {
-  declare({Property::PaddingTop, Property::PaddingRight,
-           Property::PaddingBottom, Property::PaddingLeft})
-      ->layout.padding = {orZero(edges.left), orZero(edges.top),
-                          orZero(edges.right), orZero(edges.bottom)};
-  return self();
+  return padding(orZero(edges.top), orZero(edges.right), orZero(edges.bottom),
+                 orZero(edges.left));
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::paddingTop(Dimension length) {
-  declare(Property::PaddingTop)->layout.padding.top = length;
+  declarations()->fields.paddingTop() = length;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::paddingRight(Dimension length) {
-  declare(Property::PaddingRight)->layout.padding.right = length;
+  declarations()->fields.paddingRight() = length;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::paddingBottom(Dimension length) {
-  declare(Property::PaddingBottom)->layout.padding.bottom = length;
+  declarations()->fields.paddingBottom() = length;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::paddingLeft(Dimension length) {
-  declare(Property::PaddingLeft)->layout.padding.left = length;
+  declarations()->fields.paddingLeft() = length;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::margin(Dimension all) {
-  declare({Property::MarginTop, Property::MarginRight, Property::MarginBottom,
-           Property::MarginLeft})
-      ->layout.margin = {all, all, all, all};
-  return self();
+  return margin(all, all, all, all);
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::margin(Dimension vertical, Dimension horizontal) {
-  declare({Property::MarginTop, Property::MarginRight, Property::MarginBottom,
-           Property::MarginLeft})
-      ->layout.margin = {horizontal, vertical, horizontal, vertical};
-  return self();
+  return margin(vertical, horizontal, vertical, horizontal);
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::margin(Dimension top, Dimension horizontal,
                                    Dimension bottom) {
-  declare({Property::MarginTop, Property::MarginRight, Property::MarginBottom,
-           Property::MarginLeft})
-      ->layout.margin = {horizontal, top, horizontal, bottom};
-  return self();
+  return margin(top, horizontal, bottom, horizontal);
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::margin(Dimension top, Dimension right,
                                    Dimension bottom, Dimension left) {
-  declare({Property::MarginTop, Property::MarginRight, Property::MarginBottom,
-           Property::MarginLeft})
-      ->layout.margin = {left, top, right, bottom};
+  detail::DeclaredFields& fields = declarations()->fields;
+  fields.marginTop() = top;
+  fields.marginRight() = right;
+  fields.marginBottom() = bottom;
+  fields.marginLeft() = left;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::margin(Edges edges) {
-  declare({Property::MarginTop, Property::MarginRight, Property::MarginBottom,
-           Property::MarginLeft})
-      ->layout.margin = {orZero(edges.left), orZero(edges.top),
-                         orZero(edges.right), orZero(edges.bottom)};
-  return self();
+  return margin(orZero(edges.top), orZero(edges.right), orZero(edges.bottom),
+                orZero(edges.left));
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::marginTop(Dimension length) {
-  declare(Property::MarginTop)->layout.margin.top = length;
+  declarations()->fields.marginTop() = length;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::marginRight(Dimension length) {
-  declare(Property::MarginRight)->layout.margin.right = length;
+  declarations()->fields.marginRight() = length;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::marginBottom(Dimension length) {
-  declare(Property::MarginBottom)->layout.margin.bottom = length;
+  declarations()->fields.marginBottom() = length;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::marginLeft(Dimension length) {
-  declare(Property::MarginLeft)->layout.margin.left = length;
+  declarations()->fields.marginLeft() = length;
   return self();
 }
 
-namespace {
-
-/** A covering node given a size is put back in the flow at that size:
- *  filling the parent's box and holding a box of its own are the two
- *  things it can be, and the size said which. The placement `cover()`
- *  declared is UNDECLARED with it — the node states nothing about where
- *  it sits any more, and a mask that still said so would make it unequal
- *  to a node that never covered. */
-void flowFromCover(detail::ElementNode* node) {
-  detail::LayoutProps& layout = node->layout;
-  if (!layout.covering) return;
-  layout.absolute = false;
-  layout.hasInsets = false;
-  layout.insets = detail::EdgeDims{};
-  layout.covering = false;
-  for (Property side : {Property::Absolute, Property::Left, Property::Top,
-                        Property::Right, Property::Bottom})
-    node->declared.clear(side);
-}
-
-}  // namespace
+// A covering node given a size is put back in the flow at that size:
+// filling the parent's box and holding a box of its own are the two things
+// it can be, and the size said which.
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::width(Dimension d) {
-  detail::ElementNode* node = declare(Property::Width);
-  node->layout.width = d;
-  flowFromCover(node);
+  detail::DeclaredFields& fields = declarations()->fields;
+  fields.width() = d;
+  fields.leaveCover();
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::height(Dimension d) {
-  detail::ElementNode* node = declare(Property::Height);
-  node->layout.height = d;
-  flowFromCover(node);
+  detail::DeclaredFields& fields = declarations()->fields;
+  fields.height() = d;
+  fields.leaveCover();
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::minWidth(Dimension d) {
-  declare(Property::MinWidth)->layout.minWidth = d;
+  declarations()->fields.minWidth() = d;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::maxWidth(Dimension d) {
-  declare(Property::MaxWidth)->layout.maxWidth = d;
+  declarations()->fields.maxWidth() = d;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::minHeight(Dimension d) {
-  declare(Property::MinHeight)->layout.minHeight = d;
+  declarations()->fields.minHeight() = d;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::maxHeight(Dimension d) {
-  declare(Property::MaxHeight)->layout.maxHeight = d;
+  declarations()->fields.maxHeight() = d;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::aspectRatio(float r) {
-  declare(Property::AspectRatio)->layout.aspect = r;
+  declarations()->fields.aspectRatio() = r;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::boxSizing(BoxSizing sizing) {
-  declare(Property::BoxSizing)->layout.boxSizing = sizing;
+  declarations()->fields.boxSizing() = sizing;
   return self();
 }
 
 template <class Derived>
 Derived& BoxVerbs<Derived>::display(Display display) {
-  declare(Property::Display)->layout.display = display;
+  declarations()->fields.display() = display;
   return self();
 }
 

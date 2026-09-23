@@ -9,19 +9,19 @@ namespace sigil::compose {
 
 template <class Derived>
 Derived& ShapeVerbs<Derived>::borderRadius(Corners c) {
-  declare(Property::BorderRadius)->corners = c;
+  declarations()->fields.borderRadius() = c;
   return self();
 }
 
 template <class Derived>
 Derived& ShapeVerbs<Derived>::shape(Shape path) {
-  declare(Property::Shape)->shapeFn = std::move(path);
+  declarations()->shape() = std::move(path);
   return self();
 }
 
 template <class Derived>
 Derived& ShapeVerbs<Derived>::overflow(Overflow overflow) {
-  declare(Property::Overflow)->clipContent = overflow == Overflow::Clip;
+  declarations()->fields.overflow() = overflow == Overflow::Clip;
   return self();
 }
 

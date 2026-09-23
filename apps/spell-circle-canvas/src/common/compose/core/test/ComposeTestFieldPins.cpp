@@ -123,7 +123,9 @@ void perturb(std::vector<Element>& v) { v.push_back(box()); }
 
 void perturb(cd::PaintProps& v) { perturb(v.opacity); }
 
-void perturb(PropertyMask& v) { v.set(Property::Gap); }
+void perturb(cd::DeclaredFields& v) {
+  v.gap() = Dimension(v.layout().gap.value + 1.0f);
+}
 
 void perturb(sigil::weave::Unit& v) { v = sigil::weave::Unit::Line; }
 
@@ -226,8 +228,8 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
   walkFields<cd::PaintProps>(
       [](const cd::PaintProps& a, const cd::PaintProps& b) {
         cd::ElementNode na, nb;
-        na.paint = a;
-        nb.paint = b;
+        na.fields.defaults().paint = a;
+        nb.fields.defaults().paint = b;
         return cd::propertiesEqual(na, nb);
       },
       kNames, kParticipates);
@@ -310,31 +312,26 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   //  - `children` are reconciled BY KEY, not compared. A node that prunes
   //    still walks them — that is the whole point of the structural prune.
   static const char* const kNames[] = {
-      "kind",         "boundary",       "coverageThreshold", "key",
-      "layout",       "paint",          "corners",           "shapeFn",
-      "clipContent",  "hitTestable",    "cacheMode",         "bakeScale",
-      "declared",     "nodeTransition", "keywords",          "backgrounds",
-      "foregrounds",  "textData",       "imageData",         "customData",
-      "deriveData",   "fxData",         "materialData",      "strokeData",
-      "memoData",     "motionData",     "depthData",         "cascadeData",
-      "operatorData", "children"};
+      "kind",       "boundary",       "coverageThreshold", "key",
+      "fields",     "shapeFn",        "hitTestable",       "cacheMode",
+      "bakeScale",  "nodeTransition", "backgrounds",       "foregrounds",
+      "textData",   "imageData",      "customData",        "deriveData",
+      "fxData",     "materialData",   "strokeData",        "memoData",
+      "motionData", "depthData",      "cascadeData",       "operatorData",
+      "children"};
   static const bool kParticipates[] = {
       true,
       true,
       true,
       true,
+      true,  // fields — the declared values, the mask of which properties
+             // were stated, and the keywords; the property walk below
+             // reaches each of its parts
       true,
       true,
       true,
       true,
       true,
-      true,
-      true,
-      true,
-      true,  // declared — which properties this description STATED, which
-             // the values alone cannot say
-      true,
-      true,  // keywords — a property written as inherit/initial/unset
       true,
       true,
       true,
@@ -355,6 +352,371 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
       false,  // children — reconciled by key, never compared
   };
   walkFields<cd::ElementNode>(cd::propertiesEqual, kNames, kParticipates);
+}
+
+// ---------------------------------------------------------------------------
+// THE DECLARE DOOR — a property's field is written only by the writer named
+// for it, which marks the property stated.
+//
+// A field written without its bit is a node that states the default and a
+// node that says nothing at once: a rule overrides it, an inherited value
+// covers it, and the prune compares it as unstated. The compile-time half
+// below proves the fields cannot be reached any other way; the walk proves
+// each writer marks its own property and no other, and that the value it
+// writes reaches the comparator.
+
+namespace {
+
+template <class Fields>
+concept ReaderWrites = requires(Fields& fields, Dimension length) {
+  fields.layout().gap = length;
+};
+template <class Fields>
+concept StorageReachable = requires(Fields& fields) { fields.m_layout; };
+template <class Fields>
+concept MaskWritable =
+    requires(Fields& fields) { fields.declared().set(Property::Gap); };
+template <class Fields>
+concept KeywordsWritable =
+    requires(Fields& fields) { fields.keywords().ensure(); };
+template <class Node>
+concept NodeHoldsLayout = requires(Node& node) { node.layout; };
+template <class Node>
+concept NodeHoldsMask = requires(Node& node) { node.declared; };
+
+static_assert(!ReaderWrites<cd::DeclaredFields>,
+              "a reader hands back a field a verb can write through");
+static_assert(!StorageReachable<cd::DeclaredFields>,
+              "the declared fields are reachable without a writer");
+static_assert(!MaskWritable<cd::DeclaredFields> &&
+                  !KeywordsWritable<cd::DeclaredFields>,
+              "the mask or the keyword table is writable from outside");
+static_assert(!NodeHoldsLayout<cd::ElementNode> &&
+                  !NodeHoldsMask<cd::ElementNode>,
+              "the node holds a declared field of its own again");
+
+/** Writes @p property on @p node through the property's own writer: its
+ *  starting value, or with @p moved a value it does not start with. */
+void writeThroughWriter(cd::ElementNode& node, Property property, bool moved) {
+  cd::DeclaredFields& fields = node.fields;
+  const Dimension length = moved ? Dimension(4.0f) : Dimension(0.0f);
+  const float turn = moved ? 1.0f : 0.0f;
+  switch (property) {
+    case Property::Display:
+      fields.display() = moved ? Display::None : Display::Flex;
+      return;
+    case Property::BoxSizing:
+      fields.boxSizing() = moved ? BoxSizing::ContentBox : BoxSizing::BorderBox;
+      return;
+    case Property::Gap:
+      fields.gap() = length;
+      return;
+    case Property::PaddingTop:
+      fields.paddingTop() = length;
+      return;
+    case Property::PaddingRight:
+      fields.paddingRight() = length;
+      return;
+    case Property::PaddingBottom:
+      fields.paddingBottom() = length;
+      return;
+    case Property::PaddingLeft:
+      fields.paddingLeft() = length;
+      return;
+    case Property::MarginTop:
+      fields.marginTop() = length;
+      return;
+    case Property::MarginRight:
+      fields.marginRight() = length;
+      return;
+    case Property::MarginBottom:
+      fields.marginBottom() = length;
+      return;
+    case Property::MarginLeft:
+      fields.marginLeft() = length;
+      return;
+    case Property::Width:
+      if (moved)
+        fields.width() = length;
+      else
+        fields.width();
+      return;
+    case Property::Height:
+      if (moved)
+        fields.height() = length;
+      else
+        fields.height();
+      return;
+    case Property::MinWidth:
+      if (moved)
+        fields.minWidth() = length;
+      else
+        fields.minWidth();
+      return;
+    case Property::MaxWidth:
+      if (moved)
+        fields.maxWidth() = length;
+      else
+        fields.maxWidth();
+      return;
+    case Property::MinHeight:
+      if (moved)
+        fields.minHeight() = length;
+      else
+        fields.minHeight();
+      return;
+    case Property::MaxHeight:
+      if (moved)
+        fields.maxHeight() = length;
+      else
+        fields.maxHeight();
+      return;
+    case Property::AspectRatio:
+      fields.aspectRatio() = moved ? 2.0f : 0.0f;
+      return;
+    case Property::FlexDirection:
+      fields.flexDirection() =
+          moved ? FlexDirection::Row : FlexDirection::Column;
+      return;
+    case Property::FlexWrap:
+      fields.flexWrap() = moved ? FlexWrap::Wrap : FlexWrap::NoWrap;
+      return;
+    case Property::FlexBasis:
+      if (moved)
+        fields.flexBasis() = length;
+      else
+        fields.flexBasis();
+      return;
+    case Property::FlexGrow:
+      fields.flexGrow() = turn;
+      return;
+    case Property::FlexShrink:
+      fields.flexShrink() = moved ? 0.0f : 1.0f;
+      return;
+    case Property::AlignItems:
+      fields.alignItems() = moved ? Align::Center : Align::Stretch;
+      return;
+    case Property::AlignSelf:
+      fields.alignSelf() = moved ? Align::Center : Align::Auto;
+      return;
+    case Property::JustifyContent:
+      fields.justifyContent() = moved ? Justify::Center : Justify::Start;
+      return;
+    case Property::Absolute:
+      fields.absolute().absolute = moved;
+      return;
+    case Property::Left:
+      if (moved)
+        fields.left() = length;
+      else
+        fields.left();
+      return;
+    case Property::Top:
+      if (moved)
+        fields.top() = length;
+      else
+        fields.top();
+      return;
+    case Property::Right:
+      if (moved)
+        fields.right() = length;
+      else
+        fields.right();
+      return;
+    case Property::Bottom:
+      if (moved)
+        fields.bottom() = length;
+      else
+        fields.bottom();
+      return;
+    case Property::CenterAt:
+      if (moved)
+        fields.centerAt() = SkPoint::Make(1.0f, 2.0f);
+      else
+        fields.centerAt();
+      return;
+    case Property::GridCells:
+      fields.gridCells().column = moved ? 1 : 0;
+      return;
+    case Property::GridCellAlign:
+      fields.gridCellAlign().across = moved ? Align::Center : Align::Auto;
+      return;
+    case Property::GridArea:
+      node.gridArea() = moved ? "moved" : "";
+      return;
+    case Property::BorderRadius:
+      fields.borderRadius() = Corners(turn);
+      return;
+    case Property::Shape:
+      if (moved)
+        node.shape() = Shape([](SkSize) { return SkPath(); });
+      else
+        node.shape();
+      return;
+    case Property::Overflow:
+      fields.overflow() = moved;
+      return;
+    case Property::Fill:
+      if (moved)
+        fields.fill() = motion::Animatable<Fill>(Fill::color({1, 0, 0, 1}));
+      else
+        fields.fill();
+      return;
+    case Property::Opacity:
+      fields.opacity() = moved ? 0.5f : 1.0f;
+      return;
+    case Property::BlendMode:
+      fields.blendMode() =
+          moved ? SkBlendMode::kMultiply : SkBlendMode::kSrcOver;
+      return;
+    case Property::BackgroundOrigin:
+      fields.backgroundOrigin() =
+          moved ? BackgroundOrigin::ContentBox : BackgroundOrigin::BorderBox;
+      return;
+    case Property::ZIndex:
+      fields.zIndex() = moved ? 1 : 0;
+      return;
+    case Property::TranslateX:
+      fields.translateX() = turn;
+      return;
+    case Property::TranslateY:
+      fields.translateY() = turn;
+      return;
+    case Property::Rotate:
+      fields.rotate() = turn;
+      return;
+    case Property::Scale:
+      fields.scale() = 1.0f + turn;
+      return;
+    case Property::ScaleX:
+      fields.scaleX() = 1.0f + turn;
+      return;
+    case Property::ScaleY:
+      fields.scaleY() = 1.0f + turn;
+      return;
+    case Property::SkewX:
+      fields.skewX() = turn;
+      return;
+    case Property::SkewY:
+      fields.skewY() = turn;
+      return;
+    case Property::TransformOrigin:
+      fields.transformOrigin().x = moved ? Dimension(4.0f) : pct(50.0f);
+      return;
+    case Property::RotateX:
+      node.rotateX() = turn;
+      return;
+    case Property::RotateY:
+      node.rotateY() = turn;
+      return;
+    case Property::TranslateZ:
+      node.translateZ() = turn;
+      return;
+    case Property::ScaleZ:
+      node.scaleZ() = 1.0f + turn;
+      return;
+    case Property::Perspective:
+      node.perspective() = turn;
+      return;
+    case Property::PerspectiveOrigin:
+      node.perspectiveOrigin().x = moved ? Dimension(4.0f) : pct(50.0f);
+      return;
+    case Property::TransformOriginZ:
+      if (moved)
+        node.transformOriginZ().ensure().originZ = length;
+      else
+        node.transformOriginZ();
+      return;
+    case Property::Preserve3d:
+      node.preserve3d() = moved;
+      return;
+    case Property::Backface:
+      node.backface() =
+          moved ? material::Backface::Hidden : material::Backface::Visible;
+      return;
+    case Property::DecorationOutline:
+      node.decorationOutline().source =
+          moved ? Boundary::Glyphs : Boundary::Auto;
+      return;
+    case Property::Font:
+      if (moved)
+        node.font().font.emplace().weight = 700.0f;
+      else
+        node.font();
+      return;
+    case Property::Paragraph:
+      if (moved)
+        node.paragraph().block.emplace();
+      else
+        node.paragraph();
+      return;
+    case Property::Ink:
+      node.ink().statesInk = moved;
+      return;
+    case Property::CustomProperties:
+      if (moved)
+        node.customProperties().vars.set(var("moved"), length);
+      else
+        node.customProperties();
+      return;
+    case Property::ImageRendering:
+      if (moved)
+        node.imageRendering().sampling =
+            SkSamplingOptions(SkFilterMode::kLinear);
+      else
+        node.imageRendering();
+      return;
+    case Property::kCount:
+      break;
+  }
+  ADD_FAILURE() << "no writer is walked for property #" << (int)property;
+}
+
+}  // namespace
+
+TEST(ComposeDeclarations, EveryWriterMarksExactlyItsOwnProperty) {
+  for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
+    const auto property = (Property)i;
+    for (const bool moved : {false, true}) {
+      cd::ElementNode node;
+      writeThroughWriter(node, property, moved);
+      PropertyMask expected;
+      expected.set(property);
+      EXPECT_TRUE(node.fields.declared() == expected)
+          << propertyName(property) << "'s writer marked a different set "
+          << "of properties than its own";
+    }
+  }
+}
+
+TEST(ComposeDeclarations, EveryWrittenValueReachesThePrune) {
+  // Both nodes state the property, so the masks agree and only the value
+  // can tell them apart.
+  for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
+    const auto property = (Property)i;
+    cd::ElementNode standing, moved;
+    writeThroughWriter(standing, property, false);
+    writeThroughWriter(moved, property, true);
+    EXPECT_FALSE(cd::propertiesEqual(standing, moved))
+        << propertyName(property) << " was written to a new value and the "
+        << "node compares equal to one that kept the old";
+  }
+}
+
+TEST(ComposeDeclarations, AWriterEndsAKeywordWrittenBeforeIt) {
+  for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
+    const auto property = (Property)i;
+    if (!answersKeyword(property)) continue;
+    cd::ElementNode node;
+    node.fields.keyword(property, sigil::weave::Keyword::Inherit);
+    ASSERT_TRUE(node.fields.keywords() &&
+                node.fields.keywords()->find(property));
+    writeThroughWriter(node, property, true);
+    EXPECT_FALSE(node.fields.keywords()->find(property))
+        << propertyName(property) << " was written as a value after a "
+        << "keyword and the keyword still stands";
+    EXPECT_TRUE(node.fields.declared().has(property));
+  }
 }
 
 // ---------------------------------------------------------------------------

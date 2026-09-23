@@ -40,7 +40,8 @@ Element stack() {
 
 Element positioned() {
   Element e;
-  e.node()->layout.positioned = true;
+  // What kind of container the node is, not a property it states.
+  e.node()->fields.defaults().layout.positioned = true;
   return e;
 }
 
@@ -190,10 +191,13 @@ Element point() {
   // Out of the flow, so it takes no room beside its siblings, and placed
   // by its insets or a pin exactly as any absolute node is. Zero by zero,
   // so a centre pin lands it on the point it names. Out of hit testing,
-  // because a point has no box to be hit in.
-  e.node()->layout.absolute = true;
-  e.node()->layout.width = Dimension(0.0f);
-  e.node()->layout.height = Dimension(0.0f);
+  // because a point has no box to be hit in. These are the factory's
+  // starting values, not statements: a rule that sizes or places a point
+  // stands over them, as it could not over the point's own verbs.
+  detail::LayoutProps& layout = e.node()->fields.defaults().layout;
+  layout.absolute = true;
+  layout.width = Dimension(0.0f);
+  layout.height = Dimension(0.0f);
   e.node()->hitTestable = false;
   return e;
 }

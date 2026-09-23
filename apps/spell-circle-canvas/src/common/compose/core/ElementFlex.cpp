@@ -10,7 +10,7 @@ namespace sigil::compose {
 
 template <class Derived>
 Derived& FlexVerbs<Derived>::flexDirection(FlexDirection direction) {
-  declare(Property::FlexDirection)->layout.direction = direction;
+  declarations()->fields.flexDirection() = direction;
   return self();
 }
 
@@ -26,43 +26,43 @@ Derived& FlexVerbs<Derived>::column() {
 
 template <class Derived>
 Derived& FlexVerbs<Derived>::flexWrap(FlexWrap wrap) {
-  declare(Property::FlexWrap)->layout.wrap = wrap;
+  declarations()->fields.flexWrap() = wrap;
   return self();
 }
 
 template <class Derived>
 Derived& FlexVerbs<Derived>::flexGrow(float f) {
-  declare(Property::FlexGrow)->layout.grow = f;
+  declarations()->fields.flexGrow() = f;
   return self();
 }
 
 template <class Derived>
 Derived& FlexVerbs<Derived>::flexShrink(float f) {
-  declare(Property::FlexShrink)->layout.shrink = f;
+  declarations()->fields.flexShrink() = f;
   return self();
 }
 
 template <class Derived>
 Derived& FlexVerbs<Derived>::flexBasis(Dimension d) {
-  declare(Property::FlexBasis)->layout.basis = d;
+  declarations()->fields.flexBasis() = d;
   return self();
 }
 
 template <class Derived>
 Derived& FlexVerbs<Derived>::alignItems(Align a) {
-  declare(Property::AlignItems)->layout.alignItems = a;
+  declarations()->fields.alignItems() = a;
   return self();
 }
 
 template <class Derived>
 Derived& FlexVerbs<Derived>::alignSelf(Align a) {
-  declare(Property::AlignSelf)->layout.alignSelf = a;
+  declarations()->fields.alignSelf() = a;
   return self();
 }
 
 template <class Derived>
 Derived& FlexVerbs<Derived>::justifyContent(Justify j) {
-  declare(Property::JustifyContent)->layout.justify = j;
+  declarations()->fields.justifyContent() = j;
   return self();
 }
 

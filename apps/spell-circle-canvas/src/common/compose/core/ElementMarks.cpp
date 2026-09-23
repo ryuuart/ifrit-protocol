@@ -80,9 +80,10 @@ Derived& DecorationVerbs<Derived>::stroke(Decoration brush, std::string name) {
 template <class Derived>
 Derived& DecorationVerbs<Derived>::decorationOutline(Boundary source,
                                                      float coverage) {
-  detail::ElementNode* node = declare(Property::DecorationOutline);
-  node->boundary = source;
-  node->coverageThreshold = std::clamp(coverage, 0.0f, 1.0f);
+  const detail::ElementNode::DecorationOutline outline =
+      declarations()->decorationOutline();
+  outline.source = source;
+  outline.coverage = std::clamp(coverage, 0.0f, 1.0f);
   return self();
 }
 

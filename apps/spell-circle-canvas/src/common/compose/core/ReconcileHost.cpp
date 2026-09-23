@@ -85,14 +85,15 @@ void warnIgnoredMemoShellProps(const ElementNode& shell) {
     bool set;
   };
   const Probe probes[] = {
-      {"a layout property",
-       only([&](ElementNode& n) { n.layout = shell.layout; })},
+      {"a layout property", only([&](ElementNode& n) {
+         n.fields.defaults().layout = shell.fields.layout();
+       })},
       {"a fill, opacity, blend, transform or zIndex", only([&](ElementNode& n) {
-         n.paint = shell.paint;
+         n.fields.defaults().paint = shell.fields.paint();
          n.materialData = shell.materialData;
        })},
       {"corners or a shape", only([&](ElementNode& n) {
-         n.corners = shell.corners;
+         n.fields.defaults().corners = shell.fields.corners();
          n.shapeFn = shell.shapeFn;
        })},
       {"a decoration",
@@ -103,7 +104,7 @@ void warnIgnoredMemoShellProps(const ElementNode& shell) {
       {"a stroke pass", (bool)shell.strokeData},
       {"travel()", (bool)shell.motionData},
       {"a depth lane", (bool)shell.depthData},
-      {"clipContent", shell.clipContent},
+      {"clipContent", shell.fields.clipContent()},
       {"hitTestable(false)", !shell.hitTestable},
       {"a boundary", shell.boundary != Boundary::Auto},
   };
@@ -346,7 +347,6 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
       if (child) applyLayoutProps(*child);
     needsLayout = true;
   }
-
 }
 
 void Composer::Impl::reorder(Instance& parent, bool structureChanged) {

@@ -495,7 +495,7 @@ void Composer::Impl::resolveCascade(
   // neither is untouched and pays nothing. What it costs is one
   // invalidation per such node per pass, and the pass runs only on a
   // frame where something already changed.
-  if (node.keywords || layerMoved) {
+  if (node.fields.keywords() || layerMoved) {
     const ComputedStyle before = inst.computed;
     resolveStyle(inst.parent ? &inst.parent->computed : nullptr, node,
                  inst.computed, inst.ruleLayer.get());
@@ -582,9 +582,9 @@ void Composer::Impl::resolveCascade(
       // A RULE'S KEYWORD over an inherited property throws away what the
       // weaker layers said and stands in the value arriving from above,
       // or the initial one; the stronger layers are then laid over that.
-      if (!stated.keywords) continue;
+      if (!stated.fields.keywords()) continue;
       for (const sigil::weave::KeywordTable<Property>::Entry& entry :
-           stated.keywords->entries()) {
+           stated.fields.keywords()->entries()) {
         const bool fromParent = resolveKeyword(entry.keyword, entry.field) ==
                                 sigil::weave::Keyword::Inherit;
         switch (entry.field) {
@@ -691,9 +691,9 @@ void Composer::Impl::resolveCascade(
   // over the inherited value. `initial` stops the inheriting instead and
   // stands in the value the property has under no ancestor at all, and
   // `unset` comes to `inherit` here because these five inherit.
-  if (node.keywords)
+  if (node.fields.keywords())
     for (const sigil::weave::KeywordTable<Property>::Entry& entry :
-         node.keywords->entries()) {
+         node.fields.keywords()->entries()) {
       const bool fromParent = resolveKeyword(entry.keyword, entry.field) ==
                               sigil::weave::Keyword::Inherit;
       switch (entry.field) {

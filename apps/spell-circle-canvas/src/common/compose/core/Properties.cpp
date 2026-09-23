@@ -398,7 +398,7 @@ bool staticValue(const motion::Animatable<T>& value) {
 }
 
 bool ruleCanHold(Property property, const ElementNode& node) {
-  const PaintProps& paint = node.paint;
+  const PaintProps& paint = node.fields.paint();
   switch (property) {
     case Property::Fill:
       // A paint resolved against the box it lands on travels in the
@@ -437,7 +437,7 @@ std::unique_ptr<const RuleLayer> ruleLayerOf(
   std::unique_ptr<RuleLayer> layer;
   for (const Rule* rule : matched) {
     const ElementNode& stated = *rule->node();
-    if (stated.declared.empty()) continue;
+    if (stated.fields.declared().empty()) continue;
     // The rule's own declarations, verbatim: the same fields a node's
     // style is filled from, so one row of `copyProperty` moves a property
     // out of either.
@@ -445,11 +445,13 @@ std::unique_ptr<const RuleLayer> ruleLayerOf(
     bool filled = false;
     for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
       const auto property = (Property)i;
-      if (!stated.declared.has(property) || !carriedByLayer(property)) continue;
+      if (!stated.fields.declared().has(property) || !carriedByLayer(property))
+        continue;
       if (!layer) layer = std::make_unique<RuleLayer>();
       if (const std::optional<sigil::weave::Keyword> keyword =
-              stated.keywords ? stated.keywords->find(property)
-                              : std::nullopt) {
+              stated.fields.keywords()
+                  ? stated.fields.keywords()->find(property)
+                  : std::nullopt) {
         layer->keywords.set(property, *keyword);
         layer->declared.set(property);
         if (property == Property::Fill) layer->material.reset();
@@ -460,10 +462,10 @@ std::unique_ptr<const RuleLayer> ruleLayerOf(
         continue;
       }
       if (!filled) {
-        values.layout = stated.layout;
-        values.paint = stated.paint;
-        values.corners = stated.corners;
-        values.clipContent = stated.clipContent;
+        values.layout = stated.fields.layout();
+        values.paint = stated.fields.paint();
+        values.corners = stated.fields.corners();
+        values.clipContent = stated.fields.clipContent();
         filled = true;
       }
       copyProperty(property, values, layer->values);
@@ -507,17 +509,18 @@ bool ruleLayerEqual(const RuleLayer* a, const RuleLayer* b) {
 
 void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
                   ComputedStyle& out, const RuleLayer* rules) {
-  out.layout = node.layout;
-  out.paint = node.paint;
-  out.corners = node.corners;
-  out.clipContent = node.clipContent;
+  out.layout = node.fields.layout();
+  out.paint = node.fields.paint();
+  out.corners = node.fields.corners();
+  out.clipContent = node.fields.clipContent();
   // THE MATCHED RULES, under the node's own verbs: a property the node
   // states stands, and one it leaves unsaid takes the strongest rule's
   // statement of it.
   if (rules != nullptr)
     for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
       const auto property = (Property)i;
-      if (rules->declared.has(property) && !node.declared.has(property) &&
+      if (rules->declared.has(property) &&
+          !node.fields.declared().has(property) &&
           !rules->keywords.find(property))
         copyProperty(property, rules->values, out);
     }
@@ -531,11 +534,11 @@ void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
   // nothing else to write.
   if (parent != nullptr)
     for (const Property property : kInherited)
-      if (!node.declared.has(property) &&
+      if (!node.fields.declared().has(property) &&
           (rules == nullptr || !rules->declared.has(property)))
         copyProperty(property, *parent, out);
   const bool ruleKeywords = rules != nullptr && !rules->keywords.empty();
-  if (!node.keywords && !ruleKeywords) return;
+  if (!node.fields.keywords() && !ruleKeywords) return;
   // The initial value of every property is the value its field carries on
   // a node nobody wrote to, so one default style IS the whole table of
   // them. A root, which has no parent, inherits from the same place: there
@@ -556,9 +559,9 @@ void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
   // own keyword is its own statement and stands over every rule.
   if (ruleKeywords)
     for (const auto& entry : rules->keywords.entries())
-      if (!node.declared.has(entry.field)) resolve(entry);
-  if (node.keywords)
-    for (const auto& entry : node.keywords->entries()) resolve(entry);
+      if (!node.fields.declared().has(entry.field)) resolve(entry);
+  if (node.fields.keywords())
+    for (const auto& entry : node.fields.keywords()->entries()) resolve(entry);
 }
 
 }  // namespace detail
