@@ -343,7 +343,9 @@ features and one more restates them. `Type::decorations`,
 same way. A decoration that names no colour is drawn in the colour the
 text is set in, so an underline stated once stands under every colour; a
 pass whose paint colour is transparent is drawn in the colour the text is
-set in, on its own stroke, blur and offset.
+set in, on its own stroke, blur and offset. `Type::baselineShift` is
+`PaintStyle::baselineShift` as a partial field: placement rather than
+shaping, so a partial that states it and nothing shaping is a repaint.
 
 ### Resolving one
 

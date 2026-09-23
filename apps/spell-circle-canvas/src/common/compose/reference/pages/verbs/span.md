@@ -32,8 +32,9 @@ text(copy)
 
 **It re-shapes only where a shaping field was declared, and only the
 words the range covers.** A face, a size, a weight or a tracking is a
-reshape; a colour, a decoration, a pass or a paint alone is a repaint,
-which never re-shapes and never relayouts. The shaping cache is
+reshape; a colour, a decoration, a pass, a paint or a baseline shift
+(`font({.baselineShift = 4})`) alone is a repaint, which never re-shapes
+and never relayouts. The shaping cache is
 content-addressed, so the rest of the paragraph is reused as it stands.
 A size in ems is of the style the range is set in.
 

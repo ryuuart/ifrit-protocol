@@ -107,7 +107,7 @@ the range keeps. It re-shapes **only where a shaping field was declared**:
 
 | what the span states | re-shapes |
 | --- | --- |
-| an ink, a decoration, a pass — paint alone | never |
+| an ink, a decoration, a pass, a baseline shift — paint and placement alone | never |
 | a face, a size, a weight, a tracking, a feature | the words its range covers — unless the only change is advance-invariant axes |
 
 Spans are an ordered list — a LATER DECLARATION WINS on overlap, so a broad

@@ -137,6 +137,28 @@ TEST(TextSpans, APaintSpanRecolorsWithoutReshaping) {
   EXPECT_GT(countColor(host, band, SK_ColorWHITE), 10) << "everything else";
 }
 
+TEST(TextSpans, ABaselineShiftSpanMovesItsRangeWithoutReshaping) {
+  // Placement, not shaping: the glyphs are the ones the text shaped, and
+  // the digits alone stand higher on their line.
+  const sigil::weave::TextStyle base = coloredStyle(28, SK_ColorWHITE);
+  const std::u8string body = u8"Count 1234 now";
+  Host plain(400, 120);
+  plain.composer.render(
+      box().padding(10).children({text(body, base).key("t")}));
+  plain.frame();
+  Host raised(400, 120);
+  raised.composer.render(box().padding(10).children(
+      {text(body, base)
+           .span(sigil::weave::selectors::regex(u8"[0-9]+"),
+                 Declarations().font({.baselineShift = 8.0f}))
+           .key("t")}));
+  raised.frame();
+  EXPECT_EQ(runShapes(raised, "t"), runShapes(plain, "t"))
+      << "a baseline shift re-shaped a word";
+  EXPECT_FALSE(identicalPixels(plain, raised, 400, 120))
+      << "the digits stand where they stood";
+}
+
 TEST(TextSpans, ASizeSpanReshapesOnlyTheWordsItCovers) {
   Host host(400, 160);
   const sigil::weave::TextStyle base = coloredStyle(24, SK_ColorWHITE);

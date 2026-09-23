@@ -198,6 +198,15 @@ TEST(Type, WeightAndSlantBecomeAxesAndTheExtraVariationsFollowThem) {
   EXPECT_EQ(s.shaping.variations[2], FontVariation("wdth", 75));
 }
 
+TEST(Type, ABaselineShiftIsPlacementAndNeverReshapes) {
+  const Type shifted{.baselineShift = 6.0f};
+  EXPECT_FALSE(reshapes(shifted));
+  EXPECT_FALSE(shifted.empty());
+  EXPECT_EQ(overlay(TextStyle{}, shifted).paint.baselineShift, 6.0f);
+  EXPECT_EQ(textStyle(shifted).paint.baselineShift, 6.0f);
+  EXPECT_EQ(textStyle({}).paint.baselineShift, 0.0f);
+}
+
 TEST(Type, TheEightBitLadderQuantisesWhereTheFloatOneDoesNot) {
   const SkColor4f c{0.4f, 0.4f, 0.4f, 1};
   EXPECT_EQ(textStyle({.color = c}).paint.foreground.getColor4f(), c);

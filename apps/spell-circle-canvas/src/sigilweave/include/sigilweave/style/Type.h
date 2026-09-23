@@ -51,6 +51,7 @@ enum class TypeField : uint8_t {
   Decorations,
   Underlays,
   Overlays,
+  BaselineShift,
   kCount
 };
 
@@ -137,6 +138,10 @@ struct Type {
    *  set in, on its own stroke, blur and offset. */
   std::optional<std::vector<PaintLayer>> underlays;
   std::optional<std::vector<PaintLayer>> overlays;
+  /** How far the glyphs sit ABOVE their line's baseline, px; negative
+   *  sinks them below it (PaintStyle::baselineShift). Placement rather
+   *  than shaping, so stating it never re-shapes. */
+  std::optional<float> baselineShift;
 
   /** The fields written as `inherit`, `initial` or `unset` rather than as
    *  a value. `overlay` resolves them against the style in force above;
@@ -153,7 +158,7 @@ struct Type {
            !slant && !aliased && !antiAlias && !color8 && variations.empty() &&
            !language && !features && !opticalKerning && !wordSpacing &&
            !textTransform && !verticalForm && !decorations && !underlays &&
-           !overlays && keywords.empty();
+           !overlays && !baselineShift && keywords.empty();
   }
 };
 

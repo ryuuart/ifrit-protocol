@@ -416,7 +416,8 @@ void bindValues(py::module_& module) {
       .value("VerticalForm", weave::TypeField::VerticalForm)
       .value("Decorations", weave::TypeField::Decorations)
       .value("Underlays", weave::TypeField::Underlays)
-      .value("Overlays", weave::TypeField::Overlays);
+      .value("Overlays", weave::TypeField::Overlays)
+      .value("BaselineShift", weave::TypeField::BaselineShift);
   auto length = py::class_<weave::Length>(weave, "Length");
   py::enum_<weave::Length::Unit>(length, "Unit")
       .value("Px", weave::Length::Unit::Px)
@@ -442,8 +443,7 @@ void bindValues(py::module_& module) {
       .def("ch", &weave::ch, py::arg("value"))
       .def("pt", &weave::pt, py::arg("value"));
   auto type = py::class_<weave::Type>(weave, "Type");
-  type
-      .def(py::init([](py::kwargs kwargs) {
+  type.def(py::init([](py::kwargs kwargs) {
         return keywordValue<weave::Type>(kwargs, "Unknown Type field: ");
       }))
       .def_readwrite("face", &weave::Type::face)
@@ -509,6 +509,7 @@ void bindValues(py::module_& module) {
              std::optional<std::vector<weave::PaintLayer>> value) {
             self.overlays = std::move(value);
           })
+      .def_readwrite("baselineShift", &weave::Type::baselineShift)
       .def("empty", &weave::Type::empty)
       .def("copy", [](const weave::Type& self) { return self; })
       .def(py::self == py::self);

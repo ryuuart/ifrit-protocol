@@ -146,7 +146,8 @@ is spelled once whichever side says it. A rule states:
   `absolute`, `inset`, `left`, `gridCells` and the rest;
 - the corners and the overflow, the fill, `opacity` and `blendMode`,
   the 2D transform and `zIndex`;
-- the cascade — `font`, `block`, `ink`, `var`, `varDefaults`,
+- the cascade — `font` and `block` with their longhands (`fontSize`,
+  `lineHeight`, `textAlign` and the rest), `ink`, `var`, `varDefaults`,
   `imageRendering` — and `inherit`, `initial` and `unset` about any
   property;
 - the TEXT PROPERTIES, which an element cannot state: `maxTextLines`,

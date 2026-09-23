@@ -134,6 +134,9 @@ void applyKeyword(Type& total, const Type& base, TypeField field,
     case TypeField::Overlays:
       total.overlays = from.overlays;
       return;
+    case TypeField::BaselineShift:
+      total.baselineShift = from.baselineShift;
+      return;
     case TypeField::kCount:
       return;
   }
@@ -171,6 +174,7 @@ Type initialType() {
   initial.decorations = std::vector<Decoration>{};
   initial.underlays = std::vector<PaintLayer>{};
   initial.overlays = std::vector<PaintLayer>{};
+  initial.baselineShift = 0.0f;
   return initial;
 }
 
@@ -196,6 +200,7 @@ Type& merge(Type& into, const Type& over) {
   if (over.decorations) into.decorations = over.decorations;
   if (over.underlays) into.underlays = over.underlays;
   if (over.overlays) into.overlays = over.overlays;
+  if (over.baselineShift) into.baselineShift = over.baselineShift;
   // The keywords ACCUMULATE and are not applied: a merge folds two
   // partials into one partial, and there is no style in force here to
   // resolve `inherit` against. `overlay` is where they land.
@@ -265,6 +270,7 @@ TextStyle toTextStyle(const Type& total) {
   if (total.decorations) style.paint.decorations = *total.decorations;
   if (total.underlays) style.paint.underlays = *total.underlays;
   if (total.overlays) style.paint.overlays = *total.overlays;
+  style.paint.baselineShift = total.baselineShift.value_or(0.0f);
   return style;
 }
 
@@ -303,6 +309,7 @@ TextStyle overlay(TextStyle base, const Type& over) {
   if (over.decorations) base.paint.decorations = *over.decorations;
   if (over.underlays) base.paint.underlays = *over.underlays;
   if (over.overlays) base.paint.overlays = *over.overlays;
+  if (over.baselineShift) base.paint.baselineShift = *over.baselineShift;
   return base;
 }
 
@@ -318,6 +325,7 @@ bool reshapes(const Type& partial) {
       case TypeField::Decorations:
       case TypeField::Underlays:
       case TypeField::Overlays:
+      case TypeField::BaselineShift:
       case TypeField::kCount:
         break;
       default:
