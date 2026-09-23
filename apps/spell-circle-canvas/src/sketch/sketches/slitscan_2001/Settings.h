@@ -142,7 +142,7 @@ constexpr material::Color kRed{0.769f, 0.220f, 0.180f, 1};    // #C4382E
 constexpr material::Color kSolid{0.106f, 0.090f, 0.078f, 1};  // #1B1714
 constexpr material::Color kTick{0.494f, 0.455f, 0.408f, 1};
 constexpr material::Color kBlack{0, 0, 0, 1};  // "the room was painted
-                                         //  totally black" [C85]
+                                               //  totally black" [C85]
 constexpr material::Color kWhite{1, 1, 1, 1};
 
 // The gels. RECONSTRUCTED from the process -- saturated subtractive filters
@@ -190,7 +190,7 @@ using instrument::uiFace;
  *  panel's mono in the type-2 ink, the masthead's interface face, the
  *  film frame's 8 px tracked 0.6 — naming only what differs. */
 inline Element t(std::string_view line, weave::Type partial) {
-  return text(line).font(std::move(partial));
+  return document::paragraph(line).font(std::move(partial));
 }
 
 /** The quotation register: the interface face, condensed 0.94 with 0.4

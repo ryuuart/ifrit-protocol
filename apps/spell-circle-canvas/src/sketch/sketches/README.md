@@ -142,7 +142,7 @@ were read off; the rule above is written for all of them.
 | `dunhuang_star_chart` | BL Or.8210/S.3326, the Dunhuang star chart (c. 649–684) | Reprojected from 1,460 real stars and the published projection, then checked against the published identifications — and it refuses to answer where the source does |
 | `eva_magi_defense` | [*The End of Evangelion*'s MAGI defense plate](https://static.wikia.nocookie.net/evangelion/images/f/f6/Magi_%28EoE%29.png) (1997) | Six installations as one component, rotated |
 | `eva_magi_deliberation` | [Evangelion's MAGI deliberation plate](https://assets.fontsinuse.com/use-media/97461/upto-700xauto/69b54994/1/jpeg/14_95tv_FUI_2.jpeg) | One routed system: a rear circular bus, three rotated instances of one square module, and an information layer over both |
-| `eva_magi_interior` | Evangelion Ep 13, the MAGI under Ireul | The camera roll as the projection; the infection as a shader |
+| `eva_magi_interior` | Evangelion MAGI internal architecture and Ep 13 infection diagnostics | Concentric neural registers, a protected personality core and a live memory-cell infection field |
 | `lain_navi` | *Serial Experiments Lain*'s Copland OS | No opaque window anywhere, and text through a fixed focal plane |
 | `sigillum_aemeth` | Dee's Sigillum Dei Aemeth (1582), Sloane MS 3188 f. 30r | Solved from the angels' own jump rule — 33 of 40 cells — and the wax disc's burnish drawn |
 | `thaumonomicon` | Thaumcraft 6's research browser (2018) | Edges that are stamped art, not strokes |
@@ -160,8 +160,9 @@ directory reaches for them, so a rename has somewhere to be noticed:
 | `guest_body` | `guest_picture`'s subject on a BODY: the same publication in a surface's base-colour slot, on a screen turning in a lit set. `publish/README.md` points at it as what a subscription looks like on a body, and its plate is the waiting card it paints itself, because a capture subscribes to nothing. |
 | `alpha_ground` | The one sketch grounded in `{0, 0, 0, 0}`: what `sketch_transparent_ground` sweeps, on the raster surface and the device, to prove a ground's alpha survives the clear, and what the publication door in `../README.md` points at as a frame meant to be composited. `python_alpha_ground` is its twin. |
 
-The Evangelion studies share their type and phosphor treatment in
-`eva_magi_interior/EvangelionUi.h`. Japanese display type prefers an installed Matisse EB;
+The Evangelion studies share their type and whole-screen CRT treatment in
+`eva_magi_interior/EvangelionUi.h`. The screen uses SigilMaterial's CRT kit
+preset for curvature, RGB spread, bloom, raster lines and grain. Japanese display type prefers an installed Matisse EB;
 otherwise it uses a heavy Japanese Mincho face. Noto Serif JP Black supplies
 the fallback on the development machine. The fallback preserves Japanese
 glyph forms but is not an exact substitute for Matisse.

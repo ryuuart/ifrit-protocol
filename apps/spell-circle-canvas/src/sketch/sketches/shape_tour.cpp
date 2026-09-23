@@ -77,11 +77,11 @@ sketch::kit::Theme sheetTheme() {
   look.palette.ink = {0.114f, 0.106f, 0.098f, 1};
   look.palette.ash = {0.376f, 0.365f, 0.345f, 1};
   look.palette.rule = {0.749f, 0.733f, 0.706f, 1};
-  look.type.title = {.size = 15, .track = 2};
-  look.type.subtitle = {.size = 11, .track = 0.5f};
+  look.type.title = {.size = 32};
+  look.type.subtitle = {.size = 15};
   look.type.footer = {.size = 10, .track = 0.2f};
   look.type.captionLabel = {.size = 11, .track = 0.4f};
-  look.type.captionNote = {.size = 9.5f, .track = 0.2f};
+  look.type.captionNote = {.size = 11.5f};
   look.captionWhere = kit::Caption::Where::Below;
   look.spacing.marginX = 30;
   look.spacing.marginTop = 22;
@@ -131,7 +131,7 @@ struct ShapeShelf {
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // A generator is a pure function of its parameters and the box.
-    sketch::kit::stage(ctx, {.size = {1120, 840}, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.size = {1120, 980}, .captureAt = 0.05});
 
     Element generators = kit::cells(
         {.cells =
@@ -215,18 +215,11 @@ struct ShapeShelf {
          .gap = 16});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE SILHOUETTE SHELF · every shapes:: "
-                  "generator, at two sizes",
-         .subtitle = "one comparable VALUE per cell, drawn at 96 px "
-                     "and at 44 px from the same parameters "
-                     "— a generator is written in the "
-                     "box's coordinates, so the small copy is a "
-                     "construction and not a scaling",
-         .footer = "closed figures are filled and outlined; the "
-                   "open ones are stroked only, since an open path "
-                   "has no inside · anything with "
-                   "path(SkSize) and operator== belongs on this "
-                   "shelf"},
+        {.title = "The silhouette shelf",
+         .subtitle = "24 generators, each drawn at 96 px and 44 px from the "
+                     "same parameters.",
+         .footer = "Filled silhouettes and open curves / pixel-based corners "
+                   "change proportion at the smaller size."},
         std::move(generators)));
   }
 };

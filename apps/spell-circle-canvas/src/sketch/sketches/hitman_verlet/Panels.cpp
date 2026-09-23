@@ -16,18 +16,15 @@ auto HitmanVerlet::panelA1() -> Element {
   const sigil::data::Json& a1 = doc()["a1"];
   return panel(kPanelAH[0], a1["heading"].text(), 1)
       .gap(4)
-      .children({t(a1["law"],
-                   monoB(12.0f, sigil::material::skia::toSkColor(kBone), 0.2f))
-                     .height(16)
-                     .flexShrink(0),
-                 each(a1["code"].items(),
-                      [this](const sigil::data::Json& line) {
-                        return codeLine(line, kBlue);
-                      }),
-                 box().flexGrow(1), t(a1["alarm"], ui(7.5f, kRed, 0.5f)),
-                 t(a1["working"],
-                   mono(7.5f, sigil::material::skia::toSkColor(kSteel), 0.1f)),
-                 t(a1["note"], ui(7.0f, kTick, 0.4f))});
+      .children(
+          {t(a1["law"], monoB(12.0f, kBone, 0.2f)).height(16).flexShrink(0),
+           each(a1["code"].items(),
+                [this](const sigil::data::Json& line) {
+                  return codeLine(line, kBlue);
+                }),
+           box().flexGrow(1), t(a1["alarm"], ui(7.5f, kRed, 0.5f)),
+           t(a1["working"], mono(7.5f, kSteel, 0.1f)),
+           t(a1["note"], ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::panelA2() -> Element {
@@ -284,13 +281,26 @@ auto HitmanVerlet::header() -> Element {
                                                        .delay = 120ms})};
   const sigil::data::Json& head = doc()["header"];
   return box().column().height(kHeaderH).flexShrink(0).gap(3).children(
-      {t(head["eyebrow"], ui(10.0f, kSteel, 2.6f))
+      {document::eyebrow(head["eyebrow"])
+           .font({.face = uiFace(),
+                  .size = 10.0f,
+                  .color = kSteel,
+                  .track = 2.6f})
            .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
            .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
-       t(head["title"], faced(heavyFace(), 42, kBone, -0.3f))
+       document::h1(head["title"])
+           .font({.face = heavyFace(),
+                  .size = 42,
+                  .color = kBone,
+                  .track = -0.3f})
            .key("title")
            .textFx(std::move(rise)),
-       t(head["credit"], ui(10.5f, kSteel, 0.1f))
+       document::lead(head["credit"])
+           .font({.face = uiFace(),
+                  .size = 10.5f,
+                  .color = kSteel,
+                  .track = 0.1f})
+           .width(690)
            .opacity(animate(from(0.0f).to(1.0f),
                             {.duration = 240ms, .delay = 400ms})),
        box().flexGrow(1),

@@ -64,6 +64,7 @@
 
 // TAGS: Typography/Effects, Materials/Shaders
 
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
@@ -95,7 +96,7 @@ using namespace sigil::compose;
 namespace {
 
 constexpr float kW = 1000.0f;
-constexpr float kH = 430.0f;
+constexpr float kH = 500.0f;
 
 // ---- the cycle -------------------------------------------------------------
 constexpr double kLoop = 9.6;     // one full decode + hold + burn-off
@@ -117,7 +118,7 @@ const material::Color kPlate{0.027f, 0.024f, 0.031f, 1};
 const material::Color kInk{0.96f, 0.91f, 0.82f, 1};    // the resolved letter
 const material::Color kEmber{1.00f, 0.47f, 0.13f, 1};  // the crossing band
 const material::Color kLabel{0.62f, 0.55f, 0.50f, 1};
-const material::Color material::skia::toSkColor(kFaint){0.38f, 0.33f, 0.31f, 1};
+const material::Color kFaint{0.66f, 0.60f, 0.55f, 1};
 
 // ---------------------------------------------------------------------------
 // The pass
@@ -251,10 +252,10 @@ struct EmberDecode {
         .fill(mskia::Paint::solid(kPlate))
         // The faint remark is the sheet's own voice: every line is set in it
         // unless it says otherwise.
-        .font({.size = 10.5f, .color = kFaint, .track = 0.8f})
+        .font({.size = 14.0f, .color = kFaint})
         .children(
-            {text("TEXT AS A SAMPLER · ONE SkSL PASS OVER ONE RENDERED LINE")
-                 .font({.size = 11.5f, .color = kLabel, .track = 1.6f}),
+            {document::eyebrow("TEXT AS A SAMPLER / ONE PASS, MANY CLOCKS")
+                 .font({.size = 14, .color = kFaint, .track = 1.2f}),
              text(u8"EMBER DECODE")
                  .font(burnt(78, 5.0f))
                  .key("burn-display")
@@ -262,9 +263,9 @@ struct EmberDecode {
                           .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
                           .unit = weave::Unit::Cluster,
                           .progress = &display}),
-             text("uUnitRect[N] · uUnitPhase[N] — a LETTER "
-                  "is a unit; the bar under each one is the progress that "
-                  "unit's uniform carries, read back from beatsOf"),
+             document::paragraph("Each letter has its own clock. The bars read "
+                                 "back the same schedule that drives the burn.")
+                 .width(680),
              box().height(6),
              text(u8"ONE PASS PER WORD PHASE")
                  .font(burnt(27, 3.0f))
@@ -273,14 +274,14 @@ struct EmberDecode {
                           .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
                           .unit = weave::Unit::Word,
                           .progress = &words}),
-             text("the same pass, the same source at another count "
-                  "— a WORD is a unit here, and the "
-                  "runtime compiled and cached one variant per "
-                  "count"),
+             document::paragraph("Each word is a unit here. The shader stays "
+                                 "the same; its schedule changes.")
+                 .width(680),
              box().flexGrow(1),
-             text("one draw and one pass over each line's own box, "
-                  "whatever N is · per-unit progress is "
-                  "uniform DATA, not scene structure"),
+             document::caption("A single pass reads unit bounds and progress "
+                               "from uniform arrays.")
+                 .font({.size = 13})
+                 .width(760),
              // Last in the block, so the bars paint over the lines.
              stack().key("meter").inset(0).hitTestable(false).children(
                  {each(beats, readBack)})});

@@ -58,6 +58,7 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/kit/Connect.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -65,7 +66,6 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/sdf/Sdf.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Heading.h>
@@ -296,10 +296,9 @@ struct PassiveTree {
     const float dia = pt::diameterOf(n.kind);
     const bool alloc = n.state == treedata::State::Allocated;
     const bool can = n.state == treedata::State::CanAllocate;
-    const sdf::Style st{.fill = material::skia::toSkColor(pt::kSocket),
+    const sdf::Style st{.fill = pt::kSocket,
                         .borderWidth = alloc ? 2.6f : 1.9f,
-                        .borderColor = mskia::toColor(
-                            material::skia::toSkColor(pt::ringColor(n.state))),
+                        .borderColor = pt::ringColor(n.state),
                         .glowRadius = can ? 12.0f : (alloc ? 11.0f : 0.0f),
                         .glowColor = {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
                                       alloc ? 0.45f : 0.40f}};
@@ -323,15 +322,14 @@ struct PassiveTree {
     const bool alloc = n.state == treedata::State::Allocated;
     const bool can = n.state == treedata::State::CanAllocate;
     const material::Color ring = pt::ringColor(n.state);
-    const sdf::Style outer{
-        .fill = material::skia::toSkColor(pt::kSocket),
-        .borderWidth = alloc ? 3.2f : 2.4f,
-        .borderColor = material::skia::toSkColor(ring),
-        .glowRadius = 14,
-        .glowColor = {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
-                      alloc ? 0.5f
-                      : can ? 0.4f
-                            : 0.0f}};
+    const sdf::Style outer{.fill = pt::kSocket,
+                           .borderWidth = alloc ? 3.2f : 2.4f,
+                           .borderColor = ring,
+                           .glowRadius = 14,
+                           .glowColor = {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
+                                         alloc ? 0.5f
+                                         : can ? 0.4f
+                                               : 0.0f}};
     const std::string key = nodeKey(i);
     Element frame =
         pt::socket(key.c_str(), at, dia, outer, can ? &breath : nullptr);
@@ -344,11 +342,10 @@ struct PassiveTree {
     // The well is never empty in the real thing — a cast sigil sits in it.
     parent.children(
         {std::move(frame),
-         pt::socket(nullptr, at, dia - 11,
-                    {.fill = {0, 0, 0, 0},
-                     .borderWidth = 1.6f,
-                     .borderColor = material::skia::toSkColor(ring)},
-                    nullptr, 4),
+         pt::socket(
+             nullptr, at, dia - 11,
+             {.fill = {0, 0, 0, 0}, .borderWidth = 1.6f, .borderColor = ring},
+             nullptr, 4),
          box()
              .width(dia + 10)
              .height(dia + 10)
@@ -367,8 +364,7 @@ struct PassiveTree {
              .height(dia * 0.50f)
              .centerAt(at)
              .shape(shapes::star(4, 0.34f))
-             .fill(Paint::solid(
-                 {ring.r, ring.g, ring.b, alloc ? 0.95f : 0.6f}))
+             .fill(Paint::solid({ring.r, ring.g, ring.b, alloc ? 0.95f : 0.6f}))
              .zIndex(4)});
   }
 
@@ -408,7 +404,7 @@ struct PassiveTree {
     // A keystone's plate carries the heaviest sigil in the tree.
     parent.children(
         {pt::socket(nullptr, at, dia - 6,
-                    {.fill = material::skia::toSkColor(pt::kSocket),
+                    {.fill = pt::kSocket,
                      .borderWidth = 0,
                      .glowRadius = 22,
                      .glowColor = {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
@@ -430,16 +426,14 @@ struct PassiveTree {
              .height(dia - 11)
              .centerAt(at)
              .shape(shapes::polygon(8, 22.5f))
-             .stroke(
-                 stroke(1.2f, Fill::color({ring.r, ring.g, ring.b, 0.6f})))
+             .stroke(stroke(1.2f, Fill::color({ring.r, ring.g, ring.b, 0.6f})))
              .zIndex(4),
          box()
              .width(dia + 16)
              .height(dia + 16)
              .centerAt(at)
              .shape(pt::notchRing(16, 0.86f, 1.0f))
-             .stroke(
-                 stroke(1.3f, Fill::color({ring.r, ring.g, ring.b, 0.55f})))
+             .stroke(stroke(1.3f, Fill::color({ring.r, ring.g, ring.b, 0.55f})))
              .zIndex(4),
          box()
              .width(dia * 0.60f)
@@ -514,9 +508,8 @@ struct PassiveTree {
                  .height(r * 2)
                  .centerAt({g.x, g.y})
                  .shape(pt::circleOutline())
-                 .stroke(
-                     stroke(1.0f, Fill::color({pt::kPewter.r, pt::kPewter.g,
-                                               pt::kPewter.b, 0.30f})))
+                 .stroke(stroke(1.0f, Fill::color({pt::kPewter.r, pt::kPewter.g,
+                                                   pt::kPewter.b, 0.30f})))
                  .zIndex(0)});
       }
     }
@@ -540,17 +533,16 @@ struct PassiveTree {
         }
     if (best < 0) return;
     const treedata::Group& g = treedata::kGroups[best];
-    root.children(
-        {box()
-             .width(bestR * 2)
-             .height(bestR * 2)
-             .centerAt({g.x, g.y})
-             .shape(pt::circleOutline())
-             .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
-                     brush::presets::pulse(
-                         {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b, 0.22f},
-                         {1, 1, 1, 0.75f}, 0.72f))
-             .zIndex(2)});
+    root.children({box()
+                       .width(bestR * 2)
+                       .height(bestR * 2)
+                       .centerAt({g.x, g.y})
+                       .shape(pt::circleOutline())
+                       .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
+                               brush::presets::pulse({pt::kHalo.r, pt::kHalo.g,
+                                                      pt::kHalo.b, 0.22f},
+                                                     {1, 1, 1, 0.75f}, 0.72f))
+                       .zIndex(2)});
   }
 
   /** Every link is a wire between the two sockets it joins. Same-group /
@@ -643,20 +635,20 @@ struct PassiveTree {
     // wires over ONE run of stops, so each states the key it is addressed
     // by rather than taking the run's own.
     root.operators(
-        {Operator(connect::Along{
-                      .stops = anchors,
-                      .wire = brush::presets::rope(2, pt::kRopeScale),
-                      .where = spans::upTo(
-                          animate(motion::from(0.0f).to(1.0f), {900ms})),
-                      .key = "spine"})
+        {Operator(
+             connect::Along{.stops = anchors,
+                            .wire = brush::presets::rope(2, pt::kRopeScale),
+                            .where = spans::upTo(
+                                animate(motion::from(0.0f).to(1.0f), {900ms})),
+                            .key = "spine"})
              .zIndex(2),
-         Operator(connect::Along{
-                      .stops = anchors,
-                      .wire = brush::presets::pulse(
-                          {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b, 0.35f},
-                          {1, 1, 1, 0.9f}, 1.25f),
-                      .where = spans::range(&pulseS, &pulseE),
-                      .key = "spine-packet"})
+         Operator(
+             connect::Along{.stops = anchors,
+                            .wire = brush::presets::pulse(
+                                {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b, 0.35f},
+                                {1, 1, 1, 0.9f}, 1.25f),
+                            .where = spans::range(&pulseS, &pulseE),
+                            .key = "spine-packet"})
              .zIndex(2)});
   }
 
@@ -727,9 +719,9 @@ struct PassiveTree {
             .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
             .translateY(animate(motion::from(10.0f).to(0.0f), {520ms}))
             .children(
-                {text(detail->name)
+                {document::h2(detail->name)
                      .font({.size = 17, .color = pt::kHalo, .track = 2.4f}),
-                 text(detail->kind)
+                 document::label(detail->kind)
                      .font({.size = 9.5f, .track = 3.2f})
                      .margin(3, 0, 0, 0),
                  box()
@@ -757,7 +749,7 @@ struct PassiveTree {
                    .borderRadius({1.5f})
                    .fill(Paint::solid(
                        {pt::kRimLit.r, pt::kRimLit.g, pt::kRimLit.b, 0.9f})),
-               text(line)
+               document::paragraph(line)
                    .font({.size = 12,
                           .color = material::Color{0.62f, 0.68f, 0.90f, 1},
                           .track = 0.2f})
@@ -765,20 +757,20 @@ struct PassiveTree {
     })});
     if (detail->flavour)
       card.children(
-          {text(detail->flavour)
+          {document::caption(detail->flavour)
                .font({.size = 11.5f,
                       .color = material::Color{0.42f, 0.38f, 0.32f, 1},
                       .track = 0.3f,
                       .slant = -10.0f})
                .margin(9, 0, 0, 0)});
     // the leader from the card back to the node it describes
-    root.operators({Operator(connect::Along{
-                                 .stops = {{"detail"}, {nodeKey(sel)}},
-                                 .wire = stroke(
-                                     1.0f, Fill::color({pt::kGold.r,
-                                                        pt::kGold.g,
-                                                        pt::kGold.b, 0.35f}))})
-                        .zIndex(6)});
+    root.operators(
+        {Operator(
+             connect::Along{
+                 .stops = {{"detail"}, {nodeKey(sel)}},
+                 .wire = stroke(1.0f, Fill::color({pt::kGold.r, pt::kGold.g,
+                                                   pt::kGold.b, 0.35f}))})
+             .zIndex(6)});
     root.children({card.key("detail")});
   }
 

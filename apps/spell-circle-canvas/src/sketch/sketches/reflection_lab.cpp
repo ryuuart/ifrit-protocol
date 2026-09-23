@@ -181,7 +181,7 @@ struct ReflectionLab {
                               .table = {.radius = 700.0f,
                                         .height = 250.0f,
                                         .period = 0.0f,
-                                        .fovYDeg = 46.0f},
+                                        .fovYDeg = 32.0f},
                               .ground = 0.0f};
     return world::Frame(world::kit::litSet(
         world::Element().key("study").children({dome, row}), set, seconds));

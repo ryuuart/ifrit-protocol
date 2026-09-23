@@ -106,11 +106,11 @@ const material::Color kAiWash{kAi.r, kAi.g, kAi.b, 0.13f};
 inline weave::PaintStyle banded(material::Color ink,
                                 weave::Decoration::Kind kind,
                                 material::Color band, float thickness) {
-  weave::PaintStyle p(sigil::material::skia::toSkColor(ink).toSkColor());
+  weave::PaintStyle p(material::skia::toSkColor(ink).toSkColor());
   p.foreground.setAntiAlias(true);
   weave::Decoration decoration;
   decoration.kind = kind;
-  decoration.color = sigil::material::skia::toSkColor(band).toSkColor();
+  decoration.color = material::skia::toSkColor(band).toSkColor();
   decoration.thickness = thickness;
   p.addDecoration(decoration);
   return p;
@@ -280,13 +280,12 @@ struct Bousen {
                                     bs::body(26, bs::kSumi)),
                            specimen("valt · vpal · vkna",
                                     bs::columnFitted(26, bs::kAka))}),
-                      box().height(14.0f),
+                      box().height(6.0f),
                       document::caption(
-                          "the pair is one string set twice: the "
-                          "second asks\nthe face for the metrics it "
-                          "keeps for a column")
+                          "The same punctuation, twice. The second column "
+                          "requests the face's vertical forms.")
                           .font({.size = 11})
-                          .width(300.0f)}),
+                          .width(220.0f)}),
              // The cascade lives on its own strip, and it wears a band. A track
              // draws its glyphs itself, in batched buckets that carry glyphs
              // alone, so the sideline is drawn beside them at the placement the
@@ -309,12 +308,13 @@ struct Bousen {
                                               {std::chrono::milliseconds((
                                                    int)bs::kColumnEntranceSpan),
                                                &ch::easeNone, 220ms})}),
-             text("↑ this strip's entrance beats over\n"
-                  "weave::Unit::Line — one COLUMN a beat,\n"
-                  "and its band stands at rest")
+             document::caption("One column per beat.\n"
+                               "The sideline remains fixed while the "
+                               "letters arrive.")
+                 .font({.size = 11})
                  .absolute()
-                 .inset(466, 0, 0, 300)
-                 .width(180.0f),
+                 .inset(450, 0, 0, 330)
+                 .width(155.0f),
              // The three conventions, each on a column of its own, so the page
              // shows them side by side instead of naming them in a footer.
              box()

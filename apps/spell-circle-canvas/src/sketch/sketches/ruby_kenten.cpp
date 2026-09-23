@@ -214,12 +214,11 @@ struct RubyKenten {
                   box().height(6),
                   document::eyebrow("A READING IS PART OF THE TEXT")
                       .font({.size = 11, .color = f::kAi, .track = 3.0f}),
-                  document::lead("the band it needs is in the base's strut "
-                                 "before the base is broken, so the column "
-                                 "pitch opens once\nand the reading is "
-                                 "placed on the result")
+                  document::lead("Readings reserve their own band before "
+                                 "the text is broken into columns. "
+                                 "The column pitch makes room once.")
                       .font({.size = 10.5f})
-                      .width(430.0f)}),
+                      .width(340.0f)}),
              box()
                  .right(46)
                  .top(158)
@@ -227,26 +226,26 @@ struct RubyKenten {
                  .gap(20)
                  .justifyContent(Justify::End)
                  .children({f::column("KENTEN · CLUSTER",
-                                      "one sesame a character, reserving "
-                                      "nothing",
+                                      "A sesame mark for each\n"
+                                      "selected character.",
                                       std::move(kenten)),
                             f::column("JUKUGO · CLUSTER",
-                                      "the compound per character, each its "
-                                      "own reading",
+                                      "A reading for each\n"
+                                      "character in a compound.",
                                       std::move(jukugo)),
                             f::column("GROUP · WORD",
-                                      "one reading over the whole compound",
+                                      "One reading for the\nwhole compound.",
                                       std::move(group)),
                             f::column("MONO · CLUSTER",
-                                      "one reading a character; the pitch "
-                                      "opens to hold it",
+                                      "A reading per character;\n"
+                                      "the column makes room.",
                                       std::move(mono))}),
              std::move(splitCell),
              document::paragraph(
-                 "mono · group · jukugo are the UNIT "
-                 "and nothing else — the reading's size is "
-                 "its own type's, never a fraction of the base's")
+                 "Mono, group and jukugo choose the unit. "
+                 "Readings have their own type size, independent of the base.")
                  .left(52)
+                 .width(370)
                  .bottom(34)});
   }
 };

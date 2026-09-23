@@ -192,7 +192,7 @@ struct SharedSky {
                                    .children(std::move(parts));
     ctx.composer.render(sketch::kit::instrument(
         {.page = {.title = "A scene between processes.",
-                  .subtitle = "SHARED MEMORY / SCHEMA  /  One process writes "
+                  .subtitle = "SHARED MEMORY / JSON  /  One process writes "
                               "the sky. Another reads its newest state.",
                   .footer = "Run sender.py beside this sketch to send data  ·  "
                             "Captures replay the local recording"},

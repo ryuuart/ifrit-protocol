@@ -33,6 +33,8 @@
 #include <include/core/SkMatrix.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Operations.h>
@@ -99,7 +101,7 @@ struct PathBooleans {
     }
     // Row 2 left — offset rings, inward and outward from one blob.
     {
-      const SkPath base = at(shapes::squircle(3.0f), 70, {250, 400});
+      const SkPath base = at(shapes::squircle(3.0f), 70, {250, 424});
       for (int i = -2; i <= 3; ++i) {
         const SkPath ring = operations::offset(base, (float)i * 22.0f);
         outlinePath(pen, ring,
@@ -110,7 +112,7 @@ struct PathBooleans {
     }
     // Row 2 right — one recipe value, applied to one outline.
     {
-      const SkPath base = at(shapes::circle(), 80, {700, 400});
+      const SkPath base = at(shapes::circle(), 80, {700, 424});
       outlinePath(pen, base, {0.4f, 0.5f, 0.7f, 0.6f}, 1.5f);
       const operations::PathOperation recipe = operations::chain(
           {operations::offsetBy(18), operations::Zigzag{7, 30, true},
@@ -119,7 +121,7 @@ struct PathBooleans {
     }
     // Row 3 — the distort menu over one base star.
     {
-      const float y = 640;
+      const float y = 710;
       const SkPath base = shapes::star(6, 38.0f / 70.0f)
                               .path({140, 140})
                               .makeTransform(SkMatrix::Translate(-70, -70));
@@ -149,13 +151,54 @@ struct PathBooleans {
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(
-        ctx, {.size = {1240, 720},
+        ctx, {.size = {1240, 980},
               .captureAt = 1.0,
               .background = material::Color{0.063f, 0.063f, 0.078f, 1}});
-    // Keyed on the sink's own name: everything `draw` reads is cooked
-    // above, in this setup, and nothing after it moves.
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    Element labels = box().inset(0);
+    const auto label = [&](const char* name, float x, float y, float width) {
+      labels.children(
+          {document::h2(name).font({.size = 17}).width(width).at({x, y})});
+    };
+    const char* booleans[] = {"Union", "Subtract", "Intersect", "Exclude"};
+    for (int i = 0; i < 4; ++i) label(booleans[i], 70 + i * 300, 315, 230);
+    label("Offset / inward and outward", 70, 651, 350);
+    label("A reusable operation chain", 538, 651, 360);
+    const char* distortions[] = {"Roughen", "Zigzag / sharp", "Zigzag / smooth",
+                                 "Pucker",  "Bloat",          "Twirl"};
+    for (int i = 0; i < 6; ++i) label(distortions[i], 45 + i * 200, 858, 185);
     ctx.composer.render(
-        pen("path.booleans", [this](draw::Pen& pen) { draw(pen); }).inset(0));
+        box()
+            .inset(0)
+            .applyStyleSheet(sketch::kit::theme().styleSheet())
+            .ink(sketch::kit::theme().palette.ink)
+            .children(
+                {pen("path.booleans", [this](draw::Pen& pen) { draw(pen); })
+                     .rect(SkRect::MakeXYWH(0, 60, 1240, 800)),
+                 document::h1("One outline, many operations")
+                     .font({.size = 32})
+                     .at({44, 28}),
+                 std::move(labels),
+                 box()
+                     .column()
+                     .gap(12)
+                     .width(250)
+                     .at({934, 423})
+                     .children(
+                         {document::eyebrow("CHAIN THE RESULT"),
+                          document::paragraph(
+                              "Offset adds a rim. A smooth zigzag ripples it. "
+                              "Seeded roughness breaks its regularity.")
+                              .font({.size = 17}),
+                          document::caption("Each result is another outline, "
+                                            "ready for the next operation.")
+                              .font({.size = 14})}),
+                 document::caption(
+                     "Faint contours show the original operands. The heavy "
+                     "offset ring is the unchanged outline.")
+                     .font({.size = 14})
+                     .width(1060)
+                     .at({44, 928})}));
   }
 };
 

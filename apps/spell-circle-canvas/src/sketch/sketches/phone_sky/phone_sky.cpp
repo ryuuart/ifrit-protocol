@@ -323,9 +323,8 @@ struct PhoneSky {
                              {"offset", toThePhone(phaseOf(index))}});
     data::Json::Array colours;
     for (const material::Color& tint : palette)
-      colours.push_back(data::Json::Array{toThePhone(tint.r),
-                                          toThePhone(tint.g),
-                                          toThePhone(tint.b), tint.a});
+      colours.push_back(data::Json::Array{
+          toThePhone(tint.r), toThePhone(tint.g), toThePhone(tint.b), tint.a});
     return data::Json::Object{{"kind", "Sky"},
                               {"width", (double)kCanvas.width()},
                               {"height", (double)kCanvas.height()},
@@ -363,8 +362,8 @@ struct PhoneSky {
                                    .children(std::move(parts));
     ctx.composer.render(sketch::kit::instrument(
         {.page = {.title = "Your phone is the control.",
-                  .subtitle = "WEBSOCKET / BROWSER  /  Open the address shown "
-                              "in the preview to change the scene.",
+                  .subtitle = "WEBSOCKET / BROWSER  /  A page served by the "
+                              "sketch controls its palette and wind.",
                   .footer = "Run phone.py beside this sketch to send data  ·  "
                             "Captures replay the local recording"},
          .pictureSize = kCanvas,

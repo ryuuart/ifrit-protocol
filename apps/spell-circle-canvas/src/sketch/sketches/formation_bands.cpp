@@ -15,10 +15,10 @@
  * inside it. There is no defensible default beyond Center, so the
  * three are named.
  *
- * The rails go through `parallel`, which repairs real vertices — an arc
- * outside a turn, a miter inside — instead of leaving the spur a naive
- * sample-and-displace leaves on the inside of every corner. That is why
- * the subject here is a hexagon and not a circle.
+ * Constant rails go through `parallel`, which repairs real vertices —
+ * an arc outside a turn, a miter inside. The constant-width formation
+ * comparison uses a hexagon to make those joins visible. Varying rails
+ * follow sampled normals, as the wave specimen shows.
  *
  * EDIT THESE FIRST
  *   kAmplitude  — how far the wave law swings, px.
@@ -150,6 +150,7 @@ struct FormationBands {
 
     const path::Profile wave = path::Profile(
         shapers::Wave{.amplitude = kAmplitude, .wavelength = kWavelength});
+    const path::Profile width = path::profile::offset(kRail);
 
     ctx.composer.render(sketch::kit::page(
         {.title = "From a rail to a band",
@@ -193,20 +194,21 @@ struct FormationBands {
                                 .gap = 18})})}),
              sketch::kit::sectionHeader(
                  {.label = "TURN THE PROFILE INTO A REGION",
-                  .note = "Blue: source spine · amber: filled band"}),
+                  .note = "Width: 15 px · blue: source spine · "
+                          "amber: filled band"}),
              sketch::kit::comparison(
                  {.cases = {bandCell("BOTH SIDES", "Formation::Center",
-                                     "The region straddles the spine and "
-                                     "pinches where the width crosses zero.",
-                                     wave, path::Formation::Center),
+                                     "The full width is split equally across "
+                                     "the source spine.",
+                                     width, path::Formation::Center),
                             bandCell("OUTSIDE ONLY", "Formation::Outer",
                                      "The blue spine is the inner rail. The "
                                      "entire region sits outside.",
-                                     wave, path::Formation::Outer),
+                                     width, path::Formation::Outer),
                             bandCell("INSIDE ONLY", "Formation::Inner",
                                      "The blue spine is the outer rail. The "
                                      "entire region sits inside.",
-                                     wave, path::Formation::Inner)},
+                                     width, path::Formation::Inner)},
                   .measure = 1020,
                   .gap = 18})})));
   }

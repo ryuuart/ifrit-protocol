@@ -65,8 +65,7 @@ constexpr material::Color kInk = hexColor(0x0A0A0C);
 constexpr material::Color kPanel = hexColor(0x101116);
 constexpr material::Color kKeyline = hexColor(0x191B22);
 constexpr material::Color kBone = hexColor(0xE8E6E1);
-constexpr material::Color material::skia::toSkColor(kSteel) =
-    hexColor(0x8A8F9C);
+constexpr material::Color kSteel = hexColor(0x8A8F9C);
 constexpr material::Color kBlue = hexColor(0x6FA8DC);
 constexpr material::Color kRed = hexColor(0xC8402F);
 constexpr material::Color kSolid = hexColor(0x2A2E38);
@@ -75,8 +74,8 @@ constexpr material::Color kTick = hexColor(0x5A6070);
 // The constraint-error ramp — the study's whole visual thesis.
 constexpr float kRampStop[5] = {0.000f, 0.004f, 0.010f, 0.020f, 0.035f};
 constexpr material::Color kRampCol[5] = {hexColor(0x4FC79E), hexColor(0x93C866),
-                                   hexColor(0xF2A73B), hexColor(0xE2673A),
-                                   hexColor(0xC8402F)};
+                                         hexColor(0xF2A73B), hexColor(0xE2673A),
+                                         hexColor(0xC8402F)};
 
 inline material::Color errColor(float e, float alpha = 1.0f) {
   if (e <= kRampStop[0])
@@ -100,19 +99,19 @@ inline material::Color fadeTo(material::Color c, float a) {
 // ---------------------------------------------------------------------------
 // The frame. THE STAGE IS SQUARE BECAUSE THE PAPER'S WORLD IS A CUBE.
 
-constexpr float kCanvasW = 1560, kCanvasH = 920;
+constexpr float kCanvasW = 1560, kCanvasH = 932;
 constexpr float kStage = 736;              // px, = the 1000-unit cube
 constexpr float kUnit = kStage / 1000.0f;  // 0.736 px per world unit
 constexpr float kColW = 352;
 
-// The page, laid out by the pen: padding 32, a 100 px header, then the
+// The page, laid out by the pen: padding 32, a 112 px header, then the
 // stage and two panel columns whose fixed heights add up to the stage's.
 constexpr float kPad = 32;
-constexpr float kHeaderH = 100;
-constexpr float kBodyY = kPad + kHeaderH + 20;  // 152
-constexpr float kStageX = kPad;                 // 32
-constexpr float kColAX = kPad + kStage + 28;    // 796
-constexpr float kColBX = kColAX + kColW + 28;   // 1176
+constexpr float kHeaderH = 112;
+constexpr float kBodyY = kPad + kHeaderH + 20;
+constexpr float kStageX = kPad;                // 32
+constexpr float kColAX = kPad + kStage + 28;   // 796
+constexpr float kColBX = kColAX + kColW + 28;  // 1176
 constexpr float kPanelGap = 24;
 constexpr float kPanelAH[3] = {156, 288, 244};
 constexpr float kPanelBH[3] = {236, 264, 188};
@@ -252,7 +251,13 @@ inline Element panel(float height, std::string_view heading, int order) {
       .translateX(
           animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order))
-      .children({t(heading, ui(9.5f, kSteel, 1.9f)).height(12).flexShrink(0)});
+      .children({document::h2(heading)
+                     .font({.face = uiFace(),
+                            .size = 9.5f,
+                            .color = kSteel,
+                            .track = 1.9f})
+                     .height(12)
+                     .flexShrink(0)});
 }
 
 }  // namespace hitman_verlet

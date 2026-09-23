@@ -204,6 +204,7 @@ class DataGarden:
         )
 
     def scatter(self, pen):
+        pen.background("#f3f1e8")
         pen.textSize(10)
         for tick in self.height.ticks(4):
             y = self.height(tick)
@@ -240,6 +241,7 @@ class DataGarden:
         pen.text("FINAL HEIGHT / cm", 52, 11)
 
     def bars(self, pen):
+        pen.background("#f3f1e8")
         for index in range(len(self.ranking)):
             sample = self.ranking.row(index)
             y = self.rank(index)

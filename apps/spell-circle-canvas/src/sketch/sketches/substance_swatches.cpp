@@ -73,7 +73,7 @@ sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
   look.palette.ink = kInk;
   look.palette.ash = kDim;
-  look.type.title = {.size = 15, .track = 2.4f};
+  look.type.title = {.size = 28};
   look.type.subtitle = {.size = 12};
   look.type.captionLabel = {.size = 14};
   look.type.captionNote = {.size = 11.5f};
@@ -224,7 +224,7 @@ struct SubstanceSwatchesSketch {
                                 {0, 0}, {0, ctx.size.height()},
                                 {hexColor(0x1a120b), hexColor(0x0f0d10)})}),
                        sketch::kit::titleCard(
-                           {.title = {u8"A PROCEDURAL ARCHIVE, COOKED"},
+                           {.title = {u8"A procedural archive, cooked"},
                             .subtitle = {caption}})
                            .left(kMargin)
                            .top(34),

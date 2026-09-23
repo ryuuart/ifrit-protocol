@@ -42,6 +42,7 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -70,11 +71,9 @@ constexpr float kTilt = 38;            // the plate's pitch, degrees
 // A restrained palette: paper, ink, and one accent per panel.
 constexpr material::Color kGround{0.055f, 0.06f, 0.075f, 1};
 constexpr material::Color kPanel{0.09f, 0.10f, 0.12f, 1};
-constexpr material::Color material::skia::toSkColor(kPaper){0.93f, 0.91f, 0.86f,
-                                                            1};
+constexpr material::Color kPaper{0.93f, 0.91f, 0.86f, 1};
 constexpr material::Color kInk{0.10f, 0.10f, 0.12f, 1};
-constexpr material::Color material::skia::toSkColor(kAsh){0.56f, 0.57f, 0.62f,
-                                                          1};
+constexpr material::Color kAsh{0.56f, 0.57f, 0.62f, 1};
 constexpr material::Color kCardFront{0.88f, 0.34f, 0.24f, 1};
 constexpr material::Color kCardBack{0.16f, 0.42f, 0.78f, 1};
 constexpr material::Color kEdge{1, 1, 1, 0.22f};
@@ -118,10 +117,11 @@ Element panel(const char* caption, Element content) {
       .borderRadius({10})
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
-      .children({text(caption)
-                     .font({.size = 13, .color = kAsh, .track = 2})
+      .children({document::caption(caption)
+                     .font({.size = 14, .color = kAsh})
                      .absolute()
                      .left(18)
+                     .right(18)
                      .bottom(14)});
 }
 
@@ -169,8 +169,9 @@ struct CardFlip {
           .rotateY(turn)
           .backface(material::Backface::Hidden)
           .font({.color = kPaper, .track = 1})
-          .children({text(title).font({.size = 30}),
-                     text(line).font({.size = 14}).width(pct(100))});
+          .children(
+              {document::h2(title).font({.size = 30}),
+               document::paragraph(line).font({.size = 14}).width(pct(100))});
     };
     return box()
         .width(w)
@@ -224,12 +225,13 @@ struct CardFlip {
         .transformOrigin(pct(50), pct(100))  // hinged along its bottom edge
         .rotateX(kTilt)
         .rotateY(motion::bind(&sway).source(-1, 1).target(-14, 14))
-        .children({text("TILTED PLATE").font({.size = 18, .track = 3}),
-                   text(passage).font({.size = 14}).width(pct(100))});
+        .children(
+            {document::h2("TILTED PLATE").font({.size = 18, .track = 3}),
+             document::paragraph(passage).font({.size = 14}).width(pct(100))});
   }
 
   Element describe() const {
-    constexpr float gap = 20, top = 40;
+    constexpr float gap = 20, top = 76;
     const sketch::kit::Theme& look = sketch::kit::theme();
     return stack()
         .fill(Fill::color(look.palette.ground))
@@ -238,8 +240,8 @@ struct CardFlip {
         .font({.face = look.type.sans})
         .ink(look.palette.ink)
         .children(
-            {text("THE DEPTH LANES — A NODE IS A PLANE")
-                 .font({.size = 14, .color = kAsh, .track = 3})
+            {document::h1("A node is a plane")
+                 .font({.size = 32, .color = kPaper})
                  .absolute()
                  .left(gap)
                  .top(14),
@@ -248,13 +250,10 @@ struct CardFlip {
                  .inset(top, gap, gap, gap)
                  .row()
                  .gap(gap)
-                 .children(
-                     {panel("CARD · rotateY under perspective, backs hidden",
-                            card()),
-                      panel("CUBE · six planes in one space, sorted by depth",
-                            cube()),
-                      panel("PLATE · type on a tilted plane stays sharp",
-                            plate())})});
+                 .children({panel("Card / hidden backfaces", card()),
+                            panel("Cube / six faces sorted by depth", cube()),
+                            panel("Paragraph / projected as it is drawn",
+                                  plate())})});
   }
 };
 

@@ -441,60 +441,58 @@ struct XcomBattlescape {
     for (const auto& [x, y] :
          {std::pair{60.0f, 177.0f}, std::pair{78.0f, 177.0f},
           std::pair{60.0f, 189.0f}, std::pair{78.0f, 189.0f}})
-      // The rank badge, 26x23 — a gold plate, block 9 over block 10.
-      // The stat block sits in a BLACK WELL, not on the metal — measured off
-      // the reference, x 132..320, y 175..200. Without it the bars' transparent
-      // middle row shows brushed steel and the gauge stops reading as a gauge.
-      // The name — textName declares 128, PAL[128] #A8D0F0.
-      // Four number recesses: seven-row single-step ramps, one hue each. The TU
-      // one uses the GREEN block, not its own yellow-green. Measured, not
-      // derived.
-      // The lattice behind the bars: a 5 px x 2 px pitch, one pitch per axis.
-      p.children(
-          {at(x + 3, y + 3, 11, 5)
-               .children({custom("reserve glyph",
-                                 [](SkCanvas& c) {
-                                   const Ink ink{c};
-                                   ink.rect(0, 0, 2, 5, blk(0, 15));
-                                   ink.rect(2, 2, 5, 1, blk(0, 15));
-                                   ink.rect(8, 1, 1, 3, blk(0, 15));
-                                   ink.rect(10, 0, 1, 5, blk(0, 15));
-                                 })}),
-           at(107, 177, 26, 23)
-               .key("rank")
-               .children({custom("rank badge",
-                                 [](SkCanvas& c) {
-                                   const Ink ink{c};
-                                   for (int r = 0; r < 23; ++r)
-                                     ink.row(0, (float)r, 26,
-                                             blk(9, 2 + r / 6));
-                                   ink.row(0, 0, 26, blk(9, 0));
-                                   ink.row(0, 22, 26, blk(10, 6));
-                                   for (int r = 0; r < 23; ++r) {
-                                     ink.px(0, (float)r, blk(9, 1));
-                                     ink.px(25, (float)r, blk(10, 5));
-                                   }
-                                   // A chevron — STR_SQUADDIE.
-                                   for (int k = 0; k < 7; ++k) {
-                                     ink.row((float)(13 - k - 1),
-                                             (float)(6 + k), 3, blk(10, 8));
-                                     ink.row((float)(13 + k - 1),
-                                             (float)(6 + k), 3, blk(10, 8));
-                                   }
-                                   for (int k = 0; k < 7; ++k) {
-                                     ink.row((float)(13 - k - 1),
-                                             (float)(5 + k), 3, blk(9, 0));
-                                     ink.row((float)(13 + k - 1),
-                                             (float)(5 + k), 3, blk(9, 0));
-                                   }
-                                 })}),
-           at(132, 175, 188, 25).fill(C(blk(0, 15))),
-           at(131, 175, 1, 25).fill(C(blk(5, 12))),
-           pixelTextEl(nameText, n(135), n(176)), recess(134, 185, blk(3, 7)),
-           recess(152, 185, blk(1, 5)), recess(134, 193, blk(2, 5)),
-           recess(152, 193, blk(12, 5)),
-           at(176, 185, 136, 15).fill(C(blk(0, 15))),
-           at(176, 185, 136, 15).fill(latticePattern.material())});
+      p.children({at(x + 3, y + 3, 11, 5)
+                      .children({custom("reserve glyph", [](SkCanvas& c) {
+                        const Ink ink{c};
+                        ink.rect(0, 0, 2, 5, blk(0, 15));
+                        ink.rect(2, 2, 5, 1, blk(0, 15));
+                        ink.rect(8, 1, 1, 3, blk(0, 15));
+                        ink.rect(10, 0, 1, 5, blk(0, 15));
+                      })})});
+    // The rank badge, 26x23 — a gold plate, block 9 over block 10.
+    // The stat block sits in a BLACK WELL, not on the metal — measured off
+    // the reference, x 132..320, y 175..200. Without it the bars' transparent
+    // middle row shows brushed steel and the gauge stops reading as a gauge.
+    // The name — textName declares 128, PAL[128] #A8D0F0.
+    // Four number recesses: seven-row single-step ramps, one hue each. The TU
+    // one uses the GREEN block, not its own yellow-green. Measured, not
+    // derived.
+    // The lattice behind the bars: a 5 px x 2 px pitch, one pitch per axis.
+    p.children(
+        {at(107, 177, 26, 23)
+             .key("rank")
+             .children({custom("rank badge",
+                               [](SkCanvas& c) {
+                                 const Ink ink{c};
+                                 for (int r = 0; r < 23; ++r)
+                                   ink.row(0, (float)r, 26, blk(9, 2 + r / 6));
+                                 ink.row(0, 0, 26, blk(9, 0));
+                                 ink.row(0, 22, 26, blk(10, 6));
+                                 for (int r = 0; r < 23; ++r) {
+                                   ink.px(0, (float)r, blk(9, 1));
+                                   ink.px(25, (float)r, blk(10, 5));
+                                 }
+                                 // A chevron — STR_SQUADDIE.
+                                 for (int k = 0; k < 7; ++k) {
+                                   ink.row((float)(13 - k - 1), (float)(6 + k),
+                                           3, blk(10, 8));
+                                   ink.row((float)(13 + k - 1), (float)(6 + k),
+                                           3, blk(10, 8));
+                                 }
+                                 for (int k = 0; k < 7; ++k) {
+                                   ink.row((float)(13 - k - 1), (float)(5 + k),
+                                           3, blk(9, 0));
+                                   ink.row((float)(13 + k - 1), (float)(5 + k),
+                                           3, blk(9, 0));
+                                 }
+                               })}),
+         at(132, 175, 188, 25).fill(C(blk(0, 15))),
+         at(131, 175, 1, 25).fill(C(blk(5, 12))),
+         pixelTextEl(nameText, n(135), n(176)), recess(134, 185, blk(3, 7)),
+         recess(152, 185, blk(1, 5)), recess(134, 193, blk(2, 5)),
+         recess(152, 193, blk(12, 5)),
+         at(176, 185, 136, 15).fill(C(blk(0, 15))),
+         at(176, 185, 136, 15).fill(latticePattern.material())});
 
     // Four bars at 1 px per point. barTUs 64, barEnergy 16, barHealth 32
     // (color2 82), barMorale 192.

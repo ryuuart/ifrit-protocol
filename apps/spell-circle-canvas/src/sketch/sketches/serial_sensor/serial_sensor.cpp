@@ -149,8 +149,12 @@ struct Reading {
 
 /** One row of the readout: what it is called, and what it answers. */
 compose::Element row(const char* name, const std::string& answer) {
-  return compose::text(
-      compose::kit::formatted("%-11s %s", name, answer.c_str()));
+  return compose::box()
+      .row()
+      .children({compose::text(name).width(84).flexShrink(0),
+                 compose::text(answer).flexBasis(0).flexGrow()})
+      .gap(6)
+      .alignItems(compose::Align::Start);
 }
 
 }  // namespace

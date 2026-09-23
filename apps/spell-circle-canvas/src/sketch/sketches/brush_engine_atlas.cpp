@@ -165,11 +165,9 @@ struct BrushEngineAtlas {
 
     pen.noStroke();
     pen.fill(40, 34, 31, 220);
-    pen.textAlign(CENTER, CENTER);
-    pen.textSize(24);
-    pen.text("ONE DAB ENGINE", 730, 570);
     pen.textAlign(LEFT, BASELINE);
     pen.textSize(14);
+    pen.text("EVEN-ODD MASS / HATCH OVERLAY", 570, 790);
     pen.text("Pressure tapers each stroke. Repeated passes build pigment.", 48,
              845);
     pen.text(

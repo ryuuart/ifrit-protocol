@@ -12,8 +12,10 @@
 // the three panels here are one θ each — 30°, the classic 45° where the
 // rays through an octagon are collinear and the star is the {8/2}
 // khatam, and 60°, where the straps run past first contact and interlace
-// through the crossing. Everything else about the three (edge, palette)
-// is held so that what the eye compares is the angle.
+// through the crossing. Each angle is shown as a different wall course:
+// fine cobalt, broad turquoise, and a middle scale in ochre. Scale and
+// glaze vary with the angle; this is a constructed wall, not a controlled
+// comparison of angle alone.
 //
 // The wall re-tiles itself every few seconds: new edges and swapped
 // palettes, each panel keeping its own θ. Each swap is exactly one
@@ -24,13 +26,13 @@
 //    recipe and is identified by that recipe; minting a fresh Pattern inside
 //    describe() would re-bake on every render. update() re-rolls them on a
 //    timer and only then calls render().
-//  - The carved depth is a layer-style stack (inner shadow plus inner glow),
-//    not a shader.
+//  - The glazed surface uses an inner glow and a separate diagonal sheen.
 
 // TAGS: Patterns/Tiling
 
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Patterns.h>
@@ -188,7 +190,7 @@ struct Zellige {
                                 {0.42f, {1, 1, 1, 0.05f}},
                                 {0.58f, {0, 0, 0, 0.03f}},
                                 {1.00f, {0, 0, 0, 0.10f}}}))}),
-         text(one.caption).font({.size = 13, .track = 1.2f})});
+         document::caption(one.caption).font({.size = 12, .track = 0.3f})});
   }
 
   Element describe() {
@@ -204,16 +206,13 @@ struct Zellige {
         .children(
             {box().inset(0).fill(grain.material()),
              box().column().inset(44, 50).gap(14).children(
-                 {box()
-                      .row()
-                      .alignItems(Align::Baseline)
-                      .gap(14)
-                      .children({text("ZELLIJE").font({.size = 34, .track = 3}),
-                                 text("Hankin PIC · 4.8.8 · "
-                                      "θ swept 30–60°")
-                                     .font({.size = 14,
-                                            .color = zw::kSub,
-                                            .track = 1})}),
+                 {box().column().gap(5).children(
+                      {document::h1("ZELLIJE").font({.size = 34, .track = 3}),
+                       document::lead("Three glazed wall courses · "
+                                      "contact angles of 30°, 45° and 60°")
+                           .font({.size = 13,
+                                  .color = zw::kSub,
+                                  .track = 0.2f})}),
                   box().row().flexGrow(1).gap(22).children(
                       {each(panels, [this](const zellige_wall::Panel& one) {
                         return panel(one);

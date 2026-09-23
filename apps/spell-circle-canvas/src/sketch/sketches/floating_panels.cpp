@@ -94,19 +94,14 @@ Element card(float w, float h, material::Color accent) {
       .width(w)
       .height(h)
       .fill(Fill::color({0.055f, 0.071f, 0.125f, 0.9f}))
-      .children(
-          {box()
-               .column()
-               .gap(18)
-               .absolute()
-               .inset(16)
-               .children(
-                   {// the header pill
-                    box().width(w - 32).height(14).borderRadius({7}).fill(
-                        Fill::color({accent.r, accent.g, accent.b, 0.9f})),
-                    // the tick rows, each shorter than the one above it
-                    box().column().gap(14).children(
-                        {each(4,
+      .children({box().column().gap(18).absolute().inset(16).children(
+                     {// the header pill
+                      box().width(w - 32).height(14).borderRadius({7}).fill(
+                          Fill::color({accent.r, accent.g, accent.b, 0.9f})),
+                      // the tick rows, each shorter than the one above it
+                      box().column().gap(14).children(
+                          {each(
+                              4,
                               [w, ink](int i) {
                                 return box()
                                     .width(w - 60 - (float)i * 40)
@@ -114,34 +109,34 @@ Element card(float w, float h, material::Color accent) {
                                     .borderRadius({4})
                                     .fill(Fill::color(ink));
                               })}),
-                    // the bar row, standing on its own foot
-                    box()
-                        .row()
-                        .gap(6)
-                        .alignItems(Align::End)
-                        .children({each(
-                            std::views::iota(0, 14),
-                            [accent](int i) {
-                              const float t = (float)i / 13.0f;
-                              return box()
-                                  .width(10)
-                                  .height(10 +
-                                          34.0f *
-                                              (0.5f + 0.5f * std::sin(t * 9.0f +
-                                                                      1.7f)))
-                                  .borderRadius({2})
-                                  .fill(Fill::color({accent.r, accent.g,
-                                                     accent.b, 0.85f}));
-                            })})}),
-           sketch::kit::gauge({.fraction = 200.0f / 280.0f,
-                               .diameter = gauge,
-                               .thickness = gauge * 0.5f * (1 - 0.72f),
-                               .startDeg = 130,
-                               .sweepDeg = 280,
-                               .track = Fill::color({1, 1, 1, 0.15f}),
-                               .bar = Fill::color(accent)})
-               .absolute()
-               .inset(h - gauge - 16, 16, 16, w - gauge - 16)});
+                      // the bar row, standing on its own foot
+                      box()
+                          .row()
+                          .gap(6)
+                          .alignItems(Align::End)
+                          .children({each(
+                              std::views::iota(0, 14),
+                              [accent](int i) {
+                                const float t = (float)i / 13.0f;
+                                return box()
+                                    .width(10)
+                                    .height(10 +
+                                            34.0f * (0.5f +
+                                                     0.5f * std::sin(t * 9.0f +
+                                                                     1.7f)))
+                                    .borderRadius({2})
+                                    .fill(Fill::color(
+                                        {accent.r, accent.g, accent.b, 0.85f}));
+                              })})}),
+                 sketch::kit::gauge({.fraction = 200.0f / 280.0f,
+                                     .diameter = gauge,
+                                     .thickness = gauge * 0.5f * (1 - 0.72f),
+                                     .startDeg = 130,
+                                     .sweepDeg = 280,
+                                     .track = Fill::color({1, 1, 1, 0.15f}),
+                                     .bar = Fill::color(accent)})
+                     .absolute()
+                     .inset(h - gauge - 16, 16, 16, w - gauge - 16)});
 }
 
 }  // namespace
@@ -190,6 +185,7 @@ struct FloatingPanels {
     render::drawMesh(canvas, curved, camera::place({0, -160, 60}, 0, 10), view,
                      kCanvas,
                      {.baseColor = {1, 1, 1, 1},
+                      .lit = false,
                       .lights = {},
                       .ambient = {0.9f, 0.9f, 0.9f, 1},
                       .specular = 0,

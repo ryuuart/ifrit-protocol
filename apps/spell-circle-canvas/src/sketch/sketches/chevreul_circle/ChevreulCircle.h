@@ -11,7 +11,7 @@ struct ChevreulCircle {
   sketch::kit::Document doc;
 
   static constexpr float kW = 1800.0f;
-  static constexpr float kH = 1200.0f;
+  static constexpr float kH = 1220.0f;
 
   // the wheel
   static constexpr SkPoint kC{436, 500};

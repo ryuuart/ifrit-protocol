@@ -455,8 +455,8 @@ struct ArtNetLights {
                             " Captures replay the local recording"},
          .pictureSize = kCanvas,
          .pictureWidth = 816,
-         .note = "The rack shows the outgoing dimmers; each ribbon follows its "
-                 "lighting channel."},
+         .note = "The rack shows incoming channels. Ribbons share the RGB "
+                 "wash, wind and strobe."},
         std::move(picture).fill(kGround), readout()));
   }
 

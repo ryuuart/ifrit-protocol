@@ -38,6 +38,7 @@
 // TAGS: Materials/Compositing, Media/Images
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -98,13 +99,13 @@ Element dial(float edge) {
       .width(edge)
       .height(edge)
       .fill(Fill::color({0.043f, 0.055f, 0.094f, 1}))
-      .children({box().inset(34).column().gap(22).children(
-          {text("COMPOSE")
+      .children({document::article().inset(34).gap(22).children(
+          {document::h1("COMPOSE")
                .font({.size = 30, .track = 6})
                .ink(material::Color{1, 1, 1, 0.92f}),
-           text("a composer painting into a surface of "
-                "its own; texture() is the value a slot "
-                "holds")
+           document::paragraph("a composer painting into a surface of "
+                               "its own; texture() is the value a slot "
+                               "holds")
                .font({.size = 17, .track = 0.4f})
                .ink(material::Color{1, 1, 1, 0.45f})
                .width(edge - 68),

@@ -16,16 +16,15 @@ struct StrokeAtlasSketch {
     // ---- masthead --------------------------------------------------------
     plate.children(
         {romanBold("THE STROKE ATLAS", 26, kInk, 6.0f).at({56, 34}),
-         roman("a specimen plate of the SigilCompose line, border and "
-               "corner vocabulary — every rule captioned "
-               "with the call that made it",
+         roman("Lines, borders and corners / compare the construction, then "
+               "read its caption.",
                11.5f, kInk)
              .at({58, 70}),
          call("sigilcompose/brush/{Lines,Brushes,Hatches,Rails}.h + "
               "shape/Shapes.h",
               9.0f, kRed)
              .at({58, 88}),
-         call("PLATE I", 9.0f, kInkSoft).at({1470, 88}),
+         call("PLATE I", 9.0f, kCaptionInk).at({1470, 88}),
          rule(56, 112, 1488,
               brush::presets::heavyHairHeavy(1.2f, 0.5f, ink(), 3.0f)),
          // I. THE FAN · STRAIGHT RUNS. Straight is the easy case and a
@@ -35,7 +34,7 @@ struct StrokeAtlasSketch {
          sectionTitle(56, 140, "I", "THE FAN · STRAIGHT RUNS"),
          call("twenty rules out of one origin · numbered to the "
               "key",
-              9.0f, kInkSoft)
+              9.0f, kCaptionInk)
              .at({56, 160})});
     {
       std::vector<Style> fan = railStyles();
@@ -86,17 +85,17 @@ struct StrokeAtlasSketch {
       for (int i = 0; i < n; ++i) {
         const std::string numeral = kit::formatted("%2d", i + 1);
         plate.children({call(numeral.c_str(), 8.5f, kRed)
-                            .at({keyX, keyTop + (float)i * 13.6f}),
-                        call(fan[(size_t)i].label, 7.8f, kInkSoft)
-                            .at({keyX + 19, keyTop + (float)i * 13.6f})});
+                            .at({keyX, keyTop + (float)i * 29.0f}),
+                        call(fan[(size_t)i].label, 9.5f, kCaptionInk)
+                            .width(274)
+                            .at({keyX + 19, keyTop + (float)i * 29.0f})});
       }
     }
 
     // ---- II. THE SERPENT -------------------------------------------------
     plate.children({sectionTitle(636, 140, "II", "THE SERPENT · ON A CURVE"),
-                    call("one gentle bend and one tight one — a rule "
-                         "that only reads straight is a lie",
-                         9.0f, kInkSoft)
+                    call("Gentle and tight bends expose the inner rail.", 9.0f,
+                         kCaptionInk)
                         .at({636, 160})});
     {
       std::vector<Style> column = displacedStyles();
@@ -123,7 +122,7 @@ struct StrokeAtlasSketch {
     plate.children({sectionTitle(1064, 140, "III", "THE RINGS · CURVATURE"),
                     call("r = 160 → 42 · where offset contours "
                          "shear",
-                         9.0f, kInkSoft)
+                         9.0f, kCaptionInk)
                         .at({1064, 160})});
     {
       const float cx = 1178, cy = 430;
@@ -150,12 +149,12 @@ struct StrokeAtlasSketch {
       });
 
       const std::vector<Ring> rings = {
-          {160, -1.20f, "Rails{-5,+5, dash{10,8}} in register", registered},
-          {130, -1.00f, "shaped(shapers::Wave{4,26}).layer(1.4 red)", wavyRing},
-          {100, -0.80f, "lines::presets::railway(1.4, ink, 13, 9)",
+          {160, -1.20f, "Paired dashes / in register", registered},
+          {130, -1.00f, "Wave / displaced contour", wavyRing},
+          {100, -0.80f, "Railway / regular ties",
            lines::presets::railway(1.4f, ink(), 13.0f, 9.0f)},
-          {70, -0.60f, "{.midMarker=Arrow, .midSpacing=30}", chev},
-          {42, -0.40f, "lines::presets::triple(1.4, ink, 4.5, 2)",
+          {70, -0.60f, "Arrow caps / 30 px spacing", chev},
+          {42, -0.40f, "Triple / weighted spine",
            lines::presets::triple(1.4f, ink(), 4.5f, 2.0f)},
       };
       const float span = 380;
@@ -175,7 +174,7 @@ struct StrokeAtlasSketch {
             {box()
                  .rect(SkRect::MakeXYWH(lx, ly - 0.5f, capX - 6 - lx, 1))
                  .fill(kInkSoft),
-             call(r.label, 8.0f, kInkSoft).at({capX, ly - 5})});
+             call(r.label, 9.5f, kCaptionInk).width(190).at({capX, ly - 5})});
       }
       plate.children({box()
                           .rect(SkRect::MakeXYWH(cx - 3, cy - 3, 6, 6))
@@ -190,7 +189,7 @@ struct StrokeAtlasSketch {
     plate.children(
         {sectionTitle(1064, 690, "IV", "THE REVERSE · LAYERED STACKS"),
          call("additive stacks, shown on the black patch they are for", 9.0f,
-              kInkSoft)
+              kCaptionInk)
              .at({1064, 710})});
     {
       plate.children(
@@ -213,7 +212,7 @@ struct StrokeAtlasSketch {
     // ---- V. THE TORTURE --------------------------------------------------
     plate.children(
         {sectionTitle(56, 880, "V", "THE TORTURE · SPIRAL & HAIRPIN"),
-         call("where offset contours self-intersect", 9.0f, kInkSoft)
+         call("where offset contours self-intersect", 9.0f, kCaptionInk)
              .at({56, 900})});
     {
       plate.children(
@@ -237,7 +236,7 @@ struct StrokeAtlasSketch {
     // ---- VI. THE FIELDS --------------------------------------------------
     plate.children(
         {sectionTitle(640, 1062, "VI", "THE FIELDS · HATCHING"),
-         call("a rule repeated and clipped to a silhouette", 9.0f, kInkSoft)
+         call("a rule repeated and clipped to a silhouette", 9.0f, kCaptionInk)
              .at({640, 1082})});
     {
       auto field = [&](float x, float dy, const char* label,
@@ -247,29 +246,23 @@ struct StrokeAtlasSketch {
             .shape(std::move(shape))
             .background(std::move(dec))
             .foreground(stroke(1.0f, ink()))
-            .children({call(label, 8.0f, kInkSoft).at({0, 130})});
+            .children({call(label, 9.5f, kCaptionInk).width(134).at({0, 130})});
       };
       // Staggered, not ruled: the shapes differ, so their baselines should.
       plate.children(
-          {field(640, 0, "lines::presets::hatch(ink, 5, 0.9, 45)",
-                 shapes::star(6, 0.52f),
+          {field(640, 0, "Hatch / 45 degrees", shapes::star(6, 0.52f),
                  lines::presets::hatch(ink(), 5.0f, 0.9f, 45.0f)),
-           field(786, 18, "lines::presets::crosshatch(ink, 7, 0.8, 20)",
-                 shapes::blob(4, 0.16f, 7),
+           field(786, 18, "Crosshatch / two axes", shapes::blob(4, 0.16f, 7),
                  lines::presets::crosshatch(ink(), 7.0f, 0.8f, 20.0f)),
-           field(932, -8, "lines::presets::radialHatch(ink, 72, 0.8)",
-                 shapes::polygon(6, 90.0f),
+           field(932, -8, "Radial / 72 rays", shapes::polygon(6, 90.0f),
                  lines::presets::radialHatch(ink(), 72, 0.8f)),
-           field(1078, 22, "lines::presets::concentric(red, 14, 0.8)",
-                 shapes::squircle(4.0f),
+           field(1078, 22, "Concentric / 14 contours", shapes::squircle(4.0f),
                  lines::presets::concentric(red(), 14, 0.8f)),
-           field(1224, 2, "decorations::wash(halftoneRamp)", shapes::circle(),
+           field(1224, 2, "Halftone / clipped wash", shapes::circle(),
                  decorations::wash(mskia::Paint::recipe(field::halftoneRamp(
-                                       8, 1.0f, 3.2f,
-                                       sigil::material::skia::toSkColor(kInk))),
+                                       8, 1.0f, 3.2f, kInk)),
                                    SkBlendMode::kSrcOver, 0.95f)),
-           field(1370, 26, "hatch on shapes::chamfered(22)",
-                 shapes::chamfered(22.0f),
+           field(1370, 26, "Hatch / chamfered edge", shapes::chamfered(22.0f),
                  lines::presets::hatch(soft(), 6.0f, 0.8f, -45.0f))});
     }
 
@@ -280,7 +273,7 @@ struct StrokeAtlasSketch {
          call("decorations::Border · shapes::chamfered/notched "
               "· brush::Pattern corner tiles — a frame "
               "is not a 1 px rounded rect",
-              9.0f, kInkSoft)
+              9.0f, kCaptionInk)
              .at({56, 1320})});
     {
       struct Frame {
@@ -315,21 +308,20 @@ struct StrokeAtlasSketch {
                                std::nullopt, std::move(where)});
       };
 
-      add("decorations::border(1.4, ink)", frameRect(8),
-          decorations::border(1.4f, ink()), -1.1f);
-      addSpans("stroke(spans::corners(26), solid(2, ink))", frameRect(8),
-               spans::corners(26.0f), brush::solid(2.0f, ink()), 0.8f);
-      addSpans("stroke(spans::edges(22), solid(1.4, ink))", frameRect(8),
-               spans::edges(22.0f), brush::solid(1.4f, ink()));
-      add("decorations::weightedCorners(1, 3.4, ink, 24)", frameRect(8),
+      add("Border / continuous", frameRect(8), decorations::border(1.4f, ink()),
+          -1.1f);
+      addSpans("Corners / 26 px spans", frameRect(8), spans::corners(26.0f),
+               brush::solid(2.0f, ink()), 0.8f);
+      addSpans("Edges / open corners", frameRect(8), spans::edges(22.0f),
+               brush::solid(1.4f, ink()));
+      add("Weighted corners", frameRect(8),
           decorations::weightedCorners(1.0f, 3.4f, ink(), 24.0f), -0.7f);
-      addSpans("corners(12) on shapes::chamfered(18)  8 corners",
-               shapes::chamfered(18), spans::corners(12.0f),
-               brush::solid(2.0f, red()), 1.2f);
-      add("border on shapes::notched(26, 9)",
+      addSpans("Chamfer / eight brackets", shapes::chamfered(18),
+               spans::corners(12.0f), brush::solid(2.0f, red()), 1.2f);
+      add("Diagonal notches",
           shapes::notched(26.0f, 9.0f, shapes::Corner::Diagonal),
           decorations::border(1.6f, ink()));
-      add("shapes::chamfered(14, Corner::AntiDiagonal)",
+      add("Opposing chamfers",
           shapes::chamfered(14.0f, shapes::Corner::AntiDiagonal),
           decorations::border(1.6f, ink()), 0.6f);
       // Corner tiles: brush::Pattern's real corner art.
@@ -351,8 +343,7 @@ struct StrokeAtlasSketch {
                                         brush::CornerAlign::Bisector};
         tiled.advance = 11.0f;
         tiled.bleedPx = 16.0f;
-        add("brush::Pattern{side, corner = lozenge}", frameRect(8), tiled,
-            0.9f);
+        add("Pattern / lozenge corners", frameRect(8), tiled, 0.9f);
       }
       {
         ContourWalk walk;
@@ -362,14 +353,13 @@ struct StrokeAtlasSketch {
                          .height(7)
                          .shape(shapes::polygon(3, -90.0f))
                          .fill(kInk);
-        add("ContourWalk{spacing=15, stamp=triangle}", frameRect(8), walk);
+        add("Contour walk / triangles", frameRect(8), walk);
       }
       {
         PathFormat ants = stroke(1.6f, ink());
         ants.dashIntervals = {8, 6};
         ants.dashPhaseBinding = &march;
-        add("PathFormat{dashPhaseBinding}  it marches", frameRect(8), ants,
-            -0.8f);
+        add("Animated dash phase", frameRect(8), ants, -0.8f);
       }
       {
         Brush scalloped;
@@ -377,8 +367,7 @@ struct StrokeAtlasSketch {
             .shaped(sigil::geometry::shapers::Wave{.amplitude = 3.5f,
                                                    .wavelength = 22})
             .layer(lines::Line{.width = 1.4f, .fill = ink()});
-        add("shaped(shapers::Wave{3.5,22}) on a closed rect", frameRect(8),
-            scalloped, 1.4f);
+        add("Wave / closed outline", frameRect(8), scalloped, 1.4f);
       }
       {
         Brush drawn;
@@ -389,36 +378,33 @@ struct StrokeAtlasSketch {
             .layer(lines::Line{.width = 1.1f, .fill = soft()},
                    {sigil::geometry::shapers::Jitter{
                        .segmentLength = 9, .deviation = 1.1f, .seed = 23}});
-        add("two shapers::Jitter layers on a rect", frameRect(8), drawn, -1.8f);
+        add("Jitter / two layers", frameRect(8), drawn, -1.8f);
       }
-      add("onEdges(Top|Bottom, stroke(2))", frameRect(8),
+      add("Top and bottom edges", frameRect(8),
           onEdges(sigil::geometry::path::Edge::Top |
                       sigil::geometry::path::Edge::Bottom,
                   stroke(2.0f, ink())),
           -1.2f);
-      add("lines::Rails as a border (ink/red/ink)", frameRect(10),
+      add("Rails / ink, red, ink", frameRect(10),
           lines::rails({{.across = 3, .width = 1.6f, .fill = ink()},
                         {.across = 0, .width = 0.6f, .fill = red()},
                         {.across = -3, .width = 1.6f, .fill = ink()}}),
           0.5f);
-      addStyle("doubleBorder(solid, dotted @7)", frameRect(8),
+      addStyle("Double border / dotted inset", frameRect(8),
                decorations::doubleBorder(decorations::border(1.6f, ink()),
                                          Border{.width = 1.2f,
                                                 .fill = ink(),
                                                 .inset = 7.0f,
                                                 .dash = {0.01f, 5.0f},
-                                                .cap = geometry::path::Cap::Round}),
+                                                .cap = sigil::geometry::path::Cap::Round}),
                -0.9f);
 
-      const float pitch = 212.0f;
       const size_t perRow = 7;
-      // Not arrange::cellAt: the first seven stand in a row and EVERY
-      // other frame continues along the second, which keeps counting past
-      // the row's width instead of wrapping again.
+      // Each row fits all of its frames inside the plate margins.
       for (size_t i = 0; i < frames.size(); ++i) {
         const bool second = i >= perRow;
         const size_t col = second ? i - perRow : i;
-        const float x = (second ? 162.0f : 56.0f) + pitch * (float)col;
+        const float x = 56.0f + (second ? 184.0f : 212.0f) * (float)col;
         const float y = (second ? 1546.0f : 1356.0f) + ((i % 3 == 1)   ? 12.0f
                                                         : (i % 3 == 2) ? -8.0f
                                                                        : 0.0f);
@@ -434,8 +420,10 @@ struct StrokeAtlasSketch {
           frame.stroke(spec.where.value(), spec.dec);
         else
           frame.stroke(spec.dec);
-        plate.children({frame.children(
-            {call(frames[i].label, 7.5f, kInkSoft).at({0, 106})})});
+        plate.children(
+            {frame.children({call(frames[i].label, 10.0f, kCaptionInk)
+                                 .width(166)
+                                 .at({0, 106})})});
       }
     }
 
@@ -454,7 +442,7 @@ struct StrokeAtlasSketch {
         {sectionTitle(56, 1700, "VIII", "THE CORNER · WHICH WAY IT FACES"),
          call("brush::CornerArt{art, align} — the same "
               "art, the same rect, one word different",
-              9.0f, kInkSoft)
+              9.0f, kCaptionInk)
              .at({56, 1720})});
     {
       // A chevron pointing along local +x: two strokes meeting at the tip.
@@ -499,8 +487,8 @@ struct StrokeAtlasSketch {
                                         120))
                  .shape(frameRect(10))
                  .stroke(std::move(pb))
-                 .children(
-                     {call(variants[i].label, 7.5f, kInkSoft).at({0, 126})})});
+                 .children({call(variants[i].label, 7.5f, kCaptionInk)
+                                .at({0, 126})})});
       }
       // And the placement itself: the corner art sits ON the vertex. A
       // chamfer has EIGHT vertices at short intervals, which is the case
@@ -531,7 +519,7 @@ struct StrokeAtlasSketch {
                           .stroke(std::move(octo))
                           .children({call("on shapes::chamfered(20) — eight "
                                           "vertices, eight tiles",
-                                          7.5f, kInkSoft)
+                                          7.5f, kCaptionInk)
                                          .at({0, 126})})});
     }
 
@@ -540,7 +528,7 @@ struct StrokeAtlasSketch {
         {rule(56, 1940, 1488, lines::presets::cased(0.8f, soft(), 3.0f)),
          call("SigilCompose · stroke_atlas.cpp · render it "
               "yourself: Sketchbook stroke_atlas.cpp --frame out.png",
-              8.5f, kInkSoft)
+              8.5f, kCaptionInk)
              .at({56, 1950})});
     return plate;
   }
@@ -561,5 +549,4 @@ struct StrokeAtlasSketch {
 };
 
 SIGIL_SKETCH(StrokeAtlasSketch, "Specimen",
-             "The line, border and corner specimen plate — every rule "
-             "captioned with the call that made it")
+             "Lines, borders and corners in a labelled specimen atlas")

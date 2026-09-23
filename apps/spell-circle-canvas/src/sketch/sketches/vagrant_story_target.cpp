@@ -318,10 +318,9 @@ constexpr material::Color kBlood{0.659f, 0.094f, 0.125f, 1.0f};
  *  distance, unlit so the room's emitters do not shade it. A wire is its
  *  own light in the reference too — the sphere is drawn, not lit. */
 material::Material wire(float alpha, float glow) {
-  return material::kit::unlit(
-      {.baseColor = {kCyan.r, kCyan.g, kCyan.b, alpha},
-       .emissive = {kCyan.r, kCyan.g, kCyan.b, 1.0f},
-       .emissiveStrength = glow});
+  return material::kit::unlit({.baseColor = {kCyan.r, kCyan.g, kCyan.b, alpha},
+                               .emissive = {kCyan.r, kCyan.g, kCyan.b, 1.0f},
+                               .emissiveStrength = glow});
 }
 
 /** WHAT A LIMB IS IN SPACE: where its centre sits relative to the
@@ -479,12 +478,12 @@ compose::Element run(const ck::Mask& mask, float x, float y,
 /** A plate the overlay's type sits on: translucent slate with one pale
  *  hairline round it, which is what every Vagrant Story panel is. */
 compose::Element plate(float x, float y, float w, float h, float alpha) {
-  return ck::at(compose::box()
-                    .fill(material::Color{0.043f, 0.055f, 0.098f, alpha})
-                    .stroke(compose::decorations::border(
-                        2.0f, compose::Fill::color(
-                                  {kBone.r, kBone.g, kBone.b, 0.55f}))),
-                x, y, w, h);
+  return ck::at(
+      compose::box()
+          .fill(material::Color{0.043f, 0.055f, 0.098f, alpha})
+          .stroke(compose::decorations::border(
+              2.0f, compose::Fill::color({kBone.r, kBone.g, kBone.b, 0.55f}))),
+      x, y, w, h);
 }
 
 /** A gauge: a bezel, a filled bar and nothing else. The reference's are
@@ -652,8 +651,9 @@ struct VagrantStoryTarget {
   Element overlayQuad(material::Texture texture) {
     const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
     constexpr float kAt = 100.0f;
-    const float h = 2.0f * kAt * std::tan(lens.fovYDeg * 0.5f * vs::kDeg);
-    const float w = h * (float)vs::kHudW / (float)vs::kHudH;
+    const SkSize frame =
+        lens.extentAt(kAt, (float)vs::kHudW / (float)vs::kHudH);
+    const float w = frame.width(), h = frame.height();
     const glm::vec3 at = lens.eye + forward * kAt;
     material::Material surface =
         material::kit::unlit({.baseColor = {1, 1, 1, 1}});

@@ -131,6 +131,7 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -184,10 +185,10 @@ constexpr float kDeg = kPi / 180.0f;
 // chrome palette — this study's own (film-base warm black, deliberately
 // warmer than a neutral UI near-black)
 
-constexpr material::Color kInk = hexColor(0x0A0806);   // canvas
-constexpr material::Color kPlate = hexColor(0x110D0A); // sidebar plates
-constexpr material::Color kBone = hexColor(0xEDE6D8);  // primary type
-constexpr material::Color kSteel = hexColor(0x8A7D68); // secondary type
+constexpr material::Color kInk = hexColor(0x0A0806);    // canvas
+constexpr material::Color kPlate = hexColor(0x110D0A);  // sidebar plates
+constexpr material::Color kBone = hexColor(0xEDE6D8);   // primary type
+constexpr material::Color kSteel = hexColor(0x8A7D68);  // secondary type
 constexpr material::Color kSteelDim = hexColor(0x8A7D68, 0.62f);
 constexpr material::Color kKeyline = hexColor(0x3A342C);  // panel keylines
 constexpr material::Color kSolidInk =
@@ -201,7 +202,7 @@ constexpr float kH = 800.0f;
 constexpr float kPad = 36.0f;
 constexpr float kPanelW = 900.0f;
 constexpr float kPanelH = 596.0f;
-constexpr SkPoint kEye{kPanelW * 0.5f, kPanelH * 0.5f}; // 450, 298
+constexpr SkPoint kEye{kPanelW * 0.5f, kPanelH * 0.5f};  // 450, 298
 constexpr float kSideW = 476.0f;
 
 // ---------------------------------------------------------------------------
@@ -209,18 +210,18 @@ constexpr float kSideW = 476.0f;
 // the header); damp is too. `T = 6π` for all four.
 
 struct Card {
-  const char *tag;
-  float a, b;        // Lissajous frequency ratio
-  float deltaDeg;    // pendulum phase offset
-  float k;           // precession (table turns per radian of swing)
-  float amp;         // R, px, before the 0.88 fit scale
-  float damp;        // exp(-damp·t) envelope — this study's addition
-  material::Color core;    // ink colour
-  const char *line1; // sidebar index caption
-  const char *line2;
+  const char* tag;
+  float a, b;            // Lissajous frequency ratio
+  float deltaDeg;        // pendulum phase offset
+  float k;               // precession (table turns per radian of swing)
+  float amp;             // R, px, before the 0.88 fit scale
+  float damp;            // exp(-damp·t) envelope — this study's addition
+  material::Color core;  // ink colour
+  const char* line1;     // sidebar index caption
+  const char* line2;
 };
 
-constexpr float kFit = 0.88f; // R·√2 + glow must clear kPanelH/2
+constexpr float kFit = 0.88f;  // R·√2 + glow must clear kPanelH/2
 // THREE pendulum periods. The record's spirals are sparse — a single fine
 // line making a few dozen readable loops, so the eye can follow the
 // precession round. Past four the loops stop resolving and the card reads
@@ -255,7 +256,7 @@ constexpr std::array<Card, 4> kCards = {{
  *  2R square rather than by scaling inside the generator — which is what
  *  makes the shape a value the node can compare and prune on rather than
  *  a callable it must re-patch on every describe. */
-shapes::Harmonograph figure(const Card &c, int samples = kSamples) {
+shapes::Harmonograph figure(const Card& c, int samples = kSamples) {
   return shapes::harmonograph(c.a, c.b, c.deltaDeg, c.damp, c.k, kTurns,
                               samples);
 }
@@ -281,10 +282,9 @@ weave::TextStyle hollow(sk_sp<SkTypeface> face, float size,
                                          .size = size,
                                          .color = color,
                                          .track = tracking});
-  s.paint.foreground =
-      sigil::weave::kit::outline(
-          sigil::material::skia::toSkColor(color).toSkColor(), width)
-          .paint;
+  s.paint.foreground = sigil::weave::kit::outline(
+                           material::skia::toSkColor(color).toSkColor(), width)
+                           .paint;
   s.paint.foreground.setAntiAlias(true);
   return s;
 }
@@ -323,7 +323,7 @@ Element plate(float height) {
       .column();
 }
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
@@ -334,9 +334,9 @@ struct VertigoTitles {
   // the clock, so neither is a cell: a value derived from another one is
   // not its own state.
   ch::Output<float> secs{0};
-  std::array<ch::Output<float>, 4> growth{}; // trim end   — the pen
-  std::array<ch::Output<float>, 4> cardA{};  // card opacity
-  std::array<ch::Output<float>, 4> penA{};   // nib opacity (fades at arrival)
+  std::array<ch::Output<float>, 4> growth{};  // trim end   — the pen
+  std::array<ch::Output<float>, 4> cardA{};   // card opacity
+  std::array<ch::Output<float>, 4> penA{};    // nib opacity (fades at arrival)
 
   /** THE TURNTABLE: 18°/s, folded into [0,360) — which is exactly what
    *  `fmod(seconds · 18, 360)` computes, said as a lane instead of as a
@@ -354,8 +354,8 @@ struct VertigoTitles {
   // siblings for the draw order the plus-blended nib wants over the
   // filament, and the second node costs a window rather than a second
   // figure because the Harmonograph compares equal.
-  void spiralCard(Element &into, int i) {
-    const Card &c = kCards[i];
+  void spiralCard(Element& into, int i) {
+    const Card& c = kCards[i];
     const float R = c.amp * kFit;
     const std::string tag = c.tag;
 
@@ -420,8 +420,7 @@ struct VertigoTitles {
                                .to(Fill::color(hexColor(0xC81E2C))),
                            ramp(700, 500, ch::easeInQuad)))});
 
-    for (int i = 0; i < 4; ++i)
-      spiralCard(panel, i);
+    for (int i = 0; i < 4; ++i) spiralCard(panel, i);
 
     // VERTIGO — hollow Clarendon expanding out of the pupil: one text
     // node, one textFx::pop() track cascading the capitals 30 ms apart. The
@@ -513,14 +512,14 @@ struct VertigoTitles {
     // the card slug: four of them stacked in the same corner, each riding
     // its own card's opacity — so the caption cross-dissolves with the
     // curve it describes, on the same 240 ms optical-printer window.
-    static constexpr const char *kSlug[] = {
+    static constexpr const char* kSlug[] = {
         "CARD A · a:b 3:2 · δ 90° · k 0.15 · R 176 px",
         "CARD B · a:b 5:4 · δ 0° · k 0.10 · R 172 px",
         "CARD C · a:b 2:1 · δ 45° · k 0.22 · R 180 px",
         "CARD D · a:b 5:3 · δ 60° · k 0.12 · R 167 px",
     };
     const weave::Type slug{.size = 10, .track = 1.8f};
-    panel.children({each(kSlug, [&](const char *words, size_t i) {
+    panel.children({each(kSlug, [&](const char* words, size_t i) {
       return text(words)
           .font(slug)
           .key(std::string("slug") + kCards[i].tag)
@@ -575,8 +574,9 @@ struct VertigoTitles {
          text("SAUL BASS · JOHN WHITNEY")
              .font({.face = faceDisplay, .size = 14, .track = 2.0f})
              .key("spec-solid"),
-         text("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
-              "— BOTH CLARENDON.")
+         document::caption(
+             "OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
+             "— BOTH CLARENDON.")
              .font({.size = 10, .color = kSteel, .track = 0.6f})
              .key("spec-cap")});
     return p;
@@ -607,15 +607,16 @@ struct VertigoTitles {
                                   .stroke(stroke(0.9f, Fill::color(c.core)))
                                   .rotate(turntable())}),
                box().column().flexGrow(1).gap(2).children(
-                   {text(c.line1).font(
+                   {document::h2(c.line1).font(
                         {.face = faceGothicBold, .size = 11, .track = 0.7f}),
-                    text(c.line2).font({.size = 9, .color = kSteel})})});
+                    document::caption(c.line2).font(
+                        {.size = 9, .color = kSteel})})});
     };
     return plate(240).gap(8).children({each(kCards, row)});
   }
 
   Element rigPlate() {
-    static constexpr const char *kFacts[] = {
+    static constexpr const char* kFacts[] = {
         "850 LB · 11,000 PARTS — WWII ANTI-AIRCRAFT COMPUTER, "
         "CREWED BY FIVE",
         "REPURPOSED BY JOHN WHITNEY, 1957–58",
@@ -625,19 +626,19 @@ struct VertigoTitles {
     };
     // ONE LINE PER FACT, each entering a beat after the one above it.
     const auto fact = [](const char* words, size_t i) {
-      return text(words)
+      return document::paragraph(words)
           .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
           .key("rig" + std::to_string(i))
           .opacity(animate(from(0.0f).to(1.0f),
                            ramp(900.0f + (float)i * 90.0f, 300)));
     };
     return plate(176).gap(5).children(
-        {text("THE M-5 GUN DIRECTOR")
+        {document::h2("THE M-5 GUN DIRECTOR")
              .font({.face = faceGothicBold, .size = 13, .track = 1.6f})
              .key("rig-h"),
          each(kFacts, fact), box().flexGrow(1),
-         text("hitchcocksvertigo.substack.com · rhizome.org "
-              "· diyphotography.net")
+         document::caption("hitchcocksvertigo.substack.com · rhizome.org "
+                           "· diyphotography.net")
              .font({.size = 9, .color = kSteelDim})
              .key("rig-cite")});
   }
@@ -668,7 +669,7 @@ struct VertigoTitles {
     root.font({.face = faceGothic}).ink(kBone);
 
     // ---- header ---------------------------------------------------
-    static constexpr const char *kSrc[] = {
+    static constexpr const char* kSrc[] = {
         "artofthetitle.com/title/vertigo",
         "typotheque.com — Emily King, “Taking Credit” (5)",
         "patrycerichter.wordpress.com — shot breakdown, 2016",
@@ -740,7 +741,7 @@ struct VertigoTitles {
   }
 
   // ------------------------------------------------------------------
-  void setup(sketch::SketchContext &ctx) {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(
         ctx,
         {.size = SkSize::Make(kW, kH), .captureAt = 5.2, .background = kInk});
@@ -767,9 +768,9 @@ struct VertigoTitles {
     }
     irisMat = Paint::blend(
         {{Paint::radial(kEye, 360.0f,
-                        {{0.00f, hexColor(0x100C09)}, // pupil
+                        {{0.00f, hexColor(0x100C09)},  // pupil
                          {0.11f, hexColor(0x17110B)},
-                         {0.17f, hexColor(0x8A6A44)}, // bright inner iris
+                         {0.17f, hexColor(0x8A6A44)},  // bright inner iris
                          {0.40f, hexColor(0x6E5230)},
                          {0.72f, hexColor(0x6A5030)},
                          {1.00f, hexColor(0x36271A)}}),

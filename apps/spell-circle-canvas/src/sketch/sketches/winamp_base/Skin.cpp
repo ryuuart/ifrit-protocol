@@ -1,3 +1,6 @@
+#include <sigilcompose/kit/Document.h>
+#include <sigilmaterial/color/Color.h>
+
 #include "WinampBase.h"
 
 auto WinampBase::buildMaterials() -> void {
@@ -65,19 +68,14 @@ auto WinampBase::buildMaterials() -> void {
   // The title-bar grip: horizontal hairlines, as a rotated stripe tile.
   // TITLEBAR.BMP's grip rails are CREAM, not the body's blue-grey — the
   // one warm thing on an otherwise cold window.
-  gripTile = patterns::stripes(
-      n(1), n(1),
-      mskia::toColor(sigil::material::skia::toSkColor(hexColor(0xC8BC98))));
+  gripTile = patterns::stripes(n(1), n(1), hexColor(0xC8BC98));
   gripTile.rotate(90.0f);
   // The preview-visualiser swatch's default checkerboard art.
-  previewCheck = patterns::checker(
-      n(2),
-      mskia::toColor(sigil::material::skia::toSkColor(hexColor(0x2B2B44))),
-      mskia::toColor(sigil::material::skia::toSkColor(hexColor(0x14141F))));
+  previewCheck =
+      patterns::checker(n(2), hexColor(0x2B2B44), hexColor(0x14141F));
   // The visualiser well's baked dot grid (MAIN.BMP paints these under the
   // bars, in VISCOLOR's own "grey for dots").
-  visDots = patterns::halftone(n(2), n(0.5f),
-                               sigil::material::skia::toSkColor(kUnlit), false);
+  visDots = patterns::halftone(n(2), n(0.5f), kUnlit, false);
   // The EQ graph's dashed rules.
   graphGrid = Pattern::tile({n(4), n(4)}, [](SkCanvas& c, SkSize, uint32_t) {
     SkPaint p;
@@ -147,16 +145,19 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
                   hexColor(0x0E0E16))
         .children({t(g, pix(3.6f))});
   };
-  // the wordmark and the egg stand in the same box, crossfaded
-  const auto centred = [hN, wN](Element run) {
-    return at(box(), 0, (hN - 8) * 0.5f, wN, 8)
-        .justifyContent(Justify::Center)
+  // The grip rails share the title's row so both captions reserve their
+  // actual text width, including the longer animated message.
+  const auto caption = [this, hN, wN](Element run) {
+    const auto grip = [this] {
+      return box().flexGrow(1).flexBasis(0).height(n(7)).fill(
+          gripTile.material());
+    };
+    return at(box(), 24, (hN - 8) * 0.5f, wN - 48, 8)
+        .row()
+        .gap(n(5))
         .alignItems(Align::Center)
-        .children({std::move(run)});
+        .children({grip(), std::move(run.flexShrink(0)), grip()});
   };
-  // grip hairlines either side of the wordmark
-  const float gripW = wide ? 100.0f : 52.0f;
-  const float gy = (hN - 7.0f) * 0.5f;
   // the wordmark, the egg and the window buttons' glyphs: one gold
   return raised(at(box(), 0, 0, wN, hN)
                     .fill(mskia::Paint::linearUnit(
@@ -166,15 +167,14 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
                     .ink(kGold),
                 sigil::material::withAlpha(hexColor(0x5A5A82), 0.85f),
                 hexColor(0x101018))
-      .children(
-          {at(box(), 24, gy, gripW, 7).fill(gripTile.material()),
-           at(box(), wN - 24 - gripW, gy, gripW, 7).fill(gripTile.material()),
-           centred(t(label, pix(6.6f, true, 1.7f))
-                       .opacity(motion::bind(&llama).invert())),
-           centred(t("IT REALLY WHIPS THE LLAMA'S ASS!", pix(5.2f, true, 0.7f))
-                       .opacity(&llama)
-                       .scale(&llamaPop)),
-           // the option/context menu, native 9x9 at x=6
-           wide ? box() : wbtn(6, "-"), hasMin ? wbtn(wN - 31, "_") : box(),
-           wbtn(wN - 21, "="), wbtn(wN - 11, "x")});
+      .children({caption(document::label(label).font(pix(6.6f, true, 1.7f)))
+                     .opacity(motion::bind(&llama).invert()),
+                 caption(document::label("IT REALLY WHIPS THE LLAMA'S ASS!")
+                             .font(pix(5.2f, true, 0.7f))
+                             .scale(&llamaPop))
+                     .opacity(&llama),
+                 // the option/context menu, native 9x9 at x=6
+                 wide ? box() : wbtn(6, "-"),
+                 hasMin ? wbtn(wN - 31, "_") : box(), wbtn(wN - 21, "="),
+                 wbtn(wN - 11, "x")});
 }

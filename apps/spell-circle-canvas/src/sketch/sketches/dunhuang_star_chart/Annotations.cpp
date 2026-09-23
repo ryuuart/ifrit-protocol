@@ -359,13 +359,14 @@ auto DunhuangStarChart::auditRow(int i) -> Element {
                .gap(6)
                .width(86)
                .alignItems(Align::Center)
-               .children({box()
-                              .width(8)
-                              .height(8)
-                              .shape(shapes::circle())
-                              .fill(Fill::color(schoolInk(r.school)))
-                              .stroke(stroke(0.8f, Fill::color(kInk))),
-                          text(r.native).styleClass(schoolClass(r.school))}),
+               .children(
+                   {box()
+                        .width(8)
+                        .height(8)
+                        .shape(shapes::circle())
+                        .fill(Fill::color(schoolInk(r.school)))
+                        .stroke(stroke(0.8f, Fill::color(kChalk))),
+                    text(r.native).styleClass("han").font({.color = kChalk})}),
            text(kit::formatted("%4d %4d %4d", r.sxc, r.map, cz))
                .styleClass(r.sxc == r.map ? "note" : "number")
                .width(100),
@@ -466,7 +467,7 @@ auto DunhuangStarChart::headings() -> Element {
   const float barMm = 100.0f;
   return box().cover().key("head").children(
       {box().at({96, 16}).width(1500).column().gap(4).children(
-           {text(doc.phrase("title"))
+           {document::h1(doc.phrase("title"))
                 .font({.face = faceDisplay,
                        .size = 27.0f,
                        .color = hexColor(0xe0cfa6),

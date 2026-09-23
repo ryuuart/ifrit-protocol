@@ -28,9 +28,10 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Connect.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Routers.h>
@@ -320,13 +321,13 @@ struct Flourish {
     std::vector<Element> sparks;
     sparks.reserve(kSparks);
     for (int i = 0; i < kSparks; ++i)
-      sparks.push_back(box()
-                           .width(3)
-                           .height(3)
-                           .shape(shapes::star(4, 0.4f))
-                           .fill(Fill::color({st.bronze.r, st.bronze.g,
-                                              st.bronze.b, 0.5f}))
-                           .opacity(0.5f));
+      sparks.push_back(
+          box()
+              .width(3)
+              .height(3)
+              .shape(shapes::star(4, 0.4f))
+              .fill(Fill::color({st.bronze.r, st.bronze.g, st.bronze.b, 0.5f}))
+              .opacity(0.5f));
 
     std::vector<Element> frieze;
     frieze.reserve(kFriezeTiles);
@@ -338,7 +339,7 @@ struct Flourish {
               .height(16));
 
     auto titleLayer = [this](material::Color color, bool bloom) {
-      auto t = text(u8"AURELIA")
+      auto t = document::h1(u8"AURELIA")
                    .font({.size = 34, .track = 5.0f})
                    .ink(color)
                    .key(bloom ? "titleBloom" : "title")
@@ -401,11 +402,11 @@ struct Flourish {
                      {600ms}))
                  .foreground(
                      sigil::compose::stroke(1.4f, Fill::color(st.goldBright))),
-             text(u8"Framed by a vine that draws itself on, corner by "
-                  u8"corner, while the medallions turn and the rules hold "
-                  u8"their three weights of gold — every ornament a "
-                  u8"different corner of the compose surface, woven around "
-                  u8"this seal.")
+             document::paragraph(
+                 u8"A vine draws itself around the frame. Turning "
+                 u8"medallions and drifting gold catch the light; three "
+                 u8"weights of rule hold the border still around a "
+                 u8"breathing seal.")
                  .font({.size = 12.5f})
                  .key("motto")
                  .contentFlowAround("seal", 7),
@@ -414,7 +415,7 @@ struct Flourish {
                  .gap(2)
                  .justifyContent(Justify::Center)
                  .children(std::move(frieze)),
-             text(u8"— a stress test that chose to be beautiful —")
+             document::footer(u8"Carved frame · moving gilt · living vine")
                  .font({.size = 11})
                  .ink(st.rubric)});
   }

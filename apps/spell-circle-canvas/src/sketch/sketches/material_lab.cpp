@@ -107,8 +107,7 @@ sk_sp<SkImage> generated(const F& texel) {
   for (int y = 0; y < kMapSide; ++y)
     for (int x = 0; x < kMapSide; ++x) {
       const material::Color colour = texel(x, y);
-      *bitmap.getAddr32(x, y) =
-          sigil::material::skia::toSkColor(colour).toSkColor();
+      *bitmap.getAddr32(x, y) = material::skia::toSkColor(colour).toSkColor();
     }
   bitmap.setImmutable();
   return bitmap.asImage();
@@ -144,7 +143,7 @@ sk_sp<SkImage> domes(int cells, float bulge) {
       nz /= len;
     }
     return material::Color{nx * 0.5f + 0.5f, ny * 0.5f + 0.5f, nz * 0.5f + 0.5f,
-                     1.0f};
+                           1.0f};
   });
 }
 
@@ -358,7 +357,7 @@ struct MaterialLab {
                               .table = {.radius = 760.0f,
                                         .height = 420.0f,
                                         .period = 0.0f,
-                                        .fovYDeg = 46.0f},
+                                        .fovYDeg = 34.0f},
                               .ground = 5.0f,
                               .drop = 0.5f,
                               .surface = floorSurface};

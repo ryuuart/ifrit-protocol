@@ -4,7 +4,7 @@
  * as the first frame's measure moves and no marker until the last.
  */
 
-// ONE STORY, FOUR FRAMES, ONE CHAIN. The story is declared once — content
+// ONE STORY, THREE FRAMES, ONE CHAIN. The story is declared once — content
 // and block styles — and each frame fills from where the one before it
 // stopped. Nothing on this page decides where the text breaks between
 // frames: the first frame's measure does, and every later frame inherits
@@ -66,7 +66,7 @@ namespace weave = sigil::weave;
 
 namespace {
 
-constexpr SkSize kSceneSize{1180, 700};
+constexpr SkSize kSceneSize{1180, 760};
 
 namespace story {
 
@@ -80,7 +80,7 @@ constexpr float kColumnGutter = 24;
 
 const material::Color kPaper{0.949f, 0.945f, 0.933f, 1};
 const material::Color kInk{0.098f, 0.106f, 0.118f, 1};
-const material::Color kFaint{0.098f, 0.106f, 0.118f, 0.30f};
+const material::Color kFaint{0.098f, 0.106f, 0.118f, 0.65f};
 const material::Color kMark{0.643f, 0.310f, 0.157f, 1};
 const material::Color kDisc{0.643f, 0.310f, 0.157f, 0.16f};
 
@@ -111,9 +111,9 @@ kit::Caption voice() {
  *  remark a size under it in the faint one. */
 sigil::compose::StyleSheet voiceClasses() {
   return sigil::compose::StyleSheet{
-      sigil::compose::rule("label, .label").font(label(9.5f, kMark, 2.4f)),
+      sigil::compose::rule("label, .label").font(label(11.0f, kMark, 1.7f)),
       sigil::compose::rule("caption, .caption")
-          .font(label(9.0f, kFaint, 0.2f))};
+          .font(label(11.0f, kFaint, 0.1f))};
 }
 
 /** The story, declared once. Its blocks are numbered from its own start,
@@ -133,9 +133,10 @@ weave::Story article() {
                u8"pass before it reported as its remainder.\n")
           .add(u8"That is the whole mechanism, and everything a reader "
                u8"recognises about a threaded text follows from it. Narrow "
-               u8"the first frame and the cut moves later in the story, so "
+               u8"the first frame and the cut moves earlier in the story, so "
                u8"every frame after it holds different words; widen it and "
-               u8"the cut moves back. Nothing re-shapes: the story is one "
+               u8"the cut moves further along. Nothing re-shapes: the story is "
+               u8"one "
                u8"analysed, shaped text and each frame reads the same warm "
                u8"word list.\n")
           .add(u8"A frame's own geometry is its business. This one flows "
@@ -216,36 +217,58 @@ struct ThreadedStory {
     return box()
         .fill(Fill::color(s::kPaper))
         .font({.face = s::grotesque(), .size = 9.5f})
-        .ink(material::skia::toSkColor(s::kFaint))
+        .ink(s::kFaint)
         .children(
             {box()
                  .inset(s::kMargin - 14, 0, 0, s::kMargin)
                  .column()
                  .gap(5)
                  .children(
-                     {document::h1("ONE STORY, THREE FRAMES, TWICE")
-                          .font({.size = 11, .color = s::kInk, .track = 3.4f}),
+                     {document::h1("One story, three frames")
+                          .font({.size = 26, .color = s::kInk, .track = 0.2f}),
                       document::lead(
-                          "the cut is a word index — the "
-                          "remainder the frame before reported — so a "
-                          "narrower first frame moves "
-                          "it, and the columns begin elsewhere")
-                          .font({.size = 9.5f, .track = 0.3f})
-                          .width(700.0f)}),
+                          "Change the first frame's width. The same story "
+                          "continues from a different word in each column.")
+                          .font({.size = 12, .track = 0.1f})
+                          .width(620.0f)}),
              box()
-                 .inset(s::kMargin + 56, 0, 0, s::kMargin)
+                 .inset(s::kMargin + 72, 0, 0, s::kMargin)
                  .row()
                  .gap(44)
                  .font({.face = s::serif(), .size = 13})
                  .ink(s::kInk)
                  .children({captioned("NARROW FIRST FRAME",
-                                      "less fits before the columns, so they "
-                                      "start earlier in the story",
+                                      "Less fits before the columns.\n"
+                                      "They continue earlier in the story.",
                                       chain("narrow", s::kNarrow, article)),
                             captioned("WIDE FIRST FRAME",
-                                      "more fits before them, and the same two "
-                                      "columns begin further in",
+                                      "More fits before the columns.\n"
+                                      "They continue later in the story.",
                                       chain("wide", s::kWide, article))}),
+             box()
+                 .left(850)
+                 .top(s::kMargin + 72)
+                 .width(245)
+                 .gap(14)
+                 .children({
+                     document::h2("READ THE CONTINUATION")
+                         .font({.size = 11, .color = s::kMark, .track = 1.4f}),
+                     document::paragraph(
+                         "Start at the top frame, then read down the left "
+                         "column and down the right. Each frame receives "
+                         "the words its predecessor could not hold.")
+                         .font({.size = 12, .color = s::kInk}),
+                     document::paragraph(
+                         "Compare the first word below each upper frame. "
+                         "The wider frame holds more of the opening, so "
+                         "its continuation begins later.")
+                         .font({.size = 12, .color = s::kInk}),
+                     document::caption(
+                         "Only the last column has an ellipsis. An "
+                         "intermediate frame continues; it does not end "
+                         "the story.")
+                         .font({.size = 11, .color = s::kFaint}),
+                 }),
              document::footer(
                  "a Western column is a FRAME; the vertical writing "
                  "mode keeps the word for the thing it already meant")

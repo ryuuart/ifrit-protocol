@@ -11,6 +11,7 @@
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilmaterial/color/Color.h>
@@ -18,6 +19,7 @@
 
 #include <array>
 #include <cmath>
+#include <utility>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -91,8 +93,8 @@ struct BrushCustom {
     shape = chiselTip();
     grain = paperGrain();
 
-    context.composer.render(
-        compose::graphics("brush_custom.sheet", [this](Pen& pen) { draw(pen); }));
+    context.composer.render(compose::graphics("brush_custom.sheet",
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   /** One arc of the same centreline, so every row differs only by what
@@ -142,6 +144,27 @@ struct BrushCustom {
         .drive = brush::Drive::Pressure,
         .curve = {.minimum = 0.22f, .maximum = 1.0f, .bend = 1.6f}};
     brush::paint(pen, loaded, sweep(610));
+
+    pen.element(compose::document::h1("A brush made of images")
+                    .font({.size = 24})
+                    .ink(kInk),
+                SkRect::MakeXYWH(70, 16, 860, 36));
+    int labelIndex = 0;
+    for (const auto& [y, words] : std::array<std::pair<float, const char*>, 4>{{
+             {62, "01 / SHAPE ALONE"},
+             {215, "02 / SPACING, SCATTER AND ROTATION"},
+             {342, "03 / GRAIN FIXED TO THE PAPER"},
+             {548, "04 / GRAIN ON EACH DAB, SIZE FROM PRESSURE"},
+         }}) {
+      pen.element(compose::document::label(words).font({.size = 12}).ink(kInk),
+                  SkRect::MakeXYWH(70, y, 860, 22), labelIndex++);
+    }
+    pen.element(compose::document::caption(
+                    "One chisel image, one grain image. The same path reveals "
+                    "what each brush control changes.")
+                    .font({.size = 14})
+                    .ink(kInk),
+                SkRect::MakeXYWH(70, 710, 860, 36));
 
     pen.noLoop();
   }

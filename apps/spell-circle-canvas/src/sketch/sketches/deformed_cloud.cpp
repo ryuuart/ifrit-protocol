@@ -163,5 +163,5 @@ struct DeformedCloud {
 
 SIGIL_SKETCH(DeformedCloud, "Set",
              "A point chain cooked in a room — a band selected "
-             "across a scattered body, twisted inside it and pushed out "
+             "across a scattered body, pushed out inside it and twisted "
              "beyond it, with one facet stood at every cooked point")

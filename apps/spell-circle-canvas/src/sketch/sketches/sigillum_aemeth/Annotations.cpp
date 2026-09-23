@@ -89,15 +89,15 @@ auto SigillumAemeth::nameRows() -> Element {
   // are the block's own outline, so they cost one node and no placement
   return box()
       .width(w)
-      .height(324)
+      .height(310)
       .column()
       .padding(8, 0)
       .shape(keyedShape(w,
                         [w] {
                           SkPathBuilder b;
                           for (int n = 0; n <= 7; ++n) {
-                            b.moveTo(0, 4 + (float)n * 46);
-                            b.lineTo(w, 4 + (float)n * 46);
+                            b.moveTo(0, 4 + (float)n * 44);
+                            b.lineTo(w, 4 + (float)n * 44);
                           }
                           return b.detach();
                         }))
@@ -115,7 +115,7 @@ auto SigillumAemeth::nameRows() -> Element {
         };
         return box()
             .row()
-            .height(46)
+            .height(44)
             .alignItems(Align::Baseline)
             .children({text(std::to_string(n + 1) + ".")
                            .styleClass("index")
@@ -135,7 +135,7 @@ auto SigillumAemeth::nameRows() -> Element {
 }
 
 auto SigillumAemeth::basketFan() -> Element {
-  const float w = 690, h = 260;
+  const float w = 690, h = 280;
   // the fan's hub stands BELOW its own box: seven nested arcs opening upward,
   // one per row of the angles, so a column is a ray and reading down is
   // reading outward
@@ -269,7 +269,7 @@ auto SigillumAemeth::margin() -> Element {
       .scale(kS)
       .transformOrigin(pct(0), pct(0))
       .column()
-      .gap(8)
+      .gap(6)
       .font({.face = faceMono, .size = 15})
       .ink(hexColor(0x8d7a58))
       .applyStyleSheet(voices())

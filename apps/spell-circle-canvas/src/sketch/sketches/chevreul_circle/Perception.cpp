@@ -114,7 +114,7 @@ auto ChevreulCircle::theObservations() -> Element {
        label(doc["obs.head"], x0 + 10, y0 + 6, W - 20)
            .role("h2")
            .styleClass("heading")});
-  const float rowH = 19.4f, top = y0 + 24;
+  const float rowH = 18.5f, top = y0 + 24;
   for (size_t i = 0; i < kObs.size(); ++i) {
     const Observation& o = kObs[i];
     const float y = top + (float)i * rowH;

@@ -101,8 +101,8 @@ compose::StyleSheet screenType() {
   compose::StyleSheet sheet{
       compose::rule("h1").font(
           {.size = 22.0f, .color = compose::hexColor(0xbfd4ef)}),
-      compose::rule(".note").font(
-          {.size = 19.0f, .color = compose::hexColor(0x7e93b4)}),
+      compose::rule("paragraph")
+          .font({.size = 19.0f, .color = compose::hexColor(0x7e93b4)}),
       compose::rule(".display")
           .font({.size = 46.0f, .color = compose::hexColor(0xf2ebdc)}),
       compose::rule("caption, .caption")
@@ -162,11 +162,10 @@ compose::Element trace(float seconds, material::Color accent) {
                               1.0f});
   };
   return screen(10.0f, compose::hexColor(0x0f141c))
-      .children(
-          {compose::document::h1(u8"TRACE"),
-           compose::box().row().gap(5.0f).height(44.0f).children(
-               {compose::each(kCells, cell)}),
-           compose::text(u8"one wave, fourteen cells").styleClass("note")});
+      .children({compose::document::h1(u8"TRACE"),
+                 compose::box().row().gap(5.0f).height(44.0f).children(
+                     {compose::each(kCells, cell)}),
+                 compose::document::paragraph(u8"one wave, fourteen cells")});
 }
 
 /** A DIAL SCREEN: a needle laid out rather than drawn — a bar whose
@@ -190,7 +189,7 @@ compose::Element dial(float seconds, material::Color accent) {
                      .width(compose::pct(100))
                      .height(12.0f + 46.0f * reading)
                      .fill(material::Color{accent.r * 0.35f, accent.g * 0.35f,
-                                     accent.b * 0.35f, 1.0f})});
+                                           accent.b * 0.35f, 1.0f})});
 }
 
 /** THE BAND under them: one wide strip of cells, so the curved panel has
@@ -225,7 +224,7 @@ compose::Element tape(float seconds) {
   };
   return screen(6.0f, compose::hexColor(0x1f2430), 14.0f)
       .children({compose::text(u8"WOVEN").styleClass("display"),
-                 compose::text(u8"a scene, sampled").styleClass("caption"),
+                 compose::document::caption(u8"a scene, sampled"),
                  compose::box()
                      .row()
                      .gap(10.0f)

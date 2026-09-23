@@ -77,6 +77,7 @@
 
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -260,7 +261,7 @@ struct AxisRipple {
                                     "THE DRIVE IS REFUSED AND THE LINE "
                                     "DRAWS AT ITS SHAPED COORDINATES"))
              .font({.size = 11.0f, .track = 0.6f})
-             .ink(hasGrad ? kFaint : kMark)});
+             .ink(hasGrad ? kLabel : kMark)});
     return panel;
   }
 
@@ -351,30 +352,29 @@ struct AxisRipple {
     return box()
         .column()
         .padding(kPadY, kPadX)
-        .gap(30)
+        .gap(24)
         .fill(linearGradient({0, 0}, {0, kH},
                              {kPaper, hexColor(0x111116), kPaper},
                              {0.0f, 0.6f, 1.0f}))
         .font({.face = faceLabel, .size = 11.5f, .track = 2.4f})
         .ink(kLabel)
         .children(
-            {box()
-                 .row()
-                 .alignItems(Align::End)
-                 .children(
-                     {text("THE AXIS RIPPLE")
-                          .font({.size = 12.5f, .track = 3.4f})
-                          .ink(kInk)
-                          .flexGrow(1),
-                      text("OPENTYPE FONT VARIATIONS · 2016").ink(kFaint)}),
+            {box().column().gap(5).children(
+                 {document::h1("The axis ripple")
+                      .font({.face = faceLabel, .size = 26.0f, .track = 0.2f})
+                      .ink(kInk),
+                  document::caption("OpenType Font Variations · 2016")
+                      .font({.size = 12.0f, .track = 0.3f})
+                      .ink(kLabel)}),
              kit::line({.fill = Fill::color(kFaint)}), ripplePanel(),
              proofPanels(), box().flexGrow(1),
-             text("A GRADE IS WEIGHT WITHOUT WIDTH · IT IS THE "
-                  "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
-                  "REASON THE RIPPLE COSTS ONE SHAPING RATHER THAN "
-                  "ONE PER FRAME")
-                 .font({.size = 11.0f, .track = 0.6f})
-                 .ink(kFaint)});
+             document::footer(
+                 "Grade changes the weight without changing the width. "
+                 "The blue row keeps the same pen positions throughout the "
+                 "wave.")
+                 .width(700)
+                 .font({.size = 11.5f, .track = 0.2f})
+                 .ink(kLabel)});
   }
 
   void setup(sketch::SketchContext& ctx) {

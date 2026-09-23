@@ -43,6 +43,7 @@
 // TAGS: Interfaces/Web
 
 #include <include/core/SkCanvas.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcompose/web/Web.h>
 #include <sigildraw/Pen.h>
@@ -174,8 +175,9 @@ Element note(std::u8string heading, std::u8string body) {
       .foreground(stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.22f))))
       .column()
       .gap(6)
-      .children({text(std::move(heading)).font({.size = 14}),
-                 text(std::move(body)).font({.size = 11.5f, .color = kDim})});
+      .children({document::h2(std::move(heading)).font({.size = 14}),
+                 document::paragraph(std::move(body))
+                     .font({.size = 11.5f, .color = kDim})});
 }
 
 }  // namespace
@@ -255,8 +257,8 @@ struct WebPanelSketch {
         // The scene's one ink, stated once; the dim lines say so.
         .ink(kInk)
         .children(
-            {text(u8"A PAGE AS A LEAF")
-                 .font({.size = 15, .track = 2.4f})
+            {document::h1(u8"A page as a leaf")
+                 .font({.size = 28})
                  .left(40)
                  .top(32),
              // The page at its own pixel size: the view is created at exactly
@@ -283,14 +285,16 @@ struct WebPanelSketch {
                        u8"A process boots exactly one engine, so it "
                        u8"is held beside the sketch rather than "
                        u8"inside it.")}),
-             text(m_page && !m_page->arrived()
-                      ? u8"the page is still arriving — the window draws "
-                        u8"the view's own latest and never waits"
-                      : u8"the page background is transparent — the scene's "
-                        u8"gradient is what shows between its cards")
+             document::caption(
+                 m_page && !m_page->arrived()
+                     ? u8"the page is still arriving — the window draws "
+                       u8"the view's own latest and never waits"
+                     : u8"the page background is transparent — the scene's "
+                       u8"gradient is what shows between its cards")
                  .font({.size = 12, .color = kDim})
                  .left(40)
-                 .top(590)});
+                 .top(590)
+                 .width(900)});
   }
 
   /** What a host shows in place of the piece when the engine has nothing

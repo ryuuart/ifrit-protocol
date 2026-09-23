@@ -13,23 +13,25 @@ auto SlitScan2001::header() -> Element {
       .gap(4)
       .font({.face = uiFace()})
       .children(
-          {t("TIME AS AN AXIS OF THE IMAGE",
-             {.size = 10, .color = kType 2, .track = 2.6f})
+          {document::eyebrow("TIME AS AN AXIS OF THE IMAGE")
+               .font({.size = 10, .color = kType2, .track = 2.6f})
                .key("eyebrow")
                .opacity(animate(from(0.0f).to(1.0f), {260ms, ch::easeOutQuad}))
                .translateY(
                    animate(from(8.0f).to(0.0f), {260ms, ch::easeOutQuad})),
-           t("THE SLIT-SCAN MACHINE, 1966–68",
-             {.face = uiBoldFace(), .size = 40, .color = kType, .track = 0.4f})
+           document::h1("THE SLIT-SCAN MACHINE, 1966–68")
+               .font({.face = uiBoldFace(),
+                      .size = 40,
+                      .color = kType,
+                      .track = 0.4f})
                .key("title")
                .textStroke(0.6f, Fill::color(kInk))
                .textFx(std::move(rise)),
-           t("Douglas Trumbull — ‘Creating Special Effects for 2001: A "
-             "Space Odyssey’, American Cinematographer 49(6):416–420, "
-             "451–453, June 1968 (READ DIRECTLY) · Cinefex 85, April "
-             "2001 · Super Panavision 70, 65 mm 5-perf spherical, "
-             "2.20:1, 24 fps, f/1.8",
-             {.size = 11, .color = kType2})
+           document::lead("Douglas Trumbull · 2001: A Space Odyssey\n"
+                          "A moving camera integrates light through a slit "
+                          "into two luminous planes.")
+               .font({.size = 11, .color = kType2})
+               .width(690)
                .key("cite")
                .opacity(animate(from(0.0f).to(1.0f),
                                 {240ms, ch::easeOutQuad, 400ms}))});

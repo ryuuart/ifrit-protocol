@@ -3,6 +3,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/decode/Json.h>
@@ -74,7 +75,7 @@ const mat::Color kCaption = hexColor(0xD8C9A8, 0.60f);
 // panel's whole argument — seven pieces per cell, from the incircle, on
 // three jigs — is taken apart at cell scale.
 constexpr float kW = 1400, kRoom = 1000;
-constexpr float kBandH = 210;
+constexpr float kBandH = 240;
 constexpr float kH = kRoom + kBandH;
 
 constexpr float kCell =
@@ -163,25 +164,24 @@ class TimberBank {
  public:
   Paint get(const Timber& t, float span, bool flip, uint32_t seed,
             bool along = false) {
-    return Paint::recipe(
-        m_bank.get(matkit::timberRecipe(),
-                   matkit::TimberParameters{
-                       .base = sigil::material::skia::toSkColor(t.base),
-                       .light = sigil::material::skia::toSkColor(t.light),
-                       .dark = sigil::material::skia::toSkColor(t.dark),
-                       .span = span,
-                       .flip = flip ? 1.0f : 0.0f,
-                       .along = along ? 1.0f : 0.0f,
-                       .grain = t.grain,
-                       .figure = t.figure,
-                       // The tooth is the surface; the figure above
-                       // is the wood's story. Keep toothScale x
-                       // stretch under about a tenth or the tooth
-                       // aliases into hash noise with no diagnostic.
-                       .tooth = 0.26f,
-                       .toothScale = 0.045f,
-                       .stretch = 2.0f},
-                   seed));
+    return Paint::recipe(m_bank.get(
+        matkit::timberRecipe(),
+        matkit::TimberParameters{.base = t.base,
+                                 .light = t.light,
+                                 .dark = t.dark,
+                                 .span = span,
+                                 .flip = flip ? 1.0f : 0.0f,
+                                 .along = along ? 1.0f : 0.0f,
+                                 .grain = t.grain,
+                                 .figure = t.figure,
+                                 // The tooth is the surface; the figure above
+                                 // is the wood's story. Keep toothScale x
+                                 // stretch under about a tenth or the tooth
+                                 // aliases into hash noise with no diagnostic.
+                                 .tooth = 0.26f,
+                                 .toothScale = 0.045f,
+                                 .stretch = 2.0f},
+        seed));
   }
 
  private:

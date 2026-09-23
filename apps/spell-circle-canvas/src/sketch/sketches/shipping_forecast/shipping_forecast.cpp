@@ -202,7 +202,7 @@ constexpr material::Color kSea = hexColor(0x06090E);      // ground
 constexpr material::Color kSeaLift = hexColor(0x0B111A);  // panel wash
 constexpr material::Color kBone = hexColor(0xE9E5DB);     // primary type
 constexpr material::Color kSlate = hexColor(0x76828F);    // secondary type
-constexpr material::Color kSlateDim = hexColor(0x76828F, 0.62f);
+constexpr material::Color kSlateDim = hexColor(0x76828F, 0.86f);
 constexpr material::Color kKeyline = hexColor(0x1A2532);
 constexpr material::Color kAmber = hexColor(0xF0A03C);  // the one accent
 
@@ -465,9 +465,11 @@ struct ShippingForecast {
     return box().width(kRingBox).height(kRingBox).flexShrink(0).children({
         // The wash under the ring: a soft light filling the square, so the
         // lettering has something to sit on without a visible plate edge.
-        box().inset(0).fill(mskia::Paint::glowUnit(
-            {0.5f, 0.5f}, 0.94f,
-            {{0.0f, kSeaLift}, {0.62f, hexColor(0x090E15)}, {1.0f, kSea}})),
+        box().inset(0).fill(
+            mskia::Paint::glowUnit({0.5f, 0.5f}, 0.94f,
+                                   {{0.0f, kSeaLift},
+                                    {0.62f, hexColor(0x090E15)},
+                                    {1.0f, hexColor(0x06090E, 0.0f)}})),
         hair(kRingR + 21.0f, kKeyline, 1.0f).key("ring-outer"),
         hair(kInnerR, kKeyline, 1.0f).key("ring-inner"),
         hair(kInnerR - 9.0f, hexColor(0x121B26), 1.0f).key("ring-inner-2"),
@@ -707,7 +709,7 @@ struct ShippingForecast {
                                  .durationMs = 520,
                                  .from = motion::Spread::From::Start},
                      .progress = beat(2.25f, 4.10f)}),
-        text("SLOWLY — 0.1 TO 1.5 MB IN THREE HOURS")
+        document::caption(page["note"].text())
             .styleClass("note")
             .key("baro-note")
             .opacity(beat(3.30f, 3.90f)),
@@ -960,7 +962,8 @@ struct ShippingForecast {
 
                             .children({ringPanel()}),
                     }),
-                    text(doc["foot"])
+                    document::footer(doc["foot"].text())
+                        .width(700)
                         .styleClass("foot")
                         .key("foot")
                         .opacity(beat(3.10f, 3.75f)),

@@ -46,6 +46,7 @@ class WorldStudy:
         self.camera.fovYDeg = 30
 
     def draw(self, pen: Pen) -> None:
+        pen.background(PAPER)
         seconds = pen.millis() / 1000
         pieces = [
             world.Element()

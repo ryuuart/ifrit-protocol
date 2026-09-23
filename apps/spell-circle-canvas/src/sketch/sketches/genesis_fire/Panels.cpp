@@ -185,16 +185,17 @@ Element GenesisFire::header() {
       .font({.face = uiFace()})
       .ink(kSteel)
       .children(
-          {text(head["eyebrow"])
+          {document::eyebrow(head["eyebrow"])
                .font({.size = 11.5f, .track = 2.7f})
                .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
                .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
-           text(head["title"])
+           document::h1(head["title"])
                .font({.face = heavyFace(), .size = 46, .track = -0.4f})
                .ink(kBone)
                .key("title")
                .textFx(std::move(rise)),
-           text(head["credit"])
+           document::lead(head["credit"])
+               .width(670)
                .font({.size = 11.0f, .track = 0.1f})
                .opacity(animate(from(0.0f).to(1.0f),
                                 {.duration = 240ms, .delay = 420ms})),

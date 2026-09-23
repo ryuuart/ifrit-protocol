@@ -280,36 +280,42 @@ struct CdeMotifSketch {
     const Set& c1 = theme[1];
     const Set& c2 = theme[2];  // dtsession's primary set — unstyled widgets
     const Set& c6 = theme[6];  // list panes
+    environment::Provide<cde::ColorSet> dialog(c2);
 
-    Element list = cde::surface(c6)
-                       .overlay(cde::bevel(2, true, false))
-                       .padding(2)
-                       .flexGrow(1)
-                       .column();
-    for (int i = 0; i < (int)cde::kPalettes.size(); ++i) {
-      const bool current = i == paletteIndex;
-      Element rowBox =
-          box()
-              .row()
-              .alignItems(Align::Center)
-              .height(20)
-              .padding(0, 6)
-              .children({cde::label(cde::kPalettes[(size_t)i]->name)});
-      if (current) rowBox.fill(c6.sel);
-      list.children({std::move(rowBox)});
+    Element list;
+    {
+      environment::Provide<cde::ColorSet> listColors(c6);
+      list = cde::surface(c6)
+                 .overlay(cde::bevel(2, true, false))
+                 .padding(2)
+                 .flexGrow(1)
+                 .column();
+      for (int i = 0; i < (int)cde::kPalettes.size(); ++i) {
+        const bool current = i == paletteIndex;
+        Element rowBox =
+            box()
+                .row()
+                .alignItems(Align::Center)
+                .height(20)
+                .padding(0, 6)
+                .children({cde::label(cde::kPalettes[(size_t)i]->name)});
+        if (current) rowBox.fill(c6.sel);
+        list.children({std::move(rowBox)});
+      }
+      list.children({each(page["shipped"].items(), [](const data::Json& n) {
+        return box()
+            .row()
+            .alignItems(Align::Center)
+            .height(20)
+            .padding(0, 6)
+            .children({cde::label(n)});
+      })});
     }
-    list.children({each(page["shipped"].items(), [](const data::Json& n) {
-      return box()
-          .row()
-          .alignItems(Align::Center)
-          .height(20)
-          .padding(0, 6)
-          .children({cde::label(n)});
-    })});
 
     // XmScrollBar: a sunken trough in the workspace set with a raised
     // slider, 15 px of trough plus 2 px of shadow either side [MEAS].
     auto scrollBar = [&](const Set& t, float sliderFrac) {
+      environment::Provide<cde::ColorSet> scrollColors(t);
       return sketch::kit::scrollbar({.thumb = box().fill(t.bg).overlay(
                                          cde::bevel(2, false, false)),
                                      .thumbLength = pct(sliderFrac),
@@ -329,6 +335,7 @@ struct CdeMotifSketch {
       Element rr = box().row().gap(6);
       for (int c = 0; c < 4; ++c) {
         const int idx = r * 4 + c + 1;
+        environment::Provide<cde::ColorSet> swatchColors(theme[idx]);
         rr.children({box()
                          .width(50)
                          .height(42)
@@ -361,6 +368,7 @@ struct CdeMotifSketch {
              box().height(2).overlay(cde::bevel(2, false, true)),
              std::move(buttons)});
 
+    environment::Provide<cde::ColorSet> chrome(c1);
     return windowFrame(box().flexGrow(1).column().children(
         {titleBar(page["title"], false), std::move(body)}));
   }
@@ -370,6 +378,7 @@ struct CdeMotifSketch {
 
   Element postedMenu() {
     const Set& s = theme[6];
+    environment::Provide<cde::ColorSet> menuColors(s);
     auto item = [&](std::string_view t, bool cascade, bool insensitive) {
       Element row =
           box()
@@ -416,6 +425,7 @@ struct CdeMotifSketch {
 
   Element derivationStrip() {
     const Set& s = theme[2];
+    environment::Provide<cde::ColorSet> stripColors(s);
     const int v = std::clamp((int)std::lround(sweep.value() * 255.0f), 0, 255);
     const cde::Rgb bgv =
         cde::from8((uint32_t)v << 16u | (uint32_t)v << 8u | (uint32_t)v);
@@ -613,6 +623,7 @@ struct CdeMotifSketch {
       for (int c = 0; c < 2; ++c) {
         const int i = r * 2 + c;
         const Set& ws = theme[kSets[i]];
+        environment::Provide<cde::ColorSet> workspaceColors(ws);
         rr.children(
             {cde::surface(ws)
                  .width(129)
@@ -707,6 +718,7 @@ struct CdeMotifSketch {
    *  and what trim()/scaleY could not have given. */
   Element helpSubpanel() {
     const Set& s = theme[2];
+    environment::Provide<cde::ColorSet> panelColors(s);
     Element col =
         cde::surface(s)
             .overlay(cde::bevel(2, false, false))
@@ -731,6 +743,7 @@ struct CdeMotifSketch {
   Element iconifiedWindow(std::string_view title,
                           const std::vector<std::string>& pixmap) {
     const Set& s = theme[2];
+    environment::Provide<cde::ColorSet> iconColors(s);
     return box()
         .column()
         .alignItems(Align::Center)

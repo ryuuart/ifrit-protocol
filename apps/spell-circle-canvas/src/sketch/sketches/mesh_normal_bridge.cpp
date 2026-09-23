@@ -53,6 +53,7 @@
 
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -181,17 +182,20 @@ struct MeshNormalBridge {
               .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
     studio = material::kit::studioEnvironment();
     sunset = material::kit::sunsetEnvironment();
-    blob = mesh::superellipsoid({170, 150, 90}, 2.6f, 64, 48);
-    ring = mesh::torus(130, 46);
+    blob = mesh::superellipsoid({150, 138, 90}, 2.6f, 64, 48);
+    ring = mesh::torus(116, 40);
     const auto caption = [&](const char* call, const char* note, float x) {
       return box()
           .column()
           .gap(4)
-          .width(300)
+          .width(370)
           .absolute()
-          .inset(kCanvas.height() - 92, 0, 0, kCanvas.width() * 0.5f + x - 150)
-          .children({text(call).font({.size = 12.5f, .track = 0.4f}),
-                     text(note).font({.size = 10.5f}).ink(kDim).width(300)});
+          .inset(kCanvas.height() - 92, 0, 0, x)
+          .children(
+              {document::h2(call).font({.size = 18}), document::paragraph(note)
+                                                          .font({.size = 13})
+                                                          .ink(kDim)
+                                                          .width(370)});
     };
     ctx.composer.render(
         // Every line is set in the bright ink unless it says otherwise;
@@ -204,27 +208,26 @@ struct MeshNormalBridge {
                 {custom("mesh.normal.bridge",
                         [this](SkCanvas& canvas) { draw(canvas); })
                      .inset(0),
-                 text("NORMAL MAPS · two sources, one recipe")
-                     .font({.size = 15, .track = 2.0f})
+                 document::h1("Normal maps: two sources, one recipe")
+                     .font({.size = 30})
                      .left(30)
                      .top(20),
-                 caption("Mode::Normals → material::kit::chrome",
-                         "a superellipsoid's own normals, rasterised into "
-                         "a G-buffer and read back",
-                         kStations[0]),
-                 caption("Mode::Normals → material::kit::gold",
-                         "the same bridge, another recipe and another "
-                         "environment",
-                         kStations[1]),
-                 caption("bevelNormals(path, 118) → material::kit::chrome",
-                         "no mesh at all — a shoulder derived "
-                         "from a flat path's coverage, under the same "
-                         "recipe and the same sky",
-                         kStations[2]),
-                 text("both encode device-space normals as "
-                      "rgb = n·0.5 + 0.5, and a recipe cannot "
-                      "tell which one it was handed")
-                     .font({.size = 11})
+                 caption("A mesh in chrome",
+                         "The superellipsoid supplies its surface normals. A "
+                         "sunset environment supplies the reflection.",
+                         30),
+                 caption("The same bridge in gold",
+                         "A torus supplies the normals. A gold recipe reflects "
+                         "a studio environment.",
+                         462),
+                 caption("A flat outline in chrome",
+                         "A bevel supplies the normals, using the same chrome "
+                         "recipe and sunset as the first body.",
+                         894),
+                 document::caption("Both encode device-space normals as "
+                                   "rgb = n·0.5 + 0.5, and a recipe cannot "
+                                   "tell which one it was handed")
+                     .font({.size = 12})
                      .ink(kDim)
                      .left(30)
                      .bottom(16)}));

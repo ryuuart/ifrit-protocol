@@ -4,24 +4,23 @@ TAGS: Drawing/Brushes, Geometry/Layout, Typography/Interface
 """
 
 from sigil.compose import Element, box, text
+from sigil.compose import document as doc
 from sigil.draw import Pen, brush
 from sigil.sketch import SketchContext, sketch
 
 
 def card(label: str, accent: str) -> Element:
     return (
-        box()
-        .column()
+        doc.article(
+            doc.label("COMPOSE").fontSize(11),
+            doc.h2(label).fontSize(27),
+            doc.caption("Layout + type + paint").fontSize(11),
+        )
         .gap(8)
         .padding(18)
         .borderRadius(12)
         .fill(accent)
         .ink("#ffffff")
-        .children(
-            text("COMPOSE", size=11),
-            text(label, size=27),
-            text("Layout + type + paint", size=11),
-        )
     )
 
 

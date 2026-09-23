@@ -11,6 +11,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -34,6 +35,12 @@ struct Turtle {
   float angle;
 };
 
+struct Branch {
+  SkPoint from;
+  SkPoint to;
+  float shade;
+};
+
 struct ObservableLSystemTree {
   std::string sentence = "F";
 
@@ -43,9 +50,10 @@ struct ObservableLSystemTree {
     for (int generation = 0; generation < 4; ++generation)
       sentence = grow(sentence);
 
-    context.composer.render(compose::graphics("observable_l_system_tree.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .inset(0));
+    context.composer.render(
+        compose::graphics("observable_l_system_tree.loop", [this](Pen& pen) {
+          draw(pen);
+        }).inset(0));
   }
 
   void draw(Pen& pen) {
@@ -54,24 +62,27 @@ struct ObservableLSystemTree {
     }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const float turn = radians(25.0f + 3.0f * std::sin(clock * 0.55f));
-    constexpr float kLength = 15.625f;
-    Turtle turtle{{pen.width / 3.0f, pen.height}, -HALF_PI};
+    Turtle turtle{{0, 0}, -HALF_PI};
     std::vector<Turtle> stack;
     stack.reserve(32);
+    std::vector<Branch> branches;
+    branches.reserve(sentence.size() / 2);
+    float left = 0, top = 0, right = 0, bottom = 0;
 
     pen.background(51);
     pen.noFill();
-    pen.strokeWeight(1.0f);
     for (size_t index = 0; index < sentence.size(); ++index) {
       const char symbol = sentence[index];
       if (symbol == 'F') {
-        const SkPoint next =
-            turtle.point + SkPoint{std::cos(turtle.angle) * kLength,
-                                   std::sin(turtle.angle) * kLength};
+        const SkPoint next = turtle.point + SkPoint{std::cos(turtle.angle),
+                                                    std::sin(turtle.angle)};
         const float shade =
             100.0f + 155.0f * static_cast<float>(index) / sentence.size();
-        pen.stroke(shade);
-        pen.line(turtle.point.x(), turtle.point.y(), next.x(), next.y());
+        branches.push_back({turtle.point, next, shade});
+        left = std::min(left, next.x());
+        top = std::min(top, next.y());
+        right = std::max(right, next.x());
+        bottom = std::max(bottom, next.y());
         turtle.point = next;
       } else if (symbol == '+') {
         turtle.angle += turn;
@@ -84,6 +95,18 @@ struct ObservableLSystemTree {
         stack.pop_back();
       }
     }
+    const float scale = std::min((pen.width - 64.0f) / (right - left),
+                                 (pen.height - 64.0f) / (bottom - top));
+    pen.push();
+    pen.translate((pen.width - (left + right) * scale) * 0.5f,
+                  (pen.height - (top + bottom) * scale) * 0.5f);
+    pen.scale(scale);
+    pen.strokeWeight(1.0f / scale);
+    for (const Branch& branch : branches) {
+      pen.stroke(branch.shade);
+      pen.line(branch.from.x(), branch.from.y(), branch.to.x(), branch.to.y());
+    }
+    pen.pop();
   }
 };
 

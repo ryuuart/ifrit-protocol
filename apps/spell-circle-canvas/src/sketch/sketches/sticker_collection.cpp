@@ -19,6 +19,7 @@
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigildraw/Pen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/hub/Hub.h>
@@ -159,47 +160,49 @@ struct StickerCollection {
                    hub.image(kDiamond), hub.image(kHeart)},
         .webm = loadVideo(hub, kWebm)};
 
-    Element stage =
-        pen("stickers.live",
-            [shelf](draw::Pen& pen) {
-              pen.angleMode(draw::DEGREES);
-              pen.imageMode(draw::CENTER);
-              drawGround(pen);
-              const std::array<SkRect, 6> boxes = {
-                  SkRect::MakeXYWH(70, 190, 280, 300),
-                  SkRect::MakeXYWH(400, 170, 290, 320),
-                  SkRect::MakeXYWH(735, 190, 270, 300),
-                  SkRect::MakeXYWH(65, 665, 300, 330),
-                  SkRect::MakeXYWH(405, 650, 275, 350),
-                  SkRect::MakeXYWH(725, 670, 290, 320)};
-              constexpr std::array<float, 5> turns = {-8, 7, -4, 9, -6};
-              constexpr std::array<double, 5> offsets = {0.0, 270.0, 510.0,
-                                                         760.0, 1030.0};
-              for (size_t i = 0; i < shelf.images.size(); ++i) {
-                const auto& asset = shelf.images[i];
-                if (!asset) continue;
-                const image::Frame& frame =
-                    asset->frameAt(pen.millis() + offsets[i]);
-                drawContained(pen, frame.image, boxes[i], turns[i]);
-              }
+    Element stage = pen("stickers.live", [shelf](draw::Pen& pen) {
+      pen.angleMode(draw::DEGREES);
+      pen.imageMode(draw::CENTER);
+      drawGround(pen);
+      const std::array<SkRect, 6> boxes = {
+          SkRect::MakeXYWH(70, 190, 280, 300),
+          SkRect::MakeXYWH(400, 170, 290, 320),
+          SkRect::MakeXYWH(735, 190, 270, 300),
+          SkRect::MakeXYWH(65, 665, 300, 330),
+          SkRect::MakeXYWH(405, 650, 275, 350),
+          SkRect::MakeXYWH(725, 670, 290, 320)};
+      constexpr std::array<float, 5> turns = {-8, 7, -4, 9, -6};
+      constexpr std::array<double, 5> offsets = {0.0, 270.0, 510.0, 760.0,
+                                                 1030.0};
+      for (size_t i = 0; i < shelf.images.size(); ++i) {
+        const auto& asset = shelf.images[i];
+        if (!asset) continue;
+        const image::Frame& frame = asset->frameAt(pen.millis() + offsets[i]);
+        drawContained(pen, frame.image, boxes[i], turns[i]);
+      }
 
-              if (shelf.webm) {
-                const video::VideoFrame frame = shelf.webm->frameAt(
-                    loopTime(*shelf.webm, pen.millis() * 0.001 + 0.42),
-                    pen.canvas()->recorder());
-                drawContained(pen, frame.image, boxes.back(), 5.0f);
-              }
-            });
+      if (shelf.webm) {
+        const video::VideoFrame frame = shelf.webm->frameAt(
+            loopTime(*shelf.webm, pen.millis() * 0.001 + 0.42),
+            pen.canvas()->recorder());
+        drawContained(pen, frame.image, boxes.back(), 5.0f);
+      }
+    });
 
-    const weave::TextStyle title = weave::textStyle(
-        {.size = 29,
-         .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
-         .track = 3.4f});
     ctx.composer.render(stack().width(kWidth).height(kHeight).children(
         {std::move(stage),
-         text(u8"SIGIL STICKERS / GIF · WEBP · AVIFS · WEBM", title)
-             .absolute()
-             .inset(58, 52, 1190, 52)}));
+         box()
+             .rect(SkRect::MakeXYWH(40, 38, 1000, 112))
+             .fill(Fill::color({0.07f, 0.07f, 0.08f, 0.96f}))
+             .padding(22)
+             .column()
+             .gap(10)
+             .ink(SkColors::kWhite)
+             .children(
+                 {document::h1("Moving pictures, transparent edges")
+                      .font({.size = 31}),
+                  document::caption("GIF · WEBP · AVIF SEQUENCES · ALPHA WEBM")
+                      .font({.size = 17})})}));
   }
 };
 

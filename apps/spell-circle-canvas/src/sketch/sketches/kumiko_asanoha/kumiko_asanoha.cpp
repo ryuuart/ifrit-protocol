@@ -229,9 +229,9 @@ struct KumikoAsanoha {
     // it is set in it unless it says otherwise.
     Element g = kit::at(0, y0, kW, kBandH)
                     .fill(Fill::color(hexColor(0x120C07)))
-                    .font({.size = 10.5f,
-                           .color = hexColor(0xC9B78F, 0.75f),
-                           .track = 0.9f});
+                    .font({.size = 12.0f,
+                           .color = hexColor(0xC9B78F, 0.9f),
+                           .track = 0.2f});
     // the drawing's own ground: a hairline ruled off the room above it
     g.children(
         {kit::at(0, 0, kW, 1).fill(Fill::color(hexColor(0x4A3620, 0.9f)))});
@@ -267,17 +267,16 @@ struct KumikoAsanoha {
 
     g.children({std::move(art)});
 
-    // the three jigs, as the three angles one right angle is cut into: a
-    // wedge each, with the angle named under it
+    // Each jig shows its own cutting angle against the same vertical edge.
     const data::Json& jigs = doc["jigs"];
     g.children(
         {each(jigs["angles"].items(),
               [](const data::Json& angle, std::size_t i) {
                 const float x = 430.0f + (float)i * 118.0f;
+                constexpr std::array<float, 3> angles{22.5f, 45.0f, 67.5f};
                 return box().inset(0).children(
                     {kit::disc(SkPoint{x, 96.0f}, 44.0f)
-                         .shape(shapes::sector(-90.0f + 22.5f * (float)i, 22.5f,
-                                               0.0f))
+                         .shape(shapes::sector(-90.0f, angles[i], 0.0f))
                          .fill(Fill::color(hexColor(0xC79A57, 0.16f)))
                          .stroke(stroke(0.9f,
                                         Fill::color(hexColor(0xC79A57, 0.55f)),
@@ -285,23 +284,27 @@ struct KumikoAsanoha {
                      text(angle).left(x - 30).top(150).width(60).paragraph(
                          {.alignment = weave::TextAlignment::kCenter})});
               }),
-         text(jigs["note"])
-             .font({.color = hexColor(0xB7A281, 0.55f), .track = 0.5f})
+         document::caption(jigs["note"].text())
+             .font({.size = 11.5f,
+                    .color = hexColor(0xB7A281, 0.9f),
+                    .track = 0.2f})
              .left(392)
              .top(24)
              .width(300),
          // THE READING, and it FLOWS: a title over its three
          // paragraphs at one gap, so a longer line pushes the rest
          // down instead of running through a top typed for it
-         kit::at(760, 30, 520, kBandH - 60)
+         kit::at(760, 30, 430, kBandH - 60)
              .gap(12)
-             .children(
-                 {text(doc["reading"]["title"])
-                      .font({.size = 12,
-                             .color = hexColor(0xE4D5B2, 0.86f),
-                             .track = 1.3f}),
-                  each(doc["reading"]["lines"].items(),
-                       [](const data::Json& line) { return text(line); })})});
+             .children({document::h2(doc["reading"]["title"].text())
+                            .font({.size = 12,
+                                   .color = hexColor(0xE4D5B2, 0.86f),
+                                   .track = 1.3f}),
+                        each(doc["reading"]["lines"].items(),
+                             [](const data::Json& line) {
+                               return document::paragraph(line.text())
+                                   .font({.size = 12.0f, .track = 0.2f});
+                             })})});
     return g;
   }
 

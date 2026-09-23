@@ -2,7 +2,7 @@
   "header": {
     "eyebrow": "STATE AND CONTACT",
     "title": "THE HITMAN RAGDOLL, 2000",
-    "credit": "Thomas Jakobsen, IO Interactive — \"Advanced Character Physics\", GDC 2001 · shipped in Hitman: Codename 47 (Eidos, 19 Nov 2000, Glacier engine, DirectX 7.0a) · every stick coloured by its LIVE constraint error"
+    "credit": "Thomas Jakobsen · IO Interactive · Advanced Character Physics, GDC 2001\nA Hitman ragdoll, cloth and plants; each stick shows its live constraint error."
   },
   "a1": {
     "heading": "A1 · VERLET — NO VELOCITY VARIABLE",

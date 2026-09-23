@@ -44,12 +44,13 @@ float leafSize(size_t index) {
 }
 
 struct ObservableLSystem {
+  static constexpr int kGenerations = 5;
   std::string sentence = "A";
 
   void setup(sketch::SketchContext& context) {
     context.canvas(800, 800);
-    context.captureAt(0.05);
-    for (int generation = 0; generation < 5; ++generation)
+    context.captureAt(7.48);
+    for (int generation = 0; generation < kGenerations; ++generation)
       sentence = rewrite(sentence);
 
     context.composer.render(compose::graphics("observable_l_system.loop",
@@ -61,10 +62,11 @@ struct ObservableLSystem {
     const float cycle = 0.5f - 0.5f * std::cos(clock * 0.42f);
     const size_t visible = std::max<size_t>(
         1, static_cast<size_t>(sentence.size() * (0.18f + cycle * 0.82f)));
-    float x = 0.0f;
-    float y = pen.height - 1.0f;
+    const float extent = std::min(pen.width, pen.height) - 40.0f;
+    const float step = extent / ((1 << kGenerations) - 1);
+    float x = (pen.width - extent) * 0.5f;
+    float y = (pen.height + extent) * 0.5f;
     float angle = 0.0f;
-    constexpr float kStep = 53.3f;
 
     pen.background(0);
     pen.stroke(255);
@@ -73,8 +75,8 @@ struct ObservableLSystem {
          ++index) {
       const char symbol = sentence[index];
       if (symbol == 'F') {
-        const float x2 = x + kStep * std::cos(angle);
-        const float y2 = y + kStep * std::sin(angle);
+        const float x2 = x + step * std::cos(angle);
+        const float y2 = y + step * std::sin(angle);
         pen.line(x, y, x2, y2);
         x = x2;
         y = y2;

@@ -231,14 +231,15 @@ struct QuicSky {
                                    .children(std::move(parts));
     ctx.composer.render(sketch::kit::instrument(
         {.page = {.title = "A sky, over QUIC.",
-                  .subtitle = "QUIC / SCHEMA  /  A verified message arrives on "
+                  .subtitle = "QUIC / JSON  /  A sky message arrives on "
                               "an encrypted connection.",
-                  .footer = "Run sender.py beside this sketch to send data  ·  "
-                            "Captures replay the local recording"},
+                  .footer =
+                      "Open quic://127.0.0.1:27100?insecure=1 in Seer  ·  "
+                      "sender.py writes the capture recording"},
          .pictureSize = kCanvas,
          .pictureWidth = 816,
-         .note =
-             "The same schema drives the bands over a different transport."},
+         .note = "Plain JSON describes the bands; each message crosses its own "
+                 "stream."},
         std::move(picture).fill(kGround), readout()));
   }
 

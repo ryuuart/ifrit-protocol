@@ -44,6 +44,7 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -206,7 +207,7 @@ struct ShapeworksLab {
                  if (cooked) material::skia::fill(canvas, cookedPath, *cooked);
                  canvas.restore();
                })
-            .inset(50, 690, 350, 30)
+            .rect(SkRect::MakeXYWH(30, 116, 560, 380))
             .cache(Cache::Texture);
 
     // SURFACES — the literal recipes (materials prebuilt in setup), and
@@ -220,7 +221,7 @@ struct ShapeworksLab {
                  if (chrome) material::skia::fill(canvas, chromePath, *chrome);
                  if (glass) material::skia::fill(canvas, glassPath, *glass);
                })
-            .inset(440, 710, 40, 30)
+            .rect(SkRect::MakeXYWH(30, 566, 540, 300))
             .cache(Cache::Texture);
 
     // WIRE — one curve, four sinks. A steel tube swept over it, its own
@@ -284,17 +285,51 @@ struct ShapeworksLab {
               canvas, sparks, camera, viewport,
               {.size = 11, .sizeLane = "size", .tintLane = "tint"});
         })
-            .inset(50, 30, 40, 600)
+            .rect(SkRect::MakeXYWH(600, 116, 650, 690))
             .overflow(Overflow::Clip)
             .cache(Cache::None);
 
-    return stack().children(
-        {std::move(outlineLab), std::move(materialLab), std::move(flight)});
+    return stack()
+        .ink(hexColor(0xece8f4))
+        .children(
+            {std::move(outlineLab), std::move(materialLab), std::move(flight),
+             document::h1("Geometry wearing a material")
+                 .font({.size = 32})
+                 .at({30, 26}),
+             document::paragraph(
+                 "An outline, a surface and a moving curve meet on one canvas.")
+                 .font({.size = 16, .color = hexColor(0xbcb4d0)})
+                 .at({30, 72}),
+             document::h2("01 / A cooked outline")
+                 .font({.size = 17})
+                 .at({30, 500}),
+             document::paragraph(
+                 "Pucker, roughen and offset a star; shade its bevel in gold.")
+                 .font({.size = 14, .color = hexColor(0xbcb4d0)})
+                 .width(550)
+                 .at({30, 527}),
+             document::h2("02 / Gold, chrome and glass")
+                 .font({.size = 17})
+                 .at({30, 884}),
+             document::paragraph("The surface reads the normal map; glass also "
+                                 "reads the checker behind it.")
+                 .font({.size = 14, .color = hexColor(0xbcb4d0)})
+                 .width(540)
+                 .at({30, 913}),
+             document::h2("03 / One curve, four treatments")
+                 .font({.size = 17})
+                 .at({640, 884}),
+             document::paragraph(
+                 "A swept tube, a projected outline, a scrolling ribbon and "
+                 "scattered light share the same path.")
+                 .font({.size = 14, .color = hexColor(0xbcb4d0)})
+                 .width(550)
+                 .at({640, 913})});
   }
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(
-        ctx, {.size = {1280, 780},
+        ctx, {.size = {1280, 990},
               .captureAt = 2.6,
               .background = material::Color{0.05f, 0.048f, 0.088f, 1}});
 

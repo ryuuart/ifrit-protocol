@@ -316,8 +316,8 @@ struct OscDesk {
                        }).cover()});
     ctx.composer.render(sketch::kit::instrument(
         {.page = {.title = "An open sound control.",
-                  .subtitle = "OSC / CONTROL  /  Three continuous values "
-                              "become motion, colour and light.",
+                  .subtitle = "OSC / CONTROL  /  Wind and palette set the "
+                              "scene. A gust starts a passing motion.",
                   .footer = "Run desk.py beside this sketch to send data  ·  "
                             "Captures replay the local recording"},
          .pictureSize = kCanvas,

@@ -17,6 +17,7 @@
 #include <sigilgeometry/mesh/codec/Model.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -49,6 +50,7 @@ constexpr float kR = 62, kr = 23;  // the torus, major and minor radius
 constexpr int kNu = 44, kNv = 22;  // how finely it is tessellated
 constexpr int kMotes = 900;        // points the instancer carries
 constexpr double kMetersPerUnit = 0.01;
+constexpr material::Color kBrass{0.76f, 0.58f, 0.28f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -103,7 +105,8 @@ const char* kindName(world::light::LightKind kind) {
 sketch::kit::ComparisonCase specimen(const std::string& key,
                                      const char* heading,
                                      const std::string& reading, gm::Mesh mesh,
-                                     std::optional<camera::Camera> lens) {
+                                     std::optional<camera::Camera> lens,
+                                     material::Color tint = SkColors::kWhite) {
   return {.title = heading,
           .control =
               lens ? kit::formatted("%s fovY %.1f°",
@@ -113,11 +116,17 @@ sketch::kit::ComparisonCase specimen(const std::string& key,
           .figure = sketch::kit::well(
               {.width = kCell, .height = kPicture},
               custom(key,
-                     [mesh = std::move(mesh), lens](SkCanvas& canvas,
-                                                    const PaintContext& pc) {
-                       if (lens && !mesh.positions.empty())
+                     [mesh = std::move(mesh), lens, tint](
+                         SkCanvas& canvas, const PaintContext& pc) {
+                       if (lens && !mesh.positions.empty()) {
+                         render::MeshStyle style = stageStyle();
+                         style.baseColor = {style.baseColor.fR * tint.r,
+                                            style.baseColor.fG * tint.g,
+                                            style.baseColor.fB * tint.b,
+                                            style.baseColor.fA * tint.a};
                          render::drawMesh(canvas, mesh, glm::mat4(1), *lens,
-                                          pc.size, stageStyle());
+                                          pc.size, style);
+                       }
                      })),
           .note = reading};
 }
@@ -138,10 +147,8 @@ struct UsdRoundtrip {
     // THE SOURCE, as values. Nothing below reaches into a renderer.
     const gm::Mesh source = gm::torus(kR, kr, kNu, kNv);
     const gm::Cloud motes = gm::points::onMesh(source, kMotes, 7);
-    const material::Material brass =
-        material::kit::surface({.baseColor = {0.76f, 0.58f, 0.28f, 1},
-                                .metallic = 1,
-                                .roughness = 0.28f});
+    const material::Material brass = material::kit::surface(
+        {.baseColor = kBrass, .metallic = 1, .roughness = 0.28f});
     const world::light::Light sun =
         world::light::sun({-0.5f, -0.7f, -0.5f}, {1.0f, 0.95f, 0.88f, 1}, 1.2f);
     const camera::Camera lens = sourceCamera();
@@ -159,7 +166,7 @@ struct UsdRoundtrip {
                        "%zu instancer points",
                        source.positions.size(), source.indices.size() / 3,
                        kindName(sun.kind), (double)lens.fovYDeg, motes.size()),
-        source, lens));
+        source, lens, kBrass));
 
     std::string names;
     std::string trouble;

@@ -13,9 +13,9 @@
 //
 // What is on the page:
 //
-//   · WORD LABELS — one small caption under every word of the first
-//     phrase, keyed by that word's own text range. They follow the wrap:
-//     narrow the measure and each label goes with its word.
+//   · WORD LABELS — one numbered marker under every word of the first
+//     phrase, with its UTF-16 range in a separate key. They follow the
+//     wrap: narrow the measure and each marker goes with its word.
 //   · MARGINALIA — one note per LINE, in the gutter, with a leader from
 //     the note to the line's own left edge.
 //   · THE RULE — a hairline cut to the extent the block's lines actually
@@ -73,7 +73,7 @@ constexpr float kTextTop = 150;
 
 const material::Color kPaper{0.972f, 0.968f, 0.960f, 1};
 const material::Color kInk{0.106f, 0.114f, 0.129f, 1};
-const material::Color kFaint{0.106f, 0.114f, 0.129f, 0.32f};
+const material::Color kFaint{0.106f, 0.114f, 0.129f, 0.60f};
 const material::Color kMark{0.192f, 0.404f, 0.545f, 1};
 const material::Color kHot{0.780f, 0.286f, 0.176f, 1};
 
@@ -143,12 +143,15 @@ struct AnnotatedMargin {
                  .inset(44, 0, 0, 52)
                  .column()
                  .gap(6)
-                 .children(
-                     {text("BESIDE THE TEXT", m::note(12, m::kInk, 4.0f)),
-                      text("one element per unit, placed from "
-                           "the unit's own rect",
-                           m::note(10, material::skia::toSkColor(m::kFaint),
-                                   0.3f))}),
+                 .children({document::h1("Beside the text")
+                                .font({.face = m::grotesque(), .size = 26}),
+                            document::lead("Notes follow the words and lines "
+                                           "they describe, without changing "
+                                           "the passage's layout.")
+                                .font({.face = m::grotesque(),
+                                       .size = 12,
+                                       .color = m::kFaint})
+                                .width(570)}),
              // The passage itself: one leaf, keyed, and annotated by
              // nothing — everything below reads it from outside.
              document::paragraph(m::kPassage)
@@ -158,6 +161,13 @@ struct AnnotatedMargin {
                  .width(m::kMeasure)
                  .paragraphStyles(
                      {{.leading = weave::Leading::multiple(1.55f)}}),
+             document::h2("FOLLOWING THE ENTRANCE")
+                 .font({.face = m::grotesque(),
+                        .size = 10,
+                        .color = m::kHot,
+                        .track = 1.8f})
+                 .left(m::kTextLeft)
+                 .top(m::kH - 255),
              // The same text again, lower, under a cascade — the playhead
              // below rides its beats.
              document::paragraph("A marker placed from a beat agrees with the "
@@ -179,18 +189,44 @@ struct AnnotatedMargin {
                            weave::Unit::Word,
                            {.side = kit::Beside::Side::After, .gap = 5.0f},
                            [&](const TextUnit& unit) {
-                             // The label says what the unit IS — its range
-                             // and the line it landed on — because a label
-                             // that only repeated the word would be showing
-                             // nothing the word does not already show.
-                             return text(
-                                 std::to_string(unit.range.start) + "–" +
-                                     std::to_string(unit.range.end),
-                                 m::note(7.5f,
-                                         material::skia::toSkColor(m::kMark),
-                                         0.2f));
+                             // One digit fits even the shortest word's
+                             // advance. Its full range has a separate key.
+                             return text(std::to_string(unit.index + 1),
+                                         m::note(8.5f, m::kMark));
                            })
                  .inset(0),
+             box()
+                 .left(788)
+                 .top(m::kTextTop)
+                 .width(250)
+                 .gap(10)
+                 .children({
+                     document::h2("WORD RANGES")
+                         .font({.face = m::grotesque(),
+                                .size = 10,
+                                .color = m::kMark,
+                                .track = 1.8f}),
+                     document::paragraph(
+                         "Each marker follows its word. The range counts "
+                         "UTF-16 units from the start of the passage.")
+                         .font({.face = m::grotesque(),
+                                .size = 11,
+                                .color = m::kFaint}),
+                     box().gap(7).children(each(
+                         composer.units("passage",
+                                        weave::selectors::words(0, 6),
+                                        weave::Unit::Word),
+                         [&](const TextUnit& unit) {
+                           return box().row().gap(14).children({
+                               text(std::to_string(unit.index + 1),
+                                    m::note(10, m::kMark))
+                                   .width(18),
+                               text(std::to_string(unit.range.start) + "–" +
+                                        std::to_string(unit.range.end),
+                                    m::note(10, m::kInk)),
+                           });
+                         })),
+                 }),
              // ── One note per line, in the gutter, with a leader
              // ──────────────────
              kit::annotate(
@@ -225,8 +261,7 @@ struct AnnotatedMargin {
                          .colour = m::kMark})
                  .inset(0),
              // ── The playhead, riding the cascade
-             kit::trackMeter(composer, "cascade", 0,
-                             material::skia::toSkColor(m::kHot),
+             kit::trackMeter(composer, "cascade", 0, m::kHot,
                              {m::kHot.r, m::kHot.g, m::kHot.b, 0.12f},
                              {.where = kit::MeterPlacement::Where::Under,
                               .thickness = 3.0f,

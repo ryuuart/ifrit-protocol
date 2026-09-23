@@ -2,6 +2,9 @@
 
 // TAGS: Interfaces/Game
 
+#include <sigilcompose/kit/Document.h>
+#include <sigilmaterial/color/Color.h>
+
 #include "AbilityCheck.h"
 
 struct Bg3DiceRoll {
@@ -36,7 +39,7 @@ struct Bg3DiceRoll {
                 sigil::material::Color col, float track = 0.0f,
                 bool useMono = false) const {
     return box().left(x).top(y).children(
-        {text(bg3::u8(s)).font(line(size, col, track, useMono))});
+        {document::label(bg3::u8(s)).font(line(size, col, track, useMono))});
   }
   /** Right-aligned, since a numeral column must align on its units digit and
    *  Yoga is not the skeleton here. `right` is in the PARENT's space, so the
@@ -48,7 +51,8 @@ struct Bg3DiceRoll {
     return box()
         .right(parentWidth - right)
         .top(y)
-        .children({text(bg3::u8(s)).font(line(size, col, 0.0f, useMono))});
+        .children({document::paragraph(bg3::u8(s))
+                       .font(line(size, col, 0.0f, useMono))});
   }
 
   /** A bare rule as its own tiny node — a stroke wants a box the size of the
@@ -144,10 +148,7 @@ struct Bg3DiceRoll {
              // away.
              SkPaint glyph;
              glyph.setAntiAlias(true);
-             glyph.setColor4f(
-                 sigil::material::skia::toSkColor(
-                     sigil::material::withAlpha(bg3::kInk, opacity)),
-                 nullptr);
+             glyph.setColor4f({0.16f, 0.12f, 0.07f, opacity}, nullptr);
              for (int f = 0; f < nf; ++f) {
                if (nz[(size_t)f] < 0.34f) continue;
                const bg3::V3 r = attitude * solid.centroid[(size_t)f];
@@ -159,7 +160,7 @@ struct Bg3DiceRoll {
                    kit::formatted("%d", solid.pip[(size_t)f]);
                const float w = font.measureText(pip.c_str(), pip.size(),
                                                 SkTextEncoding::kUTF8);
-               glyph.setAlphaf(opacity * (0.35f + 0.65f * nz[(size_t)f]));
+               glyph.setAlphaf(opacity * (0.65f + 0.35f * nz[(size_t)f]));
                c.drawString(pip.c_str(), fx - w * 0.5f, fy + fs * 0.34f, font,
                             glyph);
              }
@@ -806,21 +807,17 @@ struct Bg3DiceRoll {
             .gap(7.0f)
             .zIndex(30)
             .fill(Fill::color({0.020f, 0.017f, 0.014f, 1.0f}));
-    band.children(
-        {label("BALDUR’S GATE 3 · DIALOGUE ABILITY "
-               "CHECK, THE INSTANT AFTER THE DIE LANDS",
-               0.0f, 0.0f, 12.0f, sigil::material::withAlpha(bg3::kGilt, 0.92f),
-               2.8f, true)
-             .left(0.0f)
-             .top(0.0f)
-             .absolute()
-             .left(56.0f)
-             .top(30.0f),
-         label("Every ordinal and enum name off Norbyte/bg3se's generated Lua "
-               "type surface · the modifiers are added AFTER the "
-               "natural roll",
-               56.0f, 58.0f, 10.0f,
-               sigil::material::withAlpha(bg3::kInk, 0.46f), 0.6f, true)});
+    band.children({
+        document::h1("BALDUR’S GATE 3 · THE ABILITY CHECK")
+            .font(line(18.0f, bg3::kGilt, 1.8f, false)),
+        document::paragraph(
+            "The natural roll lands first; Charisma, proficiency and "
+            "Guidance then lift 12 to 20, clearing a difficulty of 15.")
+            .font(line(13.0f, sigil::material::withAlpha(bg3::kInk, 0.85f),
+                       0.15f, false))
+            .width(720)
+            .paragraph({.leading = weave::Leading::multiple(1.4f)}),
+    });
     return band;
   }
 

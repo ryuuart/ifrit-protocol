@@ -83,6 +83,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Kinetic.h>
@@ -369,7 +370,7 @@ struct ElasticType {
     return box()
         .column()
         .padding(42, 48)
-        .gap(26)
+        .gap(20)
         .fill(linearGradient({0, 0}, {0, kH},
                              {kPaper, hexColor(0x15151B), kPaper},
                              {0.0f, 0.55f, 1.0f}))
@@ -377,22 +378,20 @@ struct ElasticType {
         .ink(kLabel)
         .applyStyleSheet(graphSheet())
         .children(
-            {box()
-                 .row()
-                 .alignItems(Align::End)
-                 .children({text("ELASTIC TYPE")
-                                .font({.size = 12.5f, .track = 3.4f})
-                                .ink(kInk)
-                                .flexGrow(1),
-                            text("ANIMATE.CSS 2013 · SQUASH AND "
-                                 "STRETCH 1981")
-                                .ink(kFaint)}),
+            {box().column().gap(5).children(
+                 {document::h1("Elastic type")
+                      .font({.face = faceLabel, .size = 26.0f, .track = 0.2f})
+                      .ink(kInk),
+                  document::caption("Animate.css · rubberBand and jello")
+                      .font({.size = 12.0f, .track = 0.3f})
+                      .ink(kLabel)}),
              kit::line({.fill = Fill::color(kFaint)}),
-             text("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
-                  "ORIGIN — WHERE IT SHOWS, THAT LETTER "
-                  "IS DEFORMED")
-                 .font({.size = 10.5f, .track = 0.6f})
-                 .ink(kRest),
+             document::caption(
+                 "Grey marks the rest pose at the same origin. "
+                 "Where it shows, the live letter has stretched or sheared.")
+                 .width(680)
+                 .font({.size = 11.5f, .track = 0.2f})
+                 .ink(kLabel),
              row("RUBBERBAND", "rubberBand · SEVEN STOPS ON TWO SCALE AXES",
                  textFx::keys(rubberTable(), &cssEase)),
              row("JELLO",
@@ -402,12 +401,12 @@ struct ElasticType {
              box().flexGrow(1),
              box().row().gap(28).height(146).children(
                  {each(kLanes, lanePanel)}),
-             text("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
-                  "DEVIATION AN RSXFORM CANNOT CARRY · EVERY "
-                  "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
-                  "MATRIX")
-                 .font({.size = 11.0f, .track = 0.6f})
-                 .ink(kFaint)});
+             document::footer(
+                 "Each letter follows the published keyframes. The plots show "
+                 "the same scale and shear values that deform the type.")
+                 .width(680)
+                 .font({.size = 11.5f, .track = 0.2f})
+                 .ink(kLabel)});
   }
 
   void setup(sketch::SketchContext& ctx) {

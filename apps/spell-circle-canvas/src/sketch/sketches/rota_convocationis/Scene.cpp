@@ -1,3 +1,6 @@
+#include <sigilcompose/kit/Document.h>
+#include <sigilmaterial/color/Color.h>
+
 #include "RotaConvocationis.h"
 
 auto RotaConvocationis::wheel() -> Element {
@@ -53,8 +56,8 @@ auto RotaConvocationis::wheel() -> Element {
   };
   const Ladder kLadders[] = {
       {"teeth", 240, 12, rEdge, rEdgeIn, 0.7f, kIron, 0.5, 1.7, 0.0f},
-      {"ticks-long", kStations, 0, rTickOut, rTickMid - 0.028f, 1.3f,
-       sigil::material::skia::toSkColor(kAsh) Dim, 0.9, 1.4, 0.0f},
+      {"ticks-long", kStations, 0, rTickOut, rTickMid - 0.028f, 1.3f, kAshDim,
+       0.9, 1.4, 0.0f},
       {"ticks-mid", 24, 2, rTickOut, rTickMid - 0.010f, 0.9f, kIron, 0.9, 1.6,
        kPitch * 0.5f},
       {"ticks-short", 144, 6, rTickOut, rTickMid, 0.7f, kIron, 0.9, 2.1, 0.0f},
@@ -177,8 +180,8 @@ auto RotaConvocationis::colophon() -> Element {
       .hitTestable(false)
       .styleClass("label")
       .children(
-          {text("ROTA CONVOCATIONIS")
-               .font({.size = 12.0f, .color = kAshDim, .track = 5.2f})
+          {document::h1("ROTA CONVOCATIONIS")
+               .font({.size = 12.0f, .color = kAsh, .track = 5.2f})
                .key("titulus")
                // A lozenge stands at the word the whole figure
                // converges on, anchored to the rect the selector
@@ -198,13 +201,10 @@ auto RotaConvocationis::colophon() -> Element {
                                     .amountMs = 420,
                                     .durationMs = 520},
                         .progress = beat(0.35, 1.8)}),
-           text(std::to_string(totalGlyphs) +
-                " GLYPHS · 23 CVRVED BASELINES · 10 "
-                "TVRNING LAYERS · EVERY START CHAINED FROM A "
-                "SPAN, NONE FITTED BY HAND")
-               .font({.size = 8.5f,
-                      .color = hexColor(0x8A8299, 0.42f),
-                      .track = 2.4f})
+           document::footer(std::to_string(totalGlyphs) +
+                            " glyphs · 23 curved baselines · "
+                            "10 turning layers, lit in sequence")
+               .font({.size = 11.0f, .color = kAsh, .track = 0.3f})
                .key("colophon-2")
                .opacity(beat(tIgnite + 0.4, tIgnite + 1.2))});
 }

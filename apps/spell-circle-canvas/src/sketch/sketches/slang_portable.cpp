@@ -312,10 +312,10 @@ struct SlangPortable {
                                {.cases = {readout(
                                     "INVALID SOURCE",
                                     "source that is not Slang",
-                                    "The source cannot be parsed "
-                                    "as a Slang module.",
-                                    garbageWhy.substr(0,
-                                                      garbageWhy.find("\n\n")),
+                                    "The first compiler diagnostic identifies "
+                                    "where parsing fails.",
+                                    garbageWhy.substr(
+                                        0, garbageWhy.find("\nerror[")),
                                     kFault, 112)},
                                 .measure = 500,
                                 .gap = 20})})})})));

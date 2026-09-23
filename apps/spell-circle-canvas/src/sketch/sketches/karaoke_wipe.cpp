@@ -78,6 +78,7 @@
 // TAGS: Typography/Effects, Motion/Transitions
 
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
@@ -305,30 +306,31 @@ struct KaraokeWipe {
     return box()
         .column()
         .padding(38, 46)
-        .gap(26)
+        .gap(20)
         .fill(linearGradient({0, 0}, {0, kH}, {kStage, kBand, kStage},
                              {0.0f, 0.5f, 1.0f}))
         .font({.face = face, .size = 11.5f, .track = 2.4f})
         .ink(kLabel)
-        .children(
-            {box()
-                 .row()
-                 .alignItems(Align::End)
-                 .children({text("FOLLOW THE BOUNCING BALL").flexGrow(1),
-                            text("FLEISCHER 1924 · CD+G 1985").ink(kNext)}),
-             kit::line({.fill = Fill::color(kFaint)}),
-             kit::centred(std::move(stage)).flexGrow(1),
-             // The numbers are read off the table rather than typed
-             // beside it: a caption that can disagree with the schedule
-             // it describes is the one thing worse than no caption.
-             text("THE BALL MARKS THE POINT, THE WIPE MARKS THE "
-                  "BOUNDARY · " +
-                  std::to_string(wordCues().size()) + " SUNG TIMES, " +
-                  std::to_string((int)kEachMs) +
-                  " MS PER LETTER INSIDE A WORD, " +
-                  std::to_string((int)kSwitchMs) + " MS TO CHANGE")
-                 .font({.track = 0.5f})
-                 .ink(kFaint)});
+        .children({box().column().gap(5).children(
+                       {document::h1("Follow the bouncing ball")
+                            .font({.face = face, .size = 24.0f, .track = 0.2f})
+                            .ink(kLabel),
+                        document::caption("Fleischer 1924 · CD+G 1985")
+                            .font({.size = 11.5f, .track = 0.3f})
+                            .ink(kLabel)}),
+                   kit::line({.fill = Fill::color(kFaint)}),
+                   kit::centred(std::move(stage)).flexGrow(1),
+                   // The numbers are read off the table rather than typed
+                   // beside it: a caption that can disagree with the schedule
+                   // it describes is the one thing worse than no caption.
+                   document::footer(
+                       "The ball marks the word; the wipe marks progress. " +
+                       std::to_string(wordCues().size()) + " cues · " +
+                       std::to_string((int)kEachMs) + " ms per letter · " +
+                       std::to_string((int)kSwitchMs) + " ms colour change.")
+                       .width(700)
+                       .font({.size = 11.5f, .track = 0.2f})
+                       .ink(kLabel)});
   }
 
   void setup(sketch::SketchContext& ctx) {

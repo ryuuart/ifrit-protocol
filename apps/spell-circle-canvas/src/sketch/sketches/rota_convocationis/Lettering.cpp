@@ -6,14 +6,14 @@
 namespace {
 
 /** ONE BAND OF SCRIPT ROUND THE FIGURE: @p run measured in the square of the
- *  circle of radius @p r it is set on, its baseline advanced to @p at and held
+ *  circle of normalized radius @p r, its baseline advanced to @p at and held
  *  off that circle by @p lift — which is what puts a letter's body inside the
  *  pair of rules that fences it. The TEXT node is the ring; a ring given to a
  *  parent resolves against the run's intrinsic size and collapses. */
-Text onRing(Text run, const char *key, float r, motion::Animatable<float> at,
+Text onRing(Text run, const char* key, float r, motion::Animatable<float> at,
             float lift) {
   return run.key(key)
-      .rect(sigil::geometry::path::centred(kEye, {2 * r, 2 * r}))
+      .rect(sigil::geometry::path::centred(kEye, {2 * r * kR, 2 * r * kR}))
       .hitTestable(false)
       .textOnPath({.path = shapes::circle(),
                    .at = std::move(at),
@@ -22,7 +22,7 @@ Text onRing(Text run, const char *key, float r, motion::Animatable<float> at,
                    .autoFlip = false});
 }
 
-} // namespace
+}  // namespace
 
 auto RotaConvocationis::pulse(double from, double to, double edge)
     -> motion::Animatable<float> {
@@ -42,7 +42,7 @@ auto RotaConvocationis::envelope() -> motion::Animatable<float> {
       .map(&ch::easeInOutQuad);
 }
 
-auto RotaConvocationis::fitToRing(sketch::SketchContext &ctx, Element probe,
+auto RotaConvocationis::fitToRing(sketch::SketchContext& ctx, Element probe,
                                   float size, float radius, float fill)
     -> float {
   const float target = 2.0f * 3.14159265f * radius * fill;
@@ -52,8 +52,7 @@ auto RotaConvocationis::fitToRing(sketch::SketchContext &ctx, Element probe,
     Element sized = probe;
     const SkSize m =
         ctx.measure(sized.font({.size = size}).applyStyleSheet(classes));
-    if (m.width() > 1.0f)
-      size *= target / m.width();
+    if (m.width() > 1.0f) size *= target / m.width();
   }
   return size;
 }
@@ -78,8 +77,8 @@ auto RotaConvocationis::line(const char* key, const SkPath& path, float width,
               stroke(width, Fill::color(color)));
 }
 
-auto RotaConvocationis::emissive(const std::string &key, const Glow &g,
-                                 const ch::Output<float> *gain) -> Element {
+auto RotaConvocationis::emissive(const std::string& key, const Glow& g,
+                                 const ch::Output<float>* gain) -> Element {
   // ONE BAKE FOR THE WHOLE STACK, and the gain rides its blit. Four
   // grades painted live are four additive fills of four complex unions
   // over the sheet, every frame, for a stack whose shape never changes —
@@ -96,7 +95,7 @@ auto RotaConvocationis::emissive(const std::string &key, const Glow &g,
   // grades are nested, so the outer three never reach it — and it reads
   // as the core coming up a shade later, which is what a filament does.
   const SkRect groupBox = g.bloom.box;
-  const auto inside = [&](const std::string &name, const Grade &r,
+  const auto inside = [&](const std::string& name, const Grade& r,
                           sigil::material::Color ink, float alpha) {
     return box()
         .key(name)

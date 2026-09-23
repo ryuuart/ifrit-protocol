@@ -2,6 +2,9 @@
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
+#include <sigilcompose/kit/Document.h>
+#include <sigilmaterial/color/Color.h>
+
 #include "Constellations.h"
 
 struct AstralTome {
@@ -20,7 +23,7 @@ struct AstralTome {
    *  tracking, in the page ink at the page's alpha. */
   Element name(const char* s, float x, float y) const {
     return box().at({x, y}).children(
-        {text(s)
+        {document::label(s)
              .font({.face = serif, .size = 19.0f, .track = 2.4f})
              .ink(sigil::material::scale(at::kInk, 1.0f, kInkAlphaOf()))});
   }
@@ -171,13 +174,13 @@ struct AstralTome {
          .width = 1.4f,
          .fill = Fill::color(sigil::material::scale(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
-         .cap = geometry::path::Cap::Round},
+         .cap = sigil::geometry::path::Cap::Round},
         {.across = half * 1.9f,
          .width = 1.4f,
          .fill = Fill::color(sigil::material::scale(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
          .dashPhase = 5.8f,
-         .cap = geometry::path::Cap::Round},
+         .cap = sigil::geometry::path::Cap::Round},
     };
 
     // The band's own soft shoulder, tapered to 40% at both ends so the link
@@ -310,16 +313,16 @@ struct AstralTome {
             .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}))
             .font({.face = mono});  // both lines are set in it
     band.children(
-        {text("ASTRAL SORCERY · "
-              "GuiJournalConstellationCluster, PAGE 1 OF 4")
-             .font({.size = 13.0f, .track = 2.6f})
+        {document::h1("ASTRAL SORCERY · THE CONSTELLATION JOURNAL")
+             .font({.size = 15.0f, .track = 1.8f})
              .ink(sigil::material::Color{0.72f, 0.66f, 0.50f, 1.0f}),
-         text("Four charts on one page at the mod's own numbers: a "
-              "95x95 SQUARE render box hung on an 80x110 hit cell, the "
-              "offsetMap's zig-zag placing them, and every star's "
-              "twinkle on its own divisor between 12 and 21.")
-             .font({.size = 11.0f, .track = 0.4f})
-             .ink(sigil::material::Color{0.50f, 0.46f, 0.38f, 1.0f})});
+         document::caption("Page 1 of 4 · Four square charts follow the "
+                           "journal's staggered layout; each star keeps "
+                           "its own twinkle rhythm.")
+             .width(800)
+             .font({.size = 12.0f, .track = 0.1f})
+             .paragraph({.leading = weave::Leading::multiple(1.35f)})
+             .ink(sigil::material::Color{0.68f, 0.65f, 0.57f, 1.0f})});
     return band;
   }
 

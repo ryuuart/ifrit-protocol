@@ -52,9 +52,11 @@ struct ObservableCirclePacking {
 
   void addCircle(Pen& pen) {
     for (int attempt = 0; attempt < 8; ++attempt) {
-      const Circle candidate{
-          .centre = {pen.random(pen.width), pen.random(pen.height)},
-          .colour = {pen.random(), pen.random(), pen.random(), 1.0f}};
+      Circle candidate;
+      candidate.centre = {
+          pen.random(candidate.radius, pen.width - candidate.radius),
+          pen.random(candidate.radius, pen.height - candidate.radius)};
+      candidate.colour = {pen.random(), pen.random(), pen.random(), 1.0f};
       if (!overlaps(candidate)) {
         circles.push_back(candidate);
         return;

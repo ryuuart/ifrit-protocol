@@ -35,7 +35,7 @@
  *     build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
  *         --sketch guest_picture
  *
- * `Receiver --list` says what is being offered under what name, which is
+ * `Seer --list-textures` says what is being offered under what name, which is
  * what to check when the card keeps waiting.
  *
  * EDIT THESE FIRST
@@ -53,6 +53,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
@@ -138,7 +139,7 @@ struct GuestPicture {
   void describe(sketch::SketchContext& ctx) {
     std::vector<compose::Element> body;
     body.push_back(picture());
-    if (!showing) body.push_back(waiting());
+    if (!showing) body.push_back(waiting(ctx.deterministic));
     ctx.composer.render(sketch::kit::page(
         {.title = "GUEST",
          .subtitle = "another application's frames, worn as a body",
@@ -180,24 +181,27 @@ struct GuestPicture {
   /** WHAT THE PAGE IS WAITING FOR, where the picture would be: the name
    *  nothing is publishing under, and the one line that would start
    *  somebody publishing under it. */
-  compose::Element waiting() {
+  compose::Element waiting(bool deterministic) {
     const sketch::kit::Theme& look = sketch::kit::theme();
     return compose::kit::centred()
         .cover()
         .column()
         .gap(look.spacing.contentGap)
         .children(
-            {compose::text(
+            {compose::document::h2(
                  compose::kit::formatted("WAITING FOR “%s”", kPublication))
                  .font(look.font({.size = 26, .track = 6}))
                  .ink(look.palette.ink),
-             compose::text("nothing on this machine is publishing under that "
-                           "name")
+             compose::document::paragraph(
+                 deterministic ? "Live publications are shown in the window; "
+                                 "captures keep this waiting card."
+                               : "No publisher is connected under that name.")
                  .font(look.font({.size = 14}))
                  .ink(look.palette.ash),
-             compose::text(compose::kit::formatted(
-                               "Sketchbook --sketch feed_vitals --publish %s",
-                               kPublication))
+             compose::document::code(
+                 compose::kit::formatted(
+                     "Sketchbook --sketch feed_vitals --publish %s",
+                     kPublication))
                  .font(look.font({.size = 13, .mono = true}))
                  .ink(look.palette.ash)});
   }

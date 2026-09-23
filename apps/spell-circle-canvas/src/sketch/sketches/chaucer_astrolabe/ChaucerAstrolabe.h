@@ -178,9 +178,8 @@ struct ChaucerAstrolabe {
 
   // --- the title strip ------------------------------------------------------
   /** THE MASTHEAD: what the instrument is over where it was compowned,
-   *  with its museum provenance ranged at the far edge and the engraved
-   *  hairline under the block. The registers, the inks and the air between
-   *  them are the plate's theme's. */
+   *  with an engraved hairline under the block. Museum provenance belongs
+   *  to the specification card beside the instrument. */
   Element titleStrip();
 
   // --- the live readout laid over the case ---------------------------------

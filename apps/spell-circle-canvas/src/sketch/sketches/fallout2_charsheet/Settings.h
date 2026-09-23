@@ -66,7 +66,7 @@ constexpr path::Grid kUnits{.scale = 2.0f};
 constexpr float kScale = kUnits.scale;
 constexpr float n(float v) { return kUnits.lengthX(v); }
 constexpr float kScreenW = n(640), kScreenH = n(480);
-constexpr float kCaptionH = 128.0f;
+constexpr float kCaptionH = 200.0f;
 
 // ---------------------------------------------------------------------------
 // PALETTE. Left column = what the code REQUESTS through _colorTable; right =
@@ -224,8 +224,8 @@ inline Element ink(Element e, float x, float y, float rise) {
 /** Absolute placement in the SHEET'S OWN pixels — the numbers read off
  *  the capture — through the unit map on the way to the canvas. */
 inline Element at(Element e, float x, float y, float w, float h) {
-  return kit::at(std::move(e), kUnits.positionX(x), kUnits.positionY(y), kUnits.lengthX(w),
-                 kUnits.lengthX(h));
+  return kit::at(std::move(e), kUnits.positionX(x), kUnits.positionY(y),
+                 kUnits.lengthX(w), kUnits.lengthX(h));
 }
 inline Element atR(Element e, Rect r) {
   return at(std::move(e), r.x, r.y, r.w, r.h);

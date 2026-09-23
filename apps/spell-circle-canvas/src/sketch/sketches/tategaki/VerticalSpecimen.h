@@ -46,7 +46,8 @@ constexpr sigil::material::Color kKinariLift{0.961f, 0.945f, 0.909f, 1};
 constexpr sigil::material::Color kSumi{0.114f, 0.106f, 0.098f, 1};  // ink
 constexpr sigil::material::Color kAka{0.741f, 0.196f, 0.153f, 1};   // vermilion
 constexpr sigil::material::Color kAi{0.192f, 0.302f, 0.404f, 1};    // indigo
-constexpr sigil::material::Color kUsu{0.612f, 0.588f, 0.545f, 1};   // pale ink
+constexpr sigil::material::Color kUsu{0.435f, 0.416f, 0.376f,
+                                      1};  // secondary ink
 }  // namespace paper
 
 /** SHELL WHITE ON A SUMI GROUND — the same inks, printed the other way
@@ -57,8 +58,8 @@ constexpr sigil::material::Color kSumi{0.055f, 0.051f, 0.047f,
                                        1};  // ink ground
 constexpr sigil::material::Color kSumiLift{0.086f, 0.078f, 0.070f, 1};
 constexpr sigil::material::Color kGofun{0.921f, 0.906f, 0.870f,
-                                        1};  // shell white
-constexpr sigil::material::Color kAi{0.478f, 0.588f, 0.678f, 1};     // indigo
+                                        1};                       // shell white
+constexpr sigil::material::Color kAi{0.478f, 0.588f, 0.678f, 1};  // indigo
 constexpr sigil::material::Color kAka{0.847f, 0.294f, 0.216f, 1};  // vermilion
 }  // namespace ink
 

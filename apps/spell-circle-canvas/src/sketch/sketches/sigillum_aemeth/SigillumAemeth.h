@@ -40,24 +40,26 @@ struct SigillumAemeth {
         sigil::compose::rule(".serif").font(weaveNs::Type{.face = faceSerif}),
         sigil::compose::rule(".italic").font(weaveNs::Type{.face = faceItalic}),
         sigil::compose::rule(".gloss").font(weaveNs::Type{
-            .face = faceItalic, .size = 14, .color = hexColor(0x6f5f45)}),
+            .face = faceItalic, .size = 14, .color = hexColor(0xa69370)}),
         sigil::compose::rule(".legend").font(
             weaveNs::Type{.face = faceSerif, .color = hexColor(0x9d8a66)}),
         sigil::compose::rule(".index").font(weaveNs::Type{.size = 17}),
         sigil::compose::rule(".name").font(weaveNs::Type{
             .face = faceDisplay, .size = 30, .color = kVellum, .track = 1.2f}),
         sigil::compose::rule(".raw").font(
-            weaveNs::Type{.face = faceItalic, .color = hexColor(0x6f5f45)}),
+            weaveNs::Type{.face = faceItalic, .color = hexColor(0xa69370)}),
         sigil::compose::rule(".chain").font(
-            weaveNs::Type{.size = 14, .color = kTrace}),
+            weaveNs::Type{.size = 14, .color = hexColor(0x71b2cf)}),
         sigil::compose::rule(".archangel")
             .font(weaveNs::Type{
                 .face = faceQuill, .size = 21, .color = hexColor(0xd8c08a)}),
         sigil::compose::rule(".fan").font(
             weaveNs::Type{.face = faceSeal, .size = 23, .color = kVellum}),
-        sigil::compose::rule(".rubric").font(weaveNs::Type{.color = kRubric}),
+        sigil::compose::rule(".rubric").font(
+            weaveNs::Type{.color = hexColor(0xbf634f)}),
         sigil::compose::rule(".heading")
-            .font(weaveNs::Type{.size = 15, .color = kRubric, .track = 1.6f})};
+            .font(weaveNs::Type{
+                .size = 15, .color = hexColor(0xbf634f), .track = 1.6f})};
   }
 
   // --- the reading order, in seconds ---------------------------------------

@@ -10,6 +10,7 @@
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Stamps.h>
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -51,6 +52,7 @@ namespace {
 constexpr material::Color kPaper = {0.918f, 0.902f, 0.859f, 1};  // #EAE6DB
 constexpr material::Color kInk = {0.114f, 0.106f, 0.098f, 1};    // #1D1B19
 constexpr material::Color kInkSoft = {0.114f, 0.106f, 0.098f, 0.55f};
+constexpr material::Color kCaptionInk = {0.25f, 0.24f, 0.22f, 1};
 constexpr material::Color kRed = {0.663f, 0.157f, 0.125f, 1};    // #A92820
 constexpr material::Color kBlue = {0.157f, 0.278f, 0.435f, 1};   // #28476F
 constexpr material::Color kGreen = {0.243f, 0.373f, 0.243f, 1};  // #3E5F3E
@@ -94,16 +96,17 @@ sigil::compose::StyleSheet voices() {
 /** The caption IS the call: monospaced, small, and set in the same ink as
  *  the body unless a caller asks for a lighter one. */
 Element call(const char* words, float size = 9.5f, material::Color c = kInk) {
-  return text(words).styleClass("call").font({.size = size, .color = c});
+  return document::code(words).styleClass("call").font(
+      {.size = size, .color = c});
 }
 Element roman(const char* words, float size, material::Color c = kInk,
               float tracking = 0) {
-  return text(words).styleClass("roman").font(
+  return document::paragraph(words).styleClass("roman").font(
       {.size = size, .color = c, .track = tracking});
 }
 Element romanBold(const char* words, float size, material::Color c = kInk,
                   float tracking = 0) {
-  return text(words)
+  return document::h2(words)
       .styleClass("romanBold")
       .font({.size = size, .color = c, .track = tracking});
 }
@@ -186,7 +189,7 @@ Element specimen(float x, float y, float w, float h,
       .rect(SkRect::MakeXYWH(x, y, w, h))
       .shape(std::move(shape))
       .stroke(std::move(dec))
-      .children({call(label).at({0, h + labelDy})});
+      .children({call(label).width(w).at({0, h + labelDy})});
 }
 
 /** The same, with no caption (for the rings, which are captioned outside
@@ -361,11 +364,11 @@ std::vector<Style> furnishedStyles() {
       {0.0f, kRed}, {0.5f, {0.85f, 0.66f, 0.16f, 1}}, {1.0f, kBlue}};
 
   PathFormat dotted = stroke(2.6f, ink());
-  dotted.cap = geometry::path::Cap::Round;
+  dotted.cap = sigil::geometry::path::Cap::Round;
   dotted.dashIntervals = {0.01f, 8.0f};
 
   PathFormat morse = stroke(1.8f, ink());
-  morse.cap = geometry::path::Cap::Butt;
+  morse.cap = sigil::geometry::path::Cap::Butt;
   morse.dashIntervals = {14, 5, 3, 5, 3, 12};
 
   return {

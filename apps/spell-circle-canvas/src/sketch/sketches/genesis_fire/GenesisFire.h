@@ -239,7 +239,8 @@ struct GenesisFire {
   // Sidebar
 
   Element eqn(const Utf8& s) {
-    return text(s)
+    return document::code(s)
+        .font({.face = monoFace()})
         .font({.size = 11.0f, .track = 0.1f})
         .ink(kBone)
         .height(16)
@@ -248,7 +249,7 @@ struct GenesisFire {
 
   /** A PANEL'S CLOSING REMARK, in the class every panel sets one in. */
   static Element note(const Utf8& words) {
-    return text(words).styleClass("note").flexShrink(0);
+    return document::paragraph(words).styleClass("note").flexShrink(0);
   }
 
   Element generationPanel();
@@ -296,7 +297,11 @@ struct GenesisFire {
   Element renderModelPanel();
 
   Element prodLine(const Utf8& s, sigil::material::Color c) {
-    return text(s).styleClass("line").ink(c).height(10).flexShrink(0);
+    return document::paragraph(s)
+        .styleClass("line")
+        .ink(c)
+        .height(12)
+        .flexShrink(0);
   }
 
   Element productionPanel();

@@ -38,7 +38,7 @@
  *     build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
  *         --sketch guest_body
  *
- * `Receiver --list` says what is being offered under what name, which is
+ * `Seer --list-textures` says what is being offered under what name, which is
  * what to check when the screen keeps waiting.
  *
  * EDIT THESE FIRST
@@ -51,6 +51,7 @@
 // TAGS: Media/Video, Data/Sources, Materials/Compositing
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/texture/Texture.h>
@@ -126,16 +127,18 @@ Element waiting() {
                .column()
                .gap(look.spacing.contentGap)
                .children(
-                   {text(kit::formatted("WAITING FOR “%s”", kPublication))
+                   {document::h1(
+                        kit::formatted("WAITING FOR “%s”", kPublication))
                         .font(look.font({.size = 32, .track = 7}))
                         .ink(look.palette.ink),
-                    text(
+                    document::paragraph(
                         "nothing on this machine is publishing under that name")
                         .font(look.font({.size = 17}))
                         .ink(look.palette.ash),
-                    text(kit::formatted(
-                             "Sketchbook --sketch feed_vitals --publish %s",
-                             kPublication))
+                    document::code(
+                        kit::formatted(
+                            "Sketchbook --sketch feed_vitals --publish %s",
+                            kPublication))
                         .font(look.font({.size = 16, .mono = true}))
                         .ink(look.palette.ash)})});
 }

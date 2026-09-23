@@ -33,13 +33,13 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Grained.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Legend.h>
@@ -122,8 +122,8 @@ constexpr float kInner = kFieldSide - 2 * kBandW;
  *  tesserae do so that the Purbeck reads as one stone. */
 inline Paint stone(material::Color hi, material::Color lo, float angleDeg = 24,
                    float contrast = 0.35f) {
-  return Paint::recipe(mkit::stone({.hi = material::skia::toSkColor(hi),
-                                    .lo = material::skia::toSkColor(lo),
+  return Paint::recipe(mkit::stone({.hi = hi,
+                                    .lo = lo,
                                     .bedAngle = angleDeg,
                                     .grainContrast = contrast,
                                     .speckle = 0.30f,
@@ -499,31 +499,32 @@ struct Cosmati {
              .column()
              .left(px)
              .top(cs::kFieldY + 4)
-             .children({text("OPUS SECTILE")
-                            .font({.size = 21,
-                                   .color = cs::kInk,
-                                   .track = 3.4f,
-                                   .weight = 640}),
-                        text("Cosmatesque · Westminster "
-                             "1268")
-                            .font({.size = 11, .track = 1.4f})
-                            .margin(6, 0, 0, 0),
-                        box().width(190.0f).height(1.0f).margin(12, 0).fill(
-                            Paint::linear({0, 0}, {190, 0},
-                                          {{0.0f,
-                                            {cs::kGiallo.r, cs::kGiallo.g,
-                                             cs::kGiallo.b, 0.7f}},
-                                           {1.0f,
-                                            {cs::kGiallo.r, cs::kGiallo.g,
-                                             cs::kGiallo.b, 0.0f}}})),
-                        text("The governing figure is the QUINCUNX "
-                             "— four roundels about a "
-                             "fifth. The Great Pavement is a "
-                             "quincunx of quincunxes, 25 Roman feet "
-                             "square, laid by a Roman crew under "
-                             "Odoricus.")
-                            .font({.size = 11.5f, .track = 0.2f})
-                            .width(210.0f)})});
+             .children(
+                 {document::h1("OPUS SECTILE")
+                      .font({.size = 21,
+                             .color = cs::kInk,
+                             .track = 3.4f,
+                             .weight = 640}),
+                  document::lead("Cosmatesque · Westminster "
+                                 "1268")
+                      .font({.size = 11, .track = 1.4f})
+                      .margin(6, 0, 0, 0),
+                  box().width(190.0f).height(1.0f).margin(12, 0).fill(
+                      Paint::linear({0, 0}, {190, 0},
+                                    {{0.0f,
+                                      {cs::kGiallo.r, cs::kGiallo.g,
+                                       cs::kGiallo.b, 0.7f}},
+                                     {1.0f,
+                                      {cs::kGiallo.r, cs::kGiallo.g,
+                                       cs::kGiallo.b, 0.0f}}})),
+                  document::paragraph("The governing figure is the QUINCUNX "
+                                      "— four roundels about a "
+                                      "fifth. The Great Pavement is a "
+                                      "quincunx of quincunxes, 25 Roman feet "
+                                      "square, laid by a Roman crew under "
+                                      "Odoricus.")
+                      .font({.size = 11.5f, .track = 0.2f})
+                      .width(210.0f)})});
 
     // the quarry legend: every stone named, with a real sample of it
     struct Quarry {

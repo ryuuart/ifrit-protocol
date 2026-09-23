@@ -12,6 +12,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
@@ -70,8 +71,8 @@ namespace genesis {
 constexpr material::Color kInk = hexColor(0x06070B);
 constexpr material::Color kPanel = hexColor(0x0B0D14);
 constexpr material::Color kBone = hexColor(0xE9ECF3);
-constexpr material::Color kSteel = hexColor(0x77819A);
-constexpr material::Color kSteelDim = hexColor(0x545E74);
+constexpr material::Color kSteel = hexColor(0x98A2B7);
+constexpr material::Color kSteelDim = hexColor(0x768095);
 constexpr material::Color kKeyline = hexColor(0x242A36);
 constexpr material::Color kCyan = hexColor(0x4FB8D8);
 
@@ -95,7 +96,7 @@ constexpr int kRampN[14] = {1, 2, 3, 4, 5, 8, 12, 16, 20, 28, 40, 60, 85, 111};
 // The canvas is the stage's own 4:3 plus the header over it and the
 // caption band under it — a band declared outside the artefact needs
 // room outside the artefact.
-constexpr float kCanvasW = 1440, kCanvasH = 926;
+constexpr float kCanvasW = 1440, kCanvasH = 960;
 constexpr float kStageW = 888, kStageH = 666;  // 4:3 — the 500-line raster
 constexpr float kSideW = 448;
 
@@ -103,13 +104,13 @@ constexpr float kSideW = 448;
 // the sidebar's five panel boxes, each a number rather than a flex
 // negotiation.
 constexpr float kPad = 36;
-constexpr float kHeaderH = 102;
-constexpr float kBodyY = kPad + kHeaderH + 24;  // 162
-constexpr float kStageX = kPad;                 // 36
-constexpr float kSideX = kPad + kStageW + 32;   // 956
+constexpr float kHeaderH = 118;
+constexpr float kBodyY = kPad + kHeaderH + 24;
+constexpr float kStageX = kPad;                // 36
+constexpr float kSideX = kPad + kStageW + 32;  // 956
 constexpr float kCaptionY = kBodyY + kStageH + 10;
 constexpr float kPanelGap = 8;
-constexpr float kPanelH[5] = {104, 192, 98, 144, 96};
+constexpr float kPanelH[5] = {118, 208, 128, 144, 120};
 
 /** The top of sidebar panel @p i, counting from zero. */
 constexpr float panelTop(int i) {
@@ -196,11 +197,11 @@ using instrument::uiFace;
  *  every frame. */
 inline sigil::compose::StyleSheet registers() {
   sigil::compose::StyleSheet classes{
-      sigil::compose::rule(".note").font({.size = 6.5f}),
+      sigil::compose::rule(".note").font({.size = 9.0f}),
       sigil::compose::rule(".colhead").font({.size = 7.5f, .track = 0.9f}),
       sigil::compose::rule(".cell").font({.size = 9.5f, .track = 0.4f}),
       sigil::compose::rule("label, .label").font({.size = 7.0f}),
-      sigil::compose::rule(".line").font({.size = 8.0f})};
+      sigil::compose::rule(".line").font({.size = 9.0f})};
   return classes;
 }
 
@@ -255,7 +256,7 @@ inline Element panel(float height, int order) {
 }
 
 inline Element panelHead(const Utf8& s) {
-  return text(s)
+  return document::h2(s)
       .font({.face = uiFace(), .size = 9.5f, .track = 1.9f})
       .height(13)
       .flexShrink(0);

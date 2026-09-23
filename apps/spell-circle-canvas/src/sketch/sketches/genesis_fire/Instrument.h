@@ -17,6 +17,7 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -76,7 +77,7 @@ inline sigil::weave::TextStyle uiB(float size, sigil::material::Color color,
  *  study's own document, which is text wherever text is taken. */
 inline sigil::compose::Element t(const sigil::compose::Utf8& line,
                                  sigil::weave::TextStyle style) {
-  return sigil::compose::text(line, std::move(style));
+  return sigil::compose::text(line, std::move(style)).role("paragraph");
 }
 
 /** The same register as a PEN's type, for the study that draws its panel

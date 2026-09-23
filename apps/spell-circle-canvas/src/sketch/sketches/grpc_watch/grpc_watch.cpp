@@ -353,12 +353,12 @@ struct GrpcWatch {
         {.page = {.title = "A scene on a stream.",
                   .subtitle = "gRPC / BIDIRECTIONAL  /  A long-lived "
                               "connection carries updates in both directions.",
-                  .footer = "Run watch.py beside this sketch to send data  ·  "
-                            "Captures replay the local recording"},
+                  .footer = "Open grpc://127.0.0.1:27090/Sky/Watch in Seer  ·  "
+                            "watch.py writes the capture recording"},
          .pictureSize = kCanvas,
          .pictureWidth = 816,
-         .note = "The remote controls shape the bands; viewport readings "
-                 "travel back upstream."},
+         .note = "A caller changes the palette or sends a gust. The scene "
+                 "streams the resulting band positions back."},
         std::move(picture).fill(kGround), readout()));
   }
 

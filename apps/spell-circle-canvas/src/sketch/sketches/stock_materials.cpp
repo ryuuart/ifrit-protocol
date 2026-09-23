@@ -75,11 +75,11 @@ sketch::kit::Theme sheetTheme() {
   look.palette.ink = {0.88f, 0.90f, 0.94f, 1};
   look.palette.ash = {0.56f, 0.58f, 0.65f, 1};
   look.palette.rule = {0.18f, 0.19f, 0.23f, 1};
-  look.type.title = {.size = 15, .track = 2.2f};
-  look.type.subtitle = {.size = 11, .track = 0.7f};
+  look.type.title = {.size = 32};
+  look.type.subtitle = {.size = 14};
   look.type.footer = {.size = 10, .track = 0.3f};
   look.type.captionLabel = {.size = 11, .track = 0.5f};
-  look.type.captionNote = {.size = 9.5f, .track = 0.2f};
+  look.type.captionNote = {.size = 11};
   look.captionWhere = kit::Caption::Where::Below;
   look.spacing.marginX = 30;
   look.spacing.marginTop = 26;
@@ -124,7 +124,7 @@ struct StockMaterialsSheet {
     // Nothing on the sheet moves: every generator is evaluated from its
     // parameters and the box, and the two that read the clock are pinned
     // by the moment their call names.
-    sketch::kit::stage(ctx, {.size = {1150, 900}, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.size = {1150, 1000}, .captureAt = 0.05});
 
     const std::vector<mskia::Stop> ramp = {{0.0f, {0.95f, 0.35f, 0.25f, 1}},
                                            {0.5f, {0.95f, 0.80f, 0.30f, 1}},
@@ -226,14 +226,12 @@ struct StockMaterialsSheet {
          painted("kit::tunnel(bounds, 1.4 s)", mkit::tunnel(swatchBox, 1.4f))});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "STOCK MATERIALS · every generator, "
-                  "painted once",
+        {.title = "The material shelf",
          .subtitle = "field · pattern tiles · the "
                      "grained kit and girih · sdf and the "
                      "unit ramps · the text paints",
-         .footer = "each caption is the recipe's own name; running "
-                   "the effect is what crosses the split-Skia "
-                   "image boundary, so every cell is PAINTED"},
+         .footer = "Recipe names identify live materials; the smaller caption "
+                   "shows the parameters behind each swatch."},
         sketch::kit::cells(
             {.cells = {std::move(fields), std::move(patterns),
                        std::move(grained), std::move(shapesAndRamps),

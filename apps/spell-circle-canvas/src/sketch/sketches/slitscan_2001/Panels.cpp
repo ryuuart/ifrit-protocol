@@ -37,8 +37,8 @@ auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
       .key(kit::formatted("panel%d", order))
       .opacity(animate(from(0.0f).to(1.0f), {300ms, ch::easeOutQuad}))
       .translateX(animate(from(14.0f).to(0.0f), {300ms, ch::easeOutQuad}))
-      .children({t(std::string(said["heading"].text()),
-                   {.face = uiFace(), .size = 9.5f, .track = 2.2f}),
+      .children({document::h2(std::string(said["heading"].text()))
+                     .font({.face = uiFace(), .size = 9.5f, .track = 2.2f}),
                  rule(390, kRule)});
 }
 
@@ -55,7 +55,7 @@ auto SlitScan2001::prose(const data::Json& said) -> std::vector<Element> {
       return slot(std::string(n["slot"].text()))
           .height((float)n["height"].number(19.0))
           .flexShrink(0);
-    Element line = text(n["words"])
+    Element line = document::paragraph(n["words"])
                        .font({.size = (float)n["size"].number(6.5)})
                        .styleClass(std::string(n["style"].text()))
                        .flexShrink(0);

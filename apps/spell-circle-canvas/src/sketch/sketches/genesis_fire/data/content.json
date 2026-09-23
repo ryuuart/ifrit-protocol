@@ -2,7 +2,7 @@
   "header": {
     "eyebrow": "STOCHASTIC PARTICLE SYSTEMS",
     "title": "THE GENESIS DEMO, 1982",
-    "credit": "W. T. Reeves, Lucasfilm Ltd — \"Particle Systems: A Technique for Modeling a Class of Fuzzy Objects\", SIGGRAPH '83 / ACM TOG 2(2) · sequence dir. Alvy Ray Smith · Star Trek II, Paramount, June 4, 1982"
+    "credit": "W. T. Reeves · Lucasfilm, 1982\nParticle systems for the Genesis sequence in Star Trek II."
   },
   "generation": {
     "head": "GENERATION LAW",
@@ -11,7 +11,7 @@
       "MeanParts_f = InitialMeanParts + ΔMean × (f − f₀)",
       "InitialSpeed = MeanSpeed + Rand() × VarSpeed"
     ],
-    "note": "Rand() → UNIFORM [−1.0, +1.0] — REEVES 1983 §2.1–2.2"
+    "note": "Rand() is uniform over [-1, +1]. Birth rate and initial speed vary within each system."
   },
   "census": {
     "head": "PARTICLE CENSUS — REEVES 1983 §3",
@@ -22,17 +22,17 @@
       {"fig": "6", "systems": "~200", "particles": "85,000", "per": "425", "share": 0.514},
       {"fig": "7–8", "systems": "~400", "particles": ">750,000", "per": ">1,875", "share": 0.945}
     ],
-    "footnote": "* FIG. 4 IS \"ONE VERY LARGE PARTICLE SYSTEM AND ABOUT 20 SMALLER ONES\" — THAT MEAN IS MEANINGLESS.",
-    "note": "NO PARAMETER VALUE IS PUBLISHED ANYWHERE. EVERY CONSTANT HERE IS ARITHMETIC ON TWO PUBLISHED INTEGERS: 85,000 ÷ 200 = 425 ALIVE PER EXPLOSION (FIG. 6), AND POPULATION = BIRTH RATE × LIFETIME — PICK MeanLife = 34 f AND THE RATE FOLLOWS. SYSTEMS IGNITE EVERY 18.5/168 = 0.110 s: 20 GENERATING + 13 BURNING OUT = 24 FULLY-LIT EQUIVALENTS. A LIMB VIEW STACKS THE RING IN DEPTH (FIG. 6 IS ~200 SYSTEMS; THIS SLICE ANCHORS 53 COLUMNS), SO EACH COLUMN CARRIES 3: 72 × 425 = 30,600 PREDICTED. THE \"THIS\" ROW IS MEASURED."
+    "footnote": "* Fig. 4 mixes one large system with twenty small systems.",
+    "note": "Fig. 6 gives 85,000 / 200 = 425 particles per system. This reconstruction uses 34-frame lives and three layers of systems. The live row is measured; no parameter set is published."
   },
   "ramp": {
     "head": "COLOUR IS OVERLAP COUNT",
-    "note": "LIGHT ADDS AND CLAMPS (§2.5) — RED SATURATES AT n=5, GREEN AT n=20, BLUE AT n=111. e₀ = (0.220, 0.050, 0.009) IS THE ONE RECONSTRUCTED SEED."
+    "note": "Light adds and clamps: red saturates at 5 overlaps, green at 20, blue at 111. The reconstructed seed is (0.220, 0.050, 0.009)."
   },
   "render": {
     "head": "RENDER MODEL — THREE PATHS, ONE POOL",
     "cells": ["instances() · kSrcOver", "instances() · kPlus", "pen quads · kPlus"],
-    "note": "SAME 700 PARTICLES, ONE POOL. LEFT AND CENTRE DIFFER ONLY IN BLEND: kSrcOver CANNOT ACCUMULATE, SO ITS WHOLE PALETTE IS LUT ENTRY n=1. ALL THREE ARE STREAKED SPHERICAL — LENGTH 0.5·|v|, WIDTH size. THE TWO POOLS TAKE IT FROM Pool::sizes(), THE OPT-IN NON-UNIFORM LANE THAT STRETCHES ONE BAKED CELL PER INSTANCE."
+    "note": "The same 700 particles, with the same streak lengths. Source-over covers earlier light; additive blending accumulates it. The two additive paths should agree."
   },
   "production": {
     "head": "PRODUCTION — SMITH 1982",
@@ -43,6 +43,6 @@
       {"words": "E&S PICTURE SYSTEM II · 2× IKONAS · BARCO · HITACHI TABLET"},
       {"words": "DELIVERED MARCH 19, 1982 · SHOT TO VISTAVISION BY ILM"}
     ],
-    "note": "Am. Cinematographer 63(10) — caption: 67 s; body text: 60 s. Both printed."
+    "note": "The source reports both 60 and 67 seconds for Genesis."
   }
 }

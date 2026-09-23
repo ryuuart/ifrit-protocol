@@ -1,3 +1,6 @@
+#include <sigilcompose/kit/Document.h>
+#include <sigilmaterial/color/Color.h>
+
 #include "Fallout2CharSheet.h"
 
 auto Fallout2CharSheet::poseFor(int skill) const -> fo::Pose {
@@ -20,8 +23,7 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   // arithmetic here, over the substituted faces' own measured metrics —
   // alignItems(Align::Baseline) would be the kernel spelling, but the two
   // runs are absolutely positioned at documented x/y, not laid out in a row.
-  g.children({sigil::material::skia::toSkColor(ink)(
-      t(d.name, titleType()), 348 - 345, 272 - 267, titleRise)});
+  g.children({ink(t(d.name, titleType()), 348 - 345, 272 - 267, titleRise)});
   const int walkIdx = skill == 0 ? 0 : (skill == 7 ? 1 : 2);
   const float advance = titleAdvance[walkIdx] / kScale;
   // ---- the rule: two 1-px lines at y = 300, 301 ------------------------
@@ -168,42 +170,55 @@ auto Fallout2CharSheet::failureCard() const -> Element {
 
 auto Fallout2CharSheet::captionBand() -> Element {
   using namespace fo;
+  namespace document = sigil::compose::document;
   Element band = box()
                      .rect(SkRect::MakeXYWH(0, kScreenH, kScreenW, kCaptionH))
                      .fill(Paint::linearUnit({0, 0}, {0, 1},
                                              {{0.0f, hexColor(0x0B0D08)},
                                               {1.0f, hexColor(0x050604)}}))
-                     // the band's running line; each line says its colour
-                     .font({.face = bodyFace(), .size = 13.0f, .track = 0.1f});
+                     .padding(20, 28)
+                     .column()
+                     .gap(8)
+                     .font({.face = bodyFace(), .size = 14.0f, .track = 0.1f})
+                     .ink(hexColor(0xB5B5A2));
   band.foreground(onEdges(
       path::Edge::Top,
       stroke(2.0f, Fill::color(hexColor(0x3A3020)), PathFormat::Align::Inner)));
   const std::string audited = kit::formatted(
-      "SEVEN NUMBERS BECOME SIXTY · %d/%d derived values "
-      "match the shipped sheets (Narg, Mingan, Chitsa), trait "
-      "corrections included",
+      "%d/%d derived values match the shipped sheets for Narg, Mingan "
+      "and Chitsa, including their trait corrections. The seven "
+      "S.P.E.C.I.A.L. scores drive the values on the screen.",
       sheetAudit.checks() - sheetAudit.failures(), sheetAudit.checks());
-  auto line = [](const char* s, float y) { return text(s).at({30, y}); };
-  band.children({t("FALLOUT 2 · CHARACTER SCREEN · BLACK ISLE "
-                   "STUDIOS, 1998 · 640×480 8-BIT INDEXED, REBUILT AT 2×",
-                   fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
-                     .at({30, 14}),
-                 line(audited.c_str(), 41)
-                     .font({.size = 14.5f, .color = kGreen, .track = 0.2f}),
-                 line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
-                      "palette has no pure green, so what reached the CRT is "
-                      "#3CF800.",
-                      64)
-                     .ink(hexColor(0x8A8A78)),
-                 line("Chrome, plaques, rivets, tabs and parchment are "
-                      "procedural; the originals are raster FRMs (intrface art "
-                      "id 177). The sheet is RE-SET in real faces.",
-                      84)
-                     .ink(hexColor(0x6A6A5A)),
-                 line("The screen above is exactly 1280×960 — "
-                      "halve it and it overlays the 1998 capture. This band is "
-                      "not part of the artefact.",
-                      104)
-                     .ink(hexColor(0x55554A))});
+  const auto note = [](const char* title, const std::string& words,
+                       sigil::material::Color ink) {
+    return box().column().flexGrow(1).flexBasis(0).gap(7).children(
+        {document::h2(title).font(
+             {.face = bodyBold(), .size = 12.5f, .color = ink, .track = 1.2f}),
+         document::paragraph(words).paragraph(
+             {.leading = weave::Leading::multiple(1.45f)})});
+  };
+  band.children({
+      document::h1("FALLOUT 2 · THE CHARACTER SHEET")
+          .font({.face = bodyBold(),
+                 .size = 21.0f,
+                 .color = hexColor(0xC0A44E),
+                 .track = 1.2f}),
+      document::caption("Black Isle Studios, 1998 · 640×480 indexed colour · "
+                        "the reference screen above is rebuilt at 2×")
+          .font({.size = 13.0f}),
+      box()
+          .row()
+          .gap(42)
+          .margin(10, 0, 0, 0)
+          .children({
+              note("SEVEN NUMBERS BECOME SIXTY", audited, kGreen),
+              note("PALETTE & MATERIAL",
+                   "The VGA palette maps the requested green to #3CF800. "
+                   "Metal, plaques and parchment are procedural; the original "
+                   "screen used raster artwork. This commentary sits outside "
+                   "the artefact.",
+                   hexColor(0xC0A44E)),
+          }),
+  });
   return band;
 }

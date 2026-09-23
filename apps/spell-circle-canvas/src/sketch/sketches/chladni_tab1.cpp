@@ -166,7 +166,7 @@ namespace {
 
 constexpr material::Color kPaper = hexColor(0xe3d7b6);
 constexpr material::Color kPaperEdge = hexColor(0xa08757);
-constexpr material::Color kInk = hexColor(0x211c14);     // the dense star fills
+constexpr material::Color kInk = hexColor(0x211c14);  // the dense star fills
 constexpr material::Color kInkLine =
     hexColor(0x362e23);  // hairline rims and rules
 constexpr material::Color kInkSoft = hexColor(0x3a3125, 0.72f);
@@ -177,10 +177,10 @@ constexpr material::Color kFox = hexColor(0x9c7f57, 0.10f);
 // below converts by one constant.
 
 constexpr float kScale = 0.975f;
-constexpr float kW = 1600 * kScale;   // 1560
-constexpr float kH = 2072 * kScale;   // 2020
-constexpr float kR = 179.0f * kScale; // every figure's radius: 174.5
-constexpr float kTip = 0.985f;        // the tips meet the rim, as drawn
+constexpr float kW = 1600 * kScale;    // 1560
+constexpr float kH = 2072 * kScale;    // 2020
+constexpr float kR = 179.0f * kScale;  // every figure's radius: 174.5
+constexpr float kTip = 0.985f;         // the tips meet the rim, as drawn
 constexpr float kDeg = 3.14159265358979f / 180.0f;
 
 // frame: outer rule (48,153)-(1517,1977) scan; the double rule's partner
@@ -209,12 +209,12 @@ enum class Kind { Star, Petals, Traced };
 
 struct FigSpec {
   int num;
-  float cx, cy; // Hough-fitted centres, scan px (kept unrounded:
-  float points; // the hand wander is the plate's, not mine)
-  float inner;  // measured innerRatio
+  float cx, cy;  // Hough-fitted centres, scan px (kept unrounded:
+  float points;  // the hand wander is the plate's, not mine)
+  float inner;   // measured innerRatio
   Kind kind;
-  int n;           // Chladni's nodal-line count
-  float semitones; // above the fundamental; -1 = Chladni states none
+  int n;            // Chladni's nodal-line count
+  float semitones;  // above the fundamental; -1 = Chladni states none
   int grains;
 };
 
@@ -236,7 +236,7 @@ const std::array<FigSpec, 12> kFigures = {{
     {12, 1257, 1748, 14, 0.46f, Kind::Star, 7, 37.7f, 600},
 }};
 
-SkPoint centreOf(const FigSpec &f) { return {f.cx * kScale, f.cy * kScale}; }
+SkPoint centreOf(const FigSpec& f) { return {f.cx * kScale, f.cy * kScale}; }
 
 // ---------------------------------------------------------------------------
 // the compass construction for figures 7, 9, 10
@@ -247,8 +247,8 @@ SkPoint centreOf(const FigSpec &f) { return {f.cx * kScale, f.cy * kScale}; }
 // admits: a plain diameter.
 
 struct Linie {
-  float bearing;      // deg clockwise from 12 o'clock
-  float centreRadius; // 1 = on the rim
+  float bearing;       // deg clockwise from 12 o'clock
+  float centreRadius;  // 1 = on the rim
   float arcRadius;
   bool straight = false;
 };
@@ -257,28 +257,28 @@ struct Linie {
 // NOLINTBEGIN(bugprone-throwing-static-initialization): literal tables; only
 // allocation could throw
 const std::vector<Linie> kFig7 = {
-    {0, 0, 0, true},      // the vertical diameter
-    {297, 1.10f, 0.58f},  // left hook  (measured c=(-0.930,-0.447) r=0.540)
-    {63, 1.10f, 0.58f},   // right hook (measured c=( 1.095,-0.521) r=0.627;
-                          //   mirrored — the engraver's two hands differ)
-    {180, 1.50f, 1.068f}, // the arch below centre, crest at p
+    {0, 0, 0, true},       // the vertical diameter
+    {297, 1.10f, 0.58f},   // left hook  (measured c=(-0.930,-0.447) r=0.540)
+    {63, 1.10f, 0.58f},    // right hook (measured c=( 1.095,-0.521) r=0.627;
+                           //   mirrored — the engraver's two hands differ)
+    {180, 1.50f, 1.068f},  // the arch below centre, crest at p
 };
 const std::vector<Linie> kFig9 = {
     {0, 0, 0, true},     {306.4f, 1.145f, 0.495f}, {53.6f, 1.145f, 0.495f},
-    {180, 2.07f, 2.00f}, // shallow arch crossing the diameter at p
-    {180, 1.52f, 1.00f}, // deeper arch crossing at q
+    {180, 2.07f, 2.00f},  // shallow arch crossing the diameter at p
+    {180, 1.52f, 1.00f},  // deeper arch crossing at q
 };
 const std::vector<Linie> kFig10 = {
-    {306, 1.058f, 0.606f}, // no diameter at all: it has degenerated away
+    {306, 1.058f, 0.606f},  // no diameter at all: it has degenerated away
     {54, 1.058f, 0.606f},
-    {0, 1.933f, 1.613f}, // the r-s line: a BOWL, compass point above
+    {0, 1.933f, 1.613f},  // the r-s line: a BOWL, compass point above
     {180, 1.836f, 1.536f},
     {180, 1.540f, 0.850f},
 };
 
 // NOLINTEND(bugprone-throwing-static-initialization)
 
-const std::vector<Linie> &linienOf(int num) {
+const std::vector<Linie>& linienOf(int num) {
   return num == 7 ? kFig7 : (num == 9 ? kFig9 : kFig10);
 }
 
@@ -303,7 +303,7 @@ shapes::OutlineFunction linieOutline(Linie l) {
   const float k = (1.0f + on * on - l.arcRadius * l.arcRadius) * 0.5f;
   const float d = on > 1e-4f ? k / on : 2.0f;
   const float h2 = 1.0f - d * d;
-  if (h2 <= 0.0f) // the compass never crosses the rim: nothing to draw
+  if (h2 <= 0.0f)  // the compass never crosses the rim: nothing to draw
     return shapes::parametric([](float) { return SkPoint{0, 0}; }, 0, 1, 2);
   const float h = std::sqrt(h2);
   const SkPoint u{o.fX / on, o.fY / on};
@@ -313,10 +313,8 @@ shapes::OutlineFunction linieOutline(Linie l) {
   const float a0 = std::atan2(p0.fY - o.fY, p0.fX - o.fX);
   const float a1 = std::atan2(p1.fY - o.fY, p1.fX - o.fX);
   float sweep = a1 - a0;
-  while (sweep <= -SK_FloatPI)
-    sweep += 2 * SK_FloatPI;
-  while (sweep > SK_FloatPI)
-    sweep -= 2 * SK_FloatPI;
+  while (sweep <= -SK_FloatPI) sweep += 2 * SK_FloatPI;
+  while (sweep > SK_FloatPI) sweep -= 2 * SK_FloatPI;
   const float rho = l.arcRadius;
   auto at = [o, rho](float a) { return arrange::onEllipse(o, {rho, rho}, a); };
   const SkPoint mid = at(a0 + sweep * 0.5f);
@@ -328,7 +326,7 @@ shapes::OutlineFunction linieOutline(Linie l) {
 
 /** The same curve resolved into a box of side 2r — what the grain
  *  sampler walks with SkContourMeasure. */
-SkPath liniePath(const Linie &l, float r) {
+SkPath liniePath(const Linie& l, float r) {
   return linieOutline(l)(SkSize{2 * r, 2 * r});
 }
 
@@ -341,8 +339,8 @@ SkPath liniePath(const Linie &l, float r) {
 
 struct Label {
   float bearing;
-  float radius; // fraction of the rim
-  const char *glyph;
+  float radius;  // fraction of the rim
+  const char* glyph;
 };
 
 const std::vector<Label> kNoLabels;
@@ -362,7 +360,7 @@ const std::vector<Label> kL5 = {{0, 1.14f, "h"},   {90, 1.16f, "r"},
                                 {240, 1.15f, "o"}, {300, 1.15f, "n"}};
 const std::vector<Label> kL7 = {{312, 1.15f, "n"},
                                 {48, 1.15f, "f"},
-                                {163, 0.34f, "p"}, // on the arch's crest
+                                {163, 0.34f, "p"},  // on the arch's crest
                                 {205, 1.12f, "s"},
                                 {158, 1.12f, "r"}};
 const std::vector<Label> kL9 = {{308, 1.15f, "k"}, {52, 1.15f, "n"},
@@ -373,25 +371,25 @@ const std::vector<Label> kL10 = {{322, 1.16f, "t"}, {37, 1.15f, "n"},
                                  {285, 1.12f, "k"}, {65, 1.13f, "l"}};
 // NOLINTEND(bugprone-throwing-static-initialization)
 
-const std::vector<Label> &labelsOf(int num) {
+const std::vector<Label>& labelsOf(int num) {
   switch (num) {
-  case 1:
-    return kL1;
-  case 2:
-  case 3:       // figs 2 and 3 share letters AND bearings — the pairing that
-    return kL2; //   proves 3 is 2 drawn as valleys
-  case 4:
-    return kL4;
-  case 5:
-    return kL5;
-  case 7:
-    return kL7;
-  case 9:
-    return kL9;
-  case 10:
-    return kL10;
-  default:
-    return kNoLabels;
+    case 1:
+      return kL1;
+    case 2:
+    case 3:        // figs 2 and 3 share letters AND bearings — the pairing that
+      return kL2;  //   proves 3 is 2 drawn as valleys
+    case 4:
+      return kL4;
+    case 5:
+      return kL5;
+    case 7:
+      return kL7;
+    case 9:
+      return kL9;
+    case 10:
+      return kL10;
+    default:
+      return kNoLabels;
   }
 }
 
@@ -414,12 +412,12 @@ constexpr float tTitle = 0.70f;
 constexpr float tNumeral = 1.00f;
 constexpr float tRim = 1.10f;
 constexpr float tScatter = 1.35f;
-constexpr float tBow0 = 1.75f;    // figure 1's bow stroke
-constexpr float tBowStep = 0.30f; // + per figure, in Chladni's pitch order
+constexpr float tBow0 = 1.75f;     // figure 1's bow stroke
+constexpr float tBowStep = 0.30f;  // + per figure, in Chladni's pitch order
 constexpr float tCredit = 7.60f;
 constexpr float tIdle = 7.30f;
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
@@ -459,8 +457,7 @@ struct ChladniTab1 {
   void seedGrains() {
     pool = std::make_shared<instancing::Pool>();
     size_t total = 0;
-    for (const FigSpec &f : kFigures)
-      total += (size_t)f.grains;
+    for (const FigSpec& f : kFigures) total += (size_t)f.grains;
     pool->resize(total);
     auto flights = pool->flights();
     auto frames = pool->frames();
@@ -469,7 +466,7 @@ struct ChladniTab1 {
 
     for (size_t fi = 0; fi < kFigures.size(); ++fi) {
       figureFirst[fi] = at;
-      const FigSpec &f = kFigures[fi];
+      const FigSpec& f = kFigures[fi];
       const SkPoint c = centreOf(f);
       Xorshift rng(1787u + f.num * 61u);
 
@@ -491,7 +488,7 @@ struct ChladniTab1 {
       } else if (f.kind == Kind::Petals) {
         starPath = shapes::star((int)f.points, f.inner)(SkSize{2 * kR, 2 * kR});
       } else {
-        for (const Linie &l : linienOf(f.num)) {
+        for (const Linie& l : linienOf(f.num)) {
           SkContourMeasureIter it(liniePath(l, kR), false);
           if (sk_sp<SkContourMeasure> m = it.next()) {
             curveLen.push_back(m->length());
@@ -514,8 +511,7 @@ struct ChladniTab1 {
           SkPoint p{0, 0};
           for (int tries = 0; tries < 400; ++tries) {
             p = {rng.range(0, 2 * half), rng.range(0, 2 * half)};
-            if (starPath.contains(p.fX, p.fY))
-              break;
+            if (starPath.contains(p.fX, p.fY)) break;
           }
           grain.to = {c.fX - half + p.fX, c.fY - half + p.fY};
           grain.rotateTo = rng.range(0, 2 * SK_FloatPI);
@@ -529,8 +525,7 @@ struct ChladniTab1 {
             const float a = rng.range(0, 360.0f);
             const float rr = kR * (0.30f + 0.665f * std::sqrt(rng.next()));
             p = polar({kR, kR}, rr, a);
-            if (!starPath.contains(p.fX, p.fY))
-              break;
+            if (!starPath.contains(p.fX, p.fY)) break;
           }
           grain.to = {c.fX - kR + p.fX, c.fY - kR + p.fY};
           // the fan: every stroke points radially out of the centre
@@ -572,8 +567,8 @@ struct ChladniTab1 {
   // ------------------------------------------------------------------
   // one cell of the plate
 
-  void figure(Element &root, size_t fi, sketch::SketchContext &) {
-    const FigSpec &f = kFigures[fi];
+  void figure(Element& root, size_t fi, sketch::SketchContext&) {
+    const FigSpec& f = kFigures[fi];
     const SkPoint c = centreOf(f);
     const std::string tag = "f" + std::to_string(f.num);
     const float rimDelay = tRim * 1000.0f + (float)fi * 26.0f;
@@ -638,7 +633,7 @@ struct ChladniTab1 {
     } else {
       // ONE NODAL LINE PER LINIE THE PLATE DRAWS, each drawing itself on
       // as the figure settles.
-      root.children({each(linienOf(f.num), [&](const Linie &linie, size_t li) {
+      root.children({each(linienOf(f.num), [&](const Linie& linie, size_t li) {
         return kit::disc(c, kR)
             .key(tag + "l" + std::to_string(li))
             .shape(linieOutline(linie))
@@ -678,7 +673,7 @@ struct ChladniTab1 {
     // ---- reference letters: upright, never rotated ----
     // ONE REFERENCE LETTER PER LABEL, upright wherever on the rim it
     // stands, each rising into place as the figure settles.
-    root.children({each(labelsOf(f.num), [&](const Label &l, size_t li) {
+    root.children({each(labelsOf(f.num), [&](const Label& l, size_t li) {
       return text(l.glyph)
           .font({.face = faceLabel, .size = 33})
           .key(tag + "lab" + std::to_string(li))
@@ -694,7 +689,7 @@ struct ChladniTab1 {
   }
 
   // ------------------------------------------------------------------
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     // The plate is inked once: every line of type and the linie strokes
     // are in kInk unless they say otherwise, and each line names its own
     // hand — numeral, reference letter or chancery — and its size.
@@ -734,7 +729,7 @@ struct ChladniTab1 {
                             {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
                             {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
                              material::Color{kPaperEdge.r, kPaperEdge.g,
-                                       kPaperEdge.b, 0.26f}},
+                                             kPaperEdge.b, 0.26f}},
                             {0.0f, 0.62f, 1.0f}))})
              .cache(Cache::Texture)});
 
@@ -765,8 +760,7 @@ struct ChladniTab1 {
                        .centerAt({1436 * kScale, 106 * kScale})});
 
     // ---- the twelve figures ----
-    for (size_t i = 0; i < kFigures.size(); ++i)
-      figure(root, i, ctx);
+    for (size_t i = 0; i < kFigures.size(); ++i) figure(root, i, ctx);
 
     // ---- the sand: every grain in one pool, one atlas stamp ----
     root.children(
@@ -777,7 +771,7 @@ struct ChladniTab1 {
              .font({.face = faceSwash, .size = 27, .track = 0.3f})
              .ink(kInkSoft)
              .key("credit")
-             .centerAt({1402 * kScale, 1917 * kScale})
+             .centerAt({kFrameR - 154.0f, kFrameB - 32.0f})
              .opacity(
                  animate(from(0.0f).to(1.0f), ramp(tCredit * 1000, 700)))});
 
@@ -785,7 +779,7 @@ struct ChladniTab1 {
   }
 
   // ------------------------------------------------------------------
-  void setup(sketch::SketchContext &ctx) {
+  void setup(sketch::SketchContext& ctx) {
     // The still has to name its moment: the settled plate, with all twelve
     // figures inked (6.47 s), the credit in (8.3 s) and the idle bow at
     // maximum on figure 8's rim. An undeclared capture catches figure 12's
@@ -810,12 +804,10 @@ struct ChladniTab1 {
     paperMat = Paint::recipe(field::grain(0.013f, 4, 9.0f));
     // Sparse, and NOT on a grid you can see: the tile has to be big
     // enough that its repeat is not the strongest mark on the page.
-    foxing = patterns::speckle(640, 22, 1.4f, 5.0f,
-                               {material::skia::toSkColor(kFox)});
+    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {kFox});
     foxing.seed(17);
-    foxingLL = patterns::speckle(
-        520, 14, 2.0f, 7.0f,
-        {skia::toColor(material::skia::toSkColor(hexColor(0x94764c, 0.09f)))});
+    foxingLL =
+        patterns::speckle(520, 14, 2.0f, 7.0f, {hexColor(0x94764c, 0.09f)});
     foxingLL.seed(53);
     // Ink on rag paper is never flat: luminance noise, so it shades the
     // fill rather than hue-shifting it.
@@ -889,7 +881,7 @@ struct ChladniTab1 {
       for (size_t fi = 0; fi < kFigures.size(); ++fi) {
         const float nudge = bowShake[fi];
         for (size_t i = figureFirst[fi]; i < figureFirst[fi + 1]; ++i) {
-          const instancing::Pool::Flight &f = flights[i];
+          const instancing::Pool::Flight& f = flights[i];
           const float u =
               f.duration > 0.0f
                   ? std::clamp((t - f.start) / f.duration, 0.0f, 1.0f)
@@ -909,7 +901,7 @@ struct ChladniTab1 {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext &) {}
+  void update(double, sketch::SketchContext&) {}
 };
 
 SIGIL_SKETCH(ChladniTab1, "Study · Science",

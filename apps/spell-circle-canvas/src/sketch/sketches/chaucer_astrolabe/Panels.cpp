@@ -1,3 +1,5 @@
+#include <sigilcompose/kit/Document.h>
+
 #include "ChaucerAstrolabe.h"
 
 auto ChaucerAstrolabe::card(const data::Json& page, Element content)
@@ -106,8 +108,9 @@ auto ChaucerAstrolabe::projRead() -> Element {
   return box().gap(4).styleClass("figure").children(
       {text(kit::formatted("δ = %+7.3f°", dec)),
        text(kit::formatted("r = R_eq·tan((90−δ)/2) = %.6f R", rOfDec(dec))),
-       each(doc["projection"]["notes"].items(),
-            [](const data::Json& n) { return text(n).styleClass("note"); })});
+       each(doc["projection"]["notes"].items(), [](const data::Json& n) {
+         return document::caption(n.text()).styleClass("note");
+       })});
 }
 
 auto ChaucerAstrolabe::familiesPanel() -> Element {
@@ -309,7 +312,7 @@ auto ChaucerAstrolabe::backPanel() -> Element {
       page,
       box().children(
           {std::move(face),
-           text(page["reading"])
+           document::caption(page["reading"].text())
                .styleClass("gloss")
                .paragraph({.alignment = weave::TextAlignment::kCenter})}));
 }
@@ -319,21 +322,22 @@ auto ChaucerAstrolabe::specCard() -> Element {
   // What the object is, as a table of a name and what answers it; then the
   // two obliquities side by side, and what the difference between them
   // costs the plate.
-  return card(page,
-              box().gap(9).children(
-                  {sketch::kit::table(
-                       listOf<sketch::kit::Row>(
-                           page["rows"].items(),
-                           [](const data::Json& row) -> sketch::kit::Row {
-                             return {{row["key"], row["value"]}};
-                           }),
-                       {.columns = {{.width = 96}, {}}})
-                       .applyStyleSheet(sheetLook.styleSheet()),
-                   kit::line({.fill = Fill::color(hexColor(0x241c15, 0.22f))}),
-                   box().styleClass("figure").children(
-                       {each(page["obliquity"].items(),
-                             [](const data::Json& n) { return text(n); })}),
-                   text(page["note"]).styleClass("gloss")}));
+  return card(
+      page,
+      box().gap(9).children(
+          {sketch::kit::table(
+               listOf<sketch::kit::Row>(
+                   page["rows"].items(),
+                   [](const data::Json& row) -> sketch::kit::Row {
+                     return {{row["key"], row["value"]}};
+                   }),
+               {.columns = {{.width = 96}, {}}})
+               .applyStyleSheet(sheetLook.styleSheet()),
+           kit::line({.fill = Fill::color(hexColor(0x241c15, 0.22f))}),
+           box().styleClass("figure").children(
+               {each(page["obliquity"].items(),
+                     [](const data::Json& n) { return text(n); })}),
+           document::paragraph(page["note"].text()).styleClass("gloss")}));
 }
 
 auto ChaucerAstrolabe::starPanel() -> Element {
@@ -353,41 +357,43 @@ auto ChaucerAstrolabe::starPanel() -> Element {
   // are ranged by one arrangement rather than by a hand-spaced line.
   const std::vector<sketch::kit::Document::Line> heads = doc.run(page["heads"]);
   return card(
-      page, box().gap(6).children(
-                {box().row().gap(14).flexGrow(1).children(
-                     {sketch::kit::table(
-                          listOf<sketch::kit::Row>(
-                              kStars,
-                              [&](const Star& s) -> sketch::kit::Row {
-                                return {{s.name, s.modern,
-                                         kit::formatted("%8.3f", s.ra1326),
-                                         kit::formatted("%+8.3f", s.dec1326),
-                                         kit::formatted("%.5f", radius(s))}};
-                              }),
-                          {.columns = {{heads[0].words, 116},
-                                       {heads[1].words, 88},
-                                       {heads[2].words, 56, true},
-                                       {heads[3].words, 58, true},
-                                       {heads[4].words, 52, true}}})
-                          .applyStyleSheet(sheetLook.styleSheet()),
-                      // the strip: Cancer, the equator and Capricorn ruled
-                      // across it, and one star per row against them
-                      sketch::kit::plot(
-                          "stars",
-                          {.x = {.domain = {0.18, 1.0}},
-                           .y = {.domain = {(double)kStars.size() - 0.4, -0.6}},
-                           .pad = 6},
-                          {sketch::kit::rules({.x = {kRcan, kReq, 1.0}}),
-                           sketch::kit::marks(kStars, pointer, {.x = radius})})
-                          .flexGrow(1)}),
-                 text(page["note"]).styleClass("gloss")}));
+      page,
+      box().gap(6).children(
+          {box().row().gap(14).flexGrow(1).children(
+               {sketch::kit::table(
+                    listOf<sketch::kit::Row>(
+                        kStars,
+                        [&](const Star& s) -> sketch::kit::Row {
+                          return {{s.name, s.modern,
+                                   kit::formatted("%8.3f", s.ra1326),
+                                   kit::formatted("%+8.3f", s.dec1326),
+                                   kit::formatted("%.5f", radius(s))}};
+                        }),
+                    {.columns = {{heads[0].words, 116},
+                                 {heads[1].words, 88},
+                                 {heads[2].words, 56, true},
+                                 {heads[3].words, 58, true},
+                                 {heads[4].words, 52, true}}})
+                    .applyStyleSheet(sheetLook.styleSheet()),
+                // the strip: Cancer, the equator and Capricorn ruled
+                // across it, and one star per row against them
+                sketch::kit::plot(
+                    "stars",
+                    {.x = {.domain = {0.18, 1.0}},
+                     .y = {.domain = {(double)kStars.size() - 0.4, -0.6}},
+                     .pad = 6},
+                    {sketch::kit::rules({.x = {kRcan, kReq, 1.0}}),
+                     sketch::kit::marks(kStars, pointer, {.x = radius})})
+                    .flexGrow(1)}),
+           document::paragraph(page["note"].text()).styleClass("gloss")}));
 }
 
 auto ChaucerAstrolabe::chaucerPanel() -> Element {
   const data::Json& page = doc["chaucer"];
-  return card(page,
-              box().gap(10).children(
-                  {text(page["quote"]).styleClass("quote"), slot("chaucer")}));
+  return card(
+      page, box().gap(10).children(
+                {document::paragraph(page["quote"].text()).styleClass("quote"),
+                 slot("chaucer")}));
 }
 
 auto ChaucerAstrolabe::chaucerBody() -> Element {
@@ -395,7 +401,7 @@ auto ChaucerAstrolabe::chaucerBody() -> Element {
   // delta in the rubric, and the verdict under it in the running voice.
   return box().gap(3).styleClass("figure").children(
       {text(chaucerH), text(chaucerA), text(chaucerDelta).ink(kRubric),
-       text(doc["chaucer"]["verdict"])
+       document::paragraph(doc["chaucer"]["verdict"].text())
            .styleClass("gloss")
            .ink(kInk)
            .margin(6, 0, 0, 0)});
@@ -491,12 +497,9 @@ auto ChaucerAstrolabe::consolePanel() -> Element {
 
 auto ChaucerAstrolabe::titleStrip() -> Element {
   const data::Json& page = doc["masthead"];
-  return sketch::kit::titleCard(
-             {.title = {page["title"]},
-              .subtitle = {page["subtitle"]},
-              .notes = {{.words = page["note"],
-                         .ink = Fill::color(hexColor(0x6b5a44))}},
-              .ruled = true})
+  return sketch::kit::titleCard({.title = {page["title"]},
+                                 .subtitle = {page["subtitle"]},
+                                 .ruled = true})
       .applyStyleSheet(sheetLook.styleSheet())
       .left(64)
       .top(44)

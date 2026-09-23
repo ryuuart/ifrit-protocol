@@ -391,8 +391,9 @@ struct MidiPads {
         {.page = {.title = "A controller, both ways.",
                   .subtitle = "MIDI / INPUT + OUTPUT  /  Play a pad, turn a "
                               "knob, and send the light back.",
-                  .footer = "Run pads.py beside this sketch to send data  ·  "
-                            "Captures replay the local recording"},
+                  .footer =
+                      "Connect a MIDI controller or virtual MIDI output  ·  "
+                      "pads.py writes the capture recording"},
          .pictureSize = kCanvas,
          .pictureWidth = 816,
          .note = "Eight pads light the grid. The knob steers the wind; lit "

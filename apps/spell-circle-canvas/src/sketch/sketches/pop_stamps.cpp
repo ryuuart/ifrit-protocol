@@ -124,7 +124,7 @@ struct PopStamps {
         {.width = 568, .height = 238},
         custom(key, [this, output](SkCanvas& canvas, const PaintContext& pc) {
           const camera::Camera view{
-              .eye = {0, 260, 980}, .target = {0, 20, 0}, .fovYDeg = 42};
+              .eye = {0, 260, 980}, .target = {0, 20, 0}, .fovYDeg = 24};
           render::MeshStyle style;
           style.baseColor = {0.62f, 0.7f, 0.82f, 1};
           style.specular = 0.8f;

@@ -72,7 +72,7 @@ constexpr const char* kWordmark = "CHROME";
 const material::Color kGround{0.086f, 0.090f, 0.106f, 1};
 const material::Color kGroundLift{0.129f, 0.137f, 0.157f, 1};
 const material::Color kPale{0.796f, 0.816f, 0.847f, 1};
-const material::Color kFaint{0.796f, 0.816f, 0.847f, 0.42f};
+const material::Color kFaint{0.796f, 0.816f, 0.847f, 0.72f};
 
 weave::TextStyle wordmark(material::Color colour = {0.7f, 0.73f, 0.78f, 1}) {
   return weave::textStyle(
@@ -94,13 +94,13 @@ sketch::kit::Theme sheetTheme() {
       .ground = kGround, .ink = kPale, .ash = kFaint, .rule = kFaint};
   look.type.sans =
       weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
-  look.type.title = {.size = 12, .track = 3.6f};
-  look.type.subtitle = {.size = 10, .track = 0.3f};
-  look.type.footer = {.size = 10, .track = 0.2f};
-  look.type.captionLabel = {.size = 8.5f, .track = 1.0f};
-  look.type.captionNote = {.size = 8, .track = 0.3f};
+  look.type.title = {.size = 26, .track = 0.2f};
+  look.type.subtitle = {.size = 12, .track = 0.2f};
+  look.type.footer = {.size = 11, .track = 0.2f};
+  look.type.captionLabel = {.size = 10.5f, .track = 1.0f};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   look.spacing.marginX = kMargin;
-  look.spacing.marginTop = kMargin - 16;
+  look.spacing.marginTop = kMargin - 26;
   look.spacing.marginBottom = 30;
   look.spacing.captionGap = 8;
   look.spacing.captionNoteGap = 3;
@@ -126,12 +126,12 @@ struct ChromeType {
     // On the box: the style dresses the node's own shape and the word
     // sits inside it.
     Element onBox = sketch::kit::caption(
-        0, "Boundary::Auto", "the node's rectangle",
+        0, "RECTANGLE", "The finish follows the enclosing box.",
         box().padding(18).borderRadius({6}).layerStyle(style).children(
             {text(c::kWordmark, c::wordmark(letterInk))}));
     // The letters: the same value, the other boundary.
     Element onGlyphs = sketch::kit::caption(
-        0, "Boundary::Glyphs", "the contours the placement produced",
+        0, "GLYPH OUTLINE", "The same finish follows the letters.",
         box().padding(18).children(
             {text(c::kWordmark, c::wordmark({0, 0, 0, 0}))
                  .decorationOutline(Boundary::Glyphs)
@@ -143,7 +143,7 @@ struct ChromeType {
     kit::Caption voice{.where = kit::Caption::Where::Above, .gap = 10};
     voice.label = [&look](const Utf8& call) {
       return document::label(call).font(
-          look.font(sketch::kit::Register{9.5f, 2.6f}, c::kPale));
+          look.font(sketch::kit::Register{11.0f, 2.0f}, c::kPale));
     };
     return kit::cell(
         voice, name, "",
@@ -164,12 +164,11 @@ struct ChromeType {
             .depth = 3.0f, .size = 4.0f, .angleDeg = 120.0f}}};
 
     return sketch::kit::page(
-        {.title = u8"A DECORATION WAS NEVER ABOUT A BOX",
-         .subtitle = u8"the same style value, twice \u2014 once dressing the "
-                     u8"node's shape, once dressing its glyph outline",
-         .footer = u8"no new preset and no second code path: the style is "
-                   u8"handed a different outline, and every style already "
-                   u8"written follows",
+        {.title = u8"One finish, two outlines",
+         .subtitle = u8"Compare how the same light, bevel and colour follow "
+                     u8"a rectangle or the contours of a word.",
+         .footer = u8"Boundary::Auto uses the box. Boundary::Glyphs uses "
+                   u8"the shaped letters. The layer style stays the same.",
          .ground =
              linearGradient({0, 0}, {0, c::kH}, {c::kGroundLift, c::kGround})},
         kit::cells(
@@ -177,7 +176,7 @@ struct ChromeType {
                        pair("AQUA GEL", kit::aquaGel(hexColor(0x1E8FFF))),
                        pair("BEVEL + GLOW", bevelAndGlow)},
              .column = true,
-             .gap = 30}));
+             .gap = 24}));
   }
 };
 

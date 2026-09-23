@@ -44,6 +44,7 @@
 #include <include/core/SkImage.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
@@ -121,11 +122,11 @@ constexpr double kSimStep = 1.0 / kSimHz;
 
 // The page. A pen lays its own page out, so every distance the tree used
 // to negotiate is a number here.
-constexpr float kCanvasW = 1360, kCanvasH = 760;
+constexpr float kCanvasW = 1360, kCanvasH = 768;
 constexpr float kPadX = 32, kPadY = 26;
-constexpr float kHeaderH = 116;
-constexpr float kBodyY = kPadY + kHeaderH + 16;      // 158
-constexpr float kStripY = kBodyY + kPanelH + 10;     // 672
+constexpr float kHeaderH = 124;
+constexpr float kBodyY = kPadY + kHeaderH + 16;
+constexpr float kStripY = kBodyY + kPanelH + 10;
 constexpr float kSideX = kPadX + kPanelW + 26;       // 1018
 constexpr float kSideW = kCanvasW - kPadX - kSideX;  // 310
 constexpr float kInspectH = 176;
@@ -310,37 +311,35 @@ struct PsxDoomFire {
         // in it and name only their size and tracking; the title names its
         // own face and colour over it.
         .font({.face = uiFace(), .color = kSteel})
-        .children({compose::text("CELLULAR AUTOMATON")
-                       .font({.size = 12, .track = 2.6f})
-                       .opacity(motion::animate(motion::from(0.0f).to(1.0f),
-                                                {.duration = 260ms}))
-                       .translateY(motion::animate(motion::from(8.0f).to(0.0f),
-                                                   {.duration = 260ms})),
-                   compose::text(kTitle)
-                       .font({.face = heavyFace(),
-                              .size = 50,
-                              .color = kBone,
-                              .track = -0.6f})
-                       .key("title")
-                       .textFx({.effect = compose::textFx::rise(24),
-                                .stagger = cascade,
-                                .progress =
-                                    motion::animate(motion::from(0.0f).to(1.0f),
-                                                    {.duration = span,
-                                                     .ease = &ch::easeNone,
-                                                     .delay = 120ms})}),
-                   compose::text(
-
-                       "id Software / Williams — PlayStation port "
-                       "title screen · algorithm reverse-engineered "
-                       "from the Doom 64 disassembly by Samuel Villarreal, "
-                       "documented by Fabien Sanglard "
-                       "· fabiensanglard.net/doom_fire_psx "
-                       "· DoomFirePSX/flames.html")
-                       .font({.size = 11.5f, .track = 0.2f})
-                       .opacity(motion::animate(
-                           motion::from(0.0f).to(1.0f),
-                           {.duration = 320ms, .delay = 200ms}))});
+        .children(
+            {compose::document::eyebrow("CELLULAR AUTOMATON")
+                 .font({.size = 12, .track = 2.6f})
+                 .opacity(motion::animate(motion::from(0.0f).to(1.0f),
+                                          {.duration = 260ms}))
+                 .translateY(motion::animate(motion::from(8.0f).to(0.0f),
+                                             {.duration = 260ms})),
+             compose::document::h1(kTitle)
+                 .font({.face = heavyFace(),
+                        .size = 50,
+                        .color = kBone,
+                        .track = -0.6f})
+                 .key("title")
+                 .textFx(
+                     {.effect = compose::textFx::rise(24),
+                      .stagger = cascade,
+                      .progress = motion::animate(motion::from(0.0f).to(1.0f),
+                                                  {.duration = span,
+                                                   .ease = &ch::easeNone,
+                                                   .delay = 120ms})}),
+             compose::document::lead(
+                 "id Software / Williams · PlayStation title screen, 1995\n"
+                 "A 37-colour buffer advances at 27 Hz; its heat is shown "
+                 "without interpolation.")
+                 .font({.size = 11.5f, .track = 0.2f})
+                 .width(690)
+                 .opacity(
+                     motion::animate(motion::from(0.0f).to(1.0f),
+                                     {.duration = 320ms, .delay = 200ms}))});
   }
 
   /** The logo voice: heavy, huge, wide-tracked, with a dark ring underlay
@@ -354,7 +353,7 @@ struct PsxDoomFire {
                                            .color = hexColor(0xC23A1C),
                                            .track = 34.0f});
     s.paint.addUnderlay(sigil::weave::kit::outline(
-        sigil::material::skia::toSkColor(hexColor(0x2A0805)).toSkColor(), 7.0f,
+        material::skia::toSkColor(hexColor(0x2A0805)).toSkColor(), 7.0f,
         sigil::geometry::path::Join::Round));
     return compose::text("DOOM", std::move(s))
         .width(kPanelW)

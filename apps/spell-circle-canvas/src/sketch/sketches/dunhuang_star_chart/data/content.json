@@ -44,7 +44,7 @@
 
   "auditTitle": "MAP 5 · THE ORION REGION · TABLE 4 OF BONNET-BIDAUD, PRADERIE & WHITFIELD 2009",
   "auditLead": "month 4 · xiu Zui, Shen, Jing · listed N→S, W→E, i.e. by increasing RA · R=Shi shi  B=Gan shi  W=Wu Xian shi",
-  "auditHeads": ["#", "ASTERISM", "中文", "COL", "SXC  MAP  CZ", "CONF", "DEFECT"],
+  "auditHeads": ["#", "ASTERISM", "SCHOOL / 名", "SXC  MAP  CZ", "CONF", "DEFECT"],
   "auditFoot": [
     {"words": "TOTALS  SXC {m5Sxc}   map {m5Map}   Chen Zhuo {m5ChenZhuo} distinct (Fa's 3 in, Sanzhu's 9 absent — 5 + 9 = SXC's 14 for Wuche, exactly)", "class": "chalk"},
     {"words": "Table 4's own n(map) column sums to 108. Its stated total is 109. The census is soft, and the paper says so.", "class": "number"},

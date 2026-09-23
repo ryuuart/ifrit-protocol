@@ -57,6 +57,8 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
+#include <sigilcompose/kit/Document.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -168,7 +170,7 @@ struct MeshGenerators {
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(
-        ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+        ctx, {.size = SkSize::Make(kCanvas.width(), 690),
               .captureAt = 1.0,
               .background = material::Color{0.04f, 0.04f, 0.062f, 1}});
 
@@ -216,9 +218,39 @@ struct MeshGenerators {
 
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
-    ctx.composer.render(custom("mesh.generators", [this](SkCanvas& canvas) {
-                          draw(canvas);
-                        }).inset(0));
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    ctx.composer.render(
+        box()
+            .inset(0)
+            .applyStyleSheet(sketch::kit::theme().styleSheet())
+            .ink(sketch::kit::theme().palette.ink)
+            .children(
+                {document::h1("Six ways to make a mesh")
+                     .font({.size = 32})
+                     .at({42, 28}),
+                 custom("mesh.generators",
+                        [this](SkCanvas& canvas) { draw(canvas); })
+                     .rect(SkRect::MakeXYWH(0, 82, kCanvas.width(),
+                                            kCanvas.height())),
+                 box().column().gap(8).width(630).at({42, 590}).children(
+                     {document::h2("Outline, profile and solid")
+                          .font({.size = 20}),
+                      document::paragraph(
+                          "Extruded star · torus · revolved vase. A "
+                          "superellipsoid forms the broad pedestal.")
+                          .font({.size = 15})}),
+                 box()
+                     .column()
+                     .gap(8)
+                     .width(580)
+                     .at({794, 590})
+                     .children(
+                         {document::h2("One curve, two constructions")
+                              .font({.size = 20}),
+                          document::paragraph(
+                              "A circular profile sweeps the tube. Instanced "
+                              "quads follow the same curve’s frames.")
+                              .font({.size = 15})})}));
   }
 };
 

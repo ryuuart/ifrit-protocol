@@ -373,9 +373,8 @@ struct WebRtcSky {
                              {"offset", toThePhone(phaseOf(index))}});
     data::Json::Array colours;
     for (const material::Color& tint : palette)
-      colours.push_back(data::Json::Array{toThePhone(tint.r),
-                                          toThePhone(tint.g),
-                                          toThePhone(tint.b), tint.a});
+      colours.push_back(data::Json::Array{
+          toThePhone(tint.r), toThePhone(tint.g), toThePhone(tint.b), tint.a});
     return data::Json::Object{{"kind", "Sky"},
                               {"width", (double)kCanvas.width()},
                               {"height", (double)kCanvas.height()},
@@ -415,12 +414,12 @@ struct WebRtcSky {
         {.page = {.title = "A peer becomes a control.",
                   .subtitle = "WEBRTC / DATA CHANNEL  /  A browser sends "
                               "directly to the scene over a data channel.",
-                  .footer = "Run phone.py beside this sketch to send data  ·  "
-                            "Captures replay the local recording"},
+                  .footer = "Open this computer on port 8849 in a browser  ·  "
+                            "phone.py writes the capture recording"},
          .pictureSize = kCanvas,
          .pictureWidth = 816,
-         .note = "The address in the preview opens the controller and "
-                 "negotiates its connection."},
+         .note = "The served page opens a data channel. Palette and gust "
+                 "controls travel directly between the browser and scene."},
         std::move(picture).fill(kGround), readout()));
   }
 

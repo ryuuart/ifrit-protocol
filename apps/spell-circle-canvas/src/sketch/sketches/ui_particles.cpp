@@ -25,6 +25,7 @@
 // TAGS: Motion/Particles
 
 #include <sigilcompose/core/Instances.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Legibility.h>
@@ -249,9 +250,11 @@ struct UiParticles {
     return flourishCard(s, kPostW - 6, kPostH - 6)
         .font({.size = 10.5f})
         .ink(s.ink)
-        .children(
-            {text(cfg.title).font({.size = 15}), text(cfg.body1),
-             text(cfg.body2).ink({s.bronze.r, s.bronze.g, s.bronze.b, 1})});
+        .children({document::h2(cfg.title).font({.size = 15}),
+                   document::paragraph(cfg.body1).font({.size = 10.5f}),
+                   document::paragraph(cfg.body2)
+                       .font({.size = 10.5f})
+                       .ink({s.bronze.r, s.bronze.g, s.bronze.b, 1})});
   }
   Element carvedPost(const PostConfig& cfg) {
     const Palette& pal = carvedPalettes()[(unsigned)cfg.paletteIndex & 3u];
@@ -264,13 +267,14 @@ struct UiParticles {
         .gap(5)
         .font({.size = 10.5f})
         .ink(pal.ink)
-        .children({text(cfg.title).font({.size = 15}).ink(pal.stem),
-                   text(cfg.body1), text(cfg.body2)});
+        .children({document::h2(cfg.title).font({.size = 15}).ink(pal.stem),
+                   document::paragraph(cfg.body1).font({.size = 10.5f}),
+                   document::paragraph(cfg.body2).font({.size = 10.5f})});
   }
   Element plainPost(const PostConfig& cfg) {
     // A modern dark UI card — the counterpoint to the ornate borders.
     const material::Color accents[2] = {{0.42f, 0.66f, 0.98f, 1},   // cobalt
-                                  {0.98f, 0.72f, 0.34f, 1}};  // amber
+                                        {0.98f, 0.72f, 0.34f, 1}};  // amber
     const material::Color accent = accents[(unsigned)cfg.paletteIndex & 1u];
     return box()
         .width(kPostW - 6)
@@ -282,12 +286,16 @@ struct UiParticles {
         .padding(14, 16)
         .gap(6)
         .font({.size = 10.5f})
-        .children({text(cfg.title).font({.size = 15}).ink(accent),
+        .children({document::h2(cfg.title).font({.size = 15}).ink(accent),
                    kit::line({.length = pct(38),
                               .thickness = 2,
                               .fill = Fill::color(accent)}),
-                   text(cfg.body1).ink(hexColor(0xcdd3df)),
-                   text(cfg.body2).ink(hexColor(0x9aa3b4))});
+                   document::paragraph(cfg.body1)
+                       .font({.size = 10.5f})
+                       .ink(hexColor(0xcdd3df)),
+                   document::paragraph(cfg.body2)
+                       .font({.size = 10.5f})
+                       .ink(hexColor(0x9aa3b4))});
   }
 
   Element postVariant(const PostConfig& cfg) {

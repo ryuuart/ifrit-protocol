@@ -64,19 +64,19 @@ namespace weave = sigil::weave;
 
 namespace {
 
-constexpr SkSize kSceneSize{1280, 1060};
+constexpr SkSize kSceneSize{1060, 1280};
 
 namespace sheet {
 
 constexpr float kW = kSceneSize.fWidth;
 constexpr float kH = kSceneSize.fHeight;
-constexpr float kMargin = 64;
-constexpr float kMeasure = 330;
+constexpr float kMargin = 48;
+constexpr float kMeasure = 360;
 constexpr float kGrid = 21;
 
 const material::Color kPaper{0.965f, 0.957f, 0.937f, 1};
 const material::Color kInk{0.114f, 0.106f, 0.098f, 1};
-const material::Color kFaint{0.114f, 0.106f, 0.098f, 0.30f};
+const material::Color kFaint{0.38f, 0.36f, 0.33f, 1};
 const material::Color kRule{0.78f, 0.30f, 0.20f, 0.28f};
 const material::Color kMark{0.78f, 0.30f, 0.20f, 1};
 
@@ -111,9 +111,9 @@ sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look;
   look.palette = {.ground = kPaper, .ink = kInk, .ash = kFaint, .rule = kFaint};
   look.type.sans = grotesque();
-  look.type.title = {.size = 11, .track = 4.0f};
-  look.type.subtitle = {.size = 10, .track = 0.4f};
-  look.type.footer = {.size = 9.5f, .track = 0.3f};
+  look.type.title = {.size = 32};
+  look.type.subtitle = {.size = 15};
+  look.type.footer = {.size = 12};
   look.spacing.marginX = kMargin;
   look.spacing.marginTop = kMargin;
   look.spacing.marginBottom = kMargin * 0.5f;
@@ -129,7 +129,7 @@ sigil::compose::StyleSheet classes() {
       sheetTheme().styleSheet() +
       sigil::compose::StyleSheet{
           sigil::compose::rule(".body").font(weave::Type{.face = serif(),
-                                                         .size = 13.5f,
+                                                         .size = 15.0f,
                                                          .track = 0.0f,
                                                          .language = "en-US"}),
           sigil::compose::rule(".figures")
@@ -159,8 +159,8 @@ sigil::compose::StyleSheet panelClasses() {
   sigil::compose::StyleSheet sheet =
       classes() +
       sigil::compose::StyleSheet{
-          sigil::compose::rule("label, .label").font(label(9.5f, 2.0f, kMark)),
-          sigil::compose::rule("caption, .caption").font(label(9.0f, 0.4f))};
+          sigil::compose::rule("label, .label").font(label(17.0f, 0.6f, kMark)),
+          sigil::compose::rule("caption, .caption").font(label(12.5f, 0.0f))};
   return sheet;
 }
 
@@ -170,8 +170,8 @@ sigil::compose::StyleSheet callClasses() {
   sigil::compose::StyleSheet sheet =
       classes() +
       sigil::compose::StyleSheet{
-          sigil::compose::rule("label, .label").font(label(8.5f, 1.2f)),
-          sigil::compose::rule("caption, .caption").font(label(8.5f, 1.2f))};
+          sigil::compose::rule("label, .label").font(label(11.0f, 0.0f)),
+          sigil::compose::rule("caption, .caption").font(label(11.0f, 0.0f))};
   return sheet;
 }
 
@@ -182,8 +182,8 @@ Element panel(const char* name, const char* note, Element specimen) {
 }
 
 constexpr const char8_t* kFourWays =
-    u8"A block states its own pitch, and the extra a leading opens goes "
-    u8"above the line, where leading has always gone.";
+    u8"A block sets its own pitch. Extra leading opens above the line, "
+    u8"keeping each baseline on its rhythm.";
 
 /// The specimen the leading panel repeats, once per leading kind.
 Element leadingSpecimen(const char* caption, weave::Leading leading) {
@@ -192,7 +192,7 @@ Element leadingSpecimen(const char* caption, weave::Leading leading) {
   return kit::cell(callVoice(kMeasure * 0.48f), caption, "",
                    document::paragraph(kFourWays)
                        .styleClass("body")
-                       .font({.size = 11.5f})
+                       .font({.size = 13.5f})
                        .width(kMeasure * 0.48f)
                        .paragraphStyles({style}))
       .applyStyleSheet(callClasses())
@@ -226,7 +226,7 @@ struct ParagraphSheet {
                     {gridRules(),
                      document::paragraph(s::kFourWays)
                          .styleClass("body")
-                         .font({.size = 11.5f})
+                         .font({.size = 13.5f})
                          .inset(0)
                          .width(s::kMeasure * 0.48f)
                          .paragraphStyles({weave::ParagraphStyle{
@@ -270,9 +270,8 @@ struct ParagraphSheet {
 
     return s::panel(
         "SPACING",
-        "the gap between two blocks is the LARGER of the first's "
-        "spaceAfter and the second's spaceBefore — 26 then 24, "
-        "never 36 or 30.",
+        "Between blocks, the larger of spaceAfter and spaceBefore wins: 26, "
+        "then 24.",
         document::paragraph(
             u8"after 26, before 10 — the gap under this block "
             u8"is twenty-six.\n"
@@ -296,9 +295,8 @@ struct ParagraphSheet {
 
     return s::panel(
         "INDENTS",
-        "start and end on every line, firstLine and lastLine added to "
-        "start on those two — all of it arithmetic on the "
-        "intervals the geometry handed back.",
+        "Start and end affect every line. First-line and last-line values "
+        "adjust only those lines.",
         document::paragraph(
             u8"A first-line indent moves the opening of the block and "
             u8"nothing else, which is the oldest way to mark a "
@@ -337,7 +335,7 @@ struct ParagraphSheet {
                  s::callVoice(s::kMeasure * 0.31f), caption, "",
                  document::paragraph(passage)
                      .styleClass("body")
-                     .font({.size = 11.0f})
+                     .font({.size = 13.0f})
                      .width(s::kMeasure * 0.31f)
                      .paragraph(
                          {.alignment = weave::TextAlignment::kJustify,
@@ -352,9 +350,8 @@ struct ParagraphSheet {
 
     return s::panel(
         "JUSTIFIED",
-        "word gaps, then letter spacing, then a glyph scale — "
-        "each bounded by its own two limits, and a pass at its default "
-        "contributes nothing.",
+        "Word gaps, letter spacing, then glyph scale. Each pass takes only "
+        "what the previous one cannot fit.",
         box().row().gap(14).children({column("gaps alone", gapsOnly),
                                       column("+ letter spacing", withLetters),
                                       column("+ glyph scale", withScale)}));
@@ -363,7 +360,7 @@ struct ParagraphSheet {
   Element tabPanel() {
     weave::TabStopOptions stops;
     stops.stops = {
-        weave::TabStop{130, weave::TabStop::Align::kStart},
+        weave::TabStop{110, weave::TabStop::Align::kStart},
         weave::TabStop{240, weave::TabStop::Align::kCenter},
         weave::TabStop{360, weave::TabStop::Align::kCharacter, u'.'},
         weave::TabStop{470, weave::TabStop::Align::kEnd},
@@ -379,7 +376,7 @@ struct ParagraphSheet {
              u8"recto\tsheet\tvolume\t128.75\tIII\n"
              u8"verso\tfold\tcodex\t3.5\tIV")
             .styleClass("figures")
-            .font({.size = 11.5f})
+            .font({.size = 13.5f})
             .width(520.0f)
             .paragraph({.tabStops = stops}));
   }
@@ -393,9 +390,8 @@ struct ParagraphSheet {
 
     return s::panel(
         "COLUMNS",
-        "the same controls a quarter turn round: the pitch is the "
-        "column's width, the indents run down it, and the air between "
-        "blocks is a gap across the page.",
+        "Turn the flow upright: pitch becomes column width, "
+        "indents run downward, and block spacing crosses the page.",
         document::paragraph(u8"縦組み\n"
                             u8"行の間隔は"
                             u8"段落ごとに"
@@ -422,14 +418,12 @@ struct ParagraphSheet {
 
   Element describe() {
     return sketch::kit::page(
-               {.title = u8"THE BLOCK CONTROLS",
-                .subtitle = u8"one text leaf per panel, and a list of "
-                            u8"ParagraphStyles beside it",
+               {.title = u8"How a paragraph holds together",
+                .subtitle =
+                    u8"Six block controls, shown through the type they arrange",
                 .footer =
-                    u8"a block with no style of its own is set by the leaf's "
-                    u8"own alignment, justification, hyphenation and tab "
-                    u8"stops \u2014 which is what every text that never "
-                    u8"mentions a block gets"},
+                    u8"Blocks inherit alignment, justification, hyphenation "
+                    u8"and tab stops until they state their own values."},
                kit::cells({.cells = {panels({leadingPanel(), spacingPanel(),
                                              indentPanel()}),
                                      panels({justifiedPanel(), tabPanel(),
