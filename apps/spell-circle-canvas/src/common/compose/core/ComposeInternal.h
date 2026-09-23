@@ -180,7 +180,11 @@ struct SpanRestyle {
   /** The ink read from a custom property in force at the leaf. */
   std::optional<VarRef> inkVar;
   /** The ink as a shader, laid in the passage's own coordinates — or,
-   *  under `inkUnit`, on the unit square of each unit it reaches. */
+   *  under `inkUnit`, on the unit square of each unit it reaches.
+   *  @trap Under `inkUnit` the draw finds this span's glyphs by the
+   *  IDENTITY of this shader: a glyph whose foreground shader is this very
+   *  `shaderValue` is the span's, so whatever carries it into the
+   *  paragraph's style must share the object, never copy it. */
   std::optional<Fill> inkShader;
   /** The unit of the range the ink shader restarts on; absent for the
    *  shader laid as it is. */

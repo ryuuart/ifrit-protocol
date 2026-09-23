@@ -64,7 +64,9 @@ paint's unit square on the text-metric box of each glyph, cluster, word,
 line or sentence the range reaches, so a unit-square ramp, which has no
 one shader to give a range, has one per unit instead. A unit the range
 only partly covers is painted over the part it covers, and text a later
-span repaints leaves the unit there.
+span repaints leaves the unit there. As on the leaf, a unit is read
+under `PaintAnchor::OwnBox` alone and `Unit::Selection` names none:
+either is dropped with a warning, once.
 
 ```cpp
 text(copy).span(weave::selectors::word(1),

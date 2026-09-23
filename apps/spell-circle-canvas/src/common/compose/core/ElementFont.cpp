@@ -4,6 +4,7 @@
  * painted in.
  */
 
+#include <include/core/SkTypes.h>  // SkDebugf — the ink unit's diagnostics
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Type.h>
 
@@ -12,6 +13,39 @@
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
+
+namespace {
+
+/** The once-per-process diagnostic behind an ink handed `Unit::Selection`,
+ *  which names the extent a selector found rather than a size a passage
+ *  is cut into, so a ramp laid across the passage is not mistaken for one
+ *  restarting on a unit. */
+void warnSelectionIsNoInkUnit() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "[compose] ink() was given Unit::Selection, which names the extent a "
+      "selector found and no unit a passage is cut into — the unit was "
+      "dropped and the paint is laid across the whole passage. Name Glyph, "
+      "Cluster, Word, Line or Sentence. (warned once)\n");
+}
+
+/** The once-per-process diagnostic behind an ink naming a unit under an
+ *  anchor other than the text's own box, where the paint is one field
+ *  spread across the tree and no unit of one passage can restart it. */
+void warnInkUnitNeedsOwnBox() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "[compose] ink() names a unit under PaintAnchor::DeclaringBox or "
+      "CanvasBox, which spread one field across the tree — the unit was "
+      "dropped and the paint is laid on the anchor's box. A unit restarts "
+      "the paint under PaintAnchor::OwnBox alone. (warned once)\n");
+}
+
+}  // namespace
 
 template <class Derived>
 Derived& FontVerbs<Derived>::font(sigil::weave::Type partial) {
@@ -25,6 +59,7 @@ Derived& FontVerbs<Derived>::font(sigil::weave::Type partial) {
   if (partial.color) {
     cascade.inkVar.reset();
     cascade.inkPaint.reset();
+    cascade.inkUnit.reset();
     cascade.statesInk = true;
   }
   return self();
@@ -94,9 +129,17 @@ Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor,
     return ink(flat->colorValue);
   // An empty paint STATES the lane and holds nothing, which clears an
   // ancestor's paint and leaves the colour in force standing.
-  // The extent the caller named is not a size a passage is cut at, so it
-  // is the passage whole, as an absent unit is.
-  if (unit == sigil::weave::Unit::Selection) unit.reset();
+  // A unit the paint cannot restart on is dropped, and said so: the
+  // extent a selector found is no size a passage is cut into, and an
+  // anchor other than the own box spreads one field across the tree.
+  if (unit == sigil::weave::Unit::Selection) {
+    warnSelectionIsNoInkUnit();
+    unit.reset();
+  }
+  if (unit && anchor != PaintAnchor::OwnBox) {
+    warnInkUnitNeedsOwnBox();
+    unit.reset();
+  }
   if (paint.none()) {
     cascade.statesInk = true;
     cascade.inkPaint.reset();

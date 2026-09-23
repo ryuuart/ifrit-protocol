@@ -119,13 +119,24 @@ text(u8"EMBER GLASS").ink(ramp, PaintAnchor::OwnBox, weave::Unit::Glyph);
 ```
 
 A unit is read under `OwnBox` alone — the other anchors already spread
-one field across the tree — and `Unit::Selection`, which names the
-extent a selector found rather than a size a passage is cut at, paints
-the passage whole. A letter in flight under a `textFx` track takes the
-paint of the unit it stands in at rest, and the decoration bands keep
-the passage's mapping, since a band spans a run rather than a unit. A
-[`span`](span.md) takes the same unit over the range it finds, and so
-does a rule.
+one field across the tree — and `Unit::Selection` names the extent a
+selector found rather than a size a passage is cut into: either is
+dropped, with a warning once, and the paint is laid whole. An upright
+letter in a vertical column has no cap band across it, so its box is
+one em across the column and its advance down it. A letter on a
+`textOnPath` curve takes the box the curve set it in,
+and a letter in flight under a `textFx` track draws with its unit's
+paint where the unit rests, sampled where the letter now is. The
+decoration bands keep the passage's mapping, since a band spans a run
+rather than a unit. A [`span`](span.md) takes the same unit over the
+range it finds, and so does a rule.
+
+**Under a unit the passes draw band by band** across the whole
+passage: every underlay — a shadow, the [`textStroke`](textStroke.md)
+outline — then every fill, then every overlay, so one letter's outline
+never lands on its neighbour's fill. A passage in one style stacks the
+same way without a unit; one of several spans, drawn without a unit,
+draws each span's passes together.
 
 **The other two anchors spread one paint across several elements.**
 `DeclaringBox` maps the unit square onto the box of the element that

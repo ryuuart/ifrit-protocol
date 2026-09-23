@@ -238,8 +238,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   const PoseContext poseCtx{&inst, &layout, onPath, ridesPath, phaseArc};
 
   // AN INK THAT RESTARTS PER UNIT is laid on each unit where the unit
-  // stands at rest in THIS layout — on the curve for a path run — and a
-  // letter in flight carries its unit's paint with it.
+  // stands at rest in THIS layout — on the curve for a path run. A letter
+  // in flight draws with its unit's paint, sampled where the letter is
+  // now: the field stays where its unit rests.
   static thread_local GlyphInk glyphInk;
   const bool byUnit = ink.restarts();
   if (byUnit) inkByUnit(layout, inst, structure, poseCtx, ink, glyphInk);

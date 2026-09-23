@@ -75,7 +75,8 @@ class FontVerbs {
    *  text-metric box; absent, the default, is the whole passage.
    *  @trap An empty paint clears an ancestor's ink paint and leaves the
    *  inherited colour standing. A unit is read under `OwnBox` alone, and
-   *  `Selection` names no unit: both paint the passage whole. */
+   *  `Selection` names no unit: either is dropped with a warning, once,
+   *  and the paint is laid whole. */
   Derived& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox,
                std::optional<sigil::weave::Unit> unit = std::nullopt);
 
