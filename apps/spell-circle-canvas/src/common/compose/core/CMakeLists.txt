@@ -137,7 +137,7 @@ sigil_test(compose_test
           test/ComposeTestDeclarations.cpp
           test/ComposeTestSelector.cpp test/ComposeTestStyleSheet.cpp
           test/ComposeTestMatching.cpp test/ComposeTestHas.cpp
-          test/ComposeTestTypedLeaves.cpp
+          test/ComposeTestTypedLeaves.cpp test/ComposeTestRuleScope.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore

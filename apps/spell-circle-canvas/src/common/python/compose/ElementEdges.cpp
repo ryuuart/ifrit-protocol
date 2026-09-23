@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Registration.h>
@@ -16,6 +17,7 @@ constexpr auto fluent = py::return_value_policy::reference_internal;
 using compose::Band;
 using compose::Element;
 using compose::Image;
+using compose::Rule;
 using compose::Text;
 
 /** The box model's shorthands, on whichever kind of node states them. */
@@ -158,10 +160,12 @@ void bindComposeElementEdges(py::module_& module) {
   auto textLeaf = extend<Text>(module, "compose.Text");
   auto imageLeaf = extend<Image>(module, "compose.Image");
   auto bandLeaf = extend<Band>(module, "compose.Band");
+  auto rule = extend<Rule>(module, "compose.Rule");
   bindEdges(element);
   bindEdges(textLeaf);
   bindEdges(imageLeaf);
   bindEdges(bandLeaf);
+  bindEdges(rule);
 }
 
 }  // namespace sigil::python

@@ -56,5 +56,6 @@ template class PaintVerbs<Element>;
 template class PaintVerbs<Text>;
 template class PaintVerbs<Image>;
 template class PaintVerbs<Band>;
+template class PaintVerbs<Rule>;
 
 }  // namespace sigil::compose

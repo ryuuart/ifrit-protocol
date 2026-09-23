@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "ComposeCompare.h"
+#include "ComposeInternal.h"
 #include "SelectorInternal.h"
 #include "SheetBody.h"
 
@@ -19,91 +21,73 @@ namespace sigil::compose {
 // ---------------------------------------------------------------------------
 // A rule
 
-Rule& Rule::font(sigil::weave::Type partial) {
-  // Later wins field by field, exactly as the verb on an element does.
-  sigil::weave::merge(m_type, partial);
-  // A colour written here is the ink, so a property the ink was read
-  // from before no longer stands.
-  if (partial.color) {
-    m_inkVar.reset();
-    m_inkPaint.reset();
-    m_statesInk = true;
-  }
-  return *this;
-}
-
-Rule& Rule::block(sigil::weave::Block partial) {
-  sigil::weave::merge(m_block, partial);
-  return *this;
-}
-
-Rule& Rule::ink(material::Color colour) {
-  m_type.color = material::skia::toSkColor(colour);
-  m_inkVar.reset();
-  m_inkPaint.reset();
-  m_statesInk = true;
-  return *this;
-}
-
-Rule& Rule::ink(VarRef reference) {
-  m_inkVar = reference;
-  m_type.color.reset();
-  m_inkPaint.reset();
-  m_statesInk = true;
-  return *this;
-}
-
-Rule& Rule::ink(SurfacePaint paint, PaintAnchor anchor) {
-  // A PLAIN COLOUR is the ink lane as it has always been. A paint that
-  // happens to be flat is not one: it overrides the glyphs of a leaf set
-  // in a style of its own, which an inherited colour does not reach.
-  const std::optional<Fill> flat =
-      paint.writtenAsPaint() ? std::nullopt : paint.collapsedFill();
-  if (flat && flat->kind == Fill::Kind::Color && !flat->references())
-    return ink(flat->colorValue);
-  if (paint.none()) {
-    m_statesInk = true;
-    m_inkPaint.reset();
-    m_inkAnchor = anchor;
-    return *this;
-  }
-  // Nothing is written until there is something to write, so a fill the
-  // slot cannot hold leaves a standing paint where it is.
-  std::optional<material::skia::Paint> stored = paint.collapsedPaint();
-  if (!stored) return *this;
-  m_statesInk = true;
-  m_inkPaint = std::move(stored);
-  m_inkAnchor = anchor;
-  return *this;
-}
-
-Rule& Rule::var(std::string_view name, material::Color colour) {
-  m_vars.set(compose::var(name), colour);
-  return *this;
-}
-
-Rule& Rule::var(std::string_view name, Dimension length) {
-  m_vars.set(compose::var(name), length);
-  return *this;
-}
+Rule::Rule(ElementSelector subject) : m_selector(std::move(subject)) {}
 
 Rule& Rule::transition(motion::Transition how) {
-  m_transition = std::move(how);
+  m_node->nodeTransition = std::move(how);
   return *this;
+}
+
+namespace {
+
+/** The cascade half a rule states, or nothing where it states none. */
+const detail::CascadeData* cascadeOf(const detail::ElementNode& node) {
+  return node.cascadeData ? &*node.cascadeData : nullptr;
+}
+
+}  // namespace
+
+const sigil::weave::Type& Rule::type() const {
+  static const sigil::weave::Type none;
+  const detail::CascadeData* cascade = cascadeOf(*node());
+  return cascade && cascade->font ? *cascade->font : none;
+}
+
+const sigil::weave::Block& Rule::block() const {
+  static const sigil::weave::Block none;
+  const detail::CascadeData* cascade = cascadeOf(*node());
+  return cascade && cascade->block ? *cascade->block : none;
+}
+
+const std::optional<VarRef>& Rule::inkVar() const {
+  static const std::optional<VarRef> none;
+  const detail::CascadeData* cascade = cascadeOf(*node());
+  return cascade ? cascade->inkVar : none;
+}
+
+const std::optional<material::skia::Paint>& Rule::inkPaint() const {
+  static const std::optional<material::skia::Paint> none;
+  const detail::CascadeData* cascade = cascadeOf(*node());
+  return cascade ? cascade->inkPaint : none;
+}
+
+PaintAnchor Rule::inkAnchor() const {
+  const detail::CascadeData* cascade = cascadeOf(*node());
+  return cascade ? cascade->inkAnchor : PaintAnchor::OwnBox;
+}
+
+bool Rule::statesInk() const {
+  const detail::CascadeData* cascade = cascadeOf(*node());
+  return cascade && cascade->statesInk;
+}
+
+const VarTable& Rule::vars() const {
+  static const VarTable none;
+  const detail::CascadeData* cascade = cascadeOf(*node());
+  return cascade ? cascade->vars : none;
+}
+
+const std::optional<motion::Transition>& Rule::transition() const {
+  return node()->nodeTransition;
 }
 
 bool Rule::operator==(const Rule& other) const {
-  // A transition's curve is a function, so two are compared the way the
-  // motion library compares them rather than by the language's equality.
-  const bool sameTransition =
-      m_transition.has_value() == other.m_transition.has_value() &&
-      (!m_transition ||
-       motion::transitionEqual(*m_transition, *other.m_transition));
-  return sameTransition && m_selector == other.m_selector &&
-         m_type == other.m_type && m_block == other.m_block &&
-         m_inkVar == other.m_inkVar && m_inkPaint == other.m_inkPaint &&
-         m_inkAnchor == other.m_inkAnchor &&
-         m_statesInk == other.m_statesInk && m_vars == other.m_vars;
+  // The declarations are compared as the reconcile compares two
+  // descriptions, so two rules are equal exactly where no element could
+  // tell them apart.
+  return m_selector == other.m_selector &&
+         (node() == other.node() ||
+          detail::propertiesEqual(*node(), *other.node()));
 }
 
 Rule rule(std::string_view cssText) { return Rule(selector(cssText)); }

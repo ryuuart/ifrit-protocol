@@ -104,9 +104,9 @@ its rules speak about.** `Element::applyStyleSheet` puts a
 `compose::StyleSheet` in force for that node and everything under it, so a
 subtree carries a look of its own; [the selectors chapter](SELECTORS.md)
 is the whole of how a rule is written and which one wins. A rule states
-a font partial and a block partial, with the verbs a tree is written
-with: `rule("body").font({.size = 19.5f}).block({.leading =
-Leading::multiple(1.35f)})`.
+what an element states, with the verbs a tree is written with:
+`rule("body").font({.size = 19.5f}).block({.leading =
+Leading::multiple(1.35f)})`, and `rule(".card").padding(8)` as well.
 `Element::styleClass` names classes: several in one call, separated by
 spaces as CSS's class attribute lists them. The cascade pass matches the
 rules in force where the element LANDS, and the fields a matched rule

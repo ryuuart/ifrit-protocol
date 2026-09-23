@@ -6,6 +6,9 @@
  * the pair a lane reads an endpoint from.
  */
 
+#include <memory>
+#include <span>
+
 #include "ComposeInternal.h"
 
 namespace sigil::compose::detail {
@@ -60,15 +63,42 @@ static_assert(kFieldCount<ComputedStyle> == 4,
               "reports; a property with no row there is one no keyword can "
               "move, silently.");
 
-/** THE FOLD: @p node's own declarations over @p parent's answers, with
- *  every property written as a keyword resolved against the two.
+/** WHAT THE MATCHED RULES STATE about the properties a computed style
+ *  carries, folded weakest first so the strongest statement of each
+ *  stands: which properties they state, the values, and the ones they
+ *  state as a keyword. It is the layer between the node's parent and
+ *  the node's own verbs, and the cascade pass rebuilds it from the
+ *  rules it matched, so a rule that moved reaches a node whose own
+ *  description did not. */
+struct RuleLayer {
+  PropertyMask declared;
+  ComputedStyle values;
+  sigil::weave::KeywordTable<Property> keywords;
+};
+
+/** The layer the rules of @p matched state, weakest first, or null where
+ *  none of them states a property the computed style carries. A value a
+ *  rule cannot hold — a live binding, an animation, a live paint — is
+ *  left out of it and said once. */
+[[nodiscard]] std::unique_ptr<const RuleLayer> ruleLayerOf(
+    std::span<const Rule* const> matched);
+
+/** Whether two layers state the same thing; null is the layer that
+ *  states nothing. */
+[[nodiscard]] bool ruleLayerEqual(const RuleLayer* a, const RuleLayer* b);
+
+/** THE FOLD: @p node's own declarations over what the matched @p rules
+ *  state, over @p parent's answers, with every property written as a
+ *  keyword resolved against the parent.
  *
- *  A property that INHERITS and that the node states nothing about takes
- *  the parent's answer; every other one is the node's own value. Then
+ *  A property the node states is the node's own value; one it leaves
+ *  unsaid is the strongest rule's where a rule states it; and one that
+ *  INHERITS and that neither states takes the parent's answer. Then
  *  `inherit` takes the parent's computed value for the one property it
  *  names whether or not that property inherits, `initial` the value the
  *  property's field carries on a node nobody wrote to, and `unset`
- *  whichever of the two the property's own behaviour asks for. @p parent
+ *  whichever of the two the property's own behaviour asks for — a rule's
+ *  keyword where the node states nothing, the node's own over it. @p parent
  *  is null at the root, which inherits from nothing and therefore reads
  *  every `inherit` as `initial`.
  *
@@ -77,7 +107,7 @@ static_assert(kFieldCount<ComputedStyle> == 4,
  *  the walk of the inherited list, which the computed style carries none
  *  of today. */
 void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
-                  ComputedStyle& out);
+                  ComputedStyle& out, const RuleLayer* rules = nullptr);
 
 /** One property of @p from written over @p into — the one place a
  *  property's name is tied to the field it is kept in, and the whole of

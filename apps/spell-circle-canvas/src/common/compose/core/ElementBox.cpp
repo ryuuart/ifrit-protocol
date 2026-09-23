@@ -243,5 +243,6 @@ template class BoxVerbs<Element>;
 template class BoxVerbs<Text>;
 template class BoxVerbs<Image>;
 template class BoxVerbs<Band>;
+template class BoxVerbs<Rule>;
 
 }  // namespace sigil::compose

@@ -35,5 +35,6 @@ template class EffectVerbs<Element>;
 template class EffectVerbs<Text>;
 template class EffectVerbs<Image>;
 template class EffectVerbs<Band>;
+template class EffectVerbs<Rule>;
 
 }  // namespace sigil::compose

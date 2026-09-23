@@ -224,7 +224,7 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   // hold a value at every point between here and the write.
   const ComputedStyle previous = inst.computed;
   resolveStyle(inst.parent ? &inst.parent->computed : nullptr, next,
-               inst.computed);
+               inst.computed, inst.ruleLayer.get());
 
   // Recompute the world-space flag once per patch. A pruned node keeps
   // its existing flag, which is correct: equal properties mean equal

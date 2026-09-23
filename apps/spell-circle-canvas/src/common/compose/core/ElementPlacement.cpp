@@ -188,5 +188,6 @@ template class PlacementVerbs<Element>;
 template class PlacementVerbs<Text>;
 template class PlacementVerbs<Image>;
 template class PlacementVerbs<Band>;
+template class PlacementVerbs<Rule>;
 
 }  // namespace sigil::compose

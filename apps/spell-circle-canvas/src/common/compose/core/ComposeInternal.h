@@ -738,6 +738,12 @@ void warnNoSuchVar(VarRef reference, bool wantColour);
  *  took. `answersKeyword` is the table it asks. */
 void warnPropertyAnswersNoKeyword(Property property);
 
+/** The once-per-property diagnostic behind a rule stating a value it
+ *  cannot hold — a live binding, an animation, a live paint. A rule
+ *  holds static values, so the statement is left out of the fold and
+ *  the element keeps what it would have had without it. */
+void warnRuleHoldsOnlyStaticValues(Property property);
+
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */
 bool selectorNeedsLayout(const sigil::weave::Selector& selector);

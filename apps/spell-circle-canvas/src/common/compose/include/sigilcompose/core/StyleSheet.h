@@ -10,11 +10,21 @@
  */
 
 #include <sigilcompose/core/Cascade.h>
+#include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/PaintAnchor.h>
 #include <sigilcompose/core/Selector.h>
+#include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Var.h>
+#include <sigilcompose/core/verbs/Box.h>
+#include <sigilcompose/core/verbs/Cascade.h>
+#include <sigilcompose/core/verbs/Effects.h>
+#include <sigilcompose/core/verbs/Flex.h>
+#include <sigilcompose/core/verbs/Paint.h>
+#include <sigilcompose/core/verbs/Placement.h>
+#include <sigilcompose/core/verbs/Shape.h>
+#include <sigilcompose/core/verbs/Transform.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilweave/layout/Block.h>
@@ -35,78 +45,75 @@ struct SheetAccess;
 }  // namespace detail
 
 /** ONE RULE: which elements it speaks about, and what it states about
- *  them. It states the same partials the node's own verbs write, folded
- *  by the same merge, so a property is spelled once whether a rule or a
- *  verb says it; what a rule leaves unsaid the element inherits.
+ *  them. Its verbs ARE the element's — the same families, signatures and
+ *  briefs, writing the same declarations — so a property is spelled once
+ *  whether a rule or a verb says it, and the element's own verb stands
+ *  over the rule's. What a rule leaves unsaid the element inherits or
+ *  keeps at its initial value, as the property's own behaviour says.
+ *
+ *  It never states the element's structure, identity or callbacks.
  *  @trap A rule holds STATIC values. A live binding, an entrance and an
- *  animation stay verbs on the element. */
-class Rule {
+ *  animation stay verbs on the element; one written here is left out of
+ *  the fold and said once. What a rule cannot carry at all — a shape
+ *  generator, a grid area, a filter, a travel path, `cover()`'s flag —
+ *  does not compile on a rule. */
+class Rule : public detail::Declaring,
+             public BoxVerbs<Rule>,
+             public FlexVerbs<Rule>,
+             public PlacementVerbs<Rule>,
+             public ShapeVerbs<Rule>,
+             public CascadeVerbs<Rule>,
+             public PaintVerbs<Rule>,
+             public EffectVerbs<Rule>,
+             public TransformVerbs<Rule> {
  public:
-  explicit Rule(ElementSelector subject) : m_selector(std::move(subject)) {}
+  explicit Rule(ElementSelector subject);
 
-  /** The font partial: @p partial's fields over what this rule already
-   *  states, the later call winning field by field. */
-  Rule& font(sigil::weave::Type partial);
-  /** The block partial, folded the same way. */
-  Rule& block(sigil::weave::Block partial);
-  /** The ink — the font's colour, which everything under a matched
-   *  element inherits. */
-  Rule& ink(material::Color colour);
-  /** The ink read from a custom property, resolved where the rule
-   *  matches. Exclusive with a colour: the later call stands. */
-  Rule& ink(VarRef reference);
-  /** The ink as a WHOLE PAINT, taking everything a fill takes, with the
-   *  box its unit square maps onto. A plain colour is the colour form;
-   *  an empty paint states the lane and holds nothing, which clears an
-   *  ancestor's paint. */
-  Rule& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox);
-  /** A custom property set on every element this rule matches, for that
-   *  element and everything under it. */
-  Rule& var(std::string_view name, material::Color colour);
-  Rule& var(std::string_view name, Dimension length);
+  using CascadeVerbs<Rule>::block;
+
   /** HOW A MATCHED ELEMENT'S VALUES CHANGE when a later describe moves
    *  them: the element's `transition`, stated by the rule, so a class
-   *  toggle that recolours an element eases rather than snapping. The
-   *  element's own `transition()` stands over it, and among matched rules
-   *  the strongest that states one wins. */
+   *  toggle that recolours or resizes an element eases rather than
+   *  snapping. The element's own `transition()` stands over it, and
+   *  among matched rules the strongest that states one wins. */
   Rule& transition(motion::Transition how);
+
+  // What a rule cannot carry, refused where it is written. Each is kept
+  // on the element's description rather than in the style the cascade
+  // folds, so a rule has nowhere to put it.
+  template <class... Arguments>
+  Rule& shape(Arguments&&...) = delete;
+  Rule& cover() = delete;
+  Rule& gridArea(std::string_view) = delete;
+  Rule& filter(material::skia::Effect) = delete;
+  Rule& backdropFilter(material::skia::Effect) = delete;
+  Rule& travel(MotionPath) = delete;
 
   /** Which elements this rule speaks about. */
   [[nodiscard]] const ElementSelector& selector() const { return m_selector; }
   /** The font half of what it states. */
-  [[nodiscard]] const sigil::weave::Type& type() const { return m_type; }
+  [[nodiscard]] const sigil::weave::Type& type() const;
   /** The block half of what it states. */
-  [[nodiscard]] const sigil::weave::Block& block() const { return m_block; }
+  [[nodiscard]] const sigil::weave::Block& block() const;
   /** The property the ink reads, where it was written as one. */
-  [[nodiscard]] const std::optional<VarRef>& inkVar() const { return m_inkVar; }
+  [[nodiscard]] const std::optional<VarRef>& inkVar() const;
   /** The paint the ink is, where it was written as one. */
-  [[nodiscard]] const std::optional<material::skia::Paint>& inkPaint() const {
-    return m_inkPaint;
-  }
+  [[nodiscard]] const std::optional<material::skia::Paint>& inkPaint() const;
   /** The box that paint's unit square maps onto. */
-  [[nodiscard]] PaintAnchor inkAnchor() const { return m_inkAnchor; }
+  [[nodiscard]] PaintAnchor inkAnchor() const;
   /** Whether this rule writes the ink lane at all — a colour, a
    *  property, a paint, or an empty paint, which is the lane cleared. */
-  [[nodiscard]] bool statesInk() const { return m_statesInk; }
+  [[nodiscard]] bool statesInk() const;
   /** The custom properties it sets. */
-  [[nodiscard]] const VarTable& vars() const { return m_vars; }
+  [[nodiscard]] const VarTable& vars() const;
   /** The transition it states, where it states one. */
-  [[nodiscard]] const std::optional<motion::Transition>& transition() const {
-    return m_transition;
-  }
+  [[nodiscard]] const std::optional<motion::Transition>& transition() const;
 
   [[nodiscard]] bool operator==(const Rule& other) const;
 
  private:
+  friend struct detail::NodeAccess;
   ElementSelector m_selector;
-  sigil::weave::Type m_type;
-  sigil::weave::Block m_block;
-  std::optional<VarRef> m_inkVar;
-  std::optional<material::skia::Paint> m_inkPaint;
-  PaintAnchor m_inkAnchor = PaintAnchor::OwnBox;
-  bool m_statesInk = false;
-  VarTable m_vars;
-  std::optional<motion::Transition> m_transition;
 };
 
 /** A rule speaking about the elements @p cssText names. A text this

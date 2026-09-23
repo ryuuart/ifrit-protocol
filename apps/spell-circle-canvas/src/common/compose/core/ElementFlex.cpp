@@ -70,5 +70,6 @@ template class FlexVerbs<Element>;
 template class FlexVerbs<Text>;
 template class FlexVerbs<Image>;
 template class FlexVerbs<Band>;
+template class FlexVerbs<Rule>;
 
 }  // namespace sigil::compose

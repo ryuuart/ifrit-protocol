@@ -62,10 +62,6 @@ one. An `an+b` number too large to hold, and bracketed lists nested
 deeper than the parser reads, are refused the same way rather than
 clamped.
 
-Not yet: the box half of what a rule can state — padding, margin, gap,
-size, fill, corners and opacity. It is wanted and decided, and not in
-the rule yet.
-
 ## The set algebra
 
 The operators are the house's, the same three `weave::Selector` takes
@@ -138,18 +134,44 @@ const StyleSheet house{
 };
 ```
 
-`Rule::font` and `Rule::block` take the partials `Element::font` and
-`Element::block` take and fold them the same way — later wins field by
-field — so a property is spelled once whichever side says it.
-`Rule::ink` takes a colour or a custom property exactly as
-`Element::ink` does, and `Rule::var` sets a property on every element
-the rule matches, for that element and everything under it. What a
-rule leaves unsaid the element inherits. A rule holds STATIC values: a
-live binding, an entrance and an animation stay verbs on the element.
+A rule's verbs ARE the element's: the same verb families, the same
+signatures, the same briefs, writing the same declarations. So
+`rule(".card").padding(8).borderRadius({6}).fill(paper)` states what
+`box().padding(8).borderRadius({6}).fill(paper)` states, and a property
+is spelled once whichever side says it. A rule states:
+
+- the box — `padding`, `margin`, `gap`, the sizes, `aspectRatio`,
+  `boxSizing` and `display`;
+- the flex line and the placement — `flexGrow`, `justifyContent`,
+  `absolute`, `inset`, `left`, `gridCells` and the rest;
+- the corners and the overflow, the fill, `opacity` and `blendMode`,
+  the 2D transform and `zIndex`;
+- the cascade — `font`, `block`, `ink`, `var`, `varDefaults`,
+  `imageRendering` — and `inherit`, `initial` and `unset` about any
+  property.
+
+What is kept on the element's description rather than in the style the
+cascade folds — a shape generator, a grid area, a filter, a travel
+path, the plane a node turns in, `cover()`'s flag, the decorations —
+does not compile on a rule, and neither do the element's structure,
+identity and callbacks.
+
+The element's own verb stands over every rule, property by property:
+`styleClass("card").width(50)` is a card fifty wide with the card's
+padding. What a rule leaves unsaid the element inherits, or keeps at
+its initial value, as the property's own behaviour says. A rule holds
+STATIC values: a live binding, an entrance and an animation stay verbs
+on the element, and one written in a rule is left out and said once.
+
+A matched rule that moves reaches the element even when the element's
+own description does not — a class toggled on it, a sheet applied
+above it changed — because the cascade pass folds the matched rules
+again every time it runs.
 
 `Rule::transition` states how a matched element's values change when a
 later describe moves them, exactly as `Element::transition` does, so a
-class toggle that recolours an element eases instead of snapping. The
+class toggle that recolours or resizes an element eases instead of
+snapping. The
 element's own `transition()` stands over every rule's, and among the
 matched rules that state one, the strongest wins.
 
@@ -211,7 +233,7 @@ before:
 
 1. the defaults of its role (`Element::role`),
 2. the rules of the applied sheets whose selectors matched, and
-3. the node's own `font`, `block`, `ink` and `var`.
+3. the node's own verbs, property by property.
 
 Among the matched rules the order is CSS's: the heavier
 `ElementSelector::specificity` first; then scope proximity, the nearer

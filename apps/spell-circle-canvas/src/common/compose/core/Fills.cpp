@@ -39,6 +39,7 @@ template Element& SurfacePaint::apply(Element&) const;
 template Text& SurfacePaint::apply(Text&) const;
 template Image& SurfacePaint::apply(Image&) const;
 template Band& SurfacePaint::apply(Band&) const;
+template Rule& SurfacePaint::apply(Rule&) const;
 
 Fill SurfacePaint::resolve(const PaintContext& context) const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {

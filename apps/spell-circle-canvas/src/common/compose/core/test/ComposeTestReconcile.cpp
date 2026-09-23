@@ -511,13 +511,10 @@ TEST(ComposeReconcile, APrunedPatchLeavesTheComputedStyleStanding) {
   // earlier patch wrote. A fill that wrote only the fields this describe
   // changed, or that stopped writing at all, reddens it.
   //
-  // WHAT IT CANNOT PIN: a change that reaches the node without touching the
-  // node's OWN declarations — a rule, or a value inherited from an
-  // ancestor. That change prunes, the patch never runs, and a style filled
-  // at the patch keeps the previous answer forever. No property can be
-  // moved that way yet, so the case cannot be written; it arrives with the
-  // first rule-settable box property, and it is the reason the fill belongs
-  // to the cascade resolver rather than here.
+  // A change that reaches the node without touching its OWN declarations —
+  // a rule, or a value inherited from an ancestor — prunes, and the
+  // cascade pass re-folds it instead; ComposeRuleScope pins the rule half
+  // and ComposeDeclarations the inherited one.
   Host host(200, 200);
   auto describe = [](float width, float opacity) {
     return box().children({box()

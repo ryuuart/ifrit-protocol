@@ -359,6 +359,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // the rules that matched it at the last cascade pass and state one —
   // which the node's own `transition()` stands over.
   std::optional<motion::Transition> ruleTransition;
+  // WHAT THE MATCHED RULES STATE about the properties the computed style
+  // carries, as the last cascade pass found them: the layer the patch and
+  // the pass both fold between the parent's answers and the node's own
+  // verbs. Null where no matched rule states one.
+  std::unique_ptr<const RuleLayer> ruleLayer;
   /** How this node's values change when a describe moves them: its own
    *  `transition()`, else the one a matched rule states, else none. */
   [[nodiscard]] const std::optional<motion::Transition>& transitionInForce()

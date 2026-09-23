@@ -149,6 +149,7 @@ template class CascadeVerbs<Element>;
 template class CascadeVerbs<Text>;
 template class CascadeVerbs<Image>;
 template class CascadeVerbs<Band>;
+template class CascadeVerbs<Rule>;
 
 // The cascade a node NAMES rather than states: the sheets it applies to
 // its subtree, its role, and its classes. They are the

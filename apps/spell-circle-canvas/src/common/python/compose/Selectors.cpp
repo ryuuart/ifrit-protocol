@@ -10,6 +10,7 @@
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
+#include <sigilpython/compose/Nodes.h>
 #include <sigilpython/compose/Registration.h>
 
 #include <optional>
@@ -30,20 +31,6 @@ using compose::RelativeSelector;
 using compose::Rule;
 using compose::Specificity;
 using compose::StyleSheet;
-
-/** The value a custom property is set to, read as every other property
- *  value is read: a colour class, a CSS colour name and a channel
- *  sequence are colours, and everything else is a length. */
-compose::VarValue variable(py::handle value) {
-  if (py::isinstance<py::str>(value)) {
-    const auto text = value.cast<std::string>();
-    if (text != "auto" && !text.ends_with("%")) return color(value);
-  }
-  if (py::isinstance<material::Color>(value) ||
-      py::isinstance<py::tuple>(value) || py::isinstance<py::list>(value))
-    return color(value);
-  return dimension(value);
-}
 
 /** The sheet the statements in @p statements state, in order: a rule
  *  stands for itself and a sheet for the rules it holds. */
@@ -368,62 +355,22 @@ void bindRule(py::module_& composition) {
   py::class_<Rule> rule(
       composition, "Rule",
       "One rule of a selector sheet: which elements it speaks about, and "
-      "what it states about them. It states the same partials a node's own "
-      "verbs write, folded by the same merge, so a property is spelled "
-      "once whether a rule or a verb says it; what a rule leaves unsaid "
-      "the element inherits. A rule holds STATIC values: a live binding, "
-      "an entrance and an animation stay verbs on the element. It reaches "
-      "an element through `Element.applyStyleSheet`. Equality is "
-      "structural, and a rule carries no hash, because its selector "
-      "carries none.");
+      "what it states about them. Its verbs ARE the element's — the box, "
+      "the flex line, the placement, the corners and overflow, the paint, "
+      "the compositing lanes, the 2D transform and the cascade — bound "
+      "once for both, and the element's own verb stands over the rule's. "
+      "What a rule leaves unsaid the element inherits or keeps at its "
+      "initial value. A rule holds STATIC values: a live binding, an "
+      "entrance and an animation stay verbs on the element. It reaches an "
+      "element through `Element.applyStyleSheet`. Equality is structural, "
+      "and a rule carries no hash, because its selector carries none.");
 
   rule.def(py::init<ElementSelector>(), py::arg("subject"),
            "A rule speaking about the elements `subject` names, stating "
-           "nothing yet.")
-      .def("font", &Rule::font, py::arg("partial"), fluent,
-           "The font partial: `partial`'s fields over what this rule "
-           "already states, the later call winning field by field.")
-      .def("block", py::overload_cast<weave::Block>(&Rule::block),
-           py::arg("partial"), fluent,
-           "The block partial, folded the same "
-           "way.")
-      .def(
-          "ink",
-          [](Rule& self, py::object value,
-             compose::PaintAnchor anchor) -> Rule& {
-            if (py::isinstance<compose::VarRef>(value))
-              return self.ink(value.cast<compose::VarRef>());
-            const compose::SurfacePaint paint = surfacePaint(value);
-            if (!paint.none() && !paint.collapsedPaint())
-              throw py::type_error(
-                  "An ink paint is stored as one paint and resolved without "
-                  "the tree, so the ink in force, a custom property and a "
-                  "bound fill have no paint to give it. State a colour, or "
-                  "clear the paint with None.");
-            return self.ink(paint, anchor);
-          },
-          py::arg("value"), py::arg("anchor") = compose::PaintAnchor::OwnBox,
-          fluent,
-          "The ink — what everything under a matched element is painted "
-          "in. A colour, anything else a surface takes, or the "
-          "`compose.var` reference of a custom property to read a colour "
-          "from, which is resolved where the rule matches. They are "
-          "exclusive: the later call stands. `anchor` is the box a paint's "
-          "unit square maps onto.")
-      .def(
-          "var",
-          [](Rule& self, const std::string& name, py::object value) -> Rule& {
-            return std::visit(
-                [&](const auto& converted) -> Rule& {
-                  return self.var(name, converted);
-                },
-                variable(value));
-          },
-          py::arg("name"), py::arg("value"), fluent,
-          "A custom property set on every element this rule matches, for "
-          "that element and everything under it. The value is a colour or "
-          "a length.")
-      .def(
+           "nothing yet.");
+  // The verbs a rule shares with every node, bound once for both.
+  bindDeclarationVerbs(rule);
+  rule.def(
           "transition",
           [](Rule& self, motion::Transition how) -> Rule& {
             return self.transition(std::move(how));

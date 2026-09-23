@@ -10,7 +10,8 @@ states and reads back, and how sheets join and include one another. They
 then go to a session for what only pixels can say: that a rule reaches
 the elements its selector names, that a combinator and a structural
 pseudo-class narrow it, that a sheet sees only the subtree it was
-applied to, and that the node's own verb still wins.
+applied to, that a rule states the box with the element's own verbs, and
+that the node's own verb still wins.
 """
 
 import tempfile
@@ -287,6 +288,58 @@ class Rules(unittest.TestCase):
         )
         self.assertNotEqual(eased, compose.rule(".panel"))
 
+    def test_a_rule_states_the_box_with_the_elements_own_verbs(self):
+        stated = (
+            compose.rule(".card")
+            .padding(8)
+            .paddingLeft(12)
+            .width(120)
+            .flexGrow(1)
+            .borderRadius(4)
+            .fill("#ff0000")
+            .opacity(0.5)
+            .translateX(3)
+        )
+        self.assertIsInstance(stated, Rule)
+        self.assertNotEqual(stated, compose.rule(".card"))
+        # The named-sides form states all four sides, the unnamed ones as
+        # zero; the per-side verb states one and leaves three unsaid.
+        self.assertEqual(
+            compose.rule(".card").padding(top=8),
+            compose.rule(".card").padding(8, 0, 0, 0),
+        )
+        self.assertNotEqual(
+            compose.rule(".card").padding(top=8),
+            compose.rule(".card").paddingTop(8),
+        )
+        self.assertNotEqual(
+            compose.rule(".card").width(120), compose.rule(".card").width(121)
+        )
+        self.assertEqual(
+            compose.rule(".card").inherit(compose.Property.Width),
+            compose.rule(".card").inherit(compose.Property.Width),
+        )
+
+    def test_what_only_an_element_says_is_not_on_a_rule(self):
+        # Structure, identity, decorations, filters, depth and callbacks
+        # are the element's own; a rule has nowhere to put them.
+        for name in (
+            "children",
+            "key",
+            "styleClass",
+            "applyStyleSheet",
+            "shape",
+            "cover",
+            "gridArea",
+            "filter",
+            "backdropFilter",
+            "travel",
+            "rotateX",
+            "background",
+            "stroke",
+        ):
+            self.assertFalse(hasattr(Rule, name), name)
+
 
 class Sheets(unittest.TestCase):
     def test_a_sheet_holds_its_rules_in_order(self):
@@ -374,6 +427,46 @@ class Scene:
             .applyStyleSheet(sheet)
             .children(
                 box().width(64).height(48).children([cell]) for cell in cells
+            )
+            .row()
+        )
+""",
+            width=256,
+            height=48,
+        )
+        self.assertTrue(any(matched[::4]))
+        self.assertEqual(matched, reference)
+        self.assertEqual(overridden, override)
+        self.assertNotEqual(matched, overridden)
+
+    def test_a_rule_states_the_box_and_the_nodes_own_verb_still_wins(self):
+        self.cells = ((0, 64), (64, 64), (128, 64), (192, 64))
+        matched, reference, overridden, override = self.render(
+            """from sigil.compose import StyleSheet, box, rule
+from sigil.sketch import sketch
+
+
+@sketch(size=(256, 48), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        pass
+
+    def update(self, elapsed, ctx):
+        sheet = StyleSheet(
+            [rule(".tile").width(40).height(30).padding(2).fill("#ff0000").borderRadius(6)]
+        )
+        cells = [
+            box().styleClass("tile"),
+            box().width(40).height(30).padding(2).fill("#ff0000").borderRadius(6),
+            box().styleClass("tile").fill("#0000ff").width(20),
+            box().width(20).height(30).padding(2).fill("#0000ff").borderRadius(6),
+        ]
+        ctx.render(
+            box()
+            .applyStyleSheet(sheet)
+            .children(
+                box().width(64).height(48).alignItems("start").children([cell])
+                for cell in cells
             )
             .row()
         )

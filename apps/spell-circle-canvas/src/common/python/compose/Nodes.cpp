@@ -67,34 +67,18 @@ using compose::Corners;
 using compose::Decoration;
 using compose::Element;
 using compose::Image;
+using compose::Rule;
 using compose::Spans;
 using compose::Text;
 }  // namespace
 
 template <class Node>
-void bindNodeVerbs(py::class_<Node>& element) {
-  element.def("copy", [](const Node& value) { return value; })
-      .def("__copy__", [](const Node& value) { return value; })
-      .def("row", &Node::row, fluent)
+void bindDeclarationVerbs(py::class_<Node>& element) {
+  element.def("row", &Node::row, fluent)
       .def("column", &Node::column, fluent)
       .def("flexGrow", &Node::flexGrow, py::arg("factor") = 1.0f, fluent)
       .def("flexShrink", &Node::flexShrink, py::arg("factor"), fluent)
       .def("absolute", &Node::absolute, fluent)
-      .def("cover", &Node::cover, fluent)
-      .def("key", &Node::key, py::arg("key"), fluent)
-      .def("cache", &Node::cache, py::arg("policy"), fluent)
-      .def(
-          "children",
-          [](Node& self, const std::vector<Element>& values) -> Node& {
-            return self.children(values);
-          },
-          py::arg("children"), py::pos_only(), fluent)
-      .def(
-          "children",
-          [](Node& self, py::args values) -> Node& {
-            return self.children(elements(values));
-          },
-          fluent)
       .def(
           "size",
           [](Node& self, py::object width, py::object height) -> Node& {
@@ -127,8 +111,7 @@ void bindNodeVerbs(py::class_<Node>& element) {
                   "property and a bound fill have no picture to place.");
             return self.fill(*stretched, anchor, origin);
           },
-          py::arg("value"),
-          py::arg("anchor") = compose::PaintAnchor::OwnBox,
+          py::arg("value"), py::arg("anchor") = compose::PaintAnchor::OwnBox,
           py::arg("origin") = compose::BackgroundOrigin::BorderBox, fluent)
       .def(
           "ink",
@@ -151,8 +134,8 @@ void bindNodeVerbs(py::class_<Node>& element) {
                   "clear the paint with None.");
             return self.ink(paint, anchor);
           },
-          py::arg("value"),
-          py::arg("anchor") = compose::PaintAnchor::OwnBox, fluent)
+          py::arg("value"), py::arg("anchor") = compose::PaintAnchor::OwnBox,
+          fluent)
       .def("font", &Node::font, py::arg("type"), fluent)
       .def(
           "fontTrack",
@@ -198,13 +181,7 @@ void bindNodeVerbs(py::class_<Node>& element) {
                 originLength(x), originLength(y),
                 z.is_none() ? compose::Dimension(0.0f) : originLength(z));
           },
-          py::arg("x"), py::arg("y"), py::arg("z") = py::none(), fluent)
-      .def(
-          "perspectiveOrigin",
-          [](Node& self, py::object x, py::object y) -> Node& {
-            return self.perspectiveOrigin(originLength(x), originLength(y));
-          },
-          py::arg("x"), py::arg("y"), fluent);
+          py::arg("x"), py::arg("y"), py::arg("z") = py::none(), fluent);
 
   const auto dimensionMethod = [&](const char* name,
                                    Node& (Node::*setter)(compose::Dimension)) {
@@ -296,7 +273,6 @@ void bindNodeVerbs(py::class_<Node>& element) {
            py::arg("rows") = 1, fluent)
       .def("gridCells", py::overload_cast<CellSpan>(&Node::gridCells),
            py::arg("span"), fluent)
-      .def("gridArea", &Node::gridArea, py::arg("name"), fluent)
       .def(
           "gridCellAlign",
           [](Node& self, py::object x, py::object y) -> Node& {
@@ -305,14 +281,87 @@ void bindNodeVerbs(py::class_<Node>& element) {
           py::arg("horizontal"), py::arg("vertical"), fluent)
       .def("borderRadius", py::overload_cast<Corners>(&Node::borderRadius),
            py::arg("radii"), fluent)
+      .def("overflow", &Node::overflow, py::arg("overflow"), fluent)
+      .def("block", py::overload_cast<weave::Block>(&Node::block),
+           py::arg("block"), fluent)
+      .def(
+          "var",
+          [](Node& self, const std::string& name, py::object value) -> Node& {
+            return std::visit(
+                [&](const auto& converted) -> Node& {
+                  return self.var(name, converted);
+                },
+                variable(value));
+          },
+          py::arg("name"), py::arg("value"), fluent)
+      .def(
+          "varDefaults",
+          [](Node& self, const py::dict& defaults) -> Node& {
+            compose::VarTable table;
+            try {
+              for (auto [name, value] : defaults)
+                table.set(compose::var(name.cast<std::string>()),
+                          variable(value));
+            } catch (const py::cast_error&) {
+              throw py::type_error(
+                  "Default properties require string names and color or "
+                  "dimension values");
+            }
+            return self.varDefaults(std::move(table));
+          },
+          py::arg("defaults"), fluent)
+      .def("imageRendering", &Node::imageRendering, py::arg("sampling"), fluent)
+      .def("inherit", &Node::inherit, py::arg("property"), fluent)
+      .def("initial", &Node::initial, py::arg("property"), fluent)
+      .def("unset", &Node::unset, py::arg("property"), fluent)
+      .def("blendMode", &Node::blendMode, py::arg("mode"), fluent)
+      .def("zIndex", &Node::zIndex, py::arg("index"), fluent);
+  for (const auto& [name, setter] : std::initializer_list<
+           std::pair<const char*, Node& (Node::*)(motion::Animatable<float>)>>{
+           {"opacity", &Node::opacity},
+           {"rotate", &Node::rotate},
+           {"scale", &Node::scale},
+           {"scaleX", &Node::scaleX},
+           {"scaleY", &Node::scaleY},
+           {"translateX", &Node::translateX},
+           {"translateY", &Node::translateY},
+           {"skewX", &Node::skewX},
+           {"skewY", &Node::skewY}})
+    element.def(
+        name,
+        [setter](Node& self, py::object value) -> Node& {
+          return (self.*setter)(motionAnimatable(value));
+        },
+        py::arg("value"), fluent);
+}
+
+template <class Node>
+void bindNodeVerbs(py::class_<Node>& element) {
+  bindDeclarationVerbs(element);
+  element.def("copy", [](const Node& value) { return value; })
+      .def("__copy__", [](const Node& value) { return value; })
+      .def("cover", &Node::cover, fluent)
+      .def("key", &Node::key, py::arg("key"), fluent)
+      .def("cache", &Node::cache, py::arg("policy"), fluent)
+      .def(
+          "children",
+          [](Node& self, const std::vector<Element>& values) -> Node& {
+            return self.children(values);
+          },
+          py::arg("children"), py::pos_only(), fluent)
+      .def(
+          "children",
+          [](Node& self, py::args values) -> Node& {
+            return self.children(elements(values));
+          },
+          fluent)
+      .def("gridArea", &Node::gridArea, py::arg("name"), fluent)
       .def(
           "shape",
           [](Node& self, py::object value) -> Node& {
             return self.shape(shape(value));
           },
           py::arg("value"), fluent)
-      .def("overflow", &Node::overflow, py::arg("overflow"), fluent)
-      .def("block", &Node::block, py::arg("block"), fluent)
       .def("styleClass", &Node::styleClass, py::arg("name"), fluent)
       .def(
           "attribute",
@@ -357,62 +406,25 @@ void bindNodeVerbs(py::class_<Node>& element) {
           "under every rule that matches the node; the node's own `font` "
           "and `block` stand over everything. A later call replaces the "
           "role and its defaults together.")
-      .def(
-          "var",
-          [](Node& self, const std::string& name, py::object value) -> Node& {
-            return std::visit(
-                [&](const auto& converted) -> Node& {
-                  return self.var(name, converted);
-                },
-                variable(value));
-          },
-          py::arg("name"), py::arg("value"), fluent)
-      .def(
-          "varDefaults",
-          [](Node& self, const py::dict& defaults) -> Node& {
-            compose::VarTable table;
-            try {
-              for (auto [name, value] : defaults)
-                table.set(compose::var(name.cast<std::string>()),
-                          variable(value));
-            } catch (const py::cast_error&) {
-              throw py::type_error(
-                  "Default properties require string names and color or "
-                  "dimension values");
-            }
-            return self.varDefaults(std::move(table));
-          },
-          py::arg("defaults"), fluent)
-      .def("imageRendering", &Node::imageRendering, py::arg("sampling"), fluent)
-      .def("inherit", &Node::inherit, py::arg("property"), fluent)
-      .def("initial", &Node::initial, py::arg("property"), fluent)
-      .def("unset", &Node::unset, py::arg("property"), fluent)
       .def("hitTestable", &Node::hitTestable, py::arg("enabled"), fluent)
       .def("decorationOutline", &Node::decorationOutline, py::arg("source"),
            py::arg("coverage") = 0.5f, fluent)
       .def("layerStyle", &Node::layerStyle, py::arg("style"), fluent)
       .def("filter", &Node::filter, py::arg("effect"), fluent)
       .def("backdropFilter", &Node::backdropFilter, py::arg("effect"), fluent)
-      .def("blendMode", &Node::blendMode, py::arg("mode"), fluent)
       .def("travel", &Node::travel, py::arg("path"), fluent)
-      .def("zIndex", &Node::zIndex, py::arg("index"), fluent)
       .def("preserve3d", &Node::preserve3d, py::arg("preserve") = true, fluent)
       .def("backface", &Node::backface, py::arg("visibility"), fluent)
       .def("cacheScale", &Node::cacheScale, py::arg("scale"), fluent)
       .def("transition", &Node::transition, py::arg("transition"), fluent)
-
-      ;
+      .def(
+          "perspectiveOrigin",
+          [](Node& self, py::object x, py::object y) -> Node& {
+            return self.perspectiveOrigin(originLength(x), originLength(y));
+          },
+          py::arg("x"), py::arg("y"), fluent);
   for (const auto& [name, setter] : std::initializer_list<
            std::pair<const char*, Node& (Node::*)(motion::Animatable<float>)>>{
-           {"opacity", &Node::opacity},
-           {"rotate", &Node::rotate},
-           {"scale", &Node::scale},
-           {"scaleX", &Node::scaleX},
-           {"scaleY", &Node::scaleY},
-           {"translateX", &Node::translateX},
-           {"translateY", &Node::translateY},
-           {"skewX", &Node::skewX},
-           {"skewY", &Node::skewY},
            {"rotateX", &Node::rotateX},
            {"rotateY", &Node::rotateY},
            {"translateZ", &Node::translateZ},
@@ -466,6 +478,11 @@ void bindNodeVerbs(py::class_<Node>& element) {
       py::arg("spans"), py::arg("decoration"), py::arg("name") = "", fluent);
 }
 
+template void bindDeclarationVerbs(py::class_<Element>&);
+template void bindDeclarationVerbs(py::class_<Text>&);
+template void bindDeclarationVerbs(py::class_<Image>&);
+template void bindDeclarationVerbs(py::class_<Band>&);
+template void bindDeclarationVerbs(py::class_<Rule>&);
 template void bindNodeVerbs(py::class_<Element>&);
 template void bindNodeVerbs(py::class_<Text>&);
 template void bindNodeVerbs(py::class_<Image>&);

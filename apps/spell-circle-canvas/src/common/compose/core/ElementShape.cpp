@@ -29,5 +29,6 @@ template class ShapeVerbs<Element>;
 template class ShapeVerbs<Text>;
 template class ShapeVerbs<Image>;
 template class ShapeVerbs<Band>;
+template class ShapeVerbs<Rule>;
 
 }  // namespace sigil::compose

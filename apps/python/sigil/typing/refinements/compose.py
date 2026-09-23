@@ -11,11 +11,15 @@ IMAGE = "_sigil.compose.Image"
 # refinements are written once and registered for each of them with the
 # return type its chain keeps.
 NODES = (ELEMENT, TEXT, IMAGE, "_sigil.compose.Band")
+# A rule states the declaring half of the same vocabulary, bound once for
+# both, so its refinements are the same text over its own name.
+RULE = "_sigil.compose.Rule"
 
 
 def register(table: Table) -> None:
     for node in NODES:
         registerNode(table, node)
+    registerDeclarations(_Returning(table, RULE), RULE)
     # A glyph outline is the text leaf's alone, and the region of a source
     # is the image leaf's.
     # The glyph OUTLINE is one comparable Fill on the node, measured with no
@@ -55,11 +59,7 @@ def registerNode(shared: Table, node: str) -> None:
     survive, leaving that class's verbs answering another class.
     """
     table = _Returning(shared, node)
-    table.declares(
-        node,
-        "varDefaults",
-        "def varDefaults(self, defaults: dict[str, _t.DimensionLike | _t.ColorLike]) -> Element: ...",
-    )
+    registerDeclarations(table, node)
     table.declares(
         node,
         "children",
@@ -68,6 +68,30 @@ def children(self, children: collections.abc.Iterable[_t.NodeLike], /) -> Elemen
 @typing.overload
 def children(self, *children: _t.NodeLike) -> Element: ...
 """,
+    )
+    table.erased(
+        node,
+        "rotateX rotateY scaleZ translateZ perspective",
+        "_t.ScalarLike",
+    )
+    # An origin takes a length that carries its unit, so the bare number every
+    # other dimension accepts as pixels is left out of what these accept.
+    origin = "str | Dimension | _sigil.weave.Length | VarRef"
+    table.declares(
+        node,
+        "perspectiveOrigin",
+        f"def perspectiveOrigin(self, x: {origin}, y: {origin}) -> Element: ...",
+    )
+    table.erased(node, "shape", "_t.ShapeLike")
+    table.erased(node, "background foreground overlay stroke", "_t.DecorationLike")
+
+
+def registerDeclarations(table: _Returning, node: str) -> None:
+    """The verbs a rule states as well as a node, over the value that states them."""
+    table.declares(
+        node,
+        "varDefaults",
+        "def varDefaults(self, defaults: dict[str, _t.DimensionLike | _t.ColorLike]) -> Element: ...",
     )
     table.erased(
         node,
@@ -92,7 +116,7 @@ def inset(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike |
     )
     table.erased(
         node,
-        "opacity rotate rotateX rotateY scale scaleX scaleY scaleZ skewX skewY translateX translateY translateZ perspective",
+        "opacity rotate scale scaleX scaleY skewX skewY translateX translateY",
         "_t.ScalarLike",
     )
     table.erased(node, "fontSize fontTrack", "_t.FloatLike | _sigil.weave.Length")
@@ -130,13 +154,6 @@ def rect(self, x: _t.DimensionLike, y: _t.DimensionLike, width: _t.DimensionLike
         "transformOrigin",
         f"def transformOrigin(self, x: {origin}, y: {origin}, z: {origin} | None = None) -> Element: ...",
     )
-    table.declares(
-        node,
-        "perspectiveOrigin",
-        f"def perspectiveOrigin(self, x: {origin}, y: {origin}) -> Element: ...",
-    )
-    table.erased(node, "shape", "_t.ShapeLike")
-    table.erased(node, "background foreground overlay stroke", "_t.DecorationLike")
     table.erased(node, "var", "_t.DimensionLike | _t.ColorLike")
     # Four arities in CSS's order, each with its own names, and each name
     # usable as a keyword; beside them the named-sides form, any subset.

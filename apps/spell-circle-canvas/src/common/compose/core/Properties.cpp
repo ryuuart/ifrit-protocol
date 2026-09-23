@@ -367,40 +367,156 @@ bool computedStyleEqual(const ComputedStyle& a, const ComputedStyle& b) {
          pa.originY == pb.originY && pa.zIndex == pb.zIndex;
 }
 
+namespace {
+
+/** Whether a rule may state @p property into the layer: the computed
+ *  style carries it, and the cascade pass does not answer it elsewhere. */
+constexpr bool carriedByLayer(Property property) {
+  return answersKeyword(property) && !inheritsByDefault(property);
+}
+
+/** The value a property holds on @p node where that value is one a rule
+ *  can hold — anything but a live binding or an animation, which stay
+ *  verbs on the element. */
+template <class T>
+bool staticValue(const motion::Animatable<T>& value) {
+  return value.plain() != nullptr;
+}
+
+bool ruleCanHold(Property property, const ElementNode& node) {
+  const PaintProps& paint = node.paint;
+  switch (property) {
+    case Property::Fill:
+      // A live paint lives in the material slot, which the style does
+      // not carry.
+      if (node.materialData && node.materialData->live) return false;
+      return !paint.fill || staticValue(*paint.fill);
+    case Property::Opacity:
+      return staticValue(paint.opacity);
+    case Property::TranslateX:
+      return staticValue(paint.translateX);
+    case Property::TranslateY:
+      return staticValue(paint.translateY);
+    case Property::Rotate:
+      return staticValue(paint.rotate);
+    case Property::Scale:
+      return staticValue(paint.scale);
+    case Property::ScaleX:
+      return staticValue(paint.scaleX);
+    case Property::ScaleY:
+      return staticValue(paint.scaleY);
+    case Property::SkewX:
+      return staticValue(paint.skewX);
+    case Property::SkewY:
+      return staticValue(paint.skewY);
+    default:
+      return true;
+  }
+}
+
+}  // namespace
+
+std::unique_ptr<const RuleLayer> ruleLayerOf(
+    std::span<const Rule* const> matched) {
+  std::unique_ptr<RuleLayer> layer;
+  for (const Rule* rule : matched) {
+    const ElementNode& stated = *rule->node();
+    if (stated.declared.empty()) continue;
+    // The rule's own declarations, verbatim: the same fields a node's
+    // style is filled from, so one row of `copyProperty` moves a property
+    // out of either.
+    ComputedStyle values;
+    bool filled = false;
+    for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
+      const auto property = (Property)i;
+      if (!stated.declared.has(property) || !carriedByLayer(property)) continue;
+      if (!layer) layer = std::make_unique<RuleLayer>();
+      if (const std::optional<sigil::weave::Keyword> keyword =
+              stated.keywords ? stated.keywords->find(property)
+                              : std::nullopt) {
+        layer->keywords.set(property, *keyword);
+        layer->declared.set(property);
+        continue;
+      }
+      if (!ruleCanHold(property, stated)) {
+        warnRuleHoldsOnlyStaticValues(property);
+        continue;
+      }
+      if (!filled) {
+        values.layout = stated.layout;
+        values.paint = stated.paint;
+        values.corners = stated.corners;
+        values.clipContent = stated.clipContent;
+        filled = true;
+      }
+      copyProperty(property, values, layer->values);
+      layer->keywords.clear(property);
+      layer->declared.set(property);
+    }
+  }
+  return layer;
+}
+
+bool ruleLayerEqual(const RuleLayer* a, const RuleLayer* b) {
+  if (a == nullptr || b == nullptr) return a == b;
+  return a->declared == b->declared && a->keywords == b->keywords &&
+         computedStyleEqual(a->values, b->values);
+}
+
 void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
-                  ComputedStyle& out) {
+                  ComputedStyle& out, const RuleLayer* rules) {
   out.layout = node.layout;
   out.paint = node.paint;
   out.corners = node.corners;
   out.clipContent = node.clipContent;
-  // DEFAULT INHERITANCE: a property that inherits and that this node says
-  // nothing about takes the parent's computed value. The list is built
-  // from `inheritsByDefault` at compile time, so that table is the whole
-  // of the set. Every property on it today is one the cascade pass
-  // resolves and the computed style does not carry, which makes each of
-  // these calls a switch that returns at once; a property moved into the
-  // set that the style DOES carry inherits here with nothing else to
-  // write.
+  // THE MATCHED RULES, under the node's own verbs: a property the node
+  // states stands, and one it leaves unsaid takes the strongest rule's
+  // statement of it.
+  if (rules != nullptr)
+    for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
+      const auto property = (Property)i;
+      if (rules->declared.has(property) && !node.declared.has(property) &&
+          !rules->keywords.find(property))
+        copyProperty(property, rules->values, out);
+    }
+  // DEFAULT INHERITANCE: a property that inherits and that neither this
+  // node nor a rule says anything about takes the parent's computed value.
+  // The list is built from `inheritsByDefault` at compile time, so that
+  // table is the whole of the set. Every property on it today is one the
+  // cascade pass resolves and the computed style does not carry, which
+  // makes each of these calls a switch that returns at once; a property
+  // moved into the set that the style DOES carry inherits here with
+  // nothing else to write.
   if (parent != nullptr)
     for (const Property property : kInherited)
-      if (!node.declared.has(property)) copyProperty(property, *parent, out);
-  if (!node.keywords) return;
+      if (!node.declared.has(property) &&
+          (rules == nullptr || !rules->declared.has(property)))
+        copyProperty(property, *parent, out);
+  const bool ruleKeywords = rules != nullptr && !rules->keywords.empty();
+  if (!node.keywords && !ruleKeywords) return;
   // The initial value of every property is the value its field carries on
   // a node nobody wrote to, so one default style IS the whole table of
   // them. A root, which has no parent, inherits from the same place: there
   // is no ancestor to take a value from and the initial one is what CSS
   // gives it.
   static const ComputedStyle initial;
-  for (const sigil::weave::KeywordTable<Property>::Entry& entry :
-       node.keywords->entries()) {
-    const sigil::weave::Keyword keyword =
-        resolveKeyword(entry.keyword, entry.field);
-    const ComputedStyle* from =
-        keyword == sigil::weave::Keyword::Inherit && parent != nullptr
-            ? parent
-            : &initial;
-    copyProperty(entry.field, *from, out);
-  }
+  const auto resolve =
+      [&](const sigil::weave::KeywordTable<Property>::Entry& entry) {
+        const sigil::weave::Keyword keyword =
+            resolveKeyword(entry.keyword, entry.field);
+        const ComputedStyle* from =
+            keyword == sigil::weave::Keyword::Inherit && parent != nullptr
+                ? parent
+                : &initial;
+        copyProperty(entry.field, *from, out);
+      };
+  // A rule's keyword stands where the node states nothing; the node's
+  // own keyword is its own statement and stands over every rule.
+  if (ruleKeywords)
+    for (const auto& entry : rules->keywords.entries())
+      if (!node.declared.has(entry.field)) resolve(entry);
+  if (node.keywords)
+    for (const auto& entry : node.keywords->entries()) resolve(entry);
 }
 
 }  // namespace detail

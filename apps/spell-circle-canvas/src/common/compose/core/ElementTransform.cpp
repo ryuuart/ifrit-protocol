@@ -89,5 +89,6 @@ template class TransformVerbs<Element>;
 template class TransformVerbs<Text>;
 template class TransformVerbs<Image>;
 template class TransformVerbs<Band>;
+template class TransformVerbs<Rule>;
 
 }  // namespace sigil::compose

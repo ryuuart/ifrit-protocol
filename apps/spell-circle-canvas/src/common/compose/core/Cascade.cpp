@@ -180,6 +180,19 @@ void detail::warnPropertyAnswersNoKeyword(Property property) {
       (int)name.size(), name.data());
 }
 
+void detail::warnRuleHoldsOnlyStaticValues(Property property) {
+  static thread_local boost::unordered_flat_set<uint8_t> warned;
+  if (!warned.insert((uint8_t)property).second) return;
+  const std::string_view name = propertyName(property);
+  SkDebugf(
+      "[compose] a rule states %.*s as a live binding, an animation or a "
+      "live paint, and a rule holds static values — the statement was left "
+      "out, so the elements it matches keep what they would have without "
+      "it. State the value itself in the rule, or the live form on the "
+      "element. (warned once)\n",
+      (int)name.size(), name.data());
+}
+
 void detail::warnNoSuchVar(VarRef reference, bool wantColour) {
   static thread_local boost::unordered_flat_set<uint64_t> warned;
   if (!warned.insert(((uint64_t)reference.id << 1) | (wantColour ? 1u : 0u))
@@ -334,44 +347,6 @@ void Composer::Impl::resolveCascade(
     const SheetChain& parentSheets, const InkInForce& parentInkPaint) {
   const ElementNode& node = *inst.description;
   const bool first = !inst.cascadeResolved;
-  // A NODE THAT WRITES A KEYWORD takes a value from its parent, and the
-  // parent's answer can move while this node's own declarations stand
-  // still — the one case the patch cannot see, because a node whose
-  // declarations did not move never reaches it. So the fold runs again
-  // here, for those nodes alone; a node that writes none is untouched and
-  // pays nothing. What it costs is one invalidation per keyword-bearing
-  // node per pass, and the pass runs only on a frame where something
-  // already changed.
-  if (node.keywords) {
-    const ComputedStyle before = inst.computed;
-    resolveStyle(inst.parent ? &inst.parent->computed : nullptr, node,
-                 inst.computed);
-    if (!(before.layout == inst.computed.layout)) {
-      applyLayoutProps(inst);
-      needsLayout = true;
-    }
-    // ONLY WHERE THE SECOND FOLD MOVED SOMETHING. The fold's inputs are
-    // this node's own declarations, which did not move — a node whose
-    // declarations moved came through the patch — and the parent's
-    // answers, which may have. Invalidating whether or not they did
-    // re-records every keyword-bearing node and its ancestors on every
-    // frame anything anywhere changed.
-    if (!first && !computedStyleEqual(before, inst.computed)) {
-      // A PROPERTY THAT MOVED HERE MOVED FOR THE SAME REASON one changed
-      // by the node's own verbs does, so it eases the same way: the lanes
-      // are retargeted from the style that stood before this fold. The
-      // patch cannot do it — this node never reaches the patch, its own
-      // declarations having compared equal — which is why the pass that
-      // found the change is the one that acts on it.
-      // The lane lists hold pointers into `before`, a local of this
-      // frame, so they live and die with it rather than outliving the
-      // description they point at.
-      std::vector<Lane> prevLanes, nextLanes;
-      retargetProperties(inst, {before, node}, prevLanes, nextLanes);
-      inst.markPaintDirtyUp();
-      contentDirty = true;
-    }
-  }
   sigil::weave::Type font = parentFont;
   // The ink's paint inherits exactly as the font's colour does, and the
   // node that STATED it is the box a declaring-box anchor maps onto.
@@ -433,6 +408,59 @@ void Composer::Impl::resolveCascade(
     inst.ruleTransition = transitionRule->transition();
   else if (inst.ruleTransition)
     inst.ruleTransition.reset();
+  // WHAT THE MATCHED RULES STATE about the carried properties, folded
+  // into the layer that stands between the parent's answers and this
+  // node's own verbs. It is rebuilt here because a rule can move while
+  // this node's own declarations stand still — a class toggled, a sheet
+  // applied above — and a node whose declarations did not move never
+  // reaches the patch.
+  std::unique_ptr<const RuleLayer> layer;
+  if (!matched.empty()) {
+    std::vector<const Rule*> rules;
+    rules.reserve(matched.size());
+    for (const MatchedRule& one : matched) rules.push_back(one.rule);
+    layer = ruleLayerOf(rules);
+  }
+  const bool layerMoved = !ruleLayerEqual(inst.ruleLayer.get(), layer.get());
+  if (layerMoved) inst.ruleLayer = std::move(layer);
+  // A NODE THAT WRITES A KEYWORD takes a value from its parent, and the
+  // parent's answer can move while this node's own declarations stand
+  // still — the one case the patch cannot see, because a node whose
+  // declarations did not move never reaches it. So the fold runs again
+  // here, for those nodes and for the ones whose rules moved; a node with
+  // neither is untouched and pays nothing. What it costs is one
+  // invalidation per such node per pass, and the pass runs only on a
+  // frame where something already changed.
+  if (node.keywords || layerMoved) {
+    const ComputedStyle before = inst.computed;
+    resolveStyle(inst.parent ? &inst.parent->computed : nullptr, node,
+                 inst.computed, inst.ruleLayer.get());
+    if (!(before.layout == inst.computed.layout)) {
+      applyLayoutProps(inst);
+      needsLayout = true;
+    }
+    // ONLY WHERE THE SECOND FOLD MOVED SOMETHING. The fold's inputs are
+    // this node's own declarations, which did not move — a node whose
+    // declarations moved came through the patch — and the parent's
+    // answers and the rules', which may have. Invalidating whether or not
+    // they did re-records every keyword-bearing node and its ancestors on
+    // every frame anything anywhere changed.
+    if (!first && !computedStyleEqual(before, inst.computed)) {
+      // A PROPERTY THAT MOVED HERE MOVED FOR THE SAME REASON one changed
+      // by the node's own verbs does, so it eases the same way: the lanes
+      // are retargeted from the style that stood before this fold. The
+      // patch cannot do it — this node never reaches the patch, its own
+      // declarations having compared equal — which is why the pass that
+      // found the change is the one that acts on it.
+      // The lane lists hold pointers into `before`, a local of this
+      // frame, so they live and die with it rather than outliving the
+      // description they point at.
+      std::vector<Lane> prevLanes, nextLanes;
+      retargetProperties(inst, {before, node}, prevLanes, nextLanes);
+      inst.markPaintDirtyUp();
+      contentDirty = true;
+    }
+  }
   if (cascade != nullptr || !matched.empty()) {
     // The role's defaults, the rules that matched a selector, then the
     // node's own declarations. Partials are merged first so a relative
@@ -443,6 +471,13 @@ void Composer::Impl::resolveCascade(
     // The property the ink reads, from whichever layer last said so.
     std::optional<VarRef> inkVar;
     VarTable ruleVars;
+    VarTable ruleVarDefaults;
+    // Where a rule wrote the font, the block or the custom properties as
+    // `initial`, the layers above it are laid over the initial value
+    // rather than over the one inherited.
+    bool fontFromInitial = false;
+    bool blockFromInitial = false;
+    bool varsFromInitial = false;
     if (cascade != nullptr && cascade->role) {
       sigil::weave::merge(ownFont, cascade->role->font);
       sigil::weave::merge(ownBlock, cascade->role->block);
@@ -470,6 +505,57 @@ void Composer::Impl::resolveCascade(
         inkPaintOrigin = rule.inkPaint().has_value();
       }
       if (!rule.vars().empty()) ruleVars.overlay(rule.vars());
+      const ElementNode& stated = *rule.node();
+      if (const CascadeData* said =
+              stated.cascadeData ? &*stated.cascadeData : nullptr) {
+        if (said->sampling) sampling = said->sampling;
+        if (!said->varDefaults.empty())
+          ruleVarDefaults.overlay(said->varDefaults);
+      }
+      // A RULE'S KEYWORD over an inherited property throws away what the
+      // weaker layers said and stands in the value arriving from above,
+      // or the initial one; the stronger layers are then laid over that.
+      if (!stated.keywords) continue;
+      for (const sigil::weave::KeywordTable<Property>::Entry& entry :
+           stated.keywords->entries()) {
+        const bool fromParent = resolveKeyword(entry.keyword, entry.field) ==
+                                sigil::weave::Keyword::Inherit;
+        switch (entry.field) {
+          case Property::Font: {
+            const std::optional<SkColor4f> colour = ownFont.color;
+            ownFont = {};
+            ownFont.color = colour;
+            fontFromInitial = !fromParent;
+            break;
+          }
+          case Property::Block:
+            ownBlock = {};
+            blockFromInitial = !fromParent;
+            break;
+          case Property::Ink:
+            inkVar.reset();
+            if (fromParent)
+              ownFont.color.reset();
+            else
+              ownFont.color = sigil::weave::initialType().color;
+            inkPaint = fromParent ? parentInkPaint : InkInForce{};
+            inkPaintOrigin = false;
+            break;
+          case Property::CustomProperties:
+            ruleVars = {};
+            ruleVarDefaults = {};
+            varsFromInitial = !fromParent;
+            break;
+          case Property::ImageRendering:
+            if (fromParent)
+              sampling = parentSampling;
+            else
+              sampling.reset();
+            break;
+          default:
+            break;
+        }
+      }
     }
     if (cascade != nullptr) {
       if (cascade->font) {
@@ -486,15 +572,19 @@ void Composer::Impl::resolveCascade(
     // The node's partial RESOLVED against the block it inherits, so a
     // field written as a keyword takes the inherited value or none at
     // all. A merge could not: it has no base to inherit from.
-    block = sigil::weave::overlay(block, ownBlock);
+    block = sigil::weave::overlay(
+        blockFromInitial ? sigil::weave::Block{} : block, ownBlock);
     if (cascade != nullptr && cascade->sampling) sampling = cascade->sampling;
     const bool anyOwnVars =
         cascade != nullptr &&
         (!cascade->varDefaults.empty() || !cascade->vars.empty());
-    if (anyOwnVars || !ruleVars.empty()) {
-      auto own = std::make_shared<VarTable>(
-          cascade != nullptr ? cascade->varDefaults : VarTable{});
-      if (parentVars) own->overlay(*parentVars);
+    if (varsFromInitial) vars = nullptr;
+    if (anyOwnVars || !ruleVars.empty() || !ruleVarDefaults.empty()) {
+      // Defaults stand under everything inherited: a rule's under the
+      // node's own, and both under any value set above.
+      auto own = std::make_shared<VarTable>(ruleVarDefaults);
+      if (cascade != nullptr) own->overlay(cascade->varDefaults);
+      if (parentVars && !varsFromInitial) own->overlay(*parentVars);
       // A rule sets a property over what the node inherits and under
       // what the node itself sets, exactly where its other lanes sit.
       own->overlay(ruleVars);
@@ -504,9 +594,15 @@ void Composer::Impl::resolveCascade(
     // The node's partial over the parent's font. A relative size in it is
     // measured against the PARENT — the size inherited — which is what
     // `1.5_em` on a heading means.
-    if (!ownFont.empty())
+    if (fontFromInitial) {
+      sigil::weave::Type initial = sigil::weave::initialType();
+      initial.color = parentFont.color;
+      font = sigil::weave::overlay(initial, ownFont, fontSizePx(rootFont),
+                                   parentLineHeight);
+    } else if (!ownFont.empty()) {
       font = sigil::weave::overlay(parentFont, ownFont, fontSizePx(rootFont),
                                    parentLineHeight);
+    }
     if (ownFont.color) statesOwnInk = true;
     if (inkVar) {
       const VarValue* value = vars ? vars->find(*inkVar) : nullptr;
