@@ -325,6 +325,15 @@ PYTHONPATH=../spell-circle-canvas/build/python \
   ../spell-circle-canvas/build/typing-tools/bin/python sigil/typing/generate.py --check
 ```
 
+`PARITY.md` is generated the same way, after the modules it reads:
+`typing/parity.py` writes it from the extension, the sketch
+registrations and the audit under `typing/ledger`, which records what
+each C++ sketch needs and which Python spellings stand for each native
+surface. Prose sits between its `<!-- prose -->` markers and is carried
+over as written; edit the ledger data or that prose, never the rest, and
+`--check` names the first line that disagrees. The application's
+`generate` target runs both scripts in order.
+
 Generation uses the compiled binding signatures plus explicit refinements
 for conversion boundaries such as colours, callbacks and property records.
 New C++ APIs are not automatically bound. Bound API changes update generated
