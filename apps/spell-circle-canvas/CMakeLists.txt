@@ -92,7 +92,9 @@ sigil_finalize_tests()
 # order one reads the other: the Python package's modules from the
 # extension, then its ledger from those modules. Every generator's own
 # --check is the drift test that fails when a derived file was not
-# regenerated; scripts/README.md maps what derives from what.
+# regenerated; scripts/README.md maps what derives from what. The ledger
+# describes an extension built with every licensed SDK, so on a tree
+# without one this target fails, saying PARITY.md was not written.
 if(SIGIL_TYPING_PYTHON)
   add_custom_target(generate
     COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${SIGIL_PYTHON_ROOT}"

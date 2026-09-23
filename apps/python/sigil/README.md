@@ -329,10 +329,16 @@ PYTHONPATH=../spell-circle-canvas/build/python \
 `typing/parity.py` writes it from the extension, the sketch
 registrations and the audit under `typing/ledger`, which records what
 each C++ sketch needs and which Python spellings stand for each native
-surface. Prose sits between its `<!-- prose -->` markers and is carried
-over as written; edit the ledger data or that prose, never the rest, and
-`--check` names the first line that disagrees. The application's
-`generate` target runs both scripts in order.
+surface. A surface no Python name can stand for says why in its record,
+and the ledger lists it as a claim the extension cannot judge. Prose sits
+between its `<!-- prose -->` markers and is carried over as written, and
+holds no table, since every table is generated; edit the ledger data or
+that prose, never the rest, and `--check` names the first line that
+disagrees. The application's `generate` target runs both scripts in
+order. The ledger describes an extension built with every licensed SDK:
+against one built without, `--check` exits as skipped, which ctest and
+`sigil.py check` report as skipped, and the `generate` target fails
+without writing `PARITY.md`.
 
 Generation uses the compiled binding signatures plus explicit refinements
 for conversion boundaries such as colours, callbacks and property records.

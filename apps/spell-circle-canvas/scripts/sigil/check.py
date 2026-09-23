@@ -162,15 +162,20 @@ def check_ruff(files: list, fix: bool, whole_tree: bool) -> bool:
 # Each generator's own --check registers as a ctest case ending in this,
 # so running the matching cases is running every --check.
 DRIFT_TESTS = "_drift$"
+# A tier that could not look is reported as this, which passes the run
+# without reading as a clean result.
+SKIPPED = "skipped"
+# How ctest lists a case whose command exited with its skip status.
+SKIPPED_CASE = re.compile(r"^\s*\d+ - (\S+) \(Skipped\)$", re.MULTILINE)
 
 
-def check_derived() -> bool:
+def check_derived() -> bool | str:
     """Every derived file the checkout carries, against its generator."""
     section("derived files (every generator's --check)")
     build = tree.build_dir()
     if not (build / "CTestTestfile.cmake").exists():
         print("SKIPPED: no build tree — run sigil.py setup, then build sigil_python")
-        return True
+        return SKIPPED
     listing = ["ctest", "--test-dir", build, "-C", "Release", "-R", DRIFT_TESTS]
     listed = run([*listing, "-N"])
     total = re.search(r"Total Tests: (\d+)", listed.stdout)
@@ -179,8 +184,17 @@ def check_derived() -> bool:
             "SKIPPED: this tree registers no drift check; its configure found "
             "no interpreter that matches the Python extension"
         )
-        return True
-    return run([*listing, "--output-on-failure"], capture=False) == 0
+        return SKIPPED
+    ran = run([*listing, "--output-on-failure"])
+    print(ran.stdout, end="")
+    print(ran.stderr, end="")
+    if ran.returncode != 0:
+        return False
+    skipped = SKIPPED_CASE.findall(ran.stdout)
+    if skipped:
+        print(f"SKIPPED: {', '.join(skipped)} could not judge this tree")
+        return SKIPPED
+    return True
 
 
 def check_qmllint(files: list) -> bool:
@@ -392,6 +406,7 @@ def main(argv: list) -> int:
             report_undocumented(documents)
 
     section("summary")
-    for tool, passed in results.items():
-        print(f"  {tool:14} {'ok' if passed else 'FINDINGS'}")
+    for tool, verdict in results.items():
+        shown = verdict if verdict == SKIPPED else "ok" if verdict else "FINDINGS"
+        print(f"  {tool:14} {shown}")
     return 0 if all(results.values()) else 1

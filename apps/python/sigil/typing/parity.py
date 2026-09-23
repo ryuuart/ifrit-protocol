@@ -16,10 +16,17 @@ is read:
 
 Everything else in PARITY.md is prose an author wrote. It sits between
 `<!-- prose: NAME -->` and `<!-- /prose -->` markers, and this pass carries
-it over verbatim from the file already on disk.
+it over verbatim from the file already on disk. A prose block holds no
+table: every table in the ledger is generated, so a row written by hand
+inside a block stops the pass rather than riding along unjudged.
 
 `--check` writes nothing and exits non-zero at the first line the checked-in
 ledger does not agree with.
+
+The ledger describes an extension built with every licensed SDK. One built
+without them cannot judge it, so this exits with SKIPPED, which the drift
+test reports as skipped and the `generate` target as a failure: in neither
+mode is PARITY.md read or written.
 """
 
 from __future__ import annotations
@@ -70,6 +77,9 @@ PROSE_OPEN = re.compile(r"^<!-- prose: ([a-z-]+) -->$")
 PROSE_CLOSE = "<!-- /prose -->"
 # A surface needed by at least this many sketches is listed under Status.
 WIDELY_NEEDED = 8
+# The exit status for an extension that cannot judge the ledger; the drift
+# test names it as its skip status.
+SKIPPED = 77
 
 
 class LedgerError(Exception):
@@ -281,6 +291,8 @@ class Requirement:
     library: str
     python: list[str]
     bound: bool
+    # Why no Python name can stand for this surface, when none can.
+    no_python_spelling: str | None = None
 
 
 @dataclasses.dataclass
@@ -327,9 +339,16 @@ class Ledger:
         found = {}
         for key, record in data.get("requirement", {}).items():
             python = list(record.get("python", []))
+            reason = record.get("no_python_spelling")
+            if bool(python) == bool(reason):
+                raise LedgerError(
+                    f"typing/ledger/requirements.toml: `{key}` must give either "
+                    "the Python spellings that stand for it in `python`, or why "
+                    "none can in `no_python_spelling`, and not both"
+                )
             bound = bool(python) and self.extension.all_resolve(python)
             found[key] = Requirement(
-                key, record["native"], record["library"], python, bound
+                key, record["native"], record["library"], python, bound, reason
             )
         return found
 
@@ -538,6 +557,7 @@ class Writer:
             self.paragraph(f"Every sketch in {listing(complete)} is bound.")
         self.one_surface_away()
         self.widely_needed()
+        self.unjudged()
 
     def one_surface_away(self) -> None:
         waiting: dict[str, list[str]] = {}
@@ -578,6 +598,34 @@ class Writer:
         ):
             requirement = requirements[key]
             self.emit(row(requirement.native, requirement.library, str(counts[key])))
+        self.emit("")
+
+    def unjudged(self) -> None:
+        requirements = [
+            requirement
+            for requirement in self.ledger.requirements.values()
+            if requirement.no_python_spelling
+        ]
+        if not requirements:
+            return
+        self.paragraph(
+            "No Python name can stand for these surfaces, so the extension cannot "
+            "judge them and every sketch that needs one counts as unbound. Each is "
+            "a claim the audit makes, with its reason:"
+        )
+        for requirement in sorted(requirements, key=lambda item: item.native):
+            needing = sum(
+                any(item.key == requirement.key for item in sketch.requires)
+                for sketch in self.ledger.sketches
+            )
+            self.emit(
+                *wrap(
+                    f"- {requirement.native}, needed by {number(needing)} "
+                    f"{'sketch' if needing == 1 else 'sketches'}. "
+                    f"{requirement.no_python_spelling}.",
+                    hanging="  ",
+                )
+            )
         self.emit("")
 
     # -- Library coverage --------------------------------------------------
@@ -776,6 +824,12 @@ def read_prose(text: str) -> dict[str, str]:
             blocks[name] = "\n".join(body)
             name = None
         elif name is not None:
+            if line.lstrip().startswith("|"):
+                raise LedgerError(
+                    f"PARITY.md:{number}: the prose block `{name}` holds a table "
+                    "row; the ledger's tables are generated, so state the fact "
+                    "in typing/ledger instead"
+                )
             body.append(line)
     if name is not None:
         raise LedgerError(f"PARITY.md: the prose block {name} never closes")
@@ -827,10 +881,12 @@ def main() -> int:
         # The ledger describes a build with every optional SDK, so one
         # without them cannot say what it should read.
         print(
-            "typing/parity.py: this extension was built without "
-            f"{', '.join(absent)}, so it cannot judge PARITY.md; skipped."
+            "typing/parity.py: SKIPPED: this extension was built without "
+            f"{', '.join(absent)}, so it cannot judge PARITY.md, and "
+            + ("nothing was checked." if args.check else "PARITY.md was not written."),
+            file=sys.stderr,
         )
-        return 0
+        return SKIPPED
     old = TARGET.read_text() if TARGET.is_file() else ""
     try:
         new = Writer(Ledger(Extension(), args.sketches), read_prose(old)).document()

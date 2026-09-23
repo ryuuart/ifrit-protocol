@@ -149,6 +149,9 @@ if(SIGIL_TYPING_PYTHON)
       "${SIGIL_TYPING_PYTHON}"
       "${CMAKE_CURRENT_SOURCE_DIR}/typing/parity.py" --check
       --sketches "${PROJECT_SOURCE_DIR}/src/sketch/sketches")
+  # An extension built without a licensed SDK cannot judge the ledger, and
+  # the check exits with this status to be counted as skipped, not passed.
+  set_tests_properties(python_parity_drift PROPERTIES SKIP_RETURN_CODE 77)
   if(SIGIL_BASEDPYRIGHT)
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/typing/pyrightconfig.json.in"
       "${CMAKE_BINARY_DIR}/python-typing/pyrightconfig.json" @ONLY)

@@ -2,8 +2,10 @@
 # basic pen verbs, one record each. `native` is the C++ spelling the ledger
 # prints while the surface is unbound; `library` groups it; `python` lists
 # the Python spellings that must ALL resolve in the built extension for the
-# surface to count as bound. A record with no `python` names no Python
-# spelling yet and stays unbound until one is written here.
+# surface to count as bound. A surface no Python name can stand for gives
+# `no_python_spelling` instead, saying why; it counts as unbound, and the
+# ledger lists it as a claim the extension cannot judge. A record with
+# neither stops generation.
 #
 # A spelling is a dotted path under `sigil`. A trailing parenthesised list,
 # `compose.text(paragraph)`, also requires an overload whose parameters
@@ -36,6 +38,7 @@ python = ["material.Atlas"]
 [requirement.availability-probe]
 native = "A declared `available(why)` probe"
 library = "Sketch host"
+no_python_spelling = "The host decides whether a Python entry is available from the modules it imports; an entry has no probe of its own to declare"
 
 [requirement.bank]
 native = "`material::Bank` recipe cache"
@@ -360,6 +363,7 @@ python = ["weave.HyphenationOptions.patterns"]
 [requirement.image-asset-leaf]
 native = "`compose::image` over a shared `image::ImageAsset`"
 library = "Compose"
+python = ["compose.image(asset)", "compose.Image.imageRegion"]
 
 [requirement.image-probe]
 native = "`image::probeImage` and `image::decodeChannels`"
@@ -369,6 +373,7 @@ python = ["image.probeImage", "image.decodeChannels"]
 [requirement.image-sampling]
 native = "`material::skia::Paint::image` sampling options"
 library = "Material"
+python = ["material.Paint.image(image, tileX, tileY, local, sampling)"]
 
 [requirement.inset-polygon]
 native = "`geometry::path::insetPolygon` mitred insets"
@@ -759,6 +764,7 @@ python = [
 [requirement.sketch-schemas]
 native = "Per-sketch `<stem>.fbs` schemas for Python entries"
 library = "Sketch host"
+python = ["data.Schema.fromBinarySchema", "sketch.SketchContext.local"]
 
 [requirement.sketch-scry]
 native = "`sketch::scry` shared engine, settling and sequences"

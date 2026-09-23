@@ -383,7 +383,7 @@ native = "`Table`"
 python = ["compose.layouts.Table"]
 
 [[section.surface.item]]
-native = "a Python placement scheme of the older `place(LayoutInput)` shape, which an arranging operator stands in for"
+native = "a Python placement scheme, `place(LayoutInput)` answering one rectangle per child, which an arranging operator stands in for"
 
 [[section.surface.item]]
 native = "shader fills"
