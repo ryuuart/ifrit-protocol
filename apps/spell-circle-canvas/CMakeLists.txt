@@ -86,6 +86,24 @@ add_subdirectory("${SIGIL_PYTHON_PACKAGE_DIR}" "python-package")
 # defined after its own directory.
 sigil_finalize_docs()
 sigil_finalize_tests()
+
+# The files the checkout carries that derive from something else, each
+# rewritten by the Python generator that lives beside its source, in the
+# order one reads the other: the Python package's modules from the
+# extension, then its ledger from those modules. Every generator's own
+# --check is the drift test that fails when a derived file was not
+# regenerated; scripts/README.md maps what derives from what.
+if(SIGIL_TYPING_PYTHON)
+  add_custom_target(generate
+    COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${SIGIL_PYTHON_ROOT}"
+            "${SIGIL_TYPING_PYTHON}" "${SIGIL_PYTHON_PACKAGE_DIR}/typing/generate.py"
+    COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${SIGIL_PYTHON_ROOT}"
+            "${SIGIL_TYPING_PYTHON}" "${SIGIL_PYTHON_PACKAGE_DIR}/typing/parity.py"
+            --sketches "${CMAKE_CURRENT_SOURCE_DIR}/src/sketch/sketches"
+    COMMENT "Regenerating the derived files the checkout carries"
+    VERBATIM)
+  add_dependencies(generate sigil_python)
+endif()
 if(COMMAND sigil_finalize_sketch_link_surfaces)
   sigil_finalize_sketch_link_surfaces()
 endif()

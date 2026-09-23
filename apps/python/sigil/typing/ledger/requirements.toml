@@ -1,0 +1,997 @@
+# The native surfaces a registered C++ sketch needs from Python beyond
+# basic pen verbs, one record each. `native` is the C++ spelling the ledger
+# prints while the surface is unbound; `library` groups it; `python` lists
+# the Python spellings that must ALL resolve in the built extension for the
+# surface to count as bound. A record with no `python` names no Python
+# spelling yet and stays unbound until one is written here.
+#
+# A spelling is a dotted path under `sigil`. A trailing parenthesised list,
+# `compose.text(paragraph)`, also requires an overload whose parameters
+# begin with those names.
+
+[requirement.adaptors]
+native = "`compose::onEdges` and `compose::inset` adaptors"
+library = "Compose"
+python = ["compose.onEdges", "compose.inset"]
+
+[requirement.annotate]
+native = "`compose::kit::annotate` sibling annotations"
+library = "Compose kit"
+python = ["compose.kit.annotate"]
+
+[requirement.asset-frames]
+native = "`image::ImageAsset` frames, repetition and wrap"
+library = "Image"
+python = [
+  "image.ImageAsset.frames",
+  "image.ImageAsset.repetitionCount",
+  "image.ImageAsset.wrap",
+]
+
+[requirement.atlas]
+native = "`material::Atlas` sprite sheets"
+library = "Material"
+python = ["material.Atlas"]
+
+[requirement.availability-probe]
+native = "A declared `available(why)` probe"
+library = "Sketch host"
+
+[requirement.bank]
+native = "`material::Bank` recipe cache"
+library = "Material"
+python = ["material.Bank"]
+
+[requirement.bevel-normals]
+native = "`material::bevelNormals` normal maps"
+library = "Material"
+python = ["material.bevelNormals"]
+
+[requirement.bevels]
+native = "`compose::kit::Bevel` and `kit::bevels` presets"
+library = "Compose kit"
+python = ["compose.kit.Bevel", "compose.kit.bevels.motif"]
+
+[requirement.blends]
+native = "`geometry::path::blend` shape blends"
+library = "Geometry"
+python = ["geometry.path.blend.blend"]
+
+[requirement.border]
+native = "`compose::Border` and `compose::decorations::border` rules"
+library = "Compose"
+python = ["compose.Border", "compose.decorations.border"]
+
+[requirement.braid]
+native = "`compose::kit::braid` strands"
+library = "Compose kit"
+python = ["compose.kit.braid"]
+
+[requirement.brush-marks]
+native = "`compose::brush` scatter, pattern and art brushes"
+library = "Compose"
+python = [
+  "compose.brush.scatter",
+  "compose.brush.pattern",
+  "compose.brush.art",
+]
+
+[requirement.brush-stacks]
+native = "`compose::Brush` shaped layer stacks"
+library = "Compose"
+python = ["compose.Brush"]
+
+[requirement.brush-weave]
+native = "`compose::brush::weave` strand composite"
+library = "Compose"
+python = ["compose.brush.weave"]
+
+[requirement.camera-extent]
+native = "`geometry::mesh::camera::Camera::extentAt`"
+library = "Geometry"
+python = ["geometry.mesh.camera.Camera.extentAt"]
+
+[requirement.canvas-layers]
+native = "`SkCanvas` layers, `drawPaint` and `drawImageRect`"
+library = "Skia"
+python = [
+  "skia.Canvas.saveLayer",
+  "skia.Canvas.drawPaint",
+  "skia.Canvas.drawImageRect",
+]
+
+[requirement.check-table]
+native = "`measure::CheckTable` and `measure::check`"
+library = "Measure"
+python = ["measure.CheckTable", "measure.check"]
+
+[requirement.chrome-type]
+native = "`compose::kit::sunsetChromeType`, `silverChromeType` paints"
+library = "Compose kit"
+python = ["compose.kit.sunsetChromeType", "compose.kit.silverChromeType"]
+
+[requirement.clouds]
+native = "`geometry::mesh::Cloud` and `mesh::points`"
+library = "Geometry"
+python = ["geometry.mesh.Cloud", "geometry.mesh.points.stamp"]
+
+[requirement.compose-readout]
+native = "`compose::kit::readout` rows"
+library = "Compose kit"
+python = ["compose.kit.readout"]
+
+[requirement.compose-test]
+native = "`compose::test` geometry and pixel checks"
+library = "Compose"
+python = ["compose.test"]
+
+[requirement.composer-beats]
+native = "`compose::Composer::beatsOf` and `units`"
+library = "Compose"
+python = ["compose.Composer.beatsOf", "compose.Composer.units"]
+
+[requirement.composer-profile]
+native = "`compose::Composer::profile` node costs"
+library = "Compose"
+python = ["compose.Composer.profile", "compose.Composer.NodeCost"]
+
+[requirement.composer-view]
+native = "`compose::Composer::setView` output view"
+library = "Compose"
+python = ["compose.Composer.setView"]
+
+[requirement.compute-passes]
+native = "`world::computePass` passes and `world::readback`"
+library = "World"
+python = ["world.computePass", "world.readback"]
+
+[requirement.conics]
+native = "`geometry::path::Conic` conic sections"
+library = "Geometry"
+python = ["geometry.path.Conic"]
+
+[requirement.connect]
+native = "`compose::connect` wire operators and routers"
+library = "Compose"
+python = [
+  "compose.connect.Between",
+  "compose.connect.ByLane",
+  "compose.Router",
+  "compose.RailRouter",
+]
+
+[requirement.connection]
+native = "`data::Connection`"
+library = "Data"
+python = ["data.Connection"]
+
+[requirement.console-plate]
+native = "`compose::kit::console` and `plate` panels"
+library = "Compose kit"
+python = ["compose.kit.console", "compose.kit.plate"]
+
+[requirement.contour-measure]
+native = "`SkContourMeasureIter` path measurement"
+library = "Skia"
+python = ["skia.ContourMeasureIter"]
+
+[requirement.contour-walk]
+native = "`compose::ContourWalk` path-walk stamps"
+library = "Compose"
+python = ["compose.ContourWalk"]
+
+[requirement.contours]
+native = "`geometry::path::Contour` corners, poses and offsets"
+library = "Geometry"
+python = ["geometry.path.Contour"]
+
+[requirement.corners]
+native = "`geometry::shapes` corner operators"
+library = "Geometry"
+python = [
+  "geometry.shapes.rounded",
+  "geometry.shapes.chamfered",
+  "geometry.shapes.notched",
+]
+
+[requirement.crossings]
+native = "`geometry::path` crossings and crossing rules"
+library = "Geometry"
+python = ["geometry.path.crossing.crossings", "geometry.path.crossing.Rule"]
+
+[requirement.curves]
+native = "`geometry::shapes` parametric curve generators"
+library = "Geometry"
+python = [
+  "geometry.shapes.spiral",
+  "geometry.shapes.lissajous",
+  "geometry.shapes.harmonograph",
+  "geometry.shapes.parametric",
+]
+
+[requirement.default-face]
+native = "`weave::defaultFace` in a `weave::Type` partial"
+library = "Weave"
+python = ["weave.defaultFace", "weave.Type.face"]
+
+[requirement.divisions]
+native = "`geometry::shapes::ticks` and `chords` divisions"
+library = "Geometry"
+python = ["geometry.shapes.ticks", "geometry.shapes.chords"]
+
+[requirement.dot-sprite]
+native = "`compose::kit::dotSprite` point stamp"
+library = "Compose kit"
+python = ["compose.kit.dotSprite"]
+
+[requirement.draw-lattice]
+native = "`skia::draw::drawLattice` nine-slice drawing"
+library = "Skia"
+python = ["skia.draw.drawLattice"]
+
+[requirement.effect-filter]
+native = "`material::skia::Effect::filter`"
+library = "Material"
+python = ["material.Effect.filter"]
+
+[requirement.embedded-pngs]
+native = "`image::embeddedPngs` signature scan"
+library = "Image"
+python = ["image.embeddedPngs"]
+
+[requirement.environment-maps]
+native = "`material::EnvironmentMap` and kit environments"
+library = "Material"
+python = ["material.EnvironmentMap"]
+
+[requirement.environment-values]
+native = "`core::environment::Provide` / `inheritedOr` values"
+library = "Core"
+python = ["core.environment.Provide", "core.environment.inheritedOr"]
+
+[requirement.face-topology]
+native = "`geometry::mesh` face topology queries"
+library = "Geometry"
+python = [
+  "geometry.mesh.faceCount",
+  "geometry.mesh.faceNormal",
+  "geometry.mesh.faceCentroid",
+  "geometry.mesh.opposedFace",
+]
+
+[requirement.face-width]
+native = "`weave::ports::face` with a width style"
+library = "Weave"
+python = ["weave.ports.face"]
+
+[requirement.feed]
+native = "`compose::feed` rings and text feeds"
+library = "Compose"
+python = [
+  "compose.feed.feed",
+  "compose.feed.Ring",
+  "compose.feed.TextRing",
+  "compose.feed.textRow",
+]
+
+[requirement.finishes]
+native = "`compose::kit::aquaGel`, `y2kChrome`, `gloss` finishes"
+library = "Compose kit"
+python = ["compose.kit.aquaGel", "compose.kit.y2kChrome", "compose.kit.gloss"]
+
+[requirement.flatbuffer]
+native = "`data::FlatBuffer` roots and `data::schema`"
+library = "Data"
+python = ["data.FlatBuffer"]
+
+[requirement.float-encode]
+native = "`image::encodeImage` float pixmaps (`Format::Exr`)"
+library = "Image"
+python = ["image.encodePixmap"]
+
+[requirement.float-readback]
+native = "`skia::isFloatImage` / `halfFloatPixels` float readback"
+library = "Skia"
+python = ["skia.isFloatImage", "skia.halfFloatPixels"]
+
+[requirement.flourish]
+native = "`compose::kit::flourish` vines and cards"
+library = "Compose kit"
+python = [
+  "compose.kit.flourish.acanthusLeaf",
+  "compose.kit.flourish.beadChain",
+]
+
+[requirement.frame-fill]
+native = "`material::skia::fill` with `FrameData`"
+library = "Material"
+python = ["material.fill", "material.FrameData"]
+
+[requirement.frames-grids]
+native = "`geometry::path::PolarFrame` and `path::Grid`"
+library = "Geometry"
+python = ["geometry.path.PolarFrame", "geometry.path.Grid"]
+
+[requirement.girih]
+native = "`material::kit::girih8` and `GirihPalette`"
+library = "Material"
+python = ["material.kit.girih8", "material.kit.GirihPalette"]
+
+[requirement.globe]
+native = "`material::kit::globe`"
+library = "Material"
+python = ["material.kit.globe"]
+
+[requirement.grained]
+native = "`material::kit` grained surfaces (`stone`, `timber`, `latten`, `board`)"
+library = "Material"
+python = [
+  "material.kit.stone",
+  "material.kit.timber",
+  "material.kit.latten",
+  "material.kit.board",
+]
+
+[requirement.guests]
+native = "`sketch::Guest` publication subscriptions"
+library = "Sketch host"
+python = ["sketch.Guest"]
+
+[requirement.hash-words]
+native = "`core::hash` FNV-1a words"
+library = "Core"
+python = ["core.hash.fnv1a", "core.hash.combine"]
+
+[requirement.hatch]
+native = "`compose::lines::Hatch` and `lines::RadialHatch`"
+library = "Compose"
+python = ["compose.lines.Hatch", "compose.lines.RadialHatch"]
+
+[requirement.hub-decoders]
+native = "`io::Hub` typed probes and `registerDecoder` for further types"
+library = "IO"
+python = ["io.Hub.registerDecoder"]
+
+[requirement.hyphenation-patterns]
+native = "`weave::HyphenationOptions::patterns` on a paragraph"
+library = "Weave"
+python = ["weave.HyphenationOptions.patterns"]
+
+[requirement.image-asset-leaf]
+native = "`compose::image` over a shared `image::ImageAsset`"
+library = "Compose"
+
+[requirement.image-probe]
+native = "`image::probeImage` and `image::decodeChannels`"
+library = "Image"
+python = ["image.probeImage", "image.decodeChannels"]
+
+[requirement.image-sampling]
+native = "`material::skia::Paint::image` sampling options"
+library = "Material"
+
+[requirement.inset-polygon]
+native = "`geometry::path::insetPolygon` mitred insets"
+library = "Geometry"
+python = ["geometry.path.insetPolygon"]
+
+[requirement.instancing]
+native = "`compose::instancing` atlases, pools and instances"
+library = "Compose"
+python = [
+  "compose.instancing.Pool",
+  "compose.instancing.CellSheet",
+  "compose.instancing.instances",
+]
+
+[requirement.keyed-shape]
+native = "`compose::keyedShape` comparable shapes"
+library = "Compose"
+python = ["compose.keyedShape"]
+
+[requirement.kinetic-presets]
+native = "`compose::textFx` kinetic presets (`rise`, `pop`, `typeOn`)"
+library = "Compose kit"
+python = [
+  "compose.textFx.rise",
+  "compose.textFx.pop",
+  "compose.textFx.typeOn",
+]
+
+[requirement.kit-bars]
+native = "`sketch::kit::bars` over `data::Table`"
+library = "Sketch kit"
+python = ["sketch.kit.bars"]
+
+[requirement.kit-channel]
+native = "`sketch::kit::Channel` address follower"
+library = "Sketch kit"
+python = ["sketch.kit.Channel"]
+
+[requirement.kit-document]
+native = "`sketch::kit::Document` content reader"
+library = "Sketch kit"
+python = ["sketch.kit.Document"]
+
+[requirement.kit-instrument]
+native = "`sketch::kit::instrument`"
+library = "Sketch kit"
+python = ["sketch.kit.instrument"]
+
+[requirement.kit-legend]
+native = "`sketch::kit::legend` and `swatchStrip`"
+library = "Sketch kit"
+python = ["sketch.kit.legend", "sketch.kit.swatchStrip"]
+
+[requirement.kit-meter]
+native = "`sketch::kit::meter` and `gauge`"
+library = "Sketch kit"
+python = ["sketch.kit.meter", "sketch.kit.gauge"]
+
+[requirement.kit-panel-chrome]
+native = "`sketch::kit` panel chrome (`backdrop`, `frame`)"
+library = "Sketch kit"
+python = ["sketch.kit.backdrop", "sketch.kit.frame"]
+
+[requirement.kit-plot]
+native = "`sketch::kit::plot` chart layers"
+library = "Sketch kit"
+python = ["sketch.kit.plot"]
+
+[requirement.kit-readout]
+native = "`sketch::kit::readout`"
+library = "Sketch kit"
+python = ["sketch.kit.readout"]
+
+[requirement.kit-scrollbar]
+native = "`sketch::kit::scrollbar` with `Scrolled`"
+library = "Sketch kit"
+python = ["sketch.kit.scrollbar", "sketch.kit.Scrolled"]
+
+[requirement.kit-section-header]
+native = "`sketch::kit::sectionHeader`"
+library = "Sketch kit"
+python = ["sketch.kit.sectionHeader"]
+
+[requirement.kit-table]
+native = "`sketch::kit::table`"
+library = "Sketch kit"
+python = ["sketch.kit.table"]
+
+[requirement.kit-ticker]
+native = "`sketch::kit::ticker` marquee strip"
+library = "Sketch kit"
+python = ["sketch.kit.ticker"]
+
+[requirement.kit-title-card]
+native = "`sketch::kit::titleCard`"
+library = "Sketch kit"
+python = ["sketch.kit.titleCard"]
+
+[requirement.lanes]
+native = "`motion::Lane` retargeting over `AnimatedFloats`"
+library = "Motion"
+python = ["motion.Lane", "motion.AnimatedFloats"]
+
+[requirement.layer-styles]
+native = "`compose::styles` layer styles (glow, inner shadow, bevel)"
+library = "Compose"
+python = [
+  "compose.styles.outerGlow",
+  "compose.styles.innerShadow",
+  "compose.styles.bevelEmboss",
+]
+
+[requirement.layered-brush]
+native = "`compose::LayeredBrush` stroke layers"
+library = "Compose"
+python = ["compose.LayeredBrush"]
+
+[requirement.legibility]
+native = "`compose::kit::scrim` and `drawHaloed` legibility"
+library = "Compose kit"
+python = ["compose.kit.scrim", "compose.kit.drawHaloed"]
+
+[requirement.line-fit]
+native = "`measure::lineFit` least-squares fit"
+library = "Measure"
+python = ["measure.lineFit"]
+
+[requirement.lines]
+native = "`compose::lines::Line` and `lines::Rails`"
+library = "Compose"
+python = ["compose.lines.Line", "compose.lines.Rails"]
+
+[requirement.marquee]
+native = "`compose::kit::marquee`"
+library = "Compose kit"
+python = ["compose.kit.marquee"]
+
+[requirement.mask]
+native = "`compose::Element::mask` and `compose::by` gates"
+library = "Compose"
+python = [
+  "compose.Element.mask",
+  "compose.by.alpha",
+  "compose.by.luma",
+  "compose.by.spans",
+]
+
+[requirement.measurement]
+native = "`compose::metrics` and `compose::runPens` measurement"
+library = "Compose"
+python = ["compose.metrics", "compose.runPens"]
+
+[requirement.mesh-codec]
+native = "`geometry::mesh::codec`"
+library = "Geometry"
+python = ["geometry.mesh.codec.decode.ply", "geometry.mesh.codec.encode.ply"]
+
+[requirement.multigrid]
+native = "`geometry::path::multigrid` rhomb tilings"
+library = "Geometry"
+python = ["geometry.path.multigrid"]
+
+[requirement.noise-hashes]
+native = "`core::noise::hash` / `lattice` positional hashes"
+library = "Core"
+python = ["core.noise.hash", "core.noise.lattice"]
+
+[requirement.ocio]
+native = "`material::ocio` colour management"
+library = "Material"
+python = ["material.ocio.convert", "material.ocio.Transform"]
+
+[requirement.ornament]
+native = "`compose::kit::ornament` palettes, frames and marks"
+library = "Compose kit"
+python = [
+  "compose.kit.ornament.azurePalette",
+  "compose.kit.ornament.carvedFrameSlice",
+  "compose.kit.ornament.illuminatedPanel",
+]
+
+[requirement.over]
+native = "`material::over` layering and masks"
+library = "Material"
+python = ["material.over"]
+
+[requirement.paint-motion]
+native = "`material::skia::Paint` motion-driven uniforms and offsets"
+library = "Material"
+python = ["material.Paint.offset"]
+
+[requirement.paint-program]
+native = "`compose::PaintProgram` canvas decorations"
+library = "Compose"
+python = ["compose.PaintProgram"]
+
+[requirement.paint-shader]
+native = "`material::skia::Paint` SkShader interop"
+library = "Material"
+python = ["material.Paint.shader"]
+
+[requirement.painter-runtime]
+native = "`sketch::painterRuntime` mesh executor query"
+library = "Sketch host"
+python = ["sketch.SketchContext.painterRuntime"]
+
+[requirement.particles]
+native = "`motion::physics::Emitter` and `Particles`"
+library = "Motion"
+python = ["motion.physics.Emitter", "motion.physics.Particles"]
+
+[requirement.path-arc-and-fill]
+native = "`SkPathBuilder::arcTo` and `skpathutils::FillPathWithPaint`"
+library = "Skia"
+python = ["skia.PathBuilder.arcTo", "skia.fillPathWithPaint"]
+
+[requirement.path-operations]
+native = "`geometry::path::operations` chain and outline effects"
+library = "Geometry"
+python = ["geometry.path.operations.Chain"]
+
+[requirement.pattern-fill]
+native = "`compose::Pattern` tiled fills"
+library = "Compose"
+python = ["compose.Pattern"]
+
+[requirement.pin-outline]
+native = "the `compose::pin` and `compose::outline` adding operators"
+library = "Compose"
+python = ["compose.pin.ByLane", "compose.outline.Hull"]
+
+[requirement.pixel-buffer]
+native = "`material::skia::PixelBuffer` and `Paint::buffer`"
+library = "Material"
+python = ["material.PixelBuffer", "material.Paint.buffer"]
+
+[requirement.pixel-sprites]
+native = "`compose::kit` pixel sprites (`Sprite`, `PixelInk`)"
+library = "Compose kit"
+python = ["compose.kit.Sprite", "compose.kit.PixelInk"]
+
+[requirement.pixel-styles]
+native = "`compose::styles` rails, scanlines and stipple"
+library = "Compose"
+python = [
+  "compose.styles.tickRail",
+  "compose.styles.scanlines",
+  "compose.styles.stipple",
+]
+
+[requirement.pixel-type]
+native = "`compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`)"
+library = "Compose kit"
+python = ["compose.kit.bakeRun", "compose.kit.Mask", "compose.kit.PixFont"]
+
+[requirement.placers]
+native = "`compose::instancing::place` placers"
+library = "Compose kit"
+python = [
+  "compose.instancing.place.grid",
+  "compose.instancing.place.ring",
+  "compose.instancing.place.repeat",
+]
+
+[requirement.point-operators]
+native = "`geometry::mesh::pop` point-operator chains"
+library = "Geometry"
+python = ["geometry.mesh.pop.Chain"]
+
+[requirement.polylines]
+native = "`geometry::path::Polyline` resampling and smoothing"
+library = "Geometry"
+python = ["geometry.path.Polyline"]
+
+[requirement.primitive-lanes]
+native = "`geometry::mesh::Mesh` primitive lanes"
+library = "Geometry"
+python = [
+  "geometry.mesh.Mesh.primitive",
+  "geometry.mesh.Mesh.setPrimitive",
+  "geometry.mesh.bakePrimitiveColor",
+]
+
+[requirement.profiles]
+native = "`geometry::path::Profile` width profiles and bands"
+library = "Geometry"
+python = ["geometry.path.Profile"]
+
+[requirement.projections]
+native = "`geometry::path::Projection` spherical projections"
+library = "Geometry"
+python = ["geometry.path.Projection"]
+
+[requirement.ramp-shaders]
+native = "`material::skia` ramp shaders"
+library = "Material"
+python = ["material.verticalRamp", "material.unitRamp"]
+
+[requirement.raster-surfaces]
+native = "`SkSurfaces::Raster` standalone raster surfaces"
+library = "Skia"
+python = ["skia.Surface.raster"]
+
+[requirement.recipes]
+native = "`material::Recipe` authoring"
+library = "Material"
+python = ["material.Recipe"]
+
+[requirement.reflections]
+native = "`material::kit` reflections (`gold`, `chrome`, `glass`)"
+library = "Material"
+python = ["material.kit.gold", "material.kit.chrome", "material.kit.glass"]
+
+[requirement.render-runtime]
+native = "`geometry::mesh::render::Runtime` selection"
+library = "Geometry"
+python = [
+  "geometry.mesh.render.Runtime.cpu",
+  "geometry.mesh.render.Runtime.device",
+]
+
+[requirement.require-cached]
+native = "`sketch::requireCached`"
+library = "Sketch host"
+python = ["sketch.requireCached"]
+
+[requirement.ribbon]
+native = "`compose::brush::Ribbon` tapered bands"
+library = "Compose"
+python = ["compose.brush.Ribbon"]
+
+[requirement.routers]
+native = "`compose::routers` stock routers"
+library = "Compose kit"
+python = [
+  "compose.routers.straight",
+  "compose.routers.orthogonal",
+  "compose.routers.arc",
+  "compose.routers.octilinear",
+]
+
+[requirement.schedules]
+native = "`motion::Spread` and `motion::Cascade` schedules"
+library = "Motion"
+python = ["motion.Spread", "motion.Cascade"]
+
+[requirement.sdf]
+native = "`material::sdf` shapes and styles"
+library = "Material"
+python = [
+  "material.sdf.circle",
+  "material.sdf.roundBox",
+  "material.sdf.star",
+  "material.sdf.material",
+]
+
+[requirement.seed-network-cache]
+native = "`io::seedNetworkCache` network cache seeding"
+library = "IO"
+python = ["io.seedNetworkCache"]
+
+[requirement.set-sketches]
+native = "Set sketches (`sketch::SetContext`, `describe`)"
+library = "Sketch host"
+python = ["sketch.SetContext"]
+
+[requirement.shader-local-matrix]
+native = "`SkShader` local matrices and raw image shaders"
+library = "Skia"
+python = ["skia.Shader.makeWithLocalMatrix"]
+
+[requirement.shapers]
+native = "`geometry::shapers` and `path::Shaper`"
+library = "Geometry"
+python = ["geometry.path.Shaper", "geometry.shapers.wave"]
+
+[requirement.silhouettes]
+native = "`geometry::shapes` silhouette generators"
+library = "Geometry"
+python = [
+  "geometry.shapes.star",
+  "geometry.shapes.polygon",
+  "geometry.shapes.blob",
+  "geometry.shapes.squircle",
+]
+
+[requirement.sketch-schemas]
+native = "Per-sketch `<stem>.fbs` schemas for Python entries"
+library = "Sketch host"
+
+[requirement.sketch-scry]
+native = "`sketch::scry` shared engine, settling and sequences"
+library = "Scry"
+python = ["sketch.scry.sharedEngine"]
+
+[requirement.slang]
+native = "`material::slang` module compiler"
+library = "Material"
+python = ["material.slang.compile"]
+
+[requirement.slice]
+native = "`compose::Slice` nine-slice decoration"
+library = "Compose"
+python = ["compose.Slice"]
+
+[requirement.splines]
+native = "`geometry::mesh::curve::Spline3` and frames"
+library = "Geometry"
+python = ["geometry.mesh.curve.Spline3"]
+
+[requirement.springs]
+native = "`motion::Spring` value and `motion::spring` step"
+library = "Motion"
+python = ["motion.Spring", "motion.spring"]
+
+[requirement.standalone-composer]
+native = "Standalone `compose::Composer` over a caller canvas"
+library = "Compose"
+python = [
+  "compose.Composer.setSize",
+  "compose.Composer.setClock",
+  "compose.Composer.draw",
+  "compose.Composer.setPointer",
+  "compose.Composer.setKey",
+]
+
+[requirement.stock-tables]
+native = "`weave::kit` kinsoku and hanging stock tables"
+library = "Weave"
+python = [
+  "weave.kit.kinsoku.japanese",
+  "weave.kit.hanging.latin",
+  "weave.kit.hanging.japanese",
+]
+
+[requirement.stock-tiles]
+native = "`material::pattern` stock tiles"
+library = "Material"
+python = [
+  "material.pattern.gridLines",
+  "material.pattern.stripes",
+  "material.pattern.speckle",
+  "material.pattern.sequence",
+]
+
+[requirement.strip-laps]
+native = "`geometry::path::operations::stripLaps` strip laps"
+library = "Geometry"
+python = ["geometry.path.operations.stripLaps"]
+
+[requirement.stroke-presets]
+native = "`compose::lines::presets` and `compose::brush::presets`"
+library = "Compose kit"
+python = ["compose.lines.presets.railway", "compose.brush.presets.rope"]
+
+[requirement.substance]
+native = "`substance::Package` and `substance::Graph` rendering"
+library = "Substance"
+python = ["substance.Package", "substance.Graph"]
+
+[requirement.sweeps]
+native = "`geometry::mesh::pop::sweep` and `geometry::sections`"
+library = "Geometry"
+python = ["geometry.mesh.pop.sweep", "geometry.sections.circle"]
+
+[requirement.table-layout]
+native = "`compose::layouts::Table` layout scheme"
+library = "Compose"
+python = ["compose.layouts.Table"]
+
+[requirement.text-attach]
+native = "`compose::Text::textAttach` selection marks"
+library = "Compose"
+python = ["compose.Text.textAttach"]
+
+[requirement.text-effects]
+native = "`compose::textFx` text effects (`keys`, `scramble`, `sequence`)"
+library = "Compose"
+python = [
+  "compose.textFx.keys",
+  "compose.textFx.scramble",
+  "compose.textFx.sequence",
+]
+
+[requirement.text-fx]
+native = "`compose::Text::textFx` text tracks"
+library = "Compose"
+python = ["compose.Text.textFx"]
+
+[requirement.text-paints]
+native = "`material::kit` text paints (`water`, `starNest`, `clouds`)"
+library = "Material"
+python = [
+  "material.kit.water",
+  "material.kit.starNest",
+  "material.kit.clouds",
+]
+
+[requirement.texture-maps]
+native = "`material::kit::surface` over `texture::TextureMaps`"
+library = "Material"
+python = ["material.kit.surface", "material.texture.TextureMaps"]
+
+[requirement.texture-scene]
+native = "`compose::TextureScene` and `SketchContext::textureScene`"
+library = "Compose"
+python = ["compose.TextureScene", "sketch.SketchContext.textureScene"]
+
+[requirement.textures]
+native = "`material::Texture` and `Material::slot`"
+library = "Material"
+python = ["material.Texture", "material.Material.slot"]
+
+[requirement.tile-programs]
+native = "`material::pattern::Tile` programs"
+library = "Material"
+python = ["material.pattern.Tile.program"]
+
+[requirement.tiles]
+native = "`compose::tiles` sliceable pictures and windows"
+library = "Compose"
+python = ["compose.tiles.Tiles"]
+
+[requirement.timelines]
+native = "`motion::Ticker::timeline` and standalone tickers"
+library = "Motion"
+python = ["motion.Ticker.timeline", "motion.Ticker.tick", "motion.Timeline"]
+
+[requirement.track-meter]
+native = "`compose::kit::trackMeter` and `restGhost` instruments"
+library = "Compose kit"
+python = ["compose.kit.trackMeter", "compose.kit.restGhost"]
+
+[requirement.typeface-axes]
+native = "`SkTypeface` variation axes and style readback"
+library = "Skia"
+python = ["skia.Typeface.variationAxes", "skia.Typeface.fontStyle"]
+
+[requirement.typesetting]
+native = "`compose::kit` typesetting (`bullets`, `nestedRun`, `textColumns`, `rules`)"
+library = "Compose kit"
+python = [
+  "compose.kit.bullets",
+  "compose.kit.nestedRun",
+  "compose.kit.textColumns",
+  "compose.kit.rules",
+]
+
+[requirement.usd-readers]
+native = "`usd::readModel` / `readLights` / `readCameras` import"
+library = "USD"
+python = ["usd.readModel", "usd.readLights", "usd.readCameras"]
+
+[requirement.usd-writer]
+native = "`usd::Writer` stage export"
+library = "USD"
+python = ["usd.Writer"]
+
+[requirement.verlet]
+native = "`motion::physics::Points` and `Constraint` (Verlet)"
+library = "Motion"
+python = ["motion.physics.Points", "motion.physics.Constraint"]
+
+[requirement.video-decode]
+native = "`video::decodeVideo` and `video::Video::frameAt`"
+library = "Video"
+python = ["video.decodeVideo", "video.Video.frameAt"]
+
+[requirement.video-leaf]
+native = "`compose::video` leaf and `compose::VideoOptions`"
+library = "Video"
+python = ["compose.video", "compose.VideoOptions"]
+
+[requirement.video-playback]
+native = "`video::Playback` scheduled frame requests"
+library = "Video"
+python = ["video.Playback"]
+
+[requirement.wash]
+native = "`compose::Wash` material wash"
+library = "Compose"
+python = ["compose.Wash"]
+
+[requirement.web-engine]
+native = "`scry::WebEngine` / `WebView` / `WebImage`"
+library = "Scry"
+python = ["scry.WebEngine", "scry.WebView", "scry.WebImage"]
+
+[requirement.web-leaf]
+native = "`compose::web` view leaf"
+library = "Scry"
+python = ["compose.web"]
+
+[requirement.world-chains]
+native = "`world::Element::chain`, `stamp` and `window`"
+library = "World"
+python = [
+  "world.Element.chain",
+  "world.Element.stamp",
+  "world.Element.window",
+]
+
+[requirement.world-environment]
+native = "`world::Environment` and `Element::environmentMap`"
+library = "World"
+python = ["world.Environment", "world.Element.environmentMap"]
+
+[requirement.world-placement]
+native = "`world::Element::along`, `staggerChildren` and `node`"
+library = "World"
+python = [
+  "world.Element.along",
+  "world.Element.staggerChildren",
+  "world.Element.node",
+]
+
+[requirement.world-rails]
+native = "`world::kit` rails (`wave`, `winding`, `rail`)"
+library = "World"
+python = ["world.kit.wave", "world.kit.winding", "world.kit.rail"]
+
+[requirement.woven-cloth]
+native = "`material::pattern` woven cloth"
+library = "Material"
+python = ["material.pattern.clothTile"]

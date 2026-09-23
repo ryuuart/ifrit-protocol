@@ -38,6 +38,10 @@ endif()
 
 set(SIGIL_PYTHON_ROOT "${CMAKE_BINARY_DIR}/python")
 set(SIGIL_PYTHON_DECLARATIONS "${SIGIL_PYTHON_ROOT}/sigil")
+# The application's `generate` target runs this package's generators with
+# the same interpreter and the same extension.
+set(SIGIL_TYPING_PYTHON "${SIGIL_TYPING_PYTHON}" PARENT_SCOPE)
+set(SIGIL_PYTHON_ROOT "${SIGIL_PYTHON_ROOT}" PARENT_SCOPE)
 
 # The same registration code is a built-in module in Sketchbook and an
 # extension in ordinary Python. Each process loads one native implementation.
@@ -139,6 +143,12 @@ if(SIGIL_TYPING_PYTHON)
       "PYTHONPATH=${SIGIL_PYTHON_ROOT}"
       "${SIGIL_TYPING_PYTHON}"
       "${CMAKE_CURRENT_SOURCE_DIR}/typing/generate.py" --check)
+  add_test(NAME python_parity_drift
+    COMMAND ${CMAKE_COMMAND} -E env
+      "PYTHONPATH=${SIGIL_PYTHON_ROOT}"
+      "${SIGIL_TYPING_PYTHON}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/typing/parity.py" --check
+      --sketches "${PROJECT_SOURCE_DIR}/src/sketch/sketches")
   if(SIGIL_BASEDPYRIGHT)
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/typing/pyrightconfig.json.in"
       "${CMAKE_BINARY_DIR}/python-typing/pyrightconfig.json" @ONLY)

@@ -1,0 +1,1658 @@
+# What each registered C++ sketch needs, as an author audited it.
+# `needs` summarises the native capabilities its source uses beyond basic
+# pen verbs; `requires` names the records of requirements.toml a Python
+# translation needs. Which of those are bound is read from the built
+# extension, never written here. The collection a sketch files under is
+# read from its registration.
+#
+# `collections` orders the ledger's collections; one it does not name
+# follows them alphabetically.
+
+collections = [
+  "Start & fixtures",
+  "Draw",
+  "Draw · Generative",
+  "Draw · Observable reproductions",
+  "Draw · Procedural",
+  "Kit · API",
+  "Kit · Depth",
+  "Compose · Typography",
+  "Specimen",
+  "Set",
+  "Data",
+  "Media",
+  "Catalog · Type",
+  "Catalog · Chrome",
+  "Catalog · Game UI",
+  "Catalog · Generative",
+  "Catalog · Tiling",
+  "Study · Type",
+  "Study · Pattern",
+  "Study · Paint",
+  "Study · Motion",
+  "Study · Film",
+  "Study · Science",
+  "Study · Esoteric",
+  "Study · Screens",
+  "Study · Game UI",
+]
+
+[sketch."aero desktop"]
+needs = "Runtime shaders; blended paint stacks; constant Gaussian layer blur; text glow; delayed opacity ramp; bound opacity outputs; entrance transitions; texture cache"
+requires = []
+
+[sketch.alpha_ground]
+needs = "Transparent canvas ground; keyed pen leaf drawing a turning ring; publication overlay"
+requires = []
+
+[sketch.annotated_margin]
+needs = "Document paragraphs; per-word cascade track; composer unit and beat read-backs; sibling annotations; block rules; track meter"
+requires = [
+  "text-fx",
+  "composer-beats",
+  "kinetic-presets",
+  "track-meter",
+  "typesetting",
+  "annotate",
+  "schedules",
+]
+
+[sketch.artnet_lights]
+needs = "Art-Net Connection handlers and sends; recording mount; eased ticker ramps; instrument page; themed pen drawing"
+requires = ["kit-instrument", "timelines", "connection"]
+
+[sketch.astral_tome]
+needs = "Stock silhouettes; scatter, ribbon and rail strokes; span-masked reveal; bound twinkle; grain leather; document captions"
+requires = [
+  "mask",
+  "lines",
+  "border",
+  "brush-marks",
+  "ribbon",
+  "silhouettes",
+  "corners",
+  "curves",
+  "profiles",
+]
+
+[sketch.attribute_ring]
+needs = "Facts stated with `attribute`; radial layout by a fact lane with facing; jitter operator after it; comparison kit; section header"
+requires = ["kit-section-header", "silhouettes"]
+
+[sketch.axis_ripple]
+needs = "Per-glyph variable-axis track; shaped pen positions; selector-anchored marks; face axis query; pen meter; document type"
+requires = [
+  "text-fx",
+  "text-effects",
+  "measurement",
+  "text-attach",
+  "schedules",
+  "typeface-axes",
+]
+
+[sketch.beethoven]
+needs = "Span-revealed arc strokes; entrance animation; stylesheet classes; drop shadow; keyed absolute layout"
+requires = ["mask", "silhouettes"]
+
+[sketch.bg3_dice_roll]
+needs = "Stock borders, line presets, rails and ornament brushes; stock shapes; mesh face queries; custom canvas die; memoised retained motion"
+requires = [
+  "lines",
+  "border",
+  "brush-marks",
+  "ribbon",
+  "hatch",
+  "stroke-presets",
+  "silhouettes",
+  "corners",
+  "curves",
+  "face-topology",
+]
+
+[sketch.black_watch]
+needs = "Woven cloth generator; custom pattern tiles; instanced atlas pool; nearest image paint; board recipe; check table; justified paragraph"
+requires = [
+  "kit-document",
+  "kit-table",
+  "instancing",
+  "compose-test",
+  "pattern-fill",
+  "silhouettes",
+  "grained",
+  "image-sampling",
+  "woven-cloth",
+  "check-table",
+]
+
+[sketch.blend_options]
+needs = "Outline blend runs with keys, spacing, spines and orientation; shape generators; comparison kit; section headers"
+requires = ["kit-section-header", "silhouettes", "curves", "blends"]
+
+[sketch.blur_falloff]
+needs = "Image-filter and map-driven blur effects; bound uniform; unit ramps; sequence tile; kit dots; section headers"
+requires = ["kit-section-header", "stock-tiles", "effect-filter"]
+
+[sketch.border_weave]
+needs = "Silhouette-following border modes; double and weighted borders; woven braid brush; crossing rule; shape generators; section headers"
+requires = [
+  "kit-section-header",
+  "border",
+  "brush-weave",
+  "braid",
+  "silhouettes",
+  "corners",
+  "crossings",
+]
+
+[sketch.bound_lane]
+needs = "Bound-lane chain stages and wiggle; motion paths with travel; specimen chart plots and readout; stock silhouettes"
+requires = ["kit-readout", "kit-plot", "silhouettes"]
+
+[sketch.bousen]
+needs = "Vertical blocks; decorated span paints; OpenType features; phrase marks; column cascade track; kit cells"
+requires = ["text-fx", "text-attach", "kinetic-presets", "schedules"]
+
+[sketch.bristle_bloom]
+needs = "Kit stage; seeded random, Gaussian and noise pen streams; screen and additive blending; Bezier curves; transforms"
+requires = []
+
+[sketch.bristle_current]
+needs = "Fixed-rate ticker; seeded noise field with detail; xorshift Chance stream; kept canvas; multiply blending; alpha colors"
+requires = []
+
+[sketch.brush_botanical_study]
+needs = "Engine state stack; pencil and charcoal tools; pressure splines, lines; polygon wash, bled fill, mass, hatch; engine circles; ellipse arrangement"
+requires = []
+
+[sketch.brush_custom]
+needs = "Image-tipped brush tools; shape spacing and scatter; grain images; pressure size response; RGBA-built images; document labels placed by pen"
+requires = []
+
+[sketch.brush_dynamics]
+needs = "Stylus input samples; dab sampling and deposit; tilt, barrel rotation and speed tool responses; flat pressure profile"
+requires = []
+
+[sketch.brush_engine_atlas]
+needs = "Brush engine catalogue; custom pen and image tips; pressure curve; field-warped bled fill; polygon mass and hatch arrays"
+requires = []
+
+[sketch.brush_live_tutorial]
+needs = "Brush engine and custom tips; stock-field flow lines; hatched polygons; bled fill rectangles; engine splines; kept canvas; pointer, clock"
+requires = []
+
+[sketch.brush_rain]
+needs = "Stock brush tools; pressure profiles; flow lines through a custom direction function; kept graphics node"
+requires = []
+
+[sketch.brushwork_currents]
+needs = "Kit stage; stock brush tools; wave and vortex fields; flow lines; pressure splines; brush lines"
+requires = []
+
+[sketch.bullets_dropcap]
+needs = "Initial letters; nested opening styles; flow around a shaped ornament; hanging list kit; font fallback; wells"
+requires = ["typesetting", "silhouettes"]
+
+[sketch.card_flip]
+needs = "Retained 3D transforms, preserve3d and hidden backfaces; bound rotation lanes; document kit; specimen theme and stage"
+requires = []
+
+[sketch.cascade]
+needs = "Inherited type, ink transitions, classes and custom properties; lexical environment values; pen and graphics leaves; readout kit"
+requires = ["kit-readout", "environment-values"]
+
+[sketch.cde_motif]
+needs = "Inherited colour sets; Motif bevels, inset adaptor; pixel styles, sprites; program tile; edge mask; scrollbar; aliased type; checks"
+requires = [
+  "kit-document",
+  "kit-scrollbar",
+  "mask",
+  "adaptors",
+  "pattern-fill",
+  "pixel-styles",
+  "bevels",
+  "pixel-sprites",
+  "environment-values",
+  "silhouettes",
+  "check-table",
+]
+
+[sketch.channel_bind]
+needs = "OSC connection on the hub; kit channels writing outputs; binding chains; recording mount; readout kit"
+requires = ["kit-readout", "kit-channel", "connection"]
+
+[sketch.chaucer_astrolabe]
+needs = "Scoped theme; stereographic projection; stock silhouettes; banked latten; speckle; instanced ticks; hatch and taper strokes; edge wipe; check console; charts"
+requires = [
+  "kit-plot",
+  "kit-document",
+  "kit-table",
+  "kit-title-card",
+  "instancing",
+  "keyed-shape",
+  "mask",
+  "layer-styles",
+  "ribbon",
+  "feed",
+  "hatch",
+  "compose-test",
+  "stroke-presets",
+  "placers",
+  "console-plate",
+  "silhouettes",
+  "frames-grids",
+  "divisions",
+  "projections",
+  "stock-tiles",
+  "grained",
+  "recipes",
+  "bank",
+  "check-table",
+]
+
+[sketch.chevreul_circle]
+needs = "Scoped theme; stock silhouettes; instanced tints; text on path; cap-height metrics; edge wipe; charts, tables; readback checks; OCIO effect"
+requires = [
+  "kit-plot",
+  "kit-document",
+  "kit-table",
+  "instancing",
+  "keyed-shape",
+  "mask",
+  "measurement",
+  "wash",
+  "compose-test",
+  "silhouettes",
+  "ocio",
+  "check-table",
+]
+
+[sketch.chladni_tab1]
+needs = "Instanced flight pool; stock silhouettes; polar frame; contour sampling; radial hatch; type-on track; speckle tile; bound entrances"
+requires = [
+  "text-fx",
+  "instancing",
+  "hatch",
+  "kinetic-presets",
+  "stroke-presets",
+  "schedules",
+  "contour-measure",
+  "silhouettes",
+  "curves",
+  "frames-grids",
+  "stock-tiles",
+]
+
+[sketch.chrome_type]
+needs = "Layer style presets on glyph boundaries; glow and bevel decorations; themed kit cells and page"
+requires = ["layer-styles", "finishes"]
+
+[sketch.cjk_rules]
+needs = "Vertical Japanese blocks; stock and house kinsoku; hanging punctuation table; mojikumi bracket spacing; tsume"
+requires = ["stock-tables"]
+
+[sketch.codec_roundtrip]
+needs = "PLY encode and decode of meshes and clouds; model merge, bounds and fit; point attributes; billboard splats; mesh painter"
+requires = ["kit-section-header", "clouds", "mesh-codec"]
+
+[sketch.compute_variant]
+needs = "Set-kind hosting; wave rail; compute pass cooking a point chain; stamped geometry pass; variant repaint; readback callback"
+requires = [
+  "set-sketches",
+  "point-operators",
+  "splines",
+  "world-rails",
+  "compute-passes",
+]
+
+[sketch.connect_by_lane]
+needs = "Facts read by an arranging operator; wires attached by lane and by hand; stock orthogonal and arc routers; nested scopes; comparison kit"
+requires = ["kit-section-header", "routers"]
+
+[sketch.contour_poses]
+needs = "Measured contours; poses by distance with wrap policies; corner detection and windows; shape generator; pen leaves"
+requires = ["kit-section-header", "silhouettes", "contours"]
+
+[sketch.corner_notched]
+needs = "Corner treatments as comparable shapes: rounding wrapper, chamfers and notches with corner masks; comparison kit"
+requires = ["kit-section-header", "silhouettes", "corners"]
+
+[sketch.cosmati]
+needs = "Stone recipe; shape-function paths; trimmed strokes; drop shadow; text on arc; bezel frame; legend kit; entrance transitions"
+requires = ["kit-legend", "kit-panel-chrome", "silhouettes", "grained"]
+
+[sketch.coverage_boundary]
+needs = "Coverage boundary; outer glow and inner shadow layer styles; alpha cut-out images; shape generators; section headers"
+requires = [
+  "kit-section-header",
+  "layer-styles",
+  "raster-surfaces",
+  "silhouettes",
+]
+
+[sketch.crossing_rule]
+needs = "Crossing discovery; crossing rules (alternate, sequence, pairs, except); crossing patches; canvas clipping; comparison kit"
+requires = ["kit-section-header", "crossings"]
+
+[sketch.crt_bloom]
+needs = "Glow and directional blur effects; additive blend; texture cache; CRT overlay recipe; explicit default face"
+requires = ["kit-section-header", "default-face"]
+
+[sketch.curve_shelf]
+needs = "Stock parametric curve silhouettes; shaped stroked boxes; specimen cells, comparisons and section headers"
+requires = ["kit-section-header", "curves"]
+
+[sketch."daemon console"]
+needs = "Structured feed ring; per-glyph text effects; SDF panel; bound tile pan; OCIO output view; meters; bound outputs; rich row classes"
+requires = [
+  "kit-meter",
+  "text-fx",
+  "text-effects",
+  "feed",
+  "composer-view",
+  "kinetic-presets",
+  "schedules",
+  "sdf",
+  "paint-motion",
+  "ocio",
+]
+
+[sketch.dart_flight]
+needs = "Set hosting; kit winding spline; swept rail; along-curve placement; revolved and torus meshes; PBR surfaces; lit set kit"
+requires = [
+  "set-sketches",
+  "splines",
+  "sweeps",
+  "world-rails",
+  "world-placement",
+]
+
+[sketch.data_scales]
+needs = "Scale transforms; chart plot kit layers; stylesheet classes; stated default face; caption and panel grid"
+requires = ["kit-plot", "default-face"]
+
+[sketch.data_sources]
+needs = "Asset table and database; DuckDB memory query; bars and section header kit; comparison well"
+requires = ["kit-section-header", "kit-bars"]
+
+[sketch.decay_step]
+needs = "Clock arithmetic (decay, quantize, step, phase); closed-form spring state; plot kit with axes, rules and traces"
+requires = ["kit-plot", "springs"]
+
+[sketch.deformed_cloud]
+needs = "Set hosting; surface point scatter; masked point-operator chain; stamped facets; PBR surface; lit set kit"
+requires = ["set-sketches", "point-operators", "clouds", "world-chains"]
+
+[sketch.document_styles]
+needs = "Document kit roles; role stylesheets with block leading; inline rich run; specimen page, comparison and wells"
+requires = []
+
+[sketch.draw_with_scope]
+needs = "Facts on cards; keyed and keyless `drawWith` programs reading the settled scope; pen wires and labels; comparison kit"
+requires = ["kit-section-header"]
+
+[sketch.ds2_bench]
+needs = "Routed wires; spans mask; layered brushes; kinetic text; instanced atlas; SDF materials; live shader uniforms; stock shapes"
+requires = [
+  "text-fx",
+  "instancing",
+  "mask",
+  "connect",
+  "layered-brush",
+  "kinetic-presets",
+  "stroke-presets",
+  "placers",
+  "schedules",
+  "silhouettes",
+  "frames-grids",
+  "divisions",
+  "sdf",
+  "paint-motion",
+]
+
+[sketch.dunhuang_star_chart]
+needs = "Instanced star atlas; jittered rails and ribbons; spherical projections; polar charts; speckle paper; line fits; document runs; text feeds"
+requires = [
+  "kit-plot",
+  "kit-document",
+  "instancing",
+  "keyed-shape",
+  "lines",
+  "brush-stacks",
+  "ribbon",
+  "feed",
+  "wash",
+  "stroke-presets",
+  "noise-hashes",
+  "silhouettes",
+  "shapers",
+  "profiles",
+  "projections",
+  "stock-tiles",
+  "line-fit",
+]
+
+[sketch.elastic_type]
+needs = "Per-glyph keyframe tracks; rest ghost; sketch-kit plots with traces and marks; class stylesheet; document type"
+requires = ["kit-plot", "text-fx", "text-effects", "track-meter", "schedules"]
+
+[sketch.ember_decode]
+needs = "Kinetic text track with pass effect and stagger by unit; beat schedule query; authored SkSL recipe; meter kit"
+requires = [
+  "kit-meter",
+  "text-fx",
+  "text-effects",
+  "composer-beats",
+  "schedules",
+  "recipes",
+]
+
+[sketch.encode_write]
+needs = "Image encode and decode across formats; hub mount, write and image load; offscreen pen drawing; wells"
+requires = ["kit-section-header", "raster-surfaces"]
+
+[sketch.env_faces]
+needs = "Environment maps from faces, cube sheets and panoramas; ground replacement; bevel normals; chrome reflection fill"
+requires = [
+  "kit-section-header",
+  "raster-surfaces",
+  "textures",
+  "environment-maps",
+  "bevel-normals",
+  "reflections",
+]
+
+[sketch.env_lanes]
+needs = "World environment node dials; studio and sunset panoramas; world frames baked to images; PBR surfaces"
+requires = ["kit-section-header", "environment-maps", "world-environment"]
+
+[sketch.eva_magi_defense]
+needs = "Cap-height metrics; image-filter phosphor; bound image pan; raster bakes; stroke-to-outline paths; chamfered silhouettes; cascade ladder; measured checks; kit table"
+requires = [
+  "kit-table",
+  "keyed-shape",
+  "measurement",
+  "layered-brush",
+  "schedules",
+  "raster-surfaces",
+  "canvas-layers",
+  "path-arc-and-fill",
+  "corners",
+  "paint-motion",
+  "effect-filter",
+  "image-sampling",
+  "check-table",
+]
+
+[sketch.eva_magi_deliberation]
+needs = "Cap-height metrics; condensed faces; face weight readback; inset double borders; image-filter phosphor; CRT field recipe; knockout type"
+requires = [
+  "border",
+  "measurement",
+  "face-width",
+  "typeface-axes",
+  "silhouettes",
+  "effect-filter",
+]
+
+[sketch.eva_magi_interior]
+needs = "Cap-height metrics; condensed faces; face weight readback; chamfered shapes; float-field runtime shader with bound uniform; image-filter phosphor; CRT recipe"
+requires = [
+  "border",
+  "measurement",
+  "face-width",
+  "raster-surfaces",
+  "shader-local-matrix",
+  "typeface-axes",
+  "corners",
+  "paint-motion",
+  "effect-filter",
+  "paint-shader",
+]
+
+[sketch.exact_tangent]
+needs = "Text on paths with exact tangents; spiral and oval generators; element rasterized to pixels; region crops; border decoration"
+requires = [
+  "kit-section-header",
+  "texture-scene",
+  "border",
+  "silhouettes",
+  "curves",
+]
+
+[sketch.exr_channels]
+needs = "Float EXR encode; metadata probe; named channel planes; material texture slot readback; availability probe"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "kit-section-header",
+  "float-encode",
+  "image-probe",
+  "textures",
+]
+
+[sketch.fallout2_charsheet]
+needs = "Check tables; condensed face matching; bevels and layer styles; decoration adaptors; rounded outlines; keyed shapes; sketch-kit table; unit grid; slots"
+requires = [
+  "kit-table",
+  "keyed-shape",
+  "layer-styles",
+  "adaptors",
+  "bevels",
+  "face-width",
+  "corners",
+  "frames-grids",
+  "check-table",
+]
+
+[sketch.feed_events]
+needs = "JSON Connection kind handlers; recording mount; eased ticker ramps; instrument page; pen bands"
+requires = ["kit-instrument", "timelines", "connection"]
+
+[sketch.feed_sky]
+needs = "Schema-backed Connection; per-sketch FlatBuffers schema; recording mount; instrument page; pen bands"
+requires = ["sketch-schemas", "kit-instrument", "connection", "flatbuffer"]
+
+[sketch.feed_vitals]
+needs = "Hub mount and feed; arrival queue, latest bytes and feed vitals; section header kit; pen strip"
+requires = ["kit-section-header"]
+
+[sketch.field_shelf]
+needs = "Shader field recipes; slotted child texture; custom canvas drawing; specimen comparisons and section headers"
+requires = ["kit-section-header"]
+
+[sketch.first_light]
+needs = "Set hosting; kit wave and rail curves; pose along; swept tube; windowed stamp chain; sun and point lights; turntable"
+requires = [
+  "set-sketches",
+  "point-operators",
+  "splines",
+  "sweeps",
+  "world-rails",
+  "world-chains",
+]
+
+[sketch.floating_panels]
+needs = "Compose texture bakes; gauge kit; image panels; textured cylinder and grid meshes; process painter runtime"
+requires = ["painter-runtime", "kit-meter", "texture-scene", "render-runtime"]
+
+[sketch.flourish]
+needs = "Ornament and flourish kits; contour walks; nine-slice; paint programs; routed wires; layer blur; runtime shaders; silhouettes; pen overlays"
+requires = [
+  "adaptors",
+  "connect",
+  "paint-program",
+  "slice",
+  "contour-walk",
+  "routers",
+  "ornament",
+  "flourish",
+  "raster-surfaces",
+  "silhouettes",
+  "corners",
+]
+
+[sketch.formation_bands]
+needs = "Polygon silhouette; width profiles, rail offsets and band regions; wave shaper; comparison kit; canvas path strokes"
+requires = ["kit-section-header", "silhouettes", "shapers", "profiles"]
+
+[sketch.frame_grid]
+needs = "Polar frames with angle conventions; unit grid with snap; arrange rings and cells; pen graphics; comparison kit"
+requires = ["kit-section-header", "frames-grids"]
+
+[sketch.frame_inputs]
+needs = "Recipe with frame inputs; uniform block binding; material specialization; material fill with content scale and world transform"
+requires = ["kit-section-header", "recipes", "frame-fill"]
+
+[sketch.fx_scatter_mix]
+needs = "Per-glyph effect tracks; scatter, mix and tint effects; spread schedules; beat readback meters; comparison kit"
+requires = [
+  "text-fx",
+  "text-effects",
+  "composer-beats",
+  "kinetic-presets",
+  "track-meter",
+  "schedules",
+]
+
+[sketch.genesis_fire]
+needs = "Particle emitters; fixed-step ticker; colored vertices; instanced atlas pools; per-glyph text track; meter and swatch kit; pen-hosted guests"
+requires = [
+  "kit-legend",
+  "kit-meter",
+  "text-fx",
+  "instancing",
+  "keyed-shape",
+  "kinetic-presets",
+  "schedules",
+  "particles",
+  "silhouettes",
+  "stock-tiles",
+]
+
+[sketch.geo_groups]
+needs = "Point clouds with named lanes; Houdini geo encode and decode; masked point operators; billboard sprites; comparison kit"
+requires = [
+  "kit-section-header",
+  "dot-sprite",
+  "point-operators",
+  "clouds",
+  "mesh-codec",
+]
+
+[sketch."gerstner grid"]
+needs = "Anisotropic grid-line tiles; noise field paint; staggered entrance transitions; bound sweep output; re-describe on update; grid arithmetic"
+requires = ["stock-tiles"]
+
+[sketch.gif_frames]
+needs = "Network image load; decoded frames and timed playback; resource and image probes; nearest sampling; cached-resource availability gate; comparison kit"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "kit-section-header",
+  "asset-frames",
+  "hub-decoders",
+]
+
+[sketch.glow_trail]
+needs = "Set hosting with camera; kit wave curve; windowed stamp chain; tagged geometry and post passes with previous-frame feedback"
+requires = [
+  "set-sketches",
+  "point-operators",
+  "splines",
+  "world-rails",
+  "world-chains",
+]
+
+[sketch.grid_layouts]
+needs = "Grid, diagonal and baseline layout schemes; ladder rules; themed mono type; readout rows"
+requires = ["kit-readout"]
+
+[sketch.grpc_watch]
+needs = "gRPC Connection handlers and broadcast sends; eased ticker ramps; instrument page; pen bands"
+requires = ["kit-instrument", "timelines", "connection"]
+
+[sketch.guest_body]
+needs = "Set-kind world frame; published texture subscription; texture scene; material texture slot; lit meshes"
+requires = ["set-sketches", "guests", "texture-scene", "textures"]
+
+[sketch.guest_picture]
+needs = "Published frame subscription on canvas recorder; specimen page, caption and well; document waiting card"
+requires = ["guests"]
+
+[sketch.half_float]
+needs = "Float raster surface; half-float and byte pixel readback; image from pixels; comparison kit"
+requires = ["kit-section-header", "raster-surfaces", "float-readback"]
+
+[sketch.hello]
+needs = "Themed kit page; retained cards; keyless clock-reading pen leaf; output bound to a transform; ticker callback; data-driven re-describe"
+requires = []
+
+[sketch.hit_slots]
+needs = "Slots; hit test and bounds queries; wires keyed by the pair they join; star and blob silhouettes; readout rows"
+requires = ["kit-readout", "connect", "routers", "silhouettes"]
+
+[sketch.hitman_verlet]
+needs = "JSON content; Verlet points and constraints; fixed-step interpolant; instanced atlas pools; chart plots; per-glyph track; layered paints"
+requires = [
+  "kit-plot",
+  "text-fx",
+  "instancing",
+  "kinetic-presets",
+  "schedules",
+  "verlet",
+  "silhouettes",
+]
+
+[sketch.horizontal_flow]
+needs = "Document kit; specimen theme, wells and captions; stock silhouettes; shape-following flowAround exclusions"
+requires = ["silhouettes", "corners"]
+
+[sketch.hub_reload]
+needs = "Standalone hub mount, text, image and poll; custom decoder; offscreen pen to PNG; readout rows"
+requires = ["kit-readout", "raster-surfaces", "hub-decoders"]
+
+[sketch.import_native]
+needs = "Set hosting; compose texture scene; material texture slots; Scry web view frames; world elements, lights, quads"
+requires = [
+  "set-sketches",
+  "availability-probe",
+  "require-cached",
+  "sketch-scry",
+  "texture-scene",
+  "textures",
+  "web-engine",
+]
+
+[sketch.ink_units]
+needs = "Unit-square ramp as ink over the passage, letters, words and lines; wells"
+requires = []
+
+[sketch.karaoke_wipe]
+needs = "Per-glyph tint cascade with cue table; schedule read-back; underlaid aliased type; kit marks; bound transforms"
+requires = ["text-fx", "composer-beats", "kinetic-presets", "schedules"]
+
+[sketch.keeps_and_frames]
+needs = "Rich stories; paragraph keeps; threaded frames; first-baseline and distribution placement; comparison kit"
+requires = []
+
+[sketch.key_light]
+needs = "Set hosting; preset tree inspection; emitter intensity and emission bound to outputs; three-point rig; lit set"
+requires = ["set-sketches", "world-placement"]
+
+[sketch.kinetic_card]
+needs = "Per-glyph text effect tracks and presets on a cascade; shared phase output; beat meters read from composer; specimen theme"
+requires = [
+  "text-fx",
+  "composer-beats",
+  "kinetic-presets",
+  "track-meter",
+  "schedules",
+]
+
+[sketch.ksp_mapview]
+needs = "Instanced starfield; live-bound SDF and globe materials; conic paths; stock and keyed shapes; filament, hatch and tick lines; readout rows"
+requires = [
+  "kit-document",
+  "instancing",
+  "keyed-shape",
+  "lines",
+  "layered-brush",
+  "stroke-presets",
+  "compose-readout",
+  "silhouettes",
+  "conics",
+  "sdf",
+  "recipes",
+  "paint-motion",
+  "globe",
+]
+
+[sketch.kumiko_asanoha]
+needs = "Timber recipe bank; strip lap operation; bevel, inner shadow and glow styles; trimmed strokes; group caching; canvas drawing"
+requires = [
+  "kit-document",
+  "layer-styles",
+  "silhouettes",
+  "strip-laps",
+  "grained",
+  "bank",
+]
+
+[sketch.lain_navi]
+needs = "Retained slots; runtime shader; CRT field recipe; blurred additive text; blurred additive dashed stroke layers; bound outputs"
+requires = ["keyed-shape", "layered-brush"]
+
+[sketch.lane_retarget]
+needs = "Standalone ticker; animated float lanes; slot and family retargeting; chart kit plots; readout rows"
+requires = ["kit-readout", "kit-plot", "timelines", "lanes"]
+
+[sketch.lantern_room]
+needs = "Set hosting; sun, spot and point emitters; unlit emissive and PBR surfaces; superellipsoids; turntable camera"
+requires = ["set-sketches"]
+
+[sketch.live_settling]
+needs = "Offscreen composer frame driving; live Knuth-Plass passages; settling reports; comparison kit; readout rows"
+requires = ["kit-readout", "standalone-composer", "raster-surfaces"]
+
+[sketch."loot grid"]
+needs = "Instanced atlas stamps; bevel emboss panel; recessed wells; noise recipes; pattern tiles; path silhouettes; legends; bound outputs"
+requires = ["kit-legend", "instancing", "layer-styles", "placers"]
+
+[sketch.manuscript]
+needs = "Ornament kit; nested small-caps run; Knuth-Plass with pattern hyphenation; flowAround exclusions; texture cache; page-turn update"
+requires = ["ornament", "hyphenation-patterns"]
+
+[sketch.material_atlas]
+needs = "Produced sheet texture; atlas grid, TexturePacker and Aseprite imports; wrapping sequences; texture shader draws"
+requires = ["kit-section-header", "raster-surfaces", "textures", "atlas"]
+
+[sketch.material_lab]
+needs = "Set hosting on the device tier; texture-slotted PBR surfaces; masked material stack; usage-keyed texture set; generated maps"
+requires = ["set-sketches", "textures", "over", "texture-maps"]
+
+[sketch.material_slots]
+needs = "Runtime shader child slots and uniforms; nearest image paints; LUT images; material kits; masked material stacks"
+requires = ["kit-section-header", "grained", "over", "image-sampling"]
+
+[sketch.matrix_rain]
+needs = "Looping per-glyph streak, scramble and mirror tracks; seeded spread; vertical upright text; glow underlays; measured metrics; track meter"
+requires = ["text-fx", "text-effects", "track-meter", "schedules"]
+
+[sketch.matte_luma]
+needs = "Track matte gates; checker and run patterns; ramp-baked coverage image; unit gradients; comparison kit"
+requires = [
+  "kit-section-header",
+  "mask",
+  "raster-surfaces",
+  "stock-tiles",
+  "ramp-shaders",
+]
+
+[sketch.mawarikomi]
+needs = "Vertical writing mode; silhouette exclusions; clamped column ellipsis; document kit; specimen cells; gradient ground"
+requires = ["silhouettes"]
+
+[sketch.mesh_generators]
+needs = "Extrude, revolve, torus, superellipsoid; spline sweep; spline points with frame lanes; instanced quads; lit mesh draws"
+requires = ["silhouettes", "clouds", "splines", "sweeps"]
+
+[sketch.mesh_normal_bridge]
+needs = "Offscreen normal and UV mesh passes; environment reflection recipes; bevel normals; shader coverage compositing; squircle silhouette"
+requires = [
+  "canvas-layers",
+  "silhouettes",
+  "textures",
+  "environment-maps",
+  "bevel-normals",
+  "reflections",
+]
+
+[sketch.midi_pads]
+needs = "MIDI Connection in and out; eased ticker ramps; instrument page; pen cells and knob"
+requires = ["kit-instrument", "timelines", "connection"]
+
+[sketch.minard_1869]
+needs = "Kit charts; px-keyed ribbon bands; double rules; wipe masks; speckle paper; path operators; contour audits; console feeds"
+requires = [
+  "kit-plot",
+  "kit-table",
+  "kit-title-card",
+  "keyed-shape",
+  "mask",
+  "lines",
+  "ribbon",
+  "feed",
+  "measurement",
+  "wash",
+  "compose-test",
+  "stroke-presets",
+  "console-plate",
+  "contour-measure",
+  "silhouettes",
+  "profiles",
+  "contours",
+  "polylines",
+  "stock-tiles",
+  "check-table",
+]
+
+[sketch.net_policy]
+needs = "Seeded network cache; per-hub network policies; image load; PNG encode; specimen wells"
+requires = ["kit-section-header", "raster-surfaces", "seed-network-cache"]
+
+[sketch."night network"]
+needs = "Compose brushes and lines; stroke presets; path shapers; routed wires; span masks; SDF recipes; bound paint uniforms; art warp"
+requires = [
+  "keyed-shape",
+  "mask",
+  "lines",
+  "connect",
+  "brush-stacks",
+  "brush-marks",
+  "stroke-presets",
+  "routers",
+  "silhouettes",
+  "shapers",
+  "sdf",
+  "paint-motion",
+]
+
+[sketch.nightingale_coxcomb]
+needs = "Polar band chart; speckle litho materials; per-glyph type-on tracks; text on ring paths; shared needle outputs"
+requires = [
+  "kit-plot",
+  "text-fx",
+  "keyed-shape",
+  "kinetic-presets",
+  "schedules",
+  "silhouettes",
+  "frames-grids",
+  "divisions",
+  "stock-tiles",
+]
+
+[sketch."nine slice"]
+needs = "Generated ornament textures; nine-slice decoration with density; direct lattice draw; per-frame redescribe"
+requires = [
+  "kit-section-header",
+  "slice",
+  "ornament",
+  "draw-lattice",
+  "asset-frames",
+]
+
+[sketch.noise_shelf]
+needs = "Counter, state and lattice mixers; cache key folds; pen program fields; specimen cells, wells and section headers"
+requires = ["kit-section-header", "noise-hashes", "hash-words"]
+
+[sketch.observable_circle_packing]
+needs = "Kit stage; seeded pen random stream; circles and colors"
+requires = []
+
+[sketch.observable_circle_packing_contained]
+needs = "Seeded pen random stream; circles and colors"
+requires = []
+
+[sketch.observable_fibonacci]
+needs = "Pen clock; centre rectangle mode; filled squares"
+requires = []
+
+[sketch.observable_fibonacci_rectangles]
+needs = "Pen clock; HSB color mode; transforms; rectangles"
+requires = []
+
+[sketch.observable_flowfield_1]
+needs = "Kit stage; pen clock; square caps; line grid"
+requires = []
+
+[sketch.observable_flowfield_2]
+needs = "Mix64 Chance stream; pen clock; stroke paint; batched canvas lines"
+requires = []
+
+[sketch.observable_flowfield_3]
+needs = "Kit stage; Mix64 Chance stream; pen clock; stroke paint; batched canvas lines"
+requires = []
+
+[sketch.observable_grid]
+needs = "Pen clock; degree angle mode; centre rectangle mode; transforms"
+requires = []
+
+[sketch.observable_l_system]
+needs = "Mix64 Chance ranges; pen clock; lines and circles"
+requires = []
+
+[sketch.observable_l_system_tree]
+needs = "Pen clock; transforms; grayscale lines"
+requires = []
+
+[sketch.observable_noise]
+needs = "Seeded pen noise; Mix64 Chance stream; pen clock; polyline shapes"
+requires = []
+
+[sketch.observable_noise_map]
+needs = "Seeded three-dimensional pen noise; pen clock; grayscale rectangles"
+requires = []
+
+[sketch.observable_random_walker]
+needs = "Mix64 Chance bits; pen clock; distance-shaded circles"
+requires = []
+
+[sketch.observable_reaction_diffusion]
+needs = "Image from RGBA buffer; scaled image drawing"
+requires = []
+
+[sketch.observable_reynolds_steering]
+needs = "Persistent model; seeded pen random; HSB color mode with alpha range; translucent trails on kept canvas; transforms; closed shapes"
+requires = []
+
+[sketch.ocio_view]
+needs = "OCIO transforms baked to LUT materials; produced wedge texture; content slot; material-grounded wells"
+requires = ["kit-section-header", "raster-surfaces", "textures", "ocio"]
+
+[sketch.optical_kerning]
+needs = "Optical kerning shaping; context measurement; cells, captions and readout rows"
+requires = ["kit-readout"]
+
+[sketch.osc_desk]
+needs = "OSC Connection address handlers and replies; chained ticker ramps; instrument page; pen faders"
+requires = ["kit-instrument", "timelines", "connection"]
+
+[sketch.over_under]
+needs = "Material stacks and blends; constant, map, height and slope masks; material kits; produced texture; shape corners"
+requires = [
+  "kit-section-header",
+  "raster-surfaces",
+  "corners",
+  "textures",
+  "grained",
+  "bevel-normals",
+  "over",
+]
+
+[sketch.p5_attractor_loom]
+needs = "Kit stage; runtime shader with grain child slot; blended material ground; canvas-mapped stroke paint; batched canvas paths"
+requires = []
+
+[sketch.p5_flow_field]
+needs = "Runtime shader with noise child slot; canvas-mapped stroke; shape-fitted glow paint; grid module sizes; seeded noise detail"
+requires = []
+
+[sketch.p5_fractal_garden]
+needs = "Runtime shader with grain child slot; blended material ground; canvas-mapped stroke; batched canvas paths and points; shape-fitted glow"
+requires = []
+
+[sketch.p5_hello]
+needs = "Kept graphics canvas; translucent background trail; basic pen shapes"
+requires = []
+
+[sketch.p5_liquid_layers]
+needs = "Grid-line pattern tiles; blended ground paint; nib and stock brush tools; brush splines and lines; ring arrangement"
+requires = []
+
+[sketch.p5_mixed_forms]
+needs = "Kit stage; radial material fill; inherited font and ink into pen; retained composition guest; unseeded pen noise; kept-canvas trail"
+requires = []
+
+[sketch.p5_refractive_metaballs]
+needs = "Runtime shaders; child shader slot; per-frame vector uniforms; canvas-mapped paints; additive blending; Bezier curves"
+requires = []
+
+[sketch.paint_anchors]
+needs = "Unit-square ramp as ink over each paint box; a fill stretched over the canvas through a row of cards; wells"
+requires = []
+
+[sketch.paint_shelf]
+needs = "Radial, conical, sweep and unit gradients; world-space paint; revisioned pixel buffer paint; specimen section headers"
+requires = ["kit-section-header", "pixel-buffer"]
+
+[sketch.painter_gpu]
+needs = "Mesh painter with selectable runtime; perspective image panels; element trees baked to textures; specimen furniture"
+requires = [
+  "painter-runtime",
+  "kit-section-header",
+  "texture-scene",
+  "render-runtime",
+]
+
+[sketch.paragraph_paints]
+needs = "Text fill recipes; chrome ramps; shader local matrix; justified Knuth-Plass text with pattern hyphenation; measured passage file"
+requires = [
+  "chrome-type",
+  "hyphenation-patterns",
+  "shader-local-matrix",
+  "text-paints",
+  "paint-shader",
+]
+
+[sketch.paragraph_sheet]
+needs = "Paragraph styles: leading kinds, spacing, indents, justification, tab stops, vertical writing; caption kit; panel grids, ladders"
+requires = ["hyphenation-patterns"]
+
+[sketch."passive tree"]
+needs = "SDF sockets with bound glow uniform; wires with the orbit router; layered brush presets; stock silhouettes; span trims; legend; title card"
+requires = [
+  "kit-title-card",
+  "kit-legend",
+  "connect",
+  "stroke-presets",
+  "routers",
+  "silhouettes",
+  "sdf",
+  "paint-motion",
+]
+
+[sketch.path_booleans]
+needs = "Silhouette generators; path booleans, offsets, distorts and operation chains; pen shapes; document headings"
+requires = ["silhouettes", "path-operations"]
+
+[sketch.pattern_sequence]
+needs = "Baked pattern tiles: sequence program, sampling remaps and filter, shared-bake copies; tile paints as well grounds"
+requires = ["stock-tiles", "tile-programs"]
+
+[sketch.penrose_paving]
+needs = "Multigrid tiling; polygon inset; stone recipe bank; canvas-program decoration; layered trimmed brush; check table; slot re-render"
+requires = [
+  "kit-document",
+  "kit-table",
+  "brush-stacks",
+  "paint-program",
+  "inset-polygon",
+  "multigrid",
+  "grained",
+  "recipes",
+  "bank",
+  "check-table",
+]
+
+[sketch."persona menu"]
+needs = "Runtime shader on a 6 Hz stepped clock; stock silhouettes; fixed wedge path; spring cursor; staggered entrances; text outlines and glow"
+requires = ["keyed-shape", "springs", "silhouettes"]
+
+[sketch.phone_sky]
+needs = "WebSocket Connection with served pages; broadcast sends; eased ticker ramps; instrument page"
+requires = ["kit-instrument", "timelines", "connection"]
+
+[sketch.pins_and_hulls]
+needs = "Stamped numerals; pinned callouts with fallbacks; bands along an outline and hulls around classed points; comparison kit"
+requires = ["kit-section-header", "silhouettes", "pin-outline"]
+
+[sketch.pixfont_dotsprite]
+needs = "Aliased glyph mask bakes; pixel font blits; dot sprite; tinted image stamps; live pen readout"
+requires = ["kit-section-header", "pixel-type", "dot-sprite"]
+
+[sketch.place_repeat_tiles]
+needs = "Instance atlas and pools with repeat placer; sliceable picture tiles and windows; star silhouette; gradient fill"
+requires = [
+  "kit-section-header",
+  "instancing",
+  "tiles",
+  "placers",
+  "silhouettes",
+]
+
+[sketch.pop_billboards]
+needs = "Point operator chains on meshes and polylines; noise and relax; atlas lane; billboard splat sink; sprite bake"
+requires = ["raster-surfaces", "point-operators", "clouds"]
+
+[sketch.pop_deform]
+needs = "Point chains: feathered region select, masked twist, taper, bend, orient and peak; lane-driven billboard sink; dot sprite"
+requires = ["dot-sprite", "point-operators", "clouds"]
+
+[sketch.pop_math]
+needs = "Point chains: Math, Affine, lane lookup, Select, masked, keep/drop, fill/mix, normal/peak; billboard sink"
+requires = ["point-operators", "clouds"]
+
+[sketch.pop_order]
+needs = "Point chain with depth-lane ramp and order permutation; unsorted billboard sink; sprite bake; readout"
+requires = ["kit-readout", "raster-surfaces", "point-operators", "clouds"]
+
+[sketch.pop_prims]
+needs = "Mesh primitive lanes and vertex bake; primitive-colour mesh style; promoted point Id stamps; OKLab ramp; readouts"
+requires = ["kit-readout", "point-operators", "primitive-lanes"]
+
+[sketch.pop_stamps]
+needs = "Silhouette motifs baked to atlas; point chains swept into tubes, stamped quads, profile sweeps, windowed ribbon; mesh painter"
+requires = ["texture-scene", "silhouettes", "point-operators", "sweeps"]
+
+[sketch.psx_doom_fire]
+needs = "Fixed-step ticker; RGBA image blits; pen text and clipping; retained guest header; kinetic glyph rise; motion cascade"
+requires = ["text-fx", "kinetic-presets", "schedules"]
+
+[sketch.quic_sky]
+needs = "QUIC Connection and its feed arrivals; recording mount; instrument page; pen bands"
+requires = ["kit-instrument", "connection"]
+
+[sketch.reflection_lab]
+needs = "Set hosting; environment maps with crossfade and backdrop; chrome, metal, dielectric and glass surface presets"
+requires = ["set-sketches", "environment-maps", "world-environment"]
+
+[sketch.rich_slot_reserve]
+needs = "Rich text inline slots with keyed children; reserved line bands; measured blocks; house face; specimen furniture"
+requires = []
+
+[sketch.rota_convocationis]
+needs = "Curved-baseline glyph tracks and pass; spread schedules; beat read-back; selector marks; SDF and SkSL recipes; path roughen/resample; instanced embers"
+requires = [
+  "text-fx",
+  "instancing",
+  "layer-styles",
+  "text-effects",
+  "composer-beats",
+  "text-attach",
+  "kinetic-presets",
+  "schedules",
+  "path-arc-and-fill",
+  "silhouettes",
+  "frames-grids",
+  "divisions",
+  "polylines",
+  "path-operations",
+  "sdf",
+  "recipes",
+]
+
+[sketch.routers_straight]
+needs = "Wires with stock routers (straight, orthogonal bends, arc); a run of stops with an octilinear router; path formats"
+requires = ["kit-section-header", "connect", "routers"]
+
+[sketch.routes_probe]
+needs = "Wires with routers; standalone profiling composer; a wire asked for by its pair's key; cache verdict profile rows; pen leaf; readout classes"
+requires = [
+  "kit-section-header",
+  "connect",
+  "standalone-composer",
+  "composer-profile",
+  "routers",
+  "raster-surfaces",
+]
+
+[sketch.ruby_kenten]
+needs = "Vertical writing mode; reserved ruby and kenten annotations; specimen cells with style classes; gradient ground"
+requires = []
+
+[sketch.scattered_model]
+needs = "Set hosting; resource hub fetch; glTF mesh decode and fit; surface scatter chain; stamped facets; unlit core"
+requires = ["set-sketches", "point-operators", "mesh-codec", "world-chains"]
+
+[sketch.scene_surfaces]
+needs = "Set hosting; compose scenes rendered to textures; base-colour texture slots with tiling; swept ribbon; unlit screens"
+requires = [
+  "set-sketches",
+  "texture-scene",
+  "splines",
+  "sweeps",
+  "textures",
+  "world-rails",
+]
+
+[sketch.schema_scene]
+needs = "Generated schema values; FlatBuffer hub decoder; schema-backed Connection; instrument page; document labels"
+requires = ["sketch-schemas", "kit-instrument", "connection", "flatbuffer"]
+
+[sketch.sdf_star]
+needs = "Signed-distance star shapes; layered SDF style (shadow, glow, fill, border); pad reserve; material paint fill"
+requires = ["kit-section-header", "sdf"]
+
+[sketch.serial_sensor]
+needs = "Serial line Connection; recording mount; instrument page; transformed pen ribbons"
+requires = ["kit-instrument", "connection"]
+
+[sketch.set_stagger]
+needs = "Set hosting with camera; world child stagger by spread; entrance transitions; selector-narrowed passes; three-point rig"
+requires = ["set-sketches", "schedules", "world-placement"]
+
+[sketch.shape_tour]
+needs = "Stock silhouette generators, parametric curves and corner operators; shaped filled boxes; captions and cell runs"
+requires = ["silhouettes", "corners", "curves"]
+
+[sketch.shapeworks_lab]
+needs = "Star generator; path operator chain; bevel normals; environment map; reflective recipes; sequence tile; raster bakes; spline sweeps and projection; point billboards"
+requires = [
+  "raster-surfaces",
+  "silhouettes",
+  "point-operators",
+  "clouds",
+  "splines",
+  "sweeps",
+  "path-operations",
+  "stock-tiles",
+  "textures",
+  "environment-maps",
+  "bevel-normals",
+  "reflections",
+]
+
+[sketch.shared_sky]
+needs = "Shared-memory Connection; recording mount; instrument page; pen bands"
+requires = ["kit-instrument", "connection"]
+
+[sketch.shipping_forecast]
+needs = "Per-glyph text tracks; stagger spreads; named style sheet; selector span restyling; path and vertical text; title card; edge decoration"
+requires = [
+  "kit-document",
+  "kit-title-card",
+  "text-fx",
+  "adaptors",
+  "text-effects",
+  "kinetic-presets",
+  "schedules",
+  "silhouettes",
+]
+
+[sketch.sigillum_aemeth]
+needs = "Text on path; rails, hatches, stamp brushes; span masks; path crossings; jittered shapes; speckle tile; console feeds; checks"
+requires = [
+  "kit-document",
+  "keyed-shape",
+  "mask",
+  "lines",
+  "brush-stacks",
+  "brush-marks",
+  "paint-program",
+  "feed",
+  "hatch",
+  "compose-test",
+  "stroke-presets",
+  "console-plate",
+  "silhouettes",
+  "shapers",
+  "crossings",
+  "stock-tiles",
+  "check-table",
+]
+
+[sketch.slang_portable]
+needs = "Runtime Slang module compile; reflected uniform layout and writer; material recipe Slang sources; diagnostics readouts"
+requires = ["kit-section-header", "grained", "recipes", "slang"]
+
+[sketch.slitscan_2001]
+needs = "Instanced texture-window pools; runtime tone shader; per-glyph track; edge masks; line-decoration presets; haloed text; stock silhouettes; float raster readback; line fit"
+requires = [
+  "text-fx",
+  "instancing",
+  "mask",
+  "paint-program",
+  "kinetic-presets",
+  "stroke-presets",
+  "legibility",
+  "schedules",
+  "raster-surfaces",
+  "silhouettes",
+  "curves",
+  "stock-tiles",
+  "line-fit",
+]
+
+[sketch.spacejam_1996]
+needs = "Table layout scheme; element snapshots; runtime shaders; element tile; view effect; custom decoration; stock shapes; fixed ticker; checks"
+requires = [
+  "kit-table",
+  "paint-program",
+  "pattern-fill",
+  "composer-view",
+  "table-layout",
+  "silhouettes",
+  "check-table",
+]
+
+[sketch.spacing_passes]
+needs = "Justified Knuth-Plass paragraphs with word, letter and glyph-scale passes; single-word justification; captioned wells; cells"
+requires = []
+
+[sketch.sticker_collection]
+needs = "Animated image assets; streamed video frames; cached-resource gate; pen image transforms; document header"
+requires = ["availability-probe", "require-cached", "video-decode"]
+
+[sketch.stock_materials]
+needs = "Field recipes; recipe names; pattern tiles; grained and girih kit materials; SDF materials; kit text paints; unit ramps; kit cells"
+requires = ["stock-tiles", "grained", "sdf", "recipes", "text-paints", "girih"]
+
+[sketch.stroke_atlas]
+needs = "Line, rail and layered brush decorations; shapers; stamp and corner patterns; borders and hatches; stock silhouettes; animated dashes"
+requires = [
+  "keyed-shape",
+  "lines",
+  "adaptors",
+  "border",
+  "brush-stacks",
+  "brush-marks",
+  "hatch",
+  "wash",
+  "contour-walk",
+  "stroke-presets",
+  "path-arc-and-fill",
+  "silhouettes",
+  "corners",
+  "curves",
+  "shapers",
+]
+
+[sketch.substance_swatches]
+needs = "Substance archive cook; channel images by usage; kit backdrop and title card; availability probe; panel grid"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "kit-title-card",
+  "kit-panel-chrome",
+  "substance",
+]
+
+[sketch.surface_components]
+needs = "Compose kit sheet, panel grid and wells; material and live fill grounds; gel layer style; update hook"
+requires = ["finishes"]
+
+[sketch.svg_silhouette]
+needs = "SVG path-data silhouette with stretch or aspect fit; stroked keylined boxes; comparisons"
+requires = ["kit-section-header", "silhouettes"]
+
+[sketch.tategaki]
+needs = "Vertical rich text forms; span paint; per-cluster kinetic entrance; document kit; specimen cells"
+requires = ["text-fx", "kinetic-presets", "schedules"]
+
+[sketch.text_paints]
+needs = "Text fill recipes mapped to run metrics; chrome ramps; shader local matrix; wells and comparisons"
+requires = ["chrome-type", "shader-local-matrix", "text-paints", "paint-shader"]
+
+[sketch.text_wrap]
+needs = "`textWrap` and `textJustify` longhands over one passage at one measure; themed specimen page"
+requires = []
+
+[sketch.thaumonomicon]
+needs = "Stamped brushes and shapers; hatches; routed wires; silhouettes; pixel sprites; baked pixel type; lattice hash; grain; bound motion"
+requires = [
+  "keyed-shape",
+  "lines",
+  "connect",
+  "brush-stacks",
+  "brush-marks",
+  "paint-program",
+  "hatch",
+  "layered-brush",
+  "routers",
+  "pixel-type",
+  "pixel-sprites",
+  "canvas-layers",
+  "noise-hashes",
+  "silhouettes",
+  "frames-grids",
+  "shapers",
+]
+
+[sketch.threaded_story]
+needs = "Threaded story frames; kit columns; exclusion flow; paragraph styles; specimen cells and wells"
+requires = ["typesetting"]
+
+[sketch.thunder_fulu]
+needs = "Profiled ribbons under span masks; layered brushes, rails, washes; jittered shapes; path displacement, measure; chart, table, console; checks"
+requires = [
+  "kit-plot",
+  "kit-table",
+  "keyed-shape",
+  "mask",
+  "lines",
+  "brush-stacks",
+  "brush-marks",
+  "ribbon",
+  "feed",
+  "wash",
+  "stroke-presets",
+  "console-plate",
+  "contour-measure",
+  "silhouettes",
+  "corners",
+  "shapers",
+  "profiles",
+  "contours",
+  "polylines",
+  "stock-tiles",
+  "check-table",
+]
+
+[sketch.ticker_lanes]
+needs = "Standalone manually stepped ticker; steppables, fixed rate, derivation, timeline ramp; recorded-lane plots"
+requires = ["kit-plot", "timelines"]
+
+[sketch."tile map"]
+needs = "Memoized chunks over one shared image asset with regions; bound flash opacity; profiling probe composer; readouts"
+requires = [
+  "kit-section-header",
+  "kit-readout",
+  "standalone-composer",
+  "image-asset-leaf",
+]
+
+[sketch.twoadvanced_equipment]
+needs = "Cached HTTPS bitmaps; availability probe; bound envelope motion; kit scrollbar; per-edge strokes; pinned frame layout"
+requires = ["availability-probe", "require-cached", "kit-scrollbar", "adaptors"]
+
+[sketch.twoadvanced_v3]
+needs = "Cached HTTPS and Rive-embedded images; alpha and edge masks; colour-matrix grade; blurred raster bake; per-edge strokes; chamfers; slots"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "kit-document",
+  "mask",
+  "adaptors",
+  "raster-surfaces",
+  "embedded-pngs",
+  "corners",
+  "effect-filter",
+]
+
+[sketch.twoadvanced_v4]
+needs = "HTTPS bitmaps; grid areas; SkSL and SDF materials; pixel styles; bevel, gloss, scrollbar kits; instancing; world bake; chamfers; masks"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "kit-scrollbar",
+  "instancing",
+  "keyed-shape",
+  "mask",
+  "layer-styles",
+  "adaptors",
+  "pixel-styles",
+  "placers",
+  "bevels",
+  "finishes",
+  "face-width",
+  "silhouettes",
+  "corners",
+  "sdf",
+  "paint-motion",
+]
+
+[sketch."ui particles"]
+needs = "Instanced atlas stamping from a live pool; fixed-step simulation; ornament nine-slice and flourish cards; scrim; gradients"
+requires = ["instancing", "slice", "ornament", "flourish", "legibility"]
+
+[sketch.usd_roundtrip]
+needs = "USD stage writer and readers for mesh, instancer, light, camera; point scatter on mesh; mesh painter"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "kit-section-header",
+  "clouds",
+  "mesh-codec",
+  "usd-writer",
+  "usd-readers",
+]
+
+[sketch.vagrant_story_target]
+needs = "Device set hosting; lit meshes and lights; compose texture on material slot; frustum extent; baked pixel type; kit meter"
+requires = [
+  "set-sketches",
+  "kit-meter",
+  "texture-scene",
+  "border",
+  "pixel-type",
+  "camera-extent",
+  "textures",
+]
+
+[sketch.vertigo_titles]
+needs = "Harmonograph shapes; brush stroke presets; per-glyph tracks; title card kit; text on path; layered paints; hash noise"
+requires = [
+  "kit-title-card",
+  "text-fx",
+  "kinetic-presets",
+  "stroke-presets",
+  "schedules",
+  "noise-hashes",
+  "curves",
+]
+
+[sketch.video_compose]
+needs = "Compose video leaves; streaming decoders; playback scheduler; module grid arrangement; ticker-driven cover"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "video-leaf",
+  "video-decode",
+  "video-playback",
+]
+
+[sketch.video_compositing]
+needs = "Streaming video decoders; playback scheduler; raw canvas image compositing with blend and alpha"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "canvas-layers",
+  "video-decode",
+  "video-playback",
+]
+
+[sketch.volatility_cost]
+needs = "Eager profiling probe composer: stats, profile, cache states, refusals, bounds; star silhouettes; bound movers; legend, table, readout"
+requires = [
+  "kit-readout",
+  "kit-table",
+  "kit-legend",
+  "standalone-composer",
+  "composer-profile",
+  "silhouettes",
+]
+
+[sketch.warichu_placeholder]
+needs = "Warichu split of a note paragraph; vertical writing; rich text slots; measured advances; readout"
+requires = ["kit-readout"]
+
+[sketch.web_panel]
+needs = "Shared web engine; web view leaf; web image slot painted by pen; deterministic settle; availability probe"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "sketch-scry",
+  "web-leaf",
+  "web-engine",
+]
+
+[sketch.web_script]
+needs = "Shared web engine views; HTML load, script, scroll and press sequences settled to page state; frame stills"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "sketch-scry",
+  "kit-section-header",
+  "web-engine",
+]
+
+[sketch.webrtc_sky]
+needs = "WebRTC Connection over WebSocket signal; broadcast sends; eased ticker ramps; instrument page"
+requires = ["kit-instrument", "timelines", "connection"]
+
+[sketch.winamp_base]
+needs = "Instanced LED and row atlases; skin bevels; marquee kit; program tile; live pen curve; grain materials; ellipsised rows"
+requires = [
+  "instancing",
+  "keyed-shape",
+  "bevels",
+  "marquee",
+  "noise-hashes",
+  "tile-programs",
+]
+
+[sketch."world hud"]
+needs = "Set-kind world frame; HUD texture scene on camera-fitted quad; voxel mesh; kit wells; instanced stamps; tick rail; silhouettes"
+requires = [
+  "set-sketches",
+  "instancing",
+  "texture-scene",
+  "pixel-styles",
+  "silhouettes",
+  "camera-extent",
+  "textures",
+]
+
+[sketch.xcom_battlescape]
+needs = "Instanced atlas pools; palette lookup shader; index sprites; coverage pixel type; pattern tiles; check table; lattice hash; composer queries"
+requires = [
+  "kit-table",
+  "instancing",
+  "pattern-fill",
+  "pixel-type",
+  "pixel-sprites",
+  "noise-hashes",
+  "frames-grids",
+  "stock-tiles",
+  "ramp-shaders",
+  "check-table",
+]
+
+[sketch."y2k chrome"]
+needs = "Gel and chrome layer presets; bevel emboss; per-edge strokes; stock silhouettes; marquee ticker; text paint layers; pattern tiles"
+requires = [
+  "kit-ticker",
+  "layer-styles",
+  "adaptors",
+  "finishes",
+  "chrome-type",
+  "silhouettes",
+]
+
+[sketch.yarn_marquee]
+needs = "Winding spline; parallel-transport and hung rail frames; frame sweep with line section; textured two-sided mesh painter"
+requires = ["raster-surfaces", "splines", "sweeps", "world-rails"]
+
+[sketch.zellige]
+needs = "Girih pattern generator; speckle tile; regenerated pattern fills on update; inner-glow decoration; document type"
+requires = ["layer-styles", "stock-tiles", "girih"]

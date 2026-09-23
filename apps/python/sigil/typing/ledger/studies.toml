@@ -1,0 +1,78 @@
+# The bundled Python studies under src/sketch/sketches, one record each:
+# what the study combines and, where it ports or adapts a registered C++
+# sketch, which one. Every python_*.py file there needs a record.
+
+[study.python_alpha_ground]
+combines = "A transparent ground under one turning mark, for a subscriber to composite"
+ports = "alpha_ground"
+
+[study.python_botanical_study]
+combines = "Wash, dry mass, hatching and veins over ten leaves on a pressure-drawn branch"
+adapts = "brush_botanical_study"
+
+[study.python_compose_stamps]
+combines = "Compose trees placed by a Draw pen and repeated as a custom brush tip"
+
+[study.python_dashboard]
+combines = "Functions and iterables that build retained elements"
+
+[study.python_data_garden]
+combines = "Native table sorting and domain scales over one illustrative CSV dataset"
+
+[study.python_document]
+combines = "One document under two inherited role stylesheets"
+adapts = "document_styles"
+
+[study.python_hello]
+combines = "A greeting and a moving circle, with two constants to edit"
+
+[study.python_hello_compose]
+combines = "Python components, native kits, material paints and an entrance"
+
+[study.python_kit_specimen]
+combines = "Native layout schemes, page furniture and a memo that restores its scoped theme"
+
+[study.python_liquid_glass]
+combines = "Runtime shader refraction, child slots, moving uniforms and Bezier filaments"
+ports = "p5_refractive_metaballs"
+
+[study.python_liquid_layers]
+combines = "Nibs, wet fibres, pigment blooms and pattern materials"
+adapts = "p5_liquid_layers"
+
+[study.python_live_signals]
+combines = "UDP feed arrivals, JSON decoding, drawn traces and a reply to each sender"
+
+[study.python_memo_station]
+combines = "Retained model descriptions, memo invalidation and native motion"
+
+[study.python_mesh_observatory]
+combines = "Parametric, lathed and regular meshes with a camera and native lighting"
+
+[study.python_motion_signals]
+combines = "Shared outputs, native bindings and keyframe motion"
+
+[study.python_observable_flowfield]
+combines = "A NumPy angle field drawn as packed line batches"
+ports = "observable_flowfield_3"
+
+[study.python_observable_l_system]
+combines = "String rewriting, a turtle stack and a bounds-fitted pen drawing"
+ports = "observable_l_system_tree"
+
+[study.python_observable_reaction_diffusion]
+combines = "A NumPy Gray–Scott simulation and bulk pixel transfer"
+ports = "observable_reaction_diffusion"
+
+[study.python_observable_reynolds]
+combines = "Stateful flocking, seeded initialization and transforms"
+ports = "observable_reynolds_steering"
+
+[study.python_orbits]
+combines = "Periodic arcs and fading trails computed from the scene clock"
+
+[study.python_type_atelier]
+combines = "Mixed runs, inline slots, named selections, initial letters, balanced story frames and a curved baseline"
+
+[study.python_world_study]
+combines = "One vessel mesh under keyed scene nodes, three dielectric finishes and a moving three-point rig, rendered on the CPU"

@@ -1,0 +1,2148 @@
+# What each Python surface binds and what its native library has that
+# Python cannot reach yet, grouped the way the ledger prints them.
+#
+# An item written `bound` is a claim in Python spelling: every name in its
+# `python` list must resolve in the built extension, and generation stops,
+# naming the item, when one does not. An item written `native` is a native
+# surface in C++ spelling: it prints under Bound, as `bound_text` or as its
+# Python names, once every name in its `python` list resolves, and under Not
+# yet bound otherwise. An item with no `python` list states something no
+# name can show and prints as written.
+#
+# `library` names each library with no Python binding at all: when every
+# module it lists exports nothing, the ledger lists the requirements of that
+# library and the sketches needing them.
+
+[[section]]
+title = "Hosting and runtime"
+prose = "hosting"
+
+[[section.surface]]
+name = "Canvas sketches"
+
+[[section.surface.item]]
+bound = "`@sketch` classes, whose `setup`, `update` and `draw` may omit trailing arguments of `setup(ctx)`, `update(elapsed, ctx)` and `draw(pen, ctx)`, and which the catalogue and external workspaces discover"
+python = ["sketch.sketch"]
+
+[[section.surface.item]]
+bound = "undecorated classes with `setup` and an optional `update`, which open only from their file path"
+
+[[section.surface.item]]
+bound = "a checked context (`canvas`, `background`, `captureAt`, `oversample`, `plate`, `nonlinearPicture`, `render`, `measure`, `snapshot`, `measured`, `local` and the session readings) that rejects use after teardown or from another thread"
+python = [
+  "sketch.SketchContext.canvas",
+  "sketch.SketchContext.background",
+  "sketch.SketchContext.captureAt",
+  "sketch.SketchContext.oversample",
+  "sketch.SketchContext.plate",
+  "sketch.SketchContext.nonlinearPicture",
+  "sketch.SketchContext.render",
+  "sketch.SketchContext.measure",
+  "sketch.SketchContext.snapshot",
+  "sketch.SketchContext.measured",
+  "sketch.SketchContext.local",
+]
+
+[[section.surface.item]]
+bound = "checked assets (`image`, `json`, `table`, `database`, `hub`, `root`)"
+python = [
+  "sketch.Assets.image",
+  "sketch.Assets.json",
+  "sketch.Assets.table",
+  "sketch.Assets.database",
+  "sketch.Assets.hub",
+  "sketch.Assets.root",
+]
+
+[[section.surface.item]]
+bound = "a fresh import of the source and its local modules each time a sketch opens"
+
+[[section.surface.item]]
+bound = "catalogue metadata read from docstrings, `TAGS` and `REQUIRES`"
+
+[[section.surface.item]]
+bound = "`render_file` through the native host"
+python = ["sketch.render_file"]
+
+[[section.surface.item]]
+native = "Set sketches: `sketch::SetContext` and `describe(seconds)` returning a `world::Frame`"
+python = ["sketch.SetContext"]
+
+[[section.surface.item]]
+native = "`SketchContext::textureScene` and `fonts`"
+python = ["sketch.SketchContext.textureScene", "sketch.SketchContext.fonts"]
+
+[[section.surface.item]]
+native = "`SketchContext::bakeSet`, `canvas(CanvasSpecification)` and `key`"
+bound_text = "`bakeSet`, `canvas` over a `CanvasSpecification` and `key` on the context"
+python = [
+  "sketch.SketchContext.bakeSet",
+  "sketch.SketchContext.canvas",
+  "sketch.CanvasSpecification",
+  "sketch.SketchContext.key",
+]
+
+[[section.surface.item]]
+native = "`Assets::video`"
+python = ["sketch.Assets.video"]
+
+[[section.surface.item]]
+native = "`sketch::Guest`"
+bound_text = "`sketch.Guest`"
+python = ["sketch.Guest"]
+
+[[section.surface.item]]
+native = "`painterRuntime` and `device`"
+python = [
+  "sketch.SketchContext.painterRuntime",
+  "sketch.SketchContext.device",
+]
+
+[[section.surface.item]]
+native = "`sketch::requireCached`"
+bound_text = "`requireCached`"
+python = ["sketch.requireCached"]
+
+[[section.surface.item]]
+native = "a declared `available(why)` probe"
+
+[[section.surface.item]]
+native = "a registered name or category other than the file stem and `Python`"
+
+[[section.surface.item]]
+native = "the per-sketch `<stem>.fbs` schema rule, which runs only for C++ entries"
+
+[[section.surface.item]]
+native = "`sketch::scry` settling"
+python = ["sketch.scry.settle"]
+
+[[section.surface]]
+name = "Composer"
+
+[[section.surface.item]]
+bound = "Checked `ctx.composer`: `render`, `renderSlot`, `bounds`, `hitTest`, `settling`, `active`, `dirty`, `purgeCaches` and owned `stats`"
+python = [
+  "sketch.SketchContext.composer",
+  "compose.Composer.render",
+  "compose.Composer.renderSlot",
+  "compose.Composer.bounds",
+  "compose.Composer.hitTest",
+  "compose.Composer.settling",
+  "compose.Composer.active",
+  "compose.Composer.dirty",
+  "compose.Composer.purgeCaches",
+  "compose.Composer.stats",
+]
+
+[[section.surface.item]]
+native = "`cascadeSpanMs`"
+bound_text = "`cascadeSpanMs`"
+python = ["compose.Composer.cascadeSpanMs"]
+
+[[section.surface.item]]
+native = "`paragraphLayout`, `beatsOf` and `units`"
+python = [
+  "compose.Composer.paragraphLayout",
+  "compose.Composer.beatsOf",
+  "compose.Composer.units",
+]
+
+[[section.surface.item]]
+native = "`setInherited`, `setView` and `declareInputSpace`"
+bound_text = "`setInherited`, `setView` and `declareInputSpace`"
+python = [
+  "compose.Composer.setInherited",
+  "compose.Composer.setView",
+  "compose.Composer.declareInputSpace",
+]
+
+[[section.surface.item]]
+native = "`setProfiling` with `profile`, `setCompositeCounting`, `setAutoTexturePromotion` and `setBakeDensity`"
+bound_text = "`setProfiling` with `profile`, `setCompositeCounting`, `setAutoTexturePromotion` and `setBakeDensity`"
+python = [
+  "compose.Composer.setProfiling",
+  "compose.Composer.profile",
+  "compose.Composer.setCompositeCounting",
+  "compose.Composer.setAutoTexturePromotion",
+  "compose.Composer.setBakeDensity",
+]
+
+[[section.surface.item]]
+native = "a standalone `compose::Composer` driven through `setSize`, `setClock`, `draw`, `setPointer` and `setKey`"
+bound_text = "a standalone `compose.Composer` driven through `setSize`, `setClock`, `draw`, `setPointer` and `setKey`"
+python = [
+  "compose.Composer",
+  "compose.Composer.setSize",
+  "compose.Composer.setClock",
+  "compose.Composer.draw",
+  "compose.Composer.setPointer",
+  "compose.Composer.setKey",
+]
+
+[[section.surface]]
+name = "Ticker"
+
+[[section.surface.item]]
+bound = "Checked `ctx.ticker`: `add` with a callback of zero to two arguments that returns `False` to leave, `addFixed` with its catch-up limit, interpolation output and `FixedStatus`, `derive`, `elapsed` and `active`"
+python = [
+  "sketch.SketchContext.ticker",
+  "motion.Ticker.add",
+  "motion.Ticker.addFixed",
+  "motion.FixedStatus",
+  "motion.Ticker.derive",
+  "motion.Ticker.elapsed",
+  "motion.Ticker.active",
+]
+
+[[section.surface.item]]
+bound = "a World scene steps its own ticker through `Scene.advance`"
+python = ["world.Scene.advance"]
+
+[[section.surface.item]]
+native = "A standalone `motion::Ticker` with `tick`"
+bound_text = "a standalone `motion.Ticker` with `tick`"
+python = ["motion.Ticker", "motion.Ticker.tick"]
+
+[[section.surface.item]]
+native = "`Ticker::timeline()` over choreograph"
+bound_text = "`Ticker.timeline()` and its `Timeline`"
+python = ["motion.Ticker.timeline", "motion.Timeline"]
+
+[[section.surface.item]]
+native = "`motion::FrameClock`"
+bound_text = "`motion.FrameClock`"
+python = ["motion.FrameClock"]
+
+[[section.surface]]
+name = "Memo"
+
+[[section.surface.item]]
+bound = "`compose.memo(properties, describe)`: a deep-copied model compared with Python equality, native reconciliation, the inherited environment restored around the deferred builder, and builder failures reported with a traceback"
+python = ["compose.memo"]
+
+[[section.surface.item]]
+native = "`copy.deepcopy` on every bound value type, which the enumerations and several values still refuse, so a model cannot hold every bound value"
+
+[[section.surface.item]]
+native = "Python values in `core::environment` (`Provide`, `inherited`, `inheritedOr`, `bound`), so a Python kit's own theme is not a captured dependency"
+python = ["core.environment.inheritedOr"]
+
+[[section]]
+title = "Composition"
+prose = "composition"
+
+[[section.surface]]
+name = "Elements"
+
+[[section.surface.item]]
+bound = "Factories `box`, `stack`, `positioned`, `text` over a string, a styled string, rich text or a `weave.Paragraph`, `frame`, `image` over a Skia image or an `image.ImageAsset`, `picture`, `pathFigure`, `slot`, `memo`, `pen` and `graphics` with Python programs, keyed or not, `custom` paint programs reading `PaintContext`, and `layout` over the six stock schemes, an operator or a Python operator"
+python = [
+  "compose.box",
+  "compose.stack",
+  "compose.positioned",
+  "compose.text(paragraph)",
+  "compose.frame",
+  "compose.image(asset)",
+  "compose.picture",
+  "compose.pathFigure",
+  "compose.slot",
+  "compose.memo",
+  "compose.pen(program)",
+  "compose.graphics(program)",
+  "compose.custom",
+  "compose.PaintContext",
+  "compose.layout",
+]
+
+[[section.surface.item]]
+bound = "`point`, the node with no extent that carries a key and facts"
+python = ["compose.point"]
+
+[[section.surface.item]]
+bound = "`drawWith`, keyed or not, over a Python program handed one pen and the settled scope"
+python = ["compose.drawWith"]
+
+[[section.surface.item]]
+bound = "`keyedShape(key, function)` comparable shapes"
+python = ["compose.keyedShape"]
+
+[[section.surface.item]]
+bound = "the node verbs on `Element` and the text-leaf verbs on `Text`, with named arguments throughout: layout and placement, 2D and 3D transforms, fills, corners, shapes and clips, masks, effects, blending and hit testing, opacity, entrances and transitions, caching"
+python = [
+  "compose.Element.mask",
+  "compose.Element.rotateX",
+  "compose.Element.preserve3d",
+  "compose.Element.fill",
+  "compose.Element.borderRadius",
+  "compose.Element.shape",
+  "compose.Element.filter",
+  "compose.Element.blendMode",
+  "compose.Element.hitTestable",
+  "compose.Element.opacity",
+  "compose.Element.transition",
+  "compose.Element.cache",
+  "compose.Text.span",
+  "compose.Text.textOnPath",
+]
+
+[[section.surface.item]]
+bound = "`padding` and `margin` in CSS's order of one, two, three or four lengths, a named-sides keyword form and the per-side `paddingTop` to `paddingLeft` and `marginTop` to `marginLeft`"
+python = [
+  "compose.Element.padding",
+  "compose.Element.margin",
+  "compose.Element.paddingTop",
+  "compose.Element.paddingLeft",
+  "compose.Element.marginTop",
+  "compose.Element.marginLeft",
+]
+
+[[section.surface.item]]
+bound = "the cascade verbs `font`, `paragraph`, `ink`, `styleClass`, `role`, `var` and `applyStyleSheet`, with `inherit`, `initial` and `unset`"
+python = [
+  "compose.Element.font",
+  "compose.Element.paragraph",
+  "compose.Element.ink",
+  "compose.Element.styleClass",
+  "compose.Element.role",
+  "compose.Element.var",
+  "compose.Element.applyStyleSheet",
+  "compose.Element.inherit",
+  "compose.Element.initial",
+  "compose.Element.unset",
+]
+
+[[section.surface.item]]
+bound = "the fact verbs `attribute` and `attributes` over an `Attributes` table"
+python = [
+  "compose.Element.attribute",
+  "compose.Element.attributes",
+  "compose.Attributes",
+]
+
+[[section.surface.item]]
+bound = "`operators` over the stock arranging values, the connecting records and Python objects that arrange or add"
+python = ["compose.Element.operators", "compose.Arrangement", "compose.Scope"]
+
+[[section.surface.item]]
+bound = "dimensions in px, pct, em, rem, lh, ch, pt, var, pw and ph; children as elements or one iterable"
+python = [
+  "compose.pct",
+  "compose.em",
+  "compose.rem",
+  "compose.lh",
+  "compose.ch",
+  "compose.pt",
+  "compose.var",
+  "compose.pw",
+  "compose.ph",
+]
+
+[[section.surface.item]]
+bound = "`band` over a shape at an `across` width, with `bandAlignment`"
+python = ["compose.band", "compose.across", "compose.Band.bandAlignment"]
+
+[[section.surface.item]]
+bound = "`Anchor` and `RailRouter`"
+python = ["compose.Anchor", "compose.RailRouter"]
+
+[[section.surface.item]]
+bound = "`feed` rows and rings"
+python = ["compose.feed.feed", "compose.feed.Ring"]
+
+[[section.surface.item]]
+bound = "`instancing` pools and cell sheets"
+python = ["compose.instancing.Pool", "compose.instancing.CellSheet"]
+
+[[section.surface.item]]
+bound = "`linearGradient` and `radialGradient` fills"
+python = ["compose.linearGradient", "compose.radialGradient"]
+
+[[section.surface.item]]
+native = "`Text::textFx` tracks and the `textFx::` text effects (`scramble`, `keys`, `hold`, `sequence`, `mix` and `variableAxis`)"
+python = [
+  "compose.Text.textFx",
+  "compose.textFx.scramble",
+  "compose.textFx.keys",
+  "compose.textFx.sequence",
+]
+
+[[section.surface.item]]
+native = "`Text::variationDrive` and `Text::textAttach`"
+python = ["compose.Text.variationDrive", "compose.Text.textAttach"]
+
+[[section.surface.item]]
+native = "the `connect::Along`, `pin::`, `outline::` and `stamp::` operators"
+python = ["compose.connect.Along"]
+
+[[section.surface.item]]
+native = "`Pattern`"
+python = ["compose.Pattern"]
+
+[[section.surface.item]]
+native = "`Table`"
+python = ["compose.layouts.Table"]
+
+[[section.surface.item]]
+native = "a Python placement scheme of the older `place(LayoutInput)` shape, which an arranging operator stands in for"
+
+[[section.surface.item]]
+native = "shader fills"
+
+[[section.surface.item]]
+native = "standalone `intrinsicSize`, `snapshot`, `metrics`, `measureRun`, `runPens`, `atCapHeight` and `fitRun`"
+python = [
+  "compose.intrinsicSize",
+  "compose.metrics",
+  "compose.measureRun",
+  "compose.runPens",
+  "compose.fitRun",
+]
+
+[[section.surface.item]]
+native = "`tiles` and `shelve`"
+python = ["compose.tiles.Tiles", "compose.shelve"]
+
+[[section.surface.item]]
+native = "`video` and `web` leaves"
+python = ["compose.video", "compose.web"]
+
+[[section.surface.item]]
+native = "`TextureScene` and `texture`, which paint a tree into a material texture"
+python = ["compose.TextureScene", "compose.texture"]
+
+[[section.surface]]
+name = "Selector sheets"
+
+[[section.surface.item]]
+bound = "`compose.selector(cssText)` and the same value built name by name under `compose.select` (`styleClass`, `role`, `any`, `is_`, `where`, `notAnyOf`, `has`)"
+python = [
+  "compose.selector",
+  "compose.select.styleClass",
+  "compose.select.role",
+  "compose.select.any",
+  "compose.select.is_",
+  "compose.select.where",
+  "compose.select.notAnyOf",
+  "compose.select.has",
+]
+
+[[section.surface.item]]
+bound = "the four combinators as `child`, `descendant`, `next` and `sibling`"
+python = [
+  "compose.ElementSelector.child",
+  "compose.ElementSelector.descendant",
+  "compose.ElementSelector.next",
+  "compose.ElementSelector.sibling",
+]
+
+[[section.surface.item]]
+bound = "every structural pseudo-class, with `nthChild` and `nthLastChild` taking `of`"
+python = [
+  "compose.ElementSelector.firstChild",
+  "compose.ElementSelector.nthChild",
+  "compose.ElementSelector.nthLastChild",
+  "compose.ElementSelector.onlyOfType",
+  "compose.ElementSelector.root",
+]
+
+[[section.surface.item]]
+bound = "`|`, `&` and `~` for the list, the compound and the negation CSS's `!` spells"
+python = [
+  "compose.ElementSelector.__or__",
+  "compose.ElementSelector.__and__",
+  "compose.ElementSelector.__invert__",
+]
+
+[[section.surface.item]]
+bound = "`specificity()` over a comparable, ordered `Specificity` and `matchesNothing()`"
+python = [
+  "compose.ElementSelector.specificity",
+  "compose.Specificity",
+  "compose.ElementSelector.matchesNothing",
+]
+
+[[section.surface.item]]
+bound = "`compose.Rule` from either door with the node's own declaration verbs — the box, the flex line, placement, corners and overflow, the fill, `opacity` and `blendMode`, the 2D transform, the cascade (`font`, `paragraph`, `ink`, `var`, `varDefaults`, `imageRendering`, `inherit`, `initial` and `unset`), `transition` and the text properties — reading its `selector` and `type` back"
+python = [
+  "compose.Rule",
+  "compose.rule",
+  "compose.Rule.font",
+  "compose.Rule.paragraph",
+  "compose.Rule.ink",
+  "compose.Rule.var",
+  "compose.Rule.varDefaults",
+  "compose.Rule.imageRendering",
+  "compose.Rule.inherit",
+  "compose.Rule.initial",
+  "compose.Rule.unset",
+  "compose.Rule.opacity",
+  "compose.Rule.blendMode",
+  "compose.Rule.borderRadius",
+  "compose.Rule.transition",
+  "compose.Rule.selector",
+  "compose.Rule.type",
+]
+
+[[section.surface.item]]
+bound = "`Dimension` arithmetic for what CSS writes as `calc()`"
+python = ["compose.Dimension.__add__"]
+
+[[section.surface.item]]
+bound = "`compose.StyleSheet` from an iterable of rules and sheets, with `rules`, `size`, iteration, `+` and value equality"
+python = [
+  "compose.StyleSheet",
+  "compose.StyleSheet.rules",
+  "compose.StyleSheet.size",
+  "compose.StyleSheet.__add__",
+]
+
+[[section.surface.item]]
+bound = "`Element.applyStyleSheet`, whose sheet sees only its own subtree"
+python = ["compose.Element.applyStyleSheet"]
+
+[[section.surface.item]]
+native = "`Rule::inkVar` and `Rule::vars`, which name a `VarTable` registered later in the assembly"
+python = ["compose.Rule.inkVar", "compose.Rule.vars"]
+
+[[section.surface.item]]
+native = "the `Rule` readers `inkPaint`, `inkAnchor`, `inkUnit` and `statesInk`"
+python = [
+  "compose.Rule.inkPaint",
+  "compose.Rule.inkAnchor",
+  "compose.Rule.inkUnit",
+  "compose.Rule.statesInk",
+]
+
+[[section.surface]]
+name = "Decorations"
+
+[[section.surface.item]]
+bound = "`Decoration` over `PathFormat` (stroke fill, alignment, dashes, caps, joins, stamps, trims and animated phases) or `Shadow`"
+python = ["compose.Decoration", "compose.PathFormat", "compose.Shadow"]
+
+[[section.surface.item]]
+bound = "`stroke`, `shadow`, `LayerStyle` and `Element.layerStyle`"
+python = [
+  "compose.stroke",
+  "compose.shadow",
+  "compose.LayerStyle",
+  "compose.Element.layerStyle",
+]
+
+[[section.surface.item]]
+bound = "overlay, background, foreground and stroke layers"
+python = [
+  "compose.Element.overlay",
+  "compose.Element.background",
+  "compose.Element.foreground",
+  "compose.Element.stroke",
+]
+
+[[section.surface.item]]
+bound = "span passes over `spans` selections"
+python = ["compose.spans.range"]
+
+[[section.surface.item]]
+bound = "`Element.decorationOutline` and `Boundary`"
+python = ["compose.Element.decorationOutline", "compose.Boundary"]
+
+[[section.surface.item]]
+native = "`Slice`, `ContourWalk`, `Wash`, `Border` and the `decorations::` borders and washes"
+python = [
+  "compose.Slice",
+  "compose.ContourWalk",
+  "compose.Wash",
+  "compose.Border",
+  "compose.decorations.border",
+]
+
+[[section.surface.item]]
+native = "`onEdges` and `inset`"
+python = ["compose.onEdges", "compose.inset"]
+
+[[section.surface.item]]
+native = "the `brush::` solids, weaves, scatters, patterns, corner art, ribbons and art"
+python = [
+  "compose.brush.solid",
+  "compose.brush.weave",
+  "compose.brush.scatter",
+  "compose.brush.Ribbon",
+]
+
+[[section.surface.item]]
+native = "`Brush` shaped layer stacks and `brush::restyle`"
+python = ["compose.Brush", "compose.brush.restyle"]
+
+[[section.surface.item]]
+native = "`LayeredBrush`"
+python = ["compose.LayeredBrush"]
+
+[[section.surface.item]]
+native = "`lines::Line`, `Rails`, `Hatch` and `RadialHatch`"
+python = [
+  "compose.lines.Line",
+  "compose.lines.Rails",
+  "compose.lines.Hatch",
+  "compose.lines.RadialHatch",
+]
+
+[[section.surface.item]]
+native = "the `styles::` inner shadow, outer glow, bevel and emboss, overlays, ripple, brackets, tick rails, scanlines, stipple and dither"
+python = [
+  "compose.styles.innerShadow",
+  "compose.styles.bevelPair",
+  "compose.styles.tickRail",
+  "compose.styles.scanlines",
+]
+
+[[section.surface.item]]
+native = "`PathFormat::effect`"
+python = ["compose.PathFormat.effect"]
+
+[[section.surface.item]]
+native = "shadow offsets driven by motion outputs"
+
+[[section.surface.item]]
+native = "decoration schemes written in Python"
+
+[[section.surface]]
+name = "Compose kit"
+
+[[section.surface.item]]
+bound = "`compose.kit` records `Sheet`, `Panel`, `Board`, `Well`, `WellContent`, `Caption`, `Cells`, `PanelGrid`, `Line` and `Ladder` with every native field, their factories, `centred`, `at`, `disc`, `dot`, `ring` and `figure`, with caption, sheet and panel lines as Python callables"
+python = [
+  "compose.kit.Sheet",
+  "compose.kit.Panel",
+  "compose.kit.Board",
+  "compose.kit.Well",
+  "compose.kit.WellContent",
+  "compose.kit.Caption",
+  "compose.kit.Cells",
+  "compose.kit.PanelGrid",
+  "compose.kit.Line",
+  "compose.kit.Ladder",
+  "compose.kit.centred",
+  "compose.kit.at",
+  "compose.kit.disc",
+  "compose.kit.dot",
+  "compose.kit.ring",
+  "compose.kit.figure",
+]
+
+[[section.surface.item]]
+bound = "`compose.layouts` `Grid` with tracks, areas and dense flow, `Radial`, `Diagonal`, `BaselineGrid`, `Jittered` and `AlongPath`"
+python = [
+  "compose.layouts.Grid",
+  "compose.layouts.Radial",
+  "compose.layouts.Diagonal",
+  "compose.layouts.BaselineGrid",
+  "compose.layouts.Jittered",
+  "compose.layouts.AlongPath",
+]
+
+[[section.surface.item]]
+bound = "the connecting operators `compose.connect.Between` and `ByLane` with their router, gap, wire and bleed"
+python = ["compose.connect.Between", "compose.connect.ByLane"]
+
+[[section.surface.item]]
+native = "the rows (`section`, `readout`, `table`, `bars`)"
+python = ["compose.kit.readout", "compose.kit.table", "compose.kit.bars"]
+
+[[section.surface.item]]
+native = "typesetting (`ruby`, `kenten`, `bullets`, `textColumns`, `rules`, `nestedRun`)"
+python = [
+  "compose.kit.ruby",
+  "compose.kit.kenten",
+  "compose.kit.bullets",
+  "compose.kit.textColumns",
+  "compose.kit.rules",
+  "compose.kit.nestedRun",
+]
+
+[[section.surface.item]]
+native = "`annotate` with `Beside` and `Anchored`"
+python = ["compose.kit.annotate"]
+
+[[section.surface.item]]
+native = "the kinetic `textFx::` presets, `trackMeter` and `restGhost`"
+python = [
+  "compose.textFx.rise",
+  "compose.kit.trackMeter",
+  "compose.kit.restGhost",
+]
+
+[[section.surface.item]]
+native = "`marquee`"
+python = ["compose.kit.marquee"]
+
+[[section.surface.item]]
+native = "legibility (`scrim`, `haloed`, `shaded`, `emboldened` and `drawHaloed`)"
+python = [
+  "compose.kit.scrim",
+  "compose.kit.haloed",
+  "compose.kit.shaded",
+  "compose.kit.emboldened",
+  "compose.kit.drawHaloed",
+]
+
+[[section.surface.item]]
+native = "`vignette` and `grained`"
+python = ["compose.kit.vignette", "compose.kit.grained"]
+
+[[section.surface.item]]
+native = "the chrome, gel and gloss styles"
+python = ["compose.kit.aquaGel", "compose.kit.y2kChrome", "compose.kit.gloss"]
+
+[[section.surface.item]]
+native = "`plate`, `console` and `tinted`"
+python = ["compose.kit.plate", "compose.kit.console", "compose.kit.tinted"]
+
+[[section.surface.item]]
+native = "`routers::`"
+python = ["compose.routers.straight", "compose.routers.orthogonal"]
+
+[[section.surface.item]]
+native = "`instancing::place::`"
+python = ["compose.instancing.place.grid", "compose.instancing.place.ring"]
+
+[[section.surface.item]]
+native = "the stroke and brush presets"
+python = ["compose.lines.presets.railway", "compose.brush.presets.rope"]
+
+[[section.surface.item]]
+native = "sprites and pixel type"
+python = ["compose.kit.Sprite", "compose.kit.PixFont"]
+
+[[section.surface.item]]
+native = "`ornament::` and `flourish::`"
+python = [
+  "compose.kit.ornament.azurePalette",
+  "compose.kit.flourish.acanthusLeaf",
+]
+
+[[section.surface.item]]
+native = "the named default leaves"
+
+[[section.surface]]
+name = "Document kit"
+
+[[section.surface.item]]
+bound = "Every `compose::document` component and property: `article`, `section`, `list`, `quote`, `heading` and `h1` to `h6`, `paragraph` over a string or rich text, `lead`, `caption`, `label`, `eyebrow`, `footer`, `code`, `item`, `figure` and `rule`; `measure`, `gap`, `list_gap` and `quote_inset`"
+python = [
+  "compose.document.article",
+  "compose.document.section",
+  "compose.document.list",
+  "compose.document.quote",
+  "compose.document.heading",
+  "compose.document.h1",
+  "compose.document.h6",
+  "compose.document.paragraph",
+  "compose.document.lead",
+  "compose.document.caption",
+  "compose.document.label",
+  "compose.document.eyebrow",
+  "compose.document.footer",
+  "compose.document.code",
+  "compose.document.item",
+  "compose.document.figure",
+  "compose.document.rule",
+  "compose.document.measure",
+  "compose.document.gap",
+  "compose.document.list_gap",
+  "compose.document.quote_inset",
+]
+
+[[section.surface.item]]
+bound = "roles resolved through inherited stylesheets"
+
+[[section.surface]]
+name = "Specimen kit"
+
+[[section.surface.item]]
+bound = "`sketch.kit` `Palette`, `Register`, `TypeScale`, `Spacing` and a comparable `Theme` with `font`, `style`, `styleSheet` and `voice`"
+python = [
+  "sketch.kit.Palette",
+  "sketch.kit.Register",
+  "sketch.kit.TypeScale",
+  "sketch.kit.Spacing",
+  "sketch.kit.Theme",
+  "sketch.kit.Theme.font",
+  "sketch.kit.Theme.style",
+  "sketch.kit.Theme.styleSheet",
+  "sketch.kit.Theme.voice",
+]
+
+[[section.surface.item]]
+bound = "`house_face`, `house_theme`, `study_theme` and `theme`"
+python = [
+  "sketch.kit.house_face",
+  "sketch.kit.house_theme",
+  "sketch.kit.study_theme",
+  "sketch.kit.theme",
+]
+
+[[section.surface.item]]
+bound = "a checked `Provide`"
+python = ["sketch.kit.Provide"]
+
+[[section.surface.item]]
+bound = "`stage`, `page`, `well`, `caption`, `cell`, `cells`, `panel_grid` and `comparison`"
+python = [
+  "sketch.kit.stage",
+  "sketch.kit.page",
+  "sketch.kit.well",
+  "sketch.kit.caption",
+  "sketch.kit.cell",
+  "sketch.kit.cells",
+  "sketch.kit.panel_grid",
+  "sketch.kit.comparison",
+]
+
+[[section.surface.item]]
+native = "`specimenTheme`, `Theme::sans` and `Theme::mono`"
+python = [
+  "sketch.kit.specimenTheme",
+  "sketch.kit.Theme.sans",
+  "sketch.kit.Theme.mono",
+]
+
+[[section.surface.item]]
+native = "`stage(SetContext)`"
+python = ["sketch.SetContext"]
+
+[[section.surface.item]]
+native = "`passage`"
+python = ["sketch.kit.passage"]
+
+[[section.surface.item]]
+native = "`Document`"
+python = ["sketch.kit.Document"]
+
+[[section.surface.item]]
+native = "`Instrument`"
+python = ["sketch.kit.Instrument"]
+
+[[section.surface.item]]
+native = "the headings `titleCard` and `sectionHeader`"
+python = ["sketch.kit.titleCard", "sketch.kit.sectionHeader"]
+
+[[section.surface.item]]
+native = "the rows `readout`, `labelRow`, `table` and `bars`"
+python = [
+  "sketch.kit.readout",
+  "sketch.kit.labelRow",
+  "sketch.kit.table",
+  "sketch.kit.bars",
+]
+
+[[section.surface.item]]
+native = "the legends `legend`, `swatchStrip` and `chip`"
+python = ["sketch.kit.legend", "sketch.kit.swatchStrip", "sketch.kit.chip"]
+
+[[section.surface.item]]
+native = "`meter` and `gauge`"
+python = ["sketch.kit.meter", "sketch.kit.gauge"]
+
+[[section.surface.item]]
+native = "the charts `plot`, `axis`, `rules`, `trace`, `area`, `path`, `marks`, `bands`, `segments` and `label`"
+python = ["sketch.kit.plot"]
+
+[[section.surface.item]]
+native = "`scrollbar`"
+python = ["sketch.kit.scrollbar"]
+
+[[section.surface.item]]
+native = "`backdrop`, `panel` and `frame`"
+python = ["sketch.kit.backdrop", "sketch.kit.panel", "sketch.kit.frame"]
+
+[[section.surface.item]]
+native = "`console`"
+python = ["sketch.kit.console"]
+
+[[section.surface.item]]
+native = "`ticker` and `timeline`"
+python = ["sketch.kit.ticker", "sketch.kit.timeline"]
+
+[[section.surface.item]]
+native = "`Channel`"
+python = ["sketch.kit.Channel"]
+
+[[section]]
+title = "Typography"
+prose = "typography"
+
+[[section.surface]]
+name = "Retained typography"
+
+[[section.surface.item]]
+bound = "`Type` and `TextStyle` with em, rem, lh, ch and pt lengths, a field written as a keyword through `TypeField`"
+python = [
+  "weave.Type",
+  "weave.TextStyle",
+  "weave.em",
+  "weave.rem",
+  "weave.lh",
+  "weave.ch",
+  "weave.pt",
+  "weave.TypeField",
+]
+
+[[section.surface.item]]
+bound = "`PaintStyle`, `PaintLayer`, `Decoration` and the kit shadow, glow and outline layers"
+python = [
+  "weave.PaintStyle",
+  "weave.PaintLayer",
+  "weave.Decoration",
+  "weave.kit.dropShadow",
+  "weave.kit.glow",
+  "weave.kit.outline",
+]
+
+[[section.surface.item]]
+bound = "`ParagraphBlock` and `ParagraphStyle` with leading, justification and its method, hyphenation limits, tabs, indents, keeps, initial letters, reserved bands and the kinsoku, hanging and mojikumi tables"
+python = [
+  "weave.ParagraphBlock",
+  "weave.ParagraphStyle",
+  "weave.Leading",
+  "weave.JustificationOptions",
+  "weave.JustificationMethod",
+  "weave.HyphenationLimits",
+  "weave.TabStop",
+  "weave.IndentOptions",
+  "weave.KeepOptions",
+  "weave.InitialLetter",
+  "weave.ReservedBand",
+  "weave.KinsokuTable",
+  "weave.HangingTable",
+  "weave.MojikumiTable",
+]
+
+[[section.surface.item]]
+bound = "`FrameOptions` through `ParagraphLayoutOptions.frame` and the `Text` verbs `textFirstBaseline` and `textThreadBalance`"
+python = [
+  "weave.FrameOptions",
+  "weave.ParagraphLayoutOptions.frame",
+  "compose.Text.textFirstBaseline",
+  "compose.Text.textThreadBalance",
+]
+
+[[section.surface.item]]
+bound = "`TypeSheet` and Compose's `StyleSheet`"
+python = ["weave.TypeSheet", "compose.StyleSheet"]
+
+[[section.surface.item]]
+bound = "`RichText` with slots; `Story`"
+python = ["weave.RichText", "weave.Story"]
+
+[[section.surface.item]]
+bound = "`weave.selectors` and Compose `selectors`"
+python = ["weave.selectors.word", "compose.selectors.style"]
+
+[[section.surface.item]]
+bound = "`TextPath`; Compose `Annotation`"
+python = ["compose.TextPath", "compose.Annotation"]
+
+[[section.surface.item]]
+bound = "vertical writing through `ParagraphBlock.writingMode` and `Type.verticalForm`"
+python = ["weave.ParagraphBlock.writingMode", "weave.Type.verticalForm"]
+
+[[section.surface.item]]
+native = "`weave::reshapes` and a stated `defaultFace`"
+bound_text = "`reshapes` and a stated `defaultFace`"
+python = ["weave.reshapes", "weave.defaultFace"]
+
+[[section.surface.item]]
+native = "`weave::overlay` and `merge`"
+python = ["weave.overlay", "weave.merge"]
+
+[[section.surface.item]]
+native = "`HyphenationOptions::patterns` in a paragraph's style"
+python = ["weave.HyphenationOptions.patterns"]
+
+[[section.surface.item]]
+native = "`weave::paint::setMaterialResolver`, which a canvas session already installs, so a paint layer's material shades without one"
+python = ["weave.paint.setMaterialResolver"]
+
+[[section.surface]]
+name = "Paragraph engine"
+
+[[section.surface.item]]
+bound = "`Paragraph` editing and inspection over UTF-16 ranges; `ParagraphBuilder`"
+python = ["weave.Paragraph", "weave.ParagraphBuilder"]
+
+[[section.surface.item]]
+bound = "a thread-checked `FontContext` over the system font manager"
+python = ["weave.FontContext"]
+
+[[section.surface.item]]
+bound = "`BlockFlow`, `VerticalBlockFlow`, `PathFlow`, `LineSetFlow` and `ExclusionFlow` with `flowshape` shapes"
+python = [
+  "weave.BlockFlow",
+  "weave.VerticalBlockFlow",
+  "weave.PathFlow",
+  "weave.LineSetFlow",
+  "weave.ExclusionFlow",
+  "weave.flowshape.circle",
+]
+
+[[section.surface.item]]
+bound = "`layoutParagraph`, `layoutSingleLine` and their options"
+python = [
+  "weave.layoutParagraph",
+  "weave.layoutSingleLine",
+  "weave.ParagraphLayoutOptions",
+]
+
+[[section.surface.item]]
+bound = "a `ParagraphLayout` with drawing, batched drawing, line and column metrics and glyph outlines, which refuses use once its paragraph changes"
+python = ["weave.ParagraphLayout", "weave.LineMetrics", "weave.ColumnMetrics"]
+
+[[section.surface.item]]
+bound = "`findAllOccurrences`, `findRegexMatches`, `wordRanges` and `MarkerSet`"
+python = [
+  "weave.findAllOccurrences",
+  "weave.findRegexMatches",
+  "weave.wordRanges",
+  "weave.MarkerSet",
+]
+
+[[section.surface.item]]
+bound = "`layoutBeside`, `warichuSplit` and `layoutWarichu`"
+python = ["weave.layoutBeside", "weave.warichuSplit", "weave.layoutWarichu"]
+
+[[section.surface.item]]
+native = "the `unicode::` leaf"
+bound_text = "the `weave.unicode` leaf"
+python = [
+  "weave.unicode.itemize",
+  "weave.unicode.lineBreaks",
+  "weave.unicode.graphemeBoundaries",
+]
+
+[[section.surface.item]]
+native = "Python subclasses of `FlowGeometry`, `FlowShape` and `Hyphenator`"
+
+[[section.surface.item]]
+native = "`FontContext` over a supplied font manager with a fallback resolver"
+
+[[section.surface.item]]
+native = "`ports::face` family chains and width styles"
+python = ["weave.ports.face"]
+
+[[section.surface.item]]
+native = "`TextContext` and `TextLayout`"
+python = ["weave.TextContext", "weave.TextLayout"]
+
+[[section.surface.item]]
+native = "shaped words (`shapeWord`, `faceMetrics`, `lineHeightOf`, `Paragraph::words`)"
+python = [
+  "weave.shapeWord",
+  "weave.faceMetrics",
+  "weave.lineHeightOf",
+  "weave.Paragraph.words",
+]
+
+[[section.surface.item]]
+native = "`ParagraphLayout::placeholderRects`"
+python = ["weave.ParagraphLayout.placeholderRects"]
+
+[[section.surface.item]]
+native = "`LineInterval::contour` and `placeAt`"
+python = ["weave.LineInterval.contour", "weave.LineInterval.placeAt"]
+
+[[section.surface.item]]
+native = "`Selector::state`"
+python = ["weave.Selector.state"]
+
+[[section.surface]]
+name = "Glyph choreography"
+
+[[section.surface.item]]
+native = "`ParagraphLayout::runs`, `PlacedGlyph` and `forEachPlacedGlyph`"
+python = [
+  "weave.ParagraphLayout.runs",
+  "weave.PlacedGlyph",
+  "weave.forEachPlacedGlyph",
+]
+
+[[section.surface.item]]
+native = "`ParagraphLayout::GlyphStyles` batched per-glyph drawing"
+python = ["weave.ParagraphLayout.GlyphStyles"]
+
+[[section.surface.item]]
+native = "`GlyphDress`"
+python = ["weave.GlyphDress"]
+
+[[section.surface.item]]
+native = "`GlyphRSXformBatches`"
+python = ["weave.GlyphRSXformBatches"]
+
+[[section.surface.item]]
+native = "live variation drawing"
+
+[[section.surface.item]]
+native = "`kit::GlyphBuckets` and `drawPositionedGlyphs`"
+python = ["weave.kit.GlyphBuckets", "weave.kit.drawPositionedGlyphs"]
+
+[[section.surface]]
+name = "Weave kit"
+
+[[section.surface.item]]
+bound = "`PatternHyphenator` with the English patterns"
+python = [
+  "weave.kit.PatternHyphenator",
+  "weave.kit.englishHyphenationPatterns",
+]
+
+[[section.surface.item]]
+bound = "`dropShadow`, `glow` and `outline`"
+python = ["weave.kit.dropShadow", "weave.kit.glow", "weave.kit.outline"]
+
+[[section.surface.item]]
+native = "The `features::` presets and `stylisticSet`"
+bound_text = "the `weave.features` presets and `stylisticSet`"
+python = [
+  "weave.features.smallCaps",
+  "weave.features.oldstyleNumbers",
+  "weave.features.stylisticSet",
+]
+
+[[section.surface.item]]
+native = "`makeStyle` and `tracked`"
+bound_text = "`makeStyle` and `tracked`"
+python = ["weave.kit.makeStyle", "weave.kit.tracked"]
+
+[[section.surface.item]]
+native = "`drawLabel`"
+python = ["weave.kit.drawLabel"]
+
+[[section.surface.item]]
+native = "`kinsoku::japanese`, `hanging::latin` and `hanging::japanese`"
+python = [
+  "weave.kit.kinsoku.japanese",
+  "weave.kit.hanging.latin",
+  "weave.kit.hanging.japanese",
+]
+
+[[section.surface.item]]
+native = "`LayoutGuard`"
+python = ["weave.kit.LayoutGuard"]
+
+[[section.surface.item]]
+native = "`mixedScriptFiller`"
+python = ["weave.kit.mixedScriptFiller"]
+
+[[section]]
+title = "Motion"
+prose = "motion"
+
+[[section.surface]]
+name = "Values and bindings"
+
+[[section.surface.item]]
+bound = "Shared `Output`, `ColorOutput` and `FillOutput`"
+python = ["motion.Output", "motion.ColorOutput", "motion.FillOutput"]
+
+[[section.surface.item]]
+bound = "`bind` and every `Bound` stage; `wiggle`"
+python = ["motion.bind", "motion.Bound", "motion.wiggle"]
+
+[[section.surface.item]]
+bound = "`ease` curves and Python callables"
+python = ["motion.ease.inOutCubic", "motion.Curve"]
+
+[[section.surface.item]]
+bound = "`Transition`, `ramp`, `animate` over `from_`, `to` and `through`, and `entrance` and `transition` for floats, colors and fills, with read-back"
+python = [
+  "motion.Transition",
+  "motion.ramp",
+  "motion.animate",
+  "motion.from_",
+  "motion.to",
+  "motion.through",
+  "motion.entrance",
+  "motion.transition",
+]
+
+[[section.surface.item]]
+bound = "the float `Animatable`"
+python = ["motion.Animatable"]
+
+[[section.surface.item]]
+bound = "`phase`, `quantizeTime`, `stepIndex`, `decay`, `flash` and `clamp01`"
+python = [
+  "motion.phase",
+  "motion.quantizeTime",
+  "motion.stepIndex",
+  "motion.decay",
+  "motion.flash",
+  "motion.clamp01",
+]
+
+[[section.surface.item]]
+bound = "`hold`, `holdUntil`, `rampTo` and `setValue`"
+python = [
+  "motion.hold",
+  "motion.holdUntil",
+  "motion.rampTo",
+  "motion.setValue",
+]
+
+[[section.surface.item]]
+bound = "times in seconds, truncated to whole milliseconds"
+
+[[section.surface.item]]
+native = "`Oscillator` and `Wave`"
+python = ["motion.Oscillator", "motion.Wave"]
+
+[[section.surface.item]]
+native = "`Sequence`"
+python = ["motion.Sequence"]
+
+[[section.surface.item]]
+native = "`Spring` with `spring` and `springMoving`"
+python = ["motion.Spring", "motion.spring", "motion.springMoving"]
+
+[[section.surface.item]]
+native = "`AnimatedFloat` and held-motion resolution"
+python = ["motion.AnimatedFloat"]
+
+[[section.surface.item]]
+native = "`Lane` with `retargetSlots` and `retargetFamily`"
+python = ["motion.Lane", "motion.retargetSlots", "motion.retargetFamily"]
+
+[[section.surface.item]]
+native = "`BoundFloat`, `Envelope` and `Bound::value`"
+python = ["motion.BoundFloat", "motion.Envelope", "motion.Bound.value"]
+
+[[section.surface.item]]
+native = "the color and fill `Animatable` and its accessors"
+
+[[section.surface.item]]
+native = "curve shape read-back, without which a Python-authored curve compares unequal"
+
+[[section.surface]]
+name = "Schedule"
+
+[[section.surface.item]]
+bound = "`Element.staggerChildren(seconds, from_)` with `from_` of `\"start\"`, `\"center\"` or `\"end\"`"
+python = ["compose.Element.staggerChildren"]
+
+[[section.surface.item]]
+native = "`Spread` with its random and edge origins"
+python = ["motion.Spread"]
+
+[[section.surface.item]]
+native = "`cascadeOrder`, `cascadeRanks`, `Cascade` and `Beat`"
+python = [
+  "motion.cascadeOrder",
+  "motion.cascadeRanks",
+  "motion.Cascade",
+  "motion.Beat",
+]
+
+[[section.surface.item]]
+native = "World `Element::staggerChildren`"
+python = ["world.Element.staggerChildren"]
+
+[[section.surface]]
+name = "Physics"
+
+[[section.surface.item]]
+native = "`motion::physics`: `Points`, forces, flocking, `Neighbourhood`, constraints, `Verlet`, `Particles` and `Emitter`"
+python = [
+  "motion.physics.Points",
+  "motion.physics.Neighbourhood",
+  "motion.physics.Verlet",
+  "motion.physics.Particles",
+  "motion.physics.Emitter",
+]
+
+[[section]]
+title = "Drawing"
+prose = "drawing"
+
+[[section.surface]]
+name = "Pen"
+
+[[section.surface.item]]
+bound = "`draw.Pen`, checked for its drawing thread and callback: every p5 constant and blend mode; color models; geometry, curves, shapes and contours; clipping and dashes; `shape` over a path or a Python silhouette; `vertices`; text, with `textFont` over a family, `weave.Type` or a typeface; images; transforms"
+python = [
+  "draw.Pen",
+  "draw.Pen.colorMode",
+  "draw.Pen.bezier",
+  "draw.Pen.beginContour",
+  "draw.Pen.clip",
+  "draw.Pen.strokeDash",
+  "draw.Pen.shape",
+  "draw.Pen.vertices",
+  "draw.Pen.text",
+  "draw.Pen.textFont",
+  "draw.Pen.image",
+  "draw.Pen.translate",
+]
+
+[[section.surface.item]]
+bound = "seeded random, Gaussian and noise streams and `NoiseField`; `map`, `lerp`, `constrain`, `dist`, `mag`, `norm`, `sq`, `radians` and `degrees`"
+python = [
+  "draw.Pen.randomSeed",
+  "draw.Pen.randomGaussian",
+  "draw.Pen.noiseSeed",
+  "draw.NoiseField",
+  "draw.map",
+  "draw.lerp",
+  "draw.constrain",
+  "draw.dist",
+  "draw.mag",
+  "draw.norm",
+  "draw.sq",
+  "draw.radians",
+  "draw.degrees",
+]
+
+[[section.surface.item]]
+bound = "material fills, strokes and grounds fitted to the canvas or the shape; inherited ink and font"
+python = [
+  "draw.Pen.fillPaint",
+  "draw.Pen.strokePaint",
+  "draw.Pen.inheritedInk",
+  "draw.Pen.inheritedFont",
+]
+
+[[section.surface.item]]
+bound = "frame input and loop control; `element` guests keyed by source location and loop index"
+python = [
+  "draw.Pen.mouseX",
+  "draw.Pen.keyIsPressed",
+  "draw.Pen.noLoop",
+  "draw.Pen.element",
+]
+
+[[section.surface.item]]
+native = "A standalone `Pen` with `begin` and `end`"
+python = ["draw.Pen.begin", "draw.Pen.end"]
+
+[[section.surface.item]]
+native = "`Pen::retained()` state"
+python = ["draw.Pen.retained"]
+
+[[section.surface]]
+name = "Canvas and offscreen buffers"
+
+[[section.surface.item]]
+bound = "`pen.canvas()`, expiring with its pen: save and restore, transforms, clips, `drawPath`, `drawRect`, `drawCircle`, `drawPoints` over iterables or float32 buffers, and `drawVertices`"
+python = [
+  "draw.Pen.canvas",
+  "draw.Canvas.save",
+  "draw.Canvas.restore",
+  "draw.Canvas.translate",
+  "draw.Canvas.clipPath",
+  "draw.Canvas.drawPath",
+  "draw.Canvas.drawRect",
+  "draw.Canvas.drawCircle",
+  "draw.Canvas.drawPoints",
+  "draw.Canvas.drawVertices",
+]
+
+[[section.surface.item]]
+bound = "`draw.on`; `draw.Graphics` with explicit or scoped frames, a `resize` that keeps pixels, and frames that close with their host frame"
+python = [
+  "draw.on",
+  "draw.Graphics",
+  "draw.Graphics.begin",
+  "draw.Graphics.end",
+  "draw.Graphics.resize",
+]
+
+[[section.surface.item]]
+native = "`drawLine`, `drawOval`, `drawArc`, `drawRRect`, `drawPaint`, `drawImage`, `drawImageRect`, `drawPicture`, `drawTextBlob`, `saveLayer` and `concat`"
+python = [
+  "draw.Canvas.drawLine",
+  "draw.Canvas.drawOval",
+  "draw.Canvas.drawArc",
+  "draw.Canvas.drawRRect",
+  "draw.Canvas.drawPaint",
+  "draw.Canvas.drawImage",
+  "draw.Canvas.drawImageRect",
+  "draw.Canvas.drawPicture",
+  "draw.Canvas.drawTextBlob",
+  "draw.Canvas.saveLayer",
+  "draw.Canvas.concat",
+]
+
+[[section.surface.item]]
+native = "an owned raster surface for drawing before the first frame or outside a host pen"
+python = ["skia.Surface.raster"]
+
+[[section.surface]]
+name = "Brush"
+
+[[section.surface.item]]
+bound = "`draw.brush`: tool, pressure, curve, response, dynamics, shape, grain and input records, with Python callables where native takes functions; the stock tools; strokes, sampling and deposition; fields over Python callables; washes, hatches and masses; polygons and plots; catalogues and the engine"
+python = [
+  "draw.brush.Tool",
+  "draw.brush.Pressure",
+  "draw.brush.Curve",
+  "draw.brush.Response",
+  "draw.brush.Dynamics",
+  "draw.brush.Shape",
+  "draw.brush.Grain",
+  "draw.brush.Input",
+  "draw.brush.pencil",
+  "draw.brush.Stroke",
+  "draw.brush.Sampler",
+  "draw.brush.deposit",
+  "draw.brush.Wash",
+  "draw.brush.Hatch",
+  "draw.brush.Mass",
+  "draw.brush.Polygon",
+  "draw.brush.Plot",
+  "draw.brush.Catalogue",
+  "draw.brush.Engine",
+]
+
+[[section.surface.item]]
+bound = "Python curves, fields and tips follow the host callback lifetime"
+
+[[section.surface.item]]
+bound = "`copy.deepcopy` for brush tools"
+python = ["draw.brush.Tool.__deepcopy__"]
+
+[[section.surface.item]]
+native = "`weightedChoice`"
+python = ["draw.brush.weightedChoice"]
+
+[[section.surface.item]]
+native = "`kSpeedFilterSeconds`"
+python = ["draw.brush.kSpeedFilterSeconds"]
+
+[[section.surface]]
+name = "Brush formats"
+
+[[section.surface.item]]
+bound = "`draw.brush.format`: `encodeBrush`, `decodeBrush`, `assembleBrush`, and Photoshop and Procreate brush decoding"
+python = [
+  "draw.brush.format.encodeBrush",
+  "draw.brush.format.decodeBrush",
+  "draw.brush.format.assembleBrush",
+  "draw.brush.format.decodePhotoshopBrushes",
+  "draw.brush.format.decodeProcreateBrush",
+]
+
+[[section.surface.item]]
+native = "`loadBrush`"
+python = ["draw.brush.format.loadBrush"]
+
+[[section.surface.item]]
+native = "a brush decoder registered with a hub"
+
+[[section.surface]]
+name = "Skia values"
+
+[[section.surface.item]]
+bound = "`skia` points, rectangles, sizes, colors, matrices, paths and path builders, `pathOp`, paint setters, blend, tile, filter and sampling modes, `Vertices`, `Image` with RGBA read-back, `Picture`, `RuntimeEffect.MakeForShader` and `Typeface` with its family name"
+python = [
+  "skia.Point",
+  "skia.Rect",
+  "skia.Size",
+  "skia.Matrix",
+  "skia.Path",
+  "skia.PathBuilder",
+  "skia.pathOp",
+  "skia.Paint",
+  "skia.BlendMode",
+  "skia.TileMode",
+  "skia.FilterMode",
+  "skia.SamplingOptions",
+  "skia.Vertices",
+  "skia.Image",
+  "skia.Picture",
+  "skia.RuntimeEffect.MakeForShader",
+  "skia.Typeface.familyName",
+]
+
+[[section.surface.item]]
+native = "Paint shaders, color and image filters, mask filters, path effects and blenders"
+python = ["skia.Paint.setShader", "skia.Paint.setImageFilter"]
+
+[[section.surface.item]]
+native = "`SkShaders` and gradients"
+python = ["skia.Shaders"]
+
+[[section.surface.item]]
+native = "`SkRRect`, `SkM44` and most of `SkMatrix`"
+python = ["skia.RRect", "skia.M44"]
+
+[[section.surface.item]]
+native = "`SkPathBuilder::arcTo`"
+python = ["skia.PathBuilder.arcTo"]
+
+[[section.surface.item]]
+native = "path queries beyond `contains`, `getBounds` and `isEmpty`, SVG path strings, `Simplify`, `skpathutils::FillPathWithPaint` and `SkContourMeasure`"
+python = ["skia.Simplify", "skia.fillPathWithPaint", "skia.ContourMeasure"]
+
+[[section.surface.item]]
+native = "`SkTypeface` variation axes and style read-back"
+python = ["skia.Typeface.variationAxes", "skia.Typeface.fontStyle"]
+
+[[section.surface.item]]
+native = "`SkFont` and `SkTextBlob`"
+python = ["skia.Font", "skia.TextBlob"]
+
+[[section.surface.item]]
+native = "bitmaps, pixmaps and image info"
+python = ["skia.Bitmap", "skia.Pixmap", "skia.ImageInfo"]
+
+[[section.surface.item]]
+native = "the SigilSkia library itself: `draw::drawLattice`, `draw::drawSpriteAtlas`, the float and half-float pixel helpers and the Graphite bring-up"
+python = [
+  "skia.draw.drawLattice",
+  "skia.draw.drawSpriteAtlas",
+  "skia.halfFloatPixels",
+]
+
+[[section.surface]]
+name = "Image"
+
+[[section.surface.item]]
+bound = "`image.decode`, `decodeAsset` with animated `ImageAsset.frameAt`, `encode` to PNG, JPEG, WebP and EXR, `from_rgba`, `load` and `save`; hub and session image loading"
+python = [
+  "image.decode",
+  "image.decodeAsset",
+  "image.ImageAsset.frameAt",
+  "image.encode",
+  "image.Format",
+  "image.from_rgba",
+  "image.load",
+  "image.save",
+]
+
+[[section.surface.item]]
+native = "`DecodeOptions::layer`"
+python = ["image.DecodeOptions"]
+
+[[section.surface.item]]
+native = "`probeImage`"
+python = ["image.probeImage"]
+
+[[section.surface.item]]
+native = "`decodeChannels`"
+python = ["image.decodeChannels"]
+
+[[section.surface.item]]
+native = "pixmap and channel encoding with 16-bit and float pixels"
+python = ["image.encodePixmap"]
+
+[[section.surface.item]]
+native = "`ImageAsset::frames`, `repetitionCount` and `wrap`"
+python = [
+  "image.ImageAsset.frames",
+  "image.ImageAsset.repetitionCount",
+  "image.ImageAsset.wrap",
+]
+
+[[section.surface.item]]
+native = "`coverageMask` and `distanceField`"
+python = ["image.coverageMask", "image.distanceField"]
+
+[[section.surface.item]]
+native = "`formatForPath` and `extensionFor`"
+python = ["image.formatForPath", "image.extensionFor"]
+
+[[section.surface.item]]
+native = "`embeddedPngs`"
+python = ["image.embeddedPngs"]
+
+[[section.surface.item]]
+native = "reporting which codecs are available"
+
+[[section.surface]]
+name = "Core"
+
+[[section.surface.item]]
+bound = "`core.chance` sources and streams, with copies"
+python = [
+  "core.chance.Source",
+  "core.chance.Stream",
+  "core.chance.Stream.copy",
+]
+
+[[section.surface.item]]
+bound = "curves as `motion.Curve`"
+python = ["motion.Curve"]
+
+[[section.surface.item]]
+bound = "the inherited environment through memo and `sketch.kit.Provide`"
+python = ["compose.memo", "sketch.kit.Provide"]
+
+[[section.surface.item]]
+bound = "`core.optionalLibraries`"
+python = ["core.optionalLibraries"]
+
+[[section.surface.item]]
+native = "`Stream::sample`, `reseed` and `seed`"
+python = [
+  "core.chance.Stream.sample",
+  "core.chance.Stream.reseed",
+  "core.chance.Stream.seed",
+]
+
+[[section.surface.item]]
+native = "the distributions, `shuffle` and `Reservoir`"
+python = ["core.chance.shuffle", "core.chance.Reservoir"]
+
+[[section.surface.item]]
+native = "`noise::Field` and the noise kinds"
+python = ["core.noise.Field"]
+
+[[section.surface.item]]
+native = "the `noise::` mixers and lattice words"
+python = ["core.noise.hash", "core.noise.lattice"]
+
+[[section.surface.item]]
+native = "`hash::fnv1a` and `combine`"
+python = ["core.hash.fnv1a", "core.hash.combine"]
+
+[[section.surface.item]]
+native = "interval normal forms"
+python = ["core.intervals.normalize"]
+
+[[section]]
+title = "Material, geometry and World"
+prose = "material-geometry-world"
+
+[[section.surface]]
+name = "Material"
+
+[[section.surface.item]]
+bound = "Colors with OKLab, OKLCH, CIELAB and linear conversions, gamut fitting and difference; ramps, palettes and extraction, harmonies and dither"
+python = [
+  "material.Color",
+  "material.Oklab",
+  "material.Oklch",
+  "material.Lab",
+  "material.LinearRgb",
+  "material.fitToSrgb",
+  "material.deltaE",
+  "material.Ramp",
+  "material.Palette",
+  "material.harmony",
+  "material.Dither",
+]
+
+[[section.surface.item]]
+bound = "the `field` recipes `noise`, `grain`, `ripple`, `halftoneRamp` and `crtOverlay`"
+python = [
+  "material.field.noise",
+  "material.field.grain",
+  "material.field.ripple",
+  "material.field.halftoneRamp",
+  "material.field.crtOverlay",
+]
+
+[[section.surface.item]]
+bound = "`kit.SurfaceParameters` with `surface` and `unlit`"
+python = [
+  "material.kit.SurfaceParameters",
+  "material.kit.surface",
+  "material.kit.unlit",
+]
+
+[[section.surface.item]]
+bound = "`pattern.Tile` grid lines, stripes, checker and halftone"
+python = [
+  "material.pattern.Tile",
+  "material.pattern.gridLines",
+  "material.pattern.stripes",
+  "material.pattern.checker",
+  "material.pattern.halftone",
+]
+
+[[section.surface.item]]
+bound = "`Paint` (solid, gradients, image, SkSL, recipe and blends, with uniforms, slots, fitting and world space)"
+python = [
+  "material.Paint.solid",
+  "material.Paint.linear",
+  "material.Paint.radial",
+  "material.Paint.image",
+  "material.Paint.sksl",
+  "material.Paint.recipe",
+  "material.Paint.blend",
+  "material.Paint.uniform",
+  "material.Paint.slot",
+  "material.Paint.fit",
+  "material.Paint.worldSpace",
+]
+
+[[section.surface.item]]
+bound = "`Effect` (glow, bloom, blurs, the light stages `dilate`, `deepen` and `whiten` joined by `emit`, shaders, slots and uniforms driven by motion outputs) and `bloom` over `BloomParameters`"
+python = [
+  "material.Effect.glow",
+  "material.Effect.blur",
+  "material.Effect.dilate",
+  "material.Effect.deepen",
+  "material.Effect.whiten",
+  "material.Effect.emit",
+  "material.Effect.shader",
+  "material.Effect.slot",
+  "material.Effect.uniform",
+  "material.bloom",
+  "material.BloomParameters",
+]
+
+[[section.surface.item]]
+bound = "a recipe `Material` stands where a paint does, on an element's fills and glyph paints and on the pen's fills, strokes and grounds"
+python = ["material.Material"]
+
+[[section.surface.item]]
+native = "`Material` equality and editing"
+
+[[section.surface.item]]
+native = "`Recipe` authoring with frame inputs, `UniformBlock` and banks"
+python = ["material.Recipe", "material.UniformBlock", "material.Bank"]
+
+[[section.surface.item]]
+native = "`over` stacks and masks"
+python = ["material.over"]
+
+[[section.surface.item]]
+native = "`Texture`, texture discovery, `Atlas`, `EnvironmentMap` and `bevelNormals`"
+python = [
+  "material.Texture",
+  "material.Atlas",
+  "material.EnvironmentMap",
+  "material.bevelNormals",
+]
+
+[[section.surface.item]]
+native = "`sdf::`, `ocio::` and `slang::`"
+python = [
+  "material.sdf.circle",
+  "material.ocio.convert",
+  "material.slang.compile",
+]
+
+[[section.surface.item]]
+native = "`pattern::sequence`, `speckle`, tile textures and filters, and weaving"
+python = [
+  "material.pattern.sequence",
+  "material.pattern.speckle",
+  "material.pattern.clothTile",
+]
+
+[[section.surface.item]]
+native = "`skia::fill`, `shader`, `verticalRamp`, `unitRamp` and palette images"
+python = [
+  "material.fill",
+  "material.shader",
+  "material.verticalRamp",
+  "material.unitRamp",
+]
+
+[[section.surface.item]]
+native = "`PixelBuffer` with `Paint::buffer`"
+python = ["material.PixelBuffer", "material.Paint.buffer"]
+
+[[section.surface.item]]
+native = "`Paint::shader`"
+python = ["material.Paint.shader"]
+
+[[section.surface.item]]
+native = "paint uniforms driven by motion outputs and `Paint::offset`"
+python = ["material.Paint.offset"]
+
+[[section.surface.item]]
+native = "`Paint::image` sampling options"
+python = ["material.Paint.image(image, sampling)"]
+
+[[section.surface.item]]
+native = "`Effect::filter`"
+python = ["material.Effect.filter"]
+
+[[section.surface.item]]
+native = "the kit's ramps, grained surfaces, globe, girih, reflection materials (`gold`, `chrome` and `glass` over normals and an environment map), environments, text paints and texture-mapped surfaces"
+python = [
+  "material.kit.stone",
+  "material.kit.globe",
+  "material.kit.girih8",
+  "material.kit.gold",
+  "material.kit.water",
+]
+
+[[section.surface]]
+name = "Geometry"
+
+[[section.surface.item]]
+bound = "`geometry.arrange`"
+python = ["geometry.arrange.onRing", "geometry.arrange.cellAt"]
+
+[[section.surface.item]]
+bound = "`mesh.Mesh` and its generators `grid` over a Python function, `quad`, `box`, `platonic`, `torus`, `superellipsoid`, `cylinderPanel`, `extrude` and `revolve`"
+python = [
+  "geometry.mesh.Mesh",
+  "geometry.mesh.grid",
+  "geometry.mesh.quad",
+  "geometry.mesh.box",
+  "geometry.mesh.platonic",
+  "geometry.mesh.torus",
+  "geometry.mesh.superellipsoid",
+  "geometry.mesh.cylinderPanel",
+  "geometry.mesh.extrude",
+  "geometry.mesh.revolve",
+]
+
+[[section.surface.item]]
+bound = "mesh primitive lanes, face queries and extrusion caps"
+python = [
+  "geometry.mesh.Mesh.primitive",
+  "geometry.mesh.faceCount",
+  "geometry.mesh.faceNormal",
+  "geometry.mesh.opposedFace",
+  "geometry.mesh.ExtrudeOptions.frontCap",
+  "geometry.mesh.ExtrudeOptions.backCap",
+]
+
+[[section.surface.item]]
+bound = "`mesh.camera` cameras, orbits and placement, with `view`, `projection`, `viewProjection`, `clipProjection` and `extentAt`, and element access on `mesh.camera.Matrix`, which `Scene.transformOf` returns"
+python = [
+  "geometry.mesh.camera.Camera",
+  "geometry.mesh.camera.Orbit",
+  "geometry.mesh.camera.place",
+  "geometry.mesh.camera.Camera.view",
+  "geometry.mesh.camera.Camera.projection",
+  "geometry.mesh.camera.Camera.viewProjection",
+  "geometry.mesh.camera.Camera.clipProjection",
+  "geometry.mesh.camera.Camera.extentAt",
+  "geometry.mesh.camera.Matrix.__getitem__",
+  "world.Scene.transformOf",
+]
+
+[[section.surface.item]]
+bound = "`mesh.render` lights and `MeshStyle` with `drawMesh`, `drawImagePanel` and `drawPanel`, render environments and runtimes, on the CPU executor"
+python = [
+  "geometry.mesh.render.Light",
+  "geometry.mesh.render.MeshStyle",
+  "geometry.mesh.render.drawMesh",
+  "geometry.mesh.render.drawImagePanel",
+  "geometry.mesh.render.drawPanel",
+  "geometry.mesh.render.Environment",
+  "geometry.mesh.render.Runtime",
+]
+
+[[section.surface.item]]
+native = "`geometry::path`: polylines, contours and poses, operations and distortions, lattices, regions and sampling, triangulations and hulls, streamlines, symmetry, frames and grids, profiles and bands, crossings, blends, conic sections and spherical projections"
+python = [
+  "geometry.path.Polyline",
+  "geometry.path.Contour",
+  "geometry.path.operations.Chain",
+  "geometry.path.PolarFrame",
+  "geometry.path.Profile",
+  "geometry.path.crossing.crossings",
+  "geometry.path.blend.blend",
+]
+
+[[section.surface.item]]
+native = "the `shapes`, `shapers` and `sections` kit"
+python = [
+  "geometry.shapes.star",
+  "geometry.shapers.wave",
+  "geometry.sections.circle",
+]
+
+[[section.surface.item]]
+native = "`mesh::curve` splines and frames"
+python = ["geometry.mesh.curve.Spline3"]
+
+[[section.surface.item]]
+native = "point clouds, `mesh::points` and the `mesh::pop` operators and sweeps"
+python = [
+  "geometry.mesh.Cloud",
+  "geometry.mesh.points.stamp",
+  "geometry.mesh.pop.sweep",
+]
+
+[[section.surface.item]]
+native = "`mesh::codec`"
+python = ["geometry.mesh.codec.decode.ply", "geometry.mesh.codec.encode.ply"]
+
+[[section.surface.item]]
+native = "`geometry::device`"
+python = ["geometry.device.Handle"]
+
+[[section.surface]]
+name = "World"
+
+[[section.surface.item]]
+bound = "Keyed `world.Element` with transforms, meshes, fills, lights, cameras, tags and animatable lanes"
+python = [
+  "world.Element",
+  "world.Element.transform",
+  "world.Element.mesh",
+  "world.Element.fill",
+  "world.Element.light",
+  "world.Element.camera",
+  "world.Element.tag",
+]
+
+[[section.surface.item]]
+bound = "selectors; geometry and post passes; `Frame`"
+python = [
+  "world.selectors.tag",
+  "world.geometryPass",
+  "world.postPass",
+  "world.Frame",
+]
+
+[[section.surface.item]]
+bound = "a thread-checked `Scene` that owns its ticker, with `render`, `advance`, `image`, `draw(pen)`, handles and statistics"
+python = [
+  "world.Scene",
+  "world.Scene.render",
+  "world.Scene.advance",
+  "world.Scene.image",
+  "world.Scene.draw",
+  "world.Scene.handleOf",
+  "world.Scene.stats",
+]
+
+[[section.surface.item]]
+bound = "`light` sun, point and spot; the `kit` rig, turntable and lit set; the CPU executor"
+python = [
+  "world.light.sun",
+  "world.light.point",
+  "world.light.spot",
+  "world.kit.Rig",
+  "world.kit.turntable",
+  "world.kit.litSet",
+]
+
+[[section.surface.item]]
+native = "Environment lighting through `environmentMap`, `crossfade` and `backdrop`"
+python = ["world.Element.environmentMap"]
+
+[[section.surface.item]]
+native = "`along` with `kit::rail`, `wave` and `winding`"
+python = [
+  "world.Element.along",
+  "world.kit.rail",
+  "world.kit.wave",
+  "world.kit.winding",
+]
+
+[[section.surface.item]]
+native = "`cloud`, `chain`, `stamp`, `window` and `generate`"
+python = [
+  "world.Element.cloud",
+  "world.Element.chain",
+  "world.Element.stamp",
+  "world.Element.window",
+  "world.Element.generate",
+]
+
+[[section.surface.item]]
+native = "`cache`, `staggerChildren` and `world::memo`"
+python = [
+  "world.Element.cache",
+  "world.Element.staggerChildren",
+  "world.memo",
+]
+
+[[section.surface.item]]
+native = "`computePass` and pass bodies"
+python = ["world.computePass"]
+
+[[section.surface.item]]
+native = "`readback`"
+python = ["world.readback"]
+
+[[section.surface.item]]
+native = "`Scene::plan` and `targets`"
+python = ["world.Scene.plan", "world.Scene.targets"]
+
+[[section.surface.item]]
+native = "the device runtimes and `importNative`"
+python = ["world.importNative"]
+
+[[section.surface.item]]
+native = "`light::directional`"
+python = ["world.light.directional"]
+
+[[section.surface.item]]
+native = "selector inspection and `Element::node` tree read-back"
+python = ["world.Element.node"]
+
+[[section.surface.item]]
+native = "`Pass` equality"
+
+[[section.surface.item]]
+native = "a scene over the session ticker"
+
+[[section.surface.item]]
+native = "texture-dressed surfaces"
+
+[[section]]
+title = "Data and IO"
+prose = "data-io"
+
+[[section.surface]]
+name = "Data and assets"
+
+[[section.surface.item]]
+bound = "`Json`, `Column` and `Table` reshaping, `decodeCsv`, `Instant` and `Flag`, which compare, order and hash as their values do, a `Flag` against the boolean a cell reads as"
+python = [
+  "data.Json",
+  "data.Column",
+  "data.Table",
+  "data.decodeCsv",
+  "data.Instant",
+  "data.Flag",
+]
+
+[[section.surface.item]]
+bound = "`Interval` and `Scale`"
+python = ["data.Interval", "data.Scale"]
+
+[[section.surface.item]]
+bound = "SQLite and DuckDB `Database` values with owned writes and query views that refuse a writing statement through every method"
+python = ["data.Database", "data.Engine"]
+
+[[section.surface.item]]
+bound = "`Schema` text and binary conversion; OSC, MIDI and Art-Net codecs"
+python = [
+  "data.Schema",
+  "data.encodeOsc",
+  "data.decodeOsc",
+  "data.encodeMidi",
+  "data.decodeMidi",
+  "data.encodeArtNet",
+  "data.decodeArtNet",
+]
+
+[[section.surface.item]]
+bound = "`registerDecoders`, which installs the database decoder beside the table and JSON ones; the session asset loaders"
+python = ["data.registerDecoders"]
+
+[[section.surface.item]]
+native = "`data::Connection`"
+python = ["data.Connection"]
+
+[[section.surface.item]]
+native = "`FlatBuffer` roots and the generated value types"
+python = ["data.FlatBuffer"]
+
+[[section.surface.item]]
+native = "typed column spans"
+
+[[section.surface.item]]
+native = "`maxOscBundleDepth`"
+python = ["data.maxOscBundleDepth"]
+
+[[section.surface]]
+name = "IO"
+
+[[section.surface.item]]
+bound = "An owned or session `Hub` with mounts, resolution, text, bytes, probes, selection, writes, polling, typed `load` for tables, JSON, databases and image assets, leases, preload and network policy"
+python = [
+  "io.Hub",
+  "io.Hub.mount",
+  "io.Hub.resolve",
+  "io.Hub.text",
+  "io.Hub.fetch",
+  "io.Hub.probe",
+  "io.Hub.select",
+  "io.Hub.write",
+  "io.Hub.poll",
+  "io.Hub.load",
+  "io.ResourceLease",
+  "io.Hub.preload",
+  "io.NetworkPolicy",
+]
+
+[[section.surface.item]]
+bound = "`Hub.dispatch`"
+python = ["io.Hub.dispatch"]
+
+[[section.surface.item]]
+bound = "`Feed` with `receive`, `newest`, `latest`, status, `send`, `sendTo`, delivery and replay; owned `Arrival`; recordings"
+python = [
+  "io.Feed",
+  "io.Feed.receive",
+  "io.Feed.newest",
+  "io.Feed.latest",
+  "io.Feed.send",
+  "io.Feed.sendTo",
+  "io.Feed.deliver",
+  "io.Feed.replay",
+  "io.Arrival",
+  "io.RecordingWriter",
+  "io.readRecording",
+]
+
+[[section.surface.item]]
+bound = "the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC transports"
+python = [
+  "io.registerUdp",
+  "io.registerWebSocket",
+  "io.registerSharedMemory",
+  "io.registerMidi",
+  "io.registerSerial",
+  "io.registerGrpc",
+  "io.registerQuic",
+  "io.registerWebRtc",
+]
+
+[[section.surface.item]]
+native = "`Hub::onDispatch`"
+python = ["io.Hub.onDispatch"]
+
+[[section.surface.item]]
+native = "`Hub::registerDecoder` for further types"
+python = ["io.Hub.registerDecoder"]
+
+[[section.surface.item]]
+native = "custom feed and network transports"
+
+[[section.surface.item]]
+native = "`probeNetworkCache` and `seedNetworkCache`"
+python = ["io.probeNetworkCache", "io.seedNetworkCache"]
+
+[[section.surface.item]]
+native = "hub image views with decode options, channels and probes"
+
+[[section.surface.item]]
+native = "archives, byte sources, `writeBytes` and `TextCatalog`"
+python = ["io.Hub.writeBytes", "io.TextCatalog"]
+
+[[section.surface.item]]
+native = "`Feed::receivedAt`"
+python = ["io.Feed.receivedAt"]
+
+[[section.surface]]
+name = "Texture publication"
+
+[[section.surface.item]]
+bound = "Sketchbook publishes a Python canvas through its own publisher"
+
+[[section.surface.item]]
+native = "`io::publish` publishers, subscriptions and publication listing"
+python = ["io.publish.Publisher"]
+
+[library.Video]
+native = "SigilVideo"
+modules = ["video"]
+
+[library.Scry]
+native = "SigilScry"
+modules = ["scry", "sketch.scry"]
+
+[library.Substance]
+native = "SigilSubstance"
+modules = ["substance"]
+
+[library.USD]
+native = "SigilUSD"
+modules = ["usd"]
+
+[library.Measure]
+native = "SigilMeasure"
+modules = ["measure"]
