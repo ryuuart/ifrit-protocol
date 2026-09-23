@@ -22,8 +22,7 @@ extern template void bindFontVerbs(pybind11::class_<compose::Text>&);
 extern template void bindFontVerbs(pybind11::class_<compose::Image>&);
 extern template void bindFontVerbs(pybind11::class_<compose::Band>&);
 extern template void bindFontVerbs(pybind11::class_<compose::Rule>&);
-extern template void bindFontVerbs(
-    pybind11::class_<compose::SpanDeclarations>&);
+extern template void bindFontVerbs(pybind11::class_<compose::SpanStyle>&);
 
 /** Every verb a rule states as well as a node — the box, the flex line,
  *  the placement, the silhouette's corners and overflow, the paint, the

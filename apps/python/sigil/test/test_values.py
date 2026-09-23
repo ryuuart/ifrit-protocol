@@ -183,7 +183,7 @@ class Colors(unittest.TestCase):
         self.assertIsInstance(
             compose.text("two words").span(
                 weave.selectors.word(1),
-                compose.SpanDeclarations().ink(ramp, unit=weave.Unit.Word),
+                compose.SpanStyle().ink(ramp, unit=weave.Unit.Word),
             ),
             compose.Text,
         )

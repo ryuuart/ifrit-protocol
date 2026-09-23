@@ -133,20 +133,18 @@ void bindCompose(py::module_& module) {
   py::class_<compose::Text> textLeaf(composition, "Text");
   py::class_<compose::Image> imageLeaf(composition, "Image");
   py::class_<compose::Band> bandLeaf(composition, "Band");
-  // What a text span states: the element's font and ink verbs, on a value
-  // that belongs to no element.
-  py::class_<compose::SpanDeclarations> spanDeclarations(
-      composition, "SpanDeclarations",
-      "What a text span states over the range it finds: the element's own "
+  // The style a text span lays over its range: the element's font and ink
+  // verbs, on a value that belongs to no element.
+  py::class_<compose::SpanStyle> spanStyle(
+      composition, "SpanStyle",
+      "The style a text span lays over the range it finds: the element's own "
       "font and ink verbs — `font`, its longhands and `ink` — written into "
       "a value that belongs to no element, handed to `Text.span`. What it "
       "leaves unsaid the range keeps. A paint stated here is laid in the "
       "passage's own coordinates, as it is.");
-  spanDeclarations
-      .def(py::init<>(), "A span's declarations, stating nothing yet.")
-      .def("copy", [](const compose::SpanDeclarations& value) { return value; })
-      .def("__copy__",
-           [](const compose::SpanDeclarations& value) { return value; });
+  spanStyle.def(py::init<>(), "A span's style, stating nothing yet.")
+      .def("copy", [](const compose::SpanStyle& value) { return value; })
+      .def("__copy__", [](const compose::SpanStyle& value) { return value; });
   element
       .def(py::init([](const compose::Text& leaf) { return Element(leaf); }),
            py::arg("leaf"))
@@ -674,7 +672,7 @@ void bindCompose(py::module_& module) {
   bindNodeVerbs(imageLeaf);
   bindNodeVerbs(bandLeaf);
   bindTextVerbs(textLeaf);
-  bindFontVerbs(spanDeclarations);
+  bindFontVerbs(spanStyle);
   bindImageVerbs(imageLeaf);
   bindBandVerbs(bandLeaf);
 

@@ -117,20 +117,20 @@ sigil::weave::TextStyle coloredStyle(float size, SkColor color) {
 
 /** A span stating one variable-font axis — the restyle that differs from
  *  the text it covers in that axis alone. */
-SpanDeclarations axis(const char (&tag)[5], float value) {
+SpanStyle axis(const char (&tag)[5], float value) {
   sigil::weave::Type partial;
   partial.variations.push_back(sigil::weave::FontVariation(tag, value));
-  return SpanDeclarations().font(partial);
+  return SpanStyle().font(partial);
 }
 
 /** A span stating one colour. */
-SpanDeclarations inked(SkColor colour) {
-  return SpanDeclarations().ink(SkColor4f::FromColor(colour));
+SpanStyle inked(SkColor colour) {
+  return SpanStyle().ink(SkColor4f::FromColor(colour));
 }
 
 /** A span stating a size and a colour. */
-SpanDeclarations sizedAndInked(float size, SkColor colour) {
-  return SpanDeclarations().fontSize(size).ink(SkColor4f::FromColor(colour));
+SpanStyle sizedAndInked(float size, SkColor colour) {
+  return SpanStyle().fontSize(size).ink(SkColor4f::FromColor(colour));
 }
 
 }  // namespace

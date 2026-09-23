@@ -38,8 +38,8 @@ sigil::weave::TextStyle jp(float size, SkColor color) {
 }
 
 /** A span stating one colour. */
-SpanDeclarations inked(SkColor colour) {
-  return SpanDeclarations().ink(SkColor4f::FromColor(colour));
+SpanStyle inked(SkColor colour) {
+  return SpanStyle().ink(SkColor4f::FromColor(colour));
 }
 
 int inkCount(Host& host, SkIRect region) {
@@ -513,7 +513,7 @@ TEST(TextVertical, TheUnitReadBackNamesHowEachOneStandsInItsColumn) {
   // a turned one is neither: the read-back names it.
   const std::u8string mixed = u8"平成30年に";
   Host host(300, 240);
-  const SpanDeclarations tcy = SpanDeclarations().font(
+  const SpanStyle tcy = SpanStyle().font(
       {.verticalForm = sigil::weave::VerticalForm::kTateChuYoko});
   host.composer.render(box().padding(10).children(
       {text(mixed, jp(22, SK_ColorWHITE))
@@ -585,8 +585,7 @@ TEST(TextVertical, ASizeSpanReshapesOnlyTheRunItNames) {
             .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
             .key("t");
     if (dressed) {
-      t.span(sigil::weave::selectors::text(u8"文章"),
-             SpanDeclarations().fontSize(40));
+      t.span(sigil::weave::selectors::text(u8"文章"), SpanStyle().fontSize(40));
     }
     return box().padding(10).children({std::move(t)});
   };
@@ -656,7 +655,7 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
   sideline.color = SK_ColorRED;
   sigil::weave::Type lined;
   lined.decorations = std::vector<sigil::weave::Decoration>{sideline};
-  const SpanDeclarations sidelined = SpanDeclarations().font(lined);
+  const SpanStyle sidelined = SpanStyle().font(lined);
   const auto describe = [&] {
     return box().padding(10).children(
         {text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
@@ -743,7 +742,7 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
     sideline.side = side;
     sigil::weave::Type lined;
     lined.decorations = std::vector<sigil::weave::Decoration>{sideline};
-    const SpanDeclarations sidelined = SpanDeclarations().font(lined);
+    const SpanStyle sidelined = SpanStyle().font(lined);
     return box().padding(10).children(
         {text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
              .width(60)

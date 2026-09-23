@@ -211,13 +211,13 @@ Derived& TextContentVerbs<Derived>::variationDrive(
 
 template <class Derived>
 Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
-                                         SpanDeclarations what) {
+                                         SpanStyle style) {
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
-  // What the span states is read off the declarations as the cascade
-  // reads a node's: the font partial, the ink's colour inside it, and the
-  // ink as a property or a paint.
-  const detail::ElementNode& stated = *what.node();
+  // What the span states is read off its style as the cascade reads a
+  // node's: the font partial, the ink's colour inside it, and the ink as
+  // a property or a paint.
+  const detail::ElementNode& stated = *style.node();
   if (stated.cascadeData) {
     const detail::CascadeData& said = *stated.cascadeData;
     if (said.font) restyle.partial = *said.font;
@@ -262,8 +262,7 @@ template Text& TextContentVerbs<Text>::textAttach(sigil::weave::Selector,
                                                   Element);
 template Text& TextContentVerbs<Text>::variationDrive(
     const char (&)[5], const choreograph::Output<float>*);
-template Text& TextContentVerbs<Text>::span(sigil::weave::Selector,
-                                            SpanDeclarations);
+template Text& TextContentVerbs<Text>::span(sigil::weave::Selector, SpanStyle);
 
 // ---------------------------------------------------------------------------
 // The fold

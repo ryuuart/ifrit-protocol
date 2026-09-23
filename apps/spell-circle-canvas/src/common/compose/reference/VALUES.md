@@ -78,8 +78,8 @@ Python the reference is `compose.var` and the table is the dictionary
 |---|---|---|---|
 | `Utf8` | Text, spelled either way: a `char` or `char8_t` string, a `std::string`, or a value that reads itself out as text. | Implicitly at the call site | `text`, `Text::textOverflow`, every kit property that takes words |
 | `weave::TextStyle` | A TOTAL style: a leaf set in one inherits nothing. | `weave::textStyle` over a partial, or the struct outright | `text(utf8, style)` |
-| `weave::Type` | A PARTIAL: the fields it names override, the rest inherit. | The struct, field by field | `Element::font`, `SpanDeclarations::font`, `weave::RichText::add` |
-| `FontStyle` | How the type leans: `FontStyle::Normal`, `FontStyle::Italic`, or an oblique angle, positive leaning right. | `FontStyle::oblique(degrees)`, or a bare number | `Element::fontStyle`, `SpanDeclarations::fontStyle`, `Rule::fontStyle` |
+| `weave::Type` | A PARTIAL: the fields it names override, the rest inherit. | The struct, field by field | `Element::font`, `SpanStyle::font`, `weave::RichText::add` |
+| `FontStyle` | How the type leans: `FontStyle::Normal`, `FontStyle::Italic`, or an oblique angle, positive leaning right. | `FontStyle::oblique(degrees)`, or a bare number | `Element::fontStyle`, `SpanStyle::fontStyle`, `Rule::fontStyle` |
 | `weave::RichText` | Mixed-style text as a comparable value, so a re-described identical value prunes. | `weave::rich`, then `add` per run | `text(spans)` |
 
 ## What Python spells differently

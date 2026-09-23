@@ -324,9 +324,9 @@ TEST(ComposeInkUnits, ASpanRestartsItsInkOnEachUnitOfTheRangeItFinds) {
   Host host(480, 120);
   host.composer.render(box().padding(10).children(
       {text(u8"HH HH", whiteStyle(64))
-           .span(sigil::weave::selectors::word(1),
-                 SpanDeclarations().ink(across(), PaintAnchor::OwnBox,
-                                        Unit::Glyph))}));
+           .span(
+               sigil::weave::selectors::word(1),
+               SpanStyle().ink(across(), PaintAnchor::OwnBox, Unit::Glyph))}));
   host.frame();
   const std::vector<Letter> letters = lettersAcross(host, 480, 120);
   ASSERT_EQ(letters.size(), 4u);

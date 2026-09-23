@@ -16,7 +16,7 @@ auto p = weave::rich(base)
              .add(u8"noise", mono);
 
 text(p)
-    .span(weave::selectors::regex(u8"[0-9]+"), SpanDeclarations().ink(red))
+    .span(weave::selectors::regex(u8"[0-9]+"), SpanStyle().ink(red))
     .maxTextLines(3)
     .textOverflow(u8"…");
 ```
@@ -100,7 +100,7 @@ colours in a sentence.
 **Selector styling.** `Text::span` restyles whatever the SAME
 `selectors::` selectors the tracks use address, on every content form alike —
 plain text, `weave::rich()` spans and the paragraph overload — with a
-`compose::SpanDeclarations`: the element's own font and ink verbs (`font`, its
+`compose::SpanStyle`: the element's own font and ink verbs (`font`, its
 longhands and `ink`) on a value that belongs to no element. What a span
 states is laid over the style the range is set in; what it leaves unsaid
 the range keeps. It re-shapes **only where a shaping field was declared**:
@@ -131,7 +131,7 @@ the paragraph already has, and the span keeps it:
 sigil::weave::Type graded;
 graded.variations.push_back(sigil::weave::FontVariation("GRAD", 780));
 text(copy, base).span(weave::selectors::regex(u8"[0-9]+"),
-                      SpanDeclarations().font(graded));
+                      SpanStyle().font(graded));
 ```
 
 Such a span is carried as a track holding `textFx::variableAxis`, and inherits

@@ -10,7 +10,7 @@
  */
 
 #include <sigilcompose/core/Declarations.h>
-#include <sigilcompose/core/SpanDeclarations.h>
+#include <sigilcompose/core/SpanStyle.h>
 #include <sigilcompose/core/verbs/Node.h>
 #include <sigilcompose/core/verbs/TextStyle.h>
 #include <sigilmotion/values/Animatable.h>  // choreograph::Output
@@ -80,14 +80,14 @@ class TextContentVerbs {
    *  the node's own box still sizes the path, so give it the box the
    *  curve should be inscribed in. */
   Derived& textOnPath(TextPath spec);
-  /** RESTYLE THE RANGE @p where FINDS with @p declarations: the font
+  /** RESTYLE THE RANGE @p where FINDS with @p style: the font
    *  fields and the ink they state, over the style the range is set in,
    *  the rest standing. It re-shapes only where a shaping field was
    *  declared — a face, a size, a weight, a tracking — and only the
    *  words the range covers; a colour, a decoration or a paint alone is
    *  a repaint. Where two spans overlap the later wins, field by field
    *  for the paint. */
-  Derived& span(sigil::weave::Selector where, SpanDeclarations declarations);
+  Derived& span(sigil::weave::Selector where, SpanStyle style);
   /** THIS LEAF AS IT STANDS AT REST, as a second leaf that can stand
    *  beside it in one tree: the same content, style, measure and
    *  layout, carrying nothing that deviates or restyles a glyph at

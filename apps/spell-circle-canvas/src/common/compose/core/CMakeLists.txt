@@ -90,7 +90,7 @@ sigil_library(SigilComposeCore
           Factories.h Feed.h Grid.h Image.h Instances.h Layout.h Mask.h
           Measure.h
           Paint.h Pattern.h Property.h Selector.h Shape.h Shelf.h
-          FontStyle.h SpanDeclarations.h Stroke.h
+          FontStyle.h SpanStyle.h Stroke.h
           StyleSheet.h SurfacePaint.h Table.h
           Text.h TextPainter.h Tiles.h Utf8.h Var.h
           verbs/Box.h verbs/Cascade.h verbs/Decoration.h verbs/Depth.h

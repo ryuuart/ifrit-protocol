@@ -155,8 +155,9 @@ sound model; nothing below them changes kernel semantics.
   `textAnnotation`, `textThreadTo`, `textThreadBalance`, `textOnPath`,
   `span`, `atRest`; and `Text`, the leaf that has them
   and the text properties both.
-- `core/SpanDeclarations.h` — `SpanDeclarations`, what a text span states:
-  the font and ink verbs on a value that belongs to no element.
+- `core/SpanStyle.h` — `SpanStyle`, the style a text span lays over
+  its range: the font and ink verbs on a value that belongs to no
+  element.
 - `core/Image.h` — `ImageVerbs`: `imageRegion`, and `Image`, the leaf
   that has them.
 - `core/verbs/Structure.h` — `StructureVerbs`: what a node IS rather

@@ -149,7 +149,7 @@ TEST(TextSpans, ABaselineShiftSpanMovesItsRangeWithoutReshaping) {
   raised.composer.render(box().padding(10).children(
       {text(body, base)
            .span(sigil::weave::selectors::regex(u8"[0-9]+"),
-                 SpanDeclarations().font({.baselineShift = 8.0f}))
+                 SpanStyle().font({.baselineShift = 8.0f}))
            .key("t")}));
   raised.frame();
   EXPECT_EQ(runShapes(raised, "t"), runShapes(plain, "t"))
@@ -177,7 +177,7 @@ TEST(TextSpans, AnInkPaintIsNotFadedByTheColourItReplaces) {
   host.composer.render(box().padding(10).children(
       {text(u8"Count 1234 now", faint)
            .span(sigil::weave::Selector{},
-                 SpanDeclarations().ink(material::skia::Paint::linear(
+                 SpanStyle().ink(material::skia::Paint::linear(
                      {0, 0}, {400, 0},
                      {{0.0f, {1, 0, 0, 1}}, {1.0f, {1, 0, 0, 1}}})))}));
   host.frame();
@@ -196,7 +196,7 @@ TEST(TextSpans, AnInkPaintResolvedAgainstABoxIsLeftOut) {
   spanned.composer.render(box().padding(10).children(
       {text(body, base)
            .span(sigil::weave::selectors::regex(u8"[0-9]+"),
-                 SpanDeclarations().ink(material::skia::Paint::linearUnit(
+                 SpanStyle().ink(material::skia::Paint::linearUnit(
                      {0, 0}, {1, 0},
                      {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))}));
   spanned.frame();

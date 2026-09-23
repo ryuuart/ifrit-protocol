@@ -43,7 +43,7 @@ and says so once, naming the family. Nothing stands in for it: there is
 no fallback list and no generic family.
 
 A span states a family over a range the same way,
-`SpanDeclarations().fontFamily("Georgia")`, and the range is set again in
+`SpanStyle().fontFamily("Georgia")`, and the range is set again in
 it; so does a rule about the name of a rich run, which the run takes as a
 child of its passage would. A span or a run stating only a weight under a
 family named above finds that family's face at it.

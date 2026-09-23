@@ -81,7 +81,7 @@ a box's own. Image sampling inherits the same way, as CSS's `image-rendering`
 does: `Element::imageRendering` on any node reaches every image leaf under it.
 
 **A range and a reading take the same partial.** `Text::span` lays
-the font fields and the ink its `SpanDeclarations` state over the style the
+the font fields and the ink its `SpanStyle` state over the style the
 range is set in — the inherited font for an inheriting leaf, the leaf's own style
 otherwise — and a partial naming no shaping field repaints without
 re-shaping. A reading's style (`Annotation`, `kit::ruby`, `kit::kenten`),

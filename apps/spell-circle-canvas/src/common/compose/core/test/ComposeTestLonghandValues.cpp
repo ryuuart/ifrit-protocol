@@ -8,7 +8,7 @@
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/FontStyle.h>
-#include <sigilcompose/core/SpanDeclarations.h>
+#include <sigilcompose/core/SpanStyle.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/query/Selector.h>
@@ -92,9 +92,8 @@ TEST(ComposeFontFamily, ARuleAndASpanNameAFamilyAsTheElementDoes) {
   EXPECT_EQ(
       named,
       render(box().applyStyleSheet(sheet).children({words().styleClass("t")})));
-  EXPECT_EQ(named,
-            render(box().children({words().span(
-                allOfTheWords(), SpanDeclarations().fontFamily("Georgia"))})));
+  EXPECT_EQ(named, render(box().children({words().span(
+                       allOfTheWords(), SpanStyle().fontFamily("Georgia"))})));
 }
 
 TEST(ComposeFontFamily, ARunARuleNamesTakesItsFamily) {
@@ -119,8 +118,8 @@ TEST(ComposeFontFamily, AWeightBelowAFamilyFindsTheFamilysFaceAtIt) {
   EXPECT_EQ(
       render(box().fontFamily("Georgia").children({words().fontWeight(700)})),
       bold);
-  EXPECT_EQ(render(box().fontFamily("Georgia").children({words().span(
-                allOfTheWords(), SpanDeclarations().fontWeight(700))})),
+  EXPECT_EQ(render(box().fontFamily("Georgia").children(
+                {words().span(allOfTheWords(), SpanStyle().fontWeight(700))})),
             bold);
 }
 
@@ -312,7 +311,7 @@ TEST(ComposeOblique, AnItalicAxisIsTheItalicOnANodeARuleAndASpan) {
   EXPECT_EQ(render(box().children(
                 {letterIn(sigil::test::instrument::italic())
                      .span(sigil::weave::selectors::range({0, 1}),
-                           SpanDeclarations().fontStyle(FontStyle::Italic))})),
+                           SpanStyle().fontStyle(FontStyle::Italic))})),
             axis);
   // A run a rule makes italic by name is set on the axis too.
   EXPECT_EQ(

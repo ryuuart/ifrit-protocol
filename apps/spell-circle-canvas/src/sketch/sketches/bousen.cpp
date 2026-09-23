@@ -119,13 +119,12 @@ inline weave::PaintStyle banded(material::Color ink,
 /** The same band as what a span states over the range it finds: the ink,
  *  sent through an 8-bit word as the band's own paint sends it, and the
  *  band. */
-inline SpanDeclarations bandedSpan(material::Color ink,
-                                   weave::Decoration::Kind kind,
-                                   material::Color band, float thickness) {
+inline SpanStyle bandedSpan(material::Color ink, weave::Decoration::Kind kind,
+                            material::Color band, float thickness) {
   const weave::Type partial{
       .color8 = true,
       .decorations = banded(ink, kind, band, thickness).decorations};
-  return SpanDeclarations().ink(ink).font(partial);
+  return SpanStyle().ink(ink).font(partial);
 }
 
 /** The strip's entrance, and the ms its master must span to run at those

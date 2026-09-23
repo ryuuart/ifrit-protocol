@@ -15,14 +15,14 @@ NODES = (ELEMENT, TEXT, IMAGE, "_sigil.compose.Band")
 # both, so its refinements are the same text over its own name.
 RULE = "_sigil.compose.Rule"
 # What a text span states is the font half of the same vocabulary.
-SPAN_DECLARATIONS = "_sigil.compose.SpanDeclarations"
+SPAN_STYLE = "_sigil.compose.SpanStyle"
 
 
 def register(table: Table) -> None:
     for node in NODES:
         registerNode(table, node)
     registerDeclarations(_Returning(table, RULE), RULE)
-    registerFont(_Returning(table, SPAN_DECLARATIONS), SPAN_DECLARATIONS)
+    registerFont(_Returning(table, SPAN_STYLE), SPAN_STYLE)
     # A glyph outline is the text leaf's alone, and the region of a source
     # is the image leaf's.
     # The glyph OUTLINE is one comparable Fill on the node, measured with no
