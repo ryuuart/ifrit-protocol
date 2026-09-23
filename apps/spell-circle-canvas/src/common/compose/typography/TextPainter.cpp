@@ -1,12 +1,14 @@
 /** @file
  * The text painter — the value a text verb installs on a description, and
- * the verbs themselves. `fx()`, `textOnPath()`, `mark()`, `spanStyle()`,
- * `spanPaint()` and `variationDrive()` are declared on Element by the
+ * the verbs themselves. `fx()`, `textOnPath()`, `textAttach()`, `span()`
+ * and `variationDrive()` are declared on the text leaf by the
  * kernel and defined here, so an element that dresses its type links this
  * tier and carries the engine that draws it; the kernel reaches the engine
  * only through the value. The fold that lets a span restyle ride as axis
  * tracks lives here too, beside the axis gate it consults.
  */
+
+#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <cstdio>  // std::snprintf — variationDrive's effect key
@@ -189,40 +191,36 @@ Derived& TextContentVerbs<Derived>::variationDrive(
 }
 
 template <class Derived>
-Derived& TextContentVerbs<Derived>::spanPaint(sigil::weave::Selector where,
-                                              sigil::weave::PaintStyle paint) {
+Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
+                                         Declarations what) {
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
-  restyle.style.paint = std::move(paint);
-  restyle.paintOnly = true;
+  // What the span states is read off the declarations as the cascade
+  // reads a node's: the font partial, the ink's colour inside it, and the
+  // ink as a property or a paint.
+  const detail::ElementNode& stated = *what.node();
+  if (stated.cascadeData) {
+    const detail::CascadeData& said = *stated.cascadeData;
+    if (said.font) restyle.partial = *said.font;
+    restyle.inkVar = said.inkVar;
+    // A static paint collapses to one fill: a flat colour is the ink's
+    // colour, anything else a shader over the range. A live or
+    // geometry-dependent paint has no one shader to give a range.
+    if (said.inkPaint && !said.inkPaint->isAnimated() &&
+        !said.inkPaint->geometryDependent()) {
+      const Fill flat = toFill(*said.inkPaint);
+      if (flat.kind == Fill::Kind::Color)
+        restyle.partial.color = material::skia::toSkColor(flat.colorValue);
+      else if (flat.kind == Fill::Kind::Shader)
+        restyle.inkShader = flat;
+    }
+  }
   dressedText(declarations()->textData.ensure())
       .spanRestyles.push_back(std::move(restyle));
   return self();
 }
 
-template <class Derived>
-Derived& TextContentVerbs<Derived>::spanStyle(sigil::weave::Selector where,
-                                              sigil::weave::TextStyle style) {
-  detail::SpanRestyle restyle;
-  restyle.where = std::move(where);
-  restyle.style = std::move(style);
-  dressedText(declarations()->textData.ensure())
-      .spanRestyles.push_back(std::move(restyle));
-  return self();
-}
-
-template <class Derived>
-Derived& TextContentVerbs<Derived>::spanStyle(sigil::weave::Selector where,
-                                              sigil::weave::Type partial) {
-  detail::SpanRestyle restyle;
-  restyle.where = std::move(where);
-  restyle.partial = std::move(partial);
-  dressedText(declarations()->textData.ensure())
-      .spanRestyles.push_back(std::move(restyle));
-  return self();
-}
-
-// The seven members of the text-content family this tier defines, named
+// The six members of the text-content family this tier defines, named
 // one by one: the family's other members are instantiated where they are
 // defined, in the kernel.
 template Text& TextContentVerbs<Text>::textOnPath(TextPath);
@@ -232,12 +230,8 @@ template Text& TextContentVerbs<Text>::textAttach(sigil::weave::Selector,
                                                   Element);
 template Text& TextContentVerbs<Text>::variationDrive(
     const char (&)[5], const choreograph::Output<float>*);
-template Text& TextContentVerbs<Text>::spanPaint(sigil::weave::Selector,
-                                                 sigil::weave::PaintStyle);
-template Text& TextContentVerbs<Text>::spanStyle(sigil::weave::Selector,
-                                                 sigil::weave::TextStyle);
-template Text& TextContentVerbs<Text>::spanStyle(sigil::weave::Selector,
-                                                 sigil::weave::Type);
+template Text& TextContentVerbs<Text>::span(sigil::weave::Selector,
+                                            Declarations);
 
 // ---------------------------------------------------------------------------
 // The fold

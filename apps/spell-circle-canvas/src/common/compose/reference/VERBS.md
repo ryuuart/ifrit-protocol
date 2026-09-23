@@ -28,7 +28,7 @@ plane it turns in, `shape`, `gridArea`, `travel` and `cover` — is the
 element's alone. [The selectors chapter](SELECTORS.md) lists what a rule
 states.
 
-One hundred and twenty-five of them, in fourteen concerns. Each row says
+One hundred and twenty-four of them, in fourteen concerns. Each row says
 what the verb SAYS, in one line; the page behind a linked name says what
 it takes, what Python spells, and shows it drawn. An unlinked name has no
 page yet, and its line here is the whole of what this reference claims
@@ -278,8 +278,7 @@ compile.
 | [`textThreadBalance`](pages/verbs/textThreadBalance.md) | This frame opens a balanced run: every frame of it resolves to one shallowest depth. |
 | [`contentFlowAround`](pages/verbs/contentFlowAround.md) | Flow this paragraph around the keyed node, by its silhouette or its box. |
 | [`textAnnotation`](pages/verbs/textAnnotation.md) | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
-| [`spanPaint`](pages/verbs/spanPaint.md) | Repaint the range a selector finds; never re-shapes. |
-| [`spanStyle`](pages/verbs/spanStyle.md) | Restyle that range with a whole style or a partial; re-shapes only the words it covers. |
+| [`span`](pages/verbs/span.md) | Restyle the range a selector finds with the font and ink declarations; re-shapes only where a shaping field is stated, and only the words it covers. |
 | `fx` | Append a text-fx track: which glyphs, what deviation, how the beats spread, what drives it. |
 | [`variationDrive`](pages/verbs/variationDrive.md) | Drive a variable-font axis from a bound output at draw time, with no reshape. |
 | [`textAttach`](pages/verbs/textAttach.md) | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |
@@ -388,7 +387,7 @@ spelling is the feature's.
   `textOverflow`, `maxTextLines`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
   `textAttach`, `textAnnotation`, `textThreadTo`, `textThreadBalance`,
-  `textOnPath`, `spanPaint`, `spanStyle`, `atRest`, and the `Text` leaf
+  `textOnPath`, `span`, `atRest`, and the `Text` leaf
   that has both these and the text properties.
 - `core/Image.h` — `imageRegion`, and the `Image` leaf that has it.
 - `core/verbs/Structure.h` — the cascade a node names,

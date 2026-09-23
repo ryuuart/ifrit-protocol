@@ -128,6 +128,7 @@ template void bindFontVerbs(py::class_<Text>&);
 template void bindFontVerbs(py::class_<Image>&);
 template void bindFontVerbs(py::class_<Band>&);
 template void bindFontVerbs(py::class_<Rule>&);
+template void bindFontVerbs(py::class_<compose::Declarations>&);
 
 template <class Node>
 void bindDeclarationVerbs(py::class_<Node>& element) {
@@ -559,15 +560,8 @@ void bindTextVerbs(py::class_<Text>& element) {
       .def("contentFlowAround", &Text::contentFlowAround, py::arg("key"),
            py::arg("margin") = 0.0f, fluent)
       .def("textOnPath", &Text::textOnPath, py::arg("path"), fluent)
-      .def("spanPaint", &Text::spanPaint, py::arg("where"), py::arg("paint"),
+      .def("span", &Text::span, py::arg("where"), py::arg("declarations"),
            fluent)
-      .def("spanStyle",
-           py::overload_cast<weave::Selector, weave::TextStyle>(
-               &Text::spanStyle),
-           py::arg("where"), py::arg("style"), fluent)
-      .def("spanStyle",
-           py::overload_cast<weave::Selector, weave::Type>(&Text::spanStyle),
-           py::arg("where"), py::arg("type"), fluent)
       .def("textAnnotation", &Text::textAnnotation, py::arg("reading"), fluent)
       .def("atRest", &Text::atRest);
 }

@@ -82,9 +82,9 @@ margin is a box's own. Image sampling inherits the same way, as CSS's
 `image-rendering` does: `Element::imageRendering` on any node reaches every
 image leaf under it.
 
-**A range and a reading take the same partial.** `Text::spanStyle`
-with a `weave::Type` lays the fields it names over the style the range is
-set in — the inherited font for an inheriting leaf, the leaf's own style
+**A range and a reading take the same partial.** `Text::span` lays
+the font fields and the ink its `Declarations` state over the style the
+range is set in — the inherited font for an inheriting leaf, the leaf's own style
 otherwise — and a partial naming no shaping field repaints without
 re-shaping. A reading's style (`Annotation`, `kit::ruby`, `kit::kenten`),
 a nested run (`kit::NestedStyle`), a list's items (`kit::bullets`) and an

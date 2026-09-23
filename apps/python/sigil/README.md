@@ -1107,8 +1107,9 @@ label = (text(passage).width(320).font(Type(size=22, color="#d8e3e8"))
 `rich()` inherits its base from the element's type cascade; `rich(textStyle(...))`
 states a complete base. A named run resolves through the rules of the sheets
 in force, as a virtual child of its text leaf whose class is the name, or
-through a `weave.TypeSheet` the value names with `styles()`. `spanStyle` and `spanPaint` restyle selections
-from `weave.selectors`; Compose's `selectors.style` and `selectors.inFrame`
+through a `weave.TypeSheet` the value names with `styles()`. `span` restyles a
+selection from `weave.selectors` with a `compose.Declarations` — the font and
+ink verbs, re-shaping only where a shaping field is stated; Compose's `selectors.style` and `selectors.inFrame`
 address named runs and story frames. Selector ranges use native UTF-16 offsets.
 
 `Block` exposes leading, alignment, justification, hyphenation settings, tab

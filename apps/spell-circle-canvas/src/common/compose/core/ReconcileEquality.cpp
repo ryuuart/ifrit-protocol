@@ -115,7 +115,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // of which fields were written — so a changed alignment, break strategy,
   // clamp or ellipsis patches on every content form.
   if (a.kind == Kind::Text && !(ta.options == tb.options)) return false;
-  // spanPaint()/spanStyle(): comparable selectors and comparable styles, in
+  // span(): comparable selectors and comparable declarations, in
   // declaration order, so a re-described restyle list prunes and a changed
   // one re-resolves.
   if (ta.spanRestyles != tb.spanRestyles) return false;

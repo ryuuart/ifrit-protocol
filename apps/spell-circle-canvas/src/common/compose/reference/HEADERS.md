@@ -121,9 +121,14 @@ sound model; nothing below them changes kernel semantics.
 - `core/Band.h` — `BandVerbs`: `bandAlignment`, and `Band`, the leaf
   that has it.
 - `core/verbs/Mask.h` — `MaskVerbs`: `mask`, in both its forms.
-- `core/verbs/Cascade.h` — `CascadeVerbs`: `font`, `block`, `ink`,
-  `var`, `varDefaults`, `imageRendering` — what a node declares to everything
-  under it.
+- `core/verbs/Font.h` — `FontVerbs`: `font` and its longhands
+  `fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, `letterSpacing`,
+  and `ink` — the type and the colour every passage under a node is set
+  in.
+- `core/verbs/Cascade.h` — `CascadeVerbs`: `block` and its longhands
+  `lineHeight`, `textAlign`, `textIndent`, `writingMode`, `hyphens`,
+  `var`, `varDefaults`, `imageRendering`, and the keywords `inherit`,
+  `initial`, `unset` — what a node declares to everything under it.
 - `core/verbs/Paint.h` — `PaintVerbs`: `fill`, in every form a surface
   can be painted with.
 - `core/verbs/Decoration.h` — `DecorationVerbs`: `background`,
@@ -142,8 +147,10 @@ sound model; nothing below them changes kernel semantics.
   `textOverflow`, `maxTextLines`, `textStroke`, `contentFlowAround`.
 - `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `textAttach`,
   `textAnnotation`, `textThreadTo`, `textThreadBalance`, `textOnPath`,
-  `spanPaint`, `spanStyle`, `atRest`; and `Text`, the leaf that has them
+  `span`, `atRest`; and `Text`, the leaf that has them
   and the text properties both.
+- `core/DeclarationBlock.h` — `Declarations`, what a text span states:
+  the font and ink verbs on a value that belongs to no element.
 - `core/Image.h` — `ImageVerbs`: `imageRegion`, and `Image`, the leaf
   that has them.
 - `core/verbs/Structure.h` — `StructureVerbs`: what a node IS rather

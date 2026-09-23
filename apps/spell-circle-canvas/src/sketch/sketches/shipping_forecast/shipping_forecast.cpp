@@ -114,7 +114,7 @@
 //     twice is the name itself: once in the sheet of registers and once in
 //     the selector, which is what naming anything costs.
 //  2. A number picked out by pattern is picked out in weight as well as
-//     in colour: a `spanStyle` that changes only an advance-invariant
+//     in colour: a `span` that changes only an advance-invariant
 //     axis holds it on the glyphs without re-shaping them, which is what the
 //     synopsis's millibar readings take. The forecast paragraph does NOT, and
 //     the reason is composition rather than a missing verb — every initial
@@ -291,12 +291,12 @@ struct ShippingForecast {
   // ------------------------------------------------------------------
   // Type
 
-  /** The forecast paragraph's own voice, which the synopsis's spanStyle
-   *  grades against. */
-  [[nodiscard]] sigil::weave::TextStyle voice() const {
-    return weave::textStyle({.face = faceBody,
-                             .size = 19.5f,
-                             .color = material::skia::toSkColor(kBone)});
+  /** The forecast paragraph's own voice, which the synopsis's grade is
+   *  laid over. */
+  [[nodiscard]] sigil::weave::Type voice() const {
+    return {.face = faceBody,
+            .size = 19.5f,
+            .color = material::skia::toSkColor(kBone)};
   }
 
   /** THE SHEET'S REGISTERS, AS NAMED PARTIALS rather than as a call site
@@ -638,9 +638,9 @@ struct ShippingForecast {
    *
    *  THE NUMERALS ARE FOUND, NOT DECLARED. A Beaufort force is a number
    *  wherever it appears, so it is addressed by pattern after the fact.
-   *  `spanPaint` is paint only: those are the glyphs the unpainted
-   *  paragraph shaped, at the positions it shaped them, wearing a different
-   *  colour. */
+   *  A `span` stating a colour is paint only: those are the glyphs the
+   *  unpainted paragraph shaped, at the positions it shaped them, wearing a
+   *  different colour. */
   [[nodiscard]] Element forecast() {
     // AN INHERITING PASSAGE: the unnamed runs are set in the voice the node
     // carries and each named run changes only what its register states.
@@ -698,10 +698,8 @@ struct ShippingForecast {
             .key("forecast")
             .width(pct(100))
             .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
-            .spanPaint(
-                weave::selectors::regex(u8"[0-9]+"),
-                sigil::weave::PaintStyle(
-                    sigil::material::skia::toSkColor(kAmber).toSkColor()))
+            .span(weave::selectors::regex(u8"[0-9]+"),
+                  Declarations().ink(kAmber).font({.color8 = true}))
             .fx(std::move(initials))
             .fx(std::move(grade))
             .fx(std::move(bodies)),
@@ -751,8 +749,8 @@ struct ShippingForecast {
    *  would re-break the passage and the cascade would follow it.
    *
    *  THE PRESSURES ARE PICKED OUT TWICE, and neither pick moves a letter: a
-   *  grade by a `spanStyle` that changes nothing but the grade, then a
-   *  colour by `spanPaint`. The order is the point: a restyle is measured
+   *  grade by a `span` that changes nothing but the grade, then a
+   *  colour by another. The order is the point: a restyle is measured
    *  against the text as the earlier declarations left it, so the grade is
    *  declared first, while the numerals still wear the base paint and differ
    *  from `graded` in the axis alone; declared after the colour it would
@@ -761,14 +759,13 @@ struct ShippingForecast {
    *  synopsis a reader looks for rather than reads, and it wants the weight
    *  a colour alone cannot carry. GRAD is advance-invariant, so the whole
    *  numeral thickens where the paragraph already set it — a heavier FACE
-   *  would be a `spanStyle`, and would re-break the passage the line cascade
-   *  is beating over. */
+   *  would be a reshaping `span`, and would re-break the passage the line
+   *  cascade is beating over. */
   [[nodiscard]] Element synopsis() {
-    // The grade is declared against the voice the passage is set in — the
-    // one thing a restyle cannot inherit, being a whole style by
-    // construction.
-    sigil::weave::TextStyle graded = voice();
-    graded.variation("GRAD", 800.0f);
+    // The grade is declared over the voice the passage is set in, so the
+    // numerals differ from the text around them in the axis alone.
+    sigil::weave::Type graded = voice();
+    graded.variations.push_back(sigil::weave::FontVariation("GRAD", 800.0f));
     const data::Json& page = doc["synopsis"];
     weave::RichText copy = doc.passage(page["runs"]);
 
@@ -779,11 +776,10 @@ struct ShippingForecast {
             .key("synopsis")
             .width(pct(100))
             .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
-            .spanStyle(weave::selectors::regex(u8"[0-9]+"), graded)
-            .spanPaint(
-                weave::selectors::regex(u8"[0-9]+"),
-                sigil::weave::PaintStyle(
-                    sigil::material::skia::toSkColor(kAmber).toSkColor()))
+            .span(weave::selectors::regex(u8"[0-9]+"),
+                  Declarations().font(graded))
+            .span(weave::selectors::regex(u8"[0-9]+"),
+                  Declarations().ink(kAmber).font({.color8 = true}))
             .fx({.effect = fx::slide(-22.0f),
                  .stagger = {.eachMs = 150, .durationMs = 620},
                  .unit = weave::Unit::Line,

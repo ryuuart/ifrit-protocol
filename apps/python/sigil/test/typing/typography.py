@@ -1,6 +1,6 @@
 """Typed authoring through the native typography vocabulary."""
 
-from sigil.compose import Element, Text, TextPath, box, frame, text
+from sigil.compose import Declarations, Element, Text, TextPath, box, frame, text
 from sigil.compose import selectors as compose_selectors
 from sigil.motion import Output
 from sigil.skia import Paint, Path
@@ -56,7 +56,7 @@ node: Text = (
     .font(voice)
     .block(layout)
     .paragraphStyles((heading,))
-    .spanStyle(selection, Type(weight=700))
+    .span(selection, Declarations().fontWeight(700))
     .textFirstBaseline(FrameOptions.FirstBaseline.CapHeight)
     .children(box().key("marker").fill("#ffffff"))
 )

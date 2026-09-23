@@ -63,7 +63,7 @@ struct GlyphInfo {
    *
    *  A NUMBER FOR AN EFFECT TO READ, NOT A HANDLE TO ADDRESS BY: spans are
    *  cut and merged by every span restyle the leaf declares, so this
-   *  renumbers when a `spanPaint` anywhere ahead of it splits one — and the
+   *  renumbers when a `span` anywhere ahead of it splits one — and the
    *  restyle resolver runs while that list is being edited, so the two
    *  resolvers could not be made to agree on what a given index names. The
    *  handle on a treatment is the NAME the run was written under, which
@@ -214,7 +214,7 @@ class TextEffect {
   /** A VARIABLE-FONT AXIS held at one coordinate for every glyph the track
    *  addresses — a grade, an optical size, a slant applied at draw time
    *  with no reshape. The effect the kernel builds for itself: an
-   *  `Text::spanStyle` that changes only such axes is carried as a
+   *  `Text::span` that changes only such axes is carried as a
    *  track holding it.
    *
    *  Only an ADVANCE-INVARIANT axis is honoured: the glyphs keep the pen

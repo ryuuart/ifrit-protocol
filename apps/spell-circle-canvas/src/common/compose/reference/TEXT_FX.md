@@ -68,8 +68,8 @@ text(weave::rich(base).styles(set.types())
 A glossary set in one registered style stays addressable when the copy
 changes, where naming the literal words means editing the selector every
 time an author edits a sentence. It resolves through the run's TEXT, so
-re-registering the name against a different style — or a `spanPaint` or
-`spanStyle` cutting across the run — leaves the same runs selected. Only a
+re-registering the name against a different style — or a `span` cutting
+across the run — leaves the same runs selected. Only a
 named `weave::rich()` run carries a name: plain text, a run given a style
 directly, and the paragraph overload have none, so there it selects nothing
 and warns once per name, as does a name no run was written with.
@@ -352,7 +352,7 @@ numbering — which beat this glyph belongs to, in the list `Track::beatsOver`
 chose — so a per-word track sees word ordinals there.
 
 `GlyphInfo::styleIndex` is the one to read and never to address by: span
-restyles cut and merge the style list, so a `spanPaint` anywhere ahead of
+restyles cut and merge the style list, so a `span` anywhere ahead of
 this glyph renumbers it, and the two resolvers could not be made to agree
 on what a given index names. The handle on a treatment is the NAME the run
 was written under, which `selectors::style` addresses.

@@ -58,7 +58,7 @@ namespace detail {
  *
  *  The name is tied to the run's TEXT rather than to the style span it
  *  produced, and that is the whole reason the answer holds up. Spans are
- *  cut and merged by every `spanPaint` and `spanStyle` the leaf declares,
+ *  cut and merged by every `span` the leaf declares,
  *  so a span index is a number about the paragraph's current normal form;
  *  a run's extent is a fact about the content that only new content
  *  changes. Re-registering the name against a different style, or a restyle
@@ -98,7 +98,7 @@ struct TextScope {
  *  by selector. The kernel holds the paragraph, lays it out and draws it at
  *  rest by itself; everything below is answered by the value a text verb
  *  installs on the description (`fx()`, `textOnPath()`, `textAttach()`,
- *  `spanStyle()`, `spanPaint()`, `variationDrive()`). A text node carrying
+ *  `span()`, `variationDrive()`). A text node carrying
  *  none of those has no painter, and the kernel then draws its paragraph at
  *  rest, resolves no marks and restyles nothing — the same picture a painter
  *  would draw for a description with nothing to dress.

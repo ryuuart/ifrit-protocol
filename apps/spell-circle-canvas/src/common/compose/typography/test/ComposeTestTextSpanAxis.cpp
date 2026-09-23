@@ -95,25 +95,24 @@ TEST(TextSpanAxis, AnInvariantAxisRedrawsWithoutReshaping) {
 
   host.composer.render(box().padding(10).children(
       {text(body, base)
-           .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
-                      withAxis(base, "GRAD", hi))
+           .span(sigil::weave::selectors::regex(u8"[0-9]+"), axis("GRAD", hi))
            .key("t")}));
   host.frame();
   EXPECT_EQ(runShapes(host, "t"), shapesBefore)
-      << "an axis-only spanStyle re-shaped a word — the axis went into the "
+      << "an axis-only span re-shaped a word — the axis went into the "
          "shaping style instead of onto the glyphs";
   EXPECT_EQ(runOrigins(host, "t"), originsBefore)
-      << "an axis-only spanStyle moved a glyph";
+      << "an axis-only span moved a glyph";
   EXPECT_GT(pixelsDiffering(plain, grab(host, 400, 120), 400, 120), 20)
       << "the graded numerals are drawing exactly as the ungraded ones did";
 }
 
-TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
+TEST(TextSpanAxis, AnAxisSpanKeepsAnEarlierPaintSpanAndFoldsAnyway) {
   // The two verbs address different dimensions, so declaring them in
   // either order over one selection must produce one picture. What made
   // that untrue is invisible from the authoring side: a `TextStyle`
   // carries a paint whether or not its author was thinking about paint,
-  // so a `spanStyle` after a `spanPaint` must not read the colour standing
+  // so an axis span after a paint span must not read the colour standing
   // under it as a difference to shape away — it would then overwrite it
   // with the style's own, leaving the author's colour nowhere and saying
   // nothing.
@@ -131,14 +130,12 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
   Host paintFirst(400, 120);
   paintFirst.composer.render(box().padding(10).children(
       {text(body, base)
-           .spanPaint(sigil::weave::selectors::regex(u8"[0-9]+"),
-                      sigil::weave::PaintStyle(SK_ColorRED))
-           .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
-                      withAxis(base, "GRAD", hi))
+           .span(sigil::weave::selectors::regex(u8"[0-9]+"), inked(SK_ColorRED))
+           .span(sigil::weave::selectors::regex(u8"[0-9]+"), axis("GRAD", hi))
            .key("t")}));
   paintFirst.frame();
   EXPECT_GT(countColor(paintFirst, all, SK_ColorRED), 20)
-      << "the spanStyle painted over the earlier spanPaint's colour";
+      << "the axis span painted over the earlier paint span's colour";
   const std::vector<const void*> shapes = runShapes(paintFirst, "t");
 
   // …and the order that works around it, which must now be the same
@@ -146,10 +143,8 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
   Host styleFirst(400, 120);
   styleFirst.composer.render(box().padding(10).children(
       {text(body, base)
-           .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
-                      withAxis(base, "GRAD", hi))
-           .spanPaint(sigil::weave::selectors::regex(u8"[0-9]+"),
-                      sigil::weave::PaintStyle(SK_ColorRED))
+           .span(sigil::weave::selectors::regex(u8"[0-9]+"), axis("GRAD", hi))
+           .span(sigil::weave::selectors::regex(u8"[0-9]+"), inked(SK_ColorRED))
            .key("t")}));
   styleFirst.frame();
   EXPECT_EQ(pixelsDiffering(grab(paintFirst, 400, 120),
@@ -158,7 +153,7 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
       << "the two declaration orders draw different pictures";
   EXPECT_EQ(shapes, runShapes(styleFirst, "t"))
       << "the axis restyle re-shaped the numerals under the earlier "
-         "spanPaint instead of folding onto the glyphs it already had";
+         "paint span instead of folding onto the glyphs it already had";
 }
 
 TEST(TextSpanAxis, AnAdvanceVariantAxisReshapesInstead) {
@@ -182,8 +177,7 @@ TEST(TextSpanAxis, AnAdvanceVariantAxisReshapesInstead) {
   const auto at = [&](float weight) {
     host.composer.render(box().padding(10).children(
         {text(body, base)
-             .spanStyle(sigil::weave::Selector{},
-                        withAxis(base, "wght", weight))
+             .span(sigil::weave::Selector{}, axis("wght", weight))
              .key("t")}));
     host.frame();
     return grab(host, 400, 120);
@@ -234,8 +228,7 @@ TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
           {// A default-constructed selector addresses every glyph.
            text(u8"888", style)
                .key("t")
-               .spanStyle(sigil::weave::Selector{},
-                          withAxis(style, "GRAD", value))}));
+               .span(sigil::weave::Selector{}, axis("GRAD", value))}));
       ticker.tick(1.0 / 60.0);
       surface->getCanvas()->clear(SK_ColorBLACK);
       composer.draw(*surface->getCanvas());
@@ -271,17 +264,17 @@ TEST(TextSpanAxis, ALaterDeclarationWinsOnOverlap) {
     return grab(host, 400, 120);
   };
   const SkBitmap light = drawn([&](Text t) {
-    return t.spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", lo));
+    return t.span(sigil::weave::Selector{}, axis("GRAD", lo));
   });
   const SkBitmap heavy = drawn([&](Text t) {
-    return t.spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", hi));
+    return t.span(sigil::weave::Selector{}, axis("GRAD", hi));
   });
   ASSERT_GT(pixelsDiffering(light, heavy, 400, 120), 20)
       << "the two ends of the axis draw the same, so nothing below is a test";
 
   const SkBitmap both = drawn([&](Text t) {
-    return t.spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", lo))
-        .spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", hi));
+    return t.span(sigil::weave::Selector{}, axis("GRAD", lo))
+        .span(sigil::weave::Selector{}, axis("GRAD", hi));
   });
   EXPECT_EQ(pixelsDiffering(both, heavy, 400, 120), 0)
       << "the earlier declaration survived the later one — an axis is a "

@@ -321,10 +321,10 @@ TEST(ComposeCascade, APartialSpanStyleIsLaidOverTheStyleTheRangeIsSetIn) {
   Host plain, sized, tinted;
   plain.composer.render(page(text(u8"AAAA BBBB")));
   sized.composer.render(
-      page(text(u8"AAAA BBBB").spanStyle(second(), {.size = 36})));
+      page(text(u8"AAAA BBBB").span(second(), Declarations().fontSize(36))));
   tinted.composer.render(
       page(text(u8"AAAA BBBB")
-               .spanStyle(second(), {.color = SkColor4f{1, 0, 0, 1}})));
+               .span(second(), Declarations().ink(SkColor4f{1, 0, 0, 1}))));
   plain.frame();
   sized.frame();
   tinted.frame();

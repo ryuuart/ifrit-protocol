@@ -77,8 +77,8 @@ Python the reference is `compose.var` and the table is the dictionary
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
 | `Utf8` | Text, spelled either way: a `char` or `char8_t` string, a `std::string`, or a value that reads itself out as text. | Implicitly at the call site | `text`, `Text::textOverflow`, every kit property that takes words |
-| `weave::TextStyle` | A TOTAL style: a leaf set in one inherits nothing. | `weave::textStyle` over a partial, or the struct outright | `text(utf8, style)`, `Text::spanStyle` |
-| `weave::Type` | A PARTIAL: the fields it names override, the rest inherit. | The struct, field by field | `Element::font`, `Text::spanStyle`, `weave::RichText::add` |
+| `weave::TextStyle` | A TOTAL style: a leaf set in one inherits nothing. | `weave::textStyle` over a partial, or the struct outright | `text(utf8, style)` |
+| `weave::Type` | A PARTIAL: the fields it names override, the rest inherit. | The struct, field by field | `Element::font`, `Declarations::font`, `weave::RichText::add` |
 | `weave::RichText` | Mixed-style text as a comparable value, so a re-described identical value prunes. | `weave::rich`, then `add` per run | `text(spans)` |
 
 ## What Python spells differently

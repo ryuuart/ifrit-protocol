@@ -3,8 +3,12 @@
  * layout options the engine is asked for it under.
  */
 
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
+
 #include <algorithm>
 #include <span>
+#include <variant>
 
 #include "ComposeRuntime.h"
 
@@ -122,17 +126,17 @@ void Composer::Impl::materializeText(
   // two overlap — which is the "later wins" rule, spelled as span surgery
   // rather than as a merge nobody could predict.
   //
-  // LATER WINS PER DIMENSION, and the paint dimension is `spanPaint`'s: a
-  // `spanStyle` over text an earlier `spanPaint` coloured applies its
-  // other dimensions and leaves that colour standing. Otherwise the two
-  // verbs would have to be declared in one particular order to both take
-  // effect, with nothing said when they were not — the style, being a
-  // whole style, carries a paint whether or not its author was thinking
-  // about paint, and it would silently repaint the selection its own
-  // default. Written as a REPLAY: the style is applied whole, then every
-  // earlier `spanPaint` that reaches the same characters is re-applied
-  // over it, in declaration order, so the last one to cover a character
-  // is still the one standing.
+  // LATER WINS PER DIMENSION, and the paint dimension belongs to the spans
+  // that state paint alone: a reshaping span over text an earlier paint
+  // span coloured applies its other dimensions and leaves that colour
+  // standing. Otherwise the two would have to be declared in one
+  // particular order to both take effect, with nothing said when they
+  // were not — a reshaping span is laid over the whole style the range is
+  // set in, so it carries a paint whether or not its author stated one,
+  // and it would silently repaint the selection. Written as a REPLAY: the
+  // style is applied whole, then every earlier paint span that reaches
+  // the same characters is re-applied over it, in declaration order, so
+  // the last one to cover a character is still the one standing.
   //
   // Every selection is resolved up front, against the text as written:
   // a restyle never edits the text, so the ranges hold, and the fold below
@@ -141,21 +145,16 @@ void Composer::Impl::materializeText(
   const size_t restyleCount = text.spanRestyles.size();
   std::vector<std::vector<sigil::weave::CharRange>> resolvedRanges(
       restyleCount);
-  // A restyle written as a partial is laid over the style the range is
-  // set in; one that names no shaping field is applied as a repaint. Both
-  // are settled here, once, and kept for the ink-only replay.
+  // A span is laid over the style the range is set in; one that names no
+  // shaping field is applied as a repaint. Both are settled here, once,
+  // and kept for the ink-only replay.
   const sigil::weave::TextStyle restyleBase = leafStyle(inst);
   std::vector<sigil::weave::TextStyle> resolvedStyles(restyleCount);
   std::vector<bool> resolvedPaintOnly(restyleCount);
   for (size_t i = 0; i < restyleCount; ++i) {
     const SpanRestyle& restyle = text.spanRestyles[i];
-    if (restyle.partial) {
-      resolvedStyles[i] = sigil::weave::overlay(restyleBase, *restyle.partial);
-      resolvedPaintOnly[i] = !sigil::weave::reshapes(*restyle.partial);
-    } else {
-      resolvedStyles[i] = restyle.style;
-      resolvedPaintOnly[i] = restyle.paintOnly;
-    }
+    resolvedStyles[i] = styleOfSpan(restyleBase, restyle, inst);
+    resolvedPaintOnly[i] = !sigil::weave::reshapes(restyle.partial);
   }
   // The ranges are the painter's answer: text that carries none — a
   // description built without a text verb — is restyled by nothing.
@@ -186,7 +185,7 @@ void Composer::Impl::materializeText(
               {std::max(x.start, y.start), std::min(x.end, y.end)});
     return shared;
   };
-  // Nothing is carried until a `spanPaint` has actually painted something,
+  // Nothing is carried until a paint span has actually painted something,
   // and a passage that declares none takes neither the search nor the
   // replay below.
   bool paintDeclared = false;
@@ -202,7 +201,7 @@ void Composer::Impl::materializeText(
       paintDeclared = true;
       continue;
     }
-    // The text this restyle covers whose paint an earlier `spanPaint`
+    // The text this restyle covers whose paint an earlier paint span
     // owns — the merge, resolved as ranges: each piece with the paint that
     // owns it, in declaration order, and the pieces alone for the fold.
     std::vector<std::pair<std::vector<sigil::weave::CharRange>,
@@ -253,10 +252,29 @@ void Composer::Impl::materializeText(
     for (const sigil::weave::CharRange& range : ranges)
       inst.paragraph->setStyle(range.start, range.end, style);
     // …and the earlier paints back over it, so the style's own paint
-    // stands only where no `spanPaint` reached.
+    // stands only where no paint span reached.
     for (const auto& [where, paint] : carried)
       inst.paragraph->setPaint(where, *paint);
   }
+}
+
+sigil::weave::TextStyle Composer::Impl::styleOfSpan(
+    const sigil::weave::TextStyle& base, const SpanRestyle& span,
+    const Instance& inst) const {
+  sigil::weave::Type partial = span.partial;
+  if (span.inkVar) {
+    const VarValue* value = inst.vars ? inst.vars->find(*span.inkVar) : nullptr;
+    const material::Color* colour =
+        value ? std::get_if<material::Color>(value) : nullptr;
+    if (colour)
+      partial.color = material::skia::toSkColor(*colour);
+    else
+      warnNoSuchVar(*span.inkVar, true);
+  }
+  sigil::weave::TextStyle style = sigil::weave::overlay(base, partial);
+  if (span.inkShader)
+    style.paint.foreground.setShader(span.inkShader->shaderValue);
+  return style;
 }
 
 sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(

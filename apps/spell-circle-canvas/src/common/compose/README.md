@@ -459,7 +459,7 @@ The shape of it in one paragraph: a text leaf holds an ordered list of
 `fx()` TRACKS, each `(selector, effect, stagger, progress)` — which
 glyphs, what deviation from rest, how their start times spread, what
 drives it — and the same `selectors::` vocabulary addresses glyphs for a track,
-characters for a `spanStyle`, and units for anything standing beside the
+characters for a `span`, and units for anything standing beside the
 passage. What a passage is SET like is `Text::paragraphStyles` and the
 layout setters beside it, which map onto
 `sigil::weave::ParagraphLayoutOptions` field by field.

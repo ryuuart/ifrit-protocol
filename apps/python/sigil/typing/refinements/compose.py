@@ -14,12 +14,15 @@ NODES = (ELEMENT, TEXT, IMAGE, "_sigil.compose.Band")
 # A rule states the declaring half of the same vocabulary, bound once for
 # both, so its refinements are the same text over its own name.
 RULE = "_sigil.compose.Rule"
+# What a text span states is the font half of the same vocabulary.
+DECLARATIONS = "_sigil.compose.Declarations"
 
 
 def register(table: Table) -> None:
     for node in NODES:
         registerNode(table, node)
     registerDeclarations(_Returning(table, RULE), RULE)
+    registerFont(_Returning(table, DECLARATIONS), DECLARATIONS)
     # A glyph outline is the text leaf's alone, and the region of a source
     # is the image leaf's.
     # The glyph OUTLINE is one comparable Fill on the node, measured with no
@@ -88,6 +91,12 @@ def children(self, *children: _t.NodeLike) -> Element: ...
     table.erased(node, "background foreground overlay stroke", "_t.DecorationLike")
 
 
+def registerFont(table: _Returning, node: str) -> None:
+    """The font and the ink, over the value that states them."""
+    table.erased(node, "fontSize letterSpacing", "_t.FloatLike | _sigil.weave.Length")
+    table.erased(node, "ink", "_t.ElementInkLike")
+
+
 def registerDeclarations(table: _Returning, node: str) -> None:
     """The verbs a rule states as well as a node, over the value that states them."""
     table.declares(
@@ -121,9 +130,8 @@ def inset(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike |
         "opacity rotate scale scaleX scaleY skewX skewY translateX translateY",
         "_t.ScalarLike",
     )
-    table.erased(node, "fontSize letterSpacing", "_t.FloatLike | _sigil.weave.Length")
+    registerFont(table, node)
     table.erased(node, "fill", "_t.SurfacePaintLike")
-    table.erased(node, "ink", "_t.ElementInkLike")
     table.erased(node, "alignItems alignSelf", "_t.AlignLike")
     table.erased(node, "justifyContent", "_t.JustifyLike")
     table.erased(node, "gridCellAlign", "_t.AlignLike", "_t.AlignLike")

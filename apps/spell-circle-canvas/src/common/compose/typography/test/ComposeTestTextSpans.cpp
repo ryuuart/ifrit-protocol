@@ -111,7 +111,7 @@ TEST(TextRich, NamedRunsResolveThroughTheSheetInForce) {
             SK_ColorWHITE);
 }
 
-TEST(TextSpans, SpanPaintRecolorsWithoutReshaping) {
+TEST(TextSpans, APaintSpanRecolorsWithoutReshaping) {
   // Paint-only means paint-only: the glyphs are the glyphs the unrestyled
   // text shaped, at the positions it shaped them, drawn in another colour.
   Host host(400, 120);
@@ -125,8 +125,7 @@ TEST(TextSpans, SpanPaintRecolorsWithoutReshaping) {
 
   host.composer.render(box().padding(10).children(
       {text(body, base)
-           .spanPaint(sigil::weave::selectors::regex(u8"[0-9]+"),
-                      sigil::weave::PaintStyle(SK_ColorRED))
+           .span(sigil::weave::selectors::regex(u8"[0-9]+"), inked(SK_ColorRED))
            .key("t")}));
   host.frame();
   EXPECT_EQ(runShapes(host, "t"), shapesBefore)
@@ -138,7 +137,7 @@ TEST(TextSpans, SpanPaintRecolorsWithoutReshaping) {
   EXPECT_GT(countColor(host, band, SK_ColorWHITE), 10) << "everything else";
 }
 
-TEST(TextSpans, SpanStyleReshapesOnlyTheWordsItCovers) {
+TEST(TextSpans, ASizeSpanReshapesOnlyTheWordsItCovers) {
   Host host(400, 160);
   const sigil::weave::TextStyle base = coloredStyle(24, SK_ColorWHITE);
   const std::u8string body = u8"alpha beta gamma";
@@ -150,8 +149,8 @@ TEST(TextSpans, SpanStyleReshapesOnlyTheWordsItCovers) {
   // The LAST word, so the two ahead of it keep their pen positions too.
   host.composer.render(box().padding(10).children(
       {text(body, base)
-           .spanStyle(sigil::weave::selectors::text(u8"gamma"),
-                      coloredStyle(40, SK_ColorRED))
+           .span(sigil::weave::selectors::text(u8"gamma"),
+                 sizedAndInked(40, SK_ColorRED))
            .key("t")}));
   host.frame();
   const std::vector<const void*> after = runShapes(host, "t");
@@ -169,10 +168,8 @@ TEST(TextSpans, ALaterRestyleWinsOnOverlap) {
 
   host.composer.render(box().padding(10).children(
       {text(body, base)
-           .spanPaint(sigil::weave::selectors::text(u8"beta"),
-                      sigil::weave::PaintStyle(SK_ColorRED))
-           .spanPaint(sigil::weave::selectors::words(0, 2),
-                      sigil::weave::PaintStyle(SK_ColorGREEN))
+           .span(sigil::weave::selectors::text(u8"beta"), inked(SK_ColorRED))
+           .span(sigil::weave::selectors::words(0, 2), inked(SK_ColorGREEN))
            .key("t")}));
   host.frame();
   EXPECT_EQ(countColor(host, band, SK_ColorRED), 0)
@@ -181,10 +178,8 @@ TEST(TextSpans, ALaterRestyleWinsOnOverlap) {
 
   host.composer.render(box().padding(10).children(
       {text(body, base)
-           .spanPaint(sigil::weave::selectors::words(0, 2),
-                      sigil::weave::PaintStyle(SK_ColorGREEN))
-           .spanPaint(sigil::weave::selectors::text(u8"beta"),
-                      sigil::weave::PaintStyle(SK_ColorRED))
+           .span(sigil::weave::selectors::words(0, 2), inked(SK_ColorGREEN))
+           .span(sigil::weave::selectors::text(u8"beta"), inked(SK_ColorRED))
            .key("t")}));
   host.frame();
   EXPECT_GT(countColor(host, band, SK_ColorRED), 10) << "the narrow exception";
@@ -205,8 +200,7 @@ TEST(TextSpans, ALineSelectorAddressesTheLayout) {
   host.composer.render(box().padding(10).children(
       {text(body, base)
            .width(200)
-           .spanPaint(sigil::weave::selectors::line(0),
-                      sigil::weave::PaintStyle(SK_ColorRED))
+           .span(sigil::weave::selectors::line(0), inked(SK_ColorRED))
            .key("t")}));
   host.frame();
   const SkIRect all = SkIRect::MakeXYWH(0, 0, 240, 200);
@@ -365,9 +359,8 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
   };
 
   const auto redsIn = [&](sigil::weave::Selector where, const Beat& beat) {
-    host.composer.render(
-        box().padding(10).children({text(copy).key("t").spanPaint(
-            std::move(where), sigil::weave::PaintStyle(SK_ColorRED))}));
+    host.composer.render(box().padding(10).children(
+        {text(copy).key("t").span(std::move(where), inked(SK_ColorRED))}));
     host.frame();
     return countColor(host, bandOf(beat), SK_ColorRED);
   };
@@ -382,15 +375,14 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
   EXPECT_GT(redsIn(sigil::weave::selectors::text(u8"beta"), betas[1]), 5)
       << "…which the literal selector does catch, as it must";
 
-  // And through spanStyle, which re-shapes: exactly the named runs do.
+  // And through a span that re-shapes: exactly the named runs do.
   host.composer.render(box().padding(10).children({text(copy).key("t")}));
   host.frame();
   const std::vector<const void*> before = runShapes(host, "t");
   ASSERT_FALSE(before.empty());
   const auto reshapedUnder = [&](sigil::weave::Selector where) {
-    host.composer.render(
-        box().padding(10).children({text(copy).key("t").spanStyle(
-            std::move(where), coloredStyle(34, SK_ColorGREEN))}));
+    host.composer.render(box().padding(10).children({text(copy).key("t").span(
+        std::move(where), sizedAndInked(34, SK_ColorGREEN))}));
     host.frame();
     const std::vector<const void*> after = runShapes(host, "t");
     // A run list of a different LENGTH is not a re-shape count at all — the

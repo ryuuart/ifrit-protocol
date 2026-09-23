@@ -37,6 +37,11 @@ sigil::weave::TextStyle jp(float size, SkColor color) {
   return s;
 }
 
+/** A span stating one colour. */
+Declarations inked(SkColor colour) {
+  return Declarations().ink(SkColor4f::FromColor(colour));
+}
+
 int inkCount(Host& host, SkIRect region) {
   int hits = 0;
   for (int y = region.top(); y < region.bottom(); ++y)
@@ -172,8 +177,7 @@ TEST(TextVertical, ALineSelectorAddressesAColumn) {
            .width(200)
            .height(180)
            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .spanPaint(sigil::weave::selectors::line(0),
-                      sigil::weave::PaintStyle(SK_ColorRED))
+           .span(sigil::weave::selectors::line(0), inked(SK_ColorRED))
            .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
@@ -220,7 +224,7 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
       << "at rest the whole column draws";
 }
 
-TEST(TextVertical, SpanPaintRecolorsAColumnWithoutReshaping) {
+TEST(TextVertical, APaintSpanRecolorsAColumnWithoutReshaping) {
   Host host(300, 260);
   const std::u8string body = u8"赤い文字と白い文字";
   const auto shapesOf = [&] {
@@ -247,8 +251,7 @@ TEST(TextVertical, SpanPaintRecolorsAColumnWithoutReshaping) {
                  .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
                  .key("t");
     if (restyled)
-      t.spanPaint(sigil::weave::selectors::text(u8"赤い"),
-                  sigil::weave::PaintStyle(SK_ColorRED));
+      t.span(sigil::weave::selectors::text(u8"赤い"), inked(SK_ColorRED));
     return box().padding(10).children({std::move(t)});
   };
 
@@ -506,14 +509,14 @@ TEST(TextVertical, TheUnitReadBackNamesHowEachOneStandsInItsColumn) {
   // a turned one is neither: the read-back names it.
   const std::u8string mixed = u8"平成30年に";
   Host host(300, 240);
-  sigil::weave::TextStyle tcy = jp(22, SK_ColorWHITE);
-  tcy.shaping.verticalForm = sigil::weave::VerticalForm::kTateChuYoko;
+  const Declarations tcy = Declarations().font(
+      {.verticalForm = sigil::weave::VerticalForm::kTateChuYoko});
   host.composer.render(box().padding(10).children(
       {text(mixed, jp(22, SK_ColorWHITE))
            .width(200)
            .height(180)
            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .spanStyle(sigil::weave::selectors::text(u8"30"), tcy)
+           .span(sigil::weave::selectors::text(u8"30"), tcy)
            .key("t")}));
   host.frame();
 
@@ -564,7 +567,7 @@ TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
       << "the mark drifted out of the column it names";
 }
 
-TEST(TextVertical, ASpanStyleReshapesOnlyTheRunItNames) {
+TEST(TextVertical, ASizeSpanReshapesOnlyTheRunItNames) {
   // A span restyle that changes SHAPING re-shapes its own run and leaves
   // its neighbours' shaped words alone — the same contract a line keeps,
   // asked of a column, where the re-shaped run also changes how far the
@@ -577,8 +580,8 @@ TEST(TextVertical, ASpanStyleReshapesOnlyTheRunItNames) {
                  .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
                  .key("t");
     if (dressed) {
-      sigil::weave::TextStyle big = jp(40, SK_ColorWHITE);
-      t.spanStyle(sigil::weave::selectors::text(u8"文章"), big);
+      t.span(sigil::weave::selectors::text(u8"文章"),
+             Declarations().fontSize(40));
     }
     return box().padding(10).children({std::move(t)});
   };
@@ -643,18 +646,19 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
   // the cascade: the letters rise into place and the sideline stands still
   // the whole way, which is the same stand a mark() takes under a track.
   choreograph::Output<float> progress{0.4f};
-  sigil::weave::PaintStyle sidelined(SK_ColorWHITE);
   sigil::weave::Decoration sideline;
   sideline.thickness = 3.0f;
   sideline.color = SK_ColorRED;
-  sidelined.addDecoration(sideline);
+  sigil::weave::Type lined;
+  lined.decorations = std::vector<sigil::weave::Decoration>{sideline};
+  const Declarations sidelined = Declarations().font(lined);
   const auto describe = [&] {
     return box().padding(10).children(
         {text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
              .width(60)
              .height(220)
              .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-             .spanPaint(sigil::weave::selectors::text(u8"三四五六"), sidelined)
+             .span(sigil::weave::selectors::text(u8"三四五六"), sidelined)
              .fx({.effect = fx::rise(24),
                   .stagger = {.eachMs = 90},
                   .unit = sigil::weave::Unit::Cluster,
@@ -728,18 +732,19 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
   // an automatic vertical underline would take — and it is a plain field
   // on the decoration, so it reaches a span through the same paint verb.
   const auto describe = [&](sigil::weave::Decoration::Side side) {
-    sigil::weave::PaintStyle sidelined(SK_ColorWHITE);
     sigil::weave::Decoration sideline;
     sideline.thickness = 3.0f;
     sideline.color = SK_ColorRED;
     sideline.side = side;
-    sidelined.addDecoration(sideline);
+    sigil::weave::Type lined;
+    lined.decorations = std::vector<sigil::weave::Decoration>{sideline};
+    const Declarations sidelined = Declarations().font(lined);
     return box().padding(10).children(
         {text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
              .width(60)
              .height(220)
              .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-             .spanPaint(sigil::weave::selectors::text(u8"三四五六"), sidelined)
+             .span(sigil::weave::selectors::text(u8"三四五六"), sidelined)
              .key("t")});
   };
 

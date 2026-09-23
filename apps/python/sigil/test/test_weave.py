@@ -6,7 +6,7 @@ from pathlib import Path
 
 from _sigil import weave as native_weave
 from sigil import image, skia, weave
-from sigil.compose import Text, TextPath, frame, text
+from sigil.compose import Declarations, Text, TextPath, frame, text
 from sigil.compose import selectors as composition_selectors
 from sigil.motion import Output
 from sigil.sketch import render_file
@@ -118,8 +118,9 @@ class Typography(unittest.TestCase):
             text="日本語"
         )
         selection = selection & ~composition_selectors.style(name="muted")
-        node = text(weave.rich().add("日本語 and signals")).spanStyle(
-            where=selection, type=weave.Type(weight=700)
+        node = text(weave.rich().add("日本語 and signals")).span(
+            where=selection,
+            declarations=Declarations().font(weave.Type(weight=700)),
         )
         progress = Output(0.25)
         path = TextPath(
@@ -135,6 +136,16 @@ class Typography(unittest.TestCase):
         self.assertIs(node.textOnPath(path=path), node)
         self.assertIs(node.paragraphStyles(names=("heading", "body")), node)
         self.assertIs(node.paragraphStyles(blocks=(weave.ParagraphStyle(),)), node)
+
+    def test_a_span_states_the_font_and_ink_verbs_over_its_range(self):
+        stated = Declarations().fontWeight(700).letterSpacing(1).ink("#ff0000")
+        self.assertIsInstance(stated, Declarations)
+        leaf = text("alpha beta")
+        self.assertIs(leaf.span(weave.selectors.words(0, 1), stated), leaf)
+        for retired in ("spanPaint", "spanStyle"):
+            self.assertFalse(hasattr(Text, retired), retired)
+        for boxVerb in ("padding", "children", "maxTextLines"):
+            self.assertFalse(hasattr(Declarations, boxVerb), boxVerb)
 
     def test_mixed_runs_and_inline_slot_render_in_inherited_type(self):
         pixels = self.render("""from sigil.compose import box, text

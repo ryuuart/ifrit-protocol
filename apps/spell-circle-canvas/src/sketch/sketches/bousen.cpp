@@ -115,6 +115,18 @@ inline weave::PaintStyle banded(material::Color ink,
   return p;
 }
 
+/** The same band as what a span states over the range it finds: the ink,
+ *  sent through an 8-bit word as the band's own paint sends it, and the
+ *  band. */
+inline Declarations bandedSpan(material::Color ink,
+                               weave::Decoration::Kind kind,
+                               material::Color band, float thickness) {
+  const weave::Type partial{
+      .color8 = true,
+      .decorations = banded(ink, kind, band, thickness).decorations};
+  return Declarations().ink(ink).font(partial);
+}
+
 /** The strip's entrance, and the ms its master must span to run at those
  *  numbers: one beat a COLUMN, and the strip sets four of them. */
 const motion::Spread kColumnEntrance{.eachMs = 210, .durationMs = 520};
@@ -192,21 +204,21 @@ struct Bousen {
                  .block(bs::kColumn)
                  // The band the plate is named for: down the RIGHT of the
                  // column, the length of the phrase it dresses.
-                 .spanPaint(
-                     weave::selectors::text(u8"傍線"),
-                     bs::banded(bs::kSumi, weave::Decoration::Kind::kUnderline,
-                                bs::kAka, 2.5f))
+                 .span(weave::selectors::text(u8"傍線"),
+                       bs::bandedSpan(bs::kSumi,
+                                      weave::Decoration::Kind::kUnderline,
+                                      bs::kAka, 2.5f))
                  // Its opposite, down the left.
-                 .spanPaint(
-                     weave::selectors::text(u8"約物"),
-                     bs::banded(bs::kSumi, weave::Decoration::Kind::kOverline,
-                                bs::kAi, 2.0f))
+                 .span(weave::selectors::text(u8"約物"),
+                       bs::bandedSpan(bs::kSumi,
+                                      weave::Decoration::Kind::kOverline,
+                                      bs::kAi, 2.0f))
                  // A highlight covers the column PITCH — there is no cap
                  // band across a column to hang one on.
-                 .spanPaint(
-                     weave::selectors::text(u8"小書きの仮名"),
-                     bs::banded(bs::kSumi, weave::Decoration::Kind::kHighlight,
-                                bs::kAiWash, 0))
+                 .span(weave::selectors::text(u8"小書きの仮名"),
+                       bs::bandedSpan(bs::kSumi,
+                                      weave::Decoration::Kind::kHighlight,
+                                      bs::kAiWash, 0))
                  // A mark stands in the margin BESIDE the phrase it names:
                  // the rect it anchors to is the union of that phrase's
                  // advance boxes, and in a column those stack downward, so
@@ -292,10 +304,10 @@ struct Bousen {
                  .width(120.0f)
                  .height(300.0f)
                  .block(bs::kColumn)
-                 .spanPaint(
-                     weave::selectors::text(u8"右から左へ"),
-                     bs::banded(bs::kAi, weave::Decoration::Kind::kUnderline,
-                                bs::kAka, 2.0f))
+                 .span(weave::selectors::text(u8"右から左へ"),
+                       bs::bandedSpan(bs::kAi,
+                                      weave::Decoration::Kind::kUnderline,
+                                      bs::kAka, 2.0f))
                  .fx({.effect = fx::rise(18),
                       .stagger = bs::kColumnEntrance,
                       .unit = weave::Unit::Line,

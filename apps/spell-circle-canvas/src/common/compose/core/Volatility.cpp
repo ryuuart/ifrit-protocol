@@ -243,13 +243,10 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     for (const sigil::weave::RichText::Run& run : text.rich.runs())
       if (styleBlends(run.style.paint)) return true;
     for (const SpanRestyle& span : text.spanRestyles) {
-      // A partial's passes blend or not on their own; what it is laid over
-      // is the leaf's, already judged above.
+      // A span's passes blend or not on their own; what it is laid over is
+      // the leaf's, already judged above.
       const sigil::weave::PaintStyle paint =
-          span.partial
-              ? sigil::weave::overlay(sigil::weave::TextStyle{}, *span.partial)
-                    .paint
-              : span.style.paint;
+          sigil::weave::overlay(sigil::weave::TextStyle{}, span.partial).paint;
       if (styleBlends(paint)) return true;
     }
     return false;

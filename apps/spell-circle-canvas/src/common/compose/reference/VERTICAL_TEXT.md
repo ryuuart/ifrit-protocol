@@ -35,7 +35,7 @@ with a horizontal neighbour's first line.
 take their `vert` forms, Latin lies on its side. A run that wants otherwise
 says so in its own style — `sigil::weave::VerticalForm` is `kAuto`,
 `kUpright`, `kRotated` or `kTateChuYoko` — set on a `weave::rich()` run's
-`sigil::weave::TextStyle` or through `spanStyle`. It is a SHAPING field, so
+`sigil::weave::TextStyle` or through a `span`. It is a SHAPING field, so
 it re-shapes the words it covers and nothing else; there is no separate verb
 because there is no separate concept. 縦中横 is the one to know: a short run
 shaped horizontally and set upright across the column, which is how two-digit
@@ -55,7 +55,7 @@ there too.
 **The engine runs in columns.** `weave::Unit::Line` IS A COLUMN here, so a
 track with `.unit = weave::Unit::Line` beats column by column and
 `weave::selectors::line(0)` addresses the rightmost one; `weave::Unit::Cluster`
-runs down a column in reading order. `spanPaint`, `spanStyle`, the block's
+runs down a column in reading order. `span`, the block's
 alignment (start is the top of the column), `maxTextLines` (which clamps
 COLUMNS) with `textOverflow` at the clamped column's foot, `contentFlowAround`,
 the block's last line and breaking strategy, `textStroke`, `variationDrive` and

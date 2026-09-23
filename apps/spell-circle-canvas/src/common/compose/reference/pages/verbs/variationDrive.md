@@ -43,4 +43,4 @@ onto each other.
 
 ## See also
 
-`fx`, [`spanStyle`](spanStyle.md), `weave::FontVariation`.
+`fx`, [`span`](span.md), `weave::FontVariation`.

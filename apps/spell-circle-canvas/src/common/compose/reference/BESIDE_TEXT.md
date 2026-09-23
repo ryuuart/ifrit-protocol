@@ -93,14 +93,14 @@ statement of where it stops: `kit::NestedStyle::Until::Words` counts the
 paragraph's own words, `Until::Characters` counts a character range, and
 `Until::Delimiter` runs through the first occurrence of a mark, inclusive.
 `kit::nestedRun` answers the `weave::Selector` that means and
-`Text::spanStyle` does the work, so an initial and the small caps that
+`Text::span` does the work, so an initial and the small caps that
 carry a paragraph out of it are two properties of one leaf.
 
 ```cpp
 const kit::NestedStyle opening{.count = 3, .style = smallCaps};
 text(passage, bodyType)
     .initialLetter({.lines = 3, .margin = 6.0f})
-    .spanStyle(kit::nestedRun(opening), opening.style);
+    .span(kit::nestedRun(opening), Declarations().font(opening.style));
 ```
 
 Because it is a selector, the run re-resolves with the text: an edit that

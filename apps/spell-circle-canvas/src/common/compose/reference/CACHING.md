@@ -284,7 +284,7 @@ paint, which is where it belongs, since a blend on the NODE opens a layer
 every frame — composites against what is under the node exactly as a
 blended decoration does. Every paint a text node can carry is asked: the
 style's foreground and its under- and overlays, its line decorations,
-each run of a `weave::RichText` value, and each `spanPaint()` restyle. A
+each run of a `weave::RichText` value, and each `span()` restyle. A
 node carrying one, and every ancestor, is refused the automatic bake and
 the memo hold, and the row says `ReadsBackdrop` — because a bake would
 offer that light transparent black instead of the ground, and the light

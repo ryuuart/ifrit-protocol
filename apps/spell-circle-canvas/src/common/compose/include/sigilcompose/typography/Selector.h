@@ -37,7 +37,7 @@ namespace selectors {
  *
  *  It addresses the run's TEXT, so it survives everything that changes what
  *  that text looks like: a rule that styles the name differently, or a
- *  `spanPaint`/`spanStyle` cutting across it, leaves the same runs
+ *  `span` cutting across it, leaves the same runs
  *  selected.
  *
  *  ONLY A NAMED `rich()` RUN CARRIES A NAME. Plain `text(utf8, style)`, a

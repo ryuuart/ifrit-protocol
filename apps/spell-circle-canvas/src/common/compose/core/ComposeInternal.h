@@ -166,26 +166,21 @@ class Box {
 // caps sizeof(ElementNode) with a static assertion, which is the rule that
 // keeps a rare field from being added inline.
 
-/** One Text::spanPaint() / Text::spanStyle() declaration: a selector
- *  and what it does to the range it finds. Ordered — later declarations win
- *  on overlap — and comparable, so a re-described list prunes. */
+/** One Text::span() declaration: a selector and what it states over the
+ *  range it finds. Ordered — later declarations win on overlap — and
+ *  comparable, so a re-described list prunes. */
 struct SpanRestyle {
   sigil::weave::Selector where;
-  sigil::weave::TextStyle style;  ///< paintOnly reads `style.paint` alone
-  /** setPaint (never re-shapes) rather than setStyle. */
-  bool paintOnly = false;
-  /** A restyle written as a PARTIAL: laid over the style the range is set
-   *  in when the text is materialised — the font in force for an
-   *  inheriting leaf, the leaf's own style otherwise — so `style` above is
-   *  unread. One that names no shaping field is applied as a repaint. */
-  std::optional<sigil::weave::Type> partial;
-  bool operator==(const SpanRestyle& other) const {
-    if (partial || other.partial)
-      return where == other.where && partial == other.partial;
-    return where == other.where && paintOnly == other.paintOnly &&
-           (paintOnly ? style.paint == other.style.paint
-                      : style == other.style);
-  }
+  /** The font fields the span states, the ink's colour among them, laid
+   *  over the style the range is set in when the text is materialised —
+   *  the font in force for an inheriting leaf, the leaf's own style
+   *  otherwise. One naming no shaping field is applied as a repaint. */
+  sigil::weave::Type partial;
+  /** The ink read from a custom property in force at the leaf. */
+  std::optional<VarRef> inkVar;
+  /** The ink as a shader, laid in the passage's own coordinates. */
+  std::optional<Fill> inkShader;
+  bool operator==(const SpanRestyle&) const = default;
 };
 
 /** One Text::textAttach() declaration: which unit the mark anchors to, and
@@ -281,8 +276,8 @@ struct TextData {
   // The fluent setters (textAlign, lineBreak, hyphenation, textOverflow,
   // maxTextLines, lastLine), which override `layoutOptions` field by field.
   TextOptions options;
-  // spanPaint()/spanStyle(): the type treatment, addressed by selector and
-  // applied to the materialized paragraph in declaration order.
+  // span(): the type treatment, addressed by selector and applied to the
+  // materialized paragraph in declaration order.
   std::vector<SpanRestyle> spanRestyles;
   // Text::fx(): the ordered track list. Empty on ordinary text.
   // Text::variationDrive() appends one of these too — a driven axis is a
@@ -312,9 +307,9 @@ struct TextData {
   bool balanceChain = false;
   uint32_t balanceThroughLine = ~0u;
   // THE TEXT ENGINE, as the description carries it: installed by the verbs
-  // that dress type (fx, textOnPath, mark, spanStyle, spanPaint,
-  // variationDrive), read by the kernel wherever it needs more than the
-  // paragraph drawn at rest. Excluded from structural equality — it is the
+  // that dress type (fx, textOnPath, textAttach, span, variationDrive),
+  // read by the kernel wherever it needs more than the paragraph drawn at
+  // rest. Excluded from structural equality — it is the
   // same engine on every text that has one — so a field pin names it and
   // the comparator skips it.
   TextPainter painter;

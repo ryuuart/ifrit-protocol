@@ -5,10 +5,11 @@
  *
  * What a text leaf CARRIES beyond its words: the per-glyph tracks, the
  * siblings anchored to its units, the readings beside it, the frame
- * chain it fills into, the curve it is laid along, the ranges it
+ * chain it fills into, the curve it is laid along, the spans it
  * restyles, and the copy of itself at rest.
  */
 
+#include <sigilcompose/core/DeclarationBlock.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/verbs/Node.h>
 #include <sigilcompose/core/verbs/TextStyle.h>
@@ -79,20 +80,14 @@ class TextContentVerbs {
    *  the node's own box still sizes the path, so give it the box the
    *  curve should be inscribed in. */
   Derived& textOnPath(TextPath spec);
-  /** Repaint the range this selector finds — a colour, a shader, an
-   *  underline, an added glow pass. PAINT ONLY: it never re-shapes, so
-   *  the glyphs are exactly the glyphs the unrestyled text shaped. */
-  Derived& spanPaint(sigil::weave::Selector where,
-                     sigil::weave::PaintStyle paint);
-  /** Restyle the range this selector finds with a complete TextStyle —
-   *  a different face, size, weight or tracking as well as paint. It
-   *  re-shapes, and only the words the range covers. */
-  Derived& spanStyle(sigil::weave::Selector where,
-                     sigil::weave::TextStyle style);
-  /** Restyle the range with a PARTIAL: the fields it names over the
-   *  style the range is set in, the rest standing. One naming no
-   *  shaping field is a repaint and never re-shapes. */
-  Derived& spanStyle(sigil::weave::Selector where, sigil::weave::Type partial);
+  /** RESTYLE THE RANGE @p where FINDS with @p declarations: the font
+   *  fields and the ink they state, over the style the range is set in,
+   *  the rest standing. It re-shapes only where a shaping field was
+   *  declared — a face, a size, a weight, a tracking — and only the
+   *  words the range covers; a colour, a decoration or a paint alone is
+   *  a repaint. Where two spans overlap the later wins, field by field
+   *  for the paint. */
+  Derived& span(sigil::weave::Selector where, Declarations declarations);
   /** THIS LEAF AS IT STANDS AT REST, as a second leaf that can stand
    *  beside it in one tree: the same content, style, measure and
    *  layout, carrying nothing that deviates or restyles a glyph at

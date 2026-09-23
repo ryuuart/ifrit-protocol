@@ -497,6 +497,12 @@ struct Composer::Impl {
    *  partial and a nested style overlay. */
   [[nodiscard]] sigil::weave::TextStyle leafStyle(
       const detail::Instance& inst) const;
+  /** WHAT A SPAN LAYS OVER THE RANGE IT FINDS: its partial over @p base,
+   *  with the ink it reads from a custom property in force at @p inst and
+   *  the shader it states as the glyphs' own. */
+  [[nodiscard]] sigil::weave::TextStyle styleOfSpan(
+      const sigil::weave::TextStyle& base, const detail::SpanRestyle& span,
+      const detail::Instance& inst) const;
   /** The face's own line height at @p font, px. */
   float lineHeightAt(const sigil::weave::Type& font);
   /** The advance of "0" in @p font's face at its size, px. */

@@ -871,11 +871,10 @@ void Composer::Impl::refreshInheritedInk(Instance& inst) {
         std::min({text.spanRestyles.size(), state.restyleRanges.size(),
                   state.restyleFolded.size(), state.restyleStyles.size(),
                   state.restylePaintOnly.size()});
-    // A partial restyle was laid over the font then in force; the ink
-    // moved, so it is laid over the font now in force.
+    // A span was laid over the font then in force; the ink moved, so it
+    // is laid over the font now in force.
     for (size_t i = 0; i < count; ++i)
-      if (const auto& partial = text.spanRestyles[i].partial)
-        state.restyleStyles[i] = sigil::weave::overlay(base, *partial);
+      state.restyleStyles[i] = styleOfSpan(base, text.spanRestyles[i], inst);
     for (size_t i = 0; i < count; ++i) {
       if (state.restyleFolded[i]) continue;
       inst.paragraph->setPaint(state.restyleRanges[i],

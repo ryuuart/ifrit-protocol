@@ -226,7 +226,7 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // holds across the line-scoped ones and the rest alike.
   //
   // It resolves against THE TEXT BEFORE THE RESTYLE and stops there: a
-  // spanStyle that moves the line breaks does not chase its own result,
+  // span that moves the line breaks does not chase its own result,
   // which is what keeps this two passes rather than a fixed-point search
   // that may not have a fixed point.
   if (inst.description->textData &&

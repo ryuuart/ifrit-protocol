@@ -155,7 +155,7 @@ struct NestedStyle {
  *  There is no nested-style mechanism under this and there does not need
  *  to be: a nested style is a span restyle over a range the selector
  *  vocabulary can already name, so this answers the selector and
- *  `Text::spanStyle` does the work. A delimiter becomes an anchored
+ *  `Text::span` does the work. A delimiter becomes an anchored
  *  non-greedy regular expression — literal-quoted, so a mark that is also
  *  a regex operator (`*`, `.`, `(`) means itself — which is the one of the
  *  three that has no counting selector of its own.

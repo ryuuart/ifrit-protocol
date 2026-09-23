@@ -63,7 +63,7 @@ struct TextState {
   // as a horizontal one breaks on its width.
   float selectionWidth = -1.0f;
   float selectionHeight = -1.0f;
-  // spanStyle() restyles that differ from the text they cover ONLY in
+  // span() restyles that differ from the text they cover ONLY in
   // advance-invariant variable-font axes, carried as tracks instead of
   // re-shaping: the paragraph keeps the glyphs and pen positions it shaped,
   // and the coordinate reaches the glyphs at draw time exactly as a driven
@@ -75,7 +75,7 @@ struct TextState {
 
   // ---- what an ink-only repaint needs ----------------------------------
   //
-  // The ranges each spanPaint()/spanStyle() restyle resolved to when the
+  // The ranges each span() restyle resolved to when the
   // paragraph was materialised, in declaration order, and which of them
   // were folded into axis tracks rather than applied. An inheriting leaf
   // whose ink changes sets the new colour on its inherited ranges in place
@@ -83,9 +83,9 @@ struct TextState {
   // as materialisation left them without a line being broken again.
   std::vector<std::vector<sigil::weave::CharRange>> restyleRanges;
   std::vector<bool> restyleFolded;
-  // The style each restyle resolved to — a partial laid over the style
-  // the range is set in — and whether it was applied as a repaint, which
-  // a partial naming no shaping field is.
+  // The style each span resolved to — its partial laid over the style the
+  // range is set in — and whether it was applied as a repaint, which a
+  // span naming no shaping field is.
   std::vector<sigil::weave::TextStyle> restyleStyles;
   std::vector<bool> restylePaintOnly;
 };

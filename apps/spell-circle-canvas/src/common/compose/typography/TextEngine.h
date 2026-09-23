@@ -258,7 +258,7 @@ float cascadeSpanOfTrack(Instance& inst, size_t trackIndex);
  *  final box and the marks then stand on it — at the run's resting
  *  placement, since a layout rect cannot chase a paint-time `at`. */
 void resolveTextMarks(Composer::Impl& impl, Instance& inst);
-/** Whether one spanStyle restyle can be carried as draw-time axis tracks
+/** Whether one span restyle can be carried as draw-time axis tracks
  *  instead of re-shaping the text it covers: its style must differ from
  *  every covered span's only in variable-font axes, drop none the text
  *  was shaped with, and every axis it moves must be advance-invariant on

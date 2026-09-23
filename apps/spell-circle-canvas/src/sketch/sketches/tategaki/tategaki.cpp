@@ -13,7 +13,7 @@
 // is how a date reads in vertical prose.
 //
 // Over that, the rest of the text surface asked to work down the page: a
-// spanPaint highlight on a named phrase, and one settling entrance beating
+// span highlight on a named phrase, and one settling entrance beating
 // cluster by cluster in reading order — down each column, then right to
 // left across them.
 //
@@ -157,10 +157,8 @@ struct Tategaki {
                  .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
                  // The phrase the plate is about, in vermilion — paint only,
                  // so the glyphs are exactly the glyphs the passage shaped.
-                 .spanPaint(weave::selectors::text(u8"縦組み"),
-                            sigil::weave::PaintStyle(
-                                sigil::material::skia::toSkColor(tg::kAka)
-                                    .toSkColor()))
+                 .span(weave::selectors::text(u8"縦組み"),
+                       Declarations().ink(tg::kAka).font({.color8 = true}))
                  // One settling entrance, beating cluster by cluster in
                  // READING ORDER: down each column, then right to left.
                  .fx({.effect = fx::rise(30),

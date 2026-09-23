@@ -28,7 +28,8 @@ TEST(ComposeTypeset, ANestedStyleCoversTheWordsItCountsAndStops) {
                           .left(20.0f)
                           .top(40.0f)
                           .width(360.0f)
-                          .spanStyle(kit::nestedRun(opening), opening.style)}));
+                          .span(kit::nestedRun(opening),
+                                Declarations().font(opening.style))}));
   host.frame();
   const std::vector<TextUnit> words = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -52,14 +53,14 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
   const kit::NestedStyle lead{.until = kit::NestedStyle::Until::Delimiter,
                               .delimiter = u8".",
                               .style = colouredType(16, SK_ColorGREEN)};
-  host.composer.render(
-      box().children({text(u8"alpha beta. gamma delta", whiteStyle(16))
-                          .key("t")
-                          .absolute()
-                          .left(20.0f)
-                          .top(40.0f)
-                          .width(360.0f)
-                          .spanStyle(kit::nestedRun(lead), lead.style)}));
+  host.composer.render(box().children(
+      {text(u8"alpha beta. gamma delta", whiteStyle(16))
+           .key("t")
+           .absolute()
+           .left(20.0f)
+           .top(40.0f)
+           .width(360.0f)
+           .span(kit::nestedRun(lead), Declarations().font(lead.style))}));
   host.frame();
   const std::vector<TextUnit> words = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -80,14 +81,14 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
   const kit::NestedStyle absent{.until = kit::NestedStyle::Until::Delimiter,
                                 .delimiter = u8"§",
                                 .style = colouredType(16, SK_ColorGREEN)};
-  missing.composer.render(
-      box().children({text(u8"alpha beta. gamma delta", whiteStyle(16))
-                          .key("t")
-                          .absolute()
-                          .left(20.0f)
-                          .top(40.0f)
-                          .width(360.0f)
-                          .spanStyle(kit::nestedRun(absent), absent.style)}));
+  missing.composer.render(box().children(
+      {text(u8"alpha beta. gamma delta", whiteStyle(16))
+           .key("t")
+           .absolute()
+           .left(20.0f)
+           .top(40.0f)
+           .width(360.0f)
+           .span(kit::nestedRun(absent), Declarations().font(absent.style))}));
   missing.frame();
   EXPECT_FALSE(anyGreenIn(missing, SkIRect::MakeXYWH(0, 0, 400, 300)));
 }
@@ -108,12 +109,12 @@ TEST(ComposeTypeset, AnInitialLetterCarriesANestedOpeningIntoItsBlock) {
            .top(40.0f)
            .width(340.0f)
            .height(200.0f)
-           .children(
-               {text(u8"Whale alpha beta gamma", whiteStyle(16))
-                    .key("body")
-                    .width(240.0f)
-                    .initialLetter({.lines = 3, .margin = 6.0f})
-                    .spanStyle(kit::nestedRun(opening), opening.style)})}));
+           .children({text(u8"Whale alpha beta gamma", whiteStyle(16))
+                          .key("body")
+                          .width(240.0f)
+                          .initialLetter({.lines = 3, .margin = 6.0f})
+                          .span(kit::nestedRun(opening),
+                                Declarations().font(opening.style))})}));
   host.frame();
   const std::vector<TextUnit> words = host.composer.units(
       "body", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -144,7 +145,9 @@ TEST(ComposeTypeset, ANestedOpeningDoesNotCloseTheSpaceAfterTheInitial) {
         auto leaf = text(opening, whiteStyle(14));
         leaf.key("body").absolute().left(20.0f).top(40.0f).width(260.0f);
         if (initial) leaf.initialLetter({.lines = 3, .margin = 8.0f});
-        if (nested) leaf.spanStyle(kit::nestedRun(*nested), nested->style);
+        if (nested)
+          leaf.span(kit::nestedRun(*nested),
+                    Declarations().font(nested->style));
         host.composer.render(box().children({leaf}));
         host.frame();
         // The opening word is the CAP and the remainder together, so its

@@ -194,8 +194,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/imageRendering.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/scaleX.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/shape.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/spanPaint.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/spanStyle.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/span.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/stroke.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textStroke.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textThreadTo.md
