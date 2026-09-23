@@ -478,11 +478,7 @@ inline Element label(const Utf8& t) { return text(t).flexShrink(0); }
  *  proof row fails on. */
 inline Element label(const Utf8& t, float size,
                      std::optional<material::Color> c = std::nullopt) {
-  return text(t)
-      .font({.size = size,
-             .color = c ? std::optional(material::skia::toSkColor(*c))
-                        : std::nullopt})
-      .flexShrink(0);
+  return text(t).font({.size = size, .color = c}).flexShrink(0);
 }
 
 /** One run with Motif's mnemonic underline on exactly one character. Two

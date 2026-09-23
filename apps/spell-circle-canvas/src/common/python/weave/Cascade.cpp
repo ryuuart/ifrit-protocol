@@ -1,4 +1,5 @@
 #include <pybind11/stl.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/skia/Values.h>
@@ -97,7 +98,8 @@ void bindWeaveCascade(py::module_& module) {
       .def(
           "tracked",
           [](const std::optional<sk_sp<SkTypeface>>& face, float size,
-             SkColor4f color, float trackPerMille, float condense) {
+             const material::Color& color, float trackPerMille,
+             float condense) {
             return weave::kit::tracked(face.value_or(nullptr), size, color,
                                        trackPerMille, condense);
           },

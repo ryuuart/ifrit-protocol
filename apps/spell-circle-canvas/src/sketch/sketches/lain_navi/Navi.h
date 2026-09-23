@@ -20,7 +20,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bind.h>
@@ -333,10 +332,8 @@ inline sk_sp<SkTypeface> phraseFace() {
 inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                              mat::Color c, float sigma = 0.0f,
                              float track = 0.0f) {
-  weave::TextStyle s = weave::textStyle({.face = tf,
-                                         .size = size,
-                                         .color = mat::skia::toSkColor(c),
-                                         .track = track});
+  weave::TextStyle s =
+      weave::textStyle({.face = tf, .size = size, .color = c, .track = track});
   s.paint.foreground.setBlendMode(SkBlendMode::kPlus);
   if (sigma > 0.01f)
     s.paint.foreground.setMaskFilter(

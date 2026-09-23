@@ -35,7 +35,6 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/values/Keyframes.h>
@@ -565,10 +564,7 @@ inline std::vector<T> listOf(R&& range, Fn of) {
  *  panel's ink, and a face and size where a panel is set in one. */
 inline weave::Type partial(sk_sp<SkTypeface> face, float size, mat::Color c,
                            float tracking = 0) {
-  return {.face = std::move(face),
-          .size = size,
-          .color = mat::skia::toSkColor(c),
-          .track = tracking};
+  return {.face = std::move(face), .size = size, .color = c, .track = tracking};
 }
 
 using motion::ramp;  // (startMs, durationMs) -> a Transition
