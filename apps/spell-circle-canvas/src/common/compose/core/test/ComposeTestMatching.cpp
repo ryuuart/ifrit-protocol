@@ -478,3 +478,33 @@ TEST(ComposeMatching, ATransitionARuleStatesEasesAClassToggle) {
   own.frame(0.3);
   EXPECT_GT(SkColorGetR(inkOf(own, 0)), 0u) << "still easing, over 2s";
 }
+
+TEST(ComposeMatching, TheStrongestRuleStatingATransitionIsTheOneThatEases) {
+  // Two rules state a transition: the weightier one's stands, whatever
+  // order the sheet lists them in, and the weaker one's is not a floor.
+  const auto page = [](const StyleSheet& sheet, std::string_view name) {
+    return column(sheet, {swatch().key("panel").styleClass(
+                             std::string("panel wide ") += name)});
+  };
+  const auto easedAfter = [&](const StyleSheet& sheet) {
+    Host host;
+    host.composer.render(page(sheet, "hot"));
+    host.frame();
+    host.composer.render(page(sheet, "cold"));
+    host.frame(0.1);
+    host.frame(0.3);
+    return SkColorGetR(inkOf(host, 0));
+  };
+  const auto hot = rule(".hot").ink(kRedInk);
+  const auto cold = rule(".cold").ink(kBlueInk);
+  const auto slow = rule(".panel.wide").transition({.duration = 2000ms});
+  const auto quick = rule(".panel").transition({.duration = 200ms});
+  // The heavier rule is slow, listed first or last: still easing at 0.4s.
+  EXPECT_GT(easedAfter(StyleSheet{slow, quick, hot, cold}), 0u);
+  EXPECT_GT(easedAfter(StyleSheet{quick, slow, hot, cold}), 0u);
+  // The heavier rule is quick: done by then, though a slow one matched.
+  const auto slowLight = rule(".panel").transition({.duration = 2000ms});
+  const auto quickHeavy =
+      rule(".panel.wide").transition({.duration = 200ms});
+  EXPECT_EQ(easedAfter(StyleSheet{quickHeavy, slowLight, hot, cold}), 0u);
+}
