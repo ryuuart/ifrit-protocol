@@ -272,8 +272,12 @@ sigil::weave::TextStyle Composer::Impl::styleOfSpan(
       warnNoSuchVar(*span.inkVar, true);
   }
   sigil::weave::TextStyle style = sigil::weave::overlay(base, partial);
-  if (span.inkShader)
+  // A paint stated as the ink IS the ink: its own alpha rules, so the
+  // colour it replaces must not fade it.
+  if (span.inkShader) {
     style.paint.foreground.setShader(span.inkShader->shaderValue);
+    style.paint.foreground.setAlphaf(1.0f);
+  }
   return style;
 }
 

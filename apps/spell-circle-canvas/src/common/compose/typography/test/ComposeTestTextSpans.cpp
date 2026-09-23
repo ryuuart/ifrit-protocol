@@ -168,6 +168,23 @@ TEST(TextSpans, ABaselineShiftSpanMovesItsRangeWithoutReshaping) {
       << "the digits rose by the shift";
 }
 
+TEST(TextSpans, AnInkPaintIsNotFadedByTheColourItReplaces) {
+  // A passage set in a translucent colour, restyled whole with a static
+  // red paint: the paint is the ink, so the range draws at the paint's
+  // own alpha rather than at the colour's.
+  const sigil::weave::TextStyle faint =
+      coloredStyle(28, SkColorSetARGB(64, 255, 255, 255));
+  Host host(400, 120);
+  host.composer.render(box().padding(10).children(
+      {text(u8"Count 1234 now", faint)
+           .span(sigil::weave::Selector{},
+                 SpanDeclarations().ink(material::skia::Paint::linear(
+                     {0, 0}, {400, 0},
+                     {{0.0f, {1, 0, 0, 1}}, {1.0f, {1, 0, 0, 1}}})))}));
+  host.frame();
+  EXPECT_GT(countColor(host, SkIRect::MakeWH(400, 120), SK_ColorRED), 20);
+}
+
 TEST(TextSpans, AnInkPaintResolvedAgainstABoxIsLeftOut) {
   // A range has no box of its own to lay a unit ramp on, so the span
   // states nothing and the range keeps the ink it is set in.
