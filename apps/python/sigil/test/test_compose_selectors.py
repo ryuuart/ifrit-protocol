@@ -108,6 +108,28 @@ class Grammar(unittest.TestCase):
                 self.assertEqual(compose.selector(text), built)
                 self.assertFalse(built.matchesNothing())
 
+    def test_has_takes_relative_selectors_from_both_doors(self):
+        card, a, b = (select.styleClass(name) for name in ("card", "a", "b"))
+        cases = (
+            (".card:has(.a)", card & select.has(a)),
+            (".card:has(> .a .b)",
+             card & select.has(select.child(a).descendant(b))),
+            (":has(+ .a, ~ .b)",
+             select.has(select.next(a) | select.sibling(b))),
+            (".card:has(.a):has(.b)", card & select.has(a) & select.has(b)),
+            (".card:not(:has(.a))", card & ~select.has(a)),
+        )
+        for text, built in cases:
+            with self.subTest(text=text):
+                self.assertEqual(compose.selector(text), built)
+        self.assertEqual(
+            compose.selector(":has(.a, heading)").specificity(),
+            Specificity(1, 0),
+        )
+        # A :has() inside another is refused, as CSS refuses it.
+        self.assertTrue(compose.selector(":has(:has(.a))").matchesNothing())
+        self.assertTrue(select.has(select.has(a)).matchesNothing())
+
     def test_notAnyOf_and_the_tilde_spell_one_negation(self):
         self.assertEqual(
             select.notAnyOf(select.styleClass("x")), ~select.styleClass("x")

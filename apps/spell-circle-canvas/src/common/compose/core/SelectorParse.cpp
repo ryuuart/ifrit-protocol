@@ -5,8 +5,9 @@
  * The grammar accepted is a selector list of complex selectors; a
  * complex selector is compounds joined by `>`, `+`, `~` or a space; a
  * compound is `*`, a bare word (a role), `.name` (a class) and the
- * structural pseudo-classes, in any order. Anything else is a parse
- * error, which warns once and matches nothing.
+ * structural pseudo-classes, in any order; `:has()` takes RELATIVE
+ * selectors, each opening with `>`, `+`, `~` or nothing. Anything else
+ * is a parse error, which warns once and matches nothing.
  */
 
 #include <string>
@@ -120,6 +121,48 @@ class Parser {
     ElementSelector nested = parseList();
     --m_depth;
     return nested;
+  }
+
+  /** The relative selectors of a `:has()`: each a complex selector,
+   *  optionally opened by the combinator that reaches its first compound
+   *  from the element the `:has()` stands on. */
+  ElementSelector parseRelativeList() {
+    if (m_depth >= nestingCeiling) {
+      m_reason = "selectors nested deeper than this library reads";
+      return {};
+    }
+    ++m_depth;
+    ++m_hasDepth;
+    ElementSelector list;
+    for (;;) {
+      skipSpace();
+      Combinator relation = Combinator::Descendant;
+      if (nextIs('>')) {
+        relation = Combinator::Child;
+        ++m_at;
+      } else if (nextIs('+')) {
+        relation = Combinator::Next;
+        ++m_at;
+      } else if (nextIs('~')) {
+        relation = Combinator::Sibling;
+        ++m_at;
+      }
+      skipSpace();
+      if (!startsCompound()) {
+        m_reason = "a relative selector with no element in it";
+        break;
+      }
+      const ElementSelector one = parseComplex();
+      if (!m_reason.empty()) break;
+      list = list | SelectorAccess::relative(relation, one);
+      skipSpace();
+      if (!nextIs(',')) break;
+      ++m_at;
+    }
+    --m_hasDepth;
+    --m_depth;
+    if (!m_reason.empty()) return {};
+    return list;
   }
 
   ElementSelector parseList() {
@@ -348,6 +391,21 @@ class Parser {
       return true;
     }
 
+    if (name == "has") {
+      if (m_hasDepth > 0) {
+        m_reason = "a :has() inside another :has(), which CSS refuses too";
+        return false;
+      }
+      simple.kind = SimpleKind::Has;
+      if (!take('(')) return false;
+      const ElementSelector relatives = parseRelativeList();
+      if (!m_reason.empty()) return false;
+      if (!take(')')) return false;
+      simple.arguments = SelectorAccess::alternatives(relatives);
+      simples.push_back(std::move(simple));
+      return true;
+    }
+
     if (name == "is" || name == "where" || name == "not") {
       simple.kind = name == "is"      ? SimpleKind::Is
                     : name == "where" ? SimpleKind::Where
@@ -381,6 +439,9 @@ class Parser {
   std::string_view m_text;
   size_t m_at = 0;
   int m_depth = 0;
+  /** How many `:has()` the cursor stands inside, which may be one at
+   *  most. */
+  int m_hasDepth = 0;
   std::string m_reason;
 };
 

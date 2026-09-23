@@ -5,18 +5,26 @@
 
 from _sigil.compose.select import (
     any,
+    child,
+    has,
     is_,
+    next,
     notAnyOf,
     role,
+    sibling,
     styleClass,
     where,
 )
 
 __all__ = [
     "any",
+    "child",
+    "has",
     "is_",
+    "next",
     "notAnyOf",
     "role",
+    "sibling",
     "styleClass",
     "where",
 ]

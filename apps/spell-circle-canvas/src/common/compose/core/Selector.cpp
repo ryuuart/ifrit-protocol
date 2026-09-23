@@ -26,7 +26,8 @@ void warnBadSelector(std::string_view cssText, std::string_view reason) {
       "[compose] selector(\"%.*s\") is not a selector this library reads: "
       "%.*s. It matches nothing. A bare word is a role, .name is a class, "
       "* is any element; the combinators are > + ~ and a space, and the "
-      "pseudo-classes are the structural ones with :is, :where and :not. "
+      "pseudo-classes are the structural ones with :is, :where, :not and "
+      ":has. "
       "(warned once)\n",
       (int)cssText.size(), cssText.data(), (int)reason.size(), reason.data());
 }
@@ -40,6 +41,16 @@ void warnChainInCompound() {
       "chain of elements, which no one element can be. The compound "
       "matches nothing. Join chains with child/descendant/next/sibling "
       "instead. (warned once)\n");
+}
+
+void warnHasInsideHas() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "[compose] a :has() was given another :has() inside it, which CSS "
+      "refuses too. It matches nothing. Chain the two instead — "
+      "a:has(b):has(c) asks for both. (warned once)\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -64,6 +75,32 @@ ElementSelector SelectorAccess::fromSimples(std::vector<Simple> simples) {
   SelectorBody body;
   body.steps.push_back(Step{Combinator::Descendant, Compound{std::move(simples)}});
   return make(std::move(body));
+}
+
+ElementSelector SelectorAccess::relative(Combinator relation,
+                                         const ElementSelector& subject) {
+  ElementSelector list;
+  for (const ElementSelector& alternative : alternatives(subject)) {
+    std::vector<Step> steps = asSteps(alternative);
+    if (steps.empty()) continue;
+    steps.front().combinator = relation;
+    SelectorBody body;
+    body.steps = std::move(steps);
+    list = list | make(std::move(body));
+  }
+  return list;
+}
+
+bool containsHas(const ElementSelector& value) {
+  for (const ElementSelector& alternative :
+       SelectorAccess::alternatives(value))
+    for (const Step& step : SelectorAccess::asSteps(alternative))
+      for (const Simple& simple : step.compound.simples) {
+        if (simple.kind == SimpleKind::Has) return true;
+        for (const ElementSelector& argument : simple.arguments)
+          if (containsHas(argument)) return true;
+      }
+  return false;
 }
 
 std::vector<ElementSelector> SelectorAccess::alternatives(
@@ -212,6 +249,7 @@ Specificity weigh(const Simple& simple) {
       return {};
     case SimpleKind::Is:
     case SimpleKind::Not:
+    case SimpleKind::Has:
       return heaviest(simple.arguments);
     case SimpleKind::NthChild:
     case SimpleKind::NthLastChild: {
@@ -367,6 +405,25 @@ ElementSelector where(ElementSelector alternatives) {
 }
 ElementSelector notAnyOf(ElementSelector alternatives) {
   return detail::listPseudo(detail::SimpleKind::Not, alternatives);
+}
+
+ElementSelector has(ElementSelector relatives) {
+  if (detail::containsHas(relatives)) {
+    detail::warnHasInsideHas();
+    return {};
+  }
+  return detail::listPseudo(detail::SimpleKind::Has, relatives);
+}
+
+ElementSelector child(ElementSelector subject) {
+  return detail::SelectorAccess::relative(detail::Combinator::Child, subject);
+}
+ElementSelector next(ElementSelector subject) {
+  return detail::SelectorAccess::relative(detail::Combinator::Next, subject);
+}
+ElementSelector sibling(ElementSelector subject) {
+  return detail::SelectorAccess::relative(detail::Combinator::Sibling,
+                                          subject);
 }
 
 }  // namespace select

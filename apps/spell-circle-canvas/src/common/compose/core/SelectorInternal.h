@@ -7,8 +7,12 @@
  * A COMPOUND is the simple selectors that must all hold of ONE element.
  * A COMPLEX is compounds from the outermost ancestor to the SUBJECT,
  * each carrying the combinator that reaches it from the one before; the
- * first step's combinator is never read. A BODY is either a list of
- * alternatives or one complex, never both.
+ * first step's combinator is read only in a RELATIVE selector — an
+ * argument of `:has()` — where it is the relation from the element the
+ * `:has()` stands on to the first compound; everywhere else it is the
+ * descendant one, and a selector whose first step says otherwise matches
+ * nothing. A BODY is either a list of alternatives or one complex, never
+ * both.
  */
 
 #include <sigilcompose/core/Selector.h>
@@ -40,11 +44,13 @@ enum class SimpleKind : uint8_t {
   Is,
   Where,
   Not,
+  Has,
 };
 
 /** ONE TEST OF ONE ELEMENT. @p name carries the class or role; @p step
  *  and @p offset carry an+b; @p arguments carries the alternatives of
- *  `:is`, `:where` and `:not`, or the `of S` filter of an nth-child. */
+ *  `:is`, `:where` and `:not`, the relative selectors of `:has`, or the
+ *  `of S` filter of an nth-child. */
 struct Simple {
   SimpleKind kind = SimpleKind::Universal;
   std::string name;
@@ -96,7 +102,19 @@ struct SelectorAccess {
   /** A compound holding exactly @p simples, with `*` dropped wherever
    *  anything else stands beside it. */
   static ElementSelector fromSimples(std::vector<Simple> simples);
+  /** @p subject made RELATIVE: every alternative's first compound
+   *  reached from a `:has()` anchor by @p relation. */
+  static ElementSelector relative(Combinator relation,
+                                  const ElementSelector& subject);
 };
+
+/** Whether @p value holds a `:has()` anywhere in it, the arguments of
+ *  `:is`, `:where`, `:not` and an `of` filter included. */
+[[nodiscard]] bool containsHas(const ElementSelector& value);
+
+/** Says once that a `:has()` was given another `:has()` inside it,
+ *  which CSS refuses too, and that it therefore matches nothing. */
+void warnHasInsideHas();
 
 /** Says once that @p cssText is not a selector this library reads,
  *  naming @p reason, and that it therefore matches nothing. */

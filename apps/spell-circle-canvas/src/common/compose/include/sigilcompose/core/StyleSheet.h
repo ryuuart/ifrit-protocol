@@ -28,6 +28,11 @@
 
 namespace sigil::compose {
 
+namespace detail {
+struct SheetBody;
+struct SheetAccess;
+}  // namespace detail
+
 /** ONE RULE: which elements it speaks about, and what it states about
  *  them. It states the same partials the node's own verbs write, folded
  *  by the same merge, so a property is spelled once whether a rule or a
@@ -101,10 +106,11 @@ class Rule {
 
 /** THE RULES A SHEET STATES, in the order they were written, as one
  *  immutable value: declared once and applied at as many subtrees as
- *  the author likes. Copies are cheap and share one stored form, and
- *  two of them compare by pointer before they compare by value, which
- *  is what lets a reconcile ask cheaply whether the sheets a node
- *  applies changed.
+ *  the author likes, and compiled once — each rule filed under the
+ *  element its selector's subject names. Copies are cheap and share
+ *  that one form, and two of them compare by pointer before they
+ *  compare by value, which is what lets a reconcile ask cheaply whether
+ *  the sheets a node applies changed.
  *  @trap Order is only the LAST tiebreak. Which rule wins at an element
  *  is CSS's: specificity first, and order after it. */
 class StyleSheet {
@@ -135,7 +141,8 @@ class StyleSheet {
   [[nodiscard]] bool operator==(const StyleSheet& other) const;
 
  private:
-  std::shared_ptr<const std::vector<Rule>> m_rules;
+  friend struct detail::SheetAccess;
+  std::shared_ptr<const detail::SheetBody> m_body;
 };
 
 /** THE TWO SHEETS AS ONE, @p later's rules after @p earlier's:

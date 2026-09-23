@@ -116,10 +116,10 @@ class ElementSelector {
 
 /** THE CSS FRONT DOOR, parsed once into the value above:
  *  `".card > .title:first-child"`, `".row:nth-child(odd)"`,
- *  `":is(.a, .b) .c"`, `":not(.x)"`, `"*"`. A text this library does
- *  not read warns once and matches nothing — including an `an+b`
- *  number too large to hold and a nesting too deep to read, which are
- *  REFUSED rather than clamped. */
+ *  `":is(.a, .b) .c"`, `":not(.x)"`, `".card:has(> .badge)"`, `"*"`.
+ *  A text this library does not read warns once and matches nothing —
+ *  including an `an+b` number too large to hold and a nesting too deep
+ *  to read, which are REFUSED rather than clamped. */
 [[nodiscard]] ElementSelector selector(std::string_view cssText);
 
 /** THE TYPED FRONT DOOR: the same selectors built name by name, for
@@ -142,6 +142,23 @@ namespace select {
 /** Elements matching none of @p alternatives, weighing as the heaviest
  *  of them — CSS `:not(...)`, which `!` also spells. */
 [[nodiscard]] ElementSelector notAnyOf(ElementSelector alternatives);
+/** Elements from which some of @p relatives can be reached — CSS
+ *  `:has(...)`, weighing as the heaviest of them. A plain selector is
+ *  reached anywhere under the element; `child`, `next` and `sibling`
+ *  below name the other three relations. `has(a | b)` asks for either,
+ *  `has(a) & has(b)` for both.
+ *  @trap A `:has()` inside another matches nothing, as in CSS. */
+[[nodiscard]] ElementSelector has(ElementSelector relatives);
+/** A RELATIVE selector for `has`: @p subject as a direct child of the
+ *  element the `:has()` stands on — CSS `:has(> b)`. Read only as an
+ *  argument of `has`; anywhere else it matches nothing. */
+[[nodiscard]] ElementSelector child(ElementSelector subject);
+/** A relative selector: @p subject as the sibling immediately after —
+ *  CSS `:has(+ b)`. */
+[[nodiscard]] ElementSelector next(ElementSelector subject);
+/** A relative selector: @p subject as any later sibling — CSS
+ *  `:has(~ b)`. */
+[[nodiscard]] ElementSelector sibling(ElementSelector subject);
 
 }  // namespace select
 

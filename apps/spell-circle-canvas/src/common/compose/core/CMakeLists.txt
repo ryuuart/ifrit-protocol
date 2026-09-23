@@ -78,7 +78,7 @@ sigil_library(SigilComposeCore
     # internal headers
     ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
     ComputedStyle.h
-    SelectorInternal.h SelectorMatch.h
+    SelectorInternal.h SelectorMatch.h SheetBody.h
     TextState.h SlotSpecs.h
     Lanes.h
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
@@ -136,7 +136,8 @@ sigil_test(compose_test
           test/ComposeTestEdges.cpp test/ComposeTestLengths.cpp
           test/ComposeTestDeclarations.cpp
           test/ComposeTestSelector.cpp test/ComposeTestStyleSheet.cpp
-          test/ComposeTestMatching.cpp test/ComposeTestTypedLeaves.cpp
+          test/ComposeTestMatching.cpp test/ComposeTestHas.cpp
+          test/ComposeTestTypedLeaves.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore

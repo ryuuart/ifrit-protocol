@@ -1064,10 +1064,12 @@ page = box().applyStyleSheet(house).children(
 
 `compose.selector(cssText)` parses CSS's own grammar — a bare word is a
 role, `.name` a class, `*` any element, with the combinators `>`, `+`, `~`
-and a space, the structural pseudo-classes, and `:is`, `:where` and
-`:not`. The builders under `sigil.compose.select` produce the same value
-name by name: `styleClass`, `role`, `any`, `is_` (spelled with the
-trailing underscore Python's keyword forces), `where` and `notAnyOf`. The
+and a space, the structural pseudo-classes, `:is`, `:where` and `:not`,
+and `:has`, whose relative selectors open with `>`, `+`, `~` or nothing.
+The builders under `sigil.compose.select` produce the same value name by
+name: `styleClass`, `role`, `any`, `is_` (spelled with the trailing
+underscore Python's keyword forces), `where`, `notAnyOf` and `has`, with
+`child`, `next` and `sibling` opening a relative selector for `has`. The
 operators are the house's three — `a | b` a selector list, `a & b` a
 compound on one element, `~a` a negation — and the combinators stay named
 methods, because they relate two elements rather than combining sets on

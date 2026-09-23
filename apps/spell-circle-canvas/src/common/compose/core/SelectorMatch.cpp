@@ -1,9 +1,10 @@
 /** @file
  * Which rules of the sheets in force speak about a node: the sibling
- * index a structural pseudo-class reads, one element against one
- * compound, a chain matched RIGHT TO LEFT with backtracking over the
- * loose combinators and FENCED at the node that applied the sheet, and
- * the order the matches fold in.
+ * index a structural pseudo-class reads, the summary a `:has()` reads,
+ * one element against one compound, a chain matched RIGHT TO LEFT with
+ * backtracking over the loose combinators and FENCED at the node that
+ * applied the sheet, a relative chain searched DOWN from the element a
+ * `:has()` stands on, and the order the matches fold in.
  */
 
 #include "SelectorMatch.h"
@@ -45,21 +46,30 @@ bool countReaches(int position, int step, int offset) {
   return fromOffset % step == 0 && fromOffset / step >= 0;
 }
 
+/** WHAT A MATCH READS BESIDE THE TREE: the node that applied the sheet
+ *  the selector stands in, past which no compound may reach, and the
+ *  names a `:has()` summary is taken over. */
+struct MatchContext {
+  const Instance* scope = nullptr;
+  const HasNames* names = nullptr;
+};
+
 bool matchesComplex(const std::vector<Step>& steps, size_t at,
-                    const Instance& inst, const Instance* scope);
+                    const Instance& inst, const MatchContext& context);
 
 /** Whether @p selector speaks about @p inst, reading the WEIGHT of the
  *  alternative that matched — a list weighs what matched it, not its
- *  heaviest alternative. @p scope is the node that applied the sheet
- *  the selector stands in, past which no compound may reach. */
+ *  heaviest alternative. A RELATIVE alternative, one opening with a
+ *  relation to a `:has()` anchor, speaks about nothing out here. */
 bool matchesSelector(const ElementSelector& selector, const Instance& inst,
-                     const Instance* scope, Specificity* weight) {
+                     const MatchContext& context, Specificity* weight) {
   bool any = false;
   for (const ElementSelector& alternative :
        SelectorAccess::alternatives(selector)) {
     const std::vector<Step> steps = SelectorAccess::asSteps(alternative);
-    if (steps.empty()) continue;
-    if (!matchesComplex(steps, steps.size() - 1, inst, scope)) continue;
+    if (steps.empty() || steps.front().combinator != Combinator::Descendant)
+      continue;
+    if (!matchesComplex(steps, steps.size() - 1, inst, context)) continue;
     any = true;
     if (weight == nullptr) return true;
     *weight = std::max(*weight, alternative.specificity());
@@ -68,11 +78,14 @@ bool matchesSelector(const ElementSelector& selector, const Instance& inst,
 }
 
 bool matchesAny(const std::vector<ElementSelector>& alternatives,
-                const Instance& inst, const Instance* scope) {
+                const Instance& inst, const MatchContext& context) {
   for (const ElementSelector& one : alternatives)
-    if (matchesSelector(one, inst, scope, nullptr)) return true;
+    if (matchesSelector(one, inst, context, nullptr)) return true;
   return false;
 }
+
+bool matchesHas(const std::vector<ElementSelector>& relatives,
+                const Instance& anchor, const MatchContext& context);
 
 /** WHERE A NODE STANDS AMONG ITS SIBLINGS AS ITS SHEET SEES IT. The
  *  node that applied the sheet is the root of the only tree that sheet
@@ -88,16 +101,17 @@ SiblingPlace placeIn(const Instance& inst, const Instance* scope) {
  *  the filter itself — CSS's `of S`. */
 int filteredPosition(const Instance& inst,
                      const std::vector<ElementSelector>& filter,
-                     const Instance* scope, int* matchingCount) {
+                     const MatchContext& context, int* matchingCount) {
   *matchingCount = 0;
-  if (!matchesAny(filter, inst, scope)) return 0;
-  if (inst.parent == nullptr || &inst == scope) {
+  if (!matchesAny(filter, inst, context)) return 0;
+  if (inst.parent == nullptr || &inst == context.scope) {
     *matchingCount = 1;
     return 1;
   }
   int position = 0;
   for (const auto& sibling : inst.parent->children) {
-    if (!matchesAny(filter, *sibling, scope)) continue;
+    if (sibling->description->added()) continue;
+    if (!matchesAny(filter, *sibling, context)) continue;
     ++*matchingCount;
     if (sibling.get() == &inst) position = *matchingCount;
   }
@@ -105,8 +119,8 @@ int filteredPosition(const Instance& inst,
 }
 
 bool matchesSimple(const Simple& simple, const Instance& inst,
-                   const Instance* scope) {
-  const SiblingPlace place = placeIn(inst, scope);
+                   const MatchContext& context) {
+  const SiblingPlace place = placeIn(inst, context.scope);
   switch (simple.kind) {
     case SimpleKind::Universal:
       return true;
@@ -130,7 +144,7 @@ bool matchesSimple(const Simple& simple, const Instance& inst,
       }
       int matching = 0;
       const int position =
-          filteredPosition(inst, simple.arguments, scope, &matching);
+          filteredPosition(inst, simple.arguments, context, &matching);
       if (position == 0) return false;
       return countReaches(fromLast ? matching - position + 1 : position,
                           simple.step, simple.offset);
@@ -153,20 +167,22 @@ bool matchesSimple(const Simple& simple, const Instance& inst,
     case SimpleKind::Root:
       // The root of the tree the sheet sees, which is the node that
       // applied it where that node is not the tree's own root.
-      return inst.parent == nullptr || &inst == scope;
+      return inst.parent == nullptr || &inst == context.scope;
     case SimpleKind::Is:
     case SimpleKind::Where:
-      return matchesAny(simple.arguments, inst, scope);
+      return matchesAny(simple.arguments, inst, context);
     case SimpleKind::Not:
-      return !matchesAny(simple.arguments, inst, scope);
+      return !matchesAny(simple.arguments, inst, context);
+    case SimpleKind::Has:
+      return matchesHas(simple.arguments, inst, context);
   }
   return false;
 }
 
 bool matchesCompound(const Compound& compound, const Instance& inst,
-                     const Instance* scope) {
+                     const MatchContext& context) {
   for (const Simple& simple : compound.simples)
-    if (!matchesSimple(simple, inst, scope)) return false;
+    if (!matchesSimple(simple, inst, context)) return false;
   return true;
 }
 
@@ -178,33 +194,196 @@ bool matchesCompound(const Compound& compound, const Instance& inst,
  *  applied the sheet: a compound satisfied above it or beside it would
  *  be read outside the only subtree that sheet sees. */
 bool matchesComplex(const std::vector<Step>& steps, size_t at,
-                    const Instance& inst, const Instance* scope) {
-  if (!matchesCompound(steps[at].compound, inst, scope)) return false;
+                    const Instance& inst, const MatchContext& context) {
+  if (!matchesCompound(steps[at].compound, inst, context)) return false;
   if (at == 0) return true;
   // The applying node has neither a parent nor a sibling inside the
   // subtree, so every combinator leaving it leaves the sheet's reach.
-  if (&inst == scope) return false;
+  if (&inst == context.scope) return false;
   const Instance* const parent = inst.parent;
   switch (steps[at].combinator) {
     case Combinator::Child:
-      return parent != nullptr && matchesComplex(steps, at - 1, *parent, scope);
+      return parent != nullptr &&
+             matchesComplex(steps, at - 1, *parent, context);
     case Combinator::Descendant:
       for (const Instance* above = parent; above != nullptr;
            above = above->parent) {
-        if (matchesComplex(steps, at - 1, *above, scope)) return true;
-        if (above == scope) break;
+        if (matchesComplex(steps, at - 1, *above, context)) return true;
+        if (above == context.scope) break;
       }
       return false;
     case Combinator::Next:
       if (parent == nullptr || inst.place.index == 0) return false;
       return matchesComplex(steps, at - 1,
-                            *parent->children[inst.place.index - 1], scope);
+                            *parent->children[inst.place.index - 1], context);
     case Combinator::Sibling:
       if (parent == nullptr) return false;
       for (int before = inst.place.index - 1; before >= 0; --before)
-        if (matchesComplex(steps, at - 1, *parent->children[before], scope))
+        if (matchesComplex(steps, at - 1, *parent->children[before], context))
           return true;
       return false;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// :has()
+
+/** The bits of the names @p inst carries itself: its classes and its
+ *  role. */
+uint64_t ownNameBits(const Instance& inst, const HasNames& names) {
+  const ElementNode& node = *inst.description;
+  if (!node.cascadeData) return 0;
+  uint64_t bits = 0;
+  for (const std::string& carried : node.cascadeData->classes)
+    bits |= names.bitOf(true, carried);
+  if (node.cascadeData->role)
+    bits |= names.bitOf(false, node.cascadeData->role->name());
+  return bits;
+}
+
+/** The bits a relative chain NEEDS present: every class and role its
+ *  compounds state outright. A name with no bit adds nothing, so the
+ *  summary can only rule a chain out, never in. */
+uint64_t neededBits(const std::vector<Step>& steps, const HasNames& names) {
+  uint64_t bits = 0;
+  for (const Step& step : steps)
+    for (const Simple& simple : step.compound.simples)
+      if (simple.kind == SimpleKind::StyleClass ||
+          simple.kind == SimpleKind::Role)
+        bits |= names.bitOf(simple.kind == SimpleKind::StyleClass,
+                            simple.name);
+  return bits;
+}
+
+/** Whether @p inst stands where @p relation reaches from @p anchor. A
+ *  sibling of the node that applied the sheet stands outside what the
+ *  sheet sees, so the two sibling relations reach nothing from there. */
+bool relationHolds(Combinator relation, const Instance& inst,
+                   const Instance& anchor, const MatchContext& context) {
+  switch (relation) {
+    case Combinator::Child:
+      return inst.parent == &anchor;
+    case Combinator::Descendant:
+      for (const Instance* above = inst.parent; above != nullptr;
+           above = above->parent)
+        if (above == &anchor) return true;
+      return false;
+    case Combinator::Next:
+      return &anchor != context.scope && inst.parent != nullptr &&
+             inst.parent == anchor.parent &&
+             inst.place.index == anchor.place.index + 1;
+    case Combinator::Sibling:
+      return &anchor != context.scope && inst.parent != nullptr &&
+             inst.parent == anchor.parent &&
+             anchor.place.index < inst.place.index;
+  }
+  return false;
+}
+
+/** A RELATIVE chain up to and including @p at, against @p inst and the
+ *  elements left of it, right to left as `matchesComplex` does — except
+ *  that its first compound must stand where the chain's opening relation
+ *  reaches from @p anchor, and no walk climbs to the anchor or past it. */
+bool matchesRelative(const std::vector<Step>& steps, size_t at,
+                     const Instance& inst, const Instance& anchor,
+                     const MatchContext& context) {
+  if (!matchesCompound(steps[at].compound, inst, context)) return false;
+  if (at == 0) return relationHolds(steps[0].combinator, inst, anchor, context);
+  const Instance* const parent = inst.parent;
+  const auto outside = [&](const Instance* node) {
+    return node == nullptr || node == &anchor || node == anchor.parent;
+  };
+  switch (steps[at].combinator) {
+    case Combinator::Child:
+      return !outside(parent) &&
+             matchesRelative(steps, at - 1, *parent, anchor, context);
+    case Combinator::Descendant:
+      for (const Instance* above = parent; !outside(above);
+           above = above->parent)
+        if (matchesRelative(steps, at - 1, *above, anchor, context))
+          return true;
+      return false;
+    case Combinator::Next:
+      if (parent == nullptr || inst.place.index == 0) return false;
+      return matchesRelative(steps, at - 1,
+                             *parent->children[inst.place.index - 1], anchor,
+                             context);
+    case Combinator::Sibling:
+      if (parent == nullptr) return false;
+      for (int before = inst.place.index - 1; before >= 0; --before)
+        if (matchesRelative(steps, at - 1, *parent->children[before], anchor,
+                            context))
+          return true;
+      return false;
+  }
+  return false;
+}
+
+/** Whether any element of @p region's subtree — @p region itself
+ *  included where @p withSelf — is the SUBJECT of a relative chain
+ *  reaching back to @p anchor. An element an adding operator attached
+ *  is no part of the authored tree, and neither is anything under it. */
+bool searchRelative(const std::vector<Step>& steps, const Instance& region,
+                    bool withSelf, const Instance& anchor,
+                    const MatchContext& context) {
+  if (region.description->added()) return false;
+  if (withSelf &&
+      matchesRelative(steps, steps.size() - 1, region, anchor, context))
+    return true;
+  for (const auto& child : region.children)
+    if (searchRelative(steps, *child, true, anchor, context)) return true;
+  return false;
+}
+
+/** Whether one relative chain reaches some element from @p anchor. The
+ *  summary is asked first: a chain naming one class or one role and
+ *  reaching down is answered by the summary alone, and any other chain
+ *  is searched for only where the summary holds every name it needs. */
+bool matchesOneRelative(const std::vector<Step>& steps, const Instance& anchor,
+                        const MatchContext& context) {
+  const HasNames& names = *context.names;
+  const Combinator relation = steps.front().combinator;
+  const uint64_t needed = neededBits(steps, names);
+  const bool fresh = anchor.hasSummaryPass == names.pass();
+  if (relation == Combinator::Child || relation == Combinator::Descendant) {
+    const uint64_t below = relation == Combinator::Child && steps.size() == 1
+                               ? anchor.hasChildNames
+                               : anchor.hasSubtreeNames;
+    if (fresh && (below & needed) != needed) return false;
+    const std::vector<Simple>& only = steps.front().compound.simples;
+    const bool oneName =
+        steps.size() == 1 && only.size() == 1 &&
+        (only.front().kind == SimpleKind::StyleClass ||
+         only.front().kind == SimpleKind::Role) &&
+        needed != 0;
+    if (fresh && oneName) return true;
+    return searchRelative(steps, anchor, false, anchor, context);
+  }
+  // The sibling relations read the parent's indexed child list.
+  if (&anchor == context.scope || anchor.parent == nullptr) return false;
+  const auto& siblings = anchor.parent->children;
+  const int first = anchor.place.index + 1;
+  const int last = relation == Combinator::Next ? first + 1
+                                                : (int)siblings.size();
+  for (int at = first; at < last && at < (int)siblings.size(); ++at) {
+    const Instance& sibling = *siblings[at];
+    if (sibling.description->added()) continue;
+    const uint64_t held = sibling.hasOwnNames | sibling.hasSubtreeNames;
+    if (sibling.hasSummaryPass == names.pass() && (held & needed) != needed)
+      continue;
+    if (searchRelative(steps, sibling, true, anchor, context)) return true;
+  }
+  return false;
+}
+
+bool matchesHas(const std::vector<ElementSelector>& relatives,
+                const Instance& anchor, const MatchContext& context) {
+  if (context.names == nullptr) return false;
+  for (const ElementSelector& relative : relatives) {
+    const std::vector<Step> steps = SelectorAccess::asSteps(relative);
+    if (steps.empty()) continue;
+    if (matchesOneRelative(steps, anchor, context)) return true;
   }
   return false;
 }
@@ -294,19 +473,76 @@ bool namesStyleClass(const SheetChain& chain, std::string_view name) {
   return false;
 }
 
+bool HasNames::add(const SheetBody& sheet) {
+  bool grew = false;
+  for (const HasName& name : sheet.hasNames) {
+    if (std::find(m_names.begin(), m_names.end(), name) != m_names.end())
+      continue;
+    m_names.push_back(name);
+    grew = true;
+  }
+  return grew;
+}
+
+uint64_t HasNames::bitOf(bool styleClass, std::string_view name) const {
+  const size_t held = std::min<size_t>(m_names.size(), 64);
+  for (size_t at = 0; at < held; ++at)
+    if (m_names[at].styleClass == styleClass && m_names[at].name == name)
+      return uint64_t{1} << at;
+  return 0;
+}
+
+void summariseForHas(Instance& root, const HasNames& names, uint32_t pass) {
+  root.hasOwnNames = ownNameBits(root, names);
+  uint64_t children = 0;
+  uint64_t subtree = 0;
+  for (const auto& child : root.children) {
+    // An element an adding operator attached is no part of the authored
+    // tree, so nothing under it answers a :has() either.
+    if (child->description->added()) continue;
+    summariseForHas(*child, names, pass);
+    children |= child->hasOwnNames;
+    subtree |= child->hasOwnNames | child->hasSubtreeNames;
+  }
+  root.hasChildNames = children;
+  root.hasSubtreeNames = subtree;
+  root.hasSummaryPass = pass;
+}
+
 std::vector<MatchedRule> matchRules(const SheetChain& chain,
-                                    const Instance& inst) {
+                                    const Instance& inst,
+                                    const HasNames& names) {
   std::vector<MatchedRule> matched;
+  const ElementNode& node = *inst.description;
+  std::vector<uint32_t> candidates;
   for (size_t sheetAt = 0; sheetAt < chain.size(); ++sheetAt) {
     const ScopedSheet& applied = chain[sheetAt];
-    const std::vector<Rule>& rules = applied.sheet->rules();
-    for (size_t ruleAt = 0; ruleAt < rules.size(); ++ruleAt) {
+    const SheetBody* body = SheetAccess::body(*applied.sheet);
+    if (body == nullptr) continue;
+    // Only the rules filed where this node can be found: under each of
+    // its classes, under its role, and among those any element may match.
+    candidates.assign(body->anyElement.begin(), body->anyElement.end());
+    if (node.cascadeData) {
+      for (const std::string& carried : node.cascadeData->classes)
+        if (const auto found = body->byClass.find(carried);
+            found != body->byClass.end())
+          candidates.insert(candidates.end(), found->second.begin(),
+                            found->second.end());
+      if (node.cascadeData->role)
+        if (const auto found = body->byRole.find(node.cascadeData->role->name());
+            found != body->byRole.end())
+          candidates.insert(candidates.end(), found->second.begin(),
+                            found->second.end());
+    }
+    std::sort(candidates.begin(), candidates.end());
+    candidates.erase(std::unique(candidates.begin(), candidates.end()),
+                     candidates.end());
+    const MatchContext context{applied.scope, &names};
+    for (const uint32_t ruleAt : candidates) {
       Specificity weight;
-      if (!matchesSelector(rules[ruleAt].selector(), inst, applied.scope,
-                           &weight))
-        continue;
-      matched.push_back(MatchedRule{&rules[ruleAt], weight, (int)sheetAt,
-                                    (int)ruleAt});
+      const Rule& rule = body->rules[ruleAt];
+      if (!matchesSelector(rule.selector(), inst, context, &weight)) continue;
+      matched.push_back(MatchedRule{&rule, weight, (int)sheetAt, (int)ruleAt});
     }
   }
   // Weakest first: CSS's order, with scope proximity and application

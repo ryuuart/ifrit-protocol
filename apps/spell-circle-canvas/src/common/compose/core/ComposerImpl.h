@@ -120,6 +120,11 @@ struct Composer::Impl {
   // running, so the next frame resolves again.
   bool cascadeDirty = true;
   bool inkAnimating = false;
+  // Which cascade pass is running, and the names the `:has()` arguments
+  // of the sheets it met test for — the key a node's `:has()` summary is
+  // read against.
+  uint32_t cascadePass = 0;
+  detail::HasNames hasNames;
   Reconciler::KeyIndex byKey;
   // Slots get their OWN index. They live in byKey too (so bounds() and
   // hitTest() still answer for a slot's name), but a slot's CONTENT may

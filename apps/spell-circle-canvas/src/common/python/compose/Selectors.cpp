@@ -286,6 +286,24 @@ void bindSelectFactories(py::module_& factories) {
                 "Elements matching any of `alternatives`, weighing NOTHING "
                 "at all — CSS `:where(...)`, which is how a default "
                 "anything can override is stated.");
+  factories.def("has", &compose::select::has, py::arg("relatives"),
+                "Elements from which some of `relatives` can be reached — "
+                "CSS `:has(...)`, weighing as the heaviest of them. A plain "
+                "selector is reached anywhere under the element; `child`, "
+                "`next` and `sibling` name the other three relations. "
+                "`has(a | b)` asks for either, `has(a) & has(b)` for both. "
+                "A `:has()` inside another matches nothing, as in CSS.");
+  factories.def("child", &compose::select::child, py::arg("subject"),
+                "A RELATIVE selector for `has`: `subject` as a direct child "
+                "of the element the `:has()` stands on — CSS `:has(> b)`. "
+                "Read only as an argument of `has`; anywhere else it "
+                "matches nothing.");
+  factories.def("next", &compose::select::next, py::arg("subject"),
+                "A relative selector for `has`: `subject` as the sibling "
+                "immediately after — CSS `:has(+ b)`.");
+  factories.def("sibling", &compose::select::sibling, py::arg("subject"),
+                "A relative selector for `has`: `subject` as any later "
+                "sibling — CSS `:has(~ b)`.");
 }
 
 /** One rule: a selector and the partials it lays on every element that

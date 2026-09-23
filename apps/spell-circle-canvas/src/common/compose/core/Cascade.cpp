@@ -237,6 +237,7 @@ void Composer::Impl::runCascade() {
   if (!root) return;
   inkAnimating = false;
   if (rootLineHeight <= 0.0f) rootLineHeight = lineHeightAt(rootFont);
+  hasNames.begin(++cascadePass);
   indexRoot(*root);
   const SheetChain none;
   const InkInForce noInkPaint;
@@ -322,8 +323,21 @@ void Composer::Impl::resolveCascade(
   const SheetChain* sheets = &parentSheets;
   if (cascade != nullptr && !cascade->appliedSheets.empty()) {
     extended = parentSheets;
-    for (const StyleSheet& applied : cascade->appliedSheets)
+    bool anyHas = false;
+    bool newNames = false;
+    for (const StyleSheet& applied : cascade->appliedSheets) {
       extended.push_back(ScopedSheet{&applied, &inst});
+      const SheetBody* body = SheetAccess::body(applied);
+      if (body == nullptr || !body->usesHas) continue;
+      anyHas = true;
+      newNames = hasNames.add(*body) || newNames;
+    }
+    // A :has() LOOKS DOWN, at a subtree the pass has not reached yet, so
+    // what it asks about is summarised here, once, bottom up — only
+    // under a node applying a sheet that uses one, since a :has() can
+    // see nothing outside the subtree its sheet was applied at.
+    if (anyHas && (newNames || inst.hasSummaryPass != cascadePass))
+      summariseForHas(inst, hasNames, cascadePass);
     sheets = &extended;
   }
   // The rules that speak about this node, weakest first. A rule's
@@ -332,7 +346,8 @@ void Composer::Impl::resolveCascade(
   // inside that subtree too, so nothing above or beside the applying
   // node can satisfy one.
   const std::vector<MatchedRule> matched =
-      sheets->empty() ? std::vector<MatchedRule>{} : matchRules(*sheets, inst);
+      sheets->empty() ? std::vector<MatchedRule>{}
+                      : matchRules(*sheets, inst, hasNames);
   if (cascade != nullptr || !matched.empty()) {
     // The sheet this node states: its rules over the inherited ones by
     // name, its base standing, the result shared with everything under it.

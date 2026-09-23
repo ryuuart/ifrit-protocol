@@ -42,6 +42,18 @@ number, as `an+b`, or as `odd` or `even`. `:is(...)`, `:where(...)` and
 **Type means ROLE**, and an element with no role has no type, so no
 of-type pseudo-class matches it.
 
+`:has(...)` is the one relational pseudo-class: an element matches it
+where one of its RELATIVE selectors reaches some element from it. A
+relative selector opens with the relation — `>` a child, `+` the sibling
+immediately after, `~` any later sibling, and nothing for anywhere
+underneath — and goes on as any chain does, so `.card:has(> .media
+.badge)` is a card with a badge somewhere inside a direct child of class
+`media`. `:has(a, b)` asks for either, `:has(a):has(b)` for both, and
+`:not(:has(a))` for neither. A `:has()` may qualify any compound, not
+only the subject: `.card:has(.hot) .title` styles the titles of the cards
+holding something hot. A `:has()` inside another, directly or through
+`:is()`, is refused, as CSS refuses it.
+
 Not read: the state pseudo-classes, attribute selectors, `#id` and the
 pseudo-elements. A text this library does not read warns once and yields
 a selector that matches nothing, so a misprint loses one rule rather
@@ -50,16 +62,22 @@ one. An `an+b` number too large to hold, and bracketed lists nested
 deeper than the parser reads, are refused the same way rather than
 clamped.
 
-Not yet: `:has()`, `calc()` on a length, a transition stated in a rule,
-and the box half of what a rule can state. Each of those is wanted and
-decided; none is in the grammar or the rule yet.
+Not yet: `calc()` on a length, a transition stated in a rule, and the
+box half of what a rule can state. Each of those is wanted and decided;
+none is in the rule yet.
 
 ## The set algebra
 
 The operators are the house's, the same three `weave::Selector` takes
 over text ranges: `a | b` is a selector list, `a & b` a compound on ONE
 element, `!a` a negation. `select::is`, `select::where` and
-`select::notAnyOf` spell the same three pseudo-classes by name. The
+`select::notAnyOf` spell the same three pseudo-classes by name, and
+`select::has` spells `:has()`, whose relative selectors `select::child`,
+`select::next` and `select::sibling` open with their relation — a plain
+selector is reached anywhere underneath. So `.card:has(> .a)` is
+`select::styleClass("card") & select::has(select::child(a))`. A relative
+selector is read only as an argument of `select::has`; anywhere else it
+matches nothing. The
 combinators stay named methods — `ElementSelector::child`,
 `ElementSelector::descendant`, `ElementSelector::next` and
 `ElementSelector::sibling` — because they are relations between two
@@ -83,7 +101,8 @@ the style classes and the pseudo-classes — then `Specificity::roles`.
 The pair compares left to right, so one class outweighs any number of
 roles, and combinators and `*` weigh nothing at all.
 
-`:is()` and `:not()` weigh as their heaviest argument; `:where()` weighs
+`:is()`, `:not()` and `:has()` weigh as their heaviest argument, a
+relation weighing nothing; `:where()` weighs
 nothing, which is what makes it the way to state a default anything can
 override. The filtered `:nth-child(an+b of S)` adds its heaviest
 argument to the one class the pseudo-class is worth itself. A list
@@ -99,6 +118,7 @@ actually matched.
 | `.row:nth-child(2n+1)` | 2 | 0 |
 | `:is(.a, heading)` | 1 | 0 |
 | `:where(.a, .b.c)` | 0 | 0 |
+| `.card:has(> .a .b)` | 3 | 0 |
 
 ## What a rule states
 
@@ -186,11 +206,26 @@ each time its children are resolved — by position and by role — so a
 structural pseudo-class is a lookup, and a changed child list
 re-resolves that parent's children.
 
+A `:has()` LOOKS DOWN, at elements the pass has not resolved yet, and
+it is sound because the whole tree is described before the pass runs
+and the pass walks the tree again from the root whenever a description
+changes. Where a node applies a sheet that uses `:has()`, one bottom-up
+sweep over its subtree first gives every node there a small summary:
+one bit for each class and role a `:has()` argument names, over the
+node, its children and everything under it. An argument naming one
+class or one role and reaching down is answered by the summary alone;
+any other is searched for only where the summary holds every name it
+needs, and the two sibling relations read the parent's child list. So
+a class toggling on a descendant restyles the ancestor whose `:has()`
+answer moved, and nothing else: a texture the ancestor holds is baked
+again then, and only then. The summary is kept on the retained node,
+so a subtree a memo reused is summarised without being described again.
+
 ## Where it stands
 
 - `sigilcompose/core/Selector.h` — `ElementSelector`, `Specificity`,
   `selector`, and the builders `styleClass`, `role`, `any`, `is`,
-  `where`, `notAnyOf`.
+  `where`, `notAnyOf`, `has`, `child`, `next`, `sibling`.
 - `sigilcompose/core/StyleSheet.h` — `compose::Rule`,
   `compose::StyleSheet`, `compose::rule`.
 

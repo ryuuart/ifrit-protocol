@@ -9,8 +9,11 @@
 
 #include <sigilcompose/core/StyleSheet.h>
 
+#include <cstdint>
 #include <string_view>
 #include <vector>
+
+#include "SheetBody.h"
 
 namespace sigil::compose::detail {
 
@@ -53,6 +56,37 @@ struct MatchedRule {
   int sourceOrder = 0;
 };
 
+/** THE NAMES THE `:has()` ARGUMENTS IN FORCE TEST FOR, each given one
+ *  bit of a node's summary. Built afresh every cascade pass, from the
+ *  sheets that use `:has()` as the pass meets them; bits are only ever
+ *  added within a pass, so a summary taken earlier in it stays right for
+ *  the names it covers. A name past the sixty-fourth has no bit, and a
+ *  test that needs it searches rather than trusting a summary. */
+class HasNames {
+ public:
+  /** Gives every name @p sheet's `:has()` arguments test for a bit;
+   *  whether any name was new. */
+  bool add(const SheetBody& sheet);
+  /** The bit of @p name, or none. */
+  [[nodiscard]] uint64_t bitOf(bool styleClass, std::string_view name) const;
+  /** Forgets every name, for the cascade pass numbered @p pass. */
+  void begin(uint32_t pass) {
+    m_names.clear();
+    m_pass = pass;
+  }
+  /** The pass a summary must be stamped with to be read. */
+  [[nodiscard]] uint32_t pass() const { return m_pass; }
+
+ private:
+  std::vector<HasName> m_names;
+  uint32_t m_pass = 0;
+};
+
+/** WHAT A NODE'S SUBTREE HOLDS, for `:has()`: one bit per name of @p
+ *  names, over the node itself, its children and everything under it,
+ *  written bottom up over @p root's subtree and stamped with @p pass. */
+void summariseForHas(Instance& root, const HasNames& names, uint32_t pass);
+
 /** Writes every child of @p parent its place among its siblings. Runs
  *  once per parent per cascade pass, so a structural pseudo-class is a
  *  lookup rather than a walk. */
@@ -72,8 +106,10 @@ void indexRoot(Instance& root);
  *  folding them in order leaves the strongest standing: by weight, then
  *  by the nearer and later sheet, then by the later rule. Each sheet is
  *  matched inside the subtree of the node that applied it, and no
- *  further. */
+ *  further; only the rules filed under @p inst's classes, its role or
+ *  any element are tried. @p names reads the `:has()` summaries. */
 [[nodiscard]] std::vector<MatchedRule> matchRules(const SheetChain& chain,
-                                                  const Instance& inst);
+                                                  const Instance& inst,
+                                                  const HasNames& names);
 
 }  // namespace sigil::compose::detail
