@@ -75,6 +75,55 @@ TestCase {
     }
     SignalSpy { id: spy }
 
+    Component {
+        id: panZoomComponent
+        Ui.PanZoomCanvas {
+            width: 400
+            height: 300
+            canvasWidth: 200
+            canvasHeight: 100
+            property alias content: painted
+            Item {
+                id: painted
+                anchors.fill: parent
+            }
+        }
+    }
+
+    function test_panZoomGrowsItsContentUnlessTheContentFillsTheViewport() {
+        const viewport = createTemporaryObject(panZoomComponent, tests);
+        viewport.viewScale = 2;
+        compare(viewport.content.width, 400);
+        compare(viewport.content.height, 200);
+        viewport.contentFillsViewport = true;
+        for (const scale of [1, 2, 4]) {
+            viewport.viewScale = scale;
+            compare(viewport.content.width, 400);
+            compare(viewport.content.height, 300);
+        }
+    }
+
+    function test_panZoomOffsetKeepsTheCanvasPointUnderTheWheel() {
+        const viewport = createTemporaryObject(panZoomComponent, tests);
+        viewport.contentFillsViewport = true;
+        viewport.leftContentInset = 40;
+        viewport.horizontalPan = 10;
+        viewport.verticalPan = -5;
+        viewport.viewScale = 1;
+        compare(viewport.canvasOffset.x, 30);
+        compare(viewport.canvasOffset.y, -5);
+        // The canvas point under a viewport point, read the way a child
+        // that fills the viewport reads it.
+        const canvasPoint = (x, y) => Qt.point(
+            (x - viewport.width / 2 - viewport.canvasOffset.x) / viewport.viewScale + viewport.canvasWidth / 2,
+            (y - viewport.height / 2 - viewport.canvasOffset.y) / viewport.viewScale + viewport.canvasHeight / 2);
+        const before = canvasPoint(250, 120);
+        viewport.zoomAt(4, 250, 120);
+        const after = canvasPoint(250, 120);
+        fuzzyCompare(after.x, before.x, 1e-6);
+        fuzzyCompare(after.y, before.y, 1e-6);
+    }
+
     function cleanup() {
         spy.target = null;
         spy.clear();

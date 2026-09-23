@@ -51,6 +51,19 @@ touchpad panning, and exposes `fitView()`, `zoomToActualSize()` and
 `zoomAt(factor, pointerX, pointerY)` plus the `viewScale`, `horizontalPan`
 and `verticalPan` state behind them.
 
+**A child that renders into a texture should not be scaled.** A scaled
+child is `canvasWidth × viewScale` wide, so a texture sized from it grows
+with the zoom — at 4× a canvas that fills the viewport is sixteen times
+the viewport's pixels, most of them off screen, and a deep enough zoom
+asks the device for a texture larger than it can allocate. Such a child
+sets `contentFillsViewport: true`, which places the children over the
+whole viewport instead, and draws the canvas itself: `viewScale` viewport
+units per canvas unit, its centre `canvasOffset` from the viewport's
+centre (the pan, plus the half of `leftContentInset` that centring beside
+the inset adds), clipped to itself. The gestures, the badges, the shadow
+and the border are the same in both modes, and a point under the pointer
+stays under it through `zoomAt()` either way.
+
 The font controls follow the injection rule. `FontFamilyField` takes a
 `searchFamilies(query)` function and emits `familyChosen`; `FontSelector`
 wraps family, style and size, taking a `fontDatabase` object that provides

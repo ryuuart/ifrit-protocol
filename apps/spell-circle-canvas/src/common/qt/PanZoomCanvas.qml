@@ -5,7 +5,8 @@ import QtQuick
 /**
  * Reusable infinite-style viewport for a fixed-size canvas item.
  *
- * Children declared inside the component are placed in the scaled canvas.
+ * Children declared inside the component are placed in the scaled canvas,
+ * or over the whole viewport when contentFillsViewport is set.
  * Mouse-wheel and pinch gestures zoom around the pointer; dragging and
  * touchpad scrolling pan without coupling this component to rendered content.
  */
@@ -41,6 +42,18 @@ Item {
      *  use the remaining region so a full-bleed viewport keeps its canvas
      *  in full view beside an overlaid panel. */
     property real leftContentInset: 0
+    /** Places the children over the whole viewport instead of inside the
+     *  scaled canvas. A child that draws the canvas itself — reading
+     *  viewScale and canvasOffset and applying them as its own view —
+     *  sets this, so it is never larger than the viewport however far
+     *  the reader zooms in: a scaled child holding a texture would grow
+     *  that texture with the zoom, most of it off screen. */
+    property bool contentFillsViewport: false
+    /** Where the canvas's centre stands from the viewport's centre, in
+     *  viewport units: the pan, and the half of leftContentInset that
+     *  centring beside the inset adds to it. What a child that fills the
+     *  viewport offsets its drawing of the canvas by. */
+    readonly property point canvasOffset: Qt.point(leftContentInset / 2 + horizontalPan, verticalPan)
 
     readonly property real fitScale: {
         const availableWidth = width - leftContentInset - 60;
@@ -141,18 +154,24 @@ Item {
         height: root.canvasHeight * root.viewScale
         x: root.leftContentInset + (root.width - root.leftContentInset - width) / 2 + root.horizontalPan
         y: (root.height - height) / 2 + root.verticalPan
+    }
 
-        Item {
-            id: contentContainer
-            anchors.fill: parent
-        }
+    Item {
+        id: contentContainer
+        x: root.contentFillsViewport ? 0 : scaledCanvas.x
+        y: root.contentFillsViewport ? 0 : scaledCanvas.y
+        width: root.contentFillsViewport ? root.width : scaledCanvas.width
+        height: root.contentFillsViewport ? root.height : scaledCanvas.height
+    }
 
-        Rectangle {
-            anchors.fill: parent
-            color: "transparent"
-            border.color: Theme.border
-            border.width: 1
-        }
+    Rectangle {
+        x: scaledCanvas.x
+        y: scaledCanvas.y
+        width: scaledCanvas.width
+        height: scaledCanvas.height
+        color: "transparent"
+        border.color: Theme.border
+        border.width: 1
     }
 
     Rectangle {
