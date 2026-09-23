@@ -11,6 +11,19 @@
 
 namespace sigil::weave {
 
+/** WHERE A JUSTIFIED LINE SPENDS ITS SLACK — CSS's `text-justify`.
+ *  `kAuto` is the three passes below as they are tuned; `kInterWord`
+ *  spends it in the word separators alone; `kInterCharacter` spends it
+ *  after every grapheme cluster and every word separator alike, each
+ *  opening at most `maxInterCharacterExpansion` of the size; `kNone`
+ *  justifies nothing, and a justified line is set at its start. */
+enum class JustificationMethod : uint8_t {
+  kAuto,
+  kInterWord,
+  kInterCharacter,
+  kNone
+};
+
 /** Controls spacing when `TextAlignment::kJustify` is selected. A
  * justified line is fitted in three passes, each spending only what the
  * one before it could not: the WORD GAPS move first, then LETTER SPACING
@@ -23,6 +36,16 @@ struct JustificationOptions {
   /// `justifyLastLine` requests full justification.
   TextAlignment lastLineAlignment = TextAlignment::kStart;
   bool justifyLastLine = false;  ///< stretch final lines to full measure too
+
+  /// Where the slack goes. The two methods that name their opportunities
+  /// — `kInterWord` and `kInterCharacter` — leave the letter and glyph
+  /// passes and `SingleWord::kJustify` out, and a line holding a tab
+  /// spends its slack in the gaps past the last tab whatever the method.
+  JustificationMethod method = JustificationMethod::kAuto;
+  /// The most one opportunity opens under `kInterCharacter`, as a
+  /// fraction of the size; what the line needs beyond it goes to the word
+  /// separators, and a line with none stays short of the measure.
+  float maxInterCharacterExpansion = 0.5f;
 
   /// CJK text has no spaces, so eligible zero-width ideographic gaps may be
   /// expanded up to `maxIdeographicExpansion * fontSize` per gap.

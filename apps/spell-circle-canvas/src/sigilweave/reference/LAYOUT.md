@@ -198,13 +198,17 @@ so the shaped word cannot report them and anything measuring a line reads
 them from here.
 
 `GlyphFit` is HOW A JUSTIFIED LINE RESPACED THE GLYPHS OF A RUN: extra
-advance after every glyph, and a horizontal scale on the glyphs
-themselves. The identity is neither, which is what every run of a line
-fitted on its word gaps alone carries. It is baked into the run's blob,
+advance after every glyph, extra advance after every grapheme cluster,
+and a horizontal scale on the glyphs themselves. The identity is none of
+them, which is what every run of a line fitted on its word gaps alone
+carries. It is baked into the run's blob,
 so a caller that only draws never asks; a caller that reads the glyphs
 BACK — a query, a per-glyph effect, a decoration measuring where a run
 ends — applies it, or it reads the positions the shaper produced instead
-of the ones the line was set at.
+of the ones the line was set at. `GlyphFit::offsetOf` is where one glyph
+stands, given how many clusters closed ahead of it, and
+`GlyphFit::endsCluster` says which glyph closes one, so a walk over the
+glyphs in order counts them as it goes.
 
 `LineMetrics` is the geometry of one laid-out line, derived on demand
 from its placed runs. The extent is the advance extent of what actually
@@ -498,6 +502,25 @@ page should do and the defaults never do it.
 has no gaps to spend: `kAlign` leaves it at the block's alignment,
 `kJustify` stretches it across the measure with letter spacing alone.
 
+`JustificationMethod` is WHERE THE SLACK GOES, CSS's `text-justify`, and
+`JustificationOptions::method` states it. `kAuto` is everything above:
+the word gaps, the ideographic gaps and the passes as they are tuned.
+The two methods that name their opportunities leave the letter pass, the
+glyph pass and the single-word rule out. `kInterWord` opens the word
+separators alone, so an ideographic line with no spaces stays short of
+the measure; both breakers weigh the ideographic gaps as rigid under it.
+`kInterCharacter` counts EVERY GRAPHEME CLUSTER on the line and every
+word separator as one opportunity each and opens them all by the same
+amount — the cluster's share lands after it, which covers the gap to
+the next word as well — up to
+`JustificationOptions::maxInterCharacterExpansion` times the size; what
+that cap holds back goes to the word separators, and a line with none
+stays short. A cluster is what the shaper grouped, so a base and its
+marks move together and a ligature is one. A line that shrinks, and a
+line holding a tab, spend their gaps as `kAuto` does. `kNone` justifies
+nothing: the line is set at its start, the breakers treat the block as
+ragged, and the hyphenation zone applies.
+
 ## The frame
 
 HOW A FRAME SEATS WHAT IT HOLDS — where the first baseline sits and what
@@ -714,7 +737,11 @@ layout's own answer for every field it leaves unset.
 
 `ParagraphBlock::lastLineAlignment` and `ParagraphBlock::justifyLastLine` are stated apart
 from the rest of the justification so a passage can name the last line
-without restating everything else about it.
+without restating everything else about it, and
+`ParagraphBlock::justificationMethod` is stated apart the same way so a
+passage can say where the slack goes. The method also lands in a whole
+justification the style carries, so a block that states its own
+justification is still spent the way the setting in force says.
 
 `apply` writes THE LAYOUT-WIDE FIELDS a block in force sets — the
 alignment, the breaking strategy, the hyphenation, the justification and

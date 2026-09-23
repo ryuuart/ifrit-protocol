@@ -218,6 +218,11 @@ void bindWeave(py::module_& module) {
       .def_readwrite("kind", &Leading::kind)
       .def_readwrite("value", &Leading::value)
       .def(py::self == py::self);
+  py::enum_<JustificationMethod>(text, "JustificationMethod")
+      .value("Auto", JustificationMethod::kAuto)
+      .value("InterWord", JustificationMethod::kInterWord)
+      .value("InterCharacter", JustificationMethod::kInterCharacter)
+      .value("None_", JustificationMethod::kNone);
   auto justificationOptions =
       record<JustificationOptions>(text, "JustificationOptions");
   py::enum_<JustificationOptions::SingleWord>(justificationOptions,
@@ -228,6 +233,9 @@ void bindWeave(py::module_& module) {
       .def_readwrite("lastLineAlignment",
                      &JustificationOptions::lastLineAlignment)
       .def_readwrite("justifyLastLine", &JustificationOptions::justifyLastLine)
+      .def_readwrite("method", &JustificationOptions::method)
+      .def_readwrite("maxInterCharacterExpansion",
+                     &JustificationOptions::maxInterCharacterExpansion)
       .def_readwrite("expandIdeographicGaps",
                      &JustificationOptions::expandIdeographicGaps)
       .def_readwrite("maxIdeographicExpansion",
@@ -404,6 +412,7 @@ void bindWeave(py::module_& module) {
       .value("LineBreak", ParagraphField::LineBreak)
       .value("LastLineAlignment", ParagraphField::LastLineAlignment)
       .value("JustifyLastLine", ParagraphField::JustifyLastLine)
+      .value("JustificationMethod", ParagraphField::JustificationMethod)
       .value("Kinsoku", ParagraphField::Kinsoku)
       .value("Hanging", ParagraphField::Hanging)
       .value("Mojikumi", ParagraphField::Mojikumi)
@@ -430,6 +439,8 @@ void bindWeave(py::module_& module) {
       .def_readwrite("lineBreak", &ParagraphBlock::lineBreak)
       .def_readwrite("lastLineAlignment", &ParagraphBlock::lastLineAlignment)
       .def_readwrite("justifyLastLine", &ParagraphBlock::justifyLastLine)
+      .def_readwrite("justificationMethod",
+                     &ParagraphBlock::justificationMethod)
       .def_readwrite("tsume", &ParagraphBlock::tsume)
       .def("empty", &ParagraphBlock::empty)
       .def(py::self == py::self);

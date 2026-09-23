@@ -46,6 +46,7 @@ enum class ParagraphField : uint8_t {
   LineBreak,
   LastLineAlignment,
   JustifyLastLine,
+  JustificationMethod,
   Kinsoku,
   Hanging,
   Mojikumi,
@@ -88,6 +89,9 @@ struct ParagraphBlock {
    *  without restating the rest of its justification. */
   std::optional<TextAlignment> lastLineAlignment;
   std::optional<bool> justifyLastLine;
+  /** Where a justified line spends its slack (JustificationOptions::
+   *  method), stated apart for the same reason. */
+  std::optional<JustificationMethod> justificationMethod;
   /** The house's own line-edge prohibitions, hanging allowances, full-width
    *  gaps and tsume (ParagraphLayoutOptions::kinsoku, hanging, mojikumi and
    *  tsume). */
@@ -108,8 +112,8 @@ struct ParagraphBlock {
            !hyphenation && !tabStops && !firstLineIndent && !lastLineIndent &&
            !widowLines && !orphanLines && !balanceRaggedLines && !writingMode &&
            !lineBreakLocale && !lineBreak && !lastLineAlignment &&
-           !justifyLastLine && !kinsoku && !hanging && !mojikumi && !tsume &&
-           keywords.empty();
+           !justifyLastLine && !justificationMethod && !kinsoku && !hanging &&
+           !mojikumi && !tsume && keywords.empty();
   }
 };
 

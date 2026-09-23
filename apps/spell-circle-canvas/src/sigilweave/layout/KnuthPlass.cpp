@@ -66,6 +66,7 @@ uint64_t breakSetting(const Block& block) {
   foldInto(hash, options.justification.justifyLastLine);
   foldInto(hash, options.justification.lastLineAlignment);
   foldInto(hash, options.justification.expandIdeographicGaps);
+  foldInto(hash, options.justification.method);
   foldInto(hash, options.hyphenation.enabled);
   foldInto(hash, options.hyphenation.penalty);
   foldInto(hash, options.hyphenation.consecutiveLimit);
@@ -175,7 +176,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   // Shrink is only real when placement will actually render the line
   // justified: ragged lines (and demoted last lines) render at natural
   // width, so a "feasible shrunk" break there would leak past the measure.
-  const bool justify = options.alignment == TextAlignment::kJustify;
+  const bool justify = justifies(options);
   const float zone = options.hyphenation.zone;
   const bool lastLineJustify =
       justify &&

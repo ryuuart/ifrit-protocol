@@ -23,22 +23,50 @@
 namespace sigil::weave {
 
 /** HOW A JUSTIFIED LINE RESPACED THE GLYPHS OF A RUN: extra advance
- *  after every glyph, and a horizontal scale on the glyphs themselves.
- *  The identity is neither, which every run of a line fitted on its word
- *  gaps alone carries, and it is baked into the run's blob.
+ *  after every glyph, extra advance after every grapheme cluster, and a
+ *  horizontal scale on the glyphs themselves. The identity is none of
+ *  them, which every run of a line fitted on its word gaps alone carries,
+ *  and it is baked into the run's blob.
  *  @trap A caller that reads the glyphs BACK must apply it, or it reads
- *  the shaper's positions instead of the ones the line was set at. */
+ *  the shaper's positions instead of the ones the line was set at: walk
+ *  the glyphs in order, counting the clusters `endsCluster` closes, and
+ *  ask `offsetOf` where each one stands. */
 struct GlyphFit {
-  float letterSpacing = 0;  ///< px added after each glyph
-  float glyphScale = 1.0f;  ///< horizontal scale on the glyphs
+  float letterSpacing = 0;   ///< px added after each glyph
+  float glyphScale = 1.0f;   ///< horizontal scale on the glyphs
+  float clusterSpacing = 0;  ///< px added after each grapheme cluster
   [[nodiscard]] bool plain() const {
-    return letterSpacing == 0 && glyphScale == 1.0f;
+    return letterSpacing == 0 && clusterSpacing == 0 && glyphScale == 1.0f;
   }
-  /** The advance a shaped run of @p glyphCount glyphs takes under this
-   *  fit, from the advance the shaper gave it. */
-  [[nodiscard]] float advanceOf(float shapedAdvance, size_t glyphCount) const {
-    return shapedAdvance * glyphScale +
-           letterSpacing * static_cast<float>(glyphCount);
+  /** Whether glyph @p glyphIndex of @p word is the last of its cluster —
+   *  the glyph a cluster's spacing follows. A word shaped with no
+   *  clusters is one cluster. */
+  [[nodiscard]] static bool endsCluster(const ShapedWord& word,
+                                        size_t glyphIndex) {
+    if (glyphIndex + 1 >= word.glyphs.size()) return true;
+    return glyphIndex + 1 < word.clusters.size() &&
+           word.clusters[glyphIndex + 1] != word.clusters[glyphIndex];
+  }
+  /** Where glyph @p glyphIndex of @p word stands under this fit, from the
+   *  run's origin, with @p clustersBefore clusters closed ahead of it. */
+  [[nodiscard]] float offsetOf(const ShapedWord& word, size_t glyphIndex,
+                               uint32_t clustersBefore) const {
+    return word.positions[glyphIndex].x() * glyphScale +
+           letterSpacing * static_cast<float>(glyphIndex) +
+           clusterSpacing * static_cast<float>(clustersBefore);
+  }
+  /** The advance @p word takes under this fit, from the advance the
+   *  shaper gave it. */
+  [[nodiscard]] float advanceOf(const ShapedWord& word) const {
+    float advance = word.advance * glyphScale +
+                    letterSpacing * static_cast<float>(word.glyphs.size());
+    if (clusterSpacing != 0) {
+      uint32_t clusters = 0;
+      for (size_t glyphIndex = 0; glyphIndex < word.glyphs.size(); ++glyphIndex)
+        clusters += endsCluster(word, glyphIndex) ? 1u : 0u;
+      advance += clusterSpacing * static_cast<float>(clusters);
+    }
+    return advance;
   }
   bool operator==(const GlyphFit&) const = default;
 };

@@ -84,8 +84,7 @@ bool zoneAllowsHyphen(const detail::Block& block,
                       const std::vector<Word>& words, uint32_t lineStart,
                       uint32_t endWordIndex, float measure) {
   const float zone = block.options->hyphenation.zone;
-  if (zone <= 0 || block.options->alignment == TextAlignment::kJustify)
-    return true;
+  if (zone <= 0 || justifies(*block.options)) return true;
   const uint32_t whole = wholeWordStart(words, endWordIndex);
   if (whole <= lineStart) return true;  // the word is the whole line
   return measure - naturalWidth(words, lineStart, whole) > zone;

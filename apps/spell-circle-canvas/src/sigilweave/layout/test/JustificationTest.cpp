@@ -262,3 +262,111 @@ TEST(Justification, TheLastLineTakesItsOwnAlignmentAndNotTheParagraphs) {
   EXPECT_NEAR(lastLineEnd, 260.0f, 1.0f);
   EXPECT_GT(lastLineStart, 5.0f);
 }
+
+namespace {
+
+/// The spec with only its method changed.
+JustificationOptions under(JustificationMethod method,
+                           JustificationOptions spec = {}) {
+  spec.method = method;
+  return spec;
+}
+
+/// Where a run ends as the line set it, its fit included.
+float fittedEnd(const PositionedRun& run) {
+  return run.origin.x() + run.advance;
+}
+
+/// Every line of a setting, as the runs it holds.
+std::vector<std::vector<const PositionedRun*>> linesOf(const LaidOut& set) {
+  std::vector<std::vector<const PositionedRun*>> lines(
+      static_cast<size_t>(std::max(set.layout.lineCount, 0)));
+  for (const PositionedRun* run : wordRuns(set.layout))
+    if (run->lineIndex >= 0 && run->lineIndex < set.layout.lineCount)
+      lines[static_cast<size_t>(run->lineIndex)].push_back(run);
+  return lines;
+}
+
+}  // namespace
+
+TEST(JustificationMethod, InterCharacterOpensEveryClusterByOneAmount) {
+  // Every justified line still reaches the measure, and it does so with
+  // spacing after every cluster: each run of a line but the last carries
+  // one cluster spacing, the same for every run of that line.
+  const JustificationOptions spec = under(JustificationMethod::kInterCharacter);
+  const std::vector<float> edges = edgesUnder(spec, kTightPassage, kMeasure);
+  ASSERT_GE(edges.size(), 4u);
+  for (size_t index = 0; index + 1 < edges.size(); ++index)
+    EXPECT_NEAR(edges[index], kMeasure, 0.75f) << "line " << index;
+  EXPECT_LT(edges.back(), kMeasure - 2.0f) << "the last line was justified";
+
+  const LaidOut set = justified(spec, kTightPassage, kMeasure);
+  const auto lines = linesOf(set);
+  for (size_t line = 0; line + 1 < lines.size(); ++line) {
+    ASSERT_FALSE(lines[line].empty());
+    const float spacing = lines[line].front()->fit.clusterSpacing;
+    EXPECT_GT(spacing, 0.0f) << "line " << line;
+    EXPECT_FLOAT_EQ(lines[line].front()->fit.letterSpacing, 0.0f);
+    for (const PositionedRun* run : lines[line])
+      EXPECT_FLOAT_EQ(run->fit.clusterSpacing, spacing) << "line " << line;
+  }
+  for (const PositionedRun* run : lines.back())
+    EXPECT_TRUE(run->fit.plain()) << "the last line was respaced";
+}
+
+TEST(JustificationMethod, InterCharacterSpacingStopsAtItsCap) {
+  // Two words in a wide measure: each of the five opportunities — the
+  // four clusters and the one separator — would open far past the cap,
+  // so the clusters stop at it and the separator takes the rest; the
+  // line still reaches the measure.
+  JustificationOptions spec = under(JustificationMethod::kInterCharacter);
+  spec.justifyLastLine = true;
+  spec.maxInterCharacterExpansion = 0.25f;
+  const LaidOut set = justified(spec, u8"ab cd", 160.0f);
+  ASSERT_EQ(set.layout.lineCount, 1);
+  const auto runs = wordRuns(set.layout);
+  ASSERT_EQ(runs.size(), 2u);
+  EXPECT_FLOAT_EQ(runs.front()->fit.clusterSpacing, 0.25f * 12.0f);
+  EXPECT_NEAR(fittedEnd(*runs.back()), 160.0f, 0.75f);
+
+  // One word has no separator to hand the rest to, and stays short.
+  const LaidOut alone = justified(spec, u8"abcd", 160.0f);
+  const auto word = wordRuns(alone.layout);
+  ASSERT_EQ(word.size(), 1u);
+  EXPECT_FLOAT_EQ(word.front()->fit.clusterSpacing, 0.25f * 12.0f);
+  EXPECT_LT(fittedEnd(*word.front()), 160.0f - 20.0f);
+}
+
+TEST(JustificationMethod, InterWordLeavesTheLetterPassOut) {
+  // The letter pass opened, and then a method that names the separators
+  // alone: the passage is set exactly as the gaps alone set it.
+  JustificationOptions letters;
+  letters.letterSpacing = 0.05f;
+  letters.letterSpacingMaximum = 0.1f;
+  ASSERT_TRUE(movesTheRuns(letters));
+  EXPECT_FALSE(movesTheRuns(under(JustificationMethod::kInterWord, letters)));
+  const std::vector<float> edges = edgesUnder(
+      under(JustificationMethod::kInterWord), kTightPassage, kMeasure);
+  ASSERT_GE(edges.size(), 4u);
+  for (size_t index = 0; index + 1 < edges.size(); ++index)
+    EXPECT_NEAR(edges[index], kMeasure, 0.75f) << "line " << index;
+}
+
+TEST(JustificationMethod, NoneSetsAJustifiedLineAtItsStart) {
+  // Justified with no method is a passage set from its start: the same
+  // lines, every one ending where its words end.
+  const LaidOut none =
+      justified(under(JustificationMethod::kNone), kTightPassage, kMeasure);
+  Paragraph paragraph = makeParagraph(kTightPassage, 12.0f);
+  BlockFlow flow(SkRect::MakeWH(kMeasure, 400));
+  ParagraphLayoutOptions start;
+  ParagraphLayout ragged =
+      layoutParagraph(sigil::test::fonts(), paragraph, flow, start);
+  const auto set = none.layout.lineMetrics(none.paragraph);
+  const auto plain = ragged.lineMetrics(paragraph);
+  ASSERT_EQ(set.size(), plain.size());
+  for (size_t index = 0; index < set.size(); ++index) {
+    EXPECT_FLOAT_EQ(set[index].left, plain[index].left) << "line " << index;
+    EXPECT_FLOAT_EQ(set[index].right, plain[index].right) << "line " << index;
+  }
+}

@@ -68,6 +68,9 @@ void applyKeyword(ParagraphBlock& total, const ParagraphBlock& base,
     case ParagraphField::JustifyLastLine:
       total.justifyLastLine = from.justifyLastLine;
       return;
+    case ParagraphField::JustificationMethod:
+      total.justificationMethod = from.justificationMethod;
+      return;
     case ParagraphField::Kinsoku:
       total.kinsoku = from.kinsoku;
       return;
@@ -105,6 +108,8 @@ ParagraphBlock& merge(ParagraphBlock& into, const ParagraphBlock& over) {
   if (over.lineBreak) into.lineBreak = over.lineBreak;
   if (over.lastLineAlignment) into.lastLineAlignment = over.lastLineAlignment;
   if (over.justifyLastLine) into.justifyLastLine = over.justifyLastLine;
+  if (over.justificationMethod)
+    into.justificationMethod = over.justificationMethod;
   if (over.kinsoku) into.kinsoku = over.kinsoku;
   if (over.hanging) into.hanging = over.hanging;
   if (over.mojikumi) into.mojikumi = over.mojikumi;
@@ -144,6 +149,11 @@ ParagraphStyle overlay(ParagraphStyle base, const ParagraphBlock& over) {
   if (over.halfLeading) base.halfLeading = *over.halfLeading;
   if (over.alignment) base.alignment = over.alignment;
   if (over.justification) base.justification = over.justification;
+  // A method stated apart lands in the justification the style carries,
+  // so a block that states its own justification is still spent the way
+  // the setting in force says; a style carrying none reads the layout's.
+  if (over.justificationMethod && base.justification)
+    base.justification->method = *over.justificationMethod;
   if (over.hyphenation) base.hyphenation = over.hyphenation;
   if (over.tabStops) base.tabStops = over.tabStops;
   if (over.firstLineIndent) base.indent.firstLine = *over.firstLineIndent;
@@ -172,6 +182,8 @@ void apply(ParagraphLayoutOptions& options, const ParagraphBlock& block) {
     options.justification.lastLineAlignment = *block.lastLineAlignment;
   if (block.justifyLastLine)
     options.justification.justifyLastLine = *block.justifyLastLine;
+  if (block.justificationMethod)
+    options.justification.method = *block.justificationMethod;
   if (block.tabStops) options.tabStops = *block.tabStops;
   if (block.kinsoku) options.kinsoku = *block.kinsoku;
   if (block.hanging) options.hanging = *block.hanging;

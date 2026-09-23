@@ -23,7 +23,7 @@ namespace sigil::weave::detail {
 
 /** The advance `word` takes under @p fit. */
 [[nodiscard]] float advanceUnder(const GlyphFit& fit, const ShapedWord& word) {
-  return fit.advanceOf(word.advance, word.glyphs.size());
+  return fit.advanceOf(word);
 }
 
 /** Per-glyph positioned blob for a run a justified line respaced or scaled:
@@ -36,12 +36,13 @@ sk_sp<SkTextBlob> buildFittedBlob(const ShapedWord& shapedWord,
                shapedWord.scaleX * fit.glyphScale, shapedWord.aliased);
   const int glyphCount = static_cast<int>(shapedWord.glyphs.size());
   const auto& run = builder.allocRunPos(font, glyphCount);
+  uint32_t clustersBefore = 0;
   for (int glyphIndex = 0; glyphIndex < glyphCount; ++glyphIndex) {
     run.glyphs[glyphIndex] = shapedWord.glyphs[glyphIndex];
     run.points()[glyphIndex] = {
-        shapedWord.positions[glyphIndex].x() * fit.glyphScale +
-            fit.letterSpacing * static_cast<float>(glyphIndex),
+        fit.offsetOf(shapedWord, glyphIndex, clustersBefore),
         shapedWord.positions[glyphIndex].y()};
+    if (GlyphFit::endsCluster(shapedWord, glyphIndex)) ++clustersBefore;
   }
   return builder.make();
 }

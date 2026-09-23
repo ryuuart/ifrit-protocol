@@ -459,6 +459,9 @@ the words and how much between the letters. Room above a desired value is
 room the fit spends, so a value meant to hold is pinned either side of it.
 `singleWord` decides what a line holding
 one word does: align, or stretch across the measure on letter spacing.
+`method` is CSS's `text-justify`: the passes as tuned, the word separators
+alone, every grapheme cluster and separator alike up to a cap of
+`maxInterCharacterExpansion` of the size, or nothing at all.
 Respacing and scaling are a straight-horizontal answer — a column and a
 curve place per glyph already.
 

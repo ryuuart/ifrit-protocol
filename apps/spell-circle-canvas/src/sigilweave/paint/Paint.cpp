@@ -206,6 +206,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
       bucket->glyphs.clear();
       bucket->positions.clear();
     }
+    uint32_t clustersBefore = 0;
     for (size_t glyphIndex = 0; glyphIndex < shapedWord.glyphs.size();
          ++glyphIndex) {
       bucket->glyphs.push_back(shapedWord.glyphs[glyphIndex]);
@@ -213,9 +214,9 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
       // scale. Shaping positions alone describe the unfitted word.
       bucket->positions.push_back(
           run.origin +
-          SkVector{shapedWord.positions[glyphIndex].x() * run.fit.glyphScale +
-                       run.fit.letterSpacing * static_cast<float>(glyphIndex),
+          SkVector{run.fit.offsetOf(shapedWord, glyphIndex, clustersBefore),
                    shapedWord.positions[glyphIndex].y()});
+      if (GlyphFit::endsCluster(shapedWord, glyphIndex)) ++clustersBefore;
     }
   }
 
@@ -358,6 +359,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
     const float scaleX = word.scaleX * run.fit.glyphScale;
     Bucket* bucket = nullptr;
     uint32_t bucketNamed = kSpanStyle;
+    uint32_t clustersBefore = 0;
     for (size_t glyphIndex = 0; glyphIndex < word.glyphs.size(); ++glyphIndex) {
       const uint32_t named = styleAt(first + (uint32_t)glyphIndex);
       if (!bucket || named != bucketNamed) {
@@ -369,9 +371,9 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
       bucket->glyphs.push_back(word.glyphs[glyphIndex]);
       bucket->positions.push_back(
           run.origin +
-          SkVector{word.positions[glyphIndex].x() * run.fit.glyphScale +
-                       run.fit.letterSpacing * static_cast<float>(glyphIndex),
+          SkVector{run.fit.offsetOf(word, glyphIndex, clustersBefore),
                    word.positions[glyphIndex].y()});
+      if (GlyphFit::endsCluster(word, glyphIndex)) ++clustersBefore;
     }
   }
 

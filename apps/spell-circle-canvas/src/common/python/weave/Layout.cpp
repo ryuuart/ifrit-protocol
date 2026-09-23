@@ -158,6 +158,7 @@ void bindWeaveLayout(py::module_& root) {
   auto glyphFit =
       bindRecord<GlyphFit>(module, "GlyphFit", "Unknown GlyphFit field: ");
   glyphFit.def_readwrite("letterSpacing", &GlyphFit::letterSpacing)
+      .def_readwrite("clusterSpacing", &GlyphFit::clusterSpacing)
       .def_readwrite("glyphScale", &GlyphFit::glyphScale);
   lineInterval.def_property(
       "origin", [](const LineInterval& x) { return x.origin; },

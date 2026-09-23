@@ -34,7 +34,7 @@ GapKind gapKind(const std::vector<Word>& words, uint32_t wordIndex,
   if (words[wordIndex].tabAfter && tabStopsActive(options))
     return GapKind::kRigid;  // tab gaps never stretch or shrink
   if (words[wordIndex].spaceWidth > 0) return GapKind::kSpace;
-  if (options.justification.expandIdeographicGaps &&
+  if (spendsIdeographicGaps(options.justification) &&
       (words[wordIndex].ideographic || words[wordIndex + 1].ideographic))
     return GapKind::kIdeographic;
   return GapKind::kRigid;
@@ -57,6 +57,21 @@ float trailingAdvanceOf(const Word& word) {
     if (!segments[index].shaped->advances.empty())
       return segments[index].shaped->advances.back();
   return 0.0f;
+}
+
+/** The grapheme clusters the words [@p firstWordIndex, @p endWordIndex)
+ *  hold — the opportunities inter-character justification spends. */
+float clustersOn(const std::vector<Word>& words, uint32_t firstWordIndex,
+                 uint32_t endWordIndex) {
+  uint32_t clusters = 0;
+  for (uint32_t wordIndex = firstWordIndex; wordIndex < endWordIndex;
+       ++wordIndex)
+    for (const WordSegment& segment : words[wordIndex].segments())
+      for (size_t glyphIndex = 0; glyphIndex < segment.shaped->glyphs.size();
+           ++glyphIndex)
+        clusters +=
+            GlyphFit::endsCluster(*segment.shaped, glyphIndex) ? 1u : 0u;
+  return static_cast<float>(clusters);
 }
 
 /** Returns a word's em size, including a safe default for placeholders. */
@@ -170,6 +185,10 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
   if (resolvedAlignment == TextAlignment::kJustify && lastLine &&
       !options.justification.justifyLastLine)
     resolvedAlignment = options.justification.lastLineAlignment;
+  // A method that justifies nothing sets a justified line at its start.
+  if (resolvedAlignment == TextAlignment::kJustify &&
+      options.justification.method == JustificationMethod::kNone)
+    resolvedAlignment = TextAlignment::kStart;
   const bool justifying = resolvedAlignment == TextAlignment::kJustify;
   const bool seatedByWidth = justifying ||
                              resolvedAlignment == TextAlignment::kCenter ||
@@ -275,14 +294,20 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
   // a line that does not ask for them takes the shared-blob path it always
   // took. Every field here is at the value that means "leave it alone".
   const JustificationOptions& justification = options.justification;
+  // A method that names its opportunities leaves the letter and glyph
+  // passes out: the slack goes where it says and nowhere else.
+  const bool laterPassesAllowed =
+      justification.method == JustificationMethod::kAuto;
   const bool spendsPastGaps =
-      justification.wordSpacing != 1.0f || justification.letterSpacing != 0 ||
-      justification.letterSpacingMinimum != 0 ||
-      justification.letterSpacingMaximum != 0 ||
-      justification.glyphScale != 1.0f ||
-      justification.glyphScaleMinimum != 1.0f ||
-      justification.glyphScaleMaximum != 1.0f ||
-      justification.singleWord == JustificationOptions::SingleWord::kJustify;
+      justification.wordSpacing != 1.0f ||
+      (laterPassesAllowed && (justification.letterSpacing != 0 ||
+                              justification.letterSpacingMinimum != 0 ||
+                              justification.letterSpacingMaximum != 0 ||
+                              justification.glyphScale != 1.0f ||
+                              justification.glyphScaleMinimum != 1.0f ||
+                              justification.glyphScaleMaximum != 1.0f ||
+                              justification.singleWord ==
+                                  JustificationOptions::SingleWord::kJustify));
   const bool extendedJustify = justifying && spendsPastGaps;
   const float wordSpacingDelta =
       extendedJustify ? justification.wordSpacing - 1.0f : 0.0f;
@@ -310,11 +335,11 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
         lineGlyphs += static_cast<float>(segment.shaped->glyphs.size());
         lineShapedWidth += segment.shaped->advance;
       }
+  const bool laterPasses = extendedJustify && laterPassesAllowed;
   const float desiredLetterSpacing =
-      extendedJustify ? justification.letterSpacing * em : 0.0f;
+      laterPasses ? justification.letterSpacing * em : 0.0f;
   const float desiredGlyphWidening =
-      extendedJustify ? (justification.glyphScale - 1.0f) * lineShapedWidth
-                      : 0.0f;
+      laterPasses ? (justification.glyphScale - 1.0f) * lineShapedWidth : 0.0f;
   // WHETHER THE GAPS ARE BOUNDED AT ALL. They open to their stretch limit
   // only where a later pass can spend what they may not; with both of
   // those shut — their limits equal to what they were asked for — a bound
@@ -323,7 +348,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
   // caller who asks only for a rule about lone-word lines, or only for a
   // wider gap to aim at, still gets every other line filled.
   const bool laterPassesHaveRoom =
-      extendedJustify &&
+      laterPasses &&
       (justification.letterSpacingMinimum * em < desiredLetterSpacing ||
        justification.letterSpacingMaximum * em > desiredLetterSpacing ||
        justification.glyphScaleMinimum < justification.glyphScale ||
@@ -349,6 +374,29 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       const float extraWidth =
           extraWidthNatural - wordSpacingDelta * stretchableGlue -
           desiredLetterSpacing * lineGlyphs - desiredGlyphWidening;
+      // INTER-CHARACTER: every grapheme cluster and every word separator
+      // is one opportunity and each opens by the same amount, up to its
+      // cap; what the cap holds back goes to the separators. A cluster's
+      // spacing covers the gap after it, so an ideographic gap opens by
+      // exactly that and no more. A tabbed line falls through to its gaps.
+      if (justification.method == JustificationMethod::kInterCharacter &&
+          extraWidth > 0 && !hasTab) {
+        const float clusters = clustersOn(words, firstWordIndex, endWordIndex);
+        const float opportunities =
+            clusters + static_cast<float>(spaceGapCount);
+        if (opportunities > 0) {
+          const float each =
+              std::min(extraWidth / opportunities,
+                       justification.maxInterCharacterExpansion * em);
+          const float heldBack = extraWidth - each * opportunities;
+          spaceAdjustment =
+              spaceGapCount > 0
+                  ? each + heldBack / static_cast<float>(spaceGapCount)
+                  : 0.0f;
+          fit.clusterSpacing = each;
+          break;
+        }
+      }
       if (extraWidth > 0 && (spaceGapCount + ideographicGapCount) > 0) {
         const float ideographicExpansionLimit =
             options.justification.maxIdeographicExpansion *
@@ -402,7 +450,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
           ideographicAdjustment = -shrinkFraction * ideographicShrinkLimit;
         }
       }
-      if (!extendedJustify) break;
+      if (!laterPasses) break;
 
       // WHAT THE GAPS COULD NOT SPEND, spent in the two passes past them,
       // in order and each on what the one before it left: letter spacing
@@ -464,7 +512,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       if (residual > 0 && spaceGapCount > 0)
         spaceAdjustment += residual / static_cast<float>(spaceGapCount);
 
-      fit = {letterSpacing, glyphScale};
+      fit = {.letterSpacing = letterSpacing, .glyphScale = glyphScale};
       break;
     }
   }

@@ -323,6 +323,23 @@ inline bool tabStopsActive(const ParagraphLayoutOptions& options) {
   return !options.tabStops.stops.empty() || options.tabStops.interval > 0;
 }
 
+// Whether a block its alignment calls justified is justified at all: the
+// method `kNone` shuts every opportunity, so both breakers and placement
+// treat its lines as ragged ones.
+inline bool justifies(const ParagraphLayoutOptions& options) {
+  return options.alignment == TextAlignment::kJustify &&
+         options.justification.method != JustificationMethod::kNone;
+}
+
+// Whether the gap beside an ideograph is one a justified line may open or
+// close: the method `kInterWord` names the word separators alone. The
+// optimizing breaker and placement ask this one function so a break the
+// breaker weighed as elastic is one placement spends.
+inline bool spendsIdeographicGaps(const JustificationOptions& justification) {
+  return justification.expandIdeographicGaps &&
+         justification.method != JustificationMethod::kInterWord;
+}
+
 // The glue width after one word with the pen at `penPosition` (relative to
 // the line interval's start): the distance to the next tab stop for tab
 // gaps, the measured whitespace otherwise. Both breakers and placement

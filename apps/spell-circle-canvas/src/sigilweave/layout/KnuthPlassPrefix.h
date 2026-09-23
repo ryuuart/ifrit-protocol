@@ -103,7 +103,7 @@ class LinePrefixSums {
             m_words[wordIndex].spaceWidth * m_options.justification.wordSpacing;
         stretch = glue * m_options.justification.spaceStretch;
         shrink = glue * m_options.justification.spaceShrink;
-      } else if (m_options.justification.expandIdeographicGaps &&
+      } else if (spendsIdeographicGaps(m_options.justification) &&
                  wordIndex + 1 < m_wordCount &&
                  (m_words[wordIndex].ideographic ||
                   m_words[wordIndex + 1].ideographic)) {

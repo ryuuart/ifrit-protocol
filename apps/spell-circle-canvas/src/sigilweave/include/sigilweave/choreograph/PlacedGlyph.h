@@ -135,9 +135,12 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
     const uint32_t textBegin = segment ? segment->textBegin : word.textBegin;
     const uint32_t textLimit =
         word.textEnd > textBegin ? word.textEnd - 1 : textBegin;
+    uint32_t clustersBefore = 0;
     for (size_t glyphIndex = 0; glyphIndex < placed.shaped->glyphs.size();
          ++glyphIndex) {
       placed.glyph = placed.shaped->glyphs[glyphIndex];
+      const bool endsCluster =
+          GlyphFit::endsCluster(*placed.shaped, glyphIndex);
       // THE ADVANCE THE LINE SET THIS GLYPH AT, which is the face's own
       // except on a justified line that spent letter spacing or a glyph
       // scale past its word gaps. Those are baked into the run's blob, so
@@ -145,7 +148,7 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
       // somewhere the reader cannot see them.
       placed.advance =
           placed.shaped->advances[glyphIndex] * run.fit.glyphScale +
-          run.fit.letterSpacing;
+          run.fit.letterSpacing + (endsCluster ? run.fit.clusterSpacing : 0.0f);
       placed.pen = run.penOffset + penLocal + placed.advance * 0.5f;
       if (run.transformed && interval) {
         SkPoint centre;
@@ -166,13 +169,12 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
       } else {
         placed.tangent = {1, 0};
         placed.rest =
-            run.origin +
-            SkVector{
-                placed.shaped->positions[glyphIndex].x() * run.fit.glyphScale +
-                    run.fit.letterSpacing * static_cast<float>(glyphIndex),
-                placed.shaped->positions[glyphIndex].y()};
+            run.origin + SkVector{run.fit.offsetOf(*placed.shaped, glyphIndex,
+                                                   clustersBefore),
+                                  placed.shaped->positions[glyphIndex].y()};
       }
       penLocal += placed.advance;
+      if (endsCluster) ++clustersBefore;
       placed.glyphIndex = static_cast<uint32_t>(glyphIndex);
       placed.cluster = glyphIndex < placed.shaped->clusters.size()
                            ? placed.shaped->clusters[glyphIndex]
