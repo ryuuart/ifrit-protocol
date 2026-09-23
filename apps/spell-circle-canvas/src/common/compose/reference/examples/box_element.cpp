@@ -35,11 +35,9 @@ Element card(const char* title, const char* body) {
       .flexGrow(1)
       .borderRadius({10})
       .fill(kCard)
-      .children({text(title).font(
-                     {.size = 17, .color = material::skia::toSkColor(kInk)}),
+      .children({text(title).font({.size = 17, .color = kInk}),
                  box().height(2).width(36).fill(kAccent),
-                 text(body).font(
-                     {.size = 13, .color = material::skia::toSkColor(kAsh)})});
+                 text(body).font({.size = 13, .color = kAsh})});
 }
 
 }  // namespace

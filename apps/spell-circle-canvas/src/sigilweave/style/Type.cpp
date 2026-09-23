@@ -17,6 +17,16 @@ constexpr float kInitialSizePx = 16.0f;
  *  is not in reach: about this much of the type size it is set in. */
 constexpr float kAssumedLineHeightFactor = 1.2f;
 
+/** @p paint set in @p ink — through an 8-bit sRGB word where @p eightBit,
+ *  else as the four floats themselves, copied field for field. */
+void setInk(SkPaint& paint, const material::Color& ink, bool eightBit) {
+  const SkColor4f floats{ink.r, ink.g, ink.b, ink.a};
+  if (eightBit)
+    paint.setColor(floats.toSkColor());
+  else
+    paint.setColor4f(floats, nullptr);
+}
+
 bool sameAxis(const FontVariation& a, const FontVariation& b) {
   return a.tag[0] == b.tag[0] && a.tag[1] == b.tag[1] && a.tag[2] == b.tag[2] &&
          a.tag[3] == b.tag[3];
@@ -157,7 +167,7 @@ Type initialType() {
   Type initial;
   initial.face = defaultFace();
   initial.size = Length(kInitialSizePx);
-  initial.color = SkColor4f{0, 0, 0, 1};
+  initial.color = material::Color{0, 0, 0, 1};
   initial.track = Length(0.0f);
   initial.condense = 1.0f;
   initial.weight = 0.0f;
@@ -247,11 +257,9 @@ TextStyle toTextStyle(const Type& total) {
                   : 0.0f;
   style.shaping.scaleX = total.condense.value_or(1.0f);
   style.shaping.aliased = total.aliased.value_or(false);
-  const SkColor4f color = total.color.value_or(SkColor4f{0, 0, 0, 1});
-  if (total.color8.value_or(false))
-    style.paint.foreground.setColor(color.toSkColor());
-  else
-    style.paint.foreground.setColor4f(color, nullptr);
+  setInk(style.paint.foreground,
+         total.color.value_or(material::Color{0, 0, 0, 1}),
+         total.color8.value_or(false));
   style.paint.foreground.setAntiAlias(total.antiAlias.value_or(true));
   if (total.weight && *total.weight > 0) style.variation("wght", *total.weight);
   if (total.slant && *total.slant != 0) style.variation("slnt", *total.slant);
@@ -287,12 +295,8 @@ TextStyle overlay(TextStyle base, const Type& over) {
         resolvePx(*over.track, base.shaping.fontSize, kInitialSizePx, 0.0f);
   if (over.condense) base.shaping.scaleX = *over.condense;
   if (over.aliased) base.shaping.aliased = *over.aliased;
-  if (over.color) {
-    if (over.color8.value_or(false))
-      base.paint.foreground.setColor(over.color->toSkColor());
-    else
-      base.paint.foreground.setColor4f(*over.color, nullptr);
-  }
+  if (over.color)
+    setInk(base.paint.foreground, *over.color, over.color8.value_or(false));
   if (over.antiAlias) base.paint.foreground.setAntiAlias(*over.antiAlias);
   if (over.weight && *over.weight > 0) base.variation("wght", *over.weight);
   if (over.slant && *over.slant != 0) base.variation("slnt", *over.slant);

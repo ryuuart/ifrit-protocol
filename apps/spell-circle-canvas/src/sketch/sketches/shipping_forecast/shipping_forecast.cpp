@@ -294,9 +294,7 @@ struct ShippingForecast {
   /** The forecast paragraph's own voice, which the synopsis's grade is
    *  laid over. */
   [[nodiscard]] sigil::weave::Type voice() const {
-    return {.face = faceBody,
-            .size = 19.5f,
-            .color = material::skia::toSkColor(kBone)};
+    return {.face = faceBody, .size = 19.5f, .color = kBone};
   }
 
   /** THE SHEET'S REGISTERS, AS NAMED PARTIALS rather than as a call site
@@ -307,92 +305,68 @@ struct ShippingForecast {
   [[nodiscard]] sigil::compose::StyleSheet registers() const {
     return sigil::compose::StyleSheet{
         // The line that names a block — seven of them, one per panel.
-        sigil::compose::rule("eyebrow").font(
-            {.face = faceBold,
-             .size = 11.0f,
-             .color = material::skia::toSkColor(kSlateDim),
-             .track = 3.0f}),
+        sigil::compose::rule("eyebrow").font({.face = faceBold,
+                                              .size = 11.0f,
+                                              .color = kSlateDim,
+                                              .track = 3.0f}),
         // A sea area on the ring: a name rather than a label, so it is set a
         // shade under the body ink.
-        sigil::compose::rule(".area").font(
-            {.face = faceBold,
-             .size = 11.5f,
-             .color = material::skia::toSkColor(hexColor(0xBFC7D1)),
-             .track = 1.1f}),
+        sigil::compose::rule(".area").font({.face = faceBold,
+                                            .size = 11.5f,
+                                            .color = hexColor(0xBFC7D1),
+                                            .track = 1.1f}),
         // The wind direction: the one thing in the sentence that is a heading,
         // so it is set as one — condensed, tracked, and a shade brighter. It
         // states only that: the size and the colour are the base's.
         sigil::compose::rule(".dir").font(
-            {.face = faceBold,
-             .track = 0.6f,
-             .condense = 0.94f}),
+            {.face = faceBold, .track = 0.6f, .condense = 0.94f}),
         // A defined term. A serif italic inside a grotesque paragraph reads as
         // a citation of a glossary, which is exactly what these words are.
         sigil::compose::rule(".term").font(
-            {.face = faceTerm,
-             .size = 20.5f,
-             .color = material::skia::toSkColor(kAmber),
-             .track = 0.2f}),
+            {.face = faceTerm, .size = 20.5f, .color = kAmber, .track = 0.2f}),
         // A Beaufort numeral. NO COLOUR: the number and the bar over it are one
         // fact, so the cell sets the ink and both take it.
         sigil::compose::rule(".force").font(
-            {.face = faceBold,
-             .size = 10.5f,
-             .track = 0.4f}),
+            {.face = faceBold, .size = 10.5f, .track = 0.4f}),
         // The barometer, and the column a station's reading stands in.
         sigil::compose::rule(".readout")
             .font({.face = faceMono,
                    .size = 27.0f,
-                   .color = material::skia::toSkColor(kBone),
+                   .color = kBone,
                    .track = 3.0f}),
         sigil::compose::rule(".station")
             .font({.face = faceMono,
                    .size = 12.0f,
-                   .color = material::skia::toSkColor(kSlate),
+                   .color = kSlate,
                    .track = 0.4f}),
         // The area being read, the compass points, the gale strip.
-        sigil::compose::rule(".hero").font(
-            {.face = faceDisplay,
-             .size = kHero,
-             .color = material::skia::toSkColor(kBone),
-             .track = 1.5f}),
+        sigil::compose::rule(".hero").font({.face = faceDisplay,
+                                            .size = kHero,
+                                            .color = kBone,
+                                            .track = 1.5f}),
         sigil::compose::rule(".cardinal")
             .font({.face = faceBold,
                    .size = 12.0f,
-                   .color = material::skia::toSkColor(kAmber),
+                   .color = kAmber,
                    .track = 2.0f}),
         sigil::compose::rule(".warning")
-            .font({.face = faceBold,
-                   .size = 13.5f,
-                   .track = 2.8f}),
+            .font({.face = faceBold, .size = 13.5f, .track = 2.8f}),
         // The small print: a note under a readout, a station's name and its
         // wind, the Beaufort bands, the spine, the foot.
         sigil::compose::rule(".note").font(
-            {.size = 12.0f,
-             .color = material::skia::toSkColor(kSlateDim),
-             .track = 0.6f}),
+            {.size = 12.0f, .color = kSlateDim, .track = 0.6f}),
         sigil::compose::rule(".place").font(
-            {.size = 12.5f,
-             .color = material::skia::toSkColor(kBone),
-             .track = 0.8f}),
+            {.size = 12.5f, .color = kBone, .track = 0.8f}),
         sigil::compose::rule(".wind").font(
-            {.face = faceBold,
-             .size = 12.5f,
-             .color = material::skia::toSkColor(kSlate),
-             .track = 1.4f}),
+            {.face = faceBold, .size = 12.5f, .color = kSlate, .track = 1.4f}),
         sigil::compose::rule(".bands").font(
-            {.size = 10.5f,
-             .color = material::skia::toSkColor(kSlateDim),
-             .track = 0.8f}),
-        sigil::compose::rule(".spine").font(
-            {.face = faceBold,
-             .size = 12.5f,
-             .color = material::skia::toSkColor(kSlateDim),
-             .track = 2.6f}),
+            {.size = 10.5f, .color = kSlateDim, .track = 0.8f}),
+        sigil::compose::rule(".spine").font({.face = faceBold,
+                                             .size = 12.5f,
+                                             .color = kSlateDim,
+                                             .track = 2.6f}),
         sigil::compose::rule(".foot").font(
-            {.size = 11.0f,
-             .color = material::skia::toSkColor(kSlateDim),
-             .track = 0.5f})};
+            {.size = 11.0f, .color = kSlateDim, .track = 0.5f})};
   }
 
   /** The line that names a panel: seven of them, each arriving on its

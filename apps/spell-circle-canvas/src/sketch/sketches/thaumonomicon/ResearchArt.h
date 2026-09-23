@@ -939,12 +939,12 @@ inline constexpr float kPixSizePx = 10.0f;
 
 inline PixText bakeText(const std::string& s, weave::FontContext& fonts,
                         const sk_sp<SkTypeface>& face, float sizePx) {
-  const weave::TextStyle st = weave::textStyle(
-      {.face = face,
-       .size = sizePx,
-       .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
-       .aliased = true,
-       .color8 = true});
+  const weave::TextStyle st =
+      weave::textStyle({.face = face,
+                        .size = sizePx,
+                        .color = material::Color{1, 1, 1, 1},
+                        .aliased = true,
+                        .color8 = true});
   const std::u8string u8(reinterpret_cast<const char8_t*>(s.c_str()));
   return ::sigil::compose::kit::bakeRun(u8, fonts, st);
 }

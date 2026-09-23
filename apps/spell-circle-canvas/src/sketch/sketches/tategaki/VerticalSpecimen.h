@@ -77,8 +77,8 @@ inline sk_sp<SkTypeface> mincho() {
 inline sigil::weave::TextStyle body(
     float size, sigil::material::Color color,
     sigil::weave::VerticalForm form = sigil::weave::VerticalForm::kAuto) {
-  sigil::weave::TextStyle s = sigil::weave::textStyle(
-      {.size = size, .color = sigil::material::skia::toSkColor(color)});
+  sigil::weave::TextStyle s =
+      sigil::weave::textStyle({.size = size, .color = color});
   s.shaping.typeface = mincho();
   s.shaping.languageTag = "ja";
   s.shaping.verticalForm = form;
@@ -90,9 +90,7 @@ inline sigil::weave::TextStyle body(
 inline sigil::weave::Type bodyType(
     float size, sigil::material::Color color,
     sigil::weave::VerticalForm form = sigil::weave::VerticalForm::kAuto) {
-  sigil::weave::Type t{.face = mincho(),
-                       .size = size,
-                       .color = sigil::material::skia::toSkColor(color)};
+  sigil::weave::Type t{.face = mincho(), .size = size, .color = color};
   t.language = "ja";
   t.verticalForm = form;
   return t;
@@ -113,17 +111,13 @@ inline sigil::weave::Type bodyType(
 inline sigil::weave::TextStyle label(float size, sigil::material::Color color,
                                      float tracking = 0) {
   return sigil::weave::textStyle(
-      {.size = size,
-       .color = sigil::material::skia::toSkColor(color),
-       .track = tracking});
+      {.size = size, .color = color, .track = tracking});
 }
 /** The same register as a partial, for a caption set over what its cell
  *  inherits. */
 inline sigil::weave::Type labelType(float size, sigil::material::Color color,
                                     float tracking = 0) {
-  return {.size = size,
-          .color = sigil::material::skia::toSkColor(color),
-          .track = tracking};
+  return {.size = size, .color = color, .track = tracking};
 }
 /** The caption register as a partial with no colour of its own: set in
  *  the ink in force where the run lands. */

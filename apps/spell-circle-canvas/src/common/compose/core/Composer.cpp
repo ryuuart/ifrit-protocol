@@ -13,7 +13,6 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the renderSlot diagnostic
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmeasure/time/Laps.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -202,7 +201,7 @@ void Composer::setInherited(const sigil::weave::Type& font,
   Impl& impl = *m_impl;
   sigil::weave::Type root =
       sigil::weave::overlay(sigil::weave::initialType(), font);
-  root.color = material::skia::toSkColor(ink);
+  root.color = ink;
   if (root == impl.rootFont) return;
   impl.rootFont = std::move(root);
   impl.rootLineHeight = 0.0f;

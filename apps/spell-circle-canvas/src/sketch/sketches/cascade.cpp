@@ -94,12 +94,10 @@ Element editorialCard(bool cooled) {
                weave::rich()
                    .add(u8"The base inherits. ")
                    .add(u8"This run changes only color. ",
-                        weave::Type{.color = material::skia::toSkColor(kTeal)})
+                        weave::Type{.color = kTeal})
                    .add(u8"A whole style stands alone.",
                         weave::textStyle(
-                            {.size = 12,
-                             .color = material::skia::toSkColor(kPale),
-                             .track = 0})))
+                            {.size = 12, .color = kPale, .track = 0})))
                .width(612),
            box().row().gap(22).children(
                {box()

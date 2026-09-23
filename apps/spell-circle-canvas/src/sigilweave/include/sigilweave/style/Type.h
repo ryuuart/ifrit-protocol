@@ -13,6 +13,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Decoration.h>
 #include <sigilweave/style/Keyword.h>
 #include <sigilweave/style/Length.h>
@@ -73,7 +74,9 @@ struct Type {
   /** The type size. Pixels are implicit, so `.size = 13` is thirteen of
    *  them; a relative length is resolved against what it is overlaid on. */
   std::optional<Length> size;
-  std::optional<SkColor4f> color;
+  /** The ink the glyphs are filled with: four straight-alpha sRGB floats,
+   *  a channel above 1 kept. */
+  std::optional<material::Color> color;
   /** Tracking added after each cluster. Pixels are implicit, so
    *  `.track = 1.2f` is that many; `em(-0.08f)` is a fraction of the SIZE
    *  THE TYPE RESOLVES TO, resolved as it is overlaid.

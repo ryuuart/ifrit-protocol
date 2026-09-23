@@ -7,7 +7,6 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Rows.h>
 #include <sigildata/table/Table.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -275,8 +274,7 @@ TEST(SketchKitRows, AReadoutClassKeepsTheParagraphRoleAndOverridesItsType) {
       compose::rule(".readout")
           .font(house.font(house.type.captionLabel, SkColors::kBlue)),
       compose::rule("paragraph")
-          .font({.size = 32,
-                 .color = sigil::material::skia::toSkColor(SkColors::kRed)})
+          .font({.size = 32, .color = SkColors::kRed})
           .block({.leading = sigil::weave::Leading::multiple(2.0f)})};
   const auto under = [&](Element content) {
     return compose::box().applyStyleSheet(sheet).children({std::move(content)});

@@ -103,10 +103,10 @@ TEST(SketchKitDocument, ALineIsALeafInTheClassTheDocumentNamed) {
   doc.figures({{"rest", "18.4"}});
   compose::StyleSheet dressed =
       kit::houseTheme().styleSheet() +
-      compose::StyleSheet{compose::rule("figure, .figure")
-                              .font(sigil::weave::Type{
-                                  .color = sigil::material::skia::toSkColor(
-                                      sigil::material::Color{0, 1, 0, 1})})};
+      compose::StyleSheet{
+          compose::rule("figure, .figure")
+              .font(sigil::weave::Type{
+                  .color = sigil::material::Color{0, 1, 0, 1}})};
   const auto under = [&dressed](compose::Element leaf) {
     return compose::box().applyStyleSheet(dressed).children({std::move(leaf)});
   };

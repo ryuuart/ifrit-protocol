@@ -270,7 +270,7 @@ struct AxisRipple {
     sigil::weave::TextStyle style =
         weave::textStyle({.face = face,
                           .size = kProofRowSize,
-                          .color = material::skia::toSkColor(kInk),
+                          .color = kInk,
                           .track = kProofTrack * 0.6f});
     style.variation(tag, value);
     Text run = text(kProof, style);
@@ -393,10 +393,8 @@ struct AxisRipple {
     // EVERY MEASUREMENT GOES THROUGH THE SHAPING PATH A TEXT LEAF TAKES,
     // at the size and the track the page sets the run in.
     const auto sized = [&](float size, float track) {
-      return weave::textStyle({.face = face,
-                               .size = size,
-                               .color = material::skia::toSkColor(kInk),
-                               .track = track});
+      return weave::textStyle(
+          {.face = face, .size = size, .color = kInk, .track = track});
     };
     const auto runWidth = [&](const weave::TextStyle& style) {
       return runPens(kProof, style, *ctx.fonts).back();

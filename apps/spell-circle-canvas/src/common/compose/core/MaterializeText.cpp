@@ -4,7 +4,6 @@
  */
 
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <span>
@@ -267,7 +266,7 @@ sigil::weave::TextStyle Composer::Impl::styleOfSpan(
     const material::Color* colour =
         value ? std::get_if<material::Color>(value) : nullptr;
     if (colour)
-      partial.color = material::skia::toSkColor(*colour);
+      partial.color = *colour;
     else
       warnNoSuchVar(*span.inkVar, true);
   }

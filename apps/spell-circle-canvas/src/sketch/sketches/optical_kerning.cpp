@@ -78,8 +78,8 @@ sketch::kit::Theme sheetTheme() {
 weave::TextStyle display(float size, material::Color color, bool optical) {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
-  weave::TextStyle style = weave::textStyle(
-      {.face = face, .size = size, .color = material::skia::toSkColor(color)});
+  weave::TextStyle style =
+      weave::textStyle({.face = face, .size = size, .color = color});
   style.shaping.opticalKerning = optical;
   return style;
 }

@@ -289,14 +289,14 @@ TEST(ComposeStudio, ATypedOptionsValueCarriesWhatPositionalArgumentsCannot) {
   // test asserts exactly the fields a positional two-argument helper could
   // not reach; if it ever shrinks to size+colour, the extraction has failed
   // the same way its predecessor did.
-  const sigil::weave::TextStyle s = weave::textStyle(
-      {.size = 18.0f,
-       .color = material::skia::toSkColor(SkColor4f{0.2f, 0.4f, 0.6f, 1}),
-       .track = 1.25f,
-       .condense = 0.94f,
-       .weight = 650.0f,
-       .slant = -10.0f,
-       .aliased = true});
+  const sigil::weave::TextStyle s =
+      weave::textStyle({.size = 18.0f,
+                        .color = SkColor4f{0.2f, 0.4f, 0.6f, 1},
+                        .track = 1.25f,
+                        .condense = 0.94f,
+                        .weight = 650.0f,
+                        .slant = -10.0f,
+                        .aliased = true});
   EXPECT_FLOAT_EQ(s.shaping.fontSize, 18.0f);
   EXPECT_FLOAT_EQ(s.shaping.letterSpacing, 1.25f);
   EXPECT_FLOAT_EQ(s.shaping.scaleX, 0.94f);

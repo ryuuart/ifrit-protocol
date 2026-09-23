@@ -264,8 +264,7 @@ inline sigil::weave::TextStyle minchoDisplay(float size,
   sigil::weave::TextStyle style =
       sigil::weave::textStyle({.face = minchoHeavy(),
                                .size = size,
-                               .color = sigil::material::skia::toSkColor(
-                                   sigil::material::skia::toSkColor(color)),
+                               .color = color,
                                .condense = scaleX});
   if (style.shaping.typeface && style.shaping.typeface->fontStyle().weight() <
                                     SkFontStyle::kExtraBold_Weight) {

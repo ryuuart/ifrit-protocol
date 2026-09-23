@@ -59,11 +59,10 @@ weave::TextStyle bakeFace(float size, bool proportional = false) {
       weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
   const sk_sp<SkTypeface> text = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
-  return weave::textStyle(
-      {.face = proportional ? text : code,
-       .size = size,
-       .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
-       .aliased = true});
+  return weave::textStyle({.face = proportional ? text : code,
+                           .size = size,
+                           .color = material::Color{1, 1, 1, 1},
+                           .aliased = true});
 }
 
 sketch::kit::ComparisonCase example(const char* title, const char* control,

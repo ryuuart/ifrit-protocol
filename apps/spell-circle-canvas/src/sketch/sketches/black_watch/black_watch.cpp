@@ -279,14 +279,10 @@ struct BlackWatch {
     // discretionaries are typed in (U+00AD) the way a compositor would set
     // them — HyphenationOptions has no automatic dictionary behind it.
     weave::TextStyle body =
-        weave::textStyle({.face = serif(),
-                          .size = 13,
-                          .color = sigil::material::skia::toSkColor(kInk)});
+        weave::textStyle({.face = serif(), .size = 13, .color = kInk});
     body.shaping.languageTag = "en-GB";
     weave::TextStyle attrib =
-        weave::textStyle({.face = serifIt(),
-                          .size = 11,
-                          .color = sigil::material::skia::toSkColor(kInk2)});
+        weave::textStyle({.face = serifIt(), .size = 11, .color = kInk2});
     weave::ParagraphBuilder b(body);
     const data::Json& said = doc["douglas"];
     b.addText(said["body"].text());
@@ -408,12 +404,11 @@ struct BlackWatch {
       const float cx =
           kClothX +
           ((float)runStart[r] + (float)bwRuns[r].threads * 0.5f) * kPx;
-      g.children({centred(std::to_string(bwRuns[r].threads), cx - 14,
-                          kBarY + kBarH + 3 + (r % 2 ? 10.0f : 0.0f), 28)
-                      .font({.size = 8,
-                             .color = sigil::material::skia::toSkColor(
-                                 r % 2 ? kInk2 : kInk),
-                             .track = 0.4f})});
+      g.children(
+          {centred(std::to_string(bwRuns[r].threads), cx - 14,
+                   kBarY + kBarH + 3 + (r % 2 ? 10.0f : 0.0f), 28)
+               .font(
+                   {.size = 8, .color = r % 2 ? kInk2 : kInk, .track = 0.4f})});
     }
 
     // the two pivots, snapping in when the arithmetic proves
@@ -431,9 +426,7 @@ struct BlackWatch {
         if (rep == 0)
           g.children(
               {centred(doc["sett"]["pivots"][i], x - 45, kBarY - 26, 90)
-                   .font({.size = 8,
-                          .color = sigil::material::skia::toSkColor(kRed),
-                          .track = 0.8f})
+                   .font({.size = 8, .color = kRed, .track = 0.8f})
                    .opacity(bind(&loom)
                                 .source(kWeaveEnd + 0.01f, kWeaveEnd + 0.045f)
                                 .clamp(0.0f, 1.0f))});
@@ -441,9 +434,7 @@ struct BlackWatch {
 
     // the register's own phrase, out of the way of the pivot flags
     g.children({label(doc["sett"]["register"], 660, kBarY - 26, 420)
-                    .font({.size = 8.5f,
-                           .color = sigil::material::skia::toSkColor(kRed),
-                           .track = 0.4f})});
+                    .font({.size = 8.5f, .color = kRed, .track = 0.4f})});
 
     // the count itself, set as one mono run
     std::string count;
@@ -452,9 +443,7 @@ struct BlackWatch {
       count += kit::formatted("%c%d ", kCode[run.shade], run.threads);
     g.children(
         {label(count, kClothX, kBarY + kBarH + 27, kClothW)
-             .font({.size = 11.5f,
-                    .color = sigil::material::skia::toSkColor(kInk),
-                    .track = 0.3f}),
+             .font({.size = 11.5f, .color = kInk, .track = 0.3f}),
          label(doc["sett"]["notation"], kClothX, kBarY + kBarH + 47, kClothW)
              .font({.size = 8.5f, .track = 0.5f})});
     return g;
@@ -578,9 +567,7 @@ struct BlackWatch {
                           "n = %d  →  %d solid + %d blend  =  %d  =  n(n+1)/2",
                           v.solids, v.solids, v.blends, v.perceived),
                       tx, y0 + 30, 210)
-                    .font({.size = 8.5f,
-                           .color = sigil::material::skia::toSkColor(kRed),
-                           .track = 0.2f}),
+                    .font({.size = 8.5f, .color = kRed, .track = 0.2f}),
                 label(page["reading"], tx, y0 + 52, 200)
                     .font({.face = serifIt(), .size = 11})});
     return g;
@@ -605,9 +592,7 @@ struct BlackWatch {
       const float y = y0 + (float)r * rowH;
       const Palette& p = kPalettes[(size_t)r];
       g.children({label(p.name, kColX + 10, y + 1, 140)
-                      .font({.size = 7.5f,
-                             .color = sigil::material::skia::toSkColor(kInk),
-                             .track = 0.4f})});
+                      .font({.size = 7.5f, .color = kInk, .track = 0.4f})});
       const uint32_t shade[3] = {p.k, p.b, p.g};
       for (int i = 0; i < 3; ++i) {
         const float x = kColX + 150 + (float)i * 94;
@@ -719,9 +704,7 @@ struct BlackWatch {
     const Shades modern = shadesOf(kPalettes[0]);
     for (const Bar& b : bars) {
       g.children({label(b.name, kClothX, b.y + 8, 140)
-                      .font({.size = 8.5f,
-                             .color = sigil::material::skia::toSkColor(kInk),
-                             .track = 0.4f})});
+                      .font({.size = 8.5f, .color = kInk, .track = 0.4f})});
       float cur = 0;
       for (const Run& r : *b.runs) {
         const float w = barW * (float)r.threads / (float)b.total;
@@ -744,9 +727,7 @@ struct BlackWatch {
       const float cx =
           x0 + barW * (cum + (float)units[u] * 0.5f) / (float)v.total;
       g.children({centred(said["units"][(size_t)u], cx - 12, y0 - 15, 24)
-                      .font({.size = 8.5f,
-                             .color = sigil::material::skia::toSkColor(kRed),
-                             .track = 0.6f})});
+                      .font({.size = 8.5f, .color = kRed, .track = 0.6f})});
       cum += (float)units[u];
       if (u < 3)
         g.children({at(x0 + barW * cum / (float)v.total - 0.5f, y0 - 3, 1,
@@ -759,9 +740,7 @@ struct BlackWatch {
                           "THE OVERCHECKS ARE RINGED",
                           v.unitDrift * 100.0f),
                       x0, y0 + 2 * barH + 14, 900)
-                    .font({.size = 8.5f,
-                           .color = sigil::material::skia::toSkColor(kRed),
-                           .track = 0.3f})});
+                    .font({.size = 8.5f, .color = kRed, .track = 0.3f})});
     return g;
   }
 
@@ -831,10 +810,7 @@ struct BlackWatch {
                  stroke(1, Fill::color(kRule), PathFormat::Align::Inner)),
          // 1. the heading
          label(head["title"], kClothX, 46, 900)
-             .font({.face = sansB(),
-                    .size = 34,
-                    .color = sigil::material::skia::toSkColor(kInk),
-                    .track = 4.6f}),
+             .font({.face = sansB(), .size = 34, .color = kInk, .track = 4.6f}),
          label(head["registration"], kClothX, 96, 1200)
              .font({.size = 10.5f, .track = 1.1f}),
          rule(kClothX, 122, kCanvasW - 2 * kClothX, 1, kRule)});

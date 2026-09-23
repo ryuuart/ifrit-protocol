@@ -277,11 +277,10 @@ Element figureBox(SkPoint centre, float radius) {
 weave::TextStyle hollow(sk_sp<SkTypeface> face, float size,
                         material::Color color, float width,
                         float tracking = 0) {
-  weave::TextStyle s =
-      weave::textStyle({.face = std::move(face),
-                        .size = size,
-                        .color = material::skia::toSkColor(color),
-                        .track = tracking});
+  weave::TextStyle s = weave::textStyle({.face = std::move(face),
+                                         .size = size,
+                                         .color = color,
+                                         .track = tracking});
   s.paint.foreground =
       sigil::weave::kit::outline(
           sigil::material::skia::toSkColor(color).toSkColor(), width)
@@ -480,9 +479,7 @@ struct VertigoTitles {
     // Text::textOnPath() — one text leaf where hand-placing curved
     // lettering would have been one leaf and one measure() per glyph.
     const weave::Type legend{
-        .size = 11,
-        .color = material::skia::toSkColor(hexColor(0xEDE6D8, 0.42f)),
-        .track = 3.4f};
+        .size = 11, .color = hexColor(0xEDE6D8, 0.42f), .track = 3.4f};
     panel.children(
         {text("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE")
              .font(legend)
@@ -580,9 +577,7 @@ struct VertigoTitles {
              .key("spec-solid"),
          text("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
               "— BOTH CLARENDON.")
-             .font({.size = 10,
-                    .color = material::skia::toSkColor(kSteel),
-                    .track = 0.6f})
+             .font({.size = 10, .color = kSteel, .track = 0.6f})
              .key("spec-cap")});
     return p;
   }
@@ -614,9 +609,7 @@ struct VertigoTitles {
                box().column().flexGrow(1).gap(2).children(
                    {text(c.line1).font(
                         {.face = faceGothicBold, .size = 11, .track = 0.7f}),
-                    text(c.line2).font(
-                        {.size = 9,
-                         .color = material::skia::toSkColor(kSteel)})})});
+                    text(c.line2).font({.size = 9, .color = kSteel})})});
     };
     return plate(240).gap(8).children({each(kCards, row)});
   }
@@ -633,9 +626,7 @@ struct VertigoTitles {
     // ONE LINE PER FACT, each entering a beat after the one above it.
     const auto fact = [](const char* words, size_t i) {
       return text(words)
-          .font({.size = 10.5f,
-                 .color = material::skia::toSkColor(kSteel),
-                 .track = 0.3f})
+          .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
           .key("rig" + std::to_string(i))
           .opacity(animate(from(0.0f).to(1.0f),
                            ramp(900.0f + (float)i * 90.0f, 300)));
@@ -647,7 +638,7 @@ struct VertigoTitles {
          each(kFacts, fact), box().flexGrow(1),
          text("hitchcocksvertigo.substack.com · rhizome.org "
               "· diyphotography.net")
-             .font({.size = 9, .color = material::skia::toSkColor(kSteelDim)})
+             .font({.size = 9, .color = kSteelDim})
              .key("rig-cite")});
   }
 

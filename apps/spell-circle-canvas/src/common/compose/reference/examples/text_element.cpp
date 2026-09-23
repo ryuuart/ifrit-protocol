@@ -37,9 +37,7 @@ weave::TextStyle stated() {
 
 Element row(const char* caption, Element leaf) {
   return box().column().gap(6).children(
-      {text(caption).font(
-           {.size = 12, .color = material::skia::toSkColor(kAsh)}),
-       std::move(leaf)});
+      {text(caption).font({.size = 12, .color = kAsh}), std::move(leaf)});
 }
 
 }  // namespace
@@ -62,12 +60,10 @@ struct TextElement {
             row("text(utf8)", text("Set in the font and ink in force.")),
             row("text(utf8, style)",
                 text("Set in a style of its own.", stated())),
-            row("text(rich)",
-                text(weave::rich()
-                         .add("Mixed text as ")
-                         .add("one comparable value",
-                              weave::Type{.color = material::skia::toSkColor(
-                                              kAccent)}))),
+            row("text(rich)", text(weave::rich()
+                                       .add("Mixed text as ")
+                                       .add("one comparable value",
+                                            weave::Type{.color = kAccent}))),
         });
   }
 };

@@ -35,7 +35,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -213,8 +212,7 @@ struct Zellige {
                                  text("Hankin PIC · 4.8.8 · "
                                       "θ swept 30–60°")
                                      .font({.size = 14,
-                                            .color = material::skia::toSkColor(
-                                                zw::kSub),
+                                            .color = zw::kSub,
                                             .track = 1})}),
                   box().row().flexGrow(1).gap(22).children(
                       {each(panels, [this](const zellige_wall::Panel& one) {

@@ -9,7 +9,6 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the span's paint diagnostic
-#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <cstdio>  // std::snprintf — variationDrive's effect key
@@ -228,7 +227,7 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
     } else if (said.inkPaint) {
       const Fill flat = toFill(*said.inkPaint);
       if (flat.kind == Fill::Kind::Color)
-        restyle.partial.color = material::skia::toSkColor(flat.colorValue);
+        restyle.partial.color = flat.colorValue;
       else if (flat.kind == Fill::Kind::Shader)
         restyle.inkShader = flat;
     }

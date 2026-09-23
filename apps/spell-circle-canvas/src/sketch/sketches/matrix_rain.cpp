@@ -443,8 +443,7 @@ struct MatrixRain {
                  // them.
                  churning(
                      text(bedText)
-                         .font({.size = kBedSize,
-                                .color = material::skia::toSkColor(kBedInk)})
+                         .font({.size = kBedSize, .color = kBedInk})
                          .key("rain-bed")
                          .inset(0)
                          .overflow(Overflow::Clip)
@@ -491,11 +490,10 @@ struct MatrixRain {
                       "HALF-WIDTH KATAKANA AND DIGITS, "
                       "MIRRORED PER GLYPH, HELD UPRIGHT · THE LIGHT FALLS, "
                       "THE TYPE STANDS STILL",
-                      weave::textStyle(
-                          {.face = faceLabel,
-                           .size = 10.5f,
-                           .color = material::skia::toSkColor(kLabel),
-                           .track = 2.2f}))
+                      weave::textStyle({.face = faceLabel,
+                                        .size = 10.5f,
+                                        .color = kLabel,
+                                        .track = 2.2f}))
                      .key("caption")
                      .at({26, kH - 30})});
 

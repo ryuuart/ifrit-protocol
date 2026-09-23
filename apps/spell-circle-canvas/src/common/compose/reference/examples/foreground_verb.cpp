@@ -44,11 +44,8 @@ Element tile(const char* caption, Element plate) {
                     .alignItems(Align::Center)
                     .children(
                         {text("A FULL-BLEED CHILD")
-                             .font({.size = 14,
-                                    .color = material::skia::toSkColor(kInk),
-                                    .track = 2})})}),
-           text(caption).font(
-               {.size = 12, .color = material::skia::toSkColor(kAsh)})});
+                             .font({.size = 14, .color = kInk, .track = 2})})}),
+           text(caption).font({.size = 12, .color = kAsh})});
 }
 
 }  // namespace

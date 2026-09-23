@@ -189,9 +189,7 @@ auto Fallout2CharSheet::captionBand() -> Element {
                    fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
                      .at({30, 14}),
                  line(audited.c_str(), 41)
-                     .font({.size = 14.5f,
-                            .color = sigil::material::skia::toSkColor(kGreen),
-                            .track = 0.2f}),
+                     .font({.size = 14.5f, .color = kGreen, .track = 0.2f}),
                  line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
                       "palette has no pure green, so what reached the CRT is "
                       "#3CF800.",

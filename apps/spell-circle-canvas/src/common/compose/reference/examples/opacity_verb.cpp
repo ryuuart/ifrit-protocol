@@ -41,8 +41,7 @@ Element card(float value, const char* caption) {
                           .fill(kDisc)
                           .left(20)
                           .top(28)}),
-                 text(caption).font(
-                     {.size = 12, .color = material::skia::toSkColor(kAsh)})});
+                 text(caption).font({.size = 12, .color = kAsh})});
 }
 
 }  // namespace

@@ -33,51 +33,31 @@ struct SigillumAemeth {
    *  archangel, the seal face of a letter on the fan. */
   [[nodiscard]] sigil::compose::StyleSheet voices() const {
     return sigil::compose::StyleSheet{
-        sigil::compose::rule("h1").font(
-            weaveNs::Type{.face = faceDisplay,
-                          .size = 46,
-                          .color = sigil::material::skia::toSkColor(kVellum),
-                          .track = 2.6f}),
+        sigil::compose::rule("h1").font(weaveNs::Type{
+            .face = faceDisplay, .size = 46, .color = kVellum, .track = 2.6f}),
         sigil::compose::rule("lead").font(weaveNs::Type{
-            .face = faceItalic,
-            .size = 19,
-            .color = sigil::material::skia::toSkColor(hexColor(0xc7ab74))}),
+            .face = faceItalic, .size = 19, .color = hexColor(0xc7ab74)}),
         sigil::compose::rule(".serif").font(weaveNs::Type{.face = faceSerif}),
         sigil::compose::rule(".italic").font(weaveNs::Type{.face = faceItalic}),
         sigil::compose::rule(".gloss").font(weaveNs::Type{
-            .face = faceItalic,
-            .size = 14,
-            .color = sigil::material::skia::toSkColor(hexColor(0x6f5f45))}),
-        sigil::compose::rule(".legend").font(weaveNs::Type{
-            .face = faceSerif,
-            .color = sigil::material::skia::toSkColor(hexColor(0x9d8a66))}),
+            .face = faceItalic, .size = 14, .color = hexColor(0x6f5f45)}),
+        sigil::compose::rule(".legend").font(
+            weaveNs::Type{.face = faceSerif, .color = hexColor(0x9d8a66)}),
         sigil::compose::rule(".index").font(weaveNs::Type{.size = 17}),
-        sigil::compose::rule(".name").font(
-            weaveNs::Type{.face = faceDisplay,
-                          .size = 30,
-                          .color = sigil::material::skia::toSkColor(kVellum),
-                          .track = 1.2f}),
-        sigil::compose::rule(".raw").font(weaveNs::Type{
-            .face = faceItalic,
-            .color = sigil::material::skia::toSkColor(hexColor(0x6f5f45))}),
-        sigil::compose::rule(".chain").font(weaveNs::Type{
-            .size = 14, .color = sigil::material::skia::toSkColor(kTrace)}),
+        sigil::compose::rule(".name").font(weaveNs::Type{
+            .face = faceDisplay, .size = 30, .color = kVellum, .track = 1.2f}),
+        sigil::compose::rule(".raw").font(
+            weaveNs::Type{.face = faceItalic, .color = hexColor(0x6f5f45)}),
+        sigil::compose::rule(".chain").font(
+            weaveNs::Type{.size = 14, .color = kTrace}),
         sigil::compose::rule(".archangel")
             .font(weaveNs::Type{
-                .face = faceQuill,
-                .size = 21,
-                .color = sigil::material::skia::toSkColor(hexColor(0xd8c08a))}),
+                .face = faceQuill, .size = 21, .color = hexColor(0xd8c08a)}),
         sigil::compose::rule(".fan").font(
-            weaveNs::Type{.face = faceSeal,
-                          .size = 23,
-                          .color = sigil::material::skia::toSkColor(kVellum)}),
-        sigil::compose::rule(".rubric").font(
-            weaveNs::Type{.color = sigil::material::skia::toSkColor(kRubric)}),
+            weaveNs::Type{.face = faceSeal, .size = 23, .color = kVellum}),
+        sigil::compose::rule(".rubric").font(weaveNs::Type{.color = kRubric}),
         sigil::compose::rule(".heading")
-            .font(weaveNs::Type{
-                .size = 15,
-                .color = sigil::material::skia::toSkColor(kRubric),
-                .track = 1.6f})};
+            .font(weaveNs::Type{.size = 15, .color = kRubric, .track = 1.6f})};
   }
 
   // --- the reading order, in seconds ---------------------------------------

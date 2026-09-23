@@ -277,9 +277,7 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
                .inset(0)
 
                .children({text(k == 0 ? "+" : "-")
-                              .font({.size = n(7.0f),
-                                     .color = sigil::material::skia::toSkColor(
-                                         kGold)})})});
+                              .font({.size = n(7.0f), .color = kGold})})});
     slider.children({btn});
   }
   slider.children({at(box(), 2, 6, 16, 12)

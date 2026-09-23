@@ -170,9 +170,7 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
 TEST(SketchKitTheme, ARegisterIsTheStyleTheCallSiteWouldHaveWritten) {
   const kit::Theme& house = kit::houseTheme();
   const sigil::weave::TextStyle byHand = sigil::weave::textStyle(
-      {.size = 14,
-       .color = sigil::material::skia::toSkColor(house.palette.ink),
-       .track = 2.4f});
+      {.size = 14, .color = house.palette.ink, .track = 2.4f});
   const sigil::weave::TextStyle byTheme =
       house.style(house.type.title, house.palette.ink);
   EXPECT_EQ(byTheme.shaping.fontSize, byHand.shaping.fontSize);

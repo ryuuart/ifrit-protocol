@@ -159,9 +159,7 @@ struct VideoCompose {
     const auto cells = std::views::iota(0, kCells);
 
     const weave::TextStyle title = weave::textStyle(
-        {.size = 27,
-         .color = material::skia::toSkColor(material::Color{1, 1, 1, 0.96f}),
-         .track = 5.5f});
+        {.size = 27, .color = material::Color{1, 1, 1, 0.96f}, .track = 5.5f});
     ctx.composer.render(stack().width(kWidth).height(kHeight).children(
         {// A sky under every cell, and an effect source over it.
          each(cells, [&](int cell) { return leafAt(cell & 1, cell, false); }),

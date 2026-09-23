@@ -467,7 +467,7 @@ struct Cosmati {
               "· MVNDVM · PRIMVM · "
               "TRIPLEX ·")
              .font({.size = 9,
-                    .color = material::skia::toSkColor(cs::kGiallo),
+                    .color = cs::kGiallo,
                     .track = 2.0f,
                     .weight = 600})
              .width(big * 1.50f)
@@ -499,35 +499,31 @@ struct Cosmati {
              .column()
              .left(px)
              .top(cs::kFieldY + 4)
-             .children(
-                 {text("OPUS SECTILE")
-                      .font({.size = 21,
-                             .color = material::skia::toSkColor(cs::kInk),
-                             .track = 3.4f,
-                             .weight = 640}),
-                  text("Cosmatesque · Westminster "
-                       "1268")
-                      .font({.size = 11, .track = 1.4f})
-                      .margin(6, 0, 0, 0),
-                  box()
-                      .width(190.0f)
-                      .height(1.0f)
-                      .margin(12, 0)
-                      .fill(Paint::linear({0, 0}, {190, 0},
+             .children({text("OPUS SECTILE")
+                            .font({.size = 21,
+                                   .color = cs::kInk,
+                                   .track = 3.4f,
+                                   .weight = 640}),
+                        text("Cosmatesque · Westminster "
+                             "1268")
+                            .font({.size = 11, .track = 1.4f})
+                            .margin(6, 0, 0, 0),
+                        box().width(190.0f).height(1.0f).margin(12, 0).fill(
+                            Paint::linear({0, 0}, {190, 0},
                                           {{0.0f,
                                             {cs::kGiallo.r, cs::kGiallo.g,
                                              cs::kGiallo.b, 0.7f}},
                                            {1.0f,
                                             {cs::kGiallo.r, cs::kGiallo.g,
                                              cs::kGiallo.b, 0.0f}}})),
-                  text("The governing figure is the QUINCUNX "
-                       "— four roundels about a "
-                       "fifth. The Great Pavement is a "
-                       "quincunx of quincunxes, 25 Roman feet "
-                       "square, laid by a Roman crew under "
-                       "Odoricus.")
-                      .font({.size = 11.5f, .track = 0.2f})
-                      .width(210.0f)})});
+                        text("The governing figure is the QUINCUNX "
+                             "— four roundels about a "
+                             "fifth. The Great Pavement is a "
+                             "quincunx of quincunxes, 25 Roman feet "
+                             "square, laid by a Roman crew under "
+                             "Odoricus.")
+                            .font({.size = 11.5f, .track = 0.2f})
+                            .width(210.0f)})});
 
     // the quarry legend: every stone named, with a real sample of it
     struct Quarry {

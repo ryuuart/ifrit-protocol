@@ -315,35 +315,25 @@ inline const sigil::compose::StyleSheet& classes() {
       sheet().styleSheet() +
       sigil::compose::StyleSheet{
           sigil::compose::rule(".heading")
-              .font({.face = mono(),
-                     .size = 8.5f,
-                     .color = material::skia::toSkColor(kInk),
-                     .track = 0.5f}),
+              .font(
+                  {.face = mono(), .size = 8.5f, .color = kInk, .track = 0.5f}),
           sigil::compose::rule(".note").font({.size = 7.0f, .track = 0.2f}),
           sigil::compose::rule(".column").font({.size = 6.5f, .track = 0.2f}),
           sigil::compose::rule(".readout").font({.size = 8.0f, .track = 0.2f}),
           sigil::compose::rule(".finding")
-              .font({.size = 8.0f,
-                     .color = material::skia::toSkColor(kRed),
-                     .track = 0.2f}),
+              .font({.size = 8.0f, .color = kRed, .track = 0.2f}),
           sigil::compose::rule("quote, .quote")
-              .font({.face = serifIt(),
-                     .size = 8.5f}),
+              .font({.face = serifIt(), .size = 8.5f}),
           // What the a*b* plot's own parts are drawn in: the chart kit names
           // the part and the plate says the colour.
           sigil::compose::rule(".plotRule")
-              .font({.color =
-                         material::skia::toSkColor(hexColor(0x8C8578, 0.35f))}),
-          sigil::compose::rule(".plotAxis")
-              .font({.color = material::skia::toSkColor(kInk)}),
+              .font({.color = hexColor(0x8C8578, 0.35f)}),
+          sigil::compose::rule(".plotAxis").font({.color = kInk}),
           sigil::compose::rule(".plotLabel")
-              .font({.size = 7.0f,
-                     .color = material::skia::toSkColor(kInk2),
-                     .track = 0.3f}),
+              .font({.size = 7.0f, .color = kInk2, .track = 0.3f}),
           sigil::compose::rule(".chord").font(
-              {.color = material::skia::toSkColor(hexColor(0x8C8578, 0.85f))}),
-          sigil::compose::rule(".centroid")
-              .font({.color = material::skia::toSkColor(kRed)})};
+              {.color = hexColor(0x8C8578, 0.85f)}),
+          sigil::compose::rule(".centroid").font({.color = kRed})};
   return look;
 }
 

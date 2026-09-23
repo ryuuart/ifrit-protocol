@@ -97,10 +97,8 @@ TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
   const kit::Theme& house = kit::houseTheme();
   const auto label = [&](float size, sigil::material::Color color,
                          float track) {
-    return sigil::weave::Type{.face = house.type.sans,
-                              .size = size,
-                              .color = sigil::material::skia::toSkColor(color),
-                              .track = track};
+    return sigil::weave::Type{
+        .face = house.type.sans, .size = size, .color = color, .track = track};
   };
   // By hand the three lines are three classes of a sheet stated on the
   // page, which is exactly what the register names resolve to under the

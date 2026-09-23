@@ -390,9 +390,7 @@ auto ChevreulCircle::buildLaw() -> void {
       u8"in their op­ti­cal com­po­si­tion "
       u8"and in the height of their tone.”  ");
   b.pushStyle(
-      weave::textStyle({.face = serifIt(),
-                        .size = 11,
-                        .color = sigil::material::skia::toSkColor(kInk2)}));
+      weave::textStyle({.face = serifIt(), .size = 11, .color = kInk2}));
   b.addText(
       u8"— M. E. Chevreul, §16, De la loi du contraste simultané des "
       u8"couleurs, 1839; trans. Charles Martel.");

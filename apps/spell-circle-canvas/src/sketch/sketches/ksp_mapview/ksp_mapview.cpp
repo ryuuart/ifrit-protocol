@@ -54,20 +54,11 @@ auto KspMapView::setup(sketch::SketchContext& ctx) -> void {
   doc = sketch::kit::Document(ctx, "data/content.json");
   cardLook = sigil::compose::StyleSheet{
       sigil::compose::rule("caption, .caption")
-          .font(
-              weave::Type{.face = sans(),
-                          .size = 11,
-                          .color = sigil::material::skia::toSkColor(kCardInk)}),
+          .font(weave::Type{.face = sans(), .size = 11, .color = kCardInk}),
       sigil::compose::rule(".readout")
-          .font(
-              weave::Type{.face = sansB(),
-                          .size = 11,
-                          .color = sigil::material::skia::toSkColor(kOrange)}),
-      sigil::compose::rule("h2").font(
-          weave::Type{.face = sansB(),
-                      .size = 11,
-                      .color = sigil::material::skia::toSkColor(kOrange),
-                      .track = 0.2f})};
+          .font(weave::Type{.face = sansB(), .size = 11, .color = kOrange}),
+      sigil::compose::rule("h2").font(weave::Type{
+          .face = sansB(), .size = 11, .color = kOrange, .track = 0.2f})};
 
   // Starfield: one soft-dot cell, 360 hashed instances.
   starAtlas = std::make_shared<instancing::CellSheet>(2.0f);

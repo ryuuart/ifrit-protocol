@@ -20,7 +20,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -95,21 +94,18 @@ sigil::compose::StyleSheet voices() {
 /** The caption IS the call: monospaced, small, and set in the same ink as
  *  the body unless a caller asks for a lighter one. */
 Element call(const char* words, float size = 9.5f, material::Color c = kInk) {
-  return text(words).styleClass("call").font(
-      {.size = size, .color = material::skia::toSkColor(c)});
+  return text(words).styleClass("call").font({.size = size, .color = c});
 }
 Element roman(const char* words, float size, material::Color c = kInk,
               float tracking = 0) {
   return text(words).styleClass("roman").font(
-      {.size = size, .color = material::skia::toSkColor(c), .track = tracking});
+      {.size = size, .color = c, .track = tracking});
 }
 Element romanBold(const char* words, float size, material::Color c = kInk,
                   float tracking = 0) {
   return text(words)
       .styleClass("romanBold")
-      .font({.size = size,
-             .color = material::skia::toSkColor(c),
-             .track = tracking});
+      .font({.size = size, .color = c, .track = tracking});
 }
 
 // ---------------------------------------------------------------------------

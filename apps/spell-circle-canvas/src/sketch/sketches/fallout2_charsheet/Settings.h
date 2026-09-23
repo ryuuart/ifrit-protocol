@@ -16,7 +16,6 @@
 #include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/values/Keyframes.h>
@@ -192,7 +191,7 @@ inline weave::Type sheetType(const sk_sp<SkTypeface>& tf, float size,
                              float condense = 1.0f) {
   return {.face = tf,
           .size = size,
-          .color = material::skia::toSkColor(color),
+          .color = color,
           .track = track,
           .condense = condense};
 }

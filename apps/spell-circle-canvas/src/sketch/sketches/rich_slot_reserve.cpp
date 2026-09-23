@@ -31,7 +31,7 @@ constexpr material::Color kBand{0.15f, 0.20f, 0.25f, 1};
 weave::Type voice() {
   return {.face = sketch::kit::houseFace(sketch::kit::Voice::Interface),
           .size = 14,
-          .color = material::skia::toSkColor(kInk),
+          .color = kInk,
           .track = 0};
 }
 

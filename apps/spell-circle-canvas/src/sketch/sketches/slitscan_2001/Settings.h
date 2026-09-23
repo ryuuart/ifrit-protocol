@@ -36,7 +36,6 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/stats/Fit.h>
@@ -199,7 +198,7 @@ inline Element t(std::string_view line, weave::Type partial) {
 inline weave::Type quo(float s, material::Color c) {
   return {.face = uiFace(),
           .size = s,
-          .color = material::skia::toSkColor(c),
+          .color = c,
           .track = 0.4f,
           .condense = 0.94f};
 }

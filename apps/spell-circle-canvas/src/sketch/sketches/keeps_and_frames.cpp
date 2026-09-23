@@ -31,7 +31,7 @@ weave::TextStyle serif(float size, material::Color color = kBody) {
       {.face = weave::ports::face(
            {"Iowan Old Style", "Georgia", "Times New Roman", "serif"}),
        .size = size,
-       .color = material::skia::toSkColor(color),
+       .color = color,
        .track = 0});
 }
 

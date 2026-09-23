@@ -126,7 +126,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
           {centred(c.s, kC.fX - 97, kC.fY + c.dy, 194)
                .font({.face = c.bold ? serifBold() : serif(),
                       .size = c.size,
-                      .color = sigil::material::skia::toSkColor(kInk),
+                      .color = kInk,
                       .track = c.track})
                .key("cap" + std::to_string(i))
                .opacity(bind(&demo).window(0.185f + 0.006f * (float)i,
@@ -216,9 +216,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
   for (int i = 0; i < 12; ++i) {
     const int n = i * 6;
     g.children({text(std::to_string(n))
-                    .font({.size = 10,
-                           .color = sigil::material::skia::toSkColor(kRed),
-                           .track = 0.3f})
+                    .font({.size = 10, .color = kRed, .track = 0.3f})
                     .key("ix" + std::to_string(n))
                     .width(2 * (kRSweepOut + 11))
                     .height(2 * (kRSweepOut + 11))
@@ -291,9 +289,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
 auto ChevreulCircle::theQuadrant() -> Element {
   Element g = box();
   g.children({label(doc["quadrant.head"], 56, 918, 760)
-                  .font({.size = 9,
-                         .color = sigil::material::skia::toSkColor(kInk),
-                         .track = 0.6f})});
+                  .font({.size = 9, .color = kInk, .track = 0.6f})});
   const float gw = 10 * (kQCellW + kQGapX) - kQGapX;
   const float gh = 20 * (kQCellH + kQGapY) - kQGapY;
 
@@ -311,9 +307,7 @@ auto ChevreulCircle::theQuadrant() -> Element {
   for (int t : {1, 5, 10, 15, 20})
     g.children({rightAt(std::to_string(t), 56,
                         kQY + (float)(t - 1) * (kQCellH + kQGapY) - 2.0f, 34)
-                    .font({.size = 6.5f,
-                           .color = sigil::material::skia::toSkColor(
-                               t == 15 ? kRed : kInk2)})});
+                    .font({.size = 6.5f, .color = t == 15 ? kRed : kInk2})});
   g.children(
       {at(kQX - 4, kQY + 14.0f * (kQCellH + kQGapY) - 1, gw + 8, 1)
            .fill(Fill::color(hexColor(0x8E2F26, 0.55f)))

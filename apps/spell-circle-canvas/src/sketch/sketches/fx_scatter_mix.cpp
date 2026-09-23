@@ -71,11 +71,10 @@ constexpr material::Color kHot{0.95f, 0.36f, 0.28f,
 weave::TextStyle specimen() {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
-  return weave::textStyle(
-      {.face = face,
-       .size = 34,
-       .color = material::skia::toSkColor(sketch::kit::theme().palette.figure),
-       .track = 1});
+  return weave::textStyle({.face = face,
+                           .size = 34,
+                           .color = sketch::kit::theme().palette.figure,
+                           .track = 1});
 }
 
 Element figure(float width, const char* key, Track track) {

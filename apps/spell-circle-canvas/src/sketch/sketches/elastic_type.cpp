@@ -212,13 +212,10 @@ using Ticks = std::vector<Tick>;
  *  against, the rest pose, and one per lane. */
 sigil::compose::StyleSheet graphSheet() {
   sigil::compose::StyleSheet dressed{
-      sigil::compose::rule(".plotRule")
-          .font({.color = material::skia::toSkColor(kFaint)}),
-      sigil::compose::rule(".rest").font(
-          {.color = material::skia::toSkColor(kRest)}),
-      sigil::compose::rule(".x").font({.color = material::skia::toSkColor(kX)}),
-      sigil::compose::rule(".y").font(
-          {.color = material::skia::toSkColor(kY)})};
+      sigil::compose::rule(".plotRule").font({.color = kFaint}),
+      sigil::compose::rule(".rest").font({.color = kRest}),
+      sigil::compose::rule(".x").font({.color = kX}),
+      sigil::compose::rule(".y").font({.color = kY})};
   return dressed;
 }
 
@@ -349,11 +346,8 @@ struct ElasticType {
    *  and its marks are one body and squash together. */
   [[nodiscard]] Element row(const char* word, const char* caption,
                             TextEffect effect) {
-    const sigil::weave::TextStyle set =
-        weave::textStyle({.face = face,
-                          .size = kWordSize,
-                          .color = material::skia::toSkColor(kInk),
-                          .track = 3.0f});
+    const sigil::weave::TextStyle set = weave::textStyle(
+        {.face = face, .size = kWordSize, .color = kInk, .track = 3.0f});
 
     // THE GHOST: the same word, same style, no track — the rest position
     // the deviation is measured against. A track's deviation is per glyph

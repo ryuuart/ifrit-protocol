@@ -88,10 +88,8 @@ constexpr float kTickerGap = 40;    // between the two marquee copies
 
 inline sigil::weave::TextStyle type(float size, material::Color color,
                                     float tracking = 0, float weight = 0) {
-  return sigil::weave::textStyle({.size = size,
-                                  .color = material::skia::toSkColor(color),
-                                  .track = tracking,
-                                  .weight = weight});
+  return sigil::weave::textStyle(
+      {.size = size, .color = color, .track = tracking, .weight = weight});
 }
 
 /** One pass under the glyphs, offset down: the 1px ground a label on gel
@@ -119,19 +117,16 @@ inline sigil::compose::StyleSheet classes() {
   return sigil::compose::StyleSheet{
       sigil::compose::rule(".gelLabel")
           .font({.size = 16,
-                 .color =
-                     material::skia::toSkColor(material::Color{1, 1, 1, 0.98f}),
+                 .color = material::Color{1, 1, 1, 0.98f},
                  .track = 1.0f,
                  .weight = 650}),
       sigil::compose::rule("caption, .caption")
           .font({.size = 10,
-                 .color = material::skia::toSkColor(hexColor(0xAFC0DE)),
+                 .color = hexColor(0xAFC0DE),
                  .track = 0.8f,
                  .weight = 600}),
       sigil::compose::rule(".note").font(
-          {.size = 10,
-           .color = material::skia::toSkColor(hexColor(0x8DA0C4)),
-           .track = 0.4f})};
+          {.size = 10, .color = hexColor(0x8DA0C4), .track = 0.4f})};
 }
 
 // ---------------------------------------------------------------------------
@@ -355,8 +350,7 @@ struct Y2kChrome {
             .gap(5)
             .children({text("SIGILNET 2000 — hyperportal v4.2")
                            .font({.size = 12,
-                                  .color = material::skia::toSkColor(
-                                      hexColor(0xF2F6FA)),
+                                  .color = hexColor(0xF2F6FA),
                                   .track = 0.4f,
                                   .weight = 600,
                                   .underlays = {{yc::ground(

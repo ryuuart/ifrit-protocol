@@ -114,16 +114,14 @@ const material::Color kCurve{0.32f, 0.46f, 0.62f, 1};
 sigil::compose::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
   sigil::compose::StyleSheet classes =
       look.styleSheet() +
-      sigil::compose::StyleSheet{sigil::compose::rule(".rail").font(
-          {.color = material::skia::toSkColor(kRail)})};
+      sigil::compose::StyleSheet{
+          sigil::compose::rule(".rail").font({.color = kRail})};
   // The two loci are the same curve in two inks: the split-seed shake and
   // the shared-seed slide, told apart by the class each names.
-  classes =
-      classes + sigil::compose::StyleSheet{
-                    sigil::compose::rule(".locus").font(
-                        {.color = material::skia::toSkColor(kTrace)}),
-                    sigil::compose::rule(".locusShared")
-                        .font({.color = material::skia::toSkColor(kTraceB)})};
+  classes = classes +
+            sigil::compose::StyleSheet{
+                sigil::compose::rule(".locus").font({.color = kTrace}),
+                sigil::compose::rule(".locusShared").font({.color = kTraceB})};
   return classes;
 }
 

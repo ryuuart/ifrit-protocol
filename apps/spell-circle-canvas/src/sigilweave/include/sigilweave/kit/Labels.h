@@ -29,7 +29,7 @@ namespace sigil::weave::kit {
  *  style rather than in the number. @p condense is horizontal scale, for
  *  a face with no `wdth` axis to ask instead. */
 [[nodiscard]] inline TextStyle tracked(const sk_sp<SkTypeface>& face,
-                                       float size, SkColor4f color,
+                                       float size, material::Color color,
                                        float trackPerMille = 0,
                                        float condense = 1.0f) {
   return textStyle({.face = face,

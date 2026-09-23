@@ -5,7 +5,6 @@
  */
 
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilweave/style/Type.h>
 
 #include <utility>
@@ -63,7 +62,7 @@ template <class Derived>
 Derived& FontVerbs<Derived>::ink(material::Color colour) {
   detail::CascadeData& cascade = declare(Property::Ink)->cascadeData.ensure();
   if (!cascade.font) cascade.font.emplace();
-  cascade.font->color = material::skia::toSkColor(colour);
+  cascade.font->color = colour;
   cascade.inkVar.reset();
   cascade.inkPaint.reset();
   cascade.statesInk = true;

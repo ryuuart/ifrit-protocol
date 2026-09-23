@@ -329,8 +329,7 @@ struct SpaceJam1996 {
             .children({text("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID")
                            .font({.face = display(),
                                   .size = S(11),
-                                  .color = sigil::material::skia::toSkColor(
-                                      C5(0xFFFF00))}),
+                                  .color = C5(0xFFFF00)}),
                        sketch::kit::table(
                            std::move(rows),
                            {.columns = {{.width = S(230)},

@@ -428,31 +428,29 @@ struct LootGrid {
         // everything else in a small serif, and the difference between
         // those two registers is most of what makes a tooltip feel like
         // that game's tooltip.
-        .children(
-            {text("Doomslinger")
-                 .font({.face = displayFace,
-                        .size = 17,
-                        .color = sigil::material::skia::toSkColor(rc),
-                        .track = 1.2f,
-                        .weight = 620}),
-             text("Colossus Blade")
-                 .font({.color = sigil::material::skia::toSkColor(lt::kParch),
-                        .track = 0.8f})
-                 .margin(0, 0, 6, 0),
-             text("189% Enhanced Damage").styleClass("affix"),
-             text("+2 to Fire Skills").styleClass("affix"),
-             text("Adds 40-92 Fire Damage").styleClass("affix"),
-             text("Ignores Target's Defence").styleClass("affix"),
-             box()
-                 .width(180.0f)
-                 .height(1.0f)
-                 .margin(7, 0, 5, 0)
-                 .fill(Paint::linear({0, 0}, {180, 0},
-                                     {{0.0f, {rc.r, rc.g, rc.b, 0.0f}},
-                                      {0.5f, {rc.r, rc.g, rc.b, 0.5f}},
-                                      {1.0f, {rc.r, rc.g, rc.b, 0.0f}}})),
-             text("Required Strength: 189"),
-             text("Required Level: 63").ink(hexColor(0xD04040))});
+        .children({text("Doomslinger")
+                       .font({.face = displayFace,
+                              .size = 17,
+                              .color = rc,
+                              .track = 1.2f,
+                              .weight = 620}),
+                   text("Colossus Blade")
+                       .font({.color = lt::kParch, .track = 0.8f})
+                       .margin(0, 0, 6, 0),
+                   text("189% Enhanced Damage").styleClass("affix"),
+                   text("+2 to Fire Skills").styleClass("affix"),
+                   text("Adds 40-92 Fire Damage").styleClass("affix"),
+                   text("Ignores Target's Defence").styleClass("affix"),
+                   box()
+                       .width(180.0f)
+                       .height(1.0f)
+                       .margin(7, 0, 5, 0)
+                       .fill(Paint::linear({0, 0}, {180, 0},
+                                           {{0.0f, {rc.r, rc.g, rc.b, 0.0f}},
+                                            {0.5f, {rc.r, rc.g, rc.b, 0.5f}},
+                                            {1.0f, {rc.r, rc.g, rc.b, 0.0f}}})),
+                   text("Required Strength: 189"),
+                   text("Required Level: 63").ink(hexColor(0xD04040))});
   }
 
   /** THE BELT: four quick-slots on the same cell, which is the one place
@@ -548,15 +546,13 @@ struct LootGrid {
         sigil::compose::StyleSheet{
             sigil::compose::rule(".heading")
                 .font({.size = 12,
-                       .color =
-                           sigil::material::skia::toSkColor(loot::kBronzeLit),
+                       .color = loot::kBronzeLit,
                        .track = 4.5f,
                        .weight = 650}),
             sigil::compose::rule(".value").font(
                 {.size = 12, .track = 0.5f, .weight = 620}),
             sigil::compose::rule(".affix").font(
-                {.color = sigil::material::skia::toSkColor(
-                     loot::rarityColor(loot::Rarity::Magic))})};
+                {.color = loot::rarityColor(loot::Rarity::Magic)})};
     return sheet;
   }
 
@@ -618,7 +614,7 @@ struct LootGrid {
          box().column().at({30, 34}).children(
              {text("HOARD OF THE HORADRIM")
                   .font({.size = 23,
-                         .color = sigil::material::skia::toSkColor(lt::kParch),
+                         .color = lt::kParch,
                          .track = 3.4f,
                          .weight = 640}),
               text("grid inventory — generated "
@@ -643,12 +639,10 @@ struct LootGrid {
                                     {{0.0f, hexColor(0xFFE9A8)},
                                      {0.6f, hexColor(0xD8A93C)},
                                      {1.0f, hexColor(0x7A5C15)}})),
-                  text(goldText).font(
-                      {.size = 17,
-                       .color =
-                           sigil::material::skia::toSkColor(hexColor(0xD8B95C)),
-                       .track = 1.6f,
-                       .weight = 620}),
+                  text(goldText).font({.size = 17,
+                                       .color = hexColor(0xD8B95C),
+                                       .track = 1.6f,
+                                       .weight = 620}),
                   text("GOLD").font({.size = 10, .track = 2.2f})})});
 
     // The two keys, bottom left and bottom right. Both are

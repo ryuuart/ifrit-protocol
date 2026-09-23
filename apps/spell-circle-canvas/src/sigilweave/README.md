@@ -399,7 +399,7 @@ own.
 | Target | Contents | Beyond Skia |
 |---|---|---|
 | `SigilWeaveUnicode` | the Unicode leaf | ICU and HarfBuzz's ICU bridge, private; no Skia |
-| `SigilWeaveStyle` | the style vocabulary, with `Type` — the partial a call site names a style's numbers in, every field optional — the merges that resolve one, and the `TypeSheet` of named partials | — |
+| `SigilWeaveStyle` | the style vocabulary, with `Type` — the partial a call site names a style's numbers in, every field optional — the merges that resolve one, and the `TypeSheet` of named partials | SigilMaterialColor (public: `Type::color` is a `material::Color`) |
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
 | `SigilWeaveLayout` | flows and flow shapes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilImageField (the distance field a flow shape measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |
@@ -415,10 +415,11 @@ own.
 Each feature links only the features beneath it — style, then fonts, then
 paragraph, then layout, with decoration, paint, choreograph and query
 each resting on the one they need — so a consumer of one tier links
-that tier alone; `SigilWeave` is for a consumer of the whole engine. Skia
-and SigilGeometryPath are PUBLIC dependencies — the path a line of text
-follows is a geometry contour, and a path flow shape flattens through the
-same library; the Unicode leaf, SigilImageField, HarfBuzz, ICU and Boost
+that tier alone; `SigilWeave` is for a consumer of the whole engine. Skia,
+SigilMaterialColor and SigilGeometryPath are PUBLIC dependencies — a
+partial's ink and a glyph's dressing are SigilMaterial's colour value, the
+path a line of text follows is a geometry contour, and a path flow shape
+flattens through the same library; the Unicode leaf, SigilImageField, HarfBuzz, ICU and Boost
 are PRIVATE and appear in no public header. Pimpls hide the hash maps, and
 `Word::segments()` hands out a `std::span` over storage whose container
 type only the paragraph feature sees, so the one Boost container inside

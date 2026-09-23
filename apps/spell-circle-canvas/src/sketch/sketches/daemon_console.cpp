@@ -68,7 +68,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/sdf/Sdf.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Meter.h>
@@ -322,20 +321,14 @@ struct DaemonConsole {
     // Every entry is a PARTIAL over the well's font: the payload voices
     // change the colour alone, the timestamp one size down with it, and
     // only the tags name a face of their own.
-    s.set("ts", weave::Type{.size = 11,
-                            .color = material::skia::toSkColor(dc::kDim)});
-    s.set("trace", weave::Type{.color = material::skia::toSkColor(dc::kDim)});
-    s.set("seal",
-          weave::Type{.color = material::skia::toSkColor(hexColor(0x8FE5C4))});
-    s.set("flux", weave::Type{.color = material::skia::toSkColor(dc::kWarn)});
-    s.set("breach",
-          weave::Type{.color = material::skia::toSkColor(dc::kCritText)});
-    s.set("cipher",
-          weave::Type{.color = material::skia::toSkColor(dc::kAccent)});
+    s.set("ts", weave::Type{.size = 11, .color = dc::kDim});
+    s.set("trace", weave::Type{.color = dc::kDim});
+    s.set("seal", weave::Type{.color = hexColor(0x8FE5C4)});
+    s.set("flux", weave::Type{.color = dc::kWarn});
+    s.set("breach", weave::Type{.color = dc::kCritText});
+    s.set("cipher", weave::Type{.color = dc::kAccent});
     auto tag = [&](material::Color color) {
-      return weave::Type{.face = faceMonoMed,
-                         .size = 11,
-                         .color = material::skia::toSkColor(color)};
+      return weave::Type{.face = faceMonoMed, .size = 11, .color = color};
     };
     s.set("tag-trace", tag(material::withAlpha(dc::kDim, 0.8f)));
     s.set("tag-info", tag(dc::kChrome));
@@ -351,9 +344,7 @@ struct DaemonConsole {
    *  ticking clock or a counter never jitters sideways. */
   weave::Type chrome(float size, material::Color color, float track = 0,
                      bool medium = false, bool tabular = false) const {
-    weave::Type t{.size = size,
-                  .color = material::skia::toSkColor(color),
-                  .track = track};
+    weave::Type t{.size = size, .color = color, .track = track};
     if (medium) t.face = faceChromeMed;
     if (tabular) t.features = {weave::features::tabularNumbers};
     return t;
@@ -372,12 +363,12 @@ struct DaemonConsole {
             sigil::compose::rule("label, .label")
                 .font({.face = faceChromeMed,
                        .size = 9.5f,
-                       .color = material::skia::toSkColor(dc::kDim),
+                       .color = dc::kDim,
                        .track = 2.4f}),
             sigil::compose::rule(".fine").font(
                 {.face = faceChrome,
                  .size = 9.5f,
-                 .color = material::skia::toSkColor(dc::kDim),
+                 .color = dc::kDim,
                  .track = 0.8f,
                  .features = {{weave::features::tabularNumbers}}})};
     return s;
@@ -679,9 +670,7 @@ struct DaemonConsole {
             .overflow(Overflow::Clip)
             // The scrollback's voice, stated once: every row is set in it
             // and its named runs are partials over it.
-            .font({.face = faceMono,
-                   .size = 12.5f,
-                   .color = material::skia::toSkColor(dc::kBody)})
+            .font({.face = faceMono, .size = 12.5f, .color = dc::kBody})
             .children({feed::feed(ring, window,
                                   [&](const dc::LogRow& r) {
                                     return logRow(r, styles);
@@ -767,35 +756,30 @@ struct DaemonConsole {
             .alignItems(Align::Center)
             // The prompt's own voice: the host name is set in it, the
             // sigil in the heavier cut, and the typed command a half size up.
-            .font({.face = faceMono,
-                   .size = 12,
-                   .color = material::skia::toSkColor(dc::kDim)})
-            .children(
-                {text(weave::rich().add("wardnet").add(
-                     " $ ", weave::Type{.face = faceMonoMed,
-                                        .color = material::skia::toSkColor(
-                                            dc::kAccent)})),
-                 text(std::string(command).substr(0, shown))
-                     .font({.size = 12.5f,
-                            .color = material::skia::toSkColor(dc::kBone)}),
-                 box()
-                     .width(7)
-                     .height(13)
-                     .margin(0, 0, 0, 3)
-                     .fill(Fill::color(dc::kAccent))
-                     // The blink is the pulse waveform itself: on for
-                     // 0.62 s of every 1.06 s cycle, resting dim rather
-                     // than vanishing. Phase 0 is ON, so the caret the
-                     // typing machine parks at 0 sits solid.
-                     .opacity(motion::bind(&caretClock)
-                                  .source(0.0f, 1.06f)
-                                  .square(0.62f / 1.06f)
-                                  .target(0.10f, 1.0f))
-                     .key("caret"),
-                 box().flexGrow(1),
-                 text(std::format("ring 256 · {} events",
-                                  (unsigned long long)gen.events))
-                     .styleClass("fine")});
+            .font({.face = faceMono, .size = 12, .color = dc::kDim})
+            .children({text(weave::rich().add("wardnet").add(
+                           " $ ", weave::Type{.face = faceMonoMed,
+                                              .color = dc::kAccent})),
+                       text(std::string(command).substr(0, shown))
+                           .font({.size = 12.5f, .color = dc::kBone}),
+                       box()
+                           .width(7)
+                           .height(13)
+                           .margin(0, 0, 0, 3)
+                           .fill(Fill::color(dc::kAccent))
+                           // The blink is the pulse waveform itself: on for
+                           // 0.62 s of every 1.06 s cycle, resting dim rather
+                           // than vanishing. Phase 0 is ON, so the caret the
+                           // typing machine parks at 0 sits solid.
+                           .opacity(motion::bind(&caretClock)
+                                        .source(0.0f, 1.06f)
+                                        .square(0.62f / 1.06f)
+                                        .target(0.10f, 1.0f))
+                           .key("caret"),
+                       box().flexGrow(1),
+                       text(std::format("ring 256 · {} events",
+                                        (unsigned long long)gen.events))
+                           .styleClass("fine")});
 
     return stack()
         .applyStyleSheet(classes())

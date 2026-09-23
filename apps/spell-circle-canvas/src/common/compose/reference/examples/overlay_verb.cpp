@@ -40,18 +40,15 @@ Element cell(const char* caption, Element plate) {
       .flexBasis(0)
       .flexGrow(1)
       .alignItems(Align::Center)
-      .children(
-          {plate.width(pct(100))
-               .height(120)
-               .borderRadius({10})
-               .fill(kPlate)
-               .overflow(Overflow::Clip)
-               .justifyContent(Justify::Center)
-               .alignItems(Align::Center)
-               .children({text("47").font(
-                   {.size = 52, .color = material::skia::toSkColor(kInk)})}),
-           text(caption).font(
-               {.size = 12, .color = material::skia::toSkColor(kAsh)})});
+      .children({plate.width(pct(100))
+                     .height(120)
+                     .borderRadius({10})
+                     .fill(kPlate)
+                     .overflow(Overflow::Clip)
+                     .justifyContent(Justify::Center)
+                     .alignItems(Align::Center)
+                     .children({text("47").font({.size = 52, .color = kInk})}),
+                 text(caption).font({.size = 12, .color = kAsh})});
 }
 
 }  // namespace

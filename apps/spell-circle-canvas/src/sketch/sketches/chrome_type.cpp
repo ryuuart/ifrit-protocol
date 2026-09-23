@@ -80,7 +80,7 @@ weave::TextStyle wordmark(material::Color colour = {0.7f, 0.73f, 0.78f, 1}) {
            {"Helvetica Neue", "Inter", "Arial Black", "Helvetica"},
            SkFontStyle::Bold()),
        .size = kDisplay,
-       .color = material::skia::toSkColor(colour),
+       .color = colour,
        .track = 1.5f,
        .weight = 800.0f});
 }

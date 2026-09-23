@@ -80,16 +80,11 @@ sigil::compose::StyleSheet plotSheet(const sketch::kit::Theme& look) {
   sigil::compose::StyleSheet dressed =
       look.styleSheet() +
       sigil::compose::StyleSheet{
-          sigil::compose::rule(".plotAxis")
-              .font({.color = material::skia::toSkColor(look.palette.rule)}),
-          sigil::compose::rule(".plotRule")
-              .font({.color = material::skia::toSkColor(kGrid)}),
-          sigil::compose::rule(".ramp").font(
-              {.color = material::skia::toSkColor(look.palette.ash)}),
-          sigil::compose::rule(".second").font(
-              {.color = material::skia::toSkColor(kSecond)}),
-          sigil::compose::rule(".third").font(
-              {.color = material::skia::toSkColor(kThird)})};
+          sigil::compose::rule(".plotAxis").font({.color = look.palette.rule}),
+          sigil::compose::rule(".plotRule").font({.color = kGrid}),
+          sigil::compose::rule(".ramp").font({.color = look.palette.ash}),
+          sigil::compose::rule(".second").font({.color = kSecond}),
+          sigil::compose::rule(".third").font({.color = kThird})};
   return dressed;
 }
 

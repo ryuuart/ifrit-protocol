@@ -104,14 +104,14 @@ struct WarichuPlaceholder {
     latin.measure(ctx, kNote,
                   {.face = sketch::kit::houseFace(sketch::kit::Voice::Book),
                    .size = 13,
-                   .color = material::skia::toSkColor(sheet.palette.figure),
+                   .color = sheet.palette.figure,
                    .track = 0});
     japanese.measure(
         ctx, u8"小さな文字で二行に組む",
         {.face = weave::ports::face(
              {"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP"}),
          .size = 13,
-         .color = material::skia::toSkColor(sheet.palette.figure),
+         .color = sheet.palette.figure,
          .track = 0,
          .language = "ja"},
         true);

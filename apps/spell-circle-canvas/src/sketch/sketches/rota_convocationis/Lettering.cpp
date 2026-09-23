@@ -170,9 +170,7 @@ auto RotaConvocationis::invocatio() -> Element {
 
 auto RotaConvocationis::registrum() -> Element {
   return onRing(text(runeText).font(
-                    {.size = runeSize,
-                     .color = sigil::material::skia::toSkColor(kRuneInk),
-                     .track = 2.0f}),
+                    {.size = runeSize, .color = kRuneInk, .track = 2.0f}),
                 "registrum", rRune, &runeDrift, -runeSize * 0.34f)
       .fx({.effect = fx::hold(fx::pop(0.55f)),
            .stagger = {.eachMs = 7,
@@ -205,9 +203,7 @@ auto RotaConvocationis::nomina() -> Element {
   Text names =
       text(nomText)
           .styleClass("ring")
-          .font({.size = nomSize,
-                 .color = sigil::material::skia::toSkColor(kGold),
-                 .track = 4.2f})
+          .font({.size = nomSize, .color = kGold, .track = 4.2f})
           .key("nomina")
           .filter(styles::textGlow(kHalo, 6.0f))
           .rect(sigil::geometry::path::centred(kEye,
@@ -256,10 +252,8 @@ auto RotaConvocationis::nomina() -> Element {
 }
 
 auto RotaConvocationis::textura() -> Element {
-  return onRing(text(texText).font(
-                    {.size = texSize,
-                     .color = sigil::material::skia::toSkColor(kAsh)}),
-                "textura", rTex, &texDrift, -texSize * 0.30f)
+  return onRing(text(texText).font({.size = texSize, .color = kAsh}), "textura",
+                rTex, &texDrift, -texSize * 0.30f)
       .fx({.effect = fx::hold(fx::rise(texSize * 0.9f)),
            .stagger = {.eachMs = 4,
                        .durationMs = 300,

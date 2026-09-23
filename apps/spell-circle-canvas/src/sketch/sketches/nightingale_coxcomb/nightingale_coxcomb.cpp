@@ -584,16 +584,12 @@ struct NightingaleCoxcomb {
     // An emboldening underlay lives on a whole style, so the two titles
     // and the ring labels carry theirs and inherit nothing.
     const auto title1 = kit::emboldened(
-        weave::textStyle({.face = faceDisplay,
-                          .size = 39,
-                          .color = material::skia::toSkColor(kInk),
-                          .track = 0.8f}),
+        weave::textStyle(
+            {.face = faceDisplay, .size = 39, .color = kInk, .track = 0.8f}),
         2.0f, kInk);
     const auto title2 = kit::emboldened(
-        weave::textStyle({.face = faceGrotesque,
-                          .size = 27,
-                          .color = material::skia::toSkColor(kInk),
-                          .track = 0.4f}),
+        weave::textStyle(
+            {.face = faceGrotesque, .size = 27, .color = kInk, .track = 0.4f}),
         0.9f, kInk);
 
     Track t1{.effect = fx::typeOn(),
@@ -663,24 +659,16 @@ struct NightingaleCoxcomb {
 
     // ---- the ring labels: each hugging its own wedge's rim ----------
     const auto labelStyle = kit::emboldened(
-        weave::textStyle({.face = faceLabel,
-                          .size = 20,
-                          .color = material::skia::toSkColor(kInk),
-                          .track = 0.4f}),
+        weave::textStyle(
+            {.face = faceLabel, .size = 20, .color = kInk, .track = 0.4f}),
         0.35f, kInk);
-    const auto smallLabel =
-        weave::textStyle({.face = faceLabel,
-                          .size = 12,
-                          .color = material::skia::toSkColor(kInk),
-                          .track = 0.0f});
+    const auto smallLabel = weave::textStyle(
+        {.face = faceLabel, .size = 12, .color = kInk, .track = 0.0f});
     // The two campaign annotations are tracked wider than the months.
     // A run on a path is shaped once, so tracking is part of the shaping
     // and belongs to the style rather than to the call.
-    const auto campaign =
-        weave::textStyle({.face = faceLabel,
-                          .size = 16,
-                          .color = material::skia::toSkColor(kInk),
-                          .track = 1.9f});
+    const auto campaign = weave::textStyle(
+        {.face = faceLabel, .size = 16, .color = kInk, .track = 1.9f});
     std::vector<Element> labels;
 
     // The floor is not decoration: twelve labels must fit the circumference

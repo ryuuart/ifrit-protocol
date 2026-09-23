@@ -497,7 +497,7 @@ inline Element mnemonicLabel(std::string_view t, material::Color c,
                              int mnemonic) {
   if (mnemonic < 0 || mnemonic >= (int)t.size()) return label(t);
   sigil::weave::Type coloured = uiType();
-  coloured.color = material::skia::toSkColor(c);
+  coloured.color = c;
   sigil::weave::TextStyle under = weave::textStyle(coloured);
   sigil::weave::Decoration d;
   d.kind = sigil::weave::Decoration::Kind::kUnderline;

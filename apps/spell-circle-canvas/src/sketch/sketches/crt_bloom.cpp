@@ -100,7 +100,7 @@ Element headline(material::Color color) {
   return text(u8"PHOSPHOR")
       .font({.face = weave::defaultFace(),
              .size = 62,
-             .color = material::skia::toSkColor(color),
+             .color = color,
              .track = 1.5f});
 }
 

@@ -31,7 +31,7 @@ weave::Type mincho(float size = kSize) {
   return {.face = weave::ports::face(
               {"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP"}),
           .size = size,
-          .color = material::skia::toSkColor(kInk),
+          .color = kInk,
           .track = 0,
           .language = "ja"};
 }

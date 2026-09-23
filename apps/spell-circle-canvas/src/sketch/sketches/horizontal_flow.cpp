@@ -118,8 +118,7 @@ Element droppedPassage() {
           .key("illuminated-h")
           .shape(shapes::rounded(shapes::star(8, 0.58f, 0.12f), 5))
           .fill(Fill::color(kCinnabar))
-          .children({text(u8"H").font(
-              {.size = 50, .color = material::skia::toSkColor(kPaper)})});
+          .children({text(u8"H").font({.size = 50, .color = kPaper})});
 
   return box().width(kMeasure).height(350).children(
       {std::move(ornament),

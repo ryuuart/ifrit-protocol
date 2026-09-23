@@ -553,10 +553,9 @@ struct VagrantStoryTarget {
     // an unsmoothed paint, in the font context's own face. The two
     // registers differ in size and in how far they are condensed, and
     // each bakes against the initial values, as a run of pixel type does.
-    const weave::Type pixel{
-        .color = material::skia::toSkColor(material::Color{1, 1, 1, 1}),
-        .aliased = true,
-        .antiAlias = false};
+    const weave::Type pixel{.color = material::Color{1, 1, 1, 1},
+                            .aliased = true,
+                            .antiAlias = false};
     weave::Type title = pixel, body = pixel;
     weave::merge(title, {.size = 13.0f, .condense = 0.92f});
     weave::merge(body, {.size = 9.0f, .condense = 0.95f});

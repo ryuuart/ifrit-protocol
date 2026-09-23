@@ -175,9 +175,7 @@ Element note(std::u8string heading, std::u8string body) {
       .column()
       .gap(6)
       .children({text(std::move(heading)).font({.size = 14}),
-                 text(std::move(body))
-                     .font({.size = 11.5f,
-                            .color = material::skia::toSkColor(kDim)})});
+                 text(std::move(body)).font({.size = 11.5f, .color = kDim})});
 }
 
 }  // namespace
@@ -290,7 +288,7 @@ struct WebPanelSketch {
                         u8"the view's own latest and never waits"
                       : u8"the page background is transparent — the scene's "
                         u8"gradient is what shows between its cards")
-                 .font({.size = 12, .color = material::skia::toSkColor(kDim)})
+                 .font({.size = 12, .color = kDim})
                  .left(40)
                  .top(590)});
   }
@@ -314,9 +312,7 @@ struct WebPanelSketch {
                  .column()
                  .gap(10)
                  .children({text(u8"no web engine here").font({.size = 22}),
-                            text(why).font(
-                                {.size = 13,
-                                 .color = material::skia::toSkColor(kDim)})})});
+                            text(why).font({.size = 13, .color = kDim})})});
   }
 
  private:

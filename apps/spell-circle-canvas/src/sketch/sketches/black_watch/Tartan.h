@@ -23,7 +23,6 @@
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Weave.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/bind/Curve.h>
@@ -448,10 +447,7 @@ inline const sigil::compose::StyleSheet& classes() {
       sheet().styleSheet() +
       sigil::compose::StyleSheet{
           sigil::compose::rule(".heading")
-              .font({.face = mono(),
-                     .size = 9,
-                     .color = material::skia::toSkColor(kInk),
-                     .track = 0.5f}),
+              .font({.face = mono(), .size = 9, .color = kInk, .track = 0.5f}),
           sigil::compose::rule(".tag").font({.size = 7, .track = 0.6f}),
           sigil::compose::rule(".note").font({.size = 8, .track = 0.2f}),
           sigil::compose::rule("quote, .quote")

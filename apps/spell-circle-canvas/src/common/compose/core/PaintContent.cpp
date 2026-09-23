@@ -537,8 +537,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       // The cascade as it resolved at this node: the ink every mark that
       // names no colour takes, the font a pen program begins in, and the
       // custom properties a fill or an ink may read.
-      .ink = inst.font.color ? material::skia::toColor(*inst.font.color)
-                             : material::Color{0, 0, 0, 1},
+      .ink = inst.font.color.value_or(material::Color{0, 0, 0, 1}),
       .inkPaint = inst.inkPaint.paint ? &*inst.inkPaint.paint : nullptr,
       .inkAnchorSize = inkAnchorSize,
       // This node's own space mapped INTO the anchor box: the walk holds

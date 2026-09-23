@@ -96,7 +96,7 @@ struct Fallout2CharSheet {
   /** The same as a whole style, for the card's hand-built paragraph. */
   weave::TextStyle body(sigil::material::Color c) const {
     weave::Type whole = bodyType();
-    whole.color = sigil::material::skia::toSkColor(c);
+    whole.color = c;
     return weave::textStyle(whole);
   }
   /** The engraved gold. Sizes are DERIVED from measured ink on the capture:
@@ -112,7 +112,7 @@ struct Fallout2CharSheet {
                            float track = 0.5f) const {
     return {.face = fo::engraved(),
             .size = size,
-            .color = sigil::material::skia::toSkColor(fo::kGold),
+            .color = fo::kGold,
             .track = fo::n(track),
             .condense = condense};
   }

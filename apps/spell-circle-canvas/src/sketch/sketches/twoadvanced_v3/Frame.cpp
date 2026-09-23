@@ -111,10 +111,8 @@ Element TwoAdvancedV3::wordmark() {
         .stroke(stroke(3, Fill::color(kNear), PathFormat::Align::Inner))
         .alignItems(Align::Center)
         .justifyContent(Justify::Center)
-        .children(
-            {t("2a", sigil::weave::kit::tracked(
-                         grotBold(), 18,
-                         sigil::material::skia::toSkColor(kNear), 0, 1.0f))});
+        .children({t(
+            "2a", sigil::weave::kit::tracked(grotBold(), 18, kNear, 0, 1.0f))});
   }
   Element panel =
       at(box().row().alignItems(Align::Center).padding(0, 30).gap(16), kStageX,
@@ -134,18 +132,13 @@ Element TwoAdvancedV3::wordmark() {
                         .row()
                         .alignItems(Align::Start)
                         .gap(4)
-                        .children(
-                            {text(mark2["name"],
-                                  sigil::weave::kit::tracked(
-                                      grotBold(), 27,
-                                      sigil::material::skia::toSkColor(kNear),
-                                      80, 1.02f)),
-                             t(mark2["registered"], micro(9, kNear, 0))}),
+                        .children({text(mark2["name"],
+                                        sigil::weave::kit::tracked(
+                                            grotBold(), 27, kNear, 80, 1.02f)),
+                                   t(mark2["registered"], micro(9, kNear, 0))}),
                     text(mark2["studios"],
-                         sigil::weave::kit::tracked(
-                             grotBold(), 12,
-                             sigil::material::skia::toSkColor(kNear), 560,
-                             1.0f))}),
+                         sigil::weave::kit::tracked(grotBold(), 12, kNear, 560,
+                                                    1.0f))}),
                box().flexGrow(1)});
   return panel
       .translateY(animate(motion::from(-60.0f).to(0.0f),
@@ -317,10 +310,8 @@ Element TwoAdvancedV3::bootOverlay() {
     lockup.alignItems(Align::Center)
         .justifyContent(Justify::Center)
         .children(
-            {text(boot["wordmark"],
-                  sigil::weave::kit::tracked(
-                      grotBold(), 24, sigil::material::skia::toSkColor(kNear),
-                      200, 1.0f))});
+            {text(boot["wordmark"], sigil::weave::kit::tracked(
+                                        grotBold(), 24, kNear, 200, 1.0f))});
 
   Element o = stack().inset(0).zIndex(90);
   o.children(
@@ -330,13 +321,10 @@ Element TwoAdvancedV3::bootOverlay() {
           kH / 2 - 170, 600, 360)
            .opacity(animate(motion::through(
                {{0ms, 0.0f}, {150ms, 1.0f}, {1200ms, 1.0f}, {1350ms, 0.0f}})))
-           .children(
-               {lockup,
-                text(boot["motto"],
-                     sigil::weave::kit::tracked(
-                         grot(), 10, sigil::material::skia::toSkColor(kPreInk),
-                         400, 1.0f)),
-                slot("bootpct")})});
+           .children({lockup,
+                      text(boot["motto"], sigil::weave::kit::tracked(
+                                              grot(), 10, kPreInk, 400, 1.0f)),
+                      slot("bootpct")})});
   o.opacity(animate(motion::through({{1400ms, 1.0f}, {1450ms, 0.0f}})));
   return o;
 }
@@ -345,7 +333,5 @@ Element TwoAdvancedV3::bootReadout() {
   using namespace tv3;
   return text(
       kit::formatted("%d", bootPct),
-      sigil::weave::kit::tracked(
-          grot(), 150, sigil::material::skia::toSkColor(hexColor(0x7183A5)), 0,
-          1.0f));
+      sigil::weave::kit::tracked(grot(), 150, hexColor(0x7183A5), 0, 1.0f));
 }

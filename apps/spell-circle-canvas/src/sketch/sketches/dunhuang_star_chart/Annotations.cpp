@@ -270,19 +270,12 @@ auto DunhuangStarChart::logStyle() -> feed::TextOptions {
   // face and the size the base's.
   s.styles
       .base(weave::textStyle(
-          {.face = faceMono,
-           .size = 9.2f,
-           .color = sigil::material::skia::toSkColor(hexColor(0x9a8a68))}))
-      .set("dim", weave::Type{.color = sigil::material::skia::toSkColor(
-                                  hexColor(0x6d6249))})
-      .set("heading", weave::Type{.color = sigil::material::skia::toSkColor(
-                                      hexColor(0xc9a35c))})
-      .set("pass", weave::Type{.color = sigil::material::skia::toSkColor(
-                                   hexColor(0x6ba87e))})
-      .set("number", weave::Type{.color = sigil::material::skia::toSkColor(
-                                     hexColor(0xcf6a4a))})
-      .set("fail", weave::Type{.color = sigil::material::skia::toSkColor(
-                                   hexColor(0xc4483a))});
+          {.face = faceMono, .size = 9.2f, .color = hexColor(0x9a8a68)}))
+      .set("dim", weave::Type{.color = hexColor(0x6d6249)})
+      .set("heading", weave::Type{.color = hexColor(0xc9a35c)})
+      .set("pass", weave::Type{.color = hexColor(0x6ba87e)})
+      .set("number", weave::Type{.color = hexColor(0xcf6a4a)})
+      .set("fail", weave::Type{.color = hexColor(0xc4483a)});
   s.window.gap = 1.0f;
   s.window.visible = 12;
   return s;
@@ -476,8 +469,7 @@ auto DunhuangStarChart::headings() -> Element {
            {text(doc.phrase("title"))
                 .font({.face = faceDisplay,
                        .size = 27.0f,
-                       .color =
-                           sigil::material::skia::toSkColor(hexColor(0xe0cfa6)),
+                       .color = hexColor(0xe0cfa6),
                        .track = 2.4f}),
             text(doc.phrase("provenance")).font({.size = 10.2f})}),
        box()

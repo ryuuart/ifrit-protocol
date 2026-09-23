@@ -290,12 +290,11 @@ struct GerstnerGrid {
                .rect(SkRect::MakeXYWH(0, g::kUnit * 3.4f, colW, 1.4f))
                .fill(Fill::currentInk())});
       const std::string label = kit::formatted("%02d", i + 1);
-      band.children({text(label)
-                         .font({.size = 10,
-                                .color = material::skia::toSkColor(g::kRed),
-                                .track = 1.6f,
-                                .weight = 620})
-                         .at({0, g::kUnit * 1.7f})});
+      band.children(
+          {text(label)
+               .font(
+                   {.size = 10, .color = g::kRed, .track = 1.6f, .weight = 620})
+               .at({0, g::kUnit * 1.7f})});
       bands.children({std::move(band)});
     }
     return bands;
@@ -313,24 +312,20 @@ struct GerstnerGrid {
         .key("head")
         .column()
         .at({g::kFieldX, 38})
-        .children(
-            {box()
-                 .row()
-                 .alignItems(Align::End)
-                 .font({.size = 30, .weight = 680})
-                 .children(
-                     {text("PROGRAMME").font({.track = 3.2f}),
-                      text("58")
-                          .font({.color = material::skia::toSkColor(g::kRed),
-                                 .track = 1.0f})
-                          .margin(0, 0, 0, 14),
-                      text(count)
-                          .font(
-                              {.size = 11,
-                               .color = material::skia::toSkColor(g::kInkSoft),
-                               .track = 3.0f,
-                               .weight = 600})
-                          .margin(0, 0, 6, 18)})});
+        .children({box()
+                       .row()
+                       .alignItems(Align::End)
+                       .font({.size = 30, .weight = 680})
+                       .children({text("PROGRAMME").font({.track = 3.2f}),
+                                  text("58")
+                                      .font({.color = g::kRed, .track = 1.0f})
+                                      .margin(0, 0, 0, 14),
+                                  text(count)
+                                      .font({.size = 11,
+                                             .color = g::kInkSoft,
+                                             .track = 3.0f,
+                                             .weight = 600})
+                                      .margin(0, 0, 6, 18)})});
   }
 
   /** The arithmetic, printed where a caption goes. */
@@ -347,11 +342,10 @@ struct GerstnerGrid {
             .gap(10)
             .at({g::kFieldX, g::kFieldY + g::kFieldH + 16})
             .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
-            .children({text("58 =").font(
-                           {.size = 13,
-                            .color = material::skia::toSkColor(g::kInkSoft),
-                            .track = 1.2f,
-                            .weight = 600}),
+            .children({text("58 =").font({.size = 13,
+                                          .color = g::kInkSoft,
+                                          .track = 1.2f,
+                                          .weight = 600}),
                        text(c.arithmetic)
                            .font({.size = 15, .track = 0.8f, .weight = 640})});
     // the ladder of all six, with the live one marked
@@ -404,10 +398,7 @@ struct GerstnerGrid {
          // the page, because an unlabelled red rule across live text reads as a
          // defect rather than as an instrument.
          text("READING INDEX")
-             .font({.size = 7,
-                    .color = material::skia::toSkColor(g::kRed),
-                    .track = 0.6f,
-                    .weight = 620})
+             .font({.size = 7, .color = g::kRed, .track = 0.6f, .weight = 620})
              .at({g::kFieldX + g::kFieldW + 6, -4})
              .translateY(&sweep)
              .zIndex(6),

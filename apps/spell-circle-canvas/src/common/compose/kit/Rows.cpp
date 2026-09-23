@@ -2,7 +2,6 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Rows.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <optional>
@@ -28,7 +27,7 @@ Element reading(const Reading& one, const Rows& how) {
   // A row's own ink stands over whatever its lines' classes name, field
   // by field, so a lit row keeps the register it was set in.
   const auto lit = [&one](Element line) {
-    if (one.ink) line.font({.color = material::skia::toSkColor(*one.ink)});
+    if (one.ink) line.font({.color = *one.ink});
     return line;
   };
   Element row =
@@ -152,7 +151,7 @@ Element bars(std::span<const Utf8> labels, std::span<const double> values,
     const std::optional<material::Color> ink =
         index < how.inks.size() ? std::optional(how.inks[index]) : std::nullopt;
     const auto lit = [&ink](Element line) {
-      if (ink) line.font({.color = material::skia::toSkColor(*ink)});
+      if (ink) line.font({.color = *ink});
       return line;
     };
     if (index < labels.size()) {

@@ -144,9 +144,7 @@ TEST(ComposeLiveText, AnInheritingPassageSettlesExactlyAsATotalOneDoes) {
     for (const float measure : {320.0f, 340.0f, 360.0f, 340.0f, 320.0f}) {
       Text leaf = inherits
                       ? text(longPassage())
-                            .font({.size = 13,
-                                   .color = material::skia::toSkColor(
-                                       SkColor4f{1, 1, 1, 1})})
+                            .font({.size = 13, .color = SkColor4f{1, 1, 1, 1}})
                       : text(longPassage(),
                              sigil::weave::textStyle(
                                  {.size = 13, .color = SkColor4f{1, 1, 1, 1}}));

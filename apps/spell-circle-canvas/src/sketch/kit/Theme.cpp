@@ -1,5 +1,4 @@
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -18,14 +17,14 @@ weave::Type Theme::font(const Register& line) const {
 
 weave::Type Theme::font(const Register& line, material::Color color) const {
   weave::Type type = font(line);
-  type.color = material::skia::toSkColor(color);
+  type.color = color;
   return type;
 }
 
 compose::StyleSheet Theme::styleSheet() const {
   using compose::rule;
   const auto ink = [](material::Color colour) {
-    return weave::Type{.color = material::skia::toSkColor(colour)};
+    return weave::Type{.color = colour};
   };
   return compose::StyleSheet{
       // A ROLE RULE CARRIES ITS WHOLE LOOK, colour included, as a CSS rule
@@ -75,7 +74,7 @@ weave::TextStyle Theme::style(const Register& line,
   return weave::textStyle(
       {.face = line.face ? line.face : (line.mono ? type.mono : type.sans),
        .size = line.size,
-       .color = material::skia::toSkColor(color),
+       .color = color,
        .track = line.track});
 }
 

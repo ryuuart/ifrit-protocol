@@ -40,8 +40,7 @@ Element cell(const char* caption, Element label) {
                      .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({std::move(label)}),
-                 text(caption).font(
-                     {.size = 12, .color = material::skia::toSkColor(kAsh)})});
+                 text(caption).font({.size = 12, .color = kAsh})});
 }
 
 }  // namespace
@@ -55,14 +54,10 @@ struct TextStrokeVerb {
   Element describe() const {
     return box().row().gap(18).padding(24).children({
         cell("the letterforms alone",
-             text("LEGIBLE").font({.size = 34,
-                                   .color = material::skia::toSkColor(kInk),
-                                   .track = 1})),
+             text("LEGIBLE").font({.size = 34, .color = kInk, .track = 1})),
         cell("textStroke(4, outline)",
              text("LEGIBLE")
-                 .font({.size = 34,
-                        .color = material::skia::toSkColor(kInk),
-                        .track = 1})
+                 .font({.size = 34, .color = kInk, .track = 1})
                  .textStroke(4, Fill::color(kOutline))),
     });
   }

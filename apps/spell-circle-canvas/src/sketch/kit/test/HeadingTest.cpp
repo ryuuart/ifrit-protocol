@@ -135,11 +135,10 @@ TEST(SketchKitHeading, ARegisterNamesItsOwnFace) {
           .alignItems(compose::Align::Start)
           .children({compose::text(
               u8"THE STROKE ATLAS",
-              sigil::weave::textStyle(
-                  {.face = paper.type.mono,
-                   .size = paper.type.title.size,
-                   .color = sigil::material::skia::toSkColor(paper.palette.ink),
-                   .track = paper.type.title.track}))});
+              sigil::weave::textStyle({.face = paper.type.mono,
+                                       .size = paper.type.title.size,
+                                       .color = paper.palette.ink,
+                                       .track = paper.type.title.track}))});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::titleCard({.title = {u8"THE STROKE ATLAS"}})));
 }

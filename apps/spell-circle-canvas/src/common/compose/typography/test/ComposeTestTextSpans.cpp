@@ -81,8 +81,7 @@ TEST(TextRich, NamedRunsResolveThroughTheSheetInForce) {
   const sigil::compose::StyleSheet reds{
       sigil::compose::rule(".accent").ink(SkColor4f{1, 0, 0, 1})};
   weave::TypeSheet greens(base);
-  greens.set("accent", sigil::weave::Type{.color = material::skia::toSkColor(
-                                              SkColor4f{0, 1, 0, 1})});
+  greens.set("accent", sigil::weave::Type{.color = SkColor4f{0, 1, 0, 1}});
 
   Host host(200, 120);
   const auto accentColor = [&](sigil::weave::RichText content,
@@ -280,8 +279,7 @@ namespace {
 sigil::weave::TypeSheet glossarySet(SkColor termColor, float termSize) {
   sigil::weave::TypeSheet set{coloredStyle(24, SK_ColorWHITE)};
   set.set("term", sigil::weave::Type{.size = termSize,
-                                     .color = material::skia::toSkColor(
-                                         SkColor4f::FromColor(termColor))});
+                                     .color = SkColor4f::FromColor(termColor)});
   return set;
 }
 

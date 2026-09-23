@@ -119,9 +119,7 @@ Element panel(const char* caption, Element content) {
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
       .children({text(caption)
-                     .font({.size = 13,
-                            .color = material::skia::toSkColor(kAsh),
-                            .track = 2})
+                     .font({.size = 13, .color = kAsh, .track = 2})
                      .absolute()
                      .left(18)
                      .bottom(14)});
@@ -170,7 +168,7 @@ struct CardFlip {
           .justifyContent(Justify::SpaceBetween)
           .rotateY(turn)
           .backface(material::Backface::Hidden)
-          .font({.color = material::skia::toSkColor(kPaper), .track = 1})
+          .font({.color = kPaper, .track = 1})
           .children({text(title).font({.size = 30}),
                      text(line).font({.size = 14}).width(pct(100))});
     };
@@ -241,9 +239,7 @@ struct CardFlip {
         .ink(look.palette.ink)
         .children(
             {text("THE DEPTH LANES — A NODE IS A PLANE")
-                 .font({.size = 14,
-                        .color = material::skia::toSkColor(kAsh),
-                        .track = 3})
+                 .font({.size = 14, .color = kAsh, .track = 3})
                  .absolute()
                  .left(gap)
                  .top(14),

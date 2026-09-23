@@ -26,7 +26,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/sdf/Sdf.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
@@ -119,7 +118,7 @@ inline weave::Type benchType(float size, material::Color color,
   // static here would hold it in a dylib that is unloaded on reload.
   return {.face = uiFace(bold),
           .size = size,
-          .color = material::skia::toSkColor(color),
+          .color = color,
           .track = trackEm * size,
           .condense = stretch};
 }

@@ -92,13 +92,10 @@ sigil::compose::StyleSheet look() {
   sigil::compose::StyleSheet dressed =
       sketch::kit::theme().styleSheet() +
       sigil::compose::StyleSheet{
-          sigil::compose::rule(".arrive").font(
-              {.color = material::skia::toSkColor(kGrid)}),
+          sigil::compose::rule(".arrive").font({.color = kGrid}),
           sigil::compose::rule(".quiet").font(
-              {.color = material::skia::toSkColor(
-                   sketch::kit::theme().palette.ash)}),
-          sigil::compose::rule(".reshaped")
-              .font({.color = material::skia::toSkColor(kSecondInk)})};
+              {.color = sketch::kit::theme().palette.ash}),
+          sigil::compose::rule(".reshaped").font({.color = kSecondInk})};
   return dressed;
 }
 

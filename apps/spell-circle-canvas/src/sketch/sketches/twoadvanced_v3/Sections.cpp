@@ -193,19 +193,15 @@ Element TwoAdvancedV3::riveLockup() {
     row.children({box().width(34).height(34).fill(kNear).mask(
         by::alpha(stretchFill(logoMark, 34, 34)))});
   row.children(
-      {text(page["plus"], sigil::weave::kit::tracked(
-                              grotBold(), 13,
-                              sigil::material::skia::toSkColor(
-                                  sigil::material::withAlpha(kNear, 0.9f)),
-                              0))});
+      {text(page["plus"],
+            sigil::weave::kit::tracked(
+                grotBold(), 13, sigil::material::withAlpha(kNear, 0.9f), 0))});
   if (riveLogo)
     row.children(
         {box().width(44).height(44).fill(stretchFill(riveLogo, 44, 44))});
   else
-    row.children(
-        {text(page["rive"], sigil::weave::kit::tracked(
-                                grotBold(), 26,
-                                sigil::material::skia::toSkColor(kNear), 0))});
+    row.children({text(page["rive"],
+                       sigil::weave::kit::tracked(grotBold(), 26, kNear, 0))});
   return row;
 }
 
@@ -259,14 +255,11 @@ Element TwoAdvancedV3::updates() {
   using namespace tv3;
   const data::Json& page = doc["modules"]["updates"];
   Element body = box().row().padding(12).gap(12).children(
-      {thumbPlate(
-           dddLogo
-               ? box().width(56).height(72).fill(stretchFill(dddLogo, 56, 72))
-               : text(page["mark"],
-                      sigil::weave::kit::tracked(
-                          grotBold(), 20,
-                          sigil::material::skia::toSkColor(kNear), 100)),
-           page["button"]),
+      {thumbPlate(dddLogo ? box().width(56).height(72).fill(
+                                stretchFill(dddLogo, 56, 72))
+                          : text(page["mark"], sigil::weave::kit::tracked(
+                                                   grotBold(), 20, kNear, 100)),
+                  page["button"]),
        box().flexGrow(1).column().gap(8).children(
            {box()
                 .row()

@@ -342,8 +342,8 @@ TEST(SketchKitChart, ACurveDrawsItselfOnAlongItsOwnLength) {
         kit::houseTheme().styleSheet() +
         compose::StyleSheet{
             compose::rule(".plotTrace")
-                .font(weave::Type{.color = sigil::material::skia::toSkColor(
-                                      sigil::material::Color{0, 1, 0, 1})})};
+                .font(
+                    weave::Type{.color = sigil::material::Color{0, 1, 0, 1}})};
     return compose::box().applyStyleSheet(dressed).children(
         {kit::plot("g", plane(),
                    {kit::trace([](double x) { return x * 10.0; },
@@ -370,8 +370,7 @@ TEST(SketchKitChart, ARecordingIsPaintedInTheInkItsClassResolvesTo) {
       kit::houseTheme().styleSheet() +
       compose::StyleSheet{
           compose::rule(".plotRule")
-              .font(weave::Type{.color = sigil::material::skia::toSkColor(
-                                    sigil::material::Color{0, 1, 0, 1})})};
+              .font(weave::Type{.color = sigil::material::Color{0, 1, 0, 1}})};
   Drawn drawn(compose::box().applyStyleSheet(dressed).children(
       {kit::plot("r", plane(), {kit::rules({.y = {50}, .pen = {.width = 3}})})
            .width(kField)

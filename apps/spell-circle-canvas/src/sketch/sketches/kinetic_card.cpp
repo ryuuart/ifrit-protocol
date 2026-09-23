@@ -245,7 +245,7 @@ struct KineticCard {
          "down to the origin",
          "TINT",
          fx::tint(kPale, kAccent),
-         {.color = material::skia::toSkColor(kAccent)}},
+         {.color = kAccent}},
         {"wave", "fx::waveLoop(0.10, 0.5)",
          "the one that never lands: a loop on the same wrapping phase, so "
          "its meter never fills",

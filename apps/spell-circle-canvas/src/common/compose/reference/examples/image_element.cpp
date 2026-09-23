@@ -66,8 +66,7 @@ Element cell(const char* caption, Element leaf) {
                      .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({std::move(leaf)}),
-                 text(caption).font(
-                     {.size = 12, .color = material::skia::toSkColor(kAsh)})});
+                 text(caption).font({.size = 12, .color = kAsh})});
 }
 
 }  // namespace

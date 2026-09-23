@@ -45,8 +45,7 @@ Element panel(const char* caption, Element plate) {
       .fill(kVeil)
       .justifyContent(Justify::Center)
       .alignItems(Align::Center)
-      .children({text(caption).font(
-          {.size = 14, .color = material::skia::toSkColor(kInk)})});
+      .children({text(caption).font({.size = 14, .color = kInk})});
 }
 
 }  // namespace

@@ -87,10 +87,8 @@ sk_sp<SkTypeface> grotesque() {
 
 weave::TextStyle note(float size = 8.5f, material::Color colour = kFaint,
                       float track = 0.4f) {
-  return weave::textStyle({.face = grotesque(),
-                           .size = size,
-                           .color = material::skia::toSkColor(colour),
-                           .track = track});
+  return weave::textStyle(
+      {.face = grotesque(), .size = size, .color = colour, .track = track});
 }
 
 /** The cascade the playhead rides, and the ms its master must span for it

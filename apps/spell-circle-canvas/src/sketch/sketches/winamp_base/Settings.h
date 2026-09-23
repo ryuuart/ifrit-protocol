@@ -25,7 +25,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilmotion/values/Keyframes.h>
@@ -160,7 +159,7 @@ inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                                     float condense = 1.0f) {
   return weave::textStyle({.face = tf,
                            .size = size,
-                           .color = material::skia::toSkColor(color),
+                           .color = color,
                            .track = track,
                            .condense = condense});
 }

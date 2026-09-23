@@ -108,10 +108,7 @@ inline sk_sp<SkTypeface> serif() {
  *  live lines on the page over the page's. */
 inline sigil::weave::Type ty(const sk_sp<SkTypeface>& tf, float size,
                              material::Color color, float track = 0) {
-  return {.face = tf,
-          .size = size,
-          .color = material::skia::toSkColor(color),
-          .track = track};
+  return {.face = tf, .size = size, .color = color, .track = track};
 }
 
 /** The label outline, spelled with echo() because there is no glyph stroke.

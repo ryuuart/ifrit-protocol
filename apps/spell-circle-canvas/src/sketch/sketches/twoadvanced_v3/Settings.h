@@ -28,7 +28,6 @@
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bind.h>
@@ -96,15 +95,13 @@ constexpr material::Color kHost = hexColor(0xE8920A);  // the ONE saturated mark
 
 /** The chrome register: tracking quoted in 1/1000 em of @p size. */
 inline sigil::weave::Type micro(float size, material::Color c, float tr = 160) {
-  return {.size = size,
-          .color = material::skia::toSkColor(c),
-          .track = size * tr / 1000.0f};
+  return {.size = size, .color = c, .track = size * tr / 1000.0f};
 }
 /** The prose register: the medium weight, loosely tracked, uncondensed. */
 inline sigil::weave::Type prose(float size, material::Color c) {
   return {.face = grot(),
           .size = size,
-          .color = material::skia::toSkColor(c),
+          .color = c,
           .track = size * 30 / 1000.0f,
           .condense = 1.0f};
 }

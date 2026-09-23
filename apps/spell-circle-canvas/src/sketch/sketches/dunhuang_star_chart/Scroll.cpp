@@ -353,9 +353,7 @@ auto DunhuangStarChart::discNotes(int seg) -> Element {
   return noteStack("disc")
       .at({cx - rOut - 8, kBandMid + rOut - kSegTop + 16})
       .width(rOut * 2 + 16)
-      .font(
-          {.size = 8.0f,
-           .color = sigil::material::skia::toSkColor(hexColor(0x4a3b28, 0.9f))})
+      .font({.size = 8.0f, .color = hexColor(0x4a3b28, 0.9f)})
       .key(kit::formatted("discnote%d", seg))
       .opacity(gate(tProj - 1.2f, tProj - 0.3f));
 }

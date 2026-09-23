@@ -81,9 +81,7 @@ auto RotaConvocationis::limina() -> Element {
       .key("limina")
       .hitTestable(false)
       .styleClass("label")
-      .font({.size = 11.0f,
-             .color = sigil::material::skia::toSkColor(kAsh),
-             .track = 2.0f})
+      .font({.size = 11.0f, .color = kAsh, .track = 2.0f})
       .children(each(kLimens, [this, chordPath](int k) {
         return text(kLimina[k])
             .key("limen" + std::to_string(k))
@@ -196,9 +194,7 @@ auto RotaConvocationis::sigillum(int k) -> Element {
        // brings it to while everything around it turns.
        text(s.ordo)
            .styleClass("mono")
-           .font({.size = 12.0f,
-                  .color = sigil::material::skia::toSkColor(kGold),
-                  .track = 1.0f})
+           .font({.size = 12.0f, .color = kGold, .track = 1.0f})
            .key(id + "-ordo")
            .centerAt({kSealR, kSealR})
            .hitTestable(false)
@@ -236,8 +232,7 @@ auto RotaConvocationis::emblema() -> Element {
                  line("hub-motes", hubMotes, 0.9f, kIronDim, tInner + 0.5, 0.7),
                  emissive("hub-lit", glows[kGlowHub], &litHub),
                  text(hubRuneText)
-                     .font({.size = 13.0f,
-                            .color = sigil::material::skia::toSkColor(kAsh)})
+                     .font({.size = 13.0f, .color = kAsh})
                      .key("hub-ring")
                      .cover()
                      .hitTestable(false)

@@ -33,7 +33,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -589,10 +588,8 @@ inline SkPath rectPath(float l, float t, float r, float bm) {
  *  what differs from the sheet or the card it stands in. */
 inline weave::Type partial(sk_sp<SkTypeface> face, float size,
                            material::Color color, float tracking = 0) {
-  return {.face = std::move(face),
-          .size = size,
-          .color = material::skia::toSkColor(color),
-          .track = tracking};
+  return {
+      .face = std::move(face), .size = size, .color = color, .track = tracking};
 }
 
 /** The French thousands separator the plate actually engraves: 422.000,

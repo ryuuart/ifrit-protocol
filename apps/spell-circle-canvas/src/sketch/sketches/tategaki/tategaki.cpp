@@ -136,7 +136,7 @@ struct Tategaki {
             .add(u8"SigilWeave",
                  weave::Type{
                      .size = tg::kBodySize * 0.86f,
-                     .color = material::skia::toSkColor(tg::kAi),
+                     .color = tg::kAi,
                      .verticalForm = sigil::weave::VerticalForm::kRotated})
             .add(u8"は縦書きに対応した。字は立ち、欧文は寝る。")
             .add(u8"数字は縦中横に組み、二桁のまま読ませる。")
@@ -199,8 +199,7 @@ struct Tategaki {
                                    .add(u8"令和")
                                    .add(u8"07",
                                         weave::Type{
-                                            .color = material::skia::toSkColor(
-                                                tg::kAka),
+                                            .color = tg::kAka,
                                             .verticalForm = sigil::weave::
                                                 VerticalForm::kTateChuYoko})
                                    .add(u8"年"),

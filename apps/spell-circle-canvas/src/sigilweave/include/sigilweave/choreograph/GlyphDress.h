@@ -14,6 +14,7 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
+#include <sigilmaterial/color/Color.h>
 
 namespace sigil::weave {
 
@@ -36,10 +37,10 @@ void quantizeAngle(float angle, int steps, float& cosine, float& sine);
  * used entry evicted past the cap.
  * @trap The memo is a correctness requirement: a batch's key compares its
  * colour filter by POINTER, so quantize the tint or mint a bucket a glyph. */
-sk_sp<SkColorFilter> tintFilter(const SkColor4f& tint,
+sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
                                 sk_sp<SkColorFilter> under,
-                                const SkColor4f& add = {0, 0, 0, 0},
-                                const SkColor4f& screen = {0, 0, 0, 0});
+                                const material::Color& add = {0, 0, 0, 0},
+                                const material::Color& screen = {0, 0, 0, 0});
 
 /// How one glyph is DRESSED for a batched draw: where it lands, what it
 /// is faded and tinted by, and which face it draws with. Everything here
@@ -56,18 +57,18 @@ struct GlyphDress {
   /// directly, and a shader through the equivalent modulating filter, so
   /// a gradient keeps its ramp and takes the tint over it. Alpha folds
   /// into `alphaScale`, and white is no tint.
-  SkColor4f colorMultiplier = {1, 1, 1, 1};
+  material::Color colorMultiplier = {1, 1, 1, 1};
   /// Added to every pass's colour after the multiply, clamped at the draw
   /// — the flash a multiplier cannot brighten into. RGB only; the alpha
   /// component is never read, coverage being `alphaScale`'s lane. Zero is
   /// no flash, and keeps the untouched-paint fast path.
-  SkColor4f colorAdd = {0, 0, 0, 0};
+  material::Color colorAdd = {0, 0, 0, 0};
   /// Screened over every pass's colour after the add — c becomes
   /// 1 − (1 − c)(1 − screen) — the glow that lifts each channel by its
   /// headroom and never clips. RGB only, as `colorAdd`. Zero is no glow.
   /// Screening against a constant is affine per channel, so all three
   /// colour terms ride the one memoized matrix filter together.
-  SkColor4f colorScreen = {0, 0, 0, 0};
+  material::Color colorScreen = {0, 0, 0, 0};
   /// The face to draw with, or null for the shaped word's own — a varied
   /// clone for a glyph whose effect drives a variable-font axis. It is part
   /// of the bucket key, so two faces are two buckets.

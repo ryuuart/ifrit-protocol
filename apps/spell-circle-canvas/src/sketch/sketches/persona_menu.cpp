@@ -209,7 +209,7 @@ inline sigil::weave::Type menuType(float size, material::Color fill,
                                    float ringW, bool italic = true) {
   sigil::weave::Type t{.face = menuFace(italic),
                        .size = size,
-                       .color = material::skia::toSkColor(fill),
+                       .color = fill,
                        // The original tracks around -0.14em on Rodin; Avenir
                        // Condensed is already tighter, so it needs less
                        // taken out.
@@ -229,10 +229,7 @@ inline sigil::weave::Type menuType(float size, material::Color fill,
 /** The small caps-and-figures voice, in the default family. */
 inline sigil::weave::Type smallType(float size, material::Color c,
                                     float track = 1) {
-  return {.size = size,
-          .color = material::skia::toSkColor(c),
-          .track = track,
-          .color8 = true};
+  return {.size = size, .color = c, .track = track, .color8 = true};
 }
 
 }  // namespace persona_menu

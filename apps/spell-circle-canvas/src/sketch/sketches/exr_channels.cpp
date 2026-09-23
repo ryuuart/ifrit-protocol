@@ -243,12 +243,10 @@ struct ExrChannels {
         .gap(10)
         .padding(40)
         .ink(sheet.palette.ink)
-        .children(
-            {text("no float source here").font({.size = 20}),
-             text(why)
-                 .font({.size = 12,
-                        .color = material::skia::toSkColor(sheet.palette.ash)})
-                 .width(620.0f)});
+        .children({text("no float source here").font({.size = 20}),
+                   text(why)
+                       .font({.size = 12, .color = sheet.palette.ash})
+                       .width(620.0f)});
   }
 };
 

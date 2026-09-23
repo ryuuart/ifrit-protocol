@@ -215,31 +215,19 @@ inline float cue(double ms, float delayMs, float durationMs,
  *  one column of its five that the shipped code lands on. */
 inline sigil::compose::StyleSheet plotClasses() {
   sigil::compose::StyleSheet look{
-      sigil::compose::rule(".plotAxis")
-          .font({.color = material::skia::toSkColor(hexColor(0x2A2E38))}),
-      sigil::compose::rule(".plotRule")
-          .font({.color = material::skia::toSkColor(hexColor(0x2A2E38))}),
+      sigil::compose::rule(".plotAxis").font({.color = hexColor(0x2A2E38)}),
+      sigil::compose::rule(".plotRule").font({.color = hexColor(0x2A2E38)}),
       sigil::compose::rule(".plotTick")
-          .font({.face = monoFace(),
-                 .size = 7.0f,
-                 .color = material::skia::toSkColor(kTick)}),
+          .font({.face = monoFace(), .size = 7.0f, .color = kTick}),
       sigil::compose::rule(".plotLabel")
-          .font({.face = monoFace(),
-                 .size = 7.0f,
-                 .color = material::skia::toSkColor(kSteel)}),
+          .font({.face = monoFace(), .size = 7.0f, .color = kSteel}),
       sigil::compose::rule(".plotBar")
-          .font(
-              {.color = material::skia::toSkColor(hexColor(0x6FA8DC, 0.42f))}),
+          .font({.color = hexColor(0x6FA8DC, 0.42f)}),
       sigil::compose::rule(".exact").font(
-          {.face = monoFace(),
-           .size = 7.0f,
-           .color = material::skia::toSkColor(kSteel)}),
+          {.face = monoFace(), .size = 7.0f, .color = kSteel}),
       sigil::compose::rule(".approx").font(
-          {.face = monoFace(),
-           .size = 7.0f,
-           .color = material::skia::toSkColor(kBlue)}),
-      sigil::compose::rule(".hit").font(
-          {.color = material::skia::toSkColor(kBlue)})};
+          {.face = monoFace(), .size = 7.0f, .color = kBlue}),
+      sigil::compose::rule(".hit").font({.color = kBlue})};
   return look;
 }
 

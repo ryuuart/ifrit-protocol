@@ -94,13 +94,12 @@ auto Minard1869::provenance() -> Element {
         .at({(float)n["x"].number() - r, (float)n["y"].number() - r * 0.66f})
         .shape(shapes::circle())
         .stroke(stroke(1.5f, Fill::color(kStampRed)))
-        .children(
-            {text(n["words"])
-                 .font({.face = faceRoman,
-                        .size = 7.5f,
-                        .color = sigil::material::skia::toSkColor(kStampRed),
-                        .track = 0.3f})
-                 .at({r * 0.35f, r * 0.42f})})
+        .children({text(n["words"])
+                       .font({.face = faceRoman,
+                              .size = 7.5f,
+                              .color = kStampRed,
+                              .track = 0.3f})
+                       .at({r * 0.35f, r * 0.42f})})
         .key(std::string(n["key"].text()))
         .scale(animate(from(0.0f).to(1.0f),
                        ramp(t0 * 1000, 420, ch::EaseOutBack())))
@@ -163,21 +162,19 @@ auto Minard1869::caliper() -> Element {
                .gap(4)
                .font({.face = faceUi})
                .key("calread")
-               .children({text(kit::formatted("%.2f mm", r.mm))
-                              .font({.face = faceUiBold, .size = 17}),
-                          text(kit::formatted("÷ %.0f = %.4f mm / 10.000",
-                                              r.men, r.mm / (r.men / 10000.0f)))
-                              .font({.size = 9.5f}),
-                          text(std::string(r.where) + "\n" +
-                               word("caliper", "provenance"))
-                              .font({.size = 9,
-                                     .color = sigil::material::skia::toSkColor(
-                                         hexColor(0x2f6f9c, 0.9f))}),
-                          text(word("caliper", "claim"))
-                              .font({.face = faceUiBold,
-                                     .size = 10,
-                                     .color = sigil::material::skia::toSkColor(
-                                         kClaimRed)})})});
+               .children(
+                   {text(kit::formatted("%.2f mm", r.mm))
+                        .font({.face = faceUiBold, .size = 17}),
+                    text(kit::formatted("÷ %.0f = %.4f mm / 10.000", r.men,
+                                        r.mm / (r.men / 10000.0f)))
+                        .font({.size = 9.5f}),
+                    text(std::string(r.where) + "\n" +
+                         word("caliper", "provenance"))
+                        .font({.size = 9, .color = hexColor(0x2f6f9c, 0.9f)}),
+                    text(word("caliper", "claim"))
+                        .font({.face = faceUiBold,
+                               .size = 10,
+                               .color = kClaimRed})})});
 }
 
 auto Minard1869::hannibalSea() -> Element {
@@ -333,8 +330,7 @@ auto Minard1869::hannibalPanel() -> Element {
         : p.kind == 3
             ? weave::Type{.face = faceItalic,
                           .size = 10,
-                          .color = sigil::material::skia::toSkColor(
-                              hexColor(0x4e4436)),
+                          .color = hexColor(0x4e4436),
                           .track = 1.2f}
             : weave::Type{.face = faceItalic, .size = 9, .track = 0.2f};
     return text(p.name)
@@ -454,11 +450,8 @@ auto Minard1869::bandNumber(SkPoint at, SkVector tangent, float men, float size,
     n = {-n.x(), -n.y()};
   }
   // a whole style, because the run is measured in it before it is placed
-  const weave::TextStyle style =
-      weave::textStyle({.face = faceNum,
-                        .size = size,
-                        .color = sigil::material::skia::toSkColor(kInk),
-                        .track = 0.2f});
+  const weave::TextStyle style = weave::textStyle(
+      {.face = faceNum, .size = size, .color = kInk, .track = 0.2f});
   float runLen = 0;
   float slack = size * 0.3f;  // metrics-free fallback, same shape
   if (fonts) {
@@ -571,8 +564,7 @@ auto Minard1869::napoleonPanel() -> Element {
                    text(w.label)
                        .font({.face = faceItalic,
                               .size = 8,
-                              .color = sigil::material::skia::toSkColor(
-                                  hexColor(0x4e4436)),
+                              .color = hexColor(0x4e4436),
                               .track = 0.6f})
                        .at(w.at)
                        .key(std::string(w.key) + "L")
@@ -694,11 +686,9 @@ auto Minard1869::napoleonPanel() -> Element {
            .inset(0)
            .applyStyleSheet(sigil::compose::StyleSheet{
                sigil::compose::rule(".amberInk")
-                   .font(weave::Type{
-                       .color = sigil::material::skia::toSkColor(kAmber)}),
+                   .font(weave::Type{.color = kAmber}),
                sigil::compose::rule(".amberQuiet")
-                   .font(weave::Type{.color = sigil::material::skia::toSkColor(
-                                         hexColor(0xb5761e, 0.9f))})})
+                   .font(weave::Type{.color = hexColor(0xb5761e, 0.9f)})})
            .children({lettering(napoleon["bar.remarks"], 0.0f, tBar)}),
        scaleBar(mapX(33.4f), 930.0f, 4.985f * 0.6549f, 50, 5,
                 word("napoleon", "bar"), "nbar", tAdv + 1.7f)});
@@ -849,9 +839,7 @@ auto Minard1869::temperaturePanel() -> Element {
            .at({mapX(29.2f) - 26, tempY(-11) + 16})
            .width(260)
            .gap(3)
-           .font({.face = faceUi,
-                  .size = 8,
-                  .color = sigil::material::skia::toSkColor(kBlue)})
+           .font({.face = faceUi, .size = 8, .color = kBlue})
            .children({each(temperature["recoveries"].items(),
                            [this](const data::Json& n, size_t i) -> Element {
                              const float t0 = tTemp + 1.35f + 0.15f * (float)i;

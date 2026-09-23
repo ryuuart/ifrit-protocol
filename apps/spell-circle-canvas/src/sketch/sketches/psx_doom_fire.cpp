@@ -309,7 +309,7 @@ struct PsxDoomFire {
         // The header's voice: the eyebrow and the provenance line are set
         // in it and name only their size and tracking; the title names its
         // own face and colour over it.
-        .font({.face = uiFace(), .color = material::skia::toSkColor(kSteel)})
+        .font({.face = uiFace(), .color = kSteel})
         .children(
             {compose::text("CELLULAR AUTOMATON")
                  .font({.size = 12, .track = 2.6f})
@@ -320,7 +320,7 @@ struct PsxDoomFire {
              compose::text(kTitle)
                  .font({.face = heavyFace(),
                         .size = 50,
-                        .color = material::skia::toSkColor(kBone),
+                        .color = kBone,
                         .track = -0.6f})
                  .key("title")
                  .fx({.effect = compose::fx::rise(24),
@@ -349,11 +349,10 @@ struct PsxDoomFire {
    *  rasterizer's alpha-0 for heat 0 lets the cold core show it through,
    *  breathing as the simulation runs. */
   compose::Element doomWord() {
-    weave::TextStyle s = weave::textStyle(
-        {.face = heavyFace(),
-         .size = 186,
-         .color = material::skia::toSkColor(hexColor(0xC23A1C)),
-         .track = 34.0f});
+    weave::TextStyle s = weave::textStyle({.face = heavyFace(),
+                                           .size = 186,
+                                           .color = hexColor(0xC23A1C),
+                                           .track = 34.0f});
     s.paint.addUnderlay(sigil::weave::kit::outline(
         sigil::material::skia::toSkColor(hexColor(0x2A0805)).toSkColor(), 7.0f,
         SkPaint::kRound_Join));

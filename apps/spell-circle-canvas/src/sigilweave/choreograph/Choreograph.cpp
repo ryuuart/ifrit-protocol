@@ -58,9 +58,10 @@ void quantizeAngle(float angle, int steps, float& cosine, float& sine) {
   sine = std::sin(stepIndex * kTwoPi / steps);
 }
 
-sk_sp<SkColorFilter> tintFilter(const SkColor4f& tint,
+sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
                                 sk_sp<SkColorFilter> under,
-                                const SkColor4f& add, const SkColor4f& screen) {
+                                const material::Color& add,
+                                const material::Color& screen) {
   using Key = std::pair<std::array<uint32_t, 9>, const void*>;
   struct Entry {
     Key key;
@@ -73,11 +74,11 @@ sk_sp<SkColorFilter> tintFilter(const SkColor4f& tint,
                                                  std::list<Entry>::iterator>
       table;
   const Key key{
-      {std::bit_cast<uint32_t>(tint.fR), std::bit_cast<uint32_t>(tint.fG),
-       std::bit_cast<uint32_t>(tint.fB), std::bit_cast<uint32_t>(add.fR),
-       std::bit_cast<uint32_t>(add.fG), std::bit_cast<uint32_t>(add.fB),
-       std::bit_cast<uint32_t>(screen.fR), std::bit_cast<uint32_t>(screen.fG),
-       std::bit_cast<uint32_t>(screen.fB)},
+      {std::bit_cast<uint32_t>(tint.r), std::bit_cast<uint32_t>(tint.g),
+       std::bit_cast<uint32_t>(tint.b), std::bit_cast<uint32_t>(add.r),
+       std::bit_cast<uint32_t>(add.g), std::bit_cast<uint32_t>(add.b),
+       std::bit_cast<uint32_t>(screen.r), std::bit_cast<uint32_t>(screen.g),
+       std::bit_cast<uint32_t>(screen.b)},
       (const void*)under.get()};
   const auto found = table.find(key);
   if (found != table.end()) {
@@ -87,13 +88,13 @@ sk_sp<SkColorFilter> tintFilter(const SkColor4f& tint,
   // The one affine map: scale by tint·(1−screen), bias by add·(1−screen) +
   // screen. Translate rides the matrix in the same normalized [0,1] units
   // the scale reads.
-  const float headroom[3] = {1 - screen.fR, 1 - screen.fG, 1 - screen.fB};
+  const float headroom[3] = {1 - screen.r, 1 - screen.g, 1 - screen.b};
   SkColorMatrix scale;
-  scale.setScale(tint.fR * headroom[0], tint.fG * headroom[1],
-                 tint.fB * headroom[2], 1.0f);
-  scale.postTranslate(add.fR * headroom[0] + screen.fR,
-                      add.fG * headroom[1] + screen.fG,
-                      add.fB * headroom[2] + screen.fB, 0.0f);
+  scale.setScale(tint.r * headroom[0], tint.g * headroom[1],
+                 tint.b * headroom[2], 1.0f);
+  scale.postTranslate(add.r * headroom[0] + screen.r,
+                      add.g * headroom[1] + screen.g,
+                      add.b * headroom[2] + screen.b, 0.0f);
   sk_sp<SkColorFilter> filter = SkColorFilters::Matrix(scale);
   if (under) filter = SkColorFilters::Compose(filter, std::move(under));
   constexpr size_t kTintCap = 512;
@@ -141,15 +142,15 @@ GlyphRSXformBatches::Batch& GlyphRSXformBatches::batchForPass(
 void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
                                    const PaintStyle& style, SkGlyphID glyph,
                                    float halfAdvance, const GlyphDress& dress) {
-  const float alpha = dress.alphaScale * dress.colorMultiplier.fA;
+  const float alpha = dress.alphaScale * dress.colorMultiplier.a;
   // Any of the three colour terms off neutral takes the modulated path;
   // all neutral leaves the source paint untouched, byte for byte.
-  const bool tinted = dress.colorMultiplier.fR != 1.0f ||
-                      dress.colorMultiplier.fG != 1.0f ||
-                      dress.colorMultiplier.fB != 1.0f ||
-                      dress.colorAdd.fR != 0 || dress.colorAdd.fG != 0 ||
-                      dress.colorAdd.fB != 0 || dress.colorScreen.fR != 0 ||
-                      dress.colorScreen.fG != 0 || dress.colorScreen.fB != 0;
+  const bool tinted = dress.colorMultiplier.r != 1.0f ||
+                      dress.colorMultiplier.g != 1.0f ||
+                      dress.colorMultiplier.b != 1.0f ||
+                      dress.colorAdd.r != 0 || dress.colorAdd.g != 0 ||
+                      dress.colorAdd.b != 0 || dress.colorScreen.r != 0 ||
+                      dress.colorScreen.g != 0 || dress.colorScreen.b != 0;
   const SkVector local =
       dress.centreOffset ? *dress.centreOffset : SkVector{halfAdvance, 0};
   const SkRSXform transform = {
@@ -190,12 +191,12 @@ void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
           return lit + (1.0f - lit) * screen;
         };
         const SkColor4f base = dressed.getColor4f();
-        dressed.setColor4f({channel(base.fR, dress.colorMultiplier.fR,
-                                    dress.colorAdd.fR, dress.colorScreen.fR),
-                            channel(base.fG, dress.colorMultiplier.fG,
-                                    dress.colorAdd.fG, dress.colorScreen.fG),
-                            channel(base.fB, dress.colorMultiplier.fB,
-                                    dress.colorAdd.fB, dress.colorScreen.fB),
+        dressed.setColor4f({channel(base.fR, dress.colorMultiplier.r,
+                                    dress.colorAdd.r, dress.colorScreen.r),
+                            channel(base.fG, dress.colorMultiplier.g,
+                                    dress.colorAdd.g, dress.colorScreen.g),
+                            channel(base.fB, dress.colorMultiplier.b,
+                                    dress.colorAdd.b, dress.colorScreen.b),
                             base.fA},
                            nullptr);
       }

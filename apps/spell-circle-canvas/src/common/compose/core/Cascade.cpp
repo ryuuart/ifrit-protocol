@@ -8,7 +8,6 @@
 
 #include <include/core/SkTypes.h>  // SkDebugf — the once-per-name diagnostics
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/style/Type.h>
 
@@ -95,7 +94,7 @@ void namedStylesOf(
             leaf.vars ? leaf.vars->find(*reference) : nullptr;
         if (const material::Color* colour =
                 value ? std::get_if<material::Color>(value) : nullptr)
-          partial->color = material::skia::toSkColor(*colour);
+          partial->color = *colour;
         else
           warnNoSuchVar(*reference, true);
       }
@@ -370,12 +369,8 @@ void Composer::Impl::runCascade() {
   indexRoot(*root);
   const SheetChain none;
   const InkInForce noInkPaint;
-  const std::optional<material::Color> rootInk =
-      rootFont.color ? std::optional<material::Color>(
-                           material::skia::toColor(*rootFont.color))
-                     : std::nullopt;
   resolveCascade(*root, rootFont, rootLineHeight, nullptr, rootBlock,
-                 rootSampling, none, noInkPaint, rootInk);
+                 rootSampling, none, noInkPaint, rootFont.color);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
   // says otherwise.
@@ -594,7 +589,7 @@ void Composer::Impl::resolveCascade(
                                 sigil::weave::Keyword::Inherit;
         switch (entry.field) {
           case Property::Font: {
-            const std::optional<SkColor4f> colour = ownFont.color;
+            const std::optional<material::Color> colour = ownFont.color;
             ownFont = {};
             ownFont.color = colour;
             fontFromInitial = !fromParent;
@@ -681,7 +676,7 @@ void Composer::Impl::resolveCascade(
       const material::Color* colour =
           value ? std::get_if<material::Color>(value) : nullptr;
       if (colour) {
-        font.color = material::skia::toSkColor(*colour);
+        font.color = *colour;
         statesOwnInk = true;
       } else {
         warnNoSuchVar(*inkVar, true);
@@ -705,7 +700,7 @@ void Composer::Impl::resolveCascade(
         case Property::Font: {
           // The colour is the INK, a property of its own, so a type
           // written as a keyword leaves it exactly as it stood.
-          const std::optional<SkColor4f> ink = font.color;
+          const std::optional<material::Color> ink = font.color;
           font = fromParent ? parentFont : sigil::weave::initialType();
           font.color = ink;
           break;
@@ -755,11 +750,7 @@ void Composer::Impl::resolveCascade(
   // each. So a node under its own `transition()` eases what it inherits
   // with a lane of its own, over its own duration, as it eases a fill.
   const std::optional<material::Color> inkTarget =
-      statesOwnInk
-          ? (font.color ? std::optional<material::Color>(
-                              material::skia::toColor(*font.color))
-                        : std::nullopt)
-          : parentInkTarget;
+      statesOwnInk ? font.color : parentInkTarget;
   const std::optional<motion::Transition>& inkTransition =
       inst.transitionInForce();
   retargetInk(inst, inkTarget, inkTransition, first);
@@ -770,11 +761,10 @@ void Composer::Impl::resolveCascade(
   // that ramp happens.
   if (const auto& anim = inst.anims[Instance::kInkLerp];
       anim && anim->started && anim->value.isConnected() && inst.inkTarget) {
-    font.color = material::skia::toSkColor(
-        lerpColour(inst.inkFrom, *inst.inkTarget, anim->value.value()));
+    font.color = lerpColour(inst.inkFrom, *inst.inkTarget, anim->value.value());
     inkAnimating = true;
   } else if (inkTransition && inst.inkTarget) {
-    font.color = material::skia::toSkColor(*inst.inkTarget);
+    font.color = *inst.inkTarget;
   }
 
   const bool shapeChanged = first || !sameFontButColour(font, inst.font);

@@ -21,7 +21,6 @@
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilweave/style/Style.h>
 
 #include <algorithm>
@@ -46,13 +45,12 @@ namespace sigil::compose::kit {
 [[nodiscard]] inline sigil::weave::TypeSheet tinted(
     const sk_sp<SkTypeface>& face, float size, material::Color base,
     std::vector<std::pair<std::string, material::Color>> named) {
-  sigil::weave::TypeSheet sheet(weave::textStyle(
-      {.face = face, .size = size, .color = material::skia::toSkColor(base)}));
+  sigil::weave::TypeSheet sheet(
+      weave::textStyle({.face = face, .size = size, .color = base}));
   // Each level is an entry over the base: the colour alone, the face and
   // the size the base's.
   for (auto& [name, color] : named)
-    sheet.set(std::move(name),
-              weave::Type{.color = material::skia::toSkColor(color)});
+    sheet.set(std::move(name), weave::Type{.color = color});
   return sheet;
 }
 

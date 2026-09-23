@@ -112,10 +112,8 @@ sigil::compose::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
   sigil::compose::StyleSheet classes =
       look.styleSheet() +
       sigil::compose::StyleSheet{
-          sigil::compose::rule(".second").font(
-              {.color = material::skia::toSkColor(kSecond)}),
-          sigil::compose::rule(".source").font(
-              {.color = material::skia::toSkColor(look.palette.ash)})};
+          sigil::compose::rule(".second").font({.color = kSecond}),
+          sigil::compose::rule(".source").font({.color = look.palette.ash})};
   return classes;
 }
 

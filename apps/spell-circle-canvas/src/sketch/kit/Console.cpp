@@ -1,5 +1,4 @@
 #include <sigilcompose/kit/Plate.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/kit/Console.h>
 #include <sigilweave/style/Type.h>
 
@@ -21,7 +20,7 @@ compose::Element console(const Console& panel) {
   // Each level is an entry over that base: its colour alone, the voice's
   // face and size the base's.
   for (const auto& [name, color] : panel.levels)
-    styles.set(name, weave::Type{.color = material::skia::toSkColor(color)});
+    styles.set(name, weave::Type{.color = color});
   compose::Element plate = compose::kit::console(
       {.feeds = panel.feeds,
        .style = {.window = {.visible = panel.visible,

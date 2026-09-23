@@ -100,19 +100,13 @@ constexpr int kTapeHeight = 160;
 compose::StyleSheet screenType() {
   compose::StyleSheet sheet{
       compose::rule("h1").font(
-          {.size = 22.0f,
-           .color = material::skia::toSkColor(compose::hexColor(0xbfd4ef))}),
+          {.size = 22.0f, .color = compose::hexColor(0xbfd4ef)}),
       compose::rule(".note").font(
-          {.size = 19.0f,
-           .color = material::skia::toSkColor(compose::hexColor(0x7e93b4))}),
+          {.size = 19.0f, .color = compose::hexColor(0x7e93b4)}),
       compose::rule(".display")
-          .font({.size = 46.0f,
-                 .color =
-                     material::skia::toSkColor(compose::hexColor(0xf2ebdc))}),
+          .font({.size = 46.0f, .color = compose::hexColor(0xf2ebdc)}),
       compose::rule("caption, .caption")
-          .font({.size = 20.0f,
-                 .color =
-                     material::skia::toSkColor(compose::hexColor(0x9eb8d9))})};
+          .font({.size = 20.0f, .color = compose::hexColor(0x9eb8d9)})};
   return sheet;
 }
 

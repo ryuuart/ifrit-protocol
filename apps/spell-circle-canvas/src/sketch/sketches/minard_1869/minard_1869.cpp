@@ -82,35 +82,21 @@ auto Minard1869::setup(sketch::SketchContext& ctx) -> void {
       sigil::compose::StyleSheet{
           sigil::compose::rule("h1").font(
               partial(faceUiBold, 15, kCardInk, 1.6f)),
-          sigil::compose::rule(".measured")
-              .font(weave::Type{.color =
-                                    sigil::material::skia::toSkColor(kBlue)}),
-          sigil::compose::rule(".amber").font(
-              weave::Type{.color = sigil::material::skia::toSkColor(kAmber)}),
-          sigil::compose::rule(".grey").font(weave::Type{
-              .color =
-                  sigil::material::skia::toSkColor(hexColor(0x6d675c, 0.45f))}),
-          sigil::compose::rule(".route").font(weave::Type{
-              .color =
-                  sigil::material::skia::toSkColor(hexColor(0x1c1a17, 0.35f))}),
-          sigil::compose::rule(".vector").font(weave::Type{
-              .color =
-                  sigil::material::skia::toSkColor(hexColor(0x2f6f9c, 0.6f))}),
-          sigil::compose::rule(".cross").font(
-              weave::Type{.color = sigil::material::skia::toSkColor(kCardInk)}),
-          sigil::compose::rule(".cardInk")
-              .font(weave::Type{
-                  .color = sigil::material::skia::toSkColor(kCardInk)}),
-          sigil::compose::rule(".claim").font(weave::Type{
-              .color = sigil::material::skia::toSkColor(kClaimRed)}),
-          sigil::compose::rule(".pass").font(
-              weave::Type{.color = sigil::material::skia::toSkColor(kPass)}),
-          sigil::compose::rule(".amberInk")
-              .font(weave::Type{.color =
-                                    sigil::material::skia::toSkColor(kAmber)}),
+          sigil::compose::rule(".measured").font(weave::Type{.color = kBlue}),
+          sigil::compose::rule(".amber").font(weave::Type{.color = kAmber}),
+          sigil::compose::rule(".grey").font(
+              weave::Type{.color = hexColor(0x6d675c, 0.45f)}),
+          sigil::compose::rule(".route").font(
+              weave::Type{.color = hexColor(0x1c1a17, 0.35f)}),
+          sigil::compose::rule(".vector").font(
+              weave::Type{.color = hexColor(0x2f6f9c, 0.6f)}),
+          sigil::compose::rule(".cross").font(weave::Type{.color = kCardInk}),
+          sigil::compose::rule(".cardInk").font(weave::Type{.color = kCardInk}),
+          sigil::compose::rule(".claim").font(weave::Type{.color = kClaimRed}),
+          sigil::compose::rule(".pass").font(weave::Type{.color = kPass}),
+          sigil::compose::rule(".amberInk").font(weave::Type{.color = kAmber}),
           sigil::compose::rule(".plotAxis")
-              .font(weave::Type{
-                  .color = sigil::material::skia::toSkColor(kCardInk)}),
+              .font(weave::Type{.color = kCardInk}),
           sigil::compose::rule(".plotTick").font(partial(faceNum, 8.5f, kGrey)),
           sigil::compose::rule(".plotLabel")
               .font(partial(faceUi, 9.5f, kGrey))};

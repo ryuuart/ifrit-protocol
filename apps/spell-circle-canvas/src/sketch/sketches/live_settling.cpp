@@ -84,8 +84,7 @@ constexpr material::Color kBody{0.84f, 0.85f, 0.88f, 1};
 weave::TextStyle body() {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
-  return weave::textStyle(
-      {.face = face, .size = 11.5f, .color = material::skia::toSkColor(kBody)});
+  return weave::textStyle({.face = face, .size = 11.5f, .color = kBody});
 }
 
 const char* kPassage =

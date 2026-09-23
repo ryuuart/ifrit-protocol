@@ -42,12 +42,9 @@ Element cell(const char* caption, Element plate) {
                      .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({text("SIGNAL").font(
-                                    {.size = 26,
-                                     .color = material::skia::toSkColor(kInk),
-                                     .track = 3}),
+                                    {.size = 26, .color = kInk, .track = 3}),
                                 box().width(58).height(4).fill(kInk)}),
-                 text(caption).font(
-                     {.size = 12, .color = material::skia::toSkColor(kAsh)})});
+                 text(caption).font({.size = 12, .color = kAsh})});
 }
 
 }  // namespace

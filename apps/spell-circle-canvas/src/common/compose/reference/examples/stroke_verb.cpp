@@ -34,8 +34,7 @@ Element cell(const char* caption, Element plate) {
       .alignItems(Align::Center)
       .children(
           {plate.width(pct(100)).height(120).borderRadius({10}).fill(kPlate),
-           text(caption).font(
-               {.size = 12, .color = material::skia::toSkColor(kAsh)})});
+           text(caption).font({.size = 12, .color = kAsh})});
 }
 
 }  // namespace

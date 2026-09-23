@@ -178,9 +178,7 @@ auto RotaConvocationis::colophon() -> Element {
       .styleClass("label")
       .children(
           {text("ROTA CONVOCATIONIS")
-               .font({.size = 12.0f,
-                      .color = sigil::material::skia::toSkColor(kAshDim),
-                      .track = 5.2f})
+               .font({.size = 12.0f, .color = kAshDim, .track = 5.2f})
                .key("titulus")
                // A lozenge stands at the word the whole figure
                // converges on, anchored to the rect the selector
@@ -205,8 +203,7 @@ auto RotaConvocationis::colophon() -> Element {
                 "TVRNING LAYERS · EVERY START CHAINED FROM A "
                 "SPAN, NONE FITTED BY HAND")
                .font({.size = 8.5f,
-                      .color = sigil::material::skia::toSkColor(
-                          hexColor(0x8A8299, 0.42f)),
+                      .color = hexColor(0x8A8299, 0.42f),
                       .track = 2.4f})
                .key("colophon-2")
                .opacity(beat(tIgnite + 0.4, tIgnite + 1.2))});

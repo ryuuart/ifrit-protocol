@@ -335,14 +335,11 @@ struct WebScript {
         .column()
         .gap(10)
         .padding(40)
-        .children(
-            {text("no web engine here")
-                 .font({.size = 20,
-                        .color = material::skia::toSkColor(sheet.palette.ink)}),
-             text(why)
-                 .font({.size = 12,
-                        .color = material::skia::toSkColor(sheet.palette.ash)})
-                 .width(620.0f)});
+        .children({text("no web engine here")
+                       .font({.size = 20, .color = sheet.palette.ink}),
+                   text(why)
+                       .font({.size = 12, .color = sheet.palette.ash})
+                       .width(620.0f)});
   }
 };
 

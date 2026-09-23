@@ -2,16 +2,15 @@
 
 auto ChevreulCircle::theHeader() -> Element {
   Element g = box();
-  g.children({label(doc["title"], 56, 40, 1700)
-                  .font({.face = serifBold(),
-                         .size = 26,
-                         .color = sigil::material::skia::toSkColor(kInk),
-                         .track = 2.6f})
-                  .opacity(bind(&demo).window(0.0f, 0.02f)),
-              label(doc["imprint"], 58, 84, 1700)
-                  .font({.size = 9.5f, .track = 0.7f})
-                  .opacity(bind(&demo).window(0.01f, 0.04f)),
-              at(56, 104, 1688, 1).fill(Fill::color(kRule))});
+  g.children(
+      {label(doc["title"], 56, 40, 1700)
+           .font(
+               {.face = serifBold(), .size = 26, .color = kInk, .track = 2.6f})
+           .opacity(bind(&demo).window(0.0f, 0.02f)),
+       label(doc["imprint"], 58, 84, 1700)
+           .font({.size = 9.5f, .track = 0.7f})
+           .opacity(bind(&demo).window(0.01f, 0.04f)),
+       at(56, 104, 1688, 1).fill(Fill::color(kRule))});
   return g;
 }
 
@@ -186,9 +185,7 @@ auto ChevreulCircle::theIllusion() -> Element {
   Element g = box();
   g.children(
       {label(doc["illusion.head"], 852, 552, 500)
-           .font({.size = 9,
-                  .color = sigil::material::skia::toSkColor(kInk),
-                  .track = 0.6f}),
+           .font({.size = 9, .color = kInk, .track = 0.6f}),
        rightAt(doc["illusion.strips"], 1100, 553, 644)
            .font({.size = 7.5f, .track = 0.3f}),
        at(kStairX, kStairYA - 2, kBandW * kBandN, kStairH + 4)
@@ -221,24 +218,19 @@ auto ChevreulCircle::theIllusion() -> Element {
              .styleClass("note")});
   } else {
     g.children({label(doc["illusion.noOcio"], kStairX, kStairYC + 10, 400)
-                    .font({.size = 9,
-                           .color = sigil::material::skia::toSkColor(kRed),
-                           .track = 0.4f})});
+                    .font({.size = 9, .color = kRed, .track = 0.4f})});
   }
 
   // every fourth band's hex, inked against its own band
   for (int b = 0; b < kBandN; b += 4)
     g.children({centred(hexOf(gamme[(size_t)b]), kStairX + (float)b * kBandW,
                         kStairYA + kStairH - 12, kBandW)
-                    .font({.size = 6.8f,
-                           .color = sigil::material::skia::toSkColor(
-                               b < 12 ? kInk : kWhite)})});
+                    .font({.size = 6.8f, .color = b < 12 ? kInk : kWhite})});
 
   g.children(
       {label(doc["illusion.quote"], 852, 774, 600)
            .styleClass("quote")
-           .font(
-               {.size = 9.5f, .color = sigil::material::skia::toSkColor(kInk)}),
+           .font({.size = 9.5f, .color = kInk}),
        rightAt(kit::formatted("%d bands · per-band σ = %.2f · %d/%d hexes "
                               "exact byte for byte",
                               v.bands, v.bandSigmaMax, v.bandsExact, v.bands),

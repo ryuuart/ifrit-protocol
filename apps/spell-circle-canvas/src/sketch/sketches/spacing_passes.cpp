@@ -78,8 +78,7 @@ constexpr material::Color kBody{0.86f, 0.87f, 0.90f, 1};
 weave::TextStyle body() {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
-  return weave::textStyle(
-      {.face = face, .size = 12, .color = material::skia::toSkColor(kBody)});
+  return weave::textStyle({.face = face, .size = 12, .color = kBody});
 }
 
 /** Long words in a narrow measure: a fit the word gaps alone cannot make

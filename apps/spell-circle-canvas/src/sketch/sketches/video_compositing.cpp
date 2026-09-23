@@ -208,9 +208,7 @@ struct VideoCompositing {
             .cache(Cache::None);
 
     const weave::TextStyle title = weave::textStyle(
-        {.size = 34,
-         .color = material::skia::toSkColor(material::Color{1, 1, 1, 0.96f}),
-         .track = 8.0f});
+        {.size = 34, .color = material::Color{1, 1, 1, 0.96f}, .track = 8.0f});
     ctx.composer.render(stack().width(kWidth).height(kHeight).children(
         {std::move(stage),
          text(u8"SKY / SIGNAL", title)

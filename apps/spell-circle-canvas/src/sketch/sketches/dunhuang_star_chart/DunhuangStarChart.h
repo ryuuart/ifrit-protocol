@@ -16,103 +16,72 @@ struct DunhuangStarChart {
   [[nodiscard]] sigil::compose::StyleSheet voices() const {
     return sigil::compose::StyleSheet{
         sigil::compose::rule(".heading")
-            .font(weave::Type{
-                .face = faceDisplay,
-                .color = sigil::material::skia::toSkColor(hexColor(0xc9a35c)),
-                .track = 1.0f}),
+            .font(weave::Type{.face = faceDisplay,
+                              .color = hexColor(0xc9a35c),
+                              .track = 1.0f}),
         // THE SIZES FIRST, THE COLOURS AFTER, because a later entry stands over
         // an earlier one by name: `styleClass("caption dim")` is then the small
         // hand in the quiet ink, which is what a plate of notes is set in.
         sigil::compose::rule("caption, .caption")
-            .font(weave::Type{
-                .size = 8.4f,
-                .color = sigil::material::skia::toSkColor(hexColor(0x9a8a68))}),
-        sigil::compose::rule(".paper").font(weave::Type{
-            .size = 8.0f,
-            .color =
-                sigil::material::skia::toSkColor(hexColor(0x4a3b28, 0.9f))}),
-        sigil::compose::rule(".tick").font(weave::Type{
-            .size = 7.4f,
-            .color =
-                sigil::material::skia::toSkColor(hexColor(0x8a7458, 0.6f))}),
-        sigil::compose::rule(".ruler").font(weave::Type{
-            .size = 7.6f,
-            .color =
-                sigil::material::skia::toSkColor(hexColor(0xc9a35c, 0.85f))}),
-        sigil::compose::rule(".han").font(weave::Type{
-            .face = faceHan ? faceHan : faceSerif,
-            .size = 11.5f,
-            .color =
-                sigil::material::skia::toSkColor(hexColor(0x2a2118, 0.88f))}),
-        sigil::compose::rule(".brush").font(weave::Type{
-            .face = faceHan ? faceHan : faceSerif,
-            .size = 12.5f,
-            .color =
-                sigil::material::skia::toSkColor(hexColor(0x241d15, 0.92f))}),
-        sigil::compose::rule(".mapno").font(weave::Type{
-            .face = faceDisplay,
-            .size = 13.0f,
-            .color =
-                sigil::material::skia::toSkColor(hexColor(0x4a3b28, 0.82f))}),
-        sigil::compose::rule(".xiu").font(weave::Type{
-            .size = 7.0f,
-            .color =
-                sigil::material::skia::toSkColor(hexColor(0x5d4c37, 0.75f))}),
-        sigil::compose::rule(".note").font(weave::Type{
-            .color = sigil::material::skia::toSkColor(hexColor(0x9a8a68))}),
-        sigil::compose::rule(".dim").font(weave::Type{
-            .color = sigil::material::skia::toSkColor(hexColor(0x6d6249))}),
-        sigil::compose::rule(".chalk").font(
-            weave::Type{.color = sigil::material::skia::toSkColor(kChalk)}),
-        sigil::compose::rule(".number").font(weave::Type{
-            .color = sigil::material::skia::toSkColor(hexColor(0xcf6a4a))}),
-        sigil::compose::rule(".flag").font(weave::Type{
-            .color = sigil::material::skia::toSkColor(hexColor(0xb4531f))}),
-        sigil::compose::rule(".pass").font(weave::Type{
-            .color = sigil::material::skia::toSkColor(hexColor(0x6ba87e))}),
-        sigil::compose::rule(".gold").font(weave::Type{
-            .color = sigil::material::skia::toSkColor(hexColor(0xc9a35c))}),
+            .font(weave::Type{.size = 8.4f, .color = hexColor(0x9a8a68)}),
+        sigil::compose::rule(".paper").font(
+            weave::Type{.size = 8.0f, .color = hexColor(0x4a3b28, 0.9f)}),
+        sigil::compose::rule(".tick").font(
+            weave::Type{.size = 7.4f, .color = hexColor(0x8a7458, 0.6f)}),
+        sigil::compose::rule(".ruler").font(
+            weave::Type{.size = 7.6f, .color = hexColor(0xc9a35c, 0.85f)}),
+        sigil::compose::rule(".han").font(
+            weave::Type{.face = faceHan ? faceHan : faceSerif,
+                        .size = 11.5f,
+                        .color = hexColor(0x2a2118, 0.88f)}),
+        sigil::compose::rule(".brush").font(
+            weave::Type{.face = faceHan ? faceHan : faceSerif,
+                        .size = 12.5f,
+                        .color = hexColor(0x241d15, 0.92f)}),
+        sigil::compose::rule(".mapno").font(
+            weave::Type{.face = faceDisplay,
+                        .size = 13.0f,
+                        .color = hexColor(0x4a3b28, 0.82f)}),
+        sigil::compose::rule(".xiu").font(
+            weave::Type{.size = 7.0f, .color = hexColor(0x5d4c37, 0.75f)}),
+        sigil::compose::rule(".note").font(
+            weave::Type{.color = hexColor(0x9a8a68)}),
+        sigil::compose::rule(".dim").font(
+            weave::Type{.color = hexColor(0x6d6249)}),
+        sigil::compose::rule(".chalk").font(weave::Type{.color = kChalk}),
+        sigil::compose::rule(".number").font(
+            weave::Type{.color = hexColor(0xcf6a4a)}),
+        sigil::compose::rule(".flag").font(
+            weave::Type{.color = hexColor(0xb4531f)}),
+        sigil::compose::rule(".pass").font(
+            weave::Type{.color = hexColor(0x6ba87e)}),
+        sigil::compose::rule(".gold").font(
+            weave::Type{.color = hexColor(0xc9a35c)}),
         sigil::compose::rule(".vermilion")
-            .font(weave::Type{
-                .color = sigil::material::skia::toSkColor(hexColor(
-                    0x8a3020, 0.95f))}),
+            .font(weave::Type{.color = hexColor(0x8a3020, 0.95f)}),
         // THE THREE SCHOOLS ARE CLASSES, so a name and the dot beside it take
         // one statement: S.3326 is the first document to colour them, and
         // cinnabar, carbon and oxidised lead white are what it colours them
         // with.
-        sigil::compose::rule(".shishi").font(
-            weave::Type{.color = sigil::material::skia::toSkColor(kCinnabar)}),
-        sigil::compose::rule(".ganshi").font(
-            weave::Type{.color = sigil::material::skia::toSkColor(kInk)}),
-        sigil::compose::rule(".wuxian").font(
-            weave::Type{.color = sigil::material::skia::toSkColor(kLead)}),
+        sigil::compose::rule(".shishi").font(weave::Type{.color = kCinnabar}),
+        sigil::compose::rule(".ganshi").font(weave::Type{.color = kInk}),
+        sigil::compose::rule(".wuxian").font(weave::Type{.color = kLead}),
         sigil::compose::rule(".undeclared")
-            .font(weave::Type{
-                .color = sigil::material::skia::toSkColor(
-                    kInkFaint)}),
+            .font(weave::Type{.color = kInkFaint}),
         // THE PARTS A CHART DRAWS, in this plate's own inks rather than the
         // theme's: the pole wheel's rings, its track, its dots and its
         // captions, the departure curves, and the hand's own residual ruled
         // across them.
         sigil::compose::rule(".plotRule")
-            .font(weave::Type{.color = sigil::material::skia::toSkColor(
-                                  hexColor(0x8a7458, 0.30f))}),
-        sigil::compose::rule(".plotTrace")
-            .font(
-                weave::Type{.color = sigil::material::skia::toSkColor(kTrace)}),
-        sigil::compose::rule(".plotMark")
-            .font(weave::Type{.color =
-                                  sigil::material::skia::toSkColor(kCinnabar)}),
+            .font(weave::Type{.color = hexColor(0x8a7458, 0.30f)}),
+        sigil::compose::rule(".plotTrace").font(weave::Type{.color = kTrace}),
+        sigil::compose::rule(".plotMark").font(weave::Type{.color = kCinnabar}),
         sigil::compose::rule(".plotLabel")
-            .font(weave::Type{
-                .size = 7.4f,
-                .color = sigil::material::skia::toSkColor(hexColor(0x9a8a68))}),
-        sigil::compose::rule(".ghost").font(weave::Type{
-            .color =
-                sigil::material::skia::toSkColor(hexColor(0x8a7458, 0.45f))}),
-        sigil::compose::rule(".hand").font(weave::Type{
-            .color =
-                sigil::material::skia::toSkColor(hexColor(0xa8382a, 0.45f))})};
+            .font(weave::Type{.size = 7.4f, .color = hexColor(0x9a8a68)}),
+        sigil::compose::rule(".ghost").font(
+            weave::Type{.color = hexColor(0x8a7458, 0.45f)}),
+        sigil::compose::rule(".hand").font(
+            weave::Type{.color = hexColor(0xa8382a, 0.45f)})};
   }
 
   // --- the words -----------------------------------------------------------

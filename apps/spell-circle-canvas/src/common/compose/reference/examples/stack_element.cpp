@@ -53,13 +53,10 @@ struct StackElement {
                     .padding(5, 8)
                     .borderRadius({4})
                     .fill(kBadge)
-                    .children({text("NEW").font(
-                        {.size = 12,
-                         .color = material::skia::toSkColor(kInk)})}),
+                    .children({text("NEW").font({.size = 12, .color = kInk})}),
                 // A caption pinned to the other three edges.
                 text("Every child shares the box.")
-                    .font(
-                        {.size = 15, .color = material::skia::toSkColor(kInk)})
+                    .font({.size = 15, .color = kInk})
                     .left(18)
                     .right(18)
                     .bottom(16),

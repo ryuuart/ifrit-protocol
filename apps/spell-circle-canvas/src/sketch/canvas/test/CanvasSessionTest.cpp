@@ -601,8 +601,7 @@ struct Shaded {
     sigil::weave::Type type;
     type.face = sigil::test::instrument::sans();
     type.size = 56.0f;
-    type.color =
-        sigil::material::skia::toSkColor(sigil::material::Color{1, 1, 1, 1});
+    type.color = sigil::material::Color{1, 1, 1, 1};
     type.overlays = std::vector<sigil::weave::PaintLayer>{pass};
     Element word = text(u8"AB");
     word.font(type);

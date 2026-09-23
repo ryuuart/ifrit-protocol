@@ -159,10 +159,8 @@ inline sk_sp<SkTypeface> mono() {
 
 inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
                            material::Color color, float track = 0) {
-  return weave::textStyle({.face = tf,
-                           .size = size,
-                           .color = material::skia::toSkColor(color),
-                           .track = track});
+  return weave::textStyle(
+      {.face = tf, .size = size, .color = color, .track = track});
 }
 inline weave::TextStyle body(float sz, material::Color c, float tr = 0) {
   return ty(sans(), sz, c, tr);

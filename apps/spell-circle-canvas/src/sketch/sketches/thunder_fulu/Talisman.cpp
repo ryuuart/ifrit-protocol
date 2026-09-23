@@ -37,9 +37,8 @@ auto ThunderFulu::voidWriting() -> Element {
              .key(kit::formatted("void%d", k)),
          text(how[(size_t)k])
              .font({.size = 10.0f,
-                    .color =
-                        sigil::material::skia::toSkColor(sigil::material::Color{
-                            cols[k].r, cols[k].g, cols[k].b, 0.85f})})
+                    .color = sigil::material::Color{cols[k].r, cols[k].g,
+                                                    cols[k].b, 0.85f}})
              .at({at[k].fX - 72, at[k].fY + 50})
              .width(168)
              .opacity(bind(&scribe)
@@ -318,11 +317,10 @@ auto ThunderFulu::furniture() -> Element {
       {text(std::string(doc()["title"].text()))
            .font({.face = faceDisplay,
                   .size = 22.0f,
-                  .color = sigil::material::skia::toSkColor(kChalk),
+                  .color = kChalk,
                   .track = 2.6f}),
        text(std::string(doc()["subtitle"].text()))
-           .font({.size = 10.5f,
-                  .color = sigil::material::skia::toSkColor(kGoldDim)})})});
+           .font({.size = 10.5f, .color = kGoldDim})})});
   // registration marks at the four corners of the sheet
   const std::array<SkPoint, 4> corners{
       {{46, 46}, {kW - 46, 46}, {46, kH - 46}, {kW - 46, kH - 46}}};

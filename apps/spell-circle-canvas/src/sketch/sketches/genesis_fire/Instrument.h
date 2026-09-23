@@ -51,10 +51,7 @@ inline sigil::weave::TextStyle faced(sk_sp<SkTypeface> face, float size,
                                      sigil::material::Color color,
                                      float track = 0.0f) {
   return sigil::weave::textStyle(
-      {.face = std::move(face),
-       .size = size,
-       .color = sigil::material::skia::toSkColor(color),
-       .track = track});
+      {.face = std::move(face), .size = size, .color = color, .track = track});
 }
 
 /** The registers a panel is set in. */

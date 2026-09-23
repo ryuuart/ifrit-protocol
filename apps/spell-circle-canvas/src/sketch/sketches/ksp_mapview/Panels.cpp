@@ -40,21 +40,17 @@ auto KspMapView::infoCard() -> Element {
                    .height(26)
                    .justifyContent(Justify::Center)
                    .fill(kOrange)
-                   .children(
-                       {text(page["vessel"])
-                            .font({.face = sansB(),
-                                   .size = 14,
-                                   .color = sigil::material::skia::toSkColor(
-                                       hexColor(0xFFFFFF))})}),
+                   .children({text(page["vessel"])
+                                  .font({.face = sansB(),
+                                         .size = 14,
+                                         .color = hexColor(0xFFFFFF)})}),
                box()
                    .height(19)
                    .justifyContent(Justify::Center)
                    .fill(kCardSub)
-                   .children(
-                       {text(page["tab"])
-                            .font({.face = sansB(),
-                                   .color = sigil::material::skia::toSkColor(
-                                       hexColor(0xE8E8EA))})}),
+                   .children({text(page["tab"])
+                                  .font({.face = sansB(),
+                                         .color = hexColor(0xE8E8EA)})}),
                infoHead(page["classification"]),
                // the part icon, and the three readings that name the ship
                box().row().padding(0, 4).gap(8).children(

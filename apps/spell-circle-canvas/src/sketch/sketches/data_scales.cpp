@@ -39,20 +39,15 @@ sigil::compose::StyleSheet scaleSheet() {
       sketch::kit::houseTheme().styleSheet() +
       sigil::compose::StyleSheet{
           sigil::compose::rule(".plotRule")
-              .font({.color = material::skia::toSkColor(
-                         material::Color{0.20f, 0.25f, 0.29f, 1})}),
+              .font({.color = material::Color{0.20f, 0.25f, 0.29f, 1}}),
           sigil::compose::rule(".plotTick")
               .font({.face = sigil::weave::defaultFace(),
                      .size = 11,
-                     .color = material::skia::toSkColor(
-                         material::Color{0.64f, 0.70f, 0.76f, 1}),
+                     .color = material::Color{0.64f, 0.70f, 0.76f, 1},
                      .track = 0}),
-          sigil::compose::rule(".plotTrace")
-              .font({.color = material::skia::toSkColor(kInk)}),
-          sigil::compose::rule(".plotBar")
-              .font({.color = material::skia::toSkColor(kInk)}),
-          sigil::compose::rule(".plotMark")
-              .font({.color = material::skia::toSkColor(kInk)})};
+          sigil::compose::rule(".plotTrace").font({.color = kInk}),
+          sigil::compose::rule(".plotBar").font({.color = kInk}),
+          sigil::compose::rule(".plotMark").font({.color = kInk})};
   return dressed;
 }
 

@@ -28,9 +28,7 @@ struct Bg3DiceRoll {
    *  mono face only where a figure asks for it. */
   weave::Type line(float size, sigil::material::Color col, float track,
                    bool useMono) const {
-    weave::Type t{.size = size,
-                  .color = sigil::material::skia::toSkColor(col),
-                  .track = track};
+    weave::Type t{.size = size, .color = col, .track = track};
     if (useMono) t.face = mono;
     return t;
   }

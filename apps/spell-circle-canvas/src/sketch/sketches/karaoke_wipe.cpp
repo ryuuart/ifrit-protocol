@@ -281,28 +281,26 @@ struct KaraokeWipe {
             // it: nothing in a text node can carry a mark that is not a
             // glyph, so anything pointing AT the type lives beside it and
             // is placed from the schedule the type is running.
-            .children(
-                {box()
-                     .width(pct(100))
-                     .height(kHopHeight + 18.0f)
-                     // Fleischer's ball is a hard white disc, and it is
-                     // the one thing on the frame that is not part of the
-                     // caption.
-                     .children({kit::dot({7.5f, kHopHeight + 7.5f}, 7.5f,
-                                         Fill::color(hexColor(0xFFFFFF)))
-                                    .key("ball")
-                                    .translateX(&ballX)
-                                    .translateY(&ballY)}),
-                 lyricLine(),
-                 ruler().margin(12, 0, 0, 0),
-                 text(kLine2)
-                     .font({.size = kLyricSize * 0.78f,
-                            .color = material::skia::toSkColor(kNext),
-                            .track = kTrack,
-                            .aliased = kAliased,
-                            .antiAlias = false})
-                     .key("line2")
-                     .margin(22, 0, 0, 0)});
+            .children({box()
+                           .width(pct(100))
+                           .height(kHopHeight + 18.0f)
+                           // Fleischer's ball is a hard white disc, and it is
+                           // the one thing on the frame that is not part of the
+                           // caption.
+                           .children({kit::dot({7.5f, kHopHeight + 7.5f}, 7.5f,
+                                               Fill::color(hexColor(0xFFFFFF)))
+                                          .key("ball")
+                                          .translateX(&ballX)
+                                          .translateY(&ballY)}),
+                       lyricLine(), ruler().margin(12, 0, 0, 0),
+                       text(kLine2)
+                           .font({.size = kLyricSize * 0.78f,
+                                  .color = kNext,
+                                  .track = kTrack,
+                                  .aliased = kAliased,
+                                  .antiAlias = false})
+                           .key("line2")
+                           .margin(22, 0, 0, 0)});
 
     return box()
         .column()
@@ -341,7 +339,7 @@ struct KaraokeWipe {
     face = weave::ports::face({"Avenir Next", "Futura", "Helvetica Neue"}, 600);
     lyric = weave::textStyle({.face = face,
                               .size = kLyricSize,
-                              .color = material::skia::toSkColor(kSung),
+                              .color = kSung,
                               .track = kTrack,
                               .aliased = kAliased,
                               .antiAlias = false});

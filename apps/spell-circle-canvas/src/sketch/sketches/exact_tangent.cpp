@@ -75,7 +75,7 @@ Element run(const char* word, float size, material::Color colour, bool exact,
             float inset = 16) {
   return text(word)
       .styleClass("inscription")
-      .font({.size = size, .color = material::skia::toSkColor(colour)})
+      .font({.size = size, .color = colour})
       .inset(inset)
       .textOnPath({.path = shapes::spiral(kTurns),
                    .at = 0.42f,
@@ -89,7 +89,7 @@ Element arcRun(const char* word, float size, material::Color colour, bool exact,
                float at = 0.75f, float offset = -65, float inset = 14) {
   return text(word)
       .styleClass("inscription")
-      .font({.size = size, .color = material::skia::toSkColor(colour)})
+      .font({.size = size, .color = colour})
       .inset(inset)
       .textOnPath({.path = shapes::circle(),
                    .at = at,

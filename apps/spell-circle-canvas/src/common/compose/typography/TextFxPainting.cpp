@@ -12,7 +12,6 @@
 #include <include/core/SkShader.h>
 #include <sigilgeometry/path/Numeric.h>  // radians — the degree conversion
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Pass.h>
 #include <sigilweave/decoration/DecorationRects.h>
 
@@ -386,9 +385,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // ink(paint)/textStroke override, when the node carries one.
         sigil::weave::GlyphDress dress;
         dress.alphaScale = alpha;
-        dress.colorMultiplier = material::skia::toSkColor(tint);
-        dress.colorAdd = material::skia::toSkColor(flash);
-        dress.colorScreen = material::skia::toSkColor(glow);
+        dress.colorMultiplier = tint;
+        dress.colorAdd = flash;
+        dress.colorScreen = glow;
         if (pose.centreOffset) dress.centreOffset = &*pose.centreOffset;
         if (modifier.axis && placed.shaped)
           dress.face =
