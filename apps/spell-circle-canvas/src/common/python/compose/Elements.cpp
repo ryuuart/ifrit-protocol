@@ -133,17 +133,18 @@ void bindCompose(py::module_& module) {
   py::class_<compose::Band> bandLeaf(composition, "Band");
   // What a text span states: the element's font and ink verbs, on a value
   // that belongs to no element.
-  py::class_<compose::Declarations> spanDeclarations(
-      composition, "Declarations",
+  py::class_<compose::SpanDeclarations> spanDeclarations(
+      composition, "SpanDeclarations",
       "What a text span states over the range it finds: the element's own "
       "font and ink verbs — `font`, its longhands and `ink` — written into "
       "a value that belongs to no element, handed to `Text.span`. What it "
       "leaves unsaid the range keeps. A paint stated here is laid in the "
       "passage's own coordinates, as it is.");
-  spanDeclarations.def(py::init<>(), "Declarations that state nothing yet.")
-      .def("copy", [](const compose::Declarations& value) { return value; })
+  spanDeclarations
+      .def(py::init<>(), "A span's declarations, stating nothing yet.")
+      .def("copy", [](const compose::SpanDeclarations& value) { return value; })
       .def("__copy__",
-           [](const compose::Declarations& value) { return value; });
+           [](const compose::SpanDeclarations& value) { return value; });
   element
       .def(py::init([](const compose::Text& leaf) { return Element(leaf); }),
            py::arg("leaf"))

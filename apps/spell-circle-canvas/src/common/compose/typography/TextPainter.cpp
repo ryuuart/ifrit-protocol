@@ -208,7 +208,7 @@ Derived& TextContentVerbs<Derived>::variationDrive(
 
 template <class Derived>
 Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
-                                         Declarations what) {
+                                         SpanDeclarations what) {
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
   // What the span states is read off the declarations as the cascade
@@ -249,7 +249,7 @@ template Text& TextContentVerbs<Text>::textAttach(sigil::weave::Selector,
 template Text& TextContentVerbs<Text>::variationDrive(
     const char (&)[5], const choreograph::Output<float>*);
 template Text& TextContentVerbs<Text>::span(sigil::weave::Selector,
-                                            Declarations);
+                                            SpanDeclarations);
 
 // ---------------------------------------------------------------------------
 // The fold

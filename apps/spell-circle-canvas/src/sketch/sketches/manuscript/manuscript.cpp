@@ -236,11 +236,11 @@ struct Manuscript {
     const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Delimiter,
                                    .delimiter = u8".",
                                    .style = capitals};
-    Text prose =
-        document::paragraph(rest)
-            .font(body(kBodySize, pal.ink))
-            .contentFlowAround("versal", px(2.4f))
-            .span(kit::nestedRun(opening), Declarations().font(opening.style));
+    Text prose = document::paragraph(rest)
+                     .font(body(kBodySize, pal.ink))
+                     .contentFlowAround("versal", px(2.4f))
+                     .span(kit::nestedRun(opening),
+                           SpanDeclarations().font(opening.style));
 
     // The versal is a PANEL: a square field of cobalt with the letter
     // reserved in gold in the middle of it and a gold fillet round it. Six

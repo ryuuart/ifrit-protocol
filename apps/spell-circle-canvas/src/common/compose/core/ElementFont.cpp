@@ -116,6 +116,6 @@ template class FontVerbs<Text>;
 template class FontVerbs<Image>;
 template class FontVerbs<Band>;
 template class FontVerbs<Rule>;
-template class FontVerbs<Declarations>;
+template class FontVerbs<SpanDeclarations>;
 
 }  // namespace sigil::compose

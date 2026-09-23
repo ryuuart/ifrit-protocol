@@ -88,7 +88,8 @@ sigil_library(SigilComposeCore
           Derive.h Element.h
           Factories.h Feed.h Grid.h Image.h Instances.h Layout.h Mask.h
           Measure.h
-          Paint.h Pattern.h Property.h Selector.h Shape.h Shelf.h Stroke.h
+          Paint.h Pattern.h Property.h Selector.h Shape.h Shelf.h
+          SpanDeclarations.h Stroke.h
           StyleSheet.h SurfacePaint.h Table.h
           Text.h TextPainter.h Tiles.h Utf8.h Var.h
           verbs/Box.h verbs/Cascade.h verbs/Decoration.h verbs/Depth.h

@@ -96,10 +96,10 @@ static_assert(SaysRotateX<Element> && SaysPerspective<Element>);
 static_assert(SaysContentFlowAround<Text> && SaysMaxTextLines<Text>);
 static_assert(!SaysMaxTextLines<Element>);
 // What a span states is the font and the ink: no box, no text property.
-static_assert(SaysFontWeight<Declarations>);
-static_assert(!SaysPadding<Declarations>);
-static_assert(!SaysMaxTextLines<Declarations>);
-static_assert(!SaysKey<Declarations>);
+static_assert(SaysFontWeight<SpanDeclarations>);
+static_assert(!SaysPadding<SpanDeclarations>);
+static_assert(!SaysMaxTextLines<SpanDeclarations>);
+static_assert(!SaysKey<SpanDeclarations>);
 static_assert(
     std::same_as<decltype(std::declval<Rule&>().padding(4).maxTextLines(2)),
                  Rule&>);

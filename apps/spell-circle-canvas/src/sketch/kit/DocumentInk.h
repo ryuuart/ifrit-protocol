@@ -15,7 +15,7 @@ inline void documentInk(compose::Text& line, const compose::Fill& ink) {
     return;
   }
   if (ink.kind == compose::Fill::Kind::Shader) {
-    line.span(weave::Selector{}, compose::Declarations().ink(ink));
+    line.span(weave::Selector{}, compose::SpanDeclarations().ink(ink));
   } else {
     line.ink(ink.kind == compose::Fill::Kind::Color ? ink.colorValue
                                                     : SkColors::kTransparent);

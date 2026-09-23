@@ -10,14 +10,14 @@ status: stable
 
 # span
 
-Restyle the range a selector finds with `compose::Declarations` — the
+Restyle the range a selector finds with `compose::SpanDeclarations` — the
 font fields and the ink they state, laid over the style the range is
 set in, the rest standing.
 
 ## Description
 
 **The same text declarations the passage was styled in.** A
-`Declarations` value carries the element's own font and ink verbs —
+`SpanDeclarations` value carries the element's own font and ink verbs —
 `font`, its longhands `fontFamily`, `fontSize`, `fontWeight`,
 `fontStyle` and `letterSpacing`, and `ink` — so a range is restyled in
 the words the passage itself was:
@@ -25,9 +25,9 @@ the words the passage itself was:
 ```cpp
 text(copy)
     .span(weave::selectors::regex(u8"[0-9]+"),
-          Declarations().fontWeight(700).ink(accent))
+          SpanDeclarations().fontWeight(700).ink(accent))
     .span(weave::selectors::text(u8"storm"),
-          Declarations().fontStyle(-12).letterSpacing(1));
+          SpanDeclarations().fontStyle(-12).letterSpacing(1));
 ```
 
 **It re-shapes only where a shaping field was declared, and only the

@@ -128,7 +128,7 @@ template void bindFontVerbs(py::class_<Text>&);
 template void bindFontVerbs(py::class_<Image>&);
 template void bindFontVerbs(py::class_<Band>&);
 template void bindFontVerbs(py::class_<Rule>&);
-template void bindFontVerbs(py::class_<compose::Declarations>&);
+template void bindFontVerbs(py::class_<compose::SpanDeclarations>&);
 
 template <class Node>
 void bindDeclarationVerbs(py::class_<Node>& element) {

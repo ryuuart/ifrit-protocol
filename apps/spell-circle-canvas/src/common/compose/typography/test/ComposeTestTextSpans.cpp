@@ -150,7 +150,7 @@ TEST(TextSpans, ABaselineShiftSpanMovesItsRangeWithoutReshaping) {
   raised.composer.render(box().padding(10).children(
       {text(body, base)
            .span(sigil::weave::selectors::regex(u8"[0-9]+"),
-                 Declarations().font({.baselineShift = 8.0f}))
+                 SpanDeclarations().font({.baselineShift = 8.0f}))
            .key("t")}));
   raised.frame();
   EXPECT_EQ(runShapes(raised, "t"), runShapes(plain, "t"))
@@ -180,7 +180,7 @@ TEST(TextSpans, AnInkPaintResolvedAgainstABoxIsLeftOut) {
   spanned.composer.render(box().padding(10).children(
       {text(body, base)
            .span(sigil::weave::selectors::regex(u8"[0-9]+"),
-                 Declarations().ink(material::skia::Paint::linearUnit(
+                 SpanDeclarations().ink(material::skia::Paint::linearUnit(
                      {0, 0}, {1, 0},
                      {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))}));
   spanned.frame();

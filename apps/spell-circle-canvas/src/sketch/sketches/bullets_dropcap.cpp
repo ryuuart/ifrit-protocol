@@ -52,7 +52,7 @@ Element opening(std::optional<kit::NestedStyle> nested) {
                .margin = 8,
                .style = serif(kBodySize, sketch::kit::theme().palette.figure)});
   if (nested)
-    body.span(kit::nestedRun(*nested), Declarations().font(nested->style));
+    body.span(kit::nestedRun(*nested), SpanDeclarations().font(nested->style));
   return sketch::kit::well({.width = 328, .height = 218, .padding = 20})
       .children({std::move(body)});
 }

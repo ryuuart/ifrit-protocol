@@ -320,11 +320,11 @@ TEST(ComposeCascade, APartialSpanStyleIsLaidOverTheStyleTheRangeIsSetIn) {
   const auto second = [] { return sigil::weave::selectors::text(u8"BBBB"); };
   Host plain, sized, tinted;
   plain.composer.render(page(text(u8"AAAA BBBB")));
-  sized.composer.render(
-      page(text(u8"AAAA BBBB").span(second(), Declarations().fontSize(36))));
+  sized.composer.render(page(
+      text(u8"AAAA BBBB").span(second(), SpanDeclarations().fontSize(36))));
   tinted.composer.render(
       page(text(u8"AAAA BBBB")
-               .span(second(), Declarations().ink(SkColor4f{1, 0, 0, 1}))));
+               .span(second(), SpanDeclarations().ink(SkColor4f{1, 0, 0, 1}))));
   plain.frame();
   sized.frame();
   tinted.frame();

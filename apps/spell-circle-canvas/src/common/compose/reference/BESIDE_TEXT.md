@@ -100,7 +100,7 @@ carry a paragraph out of it are two properties of one leaf.
 const kit::NestedStyle opening{.count = 3, .style = smallCaps};
 text(passage, bodyType)
     .initialLetter({.lines = 3, .margin = 6.0f})
-    .span(kit::nestedRun(opening), Declarations().font(opening.style));
+    .span(kit::nestedRun(opening), SpanDeclarations().font(opening.style));
 ```
 
 Because it is a selector, the run re-resolves with the text: an edit that

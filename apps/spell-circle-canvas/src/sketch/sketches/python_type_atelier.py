@@ -4,7 +4,7 @@ TAGS: Typography/Paragraphs, Typography/Lettering, Runtime/Python
 """
 
 from sigil.compose import (
-    Declarations,
+    SpanDeclarations,
     Element,
     StyleSheet,
     TextPath,
@@ -76,7 +76,7 @@ def run_figure(mode: int) -> Element:
         highlight = Decoration(kind=Decoration.Kind.Highlight, color="#31584f")
         line.span(
             selected.style("signal"),
-            Declarations().font(
+            SpanDeclarations().font(
                 Type(color=TEAL, weight=700, decorations=(highlight,))
             ),
         )

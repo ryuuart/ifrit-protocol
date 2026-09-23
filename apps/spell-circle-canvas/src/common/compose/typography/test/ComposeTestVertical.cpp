@@ -38,8 +38,8 @@ sigil::weave::TextStyle jp(float size, SkColor color) {
 }
 
 /** A span stating one colour. */
-Declarations inked(SkColor colour) {
-  return Declarations().ink(SkColor4f::FromColor(colour));
+SpanDeclarations inked(SkColor colour) {
+  return SpanDeclarations().ink(SkColor4f::FromColor(colour));
 }
 
 int inkCount(Host& host, SkIRect region) {
@@ -509,7 +509,7 @@ TEST(TextVertical, TheUnitReadBackNamesHowEachOneStandsInItsColumn) {
   // a turned one is neither: the read-back names it.
   const std::u8string mixed = u8"平成30年に";
   Host host(300, 240);
-  const Declarations tcy = Declarations().font(
+  const SpanDeclarations tcy = SpanDeclarations().font(
       {.verticalForm = sigil::weave::VerticalForm::kTateChuYoko});
   host.composer.render(box().padding(10).children(
       {text(mixed, jp(22, SK_ColorWHITE))
@@ -581,7 +581,7 @@ TEST(TextVertical, ASizeSpanReshapesOnlyTheRunItNames) {
                  .key("t");
     if (dressed) {
       t.span(sigil::weave::selectors::text(u8"文章"),
-             Declarations().fontSize(40));
+             SpanDeclarations().fontSize(40));
     }
     return box().padding(10).children({std::move(t)});
   };
@@ -651,7 +651,7 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
   sideline.color = SK_ColorRED;
   sigil::weave::Type lined;
   lined.decorations = std::vector<sigil::weave::Decoration>{sideline};
-  const Declarations sidelined = Declarations().font(lined);
+  const SpanDeclarations sidelined = SpanDeclarations().font(lined);
   const auto describe = [&] {
     return box().padding(10).children(
         {text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
@@ -738,7 +738,7 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
     sideline.side = side;
     sigil::weave::Type lined;
     lined.decorations = std::vector<sigil::weave::Decoration>{sideline};
-    const Declarations sidelined = Declarations().font(lined);
+    const SpanDeclarations sidelined = SpanDeclarations().font(lined);
     return box().padding(10).children(
         {text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
              .width(60)

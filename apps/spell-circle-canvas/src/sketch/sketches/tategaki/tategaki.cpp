@@ -158,7 +158,7 @@ struct Tategaki {
                  // The phrase the plate is about, in vermilion — paint only,
                  // so the glyphs are exactly the glyphs the passage shaped.
                  .span(weave::selectors::text(u8"縦組み"),
-                       Declarations().ink(tg::kAka).font({.color8 = true}))
+                       SpanDeclarations().ink(tg::kAka).font({.color8 = true}))
                  // One settling entrance, beating cluster by cluster in
                  // READING ORDER: down each column, then right to left.
                  .fx({.effect = fx::rise(30),
