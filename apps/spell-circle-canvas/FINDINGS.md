@@ -308,3 +308,19 @@ meant to be complete over the kit's operators. `stockOperator` should
 take each of the four, the readings should return for `Along`'s stops,
 `OperatorLike` should name them and `PARITY.md` should move them across;
 a test should build each from Python and assert its additions by key.
+
+## Three reference examples no longer compile, and nothing builds them
+
+`src/common/compose/reference/examples/custom_element.cpp`,
+`image_element.cpp` and `text_element.cpp` hand the `material::Color`
+that `hexColor()` returns to `SkPaint::setColor4f` and call
+`.toSkColor()` on it, which no longer exists on that type. The examples
+are not in the compile database, so no target compiles them and the
+doc probes, which check names rather than expressions, cannot see it.
+
+Each example evidently intends to cross to Skia where it sets a paint,
+which is `material::skia::toSkColor(colour)`.
+
+Once restored, a test should compile every source under a library's
+`reference/examples/` the way a sketch is built, so an example that
+stops compiling fails the build rather than the reader.
