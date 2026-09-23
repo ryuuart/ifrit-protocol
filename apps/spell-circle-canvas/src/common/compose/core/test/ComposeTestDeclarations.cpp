@@ -326,8 +326,7 @@ TEST(ComposeDeclarations, ALonghandIsItsShorthandWithOneField) {
   EXPECT_TRUE(sameDescription(box().fontSize(18), box().font({.size = 18})));
   EXPECT_TRUE(
       sameDescription(box().fontWeight(700), box().font({.weight = 700})));
-  EXPECT_TRUE(
-      sameDescription(box().fontStyle(-12), box().font({.slant = -12})));
+  EXPECT_TRUE(sameDescription(box().fontStyle(12), box().font({.slant = -12})));
   EXPECT_TRUE(
       sameDescription(box().letterSpacing(2), box().font({.track = 2})));
   EXPECT_TRUE(sameDescription(

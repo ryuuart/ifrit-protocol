@@ -72,6 +72,8 @@ sound model; nothing below them changes kernel semantics.
   relative units the cascade resolves, with `pw` and `ph` — the canvas's own
   width and height — resolved in the same pass. `LayoutInput::attribute`
   reads a child's fact by index and name.
+- `core/FontStyle.h` — `FontStyle`, CSS's `font-style` as a value:
+  `FontStyle::Normal`, `FontStyle::Italic` and `FontStyle::oblique`.
 - `core/LineSetting.h` — `TextWrap` and `TextJustify`, CSS's keywords
   for how a paragraph's lines break and where a justified line spends its
   slack.

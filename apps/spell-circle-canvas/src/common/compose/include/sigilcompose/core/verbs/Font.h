@@ -9,6 +9,7 @@
  */
 
 #include <sigilcompose/core/Declarations.h>
+#include <sigilcompose/core/FontStyle.h>
 #include <sigilcompose/core/PaintAnchor.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Var.h>
@@ -18,6 +19,7 @@
 #include <sigilweave/style/Type.h>
 
 #include <optional>
+#include <string>
 
 namespace sigil::compose {
 
@@ -33,9 +35,13 @@ class FontVerbs {
    *  inherit. Written twice, the later call wins field by field. A
    *  relative size resolves against the PARENT's font. */
   Derived& font(sigil::weave::Type partial);
-  /** THE FACE — CSS `font-family`, as the face itself. A null face is
-   *  the font context's default family. The `face` field of `font()`. */
-  Derived& fontFamily(sk_sp<SkTypeface> face);
+  /** THE FAMILY — CSS `font-family`, by name: `fontFamily("Georgia")`.
+   *  The composer's font context finds the family's face at the weight
+   *  and the style in force; an empty name is its default family. It and
+   *  the `face` field of `font()` are one statement, so the later wins.
+   *  @trap A family the context cannot find leaves the inherited face
+   *  standing and says so once. */
+  Derived& fontFamily(std::string family);
   /** THE TYPE SIZE — CSS `font-size`. Pixels when bare; `em` and `rem`
    *  resolve against the parent's and the root's size. The `size` field
    *  of `font()`. 16 px when nothing states one. */
@@ -44,10 +50,14 @@ class FontVerbs {
    *  regular, 700 bold. 0 is the face's own weight, stated. The `weight`
    *  field of `font()`. */
   Derived& fontWeight(float weight);
-  /** THE LEAN — CSS `font-style`'s oblique, as the face's `slnt` axis in
-   *  degrees, NEGATIVE leaning right as OpenType counts it. 0 is
-   *  upright. The `slant` field of `font()`. */
-  Derived& fontStyle(float slant);
+  /** THE STYLE — CSS `font-style`: `FontStyle::Normal`, `Italic`, or
+   *  `FontStyle::oblique(degrees)`, POSITIVE leaning right, 14 when no
+   *  angle is given; a bare number is that oblique. An oblique is the
+   *  `slant` field of `font()`, negated onto the face's `slnt` axis as
+   *  OpenType counts it. Upright when nothing states one.
+   *  @trap Italic is the family's italic face, else its `ital` axis, else
+   *  an oblique of 14 degrees, which is said once. */
+  Derived& fontStyle(FontStyle style);
   /** THE TRACKING added after each cluster — CSS `letter-spacing`.
    *  Pixels when bare; `em()` is a fraction of the size the type resolves
    *  to. The `track` field of `font()`. */

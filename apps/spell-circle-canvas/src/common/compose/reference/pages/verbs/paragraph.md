@@ -41,7 +41,7 @@ field. A rule states them as a node does.
 |---|---|---|
 | `lineHeight` | `line-height` | `leading` |
 | `textAlign` | `text-align` | `alignment` |
-| `textIndent` | `text-indent` | `firstLineIndent` |
+| [`textIndent`](textIndent.md) | `text-indent` | `firstLineIndent`, in pixels once resolved |
 | `writingMode` | `writing-mode` | `writingMode` |
 | `hyphens` | `hyphens` | `hyphenation` |
 | `textWrap` | `text-wrap-style` | `lineBreak` and `balanceRaggedLines` |

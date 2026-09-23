@@ -84,7 +84,7 @@ weave::Length fontLength(py::handle value) {
 template <class Node>
 void bindFontVerbs(py::class_<Node>& element) {
   element.def("font", &Node::font, py::arg("type"), fluent)
-      .def("fontFamily", &Node::fontFamily, py::arg("face"), fluent)
+      .def("fontFamily", &Node::fontFamily, py::arg("family"), fluent)
       .def(
           "fontSize",
           [](Node& self, py::object value) -> Node& {
@@ -92,7 +92,17 @@ void bindFontVerbs(py::class_<Node>& element) {
           },
           py::arg("size"), fluent)
       .def("fontWeight", &Node::fontWeight, py::arg("weight"), fluent)
-      .def("fontStyle", &Node::fontStyle, py::arg("slant"), fluent)
+      .def(
+          "fontStyle",
+          [](Node& self, py::object style) -> Node& {
+            // A FontStyle, or a bare number of degrees, which is the
+            // oblique of that lean.
+            return self.fontStyle(
+                py::isinstance<compose::FontStyle>(style)
+                    ? style.cast<compose::FontStyle>()
+                    : compose::FontStyle::oblique(style.cast<float>()));
+          },
+          py::arg("style"), fluent)
       .def(
           "letterSpacing",
           [](Node& self, py::object value) -> Node& {
@@ -299,7 +309,12 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
            py::arg("partial"), fluent)
       .def("lineHeight", &Node::lineHeight, py::arg("leading"), fluent)
       .def("textAlign", &Node::textAlign, py::arg("alignment"), fluent)
-      .def("textIndent", &Node::textIndent, py::arg("px"), fluent)
+      .def(
+          "textIndent",
+          [](Node& self, py::object indent) -> Node& {
+            return self.textIndent(dimension(indent));
+          },
+          py::arg("indent"), fluent)
       .def("writingMode", &Node::writingMode, py::arg("mode"), fluent)
       .def("hyphens", &Node::hyphens, py::arg("hyphenation"), fluent)
       .def("textWrap", &Node::textWrap, py::arg("wrap"), fluent)

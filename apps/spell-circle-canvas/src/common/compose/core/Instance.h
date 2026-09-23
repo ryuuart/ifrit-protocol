@@ -211,6 +211,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // is the layout's own answer and nothing engages it. Written by the pass
   // before layout; read when a text leaf's layout options are built.
   sigil::weave::ParagraphBlock block;
+  // Whether the style in force is ITALIC, which the face alone cannot say:
+  // a family with no italic stands in with a lean. Inherited beside `font`.
+  bool italic = false;
+  // THE FIRST-LINE INDENT IN FORCE AS A PERCENTAGE of each passage's
+  // measure, which `block` cannot hold in pixels until the measure is
+  // known; absent where the indent in force is pixels or none.
+  std::optional<float> indentPercent;
   // THE IMAGE SAMPLING IN FORCE at this node, or none stated, which an
   // image leaf reads as linear.
   std::optional<SkSamplingOptions> sampling;

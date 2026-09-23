@@ -8,6 +8,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Type.h>
 
+#include <string>
 #include <utility>
 
 #include "ComposeInternal.h"
@@ -54,6 +55,14 @@ Derived& FontVerbs<Derived>::font(sigil::weave::Type partial) {
   // Later wins field by field: the partial written last replaces what it
   // names and leaves the rest as an earlier call or a class left it.
   sigil::weave::merge(*cascade.font, partial);
+  // A face written here stands over a family named before it, and a lean
+  // is a style of its own, which is no italic.
+  if (partial.face || partial.keywords.find(sigil::weave::TypeField::Face))
+    cascade.fontFamily.reset();
+  if (partial.slant)
+    cascade.italic = false;
+  else if (partial.keywords.find(sigil::weave::TypeField::Slant))
+    cascade.italic.reset();
   // A colour written here is the ink, so a property the ink was read from
   // before no longer stands, and neither does a paint.
   if (partial.color) {
@@ -69,8 +78,17 @@ Derived& FontVerbs<Derived>::font(sigil::weave::Type partial) {
 // spellings fold into one partial and the later statement wins.
 
 template <class Derived>
-Derived& FontVerbs<Derived>::fontFamily(sk_sp<SkTypeface> face) {
-  return font({.face = std::move(face)});
+Derived& FontVerbs<Derived>::fontFamily(std::string family) {
+  // An empty name is the default family, which is a face the partial can
+  // state; any other name waits for the cascade, where a context is.
+  if (family.empty()) return font({.face = sigil::weave::defaultFace()});
+  detail::CascadeData& cascade = declarations()->font();
+  if (cascade.font) {
+    cascade.font->face.reset();
+    if (cascade.font->empty()) cascade.font.reset();
+  }
+  cascade.fontFamily = std::move(family);
+  return self();
 }
 
 template <class Derived>
@@ -84,8 +102,15 @@ Derived& FontVerbs<Derived>::fontWeight(float weight) {
 }
 
 template <class Derived>
-Derived& FontVerbs<Derived>::fontStyle(float slant) {
-  return font({.slant = slant});
+Derived& FontVerbs<Derived>::fontStyle(FontStyle style) {
+  // CSS leans right with a positive angle; OpenType's slnt axis leans
+  // right with a negative one, so the angle is written negated. Normal
+  // and Italic state no lean at all.
+  font({.slant = style.kind == FontStyle::Kind::Oblique ? 0.0f - style.degrees
+                                                        : 0.0f});
+  if (style.kind == FontStyle::Kind::Italic)
+    declarations()->font().italic = true;
+  return self();
 }
 
 template <class Derived>

@@ -4,6 +4,7 @@
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/FontStyle.h>
 #include <sigilcompose/core/LineSetting.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/typography/Annotation.h>
@@ -369,6 +370,44 @@ void bindCompose(py::module_& module) {
       .value("InterWord", TextJustify::InterWord)
       .value("InterCharacter", TextJustify::InterCharacter)
       .value("None_", TextJustify::None);
+  // CSS's font-style as a value: the two keywords as class attributes, an
+  // oblique made by name or from a bare number of degrees.
+  py::class_<FontStyle> fontStyle(
+      composition, "FontStyle",
+      "How the type leans — CSS font-style: FontStyle.Normal, "
+      "FontStyle.Italic, or FontStyle.oblique(degrees), positive leaning "
+      "right and 14 when no angle is given. A bare number is that oblique. "
+      "Italic is the family's italic face, else its ital axis, else an "
+      "oblique of 14 degrees.");
+  py::enum_<FontStyle::Kind>(fontStyle, "Kind")
+      .value("Normal", FontStyle::Kind::Normal)
+      .value("Italic", FontStyle::Kind::Italic)
+      .value("Oblique", FontStyle::Kind::Oblique);
+  fontStyle
+      .def(py::init<float>(), py::arg("degrees"),
+           "The oblique of `degrees`, positive leaning right.")
+      .def_readonly_static("Normal", &FontStyle::Normal)
+      .def_readonly_static("Italic", &FontStyle::Italic)
+      .def_static("oblique", &FontStyle::oblique, py::arg("degrees") = 14.0f,
+                  "A lean of `degrees`, positive to the right; 14 when no "
+                  "angle is given.")
+      .def_readonly("kind", &FontStyle::kind)
+      .def_readonly("degrees", &FontStyle::degrees,
+                    "The lean under Oblique, positive to the right; 0 "
+                    "otherwise.")
+      .def(py::self == py::self)
+      .def("__repr__", [](const FontStyle& style) -> std::string {
+        switch (style.kind) {
+          case FontStyle::Kind::Normal:
+            return "FontStyle.Normal";
+          case FontStyle::Kind::Italic:
+            return "FontStyle.Italic";
+          case FontStyle::Kind::Oblique:
+            break;
+        }
+        return "FontStyle.oblique(" +
+               py::repr(py::float_(style.degrees)).cast<std::string>() + ")";
+      });
   py::enum_<Align>(composition, "Align")
       .value("Auto", Align::Auto)
       .value("Start", Align::Start)

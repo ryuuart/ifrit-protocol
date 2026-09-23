@@ -48,10 +48,13 @@ class CascadeVerbs {
    *  centre, end or justified. The `alignment` field of `paragraph()`. Start
    *  when nothing states one. */
   Derived& textAlign(sigil::weave::TextAlignment alignment);
-  /** THE FIRST LINE OF EVERY BLOCK INDENTED by @p px — CSS
-   *  `text-indent`; negative hangs it out. The `firstLineIndent` field of
-   *  `paragraph()`. Zero when nothing states one. */
-  Derived& textIndent(float px);
+  /** THE FIRST LINE OF EVERY BLOCK INDENTED — CSS `text-indent`, in any
+   *  length: pixels when bare, `em`, `rem`, `lh`, `ch` and `pt` against
+   *  the font where it is stated, `pct` of each passage's measure. Negative
+   *  hangs it out. The `firstLineIndent` field of `paragraph()`, in pixels
+   *  once resolved. Zero when nothing states one.
+   *  @trap `auto` is no indent: it is refused, and said once. */
+  Derived& textIndent(Dimension indent);
   /** WHICH WAY THE LINES RUN — CSS `writing-mode`: horizontal, or
    *  vertical columns right to left. The `writingMode` field of
    *  `paragraph()`. Horizontal when nothing states one. */

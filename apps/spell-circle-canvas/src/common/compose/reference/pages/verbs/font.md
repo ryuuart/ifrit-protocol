@@ -28,6 +28,12 @@ so does a class written between them.
 `font({.size = 1.5_em})` is half again the size inherited, not half
 again this node's own.
 
+**Its longhands each write one field**: `fontSize`, `fontWeight`,
+`letterSpacing`, [`fontFamily`](fontFamily.md) — the face, by its
+family's name — and [`fontStyle`](fontStyle.md) — the slant, or the
+italic face. A longhand and this verb are one statement, so the later
+wins.
+
 **The colour in it IS the [ink](ink.md).** A partial carrying a colour
 sets the ink and drops a custom-property reference the ink was read
 from before.

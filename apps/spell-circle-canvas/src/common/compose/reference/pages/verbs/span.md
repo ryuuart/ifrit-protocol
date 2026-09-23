@@ -27,7 +27,7 @@ text(copy)
     .span(weave::selectors::regex(u8"[0-9]+"),
           SpanDeclarations().fontWeight(700).ink(accent))
     .span(weave::selectors::text(u8"storm"),
-          SpanDeclarations().fontStyle(-12).letterSpacing(1));
+          SpanDeclarations().fontStyle(12).letterSpacing(1));
 ```
 
 **It re-shapes only where a shaping field was declared, and only the

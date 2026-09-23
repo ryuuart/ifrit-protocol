@@ -133,7 +133,8 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   const auto flowRect = [&](float across, float down) {
     return SkRect::MakeXYWH(pad.left, pad.top, across, down);
   };
-  sigil::weave::ParagraphLayoutOptions options = textLayoutOptions(inst);
+  sigil::weave::ParagraphLayoutOptions options =
+      textLayoutOptions(inst, constraint);
   // HOW DEEP THE FRAME IS is a fact only this side knows: weave is handed a
   // geometry, not a box, and its vertical distribution and first-baseline
   // rule need the depth the node resolved to. A leaf sized by its own

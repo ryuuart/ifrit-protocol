@@ -94,6 +94,8 @@ def children(self, *children: _t.NodeLike) -> Element: ...
 def registerFont(table: _Returning, node: str) -> None:
     """The font and the ink, over the value that states them."""
     table.erased(node, "fontSize letterSpacing", "_t.FloatLike | _sigil.weave.Length")
+    # A style, or a bare number of degrees, which is the oblique of that lean.
+    table.erased(node, "fontStyle", "FontStyle | _t.FloatLike")
     table.erased(node, "ink", "_t.ElementInkLike")
 
 
@@ -106,7 +108,8 @@ def registerDeclarations(table: _Returning, node: str) -> None:
     )
     table.erased(
         node,
-        "width height minWidth minHeight maxWidth maxHeight flexBasis left top right bottom gap",
+        "width height minWidth minHeight maxWidth maxHeight flexBasis left top right bottom gap "
+        "textIndent",
         "_t.DimensionLike",
     )
     table.erased(node, "size", "_t.DimensionLike", "_t.DimensionLike")

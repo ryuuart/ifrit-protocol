@@ -222,15 +222,15 @@ the code that built a child ran.
 | Verb | What it says |
 |---|---|
 | [`font`](pages/verbs/font.md) | The type everything under this node is set in, as a PARTIAL over what it inherits. |
-| `fontFamily` | The face — one field of `font`. |
+| [`fontFamily`](pages/verbs/fontFamily.md) | The family, by name, found through the font context — the face field of `font`. |
 | `fontSize` | The type size — one field of `font`. |
 | `fontWeight` | The weight, as the face's `wght` axis — one field of `font`. |
-| `fontStyle` | The lean, as the face's `slnt` axis — one field of `font`. |
+| [`fontStyle`](pages/verbs/fontStyle.md) | Upright, italic, or an oblique angle leaning right — the face and the slant of `font`. |
 | `letterSpacing` | The tracking after each cluster — one field of `font`. |
 | [`paragraph`](pages/verbs/paragraph.md) | The paragraph settings everything under it is set in, as a partial in the same way. |
 | `lineHeight` | The pitch of the lines — one field of `paragraph`. |
 | `textAlign` | Where the lines sit across the measure — one field of `paragraph`. |
-| `textIndent` | The first line of every block indented — one field of `paragraph`. |
+| [`textIndent`](pages/verbs/textIndent.md) | The first line of every block indented, by any length — one field of `paragraph`. |
 | `writingMode` | Which way the lines run — one field of `paragraph`. |
 | `hyphens` | Whether and where a word may break with a hyphen — one field of `paragraph`. |
 | `textWrap` | How the lines break — `Auto`, `Stable`, `Pretty` or `Balance` — the breaker and balancing fields of `paragraph`. |

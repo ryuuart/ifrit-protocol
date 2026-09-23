@@ -52,7 +52,7 @@ sigil_library(SigilComposeCore
     # and the rules a sheet states about them
     Selector.cpp SelectorParse.cpp StyleSheet.cpp SelectorMatch.cpp
     # the composer and its phases
-    Composer.cpp Measure.cpp Tiles.cpp Cascade.cpp
+    Composer.cpp Measure.cpp Tiles.cpp Cascade.cpp CascadeDiagnostics.cpp
     Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
     LayoutProps.cpp ReconcileHost.cpp Layout.cpp LayoutText.cpp Rects.cpp
     Derive.cpp FlowAround.cpp Threads.cpp Routes.cpp
@@ -66,7 +66,7 @@ sigil_library(SigilComposeCore
     PromotionTier.cpp SplitBake.cpp GroupBake.cpp TextureBake.cpp
     PictureTier.cpp
     # text
-    TextPainter.cpp TextInk.cpp
+    TextPainter.cpp TextInk.cpp FaceChoice.cpp
     # the instanced leaf
     Instances.cpp Shelf.cpp
     # paint values
@@ -79,7 +79,7 @@ sigil_library(SigilComposeCore
     ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
     ComputedStyle.h DeclaredFields.h PropertyBlocks.h HeapBox.h
     SelectorInternal.h SelectorMatch.h SheetBody.h Calc.h
-    TextState.h SlotSpecs.h
+    TextState.h SlotSpecs.h FaceChoice.h
     Lanes.h
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
     PaintInternal.h PaintPass.h GlyphInk.h
@@ -89,7 +89,7 @@ sigil_library(SigilComposeCore
           Factories.h Feed.h Grid.h Image.h Instances.h Layout.h Mask.h
           Measure.h
           Paint.h Pattern.h Property.h Selector.h Shape.h Shelf.h
-          SpanDeclarations.h Stroke.h
+          FontStyle.h SpanDeclarations.h Stroke.h
           StyleSheet.h SurfacePaint.h Table.h
           Text.h TextPainter.h Tiles.h Utf8.h Var.h
           verbs/Box.h verbs/Cascade.h verbs/Decoration.h verbs/Depth.h
@@ -140,11 +140,12 @@ sigil_test(compose_test
           test/ComposeTestSelector.cpp test/ComposeTestStyleSheet.cpp
           test/ComposeTestMatching.cpp test/ComposeTestHas.cpp
           test/ComposeTestTypedLeaves.cpp test/ComposeTestRuleScope.cpp
+          test/ComposeTestLonghandValues.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore
   LABELS fonts
-  SUITES ComposeFaces)
+  SUITES ComposeFaces ComposeFontFamily ComposeFontStyle)
 
 # The kernel: describe, reconcile, layout, query and caching in the
 # first file, then one whole-scene file per subject — the scoreboard,

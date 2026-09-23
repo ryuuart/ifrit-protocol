@@ -221,6 +221,8 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
   if (stated.cascadeData) {
     const detail::CascadeData& said = *stated.cascadeData;
     if (said.font) restyle.partial = *said.font;
+    restyle.fontFamily = said.fontFamily;
+    restyle.italic = said.italic;
     restyle.inkVar = said.inkVar;
     // A static paint collapses to one fill: a flat colour is the ink's
     // colour, anything else a shader over the range. A live paint has no

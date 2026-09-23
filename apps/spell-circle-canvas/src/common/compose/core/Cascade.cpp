@@ -6,14 +6,12 @@
  * resolves through at paint.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf — the once-per-name diagnostics
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_map.hpp>
-#include <boost/unordered/unordered_flat_set.hpp>
 #include <deque>
 #include <mutex>
 #include <string>
@@ -22,6 +20,7 @@
 
 #include "Calc.h"
 #include "ComposeRuntime.h"
+#include "FaceChoice.h"
 #include "SelectorMatch.h"
 
 namespace sigil::compose {
@@ -176,76 +175,6 @@ std::string_view varName(VarRef ref) {
 }
 
 // ---------------------------------------------------------------------------
-// Diagnostics
-
-void detail::warnNoSuchClass(std::string_view name, bool anySheetInScope) {
-  static thread_local boost::unordered_flat_set<std::string> warned;
-  if (!warned.insert(std::string(name)).second) return;
-  SkDebugf(
-      "[compose] styleClass(\"%.*s\") names a class no rule of the sheets "
-      "in force where the element lands speaks about%s — nothing was set, "
-      "and the text under it is set in whatever it inherits. Apply a sheet "
-      "with applyStyleSheet() on the element or on a node above it, with a "
-      "rule naming .%.*s. (warned once)\n",
-      (int)name.size(), name.data(),
-      anySheetInScope ? "" : " (no sheet is applied on the tree above it)",
-      (int)name.size(), name.data());
-}
-
-void detail::warnPropertyAnswersNoKeyword(Property property) {
-  static thread_local boost::unordered_flat_set<uint8_t> warned;
-  if (!warned.insert((uint8_t)property).second) return;
-  const std::string_view name = propertyName(property);
-  SkDebugf(
-      "[compose] inherit/initial/unset was said about %.*s, and nothing "
-      "resolves a keyword for that property — it is kept on the "
-      "description, which no fold reads. The keyword was REFUSED, so the "
-      "node describes as one that never wrote it rather than as one "
-      "carrying a statement nothing answers. State the value itself. "
-      "(warned once)\n",
-      (int)name.size(), name.data());
-}
-
-void detail::warnRuleHoldsOnlyStaticValues(Property property) {
-  static thread_local boost::unordered_flat_set<uint8_t> warned;
-  if (!warned.insert((uint8_t)property).second) return;
-  const std::string_view name = propertyName(property);
-  SkDebugf(
-      "[compose] a rule states %.*s as a live binding, an animation or an "
-      "animated paint, and a rule holds static values — the statement was "
-      "left out, so the elements it matches keep what they would have "
-      "without it. State the value itself in the rule, or the live form on "
-      "the element. (warned once)\n",
-      (int)name.size(), name.data());
-}
-
-void detail::warnRuleCannotState(Property property) {
-  static thread_local boost::unordered_flat_set<uint8_t> warned;
-  if (!warned.insert((uint8_t)property).second) return;
-  const std::string_view name = propertyName(property);
-  SkDebugf(
-      "[compose] a rule states %.*s, which is kept on the element's own "
-      "description and which a rule's layer does not carry — the statement "
-      "was left out, so the elements it matches keep what they would have "
-      "without it. State it on the element. (warned once)\n",
-      (int)name.size(), name.data());
-}
-
-void detail::warnNoSuchVar(VarRef reference, bool wantColour) {
-  static thread_local boost::unordered_flat_set<uint64_t> warned;
-  if (!warned.insert(((uint64_t)reference.id << 1) | (wantColour ? 1u : 0u))
-           .second)
-    return;
-  const std::string_view name = varName(reference);
-  SkDebugf(
-      "[compose] var(\"%.*s\") read as a %s where no ancestor set one as "
-      "such — it resolves to nothing. Set it with Element::var on an "
-      "ancestor of the node that reads it, holding a %s. (warned once)\n",
-      (int)name.size(), name.data(), wantColour ? "colour" : "length",
-      wantColour ? "colour" : "length");
-}
-
-// ---------------------------------------------------------------------------
 // A fill written as a reference
 
 Fill resolveRef(const Fill& fill, const PaintContext& ctx) {
@@ -350,6 +279,33 @@ float Composer::Impl::resolveLength(const Instance& inst,
   return length.value;
 }
 
+void Composer::Impl::resolveTextIndent(const Instance& inst,
+                                       const Dimension& indent,
+                                       sigil::weave::ParagraphBlock& block,
+                                       std::optional<float>& percent) const {
+  // A property is read once, into the length it holds, and that length is
+  // resolved as if it had been written here.
+  const Dimension* length = &indent;
+  if (indent.unit == Dimension::Unit::Var) {
+    const VarValue* value =
+        inst.vars ? inst.vars->find(indent.reference()) : nullptr;
+    length = value ? std::get_if<Dimension>(value) : nullptr;
+    if (length == nullptr || length->unit == Dimension::Unit::Var ||
+        length->unit == Dimension::Unit::Auto) {
+      warnNoSuchVar(indent.reference(), false);
+      return;
+    }
+  }
+  if (length->unit == Dimension::Unit::Pct) {
+    percent = length->value;
+    block.firstLineIndent.reset();
+    return;
+  }
+  bool relative = false;
+  block.firstLineIndent = resolveLength(inst, *length, relative);
+  percent.reset();
+}
+
 float Composer::Impl::lineHeightAt(const sigil::weave::Type& font) {
   return sigil::weave::lineHeightOf(sigil::weave::toTextStyle(font), fonts);
 }
@@ -387,6 +343,19 @@ void Composer::Impl::resolveCascade(
   const ElementNode& node = *inst.description;
   const bool first = !inst.cascadeResolved;
   sigil::weave::Type font = parentFont;
+  // WHETHER THE STYLE IN FORCE IS ITALIC, inherited beside the font: the
+  // face alone cannot say so, since a family with no italic stands in with
+  // a lean.
+  const bool parentItalic = inst.parent != nullptr && inst.parent->italic;
+  bool italic = parentItalic;
+  // The first-line indent as a percentage of each passage's measure,
+  // inherited as the percentage and resolved where a passage is laid out.
+  const std::optional<float> parentIndentPercent =
+      inst.parent != nullptr ? inst.parent->indentPercent : std::nullopt;
+  std::optional<float> indentPercent = parentIndentPercent;
+  // An indent a layer states in a unit resolved below, once this node's
+  // font is known.
+  std::optional<Dimension> indent;
   // The ink's paint inherits exactly as the font's colour does, and the
   // node that STATED it is the box a declaring-box anchor maps onto.
   InkInForce inkPaint = parentInkPaint;
@@ -545,9 +514,39 @@ void Composer::Impl::resolveCascade(
     bool fontFromInitial = false;
     bool blockFromInitial = false;
     bool varsFromInitial = false;
+    // The family and the style the layers state, the last statement
+    // standing: a face stated after a family stands over it, and one stated
+    // under an italic is asked for its italic.
+    const std::string* family = nullptr;
+    std::optional<bool> italicStated;
+    bool faceStated = false;
+    // Whether the last indent a layer stated was in pixels, which stands
+    // over a percentage arriving from above.
+    bool indentInPixels = false;
+    const auto stateFaceAndIndent =
+        [&](const sigil::weave::Type* type,
+            const sigil::weave::ParagraphBlock* paragraphBlock,
+            const CascadeData* said) {
+          if (type != nullptr && type->face) {
+            family = nullptr;
+            faceStated = true;
+          }
+          if (paragraphBlock != nullptr && paragraphBlock->firstLineIndent) {
+            indent.reset();
+            indentInPixels = true;
+          }
+          if (said == nullptr) return;
+          if (said->fontFamily) family = &*said->fontFamily;
+          if (said->italic) italicStated = said->italic;
+          if (said->textIndent) {
+            indent = said->textIndent;
+            indentInPixels = false;
+          }
+        };
     if (cascade != nullptr && cascade->role) {
       sigil::weave::merge(ownFont, cascade->role->font);
       sigil::weave::merge(ownBlock, cascade->role->block);
+      stateFaceAndIndent(&cascade->role->font, &cascade->role->block, nullptr);
     }
     // A class is unknown only where no rule of the sheets in force names
     // it, whether that rule matched this node or not.
@@ -575,6 +574,8 @@ void Composer::Impl::resolveCascade(
       const ElementNode& stated = *rule.node();
       if (const CascadeData* said =
               stated.cascadeData ? &*stated.cascadeData : nullptr) {
+        stateFaceAndIndent(said->font ? &*said->font : nullptr,
+                           said->block ? &*said->block : nullptr, said);
         if (said->sampling) sampling = said->sampling;
         if (!said->varDefaults.empty())
           ruleVarDefaults.overlay(said->varDefaults);
@@ -593,11 +594,18 @@ void Composer::Impl::resolveCascade(
             ownFont = {};
             ownFont.color = colour;
             fontFromInitial = !fromParent;
+            family = nullptr;
+            italicStated.reset();
+            faceStated = false;
             break;
           }
           case Property::Paragraph:
             ownBlock = {};
             blockFromInitial = !fromParent;
+            indent.reset();
+            indentInPixels = false;
+            indentPercent =
+                fromParent ? parentIndentPercent : std::optional<float>{};
             break;
           case Property::Ink:
             inkVar.reset();
@@ -630,6 +638,8 @@ void Composer::Impl::resolveCascade(
         if (cascade->font->color) inkVar.reset();
       }
       if (cascade->block) sigil::weave::merge(ownBlock, *cascade->block);
+      stateFaceAndIndent(cascade->font ? &*cascade->font : nullptr,
+                         cascade->block ? &*cascade->block : nullptr, cascade);
       if (cascade->inkVar) inkVar = cascade->inkVar;
       if (cascade->statesInk) {
         inkPaint = {cascade->inkPaint, cascade->inkAnchor, cascade->inkUnit};
@@ -641,6 +651,7 @@ void Composer::Impl::resolveCascade(
     // all. A merge could not: it has no base to inherit from.
     block = sigil::weave::overlay(
         blockFromInitial ? sigil::weave::ParagraphBlock{} : block, ownBlock);
+    if (indentInPixels) indentPercent.reset();
     if (cascade != nullptr && cascade->sampling) sampling = cascade->sampling;
     const bool anyOwnVars =
         cascade != nullptr &&
@@ -670,6 +681,12 @@ void Composer::Impl::resolveCascade(
       font = sigil::weave::overlay(parentFont, ownFont, fontSizePx(rootFont),
                                    parentLineHeight);
     }
+    // A FAMILY NAMED, OR AN ITALIC TURNED ON OR OFF, CHOOSES THE FACE —
+    // through the composer's font context, which is why it is done here
+    // and not by the verb — and so does a face stated under an italic.
+    italic = italicStated.value_or(fontFromInitial ? false : parentItalic);
+    if (family != nullptr || italic != parentItalic || (faceStated && italic))
+      chooseFace(fonts, font, family, italic);
     if (ownFont.color) statesOwnInk = true;
     if (inkVar) {
       const VarValue* value = vars ? vars->find(*inkVar) : nullptr;
@@ -703,6 +720,7 @@ void Composer::Impl::resolveCascade(
           const std::optional<material::Color> ink = font.color;
           font = fromParent ? parentFont : sigil::weave::initialType();
           font.color = ink;
+          italic = fromParent && parentItalic;
           break;
         }
         case Property::Ink:
@@ -719,6 +737,9 @@ void Composer::Impl::resolveCascade(
           break;
         case Property::Paragraph:
           block = fromParent ? parentBlock : sigil::weave::ParagraphBlock{};
+          indent.reset();
+          indentPercent =
+              fromParent ? parentIndentPercent : std::optional<float>{};
           break;
         case Property::ImageRendering:
           if (fromParent)
@@ -784,13 +805,20 @@ void Composer::Impl::resolveCascade(
     inst.hasWorldSpaceMaterial = true;
   inst.inkPaintOrigin = inkPaintOrigin;
   inst.vars = vars;
-  inst.block = block;
-  inst.sampling = sampling;
-  inst.cascadeResolved = true;
+  inst.italic = italic;
   if (shapeChanged) {
     inst.lineHeight = lineHeightAt(font);
     inst.zeroAdvance = zeroAdvanceAt(font);
   }
+  // AN INDENT IN A RELATIVE UNIT BECOMES PIXELS HERE, against this node's
+  // own font, line and properties, and is inherited as the pixels, as
+  // CSS computes it; a percentage of the measure waits for the measure.
+  if (indent) resolveTextIndent(inst, *indent, block, indentPercent);
+  const bool indentPercentMoved = indentPercent != inst.indentPercent;
+  inst.indentPercent = indentPercent;
+  inst.block = block;
+  inst.sampling = sampling;
+  inst.cascadeResolved = true;
 
   // A text leaf: text reconcile left owed is shaped here, once, in the font
   // and the paragraph setting it lands in. After that, a change of face, size
@@ -849,7 +877,7 @@ void Composer::Impl::resolveCascade(
       if (inst.yoga) YGNodeMarkDirty(inst.yoga);
       needsLayout = true;
     } else {
-      if (!(block == inst.textBlock)) {
+      if (!(block == inst.textBlock) || indentPercentMoved) {
         inst.textBlock = block;
         inst.contentRev++;
         if (inst.yoga) YGNodeMarkDirty(inst.yoga);

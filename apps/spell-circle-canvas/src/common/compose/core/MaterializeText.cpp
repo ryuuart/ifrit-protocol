@@ -10,6 +10,7 @@
 #include <variant>
 
 #include "ComposeRuntime.h"
+#include "FaceChoice.h"
 
 namespace sigil::compose {
 
@@ -153,7 +154,8 @@ void Composer::Impl::materializeText(
   for (size_t i = 0; i < restyleCount; ++i) {
     const SpanRestyle& restyle = text.spanRestyles[i];
     resolvedStyles[i] = styleOfSpan(restyleBase, restyle, inst);
-    resolvedPaintOnly[i] = !sigil::weave::reshapes(restyle.partial);
+    resolvedPaintOnly[i] = !sigil::weave::reshapes(restyle.partial) &&
+                           !restyle.fontFamily && !restyle.italic;
   }
   // The ranges are the painter's answer: text that carries none — a
   // description built without a text verb — is restyled by nothing.
@@ -261,6 +263,19 @@ sigil::weave::TextStyle Composer::Impl::styleOfSpan(
     const sigil::weave::TextStyle& base, const SpanRestyle& span,
     const Instance& inst) const {
   sigil::weave::Type partial = span.partial;
+  // A family or an italic the span states chooses the range's face as one
+  // a node states chooses the node's: over the face the range is set in,
+  // at the weight the span or that face carries.
+  if (span.fontFamily || span.italic) {
+    sigil::weave::Type chosen = partial;
+    if (!chosen.face) chosen.face = base.shaping.typeface;
+    const bool italic = span.italic.value_or(inst.italic);
+    chooseFace(fonts, chosen, span.fontFamily ? &*span.fontFamily : nullptr,
+               italic);
+    partial.face = chosen.face;
+    partial.slant = chosen.slant;
+    partial.variations = chosen.variations;
+  }
   if (span.inkVar) {
     const VarValue* value = inst.vars ? inst.vars->find(*span.inkVar) : nullptr;
     const material::Color* colour =
@@ -281,7 +296,7 @@ sigil::weave::TextStyle Composer::Impl::styleOfSpan(
 }
 
 sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
-    const Instance& inst) const {
+    const Instance& inst, float measure) const {
   sigil::weave::ParagraphLayoutOptions options;
   if (!inst.description || !inst.description->textData) return options;
   const TextData& text = *inst.description->textData;
@@ -299,9 +314,14 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
   // not reach is set in, and what a named block's partial is laid over. A
   // whole style the leaf wrote inherits nothing, as a whole text style does.
   // The initial letter lands on the first block whichever way that block was
-  // styled.
+  // styled. An indent in force as a percentage is one of THIS measure, and
+  // of none where the measure is unbounded.
+  sigil::weave::ParagraphBlock inForceBlock = inst.block;
+  if (inst.indentPercent)
+    inForceBlock.firstLineIndent =
+        measure < kUnbounded ? *inst.indentPercent / 100.0f * measure : 0.0f;
   const sigil::weave::ParagraphStyle lane =
-      sigil::weave::toParagraphStyle(inst.block);
+      sigil::weave::toParagraphStyle(inForceBlock);
   options.blockDefault = lane;
   if (inForce.set & TextOptions::kBlockClasses) {
     // The names resolve against the rules of the sheets in force here; a

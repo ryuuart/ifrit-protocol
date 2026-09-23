@@ -58,6 +58,10 @@ struct SpanRestyle {
    *  the font in force for an inheriting leaf, the leaf's own style
    *  otherwise. One naming no shaping field is applied as a repaint. */
   sigil::weave::Type partial;
+  /** The family and the italic the span states, which choose the range's
+   *  face as they choose a node's; either one reshapes. */
+  std::optional<std::string> fontFamily;
+  std::optional<bool> italic;
   /** The ink read from a custom property in force at the leaf. */
   std::optional<VarRef> inkVar;
   /** The ink as a shader, laid in the passage's own coordinates — or,
@@ -479,6 +483,13 @@ struct RoleDefaults {
 
 struct CascadeData {
   std::optional<sigil::weave::Type> font;
+  /** fontFamily(): the family the cascade finds through the composer's
+   *  font context. It and a face in `font` exclude each other — whichever
+   *  was written last stands. */
+  std::optional<std::string> fontFamily;
+  /** The style stated: italic, or not — upright, or an oblique whose lean
+   *  is `font->slant`. Absent where no style was stated. */
+  std::optional<bool> italic;
   /** The node's semantic name and fallback typography. Every sheet rule
    *  that matches stands over its defaults. */
   std::optional<RoleDefaults> role;
@@ -496,6 +507,11 @@ struct CascadeData {
   /** The paragraph partial this node declares for everything under it:
    *  Element::paragraph, and the paragraph half of a class. */
   std::optional<sigil::weave::ParagraphBlock> block;
+  /** textIndent() in a unit the cascade resolves — against the font, the
+   *  canvas or a property where it is stated, or, as a percentage, against
+   *  each passage's measure. An indent in pixels is
+   *  `block->firstLineIndent`; the two exclude each other. */
+  std::optional<Dimension> textIndent;
   /** How image leaves under this node sample their source
    *  (Element::imageRendering), inherited as CSS's image-rendering is. */
   std::optional<SkSamplingOptions> sampling;

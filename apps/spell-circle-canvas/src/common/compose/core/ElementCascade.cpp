@@ -4,6 +4,7 @@
  * and the three keywords — with the identity a node names in the cascade.
  */
 
+#include <include/core/SkTypes.h>  // SkDebugf — the indent's diagnostic
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilweave/layout/ParagraphBlock.h>
@@ -15,12 +16,32 @@
 
 namespace sigil::compose {
 
+namespace {
+
+/** The once-per-process diagnostic behind `textIndent(auto)`: CSS's
+ *  `text-indent` takes a length or a percentage, and `auto` is neither. */
+void warnTextIndentIsNeverAuto() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "[compose] textIndent() was given auto, which is no length — the "
+      "indent in force was left standing. Give a length or a percentage of "
+      "the measure. (warned once)\n");
+}
+
+}  // namespace
+
 template <class Derived>
 Derived& CascadeVerbs<Derived>::paragraph(
     sigil::weave::ParagraphBlock partial) {
   detail::CascadeData& cascade = declarations()->paragraph();
   if (!cascade.block) cascade.block.emplace();
   sigil::weave::merge(*cascade.block, partial);
+  // An indent in pixels stands over one written earlier in another unit.
+  if (partial.firstLineIndent ||
+      partial.keywords.find(sigil::weave::ParagraphField::FirstLineIndent))
+    cascade.textIndent.reset();
   return self();
 }
 
@@ -39,8 +60,25 @@ Derived& CascadeVerbs<Derived>::textAlign(
 }
 
 template <class Derived>
-Derived& CascadeVerbs<Derived>::textIndent(float px) {
-  return paragraph({.firstLineIndent = px});
+Derived& CascadeVerbs<Derived>::textIndent(Dimension indent) {
+  switch (indent.unit) {
+    case Dimension::Unit::Px:
+      return paragraph({.firstLineIndent = indent.value});
+    case Dimension::Unit::Auto:
+      warnTextIndentIsNeverAuto();
+      return self();
+    default: {
+      // Any other unit is resolved by the cascade, where the font, the
+      // canvas, the properties and the measure are known.
+      detail::CascadeData& cascade = declarations()->paragraph();
+      if (cascade.block) {
+        cascade.block->firstLineIndent.reset();
+        if (cascade.block->empty()) cascade.block.reset();
+      }
+      cascade.textIndent = std::move(indent);
+      return self();
+    }
+  }
 }
 
 template <class Derived>

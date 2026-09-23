@@ -276,7 +276,9 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
   }
 
   sigil::weave::LineSetFlow flow({textStateOf(inst).pathIntervals});
-  sigil::weave::ParagraphLayoutOptions options = impl.textLayoutOptions(inst);
+  // A run on a curve has no measure for a percentage indent to be one of.
+  sigil::weave::ParagraphLayoutOptions options =
+      impl.textLayoutOptions(inst, Composer::Impl::kUnbounded);
   // The baseline places the run; an interval-relative alignment on top of
   // that would fight `at` and Align for the same authority.
   options.alignment = sigil::weave::TextAlignment::kStart;

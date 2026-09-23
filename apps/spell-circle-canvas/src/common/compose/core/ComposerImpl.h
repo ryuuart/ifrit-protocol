@@ -468,6 +468,12 @@ struct Composer::Impl {
    *  answer depended on the font or on a property. */
   float resolveLength(const detail::Instance& inst, const Dimension& length,
                       bool& relative) const;
+  /** textIndent's @p indent resolved at @p inst: pixels written into
+   *  @p block's first-line indent, or a percentage of the measure kept in
+   *  @p percent for the layout, a custom property read once on the way. */
+  void resolveTextIndent(const detail::Instance& inst, const Dimension& indent,
+                         sigil::weave::ParagraphBlock& block,
+                         std::optional<float>& percent) const;
   /** Writes every canvas-relative length in the subtree into its flex style
    *  again, for a canvas that has changed size. */
   void reapplyCanvasLengths(detail::Instance& inst);
@@ -525,7 +531,7 @@ struct Composer::Impl {
    *  overload's value where it has one, with every field a fluent setter
    *  named written over it. */
   sigil::weave::ParagraphLayoutOptions textLayoutOptions(
-      const detail::Instance& inst) const;
+      const detail::Instance& inst, float measure) const;
 
   // ---- transitions (Transitions.cpp) ----
   /** Every lane of @p styled, Slot lanes first in kSlotSpecs order, then
