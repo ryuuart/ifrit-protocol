@@ -1075,8 +1075,13 @@ methods, because they relate two elements rather than combining sets on
 one. `ElementSelector.specificity()` answers the `compose.Specificity`
 pair CSS weighs, which compares and orders; a text the library does not
 read warns once and matches nothing, which `matchesNothing()` reports.
-Sheets join with `+` and may hold one another, and a rule states `font`,
-`block`, `ink` and `var` exactly as a node's own verbs do.
+Sheets join with `+` and may hold one another. A rule's verbs are a
+node's own, bound once for both — the box (`padding`, `width`,
+`borderRadius`, `fill`, `opacity`, the 2D transform and the rest), the
+cascade (`font` and its longhands, `block` and its longhands, `ink`,
+`var`) and the text properties (`maxTextLines`, `textStroke` and the
+rest), which a rule states for the text leaves it matches — and the
+node's own verb stands over the rule's: `rule(".card").padding(8)`.
 
 **An applied sheet sees only its own subtree.** Every compound of a
 selector — the subject and every ancestor or sibling it names — must match
