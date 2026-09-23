@@ -232,10 +232,13 @@ void writeThroughWriter(cd::ElementNode& node, Property property, bool moved) {
       fields.overflow() = moved;
       return;
     case Property::Fill:
-      if (moved)
+      if (moved) {
         fields.fill() = motion::Animatable<Fill>(Fill::color({1, 0, 0, 1}));
-      else
+        fields.fillBox() = PaintBox::Content;
+      } else {
         fields.fill();
+        fields.fillBox();
+      }
       return;
     case Property::Opacity:
       fields.opacity() = moved ? 0.5f : 1.0f;
@@ -243,10 +246,6 @@ void writeThroughWriter(cd::ElementNode& node, Property property, bool moved) {
     case Property::BlendMode:
       fields.blendMode() =
           moved ? SkBlendMode::kMultiply : SkBlendMode::kSrcOver;
-      return;
-    case Property::BackgroundOrigin:
-      fields.backgroundOrigin() =
-          moved ? BackgroundOrigin::ContentBox : BackgroundOrigin::BorderBox;
       return;
     case Property::ZIndex:
       fields.zIndex() = moved ? 1 : 0;

@@ -37,4 +37,4 @@ hash alike, so a style can key a table. Anything else handed to Python's
 ## Pass it to
 
 [`fontStyle`](../verbs/fontStyle.md), on an element, a text leaf, a rule
-or a span's declarations.
+or a span's style.

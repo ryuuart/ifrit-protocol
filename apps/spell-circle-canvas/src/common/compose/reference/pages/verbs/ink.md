@@ -29,13 +29,11 @@ and the glyphs under it are painted with it.
 ```cpp
 Element& ink(material::Color colour);
 Element& ink(VarRef reference);
-Element& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox,
-             std::optional<weave::Unit> unit = std::nullopt);
+Element& ink(SurfacePaint paint, PaintBox box = PaintBox::Element);
 ```
 
 ```python
-def ink(self, value: ElementInkLike, anchor: PaintAnchor = ...,
-        unit: weave.Unit | None = None) -> Element: ...
+def ink(self, value: ElementInkLike, box: PaintBox = ...) -> Element: ...
 ```
 
 ## Parameters
@@ -45,10 +43,11 @@ def ink(self, value: ElementInkLike, anchor: PaintAnchor = ...,
 | `material::Color` | The colour outright. | `hexColor(0xRRGGBB)`, or the four channels |
 | `VarRef` | The custom property to read it from: `ink(var("accent"))`. | [`VarRef`](../../VALUES.md#the-custom-properties), through `compose::var` |
 | `SurfacePaint` | Everything a surface takes — a `Fill`, a material paint, a recipe — because the ink and the fill dress the same kinds of thing. | [`SurfacePaint`](../types/SurfacePaint.md) |
-| `PaintAnchor` | Which box a paint's unit square maps onto. | `PaintAnchor::OwnBox`, `DeclaringBox`, `CanvasBox` |
-| `weave::Unit` | The unit of a passage the paint restarts on; absent, the whole passage. | `Unit::Glyph`, `Cluster`, `Word`, `Line`, `Sentence` |
+| `PaintBox` | The rectangle a paint's unit square is stretched over: the element's own, the subtree's, the canvas, or each unit of a passage. | [`PaintBox`](../types/PaintBox.md): `Element`, `Subtree`, `Canvas`, `Glyph`, `Cluster`, `Word`, `Line`, `Sentence` |
 
-A `Fill` holding one colour is that colour. A `Paint` holding one colour
+A `Fill` holding one colour is that colour, and a box handed with it is
+accepted and changes nothing: a colour has no unit square to stretch. A
+`Paint` holding one colour
 is a paint whose picture happens to be flat, and it overrides the glyphs
 of a leaf set in a style of its own, which an inherited colour does not
 reach.
@@ -97,8 +96,8 @@ its own, over its own duration, toward the colour the ancestor is headed
 for — never toward the colour the ancestor's ramp stands at this frame.
 That is CSS's rule, and the one a fill already follows.
 
-**A paint anchored to its own box lands on the text metrics.** A text
-leaf's own box is its text-metric box — x across the widest line, y from
+**A paint over the element's own box lands on the text metrics.** A
+text leaf's own box is its text-metric box — x across the widest line, y from
 the first line's cap top to the last line's baseline. That mapping is
 what makes a chrome wordmark work at any size: author the ramp once in
 the unit square and its horizon crosses the capitals whatever the type
@@ -106,29 +105,31 @@ size, with no hand-positioned gradient. A vertical passage has no cap
 band to hang it on, so the unit square maps onto the column block
 instead and the ramp reads down the page.
 
-**A paint can restart on each unit of the passage.** Given a unit —
-`weave::Unit::Glyph`, `Cluster`, `Word`, `Line` or `Sentence` — the
-unit square lands on each such unit's own text-metric box instead:
-across the unit's advances, from its cap top down to its baseline, so
-a ramp runs afresh through every letter, every word or every line.
-With no unit, the default, the paint is laid once across the passage.
-Each unit is one more draw, so a passage that names none pays nothing:
+**A paint can restart on each unit of the passage.** Given a text unit
+— `PaintBox::Glyph`, `Cluster`, `Word`, `Line` or `Sentence`, Weave's
+own words — the unit square lands on each such unit's own text-metric
+box instead: across the unit's advances, from its cap top down to its
+baseline, so a ramp runs afresh through every letter, every word or
+every line. Over the element's own box, the default, the paint is laid
+once across the passage. Each unit is one more draw, so a passage that
+names none pays nothing:
 
 ```cpp
-text(u8"EMBER GLASS").ink(ramp, PaintAnchor::OwnBox, weave::Unit::Glyph);
+text(u8"EMBER GLASS").ink(ramp, PaintBox::Glyph);
 ```
 
-A unit is read under `OwnBox` alone — the other anchors already spread
-one field across the tree — and `Unit::Selection` names the extent a
-selector found rather than a size a passage is cut into: either is
-dropped, with a warning once, and the paint is laid whole. An upright
+A text unit needs a passage to cut: on a node that is no text leaf it
+is dropped, with a warning once, and the paint is stretched over the
+element's own box; a rule and a span keep theirs, since they land on
+text. `Padding` and `Content` place a fill inside its box and read as
+`Element` here, said the same way. An upright
 letter in a vertical column has no cap band across it, so its box is
 one em across the column and its advance down it. A letter on a
 `textOnPath` curve takes the box the curve set it in,
 and a letter in flight under a `textFx` track draws with its unit's
 paint where the unit rests, sampled where the letter now is. The
 decoration bands keep the passage's mapping, since a band spans a run
-rather than a unit. A [`span`](span.md) takes the same unit over the
+rather than a unit. A [`span`](span.md) takes the same box over the
 range it finds, and so does a rule.
 
 **Under a unit the passes draw band by band** across the whole
@@ -138,11 +139,12 @@ never lands on its neighbour's fill. A passage in one style stacks the
 same way without a unit; one of several spans, drawn without a unit,
 draws each span's passes together.
 
-**The other two anchors spread one paint across several elements.**
-`DeclaringBox` maps the unit square onto the box of the element that
-stated the ink, so everything under it shows its own slice;
-`CanvasBox` maps it onto the whole canvas, so elements anywhere in the
-tree line up and moving one of them moves which slice it shows.
+**Two boxes spread one paint across several elements.**
+`PaintBox::Subtree` stretches the unit square over the box of the
+element that stated the ink, so everything under it shows its own
+slice; `PaintBox::Canvas` stretches it over the whole canvas, so
+elements anywhere in the tree line up and moving one of them moves which
+slice it shows.
 
 **A live paint re-resolves per frame**, so a ramp bound to an output
 moves under the letters without re-shaping them, and it composes with
@@ -166,7 +168,7 @@ says so once, as every silent no-op in this library does.
 
 ## See also
 
-[`fill`](fill.md) for the node's own box and the same two anchors,
+[`fill`](fill.md) for the node's own box and the same boxes,
 [`textStroke`](textStroke.md) for the pass under the glyphs, `font` and
 `paragraph` for the other two inherited lanes, `var` and `varDefaults` for
 the properties an ink can be read from, and the *cascade* group on [the

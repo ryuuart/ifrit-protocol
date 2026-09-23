@@ -116,8 +116,7 @@ void bindFontVerbs(py::class_<Node>& element) {
           py::arg("tracking"), fluent)
       .def(
           "ink",
-          [](Node& self, py::object value, compose::PaintAnchor anchor,
-             std::optional<sigil::weave::Unit> unit) -> Node& {
+          [](Node& self, py::object value, compose::PaintBox box) -> Node& {
             if (py::isinstance<compose::VarRef>(value))
               return self.ink(value.cast<compose::VarRef>());
             // The ink takes everything a surface takes. A colour — the
@@ -133,10 +132,10 @@ void bindFontVerbs(py::class_<Node>& element) {
                   "the tree, so the ink in force, a custom property and a "
                   "bound fill have no paint to give it. State a colour, or "
                   "clear the paint with None.");
-            return self.ink(paint, anchor, unit);
+            return self.ink(paint, box);
           },
-          py::arg("value"), py::arg("anchor") = compose::PaintAnchor::OwnBox,
-          py::arg("unit") = py::none(), fluent);
+          py::arg("value"), py::arg("box") = compose::PaintBox::Element,
+          fluent);
 }
 
 template void bindFontVerbs(py::class_<Element>&);
@@ -162,8 +161,7 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
           py::arg("width"), py::arg("height"), fluent)
       .def(
           "fill",
-          [](Node& self, py::object value, compose::PaintAnchor anchor,
-             compose::BackgroundOrigin origin) -> Node& {
+          [](Node& self, py::object value, compose::PaintBox box) -> Node& {
             // One conversion for every surface-colouring parameter, so a
             // material reaches the node's fill exactly as it reaches a
             // stroke's or a kit ground's. Empty is STATED rather than
@@ -172,22 +170,19 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
             // empty Fill and an empty paint, must clear the same way.
             const compose::SurfacePaint paint = surfacePaint(value);
             if (paint.none()) return self.fill(compose::Fill::none());
-            if (anchor == compose::PaintAnchor::OwnBox &&
-                origin == compose::BackgroundOrigin::BorderBox)
-              return paint.apply(self);
-            // A box and an origin are statements about a PICTURE stretched
-            // over a box, so a fill that has no picture to place says so.
+            if (box == compose::PaintBox::Element) return paint.apply(self);
+            // A box is a statement about a PICTURE stretched over it, so a
+            // fill that has no picture to place says so.
             const std::optional<material::skia::Paint> stretched =
                 paint.collapsedPaint();
             if (!stretched)
               throw py::type_error(
-                  "An anchor and an origin place a paint's unit square, so "
-                  "only a paint takes them: the ink in force, a custom "
-                  "property and a bound fill have no picture to place.");
-            return self.fill(*stretched, anchor, origin);
+                  "A box places a paint's unit square, so only a paint "
+                  "takes one: the ink in force, a custom property and a "
+                  "bound fill have no picture to place.");
+            return self.fill(*stretched, box);
           },
-          py::arg("value"), py::arg("anchor") = compose::PaintAnchor::OwnBox,
-          py::arg("origin") = compose::BackgroundOrigin::BorderBox, fluent)
+          py::arg("value"), py::arg("box") = compose::PaintBox::Element, fluent)
       .def(
           "borderRadius",
           [](Node& self, float all) -> Node& {

@@ -518,7 +518,7 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
     return false;
   }
   if (!propertyEqual(pa.opacity, pb.opacity) || pa.blendMode != pb.blendMode ||
-      pa.backgroundOrigin != pb.backgroundOrigin ||
+      pa.fillBox != pb.fillBox ||
       !propertyEqual(pa.translateX, pb.translateX) ||
       !propertyEqual(pa.translateY, pb.translateY) ||
       !propertyEqual(pa.rotate, pb.rotate) ||

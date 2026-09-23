@@ -61,14 +61,9 @@ const std::optional<material::skia::Paint>& Rule::inkPaint() const {
   return cascade ? cascade->inkPaint : none;
 }
 
-PaintAnchor Rule::inkAnchor() const {
+PaintBox Rule::inkBox() const {
   const detail::CascadeData* cascade = cascadeOf(*node());
-  return cascade ? cascade->inkAnchor : PaintAnchor::OwnBox;
-}
-
-std::optional<sigil::weave::Unit> Rule::inkUnit() const {
-  const detail::CascadeData* cascade = cascadeOf(*node());
-  return cascade ? cascade->inkUnit : std::nullopt;
+  return cascade ? cascade->inkBox : PaintBox::Element;
 }
 
 bool Rule::statesInk() const {

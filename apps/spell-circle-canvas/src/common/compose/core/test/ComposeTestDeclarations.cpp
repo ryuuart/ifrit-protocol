@@ -263,6 +263,90 @@ TEST(ComposeDeclarations, UnsetOnAnInheritingPropertyKeepsInheriting) {
   EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
 }
 
+TEST(ComposeDeclarations, AColourWrittenThroughTheFontIsTheInk) {
+  // One lane, one bit: a colour inside `font()` states the ink as `ink()`
+  // does, so the two spellings are one property and the later statement
+  // wins between them, and a keyword about the ink ends where either is
+  // written after it.
+  Host host(200, 200);
+  const material::Color blue{0, 0, 1, 1}, red{1, 0, 0, 1};
+  host.composer.render(box().children({
+      box()
+          .key("font")
+          .width(40)
+          .height(40)
+          .ink(red)
+          .font({.color = blue})
+          .fill(Fill::currentInk()),
+      box()
+          .key("ink")
+          .width(40)
+          .height(40)
+          .font({.color = blue})
+          .ink(red)
+          .fill(Fill::currentInk()),
+      box()
+          .key("after")
+          .width(40)
+          .height(40)
+          .initial(Property::Ink)
+          .font({.color = blue})
+          .fill(Fill::currentInk()),
+      box()
+          .key("before")
+          .width(40)
+          .height(40)
+          .font({.color = blue})
+          .initial(Property::Ink)
+          .fill(Fill::currentInk()),
+  }));
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorBLUE) << "the font's colour came last";
+  EXPECT_EQ(host.pixel(20, 60), SK_ColorRED) << "ink() came last";
+  EXPECT_EQ(host.pixel(20, 100), SK_ColorBLUE)
+      << "a colour through the font ends a keyword stated before it";
+  EXPECT_EQ(host.pixel(20, 140), SK_ColorBLACK);
+}
+
+TEST(ComposeDeclarations, InitialOnTheInkOverridesARulesFontColour) {
+  // A rule's colour written through its font is the rule's ink: the node's
+  // `initial` on the ink stands over it, and within one rule the later of
+  // a keyword and a font colour wins, as it does on a node.
+  Host host(200, 200);
+  const sigil::compose::StyleSheet sheet{
+      sigil::compose::rule(".loud").font({.color = SkColors::kGreen}),
+      sigil::compose::rule(".restated")
+          .initial(Property::Ink)
+          .font({.color = SkColors::kBlue})};
+  host.composer.render(
+      box()
+          .ink({1, 0, 0, 1})
+          .applyStyleSheet(sheet)
+          .children({
+              box().key("loud").styleClass("loud").width(40).height(40).fill(
+                  Fill::currentInk()),
+              box()
+                  .key("reset")
+                  .styleClass("loud")
+                  .initial(Property::Ink)
+                  .width(40)
+                  .height(40)
+                  .fill(Fill::currentInk()),
+              box()
+                  .key("restated")
+                  .styleClass("restated")
+                  .width(40)
+                  .height(40)
+                  .fill(Fill::currentInk()),
+          }));
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(20, 60), SK_ColorBLACK)
+      << "initial on the ink left the rule's font colour standing";
+  EXPECT_EQ(host.pixel(20, 100), SK_ColorBLUE)
+      << "the rule's font colour did not end the keyword stated before it";
+}
+
 TEST(ComposeDeclarations, ASizeAfterCoverPutsTheNodeBackInTheFlowUndeclared) {
   // `covering` is a placement STATE, not a property, and a size cancels
   // it. What the mask must do with that is forget the placement cover()

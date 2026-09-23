@@ -10,17 +10,14 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
-#include <optional>
 #include <string>
 #include <utility>
 
 namespace sketch = sigil::sketch;
 namespace paint = sigil::material::skia;
 using namespace sigil::compose;
-using sigil::weave::Unit;
 
 namespace {
 
@@ -40,12 +37,10 @@ sigil::weave::Type display(float size) {
           .track = size * 0.02f};
 }
 
-/** Two lines of two words, inked with the ramp restarting on @p unit — or
- *  once across the passage, where there is none. */
-Element passage(std::optional<Unit> unit) {
-  return text(u8"EMBER GLASS\nSALT WATER")
-      .font(display(40))
-      .ink(ramp(), PaintAnchor::OwnBox, unit);
+/** Two lines of two words, inked with the ramp stretched over @p box —
+ *  the passage's own text box, or each unit of it. */
+Element passage(PaintBox box) {
+  return text(u8"EMBER GLASS\nSALT WATER").font(display(40)).ink(ramp(), box);
 }
 
 Element panel(std::string title, std::string note, Element figure) {
@@ -71,14 +66,14 @@ struct InkUnits {
         box().column().gap(20).children(
             {box().row().gap(20).children(
                  {panel("THE PASSAGE", "One ramp across the whole of it.",
-                        passage(std::nullopt)),
+                        passage(PaintBox::Element)),
                   panel("EACH GLYPH", "The ramp afresh on every letter.",
-                        passage(Unit::Glyph))}),
+                        passage(PaintBox::Glyph))}),
              box().row().gap(20).children(
                  {panel("EACH WORD", "The ramp afresh on every word.",
-                        passage(Unit::Word)),
+                        passage(PaintBox::Word)),
                   panel("EACH LINE", "The ramp afresh on every line.",
-                        passage(Unit::Line))})})));
+                        passage(PaintBox::Line))})})));
   }
 };
 

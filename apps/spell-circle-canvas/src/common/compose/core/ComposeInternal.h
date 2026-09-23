@@ -65,15 +65,16 @@ struct SpanRestyle {
   /** The ink read from a custom property in force at the leaf. */
   std::optional<VarRef> inkVar;
   /** The ink as a shader, laid in the passage's own coordinates — or,
-   *  under `inkUnit`, on the unit square of each unit it reaches.
-   *  @trap Under `inkUnit` the draw finds this span's glyphs by the
+   *  where `inkBox` is a text unit, on the unit square of each unit it
+   *  reaches.
+   *  @trap Under a text unit the draw finds this span's glyphs by the
    *  IDENTITY of this shader: a glyph whose foreground shader is this very
    *  `shaderValue` is the span's, so whatever carries it into the
    *  paragraph's style must share the object, never copy it. */
   std::optional<Fill> inkShader;
-  /** The unit of the range the ink shader restarts on; absent for the
-   *  shader laid as it is. */
-  std::optional<sigil::weave::Unit> inkUnit;
+  /** The box the ink shader is stretched over: a text unit of the range
+   *  it restarts on, or `Element` for the shader laid as it is. */
+  PaintBox inkBox = PaintBox::Element;
   bool operator==(const SpanRestyle&) const = default;
 };
 
@@ -462,15 +463,40 @@ struct DepthData {
  *  on the instance (Instance::font, Instance::vars), written by the cascade
  *  pass from the parent's resolved values and this block. */
 /** THE INK IN FORCE AS A PAINT, as it flows down the tree: the paint
- *  `Element::ink` was given, the box its unit square maps onto, and the
- *  unit of a passage it restarts on — absent for the whole passage. The
- *  ordinary ink is a colour and holds no paint at all. */
+ *  `Element::ink` was given and the rectangle its unit square is
+ *  stretched over. The ordinary ink is a colour and holds no paint at
+ *  all. */
 struct InkInForce {
   std::optional<material::skia::Paint> paint;
-  PaintAnchor anchor = PaintAnchor::OwnBox;
-  std::optional<sigil::weave::Unit> unit;
+  PaintBox box = PaintBox::Element;
   bool operator==(const InkInForce&) const = default;
 };
+
+/** The unit of a passage @p box restarts a paint on; absent for every box
+ *  that is not one of the five text units. */
+inline std::optional<sigil::weave::Unit> textUnitOf(PaintBox box) {
+  switch (box) {
+    case PaintBox::Glyph:
+      return sigil::weave::Unit::Glyph;
+    case PaintBox::Cluster:
+      return sigil::weave::Unit::Cluster;
+    case PaintBox::Word:
+      return sigil::weave::Unit::Word;
+    case PaintBox::Line:
+      return sigil::weave::Unit::Line;
+    case PaintBox::Sentence:
+      return sigil::weave::Unit::Sentence;
+    default:
+      return std::nullopt;
+  }
+}
+
+/** Whether @p box spreads one field across the tree — the box of the
+ *  element that stated the paint, or the canvas — rather than laying the
+ *  paint on each thing painted. */
+inline bool spreadsAcrossTree(PaintBox box) {
+  return box == PaintBox::Subtree || box == PaintBox::Canvas;
+}
 
 /** A NODE'S SEMANTIC ROLE, and the typography a component states for it
  *  as a default: what every rule of every sheet stands over. */
@@ -519,15 +545,12 @@ struct CascadeData {
    *  `font->color` — whichever was written last stands. */
   std::optional<VarRef> inkVar;
   /** ink(paint): the ink as a WHOLE PAINT — a ramp, a recipe, SkSL —
-   *  and the box its unit square maps onto. Inherited exactly as the
-   *  colour is. `statesInk` is the lane being written at all, so a node
-   *  that states a plain colour clears an ancestor's paint: an absent
-   *  paint beside a stated lane is the colour case. */
+   *  and the box its unit square is stretched over. Inherited exactly as
+   *  the colour is. `statesInk` is the lane being written at all, so a
+   *  node that states a plain colour clears an ancestor's paint: an
+   *  absent paint beside a stated lane is the colour case. */
   std::optional<material::skia::Paint> inkPaint;
-  PaintAnchor inkAnchor = PaintAnchor::OwnBox;
-  /** The unit of a passage the paint restarts on; absent for the whole
-   *  passage. */
-  std::optional<sigil::weave::Unit> inkUnit;
+  PaintBox inkBox = PaintBox::Element;
   bool statesInk = false;
   /** Properties supplied only where no ancestor or this node states a
    *  value, so component defaults do not override their document. */

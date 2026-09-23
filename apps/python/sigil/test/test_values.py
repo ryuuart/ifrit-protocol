@@ -148,45 +148,73 @@ class Colors(unittest.TestCase):
             compose.Text,
         )
 
-    def test_an_ink_paint_takes_the_box_it_is_anchored_to(self):
+    def test_an_ink_paint_takes_the_box_it_is_stretched_over(self):
         ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
-        for anchor in (
-            compose.PaintAnchor.OwnBox,
-            compose.PaintAnchor.DeclaringBox,
-            compose.PaintAnchor.CanvasBox,
+        for box in (
+            compose.PaintBox.Element,
+            compose.PaintBox.Subtree,
+            compose.PaintBox.Canvas,
         ):
-            self.assertIsInstance(
-                compose.box().ink(ramp, anchor=anchor), compose.Element
-            )
-
-    def test_an_ink_paint_restarts_on_the_unit_it_names(self):
-        # A unit restarts the paint on each letter, word or line; None, the
-        # default, lays it once across the passage. The rule and the span
-        # take the same keyword the element does.
-        ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#f00"), (1, "#00f")])
-        for unit in (
-            None,
-            weave.Unit.Glyph,
-            weave.Unit.Cluster,
-            weave.Unit.Word,
-            weave.Unit.Line,
-            weave.Unit.Sentence,
-        ):
-            with self.subTest(unit=unit):
+            with self.subTest(box=box):
                 self.assertIsInstance(
-                    compose.text("two words").ink(ramp, unit=unit), compose.Text
+                    compose.box().ink(ramp, box=box), compose.Element
+                )
+
+    def test_an_ink_paint_restarts_on_the_text_unit_it_names(self):
+        # A text unit restarts the paint on each letter, word or line; the
+        # element's own box, the default, lays it once across the passage.
+        # The rule and the span take the same keyword the element does.
+        ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#f00"), (1, "#00f")])
+        for box in (
+            compose.PaintBox.Element,
+            compose.PaintBox.Glyph,
+            compose.PaintBox.Cluster,
+            compose.PaintBox.Word,
+            compose.PaintBox.Line,
+            compose.PaintBox.Sentence,
+        ):
+            with self.subTest(box=box):
+                self.assertIsInstance(
+                    compose.text("two words").ink(ramp, box=box), compose.Text
                 )
         self.assertNotEqual(
-            compose.rule(".chrome").ink(ramp, unit=weave.Unit.Glyph),
+            compose.rule(".chrome").ink(ramp, box=compose.PaintBox.Glyph),
             compose.rule(".chrome").ink(ramp),
         )
         self.assertIsInstance(
             compose.text("two words").span(
                 weave.selectors.word(1),
-                compose.SpanStyle().ink(ramp, unit=weave.Unit.Word),
+                compose.SpanStyle().ink(ramp, box=compose.PaintBox.Word),
             ),
             compose.Text,
         )
+
+    def test_a_colour_takes_a_box_and_ignores_it(self):
+        # A colour has no unit square for a box to stretch.
+        self.assertEqual(
+            compose.rule(".red").ink("#ff0000", box=compose.PaintBox.Glyph),
+            compose.rule(".red").ink("#ff0000"),
+        )
+
+    def test_a_fill_takes_the_box_it_is_stretched_over(self):
+        ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
+        for box in (
+            compose.PaintBox.Element,
+            compose.PaintBox.Padding,
+            compose.PaintBox.Content,
+            compose.PaintBox.Canvas,
+        ):
+            with self.subTest(box=box):
+                self.assertIsInstance(
+                    compose.box().fill(ramp, box=box), compose.Element
+                )
+        # A box places a picture, so a surface with none to place says so.
+        with self.assertRaisesRegex(TypeError, "only a paint takes one"):
+            compose.box().fill(
+                compose.Fill.currentInk(), box=compose.PaintBox.Canvas
+            )
+        self.assertFalse(hasattr(compose, "PaintAnchor"))
+        self.assertFalse(hasattr(compose, "BackgroundOrigin"))
 
     def test_a_uniform_is_written_the_same_way_on_a_paint_and_an_effect(self):
         source = skia.RuntimeEffect.MakeForShader(

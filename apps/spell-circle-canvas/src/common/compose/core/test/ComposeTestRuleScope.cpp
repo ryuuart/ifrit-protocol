@@ -305,17 +305,17 @@ TEST(ComposeRuleScope, ARuleFillsWithARampLaidOnEachElementsOwnBox) {
       << "and the tall one at its own";
 }
 
-TEST(ComposeRuleScope, ARuleFillAnchoredToTheCanvasDrawsAsTheVerbsDoes) {
+TEST(ComposeRuleScope, ARuleFillOverTheCanvasDrawsAsTheVerbsDoes) {
   const auto across = [] {
     return material::skia::Paint::linearUnit({0, 0}, {1, 0},
                                              {{0.0f, kRed}, {1.0f, kBlue}});
   };
   Host ruled, stated;
-  ruled.composer.render(twoTiles(StyleSheet{rule(".tile").fill(
-      across(), PaintAnchor::CanvasBox, BackgroundOrigin::BorderBox)}));
+  ruled.composer.render(
+      twoTiles(StyleSheet{rule(".tile").fill(across(), PaintBox::Canvas)}));
   ruled.frame();
   stated.composer.render(twoTiles(StyleSheet{}, [&](Element& one) {
-    one.fill(across(), PaintAnchor::CanvasBox, BackgroundOrigin::BorderBox);
+    one.fill(across(), PaintBox::Canvas);
   }));
   stated.frame();
   EXPECT_TRUE(identicalPixels(ruled, stated, 200, 200));

@@ -8,13 +8,14 @@
 
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/PaintAnchor.h>
+#include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <concepts>
+#include <optional>
 #include <type_traits>
 #include <utility>
 
@@ -39,25 +40,27 @@ class PaintVerbs {
    *  holds a `Fill`. */
   Derived& fill(motion::Animatable<Fill> f);
   /** Fill with a paint — a gradient ramp, a blend stack, a sprite,
-   *  SkSL. A static paint collapses to a Fill, so it caches and prunes
-   *  on the same path. */
-  Derived& fill(material::skia::Paint m);
-  /** The same, saying which box the paint's unit square maps onto and
-   *  which of that box's rectangles it begins at. `CanvasBox` makes one
-   *  field several boxes show slices of; `ContentBox` starts the paint
-   *  inside the padding.
-   *  @trap A fill does not inherit, so `DeclaringBox` is `OwnBox`: the
-   *  element that stated the fill is the one painting it. And a border
-   *  here is a stroke dressing the boundary rather than a box lane, so
-   *  `PaddingBox` names the same rectangle `BorderBox` does. */
-  Derived& fill(material::skia::Paint m, PaintAnchor anchor,
-                BackgroundOrigin origin = BackgroundOrigin::BorderBox);
+   *  SkSL — its unit square stretched over @p box: the element's own box
+   *  by default, `Padding` or `Content` to start it inside the border or
+   *  the padding, `Canvas` for one field several boxes show slices of. A
+   *  static paint collapses to a Fill, so it caches and prunes on the
+   *  same path.
+   *  @trap A fill does not inherit, so `Subtree` is `Element`, and a
+   *  border here is a stroke dressing the boundary rather than a box
+   *  lane, so `Padding` is `Element` too. A text unit is refused, said
+   *  once, and read as `Element`. */
+  Derived& fill(material::skia::Paint m, PaintBox box = PaintBox::Element);
   /** A surface value supplied by component properties. Exact-type
    *  deduction keeps ordinary fill and material arguments on their own
-   *  overloads. */
+   *  overloads. A box other than `Element` places a paint's unit square,
+   *  so a surface with no paint to place — a colour, the ink in force, a
+   *  custom property, a bound fill — is applied whole. */
   template <typename P>
     requires std::same_as<std::remove_cvref_t<P>, SurfacePaint>
-  Derived& fill(P&& paint) {
+  Derived& fill(P&& paint, PaintBox box = PaintBox::Element) {
+    if (box != PaintBox::Element && !paint.none())
+      if (std::optional<material::skia::Paint> placed = paint.collapsedPaint())
+        return fill(std::move(*placed), box);
     paint.apply(self());
     return self();
   }

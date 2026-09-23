@@ -806,11 +806,11 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
 }
 
 // ---------------------------------------------------------------------------
-// fill(paint, anchor, origin): the box a paint is stretched over
+// fill(paint, box): the box a paint is stretched over
 
-TEST(ComposeMaterial, ACanvasAnchoredFillIsOneFieldSeveralBoxesShowSlicesOf) {
+TEST(ComposeMaterial, AFillOverTheCanvasIsOneFieldSeveralBoxesShowSlicesOf) {
   // Two cards side by side, each filled with the same left-to-right ramp
-  // anchored to the canvas: the left card shows the ramp's left, the
+  // stretched over the canvas: the left card shows the ramp's left, the
   // right card its right, and together they read as one gradient.
   const auto ramp = [] {
     return material::skia::Paint::linearUnit(
@@ -825,7 +825,7 @@ TEST(ComposeMaterial, ACanvasAnchoredFillIsOneFieldSeveralBoxesShowSlicesOf) {
         .top(0.0f)
         .width(80)
         .height(40)
-        .fill(ramp(), PaintAnchor::CanvasBox);
+        .fill(ramp(), PaintBox::Canvas);
   };
   host.composer.render(box().children({card("a", 0.0f), card("b", 110.0f)}));
   host.frame();
@@ -845,20 +845,16 @@ TEST(ComposeMaterial, AFillOnTheContentBoxStartsInsideThePadding) {
     return material::skia::Paint::linearUnit(
         {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   };
-  const auto page = [&](BackgroundOrigin origin) {
-    return box().children({box()
-                               .key("c")
-                               .width(100)
-                               .height(40)
-                               .padding(20)
-                               .fill(ramp(), PaintAnchor::OwnBox, origin)});
+  const auto page = [&](PaintBox over) {
+    return box().children(
+        {box().key("c").width(100).height(40).padding(20).fill(ramp(), over)});
   };
   Host whole, inset;
-  whole.composer.render(page(BackgroundOrigin::BorderBox));
-  inset.composer.render(page(BackgroundOrigin::ContentBox));
+  whole.composer.render(page(PaintBox::Element));
+  inset.composer.render(page(PaintBox::Content));
   whole.frame();
   inset.frame();
-  // Both painted the same 100x40 box: the origin moves where the paint
+  // Both painted the same 100x40 box: the box moves where the paint
   // begins and never what is covered.
   EXPECT_GT(SkColorGetA(whole.pixel(2, 20)), 200u);
   EXPECT_GT(SkColorGetA(inset.pixel(2, 20)), 200u);
@@ -874,21 +870,52 @@ TEST(ComposeMaterial, AFillOnTheContentBoxStartsInsideThePadding) {
             SkColorGetB(whole.pixel(98, 20)));
 }
 
-TEST(ComposeMaterial, APaddingBoxFillNamesTheSameRectangleABorderBoxOneDoes) {
+TEST(ComposeMaterial, APaddingFillNamesTheSameRectangleTheElementsOwnDoes) {
   // A border here is a stroke dressing the boundary, not a box lane, so
-  // the two origins are the same rectangle until one exists.
+  // the two boxes are the same rectangle until one exists.
   const auto ramp = [] {
     return material::skia::Paint::linearUnit(
         {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   };
-  const auto page = [&](BackgroundOrigin origin) {
-    return box().children({box().width(100).height(40).padding(20).fill(
-        ramp(), PaintAnchor::OwnBox, origin)});
+  const auto page = [&](PaintBox over) {
+    return box().children(
+        {box().width(100).height(40).padding(20).fill(ramp(), over)});
   };
   Host border, padding;
-  border.composer.render(page(BackgroundOrigin::BorderBox));
-  padding.composer.render(page(BackgroundOrigin::PaddingBox));
+  border.composer.render(page(PaintBox::Element));
+  padding.composer.render(page(PaintBox::Padding));
   border.frame();
   padding.frame();
   EXPECT_TRUE(identicalPixels(border, padding, 120, 60));
+}
+
+TEST(ComposeMaterial, AFillRefusesATextUnitAndSaysSo) {
+  // A box has no glyphs, words or lines to restart a paint on: a text
+  // unit handed to fill is refused, once with a warning, and the paint is
+  // stretched over the element's own box. The subtree's box is the
+  // element's own too, since a fill does not inherit — silently.
+  const auto ramp = [] {
+    return material::skia::Paint::linearUnit(
+        {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+  };
+  const auto page = [&](PaintBox over) {
+    return box().children({box().width(100).height(40).fill(ramp(), over)});
+  };
+  ::testing::internal::CaptureStderr();
+  Host word;
+  word.composer.render(page(PaintBox::Word));
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("fill()"), std::string::npos) << log;
+  EXPECT_NE(log.find("text unit"), std::string::npos) << log;
+  ::testing::internal::CaptureStderr();
+  Host subtree, element;
+  subtree.composer.render(page(PaintBox::Subtree));
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "the subtree's box on a fill must not warn";
+  element.composer.render(page(PaintBox::Element));
+  word.frame();
+  subtree.frame();
+  element.frame();
+  EXPECT_TRUE(identicalPixels(word, element, 120, 60));
+  EXPECT_TRUE(identicalPixels(subtree, element, 120, 60));
 }

@@ -7,7 +7,6 @@
 #include <include/utils/SkNoDrawCanvas.h>
 #include <src/text/GlyphRun.h>
 
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -15,8 +14,6 @@
 #include "support/TextTestSupport.h"
 
 namespace {
-
-using sigil::weave::Unit;
 
 /** Red on the left of the unit square, blue on the right. */
 material::skia::Paint across() {
@@ -180,8 +177,7 @@ TEST(ComposeInkUnits, APassageTakesTheRampOnceAcrossItsLetters) {
 TEST(ComposeInkUnits, AGlyphUnitRestartsTheRampOnEachLetter) {
   Host host(320, 160);
   host.composer.render(box().padding(20).children(
-      {text(u8"HH", whiteStyle(96))
-           .ink(across(), PaintAnchor::OwnBox, Unit::Glyph)}));
+      {text(u8"HH", whiteStyle(96)).ink(across(), PaintBox::Glyph)}));
   host.frame();
   const std::vector<Letter> letters = lettersAcross(host, 320, 160);
   ASSERT_EQ(letters.size(), 2u);
@@ -198,10 +194,9 @@ TEST(ComposeInkUnits, AClusterUnitPaintsAMarkWithItsBase) {
   // column it is the colour the H is there; under Glyph its own box has
   // no width and leaves it at an end of the ramp. The draws count the
   // units: a cluster is one draw, a glyph another.
-  const auto render = [](Host& host, Unit unit) {
+  const auto render = [](Host& host, PaintBox unit) {
     host.composer.render(box().padding(20).children(
-        {text(u8"H́H́", markStyle(96))
-             .ink(across(), PaintAnchor::OwnBox, unit)}));
+        {text(u8"H́H́", markStyle(96)).ink(across(), unit)}));
     host.frame();
   };
   // Each acute beside the base under it, at the acute's middle column.
@@ -219,26 +214,26 @@ TEST(ComposeInkUnits, AClusterUnitPaintsAMarkWithItsBase) {
     return pairs;
   };
   Host clusters(360, 220);
-  render(clusters, Unit::Cluster);
+  render(clusters, PaintBox::Cluster);
   const auto perCluster = markAndBase(clusters);
   ASSERT_EQ(perCluster.size(), 2u);
   for (const auto& [mark, base] : perCluster) EXPECT_TRUE(alike(mark, base));
 
   Host glyphs(360, 220);
-  render(glyphs, Unit::Glyph);
+  render(glyphs, PaintBox::Glyph);
   const auto perGlyph = markAndBase(glyphs);
   ASSERT_EQ(perGlyph.size(), 2u);
   for (const auto& [mark, base] : perGlyph) EXPECT_FALSE(alike(mark, base));
 
-  const auto draws = [&](Unit unit) {
+  const auto draws = [&](PaintBox unit) {
     Host host(360, 220);
     render(host, unit);
     GlyphDrawCounter canvas(360, 220);
     host.composer.draw(canvas);
     return canvas.draws;
   };
-  EXPECT_EQ(draws(Unit::Cluster), 2);
-  EXPECT_EQ(draws(Unit::Glyph), 4);
+  EXPECT_EQ(draws(PaintBox::Cluster), 2);
+  EXPECT_EQ(draws(PaintBox::Glyph), 4);
 }
 
 TEST(ComposeInkUnits, AWordUnitRestartsTheRampOnEachWord) {
@@ -246,8 +241,7 @@ TEST(ComposeInkUnits, AWordUnitRestartsTheRampOnEachWord) {
   // letters in the middle of a word are half way along its ramp.
   Host host(480, 120);
   host.composer.render(box().padding(10).children(
-      {text(u8"HH HH", whiteStyle(64))
-           .ink(across(), PaintAnchor::OwnBox, Unit::Word)}));
+      {text(u8"HH HH", whiteStyle(64)).ink(across(), PaintBox::Word)}));
   host.frame();
   const std::vector<Letter> letters = lettersAcross(host, 480, 120);
   ASSERT_EQ(letters.size(), 4u);
@@ -263,22 +257,20 @@ TEST(ComposeInkUnits, ALineUnitRestartsTheRampOnEachLine) {
   // A top-to-bottom ramp over two lines: each line runs red to blue from
   // its cap top to its baseline, where the passage's ramp would reach its
   // second line already half blue.
-  const auto lines = [](std::optional<Unit> unit) {
+  const auto lines = [](PaintBox unit) {
     Host host(240, 260);
     host.composer.render(box().padding(10).children(
-        {text(u8"HH HH", whiteStyle(64))
-             .width(150)
-             .ink(down(), PaintAnchor::OwnBox, unit)}));
+        {text(u8"HH HH", whiteStyle(64)).width(150).ink(down(), unit)}));
     host.frame();
     return linesDown(host, 240, 260);
   };
-  const std::vector<LineEnds> perLine = lines(Unit::Line);
+  const std::vector<LineEnds> perLine = lines(PaintBox::Line);
   ASSERT_EQ(perLine.size(), 2u);
   for (const LineEnds& line : perLine) {
     EXPECT_TRUE(reddish(line.top));
     EXPECT_TRUE(bluish(line.bottom));
   }
-  const std::vector<LineEnds> passage = lines(std::nullopt);
+  const std::vector<LineEnds> passage = lines(PaintBox::Element);
   ASSERT_EQ(passage.size(), 2u);
   EXPECT_TRUE(reddish(passage[0].top));
   EXPECT_FALSE(reddish(passage[1].top));
@@ -288,9 +280,9 @@ TEST(ComposeInkUnits, ASentenceUnitRestartsTheRampOnEachSentence) {
   // Two sentences of two words: the ramp restarts at the second sentence
   // and not at the second word of the first.
   Host host(640, 100);
-  host.composer.render(box().padding(10).children(
-      {text(u8"HH HH. HH HH.", whiteStyle(40))
-           .ink(across(), PaintAnchor::OwnBox, Unit::Sentence)}));
+  host.composer.render(
+      box().padding(10).children({text(u8"HH HH. HH HH.", whiteStyle(40))
+                                      .ink(across(), PaintBox::Sentence)}));
   host.frame();
   const std::vector<Letter> letters = lettersAcross(host, 640, 100);
   // H H H H . H H H H .
@@ -301,13 +293,13 @@ TEST(ComposeInkUnits, ASentenceUnitRestartsTheRampOnEachSentence) {
   EXPECT_TRUE(bluish(letters[9].right));
 }
 
-TEST(ComposeInkUnits, ARuleStatesAUnitAnchor) {
+TEST(ComposeInkUnits, ARuleStatesATextUnit) {
   Host host(320, 160);
   host.composer.render(
       box()
           .padding(20)
-          .applyStyleSheet(StyleSheet{
-              rule(".chrome").ink(across(), PaintAnchor::OwnBox, Unit::Glyph)})
+          .applyStyleSheet(
+              StyleSheet{rule(".chrome").ink(across(), PaintBox::Glyph)})
           .children({text(u8"HH", whiteStyle(96)).styleClass("chrome")}));
   host.frame();
   const std::vector<Letter> letters = lettersAcross(host, 320, 160);
@@ -324,9 +316,8 @@ TEST(ComposeInkUnits, ASpanRestartsItsInkOnEachUnitOfTheRangeItFinds) {
   Host host(480, 120);
   host.composer.render(box().padding(10).children(
       {text(u8"HH HH", whiteStyle(64))
-           .span(
-               sigil::weave::selectors::word(1),
-               SpanStyle().ink(across(), PaintAnchor::OwnBox, Unit::Glyph))}));
+           .span(sigil::weave::selectors::word(1),
+                 SpanStyle().ink(across(), PaintBox::Glyph))}));
   host.frame();
   const std::vector<Letter> letters = lettersAcross(host, 480, 120);
   ASSERT_EQ(letters.size(), 4u);
@@ -341,18 +332,17 @@ TEST(ComposeInkUnits, ASpanRestartsItsInkOnEachUnitOfTheRangeItFinds) {
 TEST(ComposeInkUnits, APassageWithNoUnitDrawsItsGlyphsInOneDraw) {
   // The cost claim: a passage whose ink names no unit takes the one
   // batched draw it always took, and a unit costs one draw per unit.
-  const auto draws = [](std::optional<Unit> unit) {
+  const auto draws = [](PaintBox unit) {
     Host host(480, 120);
     host.composer.render(box().padding(10).children(
-        {text(u8"HH HH", whiteStyle(64))
-             .ink(across(), PaintAnchor::OwnBox, unit)}));
+        {text(u8"HH HH", whiteStyle(64)).ink(across(), unit)}));
     GlyphDrawCounter canvas(480, 120);
     host.composer.draw(canvas);
     return canvas.draws;
   };
-  EXPECT_EQ(draws(std::nullopt), 1);
-  EXPECT_EQ(draws(Unit::Word), 2);
-  EXPECT_EQ(draws(Unit::Glyph), 4);
+  EXPECT_EQ(draws(PaintBox::Element), 1);
+  EXPECT_EQ(draws(PaintBox::Word), 2);
+  EXPECT_EQ(draws(PaintBox::Glyph), 4);
 }
 
 TEST(ComposeInkUnits, ALetterUnderATextFxTrackDrawsWithItsUnitsPaint) {
@@ -363,8 +353,7 @@ TEST(ComposeInkUnits, ALetterUnderATextFxTrackDrawsWithItsUnitsPaint) {
   const auto render = [](Host& host, bool lowered) {
     GlyphModifier lower;
     lower.dy = lowered ? 30.0f : 0.0f;
-    Text leaf = text(u8"HH", whiteStyle(96))
-                    .ink(across(), PaintAnchor::OwnBox, Unit::Glyph);
+    Text leaf = text(u8"HH", whiteStyle(96)).ink(across(), PaintBox::Glyph);
     if (lowered)
       leaf.textFx({.effect = textFx::effect(
                        "lowered",
@@ -403,14 +392,14 @@ TEST(ComposeInkUnits, ALetterOnAPathTakesTheBoxItStandsInThere) {
                         {size.width(), size.height() * 0.8f});
   };
   Host host(360, 200);
-  host.composer.render(box().children(
-      {text(u8"HH", whiteStyle(80))
-           .width(360)
-           .height(200)
-           .ink(across(), PaintAnchor::OwnBox, Unit::Glyph)
-           .textOnPath({.path = baseline,
-                        .at = 0.5f,
-                        .align = TextPath::Align::Center})}));
+  host.composer.render(
+      box().children({text(u8"HH", whiteStyle(80))
+                          .width(360)
+                          .height(200)
+                          .ink(across(), PaintBox::Glyph)
+                          .textOnPath({.path = baseline,
+                                       .at = 0.5f,
+                                       .align = TextPath::Align::Center})}));
   host.frame();
   const auto rows = inkedRows(host, 360, 200);
   ASSERT_EQ(rows.size(), 1u);
@@ -428,24 +417,24 @@ TEST(ComposeInkUnits, AnUprightLetterInAColumnRestartsDownItsAdvance) {
   // box is its advance down the column. A top-to-bottom ramp restarts at
   // each letter's top under Glyph, where the passage's ramp laid down the
   // column block reaches the second letter already past red.
-  const auto letters = [](std::optional<Unit> unit) {
+  const auto letters = [](PaintBox unit) {
     sigil::weave::TextStyle upright = whiteStyle(64);
     upright.shaping.verticalForm = sigil::weave::VerticalForm::kUpright;
     Host host(200, 260);
     host.composer.render(box().padding(20).children(
         {text(u8"HH", upright)
              .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-             .ink(down(), PaintAnchor::OwnBox, unit)}));
+             .ink(down(), unit)}));
     host.frame();
     return linesDown(host, 200, 260);
   };
-  const std::vector<LineEnds> perGlyph = letters(Unit::Glyph);
+  const std::vector<LineEnds> perGlyph = letters(PaintBox::Glyph);
   ASSERT_EQ(perGlyph.size(), 2u);
   for (const LineEnds& letter : perGlyph) {
     EXPECT_TRUE(reddish(letter.top));
     EXPECT_GT(SkColorGetB(letter.bottom), SkColorGetB(letter.top) + 80);
   }
-  const std::vector<LineEnds> passage = letters(std::nullopt);
+  const std::vector<LineEnds> passage = letters(PaintBox::Element);
   ASSERT_EQ(passage.size(), 2u);
   EXPECT_TRUE(reddish(passage[0].top));
   EXPECT_FALSE(reddish(passage[1].top));
@@ -466,15 +455,14 @@ TEST(ComposeInkUnits, AUnitKeepsEveryOutlineUnderEveryFill) {
   // Wide enough that the second letter's outline covers the first
   // letter's right stem.
   const float width = 2.0f * (float)(gap + 8);
-  const auto render = [&](Host& host, std::optional<Unit> unit) {
+  const auto render = [&](Host& host, PaintBox unit) {
     host.composer.render(box().padding(40).children(
         {text(u8"HH", whiteStyle(96))
              .textStroke(width, Fill::color({0, 1, 0, 1}))
-             .ink(across(), PaintAnchor::OwnBox, unit)}));
+             .ink(across(), unit)}));
     host.frame();
   };
-  for (const std::optional<Unit> unit :
-       {std::optional<Unit>{}, std::optional<Unit>{Unit::Glyph}}) {
+  for (const PaintBox unit : {PaintBox::Element, PaintBox::Glyph}) {
     Host host(360, 180);
     render(host, unit);
     int outline = 0;
@@ -494,40 +482,68 @@ TEST(ComposeInkUnits, AUnitKeepsEveryOutlineUnderEveryFill) {
   }
 }
 
-TEST(ComposeInkUnits, AUnitUnderAnotherAnchorIsDroppedAndSaysSo) {
-  // A unit restarts the paint on the text's own units, which only the own
-  // box reads; under an anchor that spreads one field across the tree it
-  // is dropped, once with a warning.
+TEST(ComposeInkUnits, AUnitOnANodeThatIsNoPassageIsDroppedAndSaysSo) {
+  // A text unit restarts the paint on a passage's own units, which a box
+  // has none of: on one it is dropped, once with a warning, and the text
+  // under the box takes the ramp over its own text box. A rule may land
+  // on a passage, so it keeps the unit and says nothing.
   ::testing::internal::CaptureStderr();
-  Rule kept = rule(".kept").ink(across(), PaintAnchor::OwnBox, Unit::Glyph);
+  Rule kept = rule(".kept").ink(across(), PaintBox::Glyph);
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
-      << "a unit under the own box must not warn";
-  EXPECT_EQ(kept.inkUnit(), Unit::Glyph);
-  ::testing::internal::CaptureStderr();
-  Rule dropped =
-      rule(".dropped").ink(across(), PaintAnchor::CanvasBox, Unit::Glyph);
-  const std::string log = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(log.find("CanvasBox"), std::string::npos) << log;
-  EXPECT_NE(log.find("OwnBox"), std::string::npos) << log;
-  EXPECT_FALSE(dropped.inkUnit().has_value());
-  EXPECT_EQ(dropped.inkAnchor(), PaintAnchor::CanvasBox);
-}
-
-TEST(ComposeInkUnits, SelectionIsNoUnitAndSaysSo) {
-  // Selection names the extent a selector found, not a unit a passage is
-  // cut into: the unit is dropped with a warning, once, and the ramp is
-  // laid across the passage.
+      << "a unit on a rule must not warn";
+  EXPECT_EQ(kept.inkBox(), PaintBox::Glyph);
   ::testing::internal::CaptureStderr();
   Host host(320, 160);
-  host.composer.render(box().padding(20).children(
-      {text(u8"HH", whiteStyle(96))
-           .ink(across(), PaintAnchor::OwnBox, Unit::Selection)}));
+  host.composer.render(box()
+                           .padding(20)
+                           .ink(across(), PaintBox::Glyph)
+                           .children({text(u8"HH", whiteStyle(96))}));
   const std::string log = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(log.find("Selection"), std::string::npos) << log;
+  EXPECT_NE(log.find("no passage"), std::string::npos) << log;
   host.frame();
   const std::vector<Letter> letters = lettersAcross(host, 320, 160);
   ASSERT_EQ(letters.size(), 2u);
   EXPECT_TRUE(reddish(letters[0].left));
   EXPECT_FALSE(bluish(letters[0].right));
   EXPECT_TRUE(bluish(letters[1].right));
+}
+
+TEST(ComposeInkUnits, AFillsBoxOnAnInkIsTheElementsOwnAndSaysSo) {
+  // Padding and Content place a fill inside its box; an ink is laid on the
+  // text it reaches, so either reads as the element's own box, once with
+  // a warning, and draws exactly what the default draws.
+  ::testing::internal::CaptureStderr();
+  Host content(320, 160);
+  content.composer.render(box().padding(20).children(
+      {text(u8"HH", whiteStyle(96)).ink(across(), PaintBox::Content)}));
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("PaintBox::Content"), std::string::npos) << log;
+  content.frame();
+  Host element(320, 160);
+  element.composer.render(
+      box().padding(20).children({text(u8"HH", whiteStyle(96)).ink(across())}));
+  element.frame();
+  EXPECT_TRUE(identicalPixels(content, element, 320, 160));
+}
+
+TEST(ComposeInkUnits, AColourTakesABoxAndIgnoresIt) {
+  // A colour has no unit square for a box to stretch, so a colour handed
+  // as a surface with a box is accepted and changes nothing — on a
+  // passage and on a node that is none alike, and without a word said.
+  const Fill red = Fill::color({1, 0, 0, 1});
+  ::testing::internal::CaptureStderr();
+  Host boxed(320, 160), plain(320, 160);
+  boxed.composer.render(
+      box()
+          .padding(20)
+          .ink(red, PaintBox::Glyph)
+          .children({text(u8"HH", whiteStyle(96)).ink(red, PaintBox::Word)}));
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "a box handed with a colour must not warn";
+  plain.composer.render(box().padding(20).ink(red.colorValue).children(
+      {text(u8"HH", whiteStyle(96)).ink(red.colorValue)}));
+  boxed.frame();
+  plain.frame();
+  EXPECT_TRUE(identicalPixels(boxed, plain, 320, 160));
+  EXPECT_EQ(lettersAcross(boxed, 320, 160).size(), 2u);
 }

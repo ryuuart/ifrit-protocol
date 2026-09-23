@@ -14,7 +14,7 @@
 
 #include "sigilcompose/core/Layout.h"
 #include "sigilcompose/core/Paint.h"
-#include "sigilcompose/core/PaintAnchor.h"
+#include "sigilcompose/core/PaintBox.h"
 
 namespace sigil::compose::detail {
 
@@ -88,12 +88,11 @@ struct PaintProps {
   std::optional<motion::Animatable<Fill>> fill;
   motion::Animatable<float> opacity = 1.0f;
   SkBlendMode blendMode = SkBlendMode::kSrcOver;
-  // fill(paint, anchor, origin): which of the box's rectangles the
-  // paint's unit square begins at. Only where the paint is stretched
-  // over the box; the painted AREA never moves with it. Beside the blend
-  // mode because the two bytes share one word there and this struct is
-  // inline in every node.
-  BackgroundOrigin backgroundOrigin = BackgroundOrigin::BorderBox;
+  // fill(paint, box): the rectangle the paint's unit square is stretched
+  // over, part of the fill's own statement; the painted AREA never moves
+  // with it. Beside the blend mode because the two bytes share one word
+  // there and this struct is inline in every node.
+  PaintBox fillBox = PaintBox::Element;
   motion::Animatable<float> translateX = 0.0f, translateY = 0.0f;
   motion::Animatable<float> rotate = 0.0f, scale = 1.0f;
   // Per-axis scale, multiplied INTO `scale`. Bars, wipes, meters,

@@ -177,7 +177,7 @@ its initial value, as the property's own behaviour says. A rule holds
 STATIC values: a live binding, an entrance, an animation and an
 animated paint stay verbs on the element, and one written in a rule is
 left out and said once. Any other paint is whole in a rule — a ramp in
-the unit square, a fit, a paint anchored to the canvas — and lands on
+the unit square, a fit, a paint stretched over the canvas — and lands on
 each matched element's own box, as that element's own `fill` would.
 
 A matched rule that moves reaches the element even when the element's

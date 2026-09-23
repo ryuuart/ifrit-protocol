@@ -21,7 +21,7 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <include/effects/SkGradient.h>
-#include <sigilcompose/core/PaintAnchor.h>
+#include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigilmaterial/color/Color.h>

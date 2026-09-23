@@ -59,19 +59,17 @@ geometry-dependent paint has no one shader to give a range: it is left
 out and said once.
 
 **Or it restarts on each unit of the range.** An `ink` that names a
-unit — `ink(ramp, PaintAnchor::OwnBox, weave::Unit::Glyph)` — lays the
-paint's unit square on the text-metric box of each glyph, cluster, word,
-line or sentence the range reaches, so a unit-square ramp, which has no
-one shader to give a range, has one per unit instead. A unit the range
-only partly covers is painted over the part it covers, and text a later
-span repaints leaves the unit there. As on the leaf, a unit is read
-under `PaintAnchor::OwnBox` alone and `Unit::Selection` names none:
-either is dropped with a warning, once.
+text unit — `ink(ramp, PaintBox::Glyph)` — lays the paint's unit square
+on the text-metric box of each glyph, cluster, word, line or sentence
+the range reaches, so a unit-square ramp, which has no one shader to
+give a range, has one per unit instead. A unit the range only partly
+covers is painted over the part it covers, and text a later span
+repaints leaves the unit there. Every other box is the passage's own
+coordinates, as above.
 
 ```cpp
 text(copy).span(weave::selectors::word(1),
-                SpanStyle().ink(ramp, PaintAnchor::OwnBox,
-                                       weave::Unit::Glyph));
+                SpanStyle().ink(ramp, PaintBox::Glyph));
 ```
 
 **What a span does not state.** The range's foreground stays the

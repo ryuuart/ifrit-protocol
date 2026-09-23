@@ -119,14 +119,20 @@ void bindCompose(py::module_& module) {
       .value("Texture", compose::Cache::Texture)
       .value("Group", compose::Cache::Group)
       .value("None_", compose::Cache::None);
-  py::enum_<compose::PaintAnchor>(composition, "PaintAnchor")
-      .value("OwnBox", compose::PaintAnchor::OwnBox)
-      .value("DeclaringBox", compose::PaintAnchor::DeclaringBox)
-      .value("CanvasBox", compose::PaintAnchor::CanvasBox);
-  py::enum_<compose::BackgroundOrigin>(composition, "BackgroundOrigin")
-      .value("BorderBox", compose::BackgroundOrigin::BorderBox)
-      .value("PaddingBox", compose::BackgroundOrigin::PaddingBox)
-      .value("ContentBox", compose::BackgroundOrigin::ContentBox);
+  py::enum_<compose::PaintBox>(
+      composition, "PaintBox",
+      "Which rectangle a paint's unit square is stretched over: a box of "
+      "the element, a box of the tree, or each unit of a passage.")
+      .value("Element", compose::PaintBox::Element)
+      .value("Padding", compose::PaintBox::Padding)
+      .value("Content", compose::PaintBox::Content)
+      .value("Subtree", compose::PaintBox::Subtree)
+      .value("Canvas", compose::PaintBox::Canvas)
+      .value("Glyph", compose::PaintBox::Glyph)
+      .value("Cluster", compose::PaintBox::Cluster)
+      .value("Word", compose::PaintBox::Word)
+      .value("Line", compose::PaintBox::Line)
+      .value("Sentence", compose::PaintBox::Sentence);
   py::class_<Element> element(composition, "Element");
   // The typed leaves: a node, plus what only that leaf can say. Each
   // converts to an Element, so a leaf drops into any children list.
@@ -311,7 +317,6 @@ void bindCompose(py::module_& module) {
       .value("Fill", Property::Fill)
       .value("Opacity", Property::Opacity)
       .value("BlendMode", Property::BlendMode)
-      .value("BackgroundOrigin", Property::BackgroundOrigin)
       .value("ZIndex", Property::ZIndex)
       .value("TranslateX", Property::TranslateX)
       .value("TranslateY", Property::TranslateY)

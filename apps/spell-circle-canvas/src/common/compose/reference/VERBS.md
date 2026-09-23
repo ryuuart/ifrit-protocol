@@ -128,8 +128,8 @@ content and children, then foregrounds and the unqualified strokes.
 
 | Verb | What it says |
 |---|---|
-| [`fill`](pages/verbs/fill.md) | The paint of the node's own box — a colour, a paint, a transition or a live binding. |
-| [`ink`](pages/verbs/ink.md) | The colour text under this node is set in, and every mark that names none; a paint may restart on each glyph, word or line. Inherits. |
+| [`fill`](pages/verbs/fill.md) | The paint of the node's own box — a colour, a paint, a transition or a live binding — stretched over the `PaintBox` it names. |
+| [`ink`](pages/verbs/ink.md) | The colour text under this node is set in, and every mark that names none; a paint is stretched over the `PaintBox` it names, and may restart on each glyph, word or line. Inherits. |
 | [`stroke`](pages/verbs/stroke.md) | Dress the node's boundary with a brush, whole or on the runs a span claims. |
 | [`background`](pages/verbs/background.md) | A decoration painted BENEATH the fill. |
 | [`overlay`](pages/verbs/overlay.md) | A decoration painted over the fill and under the content and children. |

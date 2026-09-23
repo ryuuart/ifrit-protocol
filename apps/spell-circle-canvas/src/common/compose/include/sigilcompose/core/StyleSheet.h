@@ -12,7 +12,7 @@
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
-#include <sigilcompose/core/PaintAnchor.h>
+#include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Selector.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/SurfacePaint.h>
@@ -107,11 +107,8 @@ class Rule : public detail::Declaring,
   [[nodiscard]] const std::optional<VarRef>& inkVar() const;
   /** The paint the ink is, where it was written as one. */
   [[nodiscard]] const std::optional<material::skia::Paint>& inkPaint() const;
-  /** The box that paint's unit square maps onto. */
-  [[nodiscard]] PaintAnchor inkAnchor() const;
-  /** The unit of a passage that paint restarts on; absent for the whole
-   *  passage. */
-  [[nodiscard]] std::optional<sigil::weave::Unit> inkUnit() const;
+  /** The rectangle that paint's unit square is stretched over. */
+  [[nodiscard]] PaintBox inkBox() const;
   /** Whether this rule writes the ink lane at all — a colour, a
    *  property, a paint, or an empty paint, which is the lane cleared. */
   [[nodiscard]] bool statesInk() const;

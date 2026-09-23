@@ -228,9 +228,8 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
     // colour, anything else a shader over the range. A live paint has no
     // one shader to give a range, and nor has a geometry-dependent one —
     // unless it restarts per unit, when its box is the unit square the
-    // engine lays on each unit. The ink verb kept a unit only under the
-    // own box.
-    const bool restarts = said.inkUnit.has_value();
+    // engine lays on each unit.
+    const bool restarts = textUnitOf(said.inkBox).has_value();
     if (said.inkPaint && (said.inkPaint->isAnimated() ||
                           (said.inkPaint->geometryDependent() && !restarts))) {
       warnSpanInkHasNoOneShader();
@@ -243,7 +242,7 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
         restyle.partial.color = flat.colorValue;
       } else if (flat.kind == Fill::Kind::Shader) {
         restyle.inkShader = flat;
-        if (restarts) restyle.inkUnit = said.inkUnit;
+        if (restarts) restyle.inkBox = said.inkBox;
       }
     }
   }

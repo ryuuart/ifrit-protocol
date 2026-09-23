@@ -25,6 +25,9 @@ sound model; nothing below them changes kernel semantics.
   Empty paint preserves the element's fill; bindings retain their source
   identity and materials retain their frame-dependent behavior. Neutral
   wells and sheets accept this same value as their ground.
+- `core/PaintBox.h` — `PaintBox`, the rectangle a fill's or an ink's
+  paint is stretched over: the element's own box, its padding or content
+  box, the subtree's, the canvas, or each unit of a passage.
 - `core/Paint.h` — the paint values: `Fill`, `Corners`,
   `PaintContext`, `KeyState` — the keys a host fed, as a paint program
   reads them beside `PaintContext::pointer` — `PromotionPolicy`, what

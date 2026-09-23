@@ -690,16 +690,15 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // they must stay balanced against their restores below, and the
     // foregrounds still trace the outline.)
   } else if (const material::skia::Paint* live = liveMaterialOf(inst)) {
-    // background-origin: the paint's unit square begins at the box the
-    // origin names rather than at the node's own. The painted AREA does
-    // not move with it — a clip is what would move that, and this library
-    // does not adopt one — so the paint is resolved against the origin
-    // box and then placed at its corner.
+    // The fill's box: the paint's unit square is stretched over the
+    // rectangle the fill names rather than the node's own. The painted
+    // AREA does not move with it — a clip is what would move that, and
+    // this library does not adopt one — so the paint is resolved against
+    // that rectangle and then placed at its corner.
     // A border here is a stroke dressing the boundary rather than a box
     // lane, so the padding box IS the border box and only the content box
     // moves the paint.
-    if (style.paint.backgroundOrigin != BackgroundOrigin::ContentBox ||
-        inst.hasPendingLiveFill) {
+    if (style.paint.fillBox != PaintBox::Content || inst.hasPendingLiveFill) {
       resolvedFill = inst.hasPendingLiveFill ? inst.pendingLiveFill
                                              : resolveFill(*live, paintCtx);
     } else {

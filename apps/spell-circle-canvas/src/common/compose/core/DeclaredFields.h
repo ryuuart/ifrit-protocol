@@ -221,9 +221,9 @@ class DeclaredFields {
   SkBlendMode& blendMode() {
     return state(Property::BlendMode, m_storage.paint.blendMode);
   }
-  BackgroundOrigin& backgroundOrigin() {
-    return state(Property::BackgroundOrigin, m_storage.paint.backgroundOrigin);
-  }
+  /** The box a fill's paint is stretched over: part of the fill's own
+   *  statement, so it states the fill. */
+  PaintBox& fillBox() { return state(Property::Fill, m_storage.paint.fillBox); }
   int& zIndex() { return state(Property::ZIndex, m_storage.paint.zIndex); }
 
   // ---- the 2D transform ----

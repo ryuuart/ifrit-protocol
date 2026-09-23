@@ -24,16 +24,14 @@ of them, or a live binding whose value IS the node's colour.
 
 ```cpp
 Element& fill(motion::Animatable<Fill> colour);
-Element& fill(material::skia::Paint paint);
+Element& fill(material::skia::Paint paint, PaintBox box = PaintBox::Element);
 Element& fill(material::Color colour);
-template <typename P> Element& fill(P&& surface);   // a SurfacePaint
-Element& fill(material::skia::Paint paint, PaintAnchor anchor,
-              BackgroundOrigin origin = BackgroundOrigin::BorderBox);
+template <typename P>                               // a SurfacePaint
+Element& fill(P&& surface, PaintBox box = PaintBox::Element);
 ```
 
 ```python
-def fill(self, value: SurfacePaintLike, anchor: PaintAnchor = ...,
-         origin: BackgroundOrigin = ...) -> Element: ...
+def fill(self, value: SurfacePaintLike, box: PaintBox = ...) -> Element: ...
 ```
 
 ## Parameters
@@ -45,8 +43,7 @@ def fill(self, value: SurfacePaintLike, anchor: PaintAnchor = ...,
 | `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | [`material::skia::Paint`](../../VALUES.md#the-surface) |
 | `material::Color` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |
 | `SurfacePaint` | A component's surface property: any of the above, or empty. | [`SurfacePaint`](../types/SurfacePaint.md) |
-| `PaintAnchor` | Which box the paint's unit square maps onto. | `PaintAnchor::OwnBox`, `CanvasBox` |
-| `BackgroundOrigin` | Which of the box's rectangles the paint begins at — CSS's background-origin. | `BackgroundOrigin::BorderBox`, `PaddingBox`, `ContentBox` |
+| `PaintBox` | The rectangle the paint's unit square is stretched over. | [`PaintBox`](../types/PaintBox.md): `Element`, `Padding`, `Content`, `Canvas` |
 
 In Python the parameter is `SurfacePaintLike`, which additionally
 accepts a `"#rrggbb"` or `"#rrggbbaa"` string, a three- or four-number
@@ -56,21 +53,29 @@ transitioned fill, and `None` for no fill at all.
 
 ## Description
 
-**The anchor decides which box the paint is stretched over.** `OwnBox`
-is the default and is the node's own box. `CanvasBox` maps the unit
-square onto the whole canvas instead, so several boxes show slices of
-one field and moving one of them moves the slice it shows — a run of
-cards under one gradient, with no per-card arithmetic. A fill does not
-inherit, so `DeclaringBox` is `OwnBox`: the element that stated the fill
-is the one painting it.
+**The box decides which rectangle the paint is stretched over.**
+`PaintBox::Element` is the default and is the node's own box.
+`PaintBox::Canvas` stretches the unit square over the whole canvas
+instead, so several boxes show slices of one field and moving one of them
+moves the slice it shows — a run of cards under one gradient, with no
+per-card arithmetic. A fill does not inherit, so `PaintBox::Subtree` is
+the element's own box: the element that stated the fill is the one
+painting it.
 
-**The origin decides where inside that box the paint begins.**
-`ContentBox` starts it inside the node's padding. The painted AREA never
-moves with it: CSS's background-clip is not adopted here, because
-`ink` covers painting the text with a paint and `inset`, `overflow` and
-the decoration slots cover the rest. A border in this library is a
-stroke dressing the boundary rather than a box lane, so `PaddingBox`
-names the same rectangle `BorderBox` does until one exists.
+**`Content` starts the paint inside the node's padding** — CSS's
+content-box origin. The painted AREA never moves with it: CSS's
+background-clip is not adopted here, because `ink` covers painting the
+text with a paint and `inset`, `overflow` and the decoration slots cover
+the rest. A border in this library is a stroke dressing the boundary
+rather than a box lane, so `Padding` names the same rectangle `Element`
+does until one exists.
+
+**A box has no text units.** `Glyph`, `Cluster`, `Word`, `Line` and
+`Sentence` restart an [`ink`](ink.md) on each unit of a passage; handed
+to a fill, one is refused, said once on the diagnostic stream, and the
+paint is stretched over the element's own box. The box is part of the
+fill's statement, so a later fill replaces it with its own, and a colour
+or a surface with no picture to place takes the element's.
 
 **A static paint collapses to a fill.** Handing over a
 `material::skia::Paint` that reads nothing live stores the shader it

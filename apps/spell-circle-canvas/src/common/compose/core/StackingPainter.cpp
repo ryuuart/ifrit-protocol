@@ -120,9 +120,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     curToRoot.preConcat(tf.matrix({0, 0}, rect.width(), rect.height()));
   }
 
-  // A node that STATES an anchored ink paint is the box everything under
-  // it shows a slice of, so the anchor is taken here, where this node's
-  // matrix and rect are both in hand, and restored on the way out.
+  // A node that STATES an ink paint spread across the tree is the box
+  // everything under it shows a slice of, so that box is taken here,
+  // where this node's matrix and rect are both in hand, and restored on
+  // the way out.
   struct InkAnchorScope {
     Composer::Impl* impl;
     SkMatrix savedMatrix;
@@ -133,17 +134,18 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     }
   } inkAnchorScope{this, inkAnchorToRoot, inkAnchorSize};
   if (inst.inkPaintOrigin) {
-    switch (inst.inkPaint.anchor) {
-      case PaintAnchor::OwnBox:
-        inkAnchorSize = SkSize::MakeEmpty();
-        break;
-      case PaintAnchor::DeclaringBox:
+    switch (inst.inkPaint.box) {
+      case PaintBox::Subtree:
         inkAnchorToRoot = curToRoot;
         inkAnchorSize = {rect.width(), rect.height()};
         break;
-      case PaintAnchor::CanvasBox:
+      case PaintBox::Canvas:
         inkAnchorToRoot = SkMatrix::I();
         inkAnchorSize = rootLayoutSize;
+        break;
+      // Every other box lays the paint on each thing painted.
+      default:
+        inkAnchorSize = SkSize::MakeEmpty();
         break;
     }
   }

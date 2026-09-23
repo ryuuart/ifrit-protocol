@@ -22,7 +22,7 @@
 #include "sigilcompose/core/Measure.h"
 #include "sigilcompose/core/Operator.h"
 #include "sigilcompose/core/Paint.h"
-#include "sigilcompose/core/PaintAnchor.h"
+#include "sigilcompose/core/PaintBox.h"
 #include "sigilcompose/core/Selector.h"
 #include "sigilcompose/core/Shape.h"
 #include "sigilcompose/core/Shelf.h"

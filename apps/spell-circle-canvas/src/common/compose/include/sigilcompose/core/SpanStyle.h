@@ -20,9 +20,10 @@ namespace sigil::compose {
  *  leaves unsaid the range keeps. No box verb and no text property: a
  *  range has no box of its own.
  *  @trap A paint stated here is laid in the passage's own coordinates, as
- *  it is, unless its `ink` names a unit, when it restarts on each unit
- *  of the range: a ramp meant to span the whole leaf belongs on the
- *  leaf's own `ink`, which maps it onto the leaf's box. */
+ *  it is, unless its `ink` names a text unit — a `PaintBox` from `Glyph`
+ *  to `Sentence` — when it restarts on each unit of the range: a ramp
+ *  meant to span the whole leaf belongs on the leaf's own `ink`, which
+ *  stretches it over the leaf's text box. */
 class SpanStyle : public detail::Declaring, public FontVerbs<SpanStyle> {
  public:
   SpanStyle() = default;  ///< States nothing.

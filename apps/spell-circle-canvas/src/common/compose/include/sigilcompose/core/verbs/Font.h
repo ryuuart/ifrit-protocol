@@ -10,15 +10,13 @@
 
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/FontStyle.h>
-#include <sigilcompose/core/PaintAnchor.h>
+#include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/style/Length.h>
 #include <sigilweave/style/Type.h>
 
-#include <optional>
 #include <string>
 
 namespace sigil::compose {
@@ -78,18 +76,16 @@ class FontVerbs {
   /** THE INK AS A WHOLE PAINT — a ramp, a sprite, a recipe, SkSL —
    *  taking everything `fill` takes. A plain colour behaves as the
    *  colour form above does; any other paint inherits the same way but
-   *  SNAPS under a transition rather than easing, as a fill does. @p
-   *  anchor is the box the paint's unit square maps onto, own box by
-   *  default, which for a text leaf is its text-metric box. @p unit
-   *  restarts the paint on each `Glyph`, `Cluster`, `Word`, `Line` or
-   *  `Sentence` of a passage, its unit square on that unit's own
-   *  text-metric box; absent, the default, is the whole passage.
+   *  SNAPS under a transition rather than easing, as a fill does. @p box
+   *  is the rectangle the paint's unit square is stretched over:
+   *  `Element` by default, which for a passage is its text box;
+   *  `Subtree` or `Canvas` for one field the tree shows slices of; or a
+   *  text unit, `Glyph` to `Sentence`, restarting the paint on each.
    *  @trap An empty paint clears an ancestor's ink paint and leaves the
-   *  inherited colour standing. A unit is read under `OwnBox` alone, and
-   *  `Selection` names no unit: either is dropped with a warning, once,
-   *  and the paint is laid whole. */
-  Derived& ink(SurfacePaint paint, PaintAnchor anchor = PaintAnchor::OwnBox,
-               std::optional<sigil::weave::Unit> unit = std::nullopt);
+   *  inherited colour standing. A text unit on a node that is no
+   *  passage, and `Padding` or `Content`, which are a fill's, read as
+   *  `Element` and say so once. */
+  Derived& ink(SurfacePaint paint, PaintBox box = PaintBox::Element);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

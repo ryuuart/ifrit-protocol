@@ -75,7 +75,6 @@ enum class Property : uint8_t {
   Fill,
   Opacity,
   BlendMode,
-  BackgroundOrigin,
   ZIndex,
   // The 2D transform.
   TranslateX,
@@ -189,7 +188,7 @@ constexpr size_t inheritedCount() {
 }  // namespace detail
 
 /** THE INHERITED SET AS A LIST, built from the table above at compile
- *  time so the fold walks five entries rather than sixty-six, and so the
+ *  time so the fold walks five entries rather than every property, and so the
  *  table above stays the only place the set is written down. */
 constexpr std::array<Property, detail::inheritedCount()> kInherited = [] {
   std::array<Property, detail::inheritedCount()> list{};

@@ -32,7 +32,7 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   // does.
   if (node.textData)
     for (const SpanRestyle& span : node.textData->spanRestyles)
-      if (span.inkUnit && span.inkShader) {
+      if (textUnitOf(span.inkBox) && span.inkShader) {
         ink.spanUnits = true;
         break;
       }
@@ -101,10 +101,11 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
     return ink;
   }
 
-  // AN ANCHORED INK is already resolved in this node's own space — the
-  // slice it stands on of the box the ink was anchored to — so nothing
-  // maps it onto the metric band, which is the own-box reading.
-  if (inst.inkPaint.anchor != PaintAnchor::OwnBox) {
+  // AN INK SPREAD ACROSS THE TREE is already resolved in this node's own
+  // space — the slice it stands on of the box the ink was stretched over
+  // — so nothing maps it onto the metric band, which is the element's
+  // own reading.
+  if (spreadsAcrossTree(inst.inkPaint.box)) {
     const Fill anchored = resolveInk(*metricMat, paintCtx);
     if (anchored.kind == Fill::Kind::Shader && anchored.shaderValue) {
       metric.foreground.setShader(anchored.shaderValue);
@@ -132,9 +133,10 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   // AN INK THAT RESTARTS PER UNIT keeps its paint on the unit square: the
   // text engine lays it on each unit's own box. The passage mapping below
   // still dresses the decoration bands, which span a run, not a unit.
-  if (f.kind == Fill::Kind::Shader && f.shaderValue && inst.inkPaint.unit) {
+  const std::optional<sigil::weave::Unit> unit = textUnitOf(inst.inkPaint.box);
+  if (f.kind == Fill::Kind::Shader && f.shaderValue && unit) {
     ink.unitSquare = f.shaderValue;
-    ink.unit = *inst.inkPaint.unit;
+    ink.unit = *unit;
   }
   if (f.kind == Fill::Kind::Shader && f.shaderValue && !inst.columns.empty()) {
     // A VERTICAL passage has no cap band to hang the ramp on: a column's

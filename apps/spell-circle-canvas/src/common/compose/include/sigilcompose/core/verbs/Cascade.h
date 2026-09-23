@@ -13,7 +13,7 @@
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/LineSetting.h>
-#include <sigilcompose/core/PaintAnchor.h>
+#include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>

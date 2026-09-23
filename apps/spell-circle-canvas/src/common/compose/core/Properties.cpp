@@ -95,8 +95,6 @@ std::string_view propertyName(Property property) {
       return "opacity";
     case Property::BlendMode:
       return "blendMode";
-    case Property::BackgroundOrigin:
-      return "backgroundOrigin";
     case Property::ZIndex:
       return "zIndex";
     case Property::TranslateX:
@@ -285,15 +283,13 @@ void copyProperty(Property property, const ComputedStyle& from,
       return;
     case Property::Fill:
       paint.fill = paintSource.fill;
+      paint.fillBox = paintSource.fillBox;
       return;
     case Property::Opacity:
       paint.opacity = paintSource.opacity;
       return;
     case Property::BlendMode:
       paint.blendMode = paintSource.blendMode;
-      return;
-    case Property::BackgroundOrigin:
-      paint.backgroundOrigin = paintSource.backgroundOrigin;
       return;
     case Property::ZIndex:
       paint.zIndex = paintSource.zIndex;
@@ -368,8 +364,7 @@ bool computedStyleEqual(const ComputedStyle& a, const ComputedStyle& b) {
   if (pa.fill.has_value() != pb.fill.has_value()) return false;
   if (pa.fill && !propertyEqual(*pa.fill, *pb.fill)) return false;
   return propertyEqual(pa.opacity, pb.opacity) &&
-         pa.blendMode == pb.blendMode &&
-         pa.backgroundOrigin == pb.backgroundOrigin &&
+         pa.blendMode == pb.blendMode && pa.fillBox == pb.fillBox &&
          propertyEqual(pa.translateX, pb.translateX) &&
          propertyEqual(pa.translateY, pb.translateY) &&
          propertyEqual(pa.rotate, pb.rotate) &&

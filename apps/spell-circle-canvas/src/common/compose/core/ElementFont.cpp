@@ -4,11 +4,12 @@
  * painted in.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf — the ink unit's diagnostics
+#include <include/core/SkTypes.h>  // SkDebugf — the ink box's diagnostics
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Type.h>
 
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #include "ComposeInternal.h"
@@ -17,33 +18,31 @@ namespace sigil::compose {
 
 namespace {
 
-/** The once-per-process diagnostic behind an ink handed `Unit::Selection`,
- *  which names the extent a selector found rather than a size a passage
- *  is cut into, so a ramp laid across the passage is not mistaken for one
- *  restarting on a unit. */
-void warnSelectionIsNoInkUnit() {
+/** The once-per-process diagnostic behind an ink handed a text unit on a
+ *  node that is no passage: a box has no glyphs, words or lines of its
+ *  own to restart the paint on. */
+void warnInkTextUnitNeedsAPassage() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
   SkDebugf(
-      "[compose] ink() was given Unit::Selection, which names the extent a "
-      "selector found and no unit a passage is cut into — the unit was "
-      "dropped and the paint is laid across the whole passage. Name Glyph, "
-      "Cluster, Word, Line or Sentence. (warned once)\n");
+      "[compose] ink() names a text unit (Glyph, Cluster, Word, Line or "
+      "Sentence) on a node that is no passage — the unit was dropped and "
+      "the paint is stretched over PaintBox::Element. State the unit on the "
+      "text leaf, a span of it, or a rule that lands on it. (warned once)\n");
 }
 
-/** The once-per-process diagnostic behind an ink naming a unit under an
- *  anchor other than the text's own box, where the paint is one field
- *  spread across the tree and no unit of one passage can restart it. */
-void warnInkUnitNeedsOwnBox() {
+/** The once-per-process diagnostic behind an ink handed `Padding` or
+ *  `Content`, which are rectangles of a fill's box: an ink is laid on
+ *  the text it reaches, never on a node's padding. */
+void warnInkTakesNoFillBox() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
   SkDebugf(
-      "[compose] ink() names a unit under PaintAnchor::DeclaringBox or "
-      "CanvasBox, which spread one field across the tree — the unit was "
-      "dropped and the paint is laid on the anchor's box. A unit restarts "
-      "the paint under PaintAnchor::OwnBox alone. (warned once)\n");
+      "[compose] ink() was given PaintBox::Padding or PaintBox::Content, "
+      "which place a fill inside its box — the paint is stretched over "
+      "PaintBox::Element. (warned once)\n");
 }
 
 }  // namespace
@@ -63,12 +62,14 @@ Derived& FontVerbs<Derived>::font(sigil::weave::Type partial) {
     cascade.italic = false;
   else if (partial.keywords.find(sigil::weave::TypeField::Slant))
     cascade.italic.reset();
-  // A colour written here is the ink, so a property the ink was read from
-  // before no longer stands, and neither does a paint.
+  // A colour written here IS the ink — one lane, one bit — so it states
+  // the ink as `ink()` does: a keyword stated about the ink before ends,
+  // and a property the ink was read from and a paint no longer stand.
   if (partial.color) {
+    declarations()->ink();
     cascade.inkVar.reset();
     cascade.inkPaint.reset();
-    cascade.inkUnit.reset();
+    cascade.inkBox = PaintBox::Element;
     cascade.statesInk = true;
   }
   return self();
@@ -126,7 +127,7 @@ Derived& FontVerbs<Derived>::ink(material::Color colour) {
   cascade.font->color = colour;
   cascade.inkVar.reset();
   cascade.inkPaint.reset();
-  cascade.inkUnit.reset();
+  cascade.inkBox = PaintBox::Element;
   cascade.statesInk = true;
   return self();
 }
@@ -137,40 +138,43 @@ Derived& FontVerbs<Derived>::ink(VarRef reference) {
   cascade.inkVar = reference;
   if (cascade.font) cascade.font->color.reset();
   cascade.inkPaint.reset();
-  cascade.inkUnit.reset();
+  cascade.inkBox = PaintBox::Element;
   cascade.statesInk = true;
   return self();
 }
 
 template <class Derived>
-Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor,
-                                 std::optional<sigil::weave::Unit> unit) {
+Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintBox box) {
   detail::CascadeData& cascade = declarations()->ink();
-  // A PLAIN COLOUR is the ink lane as it has always been. A paint that
-  // happens to be flat is not one: it overrides the glyphs of a leaf set
-  // in a style of its own, which an inherited colour does not reach.
+  // A PLAIN COLOUR is the ink lane as it has always been, and has no unit
+  // square for a box to stretch. A paint that happens to be flat is not
+  // one: it overrides the glyphs of a leaf set in a style of its own,
+  // which an inherited colour does not reach.
   const std::optional<Fill> flat =
       paint.writtenAsPaint() ? std::nullopt : paint.collapsedFill();
   if (flat && flat->kind == Fill::Kind::Color && !flat->references())
     return ink(flat->colorValue);
+  // A box the ink cannot stretch a paint over is read as the element's
+  // own, and said so: the padding and the content rectangles place a
+  // fill, and a text unit needs a passage to cut. A rule and a span may
+  // land on one, so they keep theirs.
+  if (box == PaintBox::Padding || box == PaintBox::Content) {
+    warnInkTakesNoFillBox();
+    box = PaintBox::Element;
+  }
+  constexpr bool landsOnText =
+      std::is_same_v<Derived, Rule> || std::is_same_v<Derived, SpanStyle>;
+  if (!landsOnText && detail::textUnitOf(box) &&
+      declarations()->kind != detail::Kind::Text) {
+    warnInkTextUnitNeedsAPassage();
+    box = PaintBox::Element;
+  }
   // An empty paint STATES the lane and holds nothing, which clears an
   // ancestor's paint and leaves the colour in force standing.
-  // A unit the paint cannot restart on is dropped, and said so: the
-  // extent a selector found is no size a passage is cut into, and an
-  // anchor other than the own box spreads one field across the tree.
-  if (unit == sigil::weave::Unit::Selection) {
-    warnSelectionIsNoInkUnit();
-    unit.reset();
-  }
-  if (unit && anchor != PaintAnchor::OwnBox) {
-    warnInkUnitNeedsOwnBox();
-    unit.reset();
-  }
   if (paint.none()) {
     cascade.statesInk = true;
     cascade.inkPaint.reset();
-    cascade.inkAnchor = anchor;
-    cascade.inkUnit = unit;
+    cascade.inkBox = box;
     return self();
   }
   // A fill the slot cannot hold — a live binding, the ink in force, a
@@ -182,8 +186,7 @@ Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintAnchor anchor,
   if (!stored) return self();
   cascade.statesInk = true;
   cascade.inkPaint = std::move(stored);
-  cascade.inkAnchor = anchor;
-  cascade.inkUnit = unit;
+  cascade.inkBox = box;
   return self();
 }
 

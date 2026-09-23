@@ -126,13 +126,15 @@ void detail::inkByUnit(const sigil::weave::ParagraphLayout& layout,
           const SkShader* painted = placed.paint->foreground.getShader();
           for (size_t index = spans->size(); painted && index-- > 0;) {
             const SpanRestyle& span = (*spans)[index];
-            if (!span.inkUnit || !span.inkShader ||
+            const std::optional<sigil::weave::Unit> spanUnit =
+                textUnitOf(span.inkBox);
+            if (!spanUnit || !span.inkShader ||
                 span.inkShader->shaderValue.get() != painted)
               continue;
             whose = (uint32_t)index + 1;
             base = placed.paint;
             unitSquare = &span.inkShader->shaderValue;
-            unit = *span.inkUnit;
+            unit = *spanUnit;
             break;
           }
         }

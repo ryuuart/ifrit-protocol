@@ -307,7 +307,7 @@ void Composer::Impl::resolveCascade(
       parentFamily, parentItalic,
       inst.parent != nullptr ? inst.parent->indentPercent : std::nullopt);
   // The ink's paint inherits exactly as the font's colour does, and the
-  // node that STATED it is the box a declaring-box anchor maps onto.
+  // node that STATED it is the box `PaintBox::Subtree` stretches it over.
   InkInForce inkPaint = parentInkPaint;
   bool inkPaintOrigin = false;
   // Whether the colour resolved below is one this node produced — a
@@ -402,7 +402,7 @@ void Composer::Impl::resolveCascade(
           !ruleFillMaterialEqual(inst.ruleLayer.get(), layer.get());
       inst.ruleLayer = std::move(layer);
     }
-    // Set, never cleared here, for the reason the ink's anchor below is.
+    // Set, never cleared here, for the reason the ink's box below is.
     if (ruleFillUsesWorldSpace(inst.ruleLayer.get()))
       inst.hasWorldSpaceMaterial = true;
   }
@@ -488,7 +488,7 @@ void Composer::Impl::resolveCascade(
         inkVar.reset();
       }
       if (rule.statesInk()) {
-        inkPaint = {rule.inkPaint(), rule.inkAnchor(), rule.inkUnit()};
+        inkPaint = {rule.inkPaint(), rule.inkBox()};
         inkPaintOrigin = rule.inkPaint().has_value();
       }
       if (!rule.vars().empty()) ruleVars.overlay(rule.vars());
@@ -558,7 +558,7 @@ void Composer::Impl::resolveCascade(
                       cascade->block ? &*cascade->block : nullptr, cascade);
       if (cascade->inkVar) inkVar = cascade->inkVar;
       if (cascade->statesInk) {
-        inkPaint = {cascade->inkPaint, cascade->inkAnchor, cascade->inkUnit};
+        inkPaint = {cascade->inkPaint, cascade->inkBox};
         inkPaintOrigin = cascade->inkPaint.has_value();
       }
     }
@@ -650,8 +650,8 @@ void Composer::Impl::resolveCascade(
           // else; `initial` is a colour of this node's own choosing.
           statesOwnInk = !fromParent;
           // Whichever way it went, the paint in force came from somewhere
-          // above this node or from nowhere, so this node is not the box a
-          // declaring-box anchor maps onto.
+          // above this node or from nowhere, so this node is not the box
+          // `PaintBox::Subtree` stretches it over.
           inkPaint = fromParent ? parentInkPaint : InkInForce{};
           inkPaintOrigin = false;
           break;
@@ -713,13 +713,13 @@ void Composer::Impl::resolveCascade(
   const bool samplingChanged = first || !(sampling == inst.sampling);
   inst.font = font;
   inst.inkPaint = inkPaint;
-  // An ink anchored to a box that is NOT the one being painted samples a
+  // An ink stretched over a box that is NOT the one painted samples a
   // field this node's place in the tree decides, so the node invalidates
   // when it moves, exactly as a world-space material does. Set here and
   // never cleared here: the reconcile writes the flag from the node's own
   // description, and a flag left standing costs an invalidation, never a
   // wrong pixel.
-  if (inkPaint.paint && inkPaint.anchor != PaintAnchor::OwnBox)
+  if (inkPaint.paint && spreadsAcrossTree(inkPaint.box))
     inst.hasWorldSpaceMaterial = true;
   inst.inkPaintOrigin = inkPaintOrigin;
   inst.vars = vars;

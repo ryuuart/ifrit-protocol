@@ -684,8 +684,8 @@ material::skia::Paint redToBlue() {
 }
 
 /** Two 40x40 boxes filled with the ink in force, side by side inside a
- *  120-wide declaring box that sets @p ink under @p anchor. */
-Element twoSwatches(SurfacePaint ink, PaintAnchor anchor) {
+ *  120-wide box that states @p ink stretched over @p over. */
+Element twoSwatches(SurfacePaint ink, PaintBox over) {
   const auto swatch = [](std::string key) {
     return box()
         .key(std::move(key))
@@ -697,7 +697,7 @@ Element twoSwatches(SurfacePaint ink, PaintAnchor anchor) {
       .row()
       .width(120)
       .height(40)
-      .ink(std::move(ink), anchor)
+      .ink(std::move(ink), over)
       .children({swatch("left"), swatch("right")});
 }
 
@@ -707,42 +707,43 @@ TEST(ComposeCascade, AnInkPaintPaintsEveryMarkUnderItThatNamesNoColour) {
   // The ink takes what a fill takes; a fill written as the ink in force
   // resolves to the paint rather than to a colour.
   Host host;
-  host.composer.render(twoSwatches(redToBlue(), PaintAnchor::OwnBox));
+  host.composer.render(twoSwatches(redToBlue(), PaintBox::Element));
   host.frame();
-  // Own box: each swatch shows the WHOLE ramp, so both run red to blue.
+  // The element's own box: each swatch shows the WHOLE ramp, so both run
+  // red to blue.
   EXPECT_GT(SkColorGetR(host.pixel(2, 20)), 200u);
   EXPECT_GT(SkColorGetB(host.pixel(38, 20)), 200u);
   EXPECT_GT(SkColorGetR(host.pixel(42, 20)), 200u);
   EXPECT_GT(SkColorGetB(host.pixel(78, 20)), 200u);
 }
 
-TEST(ComposeCascade, AnInkPaintOnTheDeclaringBoxGivesEachMarkItsOwnSlice) {
+TEST(ComposeCascade, AnInkPaintOverTheSubtreeGivesEachMarkItsOwnSlice) {
   Host host;
-  host.composer.render(twoSwatches(redToBlue(), PaintAnchor::DeclaringBox));
+  host.composer.render(twoSwatches(redToBlue(), PaintBox::Subtree));
   host.frame();
-  // One ramp across the whole declaring box: each swatch holds its own
+  // One ramp across the box that stated it: each swatch holds its own
   // stretch of it, so the ramp runs on THROUGH the two rather than
   // restarting, and the right swatch is bluer than the left at every
   // point.
   EXPECT_GT(SkColorGetR(host.pixel(2, 20)), 200u);
   EXPECT_GT(SkColorGetB(host.pixel(42, 20)), SkColorGetB(host.pixel(2, 20)));
   EXPECT_GT(SkColorGetB(host.pixel(78, 20)), SkColorGetB(host.pixel(38, 20)));
-  // …which is exactly what an own-box reading does not do: there the
+  // …which is exactly what the element's own box does not do: there the
   // second swatch starts the ramp again, so the same offset into either
   // swatch is the same colour, and redder than the one ramp is by then.
   Host own;
-  own.composer.render(twoSwatches(redToBlue(), PaintAnchor::OwnBox));
+  own.composer.render(twoSwatches(redToBlue(), PaintBox::Element));
   own.frame();
   EXPECT_EQ(own.pixel(42, 20), own.pixel(2, 20));
   EXPECT_GT(SkColorGetR(own.pixel(42, 20)), SkColorGetR(host.pixel(42, 20)));
 }
 
-TEST(ComposeCascade, AnInkPaintOnTheCanvasBoxIsOneFieldTheWholeTreeStandsIn) {
-  // The same two swatches, moved: a canvas-anchored ink is a field the
+TEST(ComposeCascade, AnInkPaintOverTheCanvasIsOneFieldTheWholeTreeStandsIn) {
+  // The same two swatches, moved: an ink over the canvas is a field the
   // canvas owns, so what a mark shows is decided by where it stands.
   Host host;
   const auto page = [](float left) {
-    return box().children({twoSwatches(redToBlue(), PaintAnchor::CanvasBox)
+    return box().children({twoSwatches(redToBlue(), PaintBox::Canvas)
                                .absolute()
                                .left(left)
                                .top(0.0f)});
