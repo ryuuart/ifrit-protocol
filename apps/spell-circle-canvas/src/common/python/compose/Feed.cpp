@@ -6,7 +6,6 @@
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Registration.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -234,8 +233,9 @@ void bindRecords(py::module_& module) {
       .def_readwrite("window", &feed::TextOptions::window,
                      "How the rows are laid out.")
       .def_readwrite("styles", &feed::TextOptions::styles,
-                     "Row style by name. The base style sets every row that "
-                     "names nothing.")
+                     "Row style by name — a `weave.TypeSheet`, each style a "
+                     "partial over its base, which sets every row that names "
+                     "nothing.")
       .def(py::self == py::self);
 
   auto row = bindRecord<RowCopy>(module, "Row", "Unknown Row field: ");

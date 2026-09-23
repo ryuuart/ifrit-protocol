@@ -35,7 +35,6 @@
 #include <sigilmotion/values/Transition.h>
 #include <sigilweave/layout/Block.h>
 #include <sigilweave/layout/ParagraphLayout.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Style.h>
 
 #include <any>

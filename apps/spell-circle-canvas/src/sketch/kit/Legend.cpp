@@ -26,16 +26,16 @@ namespace {
 void words(Element& line, const LegendEntry& entry) {
   const Theme& look = theme();
   if (!entry.label.empty()) {
-    Text label = document::label(entry.label)
-                     .role(weave::rule("label").font(
-                         look.font(look.type.captionNote, look.palette.ink)));
+    Text label =
+        document::label(entry.label)
+            .role("label", look.font(look.type.captionNote, look.palette.ink));
     if (entry.ink) detail::documentInk(label, *entry.ink);
     line.children({std::move(label)});
   }
   if (!entry.note.empty())
     line.children({document::caption(entry.note)
-                       .role(weave::rule("caption").font(look.font(
-                           look.type.captionNote, look.palette.ash)))});
+                       .role("caption", look.font(look.type.captionNote,
+                                                  look.palette.ash))});
 }
 
 /** The beat the entry rides in on, where it has one. */
@@ -113,9 +113,9 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
     // The word stands under its own swatch and takes the swatch's width,
     // so a strip that names only its ends keeps its steps butted; a step
     // whose number is the measurement says so with its own ink.
-    Text label = document::eyebrow(strip.labels[i])
-                     .role(weave::rule("eyebrow").font(
-                         look.font(look.type.eyebrow, look.palette.ash)));
+    Text label =
+        document::eyebrow(strip.labels[i])
+            .role("eyebrow", look.font(look.type.eyebrow, look.palette.ash));
     if (i < strip.inks.size() && strip.inks[i].kind != Fill::Kind::None)
       detail::documentInk(label, strip.inks[i]);
     Element step = box()
@@ -135,8 +135,8 @@ compose::Element chip(const Chip& tag) {
   Element plate =
       box().padding(look.spacing.chipPaddingY, look.spacing.chipPaddingX);
   tag.ground.value_or(Fill::color(look.palette.figure)).apply(plate);
-  Text label = document::eyebrow(tag.label).role(weave::rule("eyebrow").font(
-      look.font(look.type.eyebrow, look.palette.ground)));
+  Text label = document::eyebrow(tag.label).role(
+      "eyebrow", look.font(look.type.eyebrow, look.palette.ground));
   if (tag.ink) detail::documentInk(label, *tag.ink);
   plate.children({std::move(label)});
   if (const float round = tag.corners.value_or(look.spacing.chipCorners);

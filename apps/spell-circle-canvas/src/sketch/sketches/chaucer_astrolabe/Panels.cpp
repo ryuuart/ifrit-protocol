@@ -327,7 +327,7 @@ auto ChaucerAstrolabe::specCard() -> Element {
                              return {{row["key"], row["value"]}};
                            }),
                        {.columns = {{.width = 96}, {}}})
-                       .styleSheet(sheetLook.styleSheet()),
+                       .applyStyleSheet(sheetLook.styleSheet()),
                    kit::line({.fill = Fill::color(hexColor(0x241c15, 0.22f))}),
                    box().styleClass("figure").children(
                        {each(page["obliquity"].items(),
@@ -368,7 +368,7 @@ auto ChaucerAstrolabe::starPanel() -> Element {
                                        {heads[2].words, 56, true},
                                        {heads[3].words, 58, true},
                                        {heads[4].words, 52, true}}})
-                          .styleSheet(sheetLook.styleSheet()),
+                          .applyStyleSheet(sheetLook.styleSheet()),
                       // the strip: Cancer, the equator and Capricorn ruled
                       // across it, and one star per row against them
                       sketch::kit::plot(
@@ -496,7 +496,7 @@ auto ChaucerAstrolabe::titleStrip() -> Element {
               .notes = {{.words = page["note"],
                          .ink = Fill::color(hexColor(0x6b5a44))}},
               .ruled = true})
-      .styleSheet(sheetLook.styleSheet())
+      .applyStyleSheet(sheetLook.styleSheet())
       .left(64)
       .top(44)
       .width(kW - 128);

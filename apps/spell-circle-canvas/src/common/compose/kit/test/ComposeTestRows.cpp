@@ -2,9 +2,9 @@
 // is set in, where a reading puts its figure, how a table heads its
 // columns and rules under them, and what a bar is drawn in proportion to.
 
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <array>
 #include <string>
@@ -19,10 +19,11 @@ namespace kit = sigil::compose::kit;
 namespace {
 
 /** The sheet the three classes a row names are registered on. */
-weave::StyleSheet rowClasses() {
-  return weave::StyleSheet{{"caption", {.size = 10}},
-                           {"readout", {.size = 12}},
-                           {"h2", {.size = 11}}};
+sigil::compose::StyleSheet rowClasses() {
+  return sigil::compose::StyleSheet{
+      sigil::compose::rule("caption, .caption").font({.size = 10}),
+      sigil::compose::rule(".readout").font({.size = 12}),
+      sigil::compose::rule("h2").font({.size = 11})};
 }
 
 }  // namespace
@@ -48,9 +49,10 @@ TEST(KitRows, ACellNamesTheRowItStandsInAsWellAsItsColumn) {
 
 TEST(KitRows, ANameIsSetInCaptionNoteAndAFigureInReadout) {
   const auto height = [](const kit::Reading& one) {
-    return intrinsicSize(
-               box().styleSheet(rowClasses()).children({kit::reading(one)}),
-               fonts())
+    return intrinsicSize(box()
+                             .applyStyleSheet(rowClasses())
+                             .children({kit::reading(one)}),
+                         fonts())
         .height();
   };
   EXPECT_NEAR(height({.name = u8"nodes"}), lineHeight(10), 1.0f);
@@ -71,7 +73,7 @@ TEST(KitRows, AReadingPutsItsFigureAtTheFarEdgeOfTheMeasure) {
   host.composer.render(box()
                            .width(300)
                            .height(300)
-                           .styleSheet(rowClasses())
+                           .applyStyleSheet(rowClasses())
                            .children({kit::reading({.name = u8"nodes",
                                                     .value = u8"1 248",
                                                     .swatch = green()},
@@ -98,7 +100,7 @@ TEST(KitRows, AReadoutStacksItsRowsAndARuleStandsBetweenThem) {
       how.dividerWidth = 2;
     }
     return intrinsicSize(box()
-                             .styleSheet(rowClasses())
+                             .applyStyleSheet(rowClasses())
                              .children({kit::readout(rows, how)}),
                          fonts())
         .height();
@@ -125,7 +127,7 @@ TEST(KitRows, ATableSetsEachCellInItsColumnsClass) {
   host.composer.render(box()
                            .width(400)
                            .height(300)
-                           .styleSheet(rowClasses())
+                           .applyStyleSheet(rowClasses())
                            .children({kit::table(rows, how)}));
   host.frame();
   const SkRect first = require(host.composer.bounds("r0"));
@@ -159,7 +161,7 @@ TEST(KitRows, ARowIsItsOwnRunOfCellsSoAShortRowStaysShort) {
   host.composer.render(box()
                            .width(400)
                            .height(300)
-                           .styleSheet(rowClasses())
+                           .applyStyleSheet(rowClasses())
                            .children({kit::table(rows, how)}));
   host.frame();
   // The unmarked row leaves the mark's column empty, and its one cell
@@ -193,7 +195,7 @@ TEST(KitRows, ATableHeadsItsColumnsInTheSectionClassAndRulesUnderThem) {
   host.composer.render(box()
                            .width(400)
                            .height(300)
-                           .styleSheet(rowClasses())
+                           .applyStyleSheet(rowClasses())
                            .children({kit::table(rows, how).key("table")}));
   host.frame();
   const SkRect head = require(host.composer.bounds("head"));
@@ -254,7 +256,7 @@ TEST(KitRows, ABarsOwnInkStandsOverTheRowsPaintAndItsLines) {
       box()
           .width(400)
           .height(200)
-          .styleSheet(rowClasses())
+          .applyStyleSheet(rowClasses())
           .children({kit::bars(labels, values,
                                {.length = 100,
                                 .labelMeasure = 0,
@@ -286,7 +288,7 @@ TEST(KitRows, ABarRunsInProportionToTheLargestValue) {
     host.composer.render(box()
                              .width(400)
                              .height(200)
-                             .styleSheet(rowClasses())
+                             .applyStyleSheet(rowClasses())
                              .children({kit::bars(labels, values, bars)}));
     host.frame();
     return std::pair{require(host.composer.bounds("big")).left(),

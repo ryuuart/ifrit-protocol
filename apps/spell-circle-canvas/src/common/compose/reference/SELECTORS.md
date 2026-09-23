@@ -149,6 +149,24 @@ class toggle that recolours an element eases instead of snapping. The
 element's own `transition()` stands over every rule's, and among the
 matched rules that state one, the strongest wins.
 
+## Named runs and paragraphs
+
+A run of rich text written under a NAME, and a paragraph named in
+`Text::paragraphStyles`, is matched as a VIRTUAL CHILD of its text leaf
+whose one class is the name. So `.log .ts` styles the runs named `ts`
+only inside an element of class `log`, and `.note` styles every run and
+paragraph named `note` wherever the sheet reaches. A run takes the font
+and the ink its matched rules state, a paragraph the block they state.
+A virtual child has no role and no place among siblings, so no
+structural pseudo-class reaches it. The cascade fills the paragraph
+layer's `weave::TypeSheet` from these answers when it shapes the leaf,
+and shapes it again when what a name means has moved. A value that
+names a `weave::TypeSheet` of its own keeps it.
+
+A bare word is a ROLE and `.name` a class, and nothing else: a rule
+that should reach both a role and a class of one name says both, as
+`rule("caption, .caption")` does.
+
 ## The sheet, and applying it
 
 `compose::StyleSheet` is those rules in order, as one immutable value:
@@ -188,12 +206,8 @@ At every element the cascade folds these layers, each over the one
 before:
 
 1. the defaults of its role (`Element::role`),
-2. the rule the name-keyed `weave::StyleSheet` in force carries under
-   that role's name,
-3. the classes that sheet carries under the names `Element::styleClass`
-   lists,
-4. the rules of the applied sheets whose selectors matched, and
-5. the node's own `font`, `block`, `ink` and `var`.
+2. the rules of the applied sheets whose selectors matched, and
+3. the node's own `font`, `block`, `ink` and `var`.
 
 Among the matched rules the order is CSS's: the heavier
 `ElementSelector::specificity` first; then scope proximity, the nearer
@@ -203,8 +217,8 @@ ALTERNATIVE that matched it, so `rule(".a, heading")` weighs one class
 where `.a` matched and one role where `heading` did.
 
 A relative size still resolves ONCE against the parent's font: the
-matched rules fold into the same partial the classes and the node's
-own verbs fold into, and that partial is laid over the parent's font
+matched rules fold into the same partial the role's defaults and the
+node's own verbs fold into, and that partial is laid over the parent's font
 at one point, so `1.5_em` in a rule means what it means on a verb.
 
 Where a node stands among its siblings is counted once per parent,
@@ -237,6 +251,6 @@ so a subtree a memo reused is summarised without being described again.
 
 `Element::applyStyleSheet` is the verb that puts a sheet in force, and
 [the cascade](CASCADE.md) is where the matched rules are folded in.
-The name-keyed `weave::StyleSheet` stands beside them, unchanged:
-`Element::styleSheet` still states it, and a class still resolves
-through it.
+There is no other sheet: SigilWeave keeps only `weave::TypeSheet`, the
+paragraph layer's map of names to fonts, which Compose fills from the
+rules in force for each text leaf it shapes.

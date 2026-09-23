@@ -43,6 +43,7 @@
 
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Sections.h>
@@ -54,7 +55,6 @@
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -97,20 +97,22 @@ constexpr int kTapeHeight = 160;
  *  of its own, so each states this sheet and every leaf under it names its
  *  register; that a screen's glyphs are aliased is that same root's
  *  statement. */
-weave::StyleSheet screenType() {
-  weave::StyleSheet sheet;
-  sheet.set("h1",
-            {.size = 22.0f,
-             .color = material::skia::toSkColor(compose::hexColor(0xbfd4ef))});
-  sheet.set("note",
-            {.size = 19.0f,
-             .color = material::skia::toSkColor(compose::hexColor(0x7e93b4))});
-  sheet.set("display",
-            {.size = 46.0f,
-             .color = material::skia::toSkColor(compose::hexColor(0xf2ebdc))});
-  sheet.set("caption",
-            {.size = 20.0f,
-             .color = material::skia::toSkColor(compose::hexColor(0x9eb8d9))});
+compose::StyleSheet screenType() {
+  compose::StyleSheet sheet{
+      compose::rule("h1").font(
+          {.size = 22.0f,
+           .color = material::skia::toSkColor(compose::hexColor(0xbfd4ef))}),
+      compose::rule(".note").font(
+          {.size = 19.0f,
+           .color = material::skia::toSkColor(compose::hexColor(0x7e93b4))}),
+      compose::rule(".display")
+          .font({.size = 46.0f,
+                 .color =
+                     material::skia::toSkColor(compose::hexColor(0xf2ebdc))}),
+      compose::rule("caption, .caption")
+          .font({.size = 20.0f,
+                 .color =
+                     material::skia::toSkColor(compose::hexColor(0x9eb8d9))})};
   return sheet;
 }
 
@@ -127,7 +129,7 @@ compose::Element screen(float gap, material::Color ground,
       .padding(padding)
       .fill(ground)
       .font({.antiAlias = false})
-      .styleSheet(screenType());
+      .applyStyleSheet(screenType());
 }
 
 /** A LEVEL SCREEN: a row of bars whose heights ride one wave, so the

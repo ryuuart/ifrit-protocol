@@ -425,11 +425,10 @@ pixels.
 
 ## TypeSheet: the named classes
 
-THE TYPE HALF OF A SHEET: a base style and the named partials over it —
-small, ordered, comparable by value. The sheet a tree states, with a
-block half beside every name, is `StyleSheet`; this is what it hands the
-paragraph layer, which shapes a rich run written with a name and cannot
-see a block.
+A BASE STYLE AND THE NAMED PARTIALS OVER IT — small, ordered, comparable
+by value. It is what the paragraph layer shapes a rich run written with a
+name through, and it cannot see a block; SigilCompose fills one for each
+text leaf from the rules its selector sheets state about each name.
 
 The levels of a log, the states a selection switches between, the roles a
 table's columns take: a handful of treatments fixed once, then addressed

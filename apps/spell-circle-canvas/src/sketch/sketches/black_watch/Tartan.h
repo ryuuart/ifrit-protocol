@@ -9,6 +9,7 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -33,7 +34,6 @@
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/ParagraphLayout.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Length.h>
@@ -443,18 +443,20 @@ inline const sketch::kit::Theme& sheet() {
 // are classes over the sheet's registers, bound with the sheet wherever the
 // card is described. The serif cuts name their own face because a sheet
 // holds two.
-inline const weave::StyleSheet& classes() {
-  static const weave::StyleSheet look =
-      sheet()
-          .styleSheet()
-          .set("heading", {.face = mono(),
-                           .size = 9,
-                           .color = material::skia::toSkColor(kInk),
-                           .track = 0.5f})
-          .set("tag", {.size = 7, .track = 0.6f})
-          .set("note", {.size = 8, .track = 0.2f})
-          .set("quote", {.face = serif(), .size = 10.5f})
-          .set("name", {.face = serifIt(), .size = 13});
+inline const sigil::compose::StyleSheet& classes() {
+  static const sigil::compose::StyleSheet look =
+      sheet().styleSheet() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule("heading, .heading")
+              .font({.face = mono(),
+                     .size = 9,
+                     .color = material::skia::toSkColor(kInk),
+                     .track = 0.5f}),
+          sigil::compose::rule(".tag").font({.size = 7, .track = 0.6f}),
+          sigil::compose::rule(".note").font({.size = 8, .track = 0.2f}),
+          sigil::compose::rule("quote, .quote")
+              .font({.face = serif(), .size = 10.5f}),
+          sigil::compose::rule(".name").font({.face = serifIt(), .size = 13})};
   return look;
 }
 

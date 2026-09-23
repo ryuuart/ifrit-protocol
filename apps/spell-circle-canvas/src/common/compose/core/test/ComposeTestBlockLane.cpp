@@ -6,10 +6,10 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Cascade.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilweave/layout/Block.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <array>
 #include <string_view>
@@ -99,13 +99,14 @@ TEST(ComposeBlockLane, AClassCarriesBothHalves) {
   wide.leading = Leading::multiple(2.0f);
   // One class, both halves: the type half and the block half under one
   // name.
-  const sigil::weave::StyleSheet look{{"body", {.size = 24.0f}},
-                                      {"body", wide}};
+  const sigil::compose::StyleSheet look{
+      sigil::compose::rule(".body").font({.size = 24.0f}),
+      sigil::compose::rule(".body").block(wide)};
   Host plain, classed;
   plain.composer.render(box().padding(10).children({leaf()}));
   // The leaf states no size of its own: a node's own font stands over its
   // classes, so the size here is the class's to give.
-  classed.composer.render(box().padding(10).styleSheet(look).children(
+  classed.composer.render(box().padding(10).applyStyleSheet(look).children(
       {text(kLines)
            .font({.face = sigil::test::instrument::sans()})
            .ink({1, 1, 1, 1})
@@ -123,14 +124,15 @@ TEST(ComposeBlockLane, ANamedBlockIsLaidOverTheBlockInForce) {
   // alignment from the name and its leading from the lane.
   Block centred;
   centred.alignment = TextAlignment::kCenter;
-  const sigil::weave::StyleSheet blocks{{"lead", centred}};
+  const sigil::compose::StyleSheet blocks{
+      sigil::compose::rule(".lead").block(centred)};
   Block wide;
   wide.leading = Leading::multiple(2.0f);
   Host start, named;
   start.composer.render(box().padding(10).block(wide).children({leaf()}));
   const std::array<std::string_view, 1> names{"lead"};
   named.composer.render(
-      box().padding(10).block(wide).styleSheet(blocks).children(
+      box().padding(10).block(wide).applyStyleSheet(blocks).children(
           {leaf().paragraphStyles(names)}));
   const SkRect a = boxOf(start, "t");
   const SkRect b = boxOf(named, "t");

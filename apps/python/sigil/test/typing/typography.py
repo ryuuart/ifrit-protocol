@@ -16,19 +16,19 @@ from sigil.weave import (
     PaintLayer,
     ParagraphStyle,
     Story,
-    StyleSheet,
     TabStop,
     TabStopOptions,
     Type,
+    TypeSheet,
     Unit,
     rich,
     selectors,
 )
 
-sheet = StyleSheet().set("accent", Type(color="#e7a466"))
+sheet = TypeSheet().set("accent", Type(color="#e7a466"))
 passage = (
     rich()
-    .styles(sheet.types())
+    .styles(sheet)
     .add("Title ")
     .add("detail", name="accent")
     .slot("marker", (12, 12))

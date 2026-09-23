@@ -10,7 +10,7 @@
  * Every prop is the CONTENT and the ARRANGEMENT — how big, what is
  * behind, what the words are, how much room stands between them. A board
  * names no text role; a panel names the document role of each line
- * and the `weave::StyleSheet` where it lands styles those roles.
+ * and the rules of the sheets in force where it lands style those roles.
  */
 
 #include <include/core/SkSize.h>
@@ -31,7 +31,7 @@ namespace sigil::compose::kit {
  *  where every child carries its own rect and nothing is a page.
  *
  *      kit::board({.size = {1440, 880}, .ground = Fill::color(kWall)})
- *          .styleSheet(look()).ink(kInk)
+ *          .applyStyleSheet(look()).ink(kInk)
  *          .children({text(u8"…").rect(masthead), plate().rect(frame)})
  *
  *  It is a `stack`, so every child keeps the rect it was built with and
@@ -72,10 +72,10 @@ struct Board {
  *                 slots())
  *
  *  ITS THREE LINES HAVE DOCUMENT ROLES `eyebrow`, `h1` and `caption`,
- *  resolved through the `weave::StyleSheet` where the panel lands, and nothing
- *  else is said about their type; each is a PART, so a panel whose title
- *  must stand otherwise hands in its own leaf and everything under the
- *  panel keeps its registers.
+ *  which the rules of the sheets in force where the panel lands style, and
+ *  nothing else is said about their type; each is a PART, so a panel whose
+ *  title must stand otherwise hands in its own leaf and everything under
+ *  the panel keeps its registers.
  *
  *  THE HEAD IS A `kit::sheet`'s, which is why a rule under it stands in
  *  the middle of the distance to the content rather than adding to it:

@@ -180,9 +180,11 @@ const Tier& tierOf(Composer::CacheState state) {
 
 /** The sheet's one class past the registers: the heading over each block
  *  of the readout, in the page's own ink. */
-weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
-  weave::StyleSheet classes = look.styleSheet();
-  classes.set("heading", {.size = 12.5f, .track = 0.8f});
+sigil::compose::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
+  sigil::compose::StyleSheet classes =
+      look.styleSheet() +
+      sigil::compose::StyleSheet{sigil::compose::rule("heading, .heading")
+                                     .font({.size = 12.5f, .track = 0.8f})};
   return classes;
 }
 
@@ -443,7 +445,7 @@ struct VolatilityCost {
     // canvas coordinates, which is what `bounds()` answers in, and a
     // child of the padded page would be offset by the page's margins.
     return stack()
-        .styleSheet(sheetClasses(look))
+        .applyStyleSheet(sheetClasses(look))
         .inset(0)
         .children(
             {tierMap(),

@@ -51,7 +51,7 @@ auto RotaConvocationis::fitToRing(sketch::SketchContext &ctx, Element probe,
     // classes resolve against stands on the probe itself.
     Element sized = probe;
     const SkSize m =
-        ctx.measure(sized.font({.size = size}).styleSheet(classes));
+        ctx.measure(sized.font({.size = size}).applyStyleSheet(classes));
     if (m.width() > 1.0f)
       size *= target / m.width();
   }

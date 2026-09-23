@@ -15,7 +15,6 @@
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilweave/layout/Story.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/query/Selector.h>
 
 #include <algorithm>

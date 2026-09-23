@@ -6,11 +6,22 @@ TAGS: Typography/Interface, Motion/Animation, Drawing/Generative
 from dataclasses import dataclass
 from math import sin
 
-from sigil.compose import Overflow, box, column, memo, pct, row, stroke, text
+from sigil.compose import (
+    Overflow,
+    StyleSheet,
+    box,
+    column,
+    memo,
+    pct,
+    row,
+    rule,
+    stroke,
+    text,
+)
 from sigil.compose import document as doc
 from sigil.motion import Transition, animate, ease, from_
 from sigil.sketch import SketchContext, sketch
-from sigil.weave import StyleSheet, Type, rule
+from sigil.weave import Type
 
 
 @dataclass(frozen=True)
@@ -75,11 +86,11 @@ class MemoStation:
         self.sheet = StyleSheet(
             [
                 rule("h1").font(Type(size=42, weight=600)),
-                rule("label").font(Type(size=11, track=1.3, color="#789f8e")),
+                rule("label, .label").font(Type(size=11, track=1.3, color="#789f8e")),
                 rule("eyebrow").font(Type(size=11, track=1.3, color="#789f8e")),
                 rule("footer").font(Type(size=11, track=1.3, color="#789f8e")),
-                rule("reading").font(Type(size=66, track=-2)),
-                rule("unit").font(Type(size=13, color="#789f8e")),
+                rule(".reading").font(Type(size=66, track=-2)),
+                rule(".unit").font(Type(size=13, color="#789f8e")),
             ]
         )
 
@@ -102,7 +113,7 @@ class MemoStation:
             .left(48)
             .top(46)
             .ink("#e0ede5")
-            .styleSheet(self.sheet)
+            .applyStyleSheet(self.sheet)
             .children(
                 (
                     row()

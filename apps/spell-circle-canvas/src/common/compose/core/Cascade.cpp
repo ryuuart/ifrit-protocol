@@ -72,13 +72,6 @@ bool sameVars(const std::shared_ptr<const VarTable>& a,
   return *a == *b;
 }
 
-bool sameSheet(const std::shared_ptr<const sigil::weave::StyleSheet>& a,
-               const std::shared_ptr<const sigil::weave::StyleSheet>& b) {
-  if (a == b) return true;
-  if (!a || !b) return false;
-  return *a == *b;
-}
-
 /** What the sheets in force say about each name @p leaf's rich runs and
  *  paragraph styles were written with, each matched as a virtual child of
  *  the leaf: the font partial and the ink the matched rules state, folded
@@ -163,14 +156,14 @@ void detail::warnNoSuchClass(std::string_view name, bool anySheetInScope) {
   static thread_local boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(std::string(name)).second) return;
   SkDebugf(
-      "[compose] styleClass(\"%.*s\") names a class the weave::StyleSheet in "
-      "force where the element lands does not carry%s — nothing was set, and "
-      "the text under it "
-      "is set in whatever it inherits. State a sheet with styleSheet() on "
-      "the element or on any node above it, and register the name on it. "
-      "(warned once)\n",
+      "[compose] styleClass(\"%.*s\") names a class no rule of the sheets "
+      "in force where the element lands speaks about%s — nothing was set, "
+      "and the text under it is set in whatever it inherits. Apply a sheet "
+      "with applyStyleSheet() on the element or on a node above it, with a "
+      "rule naming .%.*s. (warned once)\n",
       (int)name.size(), name.data(),
-      anySheetInScope ? "" : " (no sheet is stated on the tree above it)");
+      anySheetInScope ? "" : " (no sheet is applied on the tree above it)",
+      (int)name.size(), name.data());
 }
 
 void detail::warnPropertyAnswersNoKeyword(Property property) {
@@ -326,7 +319,7 @@ void Composer::Impl::runCascade() {
   const SheetChain none;
   const InkInForce noInkPaint;
   resolveCascade(*root, rootFont, rootLineHeight, nullptr, rootBlock,
-                 rootSampling, rootSheet, none, noInkPaint);
+                 rootSampling, none, noInkPaint);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
   // says otherwise.
@@ -338,7 +331,6 @@ void Composer::Impl::resolveCascade(
     float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars,
     const sigil::weave::Block& parentBlock,
     const std::optional<SkSamplingOptions>& parentSampling,
-    const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet,
     const SheetChain& parentSheets, const InkInForce& parentInkPaint) {
   const ElementNode& node = *inst.description;
   const bool first = !inst.cascadeResolved;
@@ -394,7 +386,6 @@ void Composer::Impl::resolveCascade(
   std::shared_ptr<const VarTable> vars = parentVars;
   sigil::weave::Block block = parentBlock;
   std::optional<SkSamplingOptions> sampling = parentSampling;
-  std::shared_ptr<const sigil::weave::StyleSheet> sheet = parentSheet;
   const CascadeData* const cascade =
       node.cascadeData ? &*node.cascadeData : nullptr;
   // THE SELECTOR SHEETS IN FORCE HERE: the ones the ancestors applied,
@@ -442,20 +433,10 @@ void Composer::Impl::resolveCascade(
   else if (inst.ruleTransition)
     inst.ruleTransition.reset();
   if (cascade != nullptr || !matched.empty()) {
-    // The sheet this node states: its rules over the inherited ones by
-    // name, its base standing, the result shared with everything under it.
-    if (cascade != nullptr && cascade->sheet) {
-      auto own = std::make_shared<sigil::weave::StyleSheet>(
-          parentSheet ? *parentSheet : sigil::weave::StyleSheet{});
-      own->base(cascade->sheet->base());
-      for (const sigil::weave::Rule& r : cascade->sheet->rules()) own->set(r);
-      sheet = std::move(own);
-    }
-    // The role defaults, its matching sheet rule, ordinary classes, the
-    // rules that matched a selector, then direct declarations. A role
-    // stays below every ordinary class, regardless of sheet order. Merge
-    // partials first so relative sizes resolve once against the parent's
-    // font rather than compounding.
+    // The role's defaults, the rules that matched a selector, then the
+    // node's own declarations. Partials are merged first so a relative
+    // size resolves once against the parent's font rather than
+    // compounding.
     sigil::weave::Type ownFont;
     sigil::weave::Block ownBlock;
     // The property the ink reads, from whichever layer last said so.
@@ -464,31 +445,13 @@ void Composer::Impl::resolveCascade(
     if (cascade != nullptr && cascade->role) {
       sigil::weave::merge(ownFont, cascade->role->font);
       sigil::weave::merge(ownBlock, cascade->role->block);
-      if (const sigil::weave::Rule* rule =
-              sheet ? sheet->find(cascade->role->name) : nullptr) {
-        sigil::weave::merge(ownFont, rule->type());
-        sigil::weave::merge(ownBlock, rule->block());
-      }
     }
-    if (cascade != nullptr && !cascade->classes.empty()) {
-      const auto named = [&](std::string_view name) {
-        return std::find(cascade->classes.begin(), cascade->classes.end(),
-                         name) != cascade->classes.end();
-      };
-      if (sheet)
-        for (const sigil::weave::Rule& r : sheet->rules())
-          if (named(r.name())) {
-            sigil::weave::merge(ownFont, r.type());
-            sigil::weave::merge(ownBlock, r.block());
-          }
-      // A name is unknown only where NEITHER kind of sheet carries it:
-      // a class a selector rule names is registered, whether that rule
-      // matched this node or not.
+    // A class is unknown only where no rule of the sheets in force names
+    // it, whether that rule matched this node or not.
+    if (cascade != nullptr)
       for (const std::string& name : cascade->classes)
-        if (!(sheet && sheet->contains(name)) &&
-            !namesStyleClass(*sheets, name))
-          warnNoSuchClass(name, sheet != nullptr || !sheets->empty());
-    }
+        if (!namesStyleClass(*sheets, name))
+          warnNoSuchClass(name, !sheets->empty());
     // Weakest first, so the strongest rule is the one left standing,
     // and every one of them under the node's own verbs.
     for (const MatchedRule& one : matched) {
@@ -658,7 +621,6 @@ void Composer::Impl::resolveCascade(
   inst.vars = vars;
   inst.block = block;
   inst.sampling = sampling;
-  inst.sheet = sheet;
   inst.cascadeResolved = true;
   if (shapeChanged) {
     inst.lineHeight = lineHeightAt(font);
@@ -684,10 +646,11 @@ void Composer::Impl::resolveCascade(
         !(runStyles == inst.runStyles) || !(blockStyles == inst.blockStyles);
     inst.runStyles = std::move(runStyles);
     inst.blockStyles = std::move(blockStyles);
+    inst.sheetsInForce = !sheets->empty();
     const bool remakes =
         block.writingMode != inst.textBlock.writingMode ||
         block.lineBreakLocale != inst.textBlock.lineBreakLocale ||
-        !sameSheet(sheet, inst.textSheet) || namesMoved;
+        namesMoved;
     if (inst.textDirty || !inst.paragraph) {
       inst.textDirty = false;
       materializeText(inst);
@@ -738,7 +701,7 @@ void Composer::Impl::resolveCascade(
   // may still name an ancestor by its position.
   indexSiblings(inst);
   for (auto& child : inst.children)
-    resolveCascade(*child, font, inst.lineHeight, vars, block, sampling, sheet,
+    resolveCascade(*child, font, inst.lineHeight, vars, block, sampling,
                    *sheets, inkPaint);
 }
 

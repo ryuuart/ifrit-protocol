@@ -9,6 +9,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Instances.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Kit.h>
@@ -28,7 +29,6 @@
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Theme.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Selector.h>

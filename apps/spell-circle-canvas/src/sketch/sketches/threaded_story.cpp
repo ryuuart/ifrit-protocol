@@ -39,6 +39,7 @@
 
 // TAGS: Typography/Paragraph, Motion/Transitions
 
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -48,7 +49,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/layout/Story.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -112,9 +112,11 @@ kit::Caption voice() {
 
 /** THE TWO CLASSES THAT VOICE IS SET IN — the name in the mark colour, the
  *  remark a size under it in the faint one. */
-weave::StyleSheet voiceClasses() {
-  return weave::StyleSheet{{"label", label(9.5f, kMark, 2.4f)},
-                           {"caption", label(9.0f, kFaint, 0.2f)}};
+sigil::compose::StyleSheet voiceClasses() {
+  return sigil::compose::StyleSheet{
+      sigil::compose::rule("label, .label").font(label(9.5f, kMark, 2.4f)),
+      sigil::compose::rule("caption, .caption")
+          .font(label(9.0f, kFaint, 0.2f))};
 }
 
 /** The story, declared once. Its blocks are numbered from its own start,
@@ -211,7 +213,7 @@ struct ThreadedStory {
     const auto captioned = [&](const char* name, const char* note,
                                Element built) {
       return kit::cell(s::voice(), name, note, std::move(built))
-          .styleSheet(s::voiceClasses());
+          .applyStyleSheet(s::voiceClasses());
     };
 
     return box()

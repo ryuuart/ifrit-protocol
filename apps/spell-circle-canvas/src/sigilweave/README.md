@@ -375,9 +375,10 @@ A **`TypeSheet`** is a base style and a handful of those partials under
 NAMES: the levels of a log, the states a selection switches between, the
 roles a table's columns take. An entry states what it CHANGES, so one
 sheet serves a document whose base size was decided elsewhere, and lookup
-always answers — a name nobody registered resolves to the base alone. It
-is the TYPE HALF of the sheet a tree states, which is `StyleSheet` in the
-layout layer, below.
+always answers — a name nobody registered resolves to the base alone. A
+tree states no name-keyed sheet here: SigilCompose's selector sheet is the
+one an author writes, and it fills a `TypeSheet` for each text leaf it
+reaches, so the paragraph layer shapes a rich run's named runs through it.
 
 A block has the same two forms. `ParagraphStyle` is total: the pitch, the
 air around the block, its indents, keeps, initial letter and the four
@@ -392,16 +393,6 @@ and `weave::apply` setting the layout-wide fields a partial states on a
 layout's options. What a block keeps to itself — its air, and its keeps
 with the next block — stays on the whole style, as a margin is a box's
 own.
-
-A **`StyleSheet`** is the classes a tree states, as one value: **`Rule`**s
-under names, each a type half and a block half — `{"note", {.size = 11}}`
-names the type half by its fields, `{"lead", {.firstLineIndent = 24}}` the
-block half, and `rule("body").font({.size = 19.5f}).block({.leading =
-Leading::multiple(1.35f)})` both, with the verbs a tree is written with. A
-name stated again ADDS to its rule, the later fields standing, so a class
-is spelled once per half and a sheet stated nearer changes only what it
-names. `types()` is the type half as a `TypeSheet`, what the paragraph
-layer shapes a rich run's named runs through.
 
 ## Targets and dependencies
 

@@ -71,7 +71,7 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
   // the append price, never its shape: an append patches exactly the new
   // row's own nodes, however many rows the window holds, and the price
   // repeats append after append.
-  sigil::weave::StyleSheet styles(whiteStyle(12));
+  weave::TypeSheet styles(whiteStyle(12));
   styles.set("ts", sigil::weave::Type{.size = 10});
   styles.set("tag", sigil::weave::Type{.size = 11});
   feed::Ring<StructuredRow> ring;
@@ -79,7 +79,7 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
     ring.append({"0412.50", "AUTH", "row " + std::to_string(i)});
   auto rowEl = [&](const StructuredRow& r) {
     auto line = sigil::weave::rich(styles.base())
-                    .styles(styles.types())
+                    .styles(styles)
                     .add(r.ts + "  ", "ts")
                     .add(r.tag + "  ", "tag")
                     .add(r.body);

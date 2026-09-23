@@ -3,7 +3,18 @@
 TAGS: Typography/Paragraphs, Typography/Lettering, Runtime/Python
 """
 
-from sigil.compose import Element, TextPath, box, column, frame, row, stroke, text
+from sigil.compose import (
+    Element,
+    StyleSheet,
+    TextPath,
+    box,
+    column,
+    frame,
+    row,
+    rule,
+    stroke,
+    text,
+)
 from sigil.compose import document as doc
 from sigil.compose import selectors as selected
 from sigil.sketch import SketchContext, kit, sketch
@@ -17,7 +28,6 @@ from sigil.weave import (
     ParagraphStyle,
     RichText,
     Story,
-    StyleSheet,
     Type,
     rich,
     textStyle,
@@ -123,7 +133,7 @@ class TypeAtelier:
         )
         first = frame(article).key("opening").textThreadTo("continuation").textThreadBalance()
         second = frame(article).key("continuation")
-        sheet = StyleSheet().set("signal", Type(color=PAPER))
+        sheet = StyleSheet([rule(".signal").font(Type(color=PAPER))])
         with kit.provide(look):
             kit.stage(ctx, size=(1100, 900), capture_at=0.05)
             content = (
@@ -194,7 +204,7 @@ class TypeAtelier:
                 )
                 .gap(30)
                 .font(Type(face=book))
-                .styleSheet(sheet)
+                .applyStyleSheet(sheet)
             )
             ctx.render(
                 kit.page(

@@ -52,19 +52,22 @@ auto KspMapView::setup(sketch::SketchContext& ctx) -> void {
   // row's name, the figure that answers it, and a strip's head. The card
   // states this sheet and every line under it is dressed by name.
   doc = sketch::kit::Document(ctx, "data/content.json");
-  cardLook = weave::StyleSheet{
-      {"caption",
-       weave::Type{.face = sans(),
-                   .size = 11,
-                   .color = sigil::material::skia::toSkColor(kCardInk)}},
-      {"readout",
-       weave::Type{.face = sansB(),
-                   .size = 11,
-                   .color = sigil::material::skia::toSkColor(kOrange)}},
-      {"h2", weave::Type{.face = sansB(),
-                         .size = 11,
-                         .color = sigil::material::skia::toSkColor(kOrange),
-                         .track = 0.2f}}};
+  cardLook = sigil::compose::StyleSheet{
+      sigil::compose::rule("caption, .caption")
+          .font(
+              weave::Type{.face = sans(),
+                          .size = 11,
+                          .color = sigil::material::skia::toSkColor(kCardInk)}),
+      sigil::compose::rule(".readout")
+          .font(
+              weave::Type{.face = sansB(),
+                          .size = 11,
+                          .color = sigil::material::skia::toSkColor(kOrange)}),
+      sigil::compose::rule("h2").font(
+          weave::Type{.face = sansB(),
+                      .size = 11,
+                      .color = sigil::material::skia::toSkColor(kOrange),
+                      .track = 0.2f})};
 
   // Starfield: one soft-dot cell, 360 hashed instances.
   starAtlas = std::make_shared<instancing::CellSheet>(2.0f);

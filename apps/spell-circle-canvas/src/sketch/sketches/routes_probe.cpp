@@ -13,6 +13,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Document.h>
@@ -23,7 +24,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <iterator>
@@ -57,7 +57,7 @@ constexpr material::Color kWire{0.42f, 0.62f, 0.78f, 1};
 /** The sheet's classes are the theme's: the probe plates and the answer
  *  lines are both set in `readout`, which is already the call register in
  *  the figure ink. */
-weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
+sigil::compose::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
   return look.styleSheet();
 }
 
@@ -186,7 +186,7 @@ struct RoutesProbe {
     return sketch::kit::well({.width = kDiagram,
                               .height = kPicture,
                               .ground = Fill::color({0.085f, 0.09f, 0.10f, 1})})
-        .styleSheet(sheetClasses(sketch::kit::theme()))
+        .applyStyleSheet(sheetClasses(sketch::kit::theme()))
         .operators(std::move(wires))
         .children({nodes});
   }
@@ -233,8 +233,7 @@ struct RoutesProbe {
                         {sketch::kit::sectionHeader(
                              {.label = "CONNECTIVITY", .note = "hub"}),
                          diagram(),
-                         text("bounds(\"<from>-><to>\")")
-                             .styleClass("readout"),
+                         text("bounds(\"<from>-><to>\")").styleClass("readout"),
                          lines(routes, kDiagram, "No wires answered"),
                          text("A wire is keyed by the pair it joins, so the "
                               "question is asked of that key. The pairing "
@@ -247,7 +246,7 @@ struct RoutesProbe {
                              {.label = "CACHE VERDICTS",
                               .note = "composer.profile()"}),
                          std::move(costs)})}))
-        .styleSheet(sheetClasses(sketch::kit::theme()));
+        .applyStyleSheet(sheetClasses(sketch::kit::theme()));
   }
 };
 

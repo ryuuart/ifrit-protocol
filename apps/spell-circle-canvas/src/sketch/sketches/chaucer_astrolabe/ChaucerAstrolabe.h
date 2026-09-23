@@ -36,7 +36,7 @@ struct ChaucerAstrolabe {
   /** The registers a commentary card sets its lines in — the engraver's
    *  limb face for a heading, the italic for a gloss — stated once and in
    *  force for everything under every card. */
-  weave::StyleSheet cardLook;
+  sigil::compose::StyleSheet cardLook;
   /** THE PLATE'S WORDS: every heading, gloss, listing and verdict on the
    *  commentary stands in `data/content.json` beside this file and is read
    *  by key in setup, so an edit to the document re-runs setup and no line

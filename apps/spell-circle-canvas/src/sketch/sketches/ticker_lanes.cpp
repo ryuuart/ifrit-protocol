@@ -108,10 +108,14 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> lanes) {
 /** The sheet's two classes past the registers and the chart's: the second
  *  lane of a plot that carries two, and the source a derivation is read
  *  against. */
-weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
-  weave::StyleSheet classes = look.styleSheet();
-  classes.set("second", {.color = material::skia::toSkColor(kSecond)});
-  classes.set("source", {.color = material::skia::toSkColor(look.palette.ash)});
+sigil::compose::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
+  sigil::compose::StyleSheet classes =
+      look.styleSheet() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule(".second").font(
+              {.color = material::skia::toSkColor(kSecond)}),
+          sigil::compose::rule(".source").font(
+              {.color = material::skia::toSkColor(look.palette.ash)})};
   return classes;
 }
 
@@ -216,7 +220,7 @@ struct TickerLanes {
                             .note = readouts[3]}},
                       .measure = 1020,
                       .gap = 24})}))
-            .styleSheet(sheetClasses(look)));
+            .applyStyleSheet(sheetClasses(look)));
   }
 };
 

@@ -21,12 +21,12 @@
 #include <sigilpython/compose/Operators.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/query/Selector.h>
 
 #include <chrono>
 #include <cmath>
 #include <initializer_list>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -313,7 +313,6 @@ void bindNodeVerbs(py::class_<Node>& element) {
           py::arg("value"), fluent)
       .def("overflow", &Node::overflow, py::arg("overflow"), fluent)
       .def("block", &Node::block, py::arg("block"), fluent)
-      .def("styleSheet", &Node::styleSheet, py::arg("sheet"), fluent)
       .def("styleClass", &Node::styleClass, py::arg("name"), fluent)
       .def(
           "attribute",
@@ -344,10 +343,20 @@ void bindNodeVerbs(py::class_<Node>& element) {
           "The operators this node runs over its children, in list order: "
           "each is handed the children measured, with their facts and where "
           "the operators before it left them. A later call appends.")
-      .def("role", py::overload_cast<weave::Rule>(&Node::role),
-           py::arg("defaults"), fluent)
-      .def("role", py::overload_cast<std::string>(&Node::role), py::arg("name"),
-           fluent)
+      .def(
+          "role",
+          [](Node& self, std::string name, std::optional<weave::Type> font,
+             std::optional<weave::Block> block) -> Node& {
+            return self.role(std::move(name), font.value_or(weave::Type{}),
+                             block.value_or(weave::Block{}));
+          },
+          py::arg("name"), py::arg("font") = py::none(),
+          py::arg("block") = py::none(), fluent,
+          "A semantic role — what a bare word in a selector names — with "
+          "the font and block partials a component falls back to for it, "
+          "under every rule that matches the node; the node's own `font` "
+          "and `block` stand over everything. A later call replaces the "
+          "role and its defaults together.")
       .def(
           "var",
           [](Node& self, const std::string& name, py::object value) -> Node& {

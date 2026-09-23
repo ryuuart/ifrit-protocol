@@ -150,18 +150,15 @@ template class CascadeVerbs<Text>;
 template class CascadeVerbs<Image>;
 template class CascadeVerbs<Band>;
 
-// The cascade a node NAMES rather than states: the sheets its classes
-// resolve through and the sheets it applies to its subtree, the role
-// that stands under them, and the classes themselves. They are the
+// The cascade a node NAMES rather than states: the sheets it applies to
+// its subtree, its role, and its classes. They are the
 // node's identity in the cascade, not a property a rule could restate,
 // so they stand with the rest of what a node IS.
 
 template <class Derived>
 Derived& StructureVerbs<Derived>::styleClass(std::string_view names) {
-  // The names are KEPT, and resolved by the cascade pass against the
-  // sheets in force where this node lands: one name, two halves — the
-  // text sheet's partial and the block sheet's, whichever carries it —
-  // several names folding in the order they are written.
+  // The names are KEPT, and matched by the cascade pass against the rules
+  // of the sheets in force where this node lands.
   detail::CascadeData& cascade = declarations()->cascadeData.ensure();
   for (size_t at = 0; at < names.size();) {
     const size_t end = std::min(names.find(' ', at), names.size());
@@ -173,12 +170,6 @@ Derived& StructureVerbs<Derived>::styleClass(std::string_view names) {
 }
 
 template <class Derived>
-Derived& StructureVerbs<Derived>::styleSheet(sigil::weave::StyleSheet sheet) {
-  declarations()->cascadeData.ensure().sheet = std::move(sheet);
-  return self();
-}
-
-template <class Derived>
 Derived& StructureVerbs<Derived>::applyStyleSheet(StyleSheet sheet) {
   // Applications ADD rather than replace, so a node may stand under a
   // house sheet and a local one at once, and the order they were
@@ -186,11 +177,6 @@ Derived& StructureVerbs<Derived>::applyStyleSheet(StyleSheet sheet) {
   declarations()->cascadeData.ensure().appliedSheets.push_back(
       std::move(sheet));
   return self();
-}
-
-template <class Derived>
-Derived& StructureVerbs<Derived>::role(sigil::weave::Rule defaults) {
-  return role(defaults.name(), defaults.type(), defaults.block());
 }
 
 template <class Derived>
@@ -213,15 +199,13 @@ Derived& StructureVerbs<Derived>::role(std::string name) {
   return role(std::move(name), sigil::weave::Type{}, sigil::weave::Block{});
 }
 
-// The five members of the structure family this file defines, named one
+// The members of the structure family this file defines, named one
 // by one for each kind of node: the family's other members are
 // instantiated where they are defined, beside the rest of a node's
 // identity.
 #define SIGIL_COMPOSE_CASCADE_NAMES(Node)                                    \
   template Node& StructureVerbs<Node>::styleClass(std::string_view);         \
-  template Node& StructureVerbs<Node>::styleSheet(sigil::weave::StyleSheet); \
   template Node& StructureVerbs<Node>::applyStyleSheet(StyleSheet);          \
-  template Node& StructureVerbs<Node>::role(sigil::weave::Rule);             \
   template Node& StructureVerbs<Node>::role(                                 \
       std::string, sigil::weave::Type, sigil::weave::Block);                 \
   template Node& StructureVerbs<Node>::role(std::string, sigil::weave::Block); \

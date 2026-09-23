@@ -220,7 +220,7 @@ struct SubstanceSwatchesSketch {
     // No page stands here, so the root states the theme's registers.
     ctx.composer.render(
         stack()
-            .styleSheet(sketch::kit::theme().styleSheet())
+            .applyStyleSheet(sketch::kit::theme().styleSheet())
             .children({sketch::kit::backdrop(
                            {.over = ctx.size,
                             .ground = linearGradient(

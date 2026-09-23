@@ -120,7 +120,7 @@ struct RotaConvocationis {
    *  ship. A leaf that names no face is set in the font context's own
    *  family, and the shaper's fallback finds the letterforms, which is the
    *  mechanism that puts them on the plate. */
-  sigil::weave::StyleSheet classes;
+  sigil::compose::StyleSheet classes;
 
   /** The size at which @p probe girds a circle of radius @p radius: measured
    *  straight from @p size, refined once because tracking is px and does

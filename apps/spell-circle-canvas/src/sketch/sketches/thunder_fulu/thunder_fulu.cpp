@@ -8,62 +8,69 @@ auto ThunderFulu::describe(sketch::SketchContext&) -> Element {
   // The plate's type: the terminal face wherever a leaf names none, and
   // three named voices — a section heading in the display face and
   // gold, the italic gloss, and the chant a line is sung in.
-  weave::StyleSheet classes;
-  classes
-      .set("heading", {.face = faceDisplay,
-                       .size = 11.5f,
-                       .color = sigil::material::skia::toSkColor(kGold),
-                       .track = 1.1f})
-      .set("gloss",
-           {.face = faceItalic,
-            .size = 10.5f,
-            .color = sigil::material::skia::toSkColor(hexColor(0x7d6f52))})
-      .set("chant", {.face = faceItalic,
-                     .size = 11.0f,
-                     .color = sigil::material::skia::toSkColor(kChalk)})
-      .set("lands",
-           {.color = sigil::material::skia::toSkColor(hexColor(0xe07a52))})
-      .set("lawMark",
-           {.size = 8.5f,
-            .color = sigil::material::skia::toSkColor(hexColor(0xa89778))})
-      .set(
-          "plotRule",
-          {.color = sigil::material::skia::toSkColor(hexColor(0x8b7f66, 0.5f))})
-      .set("plotTrace", {.color = sigil::material::skia::toSkColor(
-                             hexColor(0xe6d7ae, 0.95f))})
-      .set("ladder",
-           {.size = 8.5f,
-            .color = sigil::material::skia::toSkColor(hexColor(0x8b7644))})
-      .set(
-          "station",
-          {.size = 9.5f,
-           .color = sigil::material::skia::toSkColor(hexColor(0xa48c5c, 0.9f))})
-      .set("bayer", {.face = faceItalic,
-                     .size = 9.0f,
-                     .color = sigil::material::skia::toSkColor(
-                         hexColor(0x6f6047, 0.85f))})
-      .set("miniName", {.size = 8.0f,
-                        .color = sigil::material::skia::toSkColor(
-                            hexColor(0xa89264, 0.95f))})
-      .set(
-          "miniGloss",
+  sigil::compose::StyleSheet classes{
+      sigil::compose::rule("heading, .heading")
+          .font({.face = faceDisplay,
+                 .size = 11.5f,
+                 .color = sigil::material::skia::toSkColor(kGold),
+                 .track = 1.1f}),
+      sigil::compose::rule(".gloss").font(
           {.face = faceItalic,
-           .size = 8.0f,
-           .color = sigil::material::skia::toSkColor(hexColor(0x776953, 0.9f))})
-      .set("register", {.size = 8.5f,
-                        .color = sigil::material::skia::toSkColor(
-                            hexColor(0x0b0a09, 0.60f))})
-      .set("colophon",
-           {.face = faceItalic,
-            .size = 10.0f,
-            .color = sigil::material::skia::toSkColor(hexColor(0x8d7f60))})
-      .set("note",
-           {.size = 9.5f,
-            .color = sigil::material::skia::toSkColor(hexColor(0x5d5341))});
+           .size = 10.5f,
+           .color = sigil::material::skia::toSkColor(hexColor(0x7d6f52))}),
+      sigil::compose::rule(".chant").font(
+          {.face = faceItalic,
+           .size = 11.0f,
+           .color = sigil::material::skia::toSkColor(kChalk)}),
+      sigil::compose::rule(".lands").font(
+          {.color = sigil::material::skia::toSkColor(hexColor(0xe07a52))}),
+      sigil::compose::rule(".lawMark")
+          .font(
+              {.size = 8.5f,
+               .color = sigil::material::skia::toSkColor(hexColor(0xa89778))}),
+      sigil::compose::rule(".plotRule")
+          .font({.color = sigil::material::skia::toSkColor(
+                     hexColor(0x8b7f66, 0.5f))}),
+      sigil::compose::rule(".plotTrace")
+          .font({.color = sigil::material::skia::toSkColor(
+                     hexColor(0xe6d7ae, 0.95f))}),
+      sigil::compose::rule(".ladder").font(
+          {.size = 8.5f,
+           .color = sigil::material::skia::toSkColor(hexColor(0x8b7644))}),
+      sigil::compose::rule(".station")
+          .font({.size = 9.5f,
+                 .color = sigil::material::skia::toSkColor(
+                     hexColor(0xa48c5c, 0.9f))}),
+      sigil::compose::rule(".bayer").font(
+          {.face = faceItalic,
+           .size = 9.0f,
+           .color =
+               sigil::material::skia::toSkColor(hexColor(0x6f6047, 0.85f))}),
+      sigil::compose::rule(".miniName")
+          .font({.size = 8.0f,
+                 .color = sigil::material::skia::toSkColor(
+                     hexColor(0xa89264, 0.95f))}),
+      sigil::compose::rule(".miniGloss")
+          .font({.face = faceItalic,
+                 .size = 8.0f,
+                 .color = sigil::material::skia::toSkColor(
+                     hexColor(0x776953, 0.9f))}),
+      sigil::compose::rule(".register")
+          .font({.size = 8.5f,
+                 .color = sigil::material::skia::toSkColor(
+                     hexColor(0x0b0a09, 0.60f))}),
+      sigil::compose::rule(".colophon")
+          .font(
+              {.face = faceItalic,
+               .size = 10.0f,
+               .color = sigil::material::skia::toSkColor(hexColor(0x8d7f60))}),
+      sigil::compose::rule(".note").font(
+          {.size = 9.5f,
+           .color = sigil::material::skia::toSkColor(hexColor(0x5d5341))})};
   return box()
       .inset(0)
       .font({.face = faceMono})
-      .styleSheet(classes)
+      .applyStyleSheet(classes)
       .children({plate(), tread(), marginColumn(), chantPanel(), tempoPanel(),
                  consolePanel(), furniture()});
 }

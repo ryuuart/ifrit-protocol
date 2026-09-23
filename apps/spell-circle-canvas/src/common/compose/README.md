@@ -47,12 +47,14 @@ this page is.
 `sigilcompose/kit/Document.h` supplies content components in
 `sigil::compose::document`. They return ordinary Elements with semantic
 roles and a default type hierarchy. A document can style every heading,
-paragraph or caption through one inherited `weave::StyleSheet`:
+paragraph or caption through one applied `compose::StyleSheet`, whose bare
+words name those roles:
 
 ```cpp
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilweave/layout/StyleSheet.h>
 
+namespace compose = sigil::compose;
 namespace document = sigil::compose::document;
 namespace weave = sigil::weave;
 
@@ -68,11 +70,11 @@ auto content = document::article({
                    document::item("Captions stay beside the material they describe.")}),
     }),
     document::footer("An ordinary Compose tree, ready for a window or a snapshot."),
-}).styleSheet({
-    weave::rule("h1").font({.size = 36}),
-    weave::rule("h2").font({.size = 24}),
-    weave::rule("paragraph").block({.leading = weave::Leading::multiple(1.5f)}),
-    weave::rule("caption").font({.size = 12}),
+}).applyStyleSheet(compose::StyleSheet{
+    compose::rule("h1").font({.size = 36}),
+    compose::rule("h2").font({.size = 24}),
+    compose::rule("paragraph").block({.leading = weave::Leading::multiple(1.5f)}),
+    compose::rule("caption").font({.size = 12}),
 });
 ```
 
@@ -84,20 +86,22 @@ passage. `figure(body, note)` keeps a body and its caption together, and
 `item(body, marker)` accepts composed content for nested lists. Container
 factories take children directly or through the usual `children()` call.
 
-Roles are independent of class membership; both look up stylesheet rules by
-name. Resolution at each node is inherited
-type and block, then role defaults, the stylesheet rule matching the role,
-authored classes, and finally direct `font()` and `block()` declarations.
-A later `styleClass("warning")` therefore keeps the element's paragraph
-role; the warning rule overrides only what it states. Relative sizes are
-resolved once against the inherited font. Content built before its parent
-still adopts that parent's rules, including after a retained theme update.
+Roles are independent of class membership: a bare word in a selector names
+a role, `.name` a class. Resolution at each node is inherited type and
+block, then role defaults, the matched rules by CSS's specificity — so a
+rule for a class stands over a rule for a role — and finally direct
+`font()` and `block()` declarations. A later `styleClass("warning")`
+therefore keeps the element's paragraph role; the `.warning` rule overrides
+only what it states. Relative sizes are resolved once against the inherited
+font. Content built before its parent still adopts that parent's rules,
+including after a retained theme update.
 
-`Element::role` is the underlying seam. It accepts a name or a `weave::Rule`
-that supplies the role's fallback type and block. Missing role rules are
-normal: the fallback remains in force. An unknown authored class still
-reports a missing rule. Rules use exact names; there is no selector-string
-parser or combinator matching.
+`Element::role` is the underlying seam. It takes the role's name and the
+fallback type and block a component supplies for it, which every matching
+rule stands over. A role no rule speaks about is normal: the fallback
+remains in force. A class no rule of the sheets in force names reports
+itself once. The selector grammar — combinators, structural
+pseudo-classes, `:has()` — is [its own chapter](reference/SELECTORS.md).
 
 The document's layout uses inherited length properties: `document::measure`
 is the maximum article width, `document::gap` separates content blocks,

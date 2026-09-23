@@ -1,6 +1,6 @@
 #include <sigilcompose/core/Measure.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include "support/ShapeTestSupport.h"
 
@@ -66,9 +66,9 @@ TEST(KitDocument, RoleRulesRethemeExistingContentAndReflowParagraphs) {
   host.composer.render(onPage(article));
   host.frame();
   const float before = require(host.composer.bounds("body")).height();
-  host.composer.render(onPage(article).styleSheet(
-      {weave::rule("h2").font({.size = 36}),
-       weave::rule("paragraph").font({.size = 24})}));
+  host.composer.render(onPage(article).applyStyleSheet(
+      StyleSheet{rule("h2").font({.size = 36}),
+                 rule("paragraph").font({.size = 24})}));
   host.frame();
   EXPECT_GT(require(host.composer.bounds("body")).height(), before * 1.5f);
   EXPECT_GE(require(host.composer.bounds("body")).top(),

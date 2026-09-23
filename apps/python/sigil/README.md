@@ -928,8 +928,9 @@ its fluent properties. A component carries a semantic role independently of
 any extra `styleClass` names the author gives it.
 
 ```python
+from sigil.compose import StyleSheet, rule
 from sigil.compose import document as doc
-from sigil.weave import Block, Leading, StyleSheet, Type, em, rule
+from sigil.weave import Block, Leading, Type, em
 
 content = doc.article(
     doc.eyebrow("FIELD JOURNAL"),
@@ -943,13 +944,13 @@ look = StyleSheet([
     rule("paragraph").block(Block(leading=Leading.multiple(1.45))),
     rule("quote").font(Type(color="#687969")),
 ])
-page = content.styleSheet(look).var(doc.measure, em(34))
+page = content.applyStyleSheet(look).var(doc.measure, em(34))
 ```
 
-A rule named `h1` styles every heading with that role in the subtree. Roles
-and classes have separate membership and look up the same named rules. The
-cascade applies inherited type, the component's fallback role, the sheet's
-rule for that role, authored classes, then direct `font`/`block` declarations.
+A rule for the bare word `h1` styles every heading with that role in the
+subtree; `.name` names a class. The cascade applies inherited type, the
+component's fallback role, the matched rules by CSS's specificity — a class
+over a role — then direct `font`/`block` declarations.
 Build the children before their parent if useful; role styling resolves where
 they land. A nested stylesheet can change one region's voice. The native
 specimen theme uses `h1`, `lead`, `h2`, `label`, `caption`, `eyebrow` and `footer`
@@ -960,7 +961,7 @@ for its document lines; its editable type-register field names remain `title`,
 `doc.gap`, `doc.list_gap` and `doc.quote_inset` control document geometry;
 set them with `.var(name, value)` on an ancestor or the document itself.
 Fallbacks are 38 em, 1 em, 0.4 em and 1 em respectively. A custom component can
-declare a role using `.role("notice")` or `.role(rule("notice").font(...))`
+declare a role using `.role("notice")` or `.role("notice", font=Type(...))`
 and fallback properties with `.varDefaults({...})`. An ancestor's authored
 property takes precedence over those fallback values.
 
@@ -1032,21 +1033,17 @@ delays and keyframe times are **seconds**. Native easing values live in
 `sigil.motion.ease`. The existing `entrance` and `transition` functions
 remain concise wrappers over native declarations.
 
-`sigil.weave` supplies native `Type`, `TextStyle`, `Block`, `StyleSheet`
-and `rule` values. A partial type inherits unspecified fields; a complete
-text style describes its own look. A page states its theme's stylesheet
-on its root, and `styleClass` on a native element selects a class from
-that cascade. Mixed runs and paragraph settings use the same native values.
+`sigil.weave` supplies native `Type`, `TextStyle`, `Block` and `TypeSheet`
+values. A partial type inherits unspecified fields; a complete text style
+describes its own look. A page applies its theme's stylesheet on its root,
+and `styleClass` on a native element names a class its rules speak about.
+Mixed runs and paragraph settings use the same native values.
 
 ### Selector sheets
 
-Beside that name-keyed sheet stands a sheet keyed by SELECTORS.
-`sigil.compose` carries its own `StyleSheet` and `Rule` — distinct values
-from `sigil.weave`'s, and deliberately under the same words, because they
-state the same partials. A Weave sheet registers a partial under a class
-NAME and is stated with `Element.styleSheet`; a Compose sheet holds rules
-whose `compose.ElementSelector` says which elements they speak about, and
-is put in force with `Element.applyStyleSheet`.
+`sigil.compose.StyleSheet` is the one sheet an author writes: rules whose
+`compose.ElementSelector` says which elements they speak about, put in
+force with `Element.applyStyleSheet`.
 
 ```python
 from sigil.compose import StyleSheet, box, rule, text
@@ -1106,8 +1103,9 @@ label = (text(passage).width(320).font(Type(size=22, color="#d8e3e8"))
 ```
 
 `rich()` inherits its base from the element's type cascade; `rich(textStyle(...))`
-states a complete base. `StyleSheet.types()` supplies the native `TypeSheet`
-for explicit named-run resolution. `spanStyle` and `spanPaint` restyle selections
+states a complete base. A named run resolves through the rules of the sheets
+in force, as a virtual child of its text leaf whose class is the name, or
+through a `weave.TypeSheet` the value names with `styles()`. `spanStyle` and `spanPaint` restyle selections
 from `weave.selectors`; Compose's `selectors.style` and `selectors.inFrame`
 address named runs and story frames. Selector ranges use native UTF-16 offsets.
 

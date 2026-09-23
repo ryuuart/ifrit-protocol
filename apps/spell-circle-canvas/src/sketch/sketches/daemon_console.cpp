@@ -316,9 +316,9 @@ struct DaemonConsole {
    *  tags are monospaced so the columns align by construction. The chrome
    *  (header, rail, counters) is proportional with tabular numerals asked
    *  of it where digits must sit in columns. */
-  sigil::weave::StyleSheet rowStyles() const {
+  sigil::weave::TypeSheet rowStyles() const {
     namespace dc = daemon_console;
-    sigil::weave::StyleSheet s;
+    sigil::weave::TypeSheet s;
     // Every entry is a PARTIAL over the well's font: the payload voices
     // change the colour alone, the timestamp one size down with it, and
     // only the tags name a face of their own.
@@ -364,18 +364,22 @@ struct DaemonConsole {
    *  by, and `fine`, the print under a figure, with tabular numerals. Both
    *  name their face: `fine` also stands in the prompt row, which is rooted
    *  in the monospaced voice. */
-  weave::StyleSheet classes() const {
+  sigil::compose::StyleSheet classes() const {
     namespace dc = daemon_console;
-    weave::StyleSheet s = look.styleSheet();
-    s.set("label", {.face = faceChromeMed,
-                    .size = 9.5f,
-                    .color = material::skia::toSkColor(dc::kDim),
-                    .track = 2.4f});
-    s.set("fine", {.face = faceChrome,
-                   .size = 9.5f,
-                   .color = material::skia::toSkColor(dc::kDim),
-                   .track = 0.8f,
-                   .features = {{weave::features::tabularNumbers}}});
+    sigil::compose::StyleSheet s =
+        look.styleSheet() +
+        sigil::compose::StyleSheet{
+            sigil::compose::rule("label, .label")
+                .font({.face = faceChromeMed,
+                       .size = 9.5f,
+                       .color = material::skia::toSkColor(dc::kDim),
+                       .track = 2.4f}),
+            sigil::compose::rule(".fine").font(
+                {.face = faceChrome,
+                 .size = 9.5f,
+                 .color = material::skia::toSkColor(dc::kDim),
+                 .track = 0.8f,
+                 .features = {{weave::features::tabularNumbers}}})};
     return s;
   }
 
@@ -501,12 +505,12 @@ struct DaemonConsole {
    *  live, and the frame it ends the row goes back to being a cached
    *  static leaf like every row above it. */
   Element logRow(const daemon_console::LogRow& r,
-                 const sigil::weave::StyleSheet& styles) const {
+                 const sigil::weave::TypeSheet& styles) const {
     namespace dc = daemon_console;
     const dc::SevDress& d = dc::dress(r.sev);
 
     auto line = weave::rich()
-                    .styles(styles.types())
+                    .styles(styles)
                     .add(std::format("{:07.2f}  ", r.t), "ts")
                     .add(std::format("{:<6}", r.tag), d.tagStyle)
                     .add(r.body, d.bodyStyle);
@@ -668,7 +672,7 @@ struct DaemonConsole {
 
     // Built once per describe; the rows compare it by value, so identical
     // styles prune and only genuinely new rows mount.
-    const sigil::weave::StyleSheet styles = rowStyles();
+    const sigil::weave::TypeSheet styles = rowStyles();
     Element well =
         box()
             .flexGrow(1)
@@ -794,31 +798,30 @@ struct DaemonConsole {
                      .styleClass("fine")});
 
     return stack()
-        .styleSheet(classes())
+        .applyStyleSheet(classes())
         .fill(Paint::linear({0, 0}, {0, dc::kH},
                             {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}}))
-        .children(
-            {box()
-                 .column()
-                 .inset(22, 26)
-                 .fill(panel)
-                 .overflow(Overflow::Clip)
-                 .padding(padY, padX)
-                 // The enclosure's face, inherited by every chrome line;
-                 // the well and the prompt root their own monospaced
-                 // voice under it.
-                 .font({.face = faceChrome})
-                 .children({header, rule(9, 8),
-                            box()
-                                .row()
-                                .flexGrow(1)
-                                .gap(16)
-                                .overflow(Overflow::Clip)
-                                .children({std::move(well),
-                                           box().width(1).fill(
-                                               Fill::color(dc::kRule)),
-                                           std::move(rail)}),
-                            rule(8, 7), promptLine})})
+        .children({box()
+                       .column()
+                       .inset(22, 26)
+                       .fill(panel)
+                       .overflow(Overflow::Clip)
+                       .padding(padY, padX)
+                       // The enclosure's face, inherited by every chrome line;
+                       // the well and the prompt root their own monospaced
+                       // voice under it.
+                       .font({.face = faceChrome})
+                       .children({header, rule(9, 8),
+                                  box()
+                                      .row()
+                                      .flexGrow(1)
+                                      .gap(16)
+                                      .overflow(Overflow::Clip)
+                                      .children({std::move(well),
+                                                 box().width(1).fill(
+                                                     Fill::color(dc::kRule)),
+                                                 std::move(rail)}),
+                                  rule(8, 7), promptLine})})
         // the living surface: the scanline tile, crept by its bound pan
         .children({box()
                        .inset(0)

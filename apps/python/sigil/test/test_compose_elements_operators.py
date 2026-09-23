@@ -525,7 +525,7 @@ class Adding(Session):
         self.frame(
             """
             probe = show(pen, compose.box().width(200).height(200)
-                .styleSheet(weave.StyleSheet([weave.rule('service')]))
+                .applyStyleSheet(compose.StyleSheet([compose.rule('.service')]))
                 .operators([Label()])
                 .children([node('gateway', 20, 30).styleClass('service'),
                            node('ledger', 120, 90)]))

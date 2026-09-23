@@ -111,13 +111,19 @@ const material::Color kCurve{0.32f, 0.46f, 0.62f, 1};
 
 /** The sheet's one class past the registers and the chart's: the ±amount
  *  rails, which are the bound worth seeing and not a hairline. */
-weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
-  weave::StyleSheet classes = look.styleSheet();
-  classes.set("rail", {.color = material::skia::toSkColor(kRail)});
+sigil::compose::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
+  sigil::compose::StyleSheet classes =
+      look.styleSheet() +
+      sigil::compose::StyleSheet{sigil::compose::rule(".rail").font(
+          {.color = material::skia::toSkColor(kRail)})};
   // The two loci are the same curve in two inks: the split-seed shake and
   // the shared-seed slide, told apart by the class each names.
-  classes.set("locus", {.color = material::skia::toSkColor(kTrace)});
-  classes.set("locusShared", {.color = material::skia::toSkColor(kTraceB)});
+  classes =
+      classes + sigil::compose::StyleSheet{
+                    sigil::compose::rule(".locus").font(
+                        {.color = material::skia::toSkColor(kTrace)}),
+                    sigil::compose::rule(".locusShared")
+                        .font({.color = material::skia::toSkColor(kTraceB)})};
   return classes;
 }
 
@@ -384,7 +390,7 @@ struct BoundLane {
                  std::move(locusRow),
                  document::h2("03 / FOLLOW A PATH · ONE PHASE, FIVE READINGS"),
                  std::move(tracks)}))
-            .styleSheet(sheetClasses(sketch::kit::theme())));
+            .applyStyleSheet(sheetClasses(sketch::kit::theme())));
   }
 };
 

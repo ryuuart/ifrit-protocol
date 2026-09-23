@@ -7,13 +7,13 @@ A chapter of [SigilCompose's README](../README.md).
 Several correct behaviours produce nothing, with no diagnostic, and look
 exactly like a layout bug.
 
-- **A class no sheet in force carries sets nothing.** `styleClass("labl")`
-  under no `weave::StyleSheet`, or under one that never registered the
-  name, leaves the leaf in whatever it inherits and warns once; the
-  symptom is text at the inherited size, which looks like a class that
-  did not take. State the sheet with `Element::styleSheet` on the tree
-  the element LANDS in, on the element or any node above it: a class is
-  resolved where the element lands, not where it is written.
+- **A class no rule in force names sets nothing.** `styleClass("labl")`
+  under no sheet, or under sheets no rule of which names `.labl`, leaves
+  the leaf in whatever it inherits and warns once; the symptom is text at
+  the inherited size, which looks like a class that did not take. Apply
+  the sheet with `Element::applyStyleSheet` on the tree the element LANDS
+  in, on the element or any node above it: a class is matched where the
+  element lands, not where it is written.
 - **A custom property nobody set resolves to nothing.** `Fill::var("acent")`
   paints nothing and a `var("guter")` length is zero, each warning once;
   a property set as a length and read as a colour, or the reverse, is the

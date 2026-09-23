@@ -16,7 +16,6 @@
 #include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/Block.h>
 #include <sigilweave/layout/Story.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/style/Type.h>
@@ -227,10 +226,11 @@ struct TextOptions {
   /// layout-wide fields alone, so one style here sets the first block and
   /// leaves the rest plain, which is what a heading over a body wants.
   std::vector<sigil::weave::ParagraphStyle> blocks;
-  /// paragraphStyles(names): one name per block, resolved against the block
-  /// sheet in force where the leaf lands and laid over the block in force
-  /// when the leaf lays out — so a named block keeps the leading it
-  /// inherits and changes only what its name says.
+  /// paragraphStyles(names): one name per block, matched as a class of a
+  /// virtual child of the leaf against the rules in force where it lands,
+  /// and laid over the block in force when the leaf lays out — so a named
+  /// block keeps the leading it inherits and changes only what its name
+  /// says.
   std::vector<std::string> blockClassNames;
   /// initialLetter(): the passage's opening set large, applied to the
   /// first block at layout whichever way the blocks were styled.
@@ -573,10 +573,6 @@ struct CascadeData {
    *  were written: resolved in the cascade pass against the sheets in
    *  force where the node lands, and laid under the node's own partials. */
   std::vector<std::string> classes;
-  /** The sheet this node states for itself and everything under it
-   *  (Element::styleSheet). Its rules lie over the inherited sheet's, by
-   *  name. */
-  std::optional<sigil::weave::StyleSheet> sheet;
   /** The selector sheets this node APPLIES to its subtree
    *  (Element::applyStyleSheet), in the order they were applied: each
    *  one's rules speak about this node and the elements under it, and a
@@ -727,7 +723,7 @@ void warnPercentOriginDepth();
 void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope);
 
 /** The once-per-name diagnostic behind `Element::styleClass` naming a
- *  class no `weave::StyleSheet` in scope carries — nothing is set, and a
+ *  class no rule of the sheets in force names — nothing is set, and a
  *  leaf that looks unstyled must not look like a class that took. */
 void warnNoSuchClass(std::string_view name, bool anySheetInScope);
 

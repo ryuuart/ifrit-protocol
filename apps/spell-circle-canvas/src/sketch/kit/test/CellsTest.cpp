@@ -7,13 +7,13 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <utility>
 
@@ -44,25 +44,25 @@ TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
   // sheet of its own: a page states the theme's on its root, and here the
   // test states it on the cell, where the theme's registers resolve to
   // the two rules spelled out below.
-  const sigil::weave::StyleSheet classes{
-      {"label",
-       {.face = house.type.mono,
-        .size = 10.5f,
-        .color = sigil::material::skia::toSkColor(house.palette.ink)}},
-      {"caption",
-       {.face = house.type.sans,
-        .size = 10,
-        .color = sigil::material::skia::toSkColor(house.palette.ash),
-        .track = 0.2f}}};
+  const compose::StyleSheet classes{
+      compose::rule("label, .label")
+          .font({.face = house.type.mono,
+                 .size = 10.5f,
+                 .color = sigil::material::skia::toSkColor(house.palette.ink)}),
+      compose::rule("caption, .caption")
+          .font({.face = house.type.sans,
+                 .size = 10,
+                 .color = sigil::material::skia::toSkColor(house.palette.ash),
+                 .track = 0.2f})};
   Element byHand =
       compose::kit::cell(voice, "border(1.8, ink, inset 7)",
                          "an ordinary rule 7 px inside the outline", subject())
-          .styleSheet(classes);
+          .applyStyleSheet(classes);
   EXPECT_TRUE(sameDrawing(
       std::move(byHand),
       kit::caption(160, "border(1.8, ink, inset 7)",
                    "an ordinary rule 7 px inside the outline", subject())
-          .styleSheet(house.styleSheet())));
+          .applyStyleSheet(house.styleSheet())));
 }
 
 TEST(SketchKitCells, WellTakesTheThemesCellGround) {
@@ -265,7 +265,7 @@ TEST(SketchKitCells, ComparisonAlignsFiguresAfterWrappedTitlesAndControls) {
                       .note = "Its authored height is retained."}},
            .measure = 400,
            .gap = 20})
-          .styleSheet(kit::theme().styleSheet()));
+          .applyStyleSheet(kit::theme().styleSheet()));
   const auto reference = drawn.composer.bounds("reference");
   const auto result = drawn.composer.bounds("result");
   ASSERT_TRUE(reference);

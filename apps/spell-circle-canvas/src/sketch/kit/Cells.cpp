@@ -3,9 +3,9 @@
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Grid.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/kit/Cells.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <algorithm>
 #include <optional>
@@ -118,8 +118,8 @@ compose::Element comparison(Comparison specification) {
       if (!one.control.empty())
         children.push_back(
             document::code(std::move(one.control))
-                .role(weave::rule("code").font(
-                    look.font({.size = 10.5f, .mono = true}, look.palette.ash)))
+                .role("code", look.font({.size = 10.5f, .mono = true},
+                                        look.palette.ash))
                 .width(columnWidth)
                 .flexShrink(0)
                 .gridCells(int(column), row));

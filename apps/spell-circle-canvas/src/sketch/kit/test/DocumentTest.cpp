@@ -5,9 +5,9 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <filesystem>
 #include <fstream>
@@ -101,12 +101,14 @@ TEST(SketchKitDocument, ALineIsALeafInTheClassTheDocumentNamed) {
   Beside beside(kContent);
   kit::Document doc = beside.read();
   doc.figures({{"rest", "18.4"}});
-  sigil::weave::StyleSheet dressed = kit::houseTheme().styleSheet();
-  dressed.set("figure",
-              sigil::weave::Type{.color = sigil::material::skia::toSkColor(
-                                     sigil::material::Color{0, 1, 0, 1})});
+  compose::StyleSheet dressed =
+      kit::houseTheme().styleSheet() +
+      compose::StyleSheet{compose::rule("figure, .figure")
+                              .font(sigil::weave::Type{
+                                  .color = sigil::material::skia::toSkColor(
+                                      sigil::material::Color{0, 1, 0, 1})})};
   const auto under = [&dressed](compose::Element leaf) {
-    return compose::box().styleSheet(dressed).children({std::move(leaf)});
+    return compose::box().applyStyleSheet(dressed).children({std::move(leaf)});
   };
   EXPECT_TRUE(sameDrawing(
       under(kit::lineOf(doc.run("notes")[1])),

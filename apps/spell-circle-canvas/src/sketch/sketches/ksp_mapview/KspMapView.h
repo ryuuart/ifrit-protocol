@@ -22,7 +22,7 @@ struct KspMapView {
   /** THE CARD'S REGISTERS: a row's name, the figure that answers it and a
    *  strip's head, registered once in setup and in force for everything
    *  under the card. */
-  weave::StyleSheet cardLook;
+  sigil::compose::StyleSheet cardLook;
   /** THE VESSEL CARD'S WORDS — every name, figure and head stands in
    *  `data/content.json` beside this sketch, read in setup, so the card is
    *  the template and an edit to the words needs no rebuild. */

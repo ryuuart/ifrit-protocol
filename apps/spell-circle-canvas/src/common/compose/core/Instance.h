@@ -225,10 +225,6 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // THE CUSTOM PROPERTIES IN FORCE: the parent's table shared when this
   // node sets none, or a copy of it with this node's own written over.
   std::shared_ptr<const VarTable> vars;
-  // THE SHEET IN FORCE: the parent's shared when this node states none,
-  // or a copy of the parent's with this node's rules set over it by name.
-  // A class this node names resolves against it.
-  std::shared_ptr<const sigil::weave::StyleSheet> sheet;
   // WHERE THIS NODE STANDS AMONG ITS SIBLINGS, by position and by role,
   // written by the cascade pass when its parent's children are resolved
   // and read by the structural pseudo-classes of a selector. The root
@@ -266,10 +262,6 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // compared against `block` to tell a change that re-materialises (the
   // writing mode, the locale) from one that lays out again.
   sigil::weave::Block textBlock;
-  // On a text leaf: the text sheet the paragraph's named runs were last
-  // resolved through, compared against `sheet` to tell a change that
-  // re-materialises.
-  std::shared_ptr<const sigil::weave::StyleSheet> textSheet;
   // On a text leaf: what the selector sheets in force say about each NAME
   // its rich runs and its paragraph styles were written with, each name
   // matched as a virtual child of the leaf — the font partial a run named
@@ -279,6 +271,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // re-materialises the leaf.
   sigil::weave::TypeSheet runStyles;
   std::vector<std::pair<std::string, sigil::weave::Block>> blockStyles;
+  // On a text leaf: whether any sheet is in force where it stands, which is
+  // what a paragraph style no rule speaks about is warned against.
+  bool sheetsInForce = false;
   // On a text leaf: its text changed at reconcile and the
   // paragraph is owed. The pass materialises it once, in the font it lands
   // in; reconcile shaping it against the root first would be a second

@@ -401,7 +401,7 @@ auto DunhuangStarChart::auditPanel() -> Element {
       .gap(5)
       .key("audit")
       .opacity(gate(tAudit - 0.9f, tAudit - 0.2f))
-      .styleSheet(voices())
+      .applyStyleSheet(voices())
       .children({document::h2(doc.phrase("auditTitle"))
                      .styleClass("heading")
                      .font({.size = 13.0f}),

@@ -164,11 +164,11 @@ auto SigillumAemeth::circumferenceCells() -> Element {
       .transformOrigin(pct(50), pct(50))
       .font({.face = faceRing, .size = 0.060f * kR})
       .ink(hexColor(0x241603, 1.0f))
-      .styleSheet(weaveNs::StyleSheet{
-          {"cellNumber",
-           weaveNs::Type{.size = 0.031f * kR,
-                         .color = sigil::material::skia::toSkColor(
-                             hexColor(0x4a3210, 1.0f))}}})
+      .applyStyleSheet(sigil::compose::StyleSheet{
+          sigil::compose::rule(".cellNumber")
+              .font(weaveNs::Type{.size = 0.031f * kR,
+                                  .color = sigil::material::skia::toSkColor(
+                                      hexColor(0x4a3210, 1.0f))})})
       .children(
           {box()
                .inset(0)
@@ -316,12 +316,13 @@ auto SigillumAemeth::heptagonNames() -> Element {
       .transformOrigin(pct(50), pct(50))
       .font({.face = faceQuill, .size = 0.048f * kR, .track = 0.026f * kR})
       .ink(hexColor(0x201404, 1.0f))
-      .styleSheet(weaveNs::StyleSheet{
-          {"gloss", weaveNs::Type{.face = faceItalic,
-                                  .size = 0.022f * kR,
-                                  .color = sigil::material::skia::toSkColor(
-                                      hexColor(0x53380f, 0.88f)),
-                                  .track = 0.0f}}})
+      .applyStyleSheet(sigil::compose::StyleSheet{
+          sigil::compose::rule(".gloss").font(weaveNs::Type{
+              .face = faceItalic,
+              .size = 0.022f * kR,
+              .color =
+                  sigil::material::skia::toSkColor(hexColor(0x53380f, 0.88f)),
+              .track = 0.0f})})
       .children(
           {box()
                .inset(0)
@@ -574,11 +575,12 @@ auto SigillumAemeth::pentagram() -> Element {
       .transformOrigin(pct(50), pct(50))
       .font({.face = faceSeal, .size = 0.052f * kR})
       .ink(hexColor(0x241704, 1.0f))
-      .styleSheet(weaveNs::StyleSheet{
-          {"tail", weaveNs::Type{.face = faceQuill,
-                                 .size = 0.024f * kR,
-                                 .color = sigil::material::skia::toSkColor(
-                                     hexColor(0x40300f, 0.92f))}}})
+      .applyStyleSheet(
+          sigil::compose::StyleSheet{sigil::compose::rule(".tail").font(
+              weaveNs::Type{.face = faceQuill,
+                            .size = 0.024f * kR,
+                            .color = sigil::material::skia::toSkColor(
+                                hexColor(0x40300f, 0.92f))})})
       .children(
           {kit::disc(hub, rPenta * kR)
                .shape(wobbled(shapes::star(5, 0.382f), 5, 16.0f, 0.30f))

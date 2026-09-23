@@ -821,7 +821,7 @@ struct BlackWatch {
                        .height(kCanvasH)
                        .font({.face = mono()})
                        .ink(kInk2)
-                       .styleSheet(classes());
+                       .applyStyleSheet(classes());
 
     // the board: one recipe, paint and tooth together
     root.children(

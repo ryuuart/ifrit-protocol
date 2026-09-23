@@ -23,7 +23,7 @@ sigil_library(SigilWeaveLayout
           KnuthPlassPrefix.h ParagraphLayoutInternal.h
   HEADERS Beside.h Block.h Breaking.h Flow.h Frame.h InitialLetter.h Justification.h
           LayoutOptions.h Mojikumi.h Overflow.h ParagraphLayout.h
-          ParagraphStyle.h StyleSheet.h PositionedRun.h Story.h TabStops.h TextContext.h
+          ParagraphStyle.h PositionedRun.h Story.h TabStops.h TextContext.h
   PUBLIC SigilWeaveParagraph SigilGeometryPath
   PRIVATE SigilWeaveUnicode SigilImageField SigilCoreCompute
           harfbuzz::harfbuzz ICU::uc Boost::unordered Boost::container_hash)

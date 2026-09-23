@@ -72,7 +72,7 @@ auto HitmanVerlet::panelA3() -> Element {
         .transformOrigin(pct(50), pct(100));
   };
   return panel(kPanelAH[2], a3["heading"].text(), 3)
-      .styleSheet(plotClasses())
+      .applyStyleSheet(plotClasses())
       .children(
           {each(a3["code"].items(),
                 [this](const sigil::data::Json& line) {

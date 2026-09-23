@@ -29,7 +29,7 @@ auto KspMapView::infoCard() -> Element {
       box()
           .font({.face = sans(), .size = 11})
           .ink(kCardInk)
-          .styleSheet(cardLook)
+          .applyStyleSheet(cardLook)
           .fill(kCardBody)
           .overflow(Overflow::Clip)
           .padding(0, 0, 8, 0)

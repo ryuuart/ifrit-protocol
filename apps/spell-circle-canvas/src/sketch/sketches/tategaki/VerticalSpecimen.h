@@ -23,9 +23,9 @@
 #include <include/core/SkSize.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
@@ -153,7 +153,8 @@ inline sigil::compose::Element specimen(std::string_view caption,
               .gap = gap,
               .labelMeasure = captionWidth},
              caption, {}, std::move(column))
-      .styleSheet(sigil::weave::StyleSheet{{"label", style}});
+      .applyStyleSheet(sigil::compose::StyleSheet{
+          sigil::compose::rule("label, .label").font(style)});
 }
 
 }  // namespace vertical

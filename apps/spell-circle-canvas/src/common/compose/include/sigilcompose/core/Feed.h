@@ -35,6 +35,7 @@
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilweave/style/TypeSheet.h>
 
 #include <chrono>
 #include <cmath>
@@ -216,8 +217,9 @@ template <class RowFunction>
 // Rows of text — the shape a log, a transcript or a tape takes.
 
 /** A text row: the line, and the NAME of the style it is set in. The name
- *  is resolved against a `weave::StyleSheet` at build time, so an unregistered
- *  name — including the default empty one — takes the set's base style. */
+ *  is resolved against a `weave::TypeSheet` at build time, so an
+ *  unregistered name — including the default empty one — takes the set's
+ *  base style. */
 struct TextRow {
   Utf8 text;
   std::string style;
@@ -236,8 +238,9 @@ using TextRing = Ring<TextRow>;
  * other value the reconciler compares. */
 struct TextOptions {
   Options window;
-  /** Row style by name. The base entry sets every row that names nothing. */
-  sigil::weave::StyleSheet styles;
+  /** Row style by name, each a partial over the base, which sets every row
+   *  that names nothing. */
+  sigil::weave::TypeSheet styles;
 
   bool operator==(const TextOptions&) const = default;
 };
@@ -248,7 +251,7 @@ struct TextOptions {
  *  Exposed so a caller can build the column by hand when the rows need
  *  something the options do not carry, keying each row with `rowKey()`. */
 [[nodiscard]] inline Text textRow(const TextRow& row,
-                                  const sigil::weave::StyleSheet& styles) {
+                                  const sigil::weave::TypeSheet& styles) {
   return text(row.text, styles[row.style]);
 }
 

@@ -43,7 +43,7 @@ NAMES = (
 
 def sheet(size=12.0):
     base = weave.textStyle(weave.Type(size=size, color="#ffffff"))
-    return weave.StyleSheet(base).set("dim", weave.Type(color="#808080"))
+    return weave.TypeSheet(base).set("dim", weave.Type(color="#808080"))
 
 
 def line(words, style=""):
@@ -485,7 +485,7 @@ class Session(unittest.TestCase):
             "results = builtins._sigil_feed_results\n"
             "def sheet():\n"
             "    base = weave.textStyle(weave.Type(size=8, color='#ffffff'))\n"
-            "    return weave.StyleSheet(base)\n"
+            "    return weave.TypeSheet(base)\n"
             "@sketch(size=(96, 96), capture_at=0)\n"
             "class Scene:\n"
             "    def setup(self, ctx):\n"

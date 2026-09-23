@@ -272,7 +272,7 @@ auto SigillumAemeth::margin() -> Element {
       .gap(8)
       .font({.face = faceMono, .size = 15})
       .ink(hexColor(0x8d7a58))
-      .styleSheet(voices())
+      .applyStyleSheet(voices())
       .children(
           {box().column().gap(4).children(
                {document::h1(doc.phrase("title")),
@@ -366,7 +366,7 @@ auto SigillumAemeth::colophon() -> Element {
       .transformOrigin(pct(0), pct(0))
       .column()
       .gap(16)
-      .styleSheet(voices())
+      .applyStyleSheet(voices())
       .children(
           {kit::line({.length = Dimension(690),
                       .thickness = 1.8f,

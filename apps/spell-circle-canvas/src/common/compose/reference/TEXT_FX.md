@@ -56,8 +56,8 @@ element; a pattern that does not compile selects nothing and warns once.
 
 `selectors::style` is the odd one out and addresses the TREATMENT rather than a
 position: every run a `weave::rich()` value added under a style name
-(`weave::RichText::add` with a name resolved through a
-`sigil::weave::StyleSheet`).
+(`weave::RichText::add` with a name, resolved through a
+`sigil::weave::TypeSheet` or the rules of the sheets in force).
 
 ```cpp
 text(weave::rich(base).styles(set.types())

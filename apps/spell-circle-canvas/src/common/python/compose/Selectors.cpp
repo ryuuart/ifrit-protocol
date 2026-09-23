@@ -317,11 +317,10 @@ void bindRule(py::module_& composition) {
       "verbs write, folded by the same merge, so a property is spelled "
       "once whether a rule or a verb says it; what a rule leaves unsaid "
       "the element inherits. A rule holds STATIC values: a live binding, "
-      "an entrance and an animation stay verbs on the element. This is NOT "
-      "`weave.Rule`, which is the partial a name-keyed text sheet carries "
-      "under a class name; this one is keyed by a selector and reaches an "
-      "element through `Element.applyStyleSheet`. Equality is structural, "
-      "and a rule carries no hash, because its selector carries none.");
+      "an entrance and an animation stay verbs on the element. It reaches "
+      "an element through `Element.applyStyleSheet`. Equality is "
+      "structural, and a rule carries no hash, because its selector "
+      "carries none.");
 
   rule.def(py::init<ElementSelector>(), py::arg("subject"),
            "A rule speaking about the elements `subject` names, stating "
@@ -408,12 +407,10 @@ void bindStyleSheet(py::module_& composition) {
       "the author likes. A statement is a `compose.Rule` or another "
       "`compose.StyleSheet`, whose rules then stand in its place. Order is "
       "only the LAST tiebreak: which rule wins at an element is CSS's, "
-      "specificity first and order after it. This is NOT "
-      "`weave.StyleSheet`, which holds partials under class NAMES and is "
-      "stated with `Element.styleSheet`; this one holds rules under "
-      "SELECTORS and is put in force with `Element.applyStyleSheet`. Two "
-      "sheets compare by value, and a sheet carries no hash, because its "
-      "rules carry none.");
+      "specificity first and order after it. It is the one sheet an author "
+      "writes, put in force with `Element.applyStyleSheet`. Two sheets "
+      "compare by value, and a sheet carries no hash, because its rules "
+      "carry none.");
 
   sheet
       .def(py::init([](const py::iterable& statements) {
@@ -493,9 +490,7 @@ void bindComposeSelectors(pybind11::module_& module) {
            "sheet that must name an outer element is applied at or above "
            "that element. This node is the root of what the sheet sees, so "
            "it matches `:root` and stands as the only child of nothing for "
-           "these rules. The sheet is a `compose.StyleSheet`, keyed by "
-           "selectors; `Element.styleSheet` takes the name-keyed "
-           "`weave.StyleSheet` instead.");
+           "these rules.");
 }
 
 }  // namespace sigil::python

@@ -7,8 +7,8 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Measure.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcore/reconcile/Environment.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Length.h>
@@ -372,13 +372,15 @@ TEST(ComposeCascade, AnInkChangedThroughAClassEasesAsTheVerbsChangeDoes) {
   // its own in either description: the colour arrives through a class, so
   // nothing the node DECLARES moves, and the lane still eases — the two
   // spellings of one change cannot disagree.
-  const sigil::weave::StyleSheet sheet{
-      {"hot", sigil::weave::Type{.color = SkColor4f{1, 0, 0, 1}}},
-      {"cold", sigil::weave::Type{.color = SkColor4f{0, 0, 1, 1}}}};
+  const sigil::compose::StyleSheet sheet{
+      sigil::compose::rule(".hot").font(
+          sigil::weave::Type{.color = SkColor4f{1, 0, 0, 1}}),
+      sigil::compose::rule(".cold").font(
+          sigil::weave::Type{.color = SkColor4f{0, 0, 1, 1}})};
   Host host;
   const auto page = [&](std::string_view name) {
     return box()
-        .styleSheet(sheet)
+        .applyStyleSheet(sheet)
         .styleClass(name)
         .transition({.duration = 200ms})
         .children({box().width(60).height(60).fill(Fill::currentInk())});
@@ -491,9 +493,9 @@ TEST(ComposeCascade,
   // The sheet is bound around the code that builds the leaf and nowhere
   // near the tree the leaf ends up in: the class still took, and its
   // fields inherit the face and the ink from the tree.
-  sigil::weave::StyleSheet sheet;
-  sheet.set("big", sigil::weave::Type{.size = 40});
-  Element classed = text(u8"AAAA").styleSheet(sheet).styleClass("big");
+  sigil::compose::StyleSheet sheet{
+      sigil::compose::rule(".big").font(sigil::weave::Type{.size = 40})};
+  Element classed = text(u8"AAAA").applyStyleSheet(sheet).styleClass("big");
   Host with, without;
   with.composer.render(pageWith(std::move(classed), 10));
   without.composer.render(pageWith(text(u8"AAAA"), 10));
@@ -507,20 +509,23 @@ TEST(ComposeCascade, ClassesFoldInTheSheetsOrderAndAPartialLaysOverThem) {
   // Between classes the sheet's order decides, so "dim big" and "big dim"
   // are one thing: the later entry of the sheet in force wins. A partial
   // after the names is the node's own and stands over both.
-  const sigil::weave::StyleSheet bigLast{{"dim", {.size = 14}},
-                                         {"big", {.size = 40}}};
-  const sigil::weave::StyleSheet dimLast{{"big", {.size = 40}},
-                                         {"dim", {.size = 14}}};
+  const sigil::compose::StyleSheet bigLast{
+      sigil::compose::rule(".dim").font({.size = 14}),
+      sigil::compose::rule(".big").font({.size = 40})};
+  const sigil::compose::StyleSheet dimLast{
+      sigil::compose::rule(".big").font({.size = 40}),
+      sigil::compose::rule(".dim").font({.size = 14})};
   Host a, b, c, d;
-  a.composer.render(
-      pageWith(text("AAAA").styleSheet(bigLast).styleClass("dim big"), 10));
-  b.composer.render(
-      pageWith(text("AAAA").styleSheet(bigLast).styleClass("big dim"), 10));
-  c.composer.render(
-      pageWith(text("AAAA").styleSheet(dimLast).styleClass("dim big"), 10));
-  d.composer.render(pageWith(
-      text("AAAA").styleSheet(bigLast).styleClass("big").font({.size = 14}),
-      10));
+  a.composer.render(pageWith(
+      text("AAAA").applyStyleSheet(bigLast).styleClass("dim big"), 10));
+  b.composer.render(pageWith(
+      text("AAAA").applyStyleSheet(bigLast).styleClass("big dim"), 10));
+  c.composer.render(pageWith(
+      text("AAAA").applyStyleSheet(dimLast).styleClass("dim big"), 10));
+  d.composer.render(
+      pageWith(text("AAAA").applyStyleSheet(bigLast).styleClass("big").font(
+                   {.size = 14}),
+               10));
   a.frame();
   b.frame();
   c.frame();
@@ -533,18 +538,22 @@ TEST(ComposeCascade, ClassesFoldInTheSheetsOrderAndAPartialLaysOverThem) {
 TEST(ComposeCascade, ANearerSheetStandsOverAFartherOneByName) {
   // A subtree states a sheet of its own: the names it carries win there,
   // the names it leaves alone still resolve through the outer sheet.
-  const sigil::weave::StyleSheet outer{{"big", {.size = 40}},
-                                       {"dim", {.size = 14}}};
-  const sigil::weave::StyleSheet inner{{"big", {.size = 14}}};
+  const sigil::compose::StyleSheet outer{
+      sigil::compose::rule(".big").font({.size = 40}),
+      sigil::compose::rule(".dim").font({.size = 14})};
+  const sigil::compose::StyleSheet inner{
+      sigil::compose::rule(".big").font({.size = 14})};
   Host a, b;
-  a.composer.render(pageWith(
-      box().styleSheet(outer).children({box().styleSheet(inner).children(
-          {text("AAAA").styleClass("big").key("t")})}),
-      10));
-  b.composer.render(pageWith(
-      box().styleSheet(outer).children({box().styleSheet(inner).children(
-          {text("AAAA").styleClass("dim").key("t")})}),
-      10));
+  a.composer.render(
+      pageWith(box().applyStyleSheet(outer).children(
+                   {box().applyStyleSheet(inner).children(
+                       {text("AAAA").styleClass("big").key("t")})}),
+               10));
+  b.composer.render(
+      pageWith(box().applyStyleSheet(outer).children(
+                   {box().applyStyleSheet(inner).children(
+                       {text("AAAA").styleClass("dim").key("t")})}),
+               10));
   a.frame();
   b.frame();
   EXPECT_FLOAT_EQ(widthOf(a, "t"), widthOf(b, "t"));

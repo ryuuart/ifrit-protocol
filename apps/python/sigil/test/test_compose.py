@@ -438,18 +438,16 @@ class Scene:
         self.assertEqual(render('"#00ff00"')[:4], b"\x00\xff\x00\xff")
 
     def test_rules_merge_native_partials_without_resetting_other_fields(self):
-        sheet = weave.StyleSheet(
-            [
-                weave.rule("title").font(weave.Type(size=32, color="#ff3300")),
-                weave.rule("title").font(weave.Type(track=2)),
-            ]
+        title = (
+            compose.rule(".title")
+            .font(weave.Type(size=32, color="#ff3300"))
+            .font(weave.Type(track=2))
         )
-        self.assertEqual(len(sheet), 1)
-        self.assertEqual(sheet["title"].shaping.fontSize, 32)
-        self.assertEqual(sheet["title"].shaping.letterSpacing, 2)
-        copy = sheet.find("title")
+        self.assertEqual(title.type().size.value, 32)
+        self.assertEqual(title.type().track.value, 2)
+        copy = title.copy()
         copy.font(weave.Type(size=50))
-        self.assertEqual(sheet["title"].shaping.fontSize, 32)
+        self.assertEqual(title.type().size.value, 32)
         block = weave.Block(
             leading=weave.Leading.multiple(1.5), alignment=weave.TextAlignment.Center
         )
@@ -665,14 +663,15 @@ class Scene:
             """from sigil.compose import box, text
 from sigil import compose
 from sigil.sketch import sketch
-from sigil.weave import Type, StyleSheet, rule, textStyle
+from sigil.compose import StyleSheet, rule
+from sigil.weave import Type, textStyle
 
 
 @sketch(size=(128, 48), background="#000000")
 class Scene:
     def setup(self, ctx):
         style = Type(size=30, color="#ff0000")
-        sheet = StyleSheet([rule("title").font(style)])
+        sheet = StyleSheet([rule(".title").font(style)])
         children = [
             (text("HI").styleClass("title")),
             compose.text("HI", textStyle(style)),
@@ -680,7 +679,7 @@ class Scene:
         ctx.render(
             (
                 box()
-                .styleSheet(sheet)
+                .applyStyleSheet(sheet)
                 .children(
                     (
                         (

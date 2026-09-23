@@ -9,6 +9,7 @@
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Stamps.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -25,7 +26,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -84,11 +84,11 @@ sk_sp<SkTypeface> romanBoldFace() {
  *  tracked a tenth; the roman and its bold are the book face. A leaf
  *  states its size and colour over the class; the sheet is bound around
  *  the description, since a class is read where the leaf is written. */
-weave::StyleSheet voices() {
-  weave::StyleSheet classes;
-  classes.set("call", {.face = monoFace(), .track = 0.1f})
-      .set("roman", {.face = romanFace()})
-      .set("romanBold", {.face = romanBoldFace()});
+sigil::compose::StyleSheet voices() {
+  sigil::compose::StyleSheet classes{
+      sigil::compose::rule(".call").font({.face = monoFace(), .track = 0.1f}),
+      sigil::compose::rule(".roman").font({.face = romanFace()}),
+      sigil::compose::rule(".romanBold").font({.face = romanBoldFace()})};
   return classes;
 }
 

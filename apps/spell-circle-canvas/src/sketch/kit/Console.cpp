@@ -16,7 +16,7 @@ compose::Element console(const Console& panel) {
   // colour-only helper, because a console's ink is a Fill: a shader over
   // the base rows shades them, and a level names a colour of its own.
   const Register voice{.size = size, .mono = true};
-  weave::StyleSheet styles(look.style(
+  weave::TypeSheet styles(look.style(
       voice, panel.ink.value_or(compose::Fill::color(look.palette.ink))));
   // Each level is a CLASS over that base: its colour alone, the voice's
   // face and size inherited.

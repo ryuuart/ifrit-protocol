@@ -147,8 +147,8 @@ sound model; nothing below them changes kernel semantics.
 - `core/Image.h` — `ImageVerbs`: `imageRegion`, and `Image`, the leaf
   that has them.
 - `core/verbs/Structure.h` — `StructureVerbs`: what a node IS rather
-  than how it looks — the cascade it NAMES with `styleSheet`,
-  `applyStyleSheet`, `role` and `styleClass`, its identity with `key`,
+  than how it looks — the cascade it NAMES with `applyStyleSheet`,
+  `role` and `styleClass`, its identity with `key`,
   `hitTestable`, `cache`,
   `cacheScale`, `transition` and `staggerChildren`, and `children`.
 - `core/verbs/Node.h` — `NodeVerbs`: the verb families EVERY node has,
@@ -271,8 +271,8 @@ sound model; nothing below them changes kernel semantics.
 - `core/Feed.h` — the streaming collection: a `feed::Ring` of rows,
   windowed to the newest `feed::Options::visible` and keyed by sequence
   id, so an append costs one mount and every surviving row keeps its
-  cached picture; rows of text name their class in a
-  `sigil::weave::StyleSheet` (`feed::TextRow`, `feed::TextOptions`). Built
+  cached picture; rows of text name their style in a
+  `sigil::weave::TypeSheet` (`feed::TextRow`, `feed::TextOptions`). Built
   purely by composing the kernel; the bordered strip several feeds sit on
   is the kit's `kit::plate` (`kit/Plate.h`), with `kit::tinted` building
   the one-face sheet whose classes differ in colour alone, and
@@ -844,8 +844,8 @@ struct,
 `kit/Board.h`'s `kit::board`, the ground a placed drawing stands on — a
 `stack` at its own size on its own ground, each child keeping the rect it
 was built with, which is the root of a plate that has no layout at all
-and names no class, states no sheet and sets no font, so a page-less
-drawing states its own with `Element::styleSheet` on what it returns —
+and names no class, applies no sheet and sets no font, so a page-less
+drawing applies its own with `Element::applyStyleSheet` on what it returns —
 with `kit::panel` beside it, the titled region a page divides itself
 into: an eyebrow over a title in the roles `eyebrow` and `h1`, a
 note at the far edge of the head's last line in `caption`, each of

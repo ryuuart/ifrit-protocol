@@ -2,10 +2,10 @@
 
 // TAGS: Interfaces/Game
 
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include "Inventory.h"
@@ -542,16 +542,21 @@ struct LootGrid {
    *  a stat row answers with, and a tooltip's affix line, which is set in
    *  the magic colour. Every other line is the root's ink at a size of
    *  its own. */
-  static weave::StyleSheet classes(const sketch::kit::Theme& look) {
-    weave::StyleSheet sheet = look.styleSheet();
-    sheet.set("heading",
-              {.size = 12,
-               .color = sigil::material::skia::toSkColor(loot::kBronzeLit),
-               .track = 4.5f,
-               .weight = 650});
-    sheet.set("value", {.size = 12, .track = 0.5f, .weight = 620});
-    sheet.set("affix", {.color = sigil::material::skia::toSkColor(
-                            loot::rarityColor(loot::Rarity::Magic))});
+  static sigil::compose::StyleSheet classes(const sketch::kit::Theme& look) {
+    sigil::compose::StyleSheet sheet =
+        look.styleSheet() +
+        sigil::compose::StyleSheet{
+            sigil::compose::rule("heading, .heading")
+                .font({.size = 12,
+                       .color =
+                           sigil::material::skia::toSkColor(loot::kBronzeLit),
+                       .track = 4.5f,
+                       .weight = 650}),
+            sigil::compose::rule(".value").font(
+                {.size = 12, .track = 0.5f, .weight = 620}),
+            sigil::compose::rule(".affix").font(
+                {.color = sigil::material::skia::toSkColor(
+                     loot::rarityColor(loot::Rarity::Magic))})};
     return sheet;
   }
 
@@ -564,7 +569,7 @@ struct LootGrid {
     // THE ROOT OF THE CASCADE: ash is the ink every line that names no
     // colour of its own is set in — the keys, the labels, the remarks.
     auto root = stack()
-                    .styleSheet(classes(look))
+                    .applyStyleSheet(classes(look))
                     .ink(lt::kAsh)
                     .fill(Paint::linear({0, 0}, {0, lt::kH},
                                         {{0.0f, hexColor(0x0D0C0A)},

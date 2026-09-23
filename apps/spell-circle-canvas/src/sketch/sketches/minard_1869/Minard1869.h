@@ -53,7 +53,7 @@ struct Minard1869 {
    *  card adds — `measured`, `amber`, `amberInk`, `grey`, `route`,
    *  `vector`, `cross`, `cardInk`, `claim`, `pass` — so a rule, a bar, a
    *  dot and the word that names it take one colour from one entry. */
-  weave::StyleSheet cardSheet;
+  sigil::compose::StyleSheet cardSheet;
 
   // -----------------------------------------------------------------------
   // beat clock (seconds). Everything reads through bind(&T).window(a,b).

@@ -3,11 +3,11 @@
 TAGS: Typography/Documents, Typography/Styles, Runtime/Python
 """
 
-from sigil.compose import Element, row
+from sigil.compose import Element, StyleSheet, row, rule
 from sigil.compose import document as doc
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import Typeface
-from sigil.weave import Block, Leading, StyleSheet, Type, rule
+from sigil.weave import Block, Leading, Type
 
 
 def passage() -> Element:
@@ -55,7 +55,7 @@ def voice(
             rule("h2").font(Type(face=face, size=19, weight=600, track=0)),
             rule("lead").font(Type(face=face, size=17, color=muted)),
             rule("eyebrow").font(Type(size=10, track=1.1, color=muted)),
-            rule("quote").font(Type(color=accent)),
+            rule("quote, .quote").font(Type(color=accent)),
             rule("footer").font(Type(size=10, color=muted)),
         ]
     )
@@ -68,7 +68,7 @@ class DocumentStudy:
         look.type.title.size = 34
         with kit.provide(look):
             first, second = passage(), passage()
-            paper = first.fill("#f6f1e7").styleSheet(
+            paper = first.fill("#f6f1e7").applyStyleSheet(
                 voice(
                     "#2a4037",
                     "#66786b",
@@ -77,7 +77,7 @@ class DocumentStudy:
                     face=kit.house_face(kit.Voice.Book),
                 )
             )
-            night = second.fill("#132a2a").styleSheet(
+            night = second.fill("#132a2a").applyStyleSheet(
                 voice(
                     "#d7e6dd",
                     "#9fb7aa",

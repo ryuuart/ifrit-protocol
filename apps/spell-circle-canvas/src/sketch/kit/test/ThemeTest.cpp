@@ -5,12 +5,23 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
 #include "Drawn.h"
 
 namespace {
+
+/** The rule of @p sheet whose selector reads as @p cssText, or null. */
+const sigil::compose::Rule* ruleFor(const sigil::compose::StyleSheet& sheet,
+                                    std::string_view cssText) {
+  const sigil::compose::ElementSelector wanted =
+      sigil::compose::selector(cssText);
+  for (const sigil::compose::Rule& rule : sheet.rules())
+    if (rule.selector() == wanted) return &rule;
+  return nullptr;
+}
 
 namespace kit = sigil::sketch::kit;
 namespace compose = sigil::compose;
@@ -120,35 +131,36 @@ TEST(SketchKitTheme, ARegisterInTheHouseSansStatesTheDefaultFamily) {
 TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
   const kit::Theme& house = kit::houseTheme();
   {
-    const sigil::weave::StyleSheet sheet = house.styleSheet();
-    const sigil::weave::StyleSheet* classes = &sheet;
+    const compose::StyleSheet sheet = house.styleSheet();
     // The seven registers, `readout`, and the eight a chart's parts are
     // dressed in.
-    EXPECT_EQ(classes->size(), 16u);
-    ASSERT_NE(classes->find("eyebrow"), nullptr);
-    EXPECT_EQ(classes->find("eyebrow")->type(), house.font(house.type.eyebrow))
+    EXPECT_EQ(sheet.size(), 16u);
+    ASSERT_NE(ruleFor(sheet, "eyebrow"), nullptr);
+    EXPECT_EQ(ruleFor(sheet, "eyebrow")->type(),
+              house.font(house.type.eyebrow))
         << "a register a sheet sets inside its content names no colour";
-    EXPECT_EQ(classes->find("label")->type(),
+    EXPECT_EQ(ruleFor(sheet, "label, .label")->type(),
               house.font(house.type.captionLabel, house.palette.ink))
-        << "a class carries its whole look, colour included";
-    EXPECT_EQ(classes->find("caption")->type(),
+        << "a rule carries its whole look, colour included";
+    EXPECT_EQ(ruleFor(sheet, "caption, .caption")->type(),
               house.font(house.type.captionNote, house.palette.ash));
-    EXPECT_EQ(classes->find("h1")->type(),
+    EXPECT_EQ(ruleFor(sheet, "h1")->type(),
               house.font(house.type.title, house.palette.ink));
-    EXPECT_EQ(classes->find("lead")->type(),
+    EXPECT_EQ(ruleFor(sheet, "lead")->type(),
               house.font(house.type.subtitle, house.palette.ash));
-    EXPECT_EQ(classes->find("footer")->type(),
+    EXPECT_EQ(ruleFor(sheet, "footer")->type(),
               house.font(house.type.footer, house.palette.ash));
     // The one class that is not a register of its own: a MEASURED FIGURE,
     // set in the register a call is set in, in the figure colour.
-    ASSERT_NE(classes->find("readout"), nullptr);
-    EXPECT_EQ(classes->find("readout")->type(),
+    ASSERT_NE(ruleFor(sheet, ".readout"), nullptr);
+    EXPECT_EQ(ruleFor(sheet, ".readout")->type(),
               house.font(house.type.captionLabel, house.palette.figure));
 
-    sigil::weave::StyleSheet own = house.styleSheet();
-    own.set("value", {.size = 13.0f});
+    compose::StyleSheet own =
+        house.styleSheet() +
+        compose::StyleSheet{compose::rule(".value").font({.size = 13.0f})};
     EXPECT_EQ(own.size(), 17u) << "the registers and the sketch's own";
-    EXPECT_NE(own.find("value"), nullptr);
+    EXPECT_NE(ruleFor(own, ".value"), nullptr);
     EXPECT_EQ(house.styleSheet().size(), 16u) << "a copy, not the theme's";
   }
 }

@@ -1,7 +1,7 @@
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <array>
@@ -36,15 +36,14 @@ Element flow(std::string role, std::initializer_list<Children> children,
 
 Text line(Utf8 words, std::string role, float scale) {
   return text(std::move(words))
-      .role(weave::rule(std::move(role)).font({.size = weave::em(scale)}));
+      .role(std::move(role), {.size = weave::em(scale)});
 }
 
 }  // namespace
 
 Element article(std::initializer_list<Children> children) {
   return flow("article", children)
-      .role(weave::rule("article").block(
-          {.leading = weave::Leading::multiple(1.45f)}))
+      .role("article", {.leading = weave::Leading::multiple(1.45f)})
       .width(pct(100))
       .maxWidth(var(measure));
 }
@@ -76,14 +75,13 @@ Text caption(Utf8 words) { return line(std::move(words), "caption", 0.875f); }
 Text label(Utf8 words) { return line(std::move(words), "label", 0.875f); }
 Text eyebrow(Utf8 words) {
   return text(std::move(words))
-      .role(weave::rule("eyebrow").font(
-          {.size = weave::em(0.75f), .track = weave::em(0.08f)}));
+      .role("eyebrow", {.size = weave::em(0.75f), .track = weave::em(0.08f)});
 }
 Text footer(Utf8 words) { return line(std::move(words), "footer", 0.875f); }
 Text code(Utf8 words) {
   static const auto mono =
       weave::ports::face({"Menlo", "Consolas", "monospace"});
-  return text(std::move(words)).role(weave::rule("code").font({.face = mono}));
+  return text(std::move(words)).role("code", {.face = mono});
 }
 
 Element quote(std::initializer_list<Children> children) {

@@ -27,7 +27,7 @@ from sigil.image import load
 from sigil.material import Paint
 from sigil.motion import Output, bind, entrance
 from sigil.sketch import SketchContext, kit, render_file, sketch
-from sigil.weave import Type, em, rich, rule, textStyle
+from sigil.weave import Type, em, rich, textStyle
 
 document_items = [doc.item("One"), doc.item(body=doc.paragraph("Two"), marker="2.")]
 assert_type(doc.article(doc.h1(words="Title"), doc.paragraph("A passage")), Element)
@@ -41,7 +41,7 @@ assert_type(doc.paragraph(words=rich().add("A mixed passage")), Text)
 assert_type(doc.heading(level=3, words="Section"), Text)
 assert_type(doc.figure(body=box(), note="A figure"), Element)
 assert_type(doc.article().var(doc.measure, em(36)), Element)
-assert_type(box().role(rule("notice").font(Type(weight=600))), Element)
+assert_type(box().role("notice", font=Type(weight=600)), Element)
 assert_type(box().role("notice"), Element)
 assert_type(box().varDefaults({doc.measure: em(30), "accent": "#123456"}), Element)
 

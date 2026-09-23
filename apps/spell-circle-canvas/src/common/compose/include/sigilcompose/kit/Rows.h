@@ -17,8 +17,8 @@
  * Every prop is the CONTENT and the ARRANGEMENT — the words, the values,
  * the widths, the air. Every face, size and colour is the CASCADE's: a
  * name and a note have document role `caption`, a figure uses class
- * `readout`, a table's head has role `h2`, and the `weave::StyleSheet` in
- * force where the component lands says what those are.
+ * `readout`, a table's head has role `h2`, and the rules of the sheets in
+ * force where the component lands say what those are.
  */
 
 #include <sigilcompose/core/Element.h>

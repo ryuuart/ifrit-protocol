@@ -41,13 +41,13 @@
 // TAGS: Typography/Lettering
 
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -118,10 +118,11 @@ inline constexpr auto kRings = std::to_array<int>({0, 0, 1, 1, 2, 2, 3, 4, 5});
 
 /** The registers — the poster's title, and the museum label's two lines
  *  — over the sheet's own setting. */
-inline weave::StyleSheet look() {
-  return {{"h1", {.size = 38 * kScale}},
-          {"labelTitle", {.size = 14.0f, .track = 0.6f}},
-          {"labelLine", {.size = 12.0f, .track = 0.4f}}};
+inline sigil::compose::StyleSheet look() {
+  return sigil::compose::StyleSheet{
+      sigil::compose::rule("h1").font({.size = 38 * kScale}),
+      sigil::compose::rule(".labelTitle").font({.size = 14.0f, .track = 0.6f}),
+      sigil::compose::rule(".labelLine").font({.size = 12.0f, .track = 0.4f})};
 }
 
 }  // namespace beethoven_plate
@@ -255,7 +256,7 @@ struct Beethoven {
   Element describe() {
     namespace bp = beethoven_plate;
     return stack()
-        .styleSheet(bp::look())
+        .applyStyleSheet(bp::look())
         .fill(Fill::color(bp::kWall))
         // Every line on the wall sends its colour to the paint through the
         // 8-bit ladder the poster's palette was read in.

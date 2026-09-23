@@ -108,14 +108,14 @@ void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   if (!seen.insert(std::string(name)).second) return;
   SkDebugf(
-      "compose: paragraphStyles(\"%.*s\") — %s, so this block is set in what "
-      "it "
-      "inherits and nothing more. Register it on the StyleSheet stated with "
-      "styleSheet() on this element or on a node above it, or "
-      "pass the style itself.\n",
+      "compose: paragraphStyles(\"%.*s\") — %s, so this block is set in "
+      "what it inherits and nothing more. State a rule for .%.*s in a sheet "
+      "applied with applyStyleSheet() on this element or on a node above "
+      "it, or pass the style itself.\n",
       (int)name.size(), name.data(),
-      anySetInScope ? "the block sheet in force carries no such name"
-                    : "no block sheet is in force here");
+      anySetInScope ? "no rule of the sheets in force speaks about it"
+                    : "no sheet is in force here",
+      (int)name.size(), name.data());
 }
 
 }  // namespace detail

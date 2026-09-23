@@ -5,8 +5,8 @@
 // a composer and reads the keyed boxes back, rather than restating the
 // margins the component spells.
 
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <optional>
 #include <utility>
@@ -24,8 +24,10 @@ kit::Caption specimenVoice(kit::Caption::Where where) {
 
 /** The sheet the caption's two classes are registered on — the only place
  *  a cell's type comes from. */
-weave::StyleSheet captionClasses() {
-  return weave::StyleSheet{{"label", {.size = 12}}, {"caption", {.size = 10}}};
+sigil::compose::StyleSheet captionClasses() {
+  return sigil::compose::StyleSheet{
+      sigil::compose::rule("label, .label").font({.size = 12}),
+      sigil::compose::rule("caption, .caption").font({.size = 10})};
 }
 
 }  // namespace
@@ -40,7 +42,7 @@ TEST(KitSpecimen, TheCaptionsLinesStandWhereTheVoiceSays) {
         box()
             .width(300)
             .height(300)
-            .styleSheet(captionClasses())
+            .applyStyleSheet(captionClasses())
             .children({kit::cell(specimenVoice(where), "LABEL",
                                  withNote ? "a note" : "",
                                  box().key("body").width(100).height(40))
@@ -82,7 +84,7 @@ TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
     return intrinsicSize(
                kit::cell(voice, "a label far wider than the body under it", "",
                          box().width(60).height(40))
-                   .styleSheet(captionClasses()),
+                   .applyStyleSheet(captionClasses()),
                fonts())
         .width();
   };
@@ -103,7 +105,7 @@ TEST(KitSpecimen, APartSetsOneLineWithTheParametersItNames) {
       box()
           .width(300)
           .height(300)
-          .styleSheet(captionClasses())
+          .applyStyleSheet(captionClasses())
           .children({kit::cell(voice, "LABEL", "a note",
                                box().key("body").width(100).height(40))
                          .key("cell")}));
@@ -217,7 +219,7 @@ TEST(KitSpecimen, ACellStatesItsBodysOwnWell) {
         box()
             .width(200)
             .height(200)
-            .styleSheet(captionClasses())
+            .applyStyleSheet(captionClasses())
             .children({kit::cell(
                 voice, "", "",
                 box().key("body").width(20).height(16).fill(green()))}));
@@ -272,7 +274,7 @@ TEST(KitSpecimen, AReadingStandsOverTheBodyOnAScrimOfItsGround) {
       box()
           .width(200)
           .height(200)
-          .styleSheet(captionClasses())
+          .applyStyleSheet(captionClasses())
           .children({kit::cell(voice, "", "",
                                box().absolute().inset(0).fill(red()))}));
   host.frame();
@@ -300,11 +302,13 @@ TEST(KitSpecimen, ASheetsLinesArePartsOfTheirOwnText) {
     return text(t).font({.size = 20});
   };
   Host host(400, 300);
-  host.composer.render(kit::sheet(page, box().key("body"))
-                           .styleSheet(weave::StyleSheet{
-                               {"h1", {.size = 15}}, {"footer", {.size = 11}}})
-                           .width(400)
-                           .height(300));
+  host.composer.render(
+      kit::sheet(page, box().key("body"))
+          .applyStyleSheet(sigil::compose::StyleSheet{
+              sigil::compose::rule("h1").font({.size = 15}),
+              sigil::compose::rule("footer").font({.size = 11})})
+          .width(400)
+          .height(300));
   host.frame();
   // The one line the sheet was handed stands where the register's would,
   // and the footer keeps its register, because no sheet moved.
@@ -361,11 +365,12 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
                   .key = "page"};
   // Both arrangements use the same document typography, so toggling the
   // rules is the only change that can move the content.
-  const weave::StyleSheet typography{{"h1", {.size = 15}},
-                                     {"footer", {.size = 11}}};
+  const sigil::compose::StyleSheet typography{
+      sigil::compose::rule("h1").font({.size = 15}),
+      sigil::compose::rule("footer").font({.size = 11})};
   Host host(400, 300);
   host.composer.render(kit::sheet(page, box().key("body"))
-                           .styleSheet(typography)
+                           .applyStyleSheet(typography)
                            .width(400)
                            .height(300));
   host.frame();
@@ -394,7 +399,7 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
   plain.rule = Fill::none();
   plain.key = "plain";
   host.composer.render(kit::sheet(plain, box().key("body"))
-                           .styleSheet(typography)
+                           .applyStyleSheet(typography)
                            .width(400)
                            .height(300));
   host.frame();

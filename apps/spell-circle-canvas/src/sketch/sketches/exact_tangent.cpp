@@ -9,6 +9,7 @@
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/texture/Texture.h>
@@ -18,7 +19,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -58,12 +58,14 @@ constexpr float kMagnification = 8;
  *  old-style serif, untracked — stated, because the page's running
  *  register is tracked and an inscription is not. A run states its size
  *  and colour over it. */
-weave::StyleSheet voices() {
-  weave::StyleSheet classes = sketch::kit::theme().styleSheet();
-  classes.set("inscription",
-              {.face = weave::ports::face(
-                   {"Iowan Old Style", "Georgia", "Times New Roman", "serif"}),
-               .track = 0.0f});
+sigil::compose::StyleSheet voices() {
+  sigil::compose::StyleSheet classes =
+      sketch::kit::theme().styleSheet() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule(".inscription")
+              .font({.face = weave::ports::face({"Iowan Old Style", "Georgia",
+                                                 "Times New Roman", "serif"}),
+                     .track = 0.0f})};
   return classes;
 }
 
@@ -99,7 +101,7 @@ Element arcRun(const char* word, float size, material::Color colour, bool exact,
 SkBitmap coverage(weave::FontContext& fonts, bool exact) {
   const auto raster =
       texture(
-          box().styleSheet(voices()).children(
+          box().applyStyleSheet(voices()).children(
               {arcRun("R", kDetailSize, SkColors::kWhite, exact, 0.78f, -140, 4)
                    .translateY(110)}),
           kRaster, fonts)
@@ -291,7 +293,7 @@ struct ExactTangent {
                               "2048 steps. Its spacing follows rendered type "
                               "size; exact tangents remove that quantisation.")
                               .width(328)})}))
-            .styleSheet(voices()));
+            .applyStyleSheet(voices()));
   }
 };
 

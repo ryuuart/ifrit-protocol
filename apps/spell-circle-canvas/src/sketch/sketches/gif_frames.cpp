@@ -11,6 +11,7 @@
 
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -19,7 +20,6 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>

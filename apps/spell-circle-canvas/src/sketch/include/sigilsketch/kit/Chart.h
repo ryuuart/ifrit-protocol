@@ -11,14 +11,14 @@
  * states what its numbers MEAN and never where they land.
  *
  * THE CLASSES. Every part a chart draws names a class and reads its look
- * from the `weave::StyleSheet` in force where it lands — `axis` for the
+ * from the rules of the sheets in force where it lands — `axis` for the
  * axis line, `tick` for the tick marks and their numbers, `rule` for the
  * hairlines across the field, `trace` for a curve, `area` for the band
  * under one, `mark` for a datum's own element, `bar` for the band a datum
  * is drawn as, and `label` for a word placed in the field.
  * `Theme::styleSheet()` registers a default for each, so a plot under a
  * page is dressed without saying anything; a sketch that wants otherwise
- * states a sheet of its own on the plot or on its root.
+ * applies a sheet of its own on the plot or on its root.
  *
  * A recording reads its colour through the INK in force, which is what the
  * class resolves to, exactly as text's colour is. Only a stroke width, a

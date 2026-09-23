@@ -137,10 +137,12 @@ sketch::kit::Theme sheetTheme() {
 
 /** The theme's registers as classes, and the specimen's own: the display
  *  face at kSpecimen, tracked, in whatever ink is in force. */
-weave::StyleSheet sheetClasses() {
-  weave::StyleSheet classes = sheetTheme().styleSheet();
-  classes.set("specimen",
-              {.face = display(), .size = kSpecimen, .track = 1.5f});
+sigil::compose::StyleSheet sheetClasses() {
+  sigil::compose::StyleSheet classes =
+      sheetTheme().styleSheet() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule(".specimen")
+              .font({.face = display(), .size = kSpecimen, .track = 1.5f})};
   return classes;
 }
 
@@ -290,7 +292,7 @@ struct KineticCard {
                            .width(440)})})}));
 
     Element root = stack()
-                       .styleSheet(sheetClasses())
+                       .applyStyleSheet(sheetClasses())
                        .fill(Fill::color(kGround))
                        .children({std::move(sheet)});
     // One meter per cell, over the whole composition: the rects are in the

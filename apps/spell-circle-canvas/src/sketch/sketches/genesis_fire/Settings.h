@@ -10,6 +10,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
@@ -29,7 +30,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Legend.h>
 #include <sigilsketch/kit/Meter.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -194,13 +194,13 @@ using instrument::uiFace;
  *  line. Bound where a panel is described — in setup for the panels
  *  built once, and in the loop for the census panel described again
  *  every frame. */
-inline weave::StyleSheet registers() {
-  weave::StyleSheet classes;
-  classes.set("note", {.size = 6.5f});
-  classes.set("colhead", {.size = 7.5f, .track = 0.9f});
-  classes.set("cell", {.size = 9.5f, .track = 0.4f});
-  classes.set("label", {.size = 7.0f});
-  classes.set("line", {.size = 8.0f});
+inline sigil::compose::StyleSheet registers() {
+  sigil::compose::StyleSheet classes{
+      sigil::compose::rule(".note").font({.size = 6.5f}),
+      sigil::compose::rule(".colhead").font({.size = 7.5f, .track = 0.9f}),
+      sigil::compose::rule(".cell").font({.size = 9.5f, .track = 0.4f}),
+      sigil::compose::rule("label, .label").font({.size = 7.0f}),
+      sigil::compose::rule(".line").font({.size = 8.0f})};
   return classes;
 }
 

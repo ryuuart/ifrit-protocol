@@ -7,22 +7,27 @@ auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
   // study disputes, a quotation, a reference — and never spells one. It
   // is stated on the PANEL rather than on the sheet's root because a
   // panel is also measured on its own, by the layout self-check.
-  weave::StyleSheet classes;
-  classes.set("type", {.color = sigil::material::skia::toSkColor(kType)})
-      .set("cold",
-           {.color = sigil::material::skia::toSkColor(al(kCold, 0.95f))})
-      .set("coldQuiet",
-           {.color = sigil::material::skia::toSkColor(al(kCold, 0.8f))})
-      .set("amber", {.color = sigil::material::skia::toSkColor(kAmber)})
-      .set("red", {.color = sigil::material::skia::toSkColor(kRed)})
-      .set("tick", {.color = sigil::material::skia::toSkColor(kTick)})
-      .set("quote", quo(9.1f, kType))
-      .set("quoteQuiet", quo(8.4f, al(kType, 0.82f)))
-      .set("headline", {.face = uiBoldFace(),
-                        .color = sigil::material::skia::toSkColor(kType),
-                        .track = 0.2f});
+  sigil::compose::StyleSheet classes{
+      sigil::compose::rule(".type").font(
+          {.color = sigil::material::skia::toSkColor(kType)}),
+      sigil::compose::rule(".cold").font(
+          {.color = sigil::material::skia::toSkColor(al(kCold, 0.95f))}),
+      sigil::compose::rule(".coldQuiet")
+          .font({.color = sigil::material::skia::toSkColor(al(kCold, 0.8f))}),
+      sigil::compose::rule(".amber").font(
+          {.color = sigil::material::skia::toSkColor(kAmber)}),
+      sigil::compose::rule(".red").font(
+          {.color = sigil::material::skia::toSkColor(kRed)}),
+      sigil::compose::rule(".tick").font(
+          {.color = sigil::material::skia::toSkColor(kTick)}),
+      sigil::compose::rule("quote, .quote").font(quo(9.1f, kType)),
+      sigil::compose::rule(".quoteQuiet").font(quo(8.4f, al(kType, 0.82f))),
+      sigil::compose::rule(".headline")
+          .font({.face = uiBoldFace(),
+                 .color = sigil::material::skia::toSkColor(kType),
+                 .track = 0.2f})};
   return box()
-      .styleSheet(std::move(classes))
+      .applyStyleSheet(std::move(classes))
       .column()
       .width(kSideW)
       .flexShrink(0)

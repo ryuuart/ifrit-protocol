@@ -56,15 +56,15 @@ class Spellings(unittest.TestCase):
         self.assertEqual(select.is_.__module__, "sigil.compose.select")
         self.assertEqual(compose.selector.__module__, "sigil.compose")
 
-    def test_the_selector_sheet_is_not_the_name_keyed_text_sheet(self):
-        # Two libraries carry a StyleSheet and a Rule under one word. The
-        # Compose pair is keyed by selectors and put in force with
-        # applyStyleSheet; the Weave pair is keyed by class names and
-        # stated with styleSheet.
-        self.assertIsNot(compose.StyleSheet, weave.StyleSheet)
-        self.assertIsNot(compose.Rule, weave.Rule)
+    def test_the_selector_sheet_is_the_one_sheet(self):
+        # One sheet an author writes: keyed by selectors and put in force
+        # with applyStyleSheet. The paragraph layer keeps only its map of
+        # names to fonts.
+        self.assertFalse(hasattr(weave, "StyleSheet"))
+        self.assertFalse(hasattr(weave, "Rule"))
+        self.assertTrue(hasattr(weave, "TypeSheet"))
         self.assertTrue(hasattr(compose.Element, "applyStyleSheet"))
-        self.assertTrue(hasattr(compose.Element, "styleSheet"))
+        self.assertFalse(hasattr(compose.Element, "styleSheet"))
 
 
 class Grammar(unittest.TestCase):

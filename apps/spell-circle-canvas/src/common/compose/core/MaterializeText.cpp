@@ -53,23 +53,16 @@ void Composer::Impl::materializeText(
         inherits ? inherited : text.rich.base();
     // The runs concatenate with nothing between them: a rich text's spacing
     // is the author's own, exactly as it is in the strings they wrote.
-    // The names the runs were written with resolve against the sheet in
-    // force here, so a value built anywhere is set in the classes of the
-    // tree it is placed in; a value carrying its own sheet keeps that.
+    // The names the runs were written with resolve against the rules of
+    // the sheets in force here, each run a virtual child of this leaf
+    // whose class is its name, so a value built anywhere is set in the
+    // classes of the tree it is placed in; a value carrying its own sheet
+    // keeps that.
     sigil::weave::RichText resolved;
-    const bool bySheet = !text.rich.hasStyles() &&
-                         (inst.sheet != nullptr || !inst.runStyles.empty());
+    const bool bySheet = !text.rich.hasStyles() && !inst.runStyles.empty();
     if (bySheet) {
       resolved = text.rich;
-      sigil::weave::TypeSheet types =
-          inst.sheet ? inst.sheet->types() : sigil::weave::TypeSheet{};
-      for (const auto& [name, partial] : inst.runStyles.entries()) {
-        sigil::weave::Type both;
-        if (const sigil::weave::Type* named = types.find(name)) both = *named;
-        sigil::weave::merge(both, partial);
-        types.set(name, std::move(both));
-      }
-      resolved.styles(std::move(types));
+      resolved.styles(inst.runStyles);
     }
     const sigil::weave::RichText& rich = bySheet ? resolved : text.rich;
     for (const sigil::weave::RichText::Run& run : rich.runs()) {
@@ -118,7 +111,6 @@ void Composer::Impl::materializeText(
   if (inst.block.lineBreakLocale)
     inst.paragraph->setLineBreakLocale(*inst.block.lineBreakLocale);
   inst.textBlock = inst.block;
-  inst.textSheet = inst.sheet;
   if (text.onPath &&
       inst.paragraph->writingMode() != sigil::weave::WritingMode::kHorizontal) {
     warnWritingModeOnPath();
@@ -289,22 +281,20 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
       sigil::weave::toParagraphStyle(inst.block);
   options.blockDefault = lane;
   if (text.options.set & TextOptions::kBlockClasses) {
-    // The names resolve against the block sheet in force here; a name
-    // nobody registered changes nothing about its block, and says so.
+    // The names resolve against the rules of the sheets in force here; a
+    // name no rule speaks about changes nothing about its block, and says
+    // so.
     options.blocks.clear();
     for (const std::string& name : text.options.blockClassNames) {
-      const sigil::weave::Rule* found =
-          inst.sheet ? inst.sheet->find(name) : nullptr;
       const auto matched = std::find_if(
           inst.blockStyles.begin(), inst.blockStyles.end(),
           [&](const auto& entry) { return entry.first == name; });
-      const bool byRule = matched != inst.blockStyles.end();
-      if (!found && !byRule)
-        warnNoSuchParagraphStyle(
-            name, inst.sheet != nullptr || !inst.blockStyles.empty());
-      sigil::weave::Block partial = found ? found->block() : sigil::weave::Block{};
-      if (byRule) sigil::weave::merge(partial, matched->second);
-      options.blocks.push_back(sigil::weave::overlay(lane, partial));
+      if (matched == inst.blockStyles.end()) {
+        warnNoSuchParagraphStyle(name, inst.sheetsInForce);
+        options.blocks.push_back(lane);
+      } else {
+        options.blocks.push_back(sigil::weave::overlay(lane, matched->second));
+      }
     }
   }
   if ((text.options.set & TextOptions::kInitialLetter) &&

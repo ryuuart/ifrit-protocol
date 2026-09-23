@@ -76,14 +76,20 @@ constexpr material::Color kThird{0.86f, 0.46f, 0.36f, 1};
 /** THE SHEET THESE PLOTS ARE DRESSED BY: the grid in its own grey, the
  *  zero line a step quieter than a curve, and a name for each series a
  *  multi-curve cell puts beside the first. */
-weave::StyleSheet plotSheet(const sketch::kit::Theme& look) {
-  weave::StyleSheet dressed = look.styleSheet();
-  dressed.set("plotAxis",
-              {.color = material::skia::toSkColor(look.palette.rule)});
-  dressed.set("plotRule", {.color = material::skia::toSkColor(kGrid)});
-  dressed.set("ramp", {.color = material::skia::toSkColor(look.palette.ash)});
-  dressed.set("second", {.color = material::skia::toSkColor(kSecond)});
-  dressed.set("third", {.color = material::skia::toSkColor(kThird)});
+sigil::compose::StyleSheet plotSheet(const sketch::kit::Theme& look) {
+  sigil::compose::StyleSheet dressed =
+      look.styleSheet() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule(".plotAxis")
+              .font({.color = material::skia::toSkColor(look.palette.rule)}),
+          sigil::compose::rule(".plotRule")
+              .font({.color = material::skia::toSkColor(kGrid)}),
+          sigil::compose::rule(".ramp").font(
+              {.color = material::skia::toSkColor(look.palette.ash)}),
+          sigil::compose::rule(".second").font(
+              {.color = material::skia::toSkColor(kSecond)}),
+          sigil::compose::rule(".third").font(
+              {.color = material::skia::toSkColor(kThird)})};
   return dressed;
 }
 
@@ -221,7 +227,7 @@ struct DecayStep {
                                     "overshoot · blue 1.2: no crossing"}},
                       .measure = 1020,
                       .gap = 24})}))
-            .styleSheet(plotSheet(look)));
+            .applyStyleSheet(plotSheet(look)));
   }
 };
 

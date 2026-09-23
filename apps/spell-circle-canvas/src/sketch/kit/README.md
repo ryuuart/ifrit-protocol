@@ -52,9 +52,9 @@ distances a sheet is set by, and where a cell's caption lines stand.
 It arrives at a component through **`sigil::core::environment`**, the
 reconciler's inherited value, bound by `sketch::kit::Provide` for the
 spacing, the palette and the faces a component reads; its registers
-reach the tree as a sheet, `Theme::styleSheet()`, which `page()` states
-on its root and a sketch without a page states on its own with
-`styleSheet()`:
+reach the tree as a sheet of rules, `Theme::styleSheet()`, which `page()`
+applies on its root and a sketch without a page applies on its own with
+`applyStyleSheet()`:
 
 ```cpp
 sketch::kit::Theme sheetTheme() {
@@ -65,7 +65,7 @@ sketch::kit::Theme sheetTheme() {
 }
 
 const sketch::kit::Provide look(sheetTheme());   // the theme, for this scope
-ctx.composer.render(sketch::kit::page({…}, content));  // its root states the sheet
+ctx.composer.render(sketch::kit::page({…}, content));  // its root applies the sheet
 ```
 
 Spacing and surface choices are read while a component is described.
@@ -88,7 +88,8 @@ semantic role. The role has useful fallback typography; a matching rule
 in the sheet where it lands styles every instance of that role.
 
 `Theme::font(line)` gives a register as a partial `weave::Type`.
-`Theme::styleSheet()` maps the theme's registers onto document roles:
+`Theme::styleSheet()` maps the theme's registers onto document roles, the
+label and the caption as classes too:
 
 | Register | Document role | Colour |
 | --- | --- | --- |
@@ -103,33 +104,34 @@ in the sheet where it lands styles every instance of that role.
 ```cpp
 #include <sigilcompose/kit/Document.h>
 
-weave::StyleSheet look = sketch::kit::theme().styleSheet();
-look.set(weave::rule("h1").font({.size = 30}));
-look.set(weave::rule("caption").font({.size = 12}));
+const compose::StyleSheet look =
+    sketch::kit::theme().styleSheet() +
+    compose::StyleSheet{compose::rule("h1").font({.size = 30}),
+                        compose::rule("caption").font({.size = 12})};
 
 sketch::kit::page({.title = "THE STROKE ATLAS"},
                  compose::document::section({
                      compose::document::h2("A measured edge"),
                      compose::document::paragraph("The shared content."),
                  }))
-    .styleSheet(look);
+    .applyStyleSheet(look);
 ```
 
-A role rule overrides the component's fallback fields. An authored
-`styleClass()` overrides the role, and direct `font()` or `block()`
-overrides both. Nearer sheets override the fields they name; other
-fields remain in force. A component's stock role is separate from its
-classes, so adding a class never removes its semantic identity.
+A role rule overrides the component's fallback fields. A rule for an
+authored `styleClass()` outweighs a rule for the role, and direct
+`font()` or `block()` overrides both. A later or nearer sheet's rule of
+the same weight overrides the fields it names; other fields remain in
+force. A component's stock role is separate from its classes, so adding a
+class never removes its semantic identity.
 
-The `readout` rule remains the treatment for measured values: the
-caption-label register in `Palette::figure`. Eight `plot` classes dress
+The `.readout` rule remains the treatment for measured values: the
+caption-label register in `Palette::figure`. Eight `.plot` classes dress
 chart marks and labels. These data treatments are separate from the
 heading and prose hierarchy.
 
-A sketch starts from `Theme::styleSheet()`, changes role rules or adds
-its own classes with `weave::StyleSheet::set`, and states the result on
-its root. A panel can state a nearer sheet when its content has a
-separate treatment. Layout remains ordinary Compose layout;
+A sketch starts from `Theme::styleSheet()`, joins rules of its own to it
+with `+`, and applies the result on its root. A panel can apply a nearer
+sheet when its content has a separate treatment. Layout remains ordinary Compose layout;
 `compose::document::article` and other document groups additionally
 read inherited document variables for measure and spacing.
 
@@ -258,11 +260,11 @@ written. Shared presentation components instead use document roles with
 theme registers as fallback partials. Authored role rules can therefore
 change their typography, while an explicit ink or shader supplied by a
 caller changes paint without freezing the font.
-`page()` states `Theme::styleSheet()` on its root, so those lines and
+`page()` applies `Theme::styleSheet()` on its root, so those lines and
 every cell under the page are in the theme's voice whether or not the
-sketch around it bound a theme, and a sheet the sketch states nearer to
-a leaf stands over the root's by name; a sketch that renders no page
-states the sheet on its own root. A cell whose call must stand otherwise
+sketch around it bound a theme, and a rule of a sheet the sketch applies
+nearer to a leaf stands over the root's of the same weight; a sketch that
+renders no page applies the sheet on its own root. A cell whose call must stand otherwise
 hands `Caption::label` its own leaf, and the cells under it keep the
 register. A register always states its face: one set in the theme's sans,
 which the house theme leaves as the font context's default family, says
@@ -575,10 +577,10 @@ origin of its own is overruled on a polar frame.
 
 #### The classes a chart draws
 
-Every part names a class and reads its look from the `weave::StyleSheet` in
-force where it lands. `Theme::styleSheet()` registers all eight, so a plot
+Every part names a class and reads its look from the rules of the sheets
+in force where it lands. `Theme::styleSheet()` states all eight, so a plot
 under a `page()` is dressed without the sketch saying anything, and a sketch
-that wants otherwise states a sheet of its own on the plot or on its root —
+that wants otherwise applies a sheet of its own on the plot or on its root —
 never a prop, because a colour is not content.
 
 | | | |
@@ -601,15 +603,17 @@ a sampling count and a distance: geometry, never look.
 
 **A PLOT OF SEVERAL SERIES NAMES A CLASS PER LAYER.** `styleClass` on a
 layer's props is the class it reads instead of the one its part is named
-for — the same kind of part under a different entry on the sheet, which is
-what a class attribute is for — so a sketch with three curves registers
-three names on the sheet it states and writes one of them at each `trace`.
+for — the same kind of part under a different rule of the sheet, which is
+what a class attribute is for — so a sketch with three curves states three
+rules on the sheet it applies and writes one of the classes at each
+`trace`.
 The axis is the exception and carries no override: there is one axis per
 scale, and its line and its ticks are two classes already.
 
 ```cpp
-weave::StyleSheet look = sketch::kit::houseTheme().styleSheet();
-look.set("second", {.color = kCool});
+const compose::StyleSheet look =
+    sketch::kit::houseTheme().styleSheet() +
+    compose::StyleSheet{compose::rule(".second").font({.color = kCool})};
 …
 sketch::kit::plot("decay", frame,
                   {sketch::kit::trace(fast),

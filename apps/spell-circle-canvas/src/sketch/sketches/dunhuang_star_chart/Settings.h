@@ -16,6 +16,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcore/compute/Noise.h>
@@ -36,7 +37,6 @@
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 

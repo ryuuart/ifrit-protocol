@@ -50,7 +50,7 @@ auto Minard1869::card(const data::Json& spec, float t0, Element body)
              std::move(body))
       .rect(SkRect::MakeXYWH(kAuditX, (float)spec["y"].number(), kAuditW,
                              (float)spec["h"].number()))
-      .styleSheet(cardSheet)
+      .applyStyleSheet(cardSheet)
       .font({.face = faceUi})
       .ink(kGrey)
       .key(key)

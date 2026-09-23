@@ -40,7 +40,7 @@ doc.paragraph(42)  # error: reportCallIssue,reportArgumentType
 doc.heading(level="second", words="Title")  # error: reportArgumentType
 doc.figure(body="A figure")  # error: reportArgumentType
 doc.h1(wrods="Typo")  # error: reportCallIssue
-box().role(42)  # error: reportCallIssue,reportArgumentType
+box().role(42)  # error: reportArgumentType
 box().varDefaults({doc.measure: object()})  # error: reportArgumentType
 sketch(size=(200, "wide"))  # error: reportArgumentType
 

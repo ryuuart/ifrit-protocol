@@ -5,8 +5,8 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/core/Composer.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -21,6 +21,16 @@
 #include "Drawn.h"
 
 namespace {
+
+/** The rule of @p sheet whose selector reads as @p cssText, or null. */
+const sigil::compose::Rule* ruleFor(const sigil::compose::StyleSheet& sheet,
+                                    std::string_view cssText) {
+  const sigil::compose::ElementSelector wanted =
+      sigil::compose::selector(cssText);
+  for (const sigil::compose::Rule& rule : sheet.rules())
+    if (rule.selector() == wanted) return &rule;
+  return nullptr;
+}
 
 namespace compose = sigil::compose;
 namespace data = sigil::data;
@@ -328,11 +338,13 @@ TEST(SketchKitChart, ASegmentStandsInTheBoundsOfItsOwnTwoEnds) {
 
 TEST(SketchKitChart, ACurveDrawsItselfOnAlongItsOwnLength) {
   const auto tree = [](std::optional<compose::Spans> gate) {
-    weave::StyleSheet dressed = kit::houseTheme().styleSheet();
-    dressed.set("plotTrace",
-                weave::Type{.color = sigil::material::skia::toSkColor(
-                                sigil::material::Color{0, 1, 0, 1})});
-    return compose::box().styleSheet(dressed).children(
+    compose::StyleSheet dressed =
+        kit::houseTheme().styleSheet() +
+        compose::StyleSheet{
+            compose::rule(".plotTrace")
+                .font(weave::Type{.color = sigil::material::skia::toSkColor(
+                                      sigil::material::Color{0, 1, 0, 1})})};
+    return compose::box().applyStyleSheet(dressed).children(
         {kit::plot("g", plane(),
                    {kit::trace([](double x) { return x * 10.0; },
                                {.pen = {.width = 3}, .along = gate})})
@@ -354,10 +366,13 @@ TEST(SketchKitChart, ACurveDrawsItselfOnAlongItsOwnLength) {
 }
 
 TEST(SketchKitChart, ARecordingIsPaintedInTheInkItsClassResolvesTo) {
-  weave::StyleSheet dressed = kit::houseTheme().styleSheet();
-  dressed.set("plotRule", weave::Type{.color = sigil::material::skia::toSkColor(
-                                          sigil::material::Color{0, 1, 0, 1})});
-  Drawn drawn(compose::box().styleSheet(dressed).children(
+  compose::StyleSheet dressed =
+      kit::houseTheme().styleSheet() +
+      compose::StyleSheet{
+          compose::rule(".plotRule")
+              .font(weave::Type{.color = sigil::material::skia::toSkColor(
+                                    sigil::material::Color{0, 1, 0, 1})})};
+  Drawn drawn(compose::box().applyStyleSheet(dressed).children(
       {kit::plot("r", plane(), {kit::rules({.y = {50}, .pen = {.width = 3}})})
            .width(kField)
            .height(kFieldTall)}));
@@ -373,7 +388,7 @@ TEST(SketchKitChart, AnAxisRunsTheWholeFieldWhateverItsDomainIs) {
                         .y = {.domain = {0, 1}},
                         .pad = 6};
   Drawn drawn(compose::box()
-                  .styleSheet(kit::houseTheme().styleSheet())
+                  .applyStyleSheet(kit::houseTheme().styleSheet())
                   .children({kit::plot("a", frame,
                                        {kit::axis({.of = kit::Axis::X,
                                                    .width = 3,
@@ -427,25 +442,24 @@ TEST(SketchKitChart, TheDocumentedClassTableIsTheThemeSheet) {
                                        "plotLabel", "plotMark", "plotRule",
                                        "plotTick",  "plotTrace"};
   EXPECT_EQ(documented, drawn);
-  const weave::StyleSheet dressed = kit::houseTheme().styleSheet();
+  const compose::StyleSheet dressed = kit::houseTheme().styleSheet();
   for (const std::string& name : documented)
-    EXPECT_TRUE(dressed.contains(name)) << name;
+    EXPECT_NE(ruleFor(dressed, "." + name), nullptr) << name;
 }
 
 TEST(SketchKitChart, EveryChartClassCarriesAColour) {
   const kit::Theme& look = kit::houseTheme();
-  const weave::StyleSheet dressed = look.styleSheet();
-  for (const weave::Rule& rule : dressed.rules())
-    if (rule.name() == "plotTrace" || rule.name() == "plotMark" ||
-        rule.name() == "plotBar") {
-      ASSERT_TRUE(rule.type().color.has_value()) << rule.name();
-      EXPECT_EQ(*rule.type().color, look.palette.figure) << rule.name();
-    }
-  for (const weave::Rule& rule : dressed.rules())
-    if (rule.name() == "plotRule") {
-      ASSERT_TRUE(rule.type().color.has_value());
-      EXPECT_EQ(*rule.type().color, look.palette.rule);
-    }
+  const compose::StyleSheet dressed = look.styleSheet();
+  for (const char* name : {".plotTrace", ".plotMark", ".plotBar"}) {
+    const compose::Rule* rule = ruleFor(dressed, name);
+    ASSERT_NE(rule, nullptr) << name;
+    ASSERT_TRUE(rule->type().color.has_value()) << name;
+    EXPECT_EQ(*rule->type().color, look.palette.figure) << name;
+  }
+  const compose::Rule* rule = ruleFor(dressed, ".plotRule");
+  ASSERT_NE(rule, nullptr);
+  ASSERT_TRUE(rule->type().color.has_value());
+  EXPECT_EQ(*rule->type().color, look.palette.rule);
 }
 
 }  // namespace

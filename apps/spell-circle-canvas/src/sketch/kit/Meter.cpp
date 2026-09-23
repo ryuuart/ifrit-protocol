@@ -62,15 +62,13 @@ compose::Element meter(const Meter& bar) {
   if (bar.width.unit != Dimension::Unit::Auto) column.width(bar.width);
   Element head = box().row().alignItems(Align::Baseline);
   if (!bar.label.empty())
-    head.children(
-        {document::caption(bar.label).role(weave::rule("caption").font(
-            look.font(look.type.captionNote, look.palette.ash)))});
+    head.children({document::caption(bar.label).role(
+        "caption", look.font(look.type.captionNote, look.palette.ash))});
   head.children({box().flexGrow(1)});
   if (!bar.reading.empty())
     head.children({document::paragraph(bar.reading)
-                       .role(weave::rule("paragraph")
-                                 .font(look.font(look.type.captionLabel,
-                                                 look.palette.figure)))
+                       .role("paragraph", look.font(look.type.captionLabel,
+                                                    look.palette.figure))
                        .styleClass("readout")});
   column.children({std::move(head)});
   column.children({std::move(rail.margin(look.spacing.captionNoteGap, 0, 0, 0))});
@@ -106,9 +104,8 @@ compose::Element gauge(const Gauge& dial) {
              .alignItems(Align::Center)
              .justifyContent(compose::Justify::Center)
              .children({document::paragraph(dial.reading)
-                            .role(weave::rule("paragraph")
-                                      .font(look.font(look.type.captionLabel,
-                                                      look.palette.figure)))
+                            .role("paragraph", look.font(look.type.captionLabel,
+                                                         look.palette.figure))
                             .styleClass("readout")})});
   return face;
 }

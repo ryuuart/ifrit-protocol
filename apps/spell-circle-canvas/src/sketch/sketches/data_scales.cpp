@@ -1,13 +1,13 @@
 /** One Scale prop maps a value, draws its axis and sizes its marks. */
 // TAGS: Data/Scales
 
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildata/scale/Scale.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -34,18 +34,25 @@ struct Mapping {
  *  tick numbers as figures rather than remarks — untracked, in the font
  *  context's own family — and the mapping itself in one accent, whether it
  *  is drawn as a curve, as a band or as a point. */
-sigil::weave::StyleSheet scaleSheet() {
-  sigil::weave::StyleSheet dressed = sketch::kit::houseTheme().styleSheet();
-  dressed.set("plotRule", {.color = material::skia::toSkColor(
-                               material::Color{0.20f, 0.25f, 0.29f, 1})});
-  dressed.set("plotTick", {.face = sigil::weave::defaultFace(),
-                           .size = 11,
-                           .color = material::skia::toSkColor(
-                               material::Color{0.64f, 0.70f, 0.76f, 1}),
-                           .track = 0});
-  dressed.set("plotTrace", {.color = material::skia::toSkColor(kInk)});
-  dressed.set("plotBar", {.color = material::skia::toSkColor(kInk)});
-  dressed.set("plotMark", {.color = material::skia::toSkColor(kInk)});
+sigil::compose::StyleSheet scaleSheet() {
+  sigil::compose::StyleSheet dressed =
+      sketch::kit::houseTheme().styleSheet() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule(".plotRule")
+              .font({.color = material::skia::toSkColor(
+                         material::Color{0.20f, 0.25f, 0.29f, 1})}),
+          sigil::compose::rule(".plotTick")
+              .font({.face = sigil::weave::defaultFace(),
+                     .size = 11,
+                     .color = material::skia::toSkColor(
+                         material::Color{0.64f, 0.70f, 0.76f, 1}),
+                     .track = 0}),
+          sigil::compose::rule(".plotTrace")
+              .font({.color = material::skia::toSkColor(kInk)}),
+          sigil::compose::rule(".plotBar")
+              .font({.color = material::skia::toSkColor(kInk)}),
+          sigil::compose::rule(".plotMark")
+              .font({.color = material::skia::toSkColor(kInk)})};
   return dressed;
 }
 
@@ -163,7 +170,7 @@ struct DataScales {
                        u8"upward. Category labels are indices."},
             kit::panelGrid(
                 {.cells = each(examples, mapping), .columns = 3, .gap = 16}))
-            .styleSheet(scaleSheet()));
+            .applyStyleSheet(scaleSheet()));
   }
 };
 }  // namespace

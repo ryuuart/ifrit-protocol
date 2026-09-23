@@ -161,7 +161,7 @@ struct HorizontalFlow {
         box()
             .font({.face = sheet.type.mono, .size = 15})
             .ink(sheet.palette.ink)
-            .styleSheet(sheet.styleSheet())
+            .applyStyleSheet(sheet.styleSheet())
             .children(
                 {document::h1(u8"HORIZONTAL TEXT FLOW").at({42, 34}),
                  document::lead(

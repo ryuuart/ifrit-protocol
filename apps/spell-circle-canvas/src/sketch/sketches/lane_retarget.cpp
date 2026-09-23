@@ -88,13 +88,17 @@ using Trace = std::vector<float>;
  *  already states: the moment the second description arrives, the flight
  *  that was left alone under the comparison, and the one whose family
  *  changed shape. */
-weave::StyleSheet look() {
-  weave::StyleSheet dressed = sketch::kit::theme().styleSheet();
-  dressed.set("arrive", {.color = material::skia::toSkColor(kGrid)});
-  dressed.set(
-      "quiet",
-      {.color = material::skia::toSkColor(sketch::kit::theme().palette.ash)});
-  dressed.set("reshaped", {.color = material::skia::toSkColor(kSecondInk)});
+sigil::compose::StyleSheet look() {
+  sigil::compose::StyleSheet dressed =
+      sketch::kit::theme().styleSheet() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule(".arrive").font(
+              {.color = material::skia::toSkColor(kGrid)}),
+          sigil::compose::rule(".quiet").font(
+              {.color = material::skia::toSkColor(
+                   sketch::kit::theme().palette.ash)}),
+          sigil::compose::rule(".reshaped")
+              .font({.color = material::skia::toSkColor(kSecondInk)})};
   return dressed;
 }
 
@@ -186,7 +190,7 @@ struct LaneRetarget {
                        .value = kit::formatted("%.6f", disagreement),
                        .note = "fixed slots / equal family"}},
                      {.nameMeasure = 190})})
-            .styleSheet(look())));
+            .applyStyleSheet(look())));
   }
 
   enum class Change { None, Slots, Family, Reshaped };

@@ -36,6 +36,7 @@
 // TAGS: Typography/Lettering
 
 #include <sigilcompose/brush/Brush.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Gel.h>
@@ -44,7 +45,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 

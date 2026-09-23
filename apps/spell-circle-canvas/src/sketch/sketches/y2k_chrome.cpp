@@ -32,6 +32,7 @@
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gel.h>
@@ -46,7 +47,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Ticker.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/PaintLayer.h>
 #include <sigilweave/style/Type.h>
 
@@ -115,20 +115,23 @@ inline weave::Type gelGround(material::Color tint) {
  *  the white label riding a gel surface, over the ground each pill derives
  *  from its own tint; `caption` the small line under the A/B specimens;
  *  `note` the footer's fine print. */
-inline weave::StyleSheet classes() {
-  return weave::StyleSheet()
-      .set("gelLabel",
-           {.size = 16,
-            .color = material::skia::toSkColor(material::Color{1, 1, 1, 0.98f}),
-            .track = 1.0f,
-            .weight = 650})
-      .set("caption", {.size = 10,
-                       .color = material::skia::toSkColor(hexColor(0xAFC0DE)),
-                       .track = 0.8f,
-                       .weight = 600})
-      .set("note", {.size = 10,
-                    .color = material::skia::toSkColor(hexColor(0x8DA0C4)),
-                    .track = 0.4f});
+inline sigil::compose::StyleSheet classes() {
+  return sigil::compose::StyleSheet{
+      sigil::compose::rule(".gelLabel")
+          .font({.size = 16,
+                 .color =
+                     material::skia::toSkColor(material::Color{1, 1, 1, 0.98f}),
+                 .track = 1.0f,
+                 .weight = 650}),
+      sigil::compose::rule("caption, .caption")
+          .font({.size = 10,
+                 .color = material::skia::toSkColor(hexColor(0xAFC0DE)),
+                 .track = 0.8f,
+                 .weight = 600}),
+      sigil::compose::rule(".note").font(
+          {.size = 10,
+           .color = material::skia::toSkColor(hexColor(0x8DA0C4)),
+           .track = 0.4f})};
 }
 
 // ---------------------------------------------------------------------------
@@ -569,7 +572,7 @@ struct Y2kChrome {
     // The card's sheet stands on the root, so every class written under it
     // — the pill helpers included — resolves here.
     return stack()
-        .styleSheet(yc::classes())
+        .applyStyleSheet(yc::classes())
         .fill(Paint::linear(
             {0, 0}, {0, yc::kH},
             {{0.0f, hexColor(0xB9BFC7)}, {1.0f, hexColor(0xA2A8B1)}}))
@@ -584,65 +587,59 @@ struct Y2kChrome {
                  .stroke(stroke(1, Fill::color(hexColor(0x70777E))))
                  .children(
                      {titleBar,
-                      box()
-                          .column()
-                          .flexGrow(1)
-                          .padding(12, 28)
-                          .children(
-                              {box().flexGrow(0.55f),
-                               box()
-                                   .row()
-                                   .justifyContent(Justify::Center)
-                                   .children({wordmark}),
-                               tagline, pills, abCard, box().flexGrow(1),
-                               // 3D groove rule - the <hr> of the period
-                               box()
-                                   .height(2)
-                                   .margin(0, 4, 10, 4)
-                                   .opacity(animate(motion::from(0.0f).to(1.0f),
-                                                    {500ms}))
-                                   .fill(Paint::linear(
-                                       {0, 0}, {0, 2},
-                                       {{0.0f, hexColor(0x8F969D)},
-                                        {0.5f, hexColor(0x8F969D)},
-                                        {0.501f, hexColor(0xFFFFFF)},
-                                        {1.0f, hexColor(0xFFFFFF)}})),
-                               // footer: preset orb, caption, 1998 plastic
-                               // button
-                               box()
-                                   .row()
-                                   .alignItems(Align::End)
-                                   .key("footer")
-                                   .opacity(animate(motion::from(0.0f).to(1.0f),
-                                                    {500ms}))
-                                   .children(
-                                       {yc::gelOrb(),
-                                        box()
-                                            .column()
-                                            .margin(0, 0, 4, 14)
-                                            .gap(3)
-                                            .children(
-                                                {text(
-                                                     "now streaming @ 56k",
-                                                     yc::type(
-                                                         12, hexColor(0xC8D6EE),
-                                                         0.6f, 600)),
-                                                 text("© 2000 sigilnet "
-                                                      "industries — "
-                                                      "best viewed at 800×600")
-                                                     .styleClass("note")}),
-                                        box().flexGrow(1),
-                                        box()
-                                            .column()
-                                            .alignItems(Align::End)
-                                            .gap(5)
-                                            .margin(0, 0, 2, 0)
-                                            .children(
-                                                {yc::plasticButton(
-                                                     "ENTER SITE >>"),
-                                                 text("[ no frames · "
-                                                      "spacer.gif free ]")
-                                                     .styleClass("note")})})}),
+                      box().column().flexGrow(1).padding(12, 28).children(
+                          {box().flexGrow(0.55f),
+                           box()
+                               .row()
+                               .justifyContent(Justify::Center)
+                               .children({wordmark}),
+                           tagline, pills, abCard, box().flexGrow(1),
+                           // 3D groove rule - the <hr> of the period
+                           box()
+                               .height(2)
+                               .margin(0, 4, 10, 4)
+                               .opacity(animate(motion::from(0.0f).to(1.0f),
+                                                {500ms}))
+                               .fill(
+                                   Paint::linear({0, 0}, {0, 2},
+                                                 {{0.0f, hexColor(0x8F969D)},
+                                                  {0.5f, hexColor(0x8F969D)},
+                                                  {0.501f, hexColor(0xFFFFFF)},
+                                                  {1.0f, hexColor(0xFFFFFF)}})),
+                           // footer: preset orb, caption, 1998 plastic
+                           // button
+                           box()
+                               .row()
+                               .alignItems(Align::End)
+                               .key("footer")
+                               .opacity(animate(motion::from(0.0f).to(1.0f),
+                                                {500ms}))
+                               .children(
+                                   {yc::gelOrb(),
+                                    box()
+                                        .column()
+                                        .margin(0, 0, 4, 14)
+                                        .gap(3)
+                                        .children(
+                                            {text("now streaming @ 56k",
+                                                  yc::type(12,
+                                                           hexColor(0xC8D6EE),
+                                                           0.6f, 600)),
+                                             text("© 2000 sigilnet "
+                                                  "industries — "
+                                                  "best viewed at 800×600")
+                                                 .styleClass("note")}),
+                                    box().flexGrow(1),
+                                    box()
+                                        .column()
+                                        .alignItems(Align::End)
+                                        .gap(5)
+                                        .margin(0, 0, 2, 0)
+                                        .children(
+                                            {yc::plasticButton("ENTER SITE >>"),
+                                             text("[ no frames · "
+                                                  "spacer.gif free ]")
+                                                 .styleClass("note")})})}),
                       statusBar})});
   }
 };

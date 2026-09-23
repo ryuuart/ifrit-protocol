@@ -67,11 +67,12 @@ is set in THE BLOCK IN FORCE where the leaf stands — the `weave::Block`
 partials its ancestors declared through `Element::block`, folded down the tree
 — so ONE entry styles the first block and leaves the rest to the passage.
 `Text::paragraphStyles` with whole styles sets every block alike and
-inherits nothing, and `Text::paragraphStyles` also takes NAMES, resolved
-through the block half of the `sigil::weave::StyleSheet` in force where the
-leaf lands into partials that are laid over the block in force when the leaf
-lays out — the same discipline `weave::rich().add(text, name)` follows for
-character styles. A name no sheet in force carries WARNS ONCE and changes
+inherits nothing, and `Text::paragraphStyles` also takes NAMES, each
+matched as a virtual child of the leaf whose class is the name against the
+rules of the sheets in force where the leaf lands; the block partials they
+state are laid over the block in force when the leaf lays out — the same
+discipline `weave::rich().add(text, name)` follows for character styles. A
+name no rule in force speaks about WARNS ONCE and changes
 nothing about its block, because a block quietly set in a default nobody asked
 for looks exactly like a style that did not take.
 

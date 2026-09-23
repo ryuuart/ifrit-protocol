@@ -6,11 +6,11 @@
 // TAGS: Typography/Documents, Typography/Styles, Runtime/Composition
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -69,7 +69,7 @@ Element article() {
       .var(document::listGap, Dimension(7));
 }
 
-weave::StyleSheet voice(bool editorial) {
+sigil::compose::StyleSheet voice(bool editorial) {
   const auto body =
       editorial ? weave::ports::face({"Iowan Old Style", "Georgia", "serif"})
                 : weave::ports::face({"Helvetica Neue", "Arial", "sans-serif"});
@@ -79,39 +79,46 @@ weave::StyleSheet voice(bool editorial) {
   const material::Color muted =
       editorial ? hexColor(0x776858) : hexColor(0x647984);
   const material::Color accent = editorial ? kWarm : kCool;
-  weave::StyleSheet sheet;
-  sheet.set(weave::rule("article")
-                .font({.face = body,
-                       .size = 17,
-                       .color = material::skia::toSkColor(ink),
-                       .track = 0})
-                .block({.leading = weave::Leading::multiple(1.4f)}));
-  sheet.set("h1", {.face = body,
-                   .size = editorial ? 32.0f : 30.0f,
-                   .color = material::skia::toSkColor(accent),
-                   .track = 0});
-  sheet.set("h2", {.face = body,
-                   .size = 22,
-                   .color = material::skia::toSkColor(ink),
-                   .track = 0});
-  sheet.set("lead", {.face = body,
-                     .size = 19,
-                     .color = material::skia::toSkColor(muted),
-                     .track = 0});
-  sheet.set("eyebrow", {.face = mono,
-                        .size = 10,
-                        .color = material::skia::toSkColor(accent),
-                        .track = 1.1f});
-  sheet.set("caption", {.face = body,
-                        .size = 13,
-                        .color = material::skia::toSkColor(muted),
-                        .track = 0});
-  sheet.set("footer", {.face = mono,
-                       .size = 10,
-                       .color = material::skia::toSkColor(muted),
-                       .track = 0});
-  sheet.set("quote", {.color = material::skia::toSkColor(accent)});
-  sheet.set("accent", {.color = material::skia::toSkColor(accent)});
+  sigil::compose::StyleSheet sheet{
+      sigil::compose::rule("article")
+          .font({.face = body,
+                 .size = 17,
+                 .color = material::skia::toSkColor(ink),
+                 .track = 0})
+          .block({.leading = weave::Leading::multiple(1.4f)}),
+      sigil::compose::rule("h1").font(
+          {.face = body,
+           .size = editorial ? 32.0f : 30.0f,
+           .color = material::skia::toSkColor(accent),
+           .track = 0}),
+      sigil::compose::rule("h2").font({.face = body,
+                                       .size = 22,
+                                       .color = material::skia::toSkColor(ink),
+                                       .track = 0}),
+      sigil::compose::rule("lead").font(
+          {.face = body,
+           .size = 19,
+           .color = material::skia::toSkColor(muted),
+           .track = 0}),
+      sigil::compose::rule("eyebrow").font(
+          {.face = mono,
+           .size = 10,
+           .color = material::skia::toSkColor(accent),
+           .track = 1.1f}),
+      sigil::compose::rule("caption, .caption")
+          .font({.face = body,
+                 .size = 13,
+                 .color = material::skia::toSkColor(muted),
+                 .track = 0}),
+      sigil::compose::rule("footer").font(
+          {.face = mono,
+           .size = 10,
+           .color = material::skia::toSkColor(muted),
+           .track = 0}),
+      sigil::compose::rule("quote, .quote")
+          .font({.color = material::skia::toSkColor(accent)}),
+      sigil::compose::rule(".accent").font(
+          {.color = material::skia::toSkColor(accent)})};
   return sheet;
 }
 
@@ -124,7 +131,7 @@ Element panel(bool editorial) {
               .padding = kInset,
               .clip = false},
              box().children({article()}))
-      .styleSheet(voice(editorial));
+      .applyStyleSheet(voice(editorial));
 }
 
 struct DocumentStyles {

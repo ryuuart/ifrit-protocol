@@ -31,7 +31,6 @@ def {field}(self, value: Length | float | int | None) -> None: ...
     table.parameters(
         "_sigil.weave.Type.variations", value="collections.abc.Sequence[FontVariation]"
     )
-    table.returns("_sigil.weave.StyleSheet", "types", "TypeSheet")
     for operator in ("__or__", "__and__"):
         table.declares(
             "_sigil.weave.Selector",

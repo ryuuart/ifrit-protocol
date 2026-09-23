@@ -56,7 +56,7 @@ TEST(SketchKitPanel, APanelStandsOnThePlateTheThemesDistancesMake) {
   const kit::Theme& house = kit::houseTheme();
   const auto under = [&](Element tree) {
     return compose::box()
-        .styleSheet(house.styleSheet())
+        .applyStyleSheet(house.styleSheet())
         .children({std::move(tree)});
   };
   Element byHand = compose::kit::well(

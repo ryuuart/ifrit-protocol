@@ -11,6 +11,7 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -33,7 +34,6 @@
 #include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Length.h>
@@ -310,32 +310,40 @@ inline const sketch::kit::Theme& sheet() {
 // sets more than once are classes over the sheet's registers, stated on
 // the root of the tree they are written into. The italic cut names its own
 // face because a sheet holds two.
-inline const weave::StyleSheet& classes() {
-  static const weave::StyleSheet look =
-      sheet()
-          .styleSheet()
-          .set("heading", {.face = mono(),
-                           .size = 8.5f,
-                           .color = material::skia::toSkColor(kInk),
-                           .track = 0.5f})
-          .set("note", {.size = 7.0f, .track = 0.2f})
-          .set("column", {.size = 6.5f, .track = 0.2f})
-          .set("readout", {.size = 8.0f, .track = 0.2f})
-          .set("finding", {.size = 8.0f,
-                           .color = material::skia::toSkColor(kRed),
-                           .track = 0.2f})
-          .set("quote", {.face = serifIt(), .size = 8.5f})
-          // What the a*b* plot's own parts are drawn in: the chart kit
+inline const sigil::compose::StyleSheet& classes() {
+  static const sigil::compose::StyleSheet look =
+      sheet().styleSheet() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule("heading, .heading")
+              .font({.face = mono(),
+                     .size = 8.5f,
+                     .color = material::skia::toSkColor(kInk),
+                     .track = 0.5f}),
+          sigil::compose::rule(".note").font({.size = 7.0f, .track = 0.2f}),
+          sigil::compose::rule(".column").font({.size = 6.5f, .track = 0.2f}),
+          sigil::compose::rule(".readout").font({.size = 8.0f, .track = 0.2f}),
+          sigil::compose::rule(".finding")
+              .font({.size = 8.0f,
+                     .color = material::skia::toSkColor(kRed),
+                     .track = 0.2f}),
+          sigil::compose::rule("quote, .quote")
+              .font({.face = serifIt(),
+                     .size = 8.5f}),  // What the a*b* plot's own parts are
+                                      // drawn in: the chart kit
           // names the part and the plate says the colour.
-          .set("plotRule",
-               {.color = material::skia::toSkColor(hexColor(0x8C8578, 0.35f))})
-          .set("plotAxis", {.color = material::skia::toSkColor(kInk)})
-          .set("plotLabel", {.size = 7.0f,
-                             .color = material::skia::toSkColor(kInk2),
-                             .track = 0.3f})
-          .set("chord",
-               {.color = material::skia::toSkColor(hexColor(0x8C8578, 0.85f))})
-          .set("centroid", {.color = material::skia::toSkColor(kRed)});
+          sigil::compose::rule(".plotRule")
+              .font({.color =
+                         material::skia::toSkColor(hexColor(0x8C8578, 0.35f))}),
+          sigil::compose::rule(".plotAxis")
+              .font({.color = material::skia::toSkColor(kInk)}),
+          sigil::compose::rule(".plotLabel")
+              .font({.size = 7.0f,
+                     .color = material::skia::toSkColor(kInk2),
+                     .track = 0.3f}),
+          sigil::compose::rule(".chord").font(
+              {.color = material::skia::toSkColor(hexColor(0x8C8578, 0.85f))}),
+          sigil::compose::rule(".centroid")
+              .font({.color = material::skia::toSkColor(kRed)})};
   return look;
 }
 

@@ -44,12 +44,11 @@ compose::kit::Rows arrangement(const Readout& how, const Theme& look) {
       .swatchCorners = how.swatchCorners};
   const Registers set = registers(look);
   rows.nameLine = [quiet = set.quiet](const Utf8& words) {
-    return compose::document::caption(words).role(
-        weave::rule("caption").font(quiet));
+    return compose::document::caption(words).role("caption", quiet);
   };
   rows.valueLine = [number = set.number](const Utf8& words) {
     return compose::document::paragraph(words)
-        .role(weave::rule("paragraph").font(number))
+        .role("paragraph", number)
         .styleClass("readout");
   };
   rows.noteLine = rows.nameLine;
@@ -114,7 +113,7 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
       .keys = keys};
   specification.headLine = [look](const Utf8& words) {
     return compose::document::h2(words).role(
-        weave::rule("h2").font(look.font(look.type.section, look.palette.ink)));
+        "h2", look.font(look.type.section, look.palette.ink));
   };
   // The cell names four parameters, so a row that states an ink is set in
   // that colour and keeps the register its column decides.
@@ -125,11 +124,11 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
         !shape.columns.empty() &&
         shape.columns[std::min(column, shape.columns.size() - 1)].figure;
     const Registers set = registers(look);
-    Element line = figure ? compose::document::paragraph(words)
-                                .role(weave::rule("paragraph").font(set.number))
-                                .styleClass("readout")
-                          : compose::document::caption(words).role(
-                                weave::rule("caption").font(set.quiet));
+    Element line =
+        figure ? compose::document::paragraph(words)
+                     .role("paragraph", set.number)
+                     .styleClass("readout")
+               : compose::document::caption(words).role("caption", set.quiet);
     if (row < inks.size() && inks[row]) line.ink(*inks[row]);
     return line;
   };
@@ -152,12 +151,11 @@ compose::Element bars(std::span<const compose::Utf8> labels,
       .inks = how.inks};
   const Registers set = registers(look);
   specification.labelLine = [quiet = set.quiet](const Utf8& words) {
-    return compose::document::caption(words).role(
-        weave::rule("caption").font(quiet));
+    return compose::document::caption(words).role("caption", quiet);
   };
   specification.figureLine = [number = set.number](double value) {
     return compose::document::paragraph(compose::kit::formatted("%.0f", value))
-        .role(weave::rule("paragraph").font(number))
+        .role("paragraph", number)
         .styleClass("readout");
   };
   return compose::kit::bars(labels, values, specification);

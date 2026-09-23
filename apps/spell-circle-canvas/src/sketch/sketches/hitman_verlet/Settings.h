@@ -213,27 +213,33 @@ inline float cue(double ms, float delayMs, float durationMs,
  *  what each is drawn in, so a series is named at the layer and coloured
  *  here. `exact` and `approx` are the two curves of A3, and `hit` is the
  *  one column of its five that the shipped code lands on. */
-inline weave::StyleSheet plotClasses() {
-  weave::StyleSheet look;
-  look.set("plotAxis",
-           {.color = material::skia::toSkColor(hexColor(0x2A2E38))});
-  look.set("plotRule",
-           {.color = material::skia::toSkColor(hexColor(0x2A2E38))});
-  look.set("plotTick", {.face = monoFace(),
-                        .size = 7.0f,
-                        .color = material::skia::toSkColor(kTick)});
-  look.set("plotLabel", {.face = monoFace(),
-                         .size = 7.0f,
-                         .color = material::skia::toSkColor(kSteel)});
-  look.set("plotBar",
-           {.color = material::skia::toSkColor(hexColor(0x6FA8DC, 0.42f))});
-  look.set("exact", {.face = monoFace(),
-                     .size = 7.0f,
-                     .color = material::skia::toSkColor(kSteel)});
-  look.set("approx", {.face = monoFace(),
-                      .size = 7.0f,
-                      .color = material::skia::toSkColor(kBlue)});
-  look.set("hit", {.color = material::skia::toSkColor(kBlue)});
+inline sigil::compose::StyleSheet plotClasses() {
+  sigil::compose::StyleSheet look{
+      sigil::compose::rule(".plotAxis")
+          .font({.color = material::skia::toSkColor(hexColor(0x2A2E38))}),
+      sigil::compose::rule(".plotRule")
+          .font({.color = material::skia::toSkColor(hexColor(0x2A2E38))}),
+      sigil::compose::rule(".plotTick")
+          .font({.face = monoFace(),
+                 .size = 7.0f,
+                 .color = material::skia::toSkColor(kTick)}),
+      sigil::compose::rule(".plotLabel")
+          .font({.face = monoFace(),
+                 .size = 7.0f,
+                 .color = material::skia::toSkColor(kSteel)}),
+      sigil::compose::rule(".plotBar")
+          .font(
+              {.color = material::skia::toSkColor(hexColor(0x6FA8DC, 0.42f))}),
+      sigil::compose::rule(".exact").font(
+          {.face = monoFace(),
+           .size = 7.0f,
+           .color = material::skia::toSkColor(kSteel)}),
+      sigil::compose::rule(".approx").font(
+          {.face = monoFace(),
+           .size = 7.0f,
+           .color = material::skia::toSkColor(kBlue)}),
+      sigil::compose::rule(".hit").font(
+          {.color = material::skia::toSkColor(kBlue)})};
   return look;
 }
 

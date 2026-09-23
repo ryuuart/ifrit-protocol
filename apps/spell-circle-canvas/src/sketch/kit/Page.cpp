@@ -1,9 +1,9 @@
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <utility>
 
@@ -66,7 +66,7 @@ compose::Element page(const Page& sheet, compose::Element content) {
       compose::kit::sheet(specification, std::move(content))
           .absolute()
           .inset(0)
-          .styleSheet(look.styleSheet())
+          .applyStyleSheet(look.styleSheet())
           .font(look.font(running))
           .ink(look.palette.ink);
   return surface;

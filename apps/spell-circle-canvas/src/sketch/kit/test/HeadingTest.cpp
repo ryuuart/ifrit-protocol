@@ -157,8 +157,10 @@ TEST(SketchKitHeading, TheSectionRuleFollowsItsLabel) {
 TEST(SketchKitHeading, DocumentRulesStyleAPreviouslyConstructedCard) {
   const Element card = kit::titleCard({.title = {"AAAA"}, .key = "card"});
   Drawn original(compose::box().children({card}));
-  Drawn styled(
-      compose::box().styleSheet({{"h1", {.size = 32}}}).children({card}));
+  Drawn styled(compose::box()
+                   .applyStyleSheet(compose::StyleSheet{
+                       compose::rule("h1").font({.size = 32})})
+                   .children({card}));
   const auto before = original.composer.bounds("card-title");
   const auto after = styled.composer.bounds("card-title");
   ASSERT_TRUE(before);
@@ -172,9 +174,11 @@ TEST(SketchKitHeading, AnAuthoredShaderKeepsDocumentTypography) {
                  .ink = Fill::shader(SkShaders::Color(SK_ColorGREEN))},
        .key = "card"});
   Drawn original(compose::box().children({card}));
-  Drawn styled(compose::box()
-                   .styleSheet({{"h1", {.size = 32, .color = SkColors::kRed}}})
-                   .children({card}));
+  Drawn styled(
+      compose::box()
+          .applyStyleSheet(compose::StyleSheet{
+              compose::rule("h1").font({.size = 32, .color = SkColors::kRed})})
+          .children({card}));
   const auto before = original.composer.bounds("card-title");
   const auto after = styled.composer.bounds("card-title");
   ASSERT_TRUE(before);
@@ -213,8 +217,10 @@ TEST(SketchKitHeading, DocumentRulesSetASectionHeadingAndItsCaption) {
            .margin(house.spacing.captionNoteGap, 0, 0, 0)});
   EXPECT_TRUE(sameDrawing(
       compose::box()
-          .styleSheet({{"h2", {.size = 24, .color = SkColors::kRed}},
-                       {"caption", {.size = 18, .color = SkColors::kGreen}}})
+          .applyStyleSheet(compose::StyleSheet{
+              compose::rule("h2").font({.size = 24, .color = SkColors::kRed}),
+              compose::rule("caption, .caption")
+                  .font({.size = 18, .color = SkColors::kGreen})})
           .children({header}),
       compose::box().children({std::move(byHand)})));
 }

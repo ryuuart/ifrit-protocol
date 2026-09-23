@@ -70,13 +70,13 @@ void GenesisFire::setup(sketch::SketchContext& ctx) {
 
   // Each panel is its own guest tree under the pen, so the registers
   // stand on each one's root.
-  headerEl = header().styleSheet(registers());
-  belowEl = stageBelow().styleSheet(registers());
-  aboveEl = stageAbove().styleSheet(registers());
-  genEl = generationPanel().styleSheet(registers());
-  rampEl = rampPanel().styleSheet(registers());
-  benchEl = renderModelPanel().styleSheet(registers());
-  prodEl = productionPanel().styleSheet(registers());
+  headerEl = header().applyStyleSheet(registers());
+  belowEl = stageBelow().applyStyleSheet(registers());
+  aboveEl = stageAbove().applyStyleSheet(registers());
+  genEl = generationPanel().applyStyleSheet(registers());
+  rampEl = rampPanel().applyStyleSheet(registers());
+  benchEl = renderModelPanel().applyStyleSheet(registers());
+  prodEl = productionPanel().applyStyleSheet(registers());
 
   deterministic = ctx.deterministic;
   ctx.composer.render(
@@ -158,7 +158,7 @@ void GenesisFire::draw(Pen& pen) {
   // loop, so it carries its registers the way the panels built in setup
   // carry theirs.
   pen.element(genEl, SkRect::MakeXYWH(kSideX, panelTop(0), kSideW, kPanelH[0]));
-  pen.element(censusPanel().styleSheet(registers()),
+  pen.element(censusPanel().applyStyleSheet(registers()),
               SkRect::MakeXYWH(kSideX, panelTop(1), kSideW, kPanelH[1]));
   pen.element(rampEl,
               SkRect::MakeXYWH(kSideX, panelTop(2), kSideW, kPanelH[2]));

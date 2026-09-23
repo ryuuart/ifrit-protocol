@@ -5,11 +5,11 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <utility>
 
@@ -105,10 +105,10 @@ TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
   // By hand the three lines are three classes of a sheet stated on the
   // page, which is exactly what the register names resolve to under the
   // theme.
-  const sigil::weave::StyleSheet classes{
-      {"h1", label(14, house.palette.ink, 2.4f)},
-      {"lead", label(11.5f, house.palette.ash, 0.8f)},
-      {"footer", label(11, house.palette.ash, 0.4f)}};
+  const compose::StyleSheet classes{
+      compose::rule("h1").font(label(14, house.palette.ink, 2.4f)),
+      compose::rule("lead").font(label(11.5f, house.palette.ash, 0.8f)),
+      compose::rule("footer").font(label(11, house.palette.ash, 0.4f))};
   Element byHand =
       compose::kit::sheet({.title = "THE RULE AND THE STRANDS",
                            .subtitle = "dials · the width and the inset",
@@ -119,7 +119,7 @@ TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
                            .ground = Fill::color(house.palette.ground),
                            .rule = Fill::color(house.palette.rule)},
                           subject())
-          .styleSheet(classes)
+          .applyStyleSheet(classes)
           .absolute()
           .inset(0);
   Element byKit = kit::page({.title = "THE RULE AND THE STRANDS",

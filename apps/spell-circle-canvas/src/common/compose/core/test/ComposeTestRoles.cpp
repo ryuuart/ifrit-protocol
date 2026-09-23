@@ -3,7 +3,7 @@
 // retained tree, including content built before its document exists.
 
 #include <sigilcompose/core/Cascade.h>
-#include <sigilweave/layout/StyleSheet.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilweave/style/Length.h>
 
 #include <array>
@@ -16,10 +16,6 @@ using namespace sigil::weave::literals;
 namespace {
 
 using sigil::weave::Leading;
-// Spelled apart: `Rule` and `StyleSheet` are names SigilCompose carries
-// too, over selectors rather than over class names.
-using WeaveRule = sigil::weave::Rule;
-using WeaveSheet = sigil::weave::StyleSheet;
 
 Element page(Element content) {
   return box()
@@ -36,9 +32,7 @@ SkRect contentRect(Host& host) {
 
 Element heading() {
   return text("AAAA\nAAAA")
-      .role(WeaveRule("heading")
-                .font({.size = 36})
-                .block({.leading = Leading::multiple(1.0f)}));
+      .role("heading", {.size = 36}, {.leading = Leading::multiple(1.0f)});
 }
 
 }  // namespace
@@ -55,12 +49,14 @@ TEST(ComposeRoles, AStandaloneRoleSuppliesTypeAndBlockDefaults) {
 }
 
 TEST(ComposeRoles, ClassesAndDirectDeclarationsBeatRolesInEitherSheetOrder) {
-  const WeaveRule selected = WeaveRule("heading")
-                            .font({.size = 24})
-                            .block({.leading = Leading::multiple(1.5f)});
-  const WeaveRule authored = WeaveRule("authored")
-                            .font({.size = 18})
-                            .block({.leading = Leading::multiple(2.0f)});
+  const sigil::compose::Rule selected =
+      sigil::compose::rule("heading")
+          .font({.size = 24})
+          .block({.leading = Leading::multiple(1.5f)});
+  const sigil::compose::Rule authored =
+      sigil::compose::rule(".authored")
+          .font({.size = 18})
+          .block({.leading = Leading::multiple(2.0f)});
   Host expectedRole, expectedClass, expectedDirect;
   expectedRole.composer.render(
       page(text("AAAA\nAAAA").font(selected.type()).block(selected.block())));
@@ -73,19 +69,20 @@ TEST(ComposeRoles, ClassesAndDirectDeclarationsBeatRolesInEitherSheetOrder) {
   const SkRect roleRect = contentRect(expectedRole);
   const SkRect classRect = contentRect(expectedClass);
   const SkRect directRect = contentRect(expectedDirect);
-  for (const WeaveSheet& sheet : std::array{WeaveSheet{selected, authored},
-                                            WeaveSheet{authored, selected}}) {
+  for (const sigil::compose::StyleSheet& sheet :
+       std::array{sigil::compose::StyleSheet{selected, authored},
+                  sigil::compose::StyleSheet{authored, selected}}) {
     Host role, classed, direct;
-    role.composer.render(page(heading()).styleSheet(sheet));
+    role.composer.render(page(heading()).applyStyleSheet(sheet));
     classed.composer.render(
-        page(heading().styleClass("authored")).styleSheet(sheet));
+        page(heading().styleClass("authored")).applyStyleSheet(sheet));
     direct.composer.render(
         page(text("AAAA\nAAAA")
                  .font({.size = 14})
                  .block({.leading = Leading::multiple(1.25f)})
                  .styleClass("authored")
-                 .role(WeaveRule("heading").font({.size = 36})))
-            .styleSheet(sheet));
+                 .role("heading", {.size = 36}))
+            .applyStyleSheet(sheet));
     EXPECT_EQ(contentRect(role), roleRect);
     EXPECT_EQ(contentRect(classed), classRect);
     EXPECT_EQ(contentRect(direct), directRect);
@@ -93,13 +90,15 @@ TEST(ComposeRoles, ClassesAndDirectDeclarationsBeatRolesInEitherSheetOrder) {
 }
 
 TEST(ComposeRoles, ANearerRoleRuleChangesOnlyItsDeclaredFields) {
-  const WeaveSheet outer{WeaveRule("heading")
-                             .font({.size = 24})
-                             .block({.leading = Leading::multiple(2.0f)})};
-  const WeaveSheet inner{{"heading", {.size = 18}}};
-  Element adopted = heading().styleSheet(inner);
+  const sigil::compose::StyleSheet outer{
+      sigil::compose::rule("heading")
+          .font({.size = 24})
+          .block({.leading = Leading::multiple(2.0f)})};
+  const sigil::compose::StyleSheet inner{
+      sigil::compose::rule("heading").font({.size = 18})};
+  Element adopted = heading().applyStyleSheet(inner);
   Host role, direct;
-  role.composer.render(page(std::move(adopted)).styleSheet(outer));
+  role.composer.render(page(std::move(adopted)).applyStyleSheet(outer));
   direct.composer.render(
       page(text("AAAA\nAAAA")
                .font({.size = 18})
@@ -110,9 +109,11 @@ TEST(ComposeRoles, ANearerRoleRuleChangesOnlyItsDeclaredFields) {
 TEST(ComposeRoles, ADocumentRuleChangeUpdatesAPrunedRoleDescendant) {
   const Element content = text("AAAA").role("heading");
   Host host;
-  host.composer.render(page(content).styleSheet({{"heading", {.size = 16}}}));
+  host.composer.render(page(content).applyStyleSheet(sigil::compose::StyleSheet{
+      sigil::compose::rule("heading").font({.size = 16})}));
   const SkRect small = contentRect(host);
-  host.composer.render(page(content).styleSheet({{"heading", {.size = 32}}}));
+  host.composer.render(page(content).applyStyleSheet(sigil::compose::StyleSheet{
+      sigil::compose::rule("heading").font({.size = 32})}));
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
   const SkRect big = contentRect(host);
   EXPECT_GT(big.width(), small.width() * 1.8f);
@@ -125,9 +126,11 @@ TEST(ComposeRoles, AReparentedRoleResolvesAgainstItsNewDocument) {
   const Element content = text("AA").role("heading").key("content");
   const auto documents = [&](bool moveRight) {
     Element left =
-        box().key("left").width(90).styleSheet({{"heading", {.size = 16}}});
+        box().key("left").width(90).applyStyleSheet(sigil::compose::StyleSheet{
+            sigil::compose::rule("heading").font({.size = 16})});
     Element right =
-        box().key("right").width(90).styleSheet({{"heading", {.size = 32}}});
+        box().key("right").width(90).applyStyleSheet(sigil::compose::StyleSheet{
+            sigil::compose::rule("heading").font({.size = 32})});
     (moveRight ? right : left).children({content});
     return box()
         .row()
@@ -144,18 +147,19 @@ TEST(ComposeRoles, AReparentedRoleResolvesAgainstItsNewDocument) {
 }
 
 TEST(ComposeRoles, RelativeSizesResolveOnceAfterRoleClassAndDirectOverrides) {
-  const WeaveSheet sheet{{"authored", {.size = 1.25_em}},
-                         {"heading", {.size = 1.5_em}}};
+  const sigil::compose::StyleSheet sheet{
+      sigil::compose::rule(".authored").font({.size = 1.25_em}),
+      sigil::compose::rule("heading").font({.size = 1.5_em})};
   for (int level = 0; level < 4; ++level) {
     Element content = box()
-                          .role(WeaveRule("heading").font({.size = 2_em}))
+                          .role("heading", {.size = 2_em})
                           .width(2_em)
                           .height(1_em)
                           .key("content");
     if (level >= 2) content.styleClass("authored");
     if (level >= 3) content.font({.size = 0.75_em});
     Element document = box().font({.size = 20}).children({content});
-    if (level >= 1) document.styleSheet(sheet);
+    if (level >= 1) document.applyStyleSheet(sheet);
     Host host;
     host.composer.render(document);
     const SkRect rect = contentRect(host);
@@ -171,7 +175,7 @@ TEST(ComposeRoles, FallbackVariablesYieldToInheritedAndDirectZeroValues) {
   defaults.set(var("accent"), SkColor4f{1, 0, 0, 1});
   const auto component = [&] {
     return box()
-        .role(WeaveRule("panel").font({.size = 1.5_em}))
+        .role("panel", {.size = 1.5_em})
         .varDefaults(defaults)
         .padding(var("gutter"))
         .children({box()
@@ -206,7 +210,7 @@ TEST(ComposeRoles, ChangingRoleAndVariableDefaultsInvalidatesTheNode) {
     VarTable defaults;
     defaults.set(var("gutter"), Dimension(gutter));
     return box()
-        .role(WeaveRule("panel").font({.size = size}))
+        .role("panel", {.size = size})
         .varDefaults(defaults)
         .padding(var("gutter"))
         .children({box().width(1_em).height(1_em).key("content")});

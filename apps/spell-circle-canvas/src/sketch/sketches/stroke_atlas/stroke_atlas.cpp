@@ -11,7 +11,7 @@ struct StrokeAtlasSketch {
     // The plate's voices stand on its root, so every leaf under it
     // resolves the class it names here.
     Element plate =
-        stack().fill(mskia::Paint::solid(kPaper)).styleSheet(voices());
+        stack().fill(mskia::Paint::solid(kPaper)).applyStyleSheet(voices());
 
     // ---- masthead --------------------------------------------------------
     plate.children(

@@ -85,11 +85,10 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   // tinted() builds one style per named colour from a single face and size.
   // The names carry no meaning to it, deliberately: what a study calls its
   // passing ink is the study's convention, not the library's.
-  const sigil::weave::StyleSheet mono =
-      kit::tinted(nullptr, 10.5f, {1, 1, 1, 1},
-                  {{"dim", {0.5f, 0.5f, 0.5f, 1}},
-                   {"pass", {0, 1, 0, 1}},
-                   {"fail", {1, 0, 0, 1}}});
+  const weave::TypeSheet mono = kit::tinted(nullptr, 10.5f, {1, 1, 1, 1},
+                                            {{"dim", {0.5f, 0.5f, 0.5f, 1}},
+                                             {"pass", {0, 1, 0, 1}},
+                                             {"fail", {1, 0, 0, 1}}});
   EXPECT_FLOAT_EQ(mono.base().shaping.fontSize, 10.5f);
   ASSERT_EQ(mono.size(), 3u);
   EXPECT_FLOAT_EQ(mono["pass"].shaping.fontSize, 10.5f);

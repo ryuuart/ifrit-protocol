@@ -3,10 +3,10 @@
 // the caller's own verbs, and where a panel rules its head off its
 // content.
 
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Board.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <utility>
 
@@ -52,7 +52,8 @@ TEST(KitBoard, StatesNoSheetAndNoFontSoTheCallersVerbsDecide) {
           .width(200)
           .height(150)
           .font({.size = 20})
-          .styleSheet(weave::StyleSheet{{"caption", {.size = 9}}})
+          .applyStyleSheet(sigil::compose::StyleSheet{
+              sigil::compose::rule("caption, .caption").font({.size = 9})})
           .children({kit::board({}).children(
               {text(u8"Hg").key("inherited"),
                document::caption(u8"Hg").key("named")})}));
@@ -66,10 +67,11 @@ TEST(KitBoard, StatesNoSheetAndNoFontSoTheCallersVerbsDecide) {
 namespace {
 
 /** The sheet a panel's three classes are registered on. */
-weave::StyleSheet panelClasses() {
-  return weave::StyleSheet{{"eyebrow", {.size = 9}},
-                           {"h1", {.size = 14}},
-                           {"caption", {.size = 10}}};
+sigil::compose::StyleSheet panelClasses() {
+  return sigil::compose::StyleSheet{
+      sigil::compose::rule("eyebrow").font({.size = 9}),
+      sigil::compose::rule("h1").font({.size = 14}),
+      sigil::compose::rule("caption, .caption").font({.size = 10})};
 }
 
 }  // namespace
@@ -91,7 +93,7 @@ TEST(KitPanel, RulesItsHeadOffItsContentAndStandsBothInItsOwnWell) {
       box()
           .width(300)
           .height(300)
-          .styleSheet(panelClasses())
+          .applyStyleSheet(panelClasses())
           .children({kit::panel(region, box().key("content")).key("panel")}));
   host.frame();
   EXPECT_EQ(require(host.composer.bounds("panel")), SkRect::MakeWH(200, 160));
@@ -111,7 +113,7 @@ TEST(KitPanel, RulesItsHeadOffItsContentAndStandsBothInItsOwnWell) {
       box()
           .width(300)
           .height(300)
-          .styleSheet(panelClasses())
+          .applyStyleSheet(panelClasses())
           .children({kit::panel(plain, box().key("bare")).key("panel")}));
   host.frame();
   EXPECT_NEAR(require(host.composer.bounds("bare")).top(), content.top(), 1.0f);
@@ -131,7 +133,7 @@ TEST(KitPanel, RangesItsNoteAtTheFarEdgeOfTheHeadsLastLine) {
         box()
             .width(300)
             .height(300)
-            .styleSheet(panelClasses())
+            .applyStyleSheet(panelClasses())
             .children({kit::panel(region, box().key("content"))}));
     host.frame();
     return std::pair{require(host.composer.bounds("note")),
@@ -155,7 +157,7 @@ TEST(KitPanel, StandsBareWhereNoBodyIsStated) {
       box()
           .width(300)
           .height(300)
-          .styleSheet(panelClasses())
+          .applyStyleSheet(panelClasses())
           .children({kit::panel({.eyebrow = "LOADOUT"},
                                 box().key("content").height(40))
                          .key("panel")}));

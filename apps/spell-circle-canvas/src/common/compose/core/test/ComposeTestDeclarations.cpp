@@ -172,13 +172,15 @@ TEST(ComposeDeclarations, AKeywordOnAnInheritingPropertyStandsOverARule) {
   // says the ink inherits, and so the class's colour is dropped for the
   // ancestor's.
   Host host(200, 200);
-  const sigil::weave::StyleSheet sheet{
-      {"loud", {.color = SkColors::kGreen}}};
+  const sigil::compose::StyleSheet sheet{
+      sigil::compose::rule(".loud").font({.color = SkColors::kGreen})};
   const auto tree = [&](bool unsetInk) {
     Element child = box().key("ruled").styleClass("loud").width(40).height(40);
     if (unsetInk) child.unset(Property::Ink);
-    return box().ink({1, 0, 0, 1}).styleSheet(sheet).children(
-        {std::move(child).fill(Fill::currentInk())});
+    return box()
+        .ink({1, 0, 0, 1})
+        .applyStyleSheet(sheet)
+        .children({std::move(child).fill(Fill::currentInk())});
   };
   host.composer.render(tree(false));
   host.frame();

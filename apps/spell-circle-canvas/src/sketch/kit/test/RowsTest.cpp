@@ -271,15 +271,15 @@ TEST(SketchKitRows, BarsReadTwoColumnsOfATable) {
 
 TEST(SketchKitRows, AReadoutClassKeepsTheParagraphRoleAndOverridesItsType) {
   const kit::Theme& house = kit::houseTheme();
-  const sigil::weave::StyleSheet sheet{
-      sigil::weave::rule("readout").font(
-          house.font(house.type.captionLabel, SkColors::kBlue)),
-      sigil::weave::rule("paragraph")
+  const compose::StyleSheet sheet{
+      compose::rule(".readout")
+          .font(house.font(house.type.captionLabel, SkColors::kBlue)),
+      compose::rule("paragraph")
           .font({.size = 32,
                  .color = sigil::material::skia::toSkColor(SkColors::kRed)})
           .block({.leading = sigil::weave::Leading::multiple(2.0f)})};
   const auto under = [&](Element content) {
-    return compose::box().styleSheet(sheet).children({std::move(content)});
+    return compose::box().applyStyleSheet(sheet).children({std::move(content)});
   };
   EXPECT_TRUE(sameDrawing(
       under(compose::kit::figure("AAAA\nAAAA")),

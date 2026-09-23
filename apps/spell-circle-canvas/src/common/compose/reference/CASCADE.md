@@ -99,29 +99,27 @@ under it keep the register. A bake — `snapshot`,
 `intrinsicSize`, `kit::coverage` — runs the cascade over its own tree,
 so a partial inside it resolves against the bake's root.
 
-**A sheet is a value on the tree, and a role or class is a name resolved
-against it.** `Element::styleSheet` states a `weave::StyleSheet` on any node; it is in
-force for that node and everything under it, inherited as the font is,
-and a nearer sheet's rules stand over a farther one's by name, so a
-subtree carries a look of its own. A sheet is a literal of `weave::Rule`s,
-one per role or class, each a type half and a block half — `{"note", {.size =
-11}}` names the type half by its fields, `{"lead", {.firstLineIndent =
-24}}` the block half, and `weave::rule("body").font({.size =
-19.5f}).block({.leading = Leading::multiple(1.35f)})` both, with the verbs
-a tree is written with.
+**A sheet is a value applied to a subtree, and a role or class is a name
+its rules speak about.** `Element::applyStyleSheet` puts a
+`compose::StyleSheet` in force for that node and everything under it, so a
+subtree carries a look of its own; [the selectors chapter](SELECTORS.md)
+is the whole of how a rule is written and which one wins. A rule states
+a font partial and a block partial, with the verbs a tree is written
+with: `rule("body").font({.size = 19.5f}).block({.leading =
+Leading::multiple(1.35f)})`.
 `Element::styleClass` names classes: several in one call, separated by
-spaces as CSS's class attribute lists them. The cascade pass resolves
-each name against the sheet in force where the element LANDS — the rule's
-type half and its block half, whichever it states — and the fields a class sets
-inherit down the tree like any `font()` or `block()`. Specificity is
-stated: role defaults and role rules stand below classes, between classes
-the SHEET's order decides (a later entry over an earlier, whatever order
-the names were written in), and a class loses to the node's own `font()`
-or `block()`, so `styleClass("cell").font({.color = c})` is the cell class in
-this cell's colour. A name no sheet in force carries warns once and sets
-nothing. A run of a `weave::rich()` value written with a name resolves
-the same way when the leaf is shaped, through the sheet's type half,
-unless the value names a `weave::TypeSheet` of its own.
+spaces as CSS's class attribute lists them. The cascade pass matches the
+rules in force where the element LANDS, and the fields a matched rule
+sets inherit down the tree like any `font()` or `block()`. The order is
+CSS's: role defaults stand below every rule, a rule for a class stands
+over a rule for a role by its weight, rules of one weight fall to the
+nearer and later sheet and then to the later rule, and every rule loses to
+the node's own `font()` or `block()`, so `styleClass("cell").font({.color
+= c})` is the cell class in this cell's colour. A class no rule in force
+names warns once and sets nothing. A run of a `weave::rich()` value
+written with a name resolves the same way when the leaf is shaped, as a
+virtual child of the leaf whose class is the name, unless the value names
+a `weave::TypeSheet` of its own.
 `weave::rich()` started with no base
 is an inheriting passage: a run added with a partial keeps the inherited
 face and size in every field it does not name, and only a run added with

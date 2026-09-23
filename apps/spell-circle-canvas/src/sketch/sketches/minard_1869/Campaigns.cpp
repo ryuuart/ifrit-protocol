@@ -692,12 +692,13 @@ auto Minard1869::napoleonPanel() -> Element {
   g.children(
       {box()
            .inset(0)
-           .styleSheet(weave::StyleSheet{
-               {"amberInk",
-                weave::Type{.color = sigil::material::skia::toSkColor(kAmber)}},
-               {"amberQuiet",
-                weave::Type{.color = sigil::material::skia::toSkColor(
-                                hexColor(0xb5761e, 0.9f))}}})
+           .applyStyleSheet(sigil::compose::StyleSheet{
+               sigil::compose::rule(".amberInk")
+                   .font(weave::Type{
+                       .color = sigil::material::skia::toSkColor(kAmber)}),
+               sigil::compose::rule(".amberQuiet")
+                   .font(weave::Type{.color = sigil::material::skia::toSkColor(
+                                         hexColor(0xb5761e, 0.9f))})})
            .children({lettering(napoleon["bar.remarks"], 0.0f, tBar)}),
        scaleBar(mapX(33.4f), 930.0f, 4.985f * 0.6549f, 50, 5,
                 word("napoleon", "bar"), "nbar", tAdv + 1.7f)});

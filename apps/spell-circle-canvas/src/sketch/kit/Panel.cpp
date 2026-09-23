@@ -85,8 +85,7 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
   if (!chrome.plate.empty())
     shell.children(
         {compose::document::eyebrow(chrome.plate)
-             .role(weave::rule("eyebrow").font(
-                 look.font(look.type.eyebrow, look.palette.ash)))
+             .role("eyebrow", look.font(look.type.eyebrow, look.palette.ash))
              .margin(bezel * 0.5f, 0, 0, 0)
              .alignSelf(Align::Center)});
   return shell;

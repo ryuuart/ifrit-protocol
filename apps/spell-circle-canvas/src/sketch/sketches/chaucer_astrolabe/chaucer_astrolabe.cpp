@@ -13,7 +13,7 @@ auto ChaucerAstrolabe::describe(sketch::SketchContext&) -> Element {
   sketch::kit::Provide look(sheetLook);
   return stack()
       .fill(Fill::color(kVellum))
-      .styleSheet(cardLook)
+      .applyStyleSheet(cardLook)
       .font(sheetLook.font(sheetLook.type.captionNote))
       .ink(kInk)
       .children(
@@ -129,20 +129,34 @@ auto ChaucerAstrolabe::setup(sketch::SketchContext& ctx) -> void {
   // draws, so a plot on a card is dressed without the card saying anything.
   doc = sketch::kit::Document(ctx, "data/content.json");
   cardLook = sheetLook.styleSheet();
-  cardLook.set("h1", partial(faceLimb, 15, kRubric, 1.9f));
-  cardLook.set("lead", partial(faceItalic, 14, hexColor(0x6b5a44)));
-  cardLook.set("gloss", partial(faceItalic, 13, kRubric));
-  cardLook.set("note", partial(faceItalic, 12, hexColor(0x7b6a54)));
-  cardLook.set("quote", partial(faceItalic, 13.5f, kInk));
-  cardLook.set("figure", partial(faceMono, 12, kInk));
-  cardLook.set("engrave", partial(faceLimb, 9, hexColor(0x33240c, 0.85f)));
-  cardLook.set("label", partial(faceLimb, 11.5f, kInk, 1.2f));
-  cardLook.set("caption", partial(faceMono, 9.5f, hexColor(0x7b6a54)));
-  cardLook.set("plotTick", partial(faceMono, 9.5f, kInk));
-  cardLook.set("plotLabel", partial(faceItalic, 11, hexColor(0x7b6a54)));
-  cardLook.set("dial", partial(faceLimb, 10, hexColor(0x8a99b0), 1.4f));
-  cardLook.set("dialReading", partial(faceMono, 19, hexColor(0xd8c79c)));
-  cardLook.set("time", partial(faceMono, 19, hexColor(0xffdc8b)));
+  cardLook =
+      cardLook +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule("h1").font(partial(faceLimb, 15, kRubric, 1.9f)),
+          sigil::compose::rule("lead").font(
+              partial(faceItalic, 14, hexColor(0x6b5a44))),
+          sigil::compose::rule(".gloss").font(partial(faceItalic, 13, kRubric)),
+          sigil::compose::rule(".note").font(
+              partial(faceItalic, 12, hexColor(0x7b6a54))),
+          sigil::compose::rule("quote, .quote")
+              .font(partial(faceItalic, 13.5f, kInk)),
+          sigil::compose::rule("figure, .figure")
+              .font(partial(faceMono, 12, kInk)),
+          sigil::compose::rule(".engrave")
+              .font(partial(faceLimb, 9, hexColor(0x33240c, 0.85f))),
+          sigil::compose::rule("label, .label")
+              .font(partial(faceLimb, 11.5f, kInk, 1.2f)),
+          sigil::compose::rule("caption, .caption")
+              .font(partial(faceMono, 9.5f, hexColor(0x7b6a54))),
+          sigil::compose::rule(".plotTick").font(partial(faceMono, 9.5f, kInk)),
+          sigil::compose::rule(".plotLabel")
+              .font(partial(faceItalic, 11, hexColor(0x7b6a54))),
+          sigil::compose::rule(".dial").font(
+              partial(faceLimb, 10, hexColor(0x8a99b0), 1.4f)),
+          sigil::compose::rule(".dialReading")
+              .font(partial(faceMono, 19, hexColor(0xd8c79c))),
+          sigil::compose::rule(".time").font(
+              partial(faceMono, 19, hexColor(0xffdc8b)))};
 
   brassGrain = Paint::recipe(field::grain(0.9f, 3, 11.0f, 0.30f));
   verdigris =

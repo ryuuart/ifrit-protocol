@@ -54,18 +54,15 @@ compose::Element titleCard(const TitleCard& card) {
   };
   say(card.eyebrow,
       document::eyebrow(card.eyebrow.words)
-          .role(weave::rule("eyebrow").font(
-              look.font(look.type.eyebrow, look.palette.ash))),
+          .role("eyebrow", look.font(look.type.eyebrow, look.palette.ash)),
       "eyebrow", 0);
   say(card.title,
       document::h1(card.title.words)
-          .role(weave::rule("h1").font(
-              look.font(look.type.title, look.palette.ink))),
+          .role("h1", look.font(look.type.title, look.palette.ink)),
       "title", look.spacing.subtitleGap);
   say(card.subtitle,
       document::lead(card.subtitle.words)
-          .role(weave::rule("lead").font(
-              look.font(look.type.subtitle, look.palette.ash))),
+          .role("lead", look.font(look.type.subtitle, look.palette.ash)),
       "subtitle", look.spacing.subtitleGap);
   if (card.ruled)
     place(box()
@@ -85,8 +82,8 @@ compose::Element titleCard(const TitleCard& card) {
     ranged.children(
         {spoken(note,
                 document::caption(note.words)
-                    .role(weave::rule("caption").font(
-                        look.font(look.type.captionNote, look.palette.ash))),
+                    .role("caption",
+                          look.font(look.type.captionNote, look.palette.ash)),
                 card.key.empty() ? std::string()
                                  : card.key + "-note" + std::to_string(i))});
   }
@@ -102,9 +99,9 @@ compose::Element sectionHeader(const SectionHeader& header) {
   Element row =
       box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
   if (!header.label.empty())
-    row.children({document::h2(header.label)
-                      .role(weave::rule("h2").font(
-                          look.font(look.type.section, look.palette.ink)))});
+    row.children(
+        {document::h2(header.label)
+             .role("h2", look.font(look.type.section, look.palette.ink))});
   if (header.ruled)
     row.children(
         {box().flexGrow(1).height(1).fill(Fill::color(look.palette.rule))});
@@ -112,8 +109,8 @@ compose::Element sectionHeader(const SectionHeader& header) {
   if (!header.note.empty())
     column.children(
         {document::caption(header.note)
-             .role(weave::rule("caption").font(
-                 look.font(look.type.captionNote, look.palette.ash)))
+             .role("caption",
+                   look.font(look.type.captionNote, look.palette.ash))
              .maxWidth(look.type.captionNote.size * 36)
              .margin(header.label.empty() ? 0 : look.spacing.captionNoteGap, 0,
                      0, 0)});

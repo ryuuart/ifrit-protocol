@@ -39,13 +39,13 @@
 
 // TAGS: Typography/CJK
 
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
@@ -93,15 +93,17 @@ inline kit::Caption voice() {
 /** THE TWO CLASSES A CAPTION IS SET IN — the name in the seal red, the
  *  remark a size down in the faded one. @p noteSize is the remark's,
  *  which the wide caption under the split setting states larger. */
-inline weave::StyleSheet voiceClasses(float noteSize) {
-  return weave::StyleSheet{{"label", labelType(9.5f, kAka, 1.6f)},
-                           {"caption", labelType(noteSize, kUsu, 0.2f)}};
+inline sigil::compose::StyleSheet voiceClasses(float noteSize) {
+  return sigil::compose::StyleSheet{
+      sigil::compose::rule("label, .label").font(labelType(9.5f, kAka, 1.6f)),
+      sigil::compose::rule("caption, .caption")
+          .font(labelType(noteSize, kUsu, 0.2f))};
 }
 
 /** A captioned column: the caption over it, the specimen under it. */
 inline Element column(const char* caption, const char* note, Element specimen) {
   return kit::cell(voice(), caption, note, std::move(specimen))
-      .styleSheet(voiceClasses(8.5f));
+      .applyStyleSheet(voiceClasses(8.5f));
 }
 
 }  // namespace furigana
@@ -196,7 +198,7 @@ struct RubyKenten {
                   "reading breaks with it, in proportion to the "
                   "base's advance either side",
                   std::move(split))
-            .styleSheet(f::voiceClasses(9.0f))
+            .applyStyleSheet(f::voiceClasses(9.0f))
             .left(52)
             .top(320);
 

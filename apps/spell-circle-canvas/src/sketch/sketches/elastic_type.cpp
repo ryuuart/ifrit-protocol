@@ -82,6 +82,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Kinetic.h>
@@ -92,7 +93,6 @@
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -210,12 +210,15 @@ using Ticks = std::vector<Tick>;
 
 /** THE FOUR CLASSES THE GRAPHS ARE DRESSED BY: the rules a trace is read
  *  against, the rest pose, and one per lane. */
-weave::StyleSheet graphSheet() {
-  weave::StyleSheet dressed;
-  dressed.set("plotRule", {.color = material::skia::toSkColor(kFaint)});
-  dressed.set("rest", {.color = material::skia::toSkColor(kRest)});
-  dressed.set("x", {.color = material::skia::toSkColor(kX)});
-  dressed.set("y", {.color = material::skia::toSkColor(kY)});
+sigil::compose::StyleSheet graphSheet() {
+  sigil::compose::StyleSheet dressed{
+      sigil::compose::rule(".plotRule")
+          .font({.color = material::skia::toSkColor(kFaint)}),
+      sigil::compose::rule(".rest").font(
+          {.color = material::skia::toSkColor(kRest)}),
+      sigil::compose::rule(".x").font({.color = material::skia::toSkColor(kX)}),
+      sigil::compose::rule(".y").font(
+          {.color = material::skia::toSkColor(kY)})};
   return dressed;
 }
 
@@ -377,7 +380,7 @@ struct ElasticType {
                              {0.0f, 0.55f, 1.0f}))
         .font({.face = faceLabel, .size = 11.5f, .track = 2.4f})
         .ink(kLabel)
-        .styleSheet(graphSheet())
+        .applyStyleSheet(graphSheet())
         .children(
             {box()
                  .row()

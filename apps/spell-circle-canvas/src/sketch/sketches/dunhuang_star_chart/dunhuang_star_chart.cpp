@@ -71,7 +71,7 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
       .font({.face = faceMono,
              .size = 9.0f,
              .color = sigil::material::skia::toSkColor(hexColor(0x9a8a68))})
-      .styleSheet(voices())
+      .applyStyleSheet(voices())
       .children({ground(), locator(), graticule(),
                  scrollBand(-90, kBreakL, "bandL", -0.42f),
                  scrollBand(kBreakR, kW + 90, "bandR", -0.42f), segment(0),

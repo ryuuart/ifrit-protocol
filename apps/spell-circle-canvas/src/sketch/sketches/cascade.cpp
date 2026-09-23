@@ -8,6 +8,7 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcore/reconcile/Environment.h>
@@ -15,7 +16,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/style/Length.h>
 
@@ -62,15 +62,17 @@ Element relative(float size) {
 }
 
 Element editorialCard(bool cooled) {
-  weave::StyleSheet styles;
-  styles.set("label", weave::Type{.size = 11, .track = 1.3f});
-  styles.set("figure", weave::Type{.size = 48, .track = -0.6f});
+  compose::StyleSheet styles{
+      compose::rule("label, .label")
+          .font(weave::Type{.size = 11, .track = 1.3f}),
+      compose::rule("figure, .figure")
+          .font(weave::Type{.size = 48, .track = -0.6f})};
   return sketch::kit::well({.width = 660, .height = 328, .padding = 24})
       .key("cascade.card")
       .font({.size = 14, .track = 0})
       .ink(cooled ? kCool : kWarm)
       .transition({.duration = kFade})
-      .styleSheet(std::move(styles))
+      .applyStyleSheet(std::move(styles))
       .var("accent", kTeal)
       .var("gutter", Dimension(12))
       .column()

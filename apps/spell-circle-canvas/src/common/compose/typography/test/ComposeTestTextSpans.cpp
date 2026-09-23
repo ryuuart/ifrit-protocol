@@ -74,23 +74,22 @@ TEST(TextRich, AChangedRunStylePatchesToo) {
 
 TEST(TextRich, NamedRunsResolveThroughTheSheetInForce) {
   // How a name resolves is weave's (see its own test). What is this
-  // library's is the sheet IN FORCE: a styleSheet() on the tree above a
-  // text leaf reaches its named runs when the leaf is shaped, and a sheet
-  // the value names beats it.
+  // library's is the sheet IN FORCE: a rule for the name's class in a
+  // sheet applied on the tree above a text leaf reaches its named runs
+  // when the leaf is shaped, and a set of styles the value names beats it.
   const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
-  sigil::weave::StyleSheet reds(base);
-  reds.set("accent", sigil::weave::Type{.color = material::skia::toSkColor(
-                                            SkColor4f{1, 0, 0, 1})});
-  sigil::weave::StyleSheet greens(base);
+  const sigil::compose::StyleSheet reds{
+      sigil::compose::rule(".accent").ink(SkColor4f{1, 0, 0, 1})};
+  weave::TypeSheet greens(base);
   greens.set("accent", sigil::weave::Type{.color = material::skia::toSkColor(
                                               SkColor4f{0, 1, 0, 1})});
 
   Host host(200, 120);
   const auto accentColor = [&](sigil::weave::RichText content,
-                               const sigil::weave::StyleSheet* inForce) {
+                               const sigil::compose::StyleSheet* inForce) {
     Element page =
         box().padding(6).children({text(std::move(content)).key("t")});
-    if (inForce) page.styleSheet(*inForce);
+    if (inForce) page.applyStyleSheet(*inForce);
     host.composer.render(std::move(page));
     host.frame();
     const std::vector<TextUnit> units = host.composer.units(
@@ -103,9 +102,8 @@ TEST(TextRich, NamedRunsResolveThroughTheSheetInForce) {
             SK_ColorRED)
       << "the sheet in force never reached the leaf";
   EXPECT_EQ(
-      accentColor(
-          sigil::weave::rich(base).add(u8"x", "accent").styles(greens.types()),
-          &reds),
+      accentColor(sigil::weave::rich(base).add(u8"x", "accent").styles(greens),
+                  &reds),
       SK_ColorGREEN)
       << "an explicit style set must beat the one in force";
   // No sheet on the tree: nothing is offered, so rich()'s own base answers.
@@ -218,8 +216,8 @@ TEST(TextSpans, ALineSelectorAddressesTheLayout) {
 
 namespace {
 
-sigil::weave::StyleSheet glossarySet(SkColor termColor, float termSize) {
-  sigil::weave::StyleSheet set{coloredStyle(24, SK_ColorWHITE)};
+sigil::weave::TypeSheet glossarySet(SkColor termColor, float termSize) {
+  sigil::weave::TypeSheet set{coloredStyle(24, SK_ColorWHITE)};
   set.set("term", sigil::weave::Type{.size = termSize,
                                      .color = material::skia::toSkColor(
                                          SkColor4f::FromColor(termColor))});
@@ -228,9 +226,9 @@ sigil::weave::StyleSheet glossarySet(SkColor termColor, float termSize) {
 
 /** "alpha beta gamma beta delta beta", where the first and last `beta` are
  *  written under the name and the middle one is not. */
-sigil::weave::RichText glossaryCopy(const sigil::weave::StyleSheet& set) {
+sigil::weave::RichText glossaryCopy(const sigil::weave::TypeSheet& set) {
   sigil::weave::RichText copy = sigil::weave::rich(set.base());
-  copy.styles(set.types())
+  copy.styles(set)
       .add(u8"alpha ")
       .add(u8"beta", "term")
       .add(u8" gamma ")
@@ -412,7 +410,7 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
   // re-registering it against a different style, at a different size that
   // re-shapes and re-places everything, leaves the same runs addressed.
   Host host(760, 140);
-  const auto namedGlyphs = [&](const sigil::weave::StyleSheet& set) {
+  const auto namedGlyphs = [&](const sigil::weave::TypeSheet& set) {
     host.composer.render(box().padding(10).children(
         {text(glossaryCopy(set))
              .key("t")

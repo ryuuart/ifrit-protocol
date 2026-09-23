@@ -38,6 +38,7 @@
 
 // TAGS: Typography/Paragraph
 
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -46,7 +47,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/Hyphenation.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -127,14 +127,16 @@ sketch::kit::Theme sheetTheme() {
 /// in the serif under an English tag, and `figures`, the table in the mono.
 /// Both are set in the page's ink and, under a page whose running text is
 /// tracked, at no tracking; a leaf says only the size it differs by.
-weave::StyleSheet classes() {
-  weave::StyleSheet sheet = sheetTheme().styleSheet();
-  sheet.set(
-      "body",
-      weave::Type{
-          .face = serif(), .size = 13.5f, .track = 0.0f, .language = "en-US"});
-  sheet.set("figures",
-            weave::Type{.face = mono(), .size = 12.0f, .track = 0.0f});
+sigil::compose::StyleSheet classes() {
+  sigil::compose::StyleSheet sheet =
+      sheetTheme().styleSheet() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule(".body").font(weave::Type{.face = serif(),
+                                                         .size = 13.5f,
+                                                         .track = 0.0f,
+                                                         .language = "en-US"}),
+          sigil::compose::rule(".figures")
+              .font(weave::Type{.face = mono(), .size = 12.0f, .track = 0.0f})};
   return sheet;
 }
 
@@ -156,26 +158,30 @@ kit::Caption callVoice(float measure) {
 
 /// A PANEL'S TWO CAPTION CLASSES, over the sheet's own: the control's name
 /// in the mark colour, what it decides a size under it.
-weave::StyleSheet panelClasses() {
-  weave::StyleSheet sheet = classes();
-  sheet.set("label", label(9.5f, 2.0f, kMark));
-  sheet.set("caption", label(9.0f, 0.4f));
+sigil::compose::StyleSheet panelClasses() {
+  sigil::compose::StyleSheet sheet =
+      classes() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule("label, .label").font(label(9.5f, 2.0f, kMark)),
+          sigil::compose::rule("caption, .caption").font(label(9.0f, 0.4f))};
   return sheet;
 }
 
 /// A SPECIMEN'S TWO, one step under a panel's: a call and its setting read
 /// as one line, so both are the same size.
-weave::StyleSheet callClasses() {
-  weave::StyleSheet sheet = classes();
-  sheet.set("label", label(8.5f, 1.2f));
-  sheet.set("caption", label(8.5f, 1.2f));
+sigil::compose::StyleSheet callClasses() {
+  sigil::compose::StyleSheet sheet =
+      classes() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule("label, .label").font(label(8.5f, 1.2f)),
+          sigil::compose::rule("caption, .caption").font(label(8.5f, 1.2f))};
   return sheet;
 }
 
 /// A panel: a name, what the control decides, and the specimen under it.
 Element panel(const char* name, const char* note, Element specimen) {
   return kit::cell(panelVoice(), name, note, std::move(specimen))
-      .styleSheet(panelClasses());
+      .applyStyleSheet(panelClasses());
 }
 
 constexpr const char8_t* kFourWays =
@@ -192,7 +198,7 @@ Element leadingSpecimen(const char* caption, weave::Leading leading) {
                        .font({.size = 11.5f})
                        .width(kMeasure * 0.48f)
                        .paragraphStyles({style}))
-      .styleSheet(callClasses())
+      .applyStyleSheet(callClasses())
       .width(kMeasure * 0.48f);
 }
 
@@ -228,7 +234,7 @@ struct ParagraphSheet {
                          .width(s::kMeasure * 0.48f)
                          .paragraphStyles({weave::ParagraphStyle{
                              .leading = weave::Leading::grid(s::kGrid)}})}))
-            .styleSheet(s::callClasses())
+            .applyStyleSheet(s::callClasses())
             .width(s::kMeasure * 0.48f);
     return s::panel(
         "LEADING",
@@ -342,7 +348,7 @@ struct ParagraphSheet {
                                            .patterns = s::hyphenator()},
                                    .lineBreak =
                                        weave::LineBreakStrategy::kKnuthPlass}))
-          .styleSheet(s::callClasses())
+          .applyStyleSheet(s::callClasses())
           .width(s::kMeasure * 0.31f);
     };
 
@@ -431,7 +437,7 @@ struct ParagraphSheet {
                                      panels({justifiedPanel(), tabPanel(),
                                              columnPanel()})},
                            .gap = 40}))
-        .styleSheet(s::classes());
+        .applyStyleSheet(s::classes());
   }
 };
 

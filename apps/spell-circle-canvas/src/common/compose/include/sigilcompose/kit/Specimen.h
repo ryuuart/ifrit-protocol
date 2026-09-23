@@ -14,18 +14,18 @@
  * look. Its props carry the CONTENT and the ARRANGEMENT — the words, the
  * measures, which side of the body a note stands on, what a rule is and
  * where a footer lands. Every face, size and colour is the CASCADE's: a
- * component names the document role each line is set in, and the
- * `weave::StyleSheet` where the component lands styles that role.
+ * component names the document role each line is set in, and the rules
+ * of the sheets in force where the component lands style that role.
  */
 
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Part.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -213,10 +213,10 @@ struct Caption {
  *      kit::cell(voice, "blur(14, 14)", "all or nothing",
  *                subject().key("flat").filter(blur))
  *
- *  THE LABEL HAS ROLE `label` and the note has role `caption`,
- *  resolved through the `weave::StyleSheet` where the cell lands — nothing else
- *  is said about their type, so a sheet that registers the two names
- *  clothes every cell on it at once.
+ *  THE LABEL HAS ROLE `label` and the note has role `caption`, which the
+ *  rules of the sheets in force where the cell lands style — nothing else
+ *  is said about their type, so a sheet with rules for the two roles
+ *  clothes every cell under it at once.
  *
  *  An empty label or an empty note is simply absent — the cell has fewer
  *  children and spends no gap on the missing line. The result is an
@@ -438,12 +438,12 @@ struct PanelGrid {
  *                 kit::cells({.cells = panels, .gap = 40}))
  *          .absolute().inset(0)
  *
- *  ITS THREE LINES HAVE DOCUMENT ROLES `h1`, `lead` and `footer`,
- *  resolved through the `weave::StyleSheet` where the sheet lands, and nothing
- * else is said about their type. Each is a PART — `titleLine`, `subtitleLine`,
- *  `footerLine` — so a page whose title must stand otherwise hands in its
- *  own leaf and everything under the page keeps its registers, because no
- *  sheet moved.
+ *  ITS THREE LINES HAVE DOCUMENT ROLES `h1`, `lead` and `footer`, which
+ *  the rules of the sheets in force where the sheet lands style, and
+ *  nothing else is said about their type. Each is a PART — `titleLine`,
+ *  `subtitleLine`, `footerLine` — so a page whose title must stand
+ *  otherwise hands in its own leaf and everything under the page keeps its
+ *  registers, because no sheet moved.
  *
  *  **It does not size itself.** The page is a padded column: the caller
  *  gives it the canvas (`absolute().inset(0)`) or a rect, and the content

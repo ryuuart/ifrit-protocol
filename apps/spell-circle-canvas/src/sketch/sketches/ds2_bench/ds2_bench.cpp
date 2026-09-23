@@ -755,28 +755,30 @@ struct Ds2Bench {
     // word names the register it is set in and never carries a size, a
     // face and a colour of its own. Every one of them is the interface
     // face condensed 1.16, which is what benchType() is.
-    weave::StyleSheet classes;
-    classes.set("h1", benchType(31, kTitle, 0.10f))
-        .set("lead", benchType(10.5f, sigil::material::withAlpha(kCyan, 0.5f),
-                               0.2f, false))
-        .set("node",
-             benchType(11, sigil::material::withAlpha(kCyan, 0.78f), 0.08f))
-        .set("circuit",
-             benchType(11, sigil::material::withAlpha(kCyan, 0.62f), 0.18f))
-        .set("slots", benchType(9.5f, sigil::material::withAlpha(kCyan, 0.4f),
-                                0.18f, false))
-        .set("spec",
-             benchType(14, sigil::material::withAlpha(kCyan, 0.95f), 0.10f))
-        .set("value", benchType(13, hexColor(0xDCEEF2), 0.02f, false))
-        .set("head", benchType(9, sigil::material::withAlpha(kCyan, 0.42f),
-                               0.22f, false))
-        .set("nodes",
-             benchType(12, sigil::material::withAlpha(kCyan, 0.95f), 0.16f))
-        .set("count", benchType(40, kTitle, 0.0f))
-        .set("hint", benchType(12, sigil::material::withAlpha(kCyan, 0.78f),
-                               0.06f, false));
+    sigil::compose::StyleSheet classes{
+        sigil::compose::rule("h1").font(benchType(31, kTitle, 0.10f)),
+        sigil::compose::rule("lead").font(benchType(
+            10.5f, sigil::material::withAlpha(kCyan, 0.5f), 0.2f, false)),
+        sigil::compose::rule(".node").font(
+            benchType(11, sigil::material::withAlpha(kCyan, 0.78f), 0.08f)),
+        sigil::compose::rule(".circuit")
+            .font(
+                benchType(11, sigil::material::withAlpha(kCyan, 0.62f), 0.18f)),
+        sigil::compose::rule(".slots").font(benchType(
+            9.5f, sigil::material::withAlpha(kCyan, 0.4f), 0.18f, false)),
+        sigil::compose::rule(".spec").font(
+            benchType(14, sigil::material::withAlpha(kCyan, 0.95f), 0.10f)),
+        sigil::compose::rule(".value").font(
+            benchType(13, hexColor(0xDCEEF2), 0.02f, false)),
+        sigil::compose::rule(".head").font(benchType(
+            9, sigil::material::withAlpha(kCyan, 0.42f), 0.22f, false)),
+        sigil::compose::rule(".nodes").font(
+            benchType(12, sigil::material::withAlpha(kCyan, 0.95f), 0.16f)),
+        sigil::compose::rule(".count").font(benchType(40, kTitle, 0.0f)),
+        sigil::compose::rule(".hint").font(benchType(
+            12, sigil::material::withAlpha(kCyan, 0.78f), 0.06f, false))};
     auto holo = box()
-                    .styleSheet(std::move(classes))
+                    .applyStyleSheet(std::move(classes))
                     .inset(0)
                     .translateX(&jitterX)
                     .opacity(&holoAlpha)

@@ -10,7 +10,7 @@ auto Minard1869::describe() -> Element {
   // being handed them.
   const sketch::kit::Provide look(sheetLook);
   return kit::board({.size = {kW, kH}, .ground = Paint::solid(kDesk)})
-      .styleSheet(sheetLook.styleSheet())
+      .applyStyleSheet(sheetLook.styleSheet())
       .children({titleStrip(), sheet(), auditColumn(), consoleStrip()});
 }
 
@@ -77,35 +77,43 @@ auto Minard1869::setup(sketch::SketchContext& ctx) -> void {
   cardLook.type.captionLabel = {9.5f, 0};
   cardLook.type.captionNote = {9.5f, 0};
   cardSheet = cardLook.styleSheet();
-  cardSheet.set("h1", partial(faceUiBold, 15, kCardInk, 1.6f));
-  cardSheet.set("measured",
-                weave::Type{.color = sigil::material::skia::toSkColor(kBlue)});
-  cardSheet.set("amber",
-                weave::Type{.color = sigil::material::skia::toSkColor(kAmber)});
-  cardSheet.set("grey", weave::Type{.color = sigil::material::skia::toSkColor(
-                                        hexColor(0x6d675c, 0.45f))});
-  cardSheet.set("route", weave::Type{.color = sigil::material::skia::toSkColor(
-                                         hexColor(0x1c1a17, 0.35f))});
-  cardSheet.set("vector", weave::Type{.color = sigil::material::skia::toSkColor(
-                                          hexColor(0x2f6f9c, 0.6f))});
-  cardSheet.set(
-      "cross",
-      weave::Type{.color = sigil::material::skia::toSkColor(kCardInk)});
-  cardSheet.set(
-      "cardInk",
-      weave::Type{.color = sigil::material::skia::toSkColor(kCardInk)});
-  cardSheet.set(
-      "claim",
-      weave::Type{.color = sigil::material::skia::toSkColor(kClaimRed)});
-  cardSheet.set("pass",
-                weave::Type{.color = sigil::material::skia::toSkColor(kPass)});
-  cardSheet.set("amberInk",
-                weave::Type{.color = sigil::material::skia::toSkColor(kAmber)});
-  cardSheet.set(
-      "plotAxis",
-      weave::Type{.color = sigil::material::skia::toSkColor(kCardInk)});
-  cardSheet.set("plotTick", partial(faceNum, 8.5f, kGrey));
-  cardSheet.set("plotLabel", partial(faceUi, 9.5f, kGrey));
+  cardSheet =
+      cardSheet +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule("h1").font(
+              partial(faceUiBold, 15, kCardInk, 1.6f)),
+          sigil::compose::rule(".measured")
+              .font(weave::Type{.color =
+                                    sigil::material::skia::toSkColor(kBlue)}),
+          sigil::compose::rule(".amber").font(
+              weave::Type{.color = sigil::material::skia::toSkColor(kAmber)}),
+          sigil::compose::rule(".grey").font(weave::Type{
+              .color =
+                  sigil::material::skia::toSkColor(hexColor(0x6d675c, 0.45f))}),
+          sigil::compose::rule(".route").font(weave::Type{
+              .color =
+                  sigil::material::skia::toSkColor(hexColor(0x1c1a17, 0.35f))}),
+          sigil::compose::rule(".vector").font(weave::Type{
+              .color =
+                  sigil::material::skia::toSkColor(hexColor(0x2f6f9c, 0.6f))}),
+          sigil::compose::rule(".cross").font(
+              weave::Type{.color = sigil::material::skia::toSkColor(kCardInk)}),
+          sigil::compose::rule(".cardInk")
+              .font(weave::Type{
+                  .color = sigil::material::skia::toSkColor(kCardInk)}),
+          sigil::compose::rule(".claim").font(weave::Type{
+              .color = sigil::material::skia::toSkColor(kClaimRed)}),
+          sigil::compose::rule(".pass").font(
+              weave::Type{.color = sigil::material::skia::toSkColor(kPass)}),
+          sigil::compose::rule(".amberInk")
+              .font(weave::Type{.color =
+                                    sigil::material::skia::toSkColor(kAmber)}),
+          sigil::compose::rule(".plotAxis")
+              .font(weave::Type{
+                  .color = sigil::material::skia::toSkColor(kCardInk)}),
+          sigil::compose::rule(".plotTick").font(partial(faceNum, 8.5f, kGrey)),
+          sigil::compose::rule(".plotLabel")
+              .font(partial(faceUi, 9.5f, kGrey))};
 
   // THE PAPER, and it is a FIBRE problem, not a colour problem: pulp
   // grain, the laid lines of a hand-made 19th-century sheet at ~1.2 px

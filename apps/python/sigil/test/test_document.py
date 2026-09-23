@@ -9,7 +9,7 @@ from sigil import image
 from sigil.compose import Element, Text, box
 from sigil.compose import document as doc
 from sigil.sketch import render_file
-from sigil.weave import Type, em, rich, rule
+from sigil.weave import Type, em, rich
 
 
 class Document(unittest.TestCase):
@@ -75,7 +75,7 @@ class Document(unittest.TestCase):
     def test_role_and_default_properties_are_fluent_native_declarations(self):
         element = box()
         self.assertIs(element.role("notice"), element)
-        self.assertIs(element.role(rule("notice").font(Type(weight=600))), element)
+        self.assertIs(element.role("notice", font=Type(weight=600)), element)
         self.assertIs(
             element.varDefaults({doc.measure: em(30), "accent": "#123456"}), element
         )
@@ -86,7 +86,8 @@ class Document(unittest.TestCase):
         pixels = self.render("""from sigil.compose import box, row
 from sigil.compose import document as doc
 from sigil.sketch import sketch
-from sigil.weave import StyleSheet, Type, rule
+from sigil.compose import StyleSheet, rule
+from sigil.weave import Type
 
 @sketch(size=(256, 64), background="#000000")
 class Document:
@@ -94,10 +95,10 @@ class Document:
         children = [doc.h2("HI"), doc.h2("HI").styleClass("special"),
                     doc.h2("HI").ink("#00ff00"), doc.paragraph("HI")]
         theme = StyleSheet([rule("h2").font(Type(size=30, color="#ff0000")),
-                            rule("special").font(Type(color="#0000ff")),
+                            rule(".special").font(Type(color="#0000ff")),
                             rule("paragraph").font(Type(size=30, color="#ffffff"))])
         ctx.render(row(box(child).width(64).height(64) for child in children)
-                   .styleSheet(theme))
+                   .applyStyleSheet(theme))
 """)
         for index, expected in enumerate(
             (

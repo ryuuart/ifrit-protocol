@@ -1,15 +1,14 @@
 // Which rules of an applied sheet speak about which nodes: the four
 // combinators, the structural pseudo-classes, the selector-list
-// pseudo-classes, where a matched rule sits against the name-keyed
-// sheet and against the node's own verbs, how far an applied sheet
-// reaches, and what makes the pass resolve a node again.
+// pseudo-classes, where a matched rule sits against another sheet's and
+// against the node's own verbs, how far an applied sheet reaches, and
+// what makes the pass resolve a node again.
 //
 // Every case reads the answer off a swatch — a 20x20 box filled with
 // the ink in force where it landed — so the colour a pixel comes back
 // says which rule won there.
 
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <string>
 #include <vector>
@@ -349,28 +348,26 @@ TEST(ComposeMatching, ASiblingOfTheApplyingNodeSatisfiesNeitherSiblingCombinator
   EXPECT_EQ(inkOf(host, 1), kRed);
 }
 
-TEST(ComposeMatching, AMatchedRuleStandsOverAClassAndUnderTheNodesOwnVerbs) {
+TEST(ComposeMatching, ALaterSheetStandsOverAnEarlierOneOfEqualWeight) {
   Host host;
-  const sigil::weave::StyleSheet named{sigil::weave::Rule(
-      "note",
-      sigil::weave::Type{.color = material::skia::toSkColor(kGreenInk)})};
-  const StyleSheet applied{rule(".note").ink(kRedInk)};
-  // A class resolves through the name-keyed sheet; the selector rule
-  // stands over it, and the node's own ink over them both.
-  host.composer.render(box()
-                           .key("root")
-                           .ink(kWhiteInk)
-                           .styleSheet(named)
-                           .applyStyleSheet(applied)
-                           .children({swatch().styleClass("note"),
-                                      swatch().styleClass("note").ink(kBlueInk)}));
+  const StyleSheet earlier{rule(".note").ink(kGreenInk)};
+  const StyleSheet later{rule(".note").ink(kRedInk)};
+  // Two rules of one weight: the sheet applied later stands, and the
+  // node's own ink over them both.
+  host.composer.render(
+      box()
+          .key("root")
+          .ink(kWhiteInk)
+          .applyStyleSheet(earlier)
+          .applyStyleSheet(later)
+          .children({swatch().styleClass("note"),
+                     swatch().styleClass("note").ink(kBlueInk)}));
   host.frame();
   EXPECT_EQ(inkOf(host, 0), kRed);
   EXPECT_EQ(inkOf(host, 1), kBlue);
-  // Without the selector rule the class alone still answers, which is
-  // the behaviour that stood before rules could match.
+  // Without the later sheet the earlier one answers.
   host.composer.render(
-      box().key("root").ink(kWhiteInk).styleSheet(named).children(
+      box().key("root").ink(kWhiteInk).applyStyleSheet(earlier).children(
           {swatch().styleClass("note")}));
   host.frame();
   EXPECT_EQ(inkOf(host, 0), kGreen);
@@ -436,20 +433,15 @@ TEST(ComposeMatching, AChangedChildListResolvesThatParentsChildrenAgain) {
 }
 
 TEST(ComposeMatching, ATreeThatAppliesNoSheetResolvesExactlyAsItDid) {
-  // The pass with no sheet in force must answer what it always did: a
-  // class through the name-keyed sheet, a role under it, the node's own
-  // ink over both.
+  // With no sheet in force a class names nothing and sets nothing, and
+  // everything inherits except what a node states itself.
   Host host;
-  const sigil::weave::StyleSheet named{sigil::weave::Rule(
-      "note",
-      sigil::weave::Type{.color = material::skia::toSkColor(kGreenInk)})};
-  host.composer.render(
-      box().key("root").ink(kWhiteInk).styleSheet(named).children(
-          {swatch(), swatch().styleClass("note"),
-           swatch().styleClass("note").ink(kBlueInk)}));
+  host.composer.render(box().key("root").ink(kWhiteInk).children(
+      {swatch(), swatch().styleClass("note"),
+       swatch().styleClass("note").ink(kBlueInk)}));
   host.frame();
   EXPECT_EQ(inkOf(host, 0), kWhite);
-  EXPECT_EQ(inkOf(host, 1), kGreen);
+  EXPECT_EQ(inkOf(host, 1), kWhite);
   EXPECT_EQ(inkOf(host, 2), kBlue);
 }
 

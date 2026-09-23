@@ -15,7 +15,7 @@ auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {
                      .height(kH)
                      .font({.face = mono()})
                      .ink(kInk2)
-                     .styleSheet(classes());
+                     .applyStyleSheet(classes());
 
   // the leaf: measured paper, its tooth, and the platemark
   root.children({at(0, 0, kW, kH).fill(Fill::color(kPaper))});

@@ -11,7 +11,7 @@ auto RotaConvocationis::describe() -> Element {
   return stack()
       .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.9f,
                                    {{0.0f, kNightLift}, {1.0f, kNight}}))
-      .styleSheet(classes)
+      .applyStyleSheet(classes)
       .ink(kBone)
       .children({box()
                      .cover()
@@ -33,9 +33,11 @@ auto RotaConvocationis::setup(sketch::SketchContext& ctx) -> void {
   faceRing = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
   faceRingBold = sketch::kit::houseFace(sketch::kit::Voice::Interface, 600);
   faceMono = weave::ports::face({"Menlo", "SF Mono", "Courier New"}, 500);
-  classes.set("ring", {.face = faceRingBold})
-      .set("label", {.face = faceRing})
-      .set("mono", {.face = faceMono});
+  classes = classes +
+            sigil::compose::StyleSheet{
+                sigil::compose::rule(".ring").font({.face = faceRingBold}),
+                sigil::compose::rule("label, .label").font({.face = faceRing}),
+                sigil::compose::rule(".mono").font({.face = faceMono})};
 
   // ---- content, fitted to its own bands --------------------------------
   voxText = "+ ";

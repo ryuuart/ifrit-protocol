@@ -36,9 +36,9 @@ namespace selectors {
  *  text means editing the selector every time an author edits a sentence.
  *
  *  It addresses the run's TEXT, so it survives everything that changes what
- *  that text looks like: re-registering the name against a different
- *  `weave::StyleSheet` entry, or a `spanPaint`/`spanStyle` cutting across it,
- *  leaves the same runs selected.
+ *  that text looks like: a rule that styles the name differently, or a
+ *  `spanPaint`/`spanStyle` cutting across it, leaves the same runs
+ *  selected.
  *
  *  ONLY A NAMED `rich()` RUN CARRIES A NAME. Plain `text(utf8, style)`, a
  *  `rich()` run given a style directly, and the `shared_ptr<Paragraph>`

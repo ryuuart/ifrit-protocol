@@ -70,9 +70,9 @@ compose::Element timeline(const Timeline& scale) {
   for (const Timeline::Mark& mark : scale.marks) {
     if (!mark.major || mark.label.empty()) continue;
     any = true;
-    Text label = compose::document::eyebrow(mark.label)
-                     .role(weave::rule("eyebrow").font(
-                         look.font(look.type.eyebrow, look.palette.ash)));
+    Text label =
+        compose::document::eyebrow(mark.label)
+            .role("eyebrow", look.font(look.type.eyebrow, look.palette.ash));
     if (mark.ink)
       detail::documentInk(label, *mark.ink);
     else if (scale.ink)

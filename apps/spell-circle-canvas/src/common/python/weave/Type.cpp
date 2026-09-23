@@ -6,8 +6,8 @@
 #include <sigilpython/weave/Keywords.h>
 #include <sigilpython/weave/Registration.h>
 #include <sigilweave/kit/PaintLayers.h>
+#include <sigilweave/layout/Block.h>
 #include <sigilweave/layout/Story.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/query/Selector.h>
 
 #include <algorithm>
@@ -441,53 +441,6 @@ void bindWeave(py::module_& module) {
   optionalField(block, "mojikumi", &Block::mojikumi);
   bindKeywords<Block, BlockField>(block);
   text.def("toParagraphStyle", &toParagraphStyle, py::arg("block"));
-  py::class_<Rule>(text, "Rule")
-      .def(py::init<std::string>(), py::arg("name"))
-      .def(py::init<std::string, Type>(), py::arg("name"), py::arg("type"))
-      .def(py::init<std::string, Block>(), py::arg("name"), py::arg("block"))
-      .def("font", &Rule::font, py::arg("type"), fluent)
-      .def("block", py::overload_cast<Block>(&Rule::block), py::arg("block"),
-           fluent)
-      .def("name", &Rule::name)
-      .def("type", &Rule::type, py::return_value_policy::copy)
-      .def("block", py::overload_cast<>(&Rule::block, py::const_),
-           py::return_value_policy::copy)
-      .def(py::self == py::self);
-  text.def("rule", &weave::rule, py::arg("name"));
-  py::class_<StyleSheet>(text, "StyleSheet")
-      .def(py::init([](const std::vector<Rule>& rules) {
-             StyleSheet value;
-             for (const auto& rule : rules) value.set(rule);
-             return value;
-           }),
-           py::arg("rules") = std::vector<Rule>{})
-      .def(py::init<TextStyle>(), py::arg("style"))
-      .def("base", py::overload_cast<TextStyle>(&StyleSheet::base),
-           py::arg("style"), fluent)
-      .def("base", py::overload_cast<>(&StyleSheet::base, py::const_),
-           py::return_value_policy::copy)
-      .def("set", py::overload_cast<const Rule&>(&StyleSheet::set),
-           py::arg("rule"), fluent)
-      .def("set", py::overload_cast<std::string, Type>(&StyleSheet::set),
-           py::arg("name"), py::arg("type"), fluent)
-      .def("set", py::overload_cast<std::string, Block>(&StyleSheet::set),
-           py::arg("name"), py::arg("block"), fluent)
-      .def("__getitem__", &StyleSheet::operator[], py::arg("name"))
-      .def(
-          "find",
-          [](const StyleSheet& self,
-             const std::string& name) -> std::optional<Rule> {
-            if (auto rule = self.find(name)) return *rule;
-            return {};
-          },
-          py::arg("name"))
-      .def("contains", &StyleSheet::contains, py::arg("name"))
-      .def("__contains__", &StyleSheet::contains, py::arg("name"))
-      .def("types", &StyleSheet::types, py::return_value_policy::copy)
-      .def("rules", &StyleSheet::rules, py::return_value_policy::copy)
-      .def("__len__", &StyleSheet::size)
-      .def("empty", &StyleSheet::empty)
-      .def(py::self == py::self);
   py::class_<TypeSheet>(text, "TypeSheet")
       .def(py::init<>())
       .def(py::init<TextStyle>(), py::arg("style"))

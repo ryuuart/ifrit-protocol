@@ -2,9 +2,9 @@
 
 /** @file
  * Document components with semantic roles and a stock type hierarchy.
- * A role supplies fallback type; an inherited weave::StyleSheet rule of
- * that name styles every matching element. Authored classes and direct
- * font/block declarations stand above the role. Every result is an Element.
+ * A role supplies fallback type; a rule of a sheet in force naming the
+ * role styles every element that carries it. Rules for authored classes
+ * and direct font/block declarations stand above the role's. Every result is an Element.
  */
 
 #include <sigilcompose/core/Element.h>

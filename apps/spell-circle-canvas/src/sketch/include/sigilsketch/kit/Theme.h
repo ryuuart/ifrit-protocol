@@ -14,10 +14,10 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/TextStyle.h>
 #include <sigilweave/style/Type.h>
 
@@ -197,11 +197,12 @@ struct Theme {
    *  sheet's title is set in, as a partial over what the page inherits. */
   [[nodiscard]] weave::Type font(const Register& line,
                                  material::Color color) const;
-  /** THE DOCUMENT ROLES in the theme's registers: "h1", "lead",
-   *  "footer", "label", "caption", "eyebrow" and "h2", plus "readout"
-   *  for measured values. A document factory names its role and resolves
-   *  it through this sheet after adoption. A page states the sheet on
-   *  its root; authored rules can be added or changed by name.
+  /** THE DOCUMENT ROLES in the theme's registers, as rules: `h1`,
+   *  `lead`, `footer`, `label`, `caption`, `eyebrow` and `h2` — the label
+   *  and the caption as classes too — plus the class `.readout` for
+   *  measured values. A document factory names its role and the sheet
+   *  applied above it styles it. A page applies the sheet on its root; a
+   *  sketch joins rules of its own to it with `+`.
    *
    *  EACH ROLE RULE CARRIES ITS WHOLE LOOK, colour included: `h1` and
    *  `label` in the palette's ink, `lead`, `footer` and `caption` in its
@@ -210,16 +211,17 @@ struct Theme {
    *  `eyebrow` and `h2` name no colour, so each is painted in the
    *  ink in force where it is read.
    *
-   *  AND THE EIGHT A CHART DRESSES: `axis` for an axis line, `tick` for
-   *  its ticks and the numbers under them, `rule` for the hairlines across
-   *  a field, `trace` for a curve, `area` for the band under one, `mark`
-   *  for a datum's own element, `bar` for the band a datum is drawn as,
-   *  and `label` for a word placed in the field. A plot names those and
+   *  AND THE EIGHT CLASSES A CHART DRESSES: `.plotAxis` for an axis line,
+   *  `.plotTick` for its ticks and the numbers under them, `.plotRule` for
+   *  the hairlines across a field, `.plotTrace` for a curve, `.plotArea`
+   *  for the band under one, `.plotMark` for a datum's own element,
+   *  `.plotBar` for the band a datum is drawn as, and `.plotLabel` for a
+   *  word placed in the field. A plot names those and
    *  nothing else about its look, so a plot under a page is dressed
    *  already; the two that set WORDS carry type and the six that dress a
    *  recording name a colour alone, which the recording paints in as the
    *  ink in force. */
-  [[nodiscard]] weave::StyleSheet styleSheet() const;
+  [[nodiscard]] compose::StyleSheet styleSheet() const;
   /** @p line in @p color, set in whichever of the two faces it names. */
   [[nodiscard]] weave::TextStyle style(const Register& line,
                                        material::Color color) const;
@@ -305,16 +307,16 @@ enum class Voice {
 /** BIND A THEME for everything described while this object lives, the
  *  way a provider does — the reconciler's own inherited value, so a
  *  sketch needs one include and one word. The registers reach the tree
- *  as role rules through `styleSheet()`, which `page()` states on its
- *  root; a sketch without a page states it on its own root. A document
- *  label under either resolves the theme's `label` rule.
+ *  as rules through `styleSheet()`, which `page()` applies on its root; a
+ *  sketch without a page applies it on its own root. A document label
+ *  under either takes the theme's `label` rule.
  *
  *      sketch::kit::Provide look(sheetTheme());
  *      ctx.composer.render(sketch::kit::page({...}, content));
  *
- *  A sketch whose classes go past the registers builds its sheet from
- *  `styleSheet()`, adds its own, and states the result on its root or on
- *  the panel those classes belong to. RAII and LIFO. BIND IT WHERE THE
+ *  A sketch whose classes go past the registers joins rules of its own to
+ *  `styleSheet()` with `+` and applies the result on its root or on the
+ *  panel those classes belong to. RAII and LIFO. BIND IT WHERE THE
  *  TREE IS DESCRIBED: a sketch
  *  that describes again when its data changes does so outside the scope
  *  its setup opened, and a theme bound only there is not in scope for the

@@ -725,32 +725,6 @@ locale are the paragraph's and a consumer sets them there. `overlay`
 itself passes the writing mode and the locale through untouched, for the
 same reason.
 
-## Rule and StyleSheet: the classes a tree states
-
-`Rule` is ONE CLASS OF A SHEET: a name, and what it states — a partial
-over the type and a partial over the block, either or both. It is spelled
-as a literal by the half it names, `{"note", {.size = 11}}` or
-`{"lead", {.firstLineIndent = 24}}`, or with the verbs:
-
-```cpp
-rule("body").font({.size = 19.5f}).block({.leading = Leading::multiple(1.35f)})
-```
-
-What a rule leaves unsaid is what the node inherits.
-
-`StyleSheet` is THE CLASSES A TREE STATES, as one value: rules in the
-order they were written, comparable by value, and a base style for the
-runs of a rich text that name nothing.
-
-A name stated again ADDS to its rule — the later fields standing, the
-rest as they were — so a class can be spelled once per half, and a sheet
-stated nearer the leaf changes only what it names in the sheet it stands
-over. Lookup is a linear scan: a sheet names a handful of classes, and a
-scan of a handful beats a hash of one.
-
-`StyleSheet::types` is the type half as a `TypeSheet`, which the
-paragraph layer shapes rich runs through; it never sees a block.
-
 ## Story: content plus its block styles
 
 `Story` is a text and the block styles it is set under, filled into as

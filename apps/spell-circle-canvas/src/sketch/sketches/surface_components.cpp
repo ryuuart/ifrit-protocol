@@ -13,6 +13,7 @@
 // TAGS: Materials/Compositing
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gel.h>
@@ -20,7 +21,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -90,9 +90,10 @@ struct SurfaceComponents {
                     .columns = 3,
                     .gap = 18,
                     .rowGap = 18}))
-        .styleSheet(weave::StyleSheet{{"h1", {.size = 30}},
-                                      {"lead", {.size = 17}},
-                                      {"footer", {.size = 14}}})
+        .applyStyleSheet(sigil::compose::StyleSheet{
+            sigil::compose::rule("h1").font({.size = 30}),
+            sigil::compose::rule("lead").font({.size = 17}),
+            sigil::compose::rule("footer").font({.size = 14})})
         .font({.size = 16})
         .ink(kInk);
   }

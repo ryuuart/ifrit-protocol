@@ -172,10 +172,6 @@ text (its own section below).
   one, `overlay` resolves one onto a whole `ParagraphStyle`,
   `toParagraphStyle` is what a partial names alone, and `apply` sets the
   layout-wide fields a partial states on a layout's options.
-  **`layout/StyleSheet.h`** — `Rule` and `StyleSheet`: the classes a tree
-  states, rules under names with a type half and a block half each,
-  written by the half a literal names or with `rule()`'s verbs; `types()`
-  hands the paragraph layer the type half as a `TypeSheet`.
 - **`style/Type.h`** — `Type`, the PARTIAL a call site names a style in:
   a designated-init aggregate whose every field is OPTIONAL, so a style
   can state the two things it changes and inherit the rest. It carries

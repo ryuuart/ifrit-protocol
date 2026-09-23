@@ -22,51 +22,50 @@ weave::Type Theme::font(const Register& line, material::Color color) const {
   return type;
 }
 
-weave::StyleSheet Theme::styleSheet() const {
-  weave::StyleSheet classes;
-  // A ROLE RULE CARRIES ITS WHOLE LOOK, colour included, as a CSS class does:
-  // the palette's ink for the lines that NAME something — the page's title,
-  // the call over a cell — and its ash for the lines that qualify one.
-  classes.set("h1", font(type.title, palette.ink));
-  classes.set("lead", font(type.subtitle, palette.ash));
-  classes.set("footer", font(type.footer, palette.ash));
-  classes.set("label", font(type.captionLabel, palette.ink));
-  classes.set("caption", font(type.captionNote, palette.ash));
-  // The two registers a sheet sets INSIDE its content name no colour, so
-  // each is painted in the ink in force wherever it is read — which is
-  // what a section standing on a panel of its own asks for.
-  classes.set("eyebrow", font(type.eyebrow));
-  classes.set("h2", font(type.section));
-  // A MEASURED FIGURE is the one thing on the sheet that is neither type
-  // nor furniture, so it is the register a CALL is set in — the digits of
-  // one width — in the palette's figure colour, wherever it stands: a
-  // readout's value, a figure column's cells, a reading over a picture.
-  classes.set("readout", font(type.captionLabel, palette.figure));
-  // THE PARTS A CHART DRAWS. The furniture is quiet — the axis line and
-  // its ticks in the ash a remark is set in, the rules across the field in
-  // the hairline colour — and the reading is the figure colour, which is
-  // the one thing on the sheet a reader's eye is meant to find: a curve, a
-  // datum's own mark, the band it is drawn as, and the band's fill under a
-  // curve dimmed so the curve still reads over it. Only `tick` and `label`
-  // carry type, because only they set words; the rest name a colour alone
-  // and a recording paints in it as the ink in force.
-  classes.set("plotAxis",
-              weave::Type{.color = material::skia::toSkColor(palette.ash)});
-  classes.set("plotTick", font(type.captionLabel, palette.ash));
-  classes.set("plotRule",
-              weave::Type{.color = material::skia::toSkColor(palette.rule)});
-  classes.set("plotTrace",
-              weave::Type{.color = material::skia::toSkColor(palette.figure)});
-  classes.set(
-      "plotArea",
-      weave::Type{.color = material::skia::toSkColor(
-                      sigil::material::withAlpha(palette.figure, 0.25f))});
-  classes.set("plotMark",
-              weave::Type{.color = material::skia::toSkColor(palette.figure)});
-  classes.set("plotBar",
-              weave::Type{.color = material::skia::toSkColor(palette.figure)});
-  classes.set("plotLabel", font(type.captionLabel, palette.ink));
-  return classes;
+compose::StyleSheet Theme::styleSheet() const {
+  using compose::rule;
+  const auto ink = [](material::Color colour) {
+    return weave::Type{.color = material::skia::toSkColor(colour)};
+  };
+  return compose::StyleSheet{
+      // A ROLE RULE CARRIES ITS WHOLE LOOK, colour included, as a CSS rule
+      // does: the palette's ink for the lines that NAME something — the
+      // page's title, the call over a cell — and its ash for the lines that
+      // qualify one. A label and a caption are also classes a sheet names.
+      rule("h1").font(font(type.title, palette.ink)),
+      rule("lead").font(font(type.subtitle, palette.ash)),
+      rule("footer").font(font(type.footer, palette.ash)),
+      rule("label, .label").font(font(type.captionLabel, palette.ink)),
+      rule("caption, .caption").font(font(type.captionNote, palette.ash)),
+      // The two registers a sheet sets INSIDE its content name no colour,
+      // so each is painted in the ink in force wherever it is read — which
+      // is what a section standing on a panel of its own asks for.
+      rule("eyebrow").font(font(type.eyebrow)),
+      rule("h2").font(font(type.section)),
+      // A MEASURED FIGURE is the one thing on the sheet that is neither
+      // type nor furniture, so it is the class a CALL is set in — the
+      // digits of one width — in the palette's figure colour, wherever it
+      // stands: a readout's value, a figure column's cells, a reading over
+      // a picture.
+      rule(".readout").font(font(type.captionLabel, palette.figure)),
+      // THE PARTS A CHART DRAWS. The furniture is quiet — the axis line and
+      // its ticks in the ash a remark is set in, the rules across the field in
+      // the hairline colour — and the reading is the figure colour, which is
+      // the one thing on the sheet a reader's eye is meant to find: a curve, a
+      // datum's own mark, the band it is drawn as, and the band's fill under a
+      // curve dimmed so the curve still reads over it. Only `tick` and `label`
+      // carry type, because only they set words; the rest name a colour alone
+      // and a recording paints in it as the ink in force.
+      rule(".plotAxis").font(ink(palette.ash)),
+      rule(".plotTick").font(font(type.captionLabel, palette.ash)),
+      rule(".plotRule").font(ink(palette.rule)),
+      rule(".plotTrace").font(ink(palette.figure)),
+      rule(".plotArea")
+          .font(ink(sigil::material::withAlpha(palette.figure, 0.25f))),
+      rule(".plotMark").font(ink(palette.figure)),
+      rule(".plotBar").font(ink(palette.figure)),
+      rule(".plotLabel").font(font(type.captionLabel, palette.ink)),
+  };
 }
 
 Provide::Provide(Theme look) : m_look(std::move(look)) {}

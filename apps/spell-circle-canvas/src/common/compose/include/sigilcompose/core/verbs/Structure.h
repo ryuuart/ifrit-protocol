@@ -15,7 +15,6 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Transition.h>
-#include <sigilweave/layout/StyleSheet.h>
 
 #include <chrono>
 #include <concepts>
@@ -44,19 +43,11 @@ template <class Derived>
 class StructureVerbs {
  public:
   /** @name The cascade a node NAMES
-   *  The sheet this node and everything under it resolve their classes
-   *  through, the semantic role that stands under those classes, and
-   *  the classes themselves. What a node DECLARES to its descendants —
-   *  the font, the block, the ink, the custom properties and the
-   *  sampling — is the cascade mixin's.
+   *  The sheets applied to this node's subtree, the semantic role its
+   *  rules and a component's defaults speak about, and the classes. What
+   *  a node DECLARES to its descendants — the font, the block, the ink,
+   *  the custom properties and the sampling — is the cascade mixin's.
    *  @{ */
-  /** THE SHEET this node and everything under it resolve their classes
-   *  through: rules under names, each a type half and a block half,
-   *  stated on any node and inherited down the tree as the font is, a
-   *  nearer sheet's rules standing over a farther one's by name. A sheet
-   *  is a value on the description, so a subtree carries its own and
-   *  nothing is bound around the code that builds it. */
-  Derived& styleSheet(sigil::weave::StyleSheet sheet);
   /** APPLIES @p sheet to this node and everything under it: a value
    *  declared once, whose rules speak about the elements their
    *  selectors name rather than about a class by name. Calling this
@@ -69,13 +60,6 @@ class StructureVerbs {
    *  is the root of what the sheet sees, so it matches `:root` and
    *  stands as the only child of nothing for these rules. */
   Derived& applyStyleSheet(StyleSheet sheet);
-  /** A SEMANTIC ROLE with default typography. The rule's name selects a
-   *  rule from the sheet where this node lands; that rule overrides these
-   *  defaults, ordinary classes override the role, and the node's own
-   *  font and block override both. Unstated fields inherit. A sheet need
-   *  not carry the role: the defaults make a component useful on its own.
-   *  A later call replaces the role and its defaults together. */
-  Derived& role(sigil::weave::Rule defaults);
   /** A SEMANTIC ROLE — what a bare word in a selector names — with the
    *  typography a component falls back to for it: @p font and @p block
    *  sit under every rule that matches the node, and the node's own
@@ -87,13 +71,12 @@ class StructureVerbs {
   Derived& role(std::string name, sigil::weave::Block block);
   /** A semantic role with no default fields, styled by the sheets in force. */
   Derived& role(std::string name);
-  /** CLASSES: the partials the sheets in force register under each name
-   *  in @p names — several, separated by spaces, as CSS's class attribute
-   *  lists them, folded in left to right — resolved by the cascade pass
-   *  where the element LANDS, and laid under the node's own `font()` and
-   *  `block()`, as an inline style stands over a class. The fields a class
-   *  sets then inherit down the tree. A name neither sheet in force
-   *  carries warns once and sets nothing. */
+  /** CLASSES: the names in @p names — several, separated by spaces, as
+   *  CSS's class attribute lists them — which the `.name` compounds of the
+   *  rules in force speak about, resolved by the cascade pass where the
+   *  element LANDS and laid under the node's own `font()` and `block()`,
+   *  as an inline style stands over a class. A name no rule in force
+   *  names warns once and sets nothing. */
   Derived& styleClass(std::string_view names);
   /** @} */
 

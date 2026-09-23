@@ -215,9 +215,9 @@ the code that built a child ran.
 |---|---|
 | [`font`](pages/verbs/font.md) | The type everything under this node is set in, as a PARTIAL over what it inherits. |
 | [`block`](pages/verbs/block.md) | The paragraph settings everything under it is set in, as a partial in the same way. |
-| `styleSheet` | The sheet this subtree resolves its classes and roles through. |
-| `styleClass` | The classes the sheets in force register, folded in left to right under the node's own type. |
-| `role` | A semantic role with default typography, overridden by the sheet, the classes and the node. |
+| `applyStyleSheet` | A sheet of selector rules put in force on this subtree; applying another adds it. |
+| `styleClass` | The classes the rules of the sheets in force speak about, laid under the node's own type. |
+| `role` | A semantic role — what a bare word in a selector names — with the defaults every matching rule stands over. |
 | `var` | A custom property set here and inherited by everything under it. |
 | `varDefaults` | Fallback custom properties, which an inherited or locally set property overrides. |
 | `inherit` | This property takes the PARENT's computed value, whether or not it is one that inherits. |
@@ -338,7 +338,7 @@ spelling is the feature's.
   `textOnPath`, `spanPaint`, `spanStyle`, `atRest`, and the `Text` leaf
   that has both these and the text properties.
 - `core/Image.h` — `imageRegion`, and the `Image` leaf that has it.
-- `core/verbs/Structure.h` — the cascade a node names, `styleSheet`,
+- `core/verbs/Structure.h` — the cascade a node names,
   `applyStyleSheet`, `styleClass` and `role`; `key`, `hitTestable`, `cache`, `cacheScale`, `transition`,
   `staggerChildren`; and `children`.
 - `core/Element.h` — `Children`, the value a `children({…})` run is.
