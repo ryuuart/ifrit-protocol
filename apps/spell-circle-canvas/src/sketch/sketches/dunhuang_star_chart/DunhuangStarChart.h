@@ -19,8 +19,8 @@ struct DunhuangStarChart {
             .font(weave::Type{
                 .face = faceDisplay,
                 .color = sigil::material::skia::toSkColor(hexColor(0xc9a35c)),
-                .track = 1.0f}),  // THE SIZES FIRST, THE COLOURS AFTER, because
-                                  // a later entry stands over
+                .track = 1.0f}),
+        // THE SIZES FIRST, THE COLOURS AFTER, because a later entry stands over
         // an earlier one by name: `styleClass("caption dim")` is then the small
         // hand in the quiet ink, which is what a plate of notes is set in.
         sigil::compose::rule("caption, .caption")
@@ -75,8 +75,8 @@ struct DunhuangStarChart {
         sigil::compose::rule(".vermilion")
             .font(weave::Type{
                 .color = sigil::material::skia::toSkColor(hexColor(
-                    0x8a3020, 0.95f))}),  // THE THREE SCHOOLS ARE CLASSES, so a
-                                          // name and the dot beside it take
+                    0x8a3020, 0.95f))}),
+        // THE THREE SCHOOLS ARE CLASSES, so a name and the dot beside it take
         // one statement: S.3326 is the first document to colour them, and
         // cinnabar, carbon and oxidised lead white are what it colours them
         // with.
@@ -89,8 +89,8 @@ struct DunhuangStarChart {
         sigil::compose::rule(".undeclared")
             .font(weave::Type{
                 .color = sigil::material::skia::toSkColor(
-                    kInkFaint)}),  // THE PARTS A CHART DRAWS, in this plate's
-                                   // own inks rather than the
+                    kInkFaint)}),
+        // THE PARTS A CHART DRAWS, in this plate's own inks rather than the
         // theme's: the pole wheel's rings, its track, its dots and its
         // captions, the departure curves, and the hand's own residual ruled
         // across them.

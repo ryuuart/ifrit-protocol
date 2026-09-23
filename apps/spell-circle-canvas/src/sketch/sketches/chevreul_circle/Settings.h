@@ -328,9 +328,9 @@ inline const sigil::compose::StyleSheet& classes() {
                      .track = 0.2f}),
           sigil::compose::rule("quote, .quote")
               .font({.face = serifIt(),
-                     .size = 8.5f}),  // What the a*b* plot's own parts are
-                                      // drawn in: the chart kit
-          // names the part and the plate says the colour.
+                     .size = 8.5f}),
+          // What the a*b* plot's own parts are drawn in: the chart kit names
+          // the part and the plate says the colour.
           sigil::compose::rule(".plotRule")
               .font({.color =
                          material::skia::toSkColor(hexColor(0x8C8578, 0.35f))}),
