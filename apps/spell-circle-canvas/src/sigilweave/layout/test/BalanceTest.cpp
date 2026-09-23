@@ -115,3 +115,32 @@ TEST(Balance, ABalancedBlockIsStillSetInItsWholeMeasure) {
   const float left = *std::min_element(centres.begin(), centres.end());
   EXPECT_NEAR(left, (260.0f - widths.front()) * 0.5f, 1.0f);
 }
+
+TEST(Balance, ARaggedBlockKeepsEveryLineInsideItsMeasure) {
+  // A ragged line has almost no stretch of its own, so the optimizing
+  // breaker only sets this passage by reaching for the emergency stretch.
+  // Balancing it must narrow under the same allowance, and whatever the
+  // search finds, every line it hands over fits the measure it is set in.
+  FontContext& fonts = sigil::test::fonts();
+  const auto fillWith = [&](bool balance) {
+    Paragraph paragraph = makeParagraph(
+        u8"Justification spends interword gaps before letterspacing, and "
+        u8"reaches for horizontal glyph-scaling last of all.",
+        12.0f);
+    BlockFlow flow(SkRect::MakeWH(180, 400));
+    ParagraphLayoutOptions options;
+    options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+    ParagraphStyle style;
+    style.balanceRaggedLines = balance;
+    options.blocks = {style};
+    const ParagraphLayout layout =
+        layoutParagraph(fonts, paragraph, flow, options);
+    return lineWidths(layout, paragraph);
+  };
+  const std::vector<float> loose = fillWith(false);
+  const std::vector<float> balanced = fillWith(true);
+  ASSERT_GE(loose.size(), 3u);
+  ASSERT_EQ(loose.size(), balanced.size());
+  for (float width : balanced) EXPECT_LE(width, 180.0f + 0.5f);
+  EXPECT_LT(spread(balanced), spread(loose));
+}

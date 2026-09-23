@@ -459,6 +459,11 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   BreakList balancedBreaks;
   bool forcedOverfull = false;
   uint32_t firstUnplacedWord = ~0u;
+  // Whether the answer standing needed the emergency stretch, which every
+  // narrowing below must then be allowed too: a ragged line has almost no
+  // stretch of its own, so a narrowing denied it forces an overfull line
+  // at every fraction and the search never narrows at all.
+  bool emergencyStretch = false;
   int32_t best = runPass(false, forcedOverfull, firstUnplacedWord);
   // A block the breaker could not finish inside its floor is left where it
   // stands: nothing is placed, and the caller fills it greedily for this
@@ -472,6 +477,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
     if (retry >= 0) {
       best = retry;
       firstUnplacedWord = retryFirstUnplacedWord;
+      emergencyStretch = true;
     }
   }
 
@@ -510,7 +516,9 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       anyMeasure = std::max(anyMeasure, flat.interval.length);
     if (target > 1 && anyMeasure > 0) {
       // The breaks the search will keep, remembered outside the arena the
-      // next pass clears.
+      // next pass clears. They start as the unbalanced answer, which the
+      // arena no longer holds once the first narrowing has run, so a search
+      // that finds no narrower setting still hands over breaks that exist.
       BreakList keptBreaks;
       const auto rememberBreaks = [&](int32_t node) {
         keptBreaks.clear();
@@ -519,6 +527,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
                                   arena[arena[index].previousNode].interval);
         std::reverse(keptBreaks.begin(), keptBreaks.end());
       };
+      rememberBreaks(best);
       constexpr int kBisectionSteps = 8;
       float tooNarrow = 0;
       float wideEnough = 1.0f;
@@ -527,7 +536,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
         bool narrowedOverfull = false;
         uint32_t narrowedUnplaced = ~0u;
         const int32_t narrowed =
-            runPass(false, narrowedOverfull, narrowedUnplaced);
+            runPass(emergencyStretch, narrowedOverfull, narrowedUnplaced);
         // The search spends against the block's floor like every other
         // pass, and the arena these passes share no longer holds the
         // unbalanced answer found before them: a block that runs out in
@@ -545,8 +554,8 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       }
       balanceFraction = 1.0f;
       if (!keptBreaks.empty()) {
-        // Placement below walks the arena from `best`; the balanced answer
-        // is a break list of its own, so it is handed over directly.
+        // The arena holds the last narrowing, not `best`: the answer is a
+        // break list of its own, so it is handed over directly.
         arena.clear();
         arena.push_back({base, static_cast<uint32_t>(firstInterval), 0, -1});
         best = 0;
