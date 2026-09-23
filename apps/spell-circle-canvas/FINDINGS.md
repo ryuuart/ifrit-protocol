@@ -339,3 +339,26 @@ justification the way the method does.
 A test should assert that
 `paragraph({.alignment = kJustify, .justification = {}, .justifyLastLine = true})`
 on a text leaf sets its last line to the measure.
+
+## A zoom that settles re-rasterises everything at once, and varied glyphs grow with the scale
+
+When the pane's zoom settles, `SketchbookRenderer` redraws the frame at
+the new scale, and everything rasterised per device scale is redone in
+that frame: texture bakes on their coarse scale ladder, and every glyph
+at its new pixel size through the glyph atlas. A fast zoom in and out
+crosses several rungs in a second, so each settle costs a spike rather
+than a steady frame. `axis_ripple`, whose glyphs are each a varied
+typeface instance, slows with the zoom itself: every instance
+re-rasterises at the larger size and the atlas, sized by an environment
+variable, fills and evicts.
+
+A zoom is evidently meant to cost what the pane costs at any scale, as
+the pane-sized render target now makes true for fill, with a settle
+paying once and a varied glyph drawn as a path where the size makes an
+atlas entry wasteful.
+
+Once measured, `sketch_bench` should carry an arm that frames
+`axis_ripple` at zoom 1, 2 and 4 reading back the reshaped-words and
+atlas counters, and an arm that alternates two scales across a settle,
+so a test can assert that a settle's cost is bounded and that a varied
+passage's frame cost does not grow with the zoom.
