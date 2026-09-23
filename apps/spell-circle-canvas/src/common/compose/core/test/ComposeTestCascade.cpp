@@ -427,7 +427,17 @@ TEST(ComposeCascade, AnInheritedInkEasesUnderTheNodesOwnTransition) {
   host.frame();
   EXPECT_EQ(host.pixel(90, 30), SkColorSetARGB(255, 255, 0, 0))
       << "the lane has begun and stands at the colour it begins at";
-  host.frame(0.15);
+  host.frame(0.05);
+  const SkColor following = host.pixel(30, 30);
+  const SkColor owning = host.pixel(90, 30);
+  EXPECT_GT(SkColorGetR(following), 0u)
+      << "no transition of its own: it stands where the ancestor's ramp "
+         "stands, part of the way";
+  EXPECT_LT(SkColorGetR(following), 255u);
+  EXPECT_GT(SkColorGetB(following), 0u);
+  EXPECT_LT(SkColorGetB(owning), SkColorGetB(following))
+      << "its own, longer lane is behind the ancestor's ramp";
+  host.frame(0.1);
   EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 0, 0, 255))
       << "no transition of its own: it landed with the ancestor";
   const SkColor mid = host.pixel(90, 30);

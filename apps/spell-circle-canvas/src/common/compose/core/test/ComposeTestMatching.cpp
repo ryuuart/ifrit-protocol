@@ -9,8 +9,11 @@
 // says which rule won there.
 
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/style/Type.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -184,24 +187,32 @@ TEST(ComposeMatching, AnElementWithNoChildrenAndNoWordsIsEmpty) {
 
 TEST(ComposeMatching, ATextLeafHoldingWordsIsNotEmpty) {
   // A text leaf's words are its content, as a text node is an HTML
-  // element's, so a leaf holding any — plain or as runs — is not empty,
-  // though it has no children.
+  // element's, so a leaf holding any — plain, as runs, or as a paragraph
+  // handed over whole — is not empty, though it has no children.
   Host host;
-  const auto page = [](const StyleSheet& sheet) {
+  const auto whole = std::make_shared<sigil::weave::Paragraph>(
+      sigil::weave::ParagraphBuilder(
+          sigil::weave::textStyle(
+              {.face = sigil::test::instrument::sans(), .size = 12}))
+          .addText(u8"AAA")
+          .build());
+  const auto page = [&whole](const StyleSheet& sheet) {
     return box()
         .font({.face = sigil::test::instrument::sans(), .size = 12})
         .applyStyleSheet(sheet)
         .children({text(u8"AAAA").key("plain"),
-                   text(sigil::weave::rich().add(u8"AA")).key("runs")});
+                   text(sigil::weave::rich().add(u8"AA")).key("runs"),
+                   text(whole).key("whole")});
   };
   host.composer.render(page(StyleSheet{rule(":empty").width(77)}));
   host.frame();
-  EXPECT_NE(require(host.composer.bounds("plain")).width(), 77.0f);
-  EXPECT_NE(require(host.composer.bounds("runs")).width(), 77.0f);
+  for (const char* key : {"plain", "runs", "whole"})
+    EXPECT_NE(require(host.composer.bounds(key)).width(), 77.0f) << key;
   host.composer.render(page(StyleSheet{rule(":not(:empty)").width(55)}));
   host.frame();
-  EXPECT_FLOAT_EQ(require(host.composer.bounds("plain")).width(), 55.0f);
-  EXPECT_FLOAT_EQ(require(host.composer.bounds("runs")).width(), 55.0f);
+  for (const char* key : {"plain", "runs", "whole"})
+    EXPECT_FLOAT_EQ(require(host.composer.bounds(key)).width(), 55.0f)
+        << key;
 }
 
 TEST(ComposeMatching, AFilteredCountRunsOverTheSiblingsThatMatchTheFilter) {

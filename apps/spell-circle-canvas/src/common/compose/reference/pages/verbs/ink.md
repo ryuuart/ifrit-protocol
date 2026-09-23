@@ -72,8 +72,9 @@ reads the same value off `PaintContext::ink`, and the paint form off
 `PaintContext::inkPaint`.
 
 **A colour eases and does not relayout.** A node whose ink changes under
-a `transition` eases it, and everything under it follows — repainted
-while the colour moves, cached again once it settles. A PAINT snaps, as
+a `transition` eases it, and every descendant with no `transition` of its
+own follows — repainted while the colour moves, cached again once it
+settles. A PAINT snaps, as
 a fill does: there is no ramp between two pictures. A BOUND ink is not
 offered: a live value inherited from above would make the whole subtree
 under it volatile.

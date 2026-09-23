@@ -90,10 +90,9 @@ custom property read inside a sum must hold a length a sum can hold.
 Arithmetic on auto and a division by zero are refused the same way, as
 the `calc()` text refuses all three.
 
-Python spells the same arithmetic
-on `compose.Dimension`, with a number or a length string on either side,
-and raises `ValueError` at the call for each of the three refusals where
-C++ warns and stands as auto.
+Python spells the same arithmetic on `compose.Dimension`, with a number
+or a length string on either side, and raises `ValueError` at the call
+for each of the three refusals where C++ warns and stands as auto.
 
 ## A length written as text
 

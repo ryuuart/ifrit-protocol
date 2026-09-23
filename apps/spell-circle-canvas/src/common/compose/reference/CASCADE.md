@@ -152,15 +152,18 @@ however many boxes deep the node is written — resolved into pixels in the
 same pass that resolves an em, because a percentage of something that is not
 the containing block is not a thing Yoga can express.
 
-**Motion stays on the node that declares it.** A node whose ink changes
-under `Element::transition` eases it, and everything under it follows —
-repainted while the colour moves, cached again when it settles. A bound
-ink is not offered: a live value inherited from above would make the
-subtree under it volatile, a direction the caching kernel does not fold.
-What a change costs follows the split above: an ancestor's font change
-re-materialises and relays out the inheriting leaves under it, and
-rewrites every length measured in it; an ink change repaints them and
-breaks no line again.
+**Motion belongs to the node that declares it.** A node whose ink
+changes under `Element::transition` eases it, and a descendant with no
+transition of its own follows that ramp — repainted while the colour
+moves, cached again when it settles. A descendant stating a transition of
+its own eases the ink it inherits on a lane of its own, over its own
+duration, toward the colour the ancestor is headed for, as it does a fill
+and as CSS does every inherited property. A bound ink is not offered: a
+live value inherited from above would make the subtree under it volatile,
+a direction the caching kernel does not fold. What a change costs follows
+the split above: an ancestor's font change re-materialises and relays out
+the inheriting leaves under it, and rewrites every length measured in it;
+an ink change repaints them and breaks no line again.
 
 **The pen begins in the ink and the font.** A `compose::pen` or
 `compose::graphics` program finds its fill and stroke in the node's ink
