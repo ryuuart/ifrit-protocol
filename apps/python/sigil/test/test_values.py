@@ -208,13 +208,17 @@ class Colors(unittest.TestCase):
                 self.assertIsInstance(
                     compose.box().fill(ramp, box=box), compose.Element
                 )
-        # A box places a picture, so a surface with none to place says so.
-        with self.assertRaisesRegex(TypeError, "only a paint takes one"):
-            compose.box().fill(
+        # A box places a paint's unit square, so a surface with none to
+        # place is applied whole, exactly as without the box.
+        self.assertEqual(
+            compose.rule(".x").fill(
                 compose.Fill.currentInk(), box=compose.PaintBox.Canvas
-            )
+            ),
+            compose.rule(".x").fill(compose.Fill.currentInk()),
+        )
         self.assertFalse(hasattr(compose, "PaintAnchor"))
         self.assertFalse(hasattr(compose, "BackgroundOrigin"))
+        self.assertFalse(hasattr(compose.Property, "BackgroundOrigin"))
 
     def test_a_uniform_is_written_the_same_way_on_a_paint_and_an_effect(self):
         source = skia.RuntimeEffect.MakeForShader(

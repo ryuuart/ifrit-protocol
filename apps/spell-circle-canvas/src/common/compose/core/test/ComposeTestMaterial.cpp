@@ -919,3 +919,23 @@ TEST(ComposeMaterial, AFillRefusesATextUnitAndSaysSo) {
   EXPECT_TRUE(identicalPixels(word, element, 120, 60));
   EXPECT_TRUE(identicalPixels(subtree, element, 120, 60));
 }
+
+TEST(ComposeMaterial, AFillRefusesATextUnitOnASurfaceWithNoPaintToPlace) {
+  // The ink in force has no unit square to place, so it is applied whole;
+  // a text unit handed with it is still refused and said, as with a paint.
+  const auto page = [](PaintBox over) {
+    return box().ink(material::Color{1, 0, 0, 1}).children(
+        {box().width(100).height(40).fill(SurfacePaint(Fill::currentInk()),
+                                          over)});
+  };
+  ::testing::internal::CaptureStderr();
+  Host glyph;
+  glyph.composer.render(page(PaintBox::Glyph));
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("text unit"), std::string::npos) << log;
+  Host element;
+  element.composer.render(page(PaintBox::Element));
+  glyph.frame();
+  element.frame();
+  EXPECT_TRUE(identicalPixels(glyph, element, 120, 60));
+}

@@ -88,6 +88,17 @@ Derived& PaintVerbs<Derived>::fill(material::skia::Paint m, PaintBox box) {
   return self();
 }
 
+template <class Derived>
+Derived& PaintVerbs<Derived>::fillSurface(const SurfacePaint& paint,
+                                          PaintBox box) {
+  if (box != PaintBox::Element && !paint.none())
+    if (std::optional<material::skia::Paint> placed = paint.collapsedPaint())
+      return fill(std::move(*placed), box);
+  if (detail::textUnitOf(box)) warnFillTakesNoTextUnit();
+  paint.apply(self());
+  return self();
+}
+
 template class PaintVerbs<Element>;
 template class PaintVerbs<Text>;
 template class PaintVerbs<Image>;

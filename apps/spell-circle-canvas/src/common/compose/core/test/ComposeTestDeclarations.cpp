@@ -308,6 +308,38 @@ TEST(ComposeDeclarations, AColourWrittenThroughTheFontIsTheInk) {
   EXPECT_EQ(host.pixel(20, 140), SK_ColorBLACK);
 }
 
+TEST(ComposeDeclarations, AFontColourAndAnInkAreOneLaneToEveryReader) {
+  // The same colour stated either way is the same ink in force: the node's
+  // own currentInk and a child's inherited one read it alike, and a node
+  // that switches from one spelling to the other keeps drawing it.
+  const material::Color red{1, 0, 0, 1};
+  const auto scene = [&](bool throughTheFont) {
+    Element parent = box().width(80).height(40).row();
+    if (throughTheFont)
+      parent.font({.color = red});
+    else
+      parent.ink(red);
+    return box().children({parent.children({
+        box().width(40).height(40).fill(Fill::currentInk()),
+        box().width(40).height(40).children(
+            {box().width(40).height(40).fill(Fill::currentInk())}),
+    })});
+  };
+  Host font(80, 40), ink(80, 40), switched(80, 40);
+  font.composer.render(scene(true));
+  ink.composer.render(scene(false));
+  switched.composer.render(scene(true));
+  font.frame();
+  ink.frame();
+  switched.frame();
+  switched.composer.render(scene(false));
+  switched.frame();
+  EXPECT_EQ(font.pixel(20, 20), SK_ColorRED);
+  EXPECT_EQ(font.pixel(60, 20), SK_ColorRED) << "a child inherits it";
+  EXPECT_TRUE(identicalPixels(font, ink, 80, 40));
+  EXPECT_TRUE(identicalPixels(switched, ink, 80, 40));
+}
+
 TEST(ComposeDeclarations, InitialOnTheInkOverridesARulesFontColour) {
   // A rule's colour written through its font is the rule's ink: the node's
   // `initial` on the ink stands over it, and within one rule the later of

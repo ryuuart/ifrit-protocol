@@ -170,17 +170,9 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
             // empty Fill and an empty paint, must clear the same way.
             const compose::SurfacePaint paint = surfacePaint(value);
             if (paint.none()) return self.fill(compose::Fill::none());
-            if (box == compose::PaintBox::Element) return paint.apply(self);
-            // A box is a statement about a PICTURE stretched over it, so a
-            // fill that has no picture to place says so.
-            const std::optional<material::skia::Paint> stretched =
-                paint.collapsedPaint();
-            if (!stretched)
-              throw py::type_error(
-                  "A box places a paint's unit square, so only a paint "
-                  "takes one: the ink in force, a custom property and a "
-                  "bound fill have no picture to place.");
-            return self.fill(*stretched, box);
+            // A box places a paint's unit square, so a surface with no
+            // paint to place is applied whole, as the native verb does.
+            return self.fill(paint, box);
           },
           py::arg("value"), py::arg("box") = compose::PaintBox::Element, fluent)
       .def(

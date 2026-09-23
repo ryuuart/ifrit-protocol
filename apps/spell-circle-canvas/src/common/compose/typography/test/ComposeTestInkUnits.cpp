@@ -486,7 +486,7 @@ TEST(ComposeInkUnits, AUnitOnANodeThatIsNoPassageIsDroppedAndSaysSo) {
   // A text unit restarts the paint on a passage's own units, which a box
   // has none of: on one it is dropped, once with a warning, and the text
   // under the box takes the ramp over its own text box. A rule may land
-  // on a passage, so it keeps the unit and says nothing.
+  // on a passage, so it keeps the unit until it lands and says nothing.
   ::testing::internal::CaptureStderr();
   Rule kept = rule(".kept").ink(across(), PaintBox::Glyph);
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
@@ -506,6 +506,34 @@ TEST(ComposeInkUnits, AUnitOnANodeThatIsNoPassageIsDroppedAndSaysSo) {
   EXPECT_TRUE(reddish(letters[0].left));
   EXPECT_FALSE(bluish(letters[0].right));
   EXPECT_TRUE(bluish(letters[1].right));
+}
+
+TEST(ComposeInkUnits, ARulesUnitLandingOnABoxDrawsAsTheVerbsDoes) {
+  // A rule's unit that lands on a node that is no passage is dropped where
+  // it lands, once with a warning, so the rule draws exactly what the same
+  // ink stated by the box's own verb draws.
+  ::testing::internal::CaptureStderr();
+  Host ruled(320, 160);
+  ruled.composer.render(
+      box()
+          .padding(20)
+          .styleClass("chrome")
+          .applyStyleSheet(
+              StyleSheet{rule(".chrome").ink(across(), PaintBox::Glyph)})
+          .children({text(u8"HH", whiteStyle(96))}));
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("no passage"), std::string::npos) << log;
+  ruled.frame();
+  Host stated(320, 160);
+  stated.composer.render(box()
+                             .padding(20)
+                             .ink(across(), PaintBox::Glyph)
+                             .children({text(u8"HH", whiteStyle(96))}));
+  stated.frame();
+  EXPECT_TRUE(identicalPixels(ruled, stated, 320, 160));
+  const std::vector<Letter> letters = lettersAcross(ruled, 320, 160);
+  ASSERT_EQ(letters.size(), 2u);
+  EXPECT_FALSE(bluish(letters[0].right)) << "the ramp restarted per glyph";
 }
 
 TEST(ComposeInkUnits, AFillsBoxOnAnInkIsTheElementsOwnAndSaysSo) {

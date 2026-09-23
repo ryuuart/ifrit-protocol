@@ -21,9 +21,9 @@ handed with says which one it lands on.
 | `PaintBox::Element` | The element's own box — for a passage, its text box: across the widest line, from the first line's cap top to the last line's baseline. The default. | `fill`, `ink` |
 | `PaintBox::Padding` | Inside the element's border — CSS's padding-box origin. A border here is a stroke dressing the boundary, so this is the element's own box until one exists. | `fill` |
 | `PaintBox::Content` | Inside the border and the padding — CSS's content-box origin. The painted area does not move with it; only where the paint starts does. | `fill` |
-| `PaintBox::Subtree` | The box of the element that STATED the paint; everything under it shows its own slice of one paint. | `ink` |
-| `PaintBox::Canvas` | The whole canvas; elements anywhere in the tree show slices of one field, and moving one moves which slice it shows. | `fill`, `ink` |
-| `PaintBox::Glyph`, `Cluster`, `Word`, `Line`, `Sentence` | Each such unit of a passage, the paint restarting on every one — Weave's own unit words. | `ink` on a text leaf, a rule, a span |
+| `PaintBox::Subtree` | The box of the element that STATED the paint; everything under it shows its own slice of one paint. | `ink` of a node or a rule |
+| `PaintBox::Canvas` | The whole canvas; elements anywhere in the tree show slices of one field, and moving one moves which slice it shows. | `fill`, `ink` of a node or a rule |
+| `PaintBox::Glyph`, `Cluster`, `Word`, `Line`, `Sentence` | Each such unit of a passage, the paint restarting on every one — Weave's own unit words. | `ink` on a text leaf, a rule landing on one, a span |
 
 ## What each verb does with the others
 
@@ -33,9 +33,11 @@ handed with says which one it lands on.
   part of the fill's own statement: a later fill replaces it.
 - **`ink`** reads `Padding` and `Content` as `Element`, and a text unit
   on a node that is no text leaf as `Element` too, each said once. A
-  rule and a span keep a text unit, since they land on text. A colour
-  has no unit square to stretch, so a box handed with one is accepted
-  and changes nothing.
+  rule keeps a text unit until it lands, and drops it the same way on a
+  node that is no text leaf. A span takes only the text units: any other
+  box on a span lays the paint in the passage's own coordinates. A
+  colour has no unit square to stretch, so a box handed with one is
+  accepted and changes nothing.
 
 ## Make one
 

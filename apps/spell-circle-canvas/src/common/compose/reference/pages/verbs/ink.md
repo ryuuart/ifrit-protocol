@@ -120,8 +120,8 @@ text(u8"EMBER GLASS").ink(ramp, PaintBox::Glyph);
 
 A text unit needs a passage to cut: on a node that is no text leaf it
 is dropped, with a warning once, and the paint is stretched over the
-element's own box; a rule and a span keep theirs, since they land on
-text. `Padding` and `Content` place a fill inside its box and read as
+element's own box — whether the node's own verb stated it or a rule
+that landed there. `Padding` and `Content` place a fill inside its box and read as
 `Element` here, said the same way. An upright
 letter in a vertical column has no cap band across it, so its box is
 one em across the column and its advance down it. A letter on a
@@ -129,8 +129,10 @@ one em across the column and its advance down it. A letter on a
 and a letter in flight under a `textFx` track draws with its unit's
 paint where the unit rests, sampled where the letter now is. The
 decoration bands keep the passage's mapping, since a band spans a run
-rather than a unit. A [`span`](span.md) takes the same box over the
-range it finds, and so does a rule.
+rather than a unit. A rule landing on a passage takes the same box. A
+[`span`](span.md) takes a text unit over the range it finds; any other
+box on a span lays the paint in the passage's own coordinates, as it
+is.
 
 **Under a unit the passes draw band by band** across the whole
 passage: every underlay — a shadow, the [`textStroke`](textStroke.md)

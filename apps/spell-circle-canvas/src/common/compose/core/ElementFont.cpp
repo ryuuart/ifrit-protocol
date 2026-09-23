@@ -16,21 +16,23 @@
 
 namespace sigil::compose {
 
-namespace {
+namespace detail {
 
-/** The once-per-process diagnostic behind an ink handed a text unit on a
- *  node that is no passage: a box has no glyphs, words or lines of its
- *  own to restart the paint on. */
 void warnInkTextUnitNeedsAPassage() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
   SkDebugf(
       "[compose] ink() names a text unit (Glyph, Cluster, Word, Line or "
-      "Sentence) on a node that is no passage — the unit was dropped and "
-      "the paint is stretched over PaintBox::Element. State the unit on the "
-      "text leaf, a span of it, or a rule that lands on it. (warned once)\n");
+      "Sentence) on a node that is no passage, whether by its own verb or "
+      "a rule landing on it — the unit was dropped and the paint is "
+      "stretched over PaintBox::Element. State the unit on the text leaf, a "
+      "span of it, or a rule that lands on the leaf. (warned once)\n");
 }
+
+}  // namespace detail
+
+namespace {
 
 /** The once-per-process diagnostic behind an ink handed `Padding` or
  *  `Content`, which are rectangles of a fill's box: an ink is laid on
@@ -156,8 +158,9 @@ Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintBox box) {
     return ink(flat->colorValue);
   // A box the ink cannot stretch a paint over is read as the element's
   // own, and said so: the padding and the content rectangles place a
-  // fill, and a text unit needs a passage to cut. A rule and a span may
-  // land on one, so they keep theirs.
+  // fill, and a text unit needs a passage to cut. A span always lands on
+  // one, and a rule keeps its unit until it lands, where the cascade
+  // drops it on a node that is no passage.
   if (box == PaintBox::Padding || box == PaintBox::Content) {
     warnInkTakesNoFillBox();
     box = PaintBox::Element;
@@ -166,7 +169,7 @@ Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintBox box) {
       std::is_same_v<Derived, Rule> || std::is_same_v<Derived, SpanStyle>;
   if (!landsOnText && detail::textUnitOf(box) &&
       declarations()->kind != detail::Kind::Text) {
-    warnInkTextUnitNeedsAPassage();
+    detail::warnInkTextUnitNeedsAPassage();
     box = PaintBox::Element;
   }
   // An empty paint STATES the lane and holds nothing, which clears an

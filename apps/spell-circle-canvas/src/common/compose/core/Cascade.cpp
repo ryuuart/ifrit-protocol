@@ -488,7 +488,14 @@ void Composer::Impl::resolveCascade(
         inkVar.reset();
       }
       if (rule.statesInk()) {
-        inkPaint = {rule.inkPaint(), rule.inkBox()};
+        // A text unit needs a passage to cut; on any other node it is
+        // dropped exactly as the node's own ink() drops it.
+        PaintBox box = rule.inkBox();
+        if (textUnitOf(box) && node.kind != Kind::Text) {
+          warnInkTextUnitNeedsAPassage();
+          box = PaintBox::Element;
+        }
+        inkPaint = {rule.inkPaint(), box};
         inkPaintOrigin = rule.inkPaint().has_value();
       }
       if (!rule.vars().empty()) ruleVars.overlay(rule.vars());

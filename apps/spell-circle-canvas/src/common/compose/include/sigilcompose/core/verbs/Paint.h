@@ -54,15 +54,12 @@ class PaintVerbs {
    *  deduction keeps ordinary fill and material arguments on their own
    *  overloads. A box other than `Element` places a paint's unit square,
    *  so a surface with no paint to place — a colour, the ink in force, a
-   *  custom property, a bound fill — is applied whole. */
+   *  custom property, a bound fill — is applied whole. A text unit is
+   *  refused and said once, whatever the surface. */
   template <typename P>
     requires std::same_as<std::remove_cvref_t<P>, SurfacePaint>
   Derived& fill(P&& paint, PaintBox box = PaintBox::Element) {
-    if (box != PaintBox::Element && !paint.none())
-      if (std::optional<material::skia::Paint> placed = paint.collapsedPaint())
-        return fill(std::move(*placed), box);
-    paint.apply(self());
-    return self();
+    return fillSurface(paint, box);
   }
 
   /** NEITHER A TILE NOR A PATTERN IS A FILL: a pattern's bake is its
@@ -79,6 +76,7 @@ class PaintVerbs {
   }
 
  private:
+  Derived& fillSurface(const SurfacePaint& paint, PaintBox box);
   Derived& self() { return static_cast<Derived&>(*this); }
   detail::ElementNode* declarations() {
     return detail::NodeAccess::declarations(self());

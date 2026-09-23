@@ -758,6 +758,12 @@ void warnRuleHoldsOnlyStaticValues(Property property);
  *  the statement is left out rather than dropped unsaid. */
 void warnRuleCannotState(Property property);
 
+/** The once-per-process diagnostic behind an ink naming a text unit on a
+ *  node that is no passage — by the node's own verb or a rule landing on
+ *  it: a box has no glyphs, words or lines of its own to restart the
+ *  paint on, so the paint is stretched over `PaintBox::Element`. */
+void warnInkTextUnitNeedsAPassage();
+
 /** The once-per-property diagnostic behind a memo's shell carrying
  *  something other than its key and how its recording is held: the
  *  shell's look is what the deferred describe produces, so the rest is
