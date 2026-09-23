@@ -47,16 +47,18 @@ sigil_library(SigilWeave
             SigilWeavePaint SigilWeaveChoreograph SigilWeaveQuery)
 
 # Every API name the prose spells, compiled against the headers that own
-# it — README.md, the control-by-control catalogue and the kit's page,
-# because each is canon for what it covers. The libraries this one stands
-# on are scanned for the contour a path run rides, the distance field a
-# glyph atlas is baked into and the caching values the kit's guards are,
-# and the tree-wide test support for the instrument faces the testing
-# section names.
+# it — README.md, its chapters, the kit's page and PARITY.md, the
+# control-by-control catalogue, because each is canon for what it covers.
+# The libraries this one stands on are scanned for the contour a path run
+# rides, the distance field a glyph atlas is baked into and the caching
+# values the kit's guards are, and the tree-wide test support for the
+# instrument faces the testing section names.
 #
-# The names it borrows from ABOVE are exempted instead: the settling
-# passage names SigilCompose's worked example, and SigilCompose stands on
-# this library.
+# The names it borrows from ABOVE are exempted instead, one by one, since
+# SigilCompose stands on this library and its probes must not link the
+# one above them: the settling passage names SigilCompose's worked
+# example, and PARITY.md how a SigilCompose author reaches each control.
+set(compose_owned "SigilCompose stands on this library, so a name PARITY.md gives a Compose author is named and not probed")
 sigil_doc_probes(weave
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/FEATURES.md
@@ -70,6 +72,7 @@ sigil_doc_probes(weave
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/LAYOUT.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/GLYPHS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Paragraph.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/PARITY.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/geometry/include/sigilgeometry/path
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/image/include/sigilimage
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
@@ -83,6 +86,33 @@ sigil_doc_probes(weave
           "SkCanvas::saveLayer=Skia's own overloaded member: no requires-spelling can name an overload set, and this generator indexes only the libraries whose include roots it is given"
           "Text::textWillChange=SigilCompose stands on this library, so its worked example is named and not probed"
           "Composer::settling=SigilCompose stands on this library, so its worked example is named and not probed"
+          "Element::paragraph=${compose_owned}"
+          "Element::key=${compose_owned}"
+          "Element::padding=${compose_owned}"
+          "Element::decorationOutline=${compose_owned}"
+          "Text::paragraphStyles=${compose_owned}"
+          "Text::initialLetter=${compose_owned}"
+          "Text::contentFlowAround=${compose_owned}"
+          "Text::span=${compose_owned}"
+          "Text::textThreadBalance=${compose_owned}"
+          "Text::textVerticalAlign=${compose_owned}"
+          "Text::textFirstBaseline=${compose_owned}"
+          "Text::textThreadTo=${compose_owned}"
+          "Text::textAnnotation=${compose_owned}"
+          "Text::textLineMargin=${compose_owned}"
+          "Text::textOnPath=${compose_owned}"
+          "kit::NestedStyle=${compose_owned}"
+          "kit::nestedRun=${compose_owned}"
+          "kit::bullets=${compose_owned}"
+          "kit::rules=${compose_owned}"
+          "kit::textColumns=${compose_owned}"
+          "kit::Spanner=${compose_owned}"
+          "kit::annotate=${compose_owned}"
+          "kit::Anchored=${compose_owned}"
+          "kit::ruby=${compose_owned}"
+          "kit::kenten=${compose_owned}"
+          "selectors::style=${compose_owned}"
+          "selectors::inFrame=${compose_owned}"
   FLOORS 80,150,75,0,1
   LIBRARIES SigilWeave SigilGeometryPath SigilImageField SigilCoreCache)
 
