@@ -9,7 +9,7 @@ auto ThunderFulu::describe(sketch::SketchContext&) -> Element {
   // three named voices — a section heading in the display face and
   // gold, the italic gloss, and the chant a line is sung in.
   sigil::compose::StyleSheet classes{
-      sigil::compose::rule("heading, .heading")
+      sigil::compose::rule(".heading")
           .font({.face = faceDisplay,
                  .size = 11.5f,
                  .color = sigil::material::skia::toSkColor(kGold),

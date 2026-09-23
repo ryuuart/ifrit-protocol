@@ -73,7 +73,7 @@ struct SigillumAemeth {
                           .color = sigil::material::skia::toSkColor(kVellum)}),
         sigil::compose::rule(".rubric").font(
             weaveNs::Type{.color = sigil::material::skia::toSkColor(kRubric)}),
-        sigil::compose::rule("heading, .heading")
+        sigil::compose::rule(".heading")
             .font(weaveNs::Type{
                 .size = 15,
                 .color = sigil::material::skia::toSkColor(kRubric),

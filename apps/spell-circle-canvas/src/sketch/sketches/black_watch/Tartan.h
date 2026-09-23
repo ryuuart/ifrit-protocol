@@ -447,7 +447,7 @@ inline const sigil::compose::StyleSheet& classes() {
   static const sigil::compose::StyleSheet look =
       sheet().styleSheet() +
       sigil::compose::StyleSheet{
-          sigil::compose::rule("heading, .heading")
+          sigil::compose::rule(".heading")
               .font({.face = mono(),
                      .size = 9,
                      .color = material::skia::toSkColor(kInk),

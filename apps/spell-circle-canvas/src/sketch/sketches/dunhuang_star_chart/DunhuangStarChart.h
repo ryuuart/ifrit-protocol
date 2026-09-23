@@ -15,7 +15,7 @@ struct DunhuangStarChart {
    *  its slot from the clock. */
   [[nodiscard]] sigil::compose::StyleSheet voices() const {
     return sigil::compose::StyleSheet{
-        sigil::compose::rule("heading, .heading")
+        sigil::compose::rule(".heading")
             .font(weave::Type{
                 .face = faceDisplay,
                 .color = sigil::material::skia::toSkColor(hexColor(0xc9a35c)),

@@ -183,7 +183,7 @@ const Tier& tierOf(Composer::CacheState state) {
 sigil::compose::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
   sigil::compose::StyleSheet classes =
       look.styleSheet() +
-      sigil::compose::StyleSheet{sigil::compose::rule("heading, .heading")
+      sigil::compose::StyleSheet{sigil::compose::rule(".heading")
                                      .font({.size = 12.5f, .track = 0.8f})};
   return classes;
 }

@@ -546,7 +546,7 @@ struct LootGrid {
     sigil::compose::StyleSheet sheet =
         look.styleSheet() +
         sigil::compose::StyleSheet{
-            sigil::compose::rule("heading, .heading")
+            sigil::compose::rule(".heading")
                 .font({.size = 12,
                        .color =
                            sigil::material::skia::toSkColor(loot::kBronzeLit),
