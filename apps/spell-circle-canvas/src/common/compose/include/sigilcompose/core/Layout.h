@@ -22,6 +22,7 @@
 
 #include <bit>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -30,6 +31,19 @@
 #include <vector>
 
 namespace sigil::compose {
+
+namespace detail {
+/** The counted table a `Dimension::Unit::Calc` length's sum lives in,
+ *  addressed by the handle bit-cast into its `value`: a holder is counted
+ *  in when it is made, out when it goes, and the entry leaves the table
+ *  with its last holder. */
+void retainCalc(float handle) noexcept;
+void releaseCalc(float handle) noexcept;
+/** Whether two handles stand for equal sums. */
+[[nodiscard]] bool calcEqual(float left, float right);
+/** How many distinct sums the table holds now. */
+[[nodiscard]] size_t calcEntries();
+}  // namespace detail
 
 // ---------------------------------------------------------------------------
 // Layout values (Yoga semantics, 1:1)
@@ -75,7 +89,8 @@ struct Dimension {
   };
   Unit unit = Unit::Auto;
   /** The length, or under `Var` and `Calc` an id, bit-cast into the
-   *  float and never read as one. */
+   *  float and never read as one. Both fields are read freely; a `Calc`
+   *  is made only by the arithmetic below, never by writing them. */
   float value = 0.0f;
 
   constexpr Dimension() = default;
@@ -92,6 +107,43 @@ struct Dimension {
   constexpr Dimension(VarRef reference)  // NOLINT: implicit
       : unit(Unit::Var), value(std::bit_cast<float>(reference.id)) {}
 
+  // A `Calc` length is a count on its sum's entry, so a copy counts one
+  // more holder and the last to go takes the entry with it. Every other
+  // unit is two plain fields, and copies as two plain fields.
+  constexpr Dimension(const Dimension& other)
+      : unit(other.unit), value(other.value) {
+    if (unit == Unit::Calc) [[unlikely]]
+      detail::retainCalc(value);
+  }
+  constexpr Dimension(Dimension&& other) noexcept
+      : unit(other.unit), value(other.value) {
+    if (unit == Unit::Calc) [[unlikely]]
+      other.unit = Unit::Auto;
+  }
+  constexpr Dimension& operator=(const Dimension& other) {
+    if (other.unit == Unit::Calc) [[unlikely]]
+      detail::retainCalc(other.value);
+    if (unit == Unit::Calc) [[unlikely]]
+      detail::releaseCalc(value);
+    unit = other.unit;
+    value = other.value;
+    return *this;
+  }
+  constexpr Dimension& operator=(Dimension&& other) noexcept {
+    if (this == &other) return *this;
+    if (unit == Unit::Calc) [[unlikely]]
+      detail::releaseCalc(value);
+    unit = other.unit;
+    value = other.value;
+    if (other.unit == Unit::Calc) [[unlikely]]
+      other.unit = Unit::Auto;
+    return *this;
+  }
+  constexpr ~Dimension() {
+    if (unit == Unit::Calc) [[unlikely]]
+      detail::releaseCalc(value);
+  }
+
   /** Whether resolving this length needs something the number itself does
    *  not carry — the font in force, a custom property, or the canvas: it is
    *  everything but a pixel, a point, a parent-relative percent and auto. */
@@ -104,8 +156,16 @@ struct Dimension {
   [[nodiscard]] constexpr VarRef reference() const {
     return {std::bit_cast<uint32_t>(value)};
   }
-  bool operator==(const Dimension&) const = default;
+  /** Equal in unit and length; two sums are equal where their terms are,
+   *  whichever entries hold them. */
+  constexpr bool operator==(const Dimension& other) const {
+    if (unit != other.unit) return false;
+    if (unit == Unit::Calc) [[unlikely]]
+      return detail::calcEqual(value, other.value);
+    return value == other.value;
+  }
 };
+static_assert(sizeof(Dimension) == 8);
 /** @p v percent of the PARENT's corresponding extent — Yoga's own
  *  percent, and the one CSS means by `%`. */
 constexpr Dimension pct(float v) {
@@ -160,10 +220,7 @@ constexpr Dimension autoDimension() { return {}; }
  *  the parent itself and holds no sum, so `50_pct + 1_em` is REFUSED — it
  *  warns once and stands as `autoDimension()` — and so are arithmetic on
  *  auto and a division by zero. `pw` and `ph` measure the canvas and mix
- *  freely. A sum in
- *  several units is kept for the life of the process, as a custom
- *  property's name is, so build one from values a sketch states rather
- *  than from a number that changes every frame.
+ *  freely.
  *  @{ */
 [[nodiscard]] Dimension operator+(Dimension left, Dimension right);
 [[nodiscard]] Dimension operator-(Dimension left, Dimension right);

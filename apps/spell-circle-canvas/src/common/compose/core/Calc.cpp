@@ -1,7 +1,8 @@
 /** @file
  * Arithmetic on lengths, as CSS's calc(): lengths in one unit combined in
- * that unit, lengths in several summed into an interned sum, and the
- * percentage refused wherever it would have to share a sum.
+ * that unit, lengths in several summed into an interned sum whose entry
+ * is counted by the Dimensions holding it, and the percentage refused
+ * wherever it would have to share a sum.
  */
 
 #include "Calc.h"
@@ -22,19 +23,37 @@ namespace sigil::compose {
 namespace detail {
 namespace {
 
-/** The process-wide table a sum is interned in: kept in a deque so a
- *  reference handed out stays valid when a later sum is added, and never
- *  freed, because a describe on another thread may still be reading one
- *  while the process exits. */
+/** The process-wide table a sum is interned in, one entry per distinct
+ *  sum, each COUNTED: every Dimension holding the entry's handle is one
+ *  count, and the entry leaves the table when its last holder goes. The
+ *  entries live in a deque so a reference handed out stays where it is
+ *  while other entries come and go; a handle freed is reused by the next
+ *  new sum. The table itself is never freed, because a holder on another
+ *  thread may still let go of one while the process exits. */
 struct CalcTable {
+  struct Entry {
+    CalcLength sum;
+    std::string key;
+    uint32_t holders = 0;
+  };
   std::mutex mutex;
-  std::deque<CalcLength> sums;  // id − 1 → sum
-  boost::unordered_flat_map<std::string, uint32_t> ids;
+  std::deque<Entry> entries;  // handle − 1 → entry
+  std::vector<uint32_t> freed;
+  boost::unordered_flat_map<std::string, uint32_t> handles;
 };
 
 CalcTable& calcTable() {
   static CalcTable* const table = new CalcTable;
   return *table;
+}
+
+/** The entry @p handle names, or null where it names none — the table
+ *  lock held. */
+CalcTable::Entry* entryAt(CalcTable& table, float handle) {
+  const uint32_t id = std::bit_cast<uint32_t>(handle);
+  if (id == 0 || id > table.entries.size()) return nullptr;
+  CalcTable::Entry& entry = table.entries[id - 1];
+  return entry.holders > 0 ? &entry : nullptr;
 }
 
 /** The bytes a sum is keyed by. A zero of either sign is the one zero. */
@@ -171,15 +190,27 @@ Dimension fromSum(CalcLength sum) {
   if (stated == 0 && sum.vars.size() == 1 && sum.vars.front().second == 1.0f)
     return Dimension(VarRef{sum.vars.front().first});
   CalcTable& table = calcTable();
-  const std::lock_guard<std::mutex> lock(table.mutex);
-  std::string key = keyOf(sum);
   uint32_t id = 0;
-  if (const auto found = table.ids.find(key); found != table.ids.end()) {
-    id = found->second;
-  } else {
-    table.sums.push_back(std::move(sum));
-    id = (uint32_t)table.sums.size();
-    table.ids.emplace(std::move(key), id);
+  {
+    const std::lock_guard<std::mutex> lock(table.mutex);
+    std::string key = keyOf(sum);
+    if (const auto found = table.handles.find(key);
+        found != table.handles.end()) {
+      id = found->second;
+    } else if (!table.freed.empty()) {
+      id = table.freed.back();
+      table.freed.pop_back();
+      table.entries[id - 1].sum = std::move(sum);
+      table.entries[id - 1].key = key;
+      table.handles.emplace(std::move(key), id);
+    } else {
+      table.entries.push_back({std::move(sum), key, 0});
+      id = (uint32_t)table.entries.size();
+      table.handles.emplace(std::move(key), id);
+    }
+    // The count the Dimension below is made holding: it is written field
+    // by field, which counts nothing, so the one holder is counted here.
+    ++table.entries[id - 1].holders;
   }
   Dimension interned;
   interned.unit = Dimension::Unit::Calc;
@@ -275,12 +306,45 @@ Dimension summed(const Dimension& left, const Dimension& right, float sign) {
 
 const CalcLength& calcLength(const Dimension& length) {
   static const CalcLength* const nothing = new CalcLength;
+  if (length.unit != Dimension::Unit::Calc) return *nothing;
   CalcTable& table = calcTable();
   const std::lock_guard<std::mutex> lock(table.mutex);
-  const uint32_t id = std::bit_cast<uint32_t>(length.value);
-  if (length.unit != Dimension::Unit::Calc || id == 0 || id > table.sums.size())
-    return *nothing;
-  return table.sums[id - 1];
+  const CalcTable::Entry* const entry = entryAt(table, length.value);
+  return entry != nullptr ? entry->sum : *nothing;
+}
+
+size_t calcEntries() {
+  CalcTable& table = calcTable();
+  const std::lock_guard<std::mutex> lock(table.mutex);
+  return table.handles.size();
+}
+
+void retainCalc(float handle) noexcept {
+  CalcTable& table = calcTable();
+  const std::lock_guard<std::mutex> lock(table.mutex);
+  if (CalcTable::Entry* const entry = entryAt(table, handle))
+    ++entry->holders;
+}
+
+void releaseCalc(float handle) noexcept {
+  CalcTable& table = calcTable();
+  const std::lock_guard<std::mutex> lock(table.mutex);
+  CalcTable::Entry* const entry = entryAt(table, handle);
+  if (entry == nullptr || --entry->holders > 0) return;
+  table.handles.erase(entry->key);
+  entry->sum = CalcLength{};
+  entry->key.clear();
+  table.freed.push_back(std::bit_cast<uint32_t>(handle));
+}
+
+bool calcEqual(float left, float right) {
+  if (std::bit_cast<uint32_t>(left) == std::bit_cast<uint32_t>(right))
+    return true;
+  CalcTable& table = calcTable();
+  const std::lock_guard<std::mutex> lock(table.mutex);
+  const CalcTable::Entry* const a = entryAt(table, left);
+  const CalcTable::Entry* const b = entryAt(table, right);
+  return a != nullptr && b != nullptr && a->sum == b->sum;
 }
 
 bool readsCanvas(const Dimension& length) {

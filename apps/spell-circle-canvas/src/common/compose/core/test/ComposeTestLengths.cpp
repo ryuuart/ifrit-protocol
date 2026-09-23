@@ -6,6 +6,8 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilweave/style/Length.h>
 
+#include <utility>
+
 #include "support/CoreTestSupport.h"
 
 using namespace sigil::weave::literals;
@@ -180,6 +182,46 @@ TEST(ComposeLengths, ASumInSeveralUnitsResolvesWithTheFontInForce) {
   host.composer.render(pageWith(box().width(sum).height(10), 30.0f));
   host.frame();
   EXPECT_FLOAT_EQ(widthOf(host), 2.0f * 30.0f + 12.0f);
+}
+
+TEST(ComposeLengths, ASumLeavesTheTableWithItsLastHolder) {
+  // A sum in several units is one counted entry, shared by every length
+  // equal to it, and it goes when the last of them does.
+  const size_t before = sigil::compose::detail::calcEntries();
+  {
+    const Dimension sum = Dimension(3_em) + 17_px;
+    EXPECT_EQ(sigil::compose::detail::calcEntries(), before + 1);
+    const Dimension copy = sum;
+    Dimension moved = Dimension(3_em) + 17_px;
+    const Dimension taken = std::move(moved);
+    EXPECT_EQ(sigil::compose::detail::calcEntries(), before + 1) << "one entry per sum";
+    EXPECT_EQ(copy, taken);
+    Dimension replaced = Dimension(5_em) + 3_px;
+    EXPECT_EQ(sigil::compose::detail::calcEntries(), before + 2);
+    replaced = sum;
+    EXPECT_EQ(sigil::compose::detail::calcEntries(), before + 1)
+        << "the overwritten sum had no other holder";
+  }
+  EXPECT_EQ(sigil::compose::detail::calcEntries(), before);
+}
+
+TEST(ComposeLengths, ASumRebuiltEveryFrameDoesNotGrowTheTable) {
+  // A sum built from a number that changes every frame is a new sum every
+  // frame, and the one before it goes with the description that held it.
+  const size_t before = sigil::compose::detail::calcEntries();
+  {
+    Host host(400, 200);
+    for (int frame = 0; frame < 120; ++frame) {
+      host.composer.render(pageWith(
+          box().width(Dimension(1_em) + Dimension((float)frame)).height(10),
+          20.0f));
+      host.frame();
+      ASSERT_FLOAT_EQ(widthOf(host), 20.0f + (float)frame);
+    }
+    EXPECT_LE(sigil::compose::detail::calcEntries(), before + 2)
+        << "only what the composer still holds";
+  }
+  EXPECT_EQ(sigil::compose::detail::calcEntries(), before);
 }
 
 TEST(ComposeLengths, ASumReadsACustomPropertyAndTheCanvas) {

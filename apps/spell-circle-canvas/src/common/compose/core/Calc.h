@@ -3,7 +3,8 @@
 /** @file
  * Internal to the kernel — a length summed over several units, as CSS's
  * calc() holds one: a coefficient per unit and per custom property,
- * interned once so a Dimension carries it in the id its value holds.
+ * interned once, counted by the Dimensions whose value carries its id,
+ * and dropped with the last of them.
  */
 
 #include <sigilcompose/core/Layout.h>
@@ -31,7 +32,8 @@ struct CalcLength {
   bool operator==(const CalcLength&) const = default;
 };
 
-/** The sum a `Dimension::Unit::Calc` length stands for. */
+/** The sum a `Dimension::Unit::Calc` length stands for, valid while
+ *  @p length holds it. */
 [[nodiscard]] const CalcLength& calcLength(const Dimension& length);
 
 /** Says once, per pair of units, that a sum was asked to hold something

@@ -177,8 +177,10 @@ void bindCompose(py::module_& module) {
   dim.def(py::init<>())
       .def(py::init([](py::object value) { return dimension(value); }),
            py::arg("value"))
-      .def_readwrite("unit", &Dimension::unit)
-      .def_readwrite("value", &Dimension::value)
+      // Read-only: a sum's value is a counted handle, which only the
+      // arithmetic below may make or copy.
+      .def_readonly("unit", &Dimension::unit)
+      .def_readonly("value", &Dimension::value)
       .def("relative", &Dimension::relative)
       .def("reference", &Dimension::reference)
       .def(py::self == py::self)
