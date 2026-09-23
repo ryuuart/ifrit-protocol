@@ -17,6 +17,10 @@ question arises (public domain, CC0). Each face is a few kilobytes.
                      `liga`, proportional digits that `tnum` equalises
     Variable.ttf     wght and wdth that MOVE advances, GRAD that does not
                      and moves ink instead
+    Oblique.ttf      a slnt axis whose far end shears every letter to the
+                     right by 20 degrees, and no italic of any kind
+    Italic.ttf       an ital axis whose far end narrows every letter's ink,
+                     and no slnt axis
     Optical.ttf      an A and a V whose diagonals lean past their advances,
                      over an `n` for the reference an optical kerner reads
     Marks.ttf        Latin bases and the whole combining-diacritics block,
@@ -39,6 +43,7 @@ Check the committed faces still carry what the cases read off them:
 """
 
 import argparse
+import math
 import os
 import sys
 
@@ -296,6 +301,91 @@ def variable():
 
 
 # ---------------------------------------------------------------------------
+# Oblique and Italic — a lean on its own axis, and an italic on its own axis
+
+# The far end of Oblique's slnt axis, in OpenType's sign: negative leans
+# right, as every face's does.
+SLNT_RANGE = (-20.0, 0.0, 0.0)
+ITAL_RANGE = (0.0, 0.0, 1.0)
+# Where Italic's ital master stops each letter's ink: narrower than the
+# upright's, on the same advance, so the italic moves ink and no advance.
+ITALIC_INK_RIGHT = 300
+
+
+def slanted_letters(family, shear_degrees=0.0, ink_right=500):
+    """Letters, figures and the space on the one letter advance, each a bar
+    from x 100 to `ink_right` sheared to the right by `shear_degrees`."""
+    glyphs = {"space": blank()}
+    metrics = {"space": (SPACE_ADVANCE, 0)}
+    character_map = {0x20: "space"}
+    lean = math.tan(math.radians(shear_degrees))
+    code_points = (
+        list(range(0x41, 0x5B)) + list(range(0x61, 0x7B)) + list(range(0x30, 0x3A))
+    )
+    for code_point in code_points:
+        name = glyph_name(code_point)
+        top = X_HEIGHT if 0x61 <= code_point <= 0x7A else CAP_HEIGHT
+        shift = round(top * lean)
+        glyphs[name] = polygon(
+            (100, 0), (ink_right, 0), (ink_right + shift, top), (100 + shift, top)
+        )
+        metrics[name] = (LETTER_ADVANCE, 100)
+        character_map[code_point] = name
+    return build(family, glyphs, metrics, character_map)
+
+
+def one_axis_face(tag, name, axis_range, far_master):
+    """A face with one axis: upright letters at its default, `far_master`
+    at the far end of `axis_range`."""
+    document = DesignSpaceDocument()
+    axis = AxisDescriptor()
+    axis.name, axis.tag = name, tag
+    axis.minimum, axis.default, axis.maximum = axis_range
+    document.addAxis(axis)
+    low, default, high = axis_range
+    far = low if low != default else high
+    for location, master in (
+        ({name: default}, slanted_letters(far_master.family)),
+        ({name: far}, far_master.make()),
+    ):
+        source = SourceDescriptor()
+        source.font = master
+        source.location = location
+        if location == {name: default}:
+            source.copyLib = source.copyInfo = True
+        document.addSource(source)
+    font, _, _ = varLib.build(document)
+    return font
+
+
+class Master:
+    def __init__(self, family, **letters):
+        self.family = family
+        self.letters = letters
+
+    def make(self):
+        return slanted_letters(self.family, **self.letters)
+
+
+def oblique():
+    return one_axis_face(
+        "slnt",
+        "Slant",
+        SLNT_RANGE,
+        Master("Sigil Instrument Oblique", shear_degrees=-SLNT_RANGE[0]),
+    )
+
+
+def italic():
+    return one_axis_face(
+        "ital",
+        "Italic",
+        ITAL_RANGE,
+        Master("Sigil Instrument Italic", ink_right=ITALIC_INK_RIGHT),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Optical — a pair whose outlines leave more white than the face's own even
 # pair, so measuring the outlines closes it
 
@@ -444,6 +534,8 @@ def han(family, ink_right):
 FACES = {
     "Sans.ttf": sans,
     "Variable.ttf": variable,
+    "Oblique.ttf": oblique,
+    "Italic.ttf": italic,
     "Optical.ttf": optical,
     "Marks.ttf": marks,
     "Arabic.ttf": arabic,
@@ -519,6 +611,21 @@ def failures():
     check("liga" in sans_features, "Sans has no liga feature")
     check("tnum" in sans_features, "Sans has no tnum feature")
     check("f_f_i" in sans_face.getGlyphOrder(), "Sans has no ffi ligature glyph")
+
+    oblique_face = face("Oblique.ttf")
+    check(
+        [axis.axisTag for axis in oblique_face["fvar"].axes] == ["slnt"],
+        "Oblique no longer declares slnt alone",
+    )
+    check(
+        oblique_face["OS/2"].fsSelection & 1 == 0,
+        "Oblique calls itself italic, so an italic would find it as one",
+    )
+    italic_face = face("Italic.ttf")
+    check(
+        [axis.axisTag for axis in italic_face["fvar"].axes] == ["ital"],
+        "Italic no longer declares ital alone",
+    )
 
     variable_face = face("Variable.ttf")
     axes = {axis.axisTag: axis for axis in variable_face["fvar"].axes}

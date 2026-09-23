@@ -79,6 +79,22 @@ inline sk_sp<SkTypeface> variable() {
   return held;
 }
 
+/// One axis, `slnt`, from 0 to -20: every letter at -20 is sheared 20
+/// degrees to the RIGHT, OpenType's sign, on an unmoved advance. No italic
+/// face and no `ital` axis, so an italic asked of it can only lean.
+inline sk_sp<SkTypeface> oblique() {
+  static const sk_sp<SkTypeface> held = face("Oblique.ttf");
+  return held;
+}
+
+/// One axis, `ital`, from 0 to 1: every letter's ink at 1 is narrower, on
+/// an unmoved advance, and nothing leans. The one face whose italic is an
+/// axis rather than a face or a lean.
+inline sk_sp<SkTypeface> italic() {
+  static const sk_sp<SkTypeface> held = face("Italic.ttf");
+  return held;
+}
+
 /// An A and a V whose diagonals leave more white between them than this
 /// face's own `n` beside itself, which is the reference an optical kerner
 /// closes every pair to.
