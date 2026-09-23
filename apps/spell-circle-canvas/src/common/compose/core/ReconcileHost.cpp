@@ -233,7 +233,8 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   // matrix while those descendants prune — so the world-space ones are
   // staled by hand. (Layout moves are caught by the rect sync walk;
   // bound transforms by the volatility walk.)
-  inst.hasWorldSpaceMaterial = nodeUsesWorldSpace(next);
+  inst.hasWorldSpaceMaterial =
+      nodeUsesWorldSpace(next) || ruleFillUsesWorldSpace(inst.ruleLayer.get());
   if (prev && !describedTransformEqual(*prev, next)) staleWorldSpaceBelow(inst);
 
   // Kind change → full remount of content state.
@@ -243,6 +244,10 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
     inst.lines.clear();
     inst.columns.clear();
     if (inst.yoga) YGNodeSetMeasureFunc(inst.yoga, nullptr);
+    // A text leaf's rule layer is built only for a text leaf, so the
+    // next pass builds both again, whatever it matches: a held null
+    // equals no matched rule.
+    inst.ruleLayerSource.assign(1, nullptr);
   }
 
   applyLayoutProps(inst);

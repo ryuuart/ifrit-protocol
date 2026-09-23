@@ -79,6 +79,8 @@ std::string_view propertyName(Property property) {
       return "centerAt";
     case Property::GridCells:
       return "gridCells";
+    case Property::GridCellAlign:
+      return "gridCellAlign";
     case Property::GridArea:
       return "gridArea";
     case Property::BorderRadius:
@@ -261,7 +263,19 @@ void copyProperty(Property property, const ComputedStyle& from,
       layout.centerAt = source.centerAt;
       return;
     case Property::GridCells:
-      layout.cells = source.cells;
+      // Which cells, apart from where in them: CSS keeps placement and
+      // self-alignment as two properties, so a rule's alignment stands
+      // beside the element's own placement.
+      layout.cells.column = source.cells.column;
+      layout.cells.row = source.cells.row;
+      layout.cells.columns = source.cells.columns;
+      layout.cells.rows = source.cells.rows;
+      layout.cells.declared = source.cells.declared;
+      return;
+    case Property::GridCellAlign:
+      layout.cells.across = source.cells.across;
+      layout.cells.down = source.cells.down;
+      layout.cells.alignDeclared = source.cells.alignDeclared;
       return;
     case Property::BorderRadius:
       into.corners = from.corners;
@@ -387,9 +401,11 @@ bool ruleCanHold(Property property, const ElementNode& node) {
   const PaintProps& paint = node.paint;
   switch (property) {
     case Property::Fill:
-      // A live paint lives in the material slot, which the style does
-      // not carry.
-      if (node.materialData && node.materialData->live) return false;
+      // A paint resolved against the box it lands on travels in the
+      // layer's material slot; one that animates is a live form.
+      if (node.materialData && node.materialData->live &&
+          node.materialData->live->isAnimated())
+        return false;
       return !paint.fill || staticValue(*paint.fill);
     case Property::Opacity:
       return staticValue(paint.opacity);
@@ -436,6 +452,7 @@ std::unique_ptr<const RuleLayer> ruleLayerOf(
                               : std::nullopt) {
         layer->keywords.set(property, *keyword);
         layer->declared.set(property);
+        if (property == Property::Fill) layer->material.reset();
         continue;
       }
       if (!ruleCanHold(property, stated)) {
@@ -450,6 +467,14 @@ std::unique_ptr<const RuleLayer> ruleLayerOf(
         filled = true;
       }
       copyProperty(property, values, layer->values);
+      // The fill's paint goes with it, as the node's own slot keeps it,
+      // and a stronger rule's plain fill leaves none behind.
+      if (property == Property::Fill) {
+        if (stated.materialData)
+          layer->material = *stated.materialData;
+        else
+          layer->material.reset();
+      }
       layer->keywords.clear(property);
       layer->declared.set(property);
     }
@@ -457,10 +482,27 @@ std::unique_ptr<const RuleLayer> ruleLayerOf(
   return layer;
 }
 
+namespace {
+
+bool materialSlotEqual(const std::optional<MaterialData>& a,
+                       const std::optional<MaterialData>& b) {
+  if (a.has_value() != b.has_value()) return false;
+  return !a || (a->live == b->live && a->recipe == b->recipe);
+}
+
+}  // namespace
+
+bool ruleFillMaterialEqual(const RuleLayer* a, const RuleLayer* b) {
+  static const std::optional<MaterialData> none;
+  return materialSlotEqual(a != nullptr ? a->material : none,
+                           b != nullptr ? b->material : none);
+}
+
 bool ruleLayerEqual(const RuleLayer* a, const RuleLayer* b) {
   if (a == nullptr || b == nullptr) return a == b;
   return a->declared == b->declared && a->keywords == b->keywords &&
-         computedStyleEqual(a->values, b->values);
+         computedStyleEqual(a->values, b->values) &&
+         materialSlotEqual(a->material, b->material);
 }
 
 void resolveStyle(const ComputedStyle* parent, const ElementNode& node,

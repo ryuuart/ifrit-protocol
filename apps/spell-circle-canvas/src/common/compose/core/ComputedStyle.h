@@ -7,6 +7,7 @@
  */
 
 #include <memory>
+#include <optional>
 #include <span>
 
 #include "ComposeInternal.h"
@@ -74,18 +75,39 @@ struct RuleLayer {
   PropertyMask declared;
   ComputedStyle values;
   sigil::weave::KeywordTable<Property> keywords;
+  /** The paint behind the strongest rule's `fill`, as a node's own slot
+   *  keeps it: a paint resolved against the box it lands on — a unit
+   *  ramp, a fit, a canvas anchor — has no one fill to put in `values`,
+   *  and a static one keeps the recipe its bleed and world space are read
+   *  from. Empty where that rule's fill is a plain `Fill`. */
+  std::optional<MaterialData> material;
 };
 
 /** The layer the rules of @p matched state, weakest first, or null where
  *  none of them states a property the computed style carries. A value a
- *  rule cannot hold — a live binding, an animation, a live paint — is
- *  left out of it and said once. */
+ *  rule cannot hold — a live binding, an animation, an animated paint —
+ *  is left out of it and said once. */
 [[nodiscard]] std::unique_ptr<const RuleLayer> ruleLayerOf(
     std::span<const Rule* const> matched);
+
+/** Whether the paint behind @p layer's fill samples a field anchored to
+ *  the canvas, so the nodes it lands on repaint when they move. */
+inline bool ruleFillUsesWorldSpace(const RuleLayer* layer) {
+  if (layer == nullptr || !layer->material) return false;
+  const MaterialData& slot = *layer->material;
+  return (slot.live && slot.live->usesWorldSpace()) ||
+         (slot.recipe && slot.recipe->usesWorldSpace());
+}
 
 /** Whether two layers state the same thing; null is the layer that
  *  states nothing. */
 [[nodiscard]] bool ruleLayerEqual(const RuleLayer* a, const RuleLayer* b);
+
+/** Whether two layers carry the same paint behind their fill — the half
+ *  of a layer the computed style does not hold, so a fold that moved only
+ *  it compares equal there. */
+[[nodiscard]] bool ruleFillMaterialEqual(const RuleLayer* a,
+                                         const RuleLayer* b);
 
 /** THE FOLD: @p node's own declarations over what the matched @p rules
  *  state, over @p parent's answers, with every property written as a

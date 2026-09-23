@@ -212,11 +212,23 @@ void detail::warnRuleHoldsOnlyStaticValues(Property property) {
   if (!warned.insert((uint8_t)property).second) return;
   const std::string_view name = propertyName(property);
   SkDebugf(
-      "[compose] a rule states %.*s as a live binding, an animation or a "
-      "live paint, and a rule holds static values — the statement was left "
-      "out, so the elements it matches keep what they would have without "
-      "it. State the value itself in the rule, or the live form on the "
-      "element. (warned once)\n",
+      "[compose] a rule states %.*s as a live binding, an animation or an "
+      "animated paint, and a rule holds static values — the statement was "
+      "left out, so the elements it matches keep what they would have "
+      "without it. State the value itself in the rule, or the live form on "
+      "the element. (warned once)\n",
+      (int)name.size(), name.data());
+}
+
+void detail::warnRuleCannotState(Property property) {
+  static thread_local boost::unordered_flat_set<uint8_t> warned;
+  if (!warned.insert((uint8_t)property).second) return;
+  const std::string_view name = propertyName(property);
+  SkDebugf(
+      "[compose] a rule states %.*s, which is kept on the element's own "
+      "description and which a rule's layer does not carry — the statement "
+      "was left out, so the elements it matches keep what they would have "
+      "without it. State it on the element. (warned once)\n",
       (int)name.size(), name.data());
 }
 
@@ -441,15 +453,40 @@ void Composer::Impl::resolveCascade(
   // this node's own declarations stand still — a class toggled, a sheet
   // applied above — and a node whose declarations did not move never
   // reaches the patch.
-  std::unique_ptr<const RuleLayer> layer;
-  if (!matched.empty()) {
-    std::vector<const Rule*> rules;
-    rules.reserve(matched.size());
-    for (const MatchedRule& one : matched) rules.push_back(one.rule);
-    layer = ruleLayerOf(rules);
+  //
+  // Only where the rules themselves changed: a pass that matches the rules
+  // it matched last time — the same sheet, the same classes — keeps the
+  // layers it built then, so a tree re-described every frame under one
+  // sheet does not rebuild a layer per matched node per frame.
+  const bool sameRules = std::equal(
+      matched.begin(), matched.end(), inst.ruleLayerSource.begin(),
+      inst.ruleLayerSource.end(),
+      [](const MatchedRule& one, const std::shared_ptr<ElementNode>& held) {
+        return one.rule->node().get() == held.get();
+      });
+  bool layerMoved = false;
+  bool fillMaterialMoved = false;
+  if (!sameRules) {
+    inst.ruleLayerSource.clear();
+    for (const MatchedRule& one : matched)
+      inst.ruleLayerSource.push_back(one.rule->node());
+    std::unique_ptr<const RuleLayer> layer;
+    if (!matched.empty()) {
+      std::vector<const Rule*> rules;
+      rules.reserve(matched.size());
+      for (const MatchedRule& one : matched) rules.push_back(one.rule);
+      layer = ruleLayerOf(rules);
+    }
+    layerMoved = !ruleLayerEqual(inst.ruleLayer.get(), layer.get());
+    if (layerMoved) {
+      fillMaterialMoved =
+          !ruleFillMaterialEqual(inst.ruleLayer.get(), layer.get());
+      inst.ruleLayer = std::move(layer);
+    }
+    // Set, never cleared here, for the reason the ink's anchor below is.
+    if (ruleFillUsesWorldSpace(inst.ruleLayer.get()))
+      inst.hasWorldSpaceMaterial = true;
   }
-  const bool layerMoved = !ruleLayerEqual(inst.ruleLayer.get(), layer.get());
-  if (layerMoved) inst.ruleLayer = std::move(layer);
   // A NODE THAT WRITES A KEYWORD takes a value from its parent, and the
   // parent's answer can move while this node's own declarations stand
   // still — the one case the patch cannot see, because a node whose
@@ -472,7 +509,10 @@ void Composer::Impl::resolveCascade(
     // answers and the rules', which may have. Invalidating whether or not
     // they did re-records every keyword-bearing node and its ancestors on
     // every frame anything anywhere changed.
-    if (!first && !computedStyleEqual(before, inst.computed)) {
+    // A rule's paint behind the fill is the one half of the layer the
+    // computed style does not hold, so it is asked about apart.
+    if (!first &&
+        (fillMaterialMoved || !computedStyleEqual(before, inst.computed))) {
       // A PROPERTY THAT MOVED HERE MOVED FOR THE SAME REASON one changed
       // by the node's own verbs does, so it eases the same way: the lanes
       // are retargeted from the style that stood before this fold. The
@@ -764,10 +804,12 @@ void Composer::Impl::resolveCascade(
     // leaf's own statements standing over it. A rule that moved one is a
     // new layout of the same words; one that moved the outline alone is a
     // repaint.
-    std::unique_ptr<const RuleTextLayer> ruleText = ruleTextLayerOf(matched);
-    const bool ruleTextMoved =
-        !sameRuleText(inst.ruleText.get(), ruleText.get());
-    if (ruleTextMoved) inst.ruleText = std::move(ruleText);
+    bool ruleTextMoved = false;
+    if (!sameRules) {
+      std::unique_ptr<const RuleTextLayer> ruleText = ruleTextLayerOf(matched);
+      ruleTextMoved = !sameRuleText(inst.ruleText.get(), ruleText.get());
+      if (ruleTextMoved) inst.ruleText = std::move(ruleText);
+    }
     TextOptions options =
         inst.ruleText ? inst.ruleText->options : TextOptions{};
     options.overlay(node.textData->options);

@@ -256,7 +256,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // material's own rate rather than the frame rate.
   bool liveStable = false;
   inst.hasPendingLiveFill = false;
-  if (inst.liveMatOnly && liveMaterialOf(node)) {
+  if (inst.liveMatOnly && liveMaterialOf(inst)) {
     PaintContext probe{
         .size = {rect.width(), rect.height()},
         .elapsedSeconds = elapsed(),
@@ -265,7 +265,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         .fonts = &fonts,
         .toRoot = curToRoot,  // so the memo digest sees this move
         .rootSize = rootLayoutSize};
-    inst.pendingLiveFill = resolveFill(*liveMaterialOf(node), probe);
+    inst.pendingLiveFill = resolveFill(*liveMaterialOf(inst), probe);
     inst.hasPendingLiveFill = true;
     liveStable = (inst.picture || inst.textureImage) && !inst.paintDirty &&
                  inst.pendingLiveFill.shaderValue == inst.bakedLiveShader;

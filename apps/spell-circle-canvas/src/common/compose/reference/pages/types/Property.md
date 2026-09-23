@@ -31,7 +31,7 @@ arrangement, so `Property::PaddingLeft` is a thing you can inherit while
 | --- | --- |
 | Box | `Display` `BoxSizing` `Gap` `PaddingTop` `PaddingRight` `PaddingBottom` `PaddingLeft` `MarginTop` `MarginRight` `MarginBottom` `MarginLeft` `Width` `Height` `MinWidth` `MaxWidth` `MinHeight` `MaxHeight` `AspectRatio` |
 | Flex | `FlexDirection` `FlexWrap` `FlexBasis` `FlexGrow` `FlexShrink` `AlignItems` `AlignSelf` `JustifyContent` |
-| Placement | `Absolute` `Left` `Top` `Right` `Bottom` `CenterAt` `GridCells` `GridArea` |
+| Placement | `Absolute` `Left` `Top` `Right` `Bottom` `CenterAt` `GridCells` `GridCellAlign` `GridArea` |
 | Shape | `BorderRadius` `Shape` `Overflow` |
 | Paint | `Fill` `Opacity` `BlendMode` `BackgroundOrigin` `ZIndex` |
 | Transform | `TranslateX` `TranslateY` `Rotate` `Scale` `ScaleX` `ScaleY` `SkewX` `SkewY` `TransformOrigin` |

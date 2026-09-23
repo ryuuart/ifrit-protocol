@@ -8,6 +8,8 @@
 #include <sigilcompose/core/StyleSheet.h>
 
 #include <concepts>
+#include <functional>
+#include <string>
 #include <string_view>
 
 #include "support/CoreTestSupport.h"
@@ -52,6 +54,26 @@ concept SaysKey = requires(Value value) { value.key("k"); };
 template <class Value>
 concept SaysContentFlowAround =
     requires(Value value) { value.contentFlowAround("k"); };
+template <class Value>
+concept SaysFilter = requires(Value value, material::skia::Effect effect) {
+  value.filter(effect);
+};
+template <class Value>
+concept SaysBackdropFilter =
+    requires(Value value, material::skia::Effect effect) {
+      value.backdropFilter(effect);
+    };
+template <class Value>
+concept SaysGridArea = requires(Value value) { value.gridArea("a"); };
+template <class Value>
+concept SaysTravel =
+    requires(Value value, MotionPath along) { value.travel(along); };
+template <class Value>
+concept SaysRotateX = requires(Value value) { value.rotateX(10.0f); };
+template <class Value>
+concept SaysPerspective = requires(Value value) { value.perspective(400.0f); };
+template <class Value>
+concept SaysFontWeight = requires(Value value) { value.fontWeight(700); };
 
 static_assert(SaysPadding<Rule>);
 static_assert(SaysMaxTextLines<Rule>);
@@ -59,6 +81,25 @@ static_assert(!SaysShape<Rule>);
 static_assert(!SaysCover<Rule>);
 static_assert(!SaysKey<Rule>);
 static_assert(!SaysContentFlowAround<Rule>);
+static_assert(!SaysFilter<Rule>);
+static_assert(!SaysBackdropFilter<Rule>);
+static_assert(!SaysGridArea<Rule>);
+static_assert(!SaysTravel<Rule>);
+static_assert(!SaysRotateX<Rule>);
+static_assert(!SaysPerspective<Rule>);
+// The element says every one of them, so each refusal above is the rule's
+// and not a question no value could answer.
+static_assert(SaysShape<Element> && SaysCover<Element> && SaysKey<Element>);
+static_assert(SaysFilter<Element> && SaysBackdropFilter<Element>);
+static_assert(SaysGridArea<Element> && SaysTravel<Element>);
+static_assert(SaysRotateX<Element> && SaysPerspective<Element>);
+static_assert(SaysContentFlowAround<Text> && SaysMaxTextLines<Text>);
+static_assert(!SaysMaxTextLines<Element>);
+// What a span states is the font and the ink: no box, no text property.
+static_assert(SaysFontWeight<Declarations>);
+static_assert(!SaysPadding<Declarations>);
+static_assert(!SaysMaxTextLines<Declarations>);
+static_assert(!SaysKey<Declarations>);
 static_assert(
     std::same_as<decltype(std::declval<Rule&>().padding(4).maxTextLines(2)),
                  Rule&>);
@@ -148,6 +189,7 @@ TEST(ComposeRuleScope, AClassToggleEasesUnderARulesTransition) {
   host.composer.render(scene("card dim"));
   host.frame();
   const SkColor dim = host.pixel(30, 30);
+  ASSERT_NE(dim, SK_ColorRED) << "the dim rule took on the first frame";
   host.composer.render(scene("card lit"));
   host.frame(0.1);
   const SkColor mid = host.pixel(30, 30);
@@ -194,6 +236,135 @@ TEST(ComposeRuleScope, ARuleFillsAndRoundsTheElementsItMatches) {
   host.frame();
   EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
   EXPECT_NE(host.pixel(1, 1), SK_ColorRED) << "the corner was rounded away";
+}
+
+namespace {
+
+/** A ramp down the unit square, from @p top to @p bottom. */
+material::skia::Paint ramp(material::Color top, material::Color bottom) {
+  return material::skia::Paint::linearUnit({0, 0}, {0, 1},
+                                           {{0.0f, top}, {1.0f, bottom}});
+}
+
+const material::Color kRed{1, 0, 0, 1};
+const material::Color kBlue{0, 0, 1, 1};
+
+/** Two tiles of different heights, filled by a rule of @p sheet or by
+ *  @p own on each tile where the sheet is empty. */
+Element twoTiles(const StyleSheet& sheet,
+                 const std::function<void(Element&)>& own = {}) {
+  const auto tile = [&](std::string key, float height) {
+    Element one =
+        box().key(std::move(key)).styleClass("tile").width(40).height(height);
+    if (own) own(one);
+    return one;
+  };
+  return box()
+      .row()
+      .alignItems(Align::Start)
+      .applyStyleSheet(sheet)
+      .children({tile("short", 40), tile("tall", 120)});
+}
+
+}  // namespace
+
+TEST(ComposeRuleScope, ARuleFillsWithARampLaidOnEachElementsOwnBox) {
+  // A ramp in the unit square is resolved against the box it lands on,
+  // so it has no one fill a rule could hold as a colour; it travels in
+  // the rule's layer as the element's own slot keeps it.
+  Host ruled, stated;
+  ruled.composer.render(
+      twoTiles(StyleSheet{rule(".tile").fill(ramp(kRed, kBlue))}));
+  ruled.frame();
+  stated.composer.render(twoTiles(
+      StyleSheet{}, [](Element& one) { one.fill(ramp(kRed, kBlue)); }));
+  stated.frame();
+  EXPECT_TRUE(identicalPixels(ruled, stated, 200, 200));
+  EXPECT_GT(SkColorGetR(ruled.pixel(20, 2)), 180u) << "red at the top";
+  EXPECT_GT(SkColorGetB(ruled.pixel(20, 37)), 180u)
+      << "the short tile reaches blue at its own foot";
+  EXPECT_GT(SkColorGetB(ruled.pixel(60, 117)), 180u)
+      << "and the tall one at its own";
+}
+
+TEST(ComposeRuleScope, ARuleFillAnchoredToTheCanvasDrawsAsTheVerbsDoes) {
+  const auto across = [] {
+    return material::skia::Paint::linearUnit({0, 0}, {1, 0},
+                                             {{0.0f, kRed}, {1.0f, kBlue}});
+  };
+  Host ruled, stated;
+  ruled.composer.render(twoTiles(StyleSheet{rule(".tile").fill(
+      across(), PaintAnchor::CanvasBox, BackgroundOrigin::BorderBox)}));
+  ruled.frame();
+  stated.composer.render(twoTiles(StyleSheet{}, [&](Element& one) {
+    one.fill(across(), PaintAnchor::CanvasBox, BackgroundOrigin::BorderBox);
+  }));
+  stated.frame();
+  EXPECT_TRUE(identicalPixels(ruled, stated, 200, 200));
+  EXPECT_NE(ruled.pixel(20, 20), SK_ColorTRANSPARENT) << "the fill took";
+}
+
+TEST(ComposeRuleScope,
+     ARuleRampThatMovedRepaintsAnElementWhoseDescriptionDidNot) {
+  // Only the sheet the root applies changes, so the tiles prune; the ramp
+  // lives in the layer rather than in the computed style, and a layer
+  // that moved only there still repaints what it lands on.
+  Host host;
+  host.composer.render(
+      twoTiles(StyleSheet{rule(".tile").fill(ramp(kRed, kBlue))}));
+  host.frame();
+  ASSERT_GT(SkColorGetR(host.pixel(20, 2)), 180u);
+  host.composer.render(
+      twoTiles(StyleSheet{rule(".tile").fill(ramp(kBlue, kRed))}));
+  host.frame();
+  EXPECT_GT(SkColorGetB(host.pixel(20, 2)), 180u);
+  EXPECT_LT(SkColorGetR(host.pixel(20, 2)), 80u);
+}
+
+TEST(ComposeRuleScope, ARulesDepthOfPivotIsLeftOut) {
+  // A rule states the flat pivot alone; the depth is the element's own.
+  const auto scene = [](Dimension depth) {
+    return box()
+        .applyStyleSheet(StyleSheet{
+            rule(".turned").rotate(30).transformOrigin(pct(0), pct(0), depth)})
+        .children(
+            {box().styleClass("turned").width(60).height(60).fill(red())});
+  };
+  Host deep, flat;
+  deep.composer.render(scene(Dimension(40)));
+  deep.frame();
+  flat.composer.render(scene(Dimension(0)));
+  flat.frame();
+  EXPECT_TRUE(identicalPixels(deep, flat, 200, 200));
+}
+
+TEST(ComposeRuleScope, ARulesCellAlignmentStandsBesideTheElementsOwnCell) {
+  // Placement and self-alignment are two properties, as in CSS: the
+  // element names its cell and the rule where in it the element sits.
+  Host host;
+  sigil::compose::layouts::Table table{.columns = 2, .width = 200};
+  host.composer.render(
+      box()
+          .applyStyleSheet(StyleSheet{
+              rule(".flush").gridCellAlign(Align::End, Align::Start)})
+          .children(
+              {layout(table)
+                   .width(200)
+                   .height(100)
+                   .children(
+                       {box().key("pinned").width(20).height(20).gridCells(1,
+                                                                           0)})
+                   .children({box()
+                                  .key("right")
+                                  .styleClass("flush")
+                                  .width(20)
+                                  .height(20)
+                                  .gridCells(1, 1)})}));
+  host.frame();
+  EXPECT_NEAR(rectOf(host, "right").right(), 200, 0.01f)
+      << "the rule's alignment took";
+  EXPECT_GT(rectOf(host, "right").top(), 0.0f)
+      << "the element's own cell stood";
 }
 
 TEST(ComposeRuleScope, ARuleHoldsStaticValuesAndLeavesALiveOneOut) {
@@ -284,4 +455,34 @@ TEST(ComposeRuleScope, AGlyphOutlineFromARuleDrawsAsTheVerbsDoes) {
   plain.frame();
   EXPECT_TRUE(identicalPixels(ruled, stated, 200, 200));
   EXPECT_FALSE(identicalPixels(ruled, plain, 200, 200));
+}
+
+TEST(ComposeRuleScope, ALeafsFirstBaselineStandsBesideARulesVerticalAlign) {
+  // Two properties of one frame: the leaf's first-baseline rule covers
+  // that property alone, and the rule's vertical alignment stands.
+  using sigil::weave::FrameOptions;
+  const auto scene = [](bool alignFromRule, bool align) {
+    Text leaf = text(u8"Low", styleAt(18));
+    leaf.styleClass("low").width(90).height(150).textFirstBaseline(
+        FrameOptions::FirstBaseline::kCapHeight);
+    if (align && !alignFromRule)
+      leaf.textVerticalAlign(FrameOptions::Distribute::kEnd);
+    return box()
+        .applyStyleSheet(align && alignFromRule
+                             ? StyleSheet{rule(".low").textVerticalAlign(
+                                   FrameOptions::Distribute::kEnd)}
+                             : StyleSheet{})
+        .alignItems(Align::Start)
+        .children({leaf});
+  };
+  Host ruled, stated, top;
+  ruled.composer.render(scene(true, true));
+  ruled.frame();
+  stated.composer.render(scene(false, true));
+  stated.frame();
+  top.composer.render(scene(false, false));
+  top.frame();
+  EXPECT_TRUE(identicalPixels(ruled, stated, 200, 200));
+  EXPECT_FALSE(identicalPixels(ruled, top, 200, 200))
+      << "the rule's alignment still moved the line down";
 }

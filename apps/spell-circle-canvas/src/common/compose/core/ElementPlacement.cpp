@@ -142,7 +142,7 @@ Derived& PlacementVerbs<Derived>::gridCellAlign(Align across, Align down) {
   // An alignment says where the child sits in whatever cell it gets, and
   // nothing about WHICH cell: `declared` stays as it is, so a child that
   // states only this still flows.
-  CellSpan& claim = declare(Property::GridCells)->layout.cells;
+  CellSpan& claim = declare(Property::GridCellAlign)->layout.cells;
   claim.across = across;
   claim.down = down;
   claim.alignDeclared = true;

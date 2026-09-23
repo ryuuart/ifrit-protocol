@@ -300,6 +300,7 @@ void bindCompose(py::module_& module) {
       .value("Bottom", Property::Bottom)
       .value("CenterAt", Property::CenterAt)
       .value("GridCells", Property::GridCells)
+      .value("GridCellAlign", Property::GridCellAlign)
       .value("GridArea", Property::GridArea)
       .value("BorderRadius", Property::BorderRadius)
       .value("Shape", Property::Shape)

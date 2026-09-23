@@ -161,19 +161,25 @@ What is kept on the element's description rather than in the style the
 cascade folds — a shape generator, a grid area, a filter, a travel
 path, the plane a node turns in, `cover()`'s flag, the decorations, an
 exclusion — does not compile on a rule, and neither do the element's
-structure, identity and callbacks.
+structure, identity and callbacks. `transformOrigin` states the flat
+pivot in a rule; a depth off the plane is the element's own, and one
+written in a rule is left out and said once.
 
 The element's own verb stands over every rule, property by property:
 `styleClass("card").width(50)` is a card fifty wide with the card's
 padding. What a rule leaves unsaid the element inherits, or keeps at
 its initial value, as the property's own behaviour says. A rule holds
-STATIC values: a live binding, an entrance and an animation stay verbs
-on the element, and one written in a rule is left out and said once.
+STATIC values: a live binding, an entrance, an animation and an
+animated paint stay verbs on the element, and one written in a rule is
+left out and said once. Any other paint is whole in a rule — a ramp in
+the unit square, a fit, a paint anchored to the canvas — and lands on
+each matched element's own box, as that element's own `fill` would.
 
 A matched rule that moves reaches the element even when the element's
 own description does not — a class toggled on it, a sheet applied
-above it changed — because the cascade pass folds the matched rules
-again every time it runs.
+above it changed — because the cascade pass matches the rules again
+every time it runs, and folds them again wherever what it matched
+changed.
 
 `Rule::transition` states how a matched element's values change when a
 later describe moves them, exactly as `Element::transition` does, so a

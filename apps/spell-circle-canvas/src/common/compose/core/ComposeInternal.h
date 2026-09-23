@@ -206,7 +206,8 @@ struct TextOptions {
     kEllipsis = 1u << 3u,
     kMaxLines = 1u << 4u,
     kBlocks = 1u << 7u,
-    kFrame = 1u << 8u,
+    /// textFirstBaseline(): the frame's first-baseline rule and offset.
+    kFirstBaseline = 1u << 8u,
     kLive = 1u << 11u,
     kReserved = 1u << 13u,
     kBlockClasses = 1u << 15u,
@@ -214,6 +215,10 @@ struct TextOptions {
     /// textStroke(): the glyph outline, whose fields stand on TextData.
     /// Set by a stroke of width zero too, which states "no outline".
     kTextStroke = 1u << 17u,
+    /// textVerticalAlign(): the frame's distribution and its gap limit —
+    /// a property apart from the first baseline, so either stated alone
+    /// leaves the other standing wherever it came from.
+    kVerticalAlign = 1u << 18u,
   };
   uint32_t set = 0;  ///< which fields below were written
 
@@ -326,8 +331,8 @@ struct TextData {
    *  grow down the page. */
   bool distributesRoom(const TextOptions& inForce) const {
     const sigil::weave::FrameOptions& frame =
-        (inForce.set & TextOptions::kFrame) ? inForce.frame
-                                            : layoutOptions.frame;
+        (inForce.set & TextOptions::kVerticalAlign) ? inForce.frame
+                                                    : layoutOptions.frame;
     return frame.distribute != sigil::weave::FrameOptions::Distribute::kStart;
   }
 };
@@ -755,10 +760,15 @@ void warnNoSuchVar(VarRef reference, bool wantColour);
 void warnPropertyAnswersNoKeyword(Property property);
 
 /** The once-per-property diagnostic behind a rule stating a value it
- *  cannot hold — a live binding, an animation, a live paint. A rule
+ *  cannot hold — a live binding, an animation, an animated paint. A rule
  *  holds static values, so the statement is left out of the fold and
  *  the element keeps what it would have had without it. */
 void warnRuleHoldsOnlyStaticValues(Property property);
+
+/** The once-per-property diagnostic behind a rule stating a property its
+ *  layer does not carry — one kept on the element's description — so
+ *  the statement is left out rather than dropped unsaid. */
+void warnRuleCannotState(Property property);
 
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */

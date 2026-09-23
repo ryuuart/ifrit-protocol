@@ -58,7 +58,9 @@ class TransformVerbs {
    *  `pct(0)` its left or top edge and `pct(100)` its right or bottom;
    *  any other length is node-local pixels; @p z is the pivot's
    *  distance in front of the plane, which a percentage cannot say. The
-   *  CENTRE, in the plane, when unstated. */
+   *  CENTRE, in the plane, when unstated.
+   *  @trap A rule states the flat pivot alone; a @p z written in one is
+   *  left out and said once. */
   Derived& transformOrigin(Dimension x, Dimension y, Dimension z = 0.0f);
   /** A BARE NUMBER IS REFUSED, as CSS refuses a length without a unit
    *  here: it reads as a fraction of the box as readily as a pixel

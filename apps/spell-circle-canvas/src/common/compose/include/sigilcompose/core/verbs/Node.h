@@ -24,10 +24,11 @@
 namespace sigil::compose {
 
 /** WHAT ANY NODE CAN SAY: its box, its flex factors, its placement, its
- *  shape, its mask, the cascade it declares, its font and ink, its paint, its
- * decorations, the compositing lanes, the two transform stacks, and what it is
- * in the tree. A verb family NOT here belongs to one kind of leaf, and calling
- * it on a node that cannot use it does not compile. */
+ *  shape, its mask, the cascade it declares, its font and ink, its
+ *  paint, its decorations, the compositing lanes, the two transform
+ *  stacks, and what it is in the tree. A verb family NOT here belongs to
+ *  one kind of leaf, and calling it on a node that cannot use it does not
+ *  compile. */
 template <class Derived>
 class NodeVerbs : public BoxVerbs<Derived>,
                   public FlexVerbs<Derived>,

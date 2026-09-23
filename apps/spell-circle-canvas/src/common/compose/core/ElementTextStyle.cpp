@@ -57,7 +57,7 @@ Derived& TextStyleVerbs<Derived>::textFirstBaseline(
   detail::TextOptions& options = declarations()->textData.ensure().options;
   options.frame.firstBaseline = rule;
   options.frame.firstBaselineOffset = offset;
-  options.set |= detail::TextOptions::kFrame;
+  options.set |= detail::TextOptions::kFirstBaseline;
   return self();
 }
 
@@ -68,7 +68,7 @@ Derived& TextStyleVerbs<Derived>::textVerticalAlign(
   detail::TextOptions& options = declarations()->textData.ensure().options;
   options.frame.distribute = rule;
   options.frame.maximumInterlineSpacing = maximumInterlineSpacing;
-  options.set |= detail::TextOptions::kFrame;
+  options.set |= detail::TextOptions::kVerticalAlign;
   return self();
 }
 
@@ -142,7 +142,14 @@ void detail::TextOptions::applyTo(
   if (set & kEllipsis) options.overflow.ellipsis = ellipsis;
   if (set & kMaxLines) options.overflow.maxLines = maxLines;
   if (set & kBlocks) options.blocks = blocks;
-  if (set & kFrame) options.frame = frame;
+  if (set & kFirstBaseline) {
+    options.frame.firstBaseline = frame.firstBaseline;
+    options.frame.firstBaselineOffset = frame.firstBaselineOffset;
+  }
+  if (set & kVerticalAlign) {
+    options.frame.distribute = frame.distribute;
+    options.frame.maximumInterlineSpacing = frame.maximumInterlineSpacing;
+  }
   if (set & kLive) {
     options.live = live;
     options.knuthPlass.candidates = candidates;
@@ -158,7 +165,14 @@ void detail::TextOptions::overlay(const TextOptions& over) {
     blockClassNames = over.blockClassNames;
     set &= ~(uint32_t)(kBlocks | kBlockClasses);
   }
-  if (over.set & kFrame) frame = over.frame;
+  if (over.set & kFirstBaseline) {
+    frame.firstBaseline = over.frame.firstBaseline;
+    frame.firstBaselineOffset = over.frame.firstBaselineOffset;
+  }
+  if (over.set & kVerticalAlign) {
+    frame.distribute = over.frame.distribute;
+    frame.maximumInterlineSpacing = over.frame.maximumInterlineSpacing;
+  }
   if (over.set & kLive) {
     live = over.live;
     candidates = over.candidates;

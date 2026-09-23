@@ -26,6 +26,26 @@ inline const material::skia::Paint* liveMaterialOf(const ElementNode& n) {
   return n.materialData && n.materialData->live ? &*n.materialData->live
                                                 : nullptr;
 }
+/** THE MATERIAL SLOT BEHIND THE FILL IN FORCE at this instance: the
+ *  node's own where it states a fill, else the strongest matched rule's
+ *  where one states it as a value, else null. */
+inline const MaterialData* fillSlotOf(const Instance& inst) {
+  const ElementNode& n = *inst.description;
+  if (n.declared.has(Property::Fill))
+    return n.materialData ? &*n.materialData : nullptr;
+  const RuleLayer* rules = inst.ruleLayer.get();
+  if (rules == nullptr || !rules->material ||
+      !rules->declared.has(Property::Fill) ||
+      rules->keywords.find(Property::Fill))
+    return nullptr;
+  return &*rules->material;
+}
+/** The paint the fill in force resolves per frame or per size — a live
+ *  or box-relative one — or null where the fill is a plain `Fill`. */
+inline const material::skia::Paint* liveMaterialOf(const Instance& inst) {
+  const MaterialData* slot = fillSlotOf(inst);
+  return slot && slot->live ? &*slot->live : nullptr;
+}
 /** THE INK IN FORCE AS A PAINT at this instance, or null where the ink
  *  is a colour — which is the whole of nearly every tree. */
 inline const material::skia::Paint* inkPaintOf(const Instance& inst) {

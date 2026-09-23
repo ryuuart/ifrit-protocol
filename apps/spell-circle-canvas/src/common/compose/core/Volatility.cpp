@@ -166,7 +166,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool inkLerp = inst.anims[Instance::kInkLerp] &&
                        inst.anims[Instance::kInkLerp]->value.isConnected();
   const bool boundFill = style.paint.fill && style.paint.fill->binding();
-  const material::skia::Paint* nodeLiveMat = liveMaterialOf(node);
+  const material::skia::Paint* nodeLiveMat = liveMaterialOf(inst);
   // A fill material whose ONLY animation is its own bound tile pan is NOT
   // the live-material lane — it is two floats, resolvable outside paint by
   // a pointer dereference, so it rides the memoized scalar lane exactly as

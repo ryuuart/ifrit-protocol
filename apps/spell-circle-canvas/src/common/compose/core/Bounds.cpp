@@ -51,7 +51,8 @@ namespace {
  *  over-report-is-safe contract, because what this number is for is a
  *  bounds — a layer, a cull, a bake — and under-reporting one truncates
  *  ink with no diagnostic. */
-float declaredBleed(const ElementNode& node, SkSize size) {
+float declaredBleed(const Instance& inst, SkSize size) {
+  const ElementNode& node = *inst.description;
   float bleed = 0;
 
   for (const Decoration& d : node.backgrounds)
@@ -84,12 +85,11 @@ float declaredBleed(const ElementNode& node, SkSize size) {
   // A Material can declare a reserve too: a fill whose own outline escapes
   // the node's box is truncated at the cached picture or texture bounds
   // otherwise, exactly as an under-reported decoration bleed is. Both
-  // carriers are checked — the live/geometry slot and the static recipe.
-  if (node.materialData) {
-    if (node.materialData->live)
-      bleed = std::max(bleed, node.materialData->live->bleed());
-    if (node.materialData->recipe)
-      bleed = std::max(bleed, node.materialData->recipe->bleed());
+  // carriers of the fill in force are checked — the live/geometry slot
+  // and the static recipe, the node's own or a matched rule's.
+  if (const MaterialData* slot = fillSlotOf(inst)) {
+    if (slot->live) bleed = std::max(bleed, slot->live->bleed());
+    if (slot->recipe) bleed = std::max(bleed, slot->recipe->bleed());
   }
   return bleed;
 }
@@ -126,7 +126,7 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   // layout already knows where the letters went and a guess would be a
   // second opinion about it. Empty on every node that is not type.
   local.join(inst.textInk);
-  const float bleed = declaredBleed(node, {rect.width(), rect.height()});
+  const float bleed = declaredBleed(inst, {rect.width(), rect.height()});
   if (bleed > 0) local.outset(bleed, bleed);
   // A PATH BASELINE is the same problem once more. The baseline resolves
   // against the node's own box, so a `shapes::` generator normally stays
@@ -477,7 +477,7 @@ SkRect Composer::Impl::declaredShapeBounds(Instance& inst) {
   const SkRect rect = instanceRect(inst);
   const SkPath& shape = resolveOutline(inst, {rect.width(), rect.height()});
   if (shape.isEmpty()) return SkRect::MakeEmpty();
-  const float bleed = declaredBleed(node, {rect.width(), rect.height()});
+  const float bleed = declaredBleed(inst, {rect.width(), rect.height()});
   SkRect drawn = shape.getBounds();
   drawn.outset(bleed, bleed);
   return drawn;

@@ -395,7 +395,7 @@ std::array<float, 2> detail::Instance::resolvePatternOffset() const {
   // opaque live path, where no memo reads these floats at all. All-zero
   // otherwise, matching the ContentScalars guard, so a node without the
   // channel compares equal to itself forever.
-  const material::skia::Paint* m = liveMaterialOf(*description);
+  const material::skia::Paint* m = liveMaterialOf(*this);
   if (!m || !m->boundOffsetOnly()) return {};
   const SkPoint pan = m->boundOffsetValue();
   return {pan.x(), pan.y()};

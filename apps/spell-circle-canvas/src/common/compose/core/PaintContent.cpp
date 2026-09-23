@@ -832,7 +832,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // wrappers above are recomputed rather than skipped — they are cheap,
     // they must stay balanced against their restores below, and the
     // foregrounds still trace the outline.)
-  } else if (const material::skia::Paint* live = liveMaterialOf(node)) {
+  } else if (const material::skia::Paint* live = liveMaterialOf(inst)) {
     // background-origin: the paint's unit square begins at the box the
     // origin names rather than at the node's own. The painted AREA does
     // not move with it — a clip is what would move that, and this library

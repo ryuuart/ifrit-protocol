@@ -65,6 +65,7 @@ enum class Property : uint8_t {
   Bottom,
   CenterAt,
   GridCells,
+  GridCellAlign,
   GridArea,
   // The silhouette.
   BorderRadius,

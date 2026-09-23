@@ -3,6 +3,8 @@
  * transform origin, the motion path, and the stacking index.
  */
 
+#include <type_traits>
+
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
@@ -64,6 +66,16 @@ Derived& TransformVerbs<Derived>::skewY(motion::Animatable<float> v) {
 template <class Derived>
 Derived& TransformVerbs<Derived>::transformOrigin(Dimension x, Dimension y,
                                                   Dimension z) {
+  if constexpr (std::is_same_v<Derived, Rule>) {
+    // The depth lives on the description, which a rule's layer does not
+    // carry, so a rule states the flat pivot alone.
+    detail::ElementNode* node = declare(Property::TransformOrigin);
+    node->paint.originX = x;
+    node->paint.originY = y;
+    if (z != Dimension(0.0f))
+      detail::warnRuleCannotState(Property::TransformOriginZ);
+    return self();
+  }
   detail::ElementNode* node =
       declare({Property::TransformOrigin, Property::TransformOriginZ});
   node->paint.originX = x;
