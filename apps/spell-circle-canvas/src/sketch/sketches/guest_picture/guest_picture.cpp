@@ -9,11 +9,13 @@
  * captioned under it.
  *
  * THE FRAME NEVER LEAVES THE GPU. What arrives is the texture the other
- * application drew into, wrapped as an image on the recorder this canvas
- * is being drawn on and sampled where it stands; nothing is copied, read
- * back or converted on the way in. The guest is asked for one every
- * frame, which is also what opens onto a publisher that appeared after
- * this sketch was set up, or came back after one stopped.
+ * application drew into, carried with its first row at the image's
+ * bottom; the guest draws it once into a target of its own on the
+ * recorder this canvas is being drawn on, the right way up, and that is
+ * the image sampled where it stands. It is turned over once for each
+ * frame that arrives and never read back to the CPU. The guest is asked
+ * for one every frame, which is also what opens onto a publisher that
+ * appeared after this sketch was set up, or came back after one stopped.
  *
  * IT KEEPS THE GUEST'S OWN SHAPE. The picture is fitted into the frame
  * rather than filled out to it, so what is on the page is the whole of
