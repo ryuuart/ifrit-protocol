@@ -54,11 +54,12 @@ sigil_library(SigilWeave
 # values the kit's guards are, and the tree-wide test support for the
 # instrument faces the testing section names.
 #
-# The names it borrows from ABOVE are exempted instead, one by one, since
+# The names it borrows from ABOVE are exempted here, one by one, since
 # SigilCompose stands on this library and its probes must not link the
 # one above them: the settling passage names SigilCompose's worked
 # example, and PARITY.md how a SigilCompose author reaches each control.
-set(compose_owned "SigilCompose stands on this library, so a name PARITY.md gives a Compose author is named and not probed")
+# SigilCompose's own probe reads PARITY.md as well, and compiles them.
+set(compose_owned "SigilCompose stands on this library, so a name PARITY.md gives a Compose author is compiled by SigilCompose's probe")
 sigil_doc_probes(weave
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/FEATURES.md

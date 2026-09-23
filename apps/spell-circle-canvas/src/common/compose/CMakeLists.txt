@@ -123,6 +123,14 @@ sigil_library(SigilCompose
 # them. The testing tier's own include root is scanned beside the
 # library's, since the walkthroughs spell the harness the cases are
 # written against.
+#
+# SigilWeave's control-by-control catalogue is read here too. Its "From
+# compose" column names how a Compose author reaches each control, and
+# SigilWeave's own probe cannot compile those names without linking the
+# library above it; this one stands above both. Its "Where" column spells
+# SigilWeave's own names, which that library's probe compiles; the few
+# that read here as Compose names are exempted one by one.
+set(weave_owned "a SigilWeave name in its catalogue's Where column, compiled by SigilWeave's own probe")
 sigil_doc_probes(compose
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
@@ -206,6 +214,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/transformOrigin.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/travel.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/variationDrive.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/PARITY.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
@@ -222,6 +231,11 @@ sigil_doc_probes(compose
            "<sigilskia/draw/Direct.h>"
   ALIASES ch=choreograph
   SKIP_HEADERS Web.h
+  EXCLUDE "kit::PatternHyphenator=${weave_owned}"
+          "kit::englishHyphenationPatterns=${weave_owned}"
+          "selectors::regex=${weave_owned}"
+          "selectors::line=${weave_owned}"
+          "image::distanceField=${weave_owned}"
   FLOORS 280,190,150,220,5
   LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
             SigilComposeTypography SigilComposeVideo SigilComposeDraw
