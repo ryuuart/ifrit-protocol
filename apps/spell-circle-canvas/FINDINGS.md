@@ -321,11 +321,14 @@ property: a node whose inherited computed value moved gets a lane of its
 own toward the inherited target, since a fill's ramp stays in the paint
 layer and a child inherits only the target.
 
-Both cannot have been intended: a node stating `transition()` either
-eases whatever its computed value does, including what it inherits — the
-CSS rule, and what the fill does — or it does not. The owner decides
-which.
+The intended rule is the fill's, which is also CSS's: a node stating
+`transition()` eases whatever its computed value does, including what it
+inherits, with a lane of its own toward the inherited target, so it lags
+the ancestor by its own duration; a node with no transition of its own
+follows the ancestor's ramp as it happens.
 
-Once decided, `ComposeCascade.ANodeThatInheritsItsInkRunsNoLaneOfItsOwn`
-and `ComposeDeclarations.AnInheritedPropertyThatMovedBehindAPruneEases`
-should assert one rule for both kinds of property.
+Once the ink lane follows it, `ComposeCascade.ANodeThatInheritsItsInkRunsNoLaneOfItsOwn`
+is replaced by a case asserting that an inheriting node with its own
+transition eases the inherited ink, and it and
+`ComposeDeclarations.AnInheritedPropertyThatMovedBehindAPruneEases`
+assert one rule for both kinds of property.
