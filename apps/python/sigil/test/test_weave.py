@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from _sigil import weave as native_weave
-from sigil import image, skia, weave
+from sigil import geometry, image, skia, weave
 from sigil.compose import SpanDeclarations, Text, TextPath, frame, text
 from sigil.compose import selectors as composition_selectors
 from sigil.motion import Output
@@ -112,6 +112,14 @@ class Typography(unittest.TestCase):
         self.assertEqual(
             (font.underlays[0].offset.x, font.underlays[0].offset.y), (2, 3)
         )
+
+    def test_an_outline_turns_its_corners_by_a_geometry_join(self):
+        def outline(*join):
+            return weave.kit.outline("#000000", 3.0, *join)
+
+        round_join = outline(geometry.path.Join.Round)
+        self.assertEqual(outline(), round_join, "a round join by default")
+        self.assertNotEqual(outline(geometry.path.Join.Bevel), round_join)
 
     def test_selectors_and_path_progress_keep_native_types_and_named_inputs(self):
         selection = weave.selectors.words(start=0, end=2) | weave.selectors.text(

@@ -8,7 +8,8 @@
 # are declared to is SigilCore's, since nothing in it is about text.
 # Qt-free; a label draws, so the kit rests on the paint feature, and it
 # asks the Unicode leaf the character questions its tables are derived from
-# rather than holding a copy of the answers.
+# rather than holding a copy of the answers. An outline turns its corners
+# by the geometry path library's join, so that library is public here.
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeaveKit
@@ -16,7 +17,7 @@ sigil_library(SigilWeaveKit
           PaintLayers.cpp SampleText.cpp
   HEADERS SigilWeaveKit.h Features.h GlyphBuckets.h Hyphenation.h
           Labels.h LayoutGuard.h LineTables.h PaintLayers.h SampleText.h
-  PUBLIC SigilWeavePaint unofficial::skia::skia
+  PUBLIC SigilWeavePaint SigilGeometryPath unofficial::skia::skia
   PRIVATE SigilWeaveUnicode Boost::unordered)
 
 # The invalidation semantics the kit exists to make explicit.

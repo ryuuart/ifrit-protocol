@@ -18,14 +18,14 @@ namespace sigil::draw::detail {
 
 /** p5's SQUARE ends the stroke at the point and PROJECT carries it
  *  half a weight past, which are Skia's butt and square caps. */
-SkPaint::Cap capOf(Constant cap) {
+geometry::path::Cap capOf(Constant cap) {
   switch (cap) {
     case SQUARE:
-      return SkPaint::kButt_Cap;
+      return geometry::path::Cap::Butt;
     case PROJECT:
-      return SkPaint::kSquare_Cap;
+      return geometry::path::Cap::Square;
     default:
-      return SkPaint::kRound_Cap;
+      return geometry::path::Cap::Round;
   }
 }
 
@@ -113,14 +113,14 @@ void setBlend(SkPaint& paint, Constant mode) {
   }
 }
 
-SkPaint::Join joinOf(Constant join) {
+geometry::path::Join joinOf(Constant join) {
   switch (join) {
     case BEVEL:
-      return SkPaint::kBevel_Join;
+      return geometry::path::Join::Bevel;
     case ROUND:
-      return SkPaint::kRound_Join;
+      return geometry::path::Join::Round;
     default:
-      return SkPaint::kMiter_Join;
+      return geometry::path::Join::Miter;
   }
 }
 

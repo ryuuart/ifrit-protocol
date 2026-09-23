@@ -12,6 +12,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPoint.h>
+#include <sigilgeometry/path/Stroke.h>
 
 #include "sigilweave/style/PaintLayer.h"
 
@@ -31,8 +32,10 @@ namespace sigil::weave::kit {
 [[nodiscard]] PaintLayer glow(SkColor color, float blurSigma,
                               float spread = 0.0f, float intensity = 1.0f);
 
-/** A stroked copy, normally placed beneath the foreground. */
-[[nodiscard]] PaintLayer outline(SkColor color, float width,
-                                 SkPaint::Join join = SkPaint::kRound_Join);
+/** A stroked copy, normally placed beneath the foreground, turning its
+ *  corners by @p join. */
+[[nodiscard]] PaintLayer outline(
+    SkColor color, float width,
+    geometry::path::Join join = geometry::path::Join::Round);
 
 }  // namespace sigil::weave::kit

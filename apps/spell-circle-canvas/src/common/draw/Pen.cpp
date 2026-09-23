@@ -17,6 +17,7 @@
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilgeometry/path/StrokeSkia.h>
 #include <sigilmaterial/core/Material.h>
 
 #include <algorithm>
@@ -136,8 +137,8 @@ void Pen::applyStyle() {
   m_strokePaint.setAntiAlias(m_style.antiAlias);
   m_strokePaint.setStyle(SkPaint::kStroke_Style);
   m_strokePaint.setStrokeWidth(m_style.strokeWeight);
-  m_strokePaint.setStrokeCap(m_style.cap);
-  m_strokePaint.setStrokeJoin(m_style.join);
+  m_strokePaint.setStrokeCap(geometry::path::toSk(m_style.cap));
+  m_strokePaint.setStrokeJoin(geometry::path::toSk(m_style.join));
   m_strokePaint.setPathEffect(m_style.dash);
   blendInto(m_fillPaint);
   blendInto(m_strokePaint);
@@ -355,11 +356,11 @@ void Pen::strokeWeight(float weight) {
 }
 void Pen::strokeCap(Constant cap) {
   m_style.cap = capOf(cap);
-  m_strokePaint.setStrokeCap(m_style.cap);
+  m_strokePaint.setStrokeCap(geometry::path::toSk(m_style.cap));
 }
 void Pen::strokeJoin(Constant join) {
   m_style.join = joinOf(join);
-  m_strokePaint.setStrokeJoin(m_style.join);
+  m_strokePaint.setStrokeJoin(geometry::path::toSk(m_style.join));
 }
 void Pen::strokeDash(std::span<const float> intervals, float phase) {
   std::vector<SkScalar> run(intervals.begin(), intervals.end());

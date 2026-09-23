@@ -355,7 +355,7 @@ struct PsxDoomFire {
                                            .track = 34.0f});
     s.paint.addUnderlay(sigil::weave::kit::outline(
         sigil::material::skia::toSkColor(hexColor(0x2A0805)).toSkColor(), 7.0f,
-        SkPaint::kRound_Join));
+        sigil::geometry::path::Join::Round));
     return compose::text("DOOM", std::move(s))
         .width(kPanelW)
         .block({.alignment = weave::TextAlignment::kCenter})

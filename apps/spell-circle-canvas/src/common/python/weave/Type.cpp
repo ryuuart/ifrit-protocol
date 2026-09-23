@@ -5,7 +5,6 @@
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/weave/Keywords.h>
 #include <sigilpython/weave/Registration.h>
-#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/layout/Block.h>
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/query/Selector.h>
@@ -575,32 +574,8 @@ void bindWeave(py::module_& module) {
             return selectors::regex(std::u8string(value.begin(), value.end()));
           },
           py::arg("pattern"));
-  auto kit = text.def_submodule("kit");
-  kit.def(
-      "dropShadow",
-      [](py::handle ink, py::handle offset, float blurSigma, float spread,
-         float intensity) {
-        return weave::kit::dropShadow(color(ink).toSkColor(), point(offset),
-                                      blurSigma, spread, intensity);
-      },
-      py::arg("color") = "#00000066", py::arg("offset") = py::make_tuple(2, 2),
-      py::arg("blurSigma") = 2.0f, py::arg("spread") = 0.0f,
-      py::arg("intensity") = 1.0f);
-  kit.def(
-      "glow",
-      [](py::handle ink, float blurSigma, float spread, float intensity) {
-        return weave::kit::glow(color(ink).toSkColor(), blurSigma, spread,
-                                intensity);
-      },
-      py::arg("color"), py::arg("blurSigma"), py::arg("spread") = 0.0f,
-      py::arg("intensity") = 1.0f);
-  kit.def(
-      "outline",
-      [](py::handle ink, float width, SkPaint::Join join) {
-        return weave::kit::outline(color(ink).toSkColor(), width, join);
-      },
-      py::arg("color"), py::arg("width"),
-      py::arg("join") = SkPaint::kRound_Join);
+  // The kit's paint layers are registered once geometry's join is.
+  text.def_submodule("kit");
 }
 
 }  // namespace sigil::python

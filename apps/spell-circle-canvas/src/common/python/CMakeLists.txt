@@ -38,7 +38,8 @@ sigil_library(SigilPython
     motion/Clock.cpp motion/Lanes.cpp motion/Particles.cpp motion/Physics.cpp
     motion/Schedule.cpp motion/Signals.cpp skia/Effects.cpp skia/Fonts.cpp
     skia/Paths.cpp skia/Surfaces.cpp video/Video.cpp weave/Cascade.cpp
-    weave/Choreography.cpp weave/Flows.cpp weave/Fonts.cpp weave/Ports.cpp
+    weave/Choreography.cpp weave/Flows.cpp weave/Fonts.cpp
+    weave/PaintLayers.cpp weave/Ports.cpp
     weave/Shaping.cpp weave/Tables.cpp weave/Unicode.cpp
     world/Description.cpp world/Device.cpp world/Environment.cpp
     world/Geometry.cpp world/Passes.cpp world/Plan.cpp world/Targets.cpp

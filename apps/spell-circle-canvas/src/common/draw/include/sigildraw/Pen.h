@@ -31,6 +31,7 @@
 #include <sigildraw/PenTypes.h>
 #include <sigildraw/Retained.h>
 #include <sigilgeometry/kit/Corners.h>
+#include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/style/Type.h>
@@ -520,8 +521,8 @@ class Pen {
     material::skia::Paint fill = material::skia::Paint::solid({1, 1, 1, 1});
     material::skia::Paint stroke = material::skia::Paint::solid({0, 0, 0, 1});
     float strokeWeight = 1.0f;
-    SkPaint::Cap cap = SkPaint::kRound_Cap;
-    SkPaint::Join join = SkPaint::kMiter_Join;
+    geometry::path::Cap cap = geometry::path::Cap::Round;
+    geometry::path::Join join = geometry::path::Join::Miter;
     /** The dash, already built; null is a solid stroke. */
     sk_sp<SkPathEffect> dash;
     bool antiAlias = true;

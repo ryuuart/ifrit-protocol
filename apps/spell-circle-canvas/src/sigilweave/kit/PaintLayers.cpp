@@ -4,6 +4,8 @@
 
 #include "sigilweave/kit/PaintLayers.h"
 
+#include <sigilgeometry/path/StrokeSkia.h>
+
 #include <algorithm>
 #include <utility>
 
@@ -30,13 +32,13 @@ PaintLayer glow(SkColor color, float blurSigma, float spread, float intensity) {
   return dropShadow(color, {0, 0}, blurSigma, spread, intensity);
 }
 
-PaintLayer outline(SkColor color, float width, SkPaint::Join join) {
+PaintLayer outline(SkColor color, float width, geometry::path::Join join) {
   SkPaint paint;
   paint.setAntiAlias(true);
   paint.setColor(color);
   paint.setStyle(SkPaint::kStroke_Style);
   paint.setStrokeWidth(width);
-  paint.setStrokeJoin(join);
+  paint.setStrokeJoin(geometry::path::toSk(join));
   return PaintLayer(std::move(paint));
 }
 

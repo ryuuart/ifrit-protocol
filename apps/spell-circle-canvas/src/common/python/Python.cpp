@@ -116,6 +116,7 @@ void bindLibraries(pybind11::module_& module) {
   bindWeaveShaping(module);
   bindWeaveFlows(module);
   bindWeaveChoreography(module);
+  bindWeaveKitPaintLayers(module);
   bindBrush(module);
   bindGeometry(module);
   bindWorld(module);

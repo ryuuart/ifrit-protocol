@@ -20,6 +20,9 @@ void bindWeaveCascade(pybind11::module_& module);
 /** Registers per-glyph choreography, glyph batches and the material
  *  resolver switch on @p module. */
 void bindWeaveChoreography(pybind11::module_& module);
+/** Registers the kit's shadow, glow and outline paint layers on @p
+ *  module, after geometry's join they turn corners by. */
+void bindWeaveKitPaintLayers(pybind11::module_& module);
 /** Registers python FlowGeometry and Silhouette subclasses, contour
  *  intervals and placeAt on @p module. */
 void bindWeaveFlows(pybind11::module_& module);

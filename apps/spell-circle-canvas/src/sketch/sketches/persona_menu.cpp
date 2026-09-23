@@ -222,7 +222,7 @@ inline sigil::weave::Type menuType(float size, material::Color fill,
   if (ringW > 0)
     t.underlays = std::vector<sigil::weave::PaintLayer>{
         sigil::weave::kit::outline(material::skia::toSkColor(kRing).toSkColor(),
-                                   ringW, SkPaint::kRound_Join)};
+                                   ringW, sigil::geometry::path::Join::Round)};
   return t;
 }
 

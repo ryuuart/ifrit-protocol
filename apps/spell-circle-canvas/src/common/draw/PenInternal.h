@@ -2,7 +2,8 @@
 
 /** @file
  * The pieces of the pen that more than one of its files reads: p5's words
- * for a cap, a join and a blend as Skia spells them, how an image is
+ * for a cap and a join as geometry spells them and for a blend as Skia
+ * does, how an image is
  * sampled under the pen's smoothing, the arc angles made drawable, the
  * seed a pen starts on, and one material onto one SkPaint. Private to
  * SigilDraw.
@@ -14,6 +15,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigildraw/Constants.h>
+#include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <cstdint>
@@ -29,11 +31,11 @@ namespace sigil::draw::detail {
 inline constexpr uint64_t kDefaultSeed = 0x5EED5EED5EED5EEDull;
 
 /** p5's SQUARE ends the stroke at the point and PROJECT carries it half a
- *  weight past, which are Skia's butt and square caps. */
-SkPaint::Cap capOf(Constant cap);
+ *  weight past, which are the butt and square caps. */
+geometry::path::Cap capOf(Constant cap);
 
-/** p5's MITER, BEVEL and ROUND, which Skia spells the same way. */
-SkPaint::Join joinOf(Constant join);
+/** p5's MITER, BEVEL and ROUND, which geometry spells the same way. */
+geometry::path::Join joinOf(Constant join);
 
 /** HOW AN IMAGE IS SAMPLED under the pen's smoothing: linear with
  *  mipmaps, or nearest with none, which is what a blown-up pixel source
