@@ -130,6 +130,29 @@ class Grammar(unittest.TestCase):
         self.assertTrue(compose.selector(":has(:has(.a))").matchesNothing())
         self.assertTrue(select.has(select.has(a)).matchesNothing())
 
+    def test_a_relative_selector_is_taken_only_by_has(self):
+        a, b, c = (select.styleClass(name) for name in ("a", "b", "c"))
+        relative = select.child(a)
+        self.assertIsInstance(relative, compose.RelativeSelector)
+        # A relation reached from nowhere speaks about nothing, so it
+        # opens no rule and extends no plain chain.
+        with self.assertRaises(TypeError):
+            compose.rule(relative)
+        with self.assertRaises(TypeError):
+            c.descendant(relative)
+        # A plain selector stands wherever a relative one is asked for, on
+        # either side of a list, and each alternative keeps its relation.
+        self.assertEqual(
+            select.has(a | select.next(b)), compose.selector(":has(.a, + .b)")
+        )
+        self.assertEqual(
+            select.has(select.next(b) | a), compose.selector(":has(+ .b, .a)")
+        )
+        self.assertEqual(
+            select.has((select.child(a) | select.next(b)).descendant(c)),
+            compose.selector(":has(> .a .c, + .b .c)"),
+        )
+
     def test_notAnyOf_and_the_tilde_spell_one_negation(self):
         self.assertEqual(
             select.notAnyOf(select.styleClass("x")), ~select.styleClass("x")

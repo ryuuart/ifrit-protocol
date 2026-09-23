@@ -1066,7 +1066,9 @@ and `:has`, whose relative selectors open with `>`, `+`, `~` or nothing.
 The builders under `sigil.compose.select` produce the same value name by
 name: `styleClass`, `role`, `any`, `is_` (spelled with the trailing
 underscore Python's keyword forces), `where`, `notAnyOf` and `has`, with
-`child`, `next` and `sibling` opening a relative selector for `has`. The
+`child`, `next` and `sibling` opening a `compose.RelativeSelector` — a
+type only `has` takes, so a relation cannot open a rule; a plain selector
+stands for one reached anywhere underneath. The
 operators are the house's three — `a | b` a selector list, `a & b` a
 compound on one element, `~a` a negation — and the combinators stay named
 methods, because they relate two elements rather than combining sets on

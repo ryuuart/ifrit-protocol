@@ -114,6 +114,41 @@ class ElementSelector {
   std::shared_ptr<const detail::SelectorBody> m_body;
 };
 
+/** WHAT A `:has()` LOOKS FOR, read from the element it stands on — CSS's
+ *  relative selector: a chain whose first compound is reached from that
+ *  element by a RELATION, anywhere under it (a plain selector converts
+ *  to that), as a direct child, as the next sibling or as any later
+ *  sibling. Only `select::has` takes one, so a relation cannot be used
+ *  as a rule's selector, where it would speak about nothing.
+ *  @trap `select::child(a).descendant(b)` is `> a b`: the relation opens
+ *  the chain, and the methods extend it exactly as they extend an
+ *  `ElementSelector`. */
+class RelativeSelector {
+ public:
+  RelativeSelector() = default;
+  /** @p descendant reached anywhere under the element — CSS `:has(b)`.
+   *  Implicit, so a plain selector stands wherever a relative one is
+   *  asked for. */
+  RelativeSelector(ElementSelector descendant);
+  /** This chain, then @p subject as its direct child. */
+  [[nodiscard]] RelativeSelector child(ElementSelector subject) const;
+  /** This chain, then @p subject anywhere under it. */
+  [[nodiscard]] RelativeSelector descendant(ElementSelector subject) const;
+  /** This chain, then @p subject as the sibling immediately after it. */
+  [[nodiscard]] RelativeSelector next(ElementSelector subject) const;
+  /** This chain, then @p subject as any later sibling of it. */
+  [[nodiscard]] RelativeSelector sibling(ElementSelector subject) const;
+  /** Whether this can never be reached: default-built, or built from a
+   *  selector that matches nothing. */
+  [[nodiscard]] bool matchesNothing() const;
+
+  [[nodiscard]] bool operator==(const RelativeSelector& other) const;
+
+ private:
+  friend struct detail::SelectorAccess;
+  ElementSelector m_chain;
+};
+
 /** THE CSS FRONT DOOR, parsed once into the value above:
  *  `".card > .title:first-child"`, `".row:nth-child(odd)"`,
  *  `":is(.a, .b) .c"`, `":not(.x)"`, `".card:has(> .badge)"`, `"*"`.
@@ -148,17 +183,15 @@ namespace select {
  *  below name the other three relations. `has(a | b)` asks for either,
  *  `has(a) & has(b)` for both.
  *  @trap A `:has()` inside another matches nothing, as in CSS. */
-[[nodiscard]] ElementSelector has(ElementSelector relatives);
-/** A RELATIVE selector for `has`: @p subject as a direct child of the
- *  element the `:has()` stands on — CSS `:has(> b)`. Read only as an
- *  argument of `has`; anywhere else it matches nothing. */
-[[nodiscard]] ElementSelector child(ElementSelector subject);
-/** A relative selector: @p subject as the sibling immediately after —
- *  CSS `:has(+ b)`. */
-[[nodiscard]] ElementSelector next(ElementSelector subject);
-/** A relative selector: @p subject as any later sibling — CSS
- *  `:has(~ b)`. */
-[[nodiscard]] ElementSelector sibling(ElementSelector subject);
+[[nodiscard]] ElementSelector has(RelativeSelector relatives);
+/** @p subject as a direct child of the element a `:has()` stands on —
+ *  CSS `:has(> b)`. */
+[[nodiscard]] RelativeSelector child(ElementSelector subject);
+/** @p subject as the sibling immediately after that element — CSS
+ *  `:has(+ b)`. */
+[[nodiscard]] RelativeSelector next(ElementSelector subject);
+/** @p subject as any later sibling of that element — CSS `:has(~ b)`. */
+[[nodiscard]] RelativeSelector sibling(ElementSelector subject);
 
 }  // namespace select
 
@@ -173,6 +206,11 @@ namespace select {
  *  either side matching nothing leaves the compound matching nothing. */
 [[nodiscard]] ElementSelector operator&(const ElementSelector& left,
                                         const ElementSelector& right);
+/** A LIST OF RELATIVE SELECTORS, either one reaching being a match —
+ *  the comma inside CSS's `:has(+ a, ~ b)`. A plain selector on either
+ *  side reaches anywhere under the element. */
+[[nodiscard]] RelativeSelector operator|(const RelativeSelector& left,
+                                         const RelativeSelector& right);
 /** A NEGATION: `select::notAnyOf` under CSS's own spelling. */
 [[nodiscard]] ElementSelector operator!(const ElementSelector& inner);
 

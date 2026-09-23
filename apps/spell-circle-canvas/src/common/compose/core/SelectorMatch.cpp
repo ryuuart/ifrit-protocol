@@ -90,7 +90,9 @@ bool matchesComplex(const std::vector<Step>& steps, size_t at,
 /** Whether @p selector speaks about @p inst, reading the WEIGHT of the
  *  alternative that matched — a list weighs what matched it, not its
  *  heaviest alternative. A RELATIVE alternative, one opening with a
- *  relation to a `:has()` anchor, speaks about nothing out here. */
+ *  relation to a `:has()` anchor, reaches here only as an argument of
+ *  `:has()`, which reads it itself; the guard keeps it inert anywhere
+ *  else. */
 bool matchesSelector(const ElementSelector& selector, const Instance& inst,
                      const MatchContext& context, Specificity* weight) {
   bool any = false;

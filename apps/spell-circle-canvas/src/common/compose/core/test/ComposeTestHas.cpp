@@ -13,6 +13,7 @@
 
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include "support/CoreTestSupport.h"
@@ -35,14 +36,10 @@ void expectReads(std::string_view cssText, const ElementSelector& typed) {
 }
 
 /** A 20x20 box painted in the ink in force where it lands. */
-Element swatch() {
-  return box().width(20).height(20).fill(Fill::currentInk());
-}
+Element swatch() { return box().width(20).height(20).fill(Fill::currentInk()); }
 
 /** An element that paints nothing and carries @p classes. */
-Element marker(std::string_view classes) {
-  return box().styleClass(classes);
-}
+Element marker(std::string_view classes) { return box().styleClass(classes); }
 
 /** The ink the @p at'th swatch down a column resolved to. */
 SkColor inkOf(Host& host, int at) { return host.pixel(10, 20 * at + 10); }
@@ -50,11 +47,8 @@ SkColor inkOf(Host& host, int at) { return host.pixel(10, 20 * at + 10); }
 /** A column of @p children under a root that applies @p sheet and inks
  *  everything white, so an unmatched swatch reads white. */
 Element column(const StyleSheet& sheet, std::vector<Element> children) {
-  return box()
-      .key("root")
-      .ink(kWhiteInk)
-      .applyStyleSheet(sheet)
-      .children({std::move(children)});
+  return box().key("root").ink(kWhiteInk).applyStyleSheet(sheet).children(
+      {std::move(children)});
 }
 
 }  // namespace
@@ -71,8 +65,7 @@ TEST(ComposeHas, EveryRelationReadsTheSameFromBothDoors) {
   expectReads(".card:has(> .a .b)",
               card & select::has(select::child(a).descendant(b)));
   // Chained, a :has() asks for both; a list inside one asks for either.
-  expectReads(".card:has(.a):has(.b)",
-              card & select::has(a) & select::has(b));
+  expectReads(".card:has(.a):has(.b)", card & select::has(a) & select::has(b));
   expectReads(".card:has(.a, .b)", card & select::has(a | b));
   expectReads(".card:not(:has(.a))", card & !select::has(a));
   // A relation is part of the value: > .a is not .a.
@@ -116,7 +109,8 @@ TEST(ComposeHas, EachRelationReachesExactlyTheElementsItNames) {
                        {box().children({marker("hot")})}),
                    swatch().styleClass("card").children({marker("cold")})});
   };
-  host.composer.render(nested(StyleSheet{rule(".card:has(.hot)").ink(kRedInk)}));
+  host.composer.render(
+      nested(StyleSheet{rule(".card:has(.hot)").ink(kRedInk)}));
   host.frame();
   EXPECT_EQ(inkOf(host, 0), kRed);
   EXPECT_EQ(inkOf(host, 1), kRed);
@@ -148,12 +142,12 @@ TEST(ComposeHas, EachRelationReachesExactlyTheElementsItNames) {
 TEST(ComposeHas, AListAsksForEitherAChainForBothAndANegationForNeither) {
   Host host;
   const auto cards = [](const StyleSheet& sheet) {
-    return column(sheet,
-                  {swatch().styleClass("card").children({marker("a")}),
-                   swatch().styleClass("card").children({marker("b")}),
-                   swatch().styleClass("card").children(
-                       {marker("a"), marker("b")}),
-                   swatch().styleClass("card")});
+    return column(
+        sheet,
+        {swatch().styleClass("card").children({marker("a")}),
+         swatch().styleClass("card").children({marker("b")}),
+         swatch().styleClass("card").children({marker("a"), marker("b")}),
+         swatch().styleClass("card")});
   };
   host.composer.render(
       cards(StyleSheet{rule(".card:has(.a, .b)").ink(kRedInk)}));
@@ -177,8 +171,7 @@ TEST(ComposeHas, AListAsksForEitherAChainForBothAndANegationForNeither) {
   EXPECT_EQ(inkOf(host, 3), kRed);
   // Two names on ONE element are what a compound asks for; one of each
   // on two elements is not that.
-  host.composer.render(
-      cards(StyleSheet{rule(".card:has(.a.b)").ink(kRedInk)}));
+  host.composer.render(cards(StyleSheet{rule(".card:has(.a.b)").ink(kRedInk)}));
   host.frame();
   EXPECT_EQ(inkOf(host, 2), kWhite);
 }
@@ -206,13 +199,22 @@ TEST(ComposeHas, ASiblingOfTheApplyingNodeStandsOutsideWhatItsSheetSees) {
   EXPECT_EQ(inkOf(host, 0), kWhite);
 }
 
-TEST(ComposeHas, ARelativeSelectorOutsideAHasSpeaksAboutNothing) {
-  Host host;
-  host.composer.render(column(
-      StyleSheet{rule(select::child(select::styleClass("title"))).ink(kRedInk)},
-      {swatch().styleClass("title")}));
-  host.frame();
-  EXPECT_EQ(inkOf(host, 0), kWhite);
+// A relation reached from nowhere would speak about nothing, so a
+// relative selector is a type of its own that only select::has takes: it
+// can open no rule and extend no plain chain, while a plain selector
+// stands wherever a relative one is asked for.
+static_assert(
+    !std::is_convertible_v<sigil::compose::RelativeSelector, ElementSelector>);
+static_assert(
+    std::is_convertible_v<ElementSelector, sigil::compose::RelativeSelector>);
+
+TEST(ComposeHas, ARelativeListExtendsEachAlternativeByItsOwnRelation) {
+  const ElementSelector a = select::styleClass("a");
+  const ElementSelector b = select::styleClass("b");
+  const ElementSelector c = select::styleClass("c");
+  expectReads(":has(> .a .c, + .b .c)",
+              select::has((select::child(a) | select::next(b)).descendant(c)));
+  expectReads(":has(.a, + .b)", select::has(a | select::next(b)));
 }
 
 TEST(ComposeHas, AnAncestorIsRestyledWhenADescendantsClassToggles) {
@@ -239,10 +241,10 @@ TEST(ComposeHas, ATextureCachedElementBakesAgainThenAndOnlyThen) {
   // re-describes nothing inside the texture: only the answer can move it.
   Host host;
   const auto scene = [](std::string_view beside) {
-    return column(StyleSheet{rule(".panel:has(~ .hot)").ink(kRedInk)},
-                  {swatch().key("panel").styleClass("panel").cache(
-                       Cache::Texture),
-                   marker(beside)});
+    return column(
+        StyleSheet{rule(".panel:has(~ .hot)").ink(kRedInk)},
+        {swatch().key("panel").styleClass("panel").cache(Cache::Texture),
+         marker(beside)});
   };
   host.composer.render(scene("cold"));
   host.frame();
@@ -263,7 +265,9 @@ TEST(ComposeHas, ATextureCachedElementBakesAgainThenAndOnlyThen) {
   Host nested;
   const auto inside = [](std::string_view inner) {
     return column(StyleSheet{rule(".panel:has(.hot)").ink(kRedInk)},
-                  {swatch().key("panel").styleClass("panel")
+                  {swatch()
+                       .key("panel")
+                       .styleClass("panel")
                        .cache(Cache::Texture)
                        .children({marker(inner)})});
   };
@@ -332,8 +336,7 @@ TEST(ComposeHas, ASiblingRelationBelowTheElementReadsTheListAsItStands) {
     if (withA) inside.push_back(marker("a").key("a"));
     for (int at = 0; at < leaders; ++at)
       inside.push_back(marker("p").key("leader" + std::to_string(at)));
-    inside.push_back(
-        marker("x").key("x").children({marker("a").key("inner")}));
+    inside.push_back(marker("x").key("x").children({marker("a").key("inner")}));
     return column(StyleSheet{rule(".card:has(> .a + .x)").ink(kRedInk)},
                   {swatch().key("card").styleClass("card").children(
                       {std::move(inside)})});

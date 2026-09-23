@@ -35,3 +35,23 @@ def register(table: Table) -> None:
         statements=f"collections.abc.Iterable[{STATEMENT}]",
     )
     table.returns(SHEET, "__iter__", f"collections.abc.Iterator[{RULE}]")
+    # A plain selector converts to a relative one reached anywhere under
+    # the element, so every slot that takes a relative selector takes a
+    # plain one too.
+    relative = f"{MODULE}.RelativeSelector | {MODULE}.ElementSelector"
+    table.declares(
+        MODULE + ".select",
+        "has",
+        f"def has(relatives: {relative}) -> {MODULE}.ElementSelector:\n"
+        '    """Elements from which some of `relatives` can be reached — CSS '
+        "`:has(...)`, weighing as the heaviest of them. A plain selector is "
+        "reached anywhere under the element; `child`, `next` and `sibling` "
+        "name the other three relations. `has(a | b)` asks for either, "
+        "`has(a) & has(b)` for both. A `:has()` inside another matches "
+        'nothing, as in CSS."""\n',
+    )
+    table.declares(
+        MODULE + ".RelativeSelector",
+        "__or__",
+        f"def __or__(self, other: {relative}) -> RelativeSelector: ...",
+    )

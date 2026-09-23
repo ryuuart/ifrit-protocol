@@ -75,9 +75,13 @@ element, `!a` a negation. `select::is`, `select::where` and
 `select::has` spells `:has()`, whose relative selectors `select::child`,
 `select::next` and `select::sibling` open with their relation — a plain
 selector is reached anywhere underneath. So `.card:has(> .a)` is
-`select::styleClass("card") & select::has(select::child(a))`. A relative
-selector is read only as an argument of `select::has`; anywhere else it
-matches nothing. The
+`select::styleClass("card") & select::has(select::child(a))`. Those
+three answer a `compose::RelativeSelector`, a type of its own that only
+`select::has` takes, so a relation cannot open a rule or extend a plain
+chain, where it would speak about nothing; its own `child`,
+`descendant`, `next` and `sibling` extend it, `|` lists relative
+selectors, and a plain `ElementSelector` converts to one reached
+anywhere underneath. The
 combinators stay named methods — `ElementSelector::child`,
 `ElementSelector::descendant`, `ElementSelector::next` and
 `ElementSelector::sibling` — because they are relations between two

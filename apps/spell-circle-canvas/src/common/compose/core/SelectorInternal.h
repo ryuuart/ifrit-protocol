@@ -93,7 +93,8 @@ struct SelectorAccess {
   }
   /** The alternatives @p value stands for: its own where it is a
    *  list, and itself where it is one complex selector. */
-  static std::vector<ElementSelector> alternatives(const ElementSelector& value);
+  static std::vector<ElementSelector> alternatives(
+      const ElementSelector& value);
   /** @p value as a single compound, wrapping a list in `:is(...)`, or
    *  nothing where it is a chain no one compound can hold. */
   static std::optional<Compound> asCompound(const ElementSelector& value);
@@ -106,6 +107,17 @@ struct SelectorAccess {
    *  reached from a `:has()` anchor by @p relation. */
   static ElementSelector relative(Combinator relation,
                                   const ElementSelector& subject);
+  /** The chain a relative selector holds, its relation on its first
+   *  step. */
+  static const ElementSelector& chainOf(const RelativeSelector& value) {
+    return value.m_chain;
+  }
+  /** A relative selector holding @p chain as it stands. */
+  static RelativeSelector relativeFrom(ElementSelector chain) {
+    RelativeSelector value;
+    value.m_chain = std::move(chain);
+    return value;
+  }
 };
 
 /** Whether @p value holds a `:has()` anywhere in it, the arguments of

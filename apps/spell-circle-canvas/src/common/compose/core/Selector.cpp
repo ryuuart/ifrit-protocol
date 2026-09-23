@@ -73,7 +73,8 @@ ElementSelector SelectorAccess::fromSimples(std::vector<Simple> simples) {
     });
   if (simples.empty()) simples.push_back(Simple{});
   SelectorBody body;
-  body.steps.push_back(Step{Combinator::Descendant, Compound{std::move(simples)}});
+  body.steps.push_back(
+      Step{Combinator::Descendant, Compound{std::move(simples)}});
   return make(std::move(body));
 }
 
@@ -92,8 +93,7 @@ ElementSelector SelectorAccess::relative(Combinator relation,
 }
 
 bool containsHas(const ElementSelector& value) {
-  for (const ElementSelector& alternative :
-       SelectorAccess::alternatives(value))
+  for (const ElementSelector& alternative : SelectorAccess::alternatives(value))
     for (const Step& step : SelectorAccess::asSteps(alternative))
       for (const Simple& simple : step.compound.simples) {
         if (simple.kind == SimpleKind::Has) return true;
@@ -292,7 +292,8 @@ bool ElementSelector::matchesNothing() const { return m_body == nullptr; }
 
 Specificity ElementSelector::specificity() const {
   if (!m_body) return {};
-  if (!m_body->alternatives.empty()) return detail::heaviest(m_body->alternatives);
+  if (!m_body->alternatives.empty())
+    return detail::heaviest(m_body->alternatives);
   Specificity total;
   for (const detail::Step& step : m_body->steps) {
     const Specificity one = detail::weigh(step.compound);
@@ -315,17 +316,57 @@ ElementSelector ElementSelector::sibling(ElementSelector subject) const {
   return detail::chained(*this, detail::Combinator::Sibling, subject);
 }
 
+namespace detail {
+namespace {
+
+/** Every alternative of @p chain extended by @p subject over @p
+ *  combinator, each keeping the relation it opens with. */
+RelativeSelector relativeChained(const RelativeSelector& chain,
+                                 Combinator combinator,
+                                 const ElementSelector& subject) {
+  ElementSelector list;
+  for (const ElementSelector& alternative :
+       SelectorAccess::alternatives(SelectorAccess::chainOf(chain)))
+    list = list | chained(alternative, combinator, subject);
+  return SelectorAccess::relativeFrom(std::move(list));
+}
+
+}  // namespace
+}  // namespace detail
+
+RelativeSelector::RelativeSelector(ElementSelector descendant)
+    : m_chain(std::move(descendant)) {}
+RelativeSelector RelativeSelector::child(ElementSelector subject) const {
+  return detail::relativeChained(*this, detail::Combinator::Child, subject);
+}
+RelativeSelector RelativeSelector::descendant(ElementSelector subject) const {
+  return detail::relativeChained(*this, detail::Combinator::Descendant,
+                                 subject);
+}
+RelativeSelector RelativeSelector::next(ElementSelector subject) const {
+  return detail::relativeChained(*this, detail::Combinator::Next, subject);
+}
+RelativeSelector RelativeSelector::sibling(ElementSelector subject) const {
+  return detail::relativeChained(*this, detail::Combinator::Sibling, subject);
+}
+bool RelativeSelector::matchesNothing() const {
+  return m_chain.matchesNothing();
+}
+bool RelativeSelector::operator==(const RelativeSelector& other) const {
+  return m_chain == other.m_chain;
+}
+
 ElementSelector ElementSelector::firstChild() const {
-  return detail::withSubjectSimple(*this,
-                                   detail::pseudo(detail::SimpleKind::FirstChild));
+  return detail::withSubjectSimple(
+      *this, detail::pseudo(detail::SimpleKind::FirstChild));
 }
 ElementSelector ElementSelector::lastChild() const {
-  return detail::withSubjectSimple(*this,
-                                   detail::pseudo(detail::SimpleKind::LastChild));
+  return detail::withSubjectSimple(
+      *this, detail::pseudo(detail::SimpleKind::LastChild));
 }
 ElementSelector ElementSelector::onlyChild() const {
-  return detail::withSubjectSimple(*this,
-                                   detail::pseudo(detail::SimpleKind::OnlyChild));
+  return detail::withSubjectSimple(
+      *this, detail::pseudo(detail::SimpleKind::OnlyChild));
 }
 ElementSelector ElementSelector::nthChild(int step, int offset) const {
   return detail::withSubjectSimple(
@@ -364,14 +405,15 @@ ElementSelector ElementSelector::nthOfType(int step, int offset) const {
 }
 ElementSelector ElementSelector::nthLastOfType(int step, int offset) const {
   return detail::withSubjectSimple(
-      *this,
-      detail::counted(detail::SimpleKind::NthLastOfType, step, offset));
+      *this, detail::counted(detail::SimpleKind::NthLastOfType, step, offset));
 }
 ElementSelector ElementSelector::empty() const {
-  return detail::withSubjectSimple(*this, detail::pseudo(detail::SimpleKind::Empty));
+  return detail::withSubjectSimple(*this,
+                                   detail::pseudo(detail::SimpleKind::Empty));
 }
 ElementSelector ElementSelector::root() const {
-  return detail::withSubjectSimple(*this, detail::pseudo(detail::SimpleKind::Root));
+  return detail::withSubjectSimple(*this,
+                                   detail::pseudo(detail::SimpleKind::Root));
 }
 
 // ---------------------------------------------------------------------------
@@ -407,23 +449,26 @@ ElementSelector notAnyOf(ElementSelector alternatives) {
   return detail::listPseudo(detail::SimpleKind::Not, alternatives);
 }
 
-ElementSelector has(ElementSelector relatives) {
-  if (detail::containsHas(relatives)) {
+ElementSelector has(RelativeSelector relatives) {
+  const ElementSelector& chain = detail::SelectorAccess::chainOf(relatives);
+  if (detail::containsHas(chain)) {
     detail::warnHasInsideHas();
     return {};
   }
-  return detail::listPseudo(detail::SimpleKind::Has, relatives);
+  return detail::listPseudo(detail::SimpleKind::Has, chain);
 }
 
-ElementSelector child(ElementSelector subject) {
-  return detail::SelectorAccess::relative(detail::Combinator::Child, subject);
+RelativeSelector child(ElementSelector subject) {
+  return detail::SelectorAccess::relativeFrom(
+      detail::SelectorAccess::relative(detail::Combinator::Child, subject));
 }
-ElementSelector next(ElementSelector subject) {
-  return detail::SelectorAccess::relative(detail::Combinator::Next, subject);
+RelativeSelector next(ElementSelector subject) {
+  return detail::SelectorAccess::relativeFrom(
+      detail::SelectorAccess::relative(detail::Combinator::Next, subject));
 }
-ElementSelector sibling(ElementSelector subject) {
-  return detail::SelectorAccess::relative(detail::Combinator::Sibling,
-                                          subject);
+RelativeSelector sibling(ElementSelector subject) {
+  return detail::SelectorAccess::relativeFrom(
+      detail::SelectorAccess::relative(detail::Combinator::Sibling, subject));
 }
 
 }  // namespace select
@@ -449,6 +494,13 @@ ElementSelector operator&(const ElementSelector& left,
   // narrows the rule away rather than widening it to everything.
   if (left.matchesNothing() || right.matchesNothing()) return {};
   return detail::withSubjectSimple(left, right);
+}
+
+RelativeSelector operator|(const RelativeSelector& left,
+                           const RelativeSelector& right) {
+  return detail::SelectorAccess::relativeFrom(
+      detail::SelectorAccess::chainOf(left) |
+      detail::SelectorAccess::chainOf(right));
 }
 
 ElementSelector operator!(const ElementSelector& inner) {

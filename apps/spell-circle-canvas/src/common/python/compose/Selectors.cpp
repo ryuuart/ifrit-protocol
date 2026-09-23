@@ -26,6 +26,7 @@ namespace {
 constexpr auto fluent = py::return_value_policy::reference_internal;
 using compose::Element;
 using compose::ElementSelector;
+using compose::RelativeSelector;
 using compose::Rule;
 using compose::Specificity;
 using compose::StyleSheet;
@@ -258,6 +259,63 @@ void bindElementSelector(py::module_& composition) {
   selector.attr("__hash__") = py::none();
 }
 
+/** What a `:has()` looks for: a chain opening with its relation to the
+ *  element the `:has()` stands on. */
+void bindRelativeSelector(py::module_& composition) {
+  py::class_<RelativeSelector> relative(
+      composition, "RelativeSelector",
+      "What a `:has()` looks for, read from the element it stands on — "
+      "CSS's relative selector: a chain whose first compound is reached "
+      "from that element by a relation, anywhere under it (a plain "
+      "`ElementSelector` stands for that), as a direct child, as the next "
+      "sibling or as any later sibling. Only `select.has` takes one, so a "
+      "relation cannot open a rule, where it would speak about nothing. "
+      "`select.child(a).descendant(b)` is `> a b`: the relation opens the "
+      "chain and the methods extend it.");
+  relative
+      .def(py::init<ElementSelector>(), py::arg("descendant"),
+           "`descendant` reached anywhere under the element — CSS "
+           "`:has(b)`.")
+      .def("child", &RelativeSelector::child, py::arg("subject"),
+           "This chain, then `subject` as its direct child.")
+      .def("descendant", &RelativeSelector::descendant, py::arg("subject"),
+           "This chain, then `subject` anywhere under it.")
+      .def("next", &RelativeSelector::next, py::arg("subject"),
+           "This chain, then `subject` as the sibling immediately after "
+           "it.")
+      .def("sibling", &RelativeSelector::sibling, py::arg("subject"),
+           "This chain, then `subject` as any later sibling of it.")
+      .def("matchesNothing", &RelativeSelector::matchesNothing,
+           "Whether this can never be reached: default-built, or built from "
+           "a selector that matches nothing.")
+      .def(
+          "__or__",
+          [](const RelativeSelector& left, const RelativeSelector& right) {
+            return left | right;
+          },
+          py::arg("other"), py::is_operator(),
+          "A list of relative selectors, either one reaching being a match "
+          "— the comma inside CSS's `:has(+ a, ~ b)`. A plain selector "
+          "reaches anywhere under the element.")
+      .def(
+          "__ror__",
+          [](const RelativeSelector& right, const ElementSelector& left) {
+            return RelativeSelector(left) | right;
+          },
+          py::arg("other"), py::is_operator())
+      .def("copy", [](const RelativeSelector& self) { return self; })
+      .def(py::self == py::self)
+      .def(py::self != py::self)
+      .def("__repr__", [](const RelativeSelector& self) {
+        return std::string(self.matchesNothing()
+                               ? "<compose.RelativeSelector reaching nothing>"
+                               : "<compose.RelativeSelector>");
+      });
+  copyProtocol(relative);
+  relative.attr("__hash__") = py::none();
+  py::implicitly_convertible<ElementSelector, RelativeSelector>();
+}
+
 /** The typed front door: the same selectors built name by name. */
 void bindSelectFactories(py::module_& factories) {
   factories.doc() =
@@ -278,8 +336,7 @@ void bindSelectFactories(py::module_& factories) {
                 "heaviest of them — CSS `:is(...)`. The native name is "
                 "`is`, which Python reserves, so it is spelled with a "
                 "trailing underscore as every reserved name is here.");
-  factories.def("notAnyOf", &compose::select::notAnyOf,
-                py::arg("alternatives"),
+  factories.def("notAnyOf", &compose::select::notAnyOf, py::arg("alternatives"),
                 "Elements matching none of `alternatives`, weighing as the "
                 "heaviest of them — CSS `:not(...)`, which `~` also "
                 "spells.");
@@ -295,16 +352,14 @@ void bindSelectFactories(py::module_& factories) {
                 "`has(a | b)` asks for either, `has(a) & has(b)` for both. "
                 "A `:has()` inside another matches nothing, as in CSS.");
   factories.def("child", &compose::select::child, py::arg("subject"),
-                "A RELATIVE selector for `has`: `subject` as a direct child "
-                "of the element the `:has()` stands on — CSS `:has(> b)`. "
-                "Read only as an argument of `has`; anywhere else it "
-                "matches nothing.");
+                "A relative selector for `has`: `subject` as a direct child "
+                "of the element the `:has()` stands on — CSS `:has(> b)`.");
   factories.def("next", &compose::select::next, py::arg("subject"),
                 "A relative selector for `has`: `subject` as the sibling "
-                "immediately after — CSS `:has(+ b)`.");
+                "immediately after that element — CSS `:has(+ b)`.");
   factories.def("sibling", &compose::select::sibling, py::arg("subject"),
                 "A relative selector for `has`: `subject` as any later "
-                "sibling — CSS `:has(~ b)`.");
+                "sibling of that element — CSS `:has(~ b)`.");
 }
 
 /** One rule: a selector and the partials it lays on every element that
@@ -329,8 +384,9 @@ void bindRule(py::module_& composition) {
            "The font partial: `partial`'s fields over what this rule "
            "already states, the later call winning field by field.")
       .def("block", py::overload_cast<weave::Block>(&Rule::block),
-           py::arg("partial"), fluent, "The block partial, folded the same "
-                                       "way.")
+           py::arg("partial"), fluent,
+           "The block partial, folded the same "
+           "way.")
       .def(
           "ink",
           [](Rule& self, py::object value,
@@ -346,8 +402,8 @@ void bindRule(py::module_& composition) {
                   "clear the paint with None.");
             return self.ink(paint, anchor);
           },
-          py::arg("value"),
-          py::arg("anchor") = compose::PaintAnchor::OwnBox, fluent,
+          py::arg("value"), py::arg("anchor") = compose::PaintAnchor::OwnBox,
+          fluent,
           "The ink — what everything under a matched element is painted "
           "in. A colour, anything else a surface takes, or the "
           "`compose.var` reference of a custom property to read a colour "
@@ -383,8 +439,7 @@ void bindRule(py::module_& composition) {
       .def("type", &Rule::type, py::return_value_policy::copy,
            "The font half of what it states.")
       .def("block", py::overload_cast<>(&Rule::block, py::const_),
-           py::return_value_policy::copy,
-           "The block half of what it states.")
+           py::return_value_policy::copy, "The block half of what it states.")
       .def("copy", [](const Rule& self) { return self; })
       .def(py::self == py::self)
       .def(py::self != py::self)
@@ -426,7 +481,9 @@ void bindStyleSheet(py::module_& composition) {
       .def("empty", &StyleSheet::empty, "Whether it states no rule at all.")
       .def("__len__", &StyleSheet::size)
       .def("__iter__",
-           [](const StyleSheet& self) { return py::iter(py::cast(self.rules())); })
+           [](const StyleSheet& self) {
+             return py::iter(py::cast(self.rules()));
+           })
       .def(
           "__add__",
           [](const StyleSheet& earlier, const StyleSheet& later) {
@@ -455,6 +512,7 @@ void bindComposeSelectors(pybind11::module_& module) {
 
   bindSpecificity(composition);
   bindElementSelector(composition);
+  bindRelativeSelector(composition);
   bindSelectFactories(factories);
   bindRule(composition);
   bindStyleSheet(composition);
