@@ -693,7 +693,7 @@ struct VertigoTitles {
                                 animate(from(0.0f).to(1.0f), ramp(0, 260)),
                             .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
                 .title = {.words = "VERTIGO, 1958",
-                          .fx = Track{.effect = textFx::rise(18.0f),
+                          .textFx = Track{.effect = textFx::rise(18.0f),
                                       .stagger = {.eachMs = 26,
                                                   .amountMs = 0,
                                                   .durationMs = 420},

@@ -905,7 +905,7 @@ struct ShippingForecast {
     return sketch::kit::titleCard(
         {.eyebrow = {.words = page["eyebrow"], .opacity = beat(0.05f, 0.55f)},
          .title = {.words = page["title"],
-                   .fx = Track{.effect = textFx::rise(16.0f),
+                   .textFx = Track{.effect = textFx::rise(16.0f),
                                .stagger = {.eachMs = 0,
                                            .amountMs = 420,
                                            .durationMs = 520},
