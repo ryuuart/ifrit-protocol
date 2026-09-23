@@ -825,13 +825,14 @@ void Composer::Impl::resolveCascade(
     // face is.
     sigil::weave::TypeSheet runStyles;
     std::vector<std::pair<std::string, sigil::weave::ParagraphBlock>>
-        blockStyles;
+        paragraphBlockStyles;
     namedStylesOf(inst, inst.textOptions, *sheets, hasNames, runStyles,
-                  blockStyles);
-    const bool namesMoved = !(runStyles == inst.runStyles) ||
-                            !(blockStyles == inst.paragraphBlockStyles);
+                  paragraphBlockStyles);
+    const bool namesMoved =
+        !(runStyles == inst.runStyles) ||
+        !(paragraphBlockStyles == inst.paragraphBlockStyles);
     inst.runStyles = std::move(runStyles);
-    inst.paragraphBlockStyles = std::move(blockStyles);
+    inst.paragraphBlockStyles = std::move(paragraphBlockStyles);
     inst.sheetsInForce = !sheets->empty();
     const bool remakes =
         block.writingMode != inst.textBlock.writingMode ||

@@ -29,7 +29,7 @@
 #include <sigilcompose/core/verbs/Transform.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Transition.h>
-#include <sigilweave/layout/Block.h>
+#include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/style/Type.h>
 
 #include <initializer_list>

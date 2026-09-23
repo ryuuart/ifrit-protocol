@@ -6,7 +6,7 @@
 
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilweave/layout/Block.h>
+#include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>

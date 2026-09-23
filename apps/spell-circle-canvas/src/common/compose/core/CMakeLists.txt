@@ -132,7 +132,7 @@ sigil_test(compose_test
           test/ComposeTestDepth.cpp
           test/ComposeTestInstances.cpp test/ComposeTestOperators.cpp
           test/ComposeTestShelf.cpp test/ComposeTestTable.cpp
-          test/ComposeTestValues.cpp test/ComposeTestBlockLane.cpp test/ComposeTestCascade.cpp
+          test/ComposeTestValues.cpp test/ComposeTestParagraphLane.cpp test/ComposeTestCascade.cpp
           test/ComposeTestRoles.cpp test/ComposeTestFlexBox.cpp
           test/ComposeTestEdges.cpp test/ComposeTestLengths.cpp
           test/ComposeTestDeclarations.cpp

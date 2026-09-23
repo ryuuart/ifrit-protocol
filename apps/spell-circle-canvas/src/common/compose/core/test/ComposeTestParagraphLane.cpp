@@ -9,7 +9,7 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilimage/asset/ImageAsset.h>
-#include <sigilweave/layout/Block.h>
+#include <sigilweave/layout/ParagraphBlock.h>
 
 #include <array>
 #include <string_view>
@@ -49,7 +49,7 @@ Text leaf() {
 
 }  // namespace
 
-TEST(ComposeBlockLane, ALeafIsSetInTheLeadingInForce) {
+TEST(ComposeParagraphLane, ALeafIsSetInTheLeadingInForce) {
   // Double leading on an ancestor: the same three lines take about twice
   // the height, through a box that says nothing.
   Host plain, open;
@@ -64,7 +64,7 @@ TEST(ComposeBlockLane, ALeafIsSetInTheLeadingInForce) {
   EXPECT_LT(doubled, single * 2.4f);
 }
 
-TEST(ComposeBlockLane, APartialOverlaysTheInheritedBlockFieldByField) {
+TEST(ComposeParagraphLane, APartialOverlaysTheInheritedBlockFieldByField) {
   // The parent sets the leading, the child names the alignment: the
   // child's lines are centred AND double-leaded.
   ParagraphBlock wide;
@@ -82,7 +82,7 @@ TEST(ComposeBlockLane, APartialOverlaysTheInheritedBlockFieldByField) {
       << "the last, short line is centred";
 }
 
-TEST(ComposeBlockLane, AWholeParagraphStyleInheritsNothing) {
+TEST(ComposeParagraphLane, AWholeParagraphStyleInheritsNothing) {
   ParagraphBlock wide;
   wide.leading = Leading::multiple(2.0f);
   Host plain, whole;
@@ -92,7 +92,7 @@ TEST(ComposeBlockLane, AWholeParagraphStyleInheritsNothing) {
   EXPECT_NEAR(boxOf(plain, "t").height(), boxOf(whole, "t").height(), 0.5f);
 }
 
-TEST(ComposeBlockLane, AClassCarriesBothHalves) {
+TEST(ComposeParagraphLane, AClassCarriesBothHalves) {
   // One name in both sheets: the text half sets the size, the block half
   // the leading, and styleClass folds both.
   ParagraphBlock wide;
@@ -119,7 +119,7 @@ TEST(ComposeBlockLane, AClassCarriesBothHalves) {
       << "twice the size and twice the leading over the same three lines";
 }
 
-TEST(ComposeBlockLane, ANamedBlockIsLaidOverTheBlockInForce) {
+TEST(ComposeParagraphLane, ANamedBlockIsLaidOverTheBlockInForce) {
   // paragraphStyles({"lead"}) under double leading: the named block takes its
   // alignment from the name and its leading from the lane.
   ParagraphBlock centred;
@@ -140,7 +140,7 @@ TEST(ComposeBlockLane, ANamedBlockIsLaidOverTheBlockInForce) {
   EXPECT_GT(inkStartIn(named, b), inkStartIn(start, a) + 4);
 }
 
-TEST(ComposeBlockLane, TheWritingModeInForceSetsALeafVertical) {
+TEST(ComposeParagraphLane, TheWritingModeInForceSetsALeafVertical) {
   ParagraphBlock vertical;
   vertical.writingMode = sigil::weave::WritingMode::kVerticalRL;
   Host across, down;
@@ -154,7 +154,7 @@ TEST(ComposeBlockLane, TheWritingModeInForceSetsALeafVertical) {
   EXPECT_GT(b.height(), b.width());
 }
 
-TEST(ComposeBlockLane, TheTextVerbsAreTheLanesSpellings) {
+TEST(ComposeParagraphLane, TheTextVerbsAreTheLanesSpellings) {
   // textAlign on a box that is not text: every leaf under it is centred,
   // through a box that says nothing — the verb is paragraph({.alignment}).
   Host start, centred, vertical;
@@ -176,7 +176,7 @@ TEST(ComposeBlockLane, TheTextVerbsAreTheLanesSpellings) {
   EXPECT_GT(c.height(), c.width());
 }
 
-TEST(ComposeBlockLane, ImageSamplingSetOnAnAncestorReachesTheImageUnderIt) {
+TEST(ComposeParagraphLane, ImageSamplingSetOnAnAncestorReachesTheImageUnderIt) {
   // A 2x2 source, half red and half green, magnified: linear invents a
   // blend band across the seam and nearest does not — whether the
   // sampling stands on the leaf or on a box above it.
@@ -213,7 +213,7 @@ TEST(ComposeBlockLane, ImageSamplingSetOnAnAncestorReachesTheImageUnderIt) {
       << "on an ancestor, through a box that says nothing";
 }
 
-TEST(ComposeBlockLane, AChangedAncestorBlockRelaysOutTheLeavesUnderIt) {
+TEST(ComposeParagraphLane, AChangedAncestorBlockRelaysOutTheLeavesUnderIt) {
   Host host;
   const auto page = [](float factor) {
     ParagraphBlock lead;

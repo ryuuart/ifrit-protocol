@@ -5,7 +5,7 @@
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/weave/Keywords.h>
 #include <sigilpython/weave/Registration.h>
-#include <sigilweave/layout/Block.h>
+#include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/query/Selector.h>
 

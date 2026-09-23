@@ -5,7 +5,7 @@
  * names.
  */
 
-#include "sigilweave/layout/Block.h"
+#include "sigilweave/layout/ParagraphBlock.h"
 
 namespace sigil::weave {
 namespace {

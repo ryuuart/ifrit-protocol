@@ -4,7 +4,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilweave/layout/Block.h>
+#include <sigilweave/layout/ParagraphBlock.h>
 
 using namespace sigil::weave;
 

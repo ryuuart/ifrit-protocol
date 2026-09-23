@@ -14,7 +14,7 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animated.h>
-#include <sigilweave/layout/Block.h>
+#include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/RichText.h>

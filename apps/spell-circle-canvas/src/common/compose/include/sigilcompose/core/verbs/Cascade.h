@@ -16,7 +16,7 @@
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilweave/layout/Block.h>
+#include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/style/Style.h>
 
 #include <string_view>
