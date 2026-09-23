@@ -9,6 +9,7 @@
 
 #include <sigilcompose/core/StyleSheet.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <string_view>
 #include <vector>
@@ -28,6 +29,7 @@ struct SiblingPlace {
   int count = 1;      ///< how many children the parent has
   int typeIndex = 0;  ///< 0-based position among the siblings of its role
   int typeCount = 0;  ///< how many of the parent's children share that role
+  int slot = 0;  ///< position in the parent's child list, added ones included
 };
 
 /** ONE SHEET IN FORCE, and the node that applied it. That node is the
@@ -59,14 +61,14 @@ struct MatchedRule {
 /** THE NAMES THE `:has()` ARGUMENTS IN FORCE TEST FOR, each given one
  *  bit of a node's summary. Built afresh every cascade pass, from the
  *  sheets that use `:has()` as the pass meets them; bits are only ever
- *  added within a pass, so a summary taken earlier in it stays right for
- *  the names it covers. A name past the sixty-fourth has no bit, and a
- *  test that needs it searches rather than trusting a summary. */
+ *  appended within a pass, so a summary records how many names it
+ *  covered and stays right for exactly those. A name past the
+ *  sixty-fourth has no bit, and a test that needs it searches rather
+ *  than trusting a summary. */
 class HasNames {
  public:
-  /** Gives every name @p sheet's `:has()` arguments test for a bit;
-   *  whether any name was new. */
-  bool add(const SheetBody& sheet);
+  /** Gives every name @p sheet's `:has()` arguments test for a bit. */
+  void add(const SheetBody& sheet);
   /** The bit of @p name, or none. */
   [[nodiscard]] uint64_t bitOf(bool styleClass, std::string_view name) const;
   /** Forgets every name, for the cascade pass numbered @p pass. */
@@ -76,6 +78,16 @@ class HasNames {
   }
   /** The pass a summary must be stamped with to be read. */
   [[nodiscard]] uint32_t pass() const { return m_pass; }
+  /** How many names have a bit so far this pass. */
+  [[nodiscard]] uint32_t covered() const {
+    return (uint32_t)std::min<size_t>(m_names.size(), 64);
+  }
+  /** Whether @p node's summary was taken this pass over every name
+   *  whose bit is in @p needed. */
+  [[nodiscard]] bool summaryHolds(const Instance& node, uint64_t needed) const;
+  /** Whether @p node's summary was taken this pass over every name
+   *  known so far — so summarising it again would change nothing. */
+  [[nodiscard]] bool summaryCurrent(const Instance& node) const;
 
  private:
   std::vector<HasName> m_names;
@@ -84,8 +96,11 @@ class HasNames {
 
 /** WHAT A NODE'S SUBTREE HOLDS, for `:has()`: one bit per name of @p
  *  names, over the node itself, its children and everything under it,
- *  written bottom up over @p root's subtree and stamped with @p pass. */
-void summariseForHas(Instance& root, const HasNames& names, uint32_t pass);
+ *  written bottom up over @p root's subtree and stamped with the pass
+ *  and the count of names it covered. Every parent it meets has its
+ *  children's places indexed too, because a `:has()` argument reads the
+ *  places of elements the pass has not reached yet. */
+void summariseForHas(Instance& root, const HasNames& names);
 
 /** The rules of @p chain that speak about a NAME a text leaf's rich
  *  runs or paragraph styles were written with, weakest first: each is

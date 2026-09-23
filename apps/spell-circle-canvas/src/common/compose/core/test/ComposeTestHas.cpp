@@ -298,3 +298,73 @@ TEST(ComposeHas, ASubtreeAMemoReusedIsStillSummarised) {
   EXPECT_EQ(host.composer.stats().memoHits, 1u);
   EXPECT_EQ(inkOf(host, 0), kRed);
 }
+
+TEST(ComposeHas, APlaceBelowTheElementIsReadAfterItsChildListChanged) {
+  // The places a :has() argument reads stand below the element the pass
+  // is resolving, so they are counted before it is matched — never read
+  // from the pass before, when the list was another length.
+  Host host;
+  const auto scene = [](bool leader) {
+    std::vector<Element> inside;
+    if (leader) inside.push_back(marker("p").key("leader"));
+    inside.push_back(marker("x").key("x"));
+    return column(StyleSheet{rule(".card:has(> .x:first-child)").ink(kRedInk)},
+                  {swatch().key("card").styleClass("card").children(
+                      {std::move(inside)})});
+  };
+  host.composer.render(scene(false));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kRed);
+  host.composer.render(scene(true));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kWhite) << "x is second now";
+  host.composer.render(scene(false));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kRed) << "x is first again";
+}
+
+TEST(ComposeHas, ASiblingRelationBelowTheElementReadsTheListAsItStands) {
+  // A kept child whose place was counted in a longer list is not read
+  // past the end of the shorter one.
+  Host host;
+  const auto scene = [](int leaders, bool withA) {
+    std::vector<Element> inside;
+    if (withA) inside.push_back(marker("a").key("a"));
+    for (int at = 0; at < leaders; ++at)
+      inside.push_back(marker("p").key("leader" + std::to_string(at)));
+    inside.push_back(
+        marker("x").key("x").children({marker("a").key("inner")}));
+    return column(StyleSheet{rule(".card:has(> .a + .x)").ink(kRedInk)},
+                  {swatch().key("card").styleClass("card").children(
+                      {std::move(inside)})});
+  };
+  host.composer.render(scene(6, false));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kWhite);
+  host.composer.render(scene(0, false));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kWhite) << "the .a under x is no sibling of x";
+  host.composer.render(scene(0, true));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kRed);
+  host.composer.render(scene(3, true));
+  host.frame();
+  EXPECT_EQ(inkOf(host, 0), kWhite) << "the leaders stand between them";
+}
+
+TEST(ComposeHas, ANameASheetAddsLaterInThePassIsSummarisedWhereItIsAsked) {
+  // The root's sheet summarises the whole tree over its own names first;
+  // each card's sheet then asks about a name that summary never covered.
+  Host host;
+  const auto card = [] {
+    return swatch()
+        .styleClass("card")
+        .applyStyleSheet(StyleSheet{rule(".card:has(.badge)").ink(kRedInk)})
+        .children({marker("badge")});
+  };
+  host.composer.render(
+      column(StyleSheet{rule(".nothing:has(.elsewhere)").ink(kRedInk)},
+             {card(), card(), card(), card()}));
+  host.frame();
+  for (int at = 0; at < 4; ++at) EXPECT_EQ(inkOf(host, at), kRed) << at;
+}

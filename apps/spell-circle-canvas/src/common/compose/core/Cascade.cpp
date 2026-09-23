@@ -77,10 +77,10 @@ bool sameVars(const std::shared_ptr<const VarTable>& a,
  *  the leaf: the font partial and the ink the matched rules state, folded
  *  weakest first, and the block partial they state. A name no rule speaks
  *  about is left out, so it resolves as an unregistered name always has. */
-void namedStylesOf(const Instance& leaf, const SheetChain& chain,
-                   const HasNames& names, sigil::weave::TypeSheet& runs,
-                   std::vector<std::pair<std::string, sigil::weave::Block>>&
-                       blocks) {
+void namedStylesOf(
+    const Instance& leaf, const SheetChain& chain, const HasNames& names,
+    sigil::weave::TypeSheet& runs,
+    std::vector<std::pair<std::string, sigil::weave::Block>>& blocks) {
   runs = {};
   blocks.clear();
   if (chain.empty()) return;
@@ -399,20 +399,21 @@ void Composer::Impl::resolveCascade(
   if (cascade != nullptr && !cascade->appliedSheets.empty()) {
     extended = parentSheets;
     bool anyHas = false;
-    bool newNames = false;
     for (const StyleSheet& applied : cascade->appliedSheets) {
       extended.push_back(ScopedSheet{&applied, &inst});
       const SheetBody* body = SheetAccess::body(applied);
       if (body == nullptr || !body->usesHas) continue;
       anyHas = true;
-      newNames = hasNames.add(*body) || newNames;
+      hasNames.add(*body);
     }
     // A :has() LOOKS DOWN, at a subtree the pass has not reached yet, so
-    // what it asks about is summarised here, once, bottom up — only
-    // under a node applying a sheet that uses one, since a :has() can
-    // see nothing outside the subtree its sheet was applied at.
-    if (anyHas && (newNames || inst.hasSummaryPass != cascadePass))
-      summariseForHas(inst, hasNames, cascadePass);
+    // what it asks about is summarised here, bottom up — only under a
+    // node applying a sheet that uses one, since a :has() can see nothing
+    // outside the subtree its sheet was applied at. A summary an ancestor
+    // took this pass is taken again where a sheet since gave a name a bit,
+    // because that summary says nothing about the new name.
+    if (anyHas && !hasNames.summaryCurrent(inst))
+      summariseForHas(inst, hasNames);
     sheets = &extended;
   }
   // The rules that speak about this node, weakest first. A rule's
@@ -649,8 +650,7 @@ void Composer::Impl::resolveCascade(
     inst.sheetsInForce = !sheets->empty();
     const bool remakes =
         block.writingMode != inst.textBlock.writingMode ||
-        block.lineBreakLocale != inst.textBlock.lineBreakLocale ||
-        namesMoved;
+        block.lineBreakLocale != inst.textBlock.lineBreakLocale || namesMoved;
     if (inst.textDirty || !inst.paragraph) {
       inst.textDirty = false;
       materializeText(inst);
@@ -698,8 +698,9 @@ void Composer::Impl::resolveCascade(
   // Where each child stands among its siblings, counted once here so a
   // structural pseudo-class is a lookup — and counted whether or not a
   // sheet is in force at this node, because a rule applied further down
-  // may still name an ancestor by its position.
-  indexSiblings(inst);
+  // may still name an ancestor by its position. A subtree a :has()
+  // summary covered this pass was indexed by that summary already.
+  if (inst.hasSummaryPass != cascadePass) indexSiblings(inst);
   for (auto& child : inst.children)
     resolveCascade(*child, font, inst.lineHeight, vars, block, sampling,
                    *sheets, inkPaint);

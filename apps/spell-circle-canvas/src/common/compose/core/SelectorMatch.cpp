@@ -46,6 +46,36 @@ bool countReaches(int position, int step, int offset) {
   return fromOffset % step == 0 && fromOffset / step >= 0;
 }
 
+/** Where @p inst stands in its parent's child list, or -1 where it is
+ *  counted among no siblings — an element an adding operator attached,
+ *  or a named run matched as a virtual child. The index is checked
+ *  against the list rather than trusted, so a place left from a pass
+ *  that saw a longer list reads nothing past its end. */
+int slotOf(const Instance& inst) {
+  if (inst.parent == nullptr || inst.place.count == 0) return -1;
+  const auto& siblings = inst.parent->children;
+  const int slot = inst.place.slot;
+  if (slot < 0 || slot >= (int)siblings.size() || siblings[slot].get() != &inst)
+    return -1;
+  return slot;
+}
+
+/** The authored siblings before @p inst, nearest first, handed to @p
+ *  visit until it answers true; whether it did. */
+template <typename Visit>
+bool anySiblingBefore(const Instance& inst, bool nearestOnly, Visit visit) {
+  const int slot = slotOf(inst);
+  if (slot < 0) return false;
+  const auto& siblings = inst.parent->children;
+  for (int before = slot - 1; before >= 0; --before) {
+    const Instance& sibling = *siblings[before];
+    if (sibling.description->added()) continue;
+    if (visit(sibling)) return true;
+    if (nearestOnly) return false;
+  }
+  return false;
+}
+
 /** WHAT A MATCH READS BESIDE THE TREE: the node that applied the sheet
  *  the selector stands in, past which no compound may reach, and the
  *  names a `:has()` summary is taken over. */
@@ -216,15 +246,12 @@ bool matchesComplex(const std::vector<Step>& steps, size_t at,
       }
       return false;
     case Combinator::Next:
-      if (parent == nullptr || inst.place.index == 0) return false;
-      return matchesComplex(steps, at - 1,
-                            *parent->children[inst.place.index - 1], context);
     case Combinator::Sibling:
-      if (parent == nullptr) return false;
-      for (int before = inst.place.index - 1; before >= 0; --before)
-        if (matchesComplex(steps, at - 1, *parent->children[before], context))
-          return true;
-      return false;
+      return anySiblingBefore(inst, steps[at].combinator == Combinator::Next,
+                              [&](const Instance& sibling) {
+                                return matchesComplex(steps, at - 1, sibling,
+                                                      context);
+                              });
   }
   return false;
 }
@@ -254,8 +281,7 @@ uint64_t neededBits(const std::vector<Step>& steps, const HasNames& names) {
     for (const Simple& simple : step.compound.simples)
       if (simple.kind == SimpleKind::StyleClass ||
           simple.kind == SimpleKind::Role)
-        bits |= names.bitOf(simple.kind == SimpleKind::StyleClass,
-                            simple.name);
+        bits |= names.bitOf(simple.kind == SimpleKind::StyleClass, simple.name);
   return bits;
 }
 
@@ -274,12 +300,13 @@ bool relationHolds(Combinator relation, const Instance& inst,
       return false;
     case Combinator::Next:
       return &anchor != context.scope && inst.parent != nullptr &&
-             inst.parent == anchor.parent &&
+             inst.parent == anchor.parent && inst.place.count > 0 &&
+             anchor.place.count > 0 &&
              inst.place.index == anchor.place.index + 1;
     case Combinator::Sibling:
       return &anchor != context.scope && inst.parent != nullptr &&
-             inst.parent == anchor.parent &&
-             anchor.place.index < inst.place.index;
+             inst.parent == anchor.parent && inst.place.count > 0 &&
+             anchor.place.count > 0 && anchor.place.index < inst.place.index;
   }
   return false;
 }
@@ -308,17 +335,12 @@ bool matchesRelative(const std::vector<Step>& steps, size_t at,
           return true;
       return false;
     case Combinator::Next:
-      if (parent == nullptr || inst.place.index == 0) return false;
-      return matchesRelative(steps, at - 1,
-                             *parent->children[inst.place.index - 1], anchor,
-                             context);
     case Combinator::Sibling:
-      if (parent == nullptr) return false;
-      for (int before = inst.place.index - 1; before >= 0; --before)
-        if (matchesRelative(steps, at - 1, *parent->children[before], anchor,
-                            context))
-          return true;
-      return false;
+      return anySiblingBefore(inst, steps[at].combinator == Combinator::Next,
+                              [&](const Instance& sibling) {
+                                return matchesRelative(steps, at - 1, sibling,
+                                                       anchor, context);
+                              });
   }
   return false;
 }
@@ -348,34 +370,34 @@ bool matchesOneRelative(const std::vector<Step>& steps, const Instance& anchor,
   const HasNames& names = *context.names;
   const Combinator relation = steps.front().combinator;
   const uint64_t needed = neededBits(steps, names);
-  const bool fresh = anchor.hasSummaryPass == names.pass();
+  const bool fresh = names.summaryHolds(anchor, needed);
   if (relation == Combinator::Child || relation == Combinator::Descendant) {
     const uint64_t below = relation == Combinator::Child && steps.size() == 1
                                ? anchor.hasChildNames
                                : anchor.hasSubtreeNames;
     if (fresh && (below & needed) != needed) return false;
     const std::vector<Simple>& only = steps.front().compound.simples;
-    const bool oneName =
-        steps.size() == 1 && only.size() == 1 &&
-        (only.front().kind == SimpleKind::StyleClass ||
-         only.front().kind == SimpleKind::Role) &&
-        needed != 0;
+    const bool oneName = steps.size() == 1 && only.size() == 1 &&
+                         (only.front().kind == SimpleKind::StyleClass ||
+                          only.front().kind == SimpleKind::Role) &&
+                         needed != 0;
     if (fresh && oneName) return true;
     return searchRelative(steps, anchor, false, anchor, context);
   }
   // The sibling relations read the parent's indexed child list.
-  if (&anchor == context.scope || anchor.parent == nullptr) return false;
+  if (&anchor == context.scope) return false;
+  const int slot = slotOf(anchor);
+  if (slot < 0) return false;
   const auto& siblings = anchor.parent->children;
-  const int first = anchor.place.index + 1;
-  const int last = relation == Combinator::Next ? first + 1
-                                                : (int)siblings.size();
-  for (int at = first; at < last && at < (int)siblings.size(); ++at) {
+  for (int at = slot + 1; at < (int)siblings.size(); ++at) {
     const Instance& sibling = *siblings[at];
     if (sibling.description->added()) continue;
     const uint64_t held = sibling.hasOwnNames | sibling.hasSubtreeNames;
-    if (sibling.hasSummaryPass == names.pass() && (held & needed) != needed)
-      continue;
-    if (searchRelative(steps, sibling, true, anchor, context)) return true;
+    const bool ruledOut =
+        names.summaryHolds(sibling, needed) && (held & needed) != needed;
+    if (!ruledOut && searchRelative(steps, sibling, true, anchor, context))
+      return true;
+    if (relation == Combinator::Next) return false;
   }
   return false;
 }
@@ -403,10 +425,11 @@ void indexSiblings(Instance& parent) {
   int at = 0;
   for (const auto& child : parent.children) {
     SiblingPlace& place = child->place;
+    const int slot = (int)(&child - parent.children.data());
     if (child->description->added())
-      place = SiblingPlace{0, 0, 0, 0};
+      place = SiblingPlace{0, 0, 0, 0, slot};
     else
-      place = SiblingPlace{at++, count, 0, 0};
+      place = SiblingPlace{at++, count, 0, 0, slot};
   }
   // Then by role, which is what a type is. Roles are few per parent, so
   // the running tally is a scanned list and a parent whose children name
@@ -476,15 +499,22 @@ bool namesStyleClass(const SheetChain& chain, std::string_view name) {
   return false;
 }
 
-bool HasNames::add(const SheetBody& sheet) {
-  bool grew = false;
-  for (const HasName& name : sheet.hasNames) {
-    if (std::find(m_names.begin(), m_names.end(), name) != m_names.end())
-      continue;
-    m_names.push_back(name);
-    grew = true;
-  }
-  return grew;
+void HasNames::add(const SheetBody& sheet) {
+  for (const HasName& name : sheet.hasNames)
+    if (std::find(m_names.begin(), m_names.end(), name) == m_names.end())
+      m_names.push_back(name);
+}
+
+bool HasNames::summaryHolds(const Instance& node, uint64_t needed) const {
+  if (node.hasSummaryPass != m_pass) return false;
+  const uint64_t coveredBits = node.hasSummaryCovers >= 64
+                                   ? ~uint64_t{0}
+                                   : (uint64_t{1} << node.hasSummaryCovers) - 1;
+  return (needed & ~coveredBits) == 0;
+}
+
+bool HasNames::summaryCurrent(const Instance& node) const {
+  return node.hasSummaryPass == m_pass && node.hasSummaryCovers == covered();
 }
 
 uint64_t HasNames::bitOf(bool styleClass, std::string_view name) const {
@@ -495,21 +525,24 @@ uint64_t HasNames::bitOf(bool styleClass, std::string_view name) const {
   return 0;
 }
 
-void summariseForHas(Instance& root, const HasNames& names, uint32_t pass) {
+void summariseForHas(Instance& root, const HasNames& names) {
+  indexSiblings(root);
   root.hasOwnNames = ownNameBits(root, names);
   uint64_t children = 0;
   uint64_t subtree = 0;
   for (const auto& child : root.children) {
+    summariseForHas(*child, names);
     // An element an adding operator attached is no part of the authored
-    // tree, so nothing under it answers a :has() either.
+    // tree, so nothing under it answers its parent's :has() — though its
+    // own subtree is summarised and indexed for a :has() standing on it.
     if (child->description->added()) continue;
-    summariseForHas(*child, names, pass);
     children |= child->hasOwnNames;
     subtree |= child->hasOwnNames | child->hasSubtreeNames;
   }
   root.hasChildNames = children;
   root.hasSubtreeNames = subtree;
-  root.hasSummaryPass = pass;
+  root.hasSummaryPass = names.pass();
+  root.hasSummaryCovers = names.covered();
 }
 
 std::vector<MatchedRule> matchRulesForName(const SheetChain& chain,
@@ -530,6 +563,7 @@ std::vector<MatchedRule> matchRulesForName(const SheetChain& chain,
   run.child.parent = const_cast<Instance*>(&leaf);
   run.child.place = SiblingPlace{0, 0, 0, 0};
   run.child.hasSummaryPass = 0;
+  run.child.hasSummaryCovers = 0;
   std::vector<MatchedRule> matched = matchRules(chain, run.child, names);
   run.child.parent = nullptr;
   return matched;

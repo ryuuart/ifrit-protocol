@@ -232,15 +232,18 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SiblingPlace place;
   // WHAT THIS NODE'S SUBTREE HOLDS, for a `:has()`: one bit per name the
   // `:has()` arguments in force test for, over the node's own classes and
-  // role, over its children's and over everything under it, and the
-  // cascade pass that wrote them. Written bottom up ahead of the pass and
-  // only under a node applying a sheet that uses `:has()`; kept here, on
-  // the retained node, so a subtree a memo reused is summarised without
-  // being described again.
+  // role, over its children's and over everything under it, the cascade
+  // pass that wrote them and how many of that pass's names they cover —
+  // a later sheet can give a new name a bit mid-pass, and a summary taken
+  // before then says nothing about it. Written bottom up ahead of the
+  // pass and only under a node applying a sheet that uses `:has()`; kept
+  // here, on the retained node, so a subtree a memo reused is summarised
+  // without being described again.
   uint64_t hasOwnNames = 0;
   uint64_t hasChildNames = 0;
   uint64_t hasSubtreeNames = 0;
   uint32_t hasSummaryPass = 0;
+  uint32_t hasSummaryCovers = 0;
   // Whether the pass has resolved this node at least once — before that,
   // `font` and `vars` are whatever the constructor left and nothing may
   // read them as the truth.
@@ -341,7 +344,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
-  Fill fillFrom, fillTo;  // endpoints for kFillLerp
+  Fill fillFrom, fillTo;                // endpoints for kFillLerp
   material::Color inkFrom{0, 0, 0, 1};  // where kInkLerp started
   // THE INK TARGET IN FORCE, as the cascade pass last resolved it: the
   // colour kInkLerp is headed for, and the one a freshly resolved colour
@@ -366,7 +369,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
 
   // Derive-phase state
   std::vector<Exclusion>
-      exclusionsLocal;   // contentFlowAround targets, text-local
+      exclusionsLocal;  // contentFlowAround targets, text-local
   // spans::fit(key): the keyed boxes, in this node's local space, in the
   // order the element declared them.
   std::vector<std::pair<std::string, SkRect>> spanFitRects;
