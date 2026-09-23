@@ -60,7 +60,7 @@ class CascadeVerbs {
    *  `enabled = false` is `none`, soft hyphens alone are `manual`, and a
    *  pattern set is `auto`. The `hyphenation` field of `paragraph()`. */
   Derived& hyphens(sigil::weave::HyphenationOptions hyphenation);
-  /** HOW THE LINES BREAK — CSS `text-wrap`: `Auto` and `Stable` fill
+  /** HOW THE LINES BREAK — CSS `text-wrap-style`: `Auto` and `Stable` fill
    *  each line in turn, `Pretty` weighs the whole paragraph, `Balance`
    *  weighs it and evens the rag. The `lineBreak` and `balanceRaggedLines`
    *  fields of `paragraph()`, always written together, so a later call

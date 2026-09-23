@@ -130,8 +130,9 @@ sound model; nothing below them changes kernel semantics.
   in.
 - `core/verbs/Cascade.h` — `CascadeVerbs`: `paragraph` and its longhands
   `lineHeight`, `textAlign`, `textIndent`, `writingMode`, `hyphens`,
-  `textWrap`, `textJustify`, `var`, `varDefaults`, `imageRendering`, and the keywords `inherit`,
-  `initial`, `unset` — what a node declares to everything under it.
+  `textWrap`, `textJustify`, `var`, `varDefaults`, `imageRendering`,
+  and the keywords `inherit`, `initial`, `unset` — what a node declares
+  to everything under it.
 - `core/verbs/Paint.h` — `PaintVerbs`: `fill`, in every form a surface
   can be painted with.
 - `core/verbs/Decoration.h` — `DecorationVerbs`: `background`,

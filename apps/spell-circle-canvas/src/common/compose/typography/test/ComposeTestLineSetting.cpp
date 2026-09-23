@@ -24,13 +24,20 @@ const char* kPassage =
     "reaches for horizontal glyph-scaling last of all.";
 constexpr float kMeasure = 180.0f;
 
-/** Where each line of the passage begins and ends, set under whatever
+/** A passage the three breakers set three ways at the same measure, all
+ *  in five lines: filled in turn its widest line is the whole 180 px,
+ *  weighed whole it is 162, and balanced 136.8. */
+const char* kRaggedPassage =
+    "In olden times when wishing still helped one, there lived a king "
+    "whose daughters were all beautiful.";
+
+/** Where each line of @p passage begins and ends, set under whatever
  *  @p state says on the box above the leaf. */
 template <class State>
-std::vector<SkRect> linesUnder(State state) {
+std::vector<SkRect> linesUnder(State state, const char* passage = kPassage) {
   Host host(400, 400);
   host.composer.render(state(box()).children(
-      {text(kPassage, whiteStyle(12)).key("t").width(kMeasure)}));
+      {text(passage, whiteStyle(12)).key("t").width(kMeasure)}));
   host.frame();
   std::vector<SkRect> lines;
   for (const TextUnit& line : host.composer.units(
@@ -81,33 +88,45 @@ TEST(ComposeLineSetting, EachTextWrapLaysThePassageAsTheRawFieldDoes) {
         .lineBreak = LineBreakStrategy::kKnuthPlass}},
   };
   for (const Case& each : cases) {
-    const std::vector<SkRect> longhand =
-        linesUnder([&](Element node) { return node.textWrap(each.wrap); });
-    const std::vector<SkRect> raw =
-        linesUnder([&](Element node) { return node.paragraph(each.raw); });
+    const std::vector<SkRect> longhand = linesUnder(
+        [&](Element node) { return node.textWrap(each.wrap); },
+        kRaggedPassage);
+    const std::vector<SkRect> raw = linesUnder(
+        [&](Element node) { return node.paragraph(each.raw); },
+        kRaggedPassage);
     ASSERT_GE(longhand.size(), 2u);
     EXPECT_TRUE(sameLines(longhand, raw)) << int(each.wrap);
   }
-  // Balance evens the rag: no line is wider than the widest filled in turn.
+  // The values tell each other apart: the optimizing breaker moves a
+  // break filling in turn made, and balancing narrows what it set.
+  const auto under = [](TextWrap wrap) {
+    return linesUnder([&](Element node) { return node.textWrap(wrap); },
+                      kRaggedPassage);
+  };
+  const std::vector<SkRect> automatic = under(TextWrap::Auto);
+  const std::vector<SkRect> pretty = under(TextWrap::Pretty);
+  const std::vector<SkRect> balance = under(TextWrap::Balance);
+  EXPECT_TRUE(sameLines(under(TextWrap::Stable), automatic));
+  EXPECT_FALSE(sameLines(pretty, automatic));
+  EXPECT_FALSE(sameLines(balance, pretty));
   const auto widest = [](const std::vector<SkRect>& lines) {
     float width = 0;
     for (const SkRect& line : lines) width = std::max(width, line.width());
     return width;
   };
-  EXPECT_LE(widest(linesUnder(
-                [](Element node) { return node.textWrap(TextWrap::Balance); })),
-            widest(linesUnder(
-                [](Element node) { return node.textWrap(TextWrap::Auto); })) +
-                0.5f);
+  EXPECT_LT(widest(balance), widest(pretty) - 1.0f);
+  EXPECT_LT(widest(pretty), widest(automatic) - 1.0f);
 }
 
 TEST(ComposeLineSetting, ALaterTextWrapUndoesAnEarlierBalance) {
   EXPECT_TRUE(sameLines(
-      linesUnder([](Element node) {
-        return node.textWrap(TextWrap::Balance).textWrap(TextWrap::Pretty);
-      }),
       linesUnder(
-          [](Element node) { return node.textWrap(TextWrap::Pretty); })));
+          [](Element node) {
+            return node.textWrap(TextWrap::Balance).textWrap(TextWrap::Pretty);
+          },
+          kRaggedPassage),
+      linesUnder([](Element node) { return node.textWrap(TextWrap::Pretty); },
+                 kRaggedPassage)));
 }
 
 TEST(ComposeLineSetting, EachTextJustifyLaysThePassageAsTheRawFieldDoes) {
@@ -146,7 +165,8 @@ TEST(ComposeLineSetting, EachTextJustifyLaysThePassageAsTheRawFieldDoes) {
         .textJustify(TextJustify::InterCharacter);
   });
   ASSERT_FALSE(spread.empty());
-  EXPECT_NEAR(spread.front().right(), kMeasure, 1.0f);
+  EXPECT_NEAR(spread.front().right(), kMeasure, 0.01f)
+      << "the first line does not end on the measure";
 }
 
 TEST(ComposeLineSetting, InterCharacterMovesTheLettersInterWordDoesNot) {

@@ -318,7 +318,7 @@ stylesheet's vocabulary carries over as it is written, in camel case:
 `gridArea`, `borderRadius`, `overflow`, `opacity`, `blendMode`,
 `fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, `letterSpacing`,
 `lineHeight`, `textAlign`, `textIndent`, `writingMode`, `hyphens`,
-`textWrap`, `textJustify`, `filter`, `backdropFilter`, `imageRendering`, `zIndex`,
+`textJustify`, `filter`, `backdropFilter`, `imageRendering`, `zIndex`,
 `transformOrigin`, `perspectiveOrigin`, `transition` and
 `textOverflow`. The rest are named for what they act on, with no second
 spelling:
@@ -328,6 +328,7 @@ spelling:
 | `color` | `ink` — the colour, or a whole paint, everything under the node is set in |
 | `background` | `fill` — the node's own shape filled; `background` here is a decoration under it |
 | `-webkit-line-clamp` | `maxTextLines` on the text leaf |
+| `text-wrap-style` | `textWrap` — the style keywords `auto`, `balance`, `stable` and `pretty`; the `text-wrap` shorthand's `nowrap` does not carry over |
 | `pointer-events: none` | `hitTestable(false)` |
 | `shape-outside` | `contentFlowAround` on the text leaf |
 | `initial-letter` | `initialLetter` on the text leaf |

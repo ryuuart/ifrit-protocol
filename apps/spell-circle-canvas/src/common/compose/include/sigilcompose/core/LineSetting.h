@@ -11,7 +11,7 @@
 
 namespace sigil::compose {
 
-/** HOW THE LINES BREAK — CSS `text-wrap`'s style. `Auto` and `Stable`
+/** HOW THE LINES BREAK — CSS `text-wrap-style`. `Auto` and `Stable`
  *  fill each line as full as it goes before starting the next, so a line
  *  never moves because a later one changed; `Pretty` weighs the whole
  *  paragraph at once (Knuth-Plass); `Balance` weighs it and then sets it
