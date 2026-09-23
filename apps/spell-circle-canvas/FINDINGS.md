@@ -324,3 +324,18 @@ which is `material::skia::toSkColor(colour)`.
 Once restored, a test should compile every source under a library's
 `reference/examples/` the way a sketch is built, so an example that
 stops compiling fails the build rather than the reader.
+
+## A paragraph partial's last-line fields are lost under a whole justification
+
+`overlay(ParagraphStyle, ParagraphBlock)` copies the partial's
+`justification` whole and ignores its `lastLineAlignment` and
+`justifyLastLine`, so a block that states both a justification and a
+last-line setting apart has the last-line setting overridden by the
+whole it copied, while `justificationMethod` stated apart is folded in.
+
+The stated-apart fields are evidently meant to land in the style's
+justification the way the method does.
+
+A test should assert that
+`paragraph({.alignment = kJustify, .justification = {}, .justifyLastLine = true})`
+on a text leaf sets its last line to the measure.
