@@ -42,6 +42,8 @@
 
 #include <ranges>
 
+#include "Card.h"
+#include "Fringe.h"
 #include "Tartan.h"
 
 namespace sketch = sigil::sketch;
@@ -130,144 +132,6 @@ float thrown(float weave) {
   return inch % 2 == 0 ? across : 1 - across;
 }
 
-// ---------------------------------------------------------------------------
-// The card's colours: manila board, dark ink, a rule grey and the proof red
-// every computed line is set in. They stand in the card's words file.
-
-struct CardColours {
-  material::Color ground, well, rule, ink, ash, proof, shadow;
-};
-
-CardColours readCard(const data::Json& card) {
-  const auto colour = [&](std::string_view name) {
-    return colourOf(card[name].text("#000000"));
-  };
-  return {colour("ground"), colour("well"), colour("rule"), colour("ink"),
-          colour("ash"),    colour("proof"), colour("shadow")};
-}
-
-material::Color faded(material::Color colour, float alpha) {
-  return {colour.r, colour.g, colour.b, alpha};
-}
-
-/** "#2C2C80" from a colour, as the shade cards print it. */
-std::string hexOf(material::Color colour) {
-  const auto byte = [](float channel) {
-    return (int)std::lround(std::clamp(channel, 0.0f, 1.0f) * 255.0f);
-  };
-  return kit::formatted("#%02X%02X%02X", byte(colour.r), byte(colour.g),
-                        byte(colour.b));
-}
-
-/** Threads as the register writes them: "K2 B6 K18 G6". */
-std::string spelled(const std::vector<uint8_t>& threads, size_t first,
-                    size_t count) {
-  std::string words;
-  for (size_t at = first; at < first + count;) {
-    size_t end = at;
-    while (end < first + count && threads[end] == threads[at]) ++end;
-    words += kit::formatted("%s%c%zu", words.empty() ? "" : " ",
-                            kShadeCodes[threads[at]], end - at);
-    at = end;
-  }
-  return words;
-}
-
-/** HOW THE CARD IS SET. The tokens are its colours; the type is three
- *  voices — a mono for everything a machine reads, a bold grotesque for
- *  the one display line, a book serif for names and quoted prose — and
- *  every class below is a whole look. The root states the one size, and
- *  every step of the scale is a multiple of it in rems. */
-StyleSheet cardSheet(const CardColours& colours) {
-  const std::string mono = "Menlo, Courier New, monospace";
-  const std::string grotesque = "Helvetica Neue, Arial, sans-serif";
-  const std::string book = "Baskerville, Times New Roman, serif";
-  return StyleSheet{
-      rule(":root")
-          .var("ground", colours.ground)
-          .var("well", colours.well)
-          .var("rule", colours.rule)
-          .var("ink", colours.ink)
-          .var("ash", colours.ash)
-          .var("proof", colours.proof)
-          .fontFamily(mono)
-          .fontSize(10)
-          .ink(var("ash")),
-      rule("h1")
-          .fontFamily(grotesque)
-          .fontWeight(700)
-          .fontSize(3.4_rem)
-          .letterSpacing(0.135_em)
-          .ink(var("ink")),
-      rule("lead").fontSize(1.05_rem).letterSpacing(0.1_em),
-      rule("h2").fontSize(0.9_rem).letterSpacing(0.055_em).ink(var("ink")),
-      rule("caption").fontSize(0.8_rem).letterSpacing(0.05_em),
-      rule(".ticket caption").fontSize(0.75_rem),
-      rule("footer").fontSize(0.85_rem).letterSpacing(0.08_em),
-      rule(".tag").fontSize(0.7_rem).letterSpacing(0.085_em),
-      rule(".count").fontSize(1.15_rem).letterSpacing(0.026_em).ink(
-          var("ink")),
-      rule(".proof, .emphasis").ink(var("proof")),
-      rule(".proof").fontSize(0.85_rem),
-      // The run numerals alternate between two rows so a two-thread band
-      // still gets its number.
-      rule(".runs > *").ink(var("ink")),
-      rule(".runs > :nth-child(even)").paddingTop(10).ink(var("ash")),
-      rule(".code").fontSize(0.9_rem).letterSpacing(0.09_em),
-      rule(".card-name").fontSize(0.75_rem).letterSpacing(0.05_em).ink(
-          var("ink")),
-      rule(".shades eyebrow").fontSize(0.7_rem).letterSpacing(0.03_em),
-      rule(".bar-name caption").fontSize(0.85_rem).letterSpacing(0.047_em).ink(
-          var("ink")),
-      rule(".lifted").fill(Fill::var("ink")),
-      rule(".cell").width(kDraftCell).height(kDraftCell),
-      // Quoted prose hangs its quotation marks and hyphens past the measure,
-      // so the column's edge is squared on the letters rather than on the
-      // punctuation's advances.
-      rule(".name, .quote, .reading, .douglas")
-          .fontFamily(book)
-          .letterSpacing(0)
-          .paragraph({.hanging = weave::kit::hanging::latin()}),
-      rule(".name").fontStyle(FontStyle::Italic).fontSize(1.3_rem).ink(
-          var("ink")),
-      rule(".name.honest").ink(var("proof")),
-      rule(".quote").fontSize(1.05_rem),
-      rule(".note").fontSize(0.8_rem).letterSpacing(0.025_em),
-      rule(".reading").fontStyle(FontStyle::Italic).fontSize(1.1_rem),
-      rule(".attribution").fontStyle(FontStyle::Italic),
-      rule(".douglas")
-          .fontSize(1.3_rem)
-          .ink(var("ink"))
-          .font({.language = "en-GB"})
-          .lineHeight(weave::Leading::absolute(16))
-          .textAlign(weave::TextAlignment::kJustify)
-          .textWrap(TextWrap::Pretty)
-          .hyphens({.patterns = weave::kit::englishHyphenator()}),
-      // The attribution's words are joined by no-break spaces in the words
-      // file, so it stands whole on one line, never split around a year.
-      rule(".douglas .attribution").fontSize(1_rem).ink(var("ash")),
-  };
-}
-
-/** The verification's own theme, which the kit's table reads its registers
- *  and colours from: the card's ink on the card's well, every register in
- *  the mono a machine-read line is set in. */
-sketch::kit::Theme cardTheme(const CardColours& colours) {
-  sketch::kit::Theme look = sketch::kit::featureTheme();
-  look.palette = {.ground = colours.ground,
-                  .cellGround = colours.well,
-                  .ink = colours.ink,
-                  .ash = colours.ash,
-                  .rule = colours.rule,
-                  .figure = colours.ink};
-  look.type.captionLabel = {9.5f, 0.1f, true};
-  look.type.captionNote = {9.5f, 0.1f, true};
-  look.spacing.rowGap = 2.4f;
-  look.spacing.labelGap = 8;
-  look.spacing.swatchSide = 5;
-  return look;
-}
-
 /** A layer filling the box it stands in. */
 Element layer(material::skia::Paint paint) {
   return box().cover().fill(std::move(paint));
@@ -277,53 +141,6 @@ Element layer(material::skia::Paint paint) {
 Element titled(Utf8 heading, std::initializer_list<Children> body) {
   return box().column().gap(12).children({document::h2(std::move(heading))})
       .children(body);
-}
-
-/** The fringe: the warp left unwoven past the last pick, knotted four
- *  ends to a tassel. Each tassel runs from the fell into an overhand knot
- *  a little wider than the strand below it, then hangs free to a cut end;
- *  its length and its swing wander from tassel to tassel, as hand-tied
- *  ones do. The outline starts @p hidden pixels behind the cloth so the
- *  ends pass under its edge, and its bounds are the box it is drawn in —
- *  `height` is the longest tassel's reach — because an SVG outline is
- *  stretched from its bounds onto its box. */
-struct Fringe {
-  std::string outline;
-  float height = 0;
-};
-
-Fringe tassels(int ends, float hidden, float length) {
-  constexpr int kEndsPerTassel = 4;
-  constexpr float kPitch = kEndsPerTassel * kThread;
-  Fringe fringe;
-  for (int tassel = 0; tassel * kEndsPerTassel < ends; ++tassel) {
-    const auto index = (uint32_t)tassel;
-    const float left = (float)tassel * kPitch, right = left + kPitch;
-    const float centre = left + kPitch / 2;
-    const float knot = hidden + 2;
-    const float tip = hidden + length -
-                      3.5f * (sigil::core::noise::hash(11, index) + 1);
-    const float swing = 1.1f * sigil::core::noise::hash(23, index);
-    const float hang = centre + swing;
-    fringe.outline += kit::formatted(
-        "M%g 0 L%g 0 C%g %g %g %g %g %g C%g %g %g %g %g %g "
-        "L%g %g L%g %g L%g %g L%g %g L%g %g L%g %g "
-        "C%g %g %g %g %g %g C%g %g %g %g %g 0 Z ",
-        left, right,
-        // From the fell the four ends gather into the knot…
-        right, knot - 2, centre + 3, knot - 1, centre + 2.2f, knot,
-        // …which swells round the turn of the tie…
-        centre + 3.7f, knot + 1, centre + 3.7f, knot + 3.5f, centre + 2,
-        knot + 4.5f,
-        // …and the strand hangs, flaring a little, to a ragged cut end.
-        hang + 2.7f, tip - 1.6f, hang + 1.3f, tip, hang + 0.3f, tip - 1.1f,
-        hang - 0.9f, tip - 0.2f, hang - 2.7f, tip - 1.4f, centre - 2,
-        knot + 4.5f,
-        centre - 3.7f, knot + 3.5f, centre - 3.7f, knot + 1, centre - 2.2f,
-        knot, centre - 3, knot - 1, left, knot - 2, left);
-    fringe.height = std::max(fringe.height, tip);
-  }
-  return fringe;
 }
 
 /** One check of the card: what it is called, and the check itself, whose
@@ -730,7 +547,7 @@ struct BlackWatch {
   Element mountedCloth() const {
     const float width = kEnds * kThread;
     constexpr float kHidden = 4, kHang = 30, kClear = 22;
-    const Fringe fringe = tassels(kEnds, kHidden, kHang);
+    const Fringe fringe = tassels(kEnds, kHidden, kHang, kThread);
     // The fringe stands behind the panel, so the knots show just below
     // its edge and the tassels hang free onto the board, each lifted off
     // it by its own small shadow.
@@ -1090,7 +907,7 @@ struct BlackWatch {
     return box()
         .width(kCanvas.width())
         .height(kCanvas.height())
-        .applyStyleSheet(cardSheet(colours))
+        .applyStyleSheet(cardSheet(colours, kDraftCell))
         .padding(46, 64, 0, 64)
         .children({
             layer(board).cache(Cache::Texture),
