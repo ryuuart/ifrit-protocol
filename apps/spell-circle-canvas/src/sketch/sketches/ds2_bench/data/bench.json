@@ -1,0 +1,61 @@
+{
+  "weapon": "CONTACT BEAM",
+  "repair": "NANOCIRCUIT REPAIR · TIER III",
+  "integrity": 0.78,
+  "nodes": 2,
+  "hints": ["Navigate", "[Enter] Select", "[Esc] Exit"],
+
+  "circuits": [
+    {
+      "origin": [236, 164], "pitch": [110, 78], "large": true,
+      "grid": [
+        ". o   DMG .   CAP . .   DMG",
+        "o o   CAP o   o   o o   o",
+        ". CHR o   REL .   o CHR CAP",
+        ". .   o   o   .   DMG . ."
+      ],
+      "runs": [
+        [[0, 1], [7, 1]],
+        [[1, 1], [1, 0], [2, 0]],
+        [[4, 1], [4, 0]],
+        [[7, 1], [7, 0]],
+        [[1, 2], [2, 2]],
+        [[2, 1], [2, 3], [5, 3]],
+        [[3, 1], [3, 3]],
+        [[5, 1], [5, 3]],
+        [[5, 2], [6, 2], [6, 1]],
+        [[7, 1], [7, 2]]
+      ]
+    },
+    {
+      "origin": [210, 470], "pitch": [76, 46], "large": false,
+      "caption": "R.I.G. — ARMOR PLATE",
+      "grid": [
+        ". CHR .   DMG .",
+        "o o   CAP o   o"
+      ],
+      "runs": [[[0, 1], [4, 1]], [[1, 1], [1, 0]], [[3, 1], [3, 0]]]
+    },
+    {
+      "origin": [650, 470], "pitch": [76, 46], "large": false,
+      "caption": "STASIS MODULE",
+      "grid": [
+        ". . DMG . CAP",
+        "o o REL o o"
+      ],
+      "runs": [[[0, 1], [4, 1]], [[2, 1], [2, 0]], [[4, 1], [4, 0]]]
+    }
+  ],
+
+  "stats": [
+    { "label": "DAMAGE",   "kind": "DMG", "filled": 5, "total": 6, "value": "100 Pts." },
+    { "label": "CAPACITY", "kind": "CAP", "filled": 3, "total": 6, "value": "44 Pts." },
+    { "label": "RELOAD",   "kind": "REL", "filled": 2, "total": 6, "value": "18 Pts." },
+    { "label": "CHARGE",   "kind": "CHR", "filled": 1, "total": 6, "value": "9 Pts." }
+  ],
+
+  "room": [
+    [-30, 96, 0.9], [66, 30, 0.5], [196, 54, 0.42], [430, 38, 0.3],
+    [690, 46, 0.34], [902, 32, 0.28], [1040, 26, 0.45], [1108, 92, 0.9]
+  ]
+}

@@ -1,839 +1,485 @@
-// A Dead Space upgrade bench composed from routed circuit nodes and status
-// panels.
+// Dead Space 2's upgrade bench: the hologram Isaac reads at a bench, a cyan
+// sheet of light standing in front of a dark machine room. A chamfered
+// panel whose top steps up in the middle carries the weapon's name above a
+// header rule; under it, the weapon's nanocircuit — a board of dark empty
+// sockets joined by traces, with the upgrades already bought lit in the
+// colour of what they raise (red damage, blue capacity, amber reload,
+// olive charge). Two smaller boards for the suit and the stasis module sit
+// below it, and the bottom band is the specification table — one load bar
+// of chevrons per statistic — beside the brass power node counter.
+//
+// Every word, board, statistic and count stands in data/bench.json. A board
+// is a grid of cells (`o` an empty socket, a kind's name a bought node) and
+// the traces are runs through cells of that grid.
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
-#include <sigilcompose/kit/Document.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/StyleSheet.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Corners.h>
+#include <sigilgeometry/kit/Divisions.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Polyline.h>
+#include <sigildata/decode/Json.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Document.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
-#include "Circuit.h"
+#include <sstream>
+#include <string>
+#include <vector>
+
+namespace material = sigil::material;
+namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
+namespace path = sigil::geometry::path;
+namespace field = sigil::material::field;
+namespace weave = sigil::weave;
+namespace data = sigil::data;
+using material::skia::Effect;
+using material::skia::Paint;
+using namespace sigil::compose;
+
+namespace {
+
+constexpr float kWidth = 1200, kHeight = 800;
+
+// The panel, in canvas pixels, and the band along its foot.
+constexpr float kPanelX = 108, kPanelY = 52, kPanelW = 984, kPanelH = 690;
+constexpr float kBandY = 544, kBandH = 148;
+
+const material::Color kVoid = hexColor(0x02060A);
+const material::Color kCyan = hexColor(0x8FE0E6);
+const material::Color kWhite = hexColor(0xE4F7F8);
+const material::Color kBody = hexColor(0x0B1E21);
+const material::Color kSocket = hexColor(0x0A1B1E);
+
+material::Color cyan(float alpha) { return material::withAlpha(kCyan, alpha); }
+
+// The panel's outline: 45° cut corners, and a top whose middle stands 22 px
+// above the two outer thirds. Its inner contour is the same vocabulary
+// turned over — the middle FALLS 40 px, and that fall is the header rule
+// the title stands on.
+constexpr const char* kPanelOutline =
+    "M0 48 L26 22 L110 22 L132 0 L852 0 L874 22 L958 22 L984 48 "
+    "L984 664 L958 690 L26 690 L0 664 Z";
+constexpr const char* kPanelContour =
+    "M0 18 L18 0 L110 0 L150 40 L880 40 L920 0 L942 0 L960 18 "
+    "L960 648 L942 666 L18 666 L0 648 Z";
+// A load pip: notched on the left, pointed on the right.
+constexpr const char* kPip = "M0 0 L30 0 L36 8.5 L30 17 L0 17 L6 8.5 Z";
+
+/** What a bought node raises, and the two colours it is lit in. */
+struct Kind {
+  material::Color core, rim;
+};
+Kind kindOf(std::string_view name) {
+  if (name == "DMG") return {hexColor(0x6E332F), hexColor(0xE9BCB4)};
+  if (name == "CAP") return {hexColor(0x274963), hexColor(0xB2D6EC)};
+  if (name == "CHR") return {hexColor(0x4C5E2B), hexColor(0xD6E8AA)};
+  if (name == "REL") return {hexColor(0x563F1D), hexColor(0xE2C088)};
+  return {kSocket, cyan(0.88f)};
+}
+
+/** The bench's registers. Every line is the interface face widened, which
+ *  the panel states once; a register says its size, spacing and light. */
+StyleSheet registers() {
+  const auto bold = weave::ports::face(
+      {"Eurostile", "Bank Gothic", "DIN Alternate", "Helvetica Neue"}, 700);
+  const auto medium = weave::ports::face(
+      {"Eurostile", "Bank Gothic", "DIN Alternate", "Helvetica Neue"}, 500);
+  return StyleSheet{
+      rule(".weapon").font({.face = bold, .size = 31, .track = 3.1f}).ink(kWhite),
+      rule(".caption").font({.face = medium, .size = 10.5f, .track = 2.1f}).ink(cyan(0.5f)),
+      rule(".node").font({.face = bold, .size = 11.5f, .track = 1.3f}).ink(cyan(0.8f)),
+      rule(".node-small").font({.face = bold, .size = 9, .track = 1}).ink(cyan(0.8f)),
+      rule(".board").font({.face = bold, .size = 11, .track = 2}).ink(cyan(0.62f)),
+      rule(".count").font({.face = medium, .size = 9.5f, .track = 1.7f}).ink(cyan(0.4f)),
+      rule(".head").font({.face = medium, .size = 9, .track = 2}).ink(cyan(0.42f)),
+      rule(".spec").font({.face = bold, .size = 14, .track = 1.4f}).ink(cyan(0.95f)),
+      rule(".value").font({.face = medium, .size = 13, .track = 0.3f}).ink(kWhite),
+      rule(".chip").font({.face = bold, .size = 12, .track = 1.9f}).ink(cyan(0.95f)),
+      rule(".numeral").font({.face = bold, .size = 40}).ink(kWhite),
+      rule(".hint").font({.face = medium, .size = 12, .track = 0.7f}).ink(cyan(0.78f)),
+  };
+}
+
+std::vector<std::string> words(std::string_view line) {
+  std::istringstream stream{std::string(line)};
+  std::vector<std::string> out;
+  for (std::string word; stream >> word;) out.push_back(word);
+  return out;
+}
 
 struct Ds2Bench {
-  // one bound glow per node — the idle pulse is desynced by index
-  std::array<choreograph::Output<float>, 24> glow;
-  choreograph::Output<float> socketPulse{1.0f};
-  choreograph::Output<float> scanY{0};
-  choreograph::Output<float> jitterX{0};
-  choreograph::Output<float> holoAlpha{1.0f};
-  /** The scanline field's own clock: the scene time stepped at 6 Hz, half
-   *  a step off the whole seconds. See `steppedTime`. */
-  choreograph::Output<float> scanClock{0};
+  sketch::kit::Document bench;
 
-  // the legend pip masses: one atlas (2 cells), one pool per row
-  std::shared_ptr<instancing::CellSheet> pips =
-      std::make_shared<instancing::CellSheet>(2.0f);
-  std::array<std::shared_ptr<instancing::Pool>, kStatCount> pipPools;
-  int pipFilled = 0, pipEmpty = 1;
-  int glowSlot = 0;
-  // LUMINANCE grain — the CRT capture's dirt, equal in all three
-  // channels so an overlay pass reads as LIGHT rather than as a hue
-  // shift. Two octaves is what the dirt is: a fine field with one
-  // coarser one under it, and nothing below that.
-  Paint grain = Paint::recipe(field::grain(0.9f, 2, 7.0f));
+  // ------------------------------------------------------------ the room
 
-  double nextGlitch = 4.2, glitchEnd = 0;
-
-  // -------------------------------------------------------------------
-  // the pip atlas: two chevron cells, tinted per instance
-
-  void bakePips() {
-    Element filled =
-        box()
-            .shape(chevron())
-            .fill(Paint::linear({0, 0}, {0, kPipH},
-                                {{0.0f, hexColor(0xC8DADA)},
-                                 {0.42f, hexColor(0x92AAAC)},
-                                 {0.52f, hexColor(0x70898C)},
-                                 {1.0f, hexColor(0xB0C6C8)}}))
-            .stroke(stroke(1.0f,
-                           Fill::color(sigil::material::withAlpha(kCyan, 0.5f)),
-                           PathFormat::Align::Inner));
-    Element empty = box().shape(chevron()).stroke(
-        stroke(1.2f, Fill::color(sigil::material::withAlpha(kCyan, 0.30f)),
-               PathFormat::Align::Inner));
-    pipFilled = pips->cell(std::move(filled), {kPipW, kPipH});
-    pipEmpty = pips->cell(std::move(empty), {kPipW, kPipH});
-
-    for (int r = 0; r < kStatCount; ++r) {
-      auto pool = std::make_shared<instancing::Pool>();
-      // place::repeat IS the Repeater law — linear translate per copy.
-      instancing::place::repeat(*pool, (size_t)kStats[r].total,
-                                {kPipW * 0.5f, kPipH * 0.5f},
-                                {kPipW + kPipGap, 0.0f});
-      auto frames = pool->frames();
-      auto tints = pool->tints();
-      const KindArt art = artOf(kStats[r].kind);
-      for (int i = 0; i < kStats[r].total; ++i) {
-        const bool on = i < kStats[r].filled;
-        frames[i] = on ? pipFilled : pipEmpty;
-        // the tint channel carries the row's identity into a shared cell
-        tints[i] = on ? sigil::material::Color{0.66f + 0.34f * art.ring.r,
-                                               0.66f + 0.34f * art.ring.g,
-                                               0.66f + 0.34f * art.ring.b, 1.0f}
-                      : sigil::material::Color{1, 1, 1, 1};
-      }
-      pool->commit();
-      pipPools[(size_t)r] = std::move(pool);
-    }
-  }
-
-  // -------------------------------------------------------------------
-  // backdrop: the blurred ship interior, implied not modeled
-
-  void backdrop(Element& root) {
-    // ONE BAKED PLANE. The room is fourteen out-of-focus rectangles and
-    // every one of them carries a directional blur; nothing in it ever
-    // changes, so it is rasterised once and blitted after — uncached it
-    // re-runs fourteen blurs over the whole canvas on every frame, and it
-    // is behind a panel that is now translucent, so it is composited on
-    // every frame too.
-    Element room = box().key("room").inset(0).cache(Cache::Texture).zIndex(0);
-    auto strut = [&](float x, float w, float a) {
-      room.children(
-          {box()
-               .rect(SkRect::MakeXYWH(x, -40.0f, w, kH + 80))
-               .fill(Paint::linear({0, 0}, {0, kH},
-                                   {{0.0f, hexColor(0x16262F, a * 0.35f)},
-                                    {0.38f, hexColor(0x1C303C, a)},
-                                    {1.0f, hexColor(0x080F16, a * 0.2f)}}))
-               // the strut melts vertically out of focus: 18 along
-               // the vertical, 12 across
-               .filter(Effect::directionalBlur(18, 90, 12))
-               .zIndex(0)});
+  /** The machine room behind the glass: out-of-focus wall struts and one
+   *  lit doorway, so the translucent panel has something to stand over. */
+  Element room() const {
+    const auto strut = [](const data::Json& strut) {
+      const float alpha = (float)strut[2].number();
+      return kit::at((float)strut[0].number(), -40, (float)strut[1].number(),
+                     kHeight + 80)
+          .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                  {{0.0f, hexColor(0x16262F, alpha * 0.35f)},
+                                   {0.38f, hexColor(0x1C303C, alpha)},
+                                   {1.0f, hexColor(0x080F16, alpha * 0.2f)}}))
+          .filter(Effect::directionalBlur(18, 90, 12));
     };
-    // THE MACHINE ROOM, so the panel has something to be glass OVER.
-    // Dead Space's bench is a hologram standing in a room and the wall
-    // structure reads through the whole of it; struts confined to the two
-    // margins leave the panel floating on the frame's own black, which is
-    // the one thing a translucent panel cannot do.
-    strut(-30, 96, 0.9f);
-    strut(66, 30, 0.5f);
-    strut(1108, 92, 0.9f);
-    strut(1040, 26, 0.45f);
-    strut(196, 54, 0.42f);
-    strut(430, 38, 0.30f);
-    strut(690, 46, 0.34f);
-    strut(902, 32, 0.28f);
-    // A lit doorway behind the panel's left third — one warm rectangle is
-    // what tells an eye the wall is a wall and not a backdrop.
-    room.children({box()
-                       .rect(SkRect::MakeXYWH(250.0f, 118.0f, 176.0f, 470.0f))
-                       .fill(Paint::linear({0, 0}, {0, 470},
-                                           {{0.0f, hexColor(0x2A4A52, 0.34f)},
-                                            {0.45f, hexColor(0x3E6A6E, 0.26f)},
-                                            {1.0f, hexColor(0x0C1A20, 0.09f)}}))
-                       .filter(Effect::directionalBlur(22, 90, 16))
-                       .zIndex(0)});
-    // …and a bank of pipes crossing the wall behind the right half.
-    for (int i = 0; i < 5; ++i)
-      room.children(
-          {box()
-               .rect(SkRect::MakeXYWH(560.0f, 150.0f + (float)i * 96.0f, 560.0f,
-                                      13.0f))
-               .fill(Paint::linear({0, 0}, {0, 13},
-                                   {{0.0f, hexColor(0x25444E, 0.30f)},
-                                    {0.5f, hexColor(0x1A3038, 0.20f)},
-                                    {1.0f, hexColor(0x0A1218, 0.07f)}}))
-               .filter(Effect::directionalBlur(9, 0, 14))
-               .zIndex(0),
-           box()
-               .rect(SkRect::MakeXYWH(-40.0f, 2.0f, kW + 80, 28.0f))
-               .fill(Paint::linear({0, 0}, {0, 28},
-                                   {{0.0f, hexColor(0x243B47, 0.5f)},
-                                    {1.0f, hexColor(0x0A141C, 0.25f)}}))
-               // 10 along the vertical, 7 across
-               .filter(Effect::directionalBlur(10, 90, 7))
-               .zIndex(0)});
-    root.children({std::move(room)});
-  }
-
-  // -------------------------------------------------------------------
-  // the panel plate + its frame vocabulary
-
-  void plate(Element& root) {
-    // body: solid + a radial lift + the live scanline field, ONE shader
-    // the grain the compressed CRT capture carries — enough to kill the
-    // "clean vector art" read without becoming VHS noise
-    // The grain is a STATIC procedural shader over the whole panel, and
-    // opacity + kOverlay makes the library refuse to bake it automatically,
-    // so it is evaluated per pixel per frame unless asked. It never changes,
-    // hence the explicit bake. (The plate BASE below it stays live on
-    // purpose: its fill carries a scrolling scanField shader.)
-    // frame: a soft plus-blended halo under a crisp cyan keyline
-    // the inner contour: a thin line whose dipped centre IS the header rule
-    // and a dotted echo just inside it (the frame's second, ticked pass)
-    root.children(
-        {box()
-             .key("plate")
-             .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
-             .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
-             // THE PANEL IS GLASS. Dropping the 3D framing is
-             // stated; dropping the translucency was not, and it is
-             // the separate half — Dead Space's hologram is a sheet
-             // of light with the room behind it visible through
-             // every part of it, and an opaque body makes the same
-             // drawing a flat rectangle on black.
-             .fill(Paint::blend(
-                 {{Paint::solid(sigil::material::withAlpha(kBody, 0.70f)),
-                   SkBlendMode::kSrcOver},
-                  // unit-square ramp: the lift is authored against the
-                  // box, not against a pixel extent transcribed by hand
-                  {Paint::radialUnit({0.40f, 0.32f}, 1.15f,
-                                     {{0.0f, hexColor(0xFFFFFF)},
-                                      {0.5f, hexColor(0xC0D0D0)},
-                                      {1.0f, hexColor(0x4E6264)}}),
-                   SkBlendMode::kMultiply},
-                  {scanField(sigil::material::withAlpha(kCyan, 0.075f), 3.0f,
-                             &scanClock),
-                   SkBlendMode::kScreen}}))
-             .zIndex(1),
-         box()
-             .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
-             .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
-             .fill(grain)
-             .opacity(0.07f)
-             .blendMode(SkBlendMode::kOverlay)
-             .cache(Cache::Texture)
-             .zIndex(2),
-         box()
-             .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
-             .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
-             .stroke(LayeredBrush{{
-                 {14,
-                  sigil::material::withAlpha(kCyan, 0.09f),
-                  8,
-                  {},
-                  0,
-                  SkBlendMode::kPlus},
-                 {5,
-                  sigil::material::withAlpha(kCyan, 0.22f),
-                  2.6f,
-                  {},
-                  0,
-                  SkBlendMode::kPlus},
-                 {2.4f, sigil::material::withAlpha(hexColor(0xCFF2F5), 0.95f)},
-             }})
-             .zIndex(6),
-         box()
-             .rect(SkRect::MakeXYWH(kPX + kInset, kPY + kInset,
-                                    kPW - 2 * kInset, kPH - 2 * kInset))
-             .shape(panelInner(kInnerCut, kInnerDip, kInnerShoulderL,
-                               kInnerShoulderR))
-             .stroke(stroke(
-                 1.1f, Fill::color(sigil::material::withAlpha(kCyan, 0.55f))))
-             .zIndex(6),
-         box()
-             .rect(SkRect::MakeXYWH(kPX + kInset + 7, kPY + kInset + 7,
-                                    kPW - 2 * kInset - 14,
-                                    kPH - 2 * kInset - 14))
-             .shape(panelInner(kInnerCut - 4, kInnerDip - 7,
-                               kInnerShoulderL - 7, kInnerShoulderR - 7))
-             .stroke(PathFormat{.width = 1.0f,
-                                .strokeFill = Fill::color(
-                                    sigil::material::withAlpha(kCyan, 0.26f)),
-                                .dashIntervals = {2.0f, 6.0f}})
-             .zIndex(6)});
-  }
-
-  // -------------------------------------------------------------------
-  // header
-
-  void header(Element& root) {
-    // under the rule: the repair caption at left, and at right the RIG's
-    // integrity as an ANNULAR GAUGE — shapes::sector is a closed wedge, so
-    // the track and the fill are the same generator twice
-    root.children(
-        {kit::centred()
-             .rect(SkRect::MakeXYWH(kPX, kPY + 20, kPW, kRuleY - kPY - 22))
-
-             .zIndex(7)
-             .children(
-                 {document::h1("CONTACT BEAM")
-                      .key("title")
-                      .textFx(
-                          {.effect = textFx::typeOn(),
-                           .stagger = {.eachMs = 26, .durationMs = 190},
-                           .progress = animate(from(0.0f).to(1.0f), {760ms})})
-                      .filter(styles::textGlow(
-                          sigil::material::withAlpha(kCyan, 0.5f), 5.0f))}),
-         box()
-             .at({kPX + 34, kRuleY + 13})
-             .zIndex(7)
-             .children({document::lead("NANOCIRCUIT REPAIR · TIER III")})});
-    const float gaugeD = 26, gaugeX = 786, gaugeY = kRuleY + 6;
-    // 359.99, not 360: shapes::sector() with a full-turn sweep produces an
-    // EMPTY path (SkPathBuilder::arcTo swallows |sweep| == 360), so the
-    // gauge's own track — the most obvious call there is — silently
-    // disappears at the natural value.
-    root.children(
-        {box()
-             .rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
-             .shape(shapes::sector(0, 359.99f, 0.58f))
-             .fill(Paint::solid(sigil::material::withAlpha(kCyan, 0.18f)))
-             .zIndex(7),
-         box()
-             .rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
-             .shape(shapes::sector(-90, 360 * 0.78f, 0.58f))
-             .fill(Paint::solid(sigil::material::withAlpha(kCyan, 0.9f)))
-             .zIndex(7),
-         box()
-             .at({gaugeX + 34, kRuleY + 13})
-             .zIndex(7)
-             .children({document::lead("R.I.G. INTEGRITY 78%")})});
-  }
-
-  // -------------------------------------------------------------------
-  // the entry socket: the bracket-and-arrow the current flows in through
-
-  void entrySocket(Element& root, SkPoint at, bool big) {
-    if (!big) {
-      // A pure function of the node's size: it closes over nothing, so its
-      // own name is the whole of its identity.
-      root.children(
-          {pen(
-               "socket.arrow",
-               [](Pen& q) {
-                 const float w = q.width, h = q.height;
-                 q.noStroke();
-                 q.fill(sigil::material::withAlpha(kCyan, 0.8f));
-                 q.triangle(0, h * 0.16f, w * 0.8f, h * 0.5f, 0, h * 0.84f);
-               },
-               Cache::Texture)
-               .rect(SkRect::MakeXYWH(at.fX - 24, at.fY - 9, 16.0f, 18.0f))
-               .opacity(&socketPulse)
-               .zIndex(8)});
-      return;
-    }
-    root.children(
-        {pen(
-             "socket.housing",
-             [](Pen& q) {
-               const float w = q.width, h = q.height;
-               q.noFill();
-               q.stroke(sigil::material::withAlpha(kCyan, 0.78f));
-               q.strokeWeight(1.6f);
-               // the housing: a rectangle broken on the left, where the
-               // feed enters, and the bracket that receives it
-               q.beginShape();
-               for (SkPoint at : {SkPoint{w * 0.30f, h * 0.34f},
-                                  {w * 0.30f, h * 0.06f},
-                                  {w * 0.99f, h * 0.06f},
-                                  {w * 0.99f, h * 0.94f},
-                                  {w * 0.30f, h * 0.94f},
-                                  {w * 0.30f, h * 0.66f}})
-                 q.vertex(at.fX, at.fY);
-               q.endShape();
-               q.beginShape();
-               for (SkPoint at : {SkPoint{w * 0.58f, h * 0.26f},
-                                  {w * 0.44f, h * 0.26f},
-                                  {w * 0.44f, h * 0.74f},
-                                  {w * 0.58f, h * 0.74f}})
-                 q.vertex(at.fX, at.fY);
-               q.endShape();
-               q.noStroke();
-               q.fill(sigil::material::withAlpha(kCyan, 0.78f));
-               q.triangle(w * 0.02f, h * 0.31f, w * 0.24f, h * 0.50f, w * 0.02f,
-                          h * 0.69f);
-             },
-             Cache::Texture)
-             .rect(SkRect::MakeXYWH(at.fX - 100, at.fY - 46, 108.0f, 92.0f))
-             .opacity(&socketPulse)
-             .zIndex(8)});
-  }
-
-  // -------------------------------------------------------------------
-  // one circuit: traces first (so node glow sits on the wire), then nodes
-
-  void circuit(Element& root, const Circuit& c) {
-    // The traces are operators of the box that holds the pads: each is
-    // built from where its two pads settled, and revealed 30ms behind the
-    // one before it — the stagger written on each wire's own reveal, since
-    // what a trace draws belongs to the trace and not to a container.
-    std::vector<Operator> wires;
-    for (int i = 0; i < c.edgeCount; ++i) {
-      const EdgeDef& e = c.edges[i];
-      wires.push_back(
-          Operator(
-              connect::Between{
-                  .from = c.key(e.a),
-                  .to = c.key(e.b),
-                  .router = pcb(9.0f, e.jog),
-                  .mask = by::spans(spans::upTo(animate(
-                      from(0.0f).to(1.0f),
-                      Transition{.duration = 620ms, .delay = 30ms * i}))),
-                  .style =
-                      LayerStyle{
-                          .over = {LayeredBrush{{{7.0f,
-                                                  sigil::material::withAlpha(
-                                                      kCyan, 0.075f),
-                                                  3.4f,
-                                                  {},
-                                                  0,
-                                                  SkBlendMode::kPlus}}},
-                                   lines::presets::cased(
-                                       1.2f,
-                                       Fill::color(sigil::material::withAlpha(
-                                           kCyan, c.traceAlpha)),
-                                       c.typedDia > 24 ? 4.2f : 3.4f)}},
-                  .key = std::string(c.tag) + "e" + std::to_string(i)})
-              .zIndex(4));
-    }
-    root.operators(std::move(wires));
-
-    auto layer =
-        box().inset(0).zIndex(5).staggerChildren(30ms, Spread::From::Start);
-    for (int i = 0; i < c.nodeCount; ++i) {
-      const SkPoint at = c.at(i);
-      const KindArt art = artOf(c.nodes[i].kind);
-      const bool typed = c.nodes[i].kind != Blank;
-      const float dia = typed ? c.typedDia : c.blankDia;
-
-      const sdf::Style st{
-          .fill = art.fill,
-          .borderWidth = typed ? 2.4f : 1.7f,
-          .borderColor = art.ring,
-          .glowRadius = typed ? 5.2f : 3.4f,
-          .glowColor = sigil::material::withAlpha(kCyan, typed ? 0.32f : 0.22f),
-          .shadowOffset = {0, 0},
-          .shadowBlur = typed ? 6.0f : 4.5f,
-          .shadowColor = hexColor(0x01080A, 1.0f)};
-      Paint m = Paint::recipe(sdf::material(sdf::circle(), st))
-                    .uniform("uGlowR",
-                             &glow[(size_t)(glowSlot++ % (int)glow.size())]);
-
-      const float boxSize = sdf::minBoxFor(st, dia);
-      layer.children(
-          {box()
-               .key(c.key(i))
-               .width(boxSize)
-               .height(boxSize)
-               .centerAt(at)
-               .fill(std::move(m))
-               .opacity(animate(from(0.0f).to(1.0f), {260ms}))
-               .scale(animate(from(0.72f).to(1.0f),
-                              Transition{.duration = 260ms,
-                                         .ease =
-                                             [](float t) {
-                                               return choreograph::easeOutBack(
-                                                   t);
-                                             }}))
-               .zIndex(typed ? 3 : 2)});
-
-      if (!typed) continue;
-      // the speckled corona + the type label, both keyed leaves: the
-      // instancing atlas has no per-instance string, so labels stay text
-      layer.children(
-          {box()
-               .width(dia + 24)
-               .height(dia + 24)
-               .centerAt(at)
-               .shape(burst(24, 0.72f))
-               .stroke(stroke(
-                   0.9f, Fill::color(sigil::material::withAlpha(kCyan, 0.20f))))
-               .opacity(animate(from(0.0f).to(1.0f), {320ms}))
-               .zIndex(4),
-           box()
-               .width(dia * 0.42f)
-               .height(dia * 0.42f)
-               .centerAt({at.fX - dia * 0.09f, at.fY - dia * 0.10f})
-               .fill(Paint::radial(
-                   {dia * 0.21f, dia * 0.21f}, dia * 0.28f,
-                   {{0.0f, sigil::material::withAlpha(art.ring, 0.42f)},
-                    {1.0f, sigil::material::withAlpha(art.ring, 0.0f)}}))
-               .zIndex(5),
-           text(art.label)
-               .styleClass("node")
-               .font({.size = c.labelSize, .track = 0.11f * c.labelSize})
-               .centerAt({at.fX + dia * 0.88f, at.fY + c.labelDy})
-               .opacity(animate(from(0.0f).to(1.0f), {320ms}))
-               .zIndex(5)});
-    }
-    root.children({std::move(layer)});
-
-    entrySocket(root, c.at(c.entryIndex), c.bigSocket);
-
-    if (!c.caption) return;
-    int typedCount = 0;
-    for (int i = 0; i < c.nodeCount; ++i)
-      typedCount += c.nodes[i].kind != Blank;
-    const std::string slots =
-        kit::formatted("%d / %d NODES", typedCount, c.nodeCount);
-    // The rule spans the tree it heads, and the caption row spans the rule:
-    // name at the left end, count at the right. Butting the count against
-    // the name puts it under the weapon circuit's low-hanging DMG node,
-    // whose corona then eats the digits — and the lattice geometry is read
-    // off the reference frame, so it is the caption that moves.
-    constexpr float kRuleW = 350.0f;
-    root.children(
-        {box()
-             .at({c.x0 - 34, c.y0 - 58})
-             .width(kRuleW)
-             .row()
-             .alignItems(Align::Center)
-             .justifyContent(Justify::SpaceBetween)
-             .zIndex(8)
-             .children({text(c.caption).styleClass("circuit"),
-                        text(slots).styleClass("slots")}),
-         box()
-             .rect(SkRect::MakeXYWH(c.x0 - 34, c.y0 - 32, kRuleW, 1.0f))
-             .shape(hline())
-             .stroke(stroke(
-                 1.0f, Fill::color(sigil::material::withAlpha(kCyan, 0.28f))))
-             .zIndex(8)});
-  }
-
-  // -------------------------------------------------------------------
-  // legend: bracket-framed stat rows with instanced chevron pips
-  //
-  // NOT a readout and not a table: between the specification and its value
-  // stand a kind marker whose fill is a radial ramp and a load bar that is
-  // an instanced pool, and a table's columns carry words. What is shared
-  // between the rows is the four widths, which is what the row says.
-
-  Element statRow(int r) {
-    const StatRow& s = kStats[r];
-    const KindArt art = artOf(s.kind);
-    const float barW = (float)s.total * kPipW + (float)(s.total - 1) * kPipGap;
-    return box()
-        .row()
-        .alignItems(Align::Center)
-        .height(24.0f)
-        .children(
-            {box()
-                 .width(160.0f)
-                 .alignItems(Align::End)
-                 .children({text(s.label).styleClass("spec")}),
-             box()
-                 .width(9.0f)
-                 .height(9.0f)
-                 .margin(0, 13)
-                 .shape(shapes::polygon(12))
-                 .fill(Paint::radial({4.5f, 4.5f}, 5.0f,
-                                     {{0.0f, art.ring}, {1.0f, art.fill}})),
-             box()
-                 .width(barW)
-                 .height(kPipH)
-                 .opacity(animate(from(0.0f).to(1.0f), {320ms}))
-                 .translateX(animate(from(-16.0f).to(0.0f), {380ms}))
-                 .children({instancing::instances(pips, pipPools[(size_t)r])}),
-             box().flexGrow(1),
-             box().width(84.0f).children({text(s.value).styleClass("value")})});
-  }
-
-  void legend(Element& root) {
-    auto card =
-        box()
-            .key("legend")
-            .rect(SkRect::MakeXYWH(kLegX, kBandY, kLegW, kBandH))
-            .fill(Paint::blend(
-                {{Paint::solid(sigil::material::withAlpha(kStrip, 0.6f)),
-                  SkBlendMode::kSrcOver},
-                 {scanField(sigil::material::withAlpha(kCyan, 0.05f), 3.0f,
-                            &scanClock),
-                  SkBlendMode::kScreen}}))
-            .shape(chamfer(12))
-            .zIndex(7)
-            .column()
-            .padding(12, 20)
-            .gap(3)
-            .staggerChildren(70ms, Spread::From::Start);
-
-    // the column heads: one register on the row, three bare runs under it
-    card.children({box().row().height(14.0f).styleClass("head").children(
-        {box()
-             .width(160.0f)
-             .alignItems(Align::End)
-             .children({text("SPECIFICATION")}),
-         box().width(35.0f), text("NANOCIRCUIT LOAD"), box().flexGrow(1),
-         box().width(84.0f).children({text("VALUE")})})});
-    for (int r = 0; r < kStatCount; ++r) card.children({statRow(r)});
-    root.children(
-        {std::move(card),
-         box()
-             .rect(SkRect::MakeXYWH(kLegX - 8, kBandY - 8, kLegW + 16,
-                                    kBandH + 16))
-             .shape(cornerBrackets(26))
-             .stroke(stroke(
-                 1.5f, Fill::color(sigil::material::withAlpha(kCyan, 0.72f))))
-             .zIndex(8),
-         box()
-             .rect(SkRect::MakeXYWH(kLegX + 16, kBandY + 32, kLegW - 32, 1.0f))
-             .shape(hline())
-             .stroke(stroke(
-                 1.0f, Fill::color(sigil::material::withAlpha(kCyan, 0.26f))))
-             .zIndex(8),
-         box()
-             .rect(SkRect::MakeXYWH(kLegX + kLegW - 108, kBandY + 14, 1.0f,
-                                    kBandH - 28))
-             .shape(vline())
-             .stroke(stroke(
-                 1.0f, Fill::color(sigil::material::withAlpha(kCyan, 0.26f))))
-             .zIndex(8)});
-  }
-
-  // -------------------------------------------------------------------
-  // the NODES counter — the one warm-metal object on an all-cyan screen
-
-  void counter(Element& root) {
-    root.children(
-        {box()
-             .key("counter")
-             .rect(SkRect::MakeXYWH(kCntX, kBandY, kCntW, kBandH))
-             .shape(chamfer(12))
-             .fill(Paint::blend(
-                 {{Paint::solid(sigil::material::withAlpha(kStrip, 0.6f)),
-                   SkBlendMode::kSrcOver},
-                  {scanField(sigil::material::withAlpha(kCyan, 0.05f), 3.0f,
-                             &scanClock),
-                   SkBlendMode::kScreen}}))
-             .column()
-             .alignItems(Align::Center)
-             .padding(11, 16)
-             .gap(2)
-             .zIndex(7)
-             .children({kit::centred()
-                            .width(112.0f)
-                            .height(21.0f)
-
-                            .shape(chamfer(6))
-                            .stroke(stroke(
-                                1.0f, Fill::color(sigil::material::withAlpha(
-                                          kCyan, 0.45f))))
-                            .children({text("NODES").styleClass("nodes")})})
-             // the brass power-node puck: side wall, top face, bore ring
-             .children(
-                 {box()
-                      .width(66.0f)
-                      .height(46.0f)
-                      .margin(6, 0, 0, 0)
-                      .children(
-                          {box()
-                               .rect(
-                                   SkRect::MakeXYWH(2.0f, 14.0f, 62.0f, 28.0f))
-                               .borderRadius({14})
-                               .fill(Paint::linear({0, 0}, {0, 28},
-                                                   {{0.0f, kBrassLo},
-                                                    {0.45f, hexColor(0x7E6318)},
-                                                    {1.0f, kBrassDk}})),
-                           box()
-                               .rect(SkRect::MakeXYWH(2.0f, 2.0f, 62.0f, 27.0f))
-                               .shape(shapes::squircle(2.0f))
-                               .fill(
-                                   Paint::linear({0, 0}, {52, 27},
-                                                 {{0.0f, kBrassHi},
-                                                  {0.4f, hexColor(0xD3AA33)},
-                                                  {1.0f, hexColor(0x8E6F1E)}}))
-                               .stroke(stroke(1.0f, Fill::color(hexColor(
-                                                        0xF3DC94, 0.75f)))),
-                           box()
-                               .rect(
-                                   SkRect::MakeXYWH(22.0f, 8.0f, 24.0f, 13.0f))
-                               .shape(shapes::squircle(2.0f))
-                               .stroke(stroke(1.3f, Fill::color(hexColor(
-                                                        0x74590F, 0.9f))))}),
-                  text("2")
-                      .styleClass("count")
-                      .key("nodecount")
-                      .transition({.duration = 200ms})}),
-         box()
-             .rect(SkRect::MakeXYWH(kCntX - 8, kBandY - 8, kCntW + 16,
-                                    kBandH + 16))
-             .shape(cornerBrackets(22))
-             .stroke(stroke(
-                 1.5f, Fill::color(sigil::material::withAlpha(kCyan, 0.72f))))
-             .zIndex(8)});
-  }
-
-  // -------------------------------------------------------------------
-  // the hardware hint row along the panel's bottom rail
-
-  void hints(Element& root) {
-    // the hints: one register on the row, bare runs under it
-    root.children(
-        {box()
-             .rect(SkRect::MakeXYWH(kPX + 32, kHintY, kPW - 64, 1.0f))
-             .shape(hline())
-             .stroke(stroke(
-                 1.0f, Fill::color(sigil::material::withAlpha(kCyan, 0.36f))))
-             .zIndex(8),
-         kit::centred()
-             .rect(SkRect::MakeXYWH(kPX, kHintY + 8, kPW, 26.0f))
-             .row()
-
-             .gap(56)
-             .zIndex(8)
-             .styleClass("hint")
-             .children(
-                 {box()
-                      .row()
-                      .alignItems(Align::Center)
-                      .gap(8)
-                      .children(
-                          {// KEYLESS, and it has to be: the inner disc
-                           // breathes off the pen's own clock, which no key
-                           // can name.
-                           box().width(15.0f).height(15.0f).children(
-                               {pen([](Pen& q) {
-                                 const float r = q.width * 0.5f;
-                                 q.noFill();
-                                 q.stroke(
-                                     sigil::material::withAlpha(kCyan, 0.82f));
-                                 q.strokeWeight(1.3f);
-                                 q.circle(r, r, 2.0f * (r - 1.1f));
-                                 for (int i = 0; i < 4; ++i) {
-                                   const SkPoint in = arrange::onRing(
-                                       (size_t)i, 4, {r, r},
-                                       {r * 0.6f, r * 0.6f}, 0.0f, 6.2831853f,
-                                       arrange::Turn::Closed);
-                                   const SkPoint out = arrange::onRing(
-                                       (size_t)i, 4, {r, r},
-                                       {r * 0.9f, r * 0.9f}, 0.0f, 6.2831853f,
-                                       arrange::Turn::Closed);
-                                   q.line(in.fX, in.fY, out.fX, out.fY);
-                                 }
-                                 q.noStroke();
-                                 q.fill(sigil::material::withAlpha(
-                                     kCyan,
-                                     0.3f + 0.5f * (0.5f +
-                                                    0.5f * std::sin(q.millis() *
-                                                                    0.0034f))));
-                                 q.circle(r, r, r * 0.8f);
-                               })}),
-                           text("Navigate")}),
-                  text("[Enter] Select"), text("[Esc] Exit")})});
-
-    // the empty hardware sockets the bezel carries at its bottom corners
-    for (float x : {kPX + 34, kPR - 46}) {
-      root.children(
-          {box()
-               .rect(SkRect::MakeXYWH(x, kHintY + 13, 12.0f, 12.0f))
-               .stroke(stroke(
-                   1.2f, Fill::color(sigil::material::withAlpha(kCyan, 0.45f))))
-               .zIndex(8)});
-    }
-  }
-
-  // -------------------------------------------------------------------
-  // the CRT overlay: the refresh bar that warps what it passes over
-
-  void overlay(Element& root) {
-    root.children(
-        {box()
-             .rect(SkRect::MakeXYWH(kPX + 6, kPY + 30, kPW - 12, 34.0f))
-             .translateY(&scanY)
-             .backdropFilter(styles::ripple(1.0f, 130.0f, 0.0f))
-             .fill(Paint::linear(
-                 {0, 0}, {0, 34},
-                 {{0.0f, sigil::material::withAlpha(kCyan, 0.0f)},
-                  {0.5f, sigil::material::withAlpha(kCyan, 0.05f)},
-                  {1.0f, sigil::material::withAlpha(kCyan, 0.0f)}}))
-             .blendMode(SkBlendMode::kPlus)
-             .cache(Cache::None)
-             .zIndex(9),
-         box()
-             .inset(0)
-             .fill(Paint::radial({kW * 0.5f, kH * 0.46f}, kW * 0.60f,
-                                 {{0.0f, hexColor(0x000000, 0.0f)},
-                                  {0.55f, hexColor(0x000000, 0.14f)},
-                                  {1.0f, hexColor(0x01050A, 0.86f)}}))
-             .zIndex(11)});
-  }
-
-  // -------------------------------------------------------------------
-
-  Element describe(sketch::SketchContext& ctx) {
-    (void)ctx;
-    glowSlot = 0;
-    auto root = stack().fill(Paint::radial({kW * 0.5f, kH * 0.5f}, 880,
-                                           {{0.0f, hexColor(0x09131B)},
-                                            {0.6f, hexColor(0x050B11)},
-                                            {1.0f, hexColor(0x020406)}}));
-    backdrop(root);
-
-    // everything that belongs to the hologram rides one jittering group,
-    // so a glitch reads as "the whole panel stuttered"
-    // THE HOLOGRAM'S OWN SHEET: one class per line the bench sets, so a
-    // word names the register it is set in and never carries a size, a
-    // face and a colour of its own. Every one of them is the interface
-    // face condensed 1.16, which is what benchType() is.
-    sigil::compose::StyleSheet classes{
-        sigil::compose::rule("h1").font(benchType(31, kTitle, 0.10f)),
-        sigil::compose::rule("lead").font(benchType(
-            10.5f, sigil::material::withAlpha(kCyan, 0.5f), 0.2f, false)),
-        sigil::compose::rule(".node").font(
-            benchType(11, sigil::material::withAlpha(kCyan, 0.78f), 0.08f)),
-        sigil::compose::rule(".circuit")
-            .font(
-                benchType(11, sigil::material::withAlpha(kCyan, 0.62f), 0.18f)),
-        sigil::compose::rule(".slots").font(benchType(
-            9.5f, sigil::material::withAlpha(kCyan, 0.4f), 0.18f, false)),
-        sigil::compose::rule(".spec").font(
-            benchType(14, sigil::material::withAlpha(kCyan, 0.95f), 0.10f)),
-        sigil::compose::rule(".value").font(
-            benchType(13, hexColor(0xDCEEF2), 0.02f, false)),
-        sigil::compose::rule(".head").font(benchType(
-            9, sigil::material::withAlpha(kCyan, 0.42f), 0.22f, false)),
-        sigil::compose::rule(".nodes").font(
-            benchType(12, sigil::material::withAlpha(kCyan, 0.95f), 0.16f)),
-        sigil::compose::rule(".count").font(benchType(40, kTitle, 0.0f)),
-        sigil::compose::rule(".hint").font(benchType(
-            12, sigil::material::withAlpha(kCyan, 0.78f), 0.06f, false))};
-    auto holo = box()
-                    .applyStyleSheet(std::move(classes))
-                    .inset(0)
-                    .translateX(&jitterX)
-                    .opacity(&holoAlpha)
-                    .scale(animate(from(0.955f).to(1.0f), {380ms}))
-                    .transformOrigin(Dimension(kW * 0.5f), Dimension(kH * 0.5f))
-                    .zIndex(2);
-    plate(holo);
-    header(holo);
-    circuit(holo, kBeam);
-    circuit(holo, kRig);
-    circuit(holo, kStasis);
-    legend(holo);
-    counter(holo);
-    hints(holo);
-    overlay(holo);
-    root.children({std::move(holo)});
-    return root;
-  }
-
-  void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(ctx, {.size = SkSize::Make((int)kW, (int)kH),
-                             .captureAt = 2.5,
-                             .background = hexColor(0x02060A)});
-    bakePips();
-
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
-      const double t = ticker.elapsed();
-      for (size_t i = 0; i < glow.size(); ++i)
-        glow[i] = 6.0f + 2.1f * (float)std::sin(t * 2.75 + (double)i * 0.62);
-      socketPulse = 0.78f + 0.22f * (float)std::sin(t * 3.9);
-      scanY = (float)std::fmod(t * 96.0, (double)(kPH - 40));
-      scanClock = steppedTime(t);
-
-      // the hologram stutter: ~100 ms of snap (not eased) jitter every
-      // 4-7 s, scheduled deterministically so a capture is reproducible
-      if (t >= nextGlitch && t > glitchEnd) {
-        glitchEnd = t + 0.10;
-        nextGlitch = t + 4.0 + std::fmod(t * 7.31, 3.0);
-      }
-      if (t < glitchEnd) {
-        const int step = (int)((glitchEnd - t) * 30.0) % 3;
-        jitterX = step == 0 ? 3.0f : step == 1 ? -2.0f : 1.0f;
-        holoAlpha = 0.76f;
-      } else {
-        jitterX = 0.0f;
-        holoAlpha = 1.0f;
-      }
+    return box().inset(0).cache(Cache::Texture).key("room").children({
+        each(bench["room"].items(), strut),
+        kit::at(250, 118, 176, 470)
+            .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                    {{0.0f, hexColor(0x2A4A52, 0.34f)},
+                                     {0.45f, hexColor(0x3E6A6E, 0.26f)},
+                                     {1.0f, hexColor(0x0C1A20, 0.09f)}}))
+            .filter(Effect::directionalBlur(22, 90, 16)),
     });
-
-    ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext&) {}
+  // ----------------------------------------------------------- the panel
+
+  /** The glass: a translucent teal body lit from upper left, a haze of
+   *  cyan around a crisp keyline, and inside it the contour whose fall is
+   *  the header rule, echoed by a dotted rule just within. */
+  static Element panel() {
+    return kit::at(kPanelX, kPanelY, kPanelW, kPanelH)
+        .shape(shapes::svg(kPanelOutline))
+        .fill(Paint::radialUnit({0.4f, 0.32f}, 1.15f,
+                                {{0.0f, hexColor(0x2A4A4C, 0.74f)},
+                                 {0.55f, hexColor(0x16302F, 0.72f)},
+                                 {1.0f, material::withAlpha(kBody, 0.70f)}}))
+        .background(styles::OuterGlow{cyan(0.28f), 9})
+        .foreground(decorations::wash(Paint::recipe(field::grain(0.9f, 2, 7.0f)),
+                                      SkBlendMode::kOverlay, 0.07f))
+        .foreground(decorations::border(2.2f, Fill::color(hexColor(0xCFF2F5, 0.95f))))
+        .children({
+            kit::at(12, 12, kPanelW - 24, kPanelH - 24)
+                .shape(shapes::svg(kPanelContour))
+                .fill(Fill::none())
+                .foreground(decorations::border(1.1f, Fill::color(cyan(0.55f))))
+                .foreground(Border{.width = 1,
+                                   .fill = Fill::color(cyan(0.26f)),
+                                   .inset = 7,
+                                   .dash = {2, 6}}),
+        });
+  }
+
+  /** The weapon's name over the header rule, the repair tier under it at
+   *  left, and the suit's integrity as a ring gauge at right. */
+  Element header() const {
+    const float integrity = (float)bench["integrity"].number(1);
+    return box().inset(0).children({
+        kit::at(kPanelX, kPanelY + 20, kPanelW, 62)
+            .alignItems(Align::Center)
+            .justifyContent(Justify::Center)
+            .children({text(bench["weapon"].text())
+                           .styleClass("weapon")
+                           .filter(styles::textGlow(cyan(0.5f), 5))}),
+        text(bench["repair"].text()).styleClass("caption").left(142).top(117),
+        kit::disc({799, 123}, 13)
+            .shape(shapes::annulus(0.58f))
+            .fill(Fill::color(cyan(0.18f))),
+        kit::disc({799, 123}, 13)
+            .shape(shapes::sector(-90, 360 * integrity, 0.58f))
+            .fill(Fill::color(cyan(0.9f))),
+        text("R.I.G. INTEGRITY " + std::to_string((int)(integrity * 100)) + "%")
+            .styleClass("caption")
+            .left(820)
+            .top(117),
+    });
+  }
+
+  // ---------------------------------------------------------- the boards
+
+  /** One cell of a board: a dark socket, or a bought node lit in its
+   *  kind's colours inside a ragged corona, with its kind named at its
+   *  upper right. */
+  static Element node(SkPoint at, const std::string& cell, bool large) {
+    if (cell == "o")
+      return kit::dot(at, large ? 10.5f : 6, Fill::color(kSocket))
+          .foreground(decorations::border(1.7f, Fill::color(cyan(0.88f))));
+    const Kind kind = kindOf(cell);
+    const float radius = large ? 14 : 9.5f;
+    return box().inset(0).children({
+        kit::disc(at, radius + 12)
+            .shape(shapes::ticks({.divisions = 24, .mark = {0.72f, 1.0f}}))
+            .stroke(stroke(0.9f, Fill::color(cyan(0.22f)))),
+        kit::dot(at, radius,
+                 Paint::radialUnit({0.38f, 0.34f}, 0.8f,
+                                   {{0.0f, material::mixToward(kind.core, kind.rim, 0.45f, 1)},
+                                    {0.6f, kind.core},
+                                    {1.0f, material::scale(kind.core, 0.7f)}}))
+            .background(styles::OuterGlow{cyan(0.4f), 5})
+            .foreground(decorations::border(2.4f, Fill::color(kind.rim))),
+        text(cell)
+            .styleClass(large ? "node" : "node-small")
+            .centerAt({at.fX + (large ? 26.0f : 22.0f), at.fY - (large ? 30.0f : 22.0f)}),
+    });
+  }
+
+  /** The way current enters a board: an arrow, and on the weapon's board a
+   *  housing and a bracket around the first socket. */
+  static Element socket(SkPoint at, bool large) {
+    const auto arrow = [](float x, float y, float size) {
+      return kit::at(x, y, size, size)
+          .shape(shapes::polygon(3, 90))
+          .fill(Fill::color(cyan(0.8f)));
+    };
+    if (!large) return arrow(at.fX - 26, at.fY - 8, 16);
+    return box().inset(0).children({
+        kit::at(at.fX - 68, at.fY - 41, 76, 82)
+            .fill(Fill::none())
+            .foreground(decorations::border(1.6f, Fill::color(cyan(0.78f)))),
+        kit::at(at.fX - 52, at.fY - 22, 16, 44)
+            .shape(shapes::svg("M16 0 L0 0 L0 44 L16 44"))
+            .fill(Fill::none())
+            .stroke(stroke(1.6f, Fill::color(cyan(0.78f)))),
+        arrow(at.fX - 100, at.fY - 12, 24),
+    });
+  }
+
+  /** A board: traces first, lit as twin rails, then its cells over them.
+   *  The smaller boards carry a caption over a rule, with the count of
+   *  nodes bought against sockets at its right. */
+  static Element board(const data::Json& spec) {
+    const glm::vec2 origin{(float)spec["origin"][size_t(0)].number(),
+                           (float)spec["origin"][1].number()};
+    const glm::vec2 pitch{(float)spec["pitch"][size_t(0)].number(),
+                          (float)spec["pitch"][1].number()};
+    const bool large = spec["large"].boolean();
+    const auto cellAt = [&](const data::Json& cell) {
+      return origin + pitch * glm::vec2((float)cell[size_t(0)].number(),
+                                        (float)cell[1].number());
+    };
+
+    std::vector<Element> traces, cells;
+    for (const data::Json& run : spec["runs"].items()) {
+      path::Polyline line;
+      for (const data::Json& cell : run.items()) line.points.push_back(cellAt(cell));
+      traces.push_back(pathFigure(path::toPath(line), 4)
+                           .stroke(stroke(large ? 5.4f : 4.6f, Fill::color(cyan(0.62f))))
+                           .foreground(stroke(large ? 3.0f : 2.4f,
+                                              Fill::color(hexColor(0x14302F)))));
+    }
+    int bought = 0, sockets = 0;
+    size_t row = 0;
+    for (const data::Json& line : spec["grid"].items()) {
+      const std::vector<std::string> tokens = words(line.text());
+      for (size_t column = 0; column < tokens.size(); ++column) {
+        if (tokens[column] == ".") continue;
+        ++sockets;
+        bought += tokens[column] != "o";
+        const glm::vec2 at = origin + pitch * glm::vec2(column, row);
+        cells.push_back(node({at.x, at.y}, tokens[column], large));
+      }
+      ++row;
+    }
+
+    const std::string_view caption = spec["caption"].text();
+    return box().inset(0).filter(styles::textGlow(cyan(0.3f), 3)).children({
+        box().inset(0).children(std::move(traces)),
+        socket({origin.x, origin.y + pitch.y}, large),
+        box().inset(0).children(std::move(cells)),
+        caption.empty()
+            ? box()
+            : kit::at(origin.x - 34, origin.y - 58, 350, 34)
+                  .column()
+                  .gap(8)
+                  .children({
+                      box().row().justifyContent(Justify::SpaceBetween).children({
+                          text(caption).styleClass("board"),
+                          text(std::to_string(bought) + " / " +
+                               std::to_string(sockets) + " NODES")
+                              .styleClass("count"),
+                      }),
+                      kit::line({.fill = Fill::color(cyan(0.28f))}),
+                  }),
+    });
+  }
+
+  // ------------------------------------------------------------ the band
+
+  /** A region of the band: a dark chamfered card inside four corner
+   *  brackets that stand off it. */
+  static Element bracketed(float x, float width, Element card) {
+    return kit::at(x - 8, kBandY - 8, width + 16, kBandH + 16)
+        .stroke(spans::corners(24), stroke(1.5f, Fill::color(cyan(0.72f))))
+        .padding(8)
+        .children({card.flexGrow(1)
+                       .shape(shapes::chamfered(12))
+                       .fill(Fill::color(hexColor(0x102A2A, 0.62f)))});
+  }
+
+  /** One statistic: its name, a marker in its kind's colours, the load bar
+   *  of pips it has filled out of its total, and its value past a rule. */
+  static Element statistic(const data::Json& stat) {
+    const Kind kind = kindOf(stat["kind"].text());
+    const int filled = (int)stat["filled"].number();
+    const material::Color metal =
+        material::mixToward(hexColor(0xC8DADA), kind.rim, 0.35f, 1);
+    const auto pip = [&](size_t index) {
+      Element pip = box().width(36).height(17).shape(shapes::svg(kPip));
+      if ((int)index >= filled)
+        return pip.fill(Fill::none()).stroke(stroke(1.2f, Fill::color(cyan(0.3f))));
+      return pip
+          .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                  {{0.0f, metal},
+                                   {0.45f, material::scale(metal, 0.74f)},
+                                   {0.55f, material::scale(metal, 0.6f)},
+                                   {1.0f, material::scale(metal, 0.88f)}}))
+          .stroke(stroke(1, Fill::color(cyan(0.5f))));
+    };
+    return box().row().alignItems(Align::Center).height(24).children({
+        box().width(160).alignItems(Align::End).children(
+            {text(stat["label"].text()).styleClass("spec")}),
+        box().width(9).height(9).margin(0, 13).shape(shapes::circle())
+            .fill(Paint::radialUnit({0.5f, 0.5f}, 0.6f,
+                                    {{0.0f, kind.rim}, {1.0f, kind.core}})),
+        box().row().gap(6).children(
+            {each((size_t)stat["total"].number(), pip)}),
+        box().flexGrow(1),
+        box().width(98).paddingLeft(12).children(
+            {text(stat["value"].text()).styleClass("value")}),
+    });
+  }
+
+  /** The specification table: three column heads over a rule, one row
+   *  per statistic, and the value column parted off by a rule. */
+  Element specification() const {
+    return bracketed(
+        140, 680,
+        box().column().padding(12, 20).gap(3).children({
+            box().row().height(14).children({
+                box().width(160).alignItems(Align::End).children(
+                    {text("SPECIFICATION").styleClass("head")}),
+                box().width(35),
+                text("NANOCIRCUIT LOAD").styleClass("head"),
+                box().flexGrow(1),
+                box().width(98).paddingLeft(12).children(
+                    {text("VALUE").styleClass("head")}),
+            }),
+            kit::line({.fill = Fill::color(cyan(0.26f))}).marginBottom(4),
+            each(bench["stats"].items(), statistic),
+            kit::at(680 - 118, 14, 1, kBandH - 28)
+                .fill(Fill::color(cyan(0.26f))),
+        }));
+  }
+
+  /** The power nodes the player holds: a chip naming them, the brass
+   *  node itself — the one warm object on an all-cyan screen — and the
+   *  count. */
+  Element counter() const {
+    return bracketed(
+        852, 208,
+        box().column().alignItems(Align::Center).padding(11, 16).gap(2).children({
+            kit::centred(text("NODES").styleClass("chip"))
+                .width(112)
+                .height(21)
+                .shape(shapes::chamfered(6))
+                .stroke(stroke(1, Fill::color(cyan(0.45f)))),
+            box().width(66).height(46).marginTop(6).children({
+                kit::at(2, 14, 62, 28)
+                    .borderRadius({14})
+                    .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                            {{0.0f, hexColor(0xC9A227)},
+                                             {0.45f, hexColor(0x7E6318)},
+                                             {1.0f, hexColor(0x5E4914)}})),
+                kit::at(2, 2, 62, 27)
+                    .shape(shapes::squircle(2))
+                    .fill(Paint::linearUnit({0, 0}, {1, 1},
+                                            {{0.0f, hexColor(0xE8C860)},
+                                             {0.4f, hexColor(0xD3AA33)},
+                                             {1.0f, hexColor(0x8E6F1E)}}))
+                    .stroke(stroke(1, Fill::color(hexColor(0xF3DC94, 0.75f)))),
+                kit::at(22, 8, 24, 13)
+                    .shape(shapes::squircle(2))
+                    .fill(Fill::none())
+                    .stroke(stroke(1.3f, Fill::color(hexColor(0x74590F, 0.9f)))),
+            }),
+            text(std::to_string((int)bench["nodes"].number())).styleClass("numeral"),
+        }));
+  }
+
+  /** The controller hints on the panel's bottom rail, under a rule, and
+   *  the two empty sockets the bezel carries in its bottom corners. */
+  Element hints() const {
+    const auto hint = [](const data::Json& words) {
+      return text(words.text()).styleClass("hint");
+    };
+    const auto navigate =
+        box().width(15).height(15).shape(shapes::circle()).fill(Fill::none())
+            .foreground(decorations::border(1.3f, Fill::color(cyan(0.82f))))
+            .alignItems(Align::Center).justifyContent(Justify::Center)
+            .children({box().width(6).height(6).shape(shapes::circle())
+                           .fill(Fill::color(cyan(0.6f)))});
+    const auto bezelSocket = [](float x) {
+      return kit::at(x, 719, 12, 12)
+          .fill(Fill::none())
+          .foreground(decorations::border(1.2f, Fill::color(cyan(0.45f))));
+    };
+    return box().inset(0).children({
+        kit::at(kPanelX + 32, 706, kPanelW - 64, 1).fill(Fill::color(cyan(0.36f))),
+        kit::at(kPanelX, 714, kPanelW, 26)
+            .row()
+            .alignItems(Align::Center)
+            .justifyContent(Justify::Center)
+            .gap(56)
+            .children({
+                box().row().alignItems(Align::Center).gap(8).children(
+                    {navigate, hint(bench["hints"][size_t(0)])}),
+                hint(bench["hints"][1]),
+                hint(bench["hints"][2]),
+            }),
+        bezelSocket(kPanelX + 34),
+        bezelSocket(kPanelX + kPanelW - 46),
+    });
+  }
+
+  Element describe() const {
+    return box()
+        .inset(0)
+        .fill(Paint::radialUnit({0.5f, 0.5f}, 0.9f,
+                                {{0.0f, hexColor(0x09131B)},
+                                 {0.6f, hexColor(0x050B11)},
+                                 {1.0f, hexColor(0x020406)}}))
+        .applyStyleSheet(registers())
+        .children({
+            room(),
+            panel(),
+            header(),
+            each(bench["circuits"].items(), board),
+            specification(),
+            counter(),
+            hints(),
+            // The tube the hologram is seen through: fine scanlines and a
+            // falloff into the corners, laid over everything.
+            box().inset(0).fill(
+                Paint::recipe(field::crtOverlay(3, 0.09f, 1.0f, 1.9f, 0.6f, 0.7f))),
+        });
+  }
+
+  void setup(sketch::SketchContext& context) {
+    context.canvas(kWidth, kHeight);
+    context.background(kVoid);
+    context.captureAt(2.5);
+    bench = sketch::kit::Document(context, "data/bench.json");
+    context.composer.render(describe());
+  }
 };
+
+}  // namespace
 
 SIGIL_SKETCH(Ds2Bench, "Study · Game UI",
              "Dead Space 2's Nanocircuit bench (2011) — routers, rails, "
