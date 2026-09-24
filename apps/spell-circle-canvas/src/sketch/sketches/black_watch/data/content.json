@@ -1,4 +1,13 @@
 {
+  "card": {
+    "ground": "#E8E2D6",
+    "well": "#DCD4C4",
+    "rule": "#8A8478",
+    "ink": "#1A1815",
+    "ash": "#5A554C",
+    "proof": "#9A3324",
+    "shadow": "#3E3A33"
+  },
   "masthead": {
     "title": "BLACK WATCH (GOVERNMENT)",
     "registration": "STA 207  ·  STWR 207  ·  SRT 277  ·  TARTAN DATE 01/01/1739  ·  CATEGORY MILITARY  ·  DESIGNER UNKNOWN",
@@ -9,11 +18,11 @@
       "SAMPLE: SCOTTISH TARTANS AUTHORITY, SCARLETT COLLECTION",
       "OLDEST DATED: COCKBURN COLLECTION, MITCHELL LIBRARY, GLASGOW"
     ],
-    "colophon": "SETT AFTER H. C. DOUGLAS, SCOTCH TARTAN SETTS, SHUTTLE-CRAFT GUILD, 1949  ·  252 ENDS  ·  2/2 TWILL, STRAIGHT DRAW  ·  PALETTE: SCOTTISH REGISTER OF TARTANS COLOUR SHADES  ·  63,504 CELLS, NONE AUTHORED"
+    "colophon": "SETT AFTER H. C. DOUGLAS, SCOTCH TARTAN SETTS, SHUTTLE-CRAFT GUILD, 1949  ·  {ends} ENDS  ·  2/2 TWILL, STRAIGHT DRAW  ·  PALETTE: SCOTTISH REGISTER OF TARTANS COLOUR SHADES  ·  {cells} CELLS, NONE AUTHORED"
   },
   "sett": {
     "register": "“THE DNA OF A TARTAN.”   — SCOTTISH REGISTER OF TARTANS, ON THE THREADCOUNT",
-    "notation": "HALF-SETT, REGISTER NOTATION:  B/9 K2 B6 K2 B6 K18 G18 K6 G18 K18 B18 K2 B/3   =  126  =  252 / 2",
+    "notation": "HALF-SETT, REGISTER NOTATION:  B/9 K2 B6 K2 B6 K18 G18 K6 G18 K18 B18 K2 B/3   =  {half}  =  {ends} / 2",
     "pivots": [
       "PIVOT  B/9",
       "PIVOT  B/3"
@@ -26,7 +35,8 @@
       "TIE-UP",
       "TREADLING",
       "DRAWDOWN"
-    ]
+    ],
+    "caption": "ENDS {first}–{last} OF THE SETT ({window}), SQUARED AGAINST THEMSELVES  ·  {cell} PX / THREAD"
   },
   "blends": {
     "heading": "THE THIRD COLOURS  ·  WARP ACROSS, WEFT DOWN",
@@ -34,12 +44,8 @@
       "EACH CELL IS 6 × 6 THREADS AT 8 PX.",
       "THE BLENDS ARE WOVEN, NOT MIXED."
     ],
-    "reading": "A tartan has six colours from\nthree threads because the blend\nis spatial: at 42 ends per inch\nthe eye does the mixing, not\nthe dyer.",
-    "codes": [
-      "K",
-      "B",
-      "G"
-    ]
+    "law": "n = {solids}  →  {solids} solid + {blends} blend  =  {perceived}  =  n(n+1)/2",
+    "reading": "A tartan has six colours from three threads because the blend is spatial: at 42 ends per inch the eye does the mixing, not the dyer."
   },
   "palettes": {
     "heading": "ONE THREAD COUNT, FIVE SHADE CARDS  ·  SCOTTISH REGISTER OF TARTANS"
@@ -53,34 +59,28 @@
       "Sutherland"
     ],
     "quote": [
-      "“The Cockburn Collection (1810-15) includes four specimens of the Government tartan labelled;",
-      "‘Campbell Argyll’, ‘Grant’, ‘Munro’ and ‘Sutherland’.”   — Scottish Register of Tartans, registration note, SRT 277"
+      "“The Cockburn Collection (1810-15) includes four specimens of the Government tartan labelled; ‘Campbell Argyll’, ‘Grant’, ‘Munro’ and ‘Sutherland’.”  ",
+      { "words": "— Scottish Register of Tartans, registration note, SRT 277", "class": "attribution" }
     ],
     "honest": "Campbell of Argyll",
     "note": [
-      "416 ends: the Government sett",
-      "with its two black centre-lines",
-      "recoloured YELLOW and WHITE."
+      "{argyll} ends: the Government sett with its two black centre-lines ",
+      { "words": "recoloured YELLOW and WHITE.", "class": "emphasis" }
     ]
   },
   "comparison": {
     "heading": "THE SAME SETT, TWICE  ·  EACH NORMALISED TO ITS OWN TOTAL, UNIT FOR UNIT",
     "bars": [
-      "BLACK WATCH        252",
-      "CAMPBELL ARGYLL   416"
+      "BLACK WATCH",
+      "CAMPBELL ARGYLL"
     ],
-    "units": [
-      "A",
-      "B",
-      "C",
-      "B"
-    ]
+    "summary": "UNIT FRACTIONS AGREE TO {drift} %  ·  IDENTICAL STRUCTURE, RUN FOR RUN  ·  DIFFERENT NUMBERS  ·  THE OVERCHECKS ARE RINGED"
   },
   "verification": {
     "heading": "VERIFIED AT STARTUP, NOT ASSERTED"
   },
-  "douglas": {
-    "body": "“The per­fect bal­ance of the weav­ing — ex­actly as many weft shots per inch as there are warp ends, to give a 45-de­gree twill an­gle — is of ut­most im­por­tance in pro­duc­ing a true Tar­tan, as each of the col­or blocks must be squared in its prop­er suc­ces­sion.”  ",
-    "attribution": "— Harriet C. Douglas, Scotch Tartan Setts, Shuttle-Craft Guild, 1949"
-  }
+  "douglas": [
+    "“The perfect balance of the weaving — exactly as many weft shots per inch as there are warp ends, to give a 45-degree twill angle — is of utmost importance in producing a true Tartan, as each of the color blocks must be squared in its proper succession.”  ",
+    { "words": "— Harriet C. Douglas, Scotch Tartan Setts, Shuttle-Craft Guild, 1949", "class": "attribution" }
+  ]
 }

@@ -1,888 +1,958 @@
-// The Black Watch sett woven from its thread counts and twill rule.
-
+/** @file
+ * black_watch — the Government sett, woven from its thread counts.
+ *
+ * A TARTAN IS A PROGRAM. The register's threadcount says what colour each
+ * thread is, the loom's three lines say which thread is on top at every
+ * crossing, and the cloth follows with not one cell authored. The card
+ * mounts that cloth the way a pattern card does: the sett as the one-
+ * dimensional object it is, the cloth woven beneath it pick by pick, the
+ * weaver's draft, the third colours a crossing makes, the five shade
+ * cards one count is dyed in, the four clan labels the Cockburn
+ * collection put on one cloth, Campbell of Argyll beside it, and the
+ * arithmetic that proves the reconstruction, computed where it is shown.
+ */
 // TAGS: Patterns/Tiling
+
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/StyleSheet.h>
+#include <sigilcompose/kit/Document.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/bind/Curve.h>
+#include <sigilmotion/values/Time.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
+#include <sigilweave/kit/Hyphenation.h>
+
+#include <ranges>
 
 #include "Tartan.h"
 
+namespace sketch = sigil::sketch;
+namespace material = sigil::material;
+namespace measure = sigil::measure;
+namespace weave = sigil::weave;
+namespace data = sigil::data;
+namespace shapes = sigil::geometry::shapes;
+namespace ease = sigil::motion::ease;
+using namespace sigil::compose;
+using namespace sigil::motion;
+using namespace sigil::weave::literals;
+
+namespace {
+
+constexpr SkSize kCanvas{1600, 1440};
+/** Pixels per thread on the cloth, the sett bar and the swatches — a whole
+ *  number, because a thread narrower than a pixel or magnified by a
+ *  fraction over the twill's four-thread period is a moiré generator. */
+constexpr float kThread = 2;
+/** The cloth panel in threads: two setts across, a sett and a half down. */
+constexpr int kEnds = 504, kPicks = 378;
+/** Pixels per thread in the draft, and the window of the sett it shows:
+ *  ends 61 to 92, the one run short enough to square that still crosses
+ *  all three colours, so both kinds of blend cell stand in it. */
+constexpr float kDraftCell = 9;
+constexpr int kDraftFirst = 60, kDraftEnds = 32;
+/** The provenance swatches, and where in the cloth each one is cut: the
+ *  Government crop holds a blue square, a green one and the black bars
+ *  between; Campbell's two overchecks stand 208 threads apart, so its
+ *  crop takes the warp from the yellow and the weft from the white, the
+ *  one place the two are seen crossing. */
+constexpr SkSize kSwatch{180, 110};
+constexpr SkPoint kGovernmentCrop{34, 40}, kArgyllCrop{150, 358};
+
+// ---------------------------------------------------------------------------
+// The loop, as positions in one eight-second phase: the warp beams on, the
+// picks beat in, the arithmetic proves itself, and the cloth is dyed in
+// each shade card in turn before it holds in the first.
+
+constexpr float kCycle = 8;
+constexpr float kBeamEnd = 0.7f / kCycle;
+constexpr float kWeaveEnd = 4.1f / kCycle;
+constexpr float kProveEnd = 4.9f / kCycle;
+/** The shade card the cloth wears from each moment, and how long each
+ *  card takes to fade over the one before. The last entry returns to the
+ *  first card for the hold the still is taken in. */
+struct Turn {
+  int card;
+  float start;
+};
+constexpr std::array<Turn, 6> kTurns{{{0, kWeaveEnd},
+                                      {1, 0.6125f},
+                                      {2, 0.6625f},
+                                      {3, 0.7125f},
+                                      {4, 0.7625f},
+                                      {0, 0.8125f}}};
+constexpr float kFade = 0.025f;
+
+// ---------------------------------------------------------------------------
+// The card's colours: manila board, dark ink, a rule grey and the proof red
+// every computed line is set in. They stand in the card's words file.
+
+struct CardColours {
+  material::Color ground, well, rule, ink, ash, proof, shadow;
+};
+
+CardColours readCard(const data::Json& card) {
+  const auto colour = [&](std::string_view name) {
+    return colourOf(card[name].text("#000000"));
+  };
+  return {colour("ground"), colour("well"), colour("rule"), colour("ink"),
+          colour("ash"),    colour("proof"), colour("shadow")};
+}
+
+material::Color faded(material::Color colour, float alpha) {
+  return {colour.r, colour.g, colour.b, alpha};
+}
+
+/** "#2C2C80" from a colour, as the shade cards print it. */
+std::string hexOf(material::Color colour) {
+  const auto byte = [](float channel) {
+    return (int)std::lround(std::clamp(channel, 0.0f, 1.0f) * 255.0f);
+  };
+  return kit::formatted("#%02X%02X%02X", byte(colour.r), byte(colour.g),
+                        byte(colour.b));
+}
+
+/** Threads as the register writes them: "K2 B6 K18 G6". */
+std::string spelled(const std::vector<uint8_t>& threads, size_t first,
+                    size_t count) {
+  std::string words;
+  for (size_t at = first; at < first + count;) {
+    size_t end = at;
+    while (end < first + count && threads[end] == threads[at]) ++end;
+    words += kit::formatted("%s%c%zu", words.empty() ? "" : " ",
+                            kShadeCodes[threads[at]], end - at);
+    at = end;
+  }
+  return words;
+}
+
+/** Liang's English patterns, loaded once and shared by every paragraph
+ *  that hyphenates. */
+std::shared_ptr<const weave::Hyphenator> hyphenator() {
+  static const std::shared_ptr<const weave::Hyphenator> table =
+      std::make_shared<const weave::kit::PatternHyphenator>(
+          "en", weave::kit::englishHyphenationPatterns());
+  return table;
+}
+
+/** HOW THE CARD IS SET. The tokens are its colours; the type is three
+ *  voices — a mono for everything a machine reads, a bold grotesque for
+ *  the one display line, a book serif for names and quoted prose — and
+ *  every class below is a whole look. The sizes are pixels: `rem`
+ *  measures against the composer's inherited font rather than the root
+ *  element's, so a root size stated here would not scale them. */
+StyleSheet cardSheet(const CardColours& colours) {
+  const std::string mono = "Menlo, Courier New, monospace";
+  const std::string grotesque = "Helvetica Neue, Arial, sans-serif";
+  const std::string book = "Baskerville, Times New Roman, serif";
+  return StyleSheet{
+      rule(":root")
+          .var("ground", colours.ground)
+          .var("well", colours.well)
+          .var("rule", colours.rule)
+          .var("ink", colours.ink)
+          .var("ash", colours.ash)
+          .var("proof", colours.proof)
+          .fontFamily(mono)
+          .fontSize(10)
+          .ink(var("ash")),
+      rule("h1")
+          .fontFamily(grotesque)
+          .fontWeight(700)
+          .fontSize(34)
+          .letterSpacing(0.135_em)
+          .ink(var("ink")),
+      rule("lead").fontSize(10.5).letterSpacing(0.1_em),
+      rule("h2").fontSize(9).letterSpacing(0.055_em).ink(var("ink")),
+      rule("caption").fontSize(8).letterSpacing(0.05_em),
+      rule(".ticket caption").fontSize(7.5),
+      rule("footer").fontSize(8.5).letterSpacing(0.08_em),
+      rule(".tag").fontSize(7).letterSpacing(0.085_em),
+      rule(".count").fontSize(11.5).letterSpacing(0.026_em).ink(
+          var("ink")),
+      rule(".proof, .emphasis").ink(var("proof")),
+      rule(".proof").fontSize(8.5),
+      // The run numerals alternate between two rows so a two-thread band
+      // still gets its number.
+      rule(".runs > *").ink(var("ink")),
+      rule(".runs > :nth-child(even)").paddingTop(10).ink(var("ash")),
+      rule(".code").fontSize(9).letterSpacing(0.09_em),
+      rule(".card-name").fontSize(7.5).letterSpacing(0.05_em).ink(
+          var("ink")),
+      rule(".shades eyebrow").fontSize(7).letterSpacing(0.03_em),
+      rule(".bar-name caption").fontSize(8.5).letterSpacing(0.047_em).ink(
+          var("ink")),
+      rule(".lifted").fill(Fill::var("ink")),
+      rule(".cell").width(kDraftCell).height(kDraftCell),
+      rule(".name, .quote, .reading, .douglas")
+          .fontFamily(book)
+          .letterSpacing(0),
+      rule(".name").fontStyle(FontStyle::Italic).fontSize(13).ink(
+          var("ink")),
+      rule(".name.honest").ink(var("proof")),
+      rule(".quote").fontSize(10.5),
+      rule(".note").fontSize(8).letterSpacing(0.025_em),
+      rule(".reading").fontStyle(FontStyle::Italic).fontSize(11),
+      rule(".attribution").fontStyle(FontStyle::Italic),
+      rule(".douglas")
+          .fontSize(13)
+          .ink(var("ink"))
+          .font({.language = "en-GB"})
+          .lineHeight(weave::Leading::absolute(16))
+          .textAlign(weave::TextAlignment::kJustify)
+          .textWrap(TextWrap::Pretty)
+          .hyphens({.patterns = hyphenator()}),
+      rule(".douglas .attribution").fontSize(11).ink(var("ash")),
+  };
+}
+
+/** The verification's own theme, which the kit's table reads its registers
+ *  and colours from: the card's ink on the card's well, every register in
+ *  the mono a machine-read line is set in. */
+sketch::kit::Theme cardTheme(const CardColours& colours) {
+  sketch::kit::Theme look = sketch::kit::featureTheme();
+  look.palette = {.ground = colours.ground,
+                  .cellGround = colours.well,
+                  .ink = colours.ink,
+                  .ash = colours.ash,
+                  .rule = colours.rule,
+                  .figure = colours.ink};
+  look.type.captionLabel = {9.5f, 0.1f, true};
+  look.type.captionNote = {9.5f, 0.1f, true};
+  look.spacing.rowGap = 2.4f;
+  look.spacing.labelGap = 8;
+  look.spacing.swatchSide = 5;
+  return look;
+}
+
+/** A sampled repeat that stays on its pixel grid. */
+// workaround: a pattern samples linear whatever filter its tile carries,
+// so a cloth tile's nearest sampling is stated again here.
+Pattern nearest(material::pattern::Tile tile) {
+  Pattern held(std::move(tile));
+  held.sampling(SkSamplingOptions(SkFilterMode::kNearest));
+  return held;
+}
+
+/** A layer filling the box it stands in. */
+Element layer(material::skia::Paint paint) {
+  return box().cover().fill(std::move(paint));
+}
+
+/** A heading over what it announces. */
+Element titled(Utf8 heading, std::initializer_list<Children> body) {
+  return box().column().gap(12).children({document::h2(std::move(heading))})
+      .children(body);
+}
+
+/** One check of the card: what it is called, and the check itself, whose
+ *  label is the evidence it was judged on. */
+struct Proof {
+  std::string name;
+  measure::Check check;
+};
+
+}  // namespace
+
 struct BlackWatch {
-  // --- the data -----------------------------------------------------------
-  std::vector<Run> bwRuns, caRuns;
-  std::vector<uint8_t> S, A;
-  Verdict v;
-  std::vector<int> runStart;
-
-  // --- the loom -----------------------------------------------------------
-  choreograph::Output<float> loom{0};
-  double clock = 0;
-
-  // --- baked material ------------------------------------------------------
-  // Held as members: the shared bake IS the identity (Pattern.h), and a fresh
-  // Pattern per describe would re-render its tile on every render().
-  Pattern warpPattern;                  // the 1-D sequence, 252 bands
-  std::array<Pattern, 12> pickPattern;  // (colour, twill phase)
-  Pattern threadGrid;                   // the interlacement grooves
-  Paint warpMat, gridMat, boardMat, yarnGrain, drawGrid, swatchMat;
-  std::vector<Paint> pickMat;  // 12, resolved once
-  std::shared_ptr<instancing::CellSheet> pickAtlas;
-  std::shared_ptr<instancing::Pool> pickPool;
-  std::vector<Paint> clothMat;  // 5 palettes, whole cloth
-  Paint argyllMat;
-  std::array<Paint, 9> blendMat;
-  std::shared_ptr<const sigil::image::ImageAsset> drawdownAsset;
-  measure::CheckTable verdict;
-  std::shared_ptr<weave::Paragraph> quote;
-  /** THE CARD'S WORDS: every heading, tag, note, label and quoted passage
-   *  stands in `data/content.json` beside this sketch and is read in setup,
-   *  so the code is the card's structure and the file is what it says. The
-   *  verification's lines are not here: each is computed from the two values
-   *  it reports, and a claim and its evidence may not be typed apart. */
   sketch::kit::Document doc;
+  CardColours colours;
+  Sett watch, argyll;
+  std::vector<uint8_t> threads;
+  std::vector<ShadeCard> cards;
+  Verdict verdict;
+  std::vector<Proof> proofs;
 
-  // The drawdown window: threads 60..91 of the sett. The 18-thread black of
-  // unit A sits between the last blue and the first green, so no shorter
-  // window carries all three colours at once; this one runs K2 B6 K18 G6 and
-  // therefore shows both kinds of blend cell as well as three solids.
-  static constexpr int kDrawOrigin = 60, kDrawN = 32;
-  static constexpr float kDrawCell = 9;
+  /** Held because the bake is a pattern's identity: one minted inside a
+   *  describe would re-render its tile on every render. */
+  Pattern warpOnBeam, argyllCloth, drawdown, grooves, draftGrid;
+  std::vector<Pattern> cloths;  // one per shade card
+  std::array<Pattern, 9> blends;
+  material::skia::Paint board, yarn;
 
-  // =========================================================================
-
-  void build() {
-    bwRuns = concatRuns({kSettA, kSettB, kSettC, kSettB});
-    caRuns = concatRuns({kArgA, kArgB, kArgC, kArgD});
-    S = patterns::threadcount(bwRuns);
-    A = patterns::threadcount(caRuns);
-    {
-      int cur = 0;
-      for (const Run& r : bwRuns) {
-        runStart.push_back(cur);
-        cur += r.threads;
-      }
-    }
-    v = verify(bwRuns, S, A);
-
-    const Shades modern = shadesOf(kPalettes[0]);
-
-    // 1. THE WARP GROUND — one element for 252 threads. A tile exactly one
-    //    sett wide; the bands are half-open, from the same cursor rule the
-    //    expansion used.
-    {
-      const std::vector<Run> runs = bwRuns;
-      warpPattern = Pattern::tile(
-          {kPx * (float)S.size(), 8},
-          // copying the captures can fail only on allocation
-          // NOLINTNEXTLINE(bugprone-exception-escape)
-          [runs, modern](SkCanvas& c, SkSize sz, uint32_t) {
-            SkPaint p;
-            float cur = 0;
-            for (const Run& r : runs) {
-              p.setColor4f(
-                  sigil::material::skia::toSkColor(modern[(size_t)r.shade]),
-                  nullptr);
-              c.drawRect(
-                  SkRect::MakeXYWH(cur, 0, kPx * (float)r.threads, sz.height()),
-                  p);
-              cur += kPx * (float)r.threads;
-            }
-          });
-      warpMat = warpPattern.material();
-    }
-
-    // 2. THE WEFT — the defining property of a twill is that the
-    //    interlacement advances ONE THREAD PER PICK, and a Pattern tile cannot
-    //    be panned. Saved only by the phase being mod 4: the weft shows
-    //    where (x - y) mod 4 is in {2, 3}, i.e. a 4-px-on / 4-px-off stripe
-    //    whose phase is ((i + 2) mod 4) * 2 px. Three colours by four phases
-    //    is twelve patterns, built once, and every one of the 378 picks
-    //    selects one of them. A weave with any other modulus would have had
-    //    nothing to select from.
-    for (int c = 0; c < 3; ++c)
-      for (int ph = 0; ph < 4; ++ph) {
-        const sigil::material::Color col = modern[(size_t)c];
-        const float off = (float)ph * kPx;
-        pickPattern[(size_t)c * 4 + (size_t)ph] = Pattern::tile(
-            {4 * kPx, kPx}, [col, off](SkCanvas& cv, SkSize sz, uint32_t) {
-              SkPaint p;
-              p.setColor4f(sigil::material::skia::toSkColor(col), nullptr);
-              // the float, plus its wrap copy so the tile stays seamless
-              cv.drawRect(SkRect::MakeXYWH(off, 0, 2 * kPx, sz.height()), p);
-              cv.drawRect(
-                  SkRect::MakeXYWH(off - sz.width(), 0, 2 * kPx, sz.height()),
-                  p);
-            });
-      }
-    pickMat.clear();
-    for (Pattern& p : pickPattern) pickMat.push_back(p.material());
-
-    // The twelve pick tiles as an ATLAS of twelve cells, each one full-width
-    // strip of cloth, and a POOL of one frame per pick. kNearest, because a
-    // thread is a whole number of pixels and any filtering across a stripe
-    // boundary is a blur of the interlacement this card exists to show.
-    pickAtlas = std::make_shared<instancing::CellSheet>(2.0f);
-    pickAtlas->filter(SkFilterMode::kNearest);
-    std::array<int, 12> frame{};
-    for (int c = 0; c < 3; ++c)
-      for (int ph = 0; ph < 4; ++ph) {
-        const size_t k = (size_t)c * 4 + (size_t)ph;
-        frame[k] = pickAtlas->cell(box().fill(pickMat[k]), {kClothW, kPx});
-      }
-    auto pool = std::make_shared<instancing::Pool>();
-    pool->resize((size_t)kPicks);
-    {
-      // A stamp is anchored at the sprite's CENTRE, so pick i sits half a
-      // thread below its own top edge.
-      auto pos = pool->positions();
-      auto fr = pool->frames();
-      auto alpha = pool->alphas();  // the opt-in fade lane
-      for (int i = 0; i < kPicks; ++i) {
-        const int col = (int)S[(size_t)(i % (int)S.size())];
-        const int phase = (i + 2) % 4;
-        pos[(size_t)i] = {kClothW * 0.5f, ((float)i + 0.5f) * kPx};
-        fr[(size_t)i] = frame[(size_t)col * 4 + (size_t)phase];
-        alpha[(size_t)i] = 0.0f;
-      }
-      pool->commit();
-    }
-    pickPool = pool;
-
-    // 3. THE INTERLACEMENT SHADOW — in real cloth the thread that is UNDER at
-    //    a cell is shaded by the one on top, and that is why the twill rib is
-    //    legible even inside a block of ONE colour. Read it off the register's
-    //    swatch: its solid green square is not flat, it is ribbed. So the
-    //    overlay is not a grid, it is the DRAFT again, at very low alpha —
-    //    one 4x4-thread tile (the twill's own period), weft-up cells darkened,
-    //    plus a hairline at each pick and end boundary for the yarn grooves.
-    //    One element, multiplied over the whole panel.
-    threadGrid = Pattern::tile({4 * kPx, 4 * kPx}, [](SkCanvas& c, SkSize,
-                                                      uint32_t) {
-      SkPaint p;
-      p.setColor4f({0, 0, 0, 0.17f}, nullptr);
-      for (int y = 0; y < 4; ++y)
-        for (int x = 0; x < 4; ++x)
-          if (!warpUp(x, y))
-            c.drawRect(
-                SkRect::MakeXYWH((float)x * kPx, (float)y * kPx, kPx, kPx), p);
-      p.setColor4f({0, 0, 0, 0.16f}, nullptr);
-      for (int i = 0; i < 4; ++i)
-        c.drawRect(SkRect::MakeXYWH(0, (float)i * kPx, 4 * kPx, 1), p);
-      p.setColor4f({0, 0, 0, 0.09f}, nullptr);
-      for (int i = 0; i < 4; ++i)
-        c.drawRect(SkRect::MakeXYWH((float)i * kPx, 0, 1, 4 * kPx), p);
-    });
-    gridMat = threadGrid.material();
-    drawGrid =
-        Pattern(patterns::gridLines(kDrawCell, 0.7f, hexColor(0x8A8478, 0.6f)))
-            .material();
-
-    // 4. WHOLE-CLOTH BAKES — one per palette family, 252 x 252 at one pixel
-    //    per thread, magnified x2 with kNearest. Same 252 threads, same
-    //    draft, five legitimate cloths: the palette turn costs five images
-    //    and changes nothing structural, which IS the colour argument.
-    clothMat.clear();
-    for (const Palette& p : kPalettes)
-      clothMat.push_back(imageMat(
-          bakeCloth(S, shadesOf(p), 0, 0, (int)S.size(), (int)S.size()), kPx));
-
-    // The provenance swatches are CROPS, never a scaled-down sett: 90 x 55
-    // threads at the same 2 px, taken at the same offset in all four. Origin
-    // (34, 40) puts a blue square, a green square, the black bars between
-    // them and both kinds of blend cell inside 180 x 110 px.
-    swatchMat = imageMat(bakeCloth(S, modern, 34, 40, 90, 55), kPx);
-    // Campbell's two overchecks are 208 threads apart, so no single square
-    // crop contains both. This one takes its warp from the yellow band and
-    // its weft from the white one — a real region of the cloth, and the only
-    // place the two overchecks are seen crossing.
-    argyllMat = imageMat(bakeCloth(A, modern, 150, 358, 90, 55), kPx);
-
-    // 5. THE BLEND TABLE and THE DRAWDOWN — the same generator at different
-    //    scales, never authored separately.
-    for (int wp = 0; wp < 3; ++wp)
-      for (int wf = 0; wf < 3; ++wf)
-        blendMat[(size_t)wf * 3 + (size_t)wp] =
-            imageMat(bakeBlend(modern[(size_t)wp], modern[(size_t)wf], 6), 8);
-    drawdownAsset = std::make_shared<const sigil::image::ImageAsset>(
-        sigil::image::ImageAsset::wrap(bakeCloth(
-            S, modern, kDrawOrigin, kDrawOrigin, kDrawN, kDrawN, 0.22f)));
-
-    // 6. Card tooth and yarn tooth. grain() is the LUMINANCE field, and an
-    //    opaque manila board is where its header says it belongs. Both keep
-    //    frequency * stretch * 2^(octaves-1) under 0.4, or the y axis aliases
-    //    into hash noise with no diagnostic.
-    boardMat = Paint::recipe(matkit::board({.paint = kCard,
-                                            .tooth = 0.10f,
-                                            .toothScale = 0.045f,
-                                            .wear = 0.05f,
-                                            .wearScale = 0.004f,
-                                            .seed = 7.0f}));
-    yarnGrain = Paint::recipe(field::grain(0.09f, 3, 3.0f, 0.75f));
-
-    buildVerifyTable();
-    buildQuote();
-  }
-
-  /** THE VERIFICATION, as one table. Every row's verdict is COMPUTED from
-   *  the two values it reports, so a row that reads PASS cannot disagree
-   *  with the arithmetic beside it, and the panel reads the verdict as a
-   *  value rather than sniffing it out of a formatted string. The two rows
-   *  that are measurements with nothing to judge are
-   *  readings; the one that is a statement about the SETTS rather than
-   *  about this reconstruction — that Black Watch and Campbell of Argyll
-   *  agree unit for unit — is a finding. */
-  void buildVerifyTable() {
-    verdict = {};
-    verdict
-        .add(measure::check(
-            kit::formatted("SETT CLOSES      %d + %d + %d + %d ends", v.unitA,
-                           v.unitB, v.unitC, v.unitB),
-            kPublishedEnds, v.total))
-        .add(measure::check(
-            kit::formatted("REFLECTIVE       mirrors at thread %d, %d, gap",
-                           !v.mirrors.empty() ? v.mirrors[0] : -1,
-                           v.mirrors.size() > 1 ? v.mirrors[1] : -1),
-            v.total / 2, v.mirrorGap))
-        .add(measure::check(
-            kit::formatted("2/2 BALANCE      max warp float %d, max weft float",
-                           v.maxWarpFloat),
-            2, v.maxWeftFloat))
-        .add(measure::check(
-            kit::formatted(
-                "THREAD RATIO     K %d : B %d : G %d, blue is the third",
-                v.counts[K], v.counts[B], v.counts[G]),
-            v.blueIsThird))
-        .add(measure::check(
-            kit::formatted("COLOUR LAW       n = %d → n(n+1)/2 perceived",
-                           v.solids),
-            v.solids * (v.solids + 1) / 2, v.perceived))
-        .add(measure::check("EXACT COVER      uncovered", 0, v.uncovered))
-        .add(measure::check("                 doubled", 0, v.doubled))
-        .add(measure::reading("                 samples", v.samples))
-        .add(measure::check(
-            kit::formatted("CAMPBELL ARGYLL  n = %d → %d perceived, ends",
-                           v.argyllSolids, v.argyllPerceived),
-            kPublishedArgyll, v.argyllTotal))
-        // The two setts are the same design at two scales — a claim about
-        // the CLOTH, not about this file, so its verdict is printed and
-        // never counted against the run.
-        .add(measure::finding(
-            measure::check("UNIT DRIFT       max |BW − CA| over A B C D, %",
-                           0.0, (double)(v.unitDrift * 100.0f), 1.0)))
-        .add(measure::reading("TWILL ANGLE      42 epi = 42 ppi, degrees",
-                              std::atan2(1.0, 1.0) * 180.0 / 3.14159265358979))
-        .add(measure::reading(
-            kit::formatted("SETT WIDTH       %d ends / 42 epi, mm", v.total),
-            (double)((float)v.total / 42.0f * 25.4f)));
-  }
-
-  void buildQuote() {
-    // One genuinely justified paragraph: Knuth-Plass, hyphenation on, a real
-    // 320 px measure. SigilWeave breaks at SOFT HYPHENS only, so the
-    // discretionaries are typed in (U+00AD) the way a compositor would set
-    // them — HyphenationOptions has no automatic dictionary behind it.
-    weave::TextStyle body =
-        weave::textStyle({.face = serif(), .size = 13, .color = kInk});
-    body.shaping.languageTag = "en-GB";
-    weave::TextStyle attrib =
-        weave::textStyle({.face = serifIt(), .size = 11, .color = kInk2});
-    weave::ParagraphBuilder b(body);
-    const data::Json& said = doc["douglas"];
-    b.addText(said["body"].text());
-    b.pushStyle(attrib);
-    b.addText(said["attribution"].text());
-    quote = std::make_shared<weave::Paragraph>(b.build());
-  }
+  choreograph::Output<float> loom{0};
 
   // =========================================================================
-  // The cloth. One striped ground, 378 phase-shifted picks, and nothing else.
 
-  Element theCloth() {
-    Element panel = at(kClothX, kClothY, kClothW, kClothH)
-                        .overflow(Overflow::Clip)
-                        .background(styles::dropShadow(
-                            hexColor(0x3E3A33, 0.55f), {3, 4}, 10))
-                        .fill(kWell);
+  void weaveEverything() {
+    threads = watch.threads();
+    const Shades& modern = cards.front().shades;
+    for (const ShadeCard& card : cards)
+      cloths.push_back(nearest(
+          patterns::clothTile(cloth(threads, card.shades, 0.17f), kThread)));
+    // The warp on the beam is the cloth before a single pick is woven: an
+    // interlacing that never lifts the weft shows the ends alone.
+    warpOnBeam = nearest(patterns::clothTile(
+        {.warp = threads,
+         .weft = {0},
+         .shades = {modern.begin(), modern.end()},
+         .weave = patterns::Weave{.over = 1, .under = 0, .advance = 0}},
+        kThread));
+    argyllCloth = nearest(
+        patterns::clothTile(cloth(argyll.threads(), modern, 0.17f), kThread));
+    const std::vector<uint8_t> window(
+        threads.begin() + kDraftFirst,
+        threads.begin() + kDraftFirst + kDraftEnds);
+    drawdown =
+        nearest(patterns::clothTile(cloth(window, modern, 0.22f), kDraftCell));
+    // The blend table is the same generator at a one-thread sett each way,
+    // so if a cell disagrees with the cloth then one of the two is wrong.
+    for (int weftShade = 0; weftShade < 3; ++weftShade)
+      for (int warpShade = 0; warpShade < 3; ++warpShade)
+        blends[(size_t)(weftShade * 3 + warpShade)] = nearest(
+            patterns::clothTile({.warp = {0},
+                                 .weft = {1},
+                                 .shades = {modern[(size_t)warpShade],
+                                            modern[(size_t)weftShade]},
+                                 .weave = kTwill},
+                                8));
+    // The grooves between yarns: a hairline at every end and pick, which
+    // the rib alone does not draw.
+    grooves = nearest(patterns::gridLines(kThread, 1, {0, 0, 0, 0.12f}));
+    draftGrid = nearest(
+        patterns::gridLines(kDraftCell, 0.7f, faded(colours.rule, 0.6f)));
+    // The board is one recipe, paint and tooth together; the yarn's tooth
+    // keeps frequency · stretch · 2^(octaves−1) under 0.4, past which its
+    // y axis aliases into hash noise.
+    board = material::skia::Paint::recipe(
+        material::kit::board({.paint = colours.ground,
+                              .tooth = 0.10f,
+                              .toothScale = 0.045f,
+                              .wear = 0.05f,
+                              .wearScale = 0.004f,
+                              .seed = 7.0f}));
+    yarn = material::skia::Paint::recipe(
+        material::field::grain(0.09f, 3, 3.0f, 0.75f));
+  }
 
-    // the warp on the beam: the whole design, in one dimension
-    panel.children(
-        {at(0, 0, kClothW, kClothH).fill(warpMat),
-         // the picks. 378 strips that differ only in WHICH of twelve pick
-         // materials they wear and how far along the beat they have beaten in —
-         // which is one instanced leaf: a CellSheet of the twelve (colour,
-         // phase) tiles, and a Pool of 378 frames whose per-instance ALPHA
-         // lane is written from the loom. One draw, no layout, and a fade
-         // that rewrites one float per pick instead of running 378 bindings.
-         at(0, 0, kClothW, kClothH)
-             .children({instancing::instances(pickAtlas, pickPool,
-                                              instancing::Mode::Live)}),
-         // the shutter: the warp beams on left-to-right. There is no wipe verb,
-         // and scaleX on the ground itself would squash the bands rather than
-         // reveal them, so the reveal is a retreating card-coloured blind laid
-         // over it.
-         at(0, 0, kClothW, kClothH)
-             .fill(kWell)
-             .transformOrigin(pct(100), pct(50))
-             .scaleX(bind(&loom)
-                         .source(0.0f, kBeamEnd)
-                         .invert()
-                         .clamp(0.0f, 1.0f))});
-
-    // the five cloths. Pixel-identical to the woven picks at palette 0, so
-    // the hand-off at the end of the weaving beat is invisible; then each
-    // family fades over the last, and Modern comes back for the hold.
-    struct Turn {
-      int pal;
-      float a, b;
+  /** Every row's verdict is computed from the two values it reports, so a
+   *  row reading PASS cannot disagree with the figure beside it. The
+   *  agreement of the two setts is a claim about the cloth rather than
+   *  about this reconstruction, so it is a finding and never counted
+   *  against the run. */
+  void prove() {
+    verdict = verify(watch, argyll);
+    std::string units;
+    for (int ends : verdict.unitEnds)
+      units += kit::formatted("%s%d", units.empty() ? "" : " + ", ends);
+    const int perceived = verdict.solids + verdict.blends;
+    proofs = {
+        {"SETT CLOSES", measure::check(units + " ends", watch.publishedEnds,
+                                       verdict.total)},
+        {"REFLECTIVE",
+         measure::check(kit::formatted("mirrors at thread %d, %d, gap",
+                                       verdict.mirrors.empty() ? -1 : verdict.mirrors[0],
+                                       verdict.mirrors.size() > 1 ? verdict.mirrors[1]
+                                                            : -1),
+                        verdict.total / 2, verdict.mirrorGap)},
+        {"2/2 BALANCE",
+         measure::check(kit::formatted("longest float, warp %d, weft",
+                                       verdict.maxWarpFloat),
+                        2, verdict.maxWeftFloat)},
+        {"THREAD RATIO",
+         measure::check(kit::formatted("K %d : B %d : G %d, blue is a third",
+                                       verdict.counts[K], verdict.counts[B], verdict.counts[G]),
+                        verdict.counts[B] * 3 == verdict.total)},
+        {"COLOUR LAW",
+         measure::check(
+             kit::formatted("n = %d → n(n+1)/2 perceived", verdict.solids),
+             verdict.solids * (verdict.solids + 1) / 2, perceived)},
+        {"EXACT COVER",
+         measure::check(kit::formatted("%d samples, gaps + overlaps",
+                                       verdict.samples),
+                        0, verdict.uncovered + verdict.doubled)},
+        {"CAMPBELL ARGYLL",
+         measure::check(
+             kit::formatted("n = %d → %d perceived, ends", verdict.argyllSolids,
+                            verdict.argyllSolids + verdict.argyllBlends),
+             argyll.publishedEnds, verdict.argyllTotal)},
+        {"UNIT DRIFT",
+         measure::finding(measure::check("max |BW − CA| over A B C D, %", 0.0,
+                                         verdict.unitDrift, 1.0))},
+        {"TWILL ANGLE", measure::reading("42 epi = 42 ppi, degrees", 45)},
+        {"SETT WIDTH",
+         measure::reading(
+             kit::formatted("%d ends / 42 epi, mm", verdict.total),
+             std::round((double)verdict.total / 42.0 * 25.4 * 10.0) / 10.0)},
     };
-    const Turn turns[] = {{0, 0.5050f, kWeaveEnd}, {1, 0.6125f, 0.6375f},
-                          {2, 0.6625f, 0.6875f},   {3, 0.7125f, 0.7375f},
-                          {4, 0.7625f, 0.7875f},   {0, 0.8125f, kTurnEnd}};
-    for (const Turn& t : turns)
-      panel.children(
-          {at(0, 0, kClothW, kClothH)
-               .fill(clothMat[(size_t)t.pal])
-               .opacity(bind(&loom).source(t.a, t.b).clamp(0.0f, 1.0f))});
+    const int ends = verdict.total;
+    doc.figures({
+        {"ends", kit::formatted("%d", ends)},
+        {"half", kit::formatted("%d", ends / 2)},
+        {"cells", kit::formatted("%d,%03d", ends * ends / 1000,
+                                 ends * ends % 1000)},
+        {"first", kit::formatted("%d", kDraftFirst + 1)},
+        {"last", kit::formatted("%d", kDraftFirst + kDraftEnds)},
+        {"window", spelled(threads, kDraftFirst, kDraftEnds)},
+        {"cell", kit::formatted("%.0f", kDraftCell)},
+        {"solids", kit::formatted("%d", verdict.solids)},
+        {"blends", kit::formatted("%d", verdict.blends)},
+        {"perceived", kit::formatted("%d", perceived)},
+        {"argyll", kit::formatted("%d", verdict.argyllTotal)},
+        {"drift", kit::formatted("%.2f", verdict.unitDrift)},
+    });
+  }
 
-    // the surface, above the weave: rib shadow, then yarn tooth. These are
-    // siblings rather than decorations, and the reason is narrow.
-    // Element::overlay() paints UNDER children; foreground(), which is above
-    // them, takes a Decoration, and none of the decoration primitives means
-    // "flood the outline with this Material through this blend mode". A raw
-    // PaintProgram would do it, but a node carrying one never prunes, whereas
-    // a sibling element with .blendMode() does. Both grain layers carry
-    // Cache::Texture, because a static SkSL Material caches its SHADER and not
-    // its PIXELS — without the bake, this full-canvas fractal is re-evaluated
-    // per pixel per frame, and it is by far the most expensive thing here.
-    panel.children({at(0, 0, kClothW, kClothH)
-                        .fill(gridMat)
-                        .blendMode(SkBlendMode::kMultiply)
-                        .opacity(0.9f),
-                    at(0, 0, kClothW, kClothH)
-                        .fill(yarnGrain)
-                        .blendMode(SkBlendMode::kOverlay)
-                        .cache(Cache::Texture)
-                        .opacity(0.14f)});
-
-    // the mirror axes, flashed once while the arithmetic proves itself
-    for (int rep = 0; rep < 2; ++rep)
-      for (int m : v.mirrors) {
-        const float x = (float)(m + rep * v.total) * kPx;
-        if (x > kClothW) continue;
-        panel.children({at(x - 0.5f, 0, 1, kClothH)
-                            .fill(kRed)
-                            .opacity(bind(&loom)
-                                         .source(kWeaveEnd, kProveEnd)
-                                         .map(plateau(0.25f))
-                                         .scale(0.8f))});
+  /** Where the mirror axes fall across the cloth, in pixels: each pivot
+   *  of each repeat the panel shows, the first repeat's first. */
+  std::vector<float> mirrorPositions() const {
+    std::vector<float> positions;
+    for (int repeat = 0; repeat < 2; ++repeat)
+      for (int mirror : verdict.mirrors) {
+        const float position =
+            (float)(mirror + repeat * verdict.total) * kThread;
+        if (position <= kEnds * kThread) positions.push_back(position);
       }
+    return positions;
+  }
 
-    // the fell line: the shuttle's current pick, riding the leading edge
-    panel.children(
-        {at(0, 0, kClothW, 2)
-             .fill(kRed)
-             .translateY(bind(&loom)
-                             .source(kBeamEnd, kWeaveEnd)
-                             .target(0.0f, kClothH)
-                             .clamp(0.0f, kClothH))
-             .opacity(bind(&loom)
-                          .source(kBeamEnd - 0.01f, kWeaveEnd + 0.01f)
-                          .map(plateau(0.03f)))});
+  // =========================================================================
+  // The masthead: the registration over a rule, the specimen ticket in
+  // the corner.
+
+  Element masthead() const {
+    const data::Json& words = doc["masthead"];
+    return box().row().justifyContent(Justify::SpaceBetween).children(
+        {box().column().gap(14).children(
+             {document::h1(doc.phrase(words["title"])),
+              document::lead(doc.phrase(words["registration"]))}),
+         box().row().gap(13).width(486).styleClass("ticket").children(
+             {kit::line({.thickness = 1, .column = true,
+                         .fill = Fill::var("rule")}),
+              box().column().gap(4.5f).children(
+                  {each(words["ticket"].items(),
+                        [this](const data::Json& line) {
+                          return document::caption(doc.phrase(line));
+                        })})})});
+  }
+
+  // =========================================================================
+  // The sett bar: the threadcount as the one-dimensional object it is,
+  // warp-aligned with the cloth under it — it IS the warp on the beam.
+
+  Element settBar() const {
+    const data::Json& words = doc["sett"];
+    const float width = kEnds * kThread;
+    Element bar =
+        box()
+            .height(34)
+            .fill(warpOnBeam.material())
+            .stroke(stroke(1, Fill::var("rule"), PathFormat::Align::Outer))
+            .children({document::caption(doc.phrase(words["register"]))
+                           .styleClass("proof")
+                           .right(0)
+                           .top(-26)});
+    // The pivots snap in when the arithmetic proves them; the first
+    // repeat's are named.
+    const std::vector<float> pivots = mirrorPositions();
+    for (size_t index = 0; index < pivots.size(); ++index) {
+      bar.children({box()
+                        .left(pivots[index] - 6)
+                        .top(-11)
+                        .width(12)
+                        .height(10)
+                        .shape(shapes::polygon(3, 180))
+                        .fill(Fill::var("proof"))
+                        .transformOrigin(pct(50), pct(100))
+                        .scale(bind(&loom)
+                                   .window(kWeaveEnd, kWeaveEnd + 0.035f)
+                                   .map(ease::outBack()))});
+      if (index < verdict.mirrors.size())
+        bar.children(
+            {box()
+                 .left(pivots[index] - 45)
+                 .top(-26)
+                 .width(90)
+                 .opacity(bind(&loom).window(kWeaveEnd + 0.01f,
+                                             kWeaveEnd + 0.045f))
+                 .children(
+                     {document::caption(doc.phrase(words["pivots"][index]))
+                          .styleClass("proof")
+                          .textAlign(weave::TextAlignment::kCenter)
+                          .width(pct(100))})});
+    }
+    // The numerals of one repeat, each centred under its own band.
+    const std::vector<Run> runs = watch.runs();
+    return box().column().width(width).marginTop(26).children(
+        {std::move(bar),
+         box().row().marginTop(3).styleClass("runs").children(
+             {each(runs,
+                   [](const Run& run) {
+                     return box()
+                         .width(kThread * (float)run.threads)
+                         .flexShrink(0)
+                         .alignItems(Align::Center)
+                         .children({document::caption(
+                             std::to_string(run.threads))});
+                   })}),
+         document::caption(spelled(threads, 0, threads.size()))
+             .styleClass("count")
+             .marginTop(4),
+         document::caption(doc.phrase(words["notation"])).marginTop(6)});
+  }
+
+  // =========================================================================
+  // The cloth: the warp beams on left to right, the picks beat in top to
+  // bottom, the mirror axes flash while the arithmetic proves, and the
+  // cloth is dyed in each shade card in turn.
+
+  Element clothPanel() const {
+    const float width = kEnds * kThread, height = kPicks * kThread;
+    Element panel =
+        box()
+            .width(width)
+            .height(height)
+            .marginTop(14)
+            .overflow(Overflow::Clip)
+            .background(styles::dropShadow(faded(colours.shadow, 0.55f),
+                                           {3, 4}, 10))
+            .fill(Fill::var("well"))
+            .children({
+                layer(cloths.front().material()),
+                // The warp alone covers the woven cloth and withdraws
+                // downward, so the cloth appears pick by pick above the
+                // fell. The warp is the same at every height, so squashing
+                // it only shortens it.
+                layer(warpOnBeam.material())
+                    .transformOrigin(pct(50), pct(100))
+                    .scaleY(bind(&loom).window(kBeamEnd, kWeaveEnd).invert()),
+                // Before that the warp itself is beamed on: a blind in the
+                // well's colour withdraws to the right.
+                box()
+                    .cover()
+                    .fill(Fill::var("well"))
+                    .transformOrigin(pct(100), pct(50))
+                    .scaleX(bind(&loom).window(0, kBeamEnd).invert()),
+            });
+    for (size_t turn = 1; turn < kTurns.size(); ++turn)
+      panel.children(
+          {layer(cloths[(size_t)kTurns[turn].card].material())
+               .opacity(bind(&loom).window(kTurns[turn].start,
+                                           kTurns[turn].start + kFade))});
+    panel.children({layer(grooves.material())
+                        .blendMode(SkBlendMode::kMultiply)
+                        .opacity(0.9f)
+                        .cache(Cache::Texture),
+                    layer(yarn)
+                        .blendMode(SkBlendMode::kOverlay)
+                        .opacity(0.14f)
+                        .cache(Cache::Texture)});
+    // The mirror axes flash while the arithmetic proves itself.
+    panel.children({each(mirrorPositions(), [this](float position) {
+      return box()
+          .left(position - 0.5f)
+          .top(0)
+          .width(1)
+          .height(pct(100))
+          .fill(Fill::var("proof"))
+          .opacity(bind(&loom)
+                       .source(kWeaveEnd, kProveEnd)
+                       .trapezoid(0, 0.25f, 0.75f, 1)
+                       .scale(0.8f));
+    })});
+    // The fell: the shuttle's current pick, riding the edge of the cloth.
+    panel.children({box()
+                        .left(0)
+                        .top(0)
+                        .width(pct(100))
+                        .height(2)
+                        .fill(Fill::var("proof"))
+                        .translateY(bind(&loom)
+                                        .window(kBeamEnd, kWeaveEnd)
+                                        .target(0, height))
+                        .opacity(bind(&loom)
+                                     .source(kBeamEnd - 0.01f,
+                                             kWeaveEnd + 0.01f)
+                                     .trapezoid(0, 0.03f, 0.97f, 1))});
     return panel;
   }
 
   // =========================================================================
-  // The sett bar: the thread count as the one-dimensional object it is,
-  // warp-aligned with the cloth under it.
+  // The weaver's draft, drawn from the loom's three lines — threading
+  // across the top, tie-up in the corner, treadling down the right — and
+  // the drawdown the cloth generator weaves from them. If the two ever
+  // disagree, one of them is wrong.
 
-  Element theSettBar() {
-    Element g = box();
-    g.children({at(kClothX, kBarY, kClothW, kBarH)
-                    .fill(warpMat)
-                    .foreground(stroke(1, Fill::color(kRule),
-                                       PathFormat::Align::Outer))});
-
-    // run numerals, staggered over two rows so a 4 px band still gets one
-    for (size_t r = 0; r < bwRuns.size(); ++r) {
-      const float cx =
-          kClothX +
-          ((float)runStart[r] + (float)bwRuns[r].threads * 0.5f) * kPx;
-      g.children(
-          {centred(std::to_string(bwRuns[r].threads), cx - 14,
-                   kBarY + kBarH + 3 + (r % 2 ? 10.0f : 0.0f), 28)
-               .font(
-                   {.size = 8, .color = r % 2 ? kInk2 : kInk, .track = 0.4f})});
-    }
-
-    // the two pivots, snapping in when the arithmetic proves
-    for (int rep = 0; rep < 2; ++rep)
-      for (size_t i = 0; i < v.mirrors.size(); ++i) {
-        const float x = kClothX + (float)(v.mirrors[i] + rep * v.total) * kPx;
-        if (x > kClothX + kClothW) continue;
-        g.children({at(x - 6, kBarY - 11, 12, 10)
-                        .shape(shapes::polygon(3, 180))
-                        .fill(kRed)
-                        .transformOrigin(pct(50), pct(100))
-                        .scale(bind(&loom)
-                                   .source(kWeaveEnd, kWeaveEnd + 0.035f)
-                                   .map(backOut()))});
-        if (rep == 0)
-          g.children(
-              {centred(doc["sett"]["pivots"][i], x - 45, kBarY - 26, 90)
-                   .font({.size = 8, .color = kRed, .track = 0.8f})
-                   .opacity(bind(&loom)
-                                .source(kWeaveEnd + 0.01f, kWeaveEnd + 0.045f)
-                                .clamp(0.0f, 1.0f))});
-      }
-
-    // the register's own phrase, out of the way of the pivot flags
-    g.children({label(doc["sett"]["register"], 660, kBarY - 26, 420)
-                    .font({.size = 8.5f, .color = kRed, .track = 0.4f})});
-
-    // the count itself, set as one mono run
-    std::string count;
-    static const char kCode[] = "KBGYW";
-    for (const auto& run : bwRuns)
-      count += kit::formatted("%c%d ", kCode[run.shade], run.threads);
-    g.children(
-        {label(count, kClothX, kBarY + kBarH + 27, kClothW)
-             .font({.size = 11.5f, .color = kInk, .track = 0.3f}),
-         label(doc["sett"]["notation"], kClothX, kBarY + kBarH + 47, kClothW)
-             .font({.size = 8.5f, .track = 0.5f})});
-    return g;
+  Element draftBlock(int columns, int rows,
+                     const std::function<bool(int, int)>& lifted) const {
+    return box()
+        .row()
+        .flexWrap()
+        .width((float)columns * kDraftCell)
+        .stroke(stroke(1, Fill::var("ink"), PathFormat::Align::Outer))
+        .children({each(std::views::iota(0, columns * rows),
+                        [&](int index) {
+                          return box().styleClass(
+                              lifted(index % columns, index / columns)
+                                  ? "cell lifted"
+                                  : "cell");
+                        }),
+                   layer(draftGrid.material())});
   }
 
-  // =========================================================================
-  // The weaver's draft: threading across the top, tie-up in the corner,
-  // treadling down the right, drawdown filling the body. Four centuries old,
-  // and still the clearest notation anyone has for a stored program.
-
-  Element theDraft() {
-    const float c = kDrawCell;
-    const float x0 = kColX, y0 = 172;
-    const float bodyY = y0 + 4 * c + 20;     // 228
-    const float tieX = x0 + kDrawN * c + 8;  // 1400
-    const data::Json& tags = doc["draft"]["tags"];
-    Element g = box();
-
-    g.children(
-        {label("THE DRAFT  ·  4 SHAFTS, STRAIGHT DRAW, 2/2 BALANCED TWILL, "
-               "TROMP AS WRIT",
-               kColX, 140, kColW + 40)
-             .role("h2")
-             .styleClass("heading")});
-
-    auto cell = [&](float x, float y, bool on) {
-      return at(x, y, c, c)
-          .fill(on ? kInk : kCard)
-          .foreground(
-              stroke(0.6f, Fill::color(kRule), PathFormat::Align::Inner));
+  Element draft() const {
+    const data::Json& words = doc["draft"];
+    const auto tagged = [this](const data::Json& tag, Element block) {
+      return box().column().alignItems(Align::Center).gap(4).children(
+          {document::caption(doc.phrase(tag)).styleClass("tag"),
+           std::move(block)});
     };
-
-    // threading — shaft (j mod 4), shaft 1 at the top
-    for (int j = 0; j < kDrawN; ++j)
-      for (int s = 0; s < 4; ++s)
-        g.children({cell(x0 + (float)j * c, y0 + (float)s * c,
-                         ((kDrawOrigin + j) % 4) == s)});
-    // tie-up — treadle t lifts shafts t and t+1
-    for (int t = 0; t < 4; ++t)
-      for (int s = 0; s < 4; ++s)
-        g.children({cell(tieX + (float)t * c, y0 + (float)s * c,
-                         s == t || s == (t + 1) % 4)});
-    // treadling — as-drawn-in, and it highlights in sync with the fell line
-    for (int i = 0; i < kDrawN; ++i) {
-      const int t = (kDrawOrigin + i) % 4;
-      for (int tt = 0; tt < 4; ++tt)
-        g.children({cell(tieX + (float)tt * c, bodyY + (float)i * c, tt == t)});
-      const float a =
-          kBeamEnd + (kWeaveEnd - kBeamEnd) * (float)i / (float)kDrawN;
-      const float b =
-          kBeamEnd + (kWeaveEnd - kBeamEnd) * (float)(i + 1) / (float)kDrawN;
-      g.children({at(tieX - 3, bodyY + (float)i * c, 4 * c + 6, c)
-                      .fill(hexColor(0x9A3324, 0.30f))
-                      .opacity(bind(&loom).source(a, b).map(plateau(0.35f)))});
-    }
-    // drawdown — the cloth itself, at kDrawCell px per thread, kNearest
-    g.children(
-        {at(x0, bodyY, (float)kDrawN * c, (float)kDrawN * c)
-             .children({image(drawdownAsset)
-                            .inset(0)
-                            .imageRendering(
-                                SkSamplingOptions(SkFilterMode::kNearest)),
-                        at(0, 0, (float)kDrawN * c, (float)kDrawN * c)
-                            .fill(drawGrid)})
-             .foreground(
-                 stroke(1, Fill::color(kInk), PathFormat::Align::Outer)),
-         label(kit::formatted(
-                   "ENDS %d-%d OF THE SETT (K2 B6 K18 G6), SQUARED AGAINST "
-                   "THEMSELVES  ·  %d PX / THREAD",
-                   kDrawOrigin + 1, kDrawOrigin + kDrawN, (int)c),
-               x0, bodyY + (float)kDrawN * c + 6, kColW + 40)
-             .font({.size = 8, .track = 0.4f})});
-    // shaft numbers down the left of the threading block
-    for (int s = 0; s < 4; ++s)
-      g.children(
-          {centred(std::to_string(s + 1), x0 - 15, y0 + (float)s * c - 1, 13)
-               .font({.size = 7})});
-    g.children({// the four quarters of the notation, named where each stands
-                centred(tags[0], x0 + 60, y0 - 11, 120).styleClass("tag"),
-                centred(tags[1], tieX - 8, y0 - 11, 60).styleClass("tag"),
-                centred(tags[2], tieX - 14, bodyY - 12, 72).styleClass("tag"),
-                centred(tags[3], x0 + 60, bodyY - 12, 120).styleClass("tag")});
-    return g;
+    Element threading = draftBlock(kDraftEnds, 4, [](int end, int shaft) {
+      return (kDraftFirst + end) % 4 == shaft;
+    });
+    threading.children({box().left(-15).top(0).column().children(
+        {each(std::views::iota(1, 5), [](int shaft) {
+          return box().height(kDraftCell).justifyContent(Justify::Center)
+              .children({document::caption(std::to_string(shaft))
+                             .styleClass("tag")});
+        })})});
+    Element treadling = draftBlock(4, kDraftEnds, [](int treadle, int pick) {
+      return (kDraftFirst + pick) % 4 == treadle;
+    });
+    // The treadle underfoot, stepping down in time with the fell.
+    treadling.children(
+        {box()
+             .left(-3)
+             .top(0)
+             .width(4 * kDraftCell + 6)
+             .height(kDraftCell)
+             .fill(faded(colours.proof, 0.3f))
+             .translateY(bind(&loom)
+                             .window(kBeamEnd, kWeaveEnd)
+                             .quantize(kDraftEnds)
+                             .target(0, (kDraftEnds - 1) * kDraftCell))
+             .opacity(bind(&loom)
+                          .source(kBeamEnd, kWeaveEnd)
+                          .trapezoid(0, 0.01f, 0.99f, 1))});
+    const float side = (float)kDraftEnds * kDraftCell;
+    return titled(
+        doc.phrase(words["heading"]),
+        {box().row().gap(8).alignItems(Align::End).marginLeft(15).children(
+             {tagged(words["tags"][0], std::move(threading)),
+              tagged(words["tags"][1],
+                     draftBlock(4, 4, [](int treadle, int shaft) {
+                       return shaft == treadle || shaft == (treadle + 1) % 4;
+                     }))}),
+         box().row().gap(8).alignItems(Align::Start).marginLeft(15).children(
+             {tagged(words["tags"][3],
+                     box()
+                         .width(side)
+                         .height(side)
+                         .fill(drawdown.material())
+                         .stroke(stroke(1, Fill::var("ink"),
+                                        PathFormat::Align::Outer))
+                         .children({layer(draftGrid.material())})),
+              tagged(words["tags"][2], std::move(treadling))}),
+         document::caption(doc.phrase(words["caption"]))});
   }
 
   // =========================================================================
+  // The third colours: three threads crossed make three solids and three
+  // blends, and the blend is woven, never mixed.
 
-  Element theBlendTable() {
-    const float y0 = 584, cell = 46, gap = 6, gx = kColX + 20;
-    const data::Json& page = doc["blends"];
-    Element g = box();
-    g.children({label(page["heading"], kColX, 556, kColW)
-                    .role("h2")
-                    .styleClass("heading")});
-    const SkSize module{cell, cell};
-    const SkSize gaps{gap, gap};
-    for (int i = 0; i < 3; ++i) {
-      const SkRect head = arrange::cellRect({i, i}, module, gaps, {gx, y0});
-      const Utf8 name = page["codes"][(size_t)i];
-      g.children({centred(name, head.fLeft, y0 - 14, cell)
-                      .font({.size = 9, .track = 0.8f}),
-                  centred(name, kColX, head.fTop + cell / 2 - 7, 16)
-                      .font({.size = 9, .track = 0.8f})});
-    }
-    for (int wf = 0; wf < 3; ++wf)
-      for (int wp = 0; wp < 3; ++wp) {
-        const SkRect box = arrange::cellRect({wp, wf}, module, gaps, {gx, y0});
-        g.children(
-            {at(box.fLeft, box.fTop, cell, cell)
-                 .fill(blendMat[(size_t)wf * 3 + (size_t)wp])
-                 .foreground(stroke(1, Fill::color(wp == wf ? kRule : kInk),
-                                    PathFormat::Align::Outer))});
+  Element blendTable() const {
+    const data::Json& words = doc["blends"];
+    constexpr float kCell = 46, kGap = 6;
+    const auto code = [](int shade, float width, float height) {
+      return box().width(width).height(height).alignItems(Align::Center)
+          .justifyContent(Justify::Center).children(
+              {document::caption(std::string(1, kShadeCodes[(size_t)shade]))
+                   .styleClass("code")});
+    };
+    Element table = box().column().gap(kGap).children(
+        {box().row().gap(kGap).marginLeft(16 + kGap).children(
+            {each(std::views::iota(0, 3),
+                  [&](int warp) { return code(warp, kCell, 14); })})});
+    for (int weftShade = 0; weftShade < 3; ++weftShade)
+      table.children({box().row().gap(kGap).children(
+          {code(weftShade, 16, kCell),
+           each(std::views::iota(0, 3), [&](int warpShade) {
+             return box()
+                 .width(kCell)
+                 .height(kCell)
+                 .fill(blends[(size_t)(weftShade * 3 + warpShade)].material())
+                 .stroke(stroke(
+                     1,
+                     Fill::var(std::string_view(warpShade == weftShade ? "rule" : "ink")),
+                     PathFormat::Align::Outer));
+           })})});
+    return titled(
+        doc.phrase(words["heading"]),
+        {box().row().gap(20).children(
+            {std::move(table),
+             box().column().gap(3).width(220).marginTop(14).children(
+                 {each(words["notes"].items(),
+                       [this](const data::Json& note) {
+                         return document::caption(doc.phrase(note));
+                       }),
+                  document::caption(doc.phrase(words["law"]))
+                      .styleClass("proof")
+                      .marginTop(10),
+                  document::paragraph(doc.phrase(words["reading"]))
+                      .styleClass("reading")
+                      .marginTop(6)})})});
+  }
+
+  // =========================================================================
+  // One count, five shade cards: the colour is a variable, the count the
+  // cloth's identity. The mark says which card the cloth wears now.
+
+  Element shadeCards() const {
+    std::vector<Element> rows;
+    for (size_t index = 0; index < cards.size(); ++index) {
+      const ShadeCard& card = cards[index];
+      std::vector<SurfacePaint> swatches;
+      std::vector<Utf8> labels;
+      for (int shade : {K, B, G}) {
+        swatches.push_back(Fill::color(card.shades[(size_t)shade]));
+        labels.push_back(kit::formatted("%c %s", kShadeCodes[(size_t)shade],
+                                        hexOf(card.shades[(size_t)shade])
+                                            .c_str()));
       }
-    const float tx =
-        arrange::cellRect({3, 0}, module, gaps, {gx, y0}).fLeft + 12;
-    g.children({label(page["notes"][0], tx, y0 - 2, 200)
-                    .font({.size = 8, .track = 0.3f}),
-                label(page["notes"][1], tx, y0 + 10, 200)
-                    .font({.size = 8, .track = 0.3f}),
-                label(kit::formatted(
-                          "n = %d  →  %d solid + %d blend  =  %d  =  n(n+1)/2",
-                          v.solids, v.solids, v.blends, v.perceived),
-                      tx, y0 + 30, 210)
-                    .font({.size = 8.5f, .color = kRed, .track = 0.2f}),
-                label(page["reading"], tx, y0 + 52, 200)
-                    .font({.face = serifIt(), .size = 11})});
-    return g;
-  }
-
-  // =========================================================================
-
-  Element thePaletteStrip() {
-    const float y0 = 790, rowH = 34;
-    Element g = box();
-    g.children({label(doc["palettes"]["heading"], kColX, 762, kColW + 40)
-                    .role("h2")
-                    .styleClass("heading")});
-    // which family the cloth is wearing, right now
-    const float spans[5][2] = {{kWeaveEnd, kProveEnd},
-                               {0.6375f, 0.6625f},
-                               {0.6875f, 0.7125f},
-                               {0.7375f, 0.7625f},
-                               {0.7875f, 0.8125f}};
-    static const char* code[3] = {"K", "B", "G"};
-    for (int r = 0; r < 5; ++r) {
-      const float y = y0 + (float)r * rowH;
-      const Palette& p = kPalettes[(size_t)r];
-      g.children({label(p.name, kColX + 10, y + 1, 140)
-                      .font({.size = 7.5f, .color = kInk, .track = 0.4f})});
-      const uint32_t shade[3] = {p.k, p.b, p.g};
-      for (int i = 0; i < 3; ++i) {
-        const float x = kColX + 150 + (float)i * 94;
-        g.children(
-            {at(x, y, 86, 14).fill(hexColor(shade[i])),
-             label(kit::formatted("%s #%06X", code[i], shade[i]), x, y + 16, 86)
-                 .font({.size = 7, .track = 0.2f})});
+      Element row = box().row().paddingLeft(12).children(
+          {document::caption(card.name).styleClass("card-name").width(158),
+           sketch::kit::swatchStrip({.swatches = std::move(swatches),
+                                     .labels = std::move(labels),
+                                     .width = Dimension(86),
+                                     .height = Dimension(14),
+                                     .gap = 8})
+               .styleClass("shades")});
+      for (size_t turn = 0; turn < kTurns.size(); ++turn) {
+        if ((size_t)kTurns[turn].card != index) continue;
+        const float until = turn + 1 < kTurns.size()
+                                ? kTurns[turn + 1].start + kFade
+                                : 1.03f;
+        row.children({box()
+                          .left(0)
+                          .top(-3)
+                          .width(5)
+                          .height(22)
+                          .fill(Fill::var("proof"))
+                          .opacity(bind(&loom)
+                                       .source(kTurns[turn].start, until)
+                                       .trapezoid(0, 0.12f, 0.88f, 1))});
       }
-      auto mark = [&](float a, float b) {
-        return at(kColX, y - 2, 5, 22)
-            .fill(kRed)
-            .opacity(bind(&loom).source(a, b).map(plateau(0.12f)));
-      };
-      g.children({mark(spans[r][0] - 0.012f, spans[r][1] + 0.012f)});
-      if (r == 0)
-        g.children({mark(0.8125f, 1.03f)});  // and back to Modern for the hold
+      rows.push_back(std::move(row));
     }
-    return g;
+    return titled(doc.phrase(doc["palettes"]["heading"]),
+                  {box().column().gap(14).children({rows})});
   }
 
   // =========================================================================
-  // The argument. Four identical cloths under four clan names, and then the
-  // cloth Wilsons actually sold as Campbell of Argyll: the same sett with two
-  // centre-lines recoloured.
+  // The argument: the same crop of the same cloth under four clan names,
+  // and the cloth that carries one of those names honestly.
 
-  Element theProvenance() {
-    const float y0 = 1052, sw = 180, sh = 110, gap = 16;
-    const data::Json& page = doc["provenance"];
-    Element g = box();
-    g.children({label(page["heading"], kClothX, 1030, 700)
-                    .role("h2")
-                    .styleClass("heading")});
-    for (int i = 0; i < 4; ++i) {
-      const float x =
-          arrange::cellRect({i, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft;
-      // the SAME crop of the SAME cloth, four times over
-      g.children({at(x, y0, sw, sh)
-                      .overflow(Overflow::Clip)
-                      .background(styles::dropShadow(hexColor(0x3E3A33, 0.45f),
-                                                     {2, 3}, 7))
-                      .fill(swatchMat)
-                      .foreground(stroke(1, Fill::color(kRule),
-                                         PathFormat::Align::Outer))
-                      .children({at(0, 0, sw, sh)
-                                     .fill(gridMat)
-                                     .blendMode(SkBlendMode::kMultiply)
-                                     .opacity(0.85f)}),
-                  centred(page["labels"][(size_t)i], x, y0 + sh + 6, sw)
-                      .styleClass("name")
-                      .ink(kInk)
-                      .opacity(bind(&loom)
-                                   .source(0.63f + (float)i * 0.022f,
-                                           0.66f + (float)i * 0.022f)
-                                   .clamp(0.0f, 1.0f))});
-    }
-    g.children({label(page["quote"][0], kClothX, y0 + sh + 28, 800)
-                    .styleClass("quote"),
-                label(page["quote"][1], kClothX, y0 + sh + 43, 800)
-                    .styleClass("quote")});
+  Element swatch(const Pattern& cloth, SkPoint crop, SurfacePaint edge,
+                 float edgeWidth) const {
+    Pattern cut = cloth;
+    cut.offset({-crop.x() * kThread, -crop.y() * kThread});
+    return box()
+        .width(kSwatch.width())
+        .height(kSwatch.height())
+        .overflow(Overflow::Clip)
+        .background(
+            styles::dropShadow(faded(colours.shadow, 0.45f), {2, 3}, 7))
+        .fill(cut.material())
+        .stroke(stroke(edgeWidth, std::move(edge), PathFormat::Align::Outer))
+        .children({layer(grooves.material())
+                       .blendMode(SkBlendMode::kMultiply)
+                       .opacity(0.85f)});
+  }
 
-    // ...and the cloth that carries one of those names honestly
-    const float ax =
-        arrange::cellRect({4, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft + 12;
-    g.children(
-        {at(ax, y0, sw, sh)
-             .overflow(Overflow::Clip)
-             .background(
-                 styles::dropShadow(hexColor(0x3E3A33, 0.45f), {2, 3}, 7))
-             .fill(argyllMat)
-             .foreground(
-                 stroke(1.5f, Fill::color(kRed), PathFormat::Align::Outer))
-             .children({at(0, 0, sw, sh)
-                            .fill(gridMat)
-                            .blendMode(SkBlendMode::kMultiply)
-                            .opacity(0.85f)}),
-         centred(page["honest"], ax, y0 + sh + 6, sw)
-             .styleClass("name")
-             .ink(kRed),
-         label(page["note"][0], ax, y0 + sh + 28, sw + 30).styleClass("note"),
-         label(page["note"][1], ax, y0 + sh + 39, sw + 30).styleClass("note"),
-         label(page["note"][2], ax, y0 + sh + 50, sw + 30)
-             .styleClass("note")
-             .ink(kRed)});
-    return g;
+  Element provenance() const {
+    const data::Json& words = doc["provenance"];
+    const auto labelled = [](Element picture, Element name) {
+      return box().column().gap(6).alignItems(Align::Center).children(
+          {std::move(picture), std::move(name)});
+    };
+    return titled(
+        doc.phrase(words["heading"]),
+        {box().row().gap(28).children(
+            {box().column().gap(12).children(
+                 {box().row().gap(16).children(
+                      {each(words["labels"].items(),
+                            [&](const data::Json& label, size_t index) {
+                              return labelled(
+                                  swatch(cloths.front(), kGovernmentCrop,
+                                         Fill::var("rule"), 1),
+                                  document::caption(doc.phrase(label))
+                                      .styleClass("name")
+                                      .opacity(bind(&loom).window(
+                                          0.63f + (float)index * 0.022f,
+                                          0.66f + (float)index * 0.022f)));
+                            })}),
+                  document::paragraph(doc.passage(words["quote"]))
+                      .styleClass("quote")
+                      .width(740)}),
+             box().column().gap(8).width(200).children(
+                 {labelled(swatch(argyllCloth, kArgyllCrop,
+                                  Fill::var("proof"), 1.5f),
+                           document::caption(doc.phrase(words["honest"]))
+                               .styleClass("name honest")),
+                  document::paragraph(doc.passage(words["note"]))
+                      .styleClass("note")})})});
   }
 
   // =========================================================================
   // Structure against numbers: the two setts, each normalised to its own
-  // total, unit for unit. They agree to under one percent — a tartan's
-  // identity is its structure; its numbers are a matter of authority.
+  // total, unit for unit. A tartan's identity is its structure; its
+  // numbers are a matter of authority.
 
-  Element theComparison() {
-    const float y0 = 1276, barW = 880, barH = 26, x0 = kClothX + 140;
-    Element g = box();
-    g.children({label(doc["comparison"]["heading"], kClothX, 1242, 900)
-                    .role("h2")
-                    .styleClass("heading")});
-
-    struct Bar {
-      Utf8 name;
-      const std::vector<Run>* runs;
-      int total;
-      float y;
+  Element comparison() const {
+    const data::Json& words = doc["comparison"];
+    constexpr float kBar = 846, kHeight = 26, kName = 130;
+    const auto bar = [&](const Sett& sett, const data::Json& name) {
+      const std::vector<Run> runs = sett.runs();
+      const float total = (float)sett.threads().size();
+      return box().row().alignItems(Align::Center).children(
+          {box().row().width(kName).styleClass("bar-name").children(
+               {document::caption(std::string(name.text())).width(100),
+                document::caption(kit::formatted("%d", (int)total))}),
+           box().row().width(kBar).height(kHeight).stroke(
+               stroke(1, Fill::var("rule"), PathFormat::Align::Outer))
+               .children({each(runs, [&](const Run& run) {
+                 Element band =
+                     box().width(kBar * (float)run.threads / total)
+                         .flexShrink(0)
+                         .fill(cards.front().shades[(size_t)run.shade]);
+                 if (run.shade == Y || run.shade == W)
+                   band.stroke(stroke(1.5f, Fill::var("proof"),
+                                      PathFormat::Align::Outer));
+                 return band;
+               })})});
     };
-    const data::Json& said = doc["comparison"];
-    const Bar bars[2] = {
-        {said["bars"][0], &bwRuns, v.total, y0},
-        {said["bars"][1], &caRuns, v.argyllTotal, y0 + barH + 8}};
-    const Shades modern = shadesOf(kPalettes[0]);
-    for (const Bar& b : bars) {
-      g.children({label(b.name, kClothX, b.y + 8, 140)
-                      .font({.size = 8.5f, .color = kInk, .track = 0.4f})});
-      float cur = 0;
-      for (const Run& r : *b.runs) {
-        const float w = barW * (float)r.threads / (float)b.total;
-        Element seg = at(x0 + cur, b.y, w, barH).fill(modern[(size_t)r.shade]);
-        if (r.shade == Y || r.shade == W)
-          seg.foreground(
-              stroke(1.5f, Fill::color(kRed), PathFormat::Align::Outer));
-        g.children({std::move(seg)});
-        cur += w;
-      }
-      g.children({at(x0, b.y, barW, barH)
-                      .foreground(stroke(1, Fill::color(kRule),
-                                         PathFormat::Align::Outer))});
+    // The unit letters over both bars, and a line down through both at
+    // every unit boundary.
+    const float total = (float)verdict.total;
+    Element bars = box().column().gap(8).children(
+        {bar(watch, words["bars"][0]), bar(argyll, words["bars"][1])});
+    float cumulative = 0;
+    std::vector<Element> letters;
+    for (size_t unit = 0; unit < watch.order.size(); ++unit) {
+      const float share = kBar * (float)verdict.unitEnds[unit] / total;
+      letters.push_back(box().width(share).alignItems(Align::Center).children(
+          {document::caption(watch.order[unit]).styleClass("proof")}));
+      cumulative += share;
+      if (unit + 1 < watch.order.size())
+        bars.children({box()
+                           .left(kName + cumulative - 0.5f)
+                           .top(-3)
+                           .width(1)
+                           .height(2 * kHeight + 14)
+                           .fill(faded(colours.proof, 0.8f))});
     }
-    // the unit boundaries, dropped through both bars
-    float cum = 0;
-    const int units[4] = {v.unitA, v.unitB, v.unitC, v.unitB};
-
-    for (int u = 0; u < 4; ++u) {
-      const float cx =
-          x0 + barW * (cum + (float)units[u] * 0.5f) / (float)v.total;
-      g.children({centred(said["units"][(size_t)u], cx - 12, y0 - 15, 24)
-                      .font({.size = 8.5f, .color = kRed, .track = 0.6f})});
-      cum += (float)units[u];
-      if (u < 3)
-        g.children({at(x0 + barW * cum / (float)v.total - 0.5f, y0 - 3, 1,
-                       2 * barH + 14)
-                        .fill(hexColor(0x9A3324, 0.8f))});
-    }
-    g.children({label(kit::formatted(
-                          "UNIT FRACTIONS AGREE TO %.2f %%  ·  IDENTICAL "
-                          "STRUCTURE, RUN FOR RUN  ·  DIFFERENT NUMBERS  ·  "
-                          "THE OVERCHECKS ARE RINGED",
-                          v.unitDrift * 100.0f),
-                      x0, y0 + 2 * barH + 14, 900)
-                    .font({.size = 8.5f, .color = kRed, .track = 0.3f})});
-    return g;
+    return titled(
+        doc.phrase(words["heading"]),
+        {box().column().gap(6).children(
+            {box().row().marginLeft(kName).children({letters}),
+             std::move(bars),
+             document::caption(doc.phrase(words["summary"]))
+                 .styleClass("proof")
+                 .marginLeft(kName)
+                 .marginTop(4)})});
   }
 
   // =========================================================================
 
-  Element theVerification() {
-    const float x0 = 1060, y0 = 1052, lh = 13.6f;
-    const size_t rows = verdict.rows.size();
-    Element g = box();
-    g.children({label(doc["verification"]["heading"], x0, 1030, kColW)
-                    .role("h2")
-                    .styleClass("heading"),
-                at(x0 - 12, y0 - 8, 472, (float)rows * lh + 14)
-                    .fill(hexColor(0xDCD4C4, 0.8f))
-                    .foreground(stroke(1, Fill::color(kRule),
-                                       PathFormat::Align::Inner))});
-    // The words are the run's own — the label it was made under, the figure
-    // it came to, and the verdict computed from the two. The mark before
-    // each row carries that verdict as colour, so a row that failed is
-    // legible before it is read. A finding that fails is the two setts'
-    // agreement drifting rather than a defect here, and it is marked in the
-    // same red because the run counts it apart, not the card.
-    std::vector<sketch::kit::Row> lines;
-    lines.reserve(rows);
-    for (const measure::Check& c : verdict.rows) {
-      std::string verdictWord;
-      if (c.judged()) verdictWord = c.pass ? "PASS" : "FAIL want " + c.expected;
-      lines.push_back({.cells = {c.label, c.actual, verdictWord},
-                       .swatch = Fill::color(
-                           !c.judged() ? kRule : (c.pass ? kInk : kRed))});
+  Element verification() const {
+    std::vector<sketch::kit::Row> rows;
+    for (const Proof& proof : proofs) {
+      const measure::Check& check = proof.check;
+      rows.push_back(
+          {.cells = {proof.name, check.label, check.actual,
+                     check.judged()
+                         ? (check.pass ? "PASS" : "FAIL want " + check.expected)
+                         : ""},
+           .swatch = Fill::var(!check.judged() ? "rule"
+                               : check.pass    ? "ink"
+                                               : "proof")});
     }
-    g.children(
-        {at(x0, y0, 450, (float)rows * lh)
-             .opacity(bind(&loom)
-                          .source(kWeaveEnd,
-                                  kWeaveEnd + (float)rows * 0.0092f + 0.011f)
-                          .clamp(0.0f, 1.0f))
+    const float reveal = (float)rows.size() * 0.0092f + 0.011f;
+    return titled(
+        doc.phrase(doc["verification"]["heading"]),
+        {box()
+             .padding(8, 12)
+             .fill(faded(colours.well, 0.8f))
+             .stroke(stroke(1, Fill::var("rule"), PathFormat::Align::Inner))
              .children({sketch::kit::table(
-                 std::move(lines),
-                 {.columns = {
-                      {.width = 322}, {.width = 58, .figure = true}, {}}})})});
-    return g;
+                            std::move(rows),
+                            {.columns = {{.width = 104},
+                                         {.width = 226},
+                                         {.width = 56, .figure = true},
+                                         {}}})
+                            .opacity(bind(&loom).window(
+                                kWeaveEnd, kWeaveEnd + reveal))})});
   }
 
   // =========================================================================
 
-  Element describe(sketch::SketchContext& ctx) {
-    (void)ctx;
-    // The card's theme stands for everything described below it, so a kit
-    // component four levels down is set in the card's ink without being
-    // handed it; the root states the voice every line inherits and the
-    // classes every name under it resolves through.
-    const sketch::kit::Provide look(sheet());
-    const data::Json& head = doc["masthead"];
-    Element root = stack()
-                       .width(kCanvasW)
-                       .height(kCanvasH)
-                       .font({.face = mono()})
-                       .ink(kInk2)
-                       .applyStyleSheet(classes());
-
-    // the board: one recipe, paint and tooth together
-    root.children(
-        {at(0, 0, kCanvasW, kCanvasH).fill(boardMat).cache(Cache::Texture),
-         at(24, 24, kCanvasW - 48, kCanvasH - 48)
-             .foreground(
-                 stroke(1, Fill::color(kRule), PathFormat::Align::Inner)),
-         // 1. the heading
-         label(head["title"], kClothX, 46, 900)
-             .font({.face = sansB(), .size = 34, .color = kInk, .track = 4.6f}),
-         label(head["registration"], kClothX, 96, 1200)
-             .font({.size = 10.5f, .track = 1.1f}),
-         rule(kClothX, 122, kCanvasW - 2 * kClothX, 1, kRule)});
-
-    // the specimen ticket — the physical facts, in the header's dead corner
-    {
-      root.children({each(head["ticket"].items(),
-                          [](const data::Json& line, std::size_t i) {
-                            return label(line, kColX, 48 + (float)i * 12.5f,
-                                         kColW + 40)
-                                .font({.size = 7.5f, .track = 0.35f});
-                          }),
-                     rule(kColX - 14, 46, 1, 62, kRule)});
-    }
-
-    root.children({theSettBar(), theCloth(), theDraft(), theBlendTable(),
-                   thePaletteStrip(), theProvenance(), theVerification(),
-                   theComparison()});
-
-    // the justified paragraph, at a real 320 px measure
-    {
-      weave::ParagraphLayoutOptions o;
-      o.alignment = weave::TextAlignment::kJustify;
-      o.lineBreakStrategy = weave::LineBreakStrategy::kKnuthPlass;
-      o.hyphenation.enabled = true;
-      o.hyphenation.penalty = 45.0f;
-      o.justification.spaceStretch = 0.55f;
-      o.justification.spaceShrink = 0.30f;
-      o.justification.lastLineAlignment = weave::TextAlignment::kStart;
-      o.knuthPlass.tolerance = 6000.0f;
-      o.lineMetrics.height = 16.0f;
-      root.children(
-          {at(kColX, 1246, 320, 150).children({text(quote, o).width(320)})});
-    }
-
-    root.children(
-        {rule(kClothX, 1408, kCanvasW - 2 * kClothX, 1, kRule),
-         label(head["colophon"], kClothX, 1414, kCanvasW - 2 * kClothX)
-             .font({.size = 8.5f, .track = 0.7f})});
-    return root;
+  Element describe() const {
+    const data::Json& words = doc["masthead"];
+    return box()
+        .width(kCanvas.width())
+        .height(kCanvas.height())
+        .applyStyleSheet(cardSheet(colours))
+        .padding(46, 64, 0, 64)
+        .children({
+            layer(board).cache(Cache::Texture),
+            box().cover().inset(24).stroke(
+                stroke(1, Fill::var("rule"), PathFormat::Align::Inner)),
+            masthead(),
+            kit::line({.fill = Fill::var("rule")}).marginTop(18),
+            box().row().gap(24).children(
+                {box().column().flexShrink(0).children({settBar(), clothPanel()}),
+                 box().column().width(440).flexShrink(0).gap(34).marginTop(18).children(
+                     {draft(), blendTable(), shadeCards()})}),
+            box().row().gap(40).marginTop(12).children(
+                {provenance(), verification()}),
+            box().row().gap(40).marginTop(18).children(
+                {comparison(),
+                 document::paragraph(doc.passage("douglas"))
+                     .styleClass("douglas")
+                     .width(320)
+                     .marginTop(18)}),
+            box().flexGrow(),
+            kit::line({.fill = Fill::var("rule")}),
+            document::footer(doc.phrase(words["colophon"]))
+                .marginTop(6)
+                .marginBottom(30),
+        });
   }
 
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) {
     doc = sketch::kit::Document(ctx, "data/content.json");
-    build();
-    // The still belongs to the MODERN hold, and has to be declared, because
-    // an undeclared capture lands mid-cycle. The loop weaves, proves, then
-    // turns the five shade families over one another (see `turns`), so most
-    // of its 8 s shows a cloth that is a correct Black Watch in some OTHER
-    // registered palette — brown and olive under a title reading GOVERNMENT,
-    // which reads as a broken blend layer and is not one. 7.2 s is loom 0.90,
-    // inside the final Modern hold (0.85 -> 1.0).
-    sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
+    const sketch::kit::Document setts(ctx, "data/setts.json");
+    colours = readCard(doc["card"]);
+    watch = readSett(setts["black watch"]);
+    argyll = readSett(setts["campbell of argyll"]);
+    cards = readShadeCards(setts["shades"]);
+    weaveEverything();
+    prove();
+    // The still belongs to the hold in the first shade card, and is
+    // declared: most of the loop shows a correct Black Watch in some other
+    // registered card, which under a title reading GOVERNMENT looks like a
+    // broken blend rather than the point.
+    sketch::kit::stage(ctx, {.size = kCanvas,
                              .captureAt = 7.2,
-                             .background = kCard});
-    ctx.ticker.add([this](double dt) {
-      clock += dt;
-      loom = (float)(std::fmod(clock, (double)kCycle) / (double)kCycle);
-      // THE BEAT-IN, one float per pick: pick i comes up over its own
-      // 0.0035 of the cycle, the same window each of the 378 leaves used to
-      // hold its own binding for.
-      const float span = kWeaveEnd - kBeamEnd;
-      auto alpha = pickPool->alphas();
-      for (int i = 0; i < kPicks; ++i) {
-        const float w0 = kBeamEnd + span * ((float)i / (float)kPicks);
-        alpha[(size_t)i] =
-            std::clamp((loom.value() - w0) / 0.0035f, 0.0f, 1.0f);
-      }
+                             .background = colours.ground});
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
+      loom = phase(ticker.elapsed(), kCycle);
     });
-    ctx.composer.render(describe(ctx));
+    const sketch::kit::Provide look(cardTheme(colours));
+    ctx.composer.render(describe());
   }
 };
 

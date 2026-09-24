@@ -1,0 +1,34 @@
+{
+  "black watch": {
+    "source": "H. C. Douglas, Scotch Tartan Setts, Shuttle-Craft Guild, 1949",
+    "units": {
+      "A": "K18 B6 K2 B6 K2 B18 K2 B6 K2 B6 K18",
+      "B": "G18 K6 G18",
+      "C": "K18 B18 K2 B6 K2 B18 K18"
+    },
+    "order": ["A", "B", "C", "B"],
+    "published ends": 252
+  },
+  "campbell of argyll": {
+    "source": "the same pamphlet: the Government sett with the two black centre-lines of its green squares recoloured",
+    "units": {
+      "A": "K30 B6 K6 B6 K6 B30 K6 B6 K6 B6 K30",
+      "B": "G32 Y6 G32",
+      "C": "K30 B30 K6 B6 K6 B30 K30",
+      "D": "G32 W6 G32"
+    },
+    "order": ["A", "B", "C", "D"],
+    "published ends": 416
+  },
+  "shades": {
+    "source": "Scottish Register of Tartans colour shades",
+    "overchecks": { "Y": "#E8C000", "W": "#E5DDD1" },
+    "cards": [
+      { "name": "MODERN / ORDINARY", "K": "#101010", "B": "#2C2C80", "G": "#006818" },
+      { "name": "ANCIENT / OLD COLOURS", "K": "#1C1C1C", "B": "#2C4084", "G": "#5C6428" },
+      { "name": "MUTED", "K": "#1C1714", "B": "#202060", "G": "#3F5642" },
+      { "name": "WEATHERED / FADED", "K": "#4C3428", "B": "#5F749C", "G": "#767E52" },
+      { "name": "REPRODUCTION (DALGLIESH)", "K": "#555A64", "B": "#5C8CA8", "G": "#789484" }
+    ]
+  }
+}
