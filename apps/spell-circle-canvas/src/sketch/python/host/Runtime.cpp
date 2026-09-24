@@ -386,11 +386,12 @@ Result answered(protocol::Answer<Result> answer) {
 /** A HARNESS SESSION OVER ONE FILE: opened under a client's clock,
  *  stepped to the moment it was asked for — or the one it declared, or
  *  one and a half seconds — held there, and photographed at one pixel per
- *  canvas unit. A step of zero seconds is one frame that moves nothing,
- *  and the still is the held frame as it was drawn, so a scene asked for
- *  at zero is its first frame, as a written capture's is. The state the
- *  session keeps is a directory of its own, gone once the picture is
- *  copied out. */
+ *  canvas unit, the density its bakes are pinned to from the first frame,
+ *  as a written capture's are. A step of zero seconds is one frame that
+ *  moves nothing, and the still is the held frame as it was drawn, so a
+ *  scene asked for at zero is its first frame, as a written capture's is.
+ *  The state the session keeps is a directory of its own, gone once the
+ *  picture is copied out. */
 std::string renderFile(const std::string& source, const std::string& output,
                        std::optional<double> at) {
   static int rendered = 0;
@@ -407,6 +408,7 @@ std::string renderFile(const std::string& source, const std::string& output,
     options.session.pythonLoader = &load;
     testing::InProcessHost host(std::move(options));
     (void)answered(host.clock(protocol::clock::Policy_Advance));
+    (void)answered(host.pinDensity(1.0));
     const protocol::session::values::Summary opened =
         answered(host.open(path.string()));
     const double seconds =

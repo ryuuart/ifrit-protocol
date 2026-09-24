@@ -273,7 +273,7 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
   try {
     at = host.prepareCapture(
         options.at >= 0.0 ? std::optional<double>{options.at} : std::nullopt,
-        options.fps);
+        options.fps, options.scale);
   } catch (const std::exception& error) {
     std::fprintf(stderr, "capture: %s\n", error.what());
     return 1;
@@ -293,7 +293,7 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
     }
     if (index + 1 < options.frames) {
       try {
-        host.prepareCapture(dt, options.fps);
+        host.prepareCapture(dt, options.fps, options.scale);
       } catch (const std::exception& error) {
         std::fprintf(stderr, "capture: %s\n", error.what());
         return 1;

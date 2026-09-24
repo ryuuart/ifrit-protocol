@@ -4,7 +4,8 @@
 # broken — and the resident set that decides which sessions stay open.
 sigil_test(sketch_test
   SOURCES test/BuildCacheTest.cpp test/BenchCadenceTest.cpp test/HostTest.cpp test/ResidencyTest.cpp
-  LIBRARIES SigilSketch)
+          test/WrittenStillTest.cpp
+  LIBRARIES SigilSketch SigilSketchTesting)
 
 sigil_bench(sketch_bench
   SOURCES bench/HostBench.cpp

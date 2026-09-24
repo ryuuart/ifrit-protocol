@@ -737,7 +737,8 @@ bool Host::frame(double fixedDt) {
   return true;
 }
 
-double Host::prepareCapture(std::optional<double> at, double fps) {
+double Host::prepareCapture(std::optional<double> at, double fps,
+                            float density) {
   const double declared = captureSeconds();
   const double seconds = at.value_or(declared >= 0 ? declared : 1.5);
   if (!std::isfinite(seconds) || seconds < 0 || !std::isfinite(fps) ||
@@ -746,6 +747,12 @@ double Host::prepareCapture(std::optional<double> at, double fps) {
   const double rate = std::max(fps, 1.0 / motion::FrameClockOptions{}.maxDelta);
   if (seconds * rate > double(std::numeric_limits<int>::max()))
     throw std::invalid_argument("Capture time or frame rate is invalid");
+  if (!std::isfinite(density) || density <= 0)
+    throw std::invalid_argument("Capture density is invalid");
+  // Before the first step, because a bake formed at another density is
+  // re-formed only when its node describes again, and a pen's canvas
+  // keeps what it drew at the density it was formed at.
+  if (m_session) m_session->setBakeDensity(density);
   const auto advance = [&](double dt) {
     if (!frame(dt))
       throw std::runtime_error(m_errorLog.empty() ? "No sketch is loaded"
