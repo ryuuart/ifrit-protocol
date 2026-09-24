@@ -375,8 +375,8 @@ int main(int argc, char* argv[]) {
 
   // THE PROTOCOL SERVES A HOST A CLIENT DRIVES, so a run that ends once its
   // output is written has nothing to serve: `--inspect` is refused there,
-  // as a browser's headless commands refuse its debugging port. A sweep
-  // mounts it between its sketches; the window mounts it unasked.
+  // since a client attaching to it would find the run already gone. A
+  // sweep mounts it between its sketches; the window mounts it unasked.
   if (args.inspectPort &&
       (args.list || args.catalog || args.warmThumbnails ||
        !args.compareOptions.first.empty() ||

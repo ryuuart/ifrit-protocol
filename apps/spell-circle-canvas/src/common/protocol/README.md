@@ -300,17 +300,26 @@ for the host's even where only the message is shown.
 
 ## Virtual time is the one determinism seam
 
-The `clock` domain replaces every other way a run was made repeatable.
-`Wall` is the clock a person watches; under `Advance` nothing moves but
-by `clock.step`, which takes frames or seconds at a stated rate — whole
-frames, and what is left as one shorter frame — and answers once the last
-frame is drawn; `Pause` freezes the clock and the
+The `clock` domain is how a client makes the session it drives
+repeatable. `Wall` is the clock a person watches; under `Advance` nothing
+moves but by `clock.step`, which takes frames or seconds at a stated
+rate — whole frames, and what is left as one shorter frame — and answers
+once the last frame is drawn; `Pause` freezes the clock and the
 recordings a hub plays; `PauseWhileLoading` is the wall clock held while
 a page, a font or a resource is still arriving. A budget set with the
 policy sends `budgetExpired` once it has run, which is how a client
 asks whether a session has settled at its declared moment. A sketch
 reads only whether its clock is the wall's, never which client drives
 it.
+
+What holds the clock under `PauseWhileLoading` is the host's open: a
+session opened under any policy but the wall's has everything its setup
+asked for — a page settled, a face or a fetched resource read whole —
+before the open is answered, so no later frame finds anything on its
+way. The clock domain drives the session a protocol host holds; a
+host's other ways to a picture — a sweep, a written still, a window —
+run on the host's own clock, stepped as their flags say, and no client
+reaches them through this domain.
 
 ## The command line that remains
 

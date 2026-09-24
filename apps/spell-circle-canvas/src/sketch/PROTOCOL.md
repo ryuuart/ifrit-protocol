@@ -39,30 +39,44 @@ stands, draws no frame before a client's first step unless the clock is
 the wall's, and opens it again at its own zero when the policy changes
 between the wall's and any other.
 
+**PauseWhileLoading holds the clock through the open.** A session opened
+for a repeatable run has everything its setup asked for before the open
+is answered: a page's settle is driven through on the thread that opens
+it, and a file, a face or a fetched resource is read whole where it is
+asked for. So no frame drawn afterwards finds anything still on its way,
+and those frames move by the wall. A page opened under it and
+photographed after frames at the wall's pace is the sweep's plate of it,
+byte for byte.
+
 **A step** takes seconds as whole frames of one over the rate and what is
 left as one shorter frame; zero seconds is one frame that moves nothing,
 which runs the sketch where it stands. Only the Advance policy steps.
 
 **A still** under a moving clock is taken as a plate is: the runtime's
 own still on a raster surface of the canvas times the density, cleared to
-the declared ground, with every raster the session bakes taken at that
-density. A canvas re-renders its still one frame on, which
-`Session::stillStep` says and the clock counts. Under a held clock — the
-Pause policy, a person's pause, or PauseWhileLoading while something is
-arriving — a still is the host's own, `Host::still`: the frame the clock
-holds as it was last drawn, with nothing new drawn, so two stills under
-it are one picture. Every still is written under the state root; a path
+the declared ground, and declares its density for what the session bakes
+from then on. A bake formed earlier is formed again only when its node
+describes again, so a client that means to hold a session to a plate
+pins its density before opening it — `session.pinDensity`, zero for
+`sigil::sketch::plateDensity`, the density the sweep photographs at —
+and a still at that density is the sweep's plate of the same moment. A
+canvas re-renders its still one frame on, which `Session::stillStep`
+says and the clock counts. Under a held clock — the Pause policy or a
+person's pause — a still is the host's own, `Host::still`: the frame the
+clock holds as it was last drawn, with nothing new drawn, so two stills
+under it are one picture. Every still is written under the state root; a path
 outside it is refused.
 
 **What a client sets goes with it**: the policy and its budget, the hold,
-the speed and the promotion pin are each kept against the client that set
-them, and when it detaches the session is opened again for the wall's
-clock and the runtime's own promotion.
+the speed and the promotion and density pins are each kept against the
+client that set them, and when it detaches the session is opened again
+for the wall's clock and the runtime's own promotion and density.
 
-`session.measured` is refused, naming why: a value a sketch passes
-through `SketchContext::measured` carries no name to answer it by.
-`session.pinDevice` refuses the GPU: the agent takes its stills on the
-CPU alone.
+Two commands are answered with a refusal that names why, and are the
+ones this agent leaves open: `session.measured`, because a value a sketch
+passes through `SketchContext::measured` carries no name to answer it
+by; and `session.pinDevice` for the GPU, because the agent takes its
+stills on the CPU alone.
 
 ## The in-process host and the harness
 
@@ -110,8 +124,8 @@ the served Sketchbook below and connects to it.
 
 ## What Sketchbook mounts
 
-`--inspect` and `--inspect=PORT` are the one flag this adds, beside
-`--state`:
+Sketchbook's command line carries two protocol flags: `--inspect`, with
+an optional `=PORT`, and `--state` with a directory.
 
 - **The window** mounts an endpoint on loopback whether or not it was
   asked — any free port, or the one named — answering `host` and
