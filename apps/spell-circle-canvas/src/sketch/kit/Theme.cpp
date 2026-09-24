@@ -41,6 +41,7 @@ compose::StyleSheet Theme::styleSheet() const {
       // is what a section standing on a panel of its own asks for.
       rule("eyebrow").font(font(type.eyebrow)),
       rule("h2").font(font(type.section)),
+      rule(".control").font(font(type.control, palette.ash)),
       // A MEASURED FIGURE is the one thing on the sheet that is neither
       // type nor furniture, so it is the class a CALL is set in — the
       // digits of one width — in the palette's figure colour, wherever it
@@ -176,6 +177,25 @@ const Theme& specimenTheme() {
     return sheet;
   }();
   return specimen;
+}
+
+const Theme& featureTheme(Density density) {
+  const auto make = [](Theme sheet) {
+    sheet.palette = {.ground = {0.055f, 0.062f, 0.075f, 1},
+                     .cellGround = {0.09f, 0.102f, 0.12f, 1},
+                     .ink = {0.93f, 0.916f, 0.878f, 1},
+                     .ash = {0.65f, 0.68f, 0.73f, 1},
+                     .rule = {0.20f, 0.23f, 0.28f, 1},
+                     .figure = {0.90f, 0.83f, 0.68f, 1}};
+    sheet.type.sans = houseFace(Voice::Interface);
+    sheet.type.mono = houseFace(Voice::Terminal);
+    sheet.type.captionLabel = {.size = 11, .track = 0.5f};
+    sheet.type.control = {.size = 11, .mono = true};
+    return sheet;
+  };
+  static const Theme compact = make(specimenTheme());
+  static const Theme spacious = make(studyTheme());
+  return density == Density::Spacious ? spacious : compact;
 }
 
 const Theme& theme() {

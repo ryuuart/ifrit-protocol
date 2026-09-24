@@ -199,7 +199,7 @@ struct Comparison {
   float measure = 0;
   /** Between cases; unset is the theme's cell gap. */
   std::optional<float> gap;
-  /** Between semantic tracks; unset is 8 px. */
+  /** Between semantic tracks; unset is the theme's comparison gap. */
   std::optional<float> trackGap;
 };
 

@@ -82,20 +82,37 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook --list
 
 ## The sheet a sketch stands on
 
-Before the runtimes: most sketches here are **specimen sheets** — a
-titled, footed page over a run of captioned cells — and the look they are
-all set in is one value, `sketch::kit::Theme`, carried down the describe
-tree by the reconciler's inherited value.
+Feature demonstrations use **specimen sheets**: a titled, footed page
+with named sections, captioned comparisons and grounded wells. Their look
+is one value, `sketch::kit::Theme`, carried through the scope where the tree
+is described. `sketch::kit::featureTheme()` gives them a shared slate, ivory
+and pale gold palette with interface labels and terminal controls.
 
 ```cpp
 #include <sigilsketch/kit/Kit.h>
 
+const sketch::kit::Provide look(sketch::kit::featureTheme());
 sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
 ctx.composer.render(sketch::kit::page(
-    {.title = toUtf8("THE RULE AND THE STRANDS"),
-     .footer = toUtf8("a crossing is discovered, not declared")},
-    kit::cells({.cells = {a, b, c}, .gap = 10})));
+    {.title = "The rule and the strands",
+     .subtitle = "Three ways to draw a crossing",
+     .footer = "A crossing is discovered, not declared"},
+    sketch::kit::section(
+        {.label = "CROSSING RULES"},
+        sketch::kit::cells({.cells = {a, b, c}}))));
 ```
+
+The default density is `sketch::kit::Density::Compact`, for grids that need
+their fixed specimen measures. `sketch::kit::Density::Spacious` gives pages
+of explanations and comparisons larger headings and margins. The theme
+does not resize a figure. `sketch::kit::section` supplies the heading and
+its gap; `sketch::kit::comparison` aligns the title, control, figure and note
+tracks of cases beside each other. Bind the theme again wherever an update
+describes another tree.
+
+Reference studies and authored catalog reconstructions keep the faces,
+colours and geometry their subject requires. Full-frame drawings and 3D
+subjects need no surrounding page merely to join the catalog.
 
 `src/sketch/kit/README.md` is the canon for it: what the theme holds, how
 a sketch binds its own, and what deliberately is not there.

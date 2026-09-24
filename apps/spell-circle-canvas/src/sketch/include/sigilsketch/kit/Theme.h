@@ -114,6 +114,8 @@ struct TypeScale {
   /** The line that names a section INSIDE the content, one step under the
    *  page's own subtitle. */
   Register section{11.5f, 1.4f, true};
+  /** The literal setting being compared, distinct from its human label. */
+  Register control{10.5f, 0, true};
   sk_sp<SkTypeface> sans;
   sk_sp<SkTypeface> mono;
   bool operator==(const TypeScale&) const = default;
@@ -135,6 +137,10 @@ struct Spacing {
   float captionNoteGap = 4;
   /** Between neighbouring cells in a run. */
   float cellGap = 20;
+  /** Between a comparison's title, control, figure and note tracks. */
+  float comparisonGap = 8;
+  /** Between a section's heading and the content it announces. */
+  float sectionGap = 12;
   /** Inside a well, around its specimen. */
   float wellPadding = 0;
   /** Between the rows of a readout, a legend or a key-and-figure table. */
@@ -199,10 +205,10 @@ struct Theme {
                                  material::Color color) const;
   /** THE DOCUMENT ROLES in the theme's registers, as rules: `h1`,
    *  `lead`, `footer`, `label`, `caption`, `eyebrow` and `h2` — the label
-   *  and the caption as classes too — plus the class `.readout` for
-   *  measured values. A document factory names its role and the sheet
-   *  applied above it styles it. A page applies the sheet on its root; a
-   *  sketch joins rules of its own to it with `+`.
+   *  and the caption as classes too — plus `.control` for literal settings
+   *  and `.readout` for measured values. A document factory names its role and
+   * the sheet applied above it styles it. A page applies the sheet on its root;
+   * a sketch joins rules of its own to it with `+`.
    *
    *  EACH ROLE RULE CARRIES ITS WHOLE LOOK, colour included: `h1` and
    *  `label` in the palette's ink, `lead`, `footer` and `caption` in its
@@ -299,6 +305,14 @@ enum class Voice {
 /** A compact comparison sheet with a readable title and notes, retaining
  *  the house sheet's margins so fixed specimen wells keep their measure. */
 [[nodiscard]] const Theme& specimenTheme();
+
+/** The space around a feature's authored figures. Compact retains narrow
+ *  specimen margins; Spacious gives multi-section explanations more air. */
+enum class Density { Compact, Spacious };
+
+/** A feature sheet in slate, ivory and pale gold, with interface headings
+ *  and terminal settings. Both densities retain their resolved faces. */
+[[nodiscard]] const Theme& featureTheme(Density density = Density::Compact);
 
 /** THE THEME IN SCOPE, or the house one where nothing bound a theme —
  *  which is what makes every component here correct on its own. */

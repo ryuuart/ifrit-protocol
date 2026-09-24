@@ -10,6 +10,7 @@
 #include <memory>
 #include <stdexcept>
 #include <thread>
+
 #include "Registration.h"
 
 namespace sigil::sketch::python {
@@ -97,6 +98,7 @@ void bindTheme(py::module_& module) {
   field(type, "captionNote", &sketchKit::TypeScale::captionNote);
   field(type, "eyebrow", &sketchKit::TypeScale::eyebrow);
   field(type, "section", &sketchKit::TypeScale::section);
+  field(type, "control", &sketchKit::TypeScale::control);
   field(type, "sans", &sketchKit::TypeScale::sans);
   field(type, "mono", &sketchKit::TypeScale::mono);
   type.def(py::self == py::self);
@@ -111,6 +113,8 @@ void bindTheme(py::module_& module) {
   SPACING(captionGap);
   SPACING(captionNoteGap);
   SPACING(cellGap);
+  SPACING(comparisonGap);
+  SPACING(sectionGap);
   SPACING(wellPadding);
   SPACING(rowGap);
   SPACING(labelGap);
@@ -167,6 +171,15 @@ void bindTheme(py::module_& module) {
       py::arg("voice"), py::arg("weight") = 400, py::arg("italic") = false);
   module.def("houseTheme", [] { return sketchKit::houseTheme(); });
   module.def("studyTheme", [] { return sketchKit::studyTheme(); });
+  py::enum_<sketchKit::Density>(module, "Density")
+      .value("Compact", sketchKit::Density::Compact)
+      .value("Spacious", sketchKit::Density::Spacious);
+  module.def(
+      "featureTheme",
+      [](sketchKit::Density density) {
+        return sketchKit::featureTheme(density);
+      },
+      py::arg("density") = sketchKit::Density::Compact);
   module.def("theme", [] { return sketchKit::theme(); });
   py::class_<ThemeProvider, std::shared_ptr<ThemeProvider>>(module, "Provide")
       .def(py::init<sketchKit::Theme>(), py::arg("theme"))

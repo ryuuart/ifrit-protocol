@@ -117,4 +117,12 @@ compose::Element sectionHeader(const SectionHeader& header) {
   return column;
 }
 
+compose::Element section(const SectionHeader& header, Element content) {
+  Element group =
+      document::section().gap(theme().spacing.sectionGap).flexShrink(0);
+  if (!header.label.empty() || !header.note.empty() || header.ruled)
+    group.children({sectionHeader(header)});
+  return group.children({std::move(content.flexShrink(0))});
+}
+
 }  // namespace sigil::sketch::kit

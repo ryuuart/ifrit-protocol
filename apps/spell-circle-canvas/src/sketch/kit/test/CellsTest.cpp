@@ -185,20 +185,19 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
 /** A plate set tighter down than across, which one distance cannot say. */
 TEST(SketchKitCells, APaddingDownOfItsOwn) {
   const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});
-  EXPECT_TRUE(sameDrawing(
-      compose::box()
-          .width(163)
-          .height(176)
-          .padding(10, 13)
-          .overflow(compose::Overflow::Clip)
-          .fill(ground)
-          .children({subject()}),
-      kit::well({.width = compose::Dimension(163),
-                 .height = compose::Dimension(176),
-                 .ground = ground,
-                 .padding = 13,
-                 .paddingY = 10},
-                compose::box().children({subject()}))));
+  EXPECT_TRUE(sameDrawing(compose::box()
+                              .width(163)
+                              .height(176)
+                              .padding(10, 13)
+                              .overflow(compose::Overflow::Clip)
+                              .fill(ground)
+                              .children({subject()}),
+                          kit::well({.width = compose::Dimension(163),
+                                     .height = compose::Dimension(176),
+                                     .ground = ground,
+                                     .padding = 13,
+                                     .paddingY = 10},
+                                    compose::box().children({subject()}))));
 }
 
 /** THE GROUND'S OTHER FORM: a well grounded in a material draws what the
@@ -359,6 +358,28 @@ TEST(SketchKitCells, ComparisonOmitsTracksEmptyInEveryCase) {
   EXPECT_FLOAT_EQ(first->top(), 0);
   EXPECT_FLOAT_EQ(first->top(), second->top());
   EXPECT_FLOAT_EQ(first->width(), 60);
+}
+
+TEST(SketchKitCells, ControlRulesStyleAPreviouslyConstructedComparison) {
+  const Element comparison = kit::comparison(
+      {.cases = {{.control = "radius = 22; corners = topLeft | bottomRight",
+                  .figure = subject().key("figure")}},
+       .measure = 200});
+  Drawn original(compose::box()
+                     .applyStyleSheet(kit::houseTheme().styleSheet())
+                     .children({comparison}));
+  Drawn styled(
+      compose::box()
+          .applyStyleSheet(
+              kit::houseTheme().styleSheet() +
+              compose::StyleSheet{compose::rule(".control").font({.size = 22})})
+          .children({comparison}));
+  const auto before = original.composer.bounds("figure");
+  const auto after = styled.composer.bounds("figure");
+  ASSERT_TRUE(before && after);
+  EXPECT_GT(after->top(), before->top() + 20);
+  EXPECT_FLOAT_EQ(after->width(), before->width());
+  EXPECT_FLOAT_EQ(after->height(), before->height());
 }
 
 TEST(SketchKitCells, ARunIsTheHandSpelledRunAtTheThemesGutter) {

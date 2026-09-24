@@ -25,6 +25,23 @@ comparisons a readable heading and brighter notes. Fixed specimen wells keep
 their measure, and each sketch supplies a short title with its explanation
 in the subtitle and captions.
 
+`featureTheme()` is the shared presentation for feature demonstrations:
+slate grounds, ivory headings, pale gold readings, interface labels and
+terminal controls. `Density::Compact` keeps 24 px side margins and a 22 px
+title for fixed specimen grids; `Density::Spacious` uses 40 px side margins
+and a 30 px title for pages of comparisons and explanations. The figures
+keep their authored dimensions in either density. Bind the value where the
+tree is described, including each update that rebuilds it. Reference studies
+choose their own theme.
+
+```cpp
+const sketch::kit::Provide look(
+    sketch::kit::featureTheme(sketch::kit::Density::Spacious));
+ctx.composer.render(sketch::kit::page(
+    {.title = "Corner shapes", .subtitle = "One outline, three corner treatments"},
+    sketch::kit::section({.label = "THE OUTLINE"}, figures)));
+```
+
 ```cpp
 #include <sigilsketch/kit/Kit.h>
 
@@ -46,7 +63,7 @@ struct BorderWeave {
 ## The theme, and why it is inherited rather than passed
 
 `Theme` holds three values and one choice: a `Palette` of six colours, a
-`TypeScale` of seven `Register`s and two faces, a `Spacing` of the
+`TypeScale` of eight `Register`s and two faces, a `Spacing` of the
 distances a sheet is set by, and where a cell's caption lines stand.
 
 It arrives at a component through **`sigil::core::environment`**, the
@@ -100,6 +117,7 @@ label and the caption as classes too:
 | `TypeScale::captionNote` | `caption` | `Palette::ash` |
 | `TypeScale::eyebrow` | `eyebrow` | inherited ink |
 | `TypeScale::section` | `h2` | inherited ink |
+| `TypeScale::control` | `.control` class on `code` | `Palette::ash` |
 
 ```cpp
 #include <sigilcompose/kit/Document.h>
@@ -231,7 +249,9 @@ paint something else passes that.
 The comparison keeps the figure's own extent inside its column and supplies no
 well or scaling. `Comparison::measure` states the available width in pixels,
 including gaps, so text wraps at its final column width before tracks are measured; `Comparison::gap` separates cases and `Comparison::trackGap`
-separates the semantic tracks. Empty text omits that track only when every case
+separates the semantic tracks, defaulting to `Spacing::comparisonGap`.
+Controls carry the `.control` class, so the theme's control register or a
+nearer class rule can style every literal setting together. Empty text omits that track only when every case
 leaves it empty. A page can place several comparisons under different section
 headings, or place one beside a source image or a readout.
 
@@ -348,6 +368,7 @@ the page and the reading well take their look from the current theme.
 | --- | --- |
 | `titleCard(TitleCard)` | an eyebrow over a title over a subtitle, optionally ruled, with the notes ranged at its far edge — the header half of a page, standing on its own |
 | `sectionHeader(SectionHeader)` | a name followed by a horizontal rule, with its supporting note directly beneath the name at a bounded reading measure |
+| `section(SectionHeader, content)` | that heading followed by its content at `Spacing::sectionGap`, preserving the content's authored height and omitting the gap when the heading is absent |
 
 ```cpp
 sketch::kit::titleCard({.eyebrow = {"SIGIL · COMPOSE"},

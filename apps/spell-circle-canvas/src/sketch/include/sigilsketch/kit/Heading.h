@@ -109,4 +109,9 @@ struct SectionHeader {
  *  the remainder of the heading row. */
 [[nodiscard]] compose::Element sectionHeader(const SectionHeader& header);
 
+/** A section heading and its content at the theme's section gap. The
+ *  content retains its authored height; an absent heading spends no gap. */
+[[nodiscard]] compose::Element section(const SectionHeader& header,
+                                       compose::Element content);
+
 }  // namespace sigil::sketch::kit

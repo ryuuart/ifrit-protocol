@@ -118,8 +118,8 @@ compose::Element comparison(Comparison specification) {
       if (!one.control.empty())
         children.push_back(
             document::code(std::move(one.control))
-                .role("code", look.font({.size = 10.5f, .mono = true},
-                                        look.palette.ash))
+                .role("code", look.font(look.type.control, look.palette.ash))
+                .styleClass("control")
                 .width(columnWidth)
                 .flexShrink(0)
                 .gridCells(int(column), row));
@@ -145,7 +145,8 @@ compose::Element comparison(Comparison specification) {
                     .columns = layouts::repeatTrack(
                         int(specification.cases.size()), layouts::fr()),
                     .rows = layouts::repeatTrack(tracks, layouts::content()),
-                    .gap = {gap, specification.trackGap.value_or(8)},
+                    .gap = {gap, specification.trackGap.value_or(
+                                     look.spacing.comparisonGap)},
                     .down = Align::Start})
       .row()
       .width(specification.measure)

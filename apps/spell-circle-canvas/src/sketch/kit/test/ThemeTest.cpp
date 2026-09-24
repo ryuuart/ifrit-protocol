@@ -132,12 +132,11 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
   const kit::Theme& house = kit::houseTheme();
   {
     const compose::StyleSheet sheet = house.styleSheet();
-    // The seven registers, `readout`, and the eight a chart's parts are
+    // The eight registers, `readout`, and the eight a chart's parts are
     // dressed in.
-    EXPECT_EQ(sheet.size(), 16u);
+    EXPECT_EQ(sheet.size(), 17u);
     ASSERT_NE(ruleFor(sheet, "eyebrow"), nullptr);
-    EXPECT_EQ(ruleFor(sheet, "eyebrow")->type(),
-              house.font(house.type.eyebrow))
+    EXPECT_EQ(ruleFor(sheet, "eyebrow")->type(), house.font(house.type.eyebrow))
         << "a register a sheet sets inside its content names no colour";
     EXPECT_EQ(ruleFor(sheet, "label, .label")->type(),
               house.font(house.type.captionLabel, house.palette.ink))
@@ -150,6 +149,9 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
               house.font(house.type.subtitle, house.palette.ash));
     EXPECT_EQ(ruleFor(sheet, "footer")->type(),
               house.font(house.type.footer, house.palette.ash));
+    ASSERT_NE(ruleFor(sheet, ".control"), nullptr);
+    EXPECT_EQ(ruleFor(sheet, ".control")->type(),
+              house.font(house.type.control, house.palette.ash));
     // The one class that is not a register of its own: a MEASURED FIGURE,
     // set in the register a call is set in, in the figure colour.
     ASSERT_NE(ruleFor(sheet, ".readout"), nullptr);
@@ -159,9 +161,9 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
     compose::StyleSheet own =
         house.styleSheet() +
         compose::StyleSheet{compose::rule(".value").font({.size = 13.0f})};
-    EXPECT_EQ(own.size(), 17u) << "the registers and the sketch's own";
+    EXPECT_EQ(own.size(), 18u) << "the registers and the sketch's own";
     EXPECT_NE(ruleFor(own, ".value"), nullptr);
-    EXPECT_EQ(house.styleSheet().size(), 16u) << "a copy, not the theme's";
+    EXPECT_EQ(house.styleSheet().size(), 17u) << "a copy, not the theme's";
   }
 }
 

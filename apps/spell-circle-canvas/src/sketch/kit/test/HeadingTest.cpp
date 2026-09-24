@@ -62,13 +62,14 @@ TEST(SketchKitHeading, AMissingLineSpendsNoGap) {
       compose::box()
           .column()
           .alignItems(compose::Align::Start)
-          .children({compose::text(u8"T", kit::houseTheme().style(
-                                              kit::houseTheme().type.title,
-                                              kit::houseTheme().palette.ink)),
-                     compose::text(u8"S", kit::houseTheme().style(
-                                              kit::houseTheme().type.subtitle,
-                                              kit::houseTheme().palette.ash))
-                         .margin(kit::houseTheme().spacing.subtitleGap, 0, 0, 0)})));
+          .children(
+              {compose::text(u8"T", kit::houseTheme().style(
+                                        kit::houseTheme().type.title,
+                                        kit::houseTheme().palette.ink)),
+               compose::text(u8"S", kit::houseTheme().style(
+                                        kit::houseTheme().type.subtitle,
+                                        kit::houseTheme().palette.ash))
+                   .margin(kit::houseTheme().spacing.subtitleGap, 0, 0, 0)})));
 }
 
 /** THE MASTHEAD: a card at the left and a stack of ranged notes at the
@@ -151,6 +152,30 @@ TEST(SketchKitHeading, TheSectionRuleFollowsItsLabel) {
       kit::sectionHeader(
           {.label = u8"DYNAMICS", .note = u8"6 presets", .ruled = false})
           .width(360)));
+}
+
+TEST(SketchKitHeading, ASectionKeepsItsFigureAfterAWrappedHeading) {
+  const auto described = [](float gap) {
+    kit::Theme sheet = kit::featureTheme();
+    sheet.spacing.sectionGap = gap;
+    const kit::Provide look(sheet);
+    return kit::section(
+               {.label = "THE OBSERVATION",
+                .note = "A supporting note wraps within the available measure "
+                        "before the figure begins."},
+               subject().key("figure").height(150))
+        .width(180)
+        .applyStyleSheet(sheet.styleSheet());
+  };
+  Drawn tight(described(6));
+  Drawn open(described(24));
+  const auto before = tight.composer.bounds("figure");
+  const auto after = open.composer.bounds("figure");
+  ASSERT_TRUE(before && after);
+  EXPECT_GT(before->top(), 40);
+  EXPECT_FLOAT_EQ(after->top() - before->top(), 18);
+  EXPECT_FLOAT_EQ(before->height(), 150);
+  EXPECT_FLOAT_EQ(after->height(), 150);
 }
 
 TEST(SketchKitHeading, DocumentRulesStyleAPreviouslyConstructedCard) {
