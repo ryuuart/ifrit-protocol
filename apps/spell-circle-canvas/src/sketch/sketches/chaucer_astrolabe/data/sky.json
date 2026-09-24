@@ -1,0 +1,28 @@
+{
+  "stars": [
+    {"name": "ALKAB", "modern": "Hassaleh", "ra": 63.397, "dec": 31.809},
+    {"name": "ALNATH", "modern": "Elnath", "ra": 70.999, "dec": 27.717},
+    {"name": "ALGHVL", "modern": "Algol", "ra": 36.358, "dec": 38.151},
+    {"name": "ALHABOR", "modern": "Sirius", "ra": 93.767, "dec": -16.224, "tip": 9},
+    {"name": "ALGOMEISA", "modern": "Procyon", "ra": 105.842, "dec": 6.530},
+    {"name": "K ALASAD", "modern": "Regulus", "ra": 142.986, "dec": 15.135},
+    {"name": "ALKAID", "modern": "Alkaid", "ra": 200.116, "dec": 52.757},
+    {"name": "ALRAMIH", "modern": "Arcturus", "ra": 206.007, "dec": 22.436},
+    {"name": "ALPHETA", "modern": "Alphecca", "ra": 226.578, "dec": 29.123},
+    {"name": "ALRADIF", "modern": "Deneb", "ra": 304.629, "dec": 42.994},
+    {"name": "MARKAB", "modern": "Markab", "ra": 337.846, "dec": 11.634},
+    {"name": "ALNASIR", "modern": "Alpheratz", "ra": 353.549, "dec": 25.339}
+  ],
+  "letters": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M",
+              "N", "O", "P", "Q", "R", "S", "T", "V", "X", "Y", "Z", "&"],
+  "signs": ["ARIES", "TAVRVS", "GEMINI", "CANCER", "LEO", "VIRGO",
+            "LIBRA", "SCORPIVS", "SAGITTARIVS", "CAPRICORNVS", "AQVARIVS", "PISCES"],
+  "months": [
+    {"name": "IAN", "days": 31}, {"name": "FEB", "days": 28},
+    {"name": "MAR", "days": 31}, {"name": "APR", "days": 30},
+    {"name": "MAI", "days": 31}, {"name": "IVN", "days": 30},
+    {"name": "IVL", "days": 31}, {"name": "AVG", "days": 31},
+    {"name": "SEP", "days": 30}, {"name": "OCT", "days": 31},
+    {"name": "NOV", "days": 30}, {"name": "DEC", "days": 31}
+  ]
+}
