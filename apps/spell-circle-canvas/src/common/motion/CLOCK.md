@@ -66,7 +66,46 @@ whether it still needs frames, and one that answers nothing always does
 (see the gotcha below). `addFixed` reads the same rule with nothing
 offered: `[] {…}` or `[] { … return alive; }`.
 
+## Who moves the clock
+
+A run is repeatable when the time of every frame is a function of what
+the run was told, and `PolicyClock` is where that is decided. It holds a
+`FrameClock` under a `ClockPolicy`:
+
+- `ClockPolicy::Wall` — a frame the host draws on its own moves by the
+  time that passed, paused and time-scaled: a window.
+- `ClockPolicy::Advance` — only `PolicyClock::step` moves it, by exactly
+  the step it is handed: a capture, a test, a sweep.
+- `ClockPolicy::Pause` — nothing moves it, a step included.
+- `ClockPolicy::PauseWhileLoading` — the wall, except that a frame drawn
+  while something the run asked for is still arriving moves nothing.
+
+```cpp
+#include <sigilmotion/clock/ClockPolicy.h>
+
+PolicyClock clock;
+clock.setPolicy(ClockPolicy::Advance, /*budgetSeconds=*/2.0);
+for (int frame = 0; frame < 120; ++frame) {
+  ticker.tick(clock.step(1.0 / 60.0));
+  if (clock.budgetExpired()) settled();   // true on the 120th alone
+}
+```
+
+`PolicyClock::frame` is the frame a host draws on its own and
+`PolicyClock::step` the one a caller states; `PolicyClock::wall` is the
+one reading a body needs, whether the wall moves its clock. A budget is
+clock seconds from the moment it was set, and `PolicyClock::budgetExpired`
+answers true on the frame that reaches it and never again; a clock that
+does not move never spends one. `PolicyClock::setHeld` is the pause a
+person presses and keeps the policy, and `PolicyClock::restart` counts
+from zero again as a new session opens under the same clock.
+
 ## Gotchas
+
+A frame under `PolicyClock` that moves nothing still takes its wall
+reading, so a return to `ClockPolicy::Wall` measures from there rather
+than catching up on the stretch the clock stood still for. A stated step
+is not time-scaled and not stall-clamped: the caller chose it.
 
 `Ticker` is not thread-safe. Use one per animation domain and touch it
 only from that domain's thread.
