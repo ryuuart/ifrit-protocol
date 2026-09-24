@@ -11,9 +11,11 @@ sigil_library(SigilSketchSessionAgent
   PRIVATE SigilImageEncode SigilIOSource)
 
 # Their self-checks, under the protocol's one label: every command each
-# answers, asked in process, and the clock's claims as cases.
+# answers, asked in process, and the clock's claims as cases — among
+# them that an endpoint mounted with no client costs a run nothing.
 sigil_test(sketch_test
-  SOURCES test/HostAgentsTest.cpp
-  LIBRARIES SigilSketchSessionAgent
-  SUITES SketchSessionAgent SketchClockAgent
+  SOURCES test/HostAgentsTest.cpp test/QuietEndpointTest.cpp
+  LIBRARIES SigilSketchSessionAgent SigilSketchTesting SigilProtocolEndpoint
+            SigilIOHub
+  SUITES SketchSessionAgent SketchClockAgent SketchQuietEndpoint
   LABELS protocol)

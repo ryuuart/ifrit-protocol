@@ -283,6 +283,68 @@ TEST(SketchClockAgent, WhatADetachingClientSetGoesWithIt) {
   EXPECT_EQ(after.result().frame, 1u);
 }
 
+/** Whether the last session this probe opened was opened for a
+ *  repeatable run. */
+bool g_openedRepeatable = false;
+
+/** A sketch that says what it was opened for. */
+struct OpenedFor {
+  void setup(sigil::sketch::SketchContext& ctx) {
+    ctx.canvas(16, 16);
+    g_openedRepeatable = ctx.deterministic;
+  }
+};
+
+[[maybe_unused]] const bool kOpenedForRegistered =
+    sigil::sketch::add("agents_opened_for", nullptr, "Test",
+                       "a sketch that says what it was opened for",
+                       &sigil::sketch::kindOf<OpenedFor>);
+
+TEST(SketchClockAgent, PauseWhileLoadingIsARepeatableRunHeldWhileAnythingArrives) {
+  const ScratchDir scratch("sketch-host-agents-loading");
+  protocol::Program program;
+  program.stateRoot = scratch.path;
+  protocol::Dispatcher dispatcher(std::move(program));
+  bool arriving = true;
+  sigil::sketch::HostAgents agents(
+      dispatcher, sigil::sketch::SessionAgentOptions{
+                      .fonts = &sigil::sketch::test::fonts(),
+                      .arriving = [&arriving] { return arriving; }});
+  const protocol::InProcess client(dispatcher);
+  const auto answer = [](auto& slot) { return AgentHost::into(slot); };
+
+  std::optional<Answer<protocol::values::Empty>> set;
+  clock::values::SetPolicyParameters parameters;
+  parameters.policy = clock::Policy_PauseWhileLoading;
+  clock::ClockClient(client.caller()).setPolicy(parameters, answer(set));
+  ASSERT_TRUE(set && *set);
+  std::optional<Answer<session::values::Summary>> opened;
+  session::values::OpenParameters open;
+  open.sketch = "agents_opened_for";
+  g_openedRepeatable = false;
+  session::SessionClient(client.caller()).open(open, answer(opened));
+  ASSERT_TRUE(opened && *opened);
+  // A sketch reads only that the clock is not the wall's.
+  EXPECT_TRUE(g_openedRepeatable);
+
+  const auto seconds = [&] {
+    std::optional<Answer<clock::values::CurrentResult>> current;
+    clock::ClockClient(client.caller()).current(answer(current));
+    return current->result().seconds;
+  };
+  for (int turn = 0; turn < 5; ++turn) {
+    agents.frame();
+    std::this_thread::sleep_for(5ms);
+  }
+  EXPECT_EQ(seconds(), 0.0);
+  arriving = false;
+  for (int turn = 0; turn < 5; ++turn) {
+    agents.frame();
+    std::this_thread::sleep_for(5ms);
+  }
+  EXPECT_GT(seconds(), 0.0);
+}
+
 TEST(SketchSessionAgent, WritesAStillUnderTheStateRootAtItsDensity) {
   AgentHost host;
   ASSERT_TRUE(host.policy(clock::Policy_Advance));
