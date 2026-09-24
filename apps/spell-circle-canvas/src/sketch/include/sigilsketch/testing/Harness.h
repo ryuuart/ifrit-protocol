@@ -49,6 +49,7 @@ namespace sigil::sketch::testing {
  *  returns; a case asserts on the answer:
  *
  *      TEST_F(Harness, TheBoxHasMovedAtOneSecond) {
+ *        ASSERT_TRUE(host().pinDensity());  // a plate's grid, from frame one
  *        ASSERT_TRUE(open("marching_box"));
  *        ASSERT_TRUE(clock(protocol::clock::Policy_Advance));
  *        ASSERT_TRUE(step(1.0));

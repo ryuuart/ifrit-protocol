@@ -96,6 +96,7 @@ using sigil::sketch::testing::Harness;
 namespace protocol = sigil::protocol;
 
 TEST_F(Harness, ThePlateAtOneSecond) {
+  ASSERT_TRUE(host().pinDensity());  // baked on a plate's grid from frame one
   ASSERT_TRUE(open("cascade"));
   ASSERT_TRUE(clock(protocol::clock::Policy_Advance));
   ASSERT_TRUE(step(1.0));

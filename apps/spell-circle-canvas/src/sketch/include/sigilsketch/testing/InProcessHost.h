@@ -79,6 +79,11 @@ class InProcessHost {
   protocol::Answer<protocol::session::values::Summary> open(
       const std::string& sketch);
 
+  /** Pins the density every raster a session bakes is formed at — zero
+   *  for the one a plate of it is photographed at — from the first frame
+   *  of the next open. */
+  protocol::Answer<protocol::values::Empty> pinDensity(double density = 0.0);
+
   /** Sets how the clock moves, with a budget of clock seconds or none. */
   protocol::Answer<protocol::values::Empty> clock(
       protocol::clock::Policy policy,

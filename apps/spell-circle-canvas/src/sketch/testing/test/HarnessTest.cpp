@@ -64,6 +64,7 @@ TEST_F(Harness, AStillAfterOneSecondIsTheSweepsPlateOfThatMoment) {
   const std::filesystem::path plate =
       stateDirectory() / "sweep" / "plate_harness_marching_box.png";
 
+  ASSERT_TRUE(host().pinDensity());
   const auto opened = open("harness_marching_box");
   ASSERT_TRUE(opened) << opened.error().message;
   ASSERT_TRUE(clock(protocol::clock::Policy_Advance));

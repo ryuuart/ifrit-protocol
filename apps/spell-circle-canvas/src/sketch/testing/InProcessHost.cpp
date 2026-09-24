@@ -83,6 +83,15 @@ Answer<protocol::session::values::Summary> InProcessHost::open(
   return wait(answered);
 }
 
+Answer<protocol::values::Empty> InProcessHost::pinDensity(double density) {
+  std::optional<Answer<protocol::values::Empty>> answered;
+  protocol::session::values::DensityParameters parameters;
+  parameters.density = density;
+  protocol::session::SessionClient(caller()).pinDensity(parameters,
+                                                        into(answered));
+  return wait(answered);
+}
+
 Answer<protocol::values::Empty> InProcessHost::clock(
     protocol::clock::Policy policy, std::optional<double> budgetSeconds) {
   std::optional<Answer<protocol::values::Empty>> answered;
