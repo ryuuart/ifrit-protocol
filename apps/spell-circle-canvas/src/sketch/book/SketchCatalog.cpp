@@ -6,6 +6,8 @@
 
 #include "SketchCatalog.h"
 
+#include "CatalogRowMap.h"
+
 #include <sigilsketch/core/Catalog.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
@@ -14,7 +16,6 @@
 
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
-#include <QtCore/QStringList>
 #include <QtCore/QUrl>
 #include <algorithm>
 #include <string>
@@ -37,45 +38,6 @@ bool SketchCatalog::opensWithoutFill = false;
 sigil::weave::FontContext* SketchCatalog::thumbnailFonts = nullptr;
 sigil::sketch::Assets* SketchCatalog::thumbnailAssets = nullptr;
 
-namespace {
-
-QString text(const std::string& value) { return QString::fromStdString(value); }
-
-}  // namespace
-
-QVariantMap SketchCatalog::rowMap(const sketch::CatalogRow& row) {
-  QVariantMap map;
-  map.insert(QStringLiteral("sketchIndex"), row.index);
-  // What the browser shows as the name is the display spelling; the filed
-  // name a plate is written under travels beside it.
-  map.insert(QStringLiteral("name"), text(row.title));
-  map.insert(QStringLiteral("filedName"), text(row.name));
-  map.insert(QStringLiteral("key"), text(row.key));
-  map.insert(QStringLiteral("folder"), text(row.category));
-  map.insert(QStringLiteral("blurb"), text(row.blurb));
-  map.insert(QStringLiteral("path"), text(row.path.string()));
-  map.insert(QStringLiteral("entryPath"), text(row.entryPath.string()));
-  map.insert(QStringLiteral("external"), row.external);
-  map.insert(QStringLiteral("lines"), row.source.lines);
-  map.insert(QStringLiteral("subject"), text(row.source.subject));
-  map.insert(QStringLiteral("editFirst"), text(row.source.editFirst));
-  QStringList tags;
-  for (const auto& tag : row.source.tags) tags.push_back(text(tag));
-  map.insert(QStringLiteral("tags"), tags);
-  map.insert(QStringLiteral("kind"), text(row.kind));
-  map.insert(QStringLiteral("available"), row.available);
-  map.insert(QStringLiteral("reason"), text(row.reason));
-  map.insert(QStringLiteral("videoExportable"), row.videoExportable);
-  // The thumbnail is filled from the store afterward, and re-filled as the
-  // worker renders one; the canvas is answered by a running session and
-  // is empty until one has run.
-  map.insert(QStringLiteral("plate"), QString());
-  map.insert(QStringLiteral("canvas"), QString());
-  map.insert(QStringLiteral("background"), QString());
-  map.insert(QStringLiteral("moment"), -1.0);
-  return map;
-}
-
 QVariantList SketchCatalog::sketches() const {
   if (workspaceRoot.empty() && externals.empty()) return m_rows;
   QVariantList rows;
@@ -92,7 +54,7 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
                        .workspaceRoot = SketchCatalog::workspaceRoot});
   m_rows.reserve((qsizetype)rows.size());
   for (const sketch::CatalogRow& row : rows) {
-    QVariantMap map = rowMap(row);
+    QVariantMap map = sketchbook::catalogRowMap(row);
     // A fresh thumbnail already in the store shows at once, without a
     // render — a warm command or an earlier look left it behind.
     if (!row.external && !SketchCatalog::thumbnailDirectory.empty()) {

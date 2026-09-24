@@ -113,6 +113,7 @@
 #include <vector>
 
 #include "Arguments.h"
+#include "CatalogRowMap.h"
 #include "FrameLane.h"
 #include "PipelineStore.h"
 #include "PipelineWarm.h"
@@ -382,9 +383,7 @@ int main(int argc, char* argv[]) {
     const SketchCatalog rows;
     for (const QVariant& row : rows.sketches())
       std::printf("%s\n",
-                  QJsonDocument(QJsonObject::fromVariantMap(row.toMap()))
-                      .toJson(QJsonDocument::Compact)
-                      .constData());
+                  sketchbook::catalogRowJson(row.toMap()).constData());
     return 0;
   }
 

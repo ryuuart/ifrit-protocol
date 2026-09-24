@@ -844,8 +844,16 @@ the browser reads before anything has been built: a compiled-in entry
 names the runtime it draws through, and a file opened by path has none
 until it has been compiled and says so rather than guessing. `--list` is
 the same registry for a reader, `sigil::sketch::registryRows` spelled one
-filed name per line; Python reads both as values, as
-`sigil.sketch.catalog(files)` and `sigil.sketch.registryRows(kind)`.
+filed name per line; a sketch this machine cannot run is listed too,
+greyed on a terminal, with a tab and `unavailable: <reason>` after its
+name.
+
+The registry is compiled into Sketchbook, so a script outside it reads
+the registry through these JSON rows, as the plate ledger does.
+`sigil.sketch.catalog(files)` and `sigil.sketch.registryRows(kind)` answer
+the same rows as Python values, but they see the registry only inside
+Sketchbook's own interpreter: in a plain one `registryRows` is empty and
+`catalog` holds only the files it was handed.
 
 **A capture is deterministic and a live run is not.** Anything a sketch
 measured about its own execution is pinned when a still is being written

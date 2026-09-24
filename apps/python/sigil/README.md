@@ -205,12 +205,14 @@ The CLI creates output directories as needed and
 returns a nonzero status when import, setup or rendering fails.
 
 What Sketchbook's browser and its plate ledger know about sketches is
-available as values too. `catalog(files, workspace=None)` answers one
-`CatalogRow` per file — its key, the runtime it draws through (a Python
-file always a canvas, a C++ file none until it has been built), its entry
-path and what its opening comment says in `source` — after one row per
-registry entry; `registryRows(kind="")` answers the registry alone, which
-is empty outside Sketchbook because this package compiles no sketch in.
+available as values too. `catalog(files=[], sketchDirectory=None,
+workspace=None)` answers one `CatalogRow` per file — its key, the runtime
+it draws through (a Python file always a canvas, a C++ file none until it
+has been built), its entry path and what its opening comment says in
+`source` — after one row per registry entry, whose files it looks for
+under `sketchDirectory`; `registryRows(kind="")` answers the registry
+alone, which is empty outside Sketchbook because this package compiles no
+sketch in.
 `sigil examples` lists the packaged examples from `catalog`. `compare(first,
 second)` differences two directories of `plate_<name>.png` files, as a
 headless sweep writes them, into one `PlateComparison` row per plate:

@@ -16,6 +16,7 @@ qt_add_executable(Sketchbook
   main.cpp
   Arguments.cpp Arguments.h
   CanvasView.cpp CanvasView.h
+  CatalogRowMap.cpp CatalogRowMap.h
   PythonEnvironment.cpp PythonEnvironment.h
   Workspace.cpp Workspace.h
   FrameLane.cpp FrameLane.h
@@ -111,8 +112,10 @@ target_link_libraries(Sketchbook PRIVATE
 
 sigil_test(sketch_test
   SOURCES Arguments.cpp Workspace.cpp PipelineStore.cpp CanvasView.cpp
+          CatalogRowMap.cpp
           test/ArgumentsTest.cpp test/WorkspaceTest.cpp
           test/PipelineStoreTest.cpp test/CanvasViewTest.cpp
+          test/CatalogRowMapTest.cpp
   LIBRARIES SigilSketch Qt6::Core)
 
 # WHAT A FRAME OF THE PANE COSTS AS THE READER ZOOMS, over a fixture
