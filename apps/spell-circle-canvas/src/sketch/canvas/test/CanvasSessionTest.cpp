@@ -191,9 +191,9 @@ struct Probing {
    *  redraw itself from ANOTHER session's answer the moment that session
    *  opened, and only a description taken after that shows it. */
   void update(double, SketchContext& ctx) { ctx.composer.render(art()); }
-  /** The root fills the canvas whatever it asks for, so the probed width
-   *  goes on a CHILD of it, held at the start of its row: the probe has
-   *  to reach the pixels for a comparison of them to say anything. */
+  /** The probed width goes on a CHILD of a root that fills the canvas,
+   *  held at the start of its row: the probe has to reach the pixels for
+   *  a comparison of them to say anything. */
   [[nodiscard]] Element art() const {
     return box().inset(0).children({box()
                                         .alignSelf(Align::Start)
@@ -225,10 +225,11 @@ TEST_F(CanvasSession, PaintsWhatTheSketchDescribed) {
   canvas().clear(SK_ColorBLACK);
   session->frame(canvas(), 1.0 / 60.0);
   EXPECT_EQ(pixels().getColor(10, 10), SK_ColorRED);
-  // The ground is the one the body declared, not the black it was
-  // cleared to: a runtime that painted only what it was described would
-  // leave the corner as it found it.
-  EXPECT_NE(pixels().getColor(300, 190), SK_ColorBLACK);
+  // The root box stands at the size it states, as CSS's root does, and
+  // the runtime paints what the body described and nothing past it: the
+  // corner is left as the frame found it, cleared by whoever hosts the
+  // session, which is where the declared ground is laid.
+  EXPECT_EQ(pixels().getColor(300, 190), SK_ColorBLACK);
 }
 
 TEST_F(CanvasSession,
