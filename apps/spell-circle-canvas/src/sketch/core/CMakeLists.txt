@@ -5,8 +5,8 @@
 # sweep into a hundred sketches in one process — and a fault inside one
 # is a fault inside the host either way.
 sigil_test(sketch_test
-  SOURCES test/AssetsTest.cpp test/CrashTest.cpp test/DeviceTest.cpp
-          test/RegistryTest.cpp test/SourcesTest.cpp
+  SOURCES test/AssetsTest.cpp test/CatalogTest.cpp test/CrashTest.cpp
+          test/DeviceTest.cpp test/RegistryTest.cpp test/SourcesTest.cpp
   LIBRARIES SigilSketch SigilVideoEncode)
 
 sigil_bench(sketch_bench

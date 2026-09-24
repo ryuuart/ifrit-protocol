@@ -52,15 +52,16 @@ find_package(EnTT CONFIG REQUIRED)
 # the byte writer a plate is saved through, the Graphite handle, the
 # decoders and encoders — is PRIVATE.
 set(SIGIL_SKETCH_SOURCES
-  core/Assets.cpp core/Crash.cpp core/Device.cpp core/Registry.cpp
-  core/Sources.cpp
+  core/Assets.cpp core/Catalog.cpp core/Crash.cpp core/Device.cpp
+  core/Registry.cpp core/Sources.cpp
   canvas/Context.cpp canvas/Guest.cpp canvas/Session.cpp
   set/Context.cpp set/Session.cpp
   live/BuildDirectory.cpp live/BuildCache.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp plate/ThumbnailWriter.cpp)
 set(SIGIL_SKETCH_HEADERS
-  core/Assets.h core/CanvasSpecification.h core/Crash.h core/Device.h
+  core/Assets.h core/CanvasSpecification.h core/Catalog.h core/Crash.h
+  core/Device.h
   core/Kind.h core/Members.h core/Placement.h core/Registry.h core/Session.h
   core/Sources.h
   canvas/Guest.h canvas/Sketch.h

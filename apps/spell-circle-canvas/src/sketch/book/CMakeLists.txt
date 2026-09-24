@@ -393,15 +393,3 @@ add_test(NAME sketch_pipeline_cold_store
     --work ${CMAKE_BINARY_DIR}/sketch_pipeline_cold_store)
 set_tests_properties(sketch_pipeline_cold_store PROPERTIES
   LABELS gpu TIMEOUT 300)
-
-# THE CATALOG SEAM, without a window. `--catalog` prints the browser's
-# rows as the model would hand them to QML, and the script asserts what
-# a row says before anything is opened: a compiled-in sketch names the
-# runtime it draws through, and a file opened by path — which has no
-# runtime until it is built — says so rather than guessing one.
-add_test(NAME sketch_catalog_rows
-  COMMAND ${Python3_EXECUTABLE}
-    ${CMAKE_CURRENT_LIST_DIR}/test/catalog_rows.py
-    --sketchbook $<TARGET_FILE:Sketchbook>
-    --canvas crossing_rule
-    --work ${CMAKE_BINARY_DIR}/sketch_catalog_rows)

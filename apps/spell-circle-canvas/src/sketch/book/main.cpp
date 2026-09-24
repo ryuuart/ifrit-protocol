@@ -319,26 +319,23 @@ int main(int argc, char* argv[]) {
   }
 
   if (args.list) {
-    // Spelled the way a plate names it, because a script that selects a
-    // sketch here looks for its plate under the same name.
+    // THE REGISTRY'S ROWS FOR A READER, spelled the way a plate names
+    // them. A script reads the same rows as values instead: in Python, or
+    // as the catalog's JSON objects below.
     //
-    // A SKETCH THIS MACHINE CANNOT RUN IS STILL LISTED, with what it is
-    // missing after a tab — one line, two consumers. A reader sees the
-    // entry greyed and the reason beside it; a script splits on the tab
-    // and knows not to ask for a plate it has just been told cannot
-    // exist. Dropping it from the listing would say the same thing by
-    // saying nothing, which reads as a sketch that was deleted.
+    // A SKETCH THIS MACHINE CANNOT RUN IS STILL LISTED, greyed, with what
+    // it is missing after a tab. Dropping it from the listing would say
+    // the same thing by saying nothing, which reads as a sketch that was
+    // deleted.
     const bool toTerminal = isatty(fileno(stdout)) != 0;
-    const auto& entries = sketch::registry();
-    for (int index : sketch::selection(-1, args.kind)) {
-      const sketch::Entry& entry = entries[index];
-      std::string why;
-      if (entry.available(&why)) {
-        std::printf("%s\n", entry.name);
+    for (const sketch::RegistryRow& row : sketch::registryRows(args.kind)) {
+      if (row.available) {
+        std::printf("%s\n", row.name.c_str());
         continue;
       }
       std::printf("%s%s\tunavailable: %s%s\n", toTerminal ? "\x1b[2m" : "",
-                  entry.name, why.c_str(), toTerminal ? "\x1b[0m" : "");
+                  row.name.c_str(), row.reason.c_str(),
+                  toTerminal ? "\x1b[0m" : "");
     }
     return 0;
   }
@@ -346,10 +343,10 @@ int main(int argc, char* argv[]) {
   if (args.catalog) {
     // THE BROWSER'S ROWS WITHOUT A WINDOW: what the catalog knows about
     // every sketch before one is opened, the registry first and a file
-    // this run was pointed at after it, one JSON object per line. What a
-    // script reads off them is what the browser reads: a compiled-in
-    // sketch's row names the runtime it draws through, and a file opened
-    // by path has none until it has been built.
+    // this run was pointed at after it, one JSON object per line. They are
+    // `sketch::catalog`'s rows as the browser maps them, so this is also
+    // how another process reads the registry as values: every entry's
+    // filed name, stem, runtime and availability on this machine.
     int coreArgc = 1;
     const QCoreApplication core(coreArgc, argv);
     SketchCatalog::sketchDirectory = SIGIL_SKETCH_DIR;

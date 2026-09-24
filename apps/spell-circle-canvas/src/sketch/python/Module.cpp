@@ -13,6 +13,7 @@ PYBIND11_MODULE(_sigil, module) {
   sigil::sketch::python::bindSketchContextSurface(module);
   sigil::sketch::python::bindSketchEntries(module);
   sigil::sketch::python::bindSketchPlates(module);
+  sigil::sketch::python::bindSketchCatalog(module);
   sigil::sketch::python::bindSketchSchema(module);
   sigil::sketch::python::bindSketchDeviceRuntimes(module);
   sigil::sketch::python::bindSketchSetSketches(module);

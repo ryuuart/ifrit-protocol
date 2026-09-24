@@ -28,6 +28,7 @@ the Python extension the build links.
 
 import argparse
 import concurrent.futures
+import json
 import os
 import shutil
 import subprocess
@@ -138,21 +139,25 @@ def registry(binary, kinds):
     ones this machine can render, and scene -> reason for the ones it
     cannot.
 
-    ONE LISTING LINE PER SKETCH, and the ones this machine cannot run
-    carry a tab and the reason. They stay in the listing on purpose: a
-    sketch dropped from it and a sketch deleted from the tree read
-    exactly alike, and the difference is the whole point."""
+    Read as values — the catalog's rows, one JSON object each, which carry
+    every entry's filed name, runtime and availability. The registry is
+    compiled into Sketchbook and into nothing a script can import, so its
+    rows cross the process as data. A sketch this machine cannot run is a
+    row like any other, with the reason: a sketch dropped from the rows
+    and a sketch deleted from the tree would read exactly alike, and the
+    difference is the whole point."""
+    listed = tree.capture([binary, "--catalog"], check=True).stdout
     scenes, unavailable = {}, {}
-    for kind in kinds:
-        listed = tree.capture([binary, "--list", "--kind", kind], check=True).stdout
-        for line in listed.splitlines():
-            if not line.strip():
-                continue
-            name, tab, note = line.partition("\t")
-            if tab:
-                unavailable[name] = note.removeprefix("unavailable: ")
-            else:
-                scenes[name] = kind
+    for line in listed.splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if row["kind"] not in kinds:
+            continue
+        if row["available"]:
+            scenes[row["filedName"]] = row["kind"]
+        else:
+            unavailable[row["filedName"]] = row["reason"]
     return scenes, unavailable
 
 

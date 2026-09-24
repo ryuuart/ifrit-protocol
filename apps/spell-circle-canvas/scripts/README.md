@@ -329,7 +329,8 @@ A sketch this machine cannot render is skipped by name. A sketch written
 over an optional SDK is only compiled in where that SDK was found, and
 the data it needs at run time can still be absent on the machine running
 the binary. The registry answers for that rather than the sweep
-guessing: `--list` marks such a sketch with what it is missing, the tier
+guessing: its rows, read from `Sketchbook --catalog` as one JSON object
+each, mark such a sketch unavailable with what it is missing, the tier
 prints SKIPPED and the reason, and no plate is rendered, hashed or
 judged. A skip is not a failure and not a mover — and the plates for
 those scenes therefore exist only where the SDK does, so a rebase that

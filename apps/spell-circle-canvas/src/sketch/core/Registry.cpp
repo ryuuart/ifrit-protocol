@@ -86,6 +86,26 @@ std::vector<int> selection(int only, std::string_view runtime) {
   return chosen;
 }
 
+RegistryRow registryRow(const Entry& entry) {
+  RegistryRow row{.name = entry.name,
+                  .key = entry.key,
+                  .category = entry.category,
+                  .blurb = entry.blurb};
+  // Opening a kind costs nothing: it is a factory, and running it is what
+  // a session does.
+  if (const Kind kind = entry.kind()) row.kind = std::string(kind->runtime());
+  row.available = entry.available(&row.reason);
+  return row;
+}
+
+std::vector<RegistryRow> registryRows(std::string_view runtime) {
+  const std::vector<Entry>& entries = registry();
+  std::vector<RegistryRow> rows;
+  for (int index : selection(-1, runtime))
+    rows.push_back(registryRow(entries[index]));
+  return rows;
+}
+
 int find(std::string_view query) {
   if (query.empty()) return -1;
   const std::vector<Entry>& entries = registry();

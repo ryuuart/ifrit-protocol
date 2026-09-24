@@ -145,6 +145,34 @@ bool add(const char* key, const char* name, const char* category,
  *  answer the same command line the same way. */
 [[nodiscard]] std::vector<int> selection(int only, std::string_view runtime);
 
+/** ONE ENTRY AS A VALUE: what a listing, a script or another process reads
+ *  about a sketch without opening it.
+ *
+ *  `name` is the filed name a plate is written under and `key` the file
+ *  stem, as on the Entry. `kind` is the runtime the entry's kind answers
+ *  with, empty when it answers with none, and `available` with `reason`
+ *  is the probe's answer on this machine. */
+struct RegistryRow {
+  std::string name;
+  std::string key;
+  std::string category;
+  std::string blurb;
+  std::string kind;
+  bool available = true;
+  std::string reason;
+};
+
+/** The row for one entry. */
+[[nodiscard]] RegistryRow registryRow(const Entry& entry);
+
+/** EVERY ENTRY THIS BINARY WAS BUILT WITH, AS ROWS, in registry order and
+ *  kept to the sketches drawn through @p runtime when one is named —
+ *  exactly the entries `selection(-1, runtime)` walks. A sketch this
+ *  machine cannot run is a row like any other, with `available` false and
+ *  the reason: a row dropped and a sketch deleted would read alike. */
+[[nodiscard]] std::vector<RegistryRow> registryRows(
+    std::string_view runtime = {});
+
 /** The registry index for a decimal index or a name; -1 when nothing
  *  matches. Names match case-insensitively on any unique substring, so
  *  `y2k` and `y2k chrome` land on the same entry, and a sketch answers

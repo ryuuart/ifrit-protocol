@@ -227,7 +227,16 @@ def main(argv=None):
     options = parser.parse_args(arguments)
 
     if options.command == "examples":
-        print("\n".join(sorted(_examples())))
+        # The rows a browser shows for these files, read the way it reads
+        # any file opened by path: one source for what a sketch is called.
+        from .sketch import catalog
+
+        directory = files("sigil").joinpath("examples")
+        if directory.is_dir():
+            with as_file(directory) as root:
+                sources = sorted(Path(root).glob("*.py"))
+                rows = catalog(sources)
+            print("\n".join(sorted(row.key for row in rows if row.external)))
         return 0
     if options.command == "open":
         try:

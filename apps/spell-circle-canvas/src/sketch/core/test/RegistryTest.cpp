@@ -153,6 +153,37 @@ TEST(SketchAvailability, AnEntryAnswersForTheSketchBehindIt) {
   EXPECT_TRUE(gated.available(nullptr));
 }
 
+TEST(SketchRegistryRows, CarryTheEntryItsKindAndItsAvailability) {
+  // A row is what a listing or another process reads without opening the
+  // sketch: the filed name and the stem, the runtime its kind answers
+  // with, and the probe's answer — an unavailable sketch is a row too.
+  GatedSketch::missing = true;
+  std::vector<RegistryRow> mine;
+  for (RegistryRow& row : registryRows())
+    if (row.category.starts_with("Test \xc2\xb7")) mine.push_back(row);
+  ASSERT_EQ(mine.size(), 4u);
+  EXPECT_EQ(mine[0].name, "alpha wave");
+  EXPECT_EQ(mine[0].key, "alpha_wave");
+  EXPECT_EQ(mine[0].blurb, "a");
+  EXPECT_EQ(mine[0].kind, "still");
+  EXPECT_TRUE(mine[0].available);
+  EXPECT_TRUE(mine[0].reason.empty());
+  EXPECT_EQ(mine[3].key, "gated_thing");
+  EXPECT_FALSE(mine[3].available);
+  EXPECT_EQ(mine[3].reason, "the thing it draws is not installed");
+  GatedSketch::missing = false;
+}
+
+TEST(SketchRegistryRows, KeepToTheRuntimeTheyAreAskedFor) {
+  // The same entries `selection` walks, so a listing and a sweep answer
+  // one command line alike.
+  const std::vector<RegistryRow> still = registryRows("still");
+  EXPECT_EQ(still.size(), selection(-1, "still").size());
+  for (const RegistryRow& row : still) EXPECT_EQ(row.kind, "still");
+  EXPECT_TRUE(registryRows("no such runtime").empty());
+  EXPECT_EQ(registryRows().size(), registry().size());
+}
+
 TEST(SketchTitle, OpensUnderscoresIntoSpaces) {
   EXPECT_EQ(title("chaucer_astrolabe"), "chaucer astrolabe");
   EXPECT_EQ(title("aero desktop"), "aero desktop");

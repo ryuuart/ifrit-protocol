@@ -23,7 +23,8 @@ class FontContext;
 
 namespace sigil::sketch {
 class Assets;
-}
+struct CatalogRow;
+}  // namespace sigil::sketch
 
 /** EVERY SKETCH AS A ROW, so a reader can go through the registry
  *  without opening anything.
@@ -79,6 +80,10 @@ class SketchCatalog : public QObject {
   ~SketchCatalog() override;
 
   [[nodiscard]] QVariantList sketches() const;
+  /** One catalog row as the map QML reads, with its thumbnail and canvas
+   *  still to be learned. `name` is the display spelling and `filedName`
+   *  the name a plate is written under. */
+  [[nodiscard]] static QVariantMap rowMap(const sigil::sketch::CatalogRow& row);
   [[nodiscard]] bool filling() const { return m_filling; }
   [[nodiscard]] int fillTotal() const { return m_fillTotal; }
   [[nodiscard]] int fillDone() const { return m_fillDone; }

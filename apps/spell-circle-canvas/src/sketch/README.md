@@ -825,10 +825,15 @@ montage, a measurement, the warm command — refuses the flag outright.
 
 `--catalog` prints the browser's rows without opening a window, one JSON
 object per line — the registry first, and a file this run was pointed at
-after it. What a script reads off them is what the browser reads before
-anything has been built: a compiled-in entry names the runtime it draws
-through, and a file opened by path has none until it has been compiled
-and says so rather than guessing.
+after it. They are `sigil::sketch::catalog`'s rows, `sigil::sketch::CatalogRow`,
+as the browser maps them: `name` is the display spelling and `filedName`
+the name a plate is written under. What a script reads off them is what
+the browser reads before anything has been built: a compiled-in entry
+names the runtime it draws through, and a file opened by path has none
+until it has been compiled and says so rather than guessing. `--list` is
+the same registry for a reader, `sigil::sketch::registryRows` spelled one
+filed name per line; Python reads both as values, as
+`sigil.sketch.catalog(files)` and `sigil.sketch.registryRows(kind)`.
 
 **A capture is deterministic and a live run is not.** Anything a sketch
 measured about its own execution is pinned when a still is being written
@@ -1215,6 +1220,9 @@ canvas. A shared notice keeps command progress and its result visible outside
 the details drawer until dismissed. An empty command row selects the full
 registry for video export.
 
+- `core/Catalog.h` — `catalog` reads `CatalogSources` into one `CatalogRow`
+  per registry entry and per file, without Qt; the browser maps each to the
+  row QML reads and adds the thumbnail and the canvas a session learns.
 - `core/Sources.h` — `SourceMetadata` and `sourceMetadata` read author prose
   without Qt; `sourceOf`, `directorySketch`, `sourcesUnder` and `unitsOf`
   resolve the files and translation units belonging to a sketch. `headersOf`

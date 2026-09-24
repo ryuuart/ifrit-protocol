@@ -21,9 +21,10 @@ followed by these sketch features, and names every registered value for
 the package an author imports it from; both the embedded application and
 the installed extension use that assembly.
 
-* `host/Registration.h` — `bindRuntime`, `bindSketchContextSurface`,
-  `bindSketchDeviceRuntimes`, `bindSketchEntries`, `bindSketchPlates`,
-  `bindSketchSchema`, `bindSketchSetSketches`, `bindSketchWorldSet`
+* `host/Registration.h` — `bindRuntime`, `bindSketchCatalog`,
+  `bindSketchContextSurface`, `bindSketchDeviceRuntimes`, `bindSketchEntries`,
+  `bindSketchPlates`, `bindSketchSchema`, `bindSketchSetSketches`,
+  `bindSketchWorldSet`
 * `kit/Registration.h` — `bindSketchKit`, `bindSketchKitCharts`,
   `bindSketchKitContent`, `bindSketchKitLegends`, `bindSketchKitPanels`,
   `bindSketchKitRows`, `bindSketchKitStreams`, `stageContext`
@@ -32,7 +33,8 @@ the installed extension use that assembly.
 source imports, sketch instances, checked context and service views,
 callback and feed leases, and file rendering through the native host.
 `host/Plates.cpp` binds the comparison of two directories of plates as the
-rows a script judges. `kit/Specimen.cpp` binds sketch specimen values and
+rows a script judges, and `host/Catalog.cpp` the registry and a catalog of
+sketch files as the rows a browser shows. `kit/Specimen.cpp` binds sketch specimen values and
 typed theme providers.
 
 ## Ownership

@@ -6,6 +6,7 @@
 
 #include "SketchCatalog.h"
 
+#include <sigilsketch/core/Catalog.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/plate/ThumbnailQueue.h>
@@ -38,49 +39,42 @@ sigil::sketch::Assets* SketchCatalog::thumbnailAssets = nullptr;
 
 namespace {
 
-/** One row, with everything the file can say filled in and the canvas
- *  left for a session to answer. The plate is filled from the store
- *  afterward, and re-filled as the worker renders one. */
-QVariantMap rowFor(int index, const std::string& name, const std::string& key,
-                   const QString& folder, const QString& blurb,
-                   const fs::path& file) {
-  const sketch::SourceMetadata header = sketch::sourceMetadata(file);
-  QVariantMap row;
-  row.insert(QStringLiteral("sketchIndex"), index);
-  row.insert(QStringLiteral("name"),
-             QString::fromStdString(sketch::title(name)));
-  row.insert(QStringLiteral("key"), QString::fromStdString(key));
-  row.insert(QStringLiteral("folder"), folder);
-  row.insert(QStringLiteral("blurb"), blurb);
-  row.insert(QStringLiteral("path"), QString::fromStdString(file.string()));
-  const fs::path root = SketchCatalog::workspaceRoot.empty()
-                            ? SketchCatalog::sketchDirectory
-                            : SketchCatalog::workspaceRoot;
-  const auto relative = file.lexically_relative(root);
-  row.insert(
-      QStringLiteral("entryPath"),
-      QString::fromStdString(
-          (!relative.empty() && *relative.begin() != ".." ? relative : file)
-              .string()));
-  row.insert(QStringLiteral("external"), false);
-  row.insert(QStringLiteral("lines"), header.lines);
-  row.insert(QStringLiteral("subject"), QString::fromStdString(header.subject));
-  row.insert(QStringLiteral("editFirst"),
-             QString::fromStdString(header.editFirst));
-  QStringList tags;
-  for (const auto& tag : header.tags)
-    tags.push_back(QString::fromStdString(tag));
-  row.insert(QStringLiteral("tags"), tags);
-  row.insert(QStringLiteral("plate"), QString());
-  // Answered by a running session, and empty until one has run.
-  row.insert(QStringLiteral("canvas"), QString());
-  row.insert(QStringLiteral("background"), QString());
-  row.insert(QStringLiteral("moment"), -1.0);
-  row.insert(QStringLiteral("videoExportable"), true);
-  return row;
-}
+QString text(const std::string& value) { return QString::fromStdString(value); }
 
 }  // namespace
+
+QVariantMap SketchCatalog::rowMap(const sketch::CatalogRow& row) {
+  QVariantMap map;
+  map.insert(QStringLiteral("sketchIndex"), row.index);
+  // What the browser shows as the name is the display spelling; the filed
+  // name a plate is written under travels beside it.
+  map.insert(QStringLiteral("name"), text(row.title));
+  map.insert(QStringLiteral("filedName"), text(row.name));
+  map.insert(QStringLiteral("key"), text(row.key));
+  map.insert(QStringLiteral("folder"), text(row.category));
+  map.insert(QStringLiteral("blurb"), text(row.blurb));
+  map.insert(QStringLiteral("path"), text(row.path.string()));
+  map.insert(QStringLiteral("entryPath"), text(row.entryPath.string()));
+  map.insert(QStringLiteral("external"), row.external);
+  map.insert(QStringLiteral("lines"), row.source.lines);
+  map.insert(QStringLiteral("subject"), text(row.source.subject));
+  map.insert(QStringLiteral("editFirst"), text(row.source.editFirst));
+  QStringList tags;
+  for (const auto& tag : row.source.tags) tags.push_back(text(tag));
+  map.insert(QStringLiteral("tags"), tags);
+  map.insert(QStringLiteral("kind"), text(row.kind));
+  map.insert(QStringLiteral("available"), row.available);
+  map.insert(QStringLiteral("reason"), text(row.reason));
+  map.insert(QStringLiteral("videoExportable"), row.videoExportable);
+  // The thumbnail is filled from the store afterward, and re-filled as the
+  // worker renders one; the canvas is answered by a running session and
+  // is empty until one has run.
+  map.insert(QStringLiteral("plate"), QString());
+  map.insert(QStringLiteral("canvas"), QString());
+  map.insert(QStringLiteral("background"), QString());
+  map.insert(QStringLiteral("moment"), -1.0);
+  return map;
+}
 
 QVariantList SketchCatalog::sketches() const {
   if (workspaceRoot.empty() && externals.empty()) return m_rows;
@@ -92,74 +86,25 @@ QVariantList SketchCatalog::sketches() const {
 }
 
 SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
-  const auto& entries = sketch::registry();
-  m_rows.reserve((qsizetype)entries.size() +
-                 (qsizetype)SketchCatalog::externals.size());
-  for (int i = 0; i < (int)entries.size(); ++i) {
-    const sketch::Entry& entry = entries[i];
-    // The bare file, or the entry of a directory sketch: what the row
-    // reads its header and its line count from, and what a click opens.
-    const fs::path file =
-        sketch::sourceOf(SketchCatalog::sketchDirectory, entry.key);
-    QVariantMap row =
-        rowFor(i, entry.name, entry.key, QString::fromUtf8(entry.category),
-               QString::fromUtf8(entry.blurb), file);
-    // Which runtime it draws through, read off the kind rather than
-    // guessed from the folder: opening it costs nothing, and running it
-    // is what a session does.
-    const sketch::Kind kind = entry.kind();
-    row.insert(QStringLiteral("kind"),
-               kind ? QString::fromUtf8(kind->runtime().data(),
-                                        (qsizetype)kind->runtime().size())
-                    : QString());
-    // A sketch over an SDK whose runtime data this machine lacks is
-    // UNAVAILABLE rather than broken, and says what is missing.
-    std::string why;
-    row.insert(QStringLiteral("available"), entry.available(&why));
-    row.insert(QStringLiteral("reason"), QString::fromStdString(why));
+  const std::vector<sketch::CatalogRow> rows =
+      sketch::catalog({.sketchDirectory = SketchCatalog::sketchDirectory,
+                       .files = SketchCatalog::externals,
+                       .workspaceRoot = SketchCatalog::workspaceRoot});
+  m_rows.reserve((qsizetype)rows.size());
+  for (const sketch::CatalogRow& row : rows) {
+    QVariantMap map = rowMap(row);
     // A fresh thumbnail already in the store shows at once, without a
     // render — a warm command or an earlier look left it behind.
-    if (!SketchCatalog::thumbnailDirectory.empty()) {
-      const std::string k = sketch::thumbnailKey(file);
-      const fs::path fresh = sketch::freshThumbnail(
-          SketchCatalog::thumbnailDirectory, entry.name, k);
+    if (!row.external && !SketchCatalog::thumbnailDirectory.empty()) {
+      const fs::path fresh =
+          sketch::freshThumbnail(SketchCatalog::thumbnailDirectory, row.name,
+                                 sketch::thumbnailKey(row.path));
       if (!fresh.empty())
-        row.insert(QStringLiteral("plate"),
+        map.insert(QStringLiteral("plate"),
                    QUrl::fromLocalFile(QString::fromStdString(fresh.string()))
                        .toString());
     }
-    m_rows.push_back(row);
-  }
-  // …and the files this session was pointed at, under their own stems.
-  // Their directory stands in for a folder: two drafts may share a stem,
-  // and where they stand is the only thing that tells them apart.
-  for (int i = 0; i < (int)SketchCatalog::externals.size(); ++i) {
-    const fs::path& file = SketchCatalog::externals[i];
-    const std::string stem = file.stem().string();
-    QString group = QStringLiteral("Workspace");
-    if (!workspaceRoot.empty()) {
-      group += QStringLiteral(" · ") +
-               QString::fromStdString(workspaceRoot.filename().string());
-      const auto relative =
-          file.parent_path().lexically_relative(workspaceRoot);
-      if (!relative.empty() && relative != "." && *relative.begin() != "..")
-        for (const auto& part : relative)
-          group +=
-              QStringLiteral(" · ") + QString::fromStdString(part.string());
-    }
-    QVariantMap row =
-        rowFor((int)entries.size() + i, stem, stem, group,
-               QString::fromStdString(file.parent_path().string()), file);
-    // A file opened by path is compiled when it is opened, so which
-    // runtime it draws through is not known until it has been.
-    row.insert(QStringLiteral("kind"), file.extension() == ".py"
-                                           ? QStringLiteral("canvas")
-                                           : QString());
-    row.insert(QStringLiteral("available"), true);
-    row.insert(QStringLiteral("reason"), QString());
-    row.insert(QStringLiteral("videoExportable"), false);
-    row.insert(QStringLiteral("external"), true);
-    m_rows.push_back(row);
+    m_rows.push_back(map);
   }
 
   // THE RENDER IS THIS CLASS'S and the ORDER is the library's: the queue
