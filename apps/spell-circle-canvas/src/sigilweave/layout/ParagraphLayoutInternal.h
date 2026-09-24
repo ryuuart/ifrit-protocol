@@ -125,14 +125,18 @@ class IntervalSequence {
    * interval inset by `indent`. A positive `gridStep` snaps each band's
    * near edge up to a multiple of it, which is what makes two blocks of
    * different type share one rhythm. Every source line fetched at or past
-   * `firstInterval` is dropped first and fetched again under this block. */
+   * `firstInterval` is dropped first and fetched again under this block,
+   * except a band held for it: that band is already this block's first
+   * line, standing where it was asked for and inset as it was asked, so
+   * the block's next line is a continuation line and no air falls between
+   * the two. */
   void openBlock(size_t firstInterval, int blockIndex, float pitch,
                  float ascent, float lead, float gridStep,
                  const IndentOptions& indent) {
-    rewindTo(firstInterval);
+    const int heldForThisBlock = rewindTo(firstInterval);
     m_blockIndex = blockIndex;
-    m_lineInBlock = 0;
-    m_bandCursor += lead;
+    m_lineInBlock = heldForThisBlock;
+    if (heldForThisBlock == 0) m_bandCursor += lead;
     m_pitch = pitch;
     m_ascent = ascent;
     m_gridStep = gridStep;
@@ -142,7 +146,8 @@ class IntervalSequence {
 
   /** Keeps every source line fetched so far through the next openBlock(),
    * for a band asked for on behalf of the block after it: the band an
-   * initial is seated in when the initial took its whole block. */
+   * initial is seated in when the initial took its whole block, which the
+   * block after it sets its first line in. */
   void holdFetched() { m_heldLines = m_fetchedLines.size(); }
 
   /** Returns a flattened interval, fetching source lines on demand. */
@@ -206,8 +211,10 @@ class IntervalSequence {
    * that offered no interval wide enough is dropped with the line after
    * it, since both were asked for past the last one used. The exhaustion
    * a dropped fetch met is dropped too: it was met at a band placed under
-   * a setting that no longer holds. */
-  void rewindTo(size_t firstInterval) {
+   * a setting that no longer holds. Returns how many held source lines
+   * start at or past `firstInterval`: the lines the opening block finds
+   * already set out for it. */
+  int rewindTo(size_t firstInterval) {
     while (m_fetchedLines.size() > m_heldLines &&
            m_fetchedLines.back().firstInterval >= firstInterval) {
       const FetchedLine& line = m_fetchedLines.back();
@@ -216,8 +223,14 @@ class IntervalSequence {
       m_nextLineIndex--;
       m_fetchedLines.pop_back();
     }
+    int held = 0;
+    for (size_t line = m_fetchedLines.size();
+         line > 0 && m_fetchedLines[line - 1].firstInterval >= firstInterval;
+         --line)
+      ++held;
     m_heldLines = 0;
     m_geometryExhausted = false;
+    return held;
   }
 
   /** Fetches and flattens the next source line into the interval cache. */

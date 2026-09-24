@@ -402,7 +402,12 @@ hanging indent a bullet or a number hangs into. Because it is arithmetic on
 the interval, an indent composes with exclusions and columns without either
 knowing about it: a line an exclusion cut into three is inset at its
 outermost ends and nowhere in the middle. The first line is every block's
-own, under either breaker.
+own, under either breaker. One band is shared: when an initial takes the
+whole of its block, the block after it sets its first line in the band the
+cap is seated in. That band stands where it was asked for and keeps the
+inset it was asked with, and it counts as the following block's first
+line: that block's first-line indent does not reappear on its second line,
+and no air from its `spaceBefore` falls between the two.
 
 **A block's opening set large is the block's own property.**
 `ParagraphStyle::initial` declares an `InitialLetter`: how many lines its

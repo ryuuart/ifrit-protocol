@@ -267,6 +267,65 @@ TEST(InitialLetter, ABlockShorterThanTheSinkKeepsTheNextBlocksLinesClear) {
   EXPECT_NEAR(starts[3], 0.0f, 0.5f);
 }
 
+// AN INITIAL THAT TAKES ITS WHOLE BLOCK lends its band to the block after
+// it, which sets its first line there beside the cap. That band is the
+// following block's first line under either breaker: the block's
+// first-line indent does not come back on its second line, and its air
+// does not open between the two.
+class InitialTakingItsBlock : public BrokenBothWays {};
+
+TEST_P(InitialTakingItsBlock, TheBlockAfterItOpensInTheCapsBand) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(
+      u8"A\n"
+      u8"second block runs on for long enough to wrap several times under "
+      u8"the cap the block above it is nothing but.",
+      16.0f);
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = breaker();
+  ParagraphStyle dropped;
+  dropped.initial = {.lines = 3, .margin = 6.0f};
+  dropped.indent.firstLine = 20.0f;
+  ParagraphStyle following;
+  following.indent.firstLine = 20.0f;
+  following.spaceBefore = 30.0f;
+  options.blocks = {dropped, following};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+  ASSERT_TRUE(layout.initial.placed);
+
+  // Each line's start and baseline, leaving the cap out.
+  std::vector<float> starts;
+  std::vector<float> lines;
+  for (const PositionedRun& run : layout.runs) {
+    if (run.origin == layout.initial.baseline || run.lineIndex < 0) continue;
+    const size_t line = static_cast<size_t>(run.lineIndex);
+    if (starts.size() <= line) {
+      starts.resize(line + 1, 1e9f);
+      lines.resize(line + 1, 0.0f);
+    }
+    starts[line] = std::min(starts[line], run.origin.x());
+    lines[line] = run.origin.y();
+  }
+  ASSERT_GE(starts.size(), 4u);
+  // The first line stands in the cap's band, inset as that band was asked;
+  // the two after it stand off the cap with no first-line indent, and the
+  // line past the cap reaches the margin.
+  EXPECT_NEAR(starts[0], layout.initial.notch + 20.0f, 0.5f);
+  EXPECT_NEAR(starts[1], layout.initial.notch, 0.5f);
+  EXPECT_NEAR(starts[2], layout.initial.notch, 0.5f);
+  EXPECT_NEAR(starts[3], 0.0f, 0.5f);
+  // And every line of the block is one pitch below the last.
+  const float pitch = lines[1] - lines[0];
+  EXPECT_NEAR(pitch, paragraph.strutAt(fonts, 2).height, 0.01f);
+  for (size_t line = 2; line < lines.size(); ++line)
+    EXPECT_NEAR(lines[line] - lines[line - 1], pitch, 0.01f) << "line " << line;
+}
+
+INSTANTIATE_TEST_SUITE_P(Breakers, InitialTakingItsBlock, bothBreakers(),
+                         breakerName);
+
 TEST(InitialLetter, AGlyphWrapMeasuresTheOutlineAndNotTheAdvanceBox) {
   FontContext& fonts = sigil::test::fonts();
   BlockFlow flow(SkRect::MakeWH(300, 400));
