@@ -232,6 +232,7 @@ sigil_doc_probes(compose
   ALIASES ch=choreograph
   SKIP_HEADERS Web.h
   EXCLUDE "kit::PatternHyphenator=${weave_owned}"
+          "kit::englishHyphenator=${weave_owned}"
           "kit::englishHyphenationPatterns=${weave_owned}"
           "selectors::regex=${weave_owned}"
           "selectors::line=${weave_owned}"
