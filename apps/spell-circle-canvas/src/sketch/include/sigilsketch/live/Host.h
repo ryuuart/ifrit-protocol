@@ -371,7 +371,8 @@ class Host {
   bool pythonChanged();
   void sessionFailed(const std::exception& error);
   /** Says what the assets' last declaration found wrong the way a failed
-   *  build is said, and takes it back once nothing is. */
+   *  build is said, after any build output the log already holds, and
+   *  takes back its own words once nothing is. */
   void noteAssetProblems();
   /** THE NEWEST WRITE ACROSS EVERYTHING THE SKETCH IS BUILT FROM, or
    *  nothing when the entry itself is not there.

@@ -167,6 +167,7 @@ sk_sp<SkRuntimeEffect> Assets::shader(std::string_view name) {
     m_shaders.push_back({.name = std::string(name)});
     held = std::prev(m_shaders.end());
   }
+  held->asked = true;
   const std::shared_ptr<const CompiledShader> compiled =
       m_hub.load<CompiledShader>(uriFor(name));
   held->missing = !compiled;
@@ -184,11 +185,15 @@ sk_sp<SkRuntimeEffect> Assets::shader(std::string_view name) {
 std::string Assets::problems() const {
   std::string said;
   for (const HeldShader& shader : m_shaders) {
-    if (shader.problem.empty()) continue;
+    if (!shader.asked || shader.problem.empty()) continue;
     if (!said.empty()) said.push_back('\n');
     said += shader.problem;
   }
   return said;
+}
+
+void Assets::beginDeclaration() {
+  for (HeldShader& shader : m_shaders) shader.asked = false;
 }
 
 void Assets::dispatch(double seconds) { m_hub.dispatch(seconds); }
@@ -205,10 +210,12 @@ bool Assets::poll() {
       ++it;
     }
   }
-  // …and so does a shader whose file was not there. One that is there
-  // and did not compile is the hub's to watch, as any loaded file is.
+  // …and so does a shader the sketch still asks for whose file was not
+  // there. One that is there and did not compile is the hub's to watch,
+  // as any loaded file is.
   for (HeldShader& shader : m_shaders)
-    if (shader.missing && m_hub.load<CompiledShader>(uriFor(shader.name))) {
+    if (shader.asked && shader.missing &&
+        m_hub.load<CompiledShader>(uriFor(shader.name))) {
       shader.missing = false;
       changed = true;
     }

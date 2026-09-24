@@ -98,16 +98,27 @@ class Assets {
    *  Never null. A file that is missing or does not compile answers the
    *  last program that compiled under the name, or a magenta checker
    *  before any has, and says why in `problems()` until the file
-   *  compiles, which a host shows as it shows a failed build.
+   *  compiles, which a host shows as it shows a failed build. The checker
+   *  is a FILL: it declares no uniform and no `content` child, so handed
+   *  to `material::skia::Effect::shader` over a layer it filters nothing
+   *  and the layer shows through unchanged.
    *  @trap A material recipe's body is not a whole program — it reads
    *  the declarations its recipe adds — so it is read as text through
    *  `hub().text()` and handed to the recipe, never through this door. */
   sk_sp<SkRuntimeEffect> shader(std::string_view name);
 
-  /** WHAT IS WRONG WITH THE FILES ASKED FOR, one per line: each shader
-   *  that is missing or does not compile, named, with the compiler's own
-   *  message. Empty when every one compiled. */
+  /** WHAT IS WRONG WITH THE FILES ASKED FOR since the last
+   *  `beginDeclaration()`, one per line: each shader that is missing or
+   *  does not compile, named, with the compiler's own message. Empty when
+   *  every one compiled. */
   [[nodiscard]] std::string problems() const;
+
+  /** STARTS A DECLARATION — what a host calls before a sketch's setup
+   *  runs, and before it runs again. From here `problems()` speaks of the
+   *  shaders asked for after this call alone, so a name the sketch
+   *  stopped asking for stops being wrong with it; the program last
+   *  compiled under every name is kept. */
+  void beginDeclaration();
 
   /** The full resource hub (text/bytes/probe/EXR layers…) with the
    *  sketch's assets directory mounted at "res://". */
@@ -133,12 +144,14 @@ class Assets {
     std::shared_ptr<sigil::video::Video> clip;
   };
   /** One shader a sketch asked for: the program that last compiled under
-   *  its name, and what stands wrong with its file now. */
+   *  its name, what stands wrong with its file now, and whether the
+   *  declaration running now asked for it. */
   struct HeldShader {
     std::string name;
     sk_sp<SkRuntimeEffect> program;
     std::string problem;
     bool missing = false;
+    bool asked = false;
   };
 
   std::filesystem::path m_root;

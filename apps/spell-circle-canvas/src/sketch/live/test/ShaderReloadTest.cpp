@@ -1,7 +1,9 @@
 /** @file
  * A shader beside a guest sketch, as the live host reads it: drawn with,
  * edited and drawn with anew, and an edit that does not compile shown as
- * a failed build is while the sketch runs on with the last program.
+ * a failed build is while the sketch runs on with the last program —
+ * whether the sketch was compiled in or adopted from a build, and beside
+ * a build that failed.
  */
 
 #include <gtest/gtest.h>
@@ -14,8 +16,10 @@
 
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <string_view>
+#include <thread>
 
 #include "Fixture.h"
 #include "ScratchDir.h"
@@ -104,5 +108,153 @@ TEST(SketchShaderReload, AnEditedShaderIsDrawnAndABrokenOneShownAsABuildIs) {
   EXPECT_EQ(host.state(), sketch::Host::State::Live);
   EXPECT_EQ(middleOf(host), SK_ColorBLUE);
 }
+
+/** THE NAME THE ASKING SKETCH READS, which a case changes between two
+ *  opens as an author corrects a sketch. */
+std::string askedFor = "fil.sksl";
+
+struct AskingByName {
+  void setup(sketch::SketchContext& ctx) {
+    ctx.canvas(40, 30);
+    (void)ctx.assets.shader(ctx.local(askedFor));
+  }
+};
+
+sketch::Kind askingByNameKind() { return sketch::kindOf<AskingByName>(); }
+
+const sketch::Entry kAskingByName{"asking_by_name", "asking_by_name", "Test",
+                                  "", &askingByNameKind};
+
+TEST(SketchShaderReload, ANameTheSketchNoLongerAsksForLeavesTheLog) {
+  // A misspelt file corrected in the sketch: once the sketch asks for the
+  // right one only, the host is live again although the wrong name was
+  // asked for once and is still not there.
+  sigil::test::ScratchDir sketches("sigil_sketch_shader_renamed");
+  sketches.write("asking_by_name/fill.sksl", solid("1.0, 0.0, 0.0"));
+  sketches.write("asking_by_name/asking_by_name.cpp", "// never built\n");
+
+  sketch::Host::Options options;
+  options.sketchPath = sketches.path / "asking_by_name" / "asking_by_name.cpp";
+  options.assetsDirectory = std::filesystem::temp_directory_path();
+  options.sketchesDirectory = sketches.path;
+  options.flagsFile = std::filesystem::temp_directory_path() / "no_such.rsp";
+  options.compiledIn = &kAskingByName;
+  options.clock = sigil::motion::ClockPolicy::Advance;
+  askedFor = "fil.sksl";
+  sketch::Host host(std::move(options), sketch::test::fonts());
+  ASSERT_TRUE(host.live());
+  EXPECT_EQ(host.state(), sketch::Host::State::Failed);
+  EXPECT_NE(host.errorLog().find("fil.sksl"), std::string::npos)
+      << host.errorLog();
+
+  askedFor = "fill.sksl";
+  ASSERT_TRUE(host.restartSession());
+  EXPECT_TRUE(host.errorLog().empty()) << host.errorLog();
+  EXPECT_EQ(host.state(), sketch::Host::State::Live);
+}
+
+#ifdef SIGIL_SKETCH_SHADER_GUEST
+
+/** A COMPILER THAT BUILDS NOTHING: an object is an empty file and the
+ *  library is the guest image built beside this binary, copied to where
+ *  the link names it. While a file named `refuse` stands beside the
+ *  script it fails instead, saying so, as a build that did not compile. */
+std::string guestCompiler(const std::filesystem::path& script) {
+  std::ofstream(script) << "if [ -e \"$(dirname \"$0\")/refuse\" ]; then\n"
+                           "  echo 'the stub compiler refused this build'\n"
+                           "  exit 1\n"
+                           "fi\n"
+                           "prev=\n"
+                           "for arg in \"$@\"; do\n"
+                           "  if [ \"$prev\" = \"-o\" ]; then\n"
+                           "    case \"$arg\" in\n"
+                           "      *.dylib) cp '" SIGIL_SKETCH_SHADER_GUEST
+                           "' \"$arg\" ;;\n"
+                           "      *) : > \"$arg\" ;;\n"
+                           "    esac\n"
+                           "  fi\n"
+                           "  prev=$arg\n"
+                           "done\n"
+                           "exit 0\n";
+  return "/bin/sh " + script.string();
+}
+
+/** One build of @p host run to its adoption, in a bounded count of turns
+ *  so a build that never finishes fails the case instead of hanging it. */
+[[nodiscard]] bool buildOnce(sketch::Host& host) {
+  host.poll();
+  for (int turn = 0; turn < 20000; ++turn) {
+    if (!host.compiling()) return true;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    host.poll();
+  }
+  return false;
+}
+
+TEST(SketchShaderReload, AnAdoptedBuildShowsWhatItsShadersFoundWrong) {
+  sigil::test::ScratchDir sketches("sigil_sketch_shader_adopted");
+  const std::filesystem::path shader =
+      sketches.path / "shader_asking_guest" / "fill.sksl";
+  const std::filesystem::path source =
+      sketches.path / "shader_asking_guest" / "shader_asking_guest.cpp";
+  const auto stamp = [](const std::filesystem::path& path, int later) {
+    std::filesystem::last_write_time(
+        path, std::filesystem::file_time_type::clock::now() +
+                  std::chrono::seconds(later));
+  };
+  sketches.write("shader_asking_guest/fill.sksl",
+                 "half4 main(float2 xy) { return notDeclaredAnywhere; }\n");
+  sketches.write("shader_asking_guest/shader_asking_guest.cpp",
+                 "// adopted from the guest image, never compiled\n");
+
+  sketch::Host::Options options;
+  options.sketchPath = source;
+  options.assetsDirectory = std::filesystem::temp_directory_path();
+  options.sketchesDirectory = sketches.path;
+  options.flagsFile = std::filesystem::temp_directory_path() / "no_such.rsp";
+  options.compiler = guestCompiler(sketches.path / "compiler.sh");
+  options.compiledIn = nullptr;
+  options.clock = sigil::motion::ClockPolicy::Advance;
+  sketch::Host host(std::move(options), sketch::test::fonts());
+
+  // A shader already broken when the build is adopted is said at once.
+  ASSERT_TRUE(buildOnce(host)) << "the build never finished";
+  ASSERT_TRUE(host.live()) << host.errorLog();
+  EXPECT_EQ(host.state(), sketch::Host::State::Failed);
+  EXPECT_NE(host.errorLog().find("fill.sksl"), std::string::npos)
+      << host.errorLog();
+
+  // …and is said again by the next build, although the shader is broken
+  // the same way it was.
+  stamp(source, 2);
+  ASSERT_TRUE(buildOnce(host)) << "the rebuild never finished";
+  EXPECT_EQ(host.generation(), 2);
+  EXPECT_EQ(host.state(), sketch::Host::State::Failed);
+  EXPECT_NE(host.errorLog().find("fill.sksl"), std::string::npos)
+      << host.errorLog();
+
+  // A build that fails says so; the shader mended under it takes back its
+  // own words and leaves the build's.
+  sketches.write("refuse", "");
+  stamp(source, 4);
+  ASSERT_TRUE(buildOnce(host)) << "the refused build never finished";
+  EXPECT_NE(host.errorLog().find("refused"), std::string::npos)
+      << host.errorLog();
+  sketches.write("shader_asking_guest/fill.sksl", solid("0.0, 1.0, 0.0"));
+  stamp(shader, 6);
+  pollAfterAWhile(host);
+  EXPECT_NE(host.errorLog().find("refused"), std::string::npos)
+      << host.errorLog();
+  EXPECT_EQ(host.errorLog().find("fill.sksl"), std::string::npos)
+      << host.errorLog();
+
+  std::filesystem::remove(sketches.path / "refuse");
+  stamp(source, 8);
+  ASSERT_TRUE(buildOnce(host)) << "the mended build never finished";
+  EXPECT_TRUE(host.errorLog().empty()) << host.errorLog();
+  EXPECT_EQ(host.state(), sketch::Host::State::Live);
+}
+
+#endif
 
 }  // namespace

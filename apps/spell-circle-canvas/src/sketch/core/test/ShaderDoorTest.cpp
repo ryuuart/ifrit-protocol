@@ -111,4 +111,33 @@ TEST(ShaderDoor, AProgramThatNeverCompiledIsTheCheckerUntilOneDoes) {
   EXPECT_NE(said.find("broken.sksl"), std::string::npos) << said;
 }
 
+TEST(ShaderDoor, ANameTheSketchStoppedAskingForIsNoLongerWrong) {
+  // A misspelt name corrected in the sketch: the next declaration asks for
+  // the right file only, and what was wrong with the wrong one goes with it.
+  sigil::test::ScratchDir directory("sketch_shader_door_declaration");
+  directory.write("fill.sksl", solid("1.0, 0.0, 0.0"));
+  Assets assets(directory.path);
+
+  assets.beginDeclaration();
+  (void)assets.shader("fil.sksl");
+  EXPECT_NE(assets.problems().find("fil.sksl"), std::string::npos);
+
+  assets.beginDeclaration();
+  EXPECT_EQ(paintedBy(assets.shader("fill.sksl")), SK_ColorRED);
+  EXPECT_TRUE(assets.problems().empty()) << assets.problems();
+
+  // A file that stopped compiling is wrong while a declaration asks for
+  // it, and the program that last compiled under its name outlives a
+  // declaration that does not.
+  const sk_sp<SkRuntimeEffect> red = assets.shader("fill.sksl");
+  rewrite(directory, "fill.sksl", "half4 main(float2 xy) {\n", 2);
+  EXPECT_TRUE(assets.poll());
+  EXPECT_EQ(assets.shader("fill.sksl").get(), red.get());
+  EXPECT_NE(assets.problems().find("fill.sksl"), std::string::npos);
+  assets.beginDeclaration();
+  EXPECT_TRUE(assets.problems().empty()) << assets.problems();
+  EXPECT_EQ(assets.shader("fill.sksl").get(), red.get());
+  EXPECT_NE(assets.problems().find("fill.sksl"), std::string::npos);
+}
+
 }  // namespace

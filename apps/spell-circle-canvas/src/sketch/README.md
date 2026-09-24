@@ -1891,9 +1891,11 @@ uniforms and child shaders it declares, compiled into the
 compiled effect however often it is asked for, and an edit to it recompiles
 and re-runs setup without a rebuild. It keeps the image door's forgiving
 contract: an edit that does not compile leaves the sketch drawing with the
-last program that did, or a magenta checker before any has, and the
-compiler's message, naming the file, is the host's error log until the file
-compiles, so the window shows it where it shows a failed build. A sketch
+last program that did, or a magenta checker before any has — a fill, which
+as an effect over a layer filters nothing — and the compiler's message,
+naming the file, is the host's error log until the file compiles or the
+sketch stops asking for it, so the window shows it where it shows a failed
+build, after the build's own output when that failed too. A sketch
 with a shader is a directory sketch, the `.sksl` beside `<stem>.cpp`. A
 material recipe's body is not a whole program — it reads the declarations
 the recipe adds — so it stands in a file the same way and is read as text,
