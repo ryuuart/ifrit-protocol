@@ -40,8 +40,8 @@
 // Grade is weight without width, and the page lets it read as light: a
 // letter at rest is set dim and cool, a letter on the crest full and warm,
 // through the same swell that drives its grade, and a warm pool travels
-// behind the word with the crest. The ground is a dark sheet with grain in
-// it, lit from above the specimen line and darkened toward the corners;
+// behind the word with the crest. The ground is a dark sheet lit from above
+// the specimen line and darkened toward the corners;
 // the proofs stand on two plates, and the run that overhangs its rule has
 // the overhang itself struck through.
 //
@@ -92,6 +92,7 @@ constexpr float kPaddingX = 52.0f;
 constexpr float kPaddingY = 38.0f;
 
 constexpr material::Color kPaper = hexColor(0x0C0C0E);
+constexpr material::Color kRefused = hexColor(0xE2504B);
 
 /** The proof string: one cluster per letter, so letter i is range [i, i+1). */
 constexpr std::string_view kProof = "HAMBURGEFONTSIV";
@@ -137,12 +138,6 @@ float swell(float phase) {
                                 (1.0f - kCrestAt));
 }
 
-/** @p from carried @p amount of the way to @p to, channel by channel. */
-material::Color mixed(material::Color from, material::Color to, float amount) {
-  return {from.r + (to.r - from.r) * amount, from.g + (to.g - from.g) * amount,
-          from.b + (to.b - from.b) * amount, 1.0f};
-}
-
 /** The ripple's deviation: the swell landing on the grade, and the light
  *  the grade is read by.
  *
@@ -159,7 +154,10 @@ TextEffect gradeSwell() {
                GlyphModifier modifier;
                modifier.axis = weave::FontVariation(
                    "GRAD", kGradLight + (kGradHeavy - kGradLight) * reach);
-               modifier.colorMultiplier = mixed(kRestLight, kCrestLight, reach);
+               // The light is a quantity, so the two ends mix in linear
+               // light: a letter half way up the swell is already bright.
+               modifier.colorMultiplier =
+                   material::mixLinear(kRestLight, kCrestLight, reach);
                return modifier;
              },
              0.0f, {kGradLight, kGradHeavy})
@@ -178,9 +176,9 @@ StyleSheet look() {
           .var("label", hexColor(0x7E8492))
           .var("faint", hexColor(0x3A3F4B))
           .var("bed", material::Color{1, 1, 1, 0.035f})
-          .var("refused", hexColor(0xE2504B))
-          .var("refused-wash", material::Color{0.886f, 0.314f, 0.294f, 0.10f})
-          .var("refused-hatch", material::Color{0.886f, 0.314f, 0.294f, 0.55f})
+          .var("refused", kRefused)
+          .var("refused-wash", material::withAlpha(kRefused, 0.10f))
+          .var("refused-hatch", material::withAlpha(kRefused, 0.55f))
           .var("honoured", hexColor(0x63B8FF))
           .fontFamily(".SF NS, SF Pro, system-ui")
           .fontWeight(500)
@@ -313,9 +311,9 @@ struct AxisRipple {
         .height(kPoolHeight)
         .fill(radialGradient({kPoolWidth * 0.5f, kPoolHeight * 0.5f},
                              kPoolWidth * 0.5f,
-                             {material::Color{warm.r, warm.g, warm.b, 0.16f},
-                              material::Color{warm.r, warm.g, warm.b, 0.05f},
-                              material::Color{warm.r, warm.g, warm.b, 0.0f}},
+                             {material::withAlpha(warm, 0.16f),
+                              material::withAlpha(warm, 0.05f),
+                              material::withAlpha(warm, 0.0f)},
                              {0.0f, 0.45f, 1.0f}))
         .scaleY(0.62f)
         .translateX(motion::bind(&phase)
@@ -433,11 +431,17 @@ struct AxisRipple {
                        "DRIVE IS HONOURED")});
   }
 
-  /** THE GROUND, the page's one texture: a dark sheet with a fine grain
-   *  in it, lit from above the specimen line and darkened toward the
-   *  corners. Nothing on it moves, so it is baked once and blitted under
-   *  everything that does. */
+  /** THE GROUND, the page's one texture: a dark sheet lit from above the
+   *  specimen line and darkened toward the corners. Nothing on it moves,
+   *  so it is baked once and blitted under everything that does.
+   *
+   *  The sheet asks for a fine grain, but `kit::grained` puts no grain on
+   *  a near-black ground: it folds its noise in by soft light, whose
+   *  change on a dark destination stays under one 8-bit level, so this
+   *  fill reads as the flat paper until the kit's grain holds its
+   *  strength on a dark ground. */
   [[nodiscard]] static Element ground() {
+    const material::Color skylight = {0.36f, 0.42f, 0.58f, 1.0f};
     return box()
         .cover()
         .key("ground")
@@ -446,9 +450,9 @@ struct AxisRipple {
         .children(
             {box().cover().fill(radialGradient(
                  {kWidth * 0.5f, kHeight * 0.36f}, kWidth * 0.62f,
-                 {material::Color{0.36f, 0.42f, 0.58f, 0.13f},
-                  material::Color{0.36f, 0.42f, 0.58f, 0.04f},
-                  material::Color{0.36f, 0.42f, 0.58f, 0.0f}},
+                 {material::withAlpha(skylight, 0.13f),
+                  material::withAlpha(skylight, 0.04f),
+                  material::withAlpha(skylight, 0.0f)},
                  {0.0f, 0.5f, 1.0f})),
              box().cover().fill(kit::vignette({kWidth, kHeight},
                                               {0, 0, 0, 0.55f}, 0.4f))});
