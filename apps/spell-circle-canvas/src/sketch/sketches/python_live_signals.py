@@ -147,7 +147,8 @@ class LiveSignals:
         else:
             self.feed = ctx.assets.hub().feed(f"udp://:{PORT}", policy)
         self.rebuild_traces()
-        ctx.render(self.describe(0))
+        with kit.provide(self.look):
+            ctx.render(self.describe(0))
 
     def update(self, elapsed: float, ctx: SketchContext) -> None:
         if self.replay:
@@ -197,7 +198,8 @@ class LiveSignals:
             self.rebuild_traces()
         if elapsed - self.last_description >= 0.1:
             self.last_description = elapsed
-            ctx.render(self.describe(elapsed))
+            with kit.provide(self.look):
+                ctx.render(self.describe(elapsed))
 
     def rebuild_traces(self) -> None:
         self.pressure_path = trace([sample.pressure for sample in self.samples])
@@ -245,13 +247,12 @@ class LiveSignals:
         )
 
     def describe(self, elapsed: float) -> Element:
-        with kit.provide(self.look):
-            return kit.page(
-                self.content(elapsed),
-                title="Signals, received.",
-                subtitle="Two channels, one JSON message, and a reply to every sender",
-                footer=f"UDP {PORT} · sigil.examples.tools.send_live_signals · --export reply.json",
-            )
+        return kit.page(
+            self.content(elapsed),
+            title="Signals, received.",
+            subtitle="Two channels, one JSON message, and a reply to every sender",
+            footer=f"UDP {PORT} · sigil.examples.tools.send_live_signals · --export reply.json",
+        )
 
     def content(self, elapsed: float) -> Element:
         status, accent, detail = self.state(elapsed)
