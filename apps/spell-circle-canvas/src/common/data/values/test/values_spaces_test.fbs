@@ -1,7 +1,8 @@
 // values_spaces_test.fbs — a schema over two namespaces, which the
 // generated value header's cases read across: a struct, a table and an
 // enum declared in one namespace and held, by value, in a vector and
-// through a union, by tables declared in the other.
+// through a union, by tables declared in the other — and two fields
+// whose schema declares a default other than zero.
 namespace values_spaces.shared;
 
 /// How loud a mark is.
@@ -13,9 +14,10 @@ struct Point {
   y: float;
 }
 
-/// Words attached to something.
+/// Words attached to something, at a size that has a default.
 table Label {
   text: string;
+  size: float = 12;
 }
 
 namespace values_spaces.scene;
@@ -25,7 +27,7 @@ namespace values_spaces.scene;
 table Mark {
   at: values_spaces.shared.Point;
   label: values_spaces.shared.Label;
-  tone: values_spaces.shared.Tone;
+  tone: values_spaces.shared.Tone = Loud;
   asides: [values_spaces.shared.Label];
 }
 

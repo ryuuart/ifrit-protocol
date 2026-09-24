@@ -97,10 +97,38 @@ void Header::writeTableValue(std::ostream& out, const StructDef& def) {
     if (field->deprecated) continue;
     if (isUnionTag(field->value.type)) continue;
     writeDocComment(out, field->doc_comment, "  ");
-    out << "  " << valueTypeOf(*field) << " " << field->name << "{};\n";
+    out << "  " << valueTypeOf(*field) << " " << field->name << "{"
+        << defaultOf(*field) << "};\n";
   }
   writeComparison(out, def);
   out << "};\n\n";
+}
+
+/** A TABLE'S SCALAR STARTS AT THE DEFAULT ITS SCHEMA DECLARES, which is
+ *  what the generated accessor answers for a field the wire left out:
+ *  a value made with nothing set and a buffer written with nothing set
+ *  then read back are the same value. Empty for zero, for a field that
+ *  may be absent and for anything that is no scalar. */
+std::string Header::defaultOf(const FieldDef& field) const {
+  const Type& type = field.value.type;
+  if (!flatbuffers::IsScalar(type.base_type) || field.IsOptional() ||
+      isUnionTag(type))
+    return std::string();
+  const std::string& constant = field.value.constant;
+  if (constant.empty() || constant == "0" || constant == "0.0")
+    return std::string();
+  if (type.base_type == flatbuffers::BASE_TYPE_BOOL)
+    return constant == "false" ? std::string() : std::string("true");
+  if (type.enum_def)
+    return "static_cast<" + wireOf(*type.enum_def) + ">(" + constant + ")";
+  if (flatbuffers::IsFloat(type.base_type)) {
+    const std::string limits =
+        "std::numeric_limits<" + scalarName(type.base_type) + ">::";
+    if (constant.find("nan") != std::string::npos) return limits + "quiet_NaN()";
+    if (constant.find("inf") != std::string::npos)
+      return (constant[0] == '-' ? "-" : "") + limits + "infinity()";
+  }
+  return constant;
 }
 
 void Header::writeUnionAlias(std::ostream& out, const EnumDef& def) {

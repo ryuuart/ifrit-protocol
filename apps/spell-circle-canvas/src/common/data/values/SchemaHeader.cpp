@@ -234,6 +234,7 @@ bool Header::write(std::ostream& out) {
   out << "\n";
   out << "#include <cstddef>\n";
   out << "#include <cstdint>\n";
+  out << "#include <limits>\n";
   out << "#include <optional>\n";
   out << "#include <span>\n";
   out << "#include <string>\n";

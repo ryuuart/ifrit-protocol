@@ -60,6 +60,9 @@ class Header {
   std::string valueTypeOf(const FieldDef& field);
   /** The value type one entry of a vector reads as. */
   std::string entryTypeOf(const Type& type);
+  /** What a table's field starts at: its schema's default, spelled for
+   *  the braces after the member; empty for the type's own zero. */
+  std::string defaultOf(const FieldDef& field) const;
 
   void writeStructValue(std::ostream& out, const StructDef& def);
   void writeTableValue(std::ostream& out, const StructDef& def);

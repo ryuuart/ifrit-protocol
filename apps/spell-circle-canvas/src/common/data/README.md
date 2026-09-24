@@ -325,7 +325,9 @@ reading verifies the bytes and answers nothing when they are not that
 root or when a required field is absent, and the root gets `fromJson()`
 and `toJson()` through the schema its generated header carries. Every
 value compares, member by member, so a reader holding one asks whether
-the next message changed anything with `==`.
+the next message changed anything with `==`, and a table's scalar starts
+at the default its schema declares, so a value made with nothing set is
+the value a buffer written with nothing set reads back as.
 
 A schema may declare several namespaces — a protocol with one per
 domain, say — and each definition's value type goes into the value

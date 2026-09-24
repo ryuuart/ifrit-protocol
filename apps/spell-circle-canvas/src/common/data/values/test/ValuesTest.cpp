@@ -3,7 +3,8 @@
  *  alternative and through none, a table field that is absent and one
  *  that is there, a vector of tables, the root's own JSON form both
  *  ways and every other table's through its own trait, a schema over
- *  two namespaces, bytes that are not this schema at all, the sheet the
+ *  two namespaces, a value starting at its schema's defaults, bytes
+ *  that are not this schema at all, the sheet the
  *  buffer cases read coming back as a value, and every table reachable
  *  through the trait a reader that names the value asks by.
  */
@@ -363,7 +364,7 @@ TEST(DataValues, ASchemaOverTwoNamespacesHoldsOneFromTheOther) {
   const std::optional<std::string> text =
       trait::toJson(shared::Label{.text = "north"}, &why);
   ASSERT_TRUE(text) << why;
-  EXPECT_EQ(R"({"text": "north"})", *text);
+  EXPECT_EQ(R"({"text": "north","size": 12.0})", *text);
   const std::optional<scene::Mark> read = trait::fromJson<scene::Mark>(
       R"({"at": {"x": 1.5, "y": -2.0}, "tone": "Loud", "asides": [{"text": "a"}]})",
       &why);
@@ -371,6 +372,22 @@ TEST(DataValues, ASchemaOverTwoNamespacesHoldsOneFromTheOther) {
   EXPECT_EQ(::values_spaces::shared::Tone_Loud, read->tone);
   ASSERT_EQ(1u, read->asides.size());
   EXPECT_EQ("a", read->asides[0].text);
+}
+
+TEST(DataValues, AValueStartsAtTheDefaultsItsSchemaDeclares) {
+  // What the accessor answers for a field the wire left out is what a
+  // value made with nothing set holds, so the two are one value.
+  EXPECT_FLOAT_EQ(12.0f, shared::Label{}.size);
+  EXPECT_EQ(::values_spaces::shared::Tone_Loud, scene::Mark{}.tone);
+
+  flatbuffers::FlatBufferBuilder builder;
+  builder.Finish(::values_spaces::shared::CreateLabel(builder));
+  const std::optional<shared::Label> read =
+      shared::readLabel(std::span<const std::byte>(
+          reinterpret_cast<const std::byte*>(builder.GetBufferPointer()),
+          builder.GetSize()));
+  ASSERT_TRUE(read);
+  EXPECT_EQ(shared::Label{}, *read);
 }
 
 }  // namespace
