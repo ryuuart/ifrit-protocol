@@ -12,6 +12,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilmotion/clock/ClockPolicy.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Registry.h>
@@ -111,9 +112,14 @@ class Host {
      *  spelled here with the spaces in it. A word holding a space of its
      *  own is written quoted. */
     std::string compiler = "clang++";
-    /** Pin anything a sketch measured about its own execution, so a
-     *  capture can be diffed. */
-    bool deterministic = false;
+    /** WHO MOVES THE CLOCK the sessions this host opens are drawn at.
+     *  Under any policy but the wall's a session is opened for a
+     *  repeatable run: what the sketch measured about its own execution
+     *  is pinned (`SketchContext::deterministic` reads true) and the
+     *  runtime's own re-baking is held off, so a capture can be diffed. A
+     *  host steps its session with whatever delta its caller states
+     *  either way; the policy is what the session is opened for. */
+    motion::ClockPolicy clock = motion::ClockPolicy::Wall;
     /** Start from the sketch already compiled into this binary rather
      *  than by building the file, and compile only once the file
      *  changes. Null loads a matching cached build or compiles the source. */

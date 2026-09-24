@@ -380,7 +380,7 @@ std::string renderFile(const std::string& source, const std::string& output,
   options.pythonLoader = &load;
   options.sketchPath = path;
   options.assetsDirectory = path.parent_path() / "assets";
-  options.deterministic = true;
+  options.clock = motion::ClockPolicy::Advance;
   Host host(options, fonts);
   host.poll();
   if (!host.live()) throw std::runtime_error(host.errorLog());

@@ -309,7 +309,8 @@ bool Host::openSession(const Kind& kind) {
     // Setup may fail after allocating retained descriptions or callbacks.
     // Finish the candidate before releasing the last working session.
     auto candidate =
-        kind->open(m_fonts, m_assets, m_options.deterministic, key);
+        kind->open(m_fonts, m_assets,
+                   m_options.clock != motion::ClockPolicy::Wall, key);
     if (!candidate) throw std::runtime_error("the sketch opened no session");
     m_session = std::move(candidate);
     m_kind = kind;

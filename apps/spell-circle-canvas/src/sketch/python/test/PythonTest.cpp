@@ -46,7 +46,7 @@ class PythonSource {
     result.sketchPath = entry();
     result.assetsDirectory = scratch.path;
     result.siblingScanInterval = std::chrono::milliseconds(0);
-    result.deterministic = true;
+    result.clock = sigil::motion::ClockPolicy::Advance;
     return result;
   }
 

@@ -128,7 +128,7 @@ std::unique_ptr<Host> SessionAgent::build(const std::string& sketch,
   options.pythonLoader = m_options.pythonLoader;
   options.sketchesDirectory = m_options.sketchesDirectory;
   options.flagsFile = m_options.flagsFile;
-  options.deterministic = !m_clock.wall();
+  options.clock = m_clock.policy();
   if (const std::filesystem::path file = entryAt(sketch); !file.empty()) {
     options.sketchPath = file;
   } else {
