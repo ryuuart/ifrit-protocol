@@ -176,9 +176,8 @@ std::string spelled(const std::vector<uint8_t>& threads, size_t first,
 /** HOW THE CARD IS SET. The tokens are its colours; the type is three
  *  voices — a mono for everything a machine reads, a bold grotesque for
  *  the one display line, a book serif for names and quoted prose — and
- *  every class below is a whole look. The sizes are pixels: `rem`
- *  measures against the composer's inherited font rather than the root
- *  element's, so a root size stated here would not scale them. */
+ *  every class below is a whole look. The root states the one size, and
+ *  every step of the scale is a multiple of it in rems. */
 StyleSheet cardSheet(const CardColours& colours) {
   const std::string mono = "Menlo, Courier New, monospace";
   const std::string grotesque = "Helvetica Neue, Arial, sans-serif";
@@ -197,28 +196,28 @@ StyleSheet cardSheet(const CardColours& colours) {
       rule("h1")
           .fontFamily(grotesque)
           .fontWeight(700)
-          .fontSize(34)
+          .fontSize(3.4_rem)
           .letterSpacing(0.135_em)
           .ink(var("ink")),
-      rule("lead").fontSize(10.5).letterSpacing(0.1_em),
-      rule("h2").fontSize(9).letterSpacing(0.055_em).ink(var("ink")),
-      rule("caption").fontSize(8).letterSpacing(0.05_em),
-      rule(".ticket caption").fontSize(7.5),
-      rule("footer").fontSize(8.5).letterSpacing(0.08_em),
-      rule(".tag").fontSize(7).letterSpacing(0.085_em),
-      rule(".count").fontSize(11.5).letterSpacing(0.026_em).ink(
+      rule("lead").fontSize(1.05_rem).letterSpacing(0.1_em),
+      rule("h2").fontSize(0.9_rem).letterSpacing(0.055_em).ink(var("ink")),
+      rule("caption").fontSize(0.8_rem).letterSpacing(0.05_em),
+      rule(".ticket caption").fontSize(0.75_rem),
+      rule("footer").fontSize(0.85_rem).letterSpacing(0.08_em),
+      rule(".tag").fontSize(0.7_rem).letterSpacing(0.085_em),
+      rule(".count").fontSize(1.15_rem).letterSpacing(0.026_em).ink(
           var("ink")),
       rule(".proof, .emphasis").ink(var("proof")),
-      rule(".proof").fontSize(8.5),
+      rule(".proof").fontSize(0.85_rem),
       // The run numerals alternate between two rows so a two-thread band
       // still gets its number.
       rule(".runs > *").ink(var("ink")),
       rule(".runs > :nth-child(even)").paddingTop(10).ink(var("ash")),
-      rule(".code").fontSize(9).letterSpacing(0.09_em),
-      rule(".card-name").fontSize(7.5).letterSpacing(0.05_em).ink(
+      rule(".code").fontSize(0.9_rem).letterSpacing(0.09_em),
+      rule(".card-name").fontSize(0.75_rem).letterSpacing(0.05_em).ink(
           var("ink")),
-      rule(".shades eyebrow").fontSize(7).letterSpacing(0.03_em),
-      rule(".bar-name caption").fontSize(8.5).letterSpacing(0.047_em).ink(
+      rule(".shades eyebrow").fontSize(0.7_rem).letterSpacing(0.03_em),
+      rule(".bar-name caption").fontSize(0.85_rem).letterSpacing(0.047_em).ink(
           var("ink")),
       rule(".lifted").fill(Fill::var("ink")),
       rule(".cell").width(kDraftCell).height(kDraftCell),
@@ -229,15 +228,15 @@ StyleSheet cardSheet(const CardColours& colours) {
           .fontFamily(book)
           .letterSpacing(0)
           .paragraph({.hanging = weave::kit::hanging::latin()}),
-      rule(".name").fontStyle(FontStyle::Italic).fontSize(13).ink(
+      rule(".name").fontStyle(FontStyle::Italic).fontSize(1.3_rem).ink(
           var("ink")),
       rule(".name.honest").ink(var("proof")),
-      rule(".quote").fontSize(10.5),
-      rule(".note").fontSize(8).letterSpacing(0.025_em),
-      rule(".reading").fontStyle(FontStyle::Italic).fontSize(11),
+      rule(".quote").fontSize(1.05_rem),
+      rule(".note").fontSize(0.8_rem).letterSpacing(0.025_em),
+      rule(".reading").fontStyle(FontStyle::Italic).fontSize(1.1_rem),
       rule(".attribution").fontStyle(FontStyle::Italic),
       rule(".douglas")
-          .fontSize(13)
+          .fontSize(1.3_rem)
           .ink(var("ink"))
           .font({.language = "en-GB"})
           .lineHeight(weave::Leading::absolute(16))
@@ -246,7 +245,7 @@ StyleSheet cardSheet(const CardColours& colours) {
           .hyphens({.patterns = weave::kit::englishHyphenator()}),
       // The attribution's words are joined by no-break spaces in the words
       // file, so it stands whole on one line, never split around a year.
-      rule(".douglas .attribution").fontSize(10).ink(var("ash")),
+      rule(".douglas .attribution").fontSize(1_rem).ink(var("ash")),
   };
 }
 
@@ -267,15 +266,6 @@ sketch::kit::Theme cardTheme(const CardColours& colours) {
   look.spacing.labelGap = 8;
   look.spacing.swatchSide = 5;
   return look;
-}
-
-/** A sampled repeat that stays on its pixel grid. */
-// workaround: a pattern samples linear whatever filter its tile carries,
-// so a cloth tile's nearest sampling is stated again here.
-Pattern nearest(material::pattern::Tile tile) {
-  Pattern held(std::move(tile));
-  held.sampling(SkSamplingOptions(SkFilterMode::kNearest));
-  return held;
 }
 
 /** A layer filling the box it stands in. */
@@ -371,39 +361,40 @@ struct BlackWatch {
     threads = watch.threads();
     const Shades& modern = cards.front().shades;
     for (const ShadeCard& card : cards)
-      cloths.push_back(nearest(
-          patterns::clothTile(cloth(threads, card.shades, 0.17f), kThread)));
+      cloths.push_back(
+          patterns::clothTile(cloth(threads, card.shades, 0.17f), kThread));
     // The warp on the beam is the cloth before a single pick is woven: an
     // interlacing that never lifts the weft shows the ends alone.
-    warpOnBeam = nearest(patterns::clothTile(
+    warpOnBeam = patterns::clothTile(
         {.warp = threads,
          .weft = {0},
          .shades = {modern.begin(), modern.end()},
          .weave = patterns::Weave{.over = 1, .under = 0, .advance = 0}},
-        kThread));
-    argyllCloth = nearest(
-        patterns::clothTile(cloth(argyll.threads(), modern, 0.17f), kThread));
+        kThread);
+    argyllCloth =
+        patterns::clothTile(cloth(argyll.threads(), modern, 0.17f), kThread);
     const std::vector<uint8_t> window(
         threads.begin() + kDraftFirst,
         threads.begin() + kDraftFirst + kDraftEnds);
-    drawdown =
-        nearest(patterns::clothTile(cloth(window, modern, 0.22f), kDraftCell));
+    drawdown = patterns::clothTile(cloth(window, modern, 0.22f), kDraftCell);
     // The blend table is the same generator at a one-thread sett each way,
     // so if a cell disagrees with the cloth then one of the two is wrong.
     for (int weftShade = 0; weftShade < 3; ++weftShade)
       for (int warpShade = 0; warpShade < 3; ++warpShade)
-        blends[(size_t)(weftShade * 3 + warpShade)] = nearest(
+        blends[(size_t)(weftShade * 3 + warpShade)] =
             patterns::clothTile({.warp = {0},
                                  .weft = {1},
                                  .shades = {modern[(size_t)warpShade],
                                             modern[(size_t)weftShade]},
                                  .weave = kTwill},
-                                8));
+                                8);
     // The grooves between yarns: a hairline at every end and pick, which
-    // the rib alone does not draw.
-    grooves = nearest(patterns::gridLines(kThread, 1, {0, 0, 0, 0.12f}));
-    draftGrid = nearest(
-        patterns::gridLines(kDraftCell, 0.7f, faded(colours.rule, 0.6f)));
+    // the rib alone does not draw, kept on the threads' pixel grid.
+    grooves = patterns::gridLines(kThread, 1, {0, 0, 0, 0.12f})
+                  .filter(SkFilterMode::kNearest);
+    draftGrid =
+        patterns::gridLines(kDraftCell, 0.7f, faded(colours.rule, 0.6f))
+            .filter(SkFilterMode::kNearest);
     // The board is one recipe, paint and tooth together; the yarn's tooth
     // keeps frequency · stretch · 2^(octaves−1) under 0.4, past which its
     // y axis aliases into hash noise.
@@ -425,11 +416,13 @@ struct BlackWatch {
       std::array<Pattern, 3> wound;
       for (int shade : {K, B, G}) {
         const material::Color dyed = card.shades[(size_t)shade];
-        wound[(size_t)shade] = nearest(patterns::sequence(
-            {{1, material::mixToward(dyed, {1, 1, 1, 1}, 0.14f, 1)},
-             {1.5f, dyed},
-             {0.5f, material::mixToward(dyed, {0, 0, 0, 1}, 0.45f, 1)}},
-            0, patterns::Axis::V));
+        wound[(size_t)shade] =
+            patterns::sequence(
+                {{1, material::mixToward(dyed, {1, 1, 1, 1}, 0.14f, 1)},
+                 {1.5f, dyed},
+                 {0.5f, material::mixToward(dyed, {0, 0, 0, 1}, 0.45f, 1)}},
+                0, patterns::Axis::V)
+                .filter(SkFilterMode::kNearest);
       }
       wraps.push_back(std::move(wound));
     }
@@ -1074,16 +1067,12 @@ struct BlackWatch {
              .padding(8, 12)
              .fill(faded(colours.well, 0.8f))
              .stroke(stroke(1, Fill::var("rule"), PathFormat::Align::Inner))
-             // workaround: a table row wider than its room shrinks its own
-             // cells in proportion to their widths, so a row with a longer
-             // verdict stands its columns left of the others; every column
-             // here is given its width, and the widths sum inside the frame.
              .children({sketch::kit::table(
                             std::move(rows),
                             {.columns = {{.width = 104},
                                          {.width = 200},
                                          {.width = 56, .figure = true},
-                                         {.width = 28}}})
+                                         {}}})
                             .opacity(bind(&loom).window(
                                 kWeaveEnd, kWeaveEnd + reveal))})})
         .flexGrow(1);
