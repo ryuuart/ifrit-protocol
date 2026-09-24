@@ -186,7 +186,7 @@ struct Charset {
   std::vector<std::string> kana, digits;
   /** Roughly one cell in this many is a digit, sprinkled through the
    *  kana rather than dealt evenly. */
-  uint32_t digitsOneIn = 7;
+  uint32_t digitsOneIn = 1;
 };
 
 /** WHICH CELLS ARE DIGITS, addressed by the characters themselves, so the
@@ -262,35 +262,37 @@ TextEffect uprightDigits() {
 }
 
 /** One plane of the screen: its class in the sheet, the text dealt for
- *  it, and its clocks. A plane with no `loopMs` never falls — the bed. */
+ *  it, and its clocks, every clock read from the words file. A plane with
+ *  no `loopMs` never falls — the bed. */
 struct Plane {
   std::string name;
   std::string text;
   int columns = 1;
   uint32_t seed = 0;
-  float churnSeconds = 1;
+  float churnSeconds = 0;
   float churnOffsetSeconds = 0;
   float eachMs = 0;
   float durationMs = 0;
   float loopMs = 0;
 };
 
-/** The operator's line and its clocks: how far apart its characters are
- *  struck, how long each lives, the period it types again on, and the
- *  cursor's blink. */
+/** The operator's line and its clocks, read from the words file: how far
+ *  apart its characters are struck, how long each lives, the period it
+ *  types again on, and the cursor's blink. */
 struct TraceLine {
   std::string words;
-  float eachMs = 46;
-  float durationMs = 11800;
-  float loopMs = 15500;
-  float blinkSeconds = 1.06f;
+  float eachMs = 0;
+  float durationMs = 0;
+  float loopMs = 0;
+  float blinkSeconds = 0;
 };
 
-/** The refresh band: how long one pass of it takes, off-screen rest
- *  included, how tall its light is, and where in its pass it starts. */
+/** The refresh band, read from the words file: how long one pass of it
+ *  takes, off-screen rest included, how tall its light is, and where in
+ *  its pass it starts. */
 struct Sweep {
-  float seconds = 6.8f;
-  float height = 190;
+  float seconds = 0;
+  float height = 0;
   /** How far into its pass the band is when the screen comes up. */
   float phaseSeconds = 0;
 };
@@ -307,7 +309,7 @@ struct MatrixRain {
   std::vector<Plane> curtains;
   TraceLine traceLine;
   Sweep sweep;
-  std::string credit, motto;
+  std::string credit, statement, motto;
 
   /** A plane read from its entry in the words file, and its text dealt:
    *  as many columns as fit the screen, each ended by a newline after as
@@ -318,7 +320,7 @@ struct MatrixRain {
   Plane readPlane(sketch::SketchContext& ctx, const data::Json& entry) const {
     Plane plane{.name = std::string(entry["plane"].text()),
                 .seed = (uint32_t)entry["seed"].number(),
-                .churnSeconds = (float)entry["churnSeconds"].number(1),
+                .churnSeconds = (float)entry["churnSeconds"].number(),
                 .churnOffsetSeconds =
                     (float)entry["churnOffsetSeconds"].number(),
                 .eachMs = (float)entry["eachMs"].number(),
@@ -453,9 +455,9 @@ struct MatrixRain {
    *  glyph behind every letter. */
   Element glass() const {
     const auto ground = [](float height, bool fromTop) {
-      const material::Color clear = {kVoid.r, kVoid.g, kVoid.b, 0};
-      const material::Color held = {kVoid.r, kVoid.g, kVoid.b, 0.92f};
-      const material::Color half = {kVoid.r, kVoid.g, kVoid.b, 0.72f};
+      const material::Color clear = material::withAlpha(kVoid, 0);
+      const material::Color held = material::withAlpha(kVoid, 0.92f);
+      const material::Color half = material::withAlpha(kVoid, 0.72f);
       return linearGradient({0, 0}, {0, height},
                             fromTop ? std::vector{held, half, clear}
                                     : std::vector{clear, half, held},
@@ -477,14 +479,21 @@ struct MatrixRain {
                  {0.80f, 1.0f, 0.88f, 0}},
                 {0.0f, 0.45f, 1.0f})),
             kit::at(0, 0, kWidth, 58).fill(ground(58, true)),
-            kit::at(0, kHeight - 54, kWidth, 54)
-                .fill(ground(54, false))
+            // The plate's label: who made the rain and what this screen
+            // sets of it, read as a title over its line of description,
+            // with the study's motto set against the label's last line.
+            kit::at(0, kHeight - 74, kWidth, 74)
+                .fill(ground(74, false))
                 .row()
                 .justifyContent(Justify::SpaceBetween)
-                .paddingTop(24)
+                .alignItems(Align::End)
+                .paddingBottom(17)
                 .paddingLeft(26)
                 .paddingRight(26)
-                .children({document::eyebrow(credit), document::caption(motto)}),
+                .children({box().column().gap(5).children(
+                               {document::eyebrow(credit),
+                                document::caption(statement)}),
+                           document::caption(motto)}),
         });
   }
 
@@ -526,19 +535,20 @@ struct MatrixRain {
     charset = {.kana = glyphsOf(charsets["kana"].text()),
                .digits = glyphsOf(charsets["digits"].text()),
                .digitsOneIn = std::max<uint32_t>(
-                   1, (uint32_t)charsets["digitsOneIn"].number(7))};
+                   1, (uint32_t)charsets["digitsOneIn"].number())};
     kanaCodepoints = codepointsOf(charsets["kana"]);
     digitCodepoints = codepointsOf(charsets["digits"]);
     credit = std::string(words["credit"].text());
+    statement = std::string(words["statement"].text());
     motto = std::string(words["motto"].text());
     const data::Json& trace = words["trace"];
     traceLine = {.words = std::string(trace["words"].text()),
-                 .eachMs = (float)trace["eachMs"].number(46),
-                 .durationMs = (float)trace["durationMs"].number(11800),
-                 .loopMs = (float)trace["loopMs"].number(15500),
-                 .blinkSeconds = (float)trace["blinkSeconds"].number(1.06)};
-    sweep = {.seconds = (float)words["sweep"]["seconds"].number(6.8),
-             .height = (float)words["sweep"]["height"].number(190),
+                 .eachMs = (float)trace["eachMs"].number(),
+                 .durationMs = (float)trace["durationMs"].number(),
+                 .loopMs = (float)trace["loopMs"].number(),
+                 .blinkSeconds = (float)trace["blinkSeconds"].number()};
+    sweep = {.seconds = (float)words["sweep"]["seconds"].number(),
+             .height = (float)words["sweep"]["height"].number(),
              .phaseSeconds = (float)words["sweep"]["phaseSeconds"].number()};
     if (charset.kana.empty() || charset.digits.empty()) return;
     bed = readPlane(ctx, words["bed"]);
