@@ -16,15 +16,18 @@ namespace sigil::compose::detail {
 
 /** WRITES INTO @p font THE FACE @p family AND @p italic CHOOSE, over the
  *  face @p font already carries — the one in force, or the context's
- *  default where it carries none. A null @p family keeps the family of
- *  the face in force. The weight asked for is the font's own `weight`
+ *  default where it carries none. @p family is a CSS family list, and the
+ *  face is the first of its families the context has, found at the style
+ *  asked for; the list is walked once for the run, never per character,
+ *  whose fallback stays the context's. A null @p family keeps the family
+ *  of the face in force. The weight asked for is the font's own `weight`
  *  where it states one, the face's otherwise; its width is the face's.
  *
  *  An italic is the family's italic face, else its `ital` axis at 1,
  *  else an oblique of 14 degrees on `slnt`, which is said once; an
  *  upright style sets an `ital` axis the face has back to 0.
- *  @trap A family the context cannot find leaves the face in force and
- *  says so once per name. A face in force that is not the one its own
+ *  @trap A list naming no family the context can find leaves the face in
+ *  force and says so once per list. A face in force that is not the one its own
  *  family's name finds at its style — one loaded from a file — is its own
  *  only face, so an italic there is its axis or the lean. */
 void chooseFace(sigil::weave::FontContext& fonts, sigil::weave::Type& font,

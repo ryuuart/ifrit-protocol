@@ -222,7 +222,7 @@ the code that built a child ran.
 | Verb | What it says |
 |---|---|
 | [`font`](pages/verbs/font.md) | The type everything under this node is set in, as a PARTIAL over what it inherits. |
-| [`fontFamily`](pages/verbs/fontFamily.md) | The family, by name, found through the font context — the face field of `font`. |
+| [`fontFamily`](pages/verbs/fontFamily.md) | The family list, CSS's, set in its first family the font context has — the face field of `font`. |
 | `fontSize` | The type size — one field of `font`. |
 | `fontWeight` | The weight, as the face's `wght` axis — one field of `font`. |
 | [`fontStyle`](pages/verbs/fontStyle.md) | Upright, italic, or an oblique angle leaning right — the face and the slant of `font`. |

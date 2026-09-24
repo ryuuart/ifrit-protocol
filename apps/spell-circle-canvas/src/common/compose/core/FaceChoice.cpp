@@ -17,6 +17,8 @@
 #include <cstring>
 #include <vector>
 
+#include "FamilyList.h"
+
 namespace sigil::compose::detail {
 
 namespace {
@@ -25,14 +27,27 @@ namespace {
  *  italic stands in with where the family has no italic of any kind. */
 constexpr float kObliqueDegrees = 14.0f;
 
-void warnNoSuchFamily(const std::string& family) {
+void warnNoSuchFamily(const std::string& list) {
   static thread_local boost::unordered_flat_set<std::string> warned;
-  if (!warned.insert(family).second) return;
+  if (!warned.insert(list).second) return;
   SkDebugf(
-      "[compose] fontFamily(\"%s\") names a family the font context cannot "
+      "[compose] fontFamily(\"%s\") names no family the font context can "
       "find — the face in force was left standing. Name a family installed "
-      "where the composer runs. (warned once)\n",
-      family.c_str());
+      "where the composer runs, or end the list with serif, sans-serif, "
+      "monospace or system-ui. (warned once)\n",
+      list.c_str());
+}
+
+/** THE FIRST FAMILY OF @p list THE CONTEXT HAS, found at @p style: each
+ *  name asked of the context's own manager in turn, a generic name
+ *  answered as that manager answers it. Null when it has none of them. */
+sk_sp<SkTypeface> firstInstalledFamily(sigil::weave::FontContext& fonts,
+                                       const std::string& list,
+                                       SkFontStyle style) {
+  for (const std::string& family : familiesOf(list))
+    if (sk_sp<SkTypeface> found = fonts.familyTypeface(family, style))
+      return found;
+  return nullptr;
 }
 
 void warnNoItalic(const SkTypeface& face) {
@@ -114,7 +129,7 @@ void chooseFace(sigil::weave::FontContext& fonts, sigil::weave::Type& font,
       italic ? SkFontStyle::kItalic_Slant : SkFontStyle::kUpright_Slant);
   sk_sp<SkTypeface> chosen;
   if (family != nullptr) {
-    chosen = fonts.familyTypeface(*family, wanted);
+    chosen = firstInstalledFamily(fonts, *family, wanted);
     if (!chosen) warnNoSuchFamily(*family);
   }
   // No family found, or none named: the face in force stands unless it

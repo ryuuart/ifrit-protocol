@@ -837,7 +837,11 @@ ordinary functions returning an `Element`.
 
 Text supports `text(value, size=None, color=None)` and `text(value, style)`
 with a native `TextStyle`. Omitted size and color inherit from its container.
-Font selection follows the host's native font context. Explicit retained
+Font selection follows the host's native font context. `fontFamily` takes
+CSS's family list as one string, on an element, a rule and a `SpanStyle`
+alike: `.fontFamily("Inter, Helvetica Neue, sans-serif")` sets the run in
+the first family installed, and the generic names `serif`, `sans-serif`,
+`monospace` and `system-ui` are the platform's own families. Explicit retained
 drawings use `graphics("identity", program)` followed by fluent properties.
 The graphics key identifies its paint program as well as its node:
 reusing it across descriptions promises an equivalent program. A drawing

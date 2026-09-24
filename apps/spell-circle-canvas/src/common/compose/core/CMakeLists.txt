@@ -67,7 +67,7 @@ sigil_library(SigilComposeCore
     PromotionTier.cpp SplitBake.cpp GroupBake.cpp TextureBake.cpp
     PictureTier.cpp
     # text
-    TextPainter.cpp TextInk.cpp FaceChoice.cpp
+    TextPainter.cpp TextInk.cpp FaceChoice.cpp FamilyList.cpp
     # the instanced leaf
     Instances.cpp Shelf.cpp
     # paint values
@@ -80,7 +80,7 @@ sigil_library(SigilComposeCore
     ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
     ComputedStyle.h DeclaredFields.h PropertyBlocks.h HeapBox.h
     SelectorInternal.h SelectorMatch.h SheetBody.h Calc.h
-    TextState.h SlotSpecs.h FaceChoice.h LonghandFold.h
+    TextState.h SlotSpecs.h FaceChoice.h FamilyList.h LonghandFold.h
     Lanes.h
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
     PaintInternal.h PaintPass.h GlyphInk.h

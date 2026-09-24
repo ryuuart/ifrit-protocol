@@ -15,7 +15,9 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
+#include "../FamilyList.h"
 #include "support/CoreTestSupport.h"
 
 namespace {
@@ -84,6 +86,78 @@ TEST(ComposeFontFamily, AFamilyNobodyInstalledLeavesTheInheritedFace) {
   EXPECT_EQ(missing, render(Element(inherited).children({words()})));
   EXPECT_NE(said.find("Nobody Installed This Family"), std::string::npos)
       << said;
+}
+
+TEST(ComposeFontFamily, AListIsReadIntoItsNamesAsCssReadsIt) {
+  using sigil::compose::detail::familiesOf;
+  EXPECT_EQ(familiesOf(" Inter ,  Helvetica   Neue,'A Family, Quoted' ,"
+                       "\"Q\" ,, sans-serif"),
+            (std::vector<std::string>{"Inter", "Helvetica Neue",
+                                      "A Family, Quoted", "Q", "sans-serif"}));
+  EXPECT_EQ(familiesOf("Georgia"), (std::vector<std::string>{"Georgia"}));
+  EXPECT_TRUE(familiesOf(" , ").empty());
+}
+
+TEST(ComposeFontFamily, AListIsSetInItsFirstInstalledFamily) {
+  // CSS's family list: the first family the context has, at the style in
+  // force, whatever follows it.
+  const auto georgia = render(box().fontFamily("Georgia").children({words()}));
+  EXPECT_EQ(render(box()
+                       .fontFamily("Nobody Installed This Family, Georgia, "
+                                   "Impact")
+                       .children({words()})),
+            georgia);
+  EXPECT_EQ(render(box()
+                       .fontFamily("  'Nobody Installed This Family' ,"
+                                   "\"Georgia\",Impact")
+                       .children({words()})),
+            georgia);
+  EXPECT_EQ(
+      render(box().fontFamily("Courier   New, Georgia").children({words()})),
+      render(box().font({.face = faceOf("Courier New")}).children({words()})));
+  // A rule and a span take the same string.
+  constexpr const char* kList = "Nobody Installed This Family, Georgia";
+  const StyleSheet sheet{sigil::compose::rule(".t").fontFamily(kList)};
+  EXPECT_EQ(
+      render(box().applyStyleSheet(sheet).children({words().styleClass("t")})),
+      georgia);
+  EXPECT_EQ(render(box().children({words().span(
+                allOfTheWords(), SpanStyle().fontFamily(kList))})),
+            georgia);
+}
+
+TEST(ComposeFontFamily, AGenericNameIsTheFamilyThePlatformDrawsItIn) {
+  // What `serif` stands for is the font manager's to answer; the tree's
+  // own reads it as the platform does.
+  for (const char* generic : {"serif", "sans-serif", "monospace"}) {
+    SCOPED_TRACE(generic);
+    const sk_sp<SkTypeface> platform = faceOf(generic);
+    ASSERT_TRUE(platform);
+    EXPECT_EQ(
+        render(box()
+                   .fontFamily(std::string("Nobody Installed This Family, ") +
+                               generic)
+                   .children({words()})),
+        render(box().font({.face = platform}).children({words()})));
+  }
+  EXPECT_NE(render(box().fontFamily("serif").children({words()})),
+            render(box().fontFamily("monospace").children({words()})));
+}
+
+TEST(ComposeFontFamily, AListWithNothingInstalledWarnsOnceNamingTheList) {
+  const Element inherited = box().font({.face = faceOf("Georgia")});
+  constexpr const char* kNothing =
+      "Nobody Installed This, Nor This Either 5e1d";
+  ::testing::internal::CaptureStderr();
+  const auto missing = render(Element(inherited).children(
+      {box().fontFamily(kNothing).children({words()})}));
+  (void)render(Element(inherited).children(
+      {box().fontFamily(kNothing).children({words()})}));
+  const std::string said = ::testing::internal::GetCapturedStderr();
+  EXPECT_EQ(missing, render(Element(inherited).children({words()})));
+  const size_t first = said.find(kNothing);
+  ASSERT_NE(first, std::string::npos) << said;
+  EXPECT_EQ(said.find(kNothing, first + 1), std::string::npos) << said;
 }
 
 TEST(ComposeFontFamily, ARuleAndASpanNameAFamilyAsTheElementDoes) {

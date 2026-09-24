@@ -33,13 +33,19 @@ class FontVerbs {
    *  inherit. Written twice, the later call wins field by field. A
    *  relative size resolves against the PARENT's font. */
   Derived& font(sigil::weave::Type partial);
-  /** THE FAMILY — CSS `font-family`, by name: `fontFamily("Georgia")`.
-   *  The composer's font context finds the family's face at the weight
-   *  and the style in force, and again wherever either moves below it;
-   *  an empty name is its default family. It and
-   *  the `face` field of `font()` are one statement, so the later wins.
-   *  @trap A family the context cannot find leaves the inherited face
-   *  standing and says so once. */
+  /** THE FAMILY — CSS `font-family`, as its list of names:
+   *  `fontFamily("Inter, Helvetica Neue, sans-serif")`. The run is set in
+   *  the FIRST family of the list the composer's font context has, its
+   *  face found at the weight and the style in force, and again wherever
+   *  either moves below it; the generic names `serif`, `sans-serif`,
+   *  `monospace` and `system-ui` are the families the context's font
+   *  manager draws them in. The list chooses one face for the run: a
+   *  character that face lacks falls back through the context as ever,
+   *  never down the list. An empty name is the context's default family.
+   *  It and the `face` field of `font()` are one statement, so the later
+   *  wins.
+   *  @trap A list naming no family the context has leaves the inherited
+   *  face standing and says so once, naming the whole list. */
   Derived& fontFamily(std::string family);
   /** THE TYPE SIZE — CSS `font-size`. Pixels when bare; `em` and `rem`
    *  resolve against the parent's and the root's size. The `size` field
