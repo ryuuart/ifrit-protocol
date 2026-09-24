@@ -110,7 +110,7 @@ class Revision:
     breaking: int = 0
     """Raised by a change that breaks a client built against the last."""
 
-    compatible: int = 2
+    compatible: int = 3
     """Raised by a change a client built against the last still speaks."""
 
     def to_json(self) -> dict[str, messages.Json]:
@@ -126,7 +126,7 @@ class Revision:
         fields = messages.members(value, cls)
         return cls(
             breaking=messages.integer(fields, "breaking", 0),
-            compatible=messages.integer(fields, "compatible", 2),
+            compatible=messages.integer(fields, "compatible", 3),
         )
 
 

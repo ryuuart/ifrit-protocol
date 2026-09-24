@@ -74,7 +74,7 @@ table Revision {
   /// Raised by a change that breaks a client built against the last.
   breaking: uint = 0;
   /// Raised by a change a client built against the last still speaks.
-  compatible: uint = 2;
+  compatible: uint = 3;
 }
 
 // workaround: flatc embeds the reflected definition beside the generated
