@@ -120,6 +120,7 @@ add_subdirectory(core)
 add_subdirectory(canvas)
 add_subdirectory(set)
 add_subdirectory(live)
+add_subdirectory(testing)
 add_subdirectory(plate)
 if(TARGET SigilScry)
   add_subdirectory(scry)
@@ -223,4 +224,4 @@ sigil_doc_probes(sketch
   EXCLUDE ${SIGIL_SKETCH_DOC_EXCLUDE}
   FLOORS 50,10,10,0,0
   LIBRARIES SigilSketch SigilIOPublish SigilDataDecode SigilDataScale
-            SigilSketchSessionAgent)
+            SigilSketchSessionAgent SigilSketchTestingHarness)
