@@ -126,6 +126,14 @@ sigil_test(sketch_test
           test/CatalogRowMapTest.cpp
   LIBRARIES SigilSketch Qt6::Core)
 
+# The endpoint the window and a sweep mount, under the protocol's one
+# label: host and registry answered, session and clock not mounted.
+sigil_test(sketch_test
+  SOURCES Inspection.cpp test/InspectionTest.cpp
+  LIBRARIES SigilSketchRegistryAgent SigilProtocolEndpoint SigilIOHub Qt6::Core
+  DEFINITIONS SIGIL_SKETCHBOOK_VERSION="${PROJECT_VERSION}"
+  SUITES SketchbookInspection LABELS protocol)
+
 # WHAT A FRAME OF THE PANE COSTS AS THE READER ZOOMS, over a fixture
 # scene the bench declares itself, so no sketch the owner edits moves it
 # and no library pass that leaves a sketch behind stops it building.

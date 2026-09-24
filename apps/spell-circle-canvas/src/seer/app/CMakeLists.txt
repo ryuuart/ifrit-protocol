@@ -76,6 +76,14 @@ sigil_test(seer_qt_test
 sigil_qt_target(seer_qt_test)
 target_include_directories(seer_qt_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
+# The endpoint the window mounts, under the protocol's one label: host
+# answered as Seer, every other domain not mounted.
+sigil_test(seer_qt_test
+  SOURCES Inspection.cpp test/InspectionTest.cpp
+  LIBRARIES SigilProtocolEndpoint SigilIOHub
+  DEFINITIONS SIGIL_SEER_VERSION="${PROJECT_VERSION}"
+  SUITES SeerInspection LABELS protocol)
+
 if(APPLE)
   set(SEER_TEXTURE_SOURCES TexturePreview.mm texture/Capture.mm texture/Grab.mm texture/Servers.mm)
   target_sources(Seer PRIVATE ${SEER_TEXTURE_SOURCES})

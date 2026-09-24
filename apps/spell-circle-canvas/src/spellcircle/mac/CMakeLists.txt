@@ -70,12 +70,13 @@ sigil_test(spellcircle_mac_test
 
 # The command line's reading of --inspect and --state, and the endpoint it
 # mounts, which is compiled into this test for itself since the bridge
-# keeps its C++ private.
+# keeps its C++ private — under the protocol's one label.
 sigil_test(spellcircle_mac_test
   SOURCES test/ReceiverInspectionTest.cpp bridge/ReceiverInspection.cpp
   LIBRARIES SigilProtocolEndpoint SigilIOHub
   DEFINITIONS SPELLCIRCLE_VERSION="${PROJECT_VERSION}"
-  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/bridge)
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/bridge
+  SUITES ReceiverInspection LABELS protocol)
 
 add_executable(SpellCircleMac MACOSX_BUNDLE
   app/SpellCircleMacApp.swift
