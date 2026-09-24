@@ -3,7 +3,6 @@
 #include <sigilweave/choreograph/PlacedGlyph.h>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <map>
 #include <utility>
@@ -11,12 +10,6 @@
 namespace sigil::weave::testing {
 
 namespace {
-
-/// TeX's cap: a line this bad is as bad as a line can be.
-constexpr float kWorstBadness = 10000.0f;
-/// Slack under half a pixel is no slack: a line whose words land on the
-/// measure by rounding has nothing to spend.
-constexpr float kNoSlack = 0.5f;
 
 /// The hyphen a word broken at a line's end draws, which is the word's
 /// own shaped hyphen rather than one of its segments.
@@ -43,72 +36,6 @@ bool drawsItsWord(const Paragraph& paragraph, const PositionedRun& run) {
 std::pair<float, float> penSpan(const PositionedRun& run, bool columns) {
   const float start = columns ? run.origin.y() : run.origin.x();
   return {start, start + run.advance};
-}
-
-/// Whether the layout's gaps follow only the word spaces and their
-/// justification limits, which is all the ratio below restates.
-bool spacedByWordGapsAlone(const ParagraphLayoutOptions& options) {
-  return options.tabStops.stops.empty() && options.tabStops.interval <= 0 &&
-         options.mojikumi.empty() && options.tsume == 0 &&
-         options.hanging == HangingTable{} && options.blocks.empty() &&
-         options.blockDefault == ParagraphStyle{};
-}
-
-/// What one line's words measure, and its ratio and badness from that.
-/// Those two are absent when the line was set by a rule this reading does
-/// not restate (`modelled` false) or holds a gap it does not model.
-void rateLine(const Paragraph& paragraph, const ParagraphLayoutOptions& options,
-              const std::vector<uint32_t>& words, float hyphenAdvance,
-              bool modelled, LineReading& line) {
-  const std::vector<Word>& all = paragraph.words();
-  const JustificationOptions& justification = options.justification;
-  float natural = hyphenAdvance;
-  float stretch = 0;
-  float shrink = 0;
-  for (size_t position = 0; position < words.size(); ++position) {
-    const Word& word = all[words[position]];
-    natural += word.width;
-    if (position + 1 == words.size()) break;  // the break-side gap
-    if (word.tabAfter) modelled = false;
-    if (word.spaceWidth > 0) {
-      const float glue = word.spaceWidth * justification.wordSpacing;
-      natural += glue;
-      stretch += glue * justification.spaceStretch;
-      shrink += glue * justification.spaceShrink;
-    } else if (word.ideographic || all[words[position + 1]].ideographic) {
-      modelled = false;
-    }
-  }
-  line.natural = natural;
-  if (!modelled || line.measure <= 0) return;
-
-  const uint32_t lastWord = words.back();
-  const bool blockEnds =
-      lastWord + 1 == all.size() || all[lastWord].mandatoryBreakAfter;
-  const bool justified = options.alignment == TextAlignment::kJustify &&
-                         justification.method != JustificationMethod::kNone;
-  const float slack = line.measure - natural;
-
-  std::optional<float> ratio;
-  if (blockEnds && slack >= 0) {
-    ratio = 0.0f;
-  } else if (std::abs(slack) < kNoSlack) {
-    ratio = 0.0f;
-  } else if (slack > 0) {
-    if (stretch > 0) ratio = slack / stretch;
-  } else {
-    const bool mayShrink =
-        justified && (!blockEnds || justification.justifyLastLine);
-    if (mayShrink && shrink > 0) ratio = slack / shrink;
-  }
-  line.adjustmentRatio = ratio;
-  if (!ratio || *ratio < -1.0f) {
-    line.badness = kWorstBadness;
-    return;
-  }
-  const float magnitude = std::abs(*ratio);
-  line.badness =
-      std::min(100.0f * magnitude * magnitude * magnitude, kWorstBadness);
 }
 
 }  // namespace
@@ -161,16 +88,20 @@ Reading read(const Passage& passage) {
   for (const ColumnMetrics& metrics : layout.columnMetrics(paragraph))
     boxes[metrics.lineIndex] = metrics.rect();
 
-  const bool gapsAlone = spacedByWordGapsAlone(passage.options);
+  std::map<int, std::vector<LineScore>> scoresByLine;
+  for (const LineScore& score : layout.lineScores)
+    scoresByLine[score.lineIndex].push_back(score);
+
   for (const auto& [lineIndex, runs] : runsByLine) {
     LineReading& line = reading.lines.emplace_back();
     line.lineIndex = lineIndex;
     if (auto box = boxes.find(lineIndex); box != boxes.end())
       line.box = box->second;
+    if (auto scores = scoresByLine.find(lineIndex);
+        scores != scoresByLine.end())
+      line.scores = scores->second;
 
     std::map<uint32_t, std::pair<float, float>> wordSpans;
-    std::vector<uint32_t> lineWords;
-    float hyphenAdvance = 0;
     bool turned = false;
     bool fitRead = false;
     bool textRead = false;
@@ -187,7 +118,6 @@ Reading read(const Passage& passage) {
       const bool hyphen = drawsHyphen(paragraph, *run);
       if (hyphen) {
         line.endsInHyphen = true;
-        hyphenAdvance += run->advance;
         reading.hyphensTaken.push_back(words[run->wordIndex].whitespaceEnd);
       }
       if (!hyphen && !drawsItsWord(paragraph, *run)) continue;
@@ -198,9 +128,6 @@ Reading read(const Passage& passage) {
         line.textEnd = textRead ? std::max(line.textEnd, word.whitespaceEnd)
                                 : word.whitespaceEnd;
         textRead = true;
-        if (std::find(lineWords.begin(), lineWords.end(), run->wordIndex) ==
-            lineWords.end())
-          lineWords.push_back(run->wordIndex);
       }
       if (run->transformed) continue;
       const auto [start, end] = penSpan(*run, columns);
@@ -222,11 +149,6 @@ Reading read(const Passage& passage) {
       for (size_t index = 0; index + 1 < spans.size(); ++index)
         line.gaps.push_back(spans[index + 1].first - spans[index].second);
     }
-
-    std::sort(lineWords.begin(), lineWords.end());
-    if (lineWords.empty()) continue;
-    rateLine(paragraph, passage.options, lineWords, hyphenAdvance,
-             !turned && !columns && gapsAlone, line);
   }
 
   std::sort(reading.hyphensTaken.begin(), reading.hyphensTaken.end());

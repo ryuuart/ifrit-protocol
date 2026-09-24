@@ -252,8 +252,15 @@ struct BreakKey {
   bool operator==(const BreakKey&) const = default;
 };
 
-// One line's end: the word it ends at, and the interval the line occupied.
-using BreakList = std::vector<std::pair<uint32_t, uint32_t>>;
+// One line the breaker chose: the word it ends before, the interval it
+// occupied, and the score it was chosen at, which placement hands on to the
+// layout as it places the line.
+struct ChosenBreak {
+  uint32_t endWord = 0;
+  uint32_t interval = 0;
+  LineScore score;
+};
+using BreakList = std::vector<ChosenBreak>;
 
 inline constexpr size_t kBreakStoreEntries = 256;
 

@@ -81,6 +81,9 @@ TEST_F(LiveComposer, AMeasureAlreadySeenIsNotDecidedAgain) {
   EXPECT_EQ(first.reusedBlocks, 0);
   EXPECT_EQ(second.reusedBlocks, 1);
   EXPECT_EQ(placement(first), placement(second));
+  // A kept decision keeps the scores it was made at.
+  EXPECT_FALSE(first.lineScores.empty());
+  EXPECT_EQ(first.lineScores, second.lineScores);
 }
 
 TEST_F(LiveComposer, ALayoutThatSaysNothingDecidesEveryBreakItself) {
@@ -144,4 +147,6 @@ TEST_F(LiveComposer, AFloorTooLowLeavesTheBlockToTheGreedyBreaker) {
   // never a missing one.
   EXPECT_FALSE(layout.runs.empty());
   EXPECT_FALSE(layout.overflowed());
+  // …by a breaker that weighed no break, so no line carries a score.
+  EXPECT_TRUE(layout.lineScores.empty());
 }

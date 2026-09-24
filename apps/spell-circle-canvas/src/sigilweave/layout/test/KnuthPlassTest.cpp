@@ -1,11 +1,13 @@
 /** @file
  * Knuth-Plass optimal line breaking: every word placed once in reading
- * order, raggedness no worse than greedy's, and a justified CJK block.
+ * order, raggedness no worse than greedy's, the score every line was
+ * chosen at kept on the layout, and a justified CJK block.
  */
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -78,6 +80,41 @@ TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
   EXPECT_FALSE(knuthPlassLayout.overflowed());
   EXPECT_LE(raggedness(paragraph, knuthPlassLayout, measure),
             raggedness(paragraph, greedyLayout, measure) * 1.05f);
+}
+
+TEST(KnuthPlass, EveryLineCarriesTheScoreItWasChosenAt) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(
+      u8"In olden times when wishing still helped one, there lived a king "
+      "whose daughters were all beautiful; and the youngest was so beautiful "
+      "that the sun itself, which has seen so much, was astonished whenever "
+      "it shone in her face.");
+  BlockFlow flow(SkRect::MakeWH(300, 900));
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+  options.alignment = TextAlignment::kJustify;
+  const ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+
+  ASSERT_EQ(layout.lineScores.size(), static_cast<size_t>(layout.lineCount));
+  for (size_t line = 0; line < layout.lineScores.size(); ++line) {
+    const LineScore& score = layout.lineScores[line];
+    EXPECT_EQ(score.lineIndex, static_cast<int>(line));
+    ASSERT_TRUE(score.adjustmentRatio) << "line " << line;
+    const float ratio = std::abs(*score.adjustmentRatio);
+    EXPECT_NEAR(score.badness, 100.0f * ratio * ratio * ratio,
+                score.badness * 1e-4f + 1e-3f);
+    // A breaker that found feasible breaks chose only feasible lines.
+    EXPECT_LE(score.badness, options.knuthPlass.tolerance) << "line " << line;
+    EXPECT_GT(score.natural, 0.0f);
+  }
+  EXPECT_EQ(*layout.lineScores.back().adjustmentRatio, 0.0f)
+      << "the last line's slack goes to the end of the paragraph";
+
+  // The greedy breaker weighs nothing and scores nothing.
+  BlockFlow greedyFlow(SkRect::MakeWH(300, 900));
+  EXPECT_TRUE(layoutParagraph(fontContext, paragraph, greedyFlow)
+                  .lineScores.empty());
 }
 
 TEST(KnuthPlass, AJustifiedCjkBlockKeepsEveryColumnInsideTheMeasure) {

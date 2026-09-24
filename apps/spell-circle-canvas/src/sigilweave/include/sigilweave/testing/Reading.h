@@ -4,7 +4,8 @@
  * @ingroup weave-testing
  *
  * A laid passage read back as plain values: its lines with their boxes,
- * the fit each was set at and how bad that fit is, its runs, every glyph
+ * the fit each was set at and the score the breaker chose it at, its runs,
+ * every glyph
  * where it rests, and the places a word could break at a hyphen beside
  * the ones a line took. Every value compares with `==`, so a case states
  * what it expects as a value rather than walking the layout itself.
@@ -15,9 +16,9 @@
 #include <include/core/SkTypes.h>
 
 #include <cstdint>
-#include <optional>
 #include <vector>
 
+#include "sigilweave/layout/ParagraphLayout.h"
 #include "sigilweave/layout/PositionedRun.h"
 #include "sigilweave/testing/Passage.h"
 
@@ -53,20 +54,12 @@ struct RunReading {
   bool operator==(const RunReading&) const = default;
 };
 
-/** ONE LINE AS IT WAS SET. `natural` is what the line's words and gaps
- *  measure before any fit: content, each interior gap at the word spacing
- *  the justification aims at, and a hyphen the line broke at. The
- *  adjustment ratio is the slack against the measure over what the gaps
- *  may open (or, overfull, close), from the justification's own limits;
- *  the badness is TeX's measure of it, 100·|ratio|³ capped at 10000, with
- *  a line that is overfull past its shrink or has nothing to stretch at
- *  the cap. A block's last line that fits scores zero, its slack going to
- *  the end of the paragraph as TeX's parfillskip takes it.
- *  @silent the line turned a run, ran down a column, or held a tab or an
- *  ideographic gap, or the options set tab stops, a mojikumi table, tsume,
- *  hanging punctuation or block styles of their own: its gaps follow
- *  rules this reading does not restate, so the ratio and the badness are
- *  absent. The rest of the line is still read. */
+/** ONE LINE AS IT WAS SET: where it landed and what the fit spent, read
+ *  off its runs, beside the score the optimizing breaker chose it at, read
+ *  from the layout rather than worked out again — what a LineScore holds
+ *  and the traps it names are the breaker's.
+ *  @silent the greedy breaker set the line: `scores` is empty, because no
+ *  break was weighed. The rest of the line is still read. */
 struct LineReading {
   int lineIndex = 0;
   /// The band the line's runs occupy, ascent to descent — or the column's
@@ -75,7 +68,6 @@ struct LineReading {
   uint32_t textBegin = 0;  ///< first UTF-16 unit on the line
   uint32_t textEnd = 0;    ///< one past the last, trailing glue included
   float measure = 0;       ///< the length of the interval it was set in
-  float natural = 0;       ///< what its words and gaps measure unfitted
   float extent = 0;        ///< first pen to last advance, as set
   /// The gap between each two words in pen order, as set: what the fit
   /// spent in the word spaces. Empty for a line of one word and for
@@ -83,8 +75,10 @@ struct LineReading {
   std::vector<float> gaps;
   GlyphFit fit;               ///< what the fit did to the glyphs
   bool endsInHyphen = false;  ///< the line broke inside a word
-  std::optional<float> adjustmentRatio;
-  std::optional<float> badness;
+  /// How the optimizing breaker scored the line, one entry per interval
+  /// it was set in — one, unless an exclusion split the line — in the
+  /// order they were placed.
+  std::vector<LineScore> scores;
   bool operator==(const LineReading&) const = default;
 };
 

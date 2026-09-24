@@ -81,6 +81,20 @@ breaker ran out of candidates on and left to the greedy breaker. It is
 zero whenever no floor was set, and it is the number a caller watches to
 know its floor is too low for the text it is setting.
 
+`ParagraphLayout::lineScores` holds one `LineScore` per line the
+optimizing breaker decided, kept as the breaker weighed it when it chose
+the break rather than worked out again from the placed runs: the line's
+natural width, its adjustment ratio and its badness, and the line and
+interval it was set in. A line the greedy breaker set has none, and a
+line a keep took back out of the frame loses its own. A block set from a
+kept decision reports the scores that decision was made at. The ratio is
+absent when the gaps could not move the way the slack asked — underfull
+with nothing to stretch, overfull with nothing that may shrink — and the
+badness is then at its cap. A block's last line that fits scores zero
+whatever the justification then does to it; a balanced block is scored
+against the narrowed measure its balancing settled on; and a block rerun
+with emergency stretch counts each line's own measure as stretch.
+
 `ParagraphLayout::reusedBlocks` is how many blocks were set from break
 decisions this thread had already made for the same words at the same
 measure, under `ParagraphLayoutOptions::live`. It is what says a moving

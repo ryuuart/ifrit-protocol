@@ -15,6 +15,7 @@
 #include <include/core/SkPoint.h>
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -32,6 +33,34 @@ class FontContext;
 namespace detail {
 struct LayoutAccess;
 }
+
+/** HOW THE OPTIMIZING BREAKER SCORED A LINE IT CHOSE, kept as it was
+ *  weighed when the break was decided rather than worked out again from
+ *  the placed runs. `natural` is what the line's words and gaps measure
+ *  before any fit — the content, each interior gap at the word spacing
+ *  the justification aims at, a tab resolved to its stop, the room a
+ *  mojikumi table puts after a word, and the hyphen of a break at a soft
+ *  hyphen. The adjustment ratio is the slack against the measure over
+ *  what the gaps may open, or, overfull, over what they may close; the
+ *  badness is TeX's, 100·|ratio|³ with the ratio held under 500, capped
+ *  at 1e7.
+ *  @trap A block's last line that fits scores a ratio of zero, its slack
+ *  going to the end of the paragraph, even when the justification opens
+ *  its gaps to the measure; a balanced block's lines are scored against
+ *  the narrowed measure the balancing settled on; a block the breaker had
+ *  to rerun with emergency stretch counts each line's own measure as
+ *  stretch, so a line that needed it scores looser than it looks.
+ *  @silent the gaps could not move the way the slack asked — underfull
+ *  with nothing to stretch, overfull with nothing it may shrink: the
+ *  ratio is absent and the badness at its cap. */
+struct LineScore {
+  int lineIndex = 0;       ///< matches PositionedRun::lineIndex
+  int intervalIndex = -1;  ///< into ParagraphLayout::intervals
+  float natural = 0;
+  std::optional<float> adjustmentRatio;
+  float badness = 0;
+  bool operator==(const LineScore&) const = default;
+};
 
 /** Positioned output of one paragraph layout pass.
  *
@@ -59,6 +88,12 @@ struct ParagraphLayout {
   /// travels, never how wide the band around it is.
   float linePitch = 0;
   int lineCount = 0;  ///< lines actually produced
+  /// One entry per line the optimizing breaker decided, in the order they
+  /// were placed, each naming the interval it was set in. A line the
+  /// greedy breaker set — under LineBreakStrategy::kGreedy, or in a block
+  /// the optimizing one ran out of candidates on — has none, and neither
+  /// does a line a keep took back out of the frame.
+  std::vector<LineScore> lineScores;
   /// First word that found no room (geometry exhausted); ~0u when all fit.
   uint32_t firstUnplacedWord = ~0u;
   /// An overflow marker from ParagraphLayoutOptions::overflow was appended

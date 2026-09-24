@@ -1,8 +1,9 @@
 /** @file
- * A laid passage read back as values: a line's box, measure and natural
- * width, the ratio and badness a justified line was fitted at, the gaps
- * it spent them in, the glyphs where they rest, and the hyphenation
- * points beside the ones a line took. Every case sets the instrument
+ * A laid passage read back as values: a line's box and measure, the
+ * natural width, ratio and badness the breaker chose a justified line at,
+ * the gaps it spent them in, the glyphs where they rest, and the
+ * hyphenation points beside the ones a line took. Every case sets the
+ * instrument
  * face, where a letter is 0.6 em, the space 0.3 em and the hyphen 0.4
  * em, so every number below is arithmetic on those.
  */
@@ -28,8 +29,10 @@ constexpr float kLetter = 9.6f;
 constexpr float kSpace = 4.8f;
 constexpr float kHyphen = 6.4f;
 
+/// Laid by the optimizing breaker, the one that scores its lines.
 weave::testing::Passage laidInBlock(std::u8string_view text, float measure,
                                     ParagraphLayoutOptions options = {}) {
+  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   BlockFlow flow(SkRect::MakeWH(measure, 400));
   return weave::testing::lay(sigil::test::fonts(), makeParagraph(text), flow,
                              std::move(options));
@@ -43,17 +46,28 @@ TEST(WeaveReading, ALineReadsItsBoxMeasureAndNaturalWidth) {
   ASSERT_EQ(reading.lines.size(), 1u);
   const weave::testing::LineReading& line = reading.lines.front();
   EXPECT_FLOAT_EQ(line.measure, 1000.0f);
-  EXPECT_NEAR(line.natural, 6 * kLetter + 2 * kSpace, 1e-3f);
-  EXPECT_NEAR(line.extent, line.natural, 1e-3f);
+  ASSERT_EQ(line.scores.size(), 1u);
+  const LineScore& score = line.scores.front();
+  EXPECT_NEAR(score.natural, 6 * kLetter + 2 * kSpace, 1e-3f);
+  EXPECT_NEAR(line.extent, score.natural, 1e-3f);
   ASSERT_EQ(line.gaps.size(), 2u);
   EXPECT_NEAR(line.gaps[0], kSpace, 1e-3f);
-  EXPECT_NEAR(line.box.width(), line.natural, 1e-3f);
+  EXPECT_NEAR(line.box.width(), score.natural, 1e-3f);
   // An ascent of 0.8 em over a descent of 0.2.
   EXPECT_NEAR(line.box.height(), 16.0f, 1e-3f);
   EXPECT_EQ(line.textBegin, 0u);
   EXPECT_EQ(line.textEnd, 8u);
-  ASSERT_TRUE(line.badness);
-  EXPECT_EQ(*line.badness, 0.0f) << "a block's last line that fits";
+  EXPECT_EQ(score.badness, 0.0f) << "a block's last line that fits";
+}
+
+TEST(WeaveReading, AGreedyLineReadsNoScore) {
+  // The greedy breaker weighs no break, so there is nothing to read back.
+  BlockFlow flow(SkRect::MakeWH(1000, 400));
+  const weave::testing::Reading reading = weave::testing::read(
+      weave::testing::lay(sigil::test::fonts(), makeParagraph(u8"aa bb"), flow));
+  ASSERT_EQ(reading.lines.size(), 1u);
+  EXPECT_TRUE(reading.lines.front().scores.empty());
+  EXPECT_NEAR(reading.lines.front().extent, 4 * kLetter + kSpace, 1e-3f);
 }
 
 TEST(WeaveReading, AJustifiedLineReadsTheRatioItsGapsOpenedBy) {
@@ -67,17 +81,18 @@ TEST(WeaveReading, AJustifiedLineReadsTheRatioItsGapsOpenedBy) {
   const weave::testing::LineReading& first = reading.lines.front();
   const float slack = 70.0f - (6 * kLetter + 2 * kSpace);
   const float ratio = slack / (2 * kSpace * 0.5f);
-  ASSERT_TRUE(first.adjustmentRatio);
-  EXPECT_NEAR(*first.adjustmentRatio, ratio, 1e-3f);
-  ASSERT_TRUE(first.badness);
-  EXPECT_NEAR(*first.badness, 100.0f * ratio * ratio * ratio, 1e-2f);
+  ASSERT_EQ(first.scores.size(), 1u);
+  ASSERT_TRUE(first.scores.front().adjustmentRatio);
+  EXPECT_NEAR(*first.scores.front().adjustmentRatio, ratio, 1e-3f);
+  EXPECT_NEAR(first.scores.front().badness, 100.0f * ratio * ratio * ratio,
+              1e-2f);
   ASSERT_EQ(first.gaps.size(), 2u);
   EXPECT_NEAR(first.gaps[0], kSpace + slack / 2, 1e-2f);
   EXPECT_NEAR(first.gaps[1], kSpace + slack / 2, 1e-2f);
   EXPECT_NEAR(first.extent, 70.0f, 1e-2f);
   EXPECT_TRUE(first.fit.plain()) << "the gaps alone took the slack";
-  ASSERT_TRUE(reading.lines.back().badness);
-  EXPECT_EQ(*reading.lines.back().badness, 0.0f);
+  ASSERT_EQ(reading.lines.back().scores.size(), 1u);
+  EXPECT_EQ(reading.lines.back().scores.front().badness, 0.0f);
 }
 
 TEST(WeaveReading, ASoftHyphenIsAPointAndTheLineThatBreaksThereTakesIt) {
@@ -98,8 +113,9 @@ TEST(WeaveReading, ASoftHyphenIsAPointAndTheLineThatBreaksThereTakesIt) {
   for (const weave::testing::LineReading& line : reading.lines) {
     if (!line.endsInHyphen) continue;
     ++brokenLines;
-    EXPECT_NEAR(line.natural, 5 * kLetter + kSpace + 2 * kLetter + kHyphen,
-                1e-3f)
+    ASSERT_EQ(line.scores.size(), 1u);
+    EXPECT_NEAR(line.scores.front().natural,
+                5 * kLetter + kSpace + 2 * kLetter + kHyphen, 1e-3f)
         << "the line holding \"an extra-\" counts its hyphen";
   }
   EXPECT_EQ(brokenLines, 1);
@@ -120,7 +136,7 @@ TEST(WeaveReading, GlyphsRestWhereTheLineSetThem) {
     EXPECT_FALSE(glyph.transformed);
 }
 
-TEST(WeaveReading, ATurnedLineReadsNoRatio) {
+TEST(WeaveReading, ATurnedLineReadsNoGaps) {
   LineSetFlow flow;
   const float diagonal = std::sqrt(0.5f);
   flow.lines().push_back({LineInterval{{10, 10}, {diagonal, diagonal}, 400}});
@@ -128,8 +144,6 @@ TEST(WeaveReading, ATurnedLineReadsNoRatio) {
       weave::testing::lay(sigil::test::fonts(), makeParagraph(u8"aa bb"), flow);
   const weave::testing::Reading reading = weave::testing::read(passage);
   ASSERT_EQ(reading.lines.size(), 1u);
-  EXPECT_FALSE(reading.lines.front().adjustmentRatio);
-  EXPECT_FALSE(reading.lines.front().badness);
   EXPECT_TRUE(reading.lines.front().gaps.empty());
   ASSERT_FALSE(reading.glyphs.empty());
   EXPECT_TRUE(reading.glyphs.front().transformed);

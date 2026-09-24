@@ -510,9 +510,8 @@ const sigil::weave::testing::Passage passage = sigil::weave::testing::lay(
 
 const sigil::weave::testing::Reading reading =
     sigil::weave::testing::read(passage);
-// reading.lines[0].box, .measure, .natural, .gaps, .adjustmentRatio,
-// .badness; reading.runs, reading.glyphs, reading.hyphenationPoints,
-// reading.hyphensTaken
+// reading.lines[0].box, .measure, .gaps, .fit, .scores; reading.runs,
+// reading.glyphs, reading.hyphenationPoints, reading.hyphensTaken
 
 sigil::weave::testing::Plate plate({200, 100}, SK_ColorWHITE);
 plate.draw(passage);
@@ -523,11 +522,11 @@ const sigil::weave::testing::BaselineComparison comparison =
 - `sigilweave/testing/Passage.h` — `Passage`, the paragraph with the
   options and the layout it was set with, and `lay` and `layLine`.
 - `sigilweave/testing/Reading.h` — `Reading`, `LineReading`,
-  `RunReading`, `GlyphPlacement` and `read`. A line's badness is TeX's,
-  100·|ratio|³ capped at 10000, from the justification's own word-space
-  limits; a line set by a rule the reading does not restate (a turned
-  run, a column, a tab, an ideographic gap, a mojikumi table) reads no
-  ratio rather than a wrong one.
+  `RunReading`, `GlyphPlacement` and `read`. A line's natural width,
+  adjustment ratio and badness are the `LineScore` the optimizing breaker
+  kept on the layout when it chose the break, read back rather than
+  worked out again, so the harness never describes a glue model the
+  breaker no longer uses; a line the greedy breaker set reads none.
 - `sigilweave/testing/Plate.h` — `Plate`, a CPU raster surface cleared
   to one ground, and `render`.
 - `sigilweave/testing/Difference.h` — `PixelDifference` and `difference`:

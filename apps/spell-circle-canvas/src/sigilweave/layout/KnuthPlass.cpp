@@ -32,13 +32,30 @@ constexpr float kLinePenalty = 10.0f;
 // every surviving path — which once dropped whole paragraphs on narrow,
 // hyphen-heavy measures.
 constexpr float kMaxBadness = 1e7f;
+// The ratio a line scores when its gaps cannot move the way its slack
+// asks: underfull with nothing to stretch, or overfull with nothing it may
+// shrink. Each is past every tolerance, and neither is a ratio a reader
+// is told.
+constexpr float kNoStretch = 1e9f;
+constexpr float kNoShrink = -1e9f;
 
 struct Node {
   uint32_t breakAt = 0;   // line starts at word `breakAt`
   uint32_t interval = 0;  // interval index the *next* line will occupy
   float demerits = 0;
   int32_t previousNode = -1;  // arena index of the predecessor node
+  // How the line ending at this node was scored when it was weighed; its
+  // interval is named when the line is placed.
+  LineScore score;
 };
+
+// The line a chain's node ends, as the break list keeps it.
+ChosenBreak chosenBreak(const std::vector<Node>& arena, int32_t nodeIndex) {
+  const Node& node = arena[static_cast<size_t>(nodeIndex)];
+  return {node.breakAt,
+          arena[static_cast<size_t>(node.previousNode)].interval,
+          node.score};
+}
 
 // Folds one more value into a running hash, through the fold every cache
 // key in this repository is accumulated with.
@@ -309,11 +326,11 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
           ratio = 0;
         } else if (natural < measure) {
           ratio = stretch > 0 ? (measure - natural) / stretch
-                              : (natural > measure - 0.5f ? 0.0f : 1e9f);
+                              : (natural > measure - 0.5f ? 0.0f : kNoStretch);
         } else if (natural > measure) {
           const bool canShrink = forcedBreak ? lastLineJustify : justify;
-          ratio =
-              (canShrink && shrink > 0) ? (measure - natural) / shrink : -1e9f;
+          ratio = (canShrink && shrink > 0) ? (measure - natural) / shrink
+                                            : kNoShrink;
         } else {
           ratio = 0;
         }
@@ -345,10 +362,19 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
             node.demerits + (kLinePenalty + badness) * (kLinePenalty + badness);
         if (breakHyphenWidth > 0) demerits += hyphenPenalty * hyphenPenalty;
 
+        // What the line is kept as if it is chosen, its ratio told only
+        // when its gaps could move the way its slack asked.
+        LineScore score;
+        score.natural = natural;
+        if (ratio > kNoShrink && ratio < kNoStretch)
+          score.adjustmentRatio = ratio;
+        score.badness = badness;
+
         if (zoneRefusesBreak) {
           // Neither a node nor a lifeline.
         } else if (feasible) {
-          Node candidate{breakIndex, node.interval + 1, demerits, nodeIndex};
+          Node candidate{breakIndex, node.interval + 1, demerits, nodeIndex,
+                         score};
           newNodes.emplace_back(candidate.interval, -1);
           arena.push_back(candidate);
           newNodes.back().second = static_cast<int32_t>(arena.size() - 1);
@@ -365,8 +391,8 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
           if (better) {
             bestForcedDemerits = penalized;
             bestForcedOverfull = overfull;
-            bestForced =
-                Node{breakIndex, node.interval + 1, penalized, nodeIndex};
+            bestForced = Node{breakIndex, node.interval + 1, penalized,
+                              nodeIndex, score};
           }
         }
 
@@ -524,8 +550,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       const auto rememberBreaks = [&](int32_t node) {
         keptBreaks.clear();
         for (int32_t index = node; index > 0; index = arena[index].previousNode)
-          keptBreaks.emplace_back(arena[index].breakAt,
-                                  arena[arena[index].previousNode].interval);
+          keptBreaks.push_back(chosenBreak(arena, index));
         std::reverse(keptBreaks.begin(), keptBreaks.end());
       };
       rememberBreaks(best);
@@ -576,8 +601,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   if (breaks.empty()) {
     for (int32_t nodeIndex = best; nodeIndex > 0;
          nodeIndex = arena[nodeIndex].previousNode)
-      breaks.emplace_back(arena[nodeIndex].breakAt,
-                          arena[arena[nodeIndex].previousNode].interval);
+      breaks.push_back(chosenBreak(arena, nodeIndex));
     std::reverse(breaks.begin(), breaks.end());
   }
 
@@ -606,13 +630,13 @@ void placeBreaks(FontContext& fontContext, Paragraph& paragraph,
   // Placing is the one thing that needs the glyphs, so a block placed from
   // break decisions made earlier pulls the shaping it needs and no more.
   if (!breaks.empty())
-    paragraph.ensureShapedTo(fontContext, breaks.back().first);
+    paragraph.ensureShapedTo(fontContext, breaks.back().endWord);
   const std::vector<Word>& words = paragraph.words();
   uint32_t firstWordIndex = block.firstWord;
   int consecutiveHyphens = 0;
   for (size_t lineIndex = 0; lineIndex < breaks.size(); ++lineIndex) {
-    const uint32_t lastWordIndex = breaks[lineIndex].first;
-    const size_t intervalIndex = breaks[lineIndex].second;
+    const uint32_t lastWordIndex = breaks[lineIndex].endWord;
+    const size_t intervalIndex = breaks[lineIndex].interval;
     const FlatInterval* flatInterval =
         intervalSequence.intervalAt(intervalIndex);
     if (!flatInterval) {
@@ -644,6 +668,9 @@ void placeBreaks(FontContext& fontContext, Paragraph& paragraph,
     placeWords(fontContext, paragraph, firstWordIndex, lastWordIndex, placed,
                options.alignment, lastLine, hyphenated, options, result,
                block.mojikumiAfter);
+    LineScore& score = result.lineScores.emplace_back(breaks[lineIndex].score);
+    score.lineIndex = flatInterval->sourceLineIndex;
+    score.intervalIndex = flatInterval->index;
     lastIntervalUsed = intervalIndex;
     firstWordIndex = lastWordIndex;
   }

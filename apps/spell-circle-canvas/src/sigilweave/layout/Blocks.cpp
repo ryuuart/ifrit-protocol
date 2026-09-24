@@ -248,6 +248,12 @@ float enforceKeeps(FontContext& fontContext, Paragraph& paragraph,
     if (runIndex == 0 || runIndex >= result.runs.size()) return false;
     result.firstUnplacedWord =
         std::min(result.firstUnplacedWord, result.runs[runIndex].wordIndex);
+    // A retraction takes whole lines from the end, so every score for a
+    // line from the first retracted one on goes with them.
+    const int firstRetractedLine = result.runs[runIndex].lineIndex;
+    std::erase_if(result.lineScores, [&](const LineScore& score) {
+      return score.lineIndex >= firstRetractedLine;
+    });
     result.runs.erase(result.runs.begin() + (long)runIndex, result.runs.end());
     result.ellipsized = false;
     return true;
