@@ -195,6 +195,13 @@ sender of the newest message. It is false when there is nobody to answer
 them, or the connection is onto nothing — and when the door cannot
 address one sender or the value has no spelling on that wire.
 
+`Connection::sender` names whom a reply answers, spelled as the
+transport names an arrival's sender: the sender of the message being
+handled inside a handler, of the newest message outside one, and empty
+where there is nobody to answer. A door that holds many peers keys each
+one's own state by it, and answers one of them later — after frames
+have been drawn — through the feed's own sendTo.
+
 ### What a reader can ask about the door
 
 `Connection::latestBytes` is THE NEWEST ARRIVAL'S BYTES AS OF THE LAST

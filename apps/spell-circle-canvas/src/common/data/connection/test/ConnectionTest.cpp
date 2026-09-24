@@ -459,7 +459,9 @@ TEST(DataConnection, AReplyInAHandlerAnswersTheSenderOfTheMessage) {
   hub.setFeedTransport("osc", intoVector(std::make_shared<Sent>(), answered));
 
   Connection desk(hub, "osc://:9000");
-  desk.on("/sky/wind", [&desk](const Json& message) {
+  std::string handled;
+  desk.on("/sky/wind", [&desk, &handled](const Json& message) {
+    handled = desk.sender();
     desk.reply("/sky/state", Json(Json::Array{message["arguments"][0]}));
   });
 
@@ -469,8 +471,10 @@ TEST(DataConnection, AReplyInAHandlerAnswersTheSenderOfTheMessage) {
   hub.dispatch(0.0);
 
   ASSERT_EQ(answered->size(), 1u);
-  // It went to the address the arrival named, and it is written exactly
-  // as a send on that door writes one.
+  // It went to the address the arrival named, which is the sender the
+  // handler was shown, and it is written exactly as a send on that door
+  // writes one.
+  EXPECT_EQ(handled, "osc://127.0.0.1:52341");
   EXPECT_EQ(answered->front().first, "osc://127.0.0.1:52341");
   EXPECT_EQ(answered->front().second,
             encodeOsc("/sky/state", Json(Json::Array{Json(0.5)})));
@@ -484,6 +488,7 @@ TEST(DataConnection, AReplyOutsideAHandlerAnswersTheNewestSender) {
   Connection desk(hub, "osc://:9000");
   // Nothing has arrived, so there is nobody to answer.
   EXPECT_FALSE(desk.reply("/sky/state", Json(Json::Array{})));
+  EXPECT_TRUE(desk.sender().empty());
 
   desk.feed()->deliver(
       bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.25)}))),
@@ -493,6 +498,7 @@ TEST(DataConnection, AReplyOutsideAHandlerAnswersTheNewestSender) {
       "osc://127.0.0.1:52342");
   hub.dispatch(0.0);
 
+  EXPECT_EQ(desk.sender(), "osc://127.0.0.1:52342");
   EXPECT_TRUE(desk.reply("/sky/state", Json(Json::Array{Json(0.75)})));
   ASSERT_EQ(answered->size(), 1u);
   // The newest message is the one an answer outside a handler answers,
@@ -520,6 +526,7 @@ TEST(DataConnection, AMessageThatNamedNoSenderIsNobodyToAnswer) {
   EXPECT_EQ(scene.latest()["kind"].text(), "gust");
   EXPECT_FALSE(scene.reply(scene.latest()));
   EXPECT_FALSE(scene.reply("/sky/state", Json(Json::Array{})));
+  EXPECT_TRUE(scene.sender().empty());
   EXPECT_TRUE(answered->empty());
   // The door itself is no less open for it: what goes out to everybody
   // still goes.

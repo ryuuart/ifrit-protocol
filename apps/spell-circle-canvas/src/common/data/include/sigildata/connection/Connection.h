@@ -156,6 +156,14 @@ class Connection {
    *  to that same sender. */
   bool reply(std::string_view address, const Json& arguments) const;
 
+  /** WHOM A REPLY ANSWERS, spelled the way the transport names an
+   *  arrival's sender, `ws://127.0.0.1:52341`: inside a handler, the
+   *  sender of the message being handled; outside one, the sender of the
+   *  newest message. Empty where there is nobody to answer. It is what a
+   *  door that holds many peers keys each one's own state by, and what
+   *  it answers one of them through later, on the feed's own sendTo(). */
+  const std::string& sender() const;
+
   /** The URI this was opened on; empty for a connection onto nothing. */
   const std::string& uri() const;
 

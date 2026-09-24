@@ -423,6 +423,12 @@ const std::string& Connection::uri() const {
   return m_state ? m_state->uri : noUri();
 }
 
+const std::string& Connection::sender() const {
+  // A connection onto nothing has had nothing arrive, so there is
+  // nobody to name — the same empty spelling a URI it never had takes.
+  return m_state ? m_state->sender : noUri();
+}
+
 const Schema& Connection::schema() const {
   return m_state ? m_state->schema : noSchema();
 }
