@@ -1,0 +1,28 @@
+{
+  "title": "A sky, received three ways.",
+  "subtitle": "UDP  ·  QUIC  ·  SHARED MEMORY  /  One connection per door; each door's newest message becomes its picture.",
+  "footer": "sender.py beside this sketch sends the UDP and shared memory doors; Seer speaks QUIC  ·  Captures replay the three recordings under data/",
+  "doors": [
+    {
+      "label": "UDP · SCHEMA",
+      "address": "udp://:27020",
+      "recording": "data/udp.feed",
+      "schema": true,
+      "note": "A datagram per sky, read through feed_sky.fbs: an arrival that does not fit the schema is counted, never drawn."
+    },
+    {
+      "label": "QUIC · JSON",
+      "address": "quic://:27100",
+      "certificate": "data/cert.pem",
+      "key": "data/key.pem",
+      "recording": "data/quic.feed",
+      "note": "One encrypted stream per sky, answered with the self-signed pair beside this sketch and read as plain JSON."
+    },
+    {
+      "label": "SHARED MEMORY · JSON",
+      "address": "shm://feed_sky",
+      "recording": "data/shared.feed",
+      "note": "A region another process on this machine wrote, mapped read-only: no socket and no copy through the kernel."
+    }
+  ]
+}

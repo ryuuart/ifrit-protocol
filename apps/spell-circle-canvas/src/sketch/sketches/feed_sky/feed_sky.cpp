@@ -1,104 +1,131 @@
 /** @file
- * feed_sky — a sky that keeps arriving.
+ * feed_sky — one sky, arriving through three doors at once.
  *
- * The scene is the one schema_scene draws beside this file: bands
- * crossing the canvas, the wind they drift on, the palette they are
- * tinted from. What differs is where the sky COMES FROM. There it is a
- * file, read once and re-read when it changes; here it is the newest
- * message on a CONNECTION — a door that keeps delivering — so the sky
- * is whatever the sender last said, and a canvas nothing has reached
- * shows a quiet horizon and the door's own words about itself.
+ * The scene is the one schema_scene draws from a file: bands crossing
+ * the canvas, the wind they drift on, the palette they are tinted from.
+ * Here each sky is the newest message on a CONNECTION — a door that keeps
+ * delivering — and the sheet holds three of them side by side, so what a
+ * reader compares is the door and nothing else: the same
+ * `data::Connection`, the same `latest()`, the same vitals, over three
+ * transports.
  *
- * ONE DOOR, TWO SOURCES. The URI is opened on the hub: one that
- * resolves through the mount table to a file is played back from that
- * recording as the hub's time moves forward, and any other opens
- * through the transport its scheme names. So a capture mounts the
- * recording beside this file onto the port and reads exactly what a
- * window hears from a sender — arrival for arrival, at the same seconds
- * — which is what makes a still of a live scene a plate at all. The
- * mount stands before the door opens, because a feed is made once per
- * URI and every later ask answers that same one.
+ *   UDP · SCHEMA          a datagram per sky, read through `feed_sky.fbs`
+ *                         beside this file: the build compiles it into
+ *                         `feed_sky_generated.h`, and an arrival that does
+ *                         not FIT the schema is counted as undecodable
+ *                         rather than drawn as a sky missing its fields.
+ *   QUIC · JSON           one encrypted stream per sky. There is no
+ *                         unencrypted form of this door, so its URI names
+ *                         the certificate and key it answers with — the
+ *                         two files under `data/`, DEMONSTRATION
+ *                         CREDENTIALS, self-signed and vouching for nobody.
+ *   SHARED MEMORY · JSON  a region another process on this machine wrote,
+ *                         mapped read-only and looked at on a timer: no
+ *                         socket, no copy through the kernel.
  *
- * `sender.py` beside this file is both ends of it: it sends the sky to
- * the port, and it writes the recording a capture replays.
+ * The two JSON doors read every field where it is used, and a field a
+ * message left out falls back to what the reading asks for.
  *
- *     python3 sender.py                                   # a window moves
- *     python3 sender.py --record data/sky.feed --seconds 6 --rate 4
+ * ONE DOOR, TWO SOURCES. A URI that resolves through the hub's mount
+ * table to a file is played back from that recording as the hub's time
+ * moves forward, and any other opens through the transport its scheme
+ * names. So a capture mounts each door's recording under `data/` onto
+ * its whole URI — query and all, the table matching by prefix — and
+ * reads exactly what a window hears, arrival for arrival, at the same
+ * seconds. The mount stands before the door opens, because a feed is
+ * made once per URI and every later ask answers that same one.
  *
- * EVERY MESSAGE COMES THROUGH THE SKETCH'S OWN SCHEMA. `feed_sky.fbs`
- * beside this file states what a sky is, the build compiles it into
- * `feed_sky_generated.h`, and `data::schema<feed_sky::Sky>()` is that
- * schema as one value the door is opened with. So a sender may write
- * the schema's JSON form or the buffer itself and the scene reads the
- * same value either way, and an arrival that does not FIT the schema is
- * counted as undecodable rather than drawn as a sky missing its fields.
+ * `sender.py` beside this file sends the UDP and shared memory doors and
+ * writes all three recordings; the live side of the QUIC door is Seer,
+ * opening `quic://127.0.0.1:27100?insecure=1`.
+ *
+ *     python3 sender.py                  # the UDP panel moves
+ *     python3 sender.py --door shared    # the shared memory panel moves
+ *     python3 sender.py --record         # the three recordings
+ *
+ * THE SKY IS ELEMENTS. A band is one ribbon of rounded segments, set once
+ * per message under a texture cache; its drift and its breath are bound
+ * to one clock, so between two messages nothing is described again.
  *
  * EDIT THESE FIRST
- *   feed_sky.fbs  what a sky is: its bands, its wind and its palette
- *   kAddress      the URI the sky arrives on
- *   kRecording    what a capture replays instead of listening
- *   kSpacing      how far apart the bands stand
- *   kSegment      the length of a ribbon's segments, and their gap
+ *   data/content.json  the words, and each door: its address, its
+ *                      recording, its credentials, whether a schema reads it
+ *   feed_sky.fbs       what a sky is: its bands, its wind and its palette
+ *   kSpacing           how far apart the bands stand
+ *   kSegment           the length of a ribbon's segments, and kGap after
  */
 
 // TAGS: Data/Schema, Data/Sources, Runtime/Resources
 
+#include <choreograph/Choreograph.h>
 #include <sigilcompose/core/Core.h>
-#include <sigilcompose/draw/Draw.h>
-#include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Rows.h>
 #include <sigildata/connection/Connection.h>
 #include <sigildata/decode/FlatBuffer.h>
 #include <sigildata/decode/Json.h>
-#include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/bind/Bound.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Instrument.h>
+#include <sigilsketch/kit/Cells.h>
+#include <sigilsketch/kit/Document.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Panel.h>
 #include <sigilsketch/kit/Theme.h>
 
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <span>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "feed_sky_generated.h"
 
-namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace compose = sigil::compose;
 namespace data = sigil::data;
-namespace io = sigil::io;
-
-using sigil::draw::Pen;
+namespace motion = sigil::motion;
+namespace material = sigil::material;
+using namespace sigil::compose;
 
 namespace {
 
-const char* kAddress = "udp://:27020";     // where the sky arrives
-const char* kRecording = "data/sky.feed";  // what a capture replays
-
-constexpr SkSize kCanvas = {1280, 720};
-constexpr material::Color kGround = {0.04f, 0.04f, 0.09f, 1};
+constexpr SkSize kCanvas = {1280, 600};
 constexpr double kCaptureAt = 2.0;  // by now several messages have landed
 
-constexpr float kTop = 80.0f;       // where the first band stands
-constexpr float kSpacing = 104.0f;  // how far apart the bands stand
-constexpr float kSegment = 260.0f;  // a ribbon's segment, and its gap after
-constexpr float kGap = 70.0f;
-constexpr float kMargin = 28.0f;
+/** THE SKY'S OWN COORDINATES, the ones a message's heights and speeds are
+ *  written in, and the width a panel shows it at. */
+constexpr float kSkyWidth = 1280;
+constexpr float kSkyHeight = 720;
+constexpr float kShownWidth = 360;
+constexpr float kSkyScale = kShownWidth / kSkyWidth;
+constexpr float kPanelGap = 24;
+
+constexpr float kTop = 80;       // where the first band stands
+constexpr float kSpacing = 104;  // how far apart the bands stand
+constexpr float kSegment = 260;  // a ribbon's segment, and its gap after
+constexpr float kGap = 70;
+/** Enough segments that a ribbon drifted anywhere across one period still
+ *  reaches both edges of the sky. */
+constexpr size_t kSegments = (size_t)(kSkyWidth / (kSegment + kGap)) + 2;
+/** A band breathes on a sine of this many radians a second, each band a
+ *  radian further along than the one above it. */
+constexpr float kBreath = 0.7f;
 
 /** WHAT A DOOR SAYS ABOUT ITSELF — the whole of it. The readout prints
  *  these, and a reading that differs from the one the description was
- *  written from is what says to write it again. */
+ *  written from is what says to write it again. A connection's vitals have
+ *  no value of their own, so this sketch gathers them field by field and
+ *  prints them as its own rows. */
 struct Vitals {
   uint64_t generation = 0;
   uint64_t dropped = 0;
   uint64_t undecodable = 0;
   bool closed = false;
   std::string address;
+  std::string sender;
   std::string trouble;
   bool operator==(const Vitals&) const = default;
 };
@@ -109,211 +136,243 @@ Vitals vitalsOf(const data::Connection& door) {
           .undecodable = door.undecodable(),
           .closed = door.closed(),
           .address = door.address(),
+          .sender = door.sender(),
           .trouble = door.error()};
 }
 
-/** One channel of a colour, or @p fallback where the message left it
- *  out. A colour is an object in the schema's form, a struct's fields
- *  being named there as a table's are. */
-float channel(const data::Json& colour, std::string_view name, float fallback) {
-  return (float)colour[name].number(fallback);
-}
-
-}  // namespace
-
-namespace {
-
-struct FeedSky {
-  /** The door, read through the sketch's own schema: what arrives is a
-   *  Sky or it is nothing. The same feed for the same URI while anybody
-   *  holds it, so a reload that sets this sketch up again is handed the
-   *  one it was already reading. */
-  data::Connection sky;
-  /** What the description standing now was written from. */
+/** One door of the sheet: what `data/content.json` says about it, the
+ *  connection it opened, and what its panel was last described from. */
+struct Door {
+  const data::Json* entry = nullptr;
+  data::Connection connection;
   Vitals shown;
 
-  void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide sheet(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(
-        ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
-
-    io::Hub& hub = ctx.assets.hub();
-    // A CAPTURE READS THE RECORDING BESIDE THIS FILE, a window listens.
-    // Mounting the URI onto the file is the whole of the difference: the
-    // line below opens either one.
-    if (ctx.deterministic)
-      hub.mount(kAddress, hub.resolve(ctx.local(kRecording)));
-    sky = data::Connection(hub, kAddress, data::schema<feed_sky::Sky>());
-
-    shown = {};
-    read();
-    describe(ctx);
+  const data::Json& operator[](std::string_view key) const {
+    return (*entry)[key];
   }
 
-  /** The data path: a message that arrived since the last frame is a new
-   *  sky and a new readout, and nothing else in the scene moves by being
-   *  described again. */
-  void update(double, sketch::SketchContext& ctx) {
-    if (read()) describe(ctx);
-  }
-
-  /** Answers whether what the description says about the door has
-   *  changed. The sky itself is the door's newest message — the NEWEST,
-   *  not the backlog, a sky being a state, so a reader that fell behind
-   *  draws what is true now rather than every step that led to it — and
-   *  is read where it is drawn. */
+  /** Answers whether the door's vitals moved since its panel was
+   *  described. The sky itself is the door's NEWEST message, not the
+   *  backlog: a sky is a state, so a reader that fell behind draws what
+   *  is true now rather than every step that led to it. */
   bool read() {
-    const Vitals now = vitalsOf(sky);
+    const Vitals now = vitalsOf(connection);
     if (now == shown) return false;
     shown = now;
     return true;
   }
+};
 
-  /** Whether a sky has arrived and been read as one. */
-  bool arrived() const { return !sky.latest().null(); }
+/** The URI a door opens: its address, and for a door that answers with a
+ *  certificate, the pair beside this sketch that it answers with. */
+std::string uriOf(const Door& door, const sketch::SketchContext& ctx) {
+  std::string uri(door["address"].text());
+  if (!door["certificate"].null())
+    uri += "?cert=" + ctx.local(door["certificate"].text()) +
+           "&key=" + ctx.local(door["key"].text());
+  return uri;
+}
+
+/** Band @p index's colour, taken from the palette in turn; a message with
+ *  no palette tints every band a translucent white. */
+material::Color tintOf(std::span<const data::Json> palette, size_t index) {
+  if (palette.empty()) return {1, 1, 1, 0.47f};
+  const data::Json& tint = palette[index % palette.size()];
+  return {(float)tint["r"].number(1), (float)tint["g"].number(1),
+          (float)tint["b"].number(1), (float)tint["a"].number(1)};
+}
+
+/** The door's state in one line, for the panel that has no sky yet. */
+std::string waitingLine(const Door& door) {
+  const Vitals& vitals = door.shown;
+  if (!vitals.trouble.empty()) return vitals.trouble;
+  if (vitals.undecodable != 0)
+    return std::to_string(vitals.undecodable) + " arrivals were no sky";
+  if (vitals.closed) return "the door is closed: nothing else is coming";
+  return "waiting at " +
+         (vitals.address.empty() ? std::string(door["address"].text())
+                                 : vitals.address) +
+         " · nothing has arrived";
+}
+
+/** THE DOOR'S OWN WORDS: where it is, how many messages have arrived, how
+ *  many fell off the queue behind a reader, how many were no sky, and who
+ *  sent the newest — or the sentence saying why there is none. Nothing
+ *  here is computed about the sky; every figure is what the door answers. */
+Element readout(const Door& door) {
+  const Vitals& vitals = door.shown;
+  const auto either = [](const std::string& answer, std::string_view none) {
+    return answer.empty() ? std::string(none) : answer;
+  };
+  const std::vector<kit::Reading> rows{
+      {.name = u8"door",
+       .value = either(vitals.address, door["address"].text())},
+      {.name = u8"generation", .value = std::to_string(vitals.generation)},
+      {.name = u8"dropped", .value = std::to_string(vitals.dropped)},
+      {.name = u8"undecodable", .value = std::to_string(vitals.undecodable)},
+      vitals.trouble.empty()
+          ? kit::Reading{.name = u8"sender", .value = either(vitals.sender, "-")}
+          : kit::Reading{.name = u8"error", .value = vitals.trouble}};
+  return kit::readout(rows, {.measure = kShownWidth});
+}
+
+struct FeedSky {
+  /** The words and the doors, read from beside this sketch. */
+  sketch::kit::Document words;
+  /** Each door, in the order the sheet shows them. A door is the same feed
+   *  for the same URI while anybody holds it, so a reload that sets this
+   *  sketch up again is handed the one it was already reading. */
+  std::vector<Door> doors;
+  /** The one clock every band's drift and breath is bound to. */
+  choreograph::Output<float> clock{0};
+
+  void setup(sketch::SketchContext& ctx) {
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = kCaptureAt});
+    ctx.ticker.add([this, seconds = 0.0](double step) mutable {
+      seconds += step;
+      clock = (float)seconds;
+      return true;
+    });
+
+    words = sketch::kit::Document(ctx, "data/content.json");
+    sigil::io::Hub& hub = ctx.assets.hub();
+    doors.clear();
+    for (const data::Json& entry : words["doors"].items()) {
+      Door door{.entry = &entry};
+      const std::string uri = uriOf(door, ctx);
+      // A CAPTURE READS THE RECORDING, a window opens the door; mounting
+      // the URI onto the file is the whole of the difference.
+      if (ctx.deterministic)
+        hub.mount(uri, hub.resolve(ctx.local(entry["recording"].text())));
+      door.connection =
+          entry["schema"].boolean()
+              ? data::Connection(hub, uri, data::schema<feed_sky::Sky>())
+              : data::Connection(hub, uri);
+      door.read();
+      doors.push_back(std::move(door));
+    }
+    describe(ctx);
+  }
+
+  /** The data path: a door whose vitals moved has a new sky and a new
+   *  readout, and nothing else in the scene is described again. */
+  void update(double, sketch::SketchContext& ctx) {
+    bool moved = false;
+    for (Door& door : doors) moved = door.read() || moved;
+    if (moved) describe(ctx);
+  }
 
   void describe(sketch::SketchContext& ctx) {
     const sketch::kit::Provide sheet(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    // A paint program runs after the describe scope has closed, where the
-    // theme in force is no longer this page's, so the one colour the
-    // placeholder is drawn in is read here and carried in by value.
-    const material::Color rule = sketch::kit::theme().palette.rule;
-    std::vector<compose::Element> parts;
-    parts.push_back(compose::pen("feed_sky.sky", [this, rule](Pen& pen) {
-                      draw(pen, rule);
-                    }).cover());
-    if (!arrived()) parts.push_back(waiting());
-    compose::Element picture = compose::stack()
-                                   .width(kCanvas.width())
-                                   .height(kCanvas.height())
-                                   .children(std::move(parts));
-    ctx.composer.render(sketch::kit::instrument(
-        {.page =
-             {.title = "A sky, received.",
-              .subtitle =
-                  "UDP / SCHEMA  /  The newest message becomes the picture.",
-              .footer = "Run sender.py beside this sketch to send data  ·  "
-                        "Captures replay the local recording"},
-         .pictureSize = kCanvas,
-         .pictureWidth = 816,
-         .note = "Each band comes from the schema: height, drift, colour and "
-                 "wind."},
-        std::move(picture).fill(kGround), readout()));
+    ctx.composer.render(sketch::kit::page(
+        {.title = words.phrase(words["title"]),
+         .subtitle = words.phrase(words["subtitle"]),
+         .footer = words.phrase(words["footer"])},
+        sketch::kit::panelGrid(
+            {.cells = each(doors, [this](const Door& door) { return panel(door); }),
+             .columns = 0,
+             .gap = kPanelGap})));
   }
 
-  /** The sky, or the placeholder where there is none. */
-  void draw(Pen& pen, material::Color rule) {
-    pen.noStroke();
-    if (!arrived()) {
-      horizon(pen, rule);
-      return;
-    }
-    bands(pen);
+  /** ONE DOOR: its name, the sky it delivered, what the door is, and what
+   *  it says about itself. */
+  Element panel(const Door& door) const {
+    return sketch::kit::panel(
+        {.eyebrow = door["label"].text(), .ruled = true},
+        box().column().gap(14).children(
+            {sketch::kit::well({.width = Dimension(kShownWidth),
+                                .height = Dimension(kSkyHeight * kSkyScale),
+                                .ground = skyGround(),
+                                .placed = true},
+                               stack().children({sky(door), waiting(door)})),
+             document::caption(door["note"].text()), readout(door)}));
   }
 
-  /** THE QUIET PLACEHOLDER: one dim line where the bands would cross, so
-   *  a canvas nothing has reached still says where the sky is. */
-  void horizon(Pen& pen, material::Color rule) {
-    pen.stroke(rule);
-    pen.strokeWeight(1);
-    pen.line(kMargin, pen.height * 0.5f, pen.width - kMargin,
-             pen.height * 0.5f);
-    pen.noStroke();
+  /** THE NIGHT the bands cross: darker overhead, lifting toward the
+   *  horizon. */
+  static SurfacePaint skyGround() {
+    return linearGradient({0, 0}, {0, kSkyHeight * kSkyScale},
+                          {{0.02f, 0.025f, 0.06f, 1}, {0.07f, 0.06f, 0.14f, 1}});
   }
 
-  /** The bands: each a ribbon of segments the width of the canvas,
-   *  drifting on the wind plus its own speed and breathing by its
-   *  wobble, tinted from the palette in turn. */
-  void bands(Pen& pen) {
-    const data::Json& state = sky.latest();
-    const std::span<const data::Json> rows = state["bands"].items();
+  /** The door's sky in its own coordinates, scaled into the panel: one
+   *  ribbon per band of the newest message. */
+  Element sky(const Door& door) const {
+    const data::Json& state = door.connection.latest();
     const std::span<const data::Json> palette = state["palette"].items();
     const float wind = (float)state["wind"]["x"].number();
+    return stack()
+        .width(kSkyWidth)
+        .height(kSkyHeight)
+        .left(0)
+        .top(0)
+        .transformOrigin(pct(0), pct(0))
+        .scale(kSkyScale)
+        .children(each(state["bands"].items(),
+                       [&](const data::Json& band, size_t index) {
+                         return ribbon(band, index, tintOf(palette, index),
+                                       wind);
+                       }));
+  }
+
+  /** ONE BAND: a ribbon of segments the width of the sky, drifting on the
+   *  wind plus its own speed and breathing by its wobble. The segments
+   *  are set once per message and held under a texture cache; the two bound
+   *  lanes move the ribbon without describing it again. */
+  Element ribbon(const data::Json& band, size_t index, material::Color tint,
+                 float wind) const {
+    const float height = (float)band["height"].number();
+    const float wobble = (float)band["wobble"].number();
     const float period = kSegment + kGap;
-    const float seconds = (float)(pen.millis() * 0.001);
-    size_t index = 0;
-    for (const data::Json& band : rows) {
-      if (!palette.empty()) {
-        const data::Json& tint = palette[index % palette.size()];
-        pen.fill(channel(tint, "r", 1) * 255, channel(tint, "g", 1) * 255,
-                 channel(tint, "b", 1) * 255, channel(tint, "a", 1) * 255);
-      } else {
-        pen.fill(255, 255, 255, 120);
-      }
-      const float height = (float)band["height"].number();
-      const float drift = (wind + (float)band["speed"].number()) * seconds;
-      const float phase = std::fmod(std::fmod(drift, period) + period, period);
-      const float y = kTop + kSpacing * (float)index +
-                      (float)band["wobble"].number() *
-                          std::sin(seconds * 0.7f + (float)index);
-      for (float x = phase - period; x < pen.width; x += period)
-        pen.rect(x, y, kSegment, height, height * 0.5f);
-      ++index;
-    }
-  }
-
-  /** WHAT THE DOOR IS DOING, in one line, for the canvas that has no sky
-   *  to draw yet. */
-  std::string state() const {
-    if (!shown.trouble.empty()) return shown.trouble;
-    if (shown.undecodable != 0)
-      return compose::kit::formatted("%llu arrivals did not fit the schema",
-                                     (unsigned long long)shown.undecodable);
-    if (shown.closed) return "the feed is closed: nothing else is coming";
-    return compose::kit::formatted(
-        "listening on %s · nothing has arrived",
-        shown.address.empty() ? kAddress : shown.address.c_str());
-  }
-
-  /** The door's state where the sky would be, until there is one. */
-  compose::Element waiting() {
-    const sketch::kit::Theme& look = sketch::kit::theme();
-    return compose::text(state())
-        .font(look.font({.size = 15, .mono = true}))
-        .ink(look.palette.ash)
-        .centerAt({kCanvas.width() * 0.5f, kCanvas.height() * 0.5f - 24.0f});
-  }
-
-  /** THE DOOR'S OWN WORDS, in the reading panel: how many messages have
-   *  arrived, how many fell off the queue behind a reader, how many were
-   *  no sky under this sketch's schema, and where the door is — or the
-   *  sentence saying why there is none. Nothing here is computed about
-   *  the sky; every line is what the door answers. */
-  compose::Element readout() {
-    const sketch::kit::Theme& look = sketch::kit::theme();
-    std::vector<std::string> lines{
-        compose::kit::formatted("feed        %s", kAddress),
-        compose::kit::formatted("generation  %llu",
-                                (unsigned long long)shown.generation),
-        compose::kit::formatted("dropped     %llu",
-                                (unsigned long long)shown.dropped),
-        compose::kit::formatted("undecodable %llu",
-                                (unsigned long long)shown.undecodable)};
-    if (!shown.trouble.empty())
-      lines.push_back(
-          compose::kit::formatted("error       %s", shown.trouble.c_str()));
-    else
-      lines.push_back(compose::kit::formatted(
-          "address     %s", shown.address.empty()
-                                ? (shown.closed ? "closed" : "-")
-                                : shown.address.c_str()));
-    return compose::box()
-        .column()
-        .gap(12)
-        .font(look.font({.size = 12, .mono = true}))
-        .ink(look.palette.ink)
-        .children(compose::each(lines, [](const std::string& line) {
-          return compose::text(line);
+    // A raised cosine across [-wobble, wobble] is -wobble·cos, so the
+    // breath starts a quarter turn early to run as a sine.
+    const float breathStart =
+        -((float)index + std::numbers::pi_v<float> * 0.5f) / kBreath;
+    const float breathPeriod = 2 * std::numbers::pi_v<float> / kBreath;
+    return box()
+        .row()
+        .gap(kGap)
+        .left(-period)
+        .top(kTop + kSpacing * (float)index)
+        .translateX(motion::bind(&clock)
+                        .scale(wind + (float)band["speed"].number())
+                        .wrap(period))
+        .translateY(motion::bind(&clock)
+                        .source(breathStart, breathStart + breathPeriod)
+                        .cosine()
+                        .target(-wobble, wobble))
+        .cache(Cache::Texture)
+        .children(each(kSegments, [&] {
+          return box()
+              .width(kSegment)
+              .height(height)
+              .borderRadius({height * 0.5f})
+              .fill(Fill::color(tint));
         }));
+  }
+
+  /** THE QUIET PLACEHOLDER, until a sky has arrived: one line where the
+   *  bands would cross, and the door's own words about itself under it. */
+  Element waiting(const Door& door) const {
+    if (!door.connection.latest().null()) return box().display(Display::None);
+    return box()
+        .cover()
+        .column()
+        .justifyContent(Justify::Center)
+        .alignItems(Align::Center)
+        .gap(10)
+        .padding(0, 16)
+        .styleClass("caption")
+        .children({kit::line({.length = pct(100)}).opacity(0.4f),
+                   document::caption(waitingLine(door))});
   }
 };
 
 }  // namespace
 
 SIGIL_SKETCH(FeedSky, "Data",
-             "A sky drawn from the newest message on a connection read "
-             "through the sketch's own schema: a port in a window, the "
-             "recording beside the sketch in a capture, and the door's own "
-             "vitals shown beside it.")
+             "One sky arriving through three doors side by side — UDP read "
+             "through the sketch's own schema, QUIC over one encrypted "
+             "connection, and a shared memory region — each panel the newest "
+             "message on its connection and the door's own vitals under it.")
