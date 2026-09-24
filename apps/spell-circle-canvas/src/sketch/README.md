@@ -718,15 +718,17 @@ std::snprintf(buf, sizeof buf, "BUILD %.2f ms", ctx.measured(buildMs));
 Sketchbook [--no-gpu]                       # the app
 Sketchbook --sketch <name>                  # the app, on that one
 Sketchbook <file.cpp>                       # the app, on that file
+Sketchbook --workspace <directory>          # the app, on a folder of sketches
+Sketchbook --examples                       # the app, on the bundled catalogue
 Sketchbook --list [--kind canvas|set]      # the registry, one per line
 Sketchbook --catalog [<file.cpp>]           # the browser's rows, one JSON each
 Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--frames <count>] [--fps <n>]
                                   [--deterministic | --no-deterministic]
 Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
-Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
-           [--ledger] [--no-promotion | --promotion] [--composites]
-           [--capture-at <s>] [--timing-json <path>]
+Sketchbook --headless [<outdir>] [--gpu] [--sketch <name>] [--kind <k>]
+           [--at <sec>] [--ledger] [--no-promotion | --promotion]
+           [--composites]
 Sketchbook --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
            [--video-bitrate <bits>] [--fps <n>] [--sketch <name>]
            [--kind <k>] [--gpu]
@@ -737,12 +739,15 @@ Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set]
 Sketchbook --publish [<name>] [--sketch <name>]
                                             # the window's frames, live, to
                                             # other applications
+Sketchbook --shot <png> [--sketch <name>]   # the whole window, once live
 … [--assets <dir>]                          # what mounts at res://
 … [--thumbnails-dir <dir>]                  # the app's own thumbnail store
 ```
 
 `--sketch` takes a case-insensitive substring and answers to a sketch's
 filed name or its file stem, which is the loop for visual iteration.
+`--headless` writes its plates into `sketch_plates/` when no directory
+follows it.
 `--shot <png>` captures the app window rather than a sketch, which is
 the only way to look at the browser and the inspector.
 
@@ -778,10 +783,10 @@ instead would be composited the matte. `alpha_ground` and
 `python_alpha_ground` are the sketches that declare a transparent ground
 and say what to do with one.
 
-`Receiver`, the subscriber in the same feature, is what to check it
-with: `Receiver --list` says what is being offered, `Receiver <name>`
-opens a window on it and `Receiver <name> --grab <png>` writes its newest
-frame to a file.
+Seer, the wire and texture reader, is what to check it with:
+`Seer --list-textures` says what is being offered, `Seer --texture <name>`
+opens a window on it and `Seer --texture <name> --grab <png>` writes its
+newest frame to a file.
 
 **Frames come the other way too.** `sigil::sketch::Guest`, from
 `<sigilsketch/canvas/Guest.h>`, is the same door read from the inside of
@@ -1011,7 +1016,12 @@ browser and its live canvas remain responsive.
 ### `--compare`: two directories of plates
 
 Prints how far every plate in one directory stands from the plate of the
-same name in the other, decoded and differenced channel by channel:
+same name in the other, decoded and differenced channel by channel. The
+comparison is a value first: `sigil::sketch::compare` answers a
+`sigil::sketch::Comparison` holding one `sigil::sketch::PlateComparison`
+row per plate, `sigil::sketch::printComparison` writes the rows as lines,
+and Python reads the same rows as `sigil.sketch.compare(first, second)`.
+Each row prints as the line its outcome opens:
 
 ```
 compared <name> mean <mean> p99 <p99> max <max> clear <max> content <max>
@@ -1049,13 +1059,12 @@ and written by a headless sweep asked for `--composites`; with no plane
 there every pixel stands under one composite and `composited` is
 `content`.
 
-It opens no
-sketch, needs no
-fonts, no assets and no device, and it JUDGES NOTHING — how close is
-close enough is a tolerance about a machine, which is the plate ledger's
-to hold. The ledger's device and promotion tiers are the callers: each
-renders two directories of plates in one run and asks this which
-pictures moved.
+It opens no sketch, needs no fonts, no assets and no device, and it
+JUDGES NOTHING — how close is close enough is a tolerance about a
+machine, which is the plate ledger's to hold. The ledger's device and
+promotion tiers are the callers: each renders two directories of plates
+in one run and reads the rows, and `sigil.py plates compare <dir-a>
+<dir-b>` prints the same lines as this flag.
 
 ### `--frame`: the asset workflow
 
@@ -1405,6 +1414,9 @@ without tags remains available under Untagged and its collection.
 
 `--headless <outdir>` renders every selected sketch to
 `<outdir>/plate_<name>.png` and prints a timing table beside it.
+`--at <sec>` takes every plate at that scene time instead of at each
+sketch's own moment; sweeping at two times and differencing the plates
+says which sketches are still moving when they are photographed.
 
 The capture is a function of the **declared moment** and of nothing a
 machine decides. Everything the timing table does is a time budget, so
