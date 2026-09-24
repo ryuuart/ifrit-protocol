@@ -135,7 +135,9 @@ ParagraphBlock& merge(ParagraphBlock& into, const ParagraphBlock& over);
 /** THE SET FIELDS OF `over` APPLIED TO A WHOLE STYLE — one step of a
  *  cascade whose base is a `ParagraphStyle`. The writing mode and the
  *  locale are not the style's to hold and pass through untouched; a
- *  consumer reads them from the partial. */
+ *  consumer reads them from the partial. A justification's method and
+ *  last line stated apart land in the justification the style carries,
+ *  over one stated whole beside them. */
 [[nodiscard]] ParagraphStyle overlay(ParagraphStyle base,
                                      const ParagraphBlock& over);
 

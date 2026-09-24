@@ -149,11 +149,19 @@ ParagraphStyle overlay(ParagraphStyle base, const ParagraphBlock& over) {
   if (over.halfLeading) base.halfLeading = *over.halfLeading;
   if (over.alignment) base.alignment = over.alignment;
   if (over.justification) base.justification = over.justification;
-  // A method stated apart lands in the justification the style carries,
-  // so a block that states its own justification is still spent the way
-  // the setting in force says; a style carrying none reads the layout's.
-  if (over.justificationMethod && base.justification)
-    base.justification->method = *over.justificationMethod;
+  // The fields of a justification stated apart — its method and its last
+  // line — land in the justification the style carries, over one stated
+  // whole beside them, so a block that states its own justification is
+  // still spent and ended the way those fields say; a style carrying none
+  // reads the layout's, where `apply` lands them.
+  if (base.justification) {
+    if (over.justificationMethod)
+      base.justification->method = *over.justificationMethod;
+    if (over.lastLineAlignment)
+      base.justification->lastLineAlignment = *over.lastLineAlignment;
+    if (over.justifyLastLine)
+      base.justification->justifyLastLine = *over.justifyLastLine;
+  }
   if (over.hyphenation) base.hyphenation = over.hyphenation;
   if (over.tabStops) base.tabStops = over.tabStops;
   if (over.firstLineIndent) base.indent.firstLine = *over.firstLineIndent;

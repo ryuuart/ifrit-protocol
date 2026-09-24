@@ -6,7 +6,10 @@
 #include <gtest/gtest.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 
+#include "support/LayoutSupport.h"
+
 using namespace sigil::weave;
+using namespace sigil::weave::test;
 
 TEST(ParagraphBlock, APartialOverlaysAWholeStyleFieldByField) {
   ParagraphStyle base;
@@ -120,4 +123,35 @@ TEST(ParagraphBlock, ApplySetsTheLayoutWideFieldsAPartialStates) {
   merge(block, more);
   EXPECT_EQ(block.lineBreak, LineBreakStrategy::kGreedy);
   EXPECT_FALSE(block.empty());
+}
+
+// THE LAST LINE STATED APART LANDS IN A JUSTIFICATION STATED WHOLE BESIDE
+// IT, as the method does, so a block may state both and the whole it copied
+// does not end its last line for it.
+TEST(ParagraphBlock, ALastLineStatedApartLandsInAWholeJustificationBesideIt) {
+  ParagraphBlock block;
+  block.alignment = TextAlignment::kJustify;
+  block.justification = JustificationOptions{};
+  block.justifyLastLine = true;
+  block.lastLineAlignment = TextAlignment::kEnd;
+  const ParagraphStyle style = overlay(ParagraphStyle{}, block);
+  ASSERT_TRUE(style.justification);
+  EXPECT_TRUE(style.justification->justifyLastLine);
+  EXPECT_EQ(style.justification->lastLineAlignment, TextAlignment::kEnd);
+
+  // Set the way a text leaf sets its block: the layout-wide fields applied
+  // and the whole style per block. The last line reaches the measure.
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph =
+      makeParagraph(u8"one two three four five six seven eight nine ten");
+  BlockFlow flow(SkRect::MakeWH(140, 400));
+  ParagraphLayoutOptions options;
+  apply(options, block);
+  options.blocks = {style};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+  const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
+  ASSERT_GE(lines.size(), 2u);
+  EXPECT_NEAR(lines.back().right, 140.0f, 0.75f)
+      << "the last line kept the whole justification's own ending";
 }
