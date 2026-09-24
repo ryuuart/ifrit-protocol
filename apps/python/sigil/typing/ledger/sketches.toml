@@ -80,7 +80,7 @@ needs = "Facts stated with `attribute`; radial layout by a fact lane with facing
 requires = ["kit-section-header", "silhouettes"]
 
 [sketch.axis_ripple]
-needs = "Per-glyph variable-axis track; shaped pen positions; selector-anchored marks; face axis query; pen meter; document type"
+needs = "Per-glyph variable-axis track on a looping textFx cascade; a level under each letter by textAttach with a bound scale; fontFamily on a sheet with custom properties; SketchContext::measure to the whole pixel; document type"
 requires = [
   "text-fx",
   "text-effects",
@@ -432,7 +432,7 @@ requires = [
 ]
 
 [sketch.elastic_type]
-needs = "Per-glyph keyframe tracks; rest ghost; sketch-kit plots with traces and marks; class stylesheet; document type"
+needs = "animate.css's two keyframe tables per letter and on the whole word on one clock; rest ghost; sketch-kit plots with traces, marks, cursors and axis readings; one sheet of roles, series classes and colour tokens; document type"
 requires = ["kit-plot", "text-fx", "text-effects", "track-meter", "schedules"]
 
 [sketch.ember_decode]
@@ -728,7 +728,7 @@ needs = "Unit-square ramp as ink over the passage, letters, words and lines; wel
 requires = []
 
 [sketch.karaoke_wipe]
-needs = "Per-glyph tint cascade with cue table; schedule read-back; underlaid aliased type; kit marks; bound transforms"
+needs = "Per-glyph tint cascade over a cue table read from data/; textStroke keyline on aliased type; marks hung on the letters as a ruler; palette tokens on the root; bound ball and playhead transforms"
 requires = ["text-fx", "composer-beats", "kinetic-presets", "schedules"]
 
 [sketch.keeps_and_frames]
@@ -815,8 +815,8 @@ needs = "Runtime shader child slots and uniforms; nearest image paints; LUT imag
 requires = ["kit-section-header", "grained", "over", "image-sampling"]
 
 [sketch.matrix_rain]
-needs = "Looping per-glyph streak, scramble and mirror tracks; seeded spread; vertical upright text; glow underlays; measured metrics; track meter"
-requires = ["text-fx", "text-effects", "track-meter", "schedules"]
+needs = "Looping per-glyph streak, scramble and mirror tracks from one sheet and one clock; words in data/; seeded spread; vertical upright text; glow underlays; kit::vignette"
+requires = ["text-fx", "text-effects", "schedules"]
 
 [sketch.matte_luma]
 needs = "Track matte gates; checker and run patterns; ramp-baked coverage image; unit gradients; comparison kit"
@@ -1249,7 +1249,7 @@ requires = [
 ]
 
 [sketch.shipping_forecast]
-needs = "Per-glyph text tracks; stagger spreads; named style sheet; selector span restyling; path and vertical text; title card; edge decoration"
+needs = "Per-glyph text tracks; stagger spreads; one sheet of roles, classes and colour tokens; selector span restyling; path and vertical text; the sea area being read lit on its ring; title card; kit tables; edge decoration"
 requires = [
   "kit-document",
   "kit-title-card",

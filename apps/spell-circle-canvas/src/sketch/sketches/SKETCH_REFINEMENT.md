@@ -329,12 +329,12 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `twoadvanced_v3` | Retain · reference study | Cached preview |
 | `twoadvanced_v4` | Retain · reference study | Cached preview |
 | `winamp_base` | Retain · reference study | Cached preview |
-| `axis_ripple` | Retain · reference study | Cached preview |
-| `elastic_type` | Retain · reference study | Cached preview |
-| `karaoke_wipe` | Retain · reference study | Cached preview |
-| `matrix_rain` | Retain · reference study | Cached preview |
+| `axis_ripple` | Rewritten · one sheet, a looping cascade, a level hung off each letter | Cached preview |
+| `elastic_type` | Rewritten · per-letter and one-body tables on one clock, plots from the chart kit | Cached preview |
+| `karaoke_wipe` | Rewritten · cue table in data/, one sheet, ruler marks on the letters | Cached preview |
+| `matrix_rain` | Rewritten · one sheet, one clock, words in data/ | Cached preview |
 | `rota_convocationis` | Retain · reference study | Cached preview |
-| `shipping_forecast` | Retain · reference study | Reviewed GPU plate |
+| `shipping_forecast` | Rewritten · one sheet of roles, classes and tokens; the read area lit on the ring | Reviewed GPU plate |
 
 ## Feature presentation refresh
 
