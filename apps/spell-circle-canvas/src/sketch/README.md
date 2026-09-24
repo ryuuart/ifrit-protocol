@@ -743,12 +743,21 @@ Sketchbook --shot <png> [--sketch <name>]   # the whole window, once live
 … [--assets <dir>]                          # what mounts at res://
 … [--state <dir>]                           # where the run keeps what it
                                             # writes for a later run
+… [--inspect[=<port>]]                      # the protocol's endpoint: the
+                                            # window mounts it unasked, a
+                                            # sweep when asked
+Sketchbook --headless --inspect[=<port>] [--state <dir>]
+                                            # no window: a host a client
+                                            # drives over the protocol
 ```
 
 `--sketch` takes a case-insensitive substring and answers to a sketch's
 filed name or its file stem, which is the loop for visual iteration.
 `--headless` writes its plates into `sketch_plates/` when no directory
-follows it.
+follows it — unless `--inspect` is given and no sketch or kind is named,
+when it serves the protocol instead. [PROTOCOL.md](PROTOCOL.md) is the
+chapter on what a client driving a sketch host is answered: the agents,
+the harness a test drives one through, and what each lane mounts.
 
 **`--state <dir>` is the one place a run keeps what it writes for a later
 run.** The builds of sketch files, the browser's thumbnails, the device
@@ -858,12 +867,13 @@ the same rows as Python values, but they see the registry only inside
 Sketchbook's own interpreter: in a plain one `registryRows` is empty and
 `catalog` holds only the files it was handed.
 
-**A capture is deterministic and a live run is not.** Anything a sketch
-measured about its own execution is pinned when a still is being written
-and real everywhere else, so a `--frame` can be diffed while the app and
-`--bench` show the machine's own numbers. `--deterministic` and
-`--no-deterministic` name either regime for either, which is how a
-sketch's real figures are looked at in a written frame.
+**A capture is taken under a client's clock and a live run under the
+wall's.** A session is opened for the clock policy it is drawn at, and
+under any but the wall's anything a sketch measured about its own
+execution is pinned, so a `--frame` can be diffed while the app and
+`--bench` show the machine's own numbers. `--deterministic` names the
+Advance policy and `--no-deterministic` the wall's, for either lane,
+which is how a sketch's real figures are looked at in a written frame.
 
 The app brings a device up and every set draws through it, because a
 device is what runs a material's own body: the CPU mesh executor has no
@@ -1765,11 +1775,14 @@ to see it.
 
 ```
 src/sketch/
-  core/       what a sketch is, what it declares, the registry, the kind seam, the crash reporter
+  core/       what a sketch is, what it declares, the registry, the kind seam, the crash reporter;
+              agent/, the registry domain's agent
   canvas/     the 2D runtime: a clock, a ticker and a Composer
   set/        the 3D runtime: a ticker and a retained Scene
   kit/        the sheet a sketch stands on: the theme, the page and the furniture over it
-  live/       the reload engine, the resident set and the sweep's cadence
+  live/       the reload engine, the resident set and the sweep's cadence;
+              agent/, the session and clock domains' agents
+  testing/    a host in the test's own process, and the Harness fixture
   scry/       the opt-in shared Ultralight engine a web sketch borrows
   plate/      the headless sweep, the montage, the plate comparison, the thumbnail store
   book/       Sketchbook: the app, and the headless entry point, with the browser's rows
@@ -1786,6 +1799,8 @@ keeps its headers under `include/sigilsketch/canvas/` and its own
 |---|---|---|
 | `SigilSketch` | static archive | `core/`, `canvas/`, `set/`, `live/`, `plate/`, and `scry/` where the SDK is installed: the registry, the two runtimes, the reload engine and the headless renderer. Links no device backend and no Qt. |
 | `SigilSketchKit` | static archive | the sheet a sketch stands on, over the canvas runtime alone |
+| `SigilSketchRegistryAgent`, `SigilSketchSessionAgent` | static archives | the protocol's `registry`, `session` and `clock` agents, leaves beside the core and the host tier they answer for |
+| `SigilSketchTesting`, `SigilSketchTestingHarness` | static archives | a host in the test's own process and the comparison, then the GoogleTest fixture over them |
 | `SigilSketches` | object library | every sketch, and the one place the sketch API surface is stated |
 | `Sketchbook` | application bundle | the host: the window, the browser's rows, and every headless entry |
 

@@ -196,9 +196,9 @@ render_file("sketch.py", "preview.png", at=2.0)
 
 The renderer accepts strings and `pathlib.Path` objects. Omitting `at`
 uses the capture moment declared by the sketch, or 1.5 seconds if none is
-declared. Sketchbook and standalone Python use the native host's capture
-preparation: whole steps at 60 FPS followed by the fractional remainder.
-Zero runs one update without advancing time. The headless host steps the
+declared. Sketchbook and standalone Python step alike: whole steps at 60
+FPS followed by the fractional remainder, with the clock then held and the
+frame it holds photographed. Zero runs one update without advancing time. The headless host steps the
 scene clock from zero, so native entrances and pen history are present
 in a capture. Fractional canvas dimensions round up to whole pixels.
 The CLI creates output directories as needed and
@@ -224,6 +224,34 @@ for plate in compare("plates/before", "plates/after").plates:
     if plate.outcome != PlateOutcome.Compared or plate.worst:
         print(plate)  # the row as one line
 ```
+
+`render_file` is one session driven through SigilProtocol, and a script
+can drive one itself, by either of two routes that answer the same
+generated domain classes. `sigil.testing.InProcess(state)` is a sketch
+host in this process — the registry, session and clock agents, with every
+command answered before it returns — and `sigil.protocol.launch(state=…)`
+starts a headless Sketchbook serving the protocol and connects to it over
+its socket, as `sigil.protocol.connect(address)` attaches to any host
+already running at a `ws://` address or through the state directory that
+names one:
+
+```python
+from sigil.protocol import Clock, Session
+from sigil.protocol.clock import Policy
+from sigil.testing import InProcess
+
+host = InProcess("state")                    # or launch(state="state")
+Clock(host).set_policy(policy=Policy.Advance)
+Session(host).open(sketch="sketch.py")
+Clock(host).step(seconds=2)
+print(Session(host).still(density=2).path)   # written under state/
+```
+
+Under Advance nothing moves but by a step, and a still taken then is the
+plate a sweep writes of that moment; a paused clock photographs the
+frame it holds. `sigil.protocol.launch` finds Sketchbook through its
+`executable` argument, `SIGIL_SKETCHBOOK` or the path, and closing the
+connection ends the process.
 
 ## Build a wheel
 

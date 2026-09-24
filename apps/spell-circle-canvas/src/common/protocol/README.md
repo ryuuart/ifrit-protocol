@@ -58,8 +58,9 @@ derived is kept by hand.
                                                             (Seer)
 ```
 
-Seven seams, in the order a message crosses them; the first five are
-built, and no host mounts the endpoint yet. Each promises
+Seven seams, in the order a message crosses them; the first six are
+built, and every host mounts the endpoint — Sketchbook and Seer by
+default, the product receiver when `--inspect` asks. Each promises
 something and refuses something, and a failure names the seam that
 refused.
 
@@ -116,12 +117,14 @@ JSON form through `sigil::data::values::fromJson` and
 schema by `sigil::data::Schema::rootedAt`.
 
 **3. The agents** answer a domain's commands, and each lives in the
-library that owns the domain: the registry's in the sketch library's
-core, the session's in its host tier, the clock's policy over the frame
-clock. A host only mounts them. The `host` domain's is this library's
-own, `sigil::protocol::HostDomain`, which every dispatcher mounts on
-itself, so `host.describe` answers on every host before any other agent
-is written: the definition's revision and the domains mounted and the
+library that owns the domain: the registry's beside the sketch library's
+core, the session's and the clock's beside its host tier, the clock's
+policy SigilMotion's value over the frame clock. A host only mounts them,
+and the sketch library's PROTOCOL.md chapter says what they answer.
+The `host` domain's is this library's own,
+`sigil::protocol::HostDomain`, which every dispatcher mounts on itself,
+so `host.describe` answers on every host before any other agent is
+written: the definition's revision and the domains mounted and the
 clients attached, which the dispatcher knows, beside what only the
 program knows — its name and version, its state root, its clock's
 policy and its sessions open — which it supplies as a
@@ -217,9 +220,10 @@ telling each that enabled `host` that the endpoint is closing, through
 `host.detached` sent before the socket closes, and takes back the
 address file while it still names this endpoint. It is made on a hub and
 a dispatcher and let go before either, and before the agents mounted on
-that dispatcher, whose `onDetach` listeners its going runs. Sketchbook
-and Seer will put one on their dispatcher by default; the product
-receiver only when `--inspect` asks.
+that dispatcher, whose `onDetach` listeners its going runs. Sketchbook's
+window and Seer put one on their dispatcher by default, a headless
+Sketchbook serves one when `--headless --inspect` asks, and the product
+receiver mounts one only when `--inspect` asks.
 
 **6. The clients** speak through a `sigil::protocol::Caller`: `call`
 sends a method and its parameters' JSON text and hands the answer back
@@ -247,7 +251,14 @@ frozen dataclass, and one `on_…` method per event; its refusals are
 refuses a member the table does not declare, as the C++ reading does.
 Both clients write the same JSON for every table, which a self-check
 holds, so a test in the same process and a script over the socket
-exercise one path.
+exercise one path. The Python package's transport is written by hand
+beside the generator, `definition/client/connection.py`, and carried into
+the package as it stands: `Envelopes`, a caller made of one exchange of
+envelope text; `connect`, which attaches to a host at its `ws://` address
+or through the state directory whose address file names it, reads the
+definition it serves at `/protocol` and refuses one whose breaking
+revision differs; and `launch`, which starts a headless Sketchbook under
+a state directory and connects once its address file is written.
 
 **7. The panels** are Seer's, over the same clients, and come after the
 runtime; the first a client asks for is `host.describe`, which answers
@@ -291,8 +302,9 @@ for the host's even where only the message is shown.
 
 The `clock` domain replaces every other way a run was made repeatable.
 `Wall` is the clock a person watches; under `Advance` nothing moves but
-by `clock.step`, which takes frames or seconds at a stated rate and
-answers once the last frame is drawn; `Pause` freezes the clock and the
+by `clock.step`, which takes frames or seconds at a stated rate — whole
+frames, and what is left as one shorter frame — and answers once the last
+frame is drawn; `Pause` freezes the clock and the
 recordings a hub plays; `PauseWhileLoading` is the wall clock held while
 a page, a font or a resource is still arriving. A budget set with the
 policy sends `budgetExpired` once it has run, which is how a client
@@ -367,8 +379,9 @@ up is triaged by running the layer below it:
   an event goes out as its table's text, and a client reads a result
   back as its table and refuses, with its own codes, an answer or an
   event that is not one and a command with nowhere to go;
-- `protocol_drift`: the committed Python client and reference pages
-  are what `generate.py` writes from the description the build wrote;
+- `protocol_drift`: the committed Python client — its transport
+  included, copied from `definition/client/` — and reference pages are
+  what `generate.py` writes from the description the build wrote;
 - `protocol_python_client`: every table of the Python client reads and
   writes back the very JSON the C++ tables write, and refuses a member it
   does not declare; its methods send the definition's names and refuse

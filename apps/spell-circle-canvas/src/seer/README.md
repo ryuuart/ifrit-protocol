@@ -32,7 +32,17 @@ build/bin/Release/Seer.app/Contents/MacOS/Seer udp://:27020 \
   --peer udp://127.0.0.1:27020 --say "a scene arrives"
 build/bin/Release/Seer.app/Contents/MacOS/Seer \
   --peer midi://out/virtual:Seer --say "NoteOn 1 60 100"
+build/bin/Release/Seer.app/Contents/MacOS/Seer --inspect=9333 --state /tmp/seer
 ```
+
+**The window answers the protocol by default.** Seer mounts SigilProtocol's
+endpoint on loopback — any free port, or the one `--inspect=PORT` names —
+answering `host.describe` as Seer, with its address in `protocol-address`
+under `--state` or, without it, the platform's own location for Seer.
+Seer holds no sketch session and no clock, so every other domain answers
+`notMounted`; with no client attached the endpoint costs the window
+nothing. `--list-textures` and `--grab` refuse `--inspect`, since they end
+once their output is written.
 
 Every scheme SigilIO carries is a wire here: `udp://:PORT` and
 `udp://HOST:PORT`, `osc://` and `artnet://` — the same datagram socket

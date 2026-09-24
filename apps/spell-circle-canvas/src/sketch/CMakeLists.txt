@@ -19,7 +19,8 @@
 # whatever it draws through.
 sigil_library_root(SigilSketch
   BRIEF "Sketches: one file per scene, one registry, one host"
-  DOCS ${CMAKE_CURRENT_LIST_DIR}/kit/README.md)
+  DOCS ${CMAKE_CURRENT_LIST_DIR}/kit/README.md
+       ${CMAKE_CURRENT_LIST_DIR}/PROTOCOL.md)
 # Where the live host finds the file behind a registry entry, and what
 # mounts at res://: the demo assets a machine fetched (fonts, models,
 # textures), while a sketch's own files stand in its directory and reach
@@ -194,6 +195,7 @@ endif()
 # whole vocabulary a sketch is written in.
 sigil_doc_probes(sketch
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/PROTOCOL.md
           ${CMAKE_CURRENT_SOURCE_DIR}/kit/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/sketches/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
@@ -207,6 +209,8 @@ sigil_doc_probes(sketch
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/scry/include/sigilscry
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/draw/include/sigildraw
            ${CMAKE_CURRENT_SOURCE_DIR}/../sigilweave/include/sigilweave
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/protocol/include/sigilprotocol
+           ${CMAKE_BINARY_DIR}/generated/protocol/sigilprotocol
   PRELUDES ${SIGIL_SKETCH_DOC_SCRY_PRELUDE}
            "<sigilio/transport/Transport.h>"
            "<sigilcompose/Compose.h>"
