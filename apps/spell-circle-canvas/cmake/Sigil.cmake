@@ -469,7 +469,7 @@ endfunction()
 #                  [SKIP_HEADERS <file name>...]
 #                  [FLOORS <usings,members,indexed,listed,designators>]
 #                  [NAMESPACE <namespace>] [SUPPORT_DIRS <dir>...]
-#                  [DEFINITIONS <define>...])
+#                  [DEFINITIONS <define>...] [DEPENDS <file>...])
 #   Compiles a library's own prose against the headers that own it. One
 #   generated translation unit per library, extracted from READMES on
 #   every build, compiled into the OBJECT library <library>_api_doc_probes
@@ -489,7 +489,10 @@ endfunction()
 #
 #   INCLUDES are the further include roots the scanner reads, beside the
 #   library's own; a name whose type only another library declares needs
-#   that library's root here. PRELUDES are headers the translation unit
+#   that library's root here. One whose last directory is the library's
+#   own header directory is included wholesale as the library's own is,
+#   which is how headers the build writes are probed; DEPENDS names those
+#   headers, so the scan waits until they are written. PRELUDES are headers the translation unit
 #   opens with, after gtest's; ALIASES the namespace aliases the prose
 #   writes names through; SKIP_HEADERS the library's own headers the
 #   translation unit must not include, which is how a header behind an SDK
@@ -501,7 +504,7 @@ endfunction()
 #   name claims it exists wherever it lives.
 function(sigil_doc_probes library)
   cmake_parse_arguments(ARG "" "NAMESPACE;FLOORS"
-    "READMES;LIBRARIES;INCLUDES;PRELUDES;ALIASES;EXCLUDE;SKIP_HEADERS;SUPPORT_DIRS;DEFINITIONS"
+    "READMES;LIBRARIES;INCLUDES;PRELUDES;ALIASES;EXCLUDE;SKIP_HEADERS;SUPPORT_DIRS;DEFINITIONS;DEPENDS"
     ${ARGN})
   if(NOT ARG_READMES)
     message(FATAL_ERROR "sigil_doc_probes(${library}): no READMES")
@@ -571,7 +574,7 @@ function(sigil_doc_probes library)
   add_custom_command(
     OUTPUT ${generated}
     COMMAND ${Python3_EXECUTABLE} ${script} ${args} --out ${generated}
-    DEPENDS ${ARG_READMES} ${script} ${generator} ${scanned}
+    DEPENDS ${ARG_READMES} ${script} ${generator} ${scanned} ${ARG_DEPENDS}
     COMMENT "Extracting the ${library} docs' names into compile probes"
     VERBATIM)
 

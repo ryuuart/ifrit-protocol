@@ -1,0 +1,566 @@
+// protocol.fbs — the one definition every Sigil host speaks and every
+// client is generated from.
+//
+// A DOMAIN is an rpc_service in a namespace of its own: its commands
+// are the service's calls, each taking one ordinary table and
+// answering one, and its events are a second service beside it, named
+// for the domain with `Events` after it, whose calls are marked
+// (streaming: "server") and answer the event's table. A command with
+// nothing to say takes or answers sigil.protocol.Empty. Every domain
+// with events has `enable` and `disable`, which the dispatcher answers
+// for itself: no event of a domain reaches a client between them.
+//
+// Two attributes mark what the parser cannot know. (experimental) is a
+// command, an event, a table or a field whose shape may still change;
+// (asynchronous) is a command its agent answers later — after frames
+// have been drawn, say — through a reply rather than a return.
+//
+// The generator reads this file's reflected form, with its
+// documentation and its attributes kept, and writes each domain's agent
+// interface, its events, the function that mounts an agent, the C++ and
+// Python clients and a reference page per domain. Every comment that
+// opens with three slashes is carried onto all of them.
+attribute "experimental";
+attribute "asynchronous";
+
+namespace sigil.protocol;
+
+/// Which seam refused a command. Every one names what it refused in
+/// the message beside it: the method, the parameter, or the agent's own
+/// reason.
+enum ErrorCode : int {
+  /// The message is no request: not JSON, or without its id or its
+  /// method.
+  invalidRequest = 0,
+  /// The definition declares no command of that name.
+  methodNotFound = 1,
+  /// The parameters do not fit the command's table — a field it does
+  /// not declare, a value of the wrong type. The agent is not called.
+  invalidParameters = 2,
+  /// The definition declares the command, and this host mounts no
+  /// agent for its domain.
+  notMounted = 3,
+  /// The agent was asked and could not do it.
+  failed = 4
+}
+
+/// What a command answers instead of its result.
+table Error {
+  /// Which seam refused.
+  code: ErrorCode;
+  /// The refusal in the seam's own words, naming the method, the
+  /// parameter or the reason.
+  message: string;
+}
+
+/// Nothing: the parameters of a command that takes none, and the
+/// result of one that answers only that it was done.
+table Empty {}
+
+/// This definition's revision. The defaults ARE the revision, so a
+/// value made with nothing set names the definition it was built from;
+/// a change a client has to be rebuilt for raises it.
+table Revision {
+  /// Raised by a change that breaks a client built against the last.
+  breaking: uint = 0;
+  /// Raised by a change a client built against the last still speaks.
+  compatible: uint = 1;
+}
+
+// The error is the root because a root is what makes flatc embed the
+// reflected definition beside every table, which each table's JSON form
+// is read through; it is also the one table every domain answers.
+root_type Error;
+
+namespace sigil.protocol.clock;
+
+/// How a host's clock moves.
+enum Policy : byte {
+  /// The wall clock: a frame advances by the time that passed since the
+  /// last. What a person watching a window sees.
+  Wall = 0,
+  /// The client's clock: nothing moves except by step, so every frame's
+  /// time is a function of the steps alone.
+  Advance = 1,
+  /// Frozen: no frame advances, and the recordings a hub plays hold
+  /// where they are.
+  Pause = 2,
+  /// The wall clock, except that it does not move while a page, a font
+  /// or a resource the session asked for is still arriving.
+  PauseWhileLoading = 3
+}
+
+/// What setPolicy is asked.
+table SetPolicyParameters {
+  /// The policy from now on.
+  policy: Policy;
+  /// Seconds of clock time after which budgetExpired is sent, once;
+  /// absent for no budget. A budget that runs out with nothing still
+  /// moving is how a client learns the session settled.
+  budget_seconds: double = null;
+}
+
+/// What step is asked: frames, or seconds taken as frames of one rate.
+table StepParameters {
+  /// Frames to advance, where seconds is absent.
+  frames: uint = 1;
+  /// Seconds to advance, in frames of one over rate; absent to step by
+  /// frames.
+  seconds: double = null;
+  /// Frames per second the steps are taken at: each frame advances the
+  /// clock by one over this.
+  rate: double = 60;
+}
+
+/// Where step left the clock.
+table StepResult {
+  /// Clock seconds since the session opened.
+  seconds: double;
+  /// Frames drawn since the session opened.
+  frame: ulong;
+}
+
+/// The clock as it stands.
+table CurrentResult {
+  /// The policy it moves by.
+  policy: Policy;
+  /// Clock seconds since the session opened.
+  seconds: double;
+  /// Frames drawn since the session opened.
+  frame: ulong;
+  /// Whether pause holds it.
+  paused: bool;
+  /// Clock seconds per wall second.
+  time_scale: double = 1;
+  /// Clock seconds of the budget still to run; absent where none was
+  /// set or it has run out.
+  budget_remaining: double = null;
+}
+
+/// What pause is asked.
+table PauseParameters {
+  /// True to hold the clock where it is, false to let it move again by
+  /// its policy.
+  paused: bool = true;
+}
+
+/// What setTimeScale is asked.
+table TimeScaleParameters {
+  /// Clock seconds per wall second: one is real time, a half is half
+  /// speed. The Advance policy steps by its own rate and ignores it.
+  scale: double = 1;
+}
+
+/// The budget setPolicy set has run out.
+table BudgetExpiredEvent {
+  /// Clock seconds when it ran out.
+  seconds: double;
+}
+
+/// The clock a session's frames are drawn at: who moves it, how fast,
+/// and when it is held. The one seam a run is made repeatable through —
+/// a sketch reads only whether its clock is the wall's, and never which
+/// client drives it.
+rpc_service Clock {
+  /// Replaces how the clock moves, from the next frame on.
+  setPolicy(SetPolicyParameters): sigil.protocol.Empty;
+  /// Advances the clock by frames or by seconds, drawing each frame, and
+  /// answers once the last is drawn. Refused unless the policy is
+  /// Advance.
+  step(StepParameters): StepResult (asynchronous);
+  /// The clock as it stands.
+  current(sigil.protocol.Empty): CurrentResult;
+  /// Holds the clock or lets it go, keeping its policy: the pause a
+  /// person presses.
+  pause(PauseParameters): sigil.protocol.Empty;
+  /// Sets how many clock seconds pass per wall second.
+  setTimeScale(TimeScaleParameters): sigil.protocol.Empty;
+  /// Starts this client's clock events.
+  enable(sigil.protocol.Empty): sigil.protocol.Empty;
+  /// Stops this client's clock events.
+  disable(sigil.protocol.Empty): sigil.protocol.Empty;
+}
+
+/// What the clock tells a client that enabled it.
+rpc_service ClockEvents {
+  /// The budget setPolicy set has run out.
+  budgetExpired(sigil.protocol.Empty): BudgetExpiredEvent (streaming: "server");
+}
+
+namespace sigil.protocol.session;
+
+/// What a session draws with.
+enum Device : byte {
+  /// Skia's raster backend: the reference every plate is judged
+  /// against.
+  Cpu = 0,
+  /// The GPU, through the host's device.
+  Gpu = 1
+}
+
+/// When the runtime may re-bake a node it was not asked to.
+enum Promotion : byte {
+  /// Never: a byte-identical still asks for this.
+  Off = 0,
+  /// By the runtime's own measure of what is expensive, which differs
+  /// from machine to machine.
+  Auto = 1,
+  /// Every node the runtime may bake, whatever it costs.
+  Eager = 2
+}
+
+/// A session as a list shows it.
+table Summary {
+  /// The registry name, or the path, it was opened from.
+  sketch: string;
+  /// The runtime it draws through: canvas or set.
+  kind: string;
+  /// The canvas width it declared, in canvas units.
+  width: float;
+  /// The canvas height it declared, in canvas units.
+  height: float;
+  /// The moment it declared it is photographed at, in seconds; negative
+  /// where it declared none.
+  moment: double = -1;
+}
+
+/// What open is asked.
+table OpenParameters {
+  /// A registry name, or the path to a sketch file or directory, which
+  /// is compiled and loaded as a person's edit would be.
+  sketch: string (required);
+  /// The runtime to open it through, canvas or set; empty for whichever
+  /// it declares.
+  kind: string;
+}
+
+/// What pinDevice is asked.
+table DeviceParameters {
+  /// The device the session draws with from now on.
+  device: Device;
+}
+
+/// What pinPromotion is asked.
+table PromotionParameters {
+  /// When the runtime may re-bake from now on.
+  promotion: Promotion = Auto;
+}
+
+/// What still is asked.
+table StillParameters {
+  /// Device pixels per canvas unit.
+  density: double = 1;
+  /// Where the still is written, under the state root; empty for a name
+  /// the host picks.
+  path: string;
+}
+
+/// The still, written.
+table StillResult {
+  /// Where it was written.
+  path: string;
+  /// Its width in pixels.
+  width: uint;
+  /// Its height in pixels.
+  height: uint;
+  /// Clock seconds when it was taken.
+  seconds: double;
+}
+
+/// What sequence is asked.
+table SequenceParameters {
+  /// Frames to photograph, one after another.
+  frames: uint = 1;
+  /// Frames per second the clock advances between them.
+  rate: double = 60;
+  /// Device pixels per canvas unit.
+  density: double = 1;
+  /// The directory the frames are written into, under the state root;
+  /// empty for one the host picks.
+  directory: string;
+}
+
+/// The frames, written.
+table SequenceResult {
+  /// Where each frame was written, in order.
+  paths: [string];
+  /// Each frame's width in pixels.
+  width: uint;
+  /// Each frame's height in pixels.
+  height: uint;
+}
+
+/// What one lane of a frame cost, named by the runtime that spent it.
+table LaneCost {
+  /// The lane, in the runtime's own word.
+  name: string;
+  /// Milliseconds it spent.
+  milliseconds: double;
+}
+
+/// How the last frame split.
+table TimingResult {
+  /// Everything the frame cost, in milliseconds.
+  total_milliseconds: double;
+  /// What the sketch's own body did.
+  update_milliseconds: double;
+  /// What its runtime then did with what the body described.
+  draw_milliseconds: double;
+  /// What each lane cost; empty for a runtime that keeps no breakdown.
+  lanes: [LaneCost];
+}
+
+/// One number a sketch measured about its own execution.
+table MeasuredValue {
+  /// The name the sketch gave it.
+  name: string;
+  /// The value it measured.
+  value: double;
+  /// The value a repeatable run shows in its place.
+  pinned: double;
+}
+
+/// The numbers a sketch measured about its own execution.
+table MeasuredResult {
+  /// Each one, in the order the sketch measured them.
+  values: [MeasuredValue];
+}
+
+/// The composite-count plane of the next frame.
+table CompositeCountsResult {
+  /// Where the plane was written, under the state root: one saturating
+  /// byte per device pixel, as a grey image.
+  path: string;
+  /// The plane's width in pixels.
+  width: uint;
+  /// The plane's height in pixels.
+  height: uint;
+  /// The most composites any one pixel passed through.
+  maximum: uint;
+}
+
+/// A session opened.
+table OpenedEvent {
+  /// The session.
+  summary: Summary (required);
+}
+
+/// A session closed.
+table ClosedEvent {
+  /// The registry name, or the path, it was opened from.
+  sketch: string;
+}
+
+/// A session could not be opened, or could not be rebuilt after an edit.
+table FailedEvent {
+  /// The registry name, or the path, it was asked for.
+  sketch: string;
+  /// What stopped it, in the compiler's or the runtime's own words.
+  message: string;
+}
+
+/// The one running sketch a host holds: opening it, pinning what a
+/// repeatable run needs pinned, photographing it, and reading back what
+/// its last frame cost.
+rpc_service Session {
+  /// Opens a sketch by registry name or by path, replacing the session
+  /// open, and answers once its first frame is drawn.
+  open(OpenParameters): Summary (asynchronous);
+  /// Pins the device the session draws with.
+  pinDevice(DeviceParameters): sigil.protocol.Empty;
+  /// Pins when the runtime may re-bake a node it was not asked to.
+  pinPromotion(PromotionParameters): sigil.protocol.Empty;
+  /// Photographs the session at the clock as it stands.
+  still(StillParameters): StillResult (asynchronous);
+  /// Photographs frames one after another, stepping the clock between
+  /// them.
+  sequence(SequenceParameters): SequenceResult (asynchronous);
+  /// How the last frame split.
+  timing(sigil.protocol.Empty): TimingResult;
+  /// The numbers the sketch measured about its own execution.
+  measured(sigil.protocol.Empty): MeasuredResult (experimental);
+  /// Counts the composites each pixel of the next frame passes through,
+  /// and answers the plane once that frame is drawn.
+  compositeCounts(sigil.protocol.Empty): CompositeCountsResult (asynchronous);
+  /// Starts this client's session events.
+  enable(sigil.protocol.Empty): sigil.protocol.Empty;
+  /// Stops this client's session events.
+  disable(sigil.protocol.Empty): sigil.protocol.Empty;
+}
+
+/// What the session tells a client that enabled it.
+rpc_service SessionEvents {
+  /// A session opened, by a client or by a person.
+  opened(sigil.protocol.Empty): OpenedEvent (streaming: "server");
+  /// The session closed.
+  closed(sigil.protocol.Empty): ClosedEvent (streaming: "server");
+  /// A session could not be opened, or rebuilt after an edit.
+  failed(sigil.protocol.Empty): FailedEvent (streaming: "server");
+}
+
+namespace sigil.protocol.registry;
+
+/// One sketch the registry holds.
+table Entry {
+  /// The name it is opened by.
+  name: string;
+  /// Its file's stem, or its directory's.
+  stem: string;
+  /// The runtime it draws through: canvas or set.
+  kind: string;
+  /// Whether this build can open it.
+  available: bool;
+  /// Why it cannot, where it cannot.
+  reason: string;
+}
+
+/// What list is asked.
+table ListParameters {
+  /// The runtime to list, canvas or set; empty for every one.
+  kind: string;
+}
+
+/// The sketches the registry holds.
+table ListResult {
+  /// Each one, in the registry's order.
+  sketches: [Entry];
+}
+
+/// One row of the catalog a browser shows before a sketch is opened.
+table CatalogRow {
+  /// The name it is shown under.
+  name: string;
+  /// The key its thumbnail and its settings are kept under.
+  key: string;
+  /// The folder it is filed in.
+  folder: string;
+  /// The one line its header opens with.
+  blurb: string;
+  /// Its source file.
+  path: string;
+  /// The runtime it draws through; empty for a file not yet built.
+  kind: string;
+  /// Whether this build can open it.
+  available: bool;
+  /// Why it cannot, where it cannot.
+  reason: string;
+  /// Whether it is a file the run was pointed at rather than one the
+  /// registry holds.
+  external: bool;
+  /// Lines of source.
+  lines: uint;
+  /// What its header says it is about.
+  subject: string;
+  /// The tags its header gives it.
+  tags: [string];
+  /// The canvas it declared, as width by height; empty until built.
+  canvas: string;
+  /// The background it declared; empty until built.
+  background: string;
+  /// The moment it declared, in seconds; negative where none.
+  moment: double = -1;
+  /// Where its thumbnail is, where one has been taken.
+  plate: string;
+  /// Whether it can be written out as a video.
+  video_exportable: bool;
+}
+
+/// What catalog is asked.
+table CatalogParameters {
+  /// Files beyond the registry to catalog as well.
+  paths: [string];
+}
+
+/// The catalog's rows: the registry's first, then the files asked for.
+table CatalogResult {
+  /// Each row.
+  rows: [CatalogRow];
+}
+
+/// The registry changed.
+table ChangedEvent {
+  /// The sketches added, removed or rebuilt.
+  names: [string];
+}
+
+/// The sketches a host can open: every one it was built with, and the
+/// browser's rows for them.
+rpc_service Registry {
+  /// The sketches the registry holds, of one runtime or of all.
+  list(ListParameters): ListResult;
+  /// The rows a browser shows before a sketch is opened.
+  catalog(CatalogParameters): CatalogResult (experimental);
+  /// Starts this client's registry events.
+  enable(sigil.protocol.Empty): sigil.protocol.Empty;
+  /// Stops this client's registry events.
+  disable(sigil.protocol.Empty): sigil.protocol.Empty;
+}
+
+/// What the registry tells a client that enabled it.
+rpc_service RegistryEvents {
+  /// Sketches were added, removed or rebuilt.
+  changed(sigil.protocol.Empty): ChangedEvent (streaming: "server");
+}
+
+namespace sigil.protocol.host;
+
+/// Which definition and which program answer.
+table VersionResult {
+  /// The definition the host was built from.
+  revision: sigil.protocol.Revision (required);
+  /// The program: Sketchbook, Seer or the receiver.
+  program: string;
+  /// The program's own version.
+  program_version: string;
+}
+
+/// Where the host keeps its state.
+table StateRootResult {
+  /// The directory: thumbnails, pipeline sets, the build cache, settings,
+  /// the protocol's address file and every still a client asks for.
+  path: string;
+}
+
+/// Everything a client asks first, in one answer.
+table DescribeResult {
+  /// Which definition and which program answer.
+  version: VersionResult (required);
+  /// The domains this host mounts an agent for, by name. A command of
+  /// any other answers notMounted.
+  domains: [string];
+  /// How the host's clock moves.
+  clock: sigil.protocol.clock.Policy;
+  /// Where the host keeps its state.
+  state_root: string;
+  /// The sessions open.
+  sessions: [sigil.protocol.session.Summary];
+}
+
+/// The host has let this client go.
+table DetachedEvent {
+  /// Why: the host is closing, or another client took its place.
+  reason: string;
+}
+
+/// The host itself: what it is, which domains it mounts, and where it
+/// keeps its state. describe is the first command a client sends.
+rpc_service Host {
+  /// Everything a client asks first: the version, the domains mounted,
+  /// the clock's policy, the state root and the sessions open.
+  describe(sigil.protocol.Empty): DescribeResult;
+  /// Where the host keeps its state.
+  stateRoot(sigil.protocol.Empty): StateRootResult;
+  /// Which definition and which program answer.
+  version(sigil.protocol.Empty): VersionResult;
+  /// Starts this client's host events.
+  enable(sigil.protocol.Empty): sigil.protocol.Empty;
+  /// Stops this client's host events.
+  disable(sigil.protocol.Empty): sigil.protocol.Empty;
+}
+
+/// What the host tells a client that enabled it.
+rpc_service HostEvents {
+  /// The host has let this client go: nothing more arrives on its
+  /// connection.
+  detached(sigil.protocol.Empty): DetachedEvent (streaming: "server");
+}

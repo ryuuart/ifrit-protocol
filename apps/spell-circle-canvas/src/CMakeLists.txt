@@ -4,7 +4,8 @@
 #                added below: core/ (SigilCore), skia/ (SigilSkia,
 #                Graphite bring-up), qt/ (Ifrit.Qt desktop components and services),
 #                image/ (SigilImage), video/ (SigilVideo), io/ (SigilIO),
-#                data/ (SigilData), scry/ (SigilScry), measure/
+#                data/ (SigilData), protocol/ (SigilProtocol), scry/
+#                (SigilScry), measure/
 #                (SigilMeasure), motion/ (SigilMotion), geometry/
 #                (SigilGeometry), material/ (SigilMaterial), draw/
 #                (SigilDraw), world/ (SigilWorldElement, SigilWorldFrame,
@@ -47,6 +48,10 @@ add_subdirectory(common/io)
 # a decoder speaks that vocabulary, and registers itself on whatever
 # hub a host holds, so nothing here inherits the hub or a codec.
 add_subdirectory(common/data)
+# The inspection and automation protocol: its definition is a FlatBuffers
+# schema read through data's value generator, so it stands on data alone;
+# the libraries whose domains it describes never see it.
+add_subdirectory(common/protocol)
 add_subdirectory(common/scry)
 add_subdirectory(common/measure)
 add_subdirectory(common/motion)
