@@ -354,7 +354,7 @@ struct PenrosePaving {
 
   void setup(sketch::SketchContext& context) {
     sketch::kit::stage(context, {.size = {kWidth, kHeight},
-                                 .captureAt = 4.6,
+                                 .captureAt = 0.05,
                                  .background = kJointMortar});
     words = sketch::kit::Document(context, "data/content.json");
     setts = paving();

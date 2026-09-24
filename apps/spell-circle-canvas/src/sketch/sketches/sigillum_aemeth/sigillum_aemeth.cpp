@@ -529,7 +529,7 @@ struct SigillumAemeth {
 
   void setup(sketch::SketchContext& context) {
     sketch::kit::stage(context, {.size = {kWidth, kHeight},
-                                 .captureAt = 14.0,
+                                 .captureAt = 0.05,
                                  .background = kVitrine});
 
     // One chain of faces per lettering system: the first installed wins.

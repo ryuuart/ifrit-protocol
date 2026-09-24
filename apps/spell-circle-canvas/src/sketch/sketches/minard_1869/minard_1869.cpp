@@ -172,7 +172,7 @@ struct Minard1869 {
   void setup(sketch::SketchContext& context) {
     context.canvas(kWidth, kHeight);
     context.background(kPaper);
-    context.captureAt(20.0);
+    context.captureAt(0.05);
     context.nonlinearPicture();
 
     // Four lettering systems: an engraver's round script for the title,
