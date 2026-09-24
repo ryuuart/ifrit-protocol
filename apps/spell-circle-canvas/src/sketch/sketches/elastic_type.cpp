@@ -208,8 +208,10 @@ struct LaneScale {
 
 constexpr LaneScale kScaleFactor{
     0.62f, 1.38f, 1.0f, {{{1.25, "1.25"}, {1.00, "1.00"}, {0.75, "0.75"}}}};
+// Each box runs far enough past its outer ruled values that a reading,
+// centred on its rule, keeps its ground clear of the frame's keyline.
 constexpr LaneScale kShearDegrees{
-    -14.0f, 14.0f, 0.0f, {{{12.5, "+12.5°"}, {0.0, "0°"}, {-12.5, "−12.5°"}}}};
+    -17.0f, 17.0f, 0.0f, {{{12.5, "+12.5°"}, {0.0, "0°"}, {-12.5, "−12.5°"}}}};
 
 /** ONE LANE OF ONE PUBLISHED TABLE: the table, the field of its deviation
  *  the lane reads, the series class it is drawn in, and its scale. */
@@ -235,7 +237,6 @@ const std::array<Lane, 3> kLanes{{
  *  reference publishes as dots on it — a second reading of the same lane —
  *  the rest pose and the ruled values, numbered where they are ruled. */
 Element lanePanel(const Lane& lane) {
-  namespace chart = sketch::kit;
   std::vector<double> ruled;
   std::vector<double> numbered;
   for (const Tick& tick : lane.scale.ticks) {
@@ -262,26 +263,26 @@ Element lanePanel(const Lane& lane) {
                .styleClass("frame")
                .stroke(stroke(1, Fill::var("faint")))
                .children(
-                   {chart::plot(
+                   {sketch::kit::plot(
                         lane.key,
                         {.y = {.domain = {lane.scale.low, lane.scale.high}}},
-                        {chart::rules({.y = std::move(ruled)}),
-                         chart::rules(
+                        {sketch::kit::rules({.y = std::move(ruled)}),
+                         sketch::kit::rules(
                              {.y = {lane.scale.rest}, .styleClass = "rest"}),
-                         chart::trace(value, {.pen = {.width = 1.6f},
-                                              .styleClass = lane.series}),
-                         chart::marks(stops,
-                                      [] { return box().styleClass("stop"); },
-                                      {.x = [](double at) { return at; },
-                                       .y = value,
-                                       .styleClass = lane.series}),
-                         chart::axis({.of = chart::Axis::Y,
-                                      .at = 1.0,
-                                      .ticks = std::move(numbered),
-                                      .line = false,
-                                      .reach = 0.0f,
-                                      .gap = 6.0f,
-                                      .tickLine = number})})
+                         sketch::kit::trace(value, {.pen = {.width = 1.6f},
+                                                    .styleClass = lane.series}),
+                         sketch::kit::marks(
+                             stops, [] { return box().styleClass("stop"); },
+                             {.x = [](double at) { return at; },
+                              .y = value,
+                              .styleClass = lane.series}),
+                         sketch::kit::axis({.of = sketch::kit::Axis::Y,
+                                            .at = 1.0,
+                                            .ticks = std::move(numbered),
+                                            .line = false,
+                                            .reach = 0.0f,
+                                            .gap = 6.0f,
+                                            .tickLine = number})})
                         .inset(0)}),
            document::caption(lane.title)});
 }
