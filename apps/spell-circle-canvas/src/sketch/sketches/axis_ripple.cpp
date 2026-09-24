@@ -3,169 +3,164 @@
 // =============================================================================
 // THE PATTERN
 //
-// OpenType Font Variations arrived in OpenType 1.8 (2016), announced jointly
-// by Adobe, Apple, Google and Microsoft at ATypI Warsaw. Within months the
-// specimen page had settled into a form that has barely changed since: one
-// headline, set large, with a WAVE OF WEIGHT travelling along it — each
-// letter riding the same sine a fixed phase behind its neighbour, so the
-// line appears to inhale from left to right. It is on v-fonts.com, it is
-// what the Codrops variable-font demos animate, it is what a Font of the
-// Month specimen does on load, and it is the first thing anyone builds after
-// installing their first variable face.
+// The variable-font specimen page: one headline, set to the measure, with a
+// WAVE OF WEIGHT travelling along it — each letter riding the same swell a
+// fixed beat behind its neighbour, so the line appears to inhale from left
+// to right. The word is HAMBURGEFONTSIV, the type designer's proofing
+// string, whose letters carry most of the shapes a Latin face must get
+// right.
 //
-// The word set here is HAMBURGEFONTSIV, the type designer's own proofing
-// string — the letters chosen because between them they carry most of the
-// shapes a Latin face has to get right.
-//
-// -----------------------------------------------------------------------------
 // THE CONSTRAINT THE WEB VERSION HIDES
 //
-// The web demo animates `wght`, and `wght` MOVES ADVANCES. A heavier letter
-// is a wider letter, so every frame of that animation is a fresh line
-// layout: the letters slide horizontally as the wave passes, the line's
-// width breathes with it, and whatever sits after the headline moves. In a
-// browser that is invisible because the browser re-lays the line anyway.
+// The web demo animates `wght`, and `wght` MOVES ADVANCES: a heavier letter
+// is a wider one, so every frame is a fresh line layout and the letters
+// slide as the wave passes. This engine drives an axis at DRAW TIME over
+// glyphs shaped once, which is sound only where the axis leaves every
+// advance alone, so it refuses an axis that moves one. `GRAD` is the axis
+// made for exactly this: weight without width, drawn heavier on the same
+// skeleton, and the letters stand still.
 //
-// This engine draws a driven axis at DRAW TIME, over glyphs that were shaped
-// once — which is what makes a per-letter axis cost one batched draw instead
-// of one layout per frame — and that is sound only where the axis does not
-// move an advance. So it PROBES the face and refuses the ones that do.
-// `GRAD` is the axis that exists for exactly this: a grade is weight without
-// width, drawn heavier on the same skeleton, and the letters stand still.
+// The lower half is the proof rather than the claim: the word set at both
+// ends of each axis, measured through the same cascade the page is set by,
+// with a rule where the light run stops. On `wght` the heavy run overhangs
+// the rule; on `GRAD` it stops on it.
 //
-// The bottom half of this sheet is the proof rather than the claim. The same
-// word is shaped twice — once at wght 300, once at wght 900 — and the two
-// runs are measured with `runPens`, which shapes through the same path a
-// text leaf takes. The overhang between them, printed on the canvas, is how
-// far every letter after the first would travel during one pass of the wave
-// if the drive were allowed. The GRAD row above it is measured the same way
-// and comes out to zero, which is the whole reason it is permitted.
-//
-// -----------------------------------------------------------------------------
 // HOW THE RIPPLE IS SPELLED
 //
-// `textFx::waveLoop` is this shape already, on dy. The axis version is the same
-// three lines with the sine landing on `GlyphModifier::axis` instead — an
-// ad-hoc effect under a key, driven by a wrapping phase with `eachMs = 0` so
-// every glyph reads ONE master phase and the travelling wave comes from the
-// glyph's own index inside the effect body rather than from the cascade.
-//
-// The track is NOT continuous, and that is worth knowing about a wave this
-// large. A driven axis coordinate is snapped before it reaches the draw,
-// because each distinct value is its own clone and its own glyph-atlas
-// strike — and the ladder it snaps to is cut per rendered size, since one
-// step in design units displaces an outline by more pixels the larger the
-// glyph is. So the 64 px hero here gets a ladder several times finer than a
-// caption's, and the ramp reads smooth off the memoized faces. `continuous`
-// is the opt-out for where that still is not enough, and it costs a face
-// built and rasterized fresh every frame.
+// A looping cascade: every letter's beat is the same swell over one pass,
+// opened one beat after its neighbour's, so the travelling wave is the
+// schedule's and the effect is only the swell. Under each letter a bar
+// reads the same phase through the same swell, so the meter cannot drift
+// from the letters it reports on.
 //
 // EDIT THESE FIRST
 //   kWavesAcross — the wavelength, in waves per word. 1 puts one crest and
-//                  one trough on the line, which is what a specimen page
-//                  shows; 0 makes the whole line pulse together.
-//   kGradLo / kGradHi — the ends of the ramp. The axis's own range is
-//                  400 to 1000 on this face and the sketch prints it.
+//                  one trough on the line, as a specimen page shows.
+//   kGradLight / kGradHeavy — the ends of the ramp, inside the face's own
+//                  GRAD range of 400 to 1000.
 //   kPeriod      — seconds per pass.
-//
-// Run:
-//   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
-//       src/sketch/sketches/axis_ripple.cpp \
-//       --frame /tmp/axis_ripple.png
 
 // TAGS: Typography/Effects, Motion/Transitions
 
-#include <include/core/SkTypeface.h>
-#include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilcompose/typography/Typography.h>
+#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Track.h>
 #include <sigilcore/compute/Noise.h>
-#include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/kit/Theme.h>
-#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
-#include <memory>
-#include <string>
-#include <vector>
+#include <string_view>
 
 namespace material = sigil::material;
-namespace sketch = sigil::sketch;
-
 namespace motion = sigil::motion;
+namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 
 namespace {
 
-constexpr float kW = 1120.0f;
-constexpr float kH = 620.0f;
+constexpr float kWidth = 1120.0f;
+constexpr float kHeight = 620.0f;
+constexpr float kPaddingX = 52.0f;
+constexpr float kPaddingY = 44.0f;
 
 constexpr material::Color kPaper = hexColor(0x0C0C0E);
-constexpr material::Color kInk = hexColor(0xF4F1EA);
-constexpr material::Color kLabel = hexColor(0x7E8492);
-constexpr material::Color kFaint = hexColor(0x3A3F4B);
-constexpr material::Color kMark = hexColor(0xE2504B);  // the overhang
-constexpr material::Color kAxis = hexColor(0x63B8FF);  // the driven coordinate
 
-const char* kProof = "HAMBURGEFONTSIV";
-
-constexpr float kPadX = 52.0f;
-constexpr float kPadY = 44.0f;
-// The hero is set TO THE MEASURE rather than to a number: shaped once at
-// this reference size and scaled so the word spans the column, which is
-// what a specimen page does and what keeps the meter's bars as wide as the
-// letters they report on.
-constexpr float kRefSize = 64.0f;
-constexpr float kProofTrack = 1.0f;
+/** The proof string: one cluster per letter, so letter i is range [i, i+1). */
+constexpr std::string_view kProof = "HAMBURGEFONTSIV";
 
 // ---- the wave -------------------------------------------------------------
-constexpr float kGradLo = 400.0f;
-constexpr float kGradHi = 1000.0f;
+constexpr float kGradLight = 400.0f;
+constexpr float kGradHeavy = 1000.0f;
 constexpr float kWavesAcross = 1.0f;
-constexpr double kPeriod = 2.6;
+constexpr float kPeriod = 2.6f;
 
 // ---- the proof ------------------------------------------------------------
-constexpr float kWghtLo = 300.0f;
-constexpr float kWghtHi = 900.0f;
-constexpr float kProofRowSize = 34.0f;
+constexpr float kWeightLight = 300.0f;
+constexpr float kWeightHeavy = 900.0f;
 
-/** The ripple: `textFx::waveLoop`'s sine, landing on the axis coordinate.
+// ---- the meter ------------------------------------------------------------
+constexpr float kLevelDrop = 10.0f;
+constexpr float kLevelHeight = 34.0f;
+
+/** THE SWELL one pass of the wave is, on a phase in [0, 1): the letter's
+ *  own beat into the ramp, as a fraction of its full reach. The text track
+ *  and the meter both read it, so they are one curve. */
+float swell(float phase) {
+  return 0.5f + 0.5f * std::sin(phase * 6.2831853f);
+}
+
+/** The ripple's deviation: the swell landing on the grade.
  *
- *  The phase comes from the glyph's own index rather than from the cascade,
- *  so the track's stagger is one beat for the whole line and the effect
- *  owns the wavelength. That is the shape a LOOP wants: a cascade spreads
- *  START TIMES, which is right for an entrance and wrong for something that
- *  never ends. */
-TextEffect gradWave(float lo, float hi, float radPerGlyph) {
+ *  Only an advance-invariant axis is honoured, so every letter keeps the
+ *  pen position shaping gave it for the whole ripple; saying so is what
+ *  keeps the run on whole-pixel origins and one atlas strike per letter
+ *  instead of one per phase. */
+TextEffect gradeSwell() {
   return textFx::effect(
-             "gradWave",
-             [lo, hi, radPerGlyph](const GlyphInfo& g, float t,
-                                   sigil::core::noise::Mix64Stream&) {
-               const float s =
-                   0.5f + 0.5f * std::sin(t * 6.2831853f -
-                                          (float)g.index * radPerGlyph);
-               GlyphModifier m;
-               m.axis = sigil::weave::FontVariation("GRAD", lo + (hi - lo) * s);
-               return m;
+             "gradeSwell",
+             [](const GlyphInfo&, float local,
+                sigil::core::noise::Mix64Stream&) {
+               GlyphModifier modifier;
+               modifier.axis = weave::FontVariation(
+                   "GRAD",
+                   kGradLight + (kGradHeavy - kGradLight) * swell(local));
+               return modifier;
              },
-             0.0f, {lo, hi, radPerGlyph})
-      // The wave is a GRADE, and only an advance-invariant axis is honoured:
-      // every letter keeps the pen position shaping gave it for the whole
-      // ripple. The phase driving this is bound and never settles, so saying
-      // so is what keeps the run on whole-pixel origins and one atlas strike
-      // per letter instead of one per phase.
+             0.0f, {kGradLight, kGradHeavy})
       .displacing(false);
 }
+
+/** HOW THE SHEET IS SET: the house grotesque everywhere — the one installed
+ *  face that carries both a grade to drive and a weight to measure against
+ *  it — spaced capitals for the labels, and the specimen type heavy and
+ *  bright. The palette is custom properties on the root, read by the roles
+ *  and by the two verdict classes. */
+StyleSheet look() {
+  return StyleSheet{
+      rule(":root")
+          .var("ink", hexColor(0xF4F1EA))
+          .var("label", hexColor(0x7E8492))
+          .var("faint", hexColor(0x3A3F4B))
+          .var("bed", material::Color{1, 1, 1, 0.04f})
+          .var("overhang", hexColor(0xE2504B))
+          .var("axis", hexColor(0x63B8FF))
+          .fontFamily(".SF NS, SF Pro, system-ui")
+          .fontWeight(500)
+          .fontSize(11.5f)
+          .letterSpacing(0.2f)
+          .ink(var("label")),
+      rule("h1").fontSize(26).ink(var("ink")),
+      rule("masthead caption").fontSize(12).letterSpacing(0.3f),
+      rule("eyebrow").fontSize(11.5f).letterSpacing(2.4f),
+      rule("caption").fontSize(11).letterSpacing(0.6f),
+      rule("label").fontSize(11).letterSpacing(1.6f),
+      rule("hero, proof").fontWeight(700).ink(var("ink")),
+      rule("hero").letterSpacing(1),
+      rule("proof").fontSize(34).letterSpacing(0.6f),
+      rule(".refused").ink(var("overhang")),
+      rule(".honoured").ink(var("axis")),
+  };
+}
+
+/** One end of one axis: the proof word at that coordinate. */
+Text proofRun(const char (&tag)[5], float value) {
+  return text(kProof).role("proof").font(
+      {.variations = {weave::FontVariation(tag, value)}});
+}
+
+/** The share of a pass each letter's beat opens after the one before it. */
+float beatFraction() { return kWavesAcross / (float)kProof.size(); }
 
 }  // namespace
 
@@ -173,274 +168,190 @@ TextEffect gradWave(float lo, float hi, float radPerGlyph) {
 
 struct AxisRipple {
   choreograph::Output<float> phase{0};
+  const StyleSheet sheet = look();
 
-  sk_sp<SkTypeface> face, faceLabel;
-  sigil::weave::TextStyle proof;
-  std::vector<float> pens;  // the ripple line's glyph pens
-  int glyphs = 0;
-  float proofSize = 0;                     // the hero, fitted to the measure
-  float radPerGlyph = 0;                   // kWavesAcross, over this word
-  float gradRowLo = 0, gradRowHi = 0;      // the GRAD proof rows
-  float widthLo = 0, widthHi = 0;          // the wght proof rows
-  float gradWidthLo = 0, gradWidthHi = 0;  // the same measure on GRAD
-  float axisMin = 0, axisMax = 0;          // what the face itself declares
-  bool hasGrad = false;
+  float heroSize = 0;
+  float gradHeroDrift = 0;  // the run's width across the ramp, at the hero size
+  float weightLight = 0, weightHeavy = 0;  // the wght proof rows
+  float gradLight = 0, gradHeavy = 0;      // the GRAD proof rows
 
-  /** THE METER: the axis coordinate each letter is being drawn at, as a bar
-   *  under that letter.
+  /** The laid-out width of @p leaf under this sheet, through the cascade
+   *  the page is set by.
    *
-   *  It restates the effect's own sine, and it is a schedule meter's
-   *  opposite rather than a hand-rolled one. `Composer::beatsOf` reports
-   *  what a CASCADE scheduled — and this wave is not in the cascade: a
-   *  loop reads a wrapping phase that every glyph must see at once, so the
-   *  stagger is one flat beat and the wavelength lives in the effect body,
-   *  off the glyph's own index. The DEVIATION a track computed goes to the
-   *  draw and no further, so the coordinate under each letter can only be
-   *  computed again here.
-   *
-   *  What it does NOT restate is the clock: the program reads the SAME
-   *  phase Output the track's progress is bound to, so the bars cannot
-   *  drift a frame away from the letters they describe. A second
-   *  `motion::phase` off `elapsedSeconds` would have been one line shorter
-   *  and wrong.
-   *
-   *  The pens come from `runPens` on the UNDRIVEN style, which is only
-   *  sound because the axis is advance-invariant: that is the same fact the
-   *  engine's own gate checks, used here for a second purpose. */
-  [[nodiscard]] Element meter(float width) {
-    // The pens ride into the program behind a shared pointer rather than as
-    // a copied vector: a paint program is copied whenever the element value
-    // is, and a copy that can allocate is a copy that can throw.
-    auto localPens = std::make_shared<const std::vector<float>>(pens);
-    const int n = glyphs;
-    const float rad = radPerGlyph;
-    const choreograph::Output<float>* clock = &phase;
-    return box().width(width).height(34).children(
-        {pen("axis-meter", [localPens = std::move(localPens), n, rad, clock](
-                               sigil::draw::Pen& pen, const PaintContext& ctx) {
-          const float t = clock->value();
-          const float h = ctx.size.height();
-          pen.noStroke();
-          for (int i = 0; i < n; ++i) {
-            const float x = (*localPens)[(size_t)i];
-            const float w = (*localPens)[(size_t)i + 1] - x - 3.0f;
-            if (w <= 0) continue;
-            const float s =
-                0.5f + 0.5f * std::sin(t * 6.2831853f - (float)i * rad);
-            pen.fill(kFaint);
-            pen.rect(x, h - 1, w, 1);
-            pen.fill(kAxis);
-            pen.rect(x, h - 1 - s * (h - 1), w, s * (h - 1) + 1);
-          }
-        })});
+   *  A passage's measured box is rounded up to whole pixels, and a run's
+   *  exact pen positions can be measured only from a style holding a face,
+   *  never from the family a sheet names, so every width on this page is
+   *  printed to the whole pixel. */
+  float widthOf(sketch::SketchContext& ctx, Element leaf) const {
+    return ctx.measure(box().applyStyleSheet(sheet).children({std::move(leaf)}))
+        .width();
   }
 
-  /** The ripple itself, plus the coordinate range the face declares. */
-  [[nodiscard]] Element ripplePanel() {
-    const float width = pens.back();
-    Element panel = box().column().gap(10).width(width);
-    panel.children(
-        {text("GRAD — DRIVEN AT DRAW TIME, "
-              "ONE SHAPING, LETTERS FIXED"),
-         text(kProof, proof)
-             .key("ripple")
-             .textFx({.effect = gradWave(kGradLo, kGradHi, radPerGlyph),
-                      .stagger = {.eachMs = 0, .durationMs = 400},
-                      .progress = &phase}),
-         meter(width)});
-    // One line, deliberately: the panel is the run's own width, so a
-    // caption that wraps changes the sheet's height between frames.
-    panel.children(
-        {text(hasGrad ? kit::formatted(
-                            "GRAD %.0f–%.0f · %.0f WAVE ACROSS THE WORD · "
-                            "%.1f S PER PASS · RUN WIDTH Δ %.2f PX ACROSS "
-                            "THE RAMP",
-                            axisMin, axisMax, kWavesAcross, kPeriod,
-                            gradWidthHi - gradWidthLo)
-                      : std::string("THIS FACE DECLARES NO GRAD AXIS · "
-                                    "THE DRIVE IS REFUSED AND THE LINE "
-                                    "DRAWS AT ITS SHAPED COORDINATES"))
-             .font({.size = 11.0f, .track = 0.6f})
-             .ink(hasGrad ? kLabel : kMark)});
-    return panel;
-  }
-
-  /** One end of one axis, set at the proof size, with the rule that marks
-   *  where the run stopped. */
-  [[nodiscard]] Element proofRow(const char (&tag)[5], float value,
-                                 const char* label, bool marked) {
-    sigil::weave::TextStyle style =
-        weave::textStyle({.face = face,
-                          .size = kProofRowSize,
-                          .color = kInk,
-                          .track = kProofTrack * 0.6f});
-    style.variation(tag, value);
-    Text run = text(kProof, style);
-    // THE RULE IS ANCHORED TO THE RUN, not fitted to it. An unsliced
-    // selector resolves to the union of every glyph's box, so pct(100) of
-    // that rect is the last letter's trailing edge — which moves with the
-    // label column, the gap and the tracking, none of which the mark has
-    // to be told about.
-    if (marked)
-      run.textAttach(weave::Selector{}, kit::line({.length = Dimension(96),
-                                                   .column = true,
-                                                   .fill = Fill::color(kMark)})
-                                            .key("rule")
-                                            .left(pct(100))
-                                            .top(0));
+  /** THE METER CELL under letter @p index: the grade it is being drawn at,
+   *  as a level rising from the foot of its bar. It hangs off the letter's
+   *  own rect, so it is exactly that letter's width, and reads the same
+   *  phase through the same swell one beat later per letter. */
+  [[nodiscard]] Element level(size_t index) const {
+    const float lag = beatFraction() * (float)index;
     return box()
-        .row()
-        .alignItems(Align::Baseline)
-        .gap(14)
-        .children({text(label).font({.size = 11.0f, .track = 1.6f}).width(52),
-                   std::move(run)});
+        .role("level")
+        .left(0)
+        .right(3)
+        .top(pct(100))
+        .marginTop(kLevelDrop)
+        .height(kLevelHeight)
+        .fill(Fill::var("bed"))
+        .children({box()
+                       .cover()
+                       .fill(Fill::var("axis"))
+                       .transformOrigin(pct(50), pct(100))
+                       .scaleY(motion::bind(&phase)
+                                   .source(lag, 1.0f + lag)
+                                   .wave(&swell)
+                                   .target(1.0f / kLevelHeight, 1.0f))});
   }
 
-  /** One axis, proved: the same word shaped at each end of it, left edges
-   *  aligned, with a rule standing where the FIRST run ended. The two
-   *  panels below are the same construction over the two axes, so the
-   *  reader compares one picture against another rather than a picture
-   *  against a sentence. */
-  [[nodiscard]] Element axisPanel(const Utf8& heading, const char (&tag)[5],
-                                  float lo, float hi, const char* loLabel,
-                                  const char* hiLabel, const Utf8& verdict,
-                                  material::Color verdictInk) {
+  /** The ripple: the word to the measure, every letter's grade on one
+   *  looping cascade, with its meter hanging beneath it. */
+  [[nodiscard]] Element ripple() const {
+    const float periodMs = kPeriod * 1000.0f;
+    Text hero = text(kProof).role("hero").fontSize(heroSize).key("ripple");
+    hero.textFx({.effect = gradeSwell(),
+                 .stagger = {.eachMs = beatFraction() * periodMs,
+                             .durationMs = periodMs,
+                             .loopMs = periodMs},
+                 .progress = &phase});
+    for (size_t index = 0; index < kProof.size(); ++index)
+      hero.textAttach(weave::selectors::range({(uint32_t)index,
+                                               (uint32_t)index + 1}),
+                      level(index));
+    // A mark reserves nothing, so the room under the word is the meter's.
+    hero.marginBottom(kLevelDrop + kLevelHeight);
+    return box().column().gap(10).children(
+        {document::eyebrow("GRAD — DRIVEN AT DRAW TIME, ONE SHAPING, "
+                           "LETTERS FIXED"),
+         std::move(hero),
+         // The face's axis range is not read here: a family's variation
+         // axes cannot be asked for without holding its typeface, so the
+         // caption states the drive's own ends.
+         document::caption(kit::formatted(
+             "GRAD %.0f–%.0f · %.0f WAVE ACROSS THE WORD · %.1f S PER PASS · "
+             "RUN WIDTH Δ %.0f PX ACROSS THE RAMP",
+             kGradLight, kGradHeavy, kWavesAcross, kPeriod, gradHeroDrift))});
+  }
+
+  /** One axis, proved: the word at each end of it, left edges aligned, a
+   *  rule anchored where the light run stopped, and the verdict in the
+   *  class that colours it. */
+  [[nodiscard]] static Element axisPanel(const Utf8& heading,
+                                         const char (&tag)[5], float light,
+                                         float heavy, float lightWidth,
+                                         float heavyWidth,
+                                         std::string_view verdictClass,
+                                         const char* movement,
+                                         const char* consequence) {
+    // An unsliced selector resolves to the union of every glyph's box, so
+    // pct(100) of it is the last letter's trailing edge.
+    Text lightRun = proofRun(tag, light);
+    lightRun.textAttach(weave::Selector{},
+                        kit::line({.length = Dimension(96),
+                                   .column = true,
+                                   .fill = Fill::var("overhang")})
+                            .left(pct(100))
+                            .top(0));
+    const auto row = [](float value, Element run) {
+      return box().row().alignItems(Align::Baseline).gap(14).children(
+          {document::label(kit::formatted("%.0f", value)).width(52),
+           std::move(run)});
+    };
+    const float drift = heavyWidth - lightWidth;
     return box().column().gap(12).flexGrow(1).children(
-        {text(heading),
-         box().column().gap(6).children({proofRow(tag, lo, loLabel, true),
-                                         proofRow(tag, hi, hiLabel, false)}),
-         text(verdict).font({.size = 11.0f, .track = 0.6f}).ink(verdictInk)});
+        {document::eyebrow(heading),
+         box().column().gap(6).children(
+             {row(light, std::move(lightRun)),
+              row(heavy, proofRun(tag, heavy))}),
+         document::caption(
+             kit::formatted("%s THE RUN BY %.0f PX (%.1f%%) · %s", movement,
+                            drift,
+                            lightWidth > 0 ? 100.0f * drift / lightWidth : 0.0f,
+                            consequence))
+             .styleClass(std::string(verdictClass))});
   }
 
   /** The proof, twice: the axis that moves advances beside the axis that
-   *  does not.
-   *
-   *  On the left every letter after the first has left the rule behind, and
-   *  that distance is what a draw-time drive would have to pretend was
-   *  zero. On the right the heavy run stops on the same rule as the light
-   *  one — weight without width, which is what makes the ripple above
-   *  lawful at one shaping. */
-  [[nodiscard]] Element proofPanels() {
-    return box().row().gap(44).children(
-        {axisPanel(
-             kit::formatted("wght %.0f → %.0f — A SHAPING AXIS", kWghtLo,
-                            kWghtHi),
-             "wght", kWghtLo, kWghtHi, "300", "900",
-             kit::formatted(
-                 "WIDENS THE RUN BY %.2f PX (%.1f%%) · EVERY LETTER "
-                 "AFTER THE FIRST MOVES, SO THE DRIVE IS REFUSED",
-                 widthHi - widthLo,
-                 widthLo > 0 ? 100.0f * (widthHi - widthLo) / widthLo : 0.0f),
-             kMark),
-         axisPanel(
-             kit::formatted("GRAD %.0f → %.0f — A DRAWN AXIS", kGradLo,
-                            kGradHi),
-             "GRAD", kGradLo, kGradHi, "400", "1000",
-             kit::formatted("MOVES THE RUN BY %.2f PX (%.1f%%) · THE HEAVY RUN "
-                            "STOPS ON THE LIGHT ONE'S RULE, SO THE DRIVE IS "
-                            "HONOURED",
-                            gradRowHi - gradRowLo,
-                            gradRowLo > 0
-                                ? 100.0f * (gradRowHi - gradRowLo) / gradRowLo
-                                : 0.0f),
-             kAxis)});
+   *  does not. */
+  [[nodiscard]] Element proofPanels() const {
+    return box()
+        .row()
+        .gap(44)
+        .key("proof")
+        .cache(Cache::Texture)
+        .children(
+            {axisPanel(kit::formatted("wght %.0f → %.0f — A SHAPING AXIS",
+                                      kWeightLight, kWeightHeavy),
+                       "wght", kWeightLight, kWeightHeavy, weightLight,
+                       weightHeavy, "refused", "WIDENS",
+                       "EVERY LETTER AFTER THE FIRST MOVES, SO THE DRIVE IS "
+                       "REFUSED"),
+             axisPanel(kit::formatted("GRAD %.0f → %.0f — A DRAWN AXIS",
+                                      kGradLight, kGradHeavy),
+                       "GRAD", kGradLight, kGradHeavy, gradLight, gradHeavy,
+                       "honoured", "MOVES",
+                       "THE HEAVY RUN STOPS ON THE LIGHT ONE'S RULE, SO THE "
+                       "DRIVE IS HONOURED")});
   }
 
-  /** The label type is stated once on the root; a caption restates only what
-   *  it changes. */
-  [[nodiscard]] Element describe() {
+  [[nodiscard]] Element describe() const {
     return box()
         .column()
-        .padding(kPadY, kPadX)
+        .padding(kPaddingY, kPaddingX)
         .gap(24)
-        .fill(linearGradient({0, 0}, {0, kH},
+        .applyStyleSheet(sheet)
+        .fill(linearGradient({0, 0}, {0, kHeight},
                              {kPaper, hexColor(0x111116), kPaper},
                              {0.0f, 0.6f, 1.0f}))
-        .font({.face = faceLabel, .size = 11.5f, .track = 2.4f})
-        .ink(kLabel)
-        .children(
-            {box().column().gap(5).children(
-                 {document::h1("The axis ripple")
-                      .font({.face = faceLabel, .size = 26.0f, .track = 0.2f})
-                      .ink(kInk),
-                  document::caption("OpenType Font Variations · 2016")
-                      .font({.size = 12.0f, .track = 0.3f})
-                      .ink(kLabel)}),
-             kit::line({.fill = Fill::color(kFaint)}), ripplePanel(),
-             proofPanels(), box().flexGrow(1),
-             document::footer(
-                 "Grade changes the weight without changing the width. "
-                 "The blue row keeps the same pen positions throughout the "
-                 "wave.")
-                 .width(700)
-                 .font({.size = 11.5f, .track = 0.2f})
-                 .ink(kLabel)});
+        .children({box().role("masthead").column().gap(5).children(
+                        {document::h1("The axis ripple"),
+                         document::caption("OpenType Font Variations · 2016")}),
+                   kit::line({.fill = Fill::var("faint")}), ripple(),
+                   proofPanels(), box().flexGrow(1),
+                   document::footer(
+                       "Grade changes the weight without changing the width. "
+                       "The blue row keeps the same pen positions throughout "
+                       "the wave.")});
   }
 
   void setup(sketch::SketchContext& ctx) {
-    // A quarter-pass in: the wave's crest is inside the word rather than at
+    // A quarter-pass in: the crest is inside the word rather than at
     // either end, so both the ramp up and the ramp down are on the page.
-    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+    sketch::kit::stage(ctx, {.size = {kWidth, kHeight},
                              .captureAt = kPeriod * 0.79,
                              .background = kPaper});
     if (!ctx.fonts) return;
 
-    // The system grotesque is the face here because it is the one installed
-    // face that carries BOTH axes this sheet needs — a grade to drive and a
-    // weight to measure against it.
-    face = sketch::kit::houseFace(sketch::kit::Voice::Interface, 700);
-    faceLabel = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
-    const float measure = kW - 2.0f * kPadX;
-    // EVERY MEASUREMENT GOES THROUGH THE SHAPING PATH A TEXT LEAF TAKES,
-    // at the size and the track the page sets the run in.
-    const auto sized = [&](float size, float track) {
-      return weave::textStyle(
-          {.face = face, .size = size, .color = kInk, .track = track});
+    // THE HERO IS SET TO THE MEASURE. A run's width is affine in its size,
+    // because the tracking is px and does not scale, so two sizes identify
+    // the line and the measure is read off it.
+    const float measure = kWidth - 2.0f * kPaddingX;
+    const auto heroWidth = [&](float size) {
+      return widthOf(ctx, text(kProof).role("hero").fontSize(size));
     };
-    const auto runWidth = [&](const weave::TextStyle& style) {
-      return runPens(kProof, style, *ctx.fonts).back();
-    };
-    const auto axisWidth = [&](const char (&tag)[5], float value, float size,
-                               float track) {
-      return runWidth(sized(size, track).variation(tag, value));
-    };
-    proofSize = kRefSize * measure / runWidth(sized(kRefSize, kProofTrack));
-    proof = sized(proofSize, kProofTrack);
-    pens = runPens(kProof, proof, *ctx.fonts);
-    glyphs = (int)pens.size() - 1;
-    // ONE WAVE MEANS ONE WAVE. A radians-per-glyph constant is a wavelength
-    // stated in the wrong unit: the same number is more than a full wave on
-    // a long word and less than half on a short one, and a wave that laps
-    // itself puts two crests on the line and a step where it wraps.
-    radPerGlyph = glyphs > 0 ? 6.2831853f * kWavesAcross / (float)glyphs : 0.0f;
+    const float small = heroWidth(32), large = heroWidth(64);
+    heroSize = 32 + (measure - small) * 32 / (large - small);
 
-    // What the face itself declares, read off the face rather than assumed.
-    if (face) {
-      const int count = face->getVariationDesignParameters({});
-      if (count > 0) {
-        std::vector<SkFontParameters::Variation::Axis> axes((size_t)count);
-        face->getVariationDesignParameters(SkSpan(axes.data(), (size_t)count));
-        for (const auto& a : axes)
-          if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
-            hasGrad = true;
-            axisMin = a.min;
-            axisMax = a.max;
-          }
-      }
-    }
-
-    // Both pairs are shaped at the ROW size, so the printed px are the px
-    // on the page.
-    widthLo = axisWidth("wght", kWghtLo, kProofRowSize, kProofTrack * 0.6f);
-    widthHi = axisWidth("wght", kWghtHi, kProofRowSize, kProofTrack * 0.6f);
-    gradWidthLo = axisWidth("GRAD", kGradLo, proofSize, kProofTrack);
-    gradWidthHi = axisWidth("GRAD", kGradHi, proofSize, kProofTrack);
-    gradRowLo = axisWidth("GRAD", kGradLo, kProofRowSize, kProofTrack * 0.6f);
-    gradRowHi = axisWidth("GRAD", kGradHi, kProofRowSize, kProofTrack * 0.6f);
+    const auto gradHero = [&](float value) {
+      return widthOf(ctx, text(kProof).role("hero").fontSize(heroSize).font(
+                              {.variations = {weave::FontVariation("GRAD",
+                                                                   value)}}));
+    };
+    gradHeroDrift = gradHero(kGradHeavy) - gradHero(kGradLight);
+    weightLight = widthOf(ctx, proofRun("wght", kWeightLight));
+    weightHeavy = widthOf(ctx, proofRun("wght", kWeightHeavy));
+    gradLight = widthOf(ctx, proofRun("GRAD", kGradLight));
+    gradHeavy = widthOf(ctx, proofRun("GRAD", kGradHeavy));
 
     ctx.ticker.add([this, &ticker = ctx.ticker] {
-      const double t = ticker.elapsed();
-      phase = motion::phase(t, kPeriod);
+      phase = motion::phase(ticker.elapsed(), kPeriod);
     });
 
     ctx.composer.render(describe());
