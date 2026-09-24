@@ -44,12 +44,13 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "checked assets (`image`, `json`, `table`, `database`, `hub`, `root`)"
+bound = "checked assets (`image`, `json`, `table`, `database`, `shader`, `hub`, `root`)"
 python = [
   "sketch.Assets.image",
   "sketch.Assets.json",
   "sketch.Assets.table",
   "sketch.Assets.database",
+  "sketch.Assets.shader",
   "sketch.Assets.hub",
   "sketch.Assets.root",
 ]
