@@ -63,6 +63,7 @@ class LoopbackHost(threading.Thread):
         self.serves_definition = serves_definition
         self.asked: list[str] = []
         self.pongs = 0
+        self.ponged = threading.Event()
         self.upgrades = 0
         self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -135,6 +136,7 @@ class LoopbackHost(threading.Thread):
                 return
             if opcode == 0xA:
                 self.pongs += 1
+                self.ponged.set()
                 continue
             message = json.loads(payload)
             self.asked.append(message["method"])
@@ -271,6 +273,9 @@ class PythonConnection(unittest.TestCase):
             result = connection.call("clock.current", {})
             self.assertEqual(result, {"seconds": 1.25, "frame": 75})
             self.assertEqual(heard, [{"seconds": 2.5}])
+        # The pong went out before the answer was read; the host reads it on
+        # its own thread, which may come to it after the client is done.
+        self.assertTrue(host.ponged.wait(10))
         self.assertEqual(host.pongs, 1)
 
     def test_an_error_the_host_answers_is_raised_as_its_refusal(self) -> None:
