@@ -4,11 +4,11 @@
   "provenance": "BL Sloane MS 3188 f.30r · wax disc BM 1838,1232.90.a · 23.2 cm",
 
   "namesHeading": "THE SEVEN NAMES, WALKED OFF THE RIM",
+  "rule": "Begin at the Name's first letter; the number beside a letter is how many cells to step, right when it stands above, left when below; a bare letter ends the Name.",
   "consumed": "{used} of 40 cells consumed · {unvisited} never visited",
-  "unvisited": "unvisited  {cells}   =  {glyphs}",
-  "leftovers": "↳ the same rule reads them as YMON 22·7·13·31 and BORAOTH 26·36·19·…",
 
   "basketsHeading": "SEVEN BASKETS, SEVEN BIRDS · READ DOWN",
+  "archangels": "Zaphkiel · Zadkiel · Cumael · Raphael · Haniel · Michael · Gabriel",
   "crossNote": "48 letters, and one is noted by a Cross: which maketh the 49th.",
 
   "ordersHeading": "THE FOUR ORDERS OF THE CHILDREN OF LIGHT",
@@ -18,6 +18,9 @@
     "Filiæ Filiarum · four-square white ivory",
     "Filii Filiorum · three-cornered green"
   ],
+
+  "zabathiel": ["Z", "A", "B", "A", "T", "H", "Iɛ"],
+  "levanael": ["VA", "NA", "el", "LE"],
 
   "seal": "“This is the Seale, whose Name is Æmeth: and it is to be made of perfect wax.”",
   "imprint": "Uriel, 14 March 1582 · reconstruction from the rule, not a tracing · SigilCompose study"
