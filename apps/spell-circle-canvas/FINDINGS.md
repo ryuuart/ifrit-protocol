@@ -362,3 +362,25 @@ Once measured, `sketch_bench` should carry an arm that frames
 atlas counters, and an arm that alternates two scales across a settle,
 so a test can assert that a settle's cost is bounded and that a varied
 passage's frame cost does not grow with the zoom.
+
+## A run on a closed baseline cannot be fitted to the baseline's length
+
+`TextPath` places a run along its path at the size the run was set in,
+and a run shorter than a closed baseline leaves a gap at the seam while
+a longer one is cut off at the end. A ring inscription girds its circle
+exactly, so `rota_convocationis` measures each band with
+`SketchContext::measure` and rescales the font size twice (tracking is
+px and does not scale with the type) before it describes the tree:
+twelve seals and four bands, each a probe outside the tree.
+
+`TextPath` is evidently meant to be able to say "fill the baseline",
+the way a paragraph says justify: a field (a fit mode of none, size or
+spacing, with a fill fraction) resolved at layout against the resolved
+path's length, so a ring's lettering closes on its seam from the
+declaration alone and follows a face or word change without a
+re-measure.
+
+A test should assert that a run on `shapes::circle()` with a size fit
+at fraction 1 ends within a pixel of where it starts, for two runs of
+different lengths in the same box, and that a spacing fit leaves the
+font size unchanged.
