@@ -422,3 +422,22 @@ A test: a text leaf on `shapes::circle()` with an echo of a known colour
 and offset, rendered into a raster; every echo-coloured pixel lies within
 `|offset|` plus a glyph's extent of the real pass's ink, and none in the
 box's corner away from the circle.
+
+## A nib brush lays white discs inside a compose pen node
+
+`draw::brush::paint` with a `Tip::Nib` tool (colour cinnabar, opacity 1,
+`pressureOpacity` 0) inside `compose::pen(...)` lays each dab as a WHITE
+disc at the right size, with only a thin line of the tool's colour down
+the middle of the run and the final dab alone in colour; inside
+`compose::graphics(...)` the same stroke comes out as that thin line with
+the discs missing. On a light ground the white is invisible, which is why
+`brush_dynamics` looks right. The nib's dabs go down as one sprite batch
+(`drawStamps` → `sigil::skia::draw::drawSpriteAtlas`, the white
+`roundTip()` sprite tinted by per-sprite colours under `SkBlendMode::
+kSrcOver`); the tint is evidently meant to multiply the white sprite, so
+each dab is a disc of the tool's colour. `thunder_fulu` lays its strokes
+with `Tip::Fibres` until then, which draws through the pen's own verbs.
+
+A test: one nib stroke of a saturated colour at opacity 1 over a black
+raster, through `compose::pen`; every pixel inside the stroke's width is
+within a small distance of the tool's colour, and none is lighter than it.
