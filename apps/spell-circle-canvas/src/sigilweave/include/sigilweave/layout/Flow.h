@@ -84,6 +84,10 @@ struct LineInterval {
 /// `index · lineHeight`, as soon as a text's blocks lead differently. The
 /// block context is for a geometry that wants it — a frame grid, a well
 /// cut for one block, a drop cap's notch — and every stock one ignores it.
+/// A band may be asked for TWICE: a breaker that read past a block's last
+/// line asked for the next band under that block, and the block that opens
+/// on it asks again under its own, so an answer is a function of the
+/// request and never of what was asked before it.
 struct LineRequest {
   int index = 0;         ///< 0-based band ordinal, ascending without gaps
   float bandStart = 0;   ///< the band's near edge, along the stacking axis,

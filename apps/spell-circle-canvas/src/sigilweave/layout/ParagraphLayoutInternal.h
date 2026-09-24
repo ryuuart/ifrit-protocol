@@ -88,6 +88,15 @@ void resolveMojikumi(const Paragraph& paragraph,
 // only the accumulating side knows. openBlock() is where a block hands over
 // its pitch, its air and its indents, and everything after it is asked for
 // under those until the next block opens.
+//
+// A BAND BELONGS TO THE BLOCK SET IN IT, not to the block that first asked
+// for it. The optimizing breaker reads past a block's last line before it
+// knows that line is the last, so the band the next block will open on
+// may already have been fetched — inset, pitched and led as the block
+// before. openBlock() gives every band fetched at or past where the new
+// block starts back to the geometry, and the new block asks for them again
+// under its own setting, so both breakers set a block's first line as its
+// first.
 class IntervalSequence {
  public:
   IntervalSequence(FlowGeometry& geometry, float lineHeight, float ascent,
@@ -102,13 +111,17 @@ class IntervalSequence {
    * from. Call before any interval is asked for. */
   void seatFirstBand(float bandStart) { m_bandCursor = bandStart; }
 
-  /** Opens a block: from here on bands are `pitch` deep with their baseline
-   * `ascent` below the near edge, the first of them starting `lead` past
-   * where the last one ended, and every interval inset by `indent`. A
-   * positive `gridStep` snaps each band's near edge up to a multiple of it,
-   * which is what makes two blocks of different type share one rhythm. */
-  void openBlock(int blockIndex, float pitch, float ascent, float lead,
-                 float gridStep, const IndentOptions& indent) {
+  /** Opens a block at interval `firstInterval`: from here on bands are
+   * `pitch` deep with their baseline `ascent` below the near edge, the
+   * first of them starting `lead` past where the last one ended, and every
+   * interval inset by `indent`. A positive `gridStep` snaps each band's
+   * near edge up to a multiple of it, which is what makes two blocks of
+   * different type share one rhythm. Every source line fetched at or past
+   * `firstInterval` is dropped first and fetched again under this block. */
+  void openBlock(size_t firstInterval, int blockIndex, float pitch,
+                 float ascent, float lead, float gridStep,
+                 const IndentOptions& indent) {
+    rewindTo(firstInterval);
     m_blockIndex = blockIndex;
     m_lineInBlock = 0;
     m_bandCursor += lead;
@@ -118,6 +131,11 @@ class IntervalSequence {
     m_indent = indent;
     m_blocked = true;
   }
+
+  /** Keeps every source line fetched so far through the next openBlock(),
+   * for a band asked for on behalf of the block after it: the band an
+   * initial is seated in when the initial took its whole block. */
+  void holdFetched() { m_heldLines = m_fetchedLines.size(); }
 
   /** Returns a flattened interval, fetching source lines on demand. */
   const FlatInterval* intervalAt(size_t intervalIndex) {
@@ -174,9 +192,30 @@ class IntervalSequence {
       last.length = std::max(0.0f, last.length - far);
   }
 
+  /** Drops every source line whose intervals start at or past
+   * `firstInterval`, with the cursor and the line count they advanced, so
+   * the next fetch asks the geometry for the first of them again. A line
+   * that offered no interval wide enough is dropped with the line after
+   * it, since both were asked for past the last one used. The exhaustion
+   * a dropped fetch met is dropped too: it was met at a band placed under
+   * a setting that no longer holds. */
+  void rewindTo(size_t firstInterval) {
+    while (m_fetchedLines.size() > m_heldLines &&
+           m_fetchedLines.back().firstInterval >= firstInterval) {
+      const FetchedLine& line = m_fetchedLines.back();
+      m_flatIntervals.resize(line.firstInterval);
+      m_bandCursor = line.cursorBefore;
+      m_nextLineIndex--;
+      m_fetchedLines.pop_back();
+    }
+    m_heldLines = 0;
+    m_geometryExhausted = false;
+  }
+
   /** Fetches and flattens the next source line into the interval cache. */
   void fetchLine() {
     m_sourceLineIntervals.clear();
+    const float cursorBefore = m_bandCursor;
     float bandStart = m_bandCursor;
     if (m_gridStep > 0) {
       constexpr float kOnGrid = 1e-3f;  // a band already on the grid stays
@@ -193,6 +232,7 @@ class IntervalSequence {
           m_sourceLineIntervals,
           m_indent.start + (m_lineInBlock == 0 ? m_indent.firstLine : 0.0f),
           m_indent.end);
+    m_fetchedLines.push_back({m_flatIntervals.size(), cursorBefore});
     for (const LineInterval& interval : m_sourceLineIntervals)
       if (interval.length >= m_minimumWidth)
         m_flatIntervals.push_back({interval, m_nextLineIndex,
@@ -215,6 +255,15 @@ class IntervalSequence {
   bool m_uniform = true;
   std::vector<FlatInterval> m_flatIntervals;
   std::vector<LineInterval> m_sourceLineIntervals;
+  // One entry per source line fetched, in order: where its intervals start
+  // in the flattened sequence and where the band cursor stood before it,
+  // which is what a rewind restores.
+  struct FetchedLine {
+    size_t firstInterval = 0;
+    float cursorBefore = 0;
+  };
+  std::vector<FetchedLine> m_fetchedLines;
+  size_t m_heldLines = 0;
   int m_nextLineIndex = 0;
   bool m_geometryExhausted = false;
 };

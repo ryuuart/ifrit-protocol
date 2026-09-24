@@ -173,6 +173,45 @@ TEST(ParagraphStyle, FirstLineIndentShortensOnlyTheFirstLine) {
   EXPECT_NEAR(starts[1], 0.0f, 0.01f);
 }
 
+// EVERY BLOCK OPENS ON ITS OWN FIRST LINE, whichever breaker sets it: the
+// optimizing breaker reads past a block's last line before the next block
+// opens, and the band it read must still take the next block's indent.
+class EveryBlockIndent : public BrokenBothWays {};
+
+TEST_P(EveryBlockIndent, EachBlockIndentsItsFirstLineAndNoOther) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = twoBlocks();
+  BlockFlow flow(SkRect::MakeWH(140, 600));
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = breaker();
+  options.blockDefault.indent.firstLine = 20.0f;
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+
+  const uint32_t secondBlock =
+      static_cast<uint32_t>(paragraph.text().find(u'\n')) + 1;
+  int secondBlockLine = -1;
+  for (const PositionedRun& run : layout.runs)
+    if (paragraph.words()[run.wordIndex].textBegin >= secondBlock) {
+      secondBlockLine = run.lineIndex;
+      break;
+    }
+  const std::vector<float> starts = lineStarts(layout);
+  ASSERT_GE(secondBlockLine, 2) << "the first block did not wrap";
+  ASSERT_GE(starts.size(), static_cast<size_t>(secondBlockLine) + 2)
+      << "the second block did not wrap";
+  for (size_t line = 0; line < starts.size(); ++line)
+    EXPECT_NEAR(starts[line],
+                line == 0 || line == static_cast<size_t>(secondBlockLine)
+                    ? 20.0f
+                    : 0.0f,
+                0.01f)
+        << "line " << line;
+}
+
+INSTANTIATE_TEST_SUITE_P(Breakers, EveryBlockIndent, bothBreakers(),
+                         breakerName);
+
 TEST(ParagraphStyle, StartIndentMovesEveryLine) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");

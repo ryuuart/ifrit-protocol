@@ -88,7 +88,10 @@ through two coordinates. Pair `kColumns` with
 5. **Geometry flattening.** Every line's intervals are flattened, lazily,
    into a single indexed `IntervalSequence`. Both breakers consume geometry
    *only* through it, so a break decision and the placement that follows can
-   never disagree about which interval is which.
+   never disagree about which interval is which. A band belongs to the block
+   set in it: Knuth-Plass reads past a block's last line before it knows it
+   is the last, and when the next block opens, every band read ahead is
+   asked for again under that block's pitch, air and indents.
 6. **Line breaking.** Greedy or Knuth-Plass (see below).
 7. **Lazy shaping.** Breakers call `ensureShapedTo()` just ahead of their own
    frontier, so a paragraph far larger than its geometry only ever sends the
@@ -398,7 +401,8 @@ added to `start` on the first and last. A negative `firstLine` is the
 hanging indent a bullet or a number hangs into. Because it is arithmetic on
 the interval, an indent composes with exclusions and columns without either
 knowing about it: a line an exclusion cut into three is inset at its
-outermost ends and nowhere in the middle.
+outermost ends and nowhere in the middle. The first line is every block's
+own, under either breaker.
 
 **A block's opening set large is the block's own property.**
 `ParagraphStyle::initial` declares an `InitialLetter`: how many lines its

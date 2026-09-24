@@ -199,10 +199,11 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
       // the head of the frame.
       if (initialGeometry && !initialGeometry->seated() &&
           block.index == initialPlan.blockIndex) {
-        intervalSequence.openBlock(block.index, block.pitch, block.ascent,
-                                   block.lead, block.gridStep,
+        intervalSequence.openBlock(nextInterval, block.index, block.pitch,
+                                   block.ascent, block.lead, block.gridStep,
                                    block.style.indent);
         intervalSequence.intervalAt(nextInterval);
+        intervalSequence.holdFetched();
       }
       continue;
     }
@@ -212,8 +213,9 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
       result.firstUnplacedWord = block.firstWord;
       break;
     }
-    intervalSequence.openBlock(block.index, block.pitch, block.ascent,
-                               block.lead, block.gridStep, block.style.indent);
+    intervalSequence.openBlock(nextInterval, block.index, block.pitch,
+                               block.ascent, block.lead, block.gridStep,
+                               block.style.indent);
     intervalSequence.setUniformBlocks(block.style.indent.firstLine == 0 &&
                                       block.style.indent.lastLine == 0);
     uint32_t overflowWord = ~0u;
