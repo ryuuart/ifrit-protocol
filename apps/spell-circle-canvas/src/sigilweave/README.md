@@ -516,7 +516,7 @@ const sigil::weave::testing::Reading reading =
 sigil::weave::testing::Plate plate({200, 100}, SK_ColorWHITE);
 plate.draw(passage);
 const sigil::weave::testing::BaselineComparison comparison =
-    sigil::weave::testing::compareToBaseline(plate.pixels(), baselinePath);
+    sigil::weave::testing::compareToBaseline(plate, baselinePath);
 ```
 
 - `sigilweave/testing/Passage.h` — `Passage`, the paragraph with the
@@ -528,9 +528,11 @@ const sigil::weave::testing::BaselineComparison comparison =
   worked out again, so the harness never describes a glue model the
   breaker no longer uses; a line the greedy breaker set reads none.
 - `sigilweave/testing/Plate.h` — `Plate`, a CPU raster surface cleared
-  to one ground, and `render`.
+  to one ground that also witnesses every draw, so `Plate::faces` can
+  say which faces its text was drawn in, and `render`.
 - `sigilweave/testing/Baseline.h` — `compareToBaseline`, which judges a
-  render against a committed PNG or adopts it (`BaselineAction`), the
+  render against a committed PNG or adopts it (`BaselineAction`) — a
+  plate's faces against the list `facesBeside` names too — the
   `BaselineComparison` it answers, and `describe`, the line a failing
   case prints. How far two renders stand apart is SigilImage's
   `sigil::image::difference`, which the comparison carries as it
@@ -603,7 +605,8 @@ What each feature's `test/` holds:
   over the instrument faces and a scratch directory, and THE PLATES: nine
   pictures of what only this library draws, one case each, rendered
   through the harness and held against the PNG committed beside them
-  under `testing/test/plates/` — extreme geometries and letter confetti,
+  under `testing/test/plates/`, with the faces each was drawn in listed
+  beside its PNG — extreme geometries and letter confetti,
   typographic options, script confetti, OpenType features, CJK columns
   with ruby and kenten, path exclusions, CJK fallback, and the dressing a
   run carries. The fallback, clamp and soft-hyphen panels also assert
@@ -611,17 +614,16 @@ What each feature's `test/` holds:
 
 | label | on | what a runner must supply |
 |---|---|---|
-| `fonts` | every case in the binary | installed faces broad enough for an unstyled paragraph of mixed scripts and emoji to resolve — the machine's own fallback is what those cases are about, and the port's whole subject is the list it resolves against |
-| `plates` | `WeavePlates` | the font set the committed baselines were adopted on: the panels set named families and the machine's fallback, so a machine with other faces reads every plate as moved |
+| `fonts` | the suites and cases each feature's `test/` names, and `WeavePlates` | installed faces broad enough for an unstyled paragraph of mixed scripts and emoji to resolve — the machine's own fallback is what those cases are about, and the port's whole subject is the list it resolves against |
+| `plates` | `WeavePlates` | the font set the committed baselines were adopted on: the panels set named families and the machine's fallback, so a machine with other faces reads every plate as `faces changed` |
 
-The label sits on the binary rather than on a suite: most of what it
-holds shapes text, and a suite that needs nothing — the Unicode leaf,
-plain values, a committed instrument — is not worth a second label to
-say so. A case whose claim is about a script, an axis or a feature names
-the instrument that carries it and skips on nothing; what is left behind
-the label is the handful whose claim IS the machine's font set.
-`ctest -L fonts` selects them, so a runner that knows its own font set
-can require what the rest of the tree lets pass.
+`fonts` sits on the suites and cases that need it rather than on the
+binary: most of what the binary holds shapes text through the instrument
+faces, and a case whose claim is about a script, an axis or a feature
+names the instrument that carries it and skips on nothing. What is left
+behind the label is the handful whose claim IS the machine's font set,
+and the plates. `ctest -L fonts` selects them, so a runner that knows its
+own font set can require what the rest of the tree lets pass.
 
 Fixtures live in `test/support/`, and nothing is written twice:
 `Faces.h` holds this library's own committed face, `Paragraphs.h` builds
@@ -664,16 +666,21 @@ readings the tests use.
 ```sh
 cmake --build build --config Release --target benches weave_test
 python3 scripts/sigil.py bench --benches weave_bench
-ctest --test-dir build -C Release -L plates             # judge the plates
-SIGIL_PLATES_REBASE=1 ctest --test-dir build -C Release -L plates  # adopt
+ctest --test-dir build -C Release -R '^WeavePlates\.'   # judge the plates
+python3 scripts/sigil.py plates --rebase                 # adopt every plate
 ```
 
 A plate that moved fails with one line naming its baseline and the
 render written under `build/src/sigilweave/testing/plates/`, so the two
-can be opened side by side. The bar is identity: the plate is rasterized
-on the CPU, and the same layout on the same machine answers the same
-bytes. A move that was meant is adopted with `SIGIL_PLATES_REBASE=1` and
-committed with its cause.
+can be opened side by side, and when the faces it was drawn in are not
+the ones listed beside its baseline the line says `faces changed` and
+names them: the machine's font set moved, which may be all that did. The
+bar is identity: the plate is rasterized on the CPU, and the same layout
+in the same faces answers the same bytes. A move that was meant is
+adopted by `sigil.py plates --rebase`, which adopts every library's
+plates and the sketch manifest together, and committed with its cause;
+`SIGIL_PLATES_REBASE=1` on `ctest -R '^WeavePlates\.'` is the same
+adoption for these plates alone.
 
 `WeaveGallery` (`examples/gallery/`) is the interactive home for the animated
 scenes — exclusions and morphing paths, greedy versus Knuth-Plass, an

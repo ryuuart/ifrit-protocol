@@ -1,10 +1,11 @@
 #pragma once
 
 /** @file
- * What every plate case shares: the showcase palette's colours, the
- * single-span style a panel sets its text in, the process's font context,
- * and the one assertion a plate ends on — its render held against the
- * baseline committed under the testing feature's test/plates/.
+ * What every plate case shares: the colours the panels are painted in,
+ * the single-span style a panel sets its text in, the process's font
+ * context, and the one assertion a plate ends on — its render and the
+ * faces it was drawn in held against the baseline committed under the
+ * testing feature's test/plates/.
  */
 
 #include <gtest/gtest.h>
@@ -20,15 +21,17 @@
 #include <string_view>
 
 #include "Faces.h"
-#include "Palette.h"
 
 namespace sigil::weave::test {
 
-inline constexpr SkColor kInk = examples::palette::kInk;
-inline constexpr SkColor kAccent = examples::palette::kAccent;
-inline constexpr SkColor kBlue = examples::palette::kBlue;
-inline constexpr SkColor kShape = examples::palette::kShape;
-inline constexpr SkColor kPaper = examples::palette::kPaper;
+/// The panels' colours: warm paper, near-black ink, and the accents that
+/// read on it. A baseline holds them as pixels, so changing one is a move
+/// every plate that paints it has to adopt.
+inline constexpr SkColor kInk = 0xFF23252B;
+inline constexpr SkColor kAccent = 0xFFC63D2F;
+inline constexpr SkColor kBlue = 0xFF2B5AA7;
+inline constexpr SkColor kShape = 0x33808A99;
+inline constexpr SkColor kPaper = 0xFFFAF7F0;
 
 /// One span's style for a panel: a size, an ink and a language, in
 /// whatever face the context resolves.
@@ -38,25 +41,29 @@ inline TextStyle plateStyle(float fontSize, SkColor color = kInk,
 }
 
 /// Whether this run adopts every render as its baseline rather than
-/// judging it: SIGIL_PLATES_REBASE set to anything but empty or `0`.
+/// judging it: SIGIL_PLATES_REBASE set to anything but empty or `0`,
+/// which `sigil.py plates --rebase` sets for the library plate cases it
+/// runs.
 inline bool rebasingPlates() {
   const char* value = std::getenv("SIGIL_PLATES_REBASE");
   return value && *value && std::string_view(value) != "0";
 }
 
-/// Holds @p plate against the baseline named @p name, or adopts it when
-/// the run is rebasing. A render that does not stand is written under
-/// the build tree, and the failure names both files.
+/// Holds @p plate and the faces it was drawn in against the baseline
+/// named @p name, or adopts both when the run is rebasing. A render that
+/// does not stand is written under the build tree, and the failure names
+/// both files and any face that changed.
 inline void expectPlate(const testing::Plate& plate, const std::string& name) {
   const std::string file = name + ".png";
   const testing::BaselineComparison comparison = testing::compareToBaseline(
-      plate.pixels(), std::filesystem::path(SIGIL_WEAVE_PLATE_BASELINES) / file,
+      plate, std::filesystem::path(SIGIL_WEAVE_PLATE_BASELINES) / file,
       rebasingPlates() ? testing::BaselineAction::kAdopt
                        : testing::BaselineAction::kJudge,
       std::filesystem::path(SIGIL_WEAVE_PLATE_RENDERS) / file);
   EXPECT_TRUE(comparison.passed())
       << name << ": " << testing::describe(comparison)
-      << " — SIGIL_PLATES_REBASE=1 adopts the render when the move is meant";
+      << " — `sigil.py plates --rebase` adopts the render when the move is "
+         "meant";
 }
 
 }  // namespace sigil::weave::test

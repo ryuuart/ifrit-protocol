@@ -1,7 +1,9 @@
 /** @file
  * A render held against a baseline file: missing until adopted, matched
  * once it is, and differed, resized or unreadable when the file says
- * otherwise, with the render written aside for each refusal.
+ * otherwise, with the render written aside for each refusal; and a plate
+ * that says which faces it was drawn in, so a render drawn in other faces
+ * than its baseline was adopted on says so.
  */
 
 #include <gtest/gtest.h>
@@ -14,7 +16,9 @@
 #include <sigilweave/testing/Plate.h>
 
 #include <filesystem>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "ScratchDir.h"
 #include "support/Paragraphs.h"
@@ -96,4 +100,69 @@ TEST(WeaveBaseline, AMovedRenderDiffersAndIsWrittenAside) {
                                               scratch.path / "junk.png")
                 .outcome,
             BaselineOutcome::kUnreadable);
+}
+
+namespace {
+
+/// "AVn" in @p face at 24 px, drawn on a white plate.
+weave::testing::Plate plateIn(const sk_sp<SkTypeface>& face) {
+  TextStyle style = basicStyle(24.0f);
+  style.shaping.typeface = face;
+  BlockFlow flow(SkRect::MakeXYWH(4, 4, 190, 30));
+  weave::testing::Plate plate({200, 40}, SK_ColorWHITE);
+  plate.draw(weave::testing::lay(sigil::test::fonts(),
+                                 paragraphIn(u8"AVn", style), flow));
+  return plate;
+}
+
+}  // namespace
+
+TEST(WeaveBaseline, APlateListsTheFacesItWasDrawnIn) {
+  const weave::testing::Plate plate = plateIn(sigil::test::instrument::sans());
+  const std::vector<std::string> faces = plate.faces();
+  ASSERT_EQ(faces.size(), 1u);
+  EXPECT_NE(faces.front().find("revision"), std::string::npos);
+  EXPECT_EQ(plate.faces(), faces) << "asking twice answers the same faces";
+  EXPECT_TRUE(weave::testing::Plate({0, 0}, SK_ColorWHITE).faces().empty());
+}
+
+TEST(WeaveBaseline, ARenderInOtherFacesSaysTheFacesChanged) {
+  const sigil::test::ScratchDir scratch("weave_baseline_faces");
+  const std::filesystem::path baseline = scratch.path / "plate.png";
+  using weave::testing::BaselineAction;
+  using weave::testing::BaselineOutcome;
+  const weave::testing::Plate adopted =
+      plateIn(sigil::test::instrument::sans());
+  ASSERT_TRUE(weave::testing::compareToBaseline(adopted, baseline,
+                                                BaselineAction::kAdopt)
+                  .passed());
+  EXPECT_TRUE(std::filesystem::exists(weave::testing::facesBeside(baseline)));
+  EXPECT_EQ(weave::testing::compareToBaseline(adopted, baseline).outcome,
+            BaselineOutcome::kMatched);
+
+  const weave::testing::BaselineComparison changed =
+      weave::testing::compareToBaseline(
+          plateIn(sigil::test::instrument::optical()), baseline);
+  EXPECT_EQ(changed.outcome, BaselineOutcome::kFacesChanged);
+  EXPECT_FALSE(changed.passed());
+  EXPECT_EQ(changed.facesGone, adopted.faces());
+  ASSERT_EQ(changed.facesNew.size(), 1u);
+  EXPECT_NE(weave::testing::describe(changed).find("faces changed"),
+            std::string::npos);
+}
+
+TEST(WeaveBaseline, APlateWithNoRoomReadsAsResizedRatherThanCrashing) {
+  const sigil::test::ScratchDir scratch("weave_baseline_empty");
+  const std::filesystem::path baseline = scratch.path / "plate.png";
+  ASSERT_TRUE(weave::testing::compareToBaseline(
+                  plateIn(sigil::test::instrument::sans()), baseline,
+                  weave::testing::BaselineAction::kAdopt)
+                  .passed());
+  BlockFlow flow(SkRect::MakeWH(100, 40));
+  weave::testing::Plate empty({0, 0}, SK_ColorWHITE);
+  empty.draw(
+      weave::testing::lay(sigil::test::fonts(), makeParagraph(u8"one"), flow));
+  EXPECT_TRUE(empty.size().isEmpty());
+  EXPECT_EQ(weave::testing::compareToBaseline(empty.pixels(), baseline).outcome,
+            weave::testing::BaselineOutcome::kResized);
 }
