@@ -9,7 +9,10 @@
 //          and the one thing that changes between bulletins is which area
 //          is being read — so the sheet has one dominant move, that name
 //          arriving in the middle of its own ring, lit again on the ring
-//          where it stands, and everything else supports it.
+//          where it stands, and everything else supports it. A hand reads
+//          the ring round in order and rests on that area while the column
+//          sets its forecast; under the name, through the ring's porthole,
+//          the chart the synopsis describes deepens and drifts on.
 //
 // FROM THE RECORD
 //   * Broadcast by BBC Radio 4 for the Maritime and Coastguard Agency from
@@ -27,7 +30,8 @@
 //
 // THIS STUDY'S OWN: the forecast text, the stations and the 1003 are
 // plausible inventions in the real vocabulary; every colour, beat and
-// radius, and the decision to set the areas on a ring at all.
+// radius, the decision to set the areas on a ring at all, the reading
+// hand, and where the chart puts the low and the high.
 //
 // HOW IT IS BUILT
 //   The words are `data/content.json`; the look is `sheet()` — the
@@ -47,10 +51,12 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Ground.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/decode/Json.h>
+#include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
@@ -84,17 +90,21 @@ namespace {
 
 constexpr SkSize kCanvas{1440, 880};
 
-// The night sea the sheet is set on, and the lift a panel washes it with.
-// A gradient takes colours rather than custom properties, so these two are
-// constants rather than tokens.
+// The night sea the sheet is set on, the lift a panel washes it with, and
+// the accent every light on the sheet is struck in. A gradient takes
+// colours rather than custom properties, so these are constants, and the
+// sheet's tokens are stated from them.
 constexpr material::Color kSea = hexColor(0x06090E);
 constexpr material::Color kSeaLift = hexColor(0x0B111A);
+constexpr material::Color kAmber = hexColor(0xF0A03C);
 
 // The ring panel: the square it stands in, the baseline the sea areas sit
-// on, and the hairline inside the lettering.
+// on, and the hairline inside the lettering, whose disc is the porthole
+// the pressure chart shows through.
 constexpr float kRingBox = 660;
 constexpr float kRingRadius = 292;
 constexpr float kInnerRadius = 238;
+constexpr float kPorthole = kInnerRadius - 9;
 constexpr SkPoint kEye{kRingBox * 0.5f, kRingBox * 0.5f};
 
 // One pass is a bulletin, and its last seconds are dark, so a loop that
@@ -102,6 +112,29 @@ constexpr SkPoint kEye{kRingBox * 0.5f, kRingBox * 0.5f};
 constexpr float kLoop = 15;
 // The grade swell's period; the still is taken at its second peak.
 constexpr float kBreathPeriod = 7.2f;
+// The gale lamp's period and the share of it the lamp is lit.
+constexpr float kLampPeriod = 1.5f;
+constexpr float kLampLit = 0.6f;
+
+// THE READING: a hand sweeps the ring in reading order at one pace, rests
+// on the area being read for as long as the column sets its forecast, then
+// reads on to the last area and goes dark. Every area rises as the hand
+// reaches it, so the pace is in degrees per second.
+constexpr float kReadingStarts = 0.30f;
+constexpr float kReadingPace = 75;
+constexpr float kReadingResumes = 4.20f;
+// The low deepens and drifts toward Fair Isle across this stretch of the
+// bulletin, after the synopsis has named it.
+constexpr float kLowFrom = 2.70f;
+constexpr float kLowTo = 10.5f;
+constexpr float kLowDeepens = 0.84f;
+
+/** A POINT ON THE CHART at @p bearing, degrees clockwise from north, and
+ *  @p radius from the middle of the islands. */
+SkPoint compass(float bearing, float radius) {
+  const float radians = (bearing - 90) * std::numbers::pi_v<float> / 180;
+  return arrange::onEllipse(kEye, {radius, radius}, radians);
+}
 
 /** A SEA AREA AND ITS BEARING, degrees clockwise from north — rounded to
  *  the ring's legibility, since two areas three degrees apart would set
@@ -127,7 +160,10 @@ StyleSheet sheet() {
           .var("keyline", hexColor(0x1A2532))
           .var("keyline-deep", hexColor(0x121B26))
           .var("bar", hexColor(0x37475B))
-          .var("amber", hexColor(0xF0A03C))
+          .var("amber", kAmber)
+          .var("amber-wash", material::withAlpha(kAmber, 0.07f))
+          .var("isobar", hexColor(0x5E7186, 0.30f))
+          .var("isobar-bold", hexColor(0x6C819A, 0.46f))
           .var("amber-ground", hexColor(0x1C1206))
           .var("amber-edge", hexColor(0x4A3411))
           .var("chart", hexColor(0xBFC7D1))
@@ -195,6 +231,19 @@ StyleSheet sheet() {
           .fontSize(12)
           .letterSpacing(2)
           .ink(var("amber")),
+      // The pressure chart under the name: a centre's letter and its
+      // millibars, set as a synoptic chart sets them, quieter than the
+      // ring.
+      rule(".centre")
+          .fontWeight(700)
+          .fontSize(24)
+          .ink(var("isobar-bold")),
+      rule(".millibars")
+          .fontFamily(mono)
+          .fontSize(10.5)
+          .letterSpacing(0.6)
+          .ink(var("slate"))
+          .textAlign(weave::TextAlignment::kCenter),
       rule(".hero")
           .fontWeight(700)
           .fontSize(92)
@@ -209,8 +258,9 @@ struct ShippingForecast {
   /** The bulletin: every word the sheet says, read once in setup. */
   sketch::kit::Document bulletin;
   std::vector<Area> areas;
-  /** The sea area being read, as the ring names it. */
+  /** The sea area being read, as the ring names it, and where it stands. */
   std::string reading;
+  float readingBearing = 0;
 
   // The two stepped clocks. `cycle` wraps once per bulletin, so every
   // beat is a window of it and the sheet re-performs on the wrap;
@@ -233,6 +283,16 @@ struct ShippingForecast {
         .map(&choreograph::easeInOutQuad);
   }
 
+  /** WHEN THE READING HAND REACHES @p bearing: at one pace from the first
+   *  area to the one being read, and from there, after the rest, at the
+   *  same pace to the last. */
+  [[nodiscard]] float reachedAt(float bearing) const {
+    const float first = areas.front().bearing;
+    if (bearing <= readingBearing)
+      return kReadingStarts + (bearing - first) / kReadingPace;
+    return kReadingResumes + (bearing - readingBearing) / kReadingPace;
+  }
+
   // ---------------------------------------------------------------------
   // The dominant move
 
@@ -244,9 +304,10 @@ struct ShippingForecast {
    *  letter without moving the next, so it is driven at draw time over
    *  glyphs shaped once, and a small per-glyph offset rolls the swell
    *  along the line. The ramp is pinned to the line's metric band, so a
-   *  letter rises THROUGH it and cools as it lands. */
+   *  letter rises THROUGH it and cools as it lands. The line starts to
+   *  rise at @p from on the bulletin's clock. */
   [[nodiscard]] Element heroLine(const data::Json& line, const char* key,
-                                 float delay) {
+                                 float from) {
     static const material::skia::Paint ramp = material::skia::Paint::linearUnit(
         {0.5f, 0.0f}, {0.5f, 1.0f},
         {{0.00f, hexColor(0xFFFBF2)},
@@ -263,7 +324,7 @@ struct ShippingForecast {
                                  .durationMs = 560,
                                  .from = motion::Spread::From::Start},
                      .unit = weave::Unit::Glyph,
-                     .progress = beat(0.55f + delay, 2.55f + delay)})
+                     .progress = beat(from, from + 2.0f)})
             .textFx({.effect = textFx::variableAxisSweep("GRAD", 400, 880),
                      .stagger = {.eachMs = 34, .durationMs = 620},
                      .progress = motion::bind(&seconds)
@@ -287,10 +348,7 @@ struct ShippingForecast {
    *  off its own bearing, and they beat in reading order. */
   [[nodiscard]] Element ringPanel() {
     const data::Json& ring = bulletin["ring"];
-    const auto compass = [](float bearing, float radius) {
-      const float radians = (bearing - 90) * std::numbers::pi_v<float> / 180;
-      return arrange::onEllipse(kEye, {radius, radius}, radians);
-    };
+    const float reached = reachedAt(readingBearing);
     return box().width(kRingBox).height(kRingBox).flexShrink(0).children({
         // The ground under the lettering never moves, so it is painted once.
         box()
@@ -302,23 +360,35 @@ struct ShippingForecast {
                     {0.5f, 0.5f}, 0.94f,
                     {{0.0f, kSeaLift},
                      {0.62f, hexColor(0x090E15)},
-                     {1.0f, material::Color{kSea.r, kSea.g, kSea.b, 0}}})),
+                     {1.0f, material::withAlpha(kSea, 0)}})),
                 kit::ring(kEye, kRingRadius + 21,
                           stroke(1, Fill::var("keyline"))),
                 kit::ring(kEye, kInnerRadius, stroke(1, Fill::var("keyline"))),
-                kit::ring(kEye, kInnerRadius - 9,
-                          stroke(1, Fill::var("keyline-deep"))),
+                kit::ring(kEye, kPorthole, stroke(1, Fill::var("keyline-deep"))),
             }),
+        pressureChart().opacity(beat(0.40f, 1.60f)),
+        readingHand(),
+        // The area being read keeps its slice of the ring lit once the hand
+        // has reached it, from the hairline out to the ticks.
+        kit::disc(kEye, kRingRadius + 21)
+            .key("reading-slice")
+            .shape(sigil::geometry::shapes::sector(
+                readingBearing - 90 - 7, 14,
+                kInnerRadius / (kRingRadius + 21)))
+            .fill(Fill::var("amber-wash"))
+            .opacity(beat(reached, reached + 0.6f)),
         each(areas,
              [&](const Area& area, size_t index) {
+               const bool read = area.name == reading;
+               const float at = reachedAt(area.bearing);
                return box()
                    .key("tick" + std::to_string(index))
-                   .width(1)
-                   .height(9)
+                   .width(read ? 1.5f : 1)
+                   .height(read ? 18 : 9)
                    .rotate(area.bearing)
-                   .centerAt(compass(area.bearing, kRingRadius + 28))
-                   .fill(Fill::var("slate-dim"))
-                   .opacity(beat(0.10f, 1.20f));
+                   .centerAt(compass(area.bearing, kRingRadius + (read ? 32 : 28)))
+                   .fill(Fill::var(read ? "amber" : "slate-dim"))
+                   .opacity(beat(at - 0.08f, at + 0.30f));
              }),
         each(bulletin["cardinals"].items(),
              [&](const data::Json& letter, size_t quarter) {
@@ -331,7 +401,7 @@ struct ShippingForecast {
         each(areas,
              [&](const Area& area, size_t index) {
                const float radius = index % 2 == 0 ? kRingRadius : kRingRadius - 31;
-               const float start = 0.20f + index * 0.17f;
+               const float at = reachedAt(area.bearing) - 0.06f;
                return text(area.name)
                    .styleClass(area.name == reading ? "area reading" : "area")
                    .key("area" + std::to_string(index))
@@ -343,20 +413,165 @@ struct ShippingForecast {
                                 .autoFlip = false})
                    .textFx({.effect = textFx::rise(13),
                             .stagger = {.eachMs = 20, .durationMs = 420},
-                            .progress = beat(start, start + 0.62f)});
+                            .progress = beat(at, at + 0.62f)});
              }),
+        // A lamp comes up behind the name as it arrives, spreading from
+        // the middle, and breathes with the grade the name breathes on.
+        kit::disc(kEye, kPorthole)
+            .key("lamp")
+            .fill(material::skia::Paint::radial(
+                {kPorthole, kPorthole}, kPorthole,
+                {{0.0f, material::withAlpha(kAmber, 0.15f)},
+                 {0.5f, material::withAlpha(kAmber, 0.05f)},
+                 {1.0f, material::withAlpha(kAmber, 0)}}))
+            .scale(motion::bind(&cycle)
+                       .window(reached, reached + 1.4f)
+                       .map(&choreograph::easeOutCubic))
+            .opacity(motion::bind(&seconds)
+                         .source(0, kBreathPeriod)
+                         .cosine()
+                         .target(0.55f, 1)),
         box()
             .column()
             .width(2 * kInnerRadius - 40)
             .centerAt({kEye.x(), kEye.y() - 6})
             .key("hero")
-            .children({heroLine(ring["hero"][0], "hero-1", 0),
-                       heroLine(ring["hero"][1], "hero-2", 0.22f)}),
+            .children({heroLine(ring["hero"][0], "hero-1", reached),
+                       heroLine(ring["hero"][1], "hero-2", reached + 0.22f)}),
         document::eyebrow(ring["cap"])
             .key("ring-cap")
-            .opacity(beat(2.30f, 2.95f))
+            .opacity(beat(reached + 1.75f, reached + 2.40f))
             .centerAt({kEye.x(), kEye.y() + 118}),
     });
+  }
+
+  /** THE READING HAND: a hairline from the middle to the ticks with a
+   *  wake of light behind it, turning clockwise in reading order. It is
+   *  two turns nested, one to the area being read and one on from it to
+   *  the last, so the rest between them is where neither is moving. A
+   *  sweep's ramp begins due east, which is where the hand stands before
+   *  it is turned. */
+  [[nodiscard]] Element readingHand() {
+    const float first = areas.front().bearing;
+    const float last = areas.back().bearing;
+    const float finished = reachedAt(last);
+    const float radius = kRingRadius + 21;
+    return kit::disc(kEye, radius)
+        .key("reading-hand")
+        .rotate(motion::bind(&cycle)
+                    .window(kReadingStarts, reachedAt(readingBearing))
+                    .target(first - 90, readingBearing - 90))
+        .opacity(motion::bind(&cycle)
+                     .source(0, kLoop)
+                     .trapezoid((kReadingStarts - 0.20f) / kLoop,
+                                (kReadingStarts + 0.20f) / kLoop,
+                                finished / kLoop, (finished + 0.80f) / kLoop))
+        .children({
+            // The wake is the last seventh of a sweep ramp, so the node is
+            // shaped to that slice and paints nothing where the ramp is clear.
+            box()
+                .cover()
+                .shape(sigil::geometry::shapes::sector(-51.5f, 51.5f))
+                .rotate(motion::bind(&cycle)
+                            .window(kReadingResumes, finished)
+                            .target(0, last - readingBearing))
+                .fill(material::skia::Paint::sweep(
+                    {radius, radius},
+                    {{0.0f, material::withAlpha(kAmber, 0)},
+                     {0.86f, material::withAlpha(kAmber, 0)},
+                     {1.0f, material::withAlpha(kAmber, 0.16f)}}))
+                .children({
+                    box()
+                        .left(radius)
+                        .top(radius - 0.5f)
+                        .width(radius)
+                        .height(1)
+                        .fill(material::skia::Paint::linearUnit(
+                            {0, 0.5f}, {1, 0.5f},
+                            {{0.0f, material::withAlpha(kAmber, 0)},
+                             {1.0f, material::withAlpha(kAmber, 0.7f)}})),
+                }),
+        });
+  }
+
+  /** THE PRESSURE CHART the synopsis describes, seen through the porthole
+   *  under the name: the Rockall low as nested isobars, each opening a
+   *  little further toward the islands as the gradient slackens away from
+   *  the centre, and the Atlantic high to the south-west.
+   *
+   *  Across the bulletin the low drifts toward Fair Isle and deepens —
+   *  its isobars draw in about the centre and its figure turns from what
+   *  it is now to what it is expected to be — while the high fades. The
+   *  isobars are described once and ride the bound drift and scale; a
+   *  texture under a scale that changes every frame would be re-rastered
+   *  every frame, so they stay live paint. */
+  [[nodiscard]] Element pressureChart() {
+    const data::Json& chart = bulletin["ring"]["chart"];
+    const data::Json& low = chart["low"];
+    const data::Json& high = chart["high"];
+    const float distance = (float)low["distance"].number();
+    const SkPoint lowAt = compass((float)low["bearing"].number(), distance);
+    const SkPoint lowBound = compass((float)low["toward"].number(), distance * 0.86f);
+    const SkPoint highAt =
+        compass((float)high["bearing"].number(), (float)high["distance"].number());
+    const auto drift = [&](float span) {
+      return motion::bind(&cycle)
+          .window(kLowFrom, kLowTo)
+          .map(&choreograph::easeInOutSine)
+          .target(0, span);
+    };
+    const auto isobar = [](SkPoint centre, float across, float tilt, bool bold) {
+      return box()
+          .width(across * 2)
+          .height(across * 1.56f)
+          .centerAt(centre)
+          .rotate(tilt)
+          .shape(sigil::geometry::shapes::circle())
+          .fill(Fill::none())
+          .stroke(stroke(1, Fill::var(bold ? "isobar-bold" : "isobar")));
+    };
+    const auto figure = [](SkPoint at, const data::Json& words) {
+      return text(words).styleClass("millibars").width(60).centerAt(at);
+    };
+    std::vector<Element> lowRings, highRings;
+    for (int step = 0; step < 8; ++step) {
+      const float across = 26 + step * 34 + step * step * 2.5f;
+      const SkPoint centre{lowAt.x() + step * 7.0f, lowAt.y() + step * 5.5f};
+      lowRings.push_back(isobar(centre, across, -26 + step * 2.0f, step % 4 == 3));
+    }
+    for (int step = 0; step < 3; ++step)
+      highRings.push_back(isobar(highAt, 64 + step * 52, 18, false));
+    const SkPoint below{0, 24};
+    return box()
+        .cover()
+        .shape(sigil::geometry::shapes::Circle{.inset = kEye.x() - kPorthole})
+        .overflow(Overflow::Clip)
+        .key("pressure-chart")
+        .children({
+            box().cover().key("high").opacity(drift(1).invert().target(0.45f, 1)).children({
+                box().cover().key("high-isobars").children(std::move(highRings)),
+                text(high["mark"]).styleClass("centre").centerAt(highAt),
+                figure(highAt + below, high["reading"]),
+            }),
+            box()
+                .cover()
+                .key("low")
+                .translateX(drift(lowBound.x() - lowAt.x()))
+                .translateY(drift(lowBound.y() - lowAt.y()))
+                .children({
+                    box()
+                        .cover()
+                        .key("low-isobars")
+                        .transformOrigin(Dimension(lowAt.x()), Dimension(lowAt.y()))
+                        .scale(drift(kLowDeepens - 1).offset(1))
+                        .children(std::move(lowRings)),
+                    text(low["mark"]).styleClass("centre").centerAt(lowAt),
+                    figure(lowAt + below, low["now"])
+                        .opacity(motion::bind(&cycle).window(6.0f, 7.0f).invert()),
+                    figure(lowAt + below, low["later"])
+                        .opacity(motion::bind(&cycle).window(6.0f, 7.0f)),
+                }),
+        });
   }
 
   // ---------------------------------------------------------------------
@@ -365,7 +580,9 @@ struct ShippingForecast {
   /** THE GALE WARNING: the strip slides in and crossfades into an elastic
    *  settle over the last fifth of the slide, so it arrives and
    *  compresses in one gesture. The dot and the words are one statement,
-   *  so the strip's ink is the accent and the dot names no colour. */
+   *  so the strip's ink is the accent and the dot names no colour. The
+   *  dot is the warning's lamp: it blinks for as long as the warning
+   *  stands, with a halo that goes out with it. */
   [[nodiscard]] Element galeStrip() {
     return box()
         .row()
@@ -378,7 +595,22 @@ struct ShippingForecast {
         .ink(var("amber"))
         .opacity(beat(0.10f, 0.70f))
         .children({
-            box().width(7).height(7).borderRadius({4}).fill(Fill::currentInk()),
+            box()
+                .width(7)
+                .height(7)
+                .borderRadius({4})
+                .fill(Fill::currentInk())
+                .opacity(motion::bind(&seconds)
+                             .source(0, kLampPeriod)
+                             .square(kLampLit)
+                             .target(0.28f, 1))
+                .children({
+                    kit::disc({3.5f, 3.5f}, 13).fill(
+                        material::skia::Paint::glowUnit(
+                            {0.5f, 0.5f}, 1.0f,
+                            {{0.0f, material::withAlpha(kAmber, 0.45f)},
+                             {1.0f, material::withAlpha(kAmber, 0)}})),
+                }),
             text(bulletin["gale"])
                 .styleClass("warning")
                 .key("gale")
@@ -401,9 +633,10 @@ struct ShippingForecast {
   /** THE AREA FORECAST: one paragraph, three faces, three tracks.
    *
    *  The first letter of every word lifts further than the rest of its
-   *  word, and a grade sweeps the initials the grotesque can carry it on —
-   *  the glossary terms, set in the serif, are left out by the name they
-   *  were written in. All three cascades are numbered over the PARAGRAPH
+   *  word, and a grade passes over the initials the grotesque can carry
+   *  it on and lets them go again, as a reader's stress passes along a
+   *  line and leaves it even — the glossary terms, set in the serif, are
+   *  left out by the name they were written in. All three cascades are numbered over the PARAGRAPH
    *  (`beats::Text`), so every glyph of word ten is on beat ten whichever
    *  track holds it. The Beaufort numerals are found by pattern and
    *  repainted, never re-shaped. */
@@ -428,8 +661,11 @@ struct ShippingForecast {
                   SpanStyle().ink(var("amber")))
             .textFx(words(initials, textFx::rise(16), 460, 1.75f, 4.10f))
             .textFx(words(initials & !selectors::style("term"),
-                          textFx::variableAxisSweep("GRAD", 400, 900), 460,
-                          1.75f, 4.10f))
+                          textFx::sequence(
+                              textFx::variableAxisSweep("GRAD", 400, 900)
+                                  .until(0.45f),
+                              textFx::variableAxisSweep("GRAD", 900, 400)),
+                          620, 1.75f, 4.10f))
             .textFx(words(weave::selectors::each(weave::Unit::Word).drop(1),
                           textFx::rise(9), 500, 1.83f, 4.30f)),
     });
@@ -482,7 +718,9 @@ struct ShippingForecast {
 
   /** THE BEAUFORT SCALE, which is why the paragraph has numerals at all:
    *  the forces this bulletin quotes carry the accent, bar and numeral
-   *  alike, and a force it does not quote has a darker bar than numeral. */
+   *  alike, and a force it does not quote has a darker bar than numeral.
+   *  A force it quotes only as OCCASIONAL is drawn in outline, since the
+   *  bulletin says it may not blow at all. */
   [[nodiscard]] Element beaufort() {
     const data::Json& page = bulletin["beaufort"];
     return panel(page["eyebrow"], 3.20f, {
@@ -490,6 +728,14 @@ struct ShippingForecast {
             each(std::views::iota(0, 13),
                  [](int force) {
                    const bool quoted = force >= 5 && force <= 8;
+                   const bool occasional = force == 8;
+                   Element bar = box()
+                                     .width(pct(100))
+                                     .height(6 + force * 2.6f)
+                                     .fill(Fill::var(occasional ? "amber-ground"
+                                                     : quoted   ? "amber"
+                                                                : "bar"));
+                   if (occasional) bar.stroke(stroke(1, Fill::var("amber")));
                    return box()
                        .flexGrow(1)
                        .column()
@@ -498,8 +744,7 @@ struct ShippingForecast {
                        .key("force" + std::to_string(force))
                        .ink(var(quoted ? "amber" : "slate-dim"))
                        .children({
-                           box().width(pct(100)).height(6 + force * 2.6f).fill(
-                               Fill::var(quoted ? "amber" : "bar")),
+                           bar,
                            text(std::to_string(force)).styleClass("force"),
                        });
                  })),
@@ -580,6 +825,11 @@ struct ShippingForecast {
                              {kSea, kSeaLift, hexColor(0x05080C)},
                              {0.0f, 0.55f, 1.0f}))
         .children({
+            // The sea falls to near black at the corners. It carries no
+            // grain: `kit::grained` lays its noise on as soft light, which
+            // moves a ground this dark by less than one level.
+            box().cover().fill(
+                kit::vignette(kCanvas, hexColor(0x020304, 0.9f), 0.3f)),
             spine().opacity(envelope()),
             box()
                 .column()
@@ -619,6 +869,8 @@ struct ShippingForecast {
                        (float)area["bearing"].number()});
     const data::Json& hero = bulletin["ring"]["hero"];
     reading = std::string(hero[0].text()) + " " + std::string(hero[1].text());
+    for (const Area& area : areas)
+      if (area.name == reading) readingBearing = area.bearing;
 
     ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double elapsed = ticker.elapsed();

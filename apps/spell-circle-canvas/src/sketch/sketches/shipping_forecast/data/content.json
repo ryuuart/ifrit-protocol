@@ -76,7 +76,23 @@
       "GERMAN",
       "BIGHT"
     ],
-    "cap": "SEA AREA · READ IN ORDER FROM VIKING"
+    "cap": "SEA AREA · READ IN ORDER FROM VIKING",
+    "chart": {
+      "low": {
+        "mark": "L",
+        "bearing": 296,
+        "distance": 168,
+        "now": "987",
+        "later": "968",
+        "toward": 340
+      },
+      "high": {
+        "mark": "H",
+        "bearing": 258,
+        "distance": 200,
+        "reading": "1031"
+      }
+    }
   },
   "gale": "GALE WARNING · GERMAN BIGHT · IMMINENT",
   "forecast": {
