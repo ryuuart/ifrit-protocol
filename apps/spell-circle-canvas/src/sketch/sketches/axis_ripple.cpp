@@ -58,6 +58,7 @@
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
+#include <string>
 #include <string_view>
 
 namespace material = sigil::material;
@@ -145,6 +146,7 @@ StyleSheet look() {
       rule("eyebrow").fontSize(11.5f).letterSpacing(2.4f),
       rule("caption").fontSize(11).letterSpacing(0.6f),
       rule("label").fontSize(11).letterSpacing(1.6f),
+      rule("footer").fontSize(11.5f).letterSpacing(0.2f).width(700),
       rule("hero, proof").fontWeight(700).ink(var("ink")),
       rule("hero").letterSpacing(1),
       rule("proof").fontSize(34).letterSpacing(0.6f),
@@ -157,6 +159,15 @@ StyleSheet look() {
 Text proofRun(const char (&tag)[5], float value) {
   return text(kProof).role("proof").font(
       {.variations = {weave::FontVariation(tag, value)}});
+}
+
+/** A difference of two measured widths, in the words its resolution allows.
+ *  Both widths are whole pixels rounded up, so equal widths say only that
+ *  the runs differ by less than a pixel, and unequal ones are right to the
+ *  whole pixel and no finer. */
+std::string toTheWholePixel(float drift) {
+  if (std::fabs(drift) < 0.5f) return "LESS THAN 1 PX";
+  return kit::formatted("%.0f PX, TO THE WHOLE PIXEL", drift);
 }
 
 /** The share of a pass each letter's beat opens after the one before it. */
@@ -190,7 +201,12 @@ struct AxisRipple {
   /** THE METER CELL under letter @p index: the grade it is being drawn at,
    *  as a level rising from the foot of its bar. It hangs off the letter's
    *  own rect, so it is exactly that letter's width, and reads the same
-   *  phase through the same swell one beat later per letter. */
+   *  phase through the same swell one beat later per letter.
+   *
+   *  A mark's margin is not read, and its insets take no sum, so "the
+   *  letter's foot plus the drop" has no placement that says it.
+   *  workaround: the cell stands at the foot and a constant translate
+   *  carries it down the rest of the way. */
   [[nodiscard]] Element level(size_t index) const {
     const float lag = beatFraction() * (float)index;
     return box()
@@ -198,7 +214,7 @@ struct AxisRipple {
         .left(0)
         .right(3)
         .top(pct(100))
-        .marginTop(kLevelDrop)
+        .translateY(kLevelDrop)
         .height(kLevelHeight)
         .fill(Fill::var("bed"))
         .children({box()
@@ -236,8 +252,9 @@ struct AxisRipple {
          // caption states the drive's own ends.
          document::caption(kit::formatted(
              "GRAD %.0f–%.0f · %.0f WAVE ACROSS THE WORD · %.1f S PER PASS · "
-             "RUN WIDTH Δ %.0f PX ACROSS THE RAMP",
-             kGradLight, kGradHeavy, kWavesAcross, kPeriod, gradHeroDrift))});
+             "THE RUN MOVES %s ACROSS THE RAMP",
+             kGradLight, kGradHeavy, kWavesAcross, kPeriod,
+             toTheWholePixel(gradHeroDrift).c_str()))});
   }
 
   /** One axis, proved: the word at each end of it, left edges aligned, a
@@ -271,10 +288,8 @@ struct AxisRipple {
              {row(light, std::move(lightRun)),
               row(heavy, proofRun(tag, heavy))}),
          document::caption(
-             kit::formatted("%s THE RUN BY %.0f PX (%.1f%%) · %s", movement,
-                            drift,
-                            lightWidth > 0 ? 100.0f * drift / lightWidth : 0.0f,
-                            consequence))
+             kit::formatted("%s THE RUN BY %s · %s", movement,
+                            toTheWholePixel(drift).c_str(), consequence))
              .styleClass(std::string(verdictClass))});
   }
 
