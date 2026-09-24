@@ -3,13 +3,18 @@
  * each agent answers, asked through the generated clients over one
  * dispatcher, with the refusals each owes — and the clock's claims, each
  * a case: a session is opened for its clock, a step moves it only under
- * Advance, two stills a wall-second apart under Pause are one picture,
- * a budget runs out once and says so to a client that enabled the
- * clock, and what a client set goes when it detaches.
+ * Advance, two stills a wall-second apart under Pause are one picture and
+ * a recording delivers nothing more under it, a hold and a speed act on
+ * the wall's frames, a budget runs out once and says so to a client that
+ * enabled the clock, and what a client set — the policy, the hold, the
+ * speed, the promotion pin — goes when it detaches.
  */
 
 #include <gtest/gtest.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilio/hub/Feed.h>
+#include <sigilio/hub/Hub.h>
+#include <sigilio/hub/Recording.h>
 #include <sigilprotocol/clock/ClockClient.h>
 #include <sigilprotocol/dispatch/InProcess.h>
 #include <sigilprotocol/host/HostClient.h>
@@ -18,11 +23,14 @@
 #include <sigilsketch/live/agent/HostAgents.h>
 
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -141,6 +149,25 @@ struct AgentHost {
     parameters.path = std::move(path);
     session::SessionClient(client.caller()).still(parameters, into(answered));
     return wait(answered);
+  }
+
+  /** Any command, through @p ask, which is handed the reply to pass on;
+   *  answered once the loop has turned far enough. */
+  template <class Result, class Ask>
+  Answer<Result> ask(Ask&& ask) {
+    std::optional<Answer<Result>> answered;
+    ask(into(answered));
+    return wait(answered);
+  }
+
+  /** Turns the loop for @p span of wall time, as a host that draws on its
+   *  own does. */
+  void turn(std::chrono::milliseconds span) {
+    const auto until = std::chrono::steady_clock::now() + span;
+    while (std::chrono::steady_clock::now() < until) {
+      agents.frame();
+      std::this_thread::sleep_for(2ms);
+    }
   }
 };
 
@@ -300,49 +327,19 @@ struct OpenedFor {
                        &sigil::sketch::kindOf<OpenedFor>);
 
 TEST(SketchClockAgent,
-     PauseWhileLoadingIsARepeatableRunHeldWhileAnythingArrives) {
-  const ScratchDir scratch("sketch-host-agents-loading");
-  protocol::Program program;
-  program.stateRoot = scratch.path;
-  protocol::Dispatcher dispatcher(std::move(program));
-  bool arriving = true;
-  sigil::sketch::HostAgents agents(
-      dispatcher, sigil::sketch::SessionAgentOptions{
-                      .fonts = &sigil::sketch::test::fonts(),
-                      .arriving = [&arriving] { return arriving; }});
-  const protocol::InProcess client(dispatcher);
-  const auto answer = [](auto& slot) { return AgentHost::into(slot); };
-
-  std::optional<Answer<protocol::values::Empty>> set;
-  clock::values::SetPolicyParameters parameters;
-  parameters.policy = clock::Policy_PauseWhileLoading;
-  clock::ClockClient(client.caller()).setPolicy(parameters, answer(set));
-  ASSERT_TRUE(set && *set);
-  std::optional<Answer<session::values::Summary>> opened;
-  session::values::OpenParameters open;
-  open.sketch = "agents_opened_for";
+     PauseWhileLoadingOpensARepeatableRunWhoseLaterFramesMoveByTheWall) {
+  AgentHost host;
+  ASSERT_TRUE(host.policy(clock::Policy_PauseWhileLoading));
   g_openedRepeatable = false;
-  session::SessionClient(client.caller()).open(open, answer(opened));
-  ASSERT_TRUE(opened && *opened);
-  // A sketch reads only that the clock is not the wall's.
+  ASSERT_TRUE(host.open("agents_opened_for"));
+  // A sketch reads only that the clock is not the wall's, and the open
+  // drew no frame: everything the setup asked for came with it.
   EXPECT_TRUE(g_openedRepeatable);
-
-  const auto seconds = [&] {
-    std::optional<Answer<clock::values::CurrentResult>> current;
-    clock::ClockClient(client.caller()).current(answer(current));
-    return current->result().seconds;
-  };
-  for (int turn = 0; turn < 5; ++turn) {
-    agents.frame();
-    std::this_thread::sleep_for(5ms);
-  }
-  EXPECT_EQ(seconds(), 0.0);
-  arriving = false;
-  for (int turn = 0; turn < 5; ++turn) {
-    agents.frame();
-    std::this_thread::sleep_for(5ms);
-  }
-  EXPECT_GT(seconds(), 0.0);
+  EXPECT_EQ(host.current().result().frame, 0u);
+  host.turn(20ms);
+  const Answer<clock::values::CurrentResult> after = host.current();
+  EXPECT_GT(after.result().frame, 0u);
+  EXPECT_GT(after.result().seconds, 0.0);
 }
 
 TEST(SketchSessionAgent, WritesAStillUnderTheStateRootAtItsDensity) {
@@ -409,6 +406,182 @@ TEST(SketchSessionAgent, RefusesWhatThisHostCannotDoNamingWhy) {
   client.pinDevice(gpu, AgentHost::into(device));
   ASSERT_TRUE(device && !*device);
   EXPECT_NE(device->error().message.find("CPU"), std::string::npos);
+}
+
+TEST(SketchClockAgent, AHoldKeepsTheWallsFramesWhereTheyStandUntilLetGo) {
+  AgentHost host;
+  ASSERT_TRUE(host.open("agents_marching_box"));
+  const clock::ClockClient clockClient(host.client.caller());
+  clock::values::PauseParameters hold;
+  hold.paused = true;
+  ASSERT_TRUE((host.ask<protocol::values::Empty>(
+      [&](auto reply) { clockClient.pause(hold, reply); })));
+  const clock::values::CurrentResult held = host.current().result();
+  EXPECT_TRUE(held.paused);
+  host.turn(60ms);
+  const clock::values::CurrentResult later = host.current().result();
+  // Frames were drawn, and none of them moved the clock.
+  EXPECT_GT(later.frame, held.frame);
+  EXPECT_EQ(later.seconds, held.seconds);
+
+  hold.paused = false;
+  ASSERT_TRUE((host.ask<protocol::values::Empty>(
+      [&](auto reply) { clockClient.pause(hold, reply); })));
+  host.turn(60ms);
+  EXPECT_FALSE(host.current().result().paused);
+  EXPECT_GT(host.current().result().seconds, held.seconds);
+}
+
+TEST(SketchClockAgent, ATimeScaleIsTheWallsSpeedAndNoneOfItNegative) {
+  AgentHost host;
+  ASSERT_TRUE(host.open("agents_marching_box"));
+  const clock::ClockClient clockClient(host.client.caller());
+  clock::values::TimeScaleParameters speed;
+  speed.scale = 0.0;
+  ASSERT_TRUE((host.ask<protocol::values::Empty>(
+      [&](auto reply) { clockClient.setTimeScale(speed, reply); })));
+  const clock::values::CurrentResult stopped = host.current().result();
+  EXPECT_EQ(stopped.time_scale, 0.0);
+  host.turn(60ms);
+  EXPECT_EQ(host.current().result().seconds, stopped.seconds);
+
+  speed.scale = -1.0;
+  const Answer<protocol::values::Empty> refused =
+      host.ask<protocol::values::Empty>(
+          [&](auto reply) { clockClient.setTimeScale(speed, reply); });
+  ASSERT_FALSE(refused);
+  EXPECT_NE(refused.error().message.find("negative"), std::string::npos);
+  EXPECT_EQ(host.current().result().time_scale, 0.0);
+}
+
+TEST(SketchSessionAgent, ASequenceIsAStillPerFrameSteppedBetweenUnderAdvance) {
+  AgentHost host;
+  ASSERT_TRUE(host.open("agents_marching_box"));
+  const session::SessionClient sessionClient(host.client.caller());
+  session::values::SequenceParameters three;
+  three.frames = 3;
+  const Answer<session::values::SequenceResult> underWall =
+      host.ask<session::values::SequenceResult>(
+          [&](auto reply) { sessionClient.sequence(three, reply); });
+  ASSERT_FALSE(underWall);
+  EXPECT_NE(underWall.error().message.find("Advance"), std::string::npos);
+
+  ASSERT_TRUE(host.policy(clock::Policy_Advance));
+  const Answer<session::values::SequenceResult> written =
+      host.ask<session::values::SequenceResult>(
+          [&](auto reply) { sessionClient.sequence(three, reply); });
+  ASSERT_TRUE(written) << written.error().message;
+  ASSERT_EQ(written.result().paths.size(), 3u);
+  EXPECT_EQ(written.result().width, 64u);
+  EXPECT_EQ(written.result().height, 48u);
+  const std::filesystem::path first = written.result().paths[0];
+  EXPECT_EQ(first.parent_path().parent_path(), host.scratch.path / "sequences");
+  for (const std::string& path : written.result().paths)
+    EXPECT_EQ(std::filesystem::path(path).parent_path(), first.parent_path());
+  // Every frame is another moment of a box that moves every frame.
+  EXPECT_NE(bytesOf(written.result().paths[0]),
+            bytesOf(written.result().paths[1]));
+  EXPECT_NE(bytesOf(written.result().paths[1]),
+            bytesOf(written.result().paths[2]));
+
+  three.rate = 2.0;
+  const Answer<session::values::SequenceResult> tooSlow =
+      host.ask<session::values::SequenceResult>(
+          [&](auto reply) { sessionClient.sequence(three, reply); });
+  ASSERT_FALSE(tooSlow);
+  EXPECT_NE(tooSlow.error().message.find("rate"), std::string::npos);
+}
+
+TEST(SketchClockAgent, TheHoldTheSpeedAndThePromotionPinGoWithTheirClient) {
+  AgentHost host;
+  ASSERT_TRUE(host.open("agents_marching_box"));
+  {
+    const protocol::InProcess setter(host.dispatcher);
+    std::optional<Answer<protocol::values::Empty>> held, slowed, pinned;
+    clock::values::PauseParameters hold;
+    hold.paused = true;
+    clock::ClockClient(setter.caller()).pause(hold, AgentHost::into(held));
+    clock::values::TimeScaleParameters half;
+    half.scale = 0.5;
+    clock::ClockClient(setter.caller())
+        .setTimeScale(half, AgentHost::into(slowed));
+    session::values::PromotionParameters eager;
+    eager.promotion = session::Promotion_Eager;
+    session::SessionClient(setter.caller())
+        .pinPromotion(eager, AgentHost::into(pinned));
+    ASSERT_TRUE(held && *held && slowed && *slowed && pinned && *pinned);
+    const clock::values::CurrentResult during = host.current().result();
+    EXPECT_TRUE(during.paused);
+    EXPECT_EQ(during.time_scale, 0.5);
+    host.turn(30ms);
+    EXPECT_GT(host.current().result().frame, 1u);
+  }
+  // The setter has gone: the clock moves at the wall's own speed again,
+  // and the session was opened anew for the runtime's own promotion,
+  // drawing its first frame.
+  const clock::values::CurrentResult after = host.current().result();
+  EXPECT_FALSE(after.paused);
+  EXPECT_EQ(after.time_scale, 1.0);
+  EXPECT_EQ(after.policy, clock::Policy_Wall);
+  EXPECT_EQ(after.frame, 1u);
+}
+
+/** The recording the reader below plays, which a case writes first. */
+std::filesystem::path g_recording;
+/** How many arrivals the reader's feed had been handed at its last
+ *  frame. */
+uint64_t g_arrivals = 0;
+
+/** A sketch reading a recording through a port mounted onto it, as a
+ *  capture of a live feed does. */
+struct RecordingReader {
+  std::shared_ptr<sigil::io::Feed> feed;
+  void setup(sigil::sketch::SketchContext& ctx) {
+    ctx.canvas(16, 16);
+    ctx.assets.hub().mount("udp://:27183", g_recording);
+    feed = ctx.assets.hub().feed("udp://:27183");
+  }
+  void update(double, sigil::sketch::SketchContext&) {
+    g_arrivals = feed ? feed->generation() : 0;
+  }
+};
+
+[[maybe_unused]] const bool kRecordingReaderRegistered = sigil::sketch::add(
+    "agents_recording_reader", nullptr, "Test",
+    "a sketch that reads a recording", &sigil::sketch::kindOf<RecordingReader>);
+
+std::shared_ptr<const sigil::io::Bytes> recorded(std::string_view text) {
+  const auto* first = reinterpret_cast<const std::byte*>(text.data());
+  sigil::io::Bytes bytes;
+  bytes.bytes.assign(first, first + text.size());
+  return std::make_shared<const sigil::io::Bytes>(std::move(bytes));
+}
+
+TEST(SketchClockAgent, UnderPauseARecordingDeliversNothingMore) {
+  const ScratchDir recordings("sketch-host-agents-recording");
+  g_recording = recordings.path / "sky.feed";
+  {
+    sigil::io::RecordingWriter writer(g_recording);
+    ASSERT_TRUE(writer.good());
+    ASSERT_TRUE(writer.append({1, 0.0, recorded("dawn")}));
+    ASSERT_TRUE(writer.append({2, 0.5, recorded("noon")}));
+  }
+  AgentHost host;
+  ASSERT_TRUE(host.policy(clock::Policy_Advance));
+  ASSERT_TRUE(host.open("agents_recording_reader"));
+  ASSERT_TRUE(host.step(0.25));
+  EXPECT_EQ(g_arrivals, 1u);
+
+  ASSERT_TRUE(host.policy(clock::Policy_Pause));
+  host.turn(600ms);  // past the moment the second arrival was recorded at
+  ASSERT_TRUE(host.still());
+  EXPECT_EQ(g_arrivals, 1u);
+  EXPECT_NEAR(host.current().result().seconds, 0.25, 1e-9);
+
+  // What gives the case its power: the same clock moved on delivers it.
+  ASSERT_TRUE(host.policy(clock::Policy_Advance));
+  ASSERT_TRUE(host.step(0.5));
+  EXPECT_EQ(g_arrivals, 2u);
 }
 
 }  // namespace

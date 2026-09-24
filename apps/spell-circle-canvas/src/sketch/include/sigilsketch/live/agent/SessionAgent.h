@@ -47,12 +47,6 @@ struct SessionAgentOptions {
   /** The importer for a Python file; null leaves Python files
    *  unavailable. */
   Kind (*pythonLoader)(const std::filesystem::path&) = nullptr;
-  /** Whether something the running session asked for is still on its
-   *  way, which holds the clock under `PauseWhileLoading`. Empty reads
-   *  as nothing arriving: under any policy but the wall's a session is
-   *  opened for a repeatable run, and a page it draws settles before its
-   *  first frame. */
-  std::function<bool()> arriving;
 };
 
 /** THE ONE RUNNING SKETCH A PROTOCOL HOST HOLDS, answered over the
@@ -65,6 +59,13 @@ struct SessionAgentOptions {
  *  until a client steps, so its first frame is the client's first step,
  *  as a plate's is. A change between the wall's clock and any other
  *  opens it again at its own zero.
+ *
+ *  `PauseWhileLoading` HOLDS THE CLOCK THROUGH THE OPEN. A repeatable run
+ *  has everything its setup asked for before the open is answered: a
+ *  page's settle is driven through on the thread that opens it, and a
+ *  file, a face or a fetched resource is read whole where it is asked
+ *  for. So no frame the host draws afterwards finds anything still on
+ *  its way, and those frames move by the wall.
  *
  *  A still under a moving clock is taken as a plate is: on a raster
  *  surface of the canvas times the density, cleared to the declared
@@ -147,8 +148,9 @@ class SessionAgent final : public protocol::session::SessionAgent {
   // --- the host's loop ----------------------------------------------------
 
   /** ONE TURN OF THE HOST'S LOOP: the running host polled for an edit,
-   *  an open that was waiting on a build answered, and — under a policy
-   *  that moves by itself — one frame drawn at the wall's delta. */
+   *  an open that was waiting on a build answered, and — under the wall's
+   *  clock or `PauseWhileLoading` — one frame drawn at the wall's
+   *  delta. */
   void frame();
 
   /** Whether an open is still waiting on a build. */
