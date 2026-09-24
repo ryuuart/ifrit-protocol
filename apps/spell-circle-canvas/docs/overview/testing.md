@@ -58,8 +58,9 @@ a closed form, a field walk, one description drawn two ways, two
 executors of one kernel agreeing bit for bit. It never pins what a
 rebuild, a font, a device or a clock could move — an anti-aliased byte, a
 fitted tolerance, a byte layout the compiler chose, elapsed time. A test
-that renders a picture to compare it belongs to the plate ledger and one
-that times a loop to bound it belongs to the bench ledger.
+that renders a picture to compare it is a plate — a case of its own,
+below, or a scene in the sketch library's plate ledger — and one that
+times a loop to bound it belongs to the bench ledger.
 
 A claim made N times with one thing varying is one `TEST_P` whose
 parameter is that thing, with its rows named. One file per subject, named
@@ -84,10 +85,40 @@ do not:
 | `usd` | OpenUSD's plugin registry |
 | `substance` | the Substance SDK's sample archives |
 | `ultralight` | the Ultralight SDK |
+| `plates` | the font set and platform a library's committed baseline images were adopted on |
 | `cocoa`, `window` | a window server, and for `window` a real window |
 
 `ctest -L <label>` is the run a verdict about that thing may be read out
 of; `ctest -LE <label>` is how a machine without it checks the rest.
+
+## A library's own harness
+
+Every Sigil library carries a `<library>::testing` header — its own
+target, linked by test binaries and by nothing that ships — and the
+shape of each is the same:
+
+- **Values in.** A case states what it sets up as the library's own
+  values, under a context it names: the font context a passage is laid
+  under, the clock a motion is stepped by, the device a pass runs on.
+- **Values out.** What the library computed comes back as plain values
+  that compare with `==` — the lines, runs and glyphs of a layout, the
+  samples of a curve — so a case states what it expects as a value
+  rather than walking the library's internals to find it.
+- **Images out, baselines as ctest cases.** Whatever the library draws
+  renders onto a CPU raster plate and is held against a PNG committed
+  beside the tests, one ctest case per plate, labelled `plates`. The bar
+  is identity, since the same input on the same machine rasterizes to
+  the same bytes; a refused render is written under the build tree and
+  the failure names both files. `SIGIL_PLATES_REBASE=1` in the
+  environment adopts every render as its baseline instead of judging it,
+  for a move that was meant, committed with its cause.
+
+A host that exposes the same subject to a client — an inspector, a
+script, an agent driving the application — mirrors these values as a
+protocol domain: an agent that answers with the library's values,
+mounted by the host. The library never learns of the protocol; its
+values are tested on their own, here. SigilWeave's `weave::testing` is
+the first: a passage laid, read back and plated.
 
 ## Fixtures
 
