@@ -3,7 +3,8 @@
  * messages peers send it and the sender each one names, the broadcast a
  * send is and the one peer a named send reaches instead, the peers
  * attached until they leave, the pages a URI's query stands the same
- * port over, the interface it binds and the peers it admits, what a URI
+ * port over, the interface it binds, the peers it admits and the frames
+ * it sends, what a URI
  * nobody can open
  * leaves on its feed, and the port a feed gives back when the last
  * holder lets go.
@@ -125,6 +126,10 @@ class Peer {
    *  with. */
   const std::string& greeting() const { return m_greeting; }
 
+  /** The opcode of the frame receive() read last: 0x1 for text, 0x2 for
+   *  binary. */
+  unsigned char lastOpCode() const { return m_lastOpCode; }
+
   /** One whole message in one masked frame. A payload of fewer than
    *  65536 bytes is what the two-byte extended length carries, which is
    *  as much as any case here sends. */
@@ -152,6 +157,7 @@ class Peer {
   std::string receive() {
     const std::string head = take(2);
     if (head.size() != 2) return {};
+    m_lastOpCode = static_cast<unsigned char>(head[0]) & 0x0f;
     size_t size = static_cast<unsigned char>(head[1]) & 0x7f;
     if (size == 126) {
       const std::string extended = take(2);
@@ -189,6 +195,7 @@ class Peer {
   tcp::socket m_socket;
   boost::asio::streambuf m_incoming;
   std::string m_greeting;
+  unsigned char m_lastOpCode = 0;
 };
 
 /** WHAT ONE HTTP ANSWER SAYS: the number on its status line, the content
@@ -378,6 +385,45 @@ TEST_F(IOWebSocket, SendToReachesTheOnePeerItNamesAndNoOther) {
   EXPECT_TRUE(listener->send(bytesOf("out to everyone")));
   EXPECT_EQ(second.receive(), "out to everyone");
   EXPECT_EQ(first.receive(), "out to everyone");
+}
+
+TEST_F(IOWebSocket, AListenerWhoseUriSaysTextSendsTextFrames) {
+  const std::shared_ptr<Feed> binary = hub.feed("ws://:0/sky");
+  const std::shared_ptr<Feed> text = hub.feed("ws://:0/sky?frames=text");
+  ASSERT_TRUE(binary->error().empty()) << binary->error();
+  ASSERT_TRUE(text->error().empty()) << text->error();
+
+  Peer bytesPeer(context, portOf(binary->address()), "/sky");
+  Peer textPeer(context, portOf(text->address()), "/sky");
+  ASSERT_TRUE(bytesPeer.upgraded());
+  ASSERT_TRUE(textPeer.upgraded());
+  bytesPeer.send(0x1, "here");
+  textPeer.send(0x1, "here");
+  ASSERT_TRUE(waitUntil([&] {
+    return binary->generation() == 1u && text->generation() == 1u;
+  }));
+
+  // A feed carries bytes, so what it sends is binary unless its URI
+  // said the peers read text; the payload is the same either way, sent
+  // to all or to one.
+  EXPECT_TRUE(binary->send(bytesOf("out")));
+  EXPECT_EQ(bytesPeer.receive(), "out");
+  EXPECT_EQ(bytesPeer.lastOpCode(), 0x2);
+  EXPECT_TRUE(text->send(bytesOf("out")));
+  EXPECT_EQ(textPeer.receive(), "out");
+  EXPECT_EQ(textPeer.lastOpCode(), 0x1);
+  const std::optional<Arrival> arrival = text->receive();
+  ASSERT_TRUE(arrival.has_value());
+  EXPECT_TRUE(text->sendTo(arrival->from, bytesOf("to you")));
+  EXPECT_EQ(textPeer.receive(), "to you");
+  EXPECT_EQ(textPeer.lastOpCode(), 0x1);
+}
+
+TEST_F(IOWebSocket, AFrameThatIsNeitherTextNorBinaryOpensNothing) {
+  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky?frames=rhyme");
+  EXPECT_NE(listener->error().find("rhyme"), std::string::npos)
+      << listener->error();
+  EXPECT_TRUE(listener->address().empty());
 }
 
 TEST_F(IOWebSocket, APeerNobodyIsAttachedUnderIsNobodyToAnswer) {

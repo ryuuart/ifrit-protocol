@@ -8,7 +8,9 @@
  * answers HTTP GET out of it, so what a peer loads and the socket it
  * opens back stand at one address. It may name the one interface to
  * BIND, and the peers to ADMIT: a peer at no admitted address is refused
- * before it is upgraded or served, so it never becomes a peer at all.
+ * before it is upgraded or served, so it never becomes a peer at all. And
+ * it may say its FRAMES are text, for peers that read every message as a
+ * string.
  *
  * Listening only. The library underneath carries a websocket client as a
  * name and an empty body, so a URI naming a host to reach opens nothing
@@ -75,8 +77,8 @@ constexpr std::string_view kLoopback = "loopback";
 /** WHAT A ws:// URI NAMES: the port to listen on, the path peers reach
  *  it at, the host that makes it a peer to call rather than a door to
  *  hold, the URI a directory of pages stands at, the one interface to
- *  bind where it names one, and the peers it admits where it names
- *  any. */
+ *  bind where it names one, the peers it admits where it names any, and
+ *  the frames it sends where it names them. */
 struct Address {
   std::string host;
   std::uint16_t port = 0;
@@ -84,18 +86,21 @@ struct Address {
   std::string pages;
   std::string bind;
   std::vector<std::string> admit;
+  std::string frames;
 };
 
 /** The listener's settings out of @p query into @p address: `pages`,
  *  the URI the pages stand at; `bind`, the one interface to listen on;
- *  and `admit`, as often as it is written, a peer's address or the word
- *  for every loopback one. A query is ampersand-separated pairs, so each
- *  setting is spelled beside the others and none has to know about
- *  another; a pair naming none of them is left alone. */
+ *  `admit`, as often as it is written, a peer's address or the word for
+ *  every loopback one; and `frames`, what a send goes out as. A query is
+ *  ampersand-separated pairs, so each setting is spelled beside the
+ *  others and none has to know about another; a pair naming none of them
+ *  is left alone. */
 void readQuery(std::string_view query, Address& address) {
   constexpr std::string_view kPages = "pages=";
   constexpr std::string_view kBind = "bind=";
   constexpr std::string_view kAdmit = "admit=";
+  constexpr std::string_view kFrames = "frames=";
   while (!query.empty()) {
     const size_t next = query.find('&');
     const std::string_view pair = query.substr(0, next);
@@ -105,6 +110,8 @@ void readQuery(std::string_view query, Address& address) {
       address.bind = std::string(pair.substr(kBind.size()));
     else if (pair.starts_with(kAdmit))
       address.admit.emplace_back(pair.substr(kAdmit.size()));
+    else if (pair.starts_with(kFrames))
+      address.frames = std::string(pair.substr(kFrames.size()));
     if (next == std::string_view::npos) break;
     query = query.substr(next + 1);
   }
@@ -369,6 +376,10 @@ struct Session {
   /** WHO MAY BECOME A PEER, written before the thread starts and only
    *  read after. */
   Admission admission;
+  /** WHAT A SEND GOES OUT AS: a binary frame, since a feed carries
+   *  bytes, unless the URI said the peers read text. Written before the
+   *  thread starts and only read after. */
+  uWS::OpCode frames = uWS::OpCode::BINARY;
   /** The names of `peers` again, for a reader on another thread: the
    *  loop writes both as a peer arrives and leaves, and this copy is the
    *  only one read from outside it. */
@@ -557,15 +568,14 @@ bool Door::send(const Bytes& message) {
   if (!loop) return false;
   // The app belongs to its loop, so the bytes travel there in a copy of
   // their own and the caller's Bytes are its own again as soon as this
-  // returns. A feed carries bytes rather than text, so what goes out is
-  // a binary frame.
+  // returns. What goes out is the frame the URI chose.
   loop->defer([session = session, payload = message.bytes] {
     if (!session->app) return;
     session->app->publish(
         session->topic,
         std::string_view(reinterpret_cast<const char*>(payload.data()),
                          payload.size()),
-        uWS::OpCode::BINARY);
+        session->frames);
   });
   return true;
 }
@@ -585,7 +595,7 @@ bool Door::sendTo(std::string_view to, const Bytes& message) {
         found->second->send(
             std::string_view(reinterpret_cast<const char*>(payload.data()),
                              payload.size()),
-            uWS::OpCode::BINARY);
+            session->frames);
       });
   return true;
 }
@@ -637,6 +647,12 @@ OpenedFeed openFeed(const Hub& hub, std::string_view uri,
                               "loopback one");
     door->session->admission.addresses.push_back(named);
   }
+  if (address->frames == "text")
+    door->session->frames = uWS::OpCode::TEXT;
+  else if (!address->frames.empty() && address->frames != "binary")
+    return refuse(into, address->frames +
+                            " is no kind of frame: a listener sends text or "
+                            "binary frames");
   if (!address->bind.empty()) {
     boost::system::error_code unread;
     boost::asio::ip::make_address(address->bind, unread);

@@ -50,6 +50,13 @@ bind that is no IP address opens nothing and leaves the reason on the
 feed. `Feed::peers` names the peers attached now, so a door learns that
 one has left when its name is gone.
 
+### What it sends
+
+A send goes out as a binary frame, since a feed carries bytes;
+`?frames=text` sends text frames instead, for peers that read every
+message as a string, and what is sent must then be UTF-8. Any value but
+`text` or `binary` opens nothing and leaves the reason on the feed.
+
 ### This registration listens
 
 The sockets underneath carry no client and are built without TLS, so a

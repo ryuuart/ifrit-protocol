@@ -124,6 +124,13 @@ never becomes a peer, nothing it sends arrives and no send reaches it. A
 listener that names nobody admits everybody. An admission or a bind that
 is no IP address opens nothing and leaves the reason on the feed.
 
+A feed carries bytes, so a send goes out as a binary frame. `?frames=text`
+sends every message as a text frame instead, for peers that read each one
+as a string — a browser page, a command-line client, a protocol whose
+messages are JSON text — and what is sent must then be UTF-8.
+`frames=binary` is the default spelled out; any other value opens nothing
+and leaves the reason on the feed.
+
 `Feed::peers()` names the peers attached NOW, each spelled as its own
 arrivals' sender is: a peer is in it from the upgrade on and gone from it
 once its socket closes, which is how a door that holds many learns that
