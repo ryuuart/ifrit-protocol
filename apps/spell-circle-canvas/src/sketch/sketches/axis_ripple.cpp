@@ -27,25 +27,41 @@
 //
 // HOW THE RIPPLE IS SPELLED
 //
-// A looping cascade: every letter's beat is the same swell over one pass,
-// opened one beat after its neighbour's, so the travelling wave is the
-// schedule's and the effect is only the swell. Under each letter a bar
-// reads the same phase through the same swell, so the meter cannot drift
-// from the letters it reports on.
+// A looping cascade with a rest in it: every letter's beat is the same
+// swell, opened one short beat after its neighbour's, and the swell fills
+// only the front of the pass. So a crest a few letters wide enters at the
+// H, rolls through to the V, and leaves the line standing light and cool
+// until the next pass — a breath, then a pause, rather than a line that
+// never settles. Under each letter a bar reads the same phase through the
+// same swell, so the meter cannot drift from the letters it reports on.
+//
+// THE LIGHT THE CREST CARRIES
+//
+// Grade is weight without width, and the page lets it read as light: a
+// letter at rest is set dim and cool, a letter on the crest full and warm,
+// through the same swell that drives its grade, and a warm pool travels
+// behind the word with the crest. The ground is a dark sheet with grain in
+// it, lit from above the specimen line and darkened toward the corners;
+// the proofs stand on two plates, and the run that overhangs its rule has
+// the overhang itself struck through.
 //
 // EDIT THESE FIRST
-//   kWavesAcross — the wavelength, in waves per word. 1 puts one crest and
-//                  one trough on the line, as a specimen page shows.
+//   kBeat        — seconds between one letter's swell and the next's; the
+//                  crest's speed along the word.
+//   kSwellSeconds — how long one letter's swell lasts; with kBeat, how
+//                  many letters the crest spans.
 //   kGradLight / kGradHeavy — the ends of the ramp, inside the face's own
 //                  GRAD range of 400 to 1000.
-//   kPeriod      — seconds per pass.
+//   kPeriod      — seconds per pass, the rest included.
 
 // TAGS: Typography/Effects, Motion/Transitions
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Ground.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Track.h>
 #include <sigilcore/compute/Noise.h>
@@ -73,7 +89,7 @@ namespace {
 constexpr float kWidth = 1120.0f;
 constexpr float kHeight = 620.0f;
 constexpr float kPaddingX = 52.0f;
-constexpr float kPaddingY = 44.0f;
+constexpr float kPaddingY = 38.0f;
 
 constexpr material::Color kPaper = hexColor(0x0C0C0E);
 
@@ -83,8 +99,21 @@ constexpr std::string_view kProof = "HAMBURGEFONTSIV";
 // ---- the wave -------------------------------------------------------------
 constexpr float kGradLight = 400.0f;
 constexpr float kGradHeavy = 1000.0f;
-constexpr float kWavesAcross = 1.0f;
-constexpr float kPeriod = 2.6f;
+constexpr float kBeat = 0.085f;
+constexpr float kSwellSeconds = 0.62f;
+constexpr float kPeriod = 3.2f;
+/** Where in its swell a letter is heaviest: the swell climbs quicker than
+ *  it falls, so the crest leans forward the way it travels. */
+constexpr float kCrestAt = 0.38f;
+
+// ---- the light the crest carries -----------------------------------------
+/** The channel multipliers over the ink: a letter at rest is dim and cool,
+ *  a letter on the crest full and warm. They are light on the ink the sheet
+ *  sets, not colours of their own. */
+constexpr material::Color kRestLight = {0.52f, 0.56f, 0.66f, 1.0f};
+constexpr material::Color kCrestLight = {1.0f, 0.94f, 0.82f, 1.0f};
+constexpr float kPoolWidth = 460.0f;
+constexpr float kPoolHeight = 250.0f;
 
 // ---- the proof ------------------------------------------------------------
 constexpr float kWeightLight = 300.0f;
@@ -94,14 +123,28 @@ constexpr float kWeightHeavy = 900.0f;
 constexpr float kLevelDrop = 10.0f;
 constexpr float kLevelHeight = 34.0f;
 
-/** THE SWELL one pass of the wave is, on a phase in [0, 1): the letter's
- *  own beat into the ramp, as a fraction of its full reach. The text track
- *  and the meter both read it, so they are one curve. */
+/** THE SWELL one pass of the wave is, on a letter's own phase in [0, 1):
+ *  its reach into the ramp. It rises eased to the crest, falls eased back,
+ *  and rests at nothing for the rest of the pass. The text track and the
+ *  meter both read it, so they are one curve. */
 float swell(float phase) {
-  return 0.5f + 0.5f * std::sin(phase * 6.2831853f);
+  const float along = phase * kPeriod / kSwellSeconds;
+  if (along <= 0.0f || along >= 1.0f) return 0.0f;
+  constexpr float kHalfTurn = 3.14159265f;
+  if (along < kCrestAt)
+    return 0.5f - 0.5f * std::cos(kHalfTurn * along / kCrestAt);
+  return 0.5f + 0.5f * std::cos(kHalfTurn * (along - kCrestAt) /
+                                (1.0f - kCrestAt));
 }
 
-/** The ripple's deviation: the swell landing on the grade.
+/** @p from carried @p amount of the way to @p to, channel by channel. */
+material::Color mixed(material::Color from, material::Color to, float amount) {
+  return {from.r + (to.r - from.r) * amount, from.g + (to.g - from.g) * amount,
+          from.b + (to.b - from.b) * amount, 1.0f};
+}
+
+/** The ripple's deviation: the swell landing on the grade, and the light
+ *  the grade is read by.
  *
  *  Only an advance-invariant axis is honoured, so every letter keeps the
  *  pen position shaping gave it for the whole ripple; saying so is what
@@ -112,10 +155,11 @@ TextEffect gradeSwell() {
              "gradeSwell",
              [](const GlyphInfo&, float local,
                 sigil::core::noise::Mix64Stream&) {
+               const float reach = swell(local);
                GlyphModifier modifier;
                modifier.axis = weave::FontVariation(
-                   "GRAD",
-                   kGradLight + (kGradHeavy - kGradLight) * swell(local));
+                   "GRAD", kGradLight + (kGradHeavy - kGradLight) * reach);
+               modifier.colorMultiplier = mixed(kRestLight, kCrestLight, reach);
                return modifier;
              },
              0.0f, {kGradLight, kGradHeavy})
@@ -133,15 +177,18 @@ StyleSheet look() {
           .var("ink", hexColor(0xF4F1EA))
           .var("label", hexColor(0x7E8492))
           .var("faint", hexColor(0x3A3F4B))
-          .var("bed", material::Color{1, 1, 1, 0.04f})
-          .var("overhang", hexColor(0xE2504B))
-          .var("axis", hexColor(0x63B8FF))
+          .var("bed", material::Color{1, 1, 1, 0.035f})
+          .var("refused", hexColor(0xE2504B))
+          .var("refused-wash", material::Color{0.886f, 0.314f, 0.294f, 0.10f})
+          .var("refused-hatch", material::Color{0.886f, 0.314f, 0.294f, 0.55f})
+          .var("honoured", hexColor(0x63B8FF))
           .fontFamily(".SF NS, SF Pro, system-ui")
           .fontWeight(500)
           .fontSize(11.5f)
           .letterSpacing(0.2f)
           .ink(var("label")),
-      rule("h1").fontSize(26).ink(var("ink")),
+      rule("h1").fontSize(28).fontWeight(600).letterSpacing(-0.3f).ink(
+          var("ink")),
       rule("masthead caption").fontSize(12).letterSpacing(0.3f),
       rule("eyebrow").fontSize(11.5f).letterSpacing(2.4f),
       rule("caption").fontSize(11).letterSpacing(0.6f),
@@ -150,8 +197,15 @@ StyleSheet look() {
       rule("hero, proof").fontWeight(700).ink(var("ink")),
       rule("hero").letterSpacing(1),
       rule("proof").fontSize(34).letterSpacing(0.6f),
-      rule(".refused").ink(var("overhang")),
-      rule(".honoured").ink(var("axis")),
+      rule(".refused").ink(var("refused")),
+      rule(".honoured").ink(var("honoured")),
+      // A proof stands on a plate lit from its top edge.
+      rule(".plate")
+          .padding(16, 22)
+          .borderRadius(12)
+          .fill(linearGradient({0, 0}, {0, 190},
+                               {material::Color{1, 1, 1, 0.055f},
+                                material::Color{1, 1, 1, 0.012f}})),
   };
 }
 
@@ -171,7 +225,12 @@ std::string toTheWholePixel(float drift) {
 }
 
 /** The share of a pass each letter's beat opens after the one before it. */
-float beatFraction() { return kWavesAcross / (float)kProof.size(); }
+float beatFraction() { return kBeat / kPeriod; }
+
+/** The share of a pass at which letter @p index stands on the crest. */
+float crestPhase(size_t index) {
+  return ((float)index * kBeat + kCrestAt * kSwellSeconds) / kPeriod;
+}
 
 }  // namespace
 
@@ -182,6 +241,7 @@ struct AxisRipple {
   const StyleSheet sheet = look();
 
   float heroSize = 0;
+  float heroWidth = 0;  // the measure the hero is set to
   float gradHeroDrift = 0;  // the run's width across the ramp, at the hero size
   float weightLight = 0, weightHeavy = 0;  // the wght proof rows
   float gradLight = 0, gradHeavy = 0;      // the GRAD proof rows
@@ -219,7 +279,13 @@ struct AxisRipple {
         .fill(Fill::var("bed"))
         .children({box()
                        .cover()
-                       .fill(Fill::var("axis"))
+                       // Deep at the foot and hot at the top, so a full bar
+                       // reads as a lit column and a low one as embers.
+                       .fill(linearGradient({0, 0}, {0, kLevelHeight},
+                                            {hexColor(0xD6ECFF),
+                                             hexColor(0x63B8FF),
+                                             hexColor(0x1C3F70)},
+                                            {0.0f, 0.35f, 1.0f}))
                        .transformOrigin(pct(50), pct(100))
                        .scaleY(motion::bind(&phase)
                                    .source(lag, 1.0f + lag)
@@ -227,13 +293,48 @@ struct AxisRipple {
                                    .target(1.0f / kLevelHeight, 1.0f))});
   }
 
+  /** THE WARM POOL behind the word, travelling with the crest.
+   *
+   *  A letter's pen position cannot be read from a family a sheet names, so
+   *  the pool walks the word at its mean letter width: it runs level with
+   *  the crest across the word and may lead or trail it by part of a
+   *  letter where the letters are wide or narrow. It rises as the crest
+   *  enters at the H and fades as it leaves the V, so the rest between
+   *  passes is dark. */
+  [[nodiscard]] Element pool() const {
+    const float letter = heroWidth / (float)kProof.size();
+    const float first = crestPhase(0), last = crestPhase(kProof.size() - 1);
+    const material::Color warm = hexColor(0xFFC27A);
+    return box()
+        .absolute()
+        .left(0)
+        .top(heroSize * 0.62f - kPoolHeight * 0.5f)
+        .width(kPoolWidth)
+        .height(kPoolHeight)
+        .fill(radialGradient({kPoolWidth * 0.5f, kPoolHeight * 0.5f},
+                             kPoolWidth * 0.5f,
+                             {material::Color{warm.r, warm.g, warm.b, 0.16f},
+                              material::Color{warm.r, warm.g, warm.b, 0.05f},
+                              material::Color{warm.r, warm.g, warm.b, 0.0f}},
+                             {0.0f, 0.45f, 1.0f}))
+        .scaleY(0.62f)
+        .translateX(motion::bind(&phase)
+                        .window(first, last)
+                        .target(letter * 0.5f - kPoolWidth * 0.5f,
+                                heroWidth - letter * 0.5f - kPoolWidth * 0.5f))
+        .opacity(motion::bind(&phase).trapezoid(
+            first - 2.0f * beatFraction(), first + beatFraction(),
+            last - beatFraction(), last + 3.0f * beatFraction()));
+  }
+
   /** The ripple: the word to the measure, every letter's grade on one
-   *  looping cascade, with its meter hanging beneath it. */
+   *  looping cascade, with its meter hanging beneath it and the warm pool
+   *  behind it. */
   [[nodiscard]] Element ripple() const {
     const float periodMs = kPeriod * 1000.0f;
     Text hero = text(kProof).role("hero").fontSize(heroSize).key("ripple");
     hero.textFx({.effect = gradeSwell(),
-                 .stagger = {.eachMs = beatFraction() * periodMs,
+                 .stagger = {.eachMs = kBeat * 1000.0f,
                              .durationMs = periodMs,
                              .loopMs = periodMs},
                  .progress = &phase});
@@ -241,25 +342,30 @@ struct AxisRipple {
       hero.textAttach(weave::selectors::range({(uint32_t)index,
                                                (uint32_t)index + 1}),
                       level(index));
-    // A mark reserves nothing, so the room under the word is the meter's.
-    hero.marginBottom(kLevelDrop + kLevelHeight);
     return box().column().gap(10).children(
         {document::eyebrow("GRAD — DRIVEN AT DRAW TIME, ONE SHAPING, "
                            "LETTERS FIXED"),
-         std::move(hero),
+         // A mark reserves nothing, so the room under the word is the
+         // meter's, held against the page's full column so the proofs
+         // below cannot squeeze the meter back under the caption.
+         box()
+             .paddingBottom(kLevelDrop + kLevelHeight)
+             .flexShrink(0)
+             .children({pool(), std::move(hero)}),
          // The face's axis range is not read here: a family's variation
          // axes cannot be asked for without holding its typeface, so the
          // caption states the drive's own ends.
          document::caption(kit::formatted(
-             "GRAD %.0f–%.0f · %.0f WAVE ACROSS THE WORD · %.1f S PER PASS · "
-             "THE RUN MOVES %s ACROSS THE RAMP",
-             kGradLight, kGradHeavy, kWavesAcross, kPeriod,
+             "GRAD %.0f–%.0f · A %.2f S SWELL, %.0f MS A LETTER · %.1f S A "
+             "PASS · THE RUN MOVES %s ACROSS THE RAMP",
+             kGradLight, kGradHeavy, kSwellSeconds, kBeat * 1000.0f, kPeriod,
              toTheWholePixel(gradHeroDrift).c_str()))});
   }
 
-  /** One axis, proved: the word at each end of it, left edges aligned, a
-   *  rule anchored where the light run stopped, and the verdict in the
-   *  class that colours it. */
+  /** One axis, proved, on its plate: the word at each end of it, left
+   *  edges aligned, a rule anchored where the light run stopped, whatever
+   *  the heavy run sets past that rule washed and struck through, and the
+   *  verdict in the class that colours all three. */
   [[nodiscard]] static Element axisPanel(const Utf8& heading,
                                          const char (&tag)[5], float light,
                                          float heavy, float lightWidth,
@@ -273,20 +379,32 @@ struct AxisRipple {
     lightRun.textAttach(weave::Selector{},
                         kit::line({.length = Dimension(96),
                                    .column = true,
-                                   .fill = Fill::var("overhang")})
+                                   .fill = Fill::var(verdictClass)})
                             .left(pct(100))
                             .top(0));
+    const float drift = heavyWidth - lightWidth;
+    Text heavyRun = proofRun(tag, heavy);
+    if (drift >= 1.0f)
+      heavyRun.textAttach(
+          weave::Selector{},
+          box()
+              .left(Dimension(lightWidth))
+              .right(0)
+              .top(0)
+              .bottom(0)
+              .fill(Fill::var("refused-wash"))
+              .background(lines::presets::hatch(Fill::var("refused-hatch"),
+                                                5.0f, 1.0f, -55.0f)));
     const auto row = [](float value, Element run) {
       return box().row().alignItems(Align::Baseline).gap(14).children(
           {document::label(kit::formatted("%.0f", value)).width(52),
            std::move(run)});
     };
-    const float drift = heavyWidth - lightWidth;
-    return box().column().gap(12).flexGrow(1).children(
+    return box().column().gap(12).flexGrow(1).flexBasis(0).styleClass("plate").children(
         {document::eyebrow(heading),
          box().column().gap(6).children(
              {row(light, std::move(lightRun)),
-              row(heavy, proofRun(tag, heavy))}),
+              row(heavy, std::move(heavyRun))}),
          document::caption(
              kit::formatted("%s THE RUN BY %s · %s", movement,
                             toTheWholePixel(drift).c_str(), consequence))
@@ -298,9 +416,8 @@ struct AxisRipple {
   [[nodiscard]] Element proofPanels() const {
     return box()
         .row()
-        .gap(44)
+        .gap(20)
         .key("proof")
-        .cache(Cache::Texture)
         .children(
             {axisPanel(kit::formatted("wght %.0f → %.0f — A SHAPING AXIS",
                                       kWeightLight, kWeightHeavy),
@@ -316,16 +433,35 @@ struct AxisRipple {
                        "DRIVE IS HONOURED")});
   }
 
+  /** THE GROUND, the page's one texture: a dark sheet with a fine grain
+   *  in it, lit from above the specimen line and darkened toward the
+   *  corners. Nothing on it moves, so it is baked once and blitted under
+   *  everything that does. */
+  [[nodiscard]] static Element ground() {
+    return box()
+        .cover()
+        .key("ground")
+        .cache(Cache::Texture)
+        .fill(kit::grained(kPaper, 0.07f, 0.85f))
+        .children(
+            {box().cover().fill(radialGradient(
+                 {kWidth * 0.5f, kHeight * 0.36f}, kWidth * 0.62f,
+                 {material::Color{0.36f, 0.42f, 0.58f, 0.13f},
+                  material::Color{0.36f, 0.42f, 0.58f, 0.04f},
+                  material::Color{0.36f, 0.42f, 0.58f, 0.0f}},
+                 {0.0f, 0.5f, 1.0f})),
+             box().cover().fill(kit::vignette({kWidth, kHeight},
+                                              {0, 0, 0, 0.55f}, 0.4f))});
+  }
+
   [[nodiscard]] Element describe() const {
     return box()
         .column()
         .padding(kPaddingY, kPaddingX)
-        .gap(24)
+        .gap(20)
         .applyStyleSheet(sheet)
-        .fill(linearGradient({0, 0}, {0, kHeight},
-                             {kPaper, hexColor(0x111116), kPaper},
-                             {0.0f, 0.6f, 1.0f}))
-        .children({box().role("masthead").column().gap(5).children(
+        .fill(kPaper)
+        .children({ground(), box().role("masthead").column().gap(5).children(
                         {document::h1("The axis ripple"),
                          document::caption("OpenType Font Variations · 2016")}),
                    kit::line({.fill = Fill::var("faint")}), ripple(),
@@ -337,10 +473,11 @@ struct AxisRipple {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    // A quarter-pass in: the crest is inside the word rather than at
-    // either end, so both the ramp up and the ramp down are on the page.
+    // The crest on the word's eighth letter: the rise ahead of it and the
+    // fall behind it are both on the page, with the line at rest either
+    // side.
     sketch::kit::stage(ctx, {.size = {kWidth, kHeight},
-                             .captureAt = kPeriod * 0.79,
+                             .captureAt = crestPhase(7) * kPeriod,
                              .background = kPaper});
     if (!ctx.fonts) return;
 
@@ -348,10 +485,11 @@ struct AxisRipple {
     // because the tracking is px and does not scale, so two sizes identify
     // the line and the measure is read off it.
     const float measure = kWidth - 2.0f * kPaddingX;
-    const auto heroWidth = [&](float size) {
+    heroWidth = measure;
+    const auto widthAtSize = [&](float size) {
       return widthOf(ctx, text(kProof).role("hero").fontSize(size));
     };
-    const float small = heroWidth(32), large = heroWidth(64);
+    const float small = widthAtSize(32), large = widthAtSize(64);
     heroSize = 32 + (measure - small) * 32 / (large - small);
 
     const auto gradHero = [&](float value) {
