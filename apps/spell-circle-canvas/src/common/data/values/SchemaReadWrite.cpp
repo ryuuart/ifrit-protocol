@@ -167,8 +167,14 @@ void Header::writeTableRead(std::ostream& out, const StructDef& def) {
 
 void Header::writeTableWrite(std::ostream& out, const StructDef& def) {
   const std::string wire = wireOf(def);
+  // A table with nothing to write — one a protocol says "nothing" with —
+  // never reads its value, so the parameter says so rather than warn.
+  bool holds = false;
+  for (const FieldDef* field : def.fields.vec)
+    holds = holds || !field->deprecated;
   out << "inline ::flatbuffers::Offset<" << wire << "> write" << def.name
-      << "(\n    ::flatbuffers::FlatBufferBuilder& into, const " << def.name
+      << "(\n    ::flatbuffers::FlatBufferBuilder& into, "
+      << (holds ? "" : "[[maybe_unused]] ") << "const " << def.name
       << "& value) {\n";
 
   // EVERY OFFSET AND EVERY INLINE STRUCT IS LAID DOWN FIRST. A builder
