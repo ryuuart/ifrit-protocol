@@ -758,9 +758,14 @@ layout's own answer for every field it leaves unset.
 from the rest of the justification so a passage can name the last line
 without restating everything else about it, and
 `ParagraphBlock::justificationMethod` is stated apart the same way so a
-passage can say where the slack goes. The method also lands in a whole
-justification the style carries, so a block that states its own
-justification is still spent the way the setting in force says.
+passage can say where the slack goes. All three also land in a whole
+justification the style carries, over one stated whole beside them: a
+block that states its own justification is still spent the way the
+setting in force says, and its last line still ends where
+`ParagraphBlock::lastLineAlignment` and `ParagraphBlock::justifyLastLine`
+say. `overlay` lands them in the style's justification when the style
+carries one; a style that carries none reads the layout's, where `apply`
+lands them.
 
 `apply` writes THE LAYOUT-WIDE FIELDS a block in force sets — the
 alignment, the breaking strategy, the hyphenation, the justification and
