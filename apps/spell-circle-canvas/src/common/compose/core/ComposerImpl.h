@@ -108,6 +108,16 @@ struct Composer::Impl {
   // computed when it is first needed.
   sigil::weave::Type rootFont = sigil::weave::initialType();
   float rootLineHeight = 0.0f;
+  // What `1_rem` measures: the ROOT ELEMENT's computed font size, as CSS's
+  // rem is, so a size stated on the tree's root node — directly or by a
+  // `:root` rule — sets every rem below it, and what `setInherited` states
+  // decides it only where the root states none. The root's own font size
+  // is measured against the inherited one, since a root cannot be measured
+  // against itself. Set by the cascade pass once the root's font resolves;
+  // `remMoved` says this pass moved it, so every length written in rems is
+  // rewritten even where nothing about its own node moved.
+  float remPx = 16.0f;
+  bool remMoved = false;
   // What the root inherits as its block: nothing stated, so every block
   // under nothing is set in the layout's own answer.
   sigil::weave::ParagraphBlock rootBlock;

@@ -167,7 +167,7 @@ float Composer::Impl::resolveLength(const Instance& inst,
       return length.value * fontSizePx(inst.font);
     case Dimension::Unit::Rem:
       relative = true;
-      return length.value * fontSizePx(rootFont);
+      return length.value * remPx;
     case Dimension::Unit::Lh:
       relative = true;
       return length.value * inst.lineHeight;
@@ -202,7 +202,7 @@ float Composer::Impl::resolveLength(const Instance& inst,
       const CalcLength& sum = calcLength(length);
       const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
       float total = sum.px + sum.em * fontSizePx(inst.font) +
-                    sum.rem * fontSizePx(rootFont) + sum.lh * inst.lineHeight +
+                    sum.rem * remPx + sum.lh * inst.lineHeight +
                     sum.ch * inst.zeroAdvance +
                     sum.pw * 0.01f * canvas.width() +
                     sum.ph * 0.01f * canvas.height();
@@ -271,6 +271,7 @@ void Composer::Impl::runCascade() {
   if (!root) return;
   inkAnimating = false;
   if (rootLineHeight <= 0.0f) rootLineHeight = lineHeightAt(rootFont);
+  remMoved = false;
   hasNames.begin(++cascadePass);
   indexRoot(*root);
   const SheetChain none;
@@ -292,6 +293,7 @@ void Composer::Impl::resolveCascade(
     const std::optional<material::Color>& parentInkTarget) {
   const ElementNode& node = *inst.description;
   const bool first = !inst.cascadeResolved;
+  const bool isRoot = &inst == root.get();
   sigil::weave::Type font = parentFont;
   // THE FAMILY BY NAME, WHETHER THE STYLE IS ITALIC, AND AN INDENT AS A
   // PERCENTAGE OF THE MEASURE, each inherited beside the font and the
@@ -593,15 +595,15 @@ void Composer::Impl::resolveCascade(
     }
     // The node's partial over the parent's font. A relative size in it is
     // measured against the PARENT — the size inherited — which is what
-    // `1.5_em` on a heading means.
+    // `1.5_em` on a heading means. A rem in it is the root element's size,
+    // except on the root itself, whose rem is the size it inherits.
+    const float rem = isRoot ? fontSizePx(rootFont) : remPx;
     if (fontFromInitial) {
       sigil::weave::Type initial = sigil::weave::initialType();
       initial.color = parentFont.color;
-      font = sigil::weave::overlay(initial, ownFont, fontSizePx(rootFont),
-                                   parentLineHeight);
+      font = sigil::weave::overlay(initial, ownFont, rem, parentLineHeight);
     } else if (!ownFont.empty()) {
-      font = sigil::weave::overlay(parentFont, ownFont, fontSizePx(rootFont),
-                                   parentLineHeight);
+      font = sigil::weave::overlay(parentFont, ownFont, rem, parentLineHeight);
     }
     // A FAMILY NAMED, AN ITALIC TURNED ON OR OFF, OR A WEIGHT MOVED UNDER A
     // FAMILY NAMED ABOVE, CHOOSES THE FACE — through the composer's font
@@ -713,6 +715,14 @@ void Composer::Impl::resolveCascade(
     font.color = *inst.inkTarget;
   }
 
+  // THE ROOT ELEMENT'S SIZE IS WHAT A REM MEASURES from here down, the
+  // root's own box included, so it is taken the moment the root's font is
+  // final and before any length of the root is resolved.
+  if (isRoot) {
+    const float rootSize = fontSizePx(font);
+    remMoved = rootSize != remPx;
+    remPx = rootSize;
+  }
   const bool shapeChanged = first || !sameFontButColour(font, inst.font);
   const bool inkChanged =
       first || !(font.color == inst.font.color) || !(inkPaint == inst.inkPaint);
@@ -819,7 +829,7 @@ void Composer::Impl::resolveCascade(
   }
   // A length measured in the font, or read from a property, is rewritten
   // into the flex style when what it measures against moved.
-  if ((shapeChanged || varsChanged) && inst.relativeLengths) {
+  if ((shapeChanged || varsChanged || remMoved) && inst.relativeLengths) {
     applyLayoutProps(inst);
     needsLayout = true;
   }
@@ -827,7 +837,7 @@ void Composer::Impl::resolveCascade(
   // in the font or on a property moves the node's matrix when either
   // moves, under recordings that hold the matrix it had. One on the canvas
   // is moved by a resize alone, which the layout pass answers for.
-  if (!first && (shapeChanged || varsChanged) &&
+  if (!first && (shapeChanged || varsChanged || remMoved) &&
       originsFollowCascade(inst.styled())) {
     inst.markPaintDirtyUp();
     contentDirty = true;

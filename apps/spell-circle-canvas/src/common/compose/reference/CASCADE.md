@@ -138,9 +138,15 @@ reads the look.
 **Lengths measure against the font.** `Dimension` takes SigilWeave's
 `weave::Length` and its literals: `1_em` on a box property is the node's
 own resolved font size, `1_em` on `weave::Type::size` is the parent's,
-`0.5_lh` is half the node's line height, `1_rem` is the root's size, and
-a length written as `var(name)` is whatever the property holds. The
-padding, the margin and the gap take a `Dimension` now, and a bare number
+`0.5_lh` is half the node's line height, and a length written as
+`var(name)` is whatever the property holds. `1_rem` is the ROOT ELEMENT's
+computed font size, as CSS's is: a size the tree's root node states,
+directly or through `rule(":root")`, sets every rem below it, so a sheet
+states one root size and writes its type scale as `fontSize(1.25_rem)`
+against it. Where the root states no size, the size
+`Composer::setInherited` gave it decides, and 16 px where neither does; a
+rem in the root's own `fontSize` measures against that inherited size.
+The padding, the margin and the gap take a `Dimension`, and a bare number
 is still pixels. Beside the font's units are the CANVAS's: `50_pct` is half
 the parent's box, which is Yoga's own percent, while `50_pw` and `50_ph` are
 half the width and half the height of the canvas the composer renders into,

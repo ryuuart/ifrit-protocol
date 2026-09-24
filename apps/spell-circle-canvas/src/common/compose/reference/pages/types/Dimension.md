@@ -33,7 +33,7 @@ The units, and what each is a fraction or a multiple OF:
 | `Dimension::Unit::Pw` | `6_pw` | the CANVAS's width, wherever in the tree the node sits |
 | `Dimension::Unit::Ph` | `6_ph` | the CANVAS's height |
 | `Dimension::Unit::Em` | `1.5_em` | the node's own resolved font size |
-| `Dimension::Unit::Rem` | `2_rem` | the root's font size |
+| `Dimension::Unit::Rem` | `2_rem` | the root element's computed font size |
 | `Dimension::Unit::Lh` | `0.5_lh` | the node's own line height |
 | `Dimension::Unit::Ch` | `3_ch` | the advance of "0" in the face in force |
 | `Dimension::Unit::Var` | `var("gutter")` | the length the nearest ancestor set under that name |

@@ -16,7 +16,8 @@ namespace sigil::compose {
 /** THE BOX MODEL. Every length is a `Dimension`: a bare number is
  *  pixels, a percent is of the parent, and `1_em`, `0.5_lh` and `1_rem`
  *  measure against the font in force — the node's own size and line
- *  height, or the root's — so the air around type follows the type. */
+ *  height, or the root element's size — so the air around type follows
+ *  the type. */
 template <class Derived>
 class BoxVerbs {
  public:

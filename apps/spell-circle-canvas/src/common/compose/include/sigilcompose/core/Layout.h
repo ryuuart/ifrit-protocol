@@ -54,7 +54,7 @@ void releaseCalc(float handle) noexcept;
  *  case reads as a number.
  *
  *  THE FONT-RELATIVE UNITS. `em` is the node's own resolved font
- *  size, `rem` the root's, `lh` the node's own line height, `ch` the
+ *  size, `rem` the root element's, `lh` the node's own line height, `ch` the
  *  advance of "0" in the face in force — SigilWeave's `Length`, spelled
  *  with its `_em`, `_rem`, `_lh` and `_ch` literals, converts here — so a
  *  padding written in ems follows the type it surrounds, and a change to
