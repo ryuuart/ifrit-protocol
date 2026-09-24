@@ -4,6 +4,9 @@
 
 #include <include/core/SkColor.h>
 #include <algorithm>
+#include <filesystem>
+#include <string>
+#include <vector>
 
 #include "ReceiverDefaults.h"
 
@@ -13,6 +16,9 @@ using Defaults = spellcircle::ReceiverDefaults;
 
 constexpr double kMinTargetFps = 1.0;
 constexpr double kMaxTargetFps = 240.0;
+
+/** How often the main queue answers the protocol, where it is mounted. */
+constexpr uint64_t kInspectionPumpNanoseconds = 30 * NSEC_PER_MSEC;
 
 }  // namespace
 
@@ -88,12 +94,49 @@ constexpr double kMaxTargetFps = 240.0;
   _timestampFormatter = [[NSDateFormatter alloc] init];
   _timestampFormatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ss.SSS";
 
+  [self mountInspectionIfAsked];
+
   // Give Syphon (and the first drawInLayer:) an initial empty frame.
   [self renderScene];
   return self;
 }
 
+// THE PROTOCOL ONLY WHERE ASKED: the product mounts no endpoint unless its
+// command line says `--inspect`, and then answers what it is on loopback,
+// with the address under `--state` or the platform's own location for it.
+- (void)mountInspectionIfAsked {
+  std::vector<std::string> arguments;
+  for (NSString *argument in NSProcessInfo.processInfo.arguments)
+    arguments.emplace_back(argument.UTF8String);
+  const std::optional<spellcircle::InspectionRequest> request =
+      spellcircle::inspectionRequested(arguments);
+  if (!request) return;
+  std::filesystem::path root = request->stateRoot;
+  if (root.empty()) {
+    NSURL *support = [NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory
+                                                          inDomains:NSUserDomainMask]
+                         .firstObject;
+    if (support) root = std::filesystem::path(support.path.UTF8String) / "SpellCircle";
+  }
+  _inspection = std::make_unique<spellcircle::ReceiverInspection>(*request, root);
+  NSLog(@"[spellcircle] protocol: %s", _inspection->address().c_str());
+  if (!_inspection->listening()) return;
+  _inspectionPump = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+  dispatch_source_set_timer(_inspectionPump, DISPATCH_TIME_NOW, kInspectionPumpNanoseconds,
+                            kInspectionPumpNanoseconds / 4);
+  // Weak, so the timer the engine owns is no reason for the engine to stay
+  // alive.
+  __weak SCKEngine *weakSelf = self;
+  dispatch_source_set_event_handler(_inspectionPump, ^{
+    SCKEngine *engine = weakSelf;
+    if (engine && engine->_inspection) engine->_inspection->dispatch();
+  });
+  dispatch_resume(_inspectionPump);
+}
+
 - (void)dealloc {
+  if (_inspectionPump) dispatch_source_cancel(_inspectionPump);
+  _inspection.reset();
   [self closeDoor];
   _publisher.reset();
 }

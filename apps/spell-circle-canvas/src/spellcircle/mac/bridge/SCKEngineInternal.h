@@ -14,6 +14,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/publish/Publisher.h>
 #include <sigilskia/graphite/GraphiteContext.h>
+#include "ReceiverInspection.h"
 #include "SceneGeometry.h"
 #include "SceneModel.h"
 #include "SceneRenderer.h"
@@ -73,6 +74,11 @@ struct BlitPalette {
   std::chrono::steady_clock::time_point _doorOpenedAt;
   dispatch_source_t _drain;
   NSDateFormatter *_timestampFormatter;
+
+  // The protocol's endpoint, only where `--inspect` asked for one, and the
+  // timer that answers it on the main queue.
+  std::unique_ptr<spellcircle::ReceiverInspection> _inspection;
+  dispatch_source_t _inspectionPump;
 
   // Paced rendering: packets only mark the scene dirty; the render clock
   // (renderTickIfDue, at targetFramesPerSecond) and the display link (via

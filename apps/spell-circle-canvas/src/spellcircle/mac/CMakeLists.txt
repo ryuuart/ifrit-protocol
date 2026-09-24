@@ -38,6 +38,7 @@ add_library(SpellCircleMacBridge SHARED
   bridge/SCKEngine.mm bridge/SCKEngine.h bridge/SCKEngineInternal.h
   bridge/SCKEngine+Network.mm bridge/SCKEngine+Render.mm bridge/SCKEngine+Blit.mm
   bridge/SCKCanvasView.mm bridge/SCKCanvasView.h
+  bridge/ReceiverInspection.cpp bridge/ReceiverInspection.h
 )
 
 # ARC for the ObjC++ engine/view; the shared Skia .mm translation units
@@ -57,12 +58,24 @@ target_link_libraries(SpellCircleMacBridge
     SigilIOHub          # the hub, and the feed the port is opened as
     SigilIOTransport    # registerUdp: the scheme that port speaks
     SigilIOPublish
+    SigilProtocolEndpoint  # the endpoint --inspect mounts
 )
+target_compile_definitions(SpellCircleMacBridge PRIVATE
+  SPELLCIRCLE_VERSION="${PROJECT_VERSION}")
 
 sigil_test(spellcircle_mac_test
   ARC
   SOURCES test/EngineTest.mm
   LIBRARIES SpellCircleMacBridge SpellCircleDocument SpellCircleSchema ${frameworks})
+
+# The command line's reading of --inspect and --state, and the endpoint it
+# mounts, which is compiled into this test for itself since the bridge
+# keeps its C++ private.
+sigil_test(spellcircle_mac_test
+  SOURCES test/ReceiverInspectionTest.cpp bridge/ReceiverInspection.cpp
+  LIBRARIES SigilProtocolEndpoint SigilIOHub
+  DEFINITIONS SPELLCIRCLE_VERSION="${PROJECT_VERSION}"
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/bridge)
 
 add_executable(SpellCircleMac MACOSX_BUNDLE
   app/SpellCircleMacApp.swift
