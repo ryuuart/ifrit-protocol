@@ -748,3 +748,238 @@ in a box narrower than their sum, the first row's last cell "PASS" and the
 second's empty, and assert that the second cell of both rows starts at the
 same x. Wanted by `black_watch`, which sizes every column so the widths sum
 inside its frame.
+
+## A mark's insets are read as a positioned child's only in part: `bottom` and `right` size it, a sum or an `lh` reads as zero, and its margin is not read
+
+`Text::textAttach` promises that a mark "is written in exactly the
+placement longhand a `positioned()` child takes — px or pct `left`, `top`,
+`right`, `bottom`, `width`, `height`, measured inside that rect and free to
+sit outside it". The mark's box is resolved in `Composer::Impl`'s rect pass
+(`src/common/compose/core/Rects.cpp`, the anchored branch): `left` and
+`top` default to 0 when unstated, `right` and `bottom` are read only to
+derive a missing width or height, and every inset goes through one
+`resolve` that answers px, pt, pct, pw and ph and returns nothing for any
+other unit. So a mark with a stated height and `bottom(-27)` stands at the
+rect's top, not 27 px below its foot; `top(1_lh)` and
+`top(Dimension(1_lh) + Dimension(12))` both stand at the rect's top; and
+`top(pct(100) + Dimension(12))` is refused with the flex world's warning,
+though a mark's rect is not laid out by Yoga and the sum has a value there.
+Nor does that branch read a margin at all: it returns the anchor's corner
+plus `left` and `top` and nothing else, so `top(pct(100)).marginTop(12)` —
+the other way CSS says "12 px below the foot" — stands at the foot, and a
+`marginTop` on a mark is accepted and silently inert.
+
+It evidently means what a positioned child means: a `bottom` (or `right`)
+beside a stated extent places the far edge, a `calc()` sum of pct and px
+resolves against the rect, a font-relative length resolves against the
+text the mark stands on, and a margin offsets the box from where its insets
+put it — so a ruler hung "12 px below each letter's foot" is one
+`top(pct(100) + Dimension(12))`, or `top(pct(100)).marginTop(12)`.
+
+A test should attach a 1x8 mark to one letter with `top(pct(100) +
+Dimension(12))` and assert its box's top is the letter rect's bottom plus
+12; attach one with `height(8).bottom(Dimension(-20))` and assert its top
+is the rect's bottom plus 12; and attach one with `top(1_lh)` and assert
+its top is the rect's top plus the leaf's line height; and attach one with
+`top(pct(100)).marginTop(12)` and assert its top is the rect's bottom plus
+12.
+
+Wanted by `karaoke_wipe`, which hangs its ruler's ticks and playhead at
+the letter's foot with `top(pct(100))` and carries them the rest of the way
+down with a constant `translateY`, under a `workaround:` line; and by
+`axis_ripple`, whose level bars stand at each letter's foot with
+`top(pct(100)).marginTop(kLevelDrop)` and so sit on the foot with no drop,
+the `marginTop` inert. Two sketches want the drop, so this is the rect
+pass's to fix rather than a kit component's to paper over.
+
+## `textFx::tint` takes its two colours as values, so a wipe cannot follow the sheet's ink
+
+`textFx::tint(from, to)` (`sigilcompose/kit/Kinetic.h`) computes its
+per-channel multiplier as `from / to` from two `material::Color` values
+when the effect is built. It must be used on a line whose ink IS `to`: the
+multiplier only ever takes the drawn colour down toward `from`. A sheet
+that states its palette as custom properties inks the line with
+`ink(var("sung"))`, but the effect cannot read that property, so the sketch
+states the sung colour twice — once on `:root` for the ink, once as the
+constant handed to the tint — and a class or a later sheet that restates
+`--sung` recolours the letters while the tint still divides by the old
+value, which lands the resting colour somewhere neither end names, with no
+diagnostic.
+
+It evidently means one statement of the colour: either `tint` takes a
+`VarRef` (or `Fill`) for its ends and resolves it against the leaf's
+custom properties when the effect is applied, or it takes only the `from`
+end and reads the leaf's resolved ink as `to`, which is what it already
+requires the ink to be.
+
+A test should ink a leaf with `ink(var("sung"))` under a rule that sets
+`--sung` to one colour, apply a tint whose destination is that property
+(or the leaf's ink), and assert a glyph at local 0 draws `from` and one at
+local 1 draws the property's colour; then restate `--sung` on a class the
+leaf carries and assert local 0 still draws `from`.
+
+Wanted by `karaoke_wipe`, whose wipe is `textFx::tint(kPale, kSung)` over
+a lyric inked `var("sung")`.
+
+## A run can be measured to the pen only from a held typeface, never from the family list or the leaf a sheet sets
+
+`compose::runPens`, `measureRun`, `fitRun`, `atCapHeight` and `metrics`
+(`sigilcompose/core/Measure.h`) take a `weave::TextStyle` or a
+`weave::Type`, and both carry the face as a held `sk_sp<SkTypeface>`. The
+resolution from a family name to that face exists:
+`weave::FontContext::familyTypeface(family, style)`
+(`sigilweave/fonts/FontContext.h`) answers one family name, and
+`SketchContext::fonts` is that context. What is missing is narrower:
+
+- the measuring doors take the held face, which is a Skia value a sketch
+  may not hold, so the one family door ends in a type the sketch cannot
+  pass on;
+- no door takes a family LIST (`".SF NS, SF Pro, system-ui"`, as a rule
+  declares it) or a `Text` leaf resolved through the cascade the page is
+  set by, which is the resolution `intrinsicSize` already runs for a bake;
+- a face's variation axes and their ranges can be read only through Skia:
+  the compose kernel reads them itself (`FaceChoice.cpp`,
+  `getVariationDesignParameters`) and exposes nothing.
+
+So the one door left to a sketch whose type is named on a rule is
+`SketchContext::measure` over an element, and that answers the leaf's
+box: `LayoutText.cpp` rounds a passage's measured size up to whole pixels
+(`std::ceil` on `measuredSize`), with no pen positions and no metrics.
+
+The measuring doors evidently mean to answer for the type a page is
+actually set in, now that a page names families rather than faces: a
+leaf-taking (or family-list-taking) `runPens`, `fitRun`, `atCapHeight` and
+`metrics`, plus an axis query, all resolving the face the way the cascade
+does.
+
+A test should set a text leaf in `fontFamily("Helvetica Neue")` at 34 px
+with 0.6 px tracking under a sheet, and assert that a leaf-taking `runPens`
+returns the same pens as `runPens` over a `TextStyle` holding the face
+`familyTypeface("Helvetica Neue")` returns (so `.back()` is fractional,
+not a whole pixel); that a leaf-taking `fitRun` to a width lands within
+0.5 px of it; and that an axis query over a leaf set in the system
+interface family reports `GRAD` with its minimum and maximum, and reports
+none for a family without one.
+
+Wanted by `axis_ripple` (it prints the `wght` overhang and the `GRAD`
+drift to the whole pixel, fits its hero to the measure by measuring two
+boxes and solving the line between them, and states the grade's range as
+its own constants instead of reading the face's) and `eva_magi_defense`,
+which seats its numerals with `atCapHeight` over a face-held type and meets
+the same wall when it takes a family list.
+
+## A mark's margin is not read, so it places nothing
+
+`Text::textAttach` says a mark is written as a positioned child is, against
+the rect its selector resolved. `Composer::Impl::positionedRect`
+(`core/Rects.cpp`) builds a mark's rect from its left, top, right, bottom,
+width and height and never reads its margin, so a mark hung at
+`top(pct(100))` with `marginTop(10)` stands at the letter's foot, not 10 px
+below it. A positioned box's margin offsets it from its insets in CSS; the
+entry on a mark's insets (bottom and right size a mark, a sum reads as
+zero) is the same pass's other half.
+
+A test should attach a 1x8 mark to one letter with `top(pct(100))` and
+`marginTop(10)`, and assert its rect's top is the letter rect's bottom plus
+10; and with `left(0)` and `marginLeft(4)`, that its left is the letter's
+left plus 4.
+
+Wanted by `axis_ripple`, whose meter stands off the letters by a constant
+drop, and `karaoke_wipe`, whose ruler does the same; both carry the drop
+as a translate today.
+
+## A rule cannot state a stroke, so a class cannot carry its element's keyline
+
+`compose::Rule` takes `BoxVerbs`, `PaintVerbs`, `ShapeVerbs` and the rest of
+the style families, but not the decoration verbs
+(`sigilcompose/core/verbs/Decoration.h`), so `rule(".frame").stroke(...)`
+does not compile: `stroke()` exists only on an element. A frame, a keyline,
+a ring or a card's border is therefore restated on every node that wears it,
+even where the class already states that node's size, radius and fill —
+`elastic_type` gives the plot frame and the playhead ring their strokes
+inline beside a class that says everything else about them.
+
+It evidently means CSS's `border`/`outline`: part of the class's whole look,
+cascading like a fill, with the colour free to be a custom property or the
+ink in force. A test should state
+`rule(".frame").stroke(stroke(1, Fill::var("line")))` in a sheet, apply it
+over a box carrying the class, and assert that the box paints the same
+stroke as `box().stroke(stroke(1, Fill::var("line")))`; and that a node's
+own `stroke()` appends to, or overrides, the rule's by one stated order.
+Wanted by `elastic_type`; every sketch that frames cells or cards with a
+class (`black_watch` states its keylines inline on each node).
+
+## Two skew angles are one shear pair, where CSS's `skewX(a) skewY(a)` composes two shears
+
+A glyph's `skewXDeg` and `skewYDeg` (`TextFxPainting.cpp`, the per-glyph
+matrix route) and a node's `skewX` and `skewY` both build ONE shear matrix
+`[1 tan a; tan b 1]`, by design, so a glyph naming both leans without
+scaling. CSS's transform list `skewX(a) skewY(a)` is the product of two
+shears, `[1 + tan a·tan b, tan a; tan b, 1]`, which also widens the element
+along x by the product of the tangents. Animate.css's `jello` is written
+that way, so its extreme pose (a = b = −12.5°) is about five per cent wider
+in a browser than the word `elastic_type` draws from the same table.
+
+It evidently intends to read as CSS reads wherever a CSS name is borrowed:
+either the node's skew lanes follow CSS's order (x shear then y shear), or a
+transform list is expressible (an ordered `transform(...)` value on the node
+and in a `GlyphModifier`) so a table transcribed from CSS lands the browser's
+matrix. A test should set `skewX(-12.5)` and `skewY(-12.5)` on a 100 px box
+and assert its painted bounds match the CSS matrix — width
+`100·(1 + tan²12.5°) + 100·tan 12.5°` — or, if the pair stays the lane's
+meaning, that a CSS-ordered list door produces that width. Wanted by
+`elastic_type` (the jello row, per letter and on the whole word).
+
+## `textFx::scramble` takes its charset as UTF-32 while every text door takes UTF-8
+
+`compose::textFx::scramble(std::u32string charset, int steps)`
+(`typography/TextFx.h`) is the one text-facing value in Compose that is
+spelled in UTF-32: `text()`, `Text::span`, `document::*` and
+`sketch::kit::Document::phrase` all take `compose::Utf8`. A charset that is
+words — read from a sketch's `data/` file, or shared with the text it
+churns — reaches the effect only through a conversion at the call site
+(`weave::unicode::toUtf16`, then `weave::unicode::decodeAt` in a loop).
+`matrix_rain` reads its two advance classes (half-width katakana, digits)
+from `data/rain.json`, deals its field from them as UTF-8, and converts the
+same strings to UTF-32 under a `workaround:` line only to hand them to
+`scramble`.
+
+The effect evidently means to take the characters a text is written in,
+in the spelling every other text verb takes. `scramble` should accept a
+`compose::Utf8` charset (decoding once, where it already builds its
+per-codepoint table); the UTF-32 overload may stay beside it.
+
+A test should build `scramble(u8"ｱｲｳ")` and `scramble(U"ｱｲｳ")` and assert
+the two effects substitute identically on one seeded glyph run, and that a
+charset holding a four-byte character (outside the BMP) decodes to one
+substitution candidate, not four.
+
+Wanted by: `matrix_rain` (removes its conversion). `shipping_forecast`
+(its barometer charset) and `daemon_console` spell their charsets as `U""`
+literals today and would spell them like the text they churn, or read them
+from their words files, once the door is UTF-8.
+
+## A title card's lines take the theme's face as their role default, so a family the sheet inherits does not reach them
+
+`sketch::kit::titleCard` (`src/sketch/kit/Heading.cpp`) sets its eyebrow,
+title, subtitle and notes with `.role(name, look.font(register, ink))`,
+and `Theme::font` fills the partial's `face` from the theme's own
+`type.sans`. Role defaults stand over what a node inherits, so a sheet that
+states `fontFamily(...)` on its root — the one place CSS says a family —
+reaches every other leaf of the page and none of the card's: the card
+keeps the theme's face and the weight that face was resolved at, and a
+rule `h1 { fontWeight(700) }` without a family draws the title at the
+theme face's weight. `shipping_forecast` names its grotesque again in a
+rule for `eyebrow, h1, caption` so its masthead is set in it.
+
+The card's lines are evidently meant to be set in the sheet in force where
+the card lands, as every `compose::kit` piece is ("carries no colour of its
+own", "the rules of the sheets in force … say what those are"): its role
+defaults should state sizes and tracking at most, never a face, so an
+inherited family and a rule's weight reach them.
+
+A test should state `fontFamily("Georgia")` on a root box holding
+`titleCard({.title = {"T"}})` and assert the title resolves to Georgia;
+and that `rule("h1").fontWeight(700)` under the same root resolves the
+title at weight 700. Wanted by `shipping_forecast`; the fold of `Theme`
+into a sheet removes the cause for every sketch that sets a card.
