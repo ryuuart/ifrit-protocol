@@ -31,8 +31,8 @@ namespace sigil.protocol;
 /// handler with the third, the agent with the fifth, and the client —
 /// whose words open with `client:` — with the last two.
 enum ErrorCode : int {
-  /// The message is no request: not JSON, or without its id or its
-  /// method.
+  /// The message is no request: not a JSON object, or without its id
+  /// or its method, or naming a session other than its client's own.
   invalidRequest = 0,
   /// The definition declares no command of that name.
   methodNotFound = 1,
@@ -73,7 +73,7 @@ table Revision {
   /// Raised by a change that breaks a client built against the last.
   breaking: uint = 0;
   /// Raised by a change a client built against the last still speaks.
-  compatible: uint = 1;
+  compatible: uint = 2;
 }
 
 // workaround: flatc embeds the reflected definition beside the generated
@@ -547,6 +547,9 @@ table DescribeResult {
   state_root: string;
   /// The sessions open.
   sessions: [sigil.protocol.session.Summary];
+  /// The clients attached, one session id each, the one asking among
+  /// them.
+  attached: [string];
 }
 
 /// The host has let this client go.
@@ -559,7 +562,8 @@ table DetachedEvent {
 /// keeps its state. describe is the first command a client sends.
 rpc_service Host {
   /// Everything a client asks first: the version, the domains mounted,
-  /// the clock's policy, the state root and the sessions open.
+  /// the clock's policy, the state root, the sessions open and the
+  /// clients attached.
   describe(sigil.protocol.Empty): DescribeResult;
   /// Where the host keeps its state.
   stateRoot(sigil.protocol.Empty): StateRootResult;

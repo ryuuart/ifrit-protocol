@@ -17,7 +17,7 @@ The host itself: what it is, which domains it mounts, and where it keeps its sta
 
 ### host.describe
 
-Everything a client asks first: the version, the domains mounted, the clock's policy, the state root and the sessions open.
+Everything a client asks first: the version, the domains mounted, the clock's policy, the state root, the sessions open and the clients attached.
 
 In Python, Host.describe.
 
@@ -34,6 +34,7 @@ Answers `DescribeResult`: Everything a client asks first, in one answer.
 | `clock` | Policy (enumeration) | Wall | How the host's clock moves. |
 | `state_root` | string | "" | Where the host keeps its state. |
 | `sessions` | list of Summary (table) | empty | The sessions open. |
+| `attached` | list of string | empty | The clients attached, one session id each, the one asking among them. |
 
 ### host.stateRoot
 

@@ -95,7 +95,7 @@ TEST(ProtocolRoundTrip, AValueMadeWithNothingSetHoldsTheDeclaredDefaults) {
   EXPECT_EQ(protocol::session::Promotion_Auto,
             protocol::session::values::PromotionParameters{}.promotion);
   EXPECT_EQ(0u, protocol::values::Revision{}.breaking);
-  EXPECT_EQ(1u, protocol::values::Revision{}.compatible);
+  EXPECT_EQ(2u, protocol::values::Revision{}.compatible);
 }
 
 /** Every sample, each handed to @p visit with its value type, the name
@@ -111,13 +111,14 @@ void everySample(Visit&& visit) {
       R"({"seconds": 1.25, "rate": 30})");
   visit.template operator()<protocol::host::values::DescribeResult>(
       "sigil.protocol.host.DescribeResult",
-      R"({"version": {"revision": {"breaking": 0, "compatible": 1},
+      R"({"version": {"revision": {"breaking": 0, "compatible": 2},
                       "program": "Sketchbook"},
           "domains": ["host", "clock"],
           "clock": "PauseWhileLoading",
           "state_root": "/tmp/state",
           "sessions": [{"sketch": "hello", "kind": "canvas",
-                        "width": 800, "height": 600, "moment": 2}]})");
+                        "width": 800, "height": 600, "moment": 2}],
+          "attached": ["session-1", "session-2"]})");
   visit.template operator()<protocol::registry::values::ListResult>(
       "sigil.protocol.registry.ListResult",
       R"({"sketches": [{"name": "hello", "stem": "hello", "kind": "canvas",

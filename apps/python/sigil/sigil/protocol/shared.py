@@ -21,8 +21,8 @@ class ErrorCode(enum.Enum):
     """
 
     invalidRequest = "invalidRequest"
-    """The message is no request: not JSON, or without its id or its
-    method.
+    """The message is no request: not a JSON object, or without its id
+    or its method, or naming a session other than its client's own.
     """
 
     methodNotFound = "methodNotFound"
@@ -109,7 +109,7 @@ class Revision:
     breaking: int = 0
     """Raised by a change that breaks a client built against the last."""
 
-    compatible: int = 1
+    compatible: int = 2
     """Raised by a change a client built against the last still speaks."""
 
     def to_json(self) -> dict[str, messages.Json]:
@@ -125,7 +125,7 @@ class Revision:
         fields = messages.members(value, cls)
         return cls(
             breaking=messages.integer(fields, "breaking", 0),
-            compatible=messages.integer(fields, "compatible", 1),
+            compatible=messages.integer(fields, "compatible", 2),
         )
 
 

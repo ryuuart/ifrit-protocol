@@ -37,6 +37,11 @@ class DescribeResult:
     sessions: tuple[_session.Summary, ...] = ()
     """The sessions open."""
 
+    attached: tuple[str, ...] = ()
+    """The clients attached, one session id each, the one asking among
+    them.
+    """
+
     def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
@@ -45,6 +50,7 @@ class DescribeResult:
         out["clock"] = self.clock.value
         out["state_root"] = self.state_root
         out["sessions"] = [item.to_json() for item in self.sessions]
+        out["attached"] = list(self.attached)
         return out
 
     @classmethod
@@ -57,6 +63,7 @@ class DescribeResult:
             clock=messages.enumeration(fields, "clock", _clock.Policy.Wall),
             state_root=messages.text(fields, "state_root", ""),
             sessions=messages.tables(fields, "sessions", _session.Summary.from_json),
+            attached=messages.texts(fields, "attached"),
         )
 
 
@@ -154,7 +161,8 @@ class Host:
 
     def describe(self) -> DescribeResult:
         """Everything a client asks first: the version, the domains mounted,
-        the clock's policy, the state root and the sessions open.
+        the clock's policy, the state root, the sessions open and the
+        clients attached.
         """
         answer = self._caller.call("host.describe", {})
         return _shared.answer("host.describe", DescribeResult.from_json, answer)
