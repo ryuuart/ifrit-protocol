@@ -165,6 +165,9 @@ class SocketRoute(unittest.TestCase):
         state = self.root / "state"
         with launch(executable=self.sketchbook, state=state) as host:
             Clock(host).set_policy(policy=Policy.Advance)
+            # Baked on the plate's grid from the first frame, as the sweep
+            # bakes: zero pins the density a plate is photographed at.
+            Session(host).pin_density(density=0)
             opened = Session(host).open(sketch=self.SCENE)
             self.assertEqual(opened.kind, "canvas")
             self.assertEqual(Clock(host).step(seconds=1).frame, 60)

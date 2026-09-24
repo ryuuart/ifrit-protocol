@@ -135,6 +135,10 @@ struct DecliningSession : protocol::session::SessionAgent {
       const protocol::session::values::PromotionParameters&) override {
     return declined("session.pinPromotion");
   }
+  Answer<Empty> pinDensity(
+      const protocol::session::values::DensityParameters&) override {
+    return declined("session.pinDensity");
+  }
   void still(const protocol::session::values::StillParameters&,
              Reply<protocol::session::values::StillResult> reply) override {
     reply(declined("session.still"));
@@ -188,7 +192,8 @@ TEST(ProtocolWiring, EachDomainMountsTheCommandsItsAgentAnswers) {
           "clock.setTimeScale", "clock.step", "host.describe", "host.stateRoot",
           "host.version", "registry.catalog", "registry.list",
           "session.compositeCounts", "session.measured", "session.open",
-          "session.pinDevice", "session.pinPromotion", "session.profile",
+          "session.pinDensity", "session.pinDevice", "session.pinPromotion",
+          "session.profile",
           "session.sequence", "session.still", "session.timing"}),
       board.methods());
 }

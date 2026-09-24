@@ -71,17 +71,18 @@ struct SessionAgentOptions {
  *  surface of the canvas times the density, cleared to the declared
  *  ground, through the runtime's own still — which draws one frame more
  *  where the runtime re-renders at the still's size, and the clock counts
- *  it. Every raster the session bakes is baked from its first frame at
- *  the density a plate of it is photographed at, `plateDensity()`, so a
- *  still at that density is the sweep's plate of the same moment; a still
- *  at another density bakes at it from then on, and a bake formed
- *  earlier is formed again only when its node describes again. Under a held clock it is the host's own still, the frame the clock
+ *  it, and declares its density for what the session bakes from then on.
+ *  A bake formed earlier is formed again only when its node describes
+ *  again, so a session a client means to hold to a plate is pinned to a
+ *  density before it opens — zero for `plateDensity()`, the sweep's own —
+ *  and its still at that density is the sweep's plate of the same
+ *  moment. Under a held clock it is the host's own still, the frame the clock
  *  holds as it was last drawn, so two stills under it are one picture.
  *  Either is written as a PNG under the state root.
  *
  *  What a client sets — the clock's policy, its hold and speed, the
- *  promotion pin — is keyed by the client, and goes when that client
- *  detaches: the next frame is the wall's again.
+ *  promotion and density pins — is keyed by the client, and goes when
+ *  that client detaches: the next frame is the wall's again.
  *
  *  Everything runs on the thread the dispatcher is driven from; `frame()`
  *  is the host's loop, once a turn. */
@@ -105,6 +106,9 @@ class SessionAgent final : public protocol::session::SessionAgent {
       const protocol::session::values::DeviceParameters& parameters) override;
   protocol::Answer<protocol::values::Empty> pinPromotion(
       const protocol::session::values::PromotionParameters& parameters)
+      override;
+  protocol::Answer<protocol::values::Empty> pinDensity(
+      const protocol::session::values::DensityParameters& parameters)
       override;
   void still(
       const protocol::session::values::StillParameters& parameters,
@@ -235,8 +239,10 @@ class SessionAgent final : public protocol::session::SessionAgent {
   std::vector<protocol::Reply<protocol::session::values::CompositeCountsResult>>
       m_pendingCounts;
   std::optional<protocol::session::Promotion> m_promotion;
+  /** The density pinned for bakes; zero for a plate's. */
+  std::optional<double> m_density;
   /** Which client set each override: `policy`, `held`, `scale`,
-   *  `promotion`. */
+   *  `promotion`, `density`. */
   std::map<std::string, std::string> m_owners;
   float m_bakeDensity = 0.0f;
   uint64_t m_stills = 0;

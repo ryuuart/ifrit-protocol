@@ -74,7 +74,7 @@ table Revision {
   /// Raised by a change that breaks a client built against the last.
   breaking: uint = 0;
   /// Raised by a change a client built against the last still speaks.
-  compatible: uint = 3;
+  compatible: uint = 4;
 }
 
 // workaround: flatc embeds the reflected definition beside the generated
@@ -267,6 +267,14 @@ table PromotionParameters {
   promotion: Promotion = Auto;
 }
 
+/// What pinDensity is asked.
+table DensityParameters {
+  /// Device pixels per canvas unit every raster the session bakes is
+  /// formed at; zero for the density a plate of the session is
+  /// photographed at.
+  density: double = 0;
+}
+
 /// What still is asked.
 table StillParameters {
   /// Device pixels per canvas unit.
@@ -406,6 +414,12 @@ rpc_service Session {
   pinDevice(DeviceParameters): sigil.protocol.Empty;
   /// Pins when the runtime may re-bake a node it was not asked to.
   pinPromotion(PromotionParameters): sigil.protocol.Empty;
+  /// Pins the density every raster the session bakes is formed at, from
+  /// the first frame of each session opened after it and from now on in
+  /// the one open. A still at that density of a session pinned before it
+  /// opened is the plate a sweep takes of the same moment; a bake formed
+  /// before the pin is formed again only when its node describes again.
+  pinDensity(DensityParameters): sigil.protocol.Empty;
   /// Photographs the session at the clock as it stands, as a plate is
   /// taken: a runtime that re-renders its still at the still's size draws
   /// one frame more to do it, which the clock counts. A clock that is

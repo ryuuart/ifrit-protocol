@@ -95,7 +95,7 @@ TEST(ProtocolRoundTrip, AValueMadeWithNothingSetHoldsTheDeclaredDefaults) {
   EXPECT_EQ(protocol::session::Promotion_Auto,
             protocol::session::values::PromotionParameters{}.promotion);
   EXPECT_EQ(0u, protocol::values::Revision{}.breaking);
-  EXPECT_EQ(3u, protocol::values::Revision{}.compatible);
+  EXPECT_EQ(4u, protocol::values::Revision{}.compatible);
 }
 
 /** Every sample, each handed to @p visit with its value type, the name

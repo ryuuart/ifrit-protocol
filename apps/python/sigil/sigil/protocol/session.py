@@ -105,6 +105,31 @@ class CompositeCountsResult:
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class DensityParameters:
+    """What pinDensity is asked."""
+
+    density: float = 0.0
+    """Device pixels per canvas unit every raster the session bakes is
+    formed at; zero for the density a plate of the session is
+    photographed at.
+    """
+
+    def to_json(self) -> dict[str, messages.Json]:
+        """This table as the JSON object the wire carries."""
+        out: dict[str, messages.Json] = {}
+        out["density"] = self.density
+        return out
+
+    @classmethod
+    def from_json(cls, value: messages.Json) -> DensityParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
+        return cls(
+            density=messages.real(fields, "density", 0.0),
+        )
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class DeviceParameters:
     """What pinDevice is asked."""
 
@@ -609,6 +634,17 @@ class Session:
         parameters = PromotionParameters(promotion=promotion)
         answer = self._caller.call("session.pinPromotion", parameters.to_json())
         _shared.answer("session.pinPromotion", _shared.Empty.from_json, answer)
+
+    def pin_density(self, *, density: float = 0.0) -> None:
+        """Pins the density every raster the session bakes is formed at, from
+        the first frame of each session opened after it and from now on in
+        the one open. A still at that density of a session pinned before it
+        opened is the plate a sweep takes of the same moment; a bake formed
+        before the pin is formed again only when its node describes again.
+        """
+        parameters = DensityParameters(density=density)
+        answer = self._caller.call("session.pinDensity", parameters.to_json())
+        _shared.answer("session.pinDensity", _shared.Empty.from_json, answer)
 
     def still(self, *, density: float = 1.0, path: str = "") -> StillResult:
         """Photographs the session at the clock as it stands, as a plate is

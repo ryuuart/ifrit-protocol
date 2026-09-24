@@ -492,7 +492,52 @@ TEST(SketchSessionAgent, ASequenceIsAStillPerFrameSteppedBetweenUnderAdvance) {
   EXPECT_NE(tooSlow.error().message.find("rate"), std::string::npos);
 }
 
-TEST(SketchClockAgent, TheHoldTheSpeedAndThePromotionPinGoWithTheirClient) {
+/** The bake density the last frame of the probe below was drawn at. */
+float g_bakeDensity = 0.0f;
+
+/** A sketch that reads back the density its session bakes at. */
+struct BakeDensityProbe {
+  void setup(sigil::sketch::SketchContext& ctx) { ctx.canvas(40, 30); }
+  void update(double, sigil::sketch::SketchContext& ctx) {
+    g_bakeDensity = ctx.composer.bakeDensity();
+  }
+};
+
+[[maybe_unused]] const bool kBakeDensityProbeRegistered = sigil::sketch::add(
+    "agents_bake_density", nullptr, "Test",
+    "a sketch that reads back its bake density",
+    &sigil::sketch::kindOf<BakeDensityProbe>);
+
+TEST(SketchSessionAgent, ADensityPinnedBeforeTheOpenIsTheFirstFramesGrid) {
+  AgentHost host;
+  const session::SessionClient sessionClient(host.client.caller());
+  session::values::DensityParameters plate;
+  ASSERT_TRUE((host.ask<protocol::values::Empty>(
+      [&](auto reply) { sessionClient.pinDensity(plate, reply); })));
+  ASSERT_TRUE(host.policy(clock::Policy_Advance));
+  ASSERT_TRUE(host.open("agents_bake_density"));
+  g_bakeDensity = 0.0f;
+  ASSERT_TRUE(host.step(1.0 / 60.0));
+  // Zero pins a plate's density: the canvas runtime's oversample of two.
+  EXPECT_EQ(g_bakeDensity, 2.0f);
+
+  session::values::DensityParameters three;
+  three.density = 3.0;
+  ASSERT_TRUE((host.ask<protocol::values::Empty>(
+      [&](auto reply) { sessionClient.pinDensity(three, reply); })));
+  ASSERT_TRUE(host.step(1.0 / 60.0));
+  EXPECT_EQ(g_bakeDensity, 3.0f);
+
+  session::values::DensityParameters negative;
+  negative.density = -1.0;
+  const Answer<protocol::values::Empty> refused =
+      host.ask<protocol::values::Empty>(
+          [&](auto reply) { sessionClient.pinDensity(negative, reply); });
+  ASSERT_FALSE(refused);
+  EXPECT_NE(refused.error().message.find("density"), std::string::npos);
+}
+
+TEST(SketchClockAgent, TheHoldTheSpeedAndBothPinsGoWithTheirClient) {
   AgentHost host;
   ASSERT_TRUE(host.open("agents_marching_box"));
   {
@@ -509,7 +554,12 @@ TEST(SketchClockAgent, TheHoldTheSpeedAndThePromotionPinGoWithTheirClient) {
     eager.promotion = session::Promotion_Eager;
     session::SessionClient(setter.caller())
         .pinPromotion(eager, AgentHost::into(pinned));
-    ASSERT_TRUE(held && *held && slowed && *slowed && pinned && *pinned);
+    std::optional<Answer<protocol::values::Empty>> dense;
+    session::values::DensityParameters plate;
+    session::SessionClient(setter.caller())
+        .pinDensity(plate, AgentHost::into(dense));
+    ASSERT_TRUE(held && *held && slowed && *slowed && pinned && *pinned &&
+                dense && *dense);
     const clock::values::CurrentResult during = host.current().result();
     EXPECT_TRUE(during.paused);
     EXPECT_EQ(during.time_scale, 0.5);
@@ -517,8 +567,8 @@ TEST(SketchClockAgent, TheHoldTheSpeedAndThePromotionPinGoWithTheirClient) {
     EXPECT_GT(host.current().result().frame, 1u);
   }
   // The setter has gone: the clock moves at the wall's own speed again,
-  // and the session was opened anew for the runtime's own promotion,
-  // drawing its first frame.
+  // and the session was opened anew for the runtime's own promotion and
+  // density, drawing its first frame.
   const clock::values::CurrentResult after = host.current().result();
   EXPECT_FALSE(after.paused);
   EXPECT_EQ(after.time_scale, 1.0);

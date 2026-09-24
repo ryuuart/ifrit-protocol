@@ -225,15 +225,10 @@ void SessionAgent::settleOpen() {
     return;
   }
   m_clock.restart();
+  // Before the first frame: a bake formed at another density is formed
+  // again only when its node describes again, so a density declared
+  // later would leave the frames already drawn on another grid.
   applyPins();
-  // Baked on a plate's grid from the first frame: a bake formed at
-  // another density is formed again only when its node describes again,
-  // so one declared later would leave the frames already stepped on the
-  // wrong grid.
-  if (Session* session = m_host->session()) {
-    m_bakeDensity = plateDensity(*session);
-    session->setBakeDensity(m_bakeDensity);
-  }
   // Under the wall's clock a session is seen from its first frame; under
   // any other its first frame is the client's first step.
   if (m_clock.wall()) {
@@ -255,6 +250,11 @@ void SessionAgent::applyPins() {
   Session* session = m_host ? m_host->session() : nullptr;
   if (!session) return;
   if (m_promotion) session->setAutoPromotion(promotionOf(*m_promotion));
+  if (m_density) {
+    m_bakeDensity =
+        *m_density > 0 ? (float)*m_density : plateDensity(*session);
+    session->setBakeDensity(m_bakeDensity);
+  }
 }
 
 // --- pins ------------------------------------------------------------------
@@ -272,6 +272,18 @@ Answer<protocol::values::Empty> SessionAgent::pinPromotion(
     const values::PromotionParameters& parameters) {
   m_promotion = parameters.promotion;
   own("promotion");
+  applyPins();
+  return protocol::values::Empty{};
+}
+
+Answer<protocol::values::Empty> SessionAgent::pinDensity(
+    const values::DensityParameters& parameters) {
+  if (!std::isfinite(parameters.density) || parameters.density < 0)
+    return refusal(ErrorCode_failed,
+                   "session.pinDensity: a density is a finite number of "
+                   "pixels per canvas unit, zero for a plate's");
+  m_density = parameters.density;
+  own("density");
   applyPins();
   return protocol::values::Empty{};
 }
@@ -638,6 +650,11 @@ void SessionAgent::release(const std::string& session) {
       m_clock.setHeld(false);
     } else if (what == "scale") {
       m_clock.setTimeScale(1.0);
+    } else if (what == "density") {
+      m_density.reset();
+      // No pin is the runtime's own density again, which only a session
+      // opened anew holds from its first frame.
+      if (m_host && m_host->session()) reopen();
     } else if (what == "promotion") {
       m_promotion.reset();
       // No pin is the session's own default again, which a session opened

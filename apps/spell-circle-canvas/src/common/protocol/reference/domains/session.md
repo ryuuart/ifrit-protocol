@@ -72,6 +72,22 @@ Takes `PromotionParameters`: What pinPromotion is asked.
 
 Answers nothing but that it was done.
 
+### session.pinDensity
+
+Pins the density every raster the session bakes is formed at, from the first frame of each session opened after it and from now on in the one open. A still at that density of a session pinned before it opened is the plate a sweep takes of the same moment; a bake formed before the pin is formed again only when its node describes again.
+
+In Python, Session.pin_density.
+
+Answered at once.
+
+Takes `DensityParameters`: What pinDensity is asked.
+
+| Parameter | Type | Default | |
+| --- | --- | --- | --- |
+| `density` | double | 0.0 | Device pixels per canvas unit every raster the session bakes is formed at; zero for the density a plate of the session is photographed at. |
+
+Answers nothing but that it was done.
+
 ### session.still
 
 Photographs the session at the clock as it stands, as a plate is taken: a runtime that re-renders its still at the still's size draws one frame more to do it, which the clock counts. A clock that is held — paused, or by the Pause policy — photographs the frame it holds as it was last drawn, drawing nothing new, so two stills under it are one picture.
