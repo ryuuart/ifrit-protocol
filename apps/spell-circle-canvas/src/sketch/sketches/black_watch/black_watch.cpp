@@ -137,15 +137,6 @@ std::string spelled(const std::vector<uint8_t>& threads, size_t first,
   return words;
 }
 
-/** Liang's English patterns, loaded once and shared by every paragraph
- *  that hyphenates. */
-std::shared_ptr<const weave::Hyphenator> hyphenator() {
-  static const std::shared_ptr<const weave::Hyphenator> table =
-      std::make_shared<const weave::kit::PatternHyphenator>(
-          "en", weave::kit::englishHyphenationPatterns());
-  return table;
-}
-
 /** HOW THE CARD IS SET. The tokens are its colours; the type is three
  *  voices — a mono for everything a machine reads, a bold grotesque for
  *  the one display line, a book serif for names and quoted prose — and
@@ -212,7 +203,7 @@ StyleSheet cardSheet(const CardColours& colours) {
           .lineHeight(weave::Leading::absolute(16))
           .textAlign(weave::TextAlignment::kJustify)
           .textWrap(TextWrap::Pretty)
-          .hyphens({.patterns = hyphenator()}),
+          .hyphens({.patterns = weave::kit::englishHyphenator()}),
       // The attribution's words are joined by no-break spaces in the words
       // file, so it stands whole on one line, never split around a year.
       rule(".douglas .attribution").fontSize(10).ink(var("ash")),
