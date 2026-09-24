@@ -25,9 +25,10 @@ namespace sigil::sketch {
  *  drives it and sends `clock.budgetExpired` when a budget runs out.
  *
  *  `clock.step` is refused unless the policy is Advance and a session is
- *  open, and at a rate under four frames a second; seconds are taken in
- *  whole frames of one over the rate, rounded to the nearest, as a plate
- *  is stepped. */
+ *  open, and at a rate under four frames a second; seconds are taken as
+ *  whole frames of one over the rate and what is left as one shorter
+ *  frame, and zero seconds as one frame of no length — the stepping a
+ *  written still has always had. */
 class ClockAgent final : public protocol::clock::ClockAgent {
  public:
   /** The clock of @p session's session, its events sent on

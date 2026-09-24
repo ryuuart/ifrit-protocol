@@ -66,12 +66,13 @@ struct SessionAgentOptions {
  *  as a plate's is. A change between the wall's clock and any other
  *  opens it again at its own zero.
  *
- *  A still is taken as a plate is: on a raster surface of the canvas
- *  times the density, cleared to the declared ground, through the
- *  runtime's own still — which draws one frame more where the runtime
- *  re-renders at the still's size, and the clock counts it — or, under a
- *  clock that is held, the held moment redrawn, so two stills under it
- *  are one picture. It is written as a PNG under the state root.
+ *  A still under a moving clock is taken as a plate is: on a raster
+ *  surface of the canvas times the density, cleared to the declared
+ *  ground, through the runtime's own still — which draws one frame more
+ *  where the runtime re-renders at the still's size, and the clock counts
+ *  it. Under a held clock it is the host's own still, the frame the clock
+ *  holds as it was last drawn, so two stills under it are one picture.
+ *  Either is written as a PNG under the state root.
  *
  *  What a client sets — the clock's policy, its hold and speed, the
  *  promotion pin — is keyed by the client, and goes when that client
@@ -196,6 +197,9 @@ class SessionAgent final : public protocol::session::SessionAgent {
   void armFrame();
   /** …and answers them from the frame just drawn. */
   void answerFrame();
+  /** Answers every composite-count plane owed, off @p session's last
+   *  counted frame, and stops the counting. */
+  void answerCounts(Session& session);
   /** The still, written; nothing with the reason in @p why. */
   std::optional<protocol::session::values::StillResult> takeStill(
       double density, const std::string& path, std::string* why);

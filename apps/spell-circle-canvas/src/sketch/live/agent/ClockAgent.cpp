@@ -4,8 +4,10 @@
 
 #include "sigilsketch/live/agent/ClockAgent.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <optional>
 #include <string>
 
 namespace sigil::sketch {
@@ -20,6 +22,10 @@ using protocol::refusal;
 /** The slowest rate a step is taken at: a frame of a quarter second is
  *  the longest a frame clock moves at once. */
 constexpr double kSlowestRate = 4.0;
+
+/** What seconds may leave over whole frames and still count as none: the
+ *  rounding a product of seconds and rate carries. */
+constexpr double kLeftOver = 1e-12;
 
 const char* nameOf(motion::ClockPolicy policy) {
   switch (policy) {
@@ -97,7 +103,12 @@ void ClockAgent::step(const values::StepParameters& parameters,
                   "longer than one frame of a clock moves"));
     return;
   }
+  const double frame = 1.0 / parameters.rate;
   uint64_t frames = parameters.frames;
+  // What seconds leave over whole frames, taken as one shorter frame; zero
+  // seconds is one frame of no length, which runs the sketch where it
+  // stands.
+  std::optional<double> remainder;
   if (parameters.seconds) {
     const double seconds = *parameters.seconds;
     if (!std::isfinite(seconds) || seconds < 0) {
@@ -106,10 +117,13 @@ void ClockAgent::step(const values::StepParameters& parameters,
                     "now"));
       return;
     }
-    frames = (uint64_t)std::llround(seconds * parameters.rate);
+    frames = (uint64_t)std::floor(seconds * parameters.rate);
+    const double left = seconds - (double)frames * frame;
+    if (frames == 0 || left > kLeftOver) remainder = std::max(0.0, left);
   }
   std::string why;
-  if (!m_session.step(frames, 1.0 / parameters.rate, &why)) {
+  if (!m_session.step(frames, frame, &why) ||
+      (remainder && !m_session.step(1, *remainder, &why))) {
     reply(refusal(ErrorCode_failed, "clock.step: " + why));
     return;
   }

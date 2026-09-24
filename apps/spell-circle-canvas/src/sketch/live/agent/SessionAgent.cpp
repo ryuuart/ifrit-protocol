@@ -354,6 +354,47 @@ std::filesystem::path SessionAgent::underStateRoot(const std::string& asked,
   return path;
 }
 
+void SessionAgent::answerCounts(Session& session) {
+  if (m_pendingCounts.empty()) return;
+  const Session::CompositeCounts plane = session.compositeCounts();
+  session.setCompositeCounting(false);
+  std::vector<protocol::Reply<values::CompositeCountsResult>> owed =
+      std::move(m_pendingCounts);
+  m_pendingCounts.clear();
+  std::string why;
+  const std::filesystem::path file =
+      underStateRoot({}, numbered(++m_planes, "counts/counts", ".png"), &why);
+  SkBitmap grey;
+  bool written = false;
+  if (!file.empty() && plane.width > 0 && plane.height > 0 &&
+      grey.tryAllocPixels(SkImageInfo::Make(plane.width, plane.height,
+                                            kGray_8_SkColorType,
+                                            kOpaque_SkAlphaType))) {
+    for (int y = 0; y < plane.height; ++y)
+      std::memcpy(grey.getAddr8(0, y),
+                  plane.counts.data() + (size_t)y * (size_t)plane.width,
+                  (size_t)plane.width);
+    written = writePng(grey.pixmap(), file);
+  }
+  values::CompositeCountsResult counts;
+  if (written) {
+    counts.path = file.string();
+    counts.width = (uint32_t)plane.width;
+    counts.height = (uint32_t)plane.height;
+    counts.maximum = *std::max_element(plane.counts.begin(), plane.counts.end());
+  }
+  for (auto& reply : owed) {
+    if (written) {
+      reply(counts);
+      continue;
+    }
+    reply(refusal(ErrorCode_failed,
+                  "session.compositeCounts: " +
+                      (why.empty() ? std::string("the runtime counted no plane")
+                                   : why)));
+  }
+}
+
 std::optional<values::StillResult> SessionAgent::takeStill(
     double density, const std::string& path, std::string* why) {
   Session* session = m_host && !m_pendingOpen ? m_host->session() : nullptr;
@@ -361,106 +402,82 @@ std::optional<values::StillResult> SessionAgent::takeStill(
     *why = m_pendingOpen ? "the session is still opening" : "no session is open";
     return std::nullopt;
   }
-  const CanvasSpecification& specification = session->canvas();
-  const double width = std::floor(specification.size.width() * density);
-  const double height = std::floor(specification.size.height() * density);
-  if (!std::isfinite(density) || density <= 0 || !(width >= 1) ||
-      !(height >= 1) || width > kLargestStill || height > kLargestStill) {
-    *why = "a still of this canvas at that density has no pixels to hold";
+  if (!std::isfinite(density) || density <= 0) {
+    *why = "a density is a finite number of pixels per canvas unit above zero";
     return std::nullopt;
   }
   const std::string name = numbered(++m_stills, "stills/still", ".png");
   const std::filesystem::path file = underStateRoot(path, name, why);
   if (file.empty()) return std::nullopt;
 
-  const SkImageInfo info = SkImageInfo::MakeN32Premul((int)width, (int)height);
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
-  if (!surface) {
-    *why = "no raster surface could be made for the still";
-    return std::nullopt;
-  }
-  SkCanvas& canvas = *surface->getCanvas();
-  canvas.clear(material::skia::toSkColor(specification.background));
-  canvas.scale((float)density, (float)density);
-  if (m_bakeDensity != (float)density) {
-    session->setBakeDensity((float)density);
-    m_bakeDensity = (float)density;
-  }
   const bool counting = !m_pendingCounts.empty();
   if (counting) session->setCompositeCounting(true);
-  const bool held = m_clock.still();
-  armFrame();
-  try {
-    PhaseMark mark(Phase::Capture);
-    // A held clock draws the moment it holds; otherwise the still is the
-    // runtime's own, one frame more where it re-renders at this size.
-    if (held)
-      session->frame(canvas, 0.0);
-    else
-      session->still(canvas);
-  } catch (const std::exception& error) {
-    answerFrame();
-    *why = error.what();
-    return std::nullopt;
-  }
-  answerFrame();
-  if (!held) (void)m_clock.step(session->stillStep());
-
-  if (counting) {
-    const Session::CompositeCounts plane = session->compositeCounts();
-    session->setCompositeCounting(false);
-    std::vector<protocol::Reply<values::CompositeCountsResult>> owed =
-        std::move(m_pendingCounts);
-    m_pendingCounts.clear();
-    values::CompositeCountsResult counts;
-    std::string planeWhy;
-    const std::string planeName = numbered(++m_planes, "counts/counts", ".png");
-    const std::filesystem::path planeFile =
-        underStateRoot({}, planeName, &planeWhy);
-    SkBitmap grey;
-    bool written = false;
-    if (!planeFile.empty() && plane.width > 0 && plane.height > 0 &&
-        grey.tryAllocPixels(SkImageInfo::Make(plane.width, plane.height,
-                                              kGray_8_SkColorType,
-                                              kOpaque_SkAlphaType))) {
-      for (int y = 0; y < plane.height; ++y)
-        std::memcpy(grey.getAddr8(0, y),
-                    plane.counts.data() + (size_t)y * (size_t)plane.width,
-                    (size_t)plane.width);
-      written = writePng(grey.pixmap(), planeFile);
-    }
-    for (auto& reply : owed) {
-      if (!written) {
-        reply(refusal(ErrorCode_failed,
-                      "session.compositeCounts: " +
-                          (planeWhy.empty()
-                               ? std::string("the runtime counted no plane")
-                               : planeWhy)));
-        continue;
-      }
-      counts.path = planeFile.string();
-      counts.width = (uint32_t)plane.width;
-      counts.height = (uint32_t)plane.height;
-      counts.maximum = plane.counts.empty()
-                           ? 0u
-                           : *std::max_element(plane.counts.begin(),
-                                               plane.counts.end());
-      reply(counts);
-    }
-  }
-
   SkBitmap bitmap;
-  bitmap.allocPixels(info);
-  if (!surface->readPixels(bitmap.pixmap(), 0, 0) ||
-      !writePng(bitmap.pixmap(), file)) {
+  if (m_clock.still()) {
+    // A HELD CLOCK photographs the frame it holds as it was last drawn,
+    // drawing nothing new — the host's own still, which is also what a
+    // written capture has always been.
+    bitmap = m_host->still((float)density);
+    if (bitmap.isNull()) {
+      *why = m_host->errorLog().empty() ? "the still could not be drawn"
+                                        : m_host->errorLog();
+      return std::nullopt;
+    }
+  } else {
+    // A MOVING CLOCK photographs as a plate is taken: the runtime's own
+    // still on a raster surface of the canvas times the density, cleared
+    // to the declared ground, with every raster the session bakes taken
+    // at that density — one frame more where the runtime re-renders its
+    // still at this size, which the clock counts.
+    const CanvasSpecification& specification = session->canvas();
+    const double width = std::ceil(specification.size.width() * density);
+    const double height = std::ceil(specification.size.height() * density);
+    if (!(width >= 1) || !(height >= 1) || width > kLargestStill ||
+        height > kLargestStill) {
+      *why = "a still of this canvas at that density has no pixels to hold";
+      return std::nullopt;
+    }
+    const SkImageInfo info =
+        SkImageInfo::MakeN32Premul((int)width, (int)height);
+    sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
+    if (!surface) {
+      *why = "no raster surface could be made for the still";
+      return std::nullopt;
+    }
+    SkCanvas& canvas = *surface->getCanvas();
+    canvas.clear(material::skia::toSkColor(specification.background));
+    canvas.scale((float)density, (float)density);
+    if (m_bakeDensity != (float)density) {
+      session->setBakeDensity((float)density);
+      m_bakeDensity = (float)density;
+    }
+    armFrame();
+    try {
+      PhaseMark mark(Phase::Capture);
+      session->still(canvas);
+    } catch (const std::exception& error) {
+      answerFrame();
+      *why = error.what();
+      return std::nullopt;
+    }
+    answerFrame();
+    (void)m_clock.step(session->stillStep());
+    bitmap.allocPixels(info);
+    if (!surface->readPixels(bitmap.pixmap(), 0, 0)) {
+      *why = "the still could not be read back";
+      return std::nullopt;
+    }
+  }
+  if (counting) answerCounts(*session);
+  if (!writePng(bitmap.pixmap(), file)) {
     *why = "the still could not be written to " + file.string();
     return std::nullopt;
   }
   m_lastStill = file;
   values::StillResult result;
   result.path = file.string();
-  result.width = (uint32_t)width;
-  result.height = (uint32_t)height;
+  result.width = (uint32_t)bitmap.width();
+  result.height = (uint32_t)bitmap.height();
   result.seconds = m_clock.elapsed();
   return result;
 }

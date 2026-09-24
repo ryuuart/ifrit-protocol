@@ -67,7 +67,7 @@ class ClosedEvent:
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class CompositeCountsResult:
-    """The composite-count plane of the next frame."""
+    """The composite-count plane of the next still."""
 
     path: str = ""
     """Where the plane was written, under the state root: one saturating
@@ -613,9 +613,10 @@ class Session:
     def still(self, *, density: float = 1.0, path: str = "") -> StillResult:
         """Photographs the session at the clock as it stands, as a plate is
         taken: a runtime that re-renders its still at the still's size draws
-        one frame more to do it, which the clock counts; a clock that is
-        held draws the moment it holds, so two stills under it are one
-        picture.
+        one frame more to do it, which the clock counts. A clock that is
+        held — paused, or by the Pause policy — photographs the frame it
+        holds as it was last drawn, drawing nothing new, so two stills under
+        it are one picture.
 
         Answered once the work is done.
         """
@@ -669,8 +670,8 @@ class Session:
         return _shared.answer("session.profile", ProfileResult.from_json, answer)
 
     def composite_counts(self) -> CompositeCountsResult:
-        """Counts the composites each pixel of the next frame passes through,
-        and answers the plane once that frame is drawn.
+        """Counts the composites each pixel of the next still passes through,
+        and answers the plane once that still is taken.
 
         Answered once the work is done.
         """

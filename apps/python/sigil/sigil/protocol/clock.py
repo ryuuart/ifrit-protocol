@@ -174,8 +174,9 @@ class StepParameters:
     """Frames to advance, where seconds is absent."""
 
     seconds: float | None = None
-    """Seconds to advance, in frames of one over rate, rounded to the
-    nearest whole frame; absent to step by frames.
+    """Seconds to advance: whole frames of one over rate, then what is left
+    as one shorter frame; zero is one frame that moves nothing, which
+    runs the sketch at the moment it stands. Absent to step by frames.
     """
 
     rate: float = 60.0

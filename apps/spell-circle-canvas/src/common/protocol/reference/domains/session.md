@@ -74,7 +74,7 @@ Answers nothing but that it was done.
 
 ### session.still
 
-Photographs the session at the clock as it stands, as a plate is taken: a runtime that re-renders its still at the still's size draws one frame more to do it, which the clock counts; a clock that is held draws the moment it holds, so two stills under it are one picture.
+Photographs the session at the clock as it stands, as a plate is taken: a runtime that re-renders its still at the still's size draws one frame more to do it, which the clock counts. A clock that is held — paused, or by the Pause policy — photographs the frame it holds as it was last drawn, drawing nothing new, so two stills under it are one picture.
 
 In Python, Session.still.
 
@@ -182,7 +182,7 @@ Answers `ProfileResult`: What the profiled frame spent, the most expensive first
 
 ### session.compositeCounts
 
-Counts the composites each pixel of the next frame passes through, and answers the plane once that frame is drawn.
+Counts the composites each pixel of the next still passes through, and answers the plane once that still is taken.
 
 In Python, Session.composite_counts.
 
@@ -190,7 +190,7 @@ Answered later, through the reply the agent is handed, once the work is done.
 
 Takes nothing.
 
-Answers `CompositeCountsResult`: The composite-count plane of the next frame.
+Answers `CompositeCountsResult`: The composite-count plane of the next still.
 
 | Field | Type | Default | |
 | --- | --- | --- | --- |

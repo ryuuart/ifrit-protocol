@@ -45,7 +45,7 @@ Takes `StepParameters`: What step is asked: frames, or seconds taken as frames o
 | Parameter | Type | Default | |
 | --- | --- | --- | --- |
 | `frames` | uint | 1 | Frames to advance, where seconds is absent. |
-| `seconds` | double, may be absent | absent | Seconds to advance, in frames of one over rate, rounded to the nearest whole frame; absent to step by frames. |
+| `seconds` | double, may be absent | absent | Seconds to advance: whole frames of one over rate, then what is left as one shorter frame; zero is one frame that moves nothing, which runs the sketch at the moment it stands. Absent to step by frames. |
 | `rate` | double | 60.0 | Frames per second the steps are taken at: each frame advances the clock by one over this. |
 
 Answers `StepResult`: Where step left the clock.
