@@ -509,30 +509,34 @@ A test should assert that `--frame --at 1 --scale 2` of `cascade` equals
 the sweep plate at `--at 1` byte for byte, and, in process, that
 `pinDensity(2)`, `setPolicy(Advance)`, `step(1)`, `still(2)` equals both.
 
-## `material::kit::sparkle` sizes its cells in the shader's own units, so it cannot be an ink
+## `material::kit::sparkle` alone ignores the run's extent, so it cannot follow the type on the default ink box
 
 Five of the six text paints read the run's `extent` from
 `TextPaintParameters` and work in `(point - origin) / extent`. `Sparkle.sksl`
 reads `origin` alone: its cells are a fixed 22 units of the coordinates the
-shader is sampled in, and its points a fraction of a cell. A fill samples
-a recipe in node pixels, so `sparkle(box)` as a fill twinkles as authored.
-An ink samples it in the unit square — `Composer::Impl::textInkOf` maps
-[0,1]² onto the passage's metric band — so the whole passage stands inside
-one cell and at most one point of light shows, whatever bounds are
-passed. The only way a sketch had to see it on type was an `SkShader`
-local matrix scaling a pixel-sized field into the unit square.
+shader is sampled in, and its points a fraction of a cell. Under
+`PaintBox::Element`, the default box of an ink, `Composer::Impl::textInkOf`
+maps [0,1]² onto the passage's metric band and resolves the material
+against a 1 × 1 box, so the whole passage stands inside one cell and at
+most one point of light shows, whatever bounds are passed. Under
+`PaintBox::Subtree` or `PaintBox::Canvas` the ink resolves in the node's own
+pixels and sparkle twinkles as it does as a fill, but then its cells keep
+one pixel size whatever the type's size, so a 104 px wordmark and 9 px body
+type take the same grain, where the other five scale with the run.
 
-The preset is evidently meant to be one of the six text paints, all of
-which the header says are painted over a run: its cell size should be a
-fraction of `extent`, as the other five scale their fields, so
-`sparkle(unit, t)` as an ink twinkles across a word as `sparkle(box, t)`
-does as a fill.
+The preset is evidently meant to behave as the other five text paints do
+on the box that is stretched over the type: its cell size should be a
+fraction of `extent`, so `sparkle(unit, t)` inked on the default box
+twinkles across a word, and a larger word takes proportionally larger
+cells.
 
-A test should ink a word with `sparkle(SkRect::MakeWH(1, 1), t)` and
-assert that light lands on several separate glyphs, and that the same
-material as a fill over a 220 × 70 box is unchanged. Wanted by
-`text_paints` (its SPARKLE OVER A BASE cell shows the base alone);
-`stock_materials` shows it only as a fill.
+A test should ink a word with `sparkle(SkRect::MakeWH(1, 1), t)` on
+`PaintBox::Element` and assert that light lands on several separate
+glyphs, that the same word at twice the size takes cells twice as large,
+and that the material as a fill over a 220 × 70 box is unchanged. Wanted
+by `text_paints`, whose SPARKLE OVER A BASE cell states its ink over
+`PaintBox::Subtree` to sample the field in pixels; `stock_materials` shows
+it only as a fill.
 
 ## A block after the first takes its first-line indent one line late under the optimizing breaker
 

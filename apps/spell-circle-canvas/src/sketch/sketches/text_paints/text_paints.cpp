@@ -47,6 +47,9 @@ struct Ink {
   std::string control;
   std::string note;
   paint::Paint paint;
+  /** The box the paint is stretched over; the passage's own text box
+   *  unless the ink says otherwise. */
+  PaintBox box = PaintBox::Element;
 };
 
 paint::Paint field(material::Material recipe) {
@@ -54,8 +57,8 @@ paint::Paint field(material::Material recipe) {
 }
 
 std::vector<Ink> inks() {
-  // An ink hands its paint the unit square, so the fields are authored
-  // over it rather than over any run's pixels.
+  // An ink on the default box hands its paint the unit square, so the
+  // fields are authored over it rather than over any run's pixels.
   const SkRect unit = SkRect::MakeWH(1, 1);
   namespace fields = material::kit;
   return {
@@ -65,16 +68,20 @@ std::vector<Ink> inks() {
       {"mesh", "MESH", "meshGradient(unit, t)",
        "Four colour regions, crossed by the word and by the column alike.",
        field(fields::meshGradient(unit, kMoment))},
-      // `material::kit::sparkle` sizes its cells in the shader's own
-      // units and never reads the run's extent, so under an ink, whose
-      // coordinates are the unit square, a whole passage falls inside
-      // one cell and the field shows at most one point of light.
-      {"sparkle", "SPARKLE OVER A BASE", "blend(solid, sparkle · plus)",
-       "Its cells are sized in pixels, so the unit square holds one.",
+      // `material::kit::sparkle` sizes its cells in the pixels it is
+      // sampled in and never reads the run's extent, so on the unit
+      // square of the default box a whole passage falls inside one cell.
+      // The rule states the ink on the passage itself, so the Subtree box
+      // is the passage's own box, resolved in its pixels, where a cell is
+      // the 22 px it was drawn at; the bounds place only the origin.
+      {"sparkle", "SPARKLE OVER A BASE", "sparkle(px, t) · plus · Subtree",
+       "Stated over the passage's pixels, where its cells keep their size.",
        paint::Paint::blend(
            {{paint::Paint::solid({0.23f, 0.30f, 0.46f, 1}),
              SkBlendMode::kSrcOver},
-            {field(fields::sparkle(unit, kMoment)), SkBlendMode::kPlus}})},
+            {field(fields::sparkle(SkRect::MakeWH(220, 70), kMoment)),
+             SkBlendMode::kPlus}}),
+       PaintBox::Subtree},
       {"star-nest", "STAR NEST", "starNest(unit, t)",
        "Dense light inside the letterforms; small type keeps its warmth.",
        field(fields::starNest(unit, kMoment))},
@@ -109,7 +116,7 @@ StyleSheet sheet(const std::vector<Ink>& all) {
   for (const Ink& ink : all)
     inked = inked + StyleSheet{rule("." + ink.name +
                                     " :is(wordmark, word, paragraph)")
-                                   .ink(ink.paint)};
+                                   .ink(ink.paint, ink.box)};
   return StyleSheet{
              rule("wordmark")
                  .fontFamily(
