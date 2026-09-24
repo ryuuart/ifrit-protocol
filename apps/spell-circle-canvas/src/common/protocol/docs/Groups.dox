@@ -1,0 +1,10 @@
+// The documentation groups whose members are spread over several of this
+// library's headers, declared where no header has to include another to
+// reach them.
+
+/** @defgroup protocol-definition The definition's seams
+ *  What the code generated from the protocol definition stands on: what
+ *  a command answers, the host's side of a command and the caller's, and
+ *  the reflected definition's own bytes.
+ *  @{ */
+/** @} */

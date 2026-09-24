@@ -36,7 +36,7 @@ set(SIGIL_PROTOCOL_DESCRIPTION ${SIGIL_PROTOCOL_GENERATED}/protocol_description.
 
 sigil_library_root(SigilProtocol
   BRIEF "The inspection and automation protocol: one definition, the agents a host mounts, and the clients generated from it"
-  DOCS ${SIGIL_PROTOCOL_REFERENCE})
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox ${SIGIL_PROTOCOL_REFERENCE})
 
 # Dependencies point down this list.
 add_subdirectory(generator)
