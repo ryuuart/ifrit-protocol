@@ -21,7 +21,9 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/kit/Shapers.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -32,6 +34,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/Hyphenation.h>
+#include <sigilweave/kit/LineTables.h>
 
 #include <ranges>
 
@@ -43,6 +46,7 @@ namespace measure = sigil::measure;
 namespace weave = sigil::weave;
 namespace data = sigil::data;
 namespace shapes = sigil::geometry::shapes;
+namespace shapers = sigil::geometry::shapers;
 namespace ease = sigil::motion::ease;
 using namespace sigil::compose;
 using namespace sigil::motion;
@@ -93,6 +97,35 @@ constexpr std::array<Turn, 6> kTurns{{{0, kWeaveEnd},
                                       {4, 0.7625f},
                                       {0, 0.8125f}}};
 constexpr float kFade = 0.025f;
+
+/** THE LOOM'S BEAT. The cloth is woven an inch at a time — 42 picks, the
+ *  sett's own density — and each inch is two strokes: the shuttle is
+ *  thrown across the open shed, then the reed beats the pick home and the
+ *  fell drops by one inch. Nine inches make the panel's picks. */
+constexpr int kBeats = 9;
+constexpr float kThrow = 0.6f;
+
+/** Where the fell stands, as a fraction of the panel, at a moment of the
+ *  weave: still while the shuttle flies, then a hard eased drop. */
+float beaten(float weave) {
+  if (weave >= 1) return 1;
+  const float scaled = std::max(weave, 0.0f) * kBeats;
+  const float inch = std::floor(scaled);
+  const float stroke = std::clamp((scaled - inch - kThrow) / (1 - kThrow), 0.0f, 1.0f);
+  const float settle = 1 - (1 - stroke) * (1 - stroke) * (1 - stroke);
+  return (inch + settle) / kBeats;
+}
+
+/** Where the shuttle is across the shed: out and back on alternate
+ *  inches, eased at both boxes, and waiting at its box while the reed
+ *  beats. */
+float thrown(float weave) {
+  const float scaled = std::clamp(weave, 0.0f, 0.9999f) * kBeats;
+  const int inch = (int)scaled;
+  const float flight = std::clamp((scaled - (float)inch) / kThrow, 0.0f, 1.0f);
+  const float across = flight * flight * (3 - 2 * flight);
+  return inch % 2 == 0 ? across : 1 - across;
+}
 
 // ---------------------------------------------------------------------------
 // The card's colours: manila board, dark ink, a rule grey and the proof red
@@ -186,9 +219,13 @@ StyleSheet cardSheet(const CardColours& colours) {
           var("ink")),
       rule(".lifted").fill(Fill::var("ink")),
       rule(".cell").width(kDraftCell).height(kDraftCell),
+      // Quoted prose hangs its quotation marks and hyphens past the measure,
+      // so the column's edge is squared on the letters rather than on the
+      // punctuation's advances.
       rule(".name, .quote, .reading, .douglas")
           .fontFamily(book)
-          .letterSpacing(0),
+          .letterSpacing(0)
+          .paragraph({.hanging = weave::kit::hanging::latin()}),
       rule(".name").fontStyle(FontStyle::Italic).fontSize(13).ink(
           var("ink")),
       rule(".name.honest").ink(var("proof")),
@@ -272,7 +309,10 @@ struct BlackWatch {
   Pattern warpOnBeam, argyllCloth, drawdown, grooves, draftGrid;
   std::vector<Pattern> cloths;  // one per shade card
   std::array<Pattern, 9> blends;
-  material::skia::Paint board, yarn;
+  /** One wound card per shade card, a wrap of yarn per shade. */
+  std::vector<std::array<Pattern, 3>> wraps;
+  Pattern tassels;
+  material::skia::Paint board, yarn, light, fringeFade, boxwood;
 
   choreograph::Output<float> loom{0};
 
@@ -327,6 +367,40 @@ struct BlackWatch {
                               .seed = 7.0f}));
     yarn = material::skia::Paint::recipe(
         material::field::grain(0.09f, 3, 3.0f, 0.75f));
+    // A shade card is yarn wound round a board: each turn a lit crown and
+    // a shadowed valley where it presses on the next.
+    for (const ShadeCard& card : cards) {
+      std::array<Pattern, 3> wound;
+      for (int shade : {K, B, G}) {
+        const material::Color dyed = card.shades[(size_t)shade];
+        const auto toward = [&](float amount, float target) {
+          return material::Color{dyed.r + (target - dyed.r) * amount,
+                                  dyed.g + (target - dyed.g) * amount,
+                                  dyed.b + (target - dyed.b) * amount, 1};
+        };
+        wound[(size_t)shade] = nearest(patterns::sequence(
+            {{1, toward(0.14f, 1)}, {1.5f, dyed}, {0.5f, toward(0.45f, 0)}}, 0,
+            patterns::Axis::V));
+      }
+      wraps.push_back(std::move(wound));
+    }
+    // Light rakes the cloth from the upper left, as it falls on a card
+    // pinned by a window: the nap catches it near and gives it up far.
+    light = material::skia::Paint::radialUnit(
+        {0.12f, 0.02f}, 1.25f,
+        {{0, {1, 1, 1, 0.13f}},
+         {0.4f, {1, 1, 1, 0}},
+         {0.65f, {0, 0, 0, 0}},
+         {1, {0, 0, 0, 0.32f}}});
+    // The warp left unwoven below the last pick is knotted into tassels of
+    // four ends each, and thins out to nothing.
+    tassels = nearest(patterns::sequence(
+        {{3 * kThread, {0, 0, 0, 1}}, {kThread, {0, 0, 0, 0}}}, 0, patterns::Axis::U));
+    fringeFade = material::skia::Paint::linearUnit(
+        {0, 0}, {0, 1}, {{0, {0, 0, 0, 1}}, {0.35f, {0, 0, 0, 0.9f}}, {1, {0, 0, 0, 0}}});
+    boxwood = material::skia::Paint::linearUnit(
+        {0, 0}, {0, 1},
+        {{0, colourOf("#E0B878")}, {0.45f, colourOf("#B98A4E")}, {1, colourOf("#6E4A26")}});
   }
 
   /** Every row's verdict is computed from the two values it reports, so a
@@ -418,7 +492,12 @@ struct BlackWatch {
     const data::Json& words = doc["masthead"];
     return box().row().justifyContent(Justify::SpaceBetween).children(
         {box().column().gap(14).children(
-             {document::h1(doc.phrase(words["title"])),
+             // The title is struck into the board: a hairline of light
+             // along the lower lip of every glyph's bite.
+             {document::h1(doc.phrase(words["title"]))
+                  .decorationOutline(Boundary::Glyphs)
+                  .background(styles::dropShadow({1, 1, 1, 0.8f}, {0, 1.2f}, 0.4f))
+                  .foreground(styles::InnerShadow{{0, 0, 0, 0.55f}, {0, 1.5f}, 1.5f}),
               document::lead(doc.phrase(words["registration"]))}),
          box().row().gap(13).width(486).styleClass("ticket").children(
              {kit::line({.thickness = 1, .column = true,
@@ -519,7 +598,10 @@ struct BlackWatch {
                 // it only shortens it.
                 layer(warpOnBeam.material())
                     .transformOrigin(pct(50), pct(100))
-                    .scaleY(bind(&loom).window(kBeamEnd, kWeaveEnd).invert()),
+                    .scaleY(bind(&loom)
+                                .window(kBeamEnd, kWeaveEnd)
+                                .map(beaten)
+                                .invert()),
                 // Before that the warp itself is beamed on: a blind in the
                 // well's colour withdraws to the right.
                 box()
@@ -540,7 +622,8 @@ struct BlackWatch {
                     layer(yarn)
                         .blendMode(SkBlendMode::kOverlay)
                         .opacity(0.14f)
-                        .cache(Cache::Texture)});
+                        .cache(Cache::Texture),
+                    layer(light).cache(Cache::Texture)});
     // The mirror axes flash while the arithmetic proves itself.
     panel.children({each(mirrorPositions(), [this](float position) {
       return box()
@@ -554,21 +637,92 @@ struct BlackWatch {
                        .trapezoid(0, 0.25f, 0.75f, 1)
                        .scale(0.8f));
     })});
-    // The fell: the shuttle's current pick, riding the edge of the cloth.
-    panel.children({box()
-                        .left(0)
-                        .top(0)
-                        .width(pct(100))
-                        .height(2)
-                        .fill(Fill::var("proof"))
-                        .translateY(bind(&loom)
-                                        .window(kBeamEnd, kWeaveEnd)
-                                        .target(0, height))
-                        .opacity(bind(&loom)
-                                     .source(kBeamEnd - 0.01f,
-                                             kWeaveEnd + 0.01f)
-                                     .trapezoid(0, 0.03f, 0.97f, 1))});
+    // The fell, the edge of the cloth the reed beats each inch home to,
+    // and the shuttle flying the open shed along it between beats.
+    const auto weaving = [this] {
+      return bind(&loom)
+          .source(kBeamEnd - 0.01f, kWeaveEnd + 0.01f)
+          .trapezoid(0, 0.03f, 0.97f, 1);
+    };
+    const auto atFell = [this, height](float lift) {
+      return bind(&loom)
+          .window(kBeamEnd, kWeaveEnd)
+          .map(beaten)
+          .target(lift, height + lift);
+    };
+    panel.children(
+        {box()
+             .left(0)
+             .top(0)
+             .width(pct(100))
+             .height(2)
+             .fill(Fill::var("proof"))
+             .translateY(atFell(0))
+             .opacity(weaving()),
+         box()
+             .left(0)
+             .top(0)
+             .width(58)
+             .height(11)
+             .shape(shapes::svg("M0 5.5 C9 0 49 0 58 5.5 C49 11 9 11 0 5.5 Z"))
+             .fill(boxwood)
+             .stroke(stroke(0.8f, Fill::var("ink"), PathFormat::Align::Inner))
+             .background(styles::dropShadow(faded(colours.shadow, 0.6f), {1, 3}, 3))
+             .children({box()
+                            .left(17)
+                            .top(3.5f)
+                            .width(24)
+                            .height(4)
+                            .borderRadius(2)
+                            .fill(cards.front().shades[B])})
+             .translateX(bind(&loom)
+                             .window(kBeamEnd, kWeaveEnd)
+                             .map(thrown)
+                             .target(-58, width))
+             .translateY(atFell(-5.5f))
+             .opacity(weaving())});
     return panel;
+  }
+
+  /** The cloth as a mounted sample: the woven panel, the warp running on
+   *  past its last pick into a fringe, and four card corners holding it
+   *  to the board. */
+  Element mountedCloth() const {
+    const float width = kEnds * kThread;
+    constexpr float kFringe = 14, kCorner = 26;
+    // The fringe stands behind the panel, so its ragged edge shows only
+    // where the tassels hang free.
+    Element mount = box().column().width(width).paddingBottom(kFringe).children(
+        {box()
+             .left(0)
+             .top(14 + kPicks * kThread - 4)
+             .width(width)
+             .height(kFringe + 4)
+             .shape(shapes::shaped(shapes::chamfered(0),
+                                   shapers::Zigzag{.amplitude = 2.5f, .wavelength = 9}))
+             .fill(warpOnBeam.material())
+             .mask(by::alpha(fringeFade))
+             .mask(parts::all(), by::alpha(tassels.material()))
+             .transformOrigin(pct(0), pct(50))
+             .scaleX(bind(&loom).window(0, kBeamEnd)),
+         clothPanel()});
+    const std::array<std::pair<SkPoint, float>, 4> corners{
+        {{{-5, 9}, 0}, {{width - kCorner + 5, 9}, 90},
+         {{width - kCorner + 5, 14 + kPicks * kThread - kCorner + 5}, 180},
+         {{-5, 14 + kPicks * kThread - kCorner + 5}, 270}}};
+    for (const auto& [at, turn] : corners)
+      mount.children({box()
+                          .left(at.x())
+                          .top(at.y())
+                          .width(kCorner)
+                          .height(kCorner)
+                          .rotate(turn)
+                          .shape(shapes::svg("M0 0 L1 0 L0 1 Z"))
+                          .fill(board)
+                          .stroke(stroke(0.8f, Fill::var("rule"), PathFormat::Align::Inner))
+                          .background(styles::dropShadow(
+                              faded(colours.shadow, 0.4f), {1, 1.5f}, 2.5f))});
+    return mount;
   }
 
   // =========================================================================
@@ -708,7 +862,7 @@ struct BlackWatch {
       std::vector<SurfacePaint> swatches;
       std::vector<Utf8> labels;
       for (int shade : {K, B, G}) {
-        swatches.push_back(Fill::color(card.shades[(size_t)shade]));
+        swatches.push_back(wraps[index][(size_t)shade].material());
         labels.push_back(kit::formatted("%c %s", kShadeCodes[(size_t)shade],
                                         hexOf(card.shades[(size_t)shade])
                                             .c_str()));
@@ -750,9 +904,13 @@ struct BlackWatch {
                  float edgeWidth) const {
     Pattern cut = cloth;
     cut.offset({-crop.x() * kThread, -crop.y() * kThread});
+    // A specimen is a cutting, and cloth is cut with pinking shears so the
+    // weave cannot run back from the edge.
     return box()
         .width(kSwatch.width())
         .height(kSwatch.height())
+        .shape(shapes::shaped(shapes::chamfered(0),
+                              shapers::Zigzag{.amplitude = 2, .wavelength = 7}))
         .overflow(Overflow::Clip)
         .background(
             styles::dropShadow(faded(colours.shadow, 0.45f), {2, 3}, 7))
@@ -760,7 +918,8 @@ struct BlackWatch {
         .stroke(stroke(edgeWidth, std::move(edge), PathFormat::Align::Outer))
         .children({layer(grooves.material())
                        .blendMode(SkBlendMode::kMultiply)
-                       .opacity(0.85f)});
+                       .opacity(0.85f)})
+        .cache(Cache::Texture);
   }
 
   Element provenance() const {
@@ -911,7 +1070,7 @@ struct BlackWatch {
             masthead(),
             kit::line({.fill = Fill::var("rule")}).marginTop(18),
             box().row().gap(24).children(
-                {box().column().flexShrink(0).children({settBar(), clothPanel()}),
+                {box().column().flexShrink(0).children({settBar(), mountedCloth()}),
                  box().column().width(440).flexShrink(0).gap(34).marginTop(18).children(
                      {draft(), blendTable(), shadeCards()})}),
             box().row().gap(40).marginTop(12).children(
