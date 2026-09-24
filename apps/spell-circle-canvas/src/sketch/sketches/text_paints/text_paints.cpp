@@ -20,7 +20,6 @@
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/Hyphenation.h>
 
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -99,14 +98,6 @@ std::vector<Ink> inks() {
   };
 }
 
-/** Liang's English patterns, loaded once and shared by every paragraph. */
-std::shared_ptr<const weave::Hyphenator> hyphenator() {
-  static const std::shared_ptr<const weave::Hyphenator> table =
-      std::make_shared<const weave::kit::PatternHyphenator>(
-          "en", weave::kit::englishHyphenationPatterns());
-  return table;
-}
-
 /** HOW EVERYTHING HERE IS SET: the wordmark in a heavy grotesque, the
  *  page in a book face justified with hyphens, and each ink a class whose
  *  paint reaches the passages of the well that names it — never the
@@ -126,16 +117,13 @@ StyleSheet sheet(const std::vector<Ink>& all) {
              rule("word, paragraph")
                  .fontFamily("Hoefler Text, Baskerville, serif")
                  .font({.language = "en-US"}),
-             // The optimizing breaker fetches the line after a block's last
-             // before the next block opens, so every block after the first
-             // takes its first-line indent one line late.
              rule("paragraph")
                  .width(pct(100))
                  .lineHeight(weave::Leading::multiple(1.32f))
                  .textIndent(1.6_em)
                  .textAlign(weave::TextAlignment::kJustify)
                  .textWrap(TextWrap::Pretty)
-                 .hyphens({.patterns = hyphenator()}),
+                 .hyphens({.patterns = weave::kit::englishHyphenator()}),
          } +
          inked;
 }
