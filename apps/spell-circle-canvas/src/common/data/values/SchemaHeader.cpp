@@ -6,6 +6,8 @@
  * table's reading out of bytes and its JSON form are named through.
  */
 
+#include "SchemaHeader.h"
+
 #include <flatbuffers/idl.h>
 
 #include <algorithm>
@@ -13,7 +15,6 @@
 #include <string>
 #include <vector>
 
-#include "SchemaHeader.h"
 #include "SchemaLines.h"
 #include "SchemaNames.h"
 
@@ -147,7 +148,8 @@ void Header::writeJsonForms(std::ostream& out,
         << "> {\n";
     out << "  static const ::sigil::data::Schema& schema() {\n";
     out << "    static const ::sigil::data::Schema table =\n";
-    out << "        ::sigil::data::schema<" << wireOf(*def) << ">().rootedAt(\n";
+    out << "        ::sigil::data::schema<" << wireOf(*def)
+        << ">().rootedAt(\n";
     out << "            \"" << qualified << "\");\n";
     out << "    return table;\n";
     out << "  }\n";
@@ -156,7 +158,15 @@ void Header::writeJsonForms(std::ostream& out,
     out << "    const std::optional<std::vector<std::byte>> buffer =\n";
     out << "        schema().binary(json, why);\n";
     out << "    if (!buffer) return std::nullopt;\n";
-    out << "    return " << callRef("read", *def) << "(*buffer);\n";
+    // Text the parser takes can still be text the table's own reading
+    // refuses — a field its definition requires, left out — and the
+    // reading has no words of its own, so the refusal names the table.
+    out << "    std::optional<" << value << "> read =\n";
+    out << "        " << callRef("read", *def) << "(*buffer);\n";
+    out << "    if (!read && why)\n";
+    out << "      *why = \"the text leaves out a field " << qualified
+        << " or a table inside it requires\";\n";
+    out << "    return read;\n";
     out << "  }\n";
     out << "  static std::optional<std::string> to(\n";
     out << "      const " << value << "& value, std::string* why) {\n";
