@@ -19,29 +19,31 @@ derived is kept by hand.
 ## The chain
 
 ```
- definition/protocol.fbs            the definition: domains, commands, events,
-          |                         tables, /// documentation, marks
+ definition/protocol.fbs           the definition: domains, commands, events,
+          |                        tables, /// documentation, marks
           | flatc -b --schema --bfbs-comments --bfbs-builtins
           v
- protocol.bfbs  ------------------  the reflected definition: services,
-          |                         documentation and attributes kept
-          | sigil_schema_values           | sigil_protocol
-          v                               v
- protocol_values.h            <Domain>Agent.h   <Domain>Client.h   Tables.h
- value types, JSON forms      agent, events,    C++ client         every table
-                              wire()                   |
-                                  |                    |     protocol_description.json
-                                  v                    |               | generate.py
-                               AGENTS                  |               v
-                     (in the library that owns         |     Python client, reference
-                      the domain; a host mounts)       |     pages (committed, checked)
-                                  |                    |               |
-                                  v                    v               v
-                             DISPATCHER <----------- CLIENTS -----> PANELS
-                                  |                                (Seer)
-                                  v
-                              ENDPOINT   ws:// on loopback, <state>/protocol-address,
-                                         the definition served at /protocol
+ protocol.bfbs  -----------------  the reflected definition: services,
+          |                        documentation and attributes kept
+          | sigil_schema_values     | sigil_protocol, per domain
+          v                         v
+ protocol_values.h       clock/ClockAgent.h    clock/ClockClient.h   Tables.h
+ value types and         agent, events,        C++ client            every
+ their JSON forms        wire()                     |                table
+                              |                     |
+                              |                     |     protocol_description.json
+                              |                     |          | generate.py
+                              v                     |          v
+                           AGENTS                   |     Python client, reference
+                (in the library that owns           |     pages (committed, checked)
+                 the domain; a host mounts)         |          |
+                              |                     |          |
+                              v                     v          v
+                         DISPATCHER <---------- CLIENTS ----> PANELS
+                              |                               (Seer)
+                              v
+                          ENDPOINT   ws:// on loopback, <state>/protocol-address,
+                                     the definition served at /protocol
 ```
 
 Seven seams, in the order a message crosses them. Each promises
@@ -66,17 +68,23 @@ what it sees is what flatc understood. flatc keeps `rpc_service` blocks
 in the reflection as services, keeps the `///` comments with
 `--bfbs-comments`, keeps a user attribute always and a builtin one —
 the `streaming` mark — only with `--bfbs-builtins`; the build passes
-both. `sigil_protocol` refuses a definition with an undocumented part,
-an events service with no domain beside it, an event not marked
-streaming, a command that is, or a domain with events and no `enable`
-and `disable`; and it refuses a definition whose domains are not the
-ones the build names, so a new domain is named in this directory's
-`CMakeLists.txt` before it builds. It writes, into the build tree as
-flatc's C++ is:
+both. `sigil_protocol` refuses, naming the part, a definition with an
+undocumented part; a union or a struct; a default that is no finite
+number; no `Empty`; a domain service not named for its namespace's last
+word raised — `clock`'s is `Clock`, the name its headers are written
+under — or two namespaces ending in one word; an events service with no
+domain beside it; an event not marked streaming, a command that is, or
+an event that takes anything but `Empty`; a domain with events and no
+`enable` and `disable`, one with them and no events, or an `enable` or
+`disable` that takes or answers anything but `Empty`. It refuses a
+definition whose domains are not the ones the build names, so a new
+domain is named in this directory's `CMakeLists.txt` before it builds.
+It writes, into the build tree as flatc's C++ is:
 
-- `<domain>/<Service>Agent.h`: the agent interface, one pure virtual per
-  command; the events emitter, one member per event; and `wire()`.
-- `<domain>/<Service>Client.h`: the typed C++ client.
+- `<domain>/<Domain>Agent.h` — `clock/ClockAgent.h`: the agent
+  interface, one pure virtual per command; the events emitter, one
+  member per event; and `wire()`.
+- `<domain>/<Domain>Client.h`: the typed C++ client.
 - `Tables.h`: every table as one type list, `sigil::protocol::Tables`,
   and their names as the definition spells them,
   `sigil::protocol::tableNames`.
@@ -117,13 +125,16 @@ dispatcher's own and no `wire()` mounts them: no event of a domain
 reaches a client before its `enable` or after its `disable`. Events go
 out through a `sigil::protocol::Emit`, one generated member per event —
 `sigil::protocol::clock::ClockEvents` — each built on
-`sigil::protocol::emitEvent`. The dispatcher itself, with its sessions
+`sigil::protocol::emitEvent`, which answers false where the event's
+table cannot hold it or there is nowhere to send it, and is marked so
+the sender cannot pass that by unseen. The dispatcher itself, with its sessions
 and its in-process form, is the runtime's next link: what it will
 promise is stated here, and no header of this library declares it yet.
 It answers a method the definition does not declare with
 `methodNotFound`, one of a domain it has not mounted with `notMounted`,
-and a message that is no request with `invalidRequest`, each naming the
-method; it never leaves a command unanswered.
+each naming the method, and a message that is no request with
+`invalidRequest`, naming the method where the message carries one; it
+never leaves a command unanswered.
 
 **5. The endpoint**, also the runtime's next link, is one of SigilData's
 connections on SigilIO's `ws://`, bound to loopback on the port asked
@@ -138,16 +149,30 @@ one by default; the product receiver only when `--inspect` asks.
 
 **6. The clients** speak through a `sigil::protocol::Caller`: `call`
 sends a method and its parameters' JSON text and hands the answer back
-once, and `listen` hands every event of a method to a listener.
-`sigil::protocol::clock::ClockClient` is the generated C++ client, one
-member per command answering through a reply and one per event;
-`sigil::protocol::callWith` refuses parameters their table cannot hold
-before anything is sent, and fails an answer that does not read as the
-result, naming the method. The Python client, `sigil.protocol`, is the
-same shape: one class per domain, one method per command taking the
+once, `listen` hands every event of a method to a listener, and
+`refused` is handed the refusal for every event whose text does not read
+as its table. `sigil::protocol::clock::ClockClient` is the generated C++
+client, one member per command answering through a reply and one per
+event. The client refuses with codes of its own and words that open
+with `client:` and the method, made by
+`sigil::protocol::clientRefusal`: `sigil::protocol::callWith` refuses
+with `notSent` parameters their table cannot hold, or a caller with
+nowhere to send, before anything is sent, and with `unreadable` an
+answer that does not read as the result; `sigil::protocol::listenFor`
+refuses with `unreadable` an event that does not read as its table,
+which no listener hears, and with `notSent` a caller that listens
+nowhere, handing either to the caller's `refused` through
+`sigil::protocol::reportRefusal` — or to the standard error where it
+has none, so no event is lost unseen. An error the host answered is handed on as it
+came. The Python client, `sigil.protocol`, is the same shape in the
+package's own spelling: one class per domain, one snake_case method per
+command — `Clock.set_policy` sends `clock.setPolicy` — taking the
 parameter table's fields as keywords and answering the result as a
-frozen dataclass, and one `on…` method per event. Both clients send the
-same text, so a test in the same process and a script over the socket
+frozen dataclass, and one `on_…` method per event; its refusals are
+`ProtocolError`s carrying the same codes, and a table's `from_json`
+refuses a member the table does not declare, as the C++ reading does.
+Both clients write the same JSON for every table, which a self-check
+holds, so a test in the same process and a script over the socket
 exercise one path.
 
 **7. The panels** are Seer's, over the same clients, and come after the
@@ -158,7 +183,9 @@ the sessions open.
 ## The errors
 
 `sigil::protocol::ErrorCode` names the seam that refused, and every
-`sigil::protocol::values::Error` carries it beside the seam's own words.
+`sigil::protocol::values::Error` carries it beside the seam's own words;
+the client's words open with `client:`, so its refusal is never taken
+for the host's even where only the message is shown.
 
 | Code | Seam | When |
 | --- | --- | --- |
@@ -167,6 +194,8 @@ the sessions open.
 | `notMounted` | the dispatcher | the definition declares it, and this host mounts no agent for its domain |
 | `invalidParameters` | the handler | the parameters do not fit the command's table; the agent is not asked |
 | `failed` | the agent | the agent was asked and could not do it |
+| `notSent` | the client | nothing was sent: the parameters' table cannot hold them, or the client has nowhere to send |
+| `unreadable` | the client | what the host sent does not read as its table — an answer as the result, an event as its table: the two were built from different definitions |
 
 ## Virtual time is the one determinism seam
 
@@ -198,8 +227,8 @@ two seconds at double density is `clock.setPolicy` to `Advance`,
 - `definition/Mount.h` — `Respond`, `Handler`, `Mounts`, `Emit`,
   `readParameters`, `answerText`, `answerNow`, `answerLater`,
   `emitEvent`: the host's side of a command.
-- `definition/Call.h` — `Caller`, `callWith`, `listenFor`: the caller's
-  side.
+- `definition/Call.h` — `Caller`, `clientRefusal`, `reportRefusal`,
+  `callWith`, `listenFor`: the caller's side.
 - `definition/Definition.h` — `definition`: the reflected definition's
   bytes.
 
@@ -224,6 +253,8 @@ not name.
 `ctest -L protocol` runs every seam's own check, so a red case higher
 up is triaged by running the layer below it:
 
+- the generator refuses each rule of the definition's shape broken, one
+  case a rule, over a definition of a few lines parsed in the test;
 - the reflected definition keeps its eight services, every part's
   documentation and every mark, and is the same bytes flatc wrote;
 - every table the definition declares — `sigil::protocol::Tables` —
@@ -233,9 +264,15 @@ up is triaged by running the layer below it:
   answers, a handler refuses parameters that do not fit before the agent
   is asked, an asynchronous command answers when its reply is called,
   an event goes out as its table's text, and a client reads a result
-  back as its table and fails one that is not;
+  back as its table and refuses, with its own codes, an answer or an
+  event that is not one and a command with nowhere to go;
 - `protocol_drift`: the committed Python client and reference pages
   are what `generate.py` writes from the description the build wrote;
+- `protocol_python_client`: every table of the Python client reads and
+  writes back the very JSON the C++ tables write, and refuses a member it
+  does not declare; its methods send the definition's names and refuse
+  what the C++ client refuses; `protocol_python_types`, where
+  basedpyright is installed, holds the package to its strict mode;
 - the documentation probe compiles every qualified name this README and
   the reference pages spell.
 

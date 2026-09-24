@@ -1,6 +1,5 @@
 #include "ProtocolWriting.h"
 
-#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -22,17 +21,12 @@ std::string cppSpace(const std::string& dotted) {
 
 std::string valueType(const std::string& table, const std::string& from) {
   const size_t dot = table.rfind('.');
-  const std::string space = dot == std::string::npos ? "" : table.substr(0, dot);
-  const std::string name = dot == std::string::npos ? table : table.substr(dot + 1);
+  const std::string space =
+      dot == std::string::npos ? "" : table.substr(0, dot);
+  const std::string name =
+      dot == std::string::npos ? table : table.substr(dot + 1);
   if (cppSpace(space) == from) return "values::" + name;
   return "::" + cppSpace(space) + "::values::" + name;
-}
-
-std::string raised(const std::string& name) {
-  std::string out = name;
-  if (!out.empty())
-    out[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(out[0])));
-  return out;
 }
 
 void writeDocComment(std::ostream& out, const Documented& part,
@@ -65,15 +59,16 @@ void writeDocComment(std::ostream& out, const Documented& part,
 
 void writeBanner(std::ostream& out, const std::string& what) {
   out << "// " << what << ".\n"
-      << "// Written from protocol.fbs by sigil_protocol: edit the definition;\n"
+      << "// Written from protocol.fbs by sigil_protocol: edit the "
+         "definition;\n"
       << "// this is a build artefact and never hand-edited.\n\n";
 }
 
 bool writeFile(const std::string& path, const std::string& text,
                std::string* why) {
   std::error_code trouble;
-  std::filesystem::create_directories(
-      std::filesystem::path(path).parent_path(), trouble);
+  std::filesystem::create_directories(std::filesystem::path(path).parent_path(),
+                                      trouble);
   std::ofstream file(path, std::ios::binary | std::ios::trunc);
   file << text;
   file.close();

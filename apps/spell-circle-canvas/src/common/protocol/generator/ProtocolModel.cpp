@@ -10,6 +10,8 @@
 #include <flatbuffers/flatbuffers.h>
 #include <flatbuffers/reflection.h>
 
+#include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -75,19 +77,32 @@ std::string spaceOf(const std::string& qualified) {
  *  else. */
 std::string wordOf(reflection::BaseType type) {
   switch (type) {
-    case reflection::Bool: return "bool";
-    case reflection::Byte: return "byte";
-    case reflection::UByte: return "ubyte";
-    case reflection::Short: return "short";
-    case reflection::UShort: return "ushort";
-    case reflection::Int: return "int";
-    case reflection::UInt: return "uint";
-    case reflection::Long: return "long";
-    case reflection::ULong: return "ulong";
-    case reflection::Float: return "float";
-    case reflection::Double: return "double";
-    case reflection::String: return "string";
-    default: return std::string();
+    case reflection::Bool:
+      return "bool";
+    case reflection::Byte:
+      return "byte";
+    case reflection::UByte:
+      return "ubyte";
+    case reflection::Short:
+      return "short";
+    case reflection::UShort:
+      return "ushort";
+    case reflection::Int:
+      return "int";
+    case reflection::UInt:
+      return "uint";
+    case reflection::Long:
+      return "long";
+    case reflection::ULong:
+      return "ulong";
+    case reflection::Float:
+      return "float";
+    case reflection::Double:
+      return "double";
+    case reflection::String:
+      return "string";
+    default:
+      return std::string();
   }
 }
 
@@ -127,8 +142,9 @@ class Reader {
 
   void needsDocumentation(const Documented& part, const std::string& name) {
     if (part.documentation.empty())
-      refuse(name + " has no documentation, and every part of the definition"
-                    " is documented where it is declared");
+      refuse(name +
+             " has no documentation, and every part of the definition"
+             " is documented where it is declared");
   }
 
   void readEnumerations(Model& model) {
@@ -210,8 +226,9 @@ class Reader {
     } else {
       out.type = wordOf(one);
       if (out.type.empty())
-        refuse(where + " is neither a scalar, a string, a table nor a vector"
-                       " of one");
+        refuse(where +
+               " is neither a scalar, a string, a table nor a vector"
+               " of one");
       if (type.index() >= 0 && one != reflection::String)
         out.reference = m_schema.enums()->Get(type.index())->name()->str();
     }
@@ -231,7 +248,8 @@ class Reader {
     for (const reflection::Object* each : *m_schema.objects()) {
       const std::string name = each->name()->str();
       if (each->is_struct()) {
-        refuse("the struct " + name + " has no place in the definition,"
+        refuse("the struct " + name +
+               " has no place in the definition,"
                " which says everything as tables");
         continue;
       }
@@ -247,19 +265,21 @@ class Reader {
         if (!field->deprecated()) declared[field->id()] = field;
       for (const auto& [id, field] : declared)
         table.fields.push_back(fieldOf(*field, name));
-      if (lastWord(name) == "Empty" && table.fields.empty())
-        model.empty = name;
+      if (lastWord(name) == "Empty" && table.fields.empty()) model.empty = name;
       model.tables.push_back(std::move(table));
     }
     if (model.empty.empty())
-      refuse("the definition declares no table Empty with no fields, which a"
-             " command with nothing to say takes and answers");
+      refuse(
+          "the definition declares no table Empty with no fields, which a"
+          " command with nothing to say takes and answers");
   }
 
   void readDomains(Model& model) {
     std::map<std::string, const reflection::Service*> services;
     for (const reflection::Service* each : *m_schema.services())
       services[each->name()->str()] = each;
+    // Each domain's name, and the namespace that declared it first.
+    std::map<std::string, std::string> spaces;
 
     for (const auto& [name, service] : services) {
       const std::string simple = lastWord(name);
@@ -268,8 +288,7 @@ class Reader {
                           simple.compare(simple.size() - suffix.size(),
                                          suffix.size(), suffix) == 0;
       if (events) {
-        const std::string domain =
-            name.substr(0, name.size() - suffix.size());
+        const std::string domain = name.substr(0, name.size() - suffix.size());
         if (services.find(domain) == services.end())
           refuse("the events service " + name + " has no domain " + domain +
                  " beside it");
@@ -282,22 +301,36 @@ class Reader {
       domain.name = lastWord(domain.space);
       domain.service = simple;
       needsDocumentation(domain, "the domain " + name);
+      if (domain.service != raised(domain.name))
+        refuse("the domain service " + name + " is named " + simple +
+               ", and a domain's service is named for its namespace's last"
+               " word raised, " +
+               raised(domain.name) +
+               ", the name its generated headers are written under");
+      const auto [first, fresh] = spaces.emplace(domain.name, domain.space);
+      if (!fresh)
+        refuse("the namespaces " + first->second + " and " + domain.space +
+               " both declare the domain " + domain.name +
+               ", and a domain's name is the first word of every method it"
+               " answers");
       for (const reflection::RPCCall* call : *service->calls())
-        domain.commands.push_back(commandOf(*call, domain));
+        domain.commands.push_back(commandOf(*call, domain, model.empty));
       const auto found = services.find(name + suffix);
       if (found != services.end()) {
         domain.events = documentedOf(found->second->documentation(),
                                      found->second->attributes());
-        needsDocumentation(domain.events, "the events service " + name + suffix);
+        needsDocumentation(domain.events,
+                           "the events service " + name + suffix);
         for (const reflection::RPCCall* call : *found->second->calls())
-          domain.eventList.push_back(eventOf(*call, domain));
+          domain.eventList.push_back(eventOf(*call, domain, model.empty));
       }
       checkSubscription(domain);
       model.domains.push_back(std::move(domain));
     }
   }
 
-  Command commandOf(const reflection::RPCCall& call, const Domain& domain) {
+  Command commandOf(const reflection::RPCCall& call, const Domain& domain,
+                    const std::string& empty) {
     Command out;
     static_cast<Documented&>(out) =
         documentedOf(call.documentation(), call.attributes());
@@ -305,16 +338,24 @@ class Reader {
     out.method = domain.name + "." + out.name;
     out.parameters = call.request()->name()->str();
     out.result = call.response()->name()->str();
-    out.asynchronous = attributeOf(call.attributes(), "asynchronous").has_value();
+    out.asynchronous =
+        attributeOf(call.attributes(), "asynchronous").has_value();
     out.dispatcher = out.name == "enable" || out.name == "disable";
     needsDocumentation(out, "the command " + out.method);
     if (attributeOf(call.attributes(), "streaming"))
       refuse("the command " + out.method +
              " is marked streaming, which only an event is");
+    if (out.dispatcher && (out.parameters != empty || out.result != empty))
+      refuse("the command " + out.method + " takes " + out.parameters +
+             " and answers " + out.result +
+             ", and enable and disable, which the dispatcher answers, take"
+             " and answer " +
+             empty);
     return out;
   }
 
-  Event eventOf(const reflection::RPCCall& call, const Domain& domain) {
+  Event eventOf(const reflection::RPCCall& call, const Domain& domain,
+                const std::string& empty) {
     Event out;
     static_cast<Documented&>(out) =
         documentedOf(call.documentation(), call.attributes());
@@ -325,6 +366,10 @@ class Reader {
     if (attributeOf(call.attributes(), "streaming") != "server")
       refuse("the event " + out.method +
              " is not marked (streaming: \"server\"), which every event is");
+    if (call.request()->name()->str() != empty)
+      refuse("the event " + out.method + " takes " +
+             call.request()->name()->str() + ", and an event takes " + empty +
+             ": what it carries is the table it answers");
     return out;
   }
 
@@ -351,7 +396,8 @@ class Reader {
 
 }  // namespace
 
-std::optional<Model> readModel(std::span<const uint8_t> bfbs, std::string* why) {
+std::optional<Model> readModel(std::span<const uint8_t> bfbs,
+                               std::string* why) {
   flatbuffers::Verifier verifier(bfbs.data(), bfbs.size());
   if (!reflection::VerifySchemaBuffer(verifier)) {
     if (why) *why = "the bytes are no reflected schema";
@@ -360,11 +406,37 @@ std::optional<Model> readModel(std::span<const uint8_t> bfbs, std::string* why) 
   const reflection::Schema* schema = reflection::GetSchema(bfbs.data());
   if (!schema->services() || schema->services()->size() == 0) {
     if (why)
-      *why = "the reflected schema carries no services: the definition"
-             " declares none, or flatc dropped them";
+      *why =
+          "the reflected schema carries no services: the definition"
+          " declares none, or flatc dropped them";
     return std::nullopt;
   }
   return Reader(*schema).read(why);
+}
+
+bool domainsAre(const Model& model, const std::vector<std::string>& expected,
+                std::string* why) {
+  std::vector<std::string> found;
+  for (const Domain& domain : model.domains) found.push_back(domain.name);
+  std::vector<std::string> wanted = expected;
+  std::sort(found.begin(), found.end());
+  std::sort(wanted.begin(), wanted.end());
+  if (found == wanted) return true;
+  std::string list;
+  for (const std::string& name : found)
+    list += (list.empty() ? "" : ",") + name;
+  if (why)
+    *why = "the definition declares the domains " + list +
+           ", and the build expects others: name them in --domains";
+  return false;
+}
+
+std::string raised(const std::string& name) {
+  std::string out = name;
+  if (!out.empty())
+    out[0] =
+        static_cast<char>(std::toupper(static_cast<unsigned char>(out[0])));
+  return out;
 }
 
 const Table* tableNamed(const Model& model, const std::string& name) {

@@ -22,10 +22,6 @@ std::string cppSpace(const std::string& dotted);
  *  qualified from the global namespace everywhere else. */
 std::string valueType(const std::string& table, const std::string& from);
 
-/** A name with its first letter raised: `onBudgetExpired` is `on` and
- *  this of `budgetExpired`. */
-std::string raised(const std::string& name);
-
 /** @p part's documentation as a doc comment at @p indent, with @p more
  *  as a paragraph after it where it is not empty, and the line every
  *  experimental part carries. */

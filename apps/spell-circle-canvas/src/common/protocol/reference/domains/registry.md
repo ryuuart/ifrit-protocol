@@ -19,6 +19,8 @@ The sketches a host can open: every one it was built with, and the browser's row
 
 The sketches the registry holds, of one runtime or of all.
 
+In Python, Registry.list.
+
 Answered at once.
 
 Takes `ListParameters`: What list is asked.
@@ -39,6 +41,8 @@ The rows a browser shows before a sketch is opened.
 
 **Experimental**: its shape may still change.
 
+In Python, Registry.catalog.
+
 Answered at once.
 
 Takes `CatalogParameters`: What catalog is asked.
@@ -57,11 +61,15 @@ Answers `CatalogResult`: The catalog's rows: the registry's first, then the file
 
 Starts this client's registry events.
 
+In Python, Registry.enable.
+
 Answered by the dispatcher itself, never by the agent: it starts or stops this client's registry events.
 
 ### registry.disable
 
 Stops this client's registry events.
+
+In Python, Registry.disable.
 
 Answered by the dispatcher itself, never by the agent: it starts or stops this client's registry events.
 
@@ -72,6 +80,8 @@ What the registry tells a client that enabled it.
 ### registry.changed
 
 Sketches were added, removed or rebuilt.
+
+In Python, Registry.on_changed.
 
 Carries `ChangedEvent`: The registry changed.
 

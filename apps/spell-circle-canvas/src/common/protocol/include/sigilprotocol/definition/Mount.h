@@ -34,10 +34,10 @@ using Handler =
  *  under a method name — `clock.step`. The endpoint and the in-process
  *  dispatcher are two; a test's own map is a third. */
 template <class Endpoint>
-concept Mounts = requires(Endpoint& endpoint, std::string method,
-                          Handler handler) {
-  endpoint.mount(std::move(method), std::move(handler));
-};
+concept Mounts =
+    requires(Endpoint& endpoint, std::string method, Handler handler) {
+      endpoint.mount(std::move(method), std::move(handler));
+    };
 
 /** Where an event goes out: its method name and its table's JSON text. */
 using Emit =
@@ -55,8 +55,8 @@ std::optional<Parameters> readParameters(std::string_view method,
   std::optional<Parameters> read = data::values::fromJson<Parameters>(
       text.empty() ? std::string_view("{}") : text, &why);
   if (!read)
-    respond(refusal(ErrorCode_invalidParameters,
-                    std::string(method) + ": " + why));
+    respond(
+        refusal(ErrorCode_invalidParameters, std::string(method) + ": " + why));
   return read;
 }
 
@@ -108,9 +108,10 @@ Handler answerLater(std::string method, Call call) {
 
 /** AN EVENT SENT: @p event's JSON form under @p method through @p emit.
  *  False, and nothing sent, where the event's table cannot hold it or
- *  there is nowhere to send it. */
+ *  there is nowhere to send it; the sender is made to look at that. */
 template <class Event>
-bool emitEvent(const Emit& emit, std::string_view method, const Event& event) {
+[[nodiscard]] bool emitEvent(const Emit& emit, std::string_view method,
+                             const Event& event) {
   if (!emit) return false;
   std::optional<std::string> text = data::values::toJson(event);
   if (!text) return false;

@@ -4,16 +4,28 @@
 """What every generated module of the protocol client stands on.
 
 The JSON a message is made of, the caller a client speaks through, and the
-readings that take one field of a decoded JSON object and answer it as the
-type the definition declares, raising ValueError where it is not that.
+readings that take one member of a decoded JSON object and answer it as the
+type the definition declares, raising MessageError where it is not that.
 """
 
 from __future__ import annotations
 
 import collections.abc
+import dataclasses
+import enum
 import typing
 
+if typing.TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
+    from .shared import Error
+
 type Json = None | bool | int | float | str | list[Json] | dict[str, Json]
+
+
+class MessageError(ValueError):
+    """JSON that does not read as its table: a member the table does not
+    declare, one it requires left out, or a value of the wrong kind."""
 
 
 class Caller(typing.Protocol):
@@ -22,8 +34,9 @@ class Caller(typing.Protocol):
     ``call`` sends one command, its method and its parameters' JSON object,
     and answers the result's JSON object, raising ProtocolError where the
     host answered an error; ``listen`` hands every event of a method to a
-    listener as its JSON object. The socket client and the in-process
-    dispatcher are two.
+    listener as its JSON object; ``refused`` is handed the refusal for
+    every event that does not read as its table, which no listener hears.
+    The socket client and the in-process dispatcher are two.
     """
 
     def call(self, method: str, parameters: dict[str, Json]) -> Json: ...
@@ -32,52 +45,92 @@ class Caller(typing.Protocol):
         self, method: str, listener: collections.abc.Callable[[Json], None]
     ) -> None: ...
 
+    def refused(self, error: Error) -> None: ...
 
-def members(value: Json, table: str) -> dict[str, Json]:
-    """The members of the JSON object a table is read from."""
+
+def members(value: Json, table: type[DataclassInstance]) -> dict[str, Json]:
+    """The members of the JSON object a table is read from, every one a
+    member the table declares."""
     if not isinstance(value, dict):
-        raise ValueError(f"{table} is read from a JSON object")
+        raise MessageError(f"{table.__name__} is read from a JSON object")
+    declared = {field.name for field in dataclasses.fields(table)}
+    unknown = sorted(value.keys() - declared)
+    if unknown:
+        raise MessageError(f"{table.__name__} declares no {', '.join(unknown)}")
     return value
 
 
-def required(fields: dict[str, Json], name: str, table: str) -> Json:
-    """A field the definition requires, which the object must carry."""
+def required(fields: dict[str, Json], name: str) -> Json:
+    """A member the definition requires, which the object must carry."""
     if name not in fields:
-        raise ValueError(f"{table} requires {name}")
+        raise MessageError(f"{name} is required")
     return fields[name]
-
-
-def required_text(fields: dict[str, Json], name: str, table: str) -> str:
-    """Text the definition requires, which the object must carry."""
-    return text({name: required(fields, name, table)}, name, "")
 
 
 def boolean(fields: dict[str, Json], name: str, default: bool) -> bool:
     value = fields.get(name, default)
     if not isinstance(value, bool):
-        raise ValueError(f"{name} is true or false")
+        raise MessageError(f"{name} is true or false")
     return value
 
 
 def integer(fields: dict[str, Json], name: str, default: int) -> int:
     value = fields.get(name, default)
     if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError(f"{name} is a whole number")
+        raise MessageError(f"{name} is a whole number")
     return value
 
 
 def real(fields: dict[str, Json], name: str, default: float) -> float:
     value = fields.get(name, default)
     if isinstance(value, bool) or not isinstance(value, int | float):
-        raise ValueError(f"{name} is a number")
+        raise MessageError(f"{name} is a number")
     return float(value)
 
 
 def text(fields: dict[str, Json], name: str, default: str) -> str:
     value = fields.get(name, default)
     if not isinstance(value, str):
-        raise ValueError(f"{name} is text")
+        raise MessageError(f"{name} is text")
     return value
+
+
+def required_text(fields: dict[str, Json], name: str) -> str:
+    """Text the definition requires, which the object must carry."""
+    return text({name: required(fields, name)}, name, "")
+
+
+def enumeration[Value: enum.Enum](
+    fields: dict[str, Json], name: str, default: Value
+) -> Value:
+    """One value of the enumeration @p default is a value of."""
+    return one_of(type(default), name, text(fields, name, default.value))
+
+
+def one_of[Value: enum.Enum](kind: type[Value], name: str, value: str) -> Value:
+    try:
+        return kind(value)
+    except ValueError as error:
+        raise MessageError(f"{name} is no {kind.__name__}: {value}") from error
+
+
+def table[Value](
+    fields: dict[str, Json],
+    name: str,
+    read: collections.abc.Callable[[Json], Value],
+) -> Value | None:
+    """A table the object may leave out."""
+    value = fields.get(name)
+    return None if value is None else read(value)
+
+
+def required_table[Value](
+    fields: dict[str, Json],
+    name: str,
+    read: collections.abc.Callable[[Json], Value],
+) -> Value:
+    """A table the definition requires, which the object must carry."""
+    return read(required(fields, name))
 
 
 def optional_boolean(fields: dict[str, Json], name: str) -> bool | None:
@@ -96,11 +149,18 @@ def optional_text(fields: dict[str, Json], name: str) -> str | None:
     return None if fields.get(name) is None else text(fields, name, "")
 
 
+def optional_enumeration[Value: enum.Enum](
+    fields: dict[str, Json], name: str, kind: type[Value]
+) -> Value | None:
+    value = optional_text(fields, name)
+    return None if value is None else one_of(kind, name, value)
+
+
 def items(fields: dict[str, Json], name: str) -> list[Json]:
-    """The entries of a field that holds many."""
+    """The entries of a member that holds many."""
     value = fields.get(name, [])
     if not isinstance(value, list):
-        raise ValueError(f"{name} is a list")
+        raise MessageError(f"{name} is a list")
     return value
 
 
@@ -118,3 +178,17 @@ def reals(fields: dict[str, Json], name: str) -> tuple[float, ...]:
 
 def texts(fields: dict[str, Json], name: str) -> tuple[str, ...]:
     return tuple(text({name: item}, name, "") for item in items(fields, name))
+
+
+def enumerations[Value: enum.Enum](
+    fields: dict[str, Json], name: str, kind: type[Value]
+) -> tuple[Value, ...]:
+    return tuple(one_of(kind, name, item) for item in texts(fields, name))
+
+
+def tables[Value](
+    fields: dict[str, Json],
+    name: str,
+    read: collections.abc.Callable[[Json], Value],
+) -> tuple[Value, ...]:
+    return tuple(read(item) for item in items(fields, name))

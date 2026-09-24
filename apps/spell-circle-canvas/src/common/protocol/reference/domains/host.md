@@ -19,6 +19,8 @@ The host itself: what it is, which domains it mounts, and where it keeps its sta
 
 Everything a client asks first: the version, the domains mounted, the clock's policy, the state root and the sessions open.
 
+In Python, Host.describe.
+
 Answered at once.
 
 Takes nothing.
@@ -37,6 +39,8 @@ Answers `DescribeResult`: Everything a client asks first, in one answer.
 
 Where the host keeps its state.
 
+In Python, Host.state_root.
+
 Answered at once.
 
 Takes nothing.
@@ -50,6 +54,8 @@ Answers `StateRootResult`: Where the host keeps its state.
 ### host.version
 
 Which definition and which program answer.
+
+In Python, Host.version.
 
 Answered at once.
 
@@ -67,11 +73,15 @@ Answers `VersionResult`: Which definition and which program answer.
 
 Starts this client's host events.
 
+In Python, Host.enable.
+
 Answered by the dispatcher itself, never by the agent: it starts or stops this client's host events.
 
 ### host.disable
 
 Stops this client's host events.
+
+In Python, Host.disable.
 
 Answered by the dispatcher itself, never by the agent: it starts or stops this client's host events.
 
@@ -82,6 +92,8 @@ What the host tells a client that enabled it.
 ### host.detached
 
 The host has let this client go: nothing more arrives on its connection.
+
+In Python, Host.on_detached.
 
 Carries `DetachedEvent`: The host has let this client go.
 

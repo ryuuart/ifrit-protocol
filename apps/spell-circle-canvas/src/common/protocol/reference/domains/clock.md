@@ -19,6 +19,8 @@ The clock a session's frames are drawn at: who moves it, how fast, and when it i
 
 Replaces how the clock moves, from the next frame on.
 
+In Python, Clock.set_policy.
+
 Answered at once.
 
 Takes `SetPolicyParameters`: What setPolicy is asked.
@@ -33,6 +35,8 @@ Answers nothing but that it was done.
 ### clock.step
 
 Advances the clock by frames or by seconds, drawing each frame, and answers once the last is drawn. Refused unless the policy is Advance.
+
+In Python, Clock.step.
 
 Answered later, through the reply the agent is handed, once the work is done.
 
@@ -55,6 +59,8 @@ Answers `StepResult`: Where step left the clock.
 
 The clock as it stands.
 
+In Python, Clock.current.
+
 Answered at once.
 
 Takes nothing.
@@ -74,6 +80,8 @@ Answers `CurrentResult`: The clock as it stands.
 
 Holds the clock or lets it go, keeping its policy: the pause a person presses.
 
+In Python, Clock.pause.
+
 Answered at once.
 
 Takes `PauseParameters`: What pause is asked.
@@ -87,6 +95,8 @@ Answers nothing but that it was done.
 ### clock.setTimeScale
 
 Sets how many clock seconds pass per wall second.
+
+In Python, Clock.set_time_scale.
 
 Answered at once.
 
@@ -102,11 +112,15 @@ Answers nothing but that it was done.
 
 Starts this client's clock events.
 
+In Python, Clock.enable.
+
 Answered by the dispatcher itself, never by the agent: it starts or stops this client's clock events.
 
 ### clock.disable
 
 Stops this client's clock events.
+
+In Python, Clock.disable.
 
 Answered by the dispatcher itself, never by the agent: it starts or stops this client's clock events.
 
@@ -117,6 +131,8 @@ What the clock tells a client that enabled it.
 ### clock.budgetExpired
 
 The budget setPolicy set has run out.
+
+In Python, Clock.on_budget_expired.
 
 Carries `BudgetExpiredEvent`: The budget setPolicy set has run out.
 

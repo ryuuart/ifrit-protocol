@@ -14,6 +14,7 @@ import dataclasses
 import enum
 
 from . import messages
+from . import shared as _shared
 
 
 class Policy(enum.Enum):
@@ -47,16 +48,16 @@ class BudgetExpiredEvent:
     seconds: float = 0.0
     """Clock seconds when it ran out."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["seconds"] = self.seconds
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> BudgetExpiredEvent:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "BudgetExpiredEvent")
+    def from_json(cls, value: messages.Json) -> BudgetExpiredEvent:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             seconds=messages.real(fields, "seconds", 0.0),
         )
@@ -86,7 +87,7 @@ class CurrentResult:
     set or it has run out.
     """
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["policy"] = self.policy.value
@@ -94,16 +95,15 @@ class CurrentResult:
         out["frame"] = self.frame
         out["paused"] = self.paused
         out["time_scale"] = self.time_scale
-        if self.budget_remaining is not None:
-            out["budget_remaining"] = self.budget_remaining
+        out["budget_remaining"] = self.budget_remaining
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> CurrentResult:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "CurrentResult")
+    def from_json(cls, value: messages.Json) -> CurrentResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
-            policy=Policy(messages.text(fields, "policy", "Wall")),
+            policy=messages.enumeration(fields, "policy", Policy.Wall),
             seconds=messages.real(fields, "seconds", 0.0),
             frame=messages.integer(fields, "frame", 0),
             paused=messages.boolean(fields, "paused", False),
@@ -121,16 +121,16 @@ class PauseParameters:
     its policy.
     """
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["paused"] = self.paused
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> PauseParameters:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "PauseParameters")
+    def from_json(cls, value: messages.Json) -> PauseParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             paused=messages.boolean(fields, "paused", True),
         )
@@ -149,20 +149,19 @@ class SetPolicyParameters:
     moving is how a client learns the session settled.
     """
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["policy"] = self.policy.value
-        if self.budget_seconds is not None:
-            out["budget_seconds"] = self.budget_seconds
+        out["budget_seconds"] = self.budget_seconds
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> SetPolicyParameters:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "SetPolicyParameters")
+    def from_json(cls, value: messages.Json) -> SetPolicyParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
-            policy=Policy(messages.text(fields, "policy", "Wall")),
+            policy=messages.enumeration(fields, "policy", Policy.Wall),
             budget_seconds=messages.optional_real(fields, "budget_seconds"),
         )
 
@@ -184,19 +183,18 @@ class StepParameters:
     clock by one over this.
     """
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["frames"] = self.frames
-        if self.seconds is not None:
-            out["seconds"] = self.seconds
+        out["seconds"] = self.seconds
         out["rate"] = self.rate
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> StepParameters:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "StepParameters")
+    def from_json(cls, value: messages.Json) -> StepParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             frames=messages.integer(fields, "frames", 1),
             seconds=messages.optional_real(fields, "seconds"),
@@ -214,7 +212,7 @@ class StepResult:
     frame: int = 0
     """Frames drawn since the session opened."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["seconds"] = self.seconds
@@ -222,9 +220,9 @@ class StepResult:
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> StepResult:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "StepResult")
+    def from_json(cls, value: messages.Json) -> StepResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             seconds=messages.real(fields, "seconds", 0.0),
             frame=messages.integer(fields, "frame", 0),
@@ -240,16 +238,16 @@ class TimeScaleParameters:
     speed. The Advance policy steps by its own rate and ignores it.
     """
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["scale"] = self.scale
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> TimeScaleParameters:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "TimeScaleParameters")
+    def from_json(cls, value: messages.Json) -> TimeScaleParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             scale=messages.real(fields, "scale", 1.0),
         )
@@ -269,21 +267,16 @@ class Clock:
     def __init__(self, caller: messages.Caller) -> None:
         self._caller = caller
 
-    def setPolicy(
-        self,
-        *,
-        policy: Policy = Policy.Wall,
-        budget_seconds: float | None = None,
+    def set_policy(
+        self, *, policy: Policy = Policy.Wall, budget_seconds: float | None = None
     ) -> None:
         """Replaces how the clock moves, from the next frame on."""
-        self._caller.call("clock.setPolicy", SetPolicyParameters(policy=policy, budget_seconds=budget_seconds).toJson())
+        parameters = SetPolicyParameters(policy=policy, budget_seconds=budget_seconds)
+        answer = self._caller.call("clock.setPolicy", parameters.to_json())
+        _shared.answer("clock.setPolicy", _shared.Empty.from_json, answer)
 
     def step(
-        self,
-        *,
-        frames: int = 1,
-        seconds: float | None = None,
-        rate: float = 60.0,
+        self, *, frames: int = 1, seconds: float | None = None, rate: float = 60.0
     ) -> StepResult:
         """Advances the clock by frames or by seconds, drawing each frame, and
         answers once the last is drawn. Refused unless the policy is
@@ -291,35 +284,40 @@ class Clock:
 
         Answered once the work is done.
         """
-        return StepResult.fromJson(
-            self._caller.call("clock.step", StepParameters(frames=frames, seconds=seconds, rate=rate).toJson())
-        )
+        parameters = StepParameters(frames=frames, seconds=seconds, rate=rate)
+        answer = self._caller.call("clock.step", parameters.to_json())
+        return _shared.answer("clock.step", StepResult.from_json, answer)
 
     def current(self) -> CurrentResult:
         """The clock as it stands."""
-        return CurrentResult.fromJson(
-            self._caller.call("clock.current", {})
-        )
+        answer = self._caller.call("clock.current", {})
+        return _shared.answer("clock.current", CurrentResult.from_json, answer)
 
     def pause(self, *, paused: bool = True) -> None:
         """Holds the clock or lets it go, keeping its policy: the pause a
         person presses.
         """
-        self._caller.call("clock.pause", PauseParameters(paused=paused).toJson())
+        parameters = PauseParameters(paused=paused)
+        answer = self._caller.call("clock.pause", parameters.to_json())
+        _shared.answer("clock.pause", _shared.Empty.from_json, answer)
 
-    def setTimeScale(self, *, scale: float = 1.0) -> None:
+    def set_time_scale(self, *, scale: float = 1.0) -> None:
         """Sets how many clock seconds pass per wall second."""
-        self._caller.call("clock.setTimeScale", TimeScaleParameters(scale=scale).toJson())
+        parameters = TimeScaleParameters(scale=scale)
+        answer = self._caller.call("clock.setTimeScale", parameters.to_json())
+        _shared.answer("clock.setTimeScale", _shared.Empty.from_json, answer)
 
     def enable(self) -> None:
         """Starts this client's clock events."""
-        self._caller.call("clock.enable", {})
+        answer = self._caller.call("clock.enable", {})
+        _shared.answer("clock.enable", _shared.Empty.from_json, answer)
 
     def disable(self) -> None:
         """Stops this client's clock events."""
-        self._caller.call("clock.disable", {})
+        answer = self._caller.call("clock.disable", {})
+        _shared.answer("clock.disable", _shared.Empty.from_json, answer)
 
-    def onBudgetExpired(
+    def on_budget_expired(
         self, listener: collections.abc.Callable[[BudgetExpiredEvent], None]
     ) -> None:
         """The budget setPolicy set has run out.
@@ -327,6 +325,7 @@ class Clock:
         Every one is handed to the listener once this
         client has called enable.
         """
-        self._caller.listen(
-            "clock.budgetExpired", lambda value: listener(BudgetExpiredEvent.fromJson(value))
+        hear = _shared.hearing(
+            self._caller, "clock.budgetExpired", BudgetExpiredEvent.from_json, listener
         )
+        self._caller.listen("clock.budgetExpired", hear)

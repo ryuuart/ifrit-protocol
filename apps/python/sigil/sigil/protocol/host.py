@@ -10,8 +10,8 @@ from __future__ import annotations
 import collections.abc
 import dataclasses
 
-from . import messages
 from . import clock as _clock
+from . import messages
 from . import session as _session
 from . import shared as _shared
 
@@ -37,26 +37,26 @@ class DescribeResult:
     sessions: tuple[_session.Summary, ...] = ()
     """The sessions open."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
-        out["version"] = self.version.toJson()
-        out["domains"] = [item for item in self.domains]
+        out["version"] = self.version.to_json()
+        out["domains"] = list(self.domains)
         out["clock"] = self.clock.value
         out["state_root"] = self.state_root
-        out["sessions"] = [item.toJson() for item in self.sessions]
+        out["sessions"] = [item.to_json() for item in self.sessions]
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> DescribeResult:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "DescribeResult")
+    def from_json(cls, value: messages.Json) -> DescribeResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
-            version=VersionResult.fromJson(messages.required(fields, "version", "DescribeResult")),
+            version=messages.required_table(fields, "version", VersionResult.from_json),
             domains=messages.texts(fields, "domains"),
-            clock=_clock.Policy(messages.text(fields, "clock", "Wall")),
+            clock=messages.enumeration(fields, "clock", _clock.Policy.Wall),
             state_root=messages.text(fields, "state_root", ""),
-            sessions=tuple(_session.Summary.fromJson(item) for item in messages.items(fields, "sessions")),
+            sessions=messages.tables(fields, "sessions", _session.Summary.from_json),
         )
 
 
@@ -67,16 +67,16 @@ class DetachedEvent:
     reason: str = ""
     """Why: the host is closing, or another client took its place."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["reason"] = self.reason
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> DetachedEvent:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "DetachedEvent")
+    def from_json(cls, value: messages.Json) -> DetachedEvent:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             reason=messages.text(fields, "reason", ""),
         )
@@ -91,16 +91,16 @@ class StateRootResult:
     the protocol's address file and every still a client asks for.
     """
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["path"] = self.path
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> StateRootResult:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "StateRootResult")
+    def from_json(cls, value: messages.Json) -> StateRootResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             path=messages.text(fields, "path", ""),
         )
@@ -119,20 +119,22 @@ class VersionResult:
     program_version: str = ""
     """The program's own version."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
-        out["revision"] = self.revision.toJson()
+        out["revision"] = self.revision.to_json()
         out["program"] = self.program
         out["program_version"] = self.program_version
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> VersionResult:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "VersionResult")
+    def from_json(cls, value: messages.Json) -> VersionResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
-            revision=_shared.Revision.fromJson(messages.required(fields, "revision", "VersionResult")),
+            revision=messages.required_table(
+                fields, "revision", _shared.Revision.from_json
+            ),
             program=messages.text(fields, "program", ""),
             program_version=messages.text(fields, "program_version", ""),
         )
@@ -154,31 +156,30 @@ class Host:
         """Everything a client asks first: the version, the domains mounted,
         the clock's policy, the state root and the sessions open.
         """
-        return DescribeResult.fromJson(
-            self._caller.call("host.describe", {})
-        )
+        answer = self._caller.call("host.describe", {})
+        return _shared.answer("host.describe", DescribeResult.from_json, answer)
 
-    def stateRoot(self) -> StateRootResult:
+    def state_root(self) -> StateRootResult:
         """Where the host keeps its state."""
-        return StateRootResult.fromJson(
-            self._caller.call("host.stateRoot", {})
-        )
+        answer = self._caller.call("host.stateRoot", {})
+        return _shared.answer("host.stateRoot", StateRootResult.from_json, answer)
 
     def version(self) -> VersionResult:
         """Which definition and which program answer."""
-        return VersionResult.fromJson(
-            self._caller.call("host.version", {})
-        )
+        answer = self._caller.call("host.version", {})
+        return _shared.answer("host.version", VersionResult.from_json, answer)
 
     def enable(self) -> None:
         """Starts this client's host events."""
-        self._caller.call("host.enable", {})
+        answer = self._caller.call("host.enable", {})
+        _shared.answer("host.enable", _shared.Empty.from_json, answer)
 
     def disable(self) -> None:
         """Stops this client's host events."""
-        self._caller.call("host.disable", {})
+        answer = self._caller.call("host.disable", {})
+        _shared.answer("host.disable", _shared.Empty.from_json, answer)
 
-    def onDetached(
+    def on_detached(
         self, listener: collections.abc.Callable[[DetachedEvent], None]
     ) -> None:
         """The host has let this client go: nothing more arrives on its
@@ -187,6 +188,7 @@ class Host:
         Every one is handed to the listener once this
         client has called enable.
         """
-        self._caller.listen(
-            "host.detached", lambda value: listener(DetachedEvent.fromJson(value))
+        hear = _shared.hearing(
+            self._caller, "host.detached", DetachedEvent.from_json, listener
         )
+        self._caller.listen("host.detached", hear)

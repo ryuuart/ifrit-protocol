@@ -4,6 +4,9 @@
  *  from the value made with nothing set and from samples that set a
  *  field of every kind — an enumeration of another namespace, an
  *  optional scalar, a required table, vectors of strings and of tables.
+ *  The same forms, written out where SIGIL_PROTOCOL_CORPUS names a file,
+ *  are what the Python client's case reads and writes back, so both
+ *  clients are held to one text.
  */
 
 #include <flatbuffers/reflection.h>
@@ -14,6 +17,9 @@
 #include <sigilprotocol/protocol_values.h>
 
 #include <cstddef>
+#include <cstdlib>
+#include <fstream>
+#include <map>
 #include <optional>
 #include <set>
 #include <span>
@@ -21,6 +27,7 @@
 #include <string_view>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -91,33 +98,89 @@ TEST(ProtocolRoundTrip, AValueMadeWithNothingSetHoldsTheDeclaredDefaults) {
   EXPECT_EQ(1u, protocol::values::Revision{}.compatible);
 }
 
-TEST(ProtocolRoundTrip, ASampleOfEveryShapeCrossesUnchanged) {
-  crossesUnchanged<protocol::clock::values::SetPolicyParameters>(
-      R"({"policy": "Advance", "budget_seconds": 2.5})", "SetPolicyParameters");
-  crossesUnchanged<protocol::clock::values::StepParameters>(
-      R"({"seconds": 1.25, "rate": 30})", "StepParameters");
-  crossesUnchanged<protocol::host::values::DescribeResult>(
+/** Every sample, each handed to @p visit with its value type, the name
+ *  the definition spells its table by, and its text: together they set a
+ *  field of every kind the definition declares. */
+template <class Visit>
+void everySample(Visit&& visit) {
+  visit.template operator()<protocol::clock::values::SetPolicyParameters>(
+      "sigil.protocol.clock.SetPolicyParameters",
+      R"({"policy": "Advance", "budget_seconds": 2.5})");
+  visit.template operator()<protocol::clock::values::StepParameters>(
+      "sigil.protocol.clock.StepParameters",
+      R"({"seconds": 1.25, "rate": 30})");
+  visit.template operator()<protocol::host::values::DescribeResult>(
+      "sigil.protocol.host.DescribeResult",
       R"({"version": {"revision": {"breaking": 0, "compatible": 1},
                       "program": "Sketchbook"},
           "domains": ["host", "clock"],
           "clock": "PauseWhileLoading",
           "state_root": "/tmp/state",
           "sessions": [{"sketch": "hello", "kind": "canvas",
-                        "width": 800, "height": 600, "moment": 2}]})",
-      "DescribeResult");
-  crossesUnchanged<protocol::registry::values::ListResult>(
+                        "width": 800, "height": 600, "moment": 2}]})");
+  visit.template operator()<protocol::registry::values::ListResult>(
+      "sigil.protocol.registry.ListResult",
       R"({"sketches": [{"name": "hello", "stem": "hello", "kind": "canvas",
                         "available": true},
                        {"name": "usd_roundtrip", "available": false,
-                        "reason": "built without OpenUSD"}]})",
-      "ListResult");
-  crossesUnchanged<protocol::session::values::TimingResult>(
+                        "reason": "built without OpenUSD"}]})");
+  visit.template operator()<protocol::session::values::TimingResult>(
+      "sigil.protocol.session.TimingResult",
       R"({"total_milliseconds": 4.5, "lanes": [{"name": "paint",
-                                                 "milliseconds": 3.25}]})",
-      "TimingResult");
-  crossesUnchanged<protocol::values::Error>(
-      R"({"code": "invalidParameters", "message": "clock.step: frames"})",
-      "Error");
+                                                 "milliseconds": 3.25}]})");
+  visit.template operator()<protocol::values::Error>(
+      "sigil.protocol.Error",
+      R"({"code": "invalidParameters", "message": "clock.step: frames"})");
+}
+
+TEST(ProtocolRoundTrip, ASampleOfEveryShapeCrossesUnchanged) {
+  everySample([]<class Value>(const std::string& name, std::string_view text) {
+    crossesUnchanged<Value>(text, name);
+  });
+}
+
+/** The text a client reads, by table: the form of the value made with
+ *  nothing set, then the form of every sample of that table. */
+using Forms = std::map<std::string, std::vector<std::string>>;
+
+template <size_t... Index>
+void addEveryDefault(Forms& forms, std::index_sequence<Index...>) {
+  (forms[std::string(protocol::tableNames[Index])].push_back(
+       data::values::toJson(std::tuple_element_t<Index, protocol::Tables>{})
+           .value_or(std::string())),
+   ...);
+}
+
+TEST(ProtocolRoundTrip, EveryTableWritesTheFormsAClientReads) {
+  Forms forms;
+  addEveryDefault(
+      forms, std::make_index_sequence<std::tuple_size_v<protocol::Tables>>());
+  everySample([&]<class Value>(const std::string& name, std::string_view text) {
+    const std::optional<Value> value = data::values::fromJson<Value>(text);
+    ASSERT_TRUE(value) << name;
+    forms[name].push_back(data::values::toJson(*value).value_or(std::string()));
+  });
+  ASSERT_EQ(std::tuple_size_v<protocol::Tables>, forms.size());
+  for (const auto& [name, texts] : forms)
+    for (const std::string& text : texts) EXPECT_FALSE(text.empty()) << name;
+
+  // Every form is a JSON object, so the corpus is one object of arrays
+  // of them, written as the tables wrote them.
+  const char* path = std::getenv("SIGIL_PROTOCOL_CORPUS");
+  if (!path) return;
+  std::ofstream corpus(path);
+  ASSERT_TRUE(corpus) << path;
+  corpus << "{";
+  const char* between = "\n";
+  for (const auto& [name, texts] : forms) {
+    corpus << between << "\"" << name << "\": [";
+    for (size_t each = 0; each < texts.size(); ++each)
+      corpus << (each ? ", " : "") << texts[each];
+    corpus << "]";
+    between = ",\n";
+  }
+  corpus << "\n}\n";
+  ASSERT_TRUE(corpus.good()) << path;
 }
 
 TEST(ProtocolRoundTrip, TextTheTableCannotHoldIsNoValue) {
@@ -128,9 +191,13 @@ TEST(ProtocolRoundTrip, TextTheTableCannotHoldIsNoValue) {
   EXPECT_FALSE(
       data::values::fromJson<protocol::clock::values::SetPolicyParameters>(
           R"({"policy": "Sideways"})"));
-  // A table whose field is required refuses text that leaves it out.
-  EXPECT_FALSE(data::values::fromJson<protocol::session::values::OpenParameters>(
-      R"({"kind": "canvas"})"));
+  // A table whose field is required refuses text that leaves it out, and
+  // says which table refused it.
+  why.clear();
+  EXPECT_FALSE(
+      data::values::fromJson<protocol::session::values::OpenParameters>(
+          R"({"kind": "canvas"})", &why));
+  EXPECT_FALSE(why.empty());
 }
 
 }  // namespace

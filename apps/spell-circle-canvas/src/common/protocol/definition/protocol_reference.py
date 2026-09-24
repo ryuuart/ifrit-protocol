@@ -81,6 +81,8 @@ def fields_table(model: Model, table: Table, heading: str) -> str:
 
 def command_section(model: Model, domain: Domain, command: Command) -> str:
     out = f"### {command.method}\n\n{prose(command)}\n\n"
+    python = f"{domain.service}.{protocol_model.snake(command.name)}"
+    out += f"In Python, {python}.\n\n"
     if command.dispatcher:
         out += (
             "Answered by the dispatcher itself, never by the agent: it starts or "
@@ -88,8 +90,7 @@ def command_section(model: Model, domain: Domain, command: Command) -> str:
         )
         return out
     answered = (
-        "Answered later, through the reply the agent is handed, once the work "
-        "is done."
+        "Answered later, through the reply the agent is handed, once the work is done."
         if command.asynchronous
         else "Answered at once."
     )
@@ -145,6 +146,8 @@ def page(model: Model, domain: Domain) -> str:
             payload = model.table(event.payload)
             name = protocol_model.last_word(payload.name)
             out += f"### {event.method}\n\n{prose(event)}\n\n"
+            python = f"{domain.service}.on_{protocol_model.snake(event.name)}"
+            out += f"In Python, {python}.\n\n"
             out += f"Carries `{name}`: {prose(payload)}\n\n"
             out += fields_table(model, payload, "Field")
             shown.add(event.payload)

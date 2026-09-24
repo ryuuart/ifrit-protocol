@@ -13,6 +13,7 @@ import dataclasses
 import enum
 
 from . import messages
+from . import shared as _shared
 
 
 class Device(enum.Enum):
@@ -49,16 +50,16 @@ class ClosedEvent:
     sketch: str = ""
     """The registry name, or the path, it was opened from."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["sketch"] = self.sketch
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> ClosedEvent:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "ClosedEvent")
+    def from_json(cls, value: messages.Json) -> ClosedEvent:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             sketch=messages.text(fields, "sketch", ""),
         )
@@ -82,7 +83,7 @@ class CompositeCountsResult:
     maximum: int = 0
     """The most composites any one pixel passed through."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["path"] = self.path
@@ -92,9 +93,9 @@ class CompositeCountsResult:
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> CompositeCountsResult:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "CompositeCountsResult")
+    def from_json(cls, value: messages.Json) -> CompositeCountsResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             path=messages.text(fields, "path", ""),
             width=messages.integer(fields, "width", 0),
@@ -110,18 +111,18 @@ class DeviceParameters:
     device: Device = Device.Cpu
     """The device the session draws with from now on."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["device"] = self.device.value
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> DeviceParameters:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "DeviceParameters")
+    def from_json(cls, value: messages.Json) -> DeviceParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
-            device=Device(messages.text(fields, "device", "Cpu")),
+            device=messages.enumeration(fields, "device", Device.Cpu),
         )
 
 
@@ -135,7 +136,7 @@ class FailedEvent:
     message: str = ""
     """What stopped it, in the compiler's or the runtime's own words."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["sketch"] = self.sketch
@@ -143,9 +144,9 @@ class FailedEvent:
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> FailedEvent:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "FailedEvent")
+    def from_json(cls, value: messages.Json) -> FailedEvent:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             sketch=messages.text(fields, "sketch", ""),
             message=messages.text(fields, "message", ""),
@@ -162,7 +163,7 @@ class LaneCost:
     milliseconds: float = 0.0
     """Milliseconds it spent."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["name"] = self.name
@@ -170,9 +171,9 @@ class LaneCost:
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> LaneCost:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "LaneCost")
+    def from_json(cls, value: messages.Json) -> LaneCost:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             name=messages.text(fields, "name", ""),
             milliseconds=messages.real(fields, "milliseconds", 0.0),
@@ -186,18 +187,18 @@ class MeasuredResult:
     values: tuple[MeasuredValue, ...] = ()
     """Each one, in the order the sketch measured them."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
-        out["values"] = [item.toJson() for item in self.values]
+        out["values"] = [item.to_json() for item in self.values]
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> MeasuredResult:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "MeasuredResult")
+    def from_json(cls, value: messages.Json) -> MeasuredResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
-            values=tuple(MeasuredValue.fromJson(item) for item in messages.items(fields, "values")),
+            values=messages.tables(fields, "values", MeasuredValue.from_json),
         )
 
 
@@ -214,7 +215,7 @@ class MeasuredValue:
     pinned: float = 0.0
     """The value a repeatable run shows in its place."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["name"] = self.name
@@ -223,9 +224,9 @@ class MeasuredValue:
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> MeasuredValue:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "MeasuredValue")
+    def from_json(cls, value: messages.Json) -> MeasuredValue:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             name=messages.text(fields, "name", ""),
             value=messages.real(fields, "value", 0.0),
@@ -247,7 +248,7 @@ class OpenParameters:
     it declares.
     """
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["sketch"] = self.sketch
@@ -255,11 +256,11 @@ class OpenParameters:
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> OpenParameters:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "OpenParameters")
+    def from_json(cls, value: messages.Json) -> OpenParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
-            sketch=messages.required_text(fields, "sketch", "OpenParameters"),
+            sketch=messages.required_text(fields, "sketch"),
             kind=messages.text(fields, "kind", ""),
         )
 
@@ -271,18 +272,18 @@ class OpenedEvent:
     summary: Summary
     """The session."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
-        out["summary"] = self.summary.toJson()
+        out["summary"] = self.summary.to_json()
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> OpenedEvent:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "OpenedEvent")
+    def from_json(cls, value: messages.Json) -> OpenedEvent:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
-            summary=Summary.fromJson(messages.required(fields, "summary", "OpenedEvent")),
+            summary=messages.required_table(fields, "summary", Summary.from_json),
         )
 
 
@@ -293,18 +294,18 @@ class PromotionParameters:
     promotion: Promotion = Promotion.Auto
     """When the runtime may re-bake from now on."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["promotion"] = self.promotion.value
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> PromotionParameters:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "PromotionParameters")
+    def from_json(cls, value: messages.Json) -> PromotionParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
-            promotion=Promotion(messages.text(fields, "promotion", "Auto")),
+            promotion=messages.enumeration(fields, "promotion", Promotion.Auto),
         )
 
 
@@ -326,7 +327,7 @@ class SequenceParameters:
     empty for one the host picks.
     """
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["frames"] = self.frames
@@ -336,9 +337,9 @@ class SequenceParameters:
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> SequenceParameters:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "SequenceParameters")
+    def from_json(cls, value: messages.Json) -> SequenceParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             frames=messages.integer(fields, "frames", 1),
             rate=messages.real(fields, "rate", 60.0),
@@ -360,18 +361,18 @@ class SequenceResult:
     height: int = 0
     """Each frame's height in pixels."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
-        out["paths"] = [item for item in self.paths]
+        out["paths"] = list(self.paths)
         out["width"] = self.width
         out["height"] = self.height
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> SequenceResult:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "SequenceResult")
+    def from_json(cls, value: messages.Json) -> SequenceResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             paths=messages.texts(fields, "paths"),
             width=messages.integer(fields, "width", 0),
@@ -391,7 +392,7 @@ class StillParameters:
     the host picks.
     """
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["density"] = self.density
@@ -399,9 +400,9 @@ class StillParameters:
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> StillParameters:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "StillParameters")
+    def from_json(cls, value: messages.Json) -> StillParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             density=messages.real(fields, "density", 1.0),
             path=messages.text(fields, "path", ""),
@@ -424,7 +425,7 @@ class StillResult:
     seconds: float = 0.0
     """Clock seconds when it was taken."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["path"] = self.path
@@ -434,9 +435,9 @@ class StillResult:
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> StillResult:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "StillResult")
+    def from_json(cls, value: messages.Json) -> StillResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             path=messages.text(fields, "path", ""),
             width=messages.integer(fields, "width", 0),
@@ -466,7 +467,7 @@ class Summary:
     where it declared none.
     """
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["sketch"] = self.sketch
@@ -477,9 +478,9 @@ class Summary:
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> Summary:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "Summary")
+    def from_json(cls, value: messages.Json) -> Summary:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             sketch=messages.text(fields, "sketch", ""),
             kind=messages.text(fields, "kind", ""),
@@ -505,24 +506,24 @@ class TimingResult:
     lanes: tuple[LaneCost, ...] = ()
     """What each lane cost; empty for a runtime that keeps no breakdown."""
 
-    def toJson(self) -> dict[str, messages.Json]:
+    def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["total_milliseconds"] = self.total_milliseconds
         out["update_milliseconds"] = self.update_milliseconds
         out["draw_milliseconds"] = self.draw_milliseconds
-        out["lanes"] = [item.toJson() for item in self.lanes]
+        out["lanes"] = [item.to_json() for item in self.lanes]
         return out
 
     @classmethod
-    def fromJson(cls, value: messages.Json) -> TimingResult:
-        """The table a JSON object carries; ValueError where it does not fit."""
-        fields = messages.members(value, "TimingResult")
+    def from_json(cls, value: messages.Json) -> TimingResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
         return cls(
             total_milliseconds=messages.real(fields, "total_milliseconds", 0.0),
             update_milliseconds=messages.real(fields, "update_milliseconds", 0.0),
             draw_milliseconds=messages.real(fields, "draw_milliseconds", 0.0),
-            lanes=tuple(LaneCost.fromJson(item) for item in messages.items(fields, "lanes")),
+            lanes=messages.tables(fields, "lanes", LaneCost.from_json),
         )
 
 
@@ -545,26 +546,30 @@ class Session:
 
         Answered once the work is done.
         """
-        return Summary.fromJson(
-            self._caller.call("session.open", OpenParameters(sketch=sketch, kind=kind).toJson())
-        )
+        parameters = OpenParameters(sketch=sketch, kind=kind)
+        answer = self._caller.call("session.open", parameters.to_json())
+        return _shared.answer("session.open", Summary.from_json, answer)
 
-    def pinDevice(self, *, device: Device = Device.Cpu) -> None:
+    def pin_device(self, *, device: Device = Device.Cpu) -> None:
         """Pins the device the session draws with."""
-        self._caller.call("session.pinDevice", DeviceParameters(device=device).toJson())
+        parameters = DeviceParameters(device=device)
+        answer = self._caller.call("session.pinDevice", parameters.to_json())
+        _shared.answer("session.pinDevice", _shared.Empty.from_json, answer)
 
-    def pinPromotion(self, *, promotion: Promotion = Promotion.Auto) -> None:
+    def pin_promotion(self, *, promotion: Promotion = Promotion.Auto) -> None:
         """Pins when the runtime may re-bake a node it was not asked to."""
-        self._caller.call("session.pinPromotion", PromotionParameters(promotion=promotion).toJson())
+        parameters = PromotionParameters(promotion=promotion)
+        answer = self._caller.call("session.pinPromotion", parameters.to_json())
+        _shared.answer("session.pinPromotion", _shared.Empty.from_json, answer)
 
     def still(self, *, density: float = 1.0, path: str = "") -> StillResult:
         """Photographs the session at the clock as it stands.
 
         Answered once the work is done.
         """
-        return StillResult.fromJson(
-            self._caller.call("session.still", StillParameters(density=density, path=path).toJson())
-        )
+        parameters = StillParameters(density=density, path=path)
+        answer = self._caller.call("session.still", parameters.to_json())
+        return _shared.answer("session.still", StillResult.from_json, answer)
 
     def sequence(
         self,
@@ -579,44 +584,47 @@ class Session:
 
         Answered once the work is done.
         """
-        return SequenceResult.fromJson(
-            self._caller.call("session.sequence", SequenceParameters(frames=frames, rate=rate, density=density, directory=directory).toJson())
+        parameters = SequenceParameters(
+            frames=frames, rate=rate, density=density, directory=directory
         )
+        answer = self._caller.call("session.sequence", parameters.to_json())
+        return _shared.answer("session.sequence", SequenceResult.from_json, answer)
 
     def timing(self) -> TimingResult:
         """How the last frame split."""
-        return TimingResult.fromJson(
-            self._caller.call("session.timing", {})
-        )
+        answer = self._caller.call("session.timing", {})
+        return _shared.answer("session.timing", TimingResult.from_json, answer)
 
     def measured(self) -> MeasuredResult:
         """The numbers the sketch measured about its own execution.
 
         EXPERIMENTAL: its shape may still change.
         """
-        return MeasuredResult.fromJson(
-            self._caller.call("session.measured", {})
-        )
+        answer = self._caller.call("session.measured", {})
+        return _shared.answer("session.measured", MeasuredResult.from_json, answer)
 
-    def compositeCounts(self) -> CompositeCountsResult:
+    def composite_counts(self) -> CompositeCountsResult:
         """Counts the composites each pixel of the next frame passes through,
         and answers the plane once that frame is drawn.
 
         Answered once the work is done.
         """
-        return CompositeCountsResult.fromJson(
-            self._caller.call("session.compositeCounts", {})
+        answer = self._caller.call("session.compositeCounts", {})
+        return _shared.answer(
+            "session.compositeCounts", CompositeCountsResult.from_json, answer
         )
 
     def enable(self) -> None:
         """Starts this client's session events."""
-        self._caller.call("session.enable", {})
+        answer = self._caller.call("session.enable", {})
+        _shared.answer("session.enable", _shared.Empty.from_json, answer)
 
     def disable(self) -> None:
         """Stops this client's session events."""
-        self._caller.call("session.disable", {})
+        answer = self._caller.call("session.disable", {})
+        _shared.answer("session.disable", _shared.Empty.from_json, answer)
 
-    def onOpened(
+    def on_opened(
         self, listener: collections.abc.Callable[[OpenedEvent], None]
     ) -> None:
         """A session opened, by a client or by a person.
@@ -624,11 +632,12 @@ class Session:
         Every one is handed to the listener once this
         client has called enable.
         """
-        self._caller.listen(
-            "session.opened", lambda value: listener(OpenedEvent.fromJson(value))
+        hear = _shared.hearing(
+            self._caller, "session.opened", OpenedEvent.from_json, listener
         )
+        self._caller.listen("session.opened", hear)
 
-    def onClosed(
+    def on_closed(
         self, listener: collections.abc.Callable[[ClosedEvent], None]
     ) -> None:
         """The session closed.
@@ -636,11 +645,12 @@ class Session:
         Every one is handed to the listener once this
         client has called enable.
         """
-        self._caller.listen(
-            "session.closed", lambda value: listener(ClosedEvent.fromJson(value))
+        hear = _shared.hearing(
+            self._caller, "session.closed", ClosedEvent.from_json, listener
         )
+        self._caller.listen("session.closed", hear)
 
-    def onFailed(
+    def on_failed(
         self, listener: collections.abc.Callable[[FailedEvent], None]
     ) -> None:
         """A session could not be opened, or rebuilt after an edit.
@@ -648,6 +658,7 @@ class Session:
         Every one is handed to the listener once this
         client has called enable.
         """
-        self._caller.listen(
-            "session.failed", lambda value: listener(FailedEvent.fromJson(value))
+        hear = _shared.hearing(
+            self._caller, "session.failed", FailedEvent.from_json, listener
         )
+        self._caller.listen("session.failed", hear)

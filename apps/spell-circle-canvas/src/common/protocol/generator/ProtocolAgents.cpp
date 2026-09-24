@@ -54,14 +54,16 @@ void writeEvents(std::ostream& out, const Domain& domain,
       out, domain.events, "",
       "THE EVENTS: one member per event, each sending its table's JSON form\n"
       "under the event's method through the emit a dispatcher hands it.\n"
-      "False where the table cannot hold what it was given.");
+      "False, and nothing sent, where the table cannot hold what it was\n"
+      "given or there is nowhere to send it, which the sender has to look\n"
+      "at.");
   out << "class " << domain.service << "Events {\n public:\n";
   out << "  explicit " << domain.service
       << "Events(Emit emit) : m_emit(std::move(emit)) {}\n";
   for (const Event& event : domain.eventList) {
     out << "\n";
     writeDocComment(out, event, "  ");
-    out << "  bool " << event.name << "(const "
+    out << "  [[nodiscard]] bool " << event.name << "(const "
         << valueType(event.payload, space) << "& event) const {\n";
     out << "    return emitEvent(m_emit, \"" << event.method << "\", event);\n";
     out << "  }\n";
@@ -71,7 +73,8 @@ void writeEvents(std::ostream& out, const Domain& domain,
 
 void writeWire(std::ostream& out, const Domain& domain,
                const std::string& space, const std::string& empty) {
-  out << "/** MOUNTS @p agent ON @p endpoint: one handler per command the agent\n"
+  out << "/** MOUNTS @p agent ON @p endpoint: one handler per command the "
+         "agent\n"
          " *  answers, filed under the command's method. Parameters that do\n"
          " *  not fit the command's table are refused before the agent is\n"
          " *  asked; enable and disable are the dispatcher's own and are not\n"

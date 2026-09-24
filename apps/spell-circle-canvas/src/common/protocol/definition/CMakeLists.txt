@@ -25,6 +25,9 @@ add_custom_command(
   COMMENT "Generating the protocol definition's C++ and value types"
   VERBATIM)
 
+# A domain's headers are named for its service, which the generator
+# holds to the domain's name raised — `clock/ClockAgent.h` — so the
+# outputs are known before it runs.
 set(protocol_domain_headers)
 foreach(domain IN LISTS SIGIL_PROTOCOL_DOMAINS)
   string(SUBSTRING ${domain} 0 1 head)
@@ -83,3 +86,21 @@ add_test(NAME protocol_drift
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/generate.py
           --description ${SIGIL_PROTOCOL_DESCRIPTION} --check)
 set_tests_properties(protocol_drift PROPERTIES LABELS protocol)
+
+# THE PYTHON CLIENT, run: every table reads and writes the very JSON the
+# C++ tables write, which protocol_test hands it, and the client refuses
+# what the C++ client refuses; and, where basedpyright is installed, the
+# package holds under its strict mode.
+add_test(NAME protocol_python_client
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/test/python_client.py
+          --protocol-test $<TARGET_FILE:protocol_test>)
+set_tests_properties(protocol_python_client PROPERTIES LABELS protocol)
+find_program(SIGIL_BASEDPYRIGHT basedpyright
+  HINTS "${CMAKE_BINARY_DIR}/typing-tools/bin"
+        "${CMAKE_BINARY_DIR}/typing-tools/Scripts")
+if(SIGIL_BASEDPYRIGHT)
+  add_test(NAME protocol_python_types
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/test/python_client.py
+            --checker ${SIGIL_BASEDPYRIGHT})
+  set_tests_properties(protocol_python_types PROPERTIES LABELS protocol)
+endif()

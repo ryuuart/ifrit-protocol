@@ -3,8 +3,9 @@
  *  answers, a handler refuses parameters that do not fit before the
  *  agent is asked, an asynchronous command answers when its reply is
  *  called, an event goes out as its table's text, and a generated client
- *  reads a result back as its table, passes an error through, and fails
- *  an answer that is no result.
+ *  reads a result back as its table, passes an error through, and
+ *  refuses with its own codes an answer or an event that is no table and
+ *  a command it has nowhere to send.
  */
 
 #include <gtest/gtest.h>
@@ -97,7 +98,8 @@ struct RecordingClock : protocol::clock::ClockAgent {
     now.frame = 120;
     return now;
   }
-  Answer<Empty> pause(const protocol::clock::values::PauseParameters&) override {
+  Answer<Empty> pause(
+      const protocol::clock::values::PauseParameters&) override {
     return declined("clock.pause");
   }
   Answer<Empty> setTimeScale(
@@ -137,8 +139,9 @@ struct DecliningSession : protocol::session::SessionAgent {
              Reply<protocol::session::values::StillResult> reply) override {
     reply(declined("session.still"));
   }
-  void sequence(const protocol::session::values::SequenceParameters&,
-                Reply<protocol::session::values::SequenceResult> reply) override {
+  void sequence(
+      const protocol::session::values::SequenceParameters&,
+      Reply<protocol::session::values::SequenceResult> reply) override {
     reply(declined("session.sequence"));
   }
   Answer<protocol::session::values::TimingResult> timing() override {
@@ -231,10 +234,9 @@ TEST(ProtocolWiring, AnAsynchronousCommandAnswersWhenItsReplyIsCalled) {
   protocol::clock::wire(board, clock);
 
   std::optional<Answer<std::string>> answered;
-  board.handlers.at("clock.step")(R"({"frames": 3})",
-                                  [&](Answer<std::string> answer) {
-                                    answered.emplace(std::move(answer));
-                                  });
+  board.handlers.at("clock.step")(
+      R"({"frames": 3})",
+      [&](Answer<std::string> answer) { answered.emplace(std::move(answer)); });
   EXPECT_FALSE(answered);
   ASSERT_TRUE(clock.heldStep);
 
@@ -278,7 +280,8 @@ TEST(ProtocolWiring, AClientReadsTheResultBackAsItsTable) {
   protocol::clock::values::SetPolicyParameters policy;
   policy.policy = protocol::clock::Policy_Pause;
   std::optional<Answer<Empty>> set;
-  client.setPolicy(policy, [&](auto answer) { set.emplace(std::move(answer)); });
+  client.setPolicy(policy,
+                   [&](auto answer) { set.emplace(std::move(answer)); });
   ASSERT_TRUE(set && *set);
   ASSERT_EQ(1u, clock.policies.size());
   EXPECT_EQ(protocol::clock::Policy_Pause, clock.policies[0].policy);
@@ -291,7 +294,7 @@ TEST(ProtocolWiring, AClientReadsTheResultBackAsItsTable) {
   EXPECT_EQ("clock.enable", enabled->error().message);
 }
 
-TEST(ProtocolWiring, AnAnswerThatIsNoResultIsFailedNamingTheMethod) {
+TEST(ProtocolWiring, AnAnswerThatIsNoResultIsRefusedByTheClient) {
   protocol::Caller caller;
   caller.call = [](std::string, std::string, protocol::Respond respond) {
     respond(std::string(R"({"no_such_field": 1})"));
@@ -300,16 +303,45 @@ TEST(ProtocolWiring, AnAnswerThatIsNoResultIsFailedNamingTheMethod) {
   std::optional<Answer<protocol::host::values::VersionResult>> version;
   client.version([&](auto answer) { version.emplace(std::move(answer)); });
   ASSERT_TRUE(version && !*version);
-  EXPECT_EQ(protocol::ErrorCode_failed, version->error().code);
-  EXPECT_NE(std::string::npos, version->error().message.find("host.version"));
+  EXPECT_EQ(protocol::ErrorCode_unreadable, version->error().code);
+  EXPECT_EQ(0u, version->error().message.find("client: host.version: "))
+      << version->error().message;
+}
+
+TEST(ProtocolWiring, ACommandWithNowhereToGoIsRefusedByTheClient) {
+  const protocol::clock::ClockClient client{protocol::Caller{}};
+  std::optional<Answer<protocol::clock::values::CurrentResult>> now;
+  client.current([&](auto answer) { now.emplace(std::move(answer)); });
+  ASSERT_TRUE(now && !*now);
+  EXPECT_EQ(protocol::ErrorCode_notSent, now->error().code);
+  EXPECT_EQ(0u, now->error().message.find("client: clock.current: "))
+      << now->error().message;
+
+  // A listener with nowhere to listen is refused the same way, to the
+  // caller's refused.
+  std::vector<protocol::values::Error> refusals;
+  protocol::Caller deaf;
+  deaf.refused = [&](protocol::values::Error refusal) {
+    refusals.push_back(std::move(refusal));
+  };
+  protocol::clock::ClockClient(deaf).onBudgetExpired(
+      [](const protocol::clock::values::BudgetExpiredEvent&) {});
+  ASSERT_EQ(1u, refusals.size());
+  EXPECT_EQ(protocol::ErrorCode_notSent, refusals[0].code);
+  EXPECT_EQ(0u, refusals[0].message.find("client: clock.budgetExpired: "))
+      << refusals[0].message;
 }
 
 TEST(ProtocolWiring, AClientHearsAnEventAsItsTable) {
   std::map<std::string, std::function<void(std::string_view)>> listeners;
+  std::vector<protocol::values::Error> refusals;
   protocol::Caller caller;
   caller.listen = [&](std::string method,
                       std::function<void(std::string_view)> hear) {
     listeners[std::move(method)] = std::move(hear);
+  };
+  caller.refused = [&](protocol::values::Error refusal) {
+    refusals.push_back(std::move(refusal));
   };
   const protocol::registry::RegistryClient client(caller);
   std::vector<std::string> heard;
@@ -319,10 +351,16 @@ TEST(ProtocolWiring, AClientHearsAnEventAsItsTable) {
   ASSERT_EQ(1u, listeners.count("registry.changed"));
   listeners["registry.changed"](R"({"names": ["hello", "cascade"]})");
   EXPECT_EQ((std::vector<std::string>{"hello", "cascade"}), heard);
-  // Text that is no ChangedEvent is no event.
+  EXPECT_TRUE(refusals.empty());
+  // Text that is no ChangedEvent reaches no listener, and its refusal,
+  // named, reaches the caller.
   heard.clear();
   listeners["registry.changed"](R"({"names": 3})");
   EXPECT_TRUE(heard.empty());
+  ASSERT_EQ(1u, refusals.size());
+  EXPECT_EQ(protocol::ErrorCode_unreadable, refusals[0].code);
+  EXPECT_EQ(0u, refusals[0].message.find("client: registry.changed: "))
+      << refusals[0].message;
 }
 
 }  // namespace

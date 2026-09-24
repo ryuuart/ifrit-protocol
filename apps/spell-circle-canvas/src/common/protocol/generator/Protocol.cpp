@@ -6,8 +6,10 @@
  *                  --domains <name>[,<name>...] --description <file.json>
  *
  * reads the `.bfbs` flatc wrote for protocol.fbs with its comments and
- * its attributes kept, and writes, for every domain, `<name>/<Service>
- * Agent.h` and `<name>/<Service>Client.h` under the include directory,
+ * its attributes kept, and writes, for every domain, `<domain>/<Domain>
+ * Agent.h` and `<domain>/<Domain>Client.h` under the include directory —
+ * `clock/ClockAgent.h`, the service's own name, which the model holds to
+ * the domain's name raised —
  * `Tables.h` beside them, and the whole definition as JSON text to the
  * description, which the Python generator reads for the Python client
  * and the reference pages.
@@ -21,7 +23,6 @@
 
 #include <flatbuffers/util.h>
 
-#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <optional>
@@ -89,22 +90,6 @@ bool readAsk(int count, char** words, Ask* ask) {
          !ask->description.empty() && !ask->domains.empty();
 }
 
-/** Whether the definition's domains are the ones the build expects. */
-bool domainsAre(const Model& model, const std::vector<std::string>& expected,
-                std::string* why) {
-  std::vector<std::string> found;
-  for (const Domain& domain : model.domains) found.push_back(domain.name);
-  std::vector<std::string> wanted = expected;
-  std::sort(found.begin(), found.end());
-  std::sort(wanted.begin(), wanted.end());
-  if (found == wanted) return true;
-  std::string list;
-  for (const std::string& name : found) list += (list.empty() ? "" : ",") + name;
-  *why = "the definition declares the domains " + list +
-         ", and the build expects others: name them in --domains";
-  return false;
-}
-
 }  // namespace
 
 int main(int count, char** words) {
@@ -127,14 +112,15 @@ int main(int count, char** words) {
       std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(bytes.data()),
                                bytes.size()),
       &why);
-  if (!model || !domainsAre(*model, ask.domains, &why)) {
+  if (!model ||
+      !sigil::protocol::generator::domainsAre(*model, ask.domains, &why)) {
     refuse(why);
     return 1;
   }
 
   for (const Domain& domain : model->domains) {
-    const std::string base = ask.directory + "/" + domain.name + "/" +
-                             domain.service;
+    const std::string base =
+        ask.directory + "/" + domain.name + "/" + domain.service;
     if (!sigil::protocol::generator::writeFile(
             base + "Agent.h",
             sigil::protocol::generator::agentHeader(*model, domain), &why) ||

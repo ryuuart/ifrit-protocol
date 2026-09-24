@@ -19,6 +19,8 @@ The one running sketch a host holds: opening it, pinning what a repeatable run n
 
 Opens a sketch by registry name or by path, replacing the session open, and answers once its first frame is drawn.
 
+In Python, Session.open.
+
 Answered later, through the reply the agent is handed, once the work is done.
 
 Takes `OpenParameters`: What open is asked.
@@ -42,6 +44,8 @@ Answers `Summary`: A session as a list shows it.
 
 Pins the device the session draws with.
 
+In Python, Session.pin_device.
+
 Answered at once.
 
 Takes `DeviceParameters`: What pinDevice is asked.
@@ -56,6 +60,8 @@ Answers nothing but that it was done.
 
 Pins when the runtime may re-bake a node it was not asked to.
 
+In Python, Session.pin_promotion.
+
 Answered at once.
 
 Takes `PromotionParameters`: What pinPromotion is asked.
@@ -69,6 +75,8 @@ Answers nothing but that it was done.
 ### session.still
 
 Photographs the session at the clock as it stands.
+
+In Python, Session.still.
 
 Answered later, through the reply the agent is handed, once the work is done.
 
@@ -91,6 +99,8 @@ Answers `StillResult`: The still, written.
 ### session.sequence
 
 Photographs frames one after another, stepping the clock between them.
+
+In Python, Session.sequence.
 
 Answered later, through the reply the agent is handed, once the work is done.
 
@@ -115,6 +125,8 @@ Answers `SequenceResult`: The frames, written.
 
 How the last frame split.
 
+In Python, Session.timing.
+
 Answered at once.
 
 Takes nothing.
@@ -134,6 +146,8 @@ The numbers the sketch measured about its own execution.
 
 **Experimental**: its shape may still change.
 
+In Python, Session.measured.
+
 Answered at once.
 
 Takes nothing.
@@ -147,6 +161,8 @@ Answers `MeasuredResult`: The numbers a sketch measured about its own execution.
 ### session.compositeCounts
 
 Counts the composites each pixel of the next frame passes through, and answers the plane once that frame is drawn.
+
+In Python, Session.composite_counts.
 
 Answered later, through the reply the agent is handed, once the work is done.
 
@@ -165,11 +181,15 @@ Answers `CompositeCountsResult`: The composite-count plane of the next frame.
 
 Starts this client's session events.
 
+In Python, Session.enable.
+
 Answered by the dispatcher itself, never by the agent: it starts or stops this client's session events.
 
 ### session.disable
 
 Stops this client's session events.
+
+In Python, Session.disable.
 
 Answered by the dispatcher itself, never by the agent: it starts or stops this client's session events.
 
@@ -181,6 +201,8 @@ What the session tells a client that enabled it.
 
 A session opened, by a client or by a person.
 
+In Python, Session.on_opened.
+
 Carries `OpenedEvent`: A session opened.
 
 | Field | Type | Default | |
@@ -191,6 +213,8 @@ Carries `OpenedEvent`: A session opened.
 
 The session closed.
 
+In Python, Session.on_closed.
+
 Carries `ClosedEvent`: A session closed.
 
 | Field | Type | Default | |
@@ -200,6 +224,8 @@ Carries `ClosedEvent`: A session closed.
 ### session.failed
 
 A session could not be opened, or rebuilt after an edit.
+
+In Python, Session.on_failed.
 
 Carries `FailedEvent`: A session could not be opened, or could not be rebuilt after an edit.
 

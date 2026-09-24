@@ -11,6 +11,7 @@ says: the names, the order and the documentation are the definition's.
 from __future__ import annotations
 
 import dataclasses
+import re
 import typing
 
 BASE = "sigil.protocol"
@@ -116,6 +117,12 @@ def space_of(qualified: str) -> str:
 
 def last_word(qualified: str) -> str:
     return qualified.rpartition(".")[2]
+
+
+def snake(name: str) -> str:
+    """A definition's camelCase name as the Python client spells it:
+    ``set_policy`` of ``setPolicy``."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
 def _documented(raw: dict[str, typing.Any]) -> dict[str, typing.Any]:

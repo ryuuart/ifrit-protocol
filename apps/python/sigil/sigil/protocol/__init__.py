@@ -3,25 +3,20 @@
 
 """The Sigil protocol's Python client.
 
-One class per domain over a caller — Host, Clock, Session, Registry —
+One class per domain over a caller — Clock, Host, Registry, Session —
 each method sending one command and answering its result's table. The
 tables and enumerations of a domain stand in that domain's module:
-``sigil.protocol.clock.StepParameters``.
+``sigil.protocol.clock.SetPolicyParameters``.
 """
 
 from __future__ import annotations
 
-from .messages import Caller
-from .messages import Json
-from .shared import ProtocolError
-from .shared import ErrorCode
-from .shared import Empty
-from .shared import Error
-from .shared import Revision
 from .clock import Clock
 from .host import Host
+from .messages import Caller, Json, MessageError
 from .registry import Registry
 from .session import Session
+from .shared import Empty, Error, ErrorCode, ProtocolError, Revision
 
 __all__ = [
     "Caller",
@@ -31,6 +26,7 @@ __all__ = [
     "ErrorCode",
     "Host",
     "Json",
+    "MessageError",
     "ProtocolError",
     "Registry",
     "Revision",

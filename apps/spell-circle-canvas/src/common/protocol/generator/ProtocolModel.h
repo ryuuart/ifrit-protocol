@@ -103,17 +103,41 @@ struct Model {
 };
 
 /** THE MODEL THE REFLECTED SCHEMA @p bfbs HOLDS, or nothing, with @p why
- *  naming the first thing the definition got wrong: a domain, a
- *  command, an event, a table or a field with no documentation, an
- *  events service with no domain beside it, an event that is not marked
- *  (streaming: "server"), a command that is, or a domain with events
- *  and no `enable` and `disable`. */
+ *  naming the first rule of the definition's shape it breaks:
+ *  - every domain, command, event, table, field, enumeration and value
+ *    carries documentation;
+ *  - a message is a table: no union, no struct, and a table `Empty`
+ *    with no fields for a command with nothing to say;
+ *  - a scalar's declared default is a finite number;
+ *  - a domain's service is named for its namespace's last word raised
+ *    — `clock`'s is `Clock` — since that is the name its generated
+ *    headers are written under, and no two namespaces end in the same
+ *    word, since that word is the first of every method the domain
+ *    answers;
+ *  - an events service is named for a domain beside it with `Events`
+ *    after it, each of its calls is marked (streaming: "server") and
+ *    takes `Empty`, and no command is marked streaming;
+ *  - a domain with events answers `enable` and `disable`, each taking
+ *    and answering `Empty`, and a domain without events answers
+ *    neither. */
 std::optional<Model> readModel(std::span<const uint8_t> bfbs, std::string* why);
+
+/** Whether @p model declares exactly the domains @p expected names, in
+ *  any order; where it does not, @p why lists the ones it declares. The
+ *  build names every domain, so a definition that grows or loses one
+ *  stops the build until the build names it too. */
+bool domainsAre(const Model& model, const std::vector<std::string>& expected,
+                std::string* why);
+
+/** A name with its first letter raised: `Clock` of `clock`, and
+ *  `onBudgetExpired` is `on` and this of `budgetExpired`. */
+std::string raised(const std::string& name);
 
 /** The table @p name names, or null. */
 const Table* tableNamed(const Model& model, const std::string& name);
 
 /** The enumeration @p name names, or null. */
-const Enumeration* enumerationNamed(const Model& model, const std::string& name);
+const Enumeration* enumerationNamed(const Model& model,
+                                    const std::string& name);
 
 }  // namespace sigil::protocol::generator

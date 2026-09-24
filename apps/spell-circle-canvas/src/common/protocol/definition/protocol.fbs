@@ -27,7 +27,9 @@ namespace sigil.protocol;
 
 /// Which seam refused a command. Every one names what it refused in
 /// the message beside it: the method, the parameter, or the agent's own
-/// reason.
+/// reason. The dispatcher refuses with the first, second and fourth, the
+/// handler with the third, the agent with the fifth, and the client —
+/// whose words open with `client:` — with the last two.
 enum ErrorCode : int {
   /// The message is no request: not JSON, or without its id or its
   /// method.
@@ -41,7 +43,14 @@ enum ErrorCode : int {
   /// agent for its domain.
   notMounted = 3,
   /// The agent was asked and could not do it.
-  failed = 4
+  failed = 4,
+  /// The client sent nothing: the parameters' table cannot hold what it
+  /// was given, or the client has nowhere to send.
+  notSent = 5,
+  /// What the host sent does not read as its table: an answer as the
+  /// command's result, or an event as the event's table. The client
+  /// and the host were built from different definitions.
+  unreadable = 6
 }
 
 /// What a command answers instead of its result.
@@ -67,10 +76,14 @@ table Revision {
   compatible: uint = 1;
 }
 
-// The error is the root because a root is what makes flatc embed the
-// reflected definition beside every table, which each table's JSON form
-// is read through; it is also the one table every domain answers.
+// workaround: flatc embeds the reflected definition beside the generated
+// tables only for a schema with a root, and each table's JSON form is
+// read through that embedded definition; the error, the one table
+// every domain answers, is the root for that alone.
 root_type Error;
+
+// flatc keeps no three-slash comment written over a `namespace` line, so
+// a domain's documentation is written over its service.
 
 namespace sigil.protocol.clock;
 
