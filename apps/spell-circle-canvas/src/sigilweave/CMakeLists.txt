@@ -81,6 +81,7 @@ sigil_doc_probes(weave
            ${SIGIL_TEST_SUPPORT_DIR}
   PRELUDES "<sigilgeometry/path/Contour.h>"
            "<sigilimage/field/DistanceField.h>"
+           "<sigilimage/difference/Difference.h>"
            "<sigilcore/cache/Rebuild.h>"
            "\"Fonts.h\""
   SKIP_HEADERS SigilWeaveQt.h
@@ -117,7 +118,7 @@ sigil_doc_probes(weave
           "selectors::inFrame=${compose_owned}"
   FLOORS 80,150,75,0,1
   LIBRARIES SigilWeave SigilWeaveTesting SigilGeometryPath SigilImageField
-            SigilCoreCache)
+            SigilImageDifference SigilCoreCache)
 
 # The interactive Qt gallery. The headless panels are the testing
 # feature's plate cases.

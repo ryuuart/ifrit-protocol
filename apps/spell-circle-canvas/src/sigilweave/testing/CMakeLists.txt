@@ -2,13 +2,15 @@
 # read back as values — lines with their boxes, fit and badness, runs,
 # glyph placements, hyphenation points — rendered to a raster plate on the
 # CPU, and held against a committed baseline. Its own target, so a test
-# binary links it and nothing that ships does. The walk over placed glyphs
-# is the choreograph feature's; decoding and encoding a baseline are
-# SigilImage's and reading and writing its file SigilIO's, all private.
+# binary links it and nothing that ships does. The pixel difference a
+# comparison answers is SigilImage's, public because the comparison names
+# it; the walk over placed glyphs is the choreograph feature's, decoding
+# and encoding a baseline SigilImage's and reading and writing its file
+# SigilIO's, all private.
 sigil_library(SigilWeaveTesting
-  SOURCES Passage.cpp Reading.cpp Plate.cpp Difference.cpp Baseline.cpp
-  HEADERS Passage.h Reading.h Plate.h Difference.h Baseline.h
-  PUBLIC SigilWeaveLayout
+  SOURCES Passage.cpp Reading.cpp Plate.cpp Baseline.cpp
+  HEADERS Passage.h Reading.h Plate.h Baseline.h
+  PUBLIC SigilWeaveLayout SigilImageDifference
   PRIVATE SigilWeavePaint SigilWeaveChoreograph SigilImageAsset
           SigilImageEncode SigilIOSource)
 

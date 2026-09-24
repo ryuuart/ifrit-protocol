@@ -97,7 +97,7 @@ BaselineComparison compareToBaseline(const SkPixmap& render,
     if (comparison.baselineSize != comparison.renderSize) {
       comparison.outcome = BaselineOutcome::kResized;
     } else {
-      comparison.difference = difference(render, expected->pixmap());
+      comparison.difference = image::difference(render, expected->pixmap());
       comparison.outcome = comparison.difference.identical()
                                ? BaselineOutcome::kMatched
                                : BaselineOutcome::kDiffered;

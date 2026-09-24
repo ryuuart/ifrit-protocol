@@ -410,7 +410,7 @@ own.
 | `SigilWeave` | interface over every target above | — |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
-| `SigilWeaveTesting` | the library's own harness, linked by test binaries alone: a passage laid under a stated font context (`testing::lay`), read back as values (`testing::read`), rendered on the CPU (`testing::Plate`) and held against a committed baseline (`testing::compareToBaseline`) | SigilImageAsset, SigilImageEncode and SigilIOSource for the baseline file — private |
+| `SigilWeaveTesting` | the library's own harness, linked by test binaries alone: a passage laid under a stated font context (`testing::lay`), read back as values (`testing::read`), rendered on the CPU (`testing::Plate`) and held against a committed baseline (`testing::compareToBaseline`) | SigilImageDifference (public: a comparison carries the `image::PixelDifference` it found); SigilImageAsset, SigilImageEncode and SigilIOSource for the baseline file — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 
 Each feature links only the features beneath it — style, then fonts, then
@@ -529,12 +529,12 @@ const sigil::weave::testing::BaselineComparison comparison =
   breaker no longer uses; a line the greedy breaker set reads none.
 - `sigilweave/testing/Plate.h` — `Plate`, a CPU raster surface cleared
   to one ground, and `render`.
-- `sigilweave/testing/Difference.h` — `PixelDifference` and `difference`:
-  how many pixels two renders disagree on and the widest channel gap.
 - `sigilweave/testing/Baseline.h` — `compareToBaseline`, which judges a
   render against a committed PNG or adopts it (`BaselineAction`), the
   `BaselineComparison` it answers, and `describe`, the line a failing
-  case prints.
+  case prints. How far two renders stand apart is SigilImage's
+  `sigil::image::difference`, which the comparison carries as it
+  answered.
 
 The namespace is spelled `weave::testing` in a file that brings
 `sigil::weave` in with a using-directive, because GoogleTest owns

@@ -1,8 +1,7 @@
 /** @file
  * A render held against a baseline file: missing until adopted, matched
  * once it is, and differed, resized or unreadable when the file says
- * otherwise, with the render written aside for each refusal. And how far
- * two renders stand apart, counted and located.
+ * otherwise, with the render written aside for each refusal.
  */
 
 #include <gtest/gtest.h>
@@ -11,7 +10,6 @@
 #include <include/core/SkPixmap.h>
 #include <sigilweave/layout/Flow.h>
 #include <sigilweave/testing/Baseline.h>
-#include <sigilweave/testing/Difference.h>
 #include <sigilweave/testing/Passage.h>
 #include <sigilweave/testing/Plate.h>
 
@@ -98,24 +96,4 @@ TEST(WeaveBaseline, AMovedRenderDiffersAndIsWrittenAside) {
                                               scratch.path / "junk.png")
                 .outcome,
             BaselineOutcome::kUnreadable);
-}
-
-TEST(WeaveBaseline, ADifferenceCountsPixelsAndLocatesTheWidestChannel) {
-  SkBitmap first;
-  first.allocN32Pixels(8, 8);
-  first.eraseColor(SK_ColorWHITE);
-  SkBitmap second;
-  second.allocN32Pixels(8, 8);
-  second.eraseColor(SK_ColorWHITE);
-  *second.getAddr32(2, 3) = SkPreMultiplyColor(SkColorSetRGB(255, 250, 255));
-  *second.getAddr32(5, 6) = SkPreMultiplyColor(SkColorSetRGB(255, 200, 255));
-
-  const weave::testing::PixelDifference apart =
-      weave::testing::difference(first.pixmap(), second.pixmap());
-  EXPECT_EQ(apart.differingPixels, 2);
-  EXPECT_EQ(apart.worst, 55);
-  EXPECT_EQ(apart.x, 5);
-  EXPECT_EQ(apart.y, 6);
-  EXPECT_TRUE(
-      weave::testing::difference(first.pixmap(), first.pixmap()).identical());
 }

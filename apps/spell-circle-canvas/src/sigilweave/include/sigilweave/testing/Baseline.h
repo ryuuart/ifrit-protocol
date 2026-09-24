@@ -11,12 +11,11 @@
 
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSize.h>
+#include <sigilimage/difference/Difference.h>
 
 #include <cstdint>
 #include <filesystem>
 #include <string>
-
-#include "sigilweave/testing/Difference.h"
 
 namespace sigil::weave::testing {
 
@@ -44,7 +43,7 @@ struct BaselineComparison {
   std::filesystem::path rejected;
   SkISize renderSize = {0, 0};
   SkISize baselineSize = {0, 0};
-  PixelDifference difference;
+  image::PixelDifference difference;
   /** The render stands: it matched, or it is now the baseline. */
   [[nodiscard]] bool passed() const {
     return outcome == BaselineOutcome::kMatched ||
