@@ -567,8 +567,8 @@ second paragraph's indent on its second line).
 `weave::kit::englishHyphenationPatterns()` is the pattern text, and each
 sketch that hyphenates wraps it in a function-local static
 `std::make_shared<const weave::kit::PatternHyphenator>("en", …)` of its own
-— `paragraph_sheet`, `manuscript/manuscript.cpp` and `text_paints` carry
-the same five lines — because `HyphenationOptions::patterns` holds a
+— `paragraph_sheet`, `manuscript/manuscript.cpp`, `text_paints` and
+`black_watch` carry the same five lines — because `HyphenationOptions::patterns` holds a
 shared hyphenator and the kit ships only the table.
 
 The kit evidently means the one set it carries to be the ready choice: a
