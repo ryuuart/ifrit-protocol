@@ -17,6 +17,33 @@
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
+namespace {
+
+/// The line the second block of `twoBlocks()` opens on: the line of the
+/// first run whose word starts past the hard break.
+int secondBlockLine(const Paragraph& paragraph, const ParagraphLayout& layout) {
+  const uint32_t secondBlock =
+      static_cast<uint32_t>(paragraph.text().find(u'\n')) + 1;
+  for (const PositionedRun& run : layout.runs)
+    if (paragraph.words()[run.wordIndex].textBegin >= secondBlock)
+      return run.lineIndex;
+  return -1;
+}
+
+/// The baseline of each line, ascending by line index.
+std::vector<float> baselinesByLine(const ParagraphLayout& layout) {
+  std::vector<float> byLine;
+  for (const PositionedRun& run : layout.runs) {
+    if (run.lineIndex < 0) continue;
+    if (byLine.size() <= static_cast<size_t>(run.lineIndex))
+      byLine.resize(static_cast<size_t>(run.lineIndex) + 1, 0.0f);
+    byLine[static_cast<size_t>(run.lineIndex)] = run.origin.y();
+  }
+  return byLine;
+}
+
+}  // namespace
+
 // ── Leading ───────────────────────────────────────────────────────────────
 
 TEST(ParagraphStyle, FaceLeadingIsWhatAnUnstyledTextGets) {
@@ -86,16 +113,30 @@ TEST(ParagraphStyle, AbsoluteLeadingStatesThePitchOutright) {
   EXPECT_NEAR(lines[1] - lines[0], 40.0f, 0.01f);
 }
 
-TEST(ParagraphStyle, GridLeadingLandsTwoBlocksOnOneRhythm) {
+// ── Between two blocks ────────────────────────────────────────────────────
+
+// WHAT STANDS BETWEEN TWO BLOCKS IS THE BLOCKS' OWN, whichever breaker sets
+// them: the optimizing breaker reads past a block's last line before the
+// next block opens, and the band it read is set again under the next
+// block's pitch, air and grid.
+class BetweenBlocks : public BrokenBothWays {};
+
+TEST_P(BetweenBlocks, GridLeadingLandsTwoBlocksOnOneRhythm) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = twoBlocks();
   BlockFlow flow(SkRect::MakeWH(160, 900));
   ParagraphLayoutOptions options;
+  options.lineBreakStrategy = breaker();
   ParagraphStyle grid;
   grid.leading = Leading::grid(24.0f);
-  options.blocks = {grid, grid};
-  const std::vector<float> lines =
-      baselines(layoutParagraph(fonts, paragraph, flow, options));
+  ParagraphStyle gridWithAir = grid;
+  gridWithAir.spaceBefore = 7.0f;
+  options.blocks = {grid, gridWithAir};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+  ASSERT_GE(secondBlockLine(paragraph, layout), 2)
+      << "the first block did not wrap";
+  const std::vector<float> lines = baselines(layout);
   ASSERT_GE(lines.size(), 4u);
   for (size_t index = 1; index < lines.size(); ++index) {
     const float step = lines[index] - lines[index - 1];
@@ -104,11 +145,10 @@ TEST(ParagraphStyle, GridLeadingLandsTwoBlocksOnOneRhythm) {
   }
 }
 
-// ── Spacing ───────────────────────────────────────────────────────────────
-
-TEST(ParagraphStyle, TheGapIsTheLargerOfAfterAndBefore) {
+TEST_P(BetweenBlocks, TheGapIsTheLargerOfAfterAndBefore) {
   FontContext& fonts = sigil::test::fonts();
   ParagraphLayoutOptions options;
+  options.lineBreakStrategy = breaker();
   ParagraphStyle first;
   first.spaceAfter = 30.0f;
   ParagraphStyle second;
@@ -120,26 +160,60 @@ TEST(ParagraphStyle, TheGapIsTheLargerOfAfterAndBefore) {
   const ParagraphLayout spaced =
       layoutParagraph(fonts, paragraph, flow, options);
 
+  ParagraphLayoutOptions plainOptions;
+  plainOptions.lineBreakStrategy = breaker();
   Paragraph plain = twoBlocks();
   BlockFlow plainFlow(SkRect::MakeWH(160, 900));
-  const ParagraphLayout bare = layoutParagraph(fonts, plain, plainFlow);
+  const ParagraphLayout bare =
+      layoutParagraph(fonts, plain, plainFlow, plainOptions);
 
-  const std::vector<float> spacedLines = baselines(spaced);
-  const std::vector<float> bareLines = baselines(bare);
+  const std::vector<float> spacedLines = baselinesByLine(spaced);
+  const std::vector<float> bareLines = baselinesByLine(bare);
+  const int opening = secondBlockLine(paragraph, spaced);
   ASSERT_EQ(spacedLines.size(), bareLines.size());
-  ASSERT_GE(spacedLines.size(), 4u);
-  // Nothing before the block boundary has moved, and everything after it has
-  // moved down by the LARGER of the two, which is the block before's
+  ASSERT_GE(opening, 2) << "the first block did not wrap";
+  ASSERT_GE(spacedLines.size(), static_cast<size_t>(opening) + 2)
+      << "the second block did not wrap";
+  // Nothing before the block boundary has moved, and everything after it
+  // has moved down by the LARGER of the two, which is the block before's
   // spaceAfter rather than the sum or the block after's spaceBefore.
-  size_t moved = 0;
-  while (moved < spacedLines.size() &&
-         std::abs(spacedLines[moved] - bareLines[moved]) < 0.01f)
-    ++moved;
-  ASSERT_LT(moved, spacedLines.size());
-  EXPECT_GT(moved, 0u);
-  for (size_t index = moved; index < spacedLines.size(); ++index)
-    EXPECT_NEAR(spacedLines[index] - bareLines[index], 30.0f, 0.01f);
+  for (size_t line = 0; line < spacedLines.size(); ++line)
+    EXPECT_NEAR(spacedLines[line] - bareLines[line],
+                line < static_cast<size_t>(opening) ? 0.0f : 30.0f, 0.01f)
+        << "line " << line;
 }
+
+TEST_P(BetweenBlocks, EachBlockStacksAtItsOwnPitch) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = twoBlocks();
+  BlockFlow flow(SkRect::MakeWH(160, 900));
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = breaker();
+  ParagraphStyle tight;
+  tight.leading = Leading::absolute(20.0f);
+  ParagraphStyle open;
+  open.leading = Leading::absolute(40.0f);
+  options.blocks = {tight, open};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+
+  const std::vector<float> lines = baselinesByLine(layout);
+  const int opening = secondBlockLine(paragraph, layout);
+  ASSERT_GE(opening, 2) << "the first block did not wrap";
+  ASSERT_GE(lines.size(), static_cast<size_t>(opening) + 2)
+      << "the second block did not wrap";
+  // Each step within a block is that block's pitch; the step onto the
+  // second block's first line is the second block's own band.
+  for (size_t line = 1; line < lines.size(); ++line)
+    EXPECT_NEAR(lines[line] - lines[line - 1],
+                line < static_cast<size_t>(opening) ? 20.0f : 40.0f, 0.01f)
+        << "line " << line;
+}
+
+INSTANTIATE_TEST_SUITE_P(Breakers, BetweenBlocks, bothBreakers(),
+                         breakerName);
+
+// ── Spacing ───────────────────────────────────────────────────────────────
 
 TEST(ParagraphStyle, SpaceBeforeIsNotSuppressedAtTheHeadOfTheFlow) {
   FontContext& fonts = sigil::test::fonts();
@@ -188,23 +262,15 @@ TEST_P(EveryBlockIndent, EachBlockIndentsItsFirstLineAndNoOther) {
   const ParagraphLayout layout =
       layoutParagraph(fonts, paragraph, flow, options);
 
-  const uint32_t secondBlock =
-      static_cast<uint32_t>(paragraph.text().find(u'\n')) + 1;
-  int secondBlockLine = -1;
-  for (const PositionedRun& run : layout.runs)
-    if (paragraph.words()[run.wordIndex].textBegin >= secondBlock) {
-      secondBlockLine = run.lineIndex;
-      break;
-    }
+  const int opening = secondBlockLine(paragraph, layout);
   const std::vector<float> starts = lineStarts(layout);
-  ASSERT_GE(secondBlockLine, 2) << "the first block did not wrap";
-  ASSERT_GE(starts.size(), static_cast<size_t>(secondBlockLine) + 2)
+  ASSERT_GE(opening, 2) << "the first block did not wrap";
+  ASSERT_GE(starts.size(), static_cast<size_t>(opening) + 2)
       << "the second block did not wrap";
   for (size_t line = 0; line < starts.size(); ++line)
     EXPECT_NEAR(starts[line],
-                line == 0 || line == static_cast<size_t>(secondBlockLine)
-                    ? 20.0f
-                    : 0.0f,
+                line == 0 || line == static_cast<size_t>(opening) ? 20.0f
+                                                                   : 0.0f,
                 0.01f)
         << "line " << line;
 }
