@@ -1,0 +1,12 @@
+{
+  "skill": "Persuasion",
+  "ability": "Charisma",
+  "difficulty": 15,
+  "roll": 12,
+  "advantage": { "discarded": 7 },
+  "bonuses": [
+    { "name": "Charisma", "note": "Ability modifier, Charisma 16", "chip": "CHA", "amount": "+3", "adds": 3 },
+    { "name": "Proficiency", "note": "Proficiency bonus, level 4", "chip": "PROF", "amount": "+2", "adds": 2 },
+    { "name": "Guidance", "note": "Cantrip, rolled 1d4", "chip": "1d4", "amount": "+3", "adds": 3 }
+  ]
+}
