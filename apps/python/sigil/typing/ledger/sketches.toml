@@ -549,8 +549,8 @@ needs = "JSON Connection kind handlers; recording mount; eased ticker ramps; ins
 requires = ["kit-instrument", "timelines", "connection"]
 
 [sketch.feed_sky]
-needs = "Schema-backed Connection; per-sketch FlatBuffers schema; recording mount; instrument page; pen bands"
-requires = ["sketch-schemas", "kit-instrument", "connection", "flatbuffer"]
+needs = "One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording mount per door; kit panels and vitals readouts; cached band elements on one bound clock"
+requires = ["sketch-schemas", "connection", "flatbuffer"]
 
 [sketch.feed_vitals]
 needs = "Hub mount and feed; arrival queue, latest bytes and feed vitals; section header kit; pen strip"
@@ -1054,16 +1054,6 @@ requires = [
   "render-runtime",
 ]
 
-[sketch.paragraph_paints]
-needs = "Text fill recipes; chrome ramps; shader local matrix; justified Knuth-Plass text with pattern hyphenation; measured passage file"
-requires = [
-  "chrome-type",
-  "hyphenation-patterns",
-  "shader-local-matrix",
-  "text-paints",
-  "paint-shader",
-]
-
 [sketch.paragraph_sheet]
 needs = "Paragraph styles: leading kinds, spacing, indents, justification, tab stops, vertical writing; caption kit; panel grids, ladders"
 requires = ["hyphenation-patterns"]
@@ -1157,10 +1147,6 @@ requires = ["texture-scene", "silhouettes", "point-operators", "sweeps"]
 [sketch.psx_doom_fire]
 needs = "Fixed-step ticker; RGBA image blits; pen text and clipping; retained guest header; kinetic glyph rise; motion cascade"
 requires = ["text-fx", "kinetic-presets", "schedules"]
-
-[sketch.quic_sky]
-needs = "QUIC Connection and its feed arrivals; recording mount; instrument page; pen bands"
-requires = ["kit-instrument", "connection"]
 
 [sketch.reflection_lab]
 needs = "Set hosting; environment maps with crossfade and backdrop; chrome, metal, dielectric and glass surface presets"
@@ -1261,10 +1247,6 @@ requires = [
   "bevel-normals",
   "reflections",
 ]
-
-[sketch.shared_sky]
-needs = "Shared-memory Connection; recording mount; instrument page; pen bands"
-requires = ["kit-instrument", "connection"]
 
 [sketch.shipping_forecast]
 needs = "Per-glyph text tracks; stagger spreads; named style sheet; selector span restyling; path and vertical text; title card; edge decoration"
@@ -1390,8 +1372,8 @@ needs = "Vertical rich text forms; span paint; per-cluster kinetic entrance; doc
 requires = ["text-fx", "kinetic-presets", "schedules"]
 
 [sketch.text_paints]
-needs = "Text fill recipes mapped to run metrics; chrome ramps; shader local matrix; wells and comparisons"
-requires = ["chrome-type", "shader-local-matrix", "text-paints", "paint-shader"]
+needs = "One ink across a word, a paragraph and a cropped long run; eight inks on display and body type from one sheet; chrome ramps; justified Knuth-Plass text with pattern hyphenation; measured passage files; wells and comparisons"
+requires = ["chrome-type", "hyphenation-patterns", "text-paints", "paint-shader"]
 
 [sketch.text_wrap]
 needs = "`textWrap` and `textJustify` longhands over one passage at one measure; themed specimen page"

@@ -128,15 +128,13 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `data_scales` | Retain · focused specimen | Cached preview |
 | `data_sources` | Rewritten · subject study | Reviewed GPU plate |
 | `feed_events` | Refined · instrument | Rendered plate |
-| `feed_sky` | Refined · instrument | Rendered plate |
+| `feed_sky` | Rewritten · three doors on kit panels; `quic_sky` and `shared_sky` folded in | Rendered plate |
 | `grpc_watch` | Refined · instrument | Rendered plate |
 | `midi_pads` | Refined · instrument | Rendered plate |
 | `osc_desk` | Refined · instrument | Rendered plate |
 | `phone_sky` | Refined · instrument | Rendered plate |
-| `quic_sky` | Refined · instrument | Rendered plate |
 | `schema_scene` | Refined · instrument | Rendered plate |
 | `serial_sensor` | Refined · instrument | Rendered plate |
-| `shared_sky` | Refined · instrument | Rendered plate |
 | `webrtc_sky` | Refined · instrument | Rendered plate |
 | `bristle_current` | Retain · drawing as the subject | Cached preview |
 | `p5_hello` | Retain · drawing as the subject | Cached preview |
@@ -286,11 +284,10 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `kinetic_card` | Rewritten · subject study | Reviewed GPU plate |
 | `noise_shelf` | Rewritten · subject study | Reviewed GPU plate |
 | `paint_shelf` | Rewritten · subject study | Reviewed GPU plate |
-| `paragraph_paints` | Rewritten · subject study | Reviewed GPU plate |
 | `paragraph_sheet` | Retain · focused specimen | Reviewed GPU plate |
 | `shape_tour` | Retain · focused specimen | Cached preview |
 | `stroke_atlas` | Retain · focused specimen | Cached preview |
-| `text_paints` | Rewritten · subject study | Reviewed GPU plate |
+| `text_paints` | Rewritten · one sheet of inks over display and body type; `paragraph_paints` folded in | Reviewed GPU plate |
 | `ui_particles` | Retain · focused specimen | Cached preview |
 | `hello` | Retain · focused specimen | Cached preview |
 | `shapeworks_lab` | Retain · focused specimen | Cached preview |

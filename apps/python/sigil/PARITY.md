@@ -44,9 +44,9 @@ that its pixels match the original.
 | Kit · API | 77 | 6 | 0 |
 | Kit · Depth | 1 | 1 | 0 |
 | Compose · Typography | 1 | 1 | 1 |
-| Specimen | 14 | 2 | 0 |
+| Specimen | 13 | 2 | 0 |
 | Set | 11 | 0 | 0 |
-| Data | 14 | 0 | 0 |
+| Data | 12 | 0 | 0 |
 | Media | 5 | 1 | 0 |
 | Catalog · Type | 10 | 1 | 0 |
 | Catalog · Chrome | 2 | 1 | 0 |
@@ -62,7 +62,7 @@ that its pixels match the original.
 | Study · Esoteric | 3 | 0 | 0 |
 | Study · Screens | 6 | 0 | 0 |
 | Study · Game UI | 9 | 0 | 0 |
-| **All** | **223** | **48** | **9** |
+| **All** | **220** | **48** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -108,12 +108,11 @@ needs.
 | `compose::lines::presets` and `compose::brush::presets` | Compose kit | 14 |
 | `sketch::kit::readout` | Sketch kit | 14 |
 | A declared `available(why)` probe | Sketch host | 13 |
-| `data::Connection` | Data | 13 |
 | `geometry::mesh::pop` point-operator chains | Geometry | 13 |
 | `material::Texture` and `Material::slot` | Material | 13 |
 | `sketch::kit::plot` chart layers | Sketch kit | 13 |
 | `measure::CheckTable` and `measure::check` | Measure | 12 |
-| `sketch::kit::instrument` | Sketch kit | 12 |
+| `data::Connection` | Data | 11 |
 | `sketch::kit::Document` content reader | Sketch kit | 11 |
 | `sketch::kit::table` | Sketch kit | 11 |
 | `compose::lines::Line` and `lines::Rails` | Compose | 10 |
@@ -125,6 +124,7 @@ needs.
 | `geometry::path::PolarFrame` and `path::Grid` | Geometry | 9 |
 | `material::kit` grained surfaces (`stone`, `timber`, `latten`, `board`) | Material | 9 |
 | `material::sdf` shapes and styles | Material | 9 |
+| `sketch::kit::instrument` | Sketch kit | 9 |
 | `compose::Border` and `compose::decorations::border` rules | Compose | 8 |
 | `compose::routers` stock routers | Compose kit | 8 |
 | `compose::textFx` text effects (`keys`, `scramble`, `sequence`) | Compose | 8 |
@@ -505,11 +505,10 @@ model, arithmetic and data become Python code and are not listed.
 | `kinetic_card` | Per-glyph text effect tracks and presets on a cascade; shared phase output; beat meters read from composer; specimen theme | `compose::Text::textFx` text tracks; `compose::Composer::beatsOf` and `units`; `compose::textFx` kinetic presets (`rise`, `pop`, `typeOn`); `compose::kit::trackMeter` and `restGhost` instruments; `motion::Spread` and `motion::Cascade` schedules |
 | `noise_shelf` | Counter, state and lattice mixers; cache key folds; pen program fields; specimen cells, wells and section headers | `core::noise::hash` / `lattice` positional hashes; `core::hash` FNV-1a words |
 | `paint_shelf` | Radial, conical, sweep and unit gradients; world-space paint; revisioned pixel buffer paint; specimen section headers | `material::skia::PixelBuffer` and `Paint::buffer` |
-| `paragraph_paints` | Text fill recipes; chrome ramps; shader local matrix; justified Knuth-Plass text with pattern hyphenation; measured passage file | `compose::kit::sunsetChromeType`, `silverChromeType` paints; `weave::HyphenationOptions::patterns` on a paragraph; `SkShader` local matrices and raw image shaders; `material::kit` text paints (`water`, `starNest`, `clouds`); `material::skia::Paint` SkShader interop |
 | `paragraph_sheet` | Paragraph styles: leading kinds, spacing, indents, justification, tab stops, vertical writing; caption kit; panel grids, ladders | `weave::HyphenationOptions::patterns` on a paragraph |
 | `shape_tour` | Stock silhouette generators, parametric curves and corner operators; shaped filled boxes; captions and cell runs | `geometry::shapes` silhouette generators; `geometry::shapes` corner operators; `geometry::shapes` parametric curve generators |
 | `stroke_atlas` | Line, rail and layered brush decorations; shapers; stamp and corner patterns; borders and hatches; stock silhouettes; animated dashes | `compose::lines::Line` and `lines::Rails`; `compose::onEdges` and `compose::inset` adaptors; `compose::Border` and `compose::decorations::border` rules; `compose::Brush` shaped layer stacks; `compose::brush` scatter, pattern and art brushes; `compose::lines::Hatch` and `lines::RadialHatch`; `compose::Wash` material wash; `compose::ContourWalk` path-walk stamps; `compose::lines::presets` and `compose::brush::presets`; `SkPathBuilder::arcTo` and `skpathutils::FillPathWithPaint`; `geometry::shapes` silhouette generators; `geometry::shapes` corner operators; `geometry::shapes` parametric curve generators; `geometry::shapers` and `path::Shaper` |
-| `text_paints` | Text fill recipes mapped to run metrics; chrome ramps; shader local matrix; wells and comparisons | `compose::kit::sunsetChromeType`, `silverChromeType` paints; `SkShader` local matrices and raw image shaders; `material::kit` text paints (`water`, `starNest`, `clouds`); `material::skia::Paint` SkShader interop |
+| `text_paints` | One ink across a word, a paragraph and a cropped long run; eight inks on display and body type from one sheet; chrome ramps; justified Knuth-Plass text with pattern hyphenation; measured passage files; wells and comparisons | `compose::kit::sunsetChromeType`, `silverChromeType` paints; `weave::HyphenationOptions::patterns` on a paragraph; `material::kit` text paints (`water`, `starNest`, `clouds`); `material::skia::Paint` SkShader interop |
 | `text_wrap` | `textWrap` and `textJustify` longhands over one passage at one measure; themed specimen page | — |
 | `ui particles` | Instanced atlas stamping from a live pool; fixed-step simulation; ornament nine-slice and flourish cards; scrim; gradients | `compose::Slice` nine-slice decoration; `compose::kit::ornament` palettes, frames and marks; `compose::kit::flourish` vines and cards; `compose::kit::scrim` and `drawHaloed` legibility |
 
@@ -537,15 +536,13 @@ model, arithmetic and data become Python code and are not listed.
 | `data_scales` | Scale transforms; chart plot kit layers; stylesheet classes; stated default face; caption and panel grid | `sketch::kit::plot` chart layers |
 | `data_sources` | Asset table and database; DuckDB memory query; bars and section header kit; comparison well | `sketch::kit::bars` over `data::Table` |
 | `feed_events` | JSON Connection kind handlers; recording mount; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
-| `feed_sky` | Schema-backed Connection; per-sketch FlatBuffers schema; recording mount; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection`; `data::FlatBuffer` roots and `data::schema` |
+| `feed_sky` | One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording mount per door; kit panels and vitals readouts; cached band elements on one bound clock | `data::Connection`; `data::FlatBuffer` roots and `data::schema` |
 | `grpc_watch` | gRPC Connection handlers and broadcast sends; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
 | `midi_pads` | MIDI Connection in and out; eased ticker ramps; instrument page; pen cells and knob | `sketch::kit::instrument`; `data::Connection` |
 | `osc_desk` | OSC Connection address handlers and replies; chained ticker ramps; instrument page; pen faders | `sketch::kit::instrument`; `data::Connection` |
 | `phone_sky` | WebSocket Connection with served pages; broadcast sends; eased ticker ramps; instrument page | `sketch::kit::instrument`; `data::Connection` |
-| `quic_sky` | QUIC Connection and its feed arrivals; recording mount; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
 | `schema_scene` | Generated schema values; FlatBuffer hub decoder; schema-backed Connection; instrument page; document labels | `sketch::kit::instrument`; `data::Connection`; `data::FlatBuffer` roots and `data::schema` |
 | `serial_sensor` | Serial line Connection; recording mount; instrument page; transformed pen ribbons | `sketch::kit::instrument`; `data::Connection` |
-| `shared_sky` | Shared-memory Connection; recording mount; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
 | `webrtc_sky` | WebRTC Connection over WebSocket signal; broadcast sends; eased ticker ramps; instrument page | `sketch::kit::instrument`; `data::Connection` |
 
 ### Media

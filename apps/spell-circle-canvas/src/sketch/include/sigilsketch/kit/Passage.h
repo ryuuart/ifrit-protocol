@@ -23,7 +23,7 @@ namespace sigil::sketch::kit {
 /** THE PASSAGE IN THE SKETCH'S OWN FILES, `ctx.local(name)`, as one
  *  string.
  *
- *      body = sketch::kit::passage(ctx, "data/paragraph_paints.txt");
+ *      body = sketch::kit::passage(ctx, "data/long_run.txt");
  *
  *  A page of running text is the SUBJECT of a sketch about setting one,
  *  and it is also the longest thing in the file that is about the
