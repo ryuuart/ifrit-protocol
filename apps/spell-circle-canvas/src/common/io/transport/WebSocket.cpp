@@ -379,7 +379,8 @@ struct Session {
 /** Answers @p response with 403 and the sentence naming @p binary as a
  *  peer this listener does not admit. */
 void refusePeer(uWS::HttpResponse<false>* response, std::string_view binary) {
-  const std::string named = peerAddress("ws", binary, response->getRemotePort());
+  const std::string named =
+      peerAddress("ws", binary, response->getRemotePort());
   response->writeStatus("403 Forbidden");
   response->writeHeader("Content-Type", "text/plain");
   response->end("ws: " + (named.empty() ? std::string("a peer") : named) +
@@ -677,15 +678,15 @@ OpenedFeed openFeed(const Hub& hub, std::string_view uri,
 
   OpenedFeed opened;
   // Every interface of both families is one dual-stack socket, which is
-  // a v6 address with nothing in it, and the path stands behind the
-  // port. It is the address a PEER reaches, so the query is not in it:
-  // where the pages stand is this listener's own arrangement.
-  // A named interface is the one address a peer can reach it at.
+  // a v6 address with nothing in it, while a named interface is the one
+  // address a peer can reach, bracketed where it is IPv6. The path
+  // stands behind the port. It is the address a PEER reaches, so the
+  // query is not in it: where the pages stand, what is bound and whom it
+  // admits are this listener's own arrangement.
   const bool six = address->bind.find(':') != std::string::npos;
-  const std::string interface =
-      address->bind.empty() ? "[::]"
-      : six                 ? "[" + address->bind + "]"
-                            : address->bind;
+  const std::string interface = address->bind.empty() ? "[::]"
+                                : six ? "[" + address->bind + "]"
+                                      : address->bind;
   opened.address =
       "ws://" + interface + ":" + std::to_string(bound.port) + address->path;
   opened.close = [door] { door->close(); };

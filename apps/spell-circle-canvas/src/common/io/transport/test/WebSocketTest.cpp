@@ -489,8 +489,7 @@ TEST_F(IOWebSocket, TheFeedNamesEveryPeerAttachedUntilItLeaves) {
 }
 
 TEST_F(IOWebSocket, ABoundListenerHoldsTheOneInterfaceItNames) {
-  const std::shared_ptr<Feed> listener =
-      hub.feed("ws://:0/sky?bind=127.0.0.1");
+  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky?bind=127.0.0.1");
   ASSERT_TRUE(listener->error().empty()) << listener->error();
   // The interface named is the one address a peer can reach it at, and
   // the query is no part of that address.
