@@ -393,8 +393,10 @@ reach.
 The `TextStyle` overload applies THE SET FIELDS OF a partial TO A STYLE
 THAT IS ALREADY TOTAL — a cascade step whose base is a built `TextStyle`
 rather than a `Type`. A relative size resolves against that style's own
-`ShapingStyle::fontSize` for `em`, the initial 16 px for `rem`, and 1.2
-times that font size for `lh`; the style carries no line height, so a
+`ShapingStyle::fontSize` for `em`, the root size the caller hands it for
+`rem` — the root of the tree the style is set in, the initial 16 px where
+it names none — and 1.2 times that font size for `lh`; the style carries
+no line height, so a
 caller who knows one resolves the size itself through the `Type` overload
 instead. `Type::color8` chooses the ladder for a colour the partial
 itself states: a partial that sets the flag and no colour changes

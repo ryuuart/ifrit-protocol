@@ -802,10 +802,12 @@ void Composer::Impl::resolveCascade(
     inst.runStyles = std::move(runStyles);
     inst.paragraphBlockStyles = std::move(paragraphBlockStyles);
     inst.sheetsInForce = !sheets->empty();
+    // A run, a span or a reading may state its size in rems, which the
+    // paragraph holds as pixels, so a root that moved remakes it.
     const bool remakes =
         block.writingMode != inst.textBlock.writingMode ||
         block.lineBreakLocale != inst.textBlock.lineBreakLocale || namesMoved ||
-        optionsMoved;
+        optionsMoved || remMoved;
     if (inst.textDirty || !inst.paragraph) {
       inst.textDirty = false;
       materializeText(inst);
@@ -870,7 +872,7 @@ void Composer::Impl::refreshInheritedInk(Instance& inst) {
   const sigil::weave::TextStyle base = sigil::weave::toTextStyle(inst.font);
   for (const Instance::InkRange& range : inst.inheritedInkRanges) {
     const sigil::weave::TextStyle style =
-        range.over ? sigil::weave::overlay(base, *range.over) : base;
+        range.over ? sigil::weave::overlay(base, *range.over, remPx) : base;
     inst.paragraph->setPaint(range.range.start, range.range.end, style.paint);
   }
   // The restyles back over it, in the order and by the rule materialisation

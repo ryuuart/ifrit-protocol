@@ -203,11 +203,13 @@ Type& merge(Type& into, const Type& over);
 
 /** THE SET FIELDS OF @p over APPLIED TO A STYLE THAT IS ALREADY TOTAL.
  *  A relative size resolves against the base's own font size for `em`,
- *  the initial 16 px for `rem`, and 1.2 times that size for `lh`, the
- *  style carrying no line height of its own.
+ *  @p rootSizePx for `rem` — the root size of the tree the style is set
+ *  in, the initial 16 px where there is none — and 1.2 times the size for
+ *  `lh`, the style carrying no line height of its own.
  *  @silent @p over sets `color8` and no colour: the base's colour is
  *  already a number in the paint. */
-[[nodiscard]] TextStyle overlay(TextStyle base, const Type& over);
+[[nodiscard]] TextStyle overlay(TextStyle base, const Type& over,
+                                float rootSizePx = 16.0f);
 
 /** Type{} → the TextStyle it names, every field it leaves unset taking its
  *  initial value. */

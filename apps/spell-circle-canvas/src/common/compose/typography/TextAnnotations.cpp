@@ -33,7 +33,8 @@ sigil::weave::ReservedBand detail::reservedBandOf(
     // is broken — which is what makes a reservation a layout input and not
     // a cycle.
     const float depth = sigil::weave::bandBeside(
-        impl.fonts, sigil::weave::overlay(base, annotation.style),
+        impl.fonts,
+        sigil::weave::overlay(base, annotation.style, impl.remPx),
         annotation.gap);
     if (annotation.side == Annotation::Side::Before)
       band.before = std::max(band.before, depth);
@@ -58,7 +59,7 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
   for (const Annotation& annotation : annotations) {
     if (annotation.readings.empty()) continue;
     const sigil::weave::TextStyle readingStyle =
-        sigil::weave::overlay(base, annotation.style);
+        sigil::weave::overlay(base, annotation.style, impl.remPx);
     // WHICH UNITS: the published per-unit answer, which reports a base
     // that broke across a line or a column on BOTH of them, with the source
     // unit beside each — so the split below is a fact the placement already

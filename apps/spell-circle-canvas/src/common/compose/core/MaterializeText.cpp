@@ -84,7 +84,8 @@ void Composer::Impl::materializeText(
       sigil::weave::TextStyle style = run.style;
       bool inksInherited = false;
       if (inherits && !run.total) {
-        style = run.over ? sigil::weave::overlay(base, *run.over) : base;
+        style =
+            run.over ? sigil::weave::overlay(base, *run.over, remPx) : base;
         inksInherited = !(run.over && run.over->color);
       }
       if (!run.slotName.empty()) {
@@ -293,7 +294,7 @@ sigil::weave::TextStyle Composer::Impl::styleOfSpan(
     else
       warnNoSuchVar(*span.inkVar, true);
   }
-  sigil::weave::TextStyle style = sigil::weave::overlay(base, partial);
+  sigil::weave::TextStyle style = sigil::weave::overlay(base, partial, remPx);
   // A paint stated as the ink IS the ink: its own alpha rules, so the
   // colour it replaces must not fade it.
   if (span.inkShader) {

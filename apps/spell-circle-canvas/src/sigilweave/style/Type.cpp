@@ -282,17 +282,16 @@ TextStyle toTextStyle(const Type& total) {
   return style;
 }
 
-TextStyle overlay(TextStyle base, const Type& over) {
+TextStyle overlay(TextStyle base, const Type& over, float rootSizePx) {
   if (over.face) base.shaping.typeface = *over.face;
   if (over.size) {
     const float against =
         base.shaping.fontSize > 0 ? base.shaping.fontSize : kInitialSizePx;
-    base.shaping.fontSize =
-        resolvePx(*over.size, against, kInitialSizePx, 0.0f);
+    base.shaping.fontSize = resolvePx(*over.size, against, rootSizePx, 0.0f);
   }
   if (over.track)
     base.shaping.letterSpacing =
-        resolvePx(*over.track, base.shaping.fontSize, kInitialSizePx, 0.0f);
+        resolvePx(*over.track, base.shaping.fontSize, rootSizePx, 0.0f);
   if (over.condense) base.shaping.scaleX = *over.condense;
   if (over.aliased) base.shaping.aliased = *over.aliased;
   if (over.color)
@@ -304,7 +303,7 @@ TextStyle overlay(TextStyle base, const Type& over) {
     setAxis(base.shaping.variations, axis);
   if (over.wordSpacing)
     base.shaping.wordSpacing = resolvePx(
-        *over.wordSpacing, base.shaping.fontSize, kInitialSizePx, 0.0f);
+        *over.wordSpacing, base.shaping.fontSize, rootSizePx, 0.0f);
   if (over.language) base.shaping.languageTag = *over.language;
   if (over.features) base.shaping.fontFeatures = *over.features;
   if (over.opticalKerning) base.shaping.opticalKerning = *over.opticalKerning;

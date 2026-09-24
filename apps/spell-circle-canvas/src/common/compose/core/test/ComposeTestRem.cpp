@@ -3,9 +3,13 @@
 // rems against it.
 
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/SpanStyle.h>
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Length.h>
 
+#include <string_view>
 #include <utility>
 
 #include "support/CoreTestSupport.h"
@@ -92,4 +96,38 @@ TEST(ComposeRem, ALengthInRemsFollowsTheRootWhenNothingElseAboutItMoved) {
   host.composer.render(page(12));
   host.frame();
   EXPECT_FLOAT_EQ(widthOf(host), 24.0f);
+}
+
+namespace {
+
+/** The box a one-letter leaf shrinks to, so its extent is its type's. */
+SkRect letterBox(Host& host, const char* key) {
+  return require(host.composer.bounds(key));
+}
+
+}  // namespace
+
+TEST(ComposeRem, ARunASheetNamesMeasuresItsRemsAgainstTheRoot) {
+  // A named run is a virtual child of the leaf, and a span restyles part
+  // of it: a rem either states is the root element's size, as it would be
+  // on a child.
+  Host host(400, 200);
+  host.composer.render(
+      box()
+          .font({.face = sigil::test::instrument::sans()})
+          .fontSize(10)
+          .applyStyleSheet(StyleSheet{rule(".big").fontSize(2_rem)})
+          .alignItems(Align::Start)
+          .children({text(sigil::weave::rich().add(std::u8string_view(u8"H"), "big")).key("run"),
+                     text(u8"H")
+                         .span(sigil::weave::selectors::range({0, 1}),
+                               SpanStyle().fontSize(2_rem))
+                         .key("span"),
+                     text(u8"H").fontSize(20).key("plain")}));
+  host.frame();
+  const SkRect plain = letterBox(host, "plain");
+  EXPECT_FLOAT_EQ(letterBox(host, "run").width(), plain.width());
+  EXPECT_FLOAT_EQ(letterBox(host, "run").height(), plain.height());
+  EXPECT_FLOAT_EQ(letterBox(host, "span").width(), plain.width());
+  EXPECT_FLOAT_EQ(letterBox(host, "span").height(), plain.height());
 }
