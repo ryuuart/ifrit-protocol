@@ -15,3 +15,12 @@ sigil_test(sketch_test
   SUITES SketchSharedWebEngine SketchSettledPage SketchSettling
   LABELS ultralight)
 ultralight_copy_resources(sketch_test)
+
+# A page under the loading clock, over the session and clock agents: it
+# is there before the open is answered, and its still is the sweep's
+# plate. Under the protocol's label beside the engine's.
+sigil_test(sketch_test
+  SOURCES test/LoadingClockTest.cpp
+  LIBRARIES SigilSketch SigilSketchTesting SigilComposeWeb
+  SUITES SketchLoadingClock
+  LABELS ultralight protocol)
