@@ -492,12 +492,12 @@ endfunction()
 #   that library's root here. One whose last directory is the library's
 #   own header directory is included wholesale as the library's own is,
 #   which is how headers the build writes are probed; DEPENDS names those
-#   headers, so the scan waits until they are written. PRELUDES are headers the translation unit
-#   opens with, after gtest's; ALIASES the namespace aliases the prose
-#   writes names through; SKIP_HEADERS the library's own headers the
-#   translation unit must not include, which is how a header behind an SDK
-#   or a UI toolkit stays out of a probe that compiles everywhere.
-#   FLOORS arms the count guard: the five minima the
+#   headers, so the scan waits until they are written. PRELUDES are
+#   headers the translation unit opens with, after gtest's; ALIASES the
+#   namespace aliases the prose writes names through; SKIP_HEADERS the
+#   library's own headers the translation unit must not include, which is
+#   how a header behind an SDK or a UI toolkit stays out of a probe that
+#   compiles everywhere. FLOORS arms the count guard: the five minima the
 #   visible case asserts, which catch an extractor that stopped matching
 #   rather than an ordinary edit. LIBRARIES are linked into both the
 #   object library and the test binary, because a document that spells a

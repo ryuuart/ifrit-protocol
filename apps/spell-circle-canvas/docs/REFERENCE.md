@@ -88,6 +88,12 @@ docs/glossary.md
 `functions`. `<Name>` is the entity's own simple name as C++ spells it,
 with `::` written as `.` for a nested one.
 
+A protocol domain is no C++ entity and has no page here: its page is
+`src/common/protocol/reference/domains/<domain>.md`, written whole from
+the protocol definition by `generate.py` beside it and never by hand,
+carried into the site as one of SigilProtocol's chapters. It has no
+front matter, so the reference layer does not catalogue it.
+
 Front matter is `key: value`, one per line, a scalar or a bracketed
 list, no nesting. Three keys are required — `kind`, `library`, `name` —
 and the useful rest are `group` (the concern the kind's index sorts it
