@@ -58,7 +58,7 @@ using namespace sigil::weave::literals;
 
 namespace {
 
-constexpr SkSize kCanvas{1600, 1440};
+constexpr SkSize kCanvas{1600, 1536};
 /** Pixels per thread on the cloth, the sett bar and the swatches — a whole
  *  number, because a thread narrower than a pixel or magnified by a
  *  fraction over the twill's four-thread period is a moiré generator. */
@@ -407,12 +407,15 @@ struct BlackWatch {
     // The board is one recipe, paint and tooth together; the yarn's tooth
     // keeps frequency · stretch · 2^(octaves−1) under 0.4, past which its
     // y axis aliases into hash noise.
+    // A mount board reads as one even card: a fine tooth the eye takes
+    // as paper, and a wear so slow and faint that it is felt rather than
+    // seen, never a blotch that competes with the cloth.
     board = material::skia::Paint::recipe(
         material::kit::board({.paint = colours.ground,
-                              .tooth = 0.10f,
-                              .toothScale = 0.045f,
-                              .wear = 0.05f,
-                              .wearScale = 0.004f,
+                              .tooth = 0.065f,
+                              .toothScale = 0.05f,
+                              .wear = 0.018f,
+                              .wearScale = 0.0025f,
                               .seed = 7.0f}));
     yarn = material::skia::Paint::recipe(
         material::field::grain(0.09f, 3, 3.0f, 0.75f));
@@ -528,7 +531,7 @@ struct BlackWatch {
                   .background(styles::dropShadow({1, 1, 1, 0.8f}, {0, 1.2f}, 0.4f))
                   .foreground(styles::InnerShadow{{0, 0, 0, 0.55f}, {0, 1.5f}, 1.5f}),
               document::lead(doc.phrase(words["registration"]))}),
-         box().row().gap(13).width(486).styleClass("ticket").children(
+         box().row().gap(13).width(440).styleClass("ticket").children(
              {kit::line({.thickness = 1, .column = true,
                          .fill = Fill::var("rule")}),
               box().column().gap(4.5f).children(
@@ -733,7 +736,7 @@ struct BlackWatch {
    *  holding it to the board. */
   Element mountedCloth() const {
     const float width = kEnds * kThread;
-    constexpr float kHidden = 4, kHang = 26, kClear = 16, kCorner = 26;
+    constexpr float kHidden = 4, kHang = 30, kClear = 22, kCorner = 26;
     const Fringe fringe = tassels(kEnds, kHidden, kHang);
     // The fringe stands behind the panel, so the knots show just below
     // its edge and the tassels hang free onto the board, each lifted off
@@ -914,10 +917,10 @@ struct BlackWatch {
                                             .c_str()));
       }
       Element row = box().row().paddingLeft(12).children(
-          {document::caption(card.name).styleClass("card-name").width(158),
+          {document::caption(card.name).styleClass("card-name").width(146),
            sketch::kit::swatchStrip({.swatches = std::move(swatches),
                                      .labels = std::move(labels),
-                                     .width = Dimension(86),
+                                     .width = Dimension(82),
                                      .height = Dimension(14),
                                      .gap = 8})
                .styleClass("shades")});
@@ -974,32 +977,34 @@ struct BlackWatch {
       return box().column().gap(6).alignItems(Align::Center).children(
           {std::move(picture), std::move(name)});
     };
+    // Five cuttings in one row, the four the Cockburn Collection labelled
+    // and the one that carries its name honestly; the words stand under
+    // them at the row's two ends.
     return titled(
         doc.phrase(words["heading"]),
-        {box().row().gap(28).children(
-            {box().column().gap(12).children(
-                 {box().row().gap(16).children(
-                      {each(words["labels"].items(),
-                            [&](const data::Json& label, size_t index) {
-                              return labelled(
-                                  swatch(cloths.front(), kGovernmentCrop,
-                                         Fill::var("rule"), 1),
-                                  document::caption(doc.phrase(label))
-                                      .styleClass("name")
-                                      .opacity(bind(&loom).window(
-                                          0.63f + (float)index * 0.022f,
-                                          0.66f + (float)index * 0.022f)));
-                            })}),
-                  document::paragraph(doc.passage(words["quote"]))
-                      .styleClass("quote")
-                      .width(740)}),
-             box().column().gap(8).width(200).children(
-                 {labelled(swatch(argyllCloth, kArgyllCrop,
-                                  Fill::var("proof"), 1.5f),
-                           document::caption(doc.phrase(words["honest"]))
-                               .styleClass("name honest")),
-                  document::paragraph(doc.passage(words["note"]))
-                      .styleClass("note")})})});
+        {box().row().gap(16).children(
+             {each(words["labels"].items(),
+                   [&](const data::Json& label, size_t index) {
+                     return labelled(
+                         swatch(cloths.front(), kGovernmentCrop,
+                                Fill::var("rule"), 1),
+                         document::caption(doc.phrase(label))
+                             .styleClass("name")
+                             .opacity(bind(&loom).window(
+                                 0.63f + (float)index * 0.022f,
+                                 0.66f + (float)index * 0.022f)));
+                   }),
+              labelled(swatch(argyllCloth, kArgyllCrop, Fill::var("proof"),
+                              1.5f),
+                       document::caption(doc.phrase(words["honest"]))
+                           .styleClass("name honest"))}),
+         box().row().justifyContent(Justify::SpaceBetween).alignItems(Align::Start).children(
+             {document::paragraph(doc.passage(words["quote"]))
+                  .styleClass("quote")
+                  .width(620),
+              document::paragraph(doc.passage(words["note"]))
+                  .styleClass("note")
+                  .width(300)})});
   }
 
   // =========================================================================
@@ -1104,6 +1109,11 @@ struct BlackWatch {
 
   Element describe() const {
     const data::Json& words = doc["masthead"];
+    // Two columns on one grid: the cloth's width on the left, the rail's
+    // on the right, and every row below the cloth keeps to the same two
+    // edges — the specimens and the comparison to the cloth's, the
+    // verification and the closing quotation to the rail's.
+    constexpr float kRail = 440, kGutter = 24;
     return box()
         .width(kCanvas.width())
         .height(kCanvas.height())
@@ -1111,27 +1121,40 @@ struct BlackWatch {
         .padding(46, 64, 0, 64)
         .children({
             layer(board).cache(Cache::Texture),
+            // The card lies under a window: light falls across it from the
+            // upper left and the far corner sits in shade.
+            box()
+                .cover()
+                .fill(radialGradient({0.1f * kCanvas.width(), 0},
+                                     1.15f * kCanvas.width(),
+                                     {{1, 1, 1, 0.14f}, {1, 1, 1, 0}, {0, 0, 0, 0}, {0, 0, 0, 0.11f}},
+                                     {0, 0.35f, 0.6f, 1}))
+                .cache(Cache::Texture),
             box().cover().inset(24).stroke(
                 stroke(1, Fill::var("rule"), PathFormat::Align::Inner)),
-            masthead(),
-            kit::line({.fill = Fill::var("rule")}).marginTop(18),
-            box().row().gap(24).children(
-                {box().column().flexShrink(0).children({settBar(), mountedCloth()}),
-                 box().column().width(440).flexShrink(0).gap(34).marginTop(18).children(
-                     {draft(), blendTable(), shadeCards()})}),
-            box().row().gap(40).children(
-                {provenance(), verification()}),
-            box().row().gap(40).marginTop(8).children(
-                {comparison(),
-                 document::paragraph(doc.passage("douglas"))
-                     .styleClass("douglas")
-                     .width(340)
-                     .marginTop(18)}),
+            box().column().gap(26).children({
+                box().column().children(
+                    {masthead(),
+                     kit::line({.fill = Fill::var("rule")}).marginTop(18)}),
+                box().row().gap(kGutter).children(
+                    {box().column().flexShrink(0).children(
+                         {settBar(), mountedCloth()}),
+                     box().column().width(kRail).flexShrink(0).gap(34).marginTop(26).children(
+                         {draft(), blendTable(), shadeCards()})}),
+                box().row().gap(kGutter).alignItems(Align::Start).children(
+                    {provenance().flexGrow(1), verification().width(kRail).flexGrow(0)}),
+                box().row().gap(kGutter).alignItems(Align::Start).children(
+                    {comparison().flexGrow(1),
+                     document::paragraph(doc.passage("douglas"))
+                         .styleClass("douglas")
+                         .width(kRail)
+                         .marginTop(2)}),
+            }),
             box().flexGrow(),
             kit::line({.fill = Fill::var("rule")}),
             document::footer(doc.phrase(words["colophon"]))
                 .marginTop(6)
-                .marginBottom(30),
+                .marginBottom(26),
         });
   }
 
