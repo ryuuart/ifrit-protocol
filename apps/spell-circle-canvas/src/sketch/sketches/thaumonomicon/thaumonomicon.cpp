@@ -8,8 +8,8 @@
 // category — its title, lattice column and row, plate, icon, save state and
 // the research it needs — and `data/icons.json` the sixteen-pixel icons as
 // character grids. The plates state those facts and the web's operators
-// read them: one `connect::ByLane` per kind of wire, a stamp for the corner
-// badges and a pin for the tooltip.
+// read them: one `connect::ByLane` per kind of wire and a stamp for the
+// corner badges.
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
@@ -18,7 +18,6 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Pin.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Sprites.h>
@@ -278,13 +277,14 @@ struct Thaumonomicon {
     Element node = kit::at(0, 0, gui(kPlate), gui(kPlate)).key(research.key);
     // Warp stains the page under a research with a violet corona.
     if (research.warp > 0)
-      node.children({kit::disc({half, half}, gui(20))
+      node.children({kit::disc({half, half}, gui(30))
                          .fill(Paint::glowUnit(
                              {0.5f, 0.5f}, 1.0f,
-                             {{0.0f, hexColor(0xC060FF, 0.2f * (float)research.warp)},
-                              {1.0f, hexColor(0x40006A, 0.0f)}}))});
+                             {{0.0f, hexColor(0xB040FF, 0.28f * (float)research.warp)},
+                              {1.0f, hexColor(0x40006A, 0.0f)}}))
+                         .blendMode(SkBlendMode::kScreen)});
     if (research.plate == "spiky")
-      node.children({kit::disc({half, half}, gui(17))
+      node.children({kit::disc({half, half}, gui(21))
                          .shape(shapes::star(8, 0.74f, 0.35f))
                          .fill(Fill::color(material::scale(kPlateShade, 0.8f)))});
     node.children({plateFace(box().inset(0), research)
@@ -333,18 +333,17 @@ struct Thaumonomicon {
   // -------------------------------------------------------------------------
   // The tooltip: Minecraft's own, a near-black violet card with a blue
   // inner rule, its lines set in a bitmap face with a one-pixel shadow a
-  // quarter as bright. It hangs to the right of the cursor and flips to its
-  // left when the screen would cut it.
+  // quarter as bright. Its text starts three pixels right of and above the
+  // cursor, and the card flips to the cursor's left when the screen would
+  // cut it.
 
-  pin::Request tooltip(weave::FontContext& fonts, const std::vector<std::string>& lines) const {
+  Element tooltip(weave::FontContext& fonts, const std::vector<std::string>& lines,
+                  SkPoint cursor) const {
     const weave::Type face{.face = weave::ports::face({"Menlo", "Monaco", "Courier New"}),
                            .size = 10,
                            .aliased = true};
     const std::array<material::Color, 3> colours = {kTextGold, kTextRed, kTextYellow};
-    Element card = box()
-                       .fill(Fill::color(hexColor(0x100010, 0.94f)))
-                       .foreground(decorations::border(gui(1), Fill::color(hexColor(0x5000FF, 0.31f)),
-                                                       gui(1)));
+    std::vector<Element> set;
     float widest = 0;
     for (size_t index = 0; index < lines.size(); ++index) {
       const std::u8string run(lines[index].begin(), lines[index].end());
@@ -353,21 +352,19 @@ struct Thaumonomicon {
       widest = std::max(widest, coverage.advance.width());
       // The title stands two pixels clear of the lines under it.
       const float top = 4 + 10 * (float)index + (index > 0 ? 2 : 0);
-      card.children({kit::masked(mask, {.colour = colours[std::min<size_t>(index, 2)],
-                                        .scale = kPixel,
-                                        .shadowOffset = {gui(1), gui(1)}})
-                         .left(gui(4 + (float)(mask.inkX - coverage.pad.x)))
-                         .top(gui(top + (float)(mask.inkY - coverage.pad.y)))});
+      set.push_back(kit::masked(mask, {.colour = colours[std::min<size_t>(index, 2)],
+                                       .scale = kPixel,
+                                       .shadowOffset = {gui(1), gui(1)}})
+                        .left(gui(4 + (float)(mask.inkX - coverage.pad.x)))
+                        .top(gui(top + (float)(mask.inkY - coverage.pad.y))));
     }
-    // The cursor rests two pixels right of and four below the plate's
-    // centre; the card's text starts three pixels right of and above it.
-    return {.element = card,
-            .size = {gui(widest + 8), gui(10 * (float)lines.size() + 9)},
-            .where = {.on = {0.5f, 0.5f},
-                      .at = {0, 0},
-                      .offset = {gui(1), gui(-3)},
-                      .fallbacks = {{.on = {0.5f, 0.5f}, .at = {1, 0},
-                                     .offset = {gui(-3), gui(-3)}}}}};
+    const float width = widest + 8, height = 10 * (float)lines.size() + 9;
+    const float left = cursor.x() + 3 + widest + 4 <= 640 ? cursor.x() - 1
+                                                           : cursor.x() - 12 - widest - 4;
+    return kit::at(gui(left), gui(cursor.y() - 7), gui(width), gui(height))
+        .fill(Fill::color(hexColor(0x100010, 0.94f)))
+        .foreground(decorations::border(gui(1), Fill::color(hexColor(0x5000FF, 0.31f)), gui(1)))
+        .children(set);
   }
 
   // -------------------------------------------------------------------------
@@ -448,6 +445,7 @@ struct Thaumonomicon {
     // plate says so. A prerequisite that lists this research as a sibling
     // draws the sibling wire in its place.
     std::vector<Element> plates;
+    Element hover = box();
     for (const Research& research : web) {
       std::map<std::string, std::vector<std::string>> lanes;
       for (const std::string& key : research.parents) {
@@ -462,12 +460,15 @@ struct Thaumonomicon {
       Element node = plate(research).centerAt(centre).zIndex(10);
       for (const auto& [lane, keys] : lanes) node.attribute(lane, keys);
       if (!research.badges.empty()) node.attribute("badges", research.badges);
+      // The hovered research's tooltip names it and what it still needs.
       if (research.key == hovered && ctx.fonts) {
         std::vector<std::string> lines = {research.title, "Missing required research:"};
         for (const std::string& key : research.parents)
           if (const Research* parent = find(key); parent && parent->state != "complete")
             lines.push_back(" - " + parent->title);
-        node.attribute("tooltip", tooltip(*ctx.fonts, lines));
+        // The cursor rests two pixels right of and four below the centre.
+        hover = tooltip(*ctx.fonts, lines,
+                        {centre.x() / kPixel + 2, centre.y() / kPixel + 4});
       }
       plates.push_back(node);
     }
@@ -475,7 +476,6 @@ struct Thaumonomicon {
     std::vector<Operator> operators;
     for (const WireKind& kind : kWires) operators.push_back(wires(kind));
     operators.push_back(badges());
-    operators.push_back(Operator(pin::ByLane{.lane = "tooltip"}).zIndex(30));
 
     const SkSize viewport = {gui(640 - 2 * kInset), gui(400 - 2 * kInset)};
     ctx.composer.render(box().inset(0).children({
@@ -486,6 +486,7 @@ struct Thaumonomicon {
         box().inset(0).operators(std::move(operators)).children(plates),
         frame(),
         tabs(),
+        hover,
     }));
   }
 };
