@@ -1,5 +1,7 @@
 #include "SketchActions.h"
 
+#include <sigilsketch/core/State.h>
+
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
@@ -44,6 +46,15 @@ void appendPython(QStringList& arguments, const fs::path& executable,
   if (executable.empty()) return;
   arguments << QStringLiteral("--python-executable") << pathString(executable)
             << QStringLiteral("--python-abi") << abi;
+}
+
+/** A child keeps its state where this run keeps its own: a window opened
+ *  from a run that named a root, or a still or a montage it started,
+ *  reads and writes nothing outside that root either. */
+void appendState(QStringList& arguments) {
+  const fs::path root = sigil::sketch::stateDirectory();
+  if (root.empty()) return;
+  arguments << QStringLiteral("--state") << pathString(root);
 }
 
 QProcessEnvironment childEnvironment(const fs::path& executable = {}) {
@@ -275,6 +286,7 @@ void SketchActions::launch(const sketchbook::WorkspaceLocation& location,
   if (!location.root.empty())
     arguments << QStringLiteral("--workspace") << pathString(location.root);
   appendPython(arguments, executable, abi);
+  appendState(arguments);
   QProcess child;
   child.setProgram(QCoreApplication::applicationFilePath());
   child.setArguments(arguments);
@@ -405,6 +417,7 @@ void SketchActions::run(const QString& label, const QStringList& arguments,
   m_task.setProcessChannelMode(QProcess::MergedChannels);
   QStringList configured = arguments;
   appendPython(configured, pythonExecutable, pythonAbi);
+  appendState(configured);
   m_task.setProcessEnvironment(childEnvironment(pythonExecutable));
   if (!workspaceRoot.empty())
     m_task.setWorkingDirectory(pathString(workspaceRoot));

@@ -176,14 +176,24 @@ def main() -> None:
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ)
-    environment["SIGIL_SKETCH_CACHE"] = str(work / "cache")
+    # Both runs keep their state under the scratch directory: a build the
+    # still left there is what the window reuses, and neither writes
+    # outside it.
+    state = str(work / "state")
 
     # THE CONTROL, and it comes first: a still of the same probe, which
     # opens no window and so cannot carry the defect. If the bands are
     # the wrong way round here the probe is wrong, not the presentation.
     still = work / "still.png"
     run(
-        [str(args.sketchbook), str(args.probe), "--frame", str(still)],
+        [
+            str(args.sketchbook),
+            "--state",
+            state,
+            str(args.probe),
+            "--frame",
+            str(still),
+        ],
         environment,
     )
     assert_red_above_blue(read_png(still), "the still")
@@ -194,7 +204,14 @@ def main() -> None:
     shot = work / "window.png"
     environment["QSG_RHI_BACKEND"] = "opengl"
     run(
-        [str(args.sketchbook), str(args.probe), "--shot", str(shot)],
+        [
+            str(args.sketchbook),
+            "--state",
+            state,
+            str(args.probe),
+            "--shot",
+            str(shot),
+        ],
         environment,
     )
     assert_red_above_blue(read_png(shot), "the presented window")

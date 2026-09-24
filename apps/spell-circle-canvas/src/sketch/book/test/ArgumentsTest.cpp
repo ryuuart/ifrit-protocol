@@ -46,6 +46,18 @@ TEST(SketchbookArguments, ASweepTakesItsMomentFromTheStillsTimeFlag) {
   EXPECT_FALSE(parse({"--headless", "plates", "--timing-json", "t.json"}));
 }
 
+TEST(SketchbookArguments, AStateRootIsOneDirectoryNamedOnce) {
+  const auto args = parse({"--state", "scratch/state", "--sketch", "cascade"});
+  ASSERT_TRUE(args);
+  EXPECT_EQ(args->stateDirectory, "scratch/state");
+  EXPECT_FALSE(parse({"--state"}));
+  EXPECT_FALSE(parse({"--state", ""}));
+  EXPECT_FALSE(parse({"--state", "--sketch", "cascade"}));
+  EXPECT_FALSE(parse({"--state", "one", "--state", "two"}));
+  // The thumbnail store stands under the root; it has no flag of its own.
+  EXPECT_FALSE(parse({"--thumbnails-dir", "thumbnails"}));
+}
+
 TEST(SketchbookArguments, PythonInfoIsAStandaloneQuery) {
   const auto args = parse({"--python-info"});
   ASSERT_TRUE(args);

@@ -741,13 +741,25 @@ Sketchbook --publish [<name>] [--sketch <name>]
                                             # other applications
 Sketchbook --shot <png> [--sketch <name>]   # the whole window, once live
 … [--assets <dir>]                          # what mounts at res://
-… [--thumbnails-dir <dir>]                  # the app's own thumbnail store
+… [--state <dir>]                           # where the run keeps what it
+                                            # writes for a later run
 ```
 
 `--sketch` takes a case-insensitive substring and answers to a sketch's
 filed name or its file stem, which is the loop for visual iteration.
 `--headless` writes its plates into `sketch_plates/` when no directory
 follows it.
+
+**`--state <dir>` is the one place a run keeps what it writes for a later
+run.** The builds of sketch files, the browser's thumbnails, the device
+programs a run recorded, the settings and the recent workspaces each take
+a directory or a file under it — `builds/`, `thumbnails/`, `pipelines/`,
+`settings/` — instead of the platform's own locations, and a window or a
+command the run starts is handed the same root. A test or a script that
+names a fresh root reads nothing an earlier run left and leaves nothing
+behind; `sigil::sketch::setStateDirectory` is the same root for a process
+that is not Sketchbook, and `sigil::sketch::stateLocation` answers where
+one kind of state stands under it.
 `--shot <png>` captures the app window rather than a sketch, which is
 the only way to look at the browser and the inspector.
 
@@ -925,8 +937,8 @@ the precondition for a program built over one of them having a name that
 survives the run. Every program the run then builds is recorded, with the key
 that rebuilds it and the description it was built under, and written at exit
 under the platform cache location beside the thumbnails
-(`Sketchbook/pipelines/<digest>.keys`; `SIGIL_SKETCHBOOK_PIPELINES` names
-another). The digest is over the declared bodies, in the order they were
+(`Sketchbook/pipelines/<digest>.keys`; `pipelines/` under a `--state`
+root instead). The digest is over the declared bodies, in the order they were
 declared, and the backend's name: an edited shader, a recipe added or a
 different device is a different file rather than a set of keys describing
 other programs. The next launch replays that set on a worker as soon as the
@@ -1223,6 +1235,9 @@ registry for video export.
 - `core/Catalog.h` — `catalog` reads `CatalogSources` into one `CatalogRow`
   per registry entry and per file, without Qt; the browser maps each to the
   row QML reads and adds the thumbnail and the canvas a session learns.
+- `core/State.h` — `setStateDirectory`, `stateDirectory` and
+  `stateLocation`: the one root a process keeps what it writes between
+  runs under, and where each kind of state stands beneath it.
 - `core/Sources.h` — `SourceMetadata` and `sourceMetadata` read author prose
   without Qt; `sourceOf`, `directorySketch`, `sourcesUnder` and `unitsOf`
   resolve the files and translation units belonging to a sketch. `headersOf`
@@ -1312,8 +1327,8 @@ filters** clears both the search text and selected group in either view;
 the search clear action removes only the search; All sketches clears only the group.
 
 **The thumbnails are the app's own.** Sketchbook keeps one store — one PNG
-per sketch, under the platform cache location (`--thumbnails-dir` and the
-`SIGIL_SKETCHBOOK_THUMBNAILS` environment variable name another). Each
+per sketch, under the platform cache location (`thumbnails/` under a
+`--state` root instead). Each
 file's name carries a KEY: a hash of the sketch's source files and local
 headers, including quoted includes followed across owner directories.
 A thumbnail whose key no longer matches is stale and is drawn again.
@@ -1584,7 +1599,7 @@ embedding a scripting language — so a sketch never leaves the real API.
 * **Successful C++ builds survive session eviction and application restarts.**
   The persistent cache lives in `~/Library/Caches/SigilSketch/builds` on macOS,
   or `SigilSketch/builds` under the XDG cache directory on other platforms.
-  `SIGIL_SKETCH_CACHE` selects another directory; an empty value disables it.
+  A process that names a state root keeps them in `builds/` under it.
   The compiler preprocesses each unit to validate all resolved includes and
   macros. Compiler version, flags, and the running native image's path and
   pinned build timestamp also participate in the key. A matching artifact

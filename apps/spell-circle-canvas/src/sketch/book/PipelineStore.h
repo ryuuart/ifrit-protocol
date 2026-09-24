@@ -27,9 +27,10 @@ class SkRuntimeEffect;
  *  Nothing here talks to a device: these are bytes on a disk. */
 namespace pipelines {
 
-/** WHERE SKETCHBOOK KEEPS THE KEYS IT HAS RECORDED. An environment
- *  variable names one for a test; otherwise the platform cache
- *  location, under this app's own name and beside the thumbnails. The
+/** WHERE SKETCHBOOK KEEPS THE KEYS IT HAS RECORDED: `pipelines` under
+ *  the process's state root when the run named one, otherwise the
+ *  platform cache location, under this app's own name and beside the
+ *  thumbnails. The
  *  store is the app's alone: a window run replays it and writes back
  *  what its own draws wanted, and a headless sweep on the device writes
  *  into it only where it stands empty, so a run that drew a whole

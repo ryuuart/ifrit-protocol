@@ -8,6 +8,8 @@ namespace sigil::sketch {
 
 // Skia supplies the byte digest; compilation policy stays in the live host.
 std::string buildDigest(std::string_view bytes);
+/** Where a build is kept between runs: `builds` under the process's state
+ *  root when one is set, the platform's cache location otherwise. */
 std::filesystem::path buildCacheDirectory();
 bool restoreBuild(const std::filesystem::path& cache, const std::string& key,
                   const std::filesystem::path& output);

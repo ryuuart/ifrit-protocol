@@ -1,5 +1,6 @@
 #include "BuildCache.h"
 
+#include <sigilsketch/core/State.h>
 #include <src/core/SkMD5.h>
 #include <unistd.h>
 
@@ -17,7 +18,8 @@ std::string buildDigest(std::string_view bytes) {
 }
 
 std::filesystem::path buildCacheDirectory() {
-  if (const char* override = std::getenv("SIGIL_SKETCH_CACHE")) return override;
+  if (std::filesystem::path kept = stateLocation("builds"); !kept.empty())
+    return kept;
 #ifdef __APPLE__
   if (const char* home = std::getenv("HOME"))
     return std::filesystem::path(home) / "Library/Caches/SigilSketch/builds";

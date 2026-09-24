@@ -43,7 +43,9 @@
  *                                              inspector included, once the
  *                                              sketch on screen is live
  *   … [--assets <dir>]                         where res:// mounts
- *   … [--thumbnails-dir <dir>]                 the app's own thumbnail store
+ *   … [--state <dir>]                          where this run keeps builds,
+ *                                              thumbnails, recorded device
+ *                                              programs and settings
  *   … --python-executable <path> --python-abi <abi>
  *                                              the Python environment
  *
@@ -81,6 +83,7 @@
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
+#include <sigilsketch/core/State.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/python/Python.h>
@@ -140,6 +143,29 @@ int main(int argc, char* argv[]) {
   std::optional<Arguments> parsed = parseArguments(argc, argv);
   if (!parsed) return 2;
   Arguments& args = *parsed;
+
+  // ONE ROOT FOR EVERYTHING THIS RUN WRITES FOR A LATER ONE, named before
+  // anything reads its settings or opens a store: the builds, the
+  // thumbnails and the recorded device programs each take a directory
+  // under it, and the settings and recents move from the platform's own
+  // store into a file there, so a run that names a root reads nothing an
+  // earlier run left.
+  if (!args.stateDirectory.empty()) {
+    std::error_code error;
+    std::filesystem::create_directories(args.stateDirectory, error);
+    if (error) {
+      std::fprintf(stderr, "--state: cannot use %s: %s\n",
+                   args.stateDirectory.string().c_str(),
+                   error.message().c_str());
+      return 2;
+    }
+    const std::filesystem::path root =
+        std::filesystem::weakly_canonical(args.stateDirectory);
+    sketch::setStateDirectory(root);
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       QString::fromStdString((root / "settings").string()));
+  }
 
   // The launcher's handshake and environment selection precede every registry
   // probe: checking an optional Python module can initialize the interpreter.
@@ -377,8 +403,8 @@ int main(int argc, char* argv[]) {
     sketch::installCrashReporter({});
     finishMaterialWarmup(materialWarmup);
     const int result = runThumbnails(
-        chosen, args.kind, thumbnailStoreDirectory(args.thumbnailDirectory),
-        args.thumbnailBudget, args.thumbnailHeavy, fonts(), assets());
+        chosen, args.kind, thumbnailStoreDirectory(), args.thumbnailBudget,
+        args.thumbnailHeavy, fonts(), assets());
     sharedWebEngine.shutdown();
     return result;
   }
@@ -518,8 +544,7 @@ int main(int argc, char* argv[]) {
   // command. The worker renders with the process's own font context and
   // asset store, on the CPU, so it shares no graphics context with the
   // live canvas.
-  SketchCatalog::thumbnailDirectory =
-      thumbnailStoreDirectory(args.thumbnailDirectory);
+  SketchCatalog::thumbnailDirectory = thumbnailStoreDirectory();
   SketchCatalog::thumbnailBudget = args.thumbnailBudget;
   SketchCatalog::thumbnailHeavy = args.thumbnailHeavy;
   SketchCatalog::thumbnailFonts = &fonts();

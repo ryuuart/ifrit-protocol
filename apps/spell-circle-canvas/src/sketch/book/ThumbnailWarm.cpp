@@ -9,22 +9,22 @@
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
+#include <sigilsketch/core/State.h>
 #include <sigilsketch/plate/Thumbnails.h>
 
 #include <QtCore/QStandardPaths>
 #include <QtCore/QString>
 #include <cstdio>
-#include <cstdlib>
 #include <vector>
 
 #include "SketchCatalog.h"
 
 namespace sketch = sigil::sketch;
 
-std::filesystem::path thumbnailStoreDirectory(const std::string& override) {
-  if (!override.empty()) return override;
-  if (const char* env = std::getenv("SIGIL_SKETCHBOOK_THUMBNAILS"); env && *env)
-    return env;
+std::filesystem::path thumbnailStoreDirectory() {
+  if (std::filesystem::path kept = sketch::stateLocation("thumbnails");
+      !kept.empty())
+    return kept;
   const QString cache =
       QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
   const std::filesystem::path base =

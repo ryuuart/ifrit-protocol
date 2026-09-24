@@ -48,7 +48,11 @@ struct Arguments {
   std::string publishName;
   bool thumbnailHeavy = false;
   std::chrono::milliseconds thumbnailBudget = sigil::sketch::kThumbnailBudget;
-  std::string thumbnailDirectory;
+  /** Where this run keeps everything it writes for a later run — builds,
+   *  thumbnails, recorded device programs, settings and recents — each
+   *  kind in a directory of its own. Empty leaves each where the platform
+   *  keeps it. */
+  std::filesystem::path stateDirectory;
   std::optional<bool> deterministic;
 };
 

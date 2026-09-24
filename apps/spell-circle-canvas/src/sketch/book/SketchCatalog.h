@@ -154,8 +154,8 @@ class SketchCatalog : public QObject {
   static std::filesystem::path workspaceRoot;
 
   /** THE THUMBNAIL STORE: one directory this app owns, under the platform
-   *  cache location unless the command line or an environment variable
-   *  named another. Set by main() before QML loads. */
+   *  cache location unless the run named a state root to keep it under.
+   *  Set by main() before QML loads. */
   static std::filesystem::path thumbnailDirectory;
   /** What one still of the fill is allowed, and whether a sketch that
    *  declared itself a plate is walked at all. Set by main() before QML

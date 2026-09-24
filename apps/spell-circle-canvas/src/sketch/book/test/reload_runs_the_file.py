@@ -21,7 +21,6 @@ Usage (invoked by the build; the paths are all absolute):
 """
 
 import argparse
-import os
 import re
 import shutil
 import struct
@@ -40,13 +39,14 @@ FIXTURE_RGBA = (255, 0, 0, 255)
 # palette here grounds the whole picture.
 #
 # The anchor is the DECLARATION OF A THEME VARIABLE — the type and the
-# name it is given — and not what that theme starts from: which stock
+# name it is given, however the statement wraps after its `=` — and not
+# what that theme starts from: which stock
 # look a study derives from, and how it spells the namespaces, are the
 # sketch's own business and change without this fixture being wrong. The
 # declaration must be the sketch's only one, so the colour cannot land
 # in a theme nothing is drawn under; the whole match is kept and the
 # ground written on the line after it.
-THEME_OPENING = re.compile(r"^( *)(?:[\w:]+::)?Theme (\w+) = [^;]+;", re.MULTILINE)
+THEME_OPENING = re.compile(r"^( *)(?:[\w:]+::)?Theme (\w+) =\s+[^;]+;", re.MULTILINE)
 FIXTURE_GROUND = r"\g<0>\n\1\2.palette.ground = {1, 0, 0, 1};"
 
 
@@ -102,9 +102,11 @@ def main() -> None:
     args = parser.parse_args()
 
     work = args.work
-    cache = work / "cache"
-    shutil.rmtree(cache, ignore_errors=True)
-    os.environ["SIGIL_SKETCH_CACHE"] = str(cache)
+    # EVERY RUN KEEPS ITS STATE HERE, so a build this case finds cached is
+    # one it cached itself, and nothing it builds is left for another run.
+    state = work / "state"
+    shutil.rmtree(state, ignore_errors=True)
+    sketchbook = [str(args.sketchbook), "--state", str(state)]
     plates = work / "plates"
     plates.mkdir(parents=True, exist_ok=True)
 
@@ -132,7 +134,7 @@ def main() -> None:
 
     # THE RELOADED PICTURE: compiled from the copy, dlopened, drawn.
     reloaded = work / "reloaded.png"
-    run([str(args.sketchbook), str(fixture), "--frame", str(reloaded)])
+    run([*sketchbook, str(fixture), "--frame", str(reloaded)])
     drawn = corner_pixel(reloaded)
     if drawn != FIXTURE_RGBA:
         sys.exit(
@@ -142,12 +144,12 @@ def main() -> None:
         )
 
     cached = work / "cached.png"
-    output = run([str(args.sketchbook), str(fixture), "--frame", str(cached)])
+    output = run([*sketchbook, str(fixture), "--frame", str(cached)])
     if "live · cached build" not in output or corner_pixel(cached) != FIXTURE_RGBA:
         sys.exit("an unchanged sketch did not reuse its build across processes")
     header.write_text("#define FIXTURE_RED 0\n")
     changed = work / "changed.png"
-    output = run([str(args.sketchbook), str(fixture), "--frame", str(changed)])
+    output = run([*sketchbook, str(fixture), "--frame", str(changed)])
     if "live · cached build" in output or corner_pixel(changed) != (0, 0, 0, 255):
         sys.exit("a changed included header did not invalidate the cached build")
 
@@ -155,7 +157,7 @@ def main() -> None:
     # cannot have touched.
     run(
         [
-            str(args.sketchbook),
+            *sketchbook,
             "--headless",
             str(plates),
             "--sketch",

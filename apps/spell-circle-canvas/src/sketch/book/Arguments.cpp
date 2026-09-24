@@ -122,8 +122,13 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       }
     } else if (arg == "--thumbnails") {
       args.warmThumbnails = true;
-    } else if (arg == "--thumbnails-dir" && i + 1 < argc) {
-      args.thumbnailDirectory = argv[++i];
+    } else if (arg == "--state") {
+      if (i + 1 >= argc || argv[i + 1][0] == '\0' || argv[i + 1][0] == '-' ||
+          !args.stateDirectory.empty()) {
+        std::fprintf(stderr, "--state requires one directory\n");
+        return std::nullopt;
+      }
+      args.stateDirectory = argv[++i];
     } else if (arg == "--thumbnail-budget" && i + 1 < argc) {
       args.thumbnailBudget = std::chrono::milliseconds(
           (long long)std::lround(std::strtod(argv[++i], nullptr) * 1000.0));

@@ -53,7 +53,7 @@ find_package(EnTT CONFIG REQUIRED)
 # decoders and encoders — is PRIVATE.
 set(SIGIL_SKETCH_SOURCES
   core/Assets.cpp core/Catalog.cpp core/Crash.cpp core/Device.cpp
-  core/Registry.cpp core/Sources.cpp
+  core/Registry.cpp core/Sources.cpp core/State.cpp
   canvas/Context.cpp canvas/Guest.cpp canvas/Session.cpp
   set/Context.cpp set/Session.cpp
   live/BuildDirectory.cpp live/BuildCache.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
@@ -63,7 +63,7 @@ set(SIGIL_SKETCH_HEADERS
   core/Assets.h core/CanvasSpecification.h core/Catalog.h core/Crash.h
   core/Device.h
   core/Kind.h core/Members.h core/Placement.h core/Registry.h core/Session.h
-  core/Sources.h
+  core/Sources.h core/State.h
   canvas/Guest.h canvas/Sketch.h
   set/Set.h
   live/Host.h live/Residency.h

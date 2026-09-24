@@ -25,7 +25,6 @@ Usage (invoked by the build; the paths are all absolute):
 
 import argparse
 import hashlib
-import os
 import re
 import shutil
 import subprocess
@@ -61,9 +60,11 @@ class Tally:
         )
 
 
-def sweep(sketchbook: Path, sketch: str, out: Path, environment: dict) -> str:
+def sweep(sketchbook: Path, sketch: str, out: Path, state: Path) -> str:
     command = [
         str(sketchbook),
+        "--state",
+        str(state),
         "--headless",
         str(out),
         "--gpu",
@@ -71,9 +72,7 @@ def sweep(sketchbook: Path, sketch: str, out: Path, environment: dict) -> str:
         sketch,
     ]
     print("$ " + " ".join(command), flush=True)
-    result = subprocess.run(
-        command, capture_output=True, text=True, env=environment
-    )
+    result = subprocess.run(command, capture_output=True, text=True)
     sys.stdout.write(result.stdout)
     sys.stderr.write(result.stderr)
     if "no device runtime" in result.stderr:
@@ -108,16 +107,15 @@ def main() -> None:
     work = arguments.work
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True, exist_ok=True)
-    store = work / "pipelines"
+    # Both sweeps keep their state under one root, so the store they share
+    # starts empty and nothing either writes reaches another run.
+    state = work / "state"
+    store = state / "pipelines"
     out = work / "plates"
     out.mkdir(parents=True, exist_ok=True)
-    environment = dict(os.environ)
-    environment["SIGIL_SKETCH_CACHE"] = str(work / "cache")
-    environment["SIGIL_SKETCHBOOK_PIPELINES"] = str(store)
-    environment["SIGIL_SKETCHBOOK_THUMBNAILS"] = str(work / "thumbnails")
 
     cold = tally_of(
-        sweep(arguments.sketchbook, arguments.first, out, environment),
+        sweep(arguments.sketchbook, arguments.first, out, state),
         "the cold store",
     )
     if cold.recorded == 0:
@@ -140,7 +138,7 @@ def main() -> None:
     # otherwise this would pass on a lane that stopped recording at all —
     # and writes none of them.
     warm = tally_of(
-        sweep(arguments.sketchbook, arguments.second, out, environment),
+        sweep(arguments.sketchbook, arguments.second, out, state),
         "the warm store",
     )
     if warm.recorded == 0:

@@ -7,11 +7,11 @@
 
 #include <include/core/SkData.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilsketch/core/State.h>
 
 #include <QtCore/QStandardPaths>
 #include <QtCore/QString>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <system_error>
 
@@ -64,9 +64,8 @@ constexpr std::uint32_t kLongestKey = 1u << 20;
 }  // namespace
 
 fs::path storeDirectory() {
-  if (const char* named = std::getenv("SIGIL_SKETCHBOOK_PIPELINES");
-      named && *named)
-    return named;
+  if (fs::path kept = sigil::sketch::stateLocation("pipelines"); !kept.empty())
+    return kept;
   const QString cache =
       QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
   const fs::path base = cache.isEmpty() ? fs::temp_directory_path()

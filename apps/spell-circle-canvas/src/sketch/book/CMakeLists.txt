@@ -100,8 +100,8 @@ qt_add_qml_module(Sketchbook
 )
 # The browser's thumbnails are THIS APP'S OWN, kept under the platform
 # cache location and filled on demand — nothing else writes them, so
-# there are no compiled-in store directories. `--thumbnails-dir`
-# and the SIGIL_SKETCHBOOK_THUMBNAILS environment variable name another.
+# there are no compiled-in store directories. A run that names a state
+# root with `--state` keeps them under it instead.
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
   SigilSketch SigilSketchPython SigilSketches SigilSketchesPython

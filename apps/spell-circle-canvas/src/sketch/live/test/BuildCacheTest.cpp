@@ -4,6 +4,7 @@
 
 #include "../BuildCache.h"
 #include "ScratchDir.h"
+#include "support/StateRoot.h"
 
 namespace {
 using namespace sigil::sketch;
@@ -42,5 +43,11 @@ TEST(SketchBuildCache, FailedPublicationPreservesExistingArtifact) {
   EXPECT_FALSE(restoreBuild({}, key, scratch.path / "disabled"));
   std::ofstream(cache / (key + ".bin"), std::ios::app) << "corrupted";
   EXPECT_FALSE(restoreBuild(cache, key, scratch.path / "corrupt"));
+}
+TEST(SketchBuildCache, KeepsItsBuildsUnderTheProcesssStateRoot) {
+  // A run that names a root reads no build an earlier run left, and leaves
+  // none where a later one would find it.
+  const test::StateRoot root("sigil_build_cache_state");
+  EXPECT_EQ(buildCacheDirectory(), root.path() / "builds");
 }
 }  // namespace

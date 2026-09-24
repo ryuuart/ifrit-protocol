@@ -17,11 +17,11 @@ namespace sigil::weave {
 class FontContext;
 }
 
-/** WHERE SKETCHBOOK KEEPS ITS THUMBNAILS. The command line names one; an
- *  environment variable names one for a test; otherwise the platform
- *  cache location, under this app's own name. The store is the app's
+/** WHERE SKETCHBOOK KEEPS ITS THUMBNAILS: `thumbnails` under the
+ *  process's state root when the run named one, otherwise the platform
+ *  cache location under this app's own name. The store is the app's
  *  alone: no ledger and no sweep writes into it. */
-std::filesystem::path thumbnailStoreDirectory(const std::string& override);
+std::filesystem::path thumbnailStoreDirectory();
 
 /** THE WARM COMMAND: render every selected sketch's MISSING OR STALE
  *  thumbnail through the same CPU path the window's own fill takes, and

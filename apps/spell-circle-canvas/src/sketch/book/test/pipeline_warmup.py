@@ -27,7 +27,6 @@ Usage (invoked by the build; the paths are all absolute):
 """
 
 import argparse
-import os
 import re
 import shutil
 import subprocess
@@ -65,11 +64,9 @@ class Tally:
         )
 
 
-def run(command: list[str], environment: dict) -> tuple[str, str]:
+def run(command: list[str]) -> tuple[str, str]:
     print("$ " + " ".join(command), flush=True)
-    result = subprocess.run(
-        command, capture_output=True, text=True, env=environment
-    )
+    result = subprocess.run(command, capture_output=True, text=True)
     sys.stdout.write(result.stdout)
     sys.stderr.write(result.stderr)
     if result.returncode != 0:
@@ -96,21 +93,23 @@ def main() -> None:
     work = arguments.work
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True, exist_ok=True)
-    store = work / "pipelines"
-    environment = dict(os.environ)
-    environment["SIGIL_SKETCH_CACHE"] = str(work / "cache")
-    environment["SIGIL_SKETCHBOOK_PIPELINES"] = str(store)
-    environment["SIGIL_SKETCHBOOK_THUMBNAILS"] = str(work / "thumbnails")
+    # Both opens keep their state under one root: the second replays what
+    # the first recorded there, and neither reads or leaves anything
+    # outside it — settings and recents included.
+    state = work / "state"
+    store = state / "pipelines"
 
     shot = [
         str(arguments.sketchbook),
+        "--state",
+        str(state),
         "--sketch",
         arguments.sketch,
         "--shot",
         str(work / "window.png"),
     ]
 
-    _, first = run(shot, environment)
+    _, first = run(shot)
     if "renderer: Graphite GPU" not in first:
         # No device behind the window, so no device program was ever
         # built and there is nothing here to measure.
@@ -128,7 +127,7 @@ def main() -> None:
     first_bytes = written[0].stat().st_size
     print(f"recorded {written[0].name}, {first_bytes} bytes")
 
-    _, second = run(shot, environment)
+    _, second = run(shot)
     if "stood up before the first frame" not in second:
         sys.exit("the second open replayed nothing it had recorded")
     again = tally_of(second, "the second open")
