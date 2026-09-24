@@ -128,6 +128,18 @@ add_test(NAME python_authoring
     ${Python3_EXECUTABLE} -m unittest discover
       -s "${CMAKE_CURRENT_SOURCE_DIR}/test" -p "test_*.py")
 
+# BOTH ROUTES TO A SKETCH HOST, under the protocol's one label: a host in
+# this process through sigil.testing, and a headless Sketchbook launched
+# and driven over its socket, whose still of a registry sketch is the
+# sweep's plate of it.
+add_test(NAME python_protocol_routes
+  COMMAND ${CMAKE_COMMAND} -E env
+    "PYTHONPATH=${SIGIL_PYTHON_ROOT}"
+    "SIGIL_TEST_SKETCHBOOK=$<TARGET_FILE:Sketchbook>"
+    ${Python3_EXECUTABLE} -m unittest discover
+      -s "${CMAKE_CURRENT_SOURCE_DIR}/test" -p "protocol_routes.py")
+set_tests_properties(python_protocol_routes PROPERTIES LABELS protocol)
+
 find_program(SIGIL_BASEDPYRIGHT basedpyright
   HINTS "${CMAKE_BINARY_DIR}/typing-tools/bin" "${CMAKE_BINARY_DIR}/typing-tools/Scripts"
         "${CMAKE_CURRENT_SOURCE_DIR}/../.venv/bin" "${CMAKE_CURRENT_SOURCE_DIR}/../.venv/Scripts")

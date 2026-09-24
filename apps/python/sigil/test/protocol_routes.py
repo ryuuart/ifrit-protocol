@@ -2,9 +2,15 @@
 over a socket to a headless Sketchbook through sigil.protocol.launch.
 
 The same generated domain classes speak through either, so a case written
-for one reads as a script for the other."""
+for one reads as a script for the other. Run under the protocol's label as
+python_protocol_routes, with the Sketchbook to launch named by
+SIGIL_TEST_SKETCHBOOK; the socket route is the served lane's own case —
+its address written before its first frame and taken back as it ends —
+and, end to end, a registry sketch stepped a second and photographed over
+the socket is the plate the sweep takes of it at that moment."""
 
 import os
+import subprocess
 import tempfile
 import textwrap
 import unittest
@@ -101,28 +107,71 @@ class InProcessRoute(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get("SIGIL_TEST_SKETCHBOOK"), "no Sketchbook to launch")
 class SocketRoute(unittest.TestCase):
+    SCENE = "cascade"
+    """A registry sketch the plate sample carries."""
+
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory(prefix="sigil_launch_")
+        self.addCleanup(folder.cleanup)
+        self.root = Path(folder.name)
+        self.sketchbook = os.environ["SIGIL_TEST_SKETCHBOOK"]
+
+    def plate(self, at):
+        """The sweep's plate of the scene at @p at seconds."""
+        plates = self.root / "plates"
+        subprocess.run(
+            [
+                self.sketchbook,
+                "--headless",
+                str(plates),
+                "--ledger",
+                "--sketch",
+                self.SCENE,
+                "--at",
+                str(at),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return plates / f"plate_{self.SCENE}.png"
+
     def test_a_launched_sketchbook_is_driven_over_its_socket_and_ends_with_it(self):
-        with tempfile.TemporaryDirectory(prefix="sigil_launch_") as folder:
-            state = Path(folder) / "state"
-            host = launch(executable=os.environ["SIGIL_TEST_SKETCHBOOK"], state=state)
-            with host:
-                self.assertTrue(host.definition)
-                described = Host(host).describe()
-                self.assertEqual(described.version.program, "Sketchbook")
-                self.assertIn("session", described.domains)
-                entries = Registry(host).list(kind="canvas").sketches
-                self.assertTrue(entries)
-                name = next(entry.name for entry in entries if entry.available)
-                Clock(host).set_policy(policy=Policy.Advance)
-                opened = Session(host).open(sketch=name)
-                self.assertEqual(opened.kind, "canvas")
-                self.assertEqual(Clock(host).step(seconds=1).frame, 60)
-                still = Session(host).still(density=1.0, path="launched.png")
-                self.assertTrue(Path(still.path).is_file())
-                self.assertEqual(Path(still.path).parent, state.resolve())
-                # A second client finds the same host through the state
-                # directory it keeps its address under.
-                with connect(state) as second:
-                    attached = Host(second).describe().attached
-                    self.assertEqual(len(attached), 2)
-            self.assertFalse((state / "protocol-address").exists())
+        state = self.root / "state"
+        host = launch(executable=self.sketchbook, state=state)
+        with host:
+            # The address was written before the first frame: nothing is
+            # open and the clock has not moved.
+            self.assertTrue((state / "protocol-address").is_file())
+            self.assertTrue(host.definition)
+            described = Host(host).describe()
+            self.assertEqual(described.version.program, "Sketchbook")
+            self.assertEqual(
+                described.domains, ("clock", "host", "registry", "session")
+            )
+            self.assertEqual(described.sessions, ())
+            self.assertEqual(Clock(host).current().frame, 0)
+            entries = Registry(host).list(kind="canvas").sketches
+            self.assertIn(self.SCENE, [entry.name for entry in entries])
+            # A second client finds the same host through the state
+            # directory it keeps its address under.
+            with connect(state) as second:
+                attached = Host(second).describe().attached
+                self.assertEqual(len(attached), 2)
+        self.assertFalse((state / "protocol-address").exists())
+
+    def test_a_registry_sketch_stepped_a_second_is_the_sweeps_plate_of_it(self):
+        plate = self.plate(1.0)
+        expected = image.load(plate)
+        state = self.root / "state"
+        with launch(executable=self.sketchbook, state=state) as host:
+            Clock(host).set_policy(policy=Policy.Advance)
+            opened = Session(host).open(sketch=self.SCENE)
+            self.assertEqual(opened.kind, "canvas")
+            self.assertEqual(Clock(host).step(seconds=1).frame, 60)
+            density = expected.width() / opened.width
+            still = Session(host).still(density=density, path="stepped.png")
+            self.assertEqual(Path(still.path).parent, state.resolve())
+            self.assertEqual(
+                (still.width, still.height), (expected.width(), expected.height())
+            )
+            self.assertEqual(image.load(still.path).rgba(), expected.rgba())
