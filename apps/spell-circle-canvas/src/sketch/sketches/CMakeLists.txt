@@ -289,9 +289,13 @@ endif()
 # the file the way a hot-reloaded sketch is opened, so nothing else ever
 # compiles it. Compiled here against exactly the surface such a sketch
 # sees — this target's interface, read rather than listed again — and
-# never linked, so an example that stops compiling fails the build and
-# the one case below rather than the page that shows it.
+# never linked. The target is part of the default build, so an example
+# that stops compiling fails the build itself rather than the page that
+# shows it. No test case builds it, since a case that ran the build would
+# be one more builder on the tree the tests run beside. A library stands
+# one level under `src/` or two, so both depths are read.
 file(GLOB SIGIL_REFERENCE_EXAMPLES CONFIGURE_DEPENDS
+     ${PROJECT_SOURCE_DIR}/src/*/reference/examples/*.cpp
      ${PROJECT_SOURCE_DIR}/src/*/*/reference/examples/*.cpp)
 if(SIGIL_REFERENCE_EXAMPLES)
   add_library(SigilReferenceExamples OBJECT ${SIGIL_REFERENCE_EXAMPLES})
@@ -299,7 +303,4 @@ if(SIGIL_REFERENCE_EXAMPLES)
     $<TARGET_PROPERTY:SigilSketches,INTERFACE_LINK_LIBRARIES>)
   target_compile_definitions(SigilReferenceExamples PRIVATE
     $<TARGET_PROPERTY:SigilSketches,INTERFACE_COMPILE_DEFINITIONS>)
-  add_test(NAME ReferenceExamples.compile
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
-            --config $<CONFIG> --target SigilReferenceExamples)
 endif()
