@@ -83,8 +83,11 @@ constexpr float kDegree = 3.14159265358979f / 180.0f;
 /** Plate units to the plate box's own pixels: x right, y UP. */
 const path::Grid kPlateBox{.scale = kR, .yScale = -1.0f, .origin = {kR, kR}};
 SkPoint onPlate(glm::vec2 units) { return kPlateBox.at({units.x, units.y}); }
-/** Angles along a circle as `shapes::circle()` reads them. */
-const path::PolarFrame kCircleAngles{.zero = path::Zero::East};
+/** Where an angle (degrees counterclockwise from +x) falls along
+ *  `shapes::circle()`, which runs clockwise on the page from +x. */
+float alongCircle(float angle) {
+  return std::fmod(1.0f - angle / 360.0f + 2.0f, 1.0f);
+}
 
 // ---------------------------------------------------------------------------
 // The two numbers the plate is cut from, both Chaucer's: the obliquity of
@@ -314,8 +317,8 @@ struct ChaucerAstrolabe {
                const int degrees = (int)index * 30;
                return around(Utf8(std::to_string(degrees == 0 ? 360 : degrees)),
                              kCentre, 1.104f * kR,
-                             kCircleAngles.fraction(90.0f - (float)degrees),
-                             TextPath::Orient::Radial)
+                             alongCircle(90.0f - (float)degrees),
+                             TextPath::Orient::Tangent)
                    .styleClass("degree");
              }),
         // the hours: a division between each pair of letters
@@ -330,7 +333,7 @@ struct ChaucerAstrolabe {
         each(tables["letters"].items(),
              [](const data::Json& letter, std::size_t index) {
                return around(Utf8(letter), kCentre, 1.044f * kR,
-                             kCircleAngles.fraction(90.0f - 15.0f * (float)(index + 1)),
+                             alongCircle(90.0f - 15.0f * (float)(index + 1)),
                              TextPath::Orient::Radial)
                    .styleClass("letter");
              }),
@@ -443,7 +446,7 @@ struct ChaucerAstrolabe {
     }
     const float side = index % 2 == 0 ? 1.0f : -1.0f;
     const glm::vec2 bow =
-        (from + star) * 0.5f + glm::vec2{-run.y, run.x} * (0.10f * side);
+        (from + star) * 0.5f + glm::vec2{-run.y, run.x} * (0.07f * side);
     const std::array<glm::vec2, 3> spine{
         path::fromSk(onPlate(from)), path::fromSk(onPlate(bow)),
         path::fromSk(onPlate(star))};
@@ -531,7 +534,7 @@ struct ChaucerAstrolabe {
                        float to = eclipticAngle(30.0f * (float)(index + 1));
                        if (to < from) to += 360.0f;
                        return around(Utf8(name), eclipticCentre, eclipticRadius + 4,
-                                     1.0f - std::fmod((from + to) * 0.5f / 360.0f + 1.0f, 1.0f))
+                                     alongCircle((from + to) * 0.5f))
                            .styleClass("sign");
                      }),
                 // the stars' names, engraved along the outer ring
@@ -540,16 +543,16 @@ struct ChaucerAstrolabe {
                        const glm::vec2 at = starAt(star);
                        const float angle = std::atan2(at.y, at.x) / kDegree;
                        return around(Utf8(star["name"]), pin, kR * 0.979f,
-                                     1.0f - std::fmod(angle / 360.0f + 1.0f, 1.0f))
+                                     alongCircle(angle))
                            .styleClass("starName");
                      }),
                 each(stars.items(),
                      [&](const data::Json& star) {
-                       return kit::dot(onPlate(starAt(star)), (float)star["tip"].number(4.5), Fill::color(kGilt))
-                           .stroke(stroke(1.0f, Fill::color(material::withAlpha(kEdge, 0.7f))));
+                       return kit::dot(onPlate(starAt(star)), (float)star["tip"].number(5.5), Fill::color(kGilt))
+                           .stroke(stroke(1.5f, Fill::color(material::withAlpha(kEdge, 0.85f))));
                      }),
                 // the sun, set in its degree of the ecliptic
-                kit::disc(onPlate(sun), 15.0f)
+                kit::disc(onPlate(sun), 22.0f)
                     .shape(shapes::star(12, 0.40f, 0.16f))
                     .fill(Fill::color(hexColor(0xfff6dc)))
                     .stroke(stroke(1.4f, Fill::color(material::withAlpha(kEdge, 0.75f)))),
@@ -766,8 +769,8 @@ struct ChaucerAstrolabe {
         rule(".gloss").font(type(italic, 15, kRubric)),
         rule(".quote").font(type(italic, 17, kInk)),
         rule(".caption").font(type(italic, 17, hexColor(0xd8c79c))),
-        rule(".engrave").font(type(copperplate, 9, material::withAlpha(kCut, 0.85f))),
-        rule(".degree").font(type(copperplate, 12, material::withAlpha(kCut, 0.92f), 0.6f)),
+        rule(".engrave").font(type(copperplate, 12, material::withAlpha(kCut, 0.85f))),
+        rule(".degree").font(type(copperplate, 13, material::withAlpha(kCut, 0.92f), 0.6f)),
         rule(".letter").font(type(copperplate, 19, kCut)),
         rule(".sign").font(type(engraver, 17, material::withAlpha(kCut, 0.88f), 1.0f)),
         rule(".starName").font(type(engraver, 12, material::withAlpha(kCut, 0.85f), 0.4f)),
