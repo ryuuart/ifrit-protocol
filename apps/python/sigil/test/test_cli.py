@@ -361,5 +361,48 @@ class RenderCommand(unittest.TestCase):
         self.assertTrue(output.is_file())
 
 
+class ExampleCommands(unittest.TestCase):
+    """`sigil examples` and `render --example` read one list of names."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="sigil-examples-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        package = self.root / "package"
+        (package / "examples").mkdir(parents=True)
+        (package / "examples" / "night_study.py").write_text(
+            '"""A study packaged as an example."""\n'
+            "from sigil.compose import box\n"
+            "from sigil.sketch import sketch\n"
+            "\n\n"
+            "@sketch(size=(20, 20), capture_at=0)\n"
+            "class NightStudy:\n"
+            "    def setup(self, ctx):\n"
+            '        ctx.render(box().width(20).height(20).fill("#000000"))\n'
+        )
+        self.enterContext(patch.object(cli, "files", return_value=package))
+
+    def test_a_listed_example_is_one_a_render_can_name(self):
+        listing = io.StringIO()
+        with redirect_stdout(listing):
+            self.assertEqual(cli.main(["examples"]), 0)
+        self.assertEqual(listing.getvalue().split(), ["night_study"])
+
+        output = self.root / "frame.png"
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(
+                cli.main(["render", "--example", "night_study", "-o", str(output)]),
+                0,
+            )
+        self.assertTrue(output.is_file())
+
+    def test_an_unlisted_example_is_refused_by_name(self):
+        stream = io.StringIO()
+        with redirect_stderr(stream), self.assertRaises(SystemExit) as stopped:
+            cli.main(["render", "--example", "daylight", "-o", str(self.root / "x.png")])
+        self.assertNotEqual(stopped.exception.code, 0)
+        self.assertIn("unknown example 'daylight'", stream.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

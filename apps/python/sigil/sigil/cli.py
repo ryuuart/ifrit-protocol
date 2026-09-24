@@ -10,6 +10,7 @@ import struct
 import subprocess
 import sys
 import sysconfig
+from contextlib import contextmanager
 from importlib.metadata import PackageNotFoundError, version
 from importlib.resources import as_file, files
 from pathlib import Path
@@ -17,15 +18,22 @@ from pathlib import Path
 from .environment import _compatibility_mismatches, _machine
 
 
+@contextmanager
 def _examples():
+    """The packaged examples, as the catalog names them: key -> file.
+
+    One source for both `sigil examples` and `render --example`, read the
+    way a browser reads any file opened by path. The files stand on disk
+    while the context is open; outside an installed wheel there are none."""
+    from .sketch import catalog
+
     directory = files("sigil").joinpath("examples")
     if not directory.is_dir():
-        return {}
-    return {
-        entry.name.removesuffix(".py"): entry
-        for entry in directory.iterdir()
-        if entry.name.endswith(".py")
-    }
+        yield {}
+        return
+    with as_file(directory) as root:
+        rows = catalog(sorted(Path(root).glob("*.py")))
+        yield {row.key: row.path for row in rows if row.external}
 
 
 def _seconds(value):
@@ -227,16 +235,9 @@ def main(argv=None):
     options = parser.parse_args(arguments)
 
     if options.command == "examples":
-        # The rows a browser shows for these files, read the way it reads
-        # any file opened by path: one source for what a sketch is called.
-        from .sketch import catalog
-
-        directory = files("sigil").joinpath("examples")
-        if directory.is_dir():
-            with as_file(directory) as root:
-                sources = sorted(Path(root).glob("*.py"))
-                rows = catalog(sources)
-            print("\n".join(sorted(row.key for row in rows if row.external)))
+        with _examples() as examples:
+            if examples:
+                print("\n".join(sorted(examples)))
         return 0
     if options.command == "open":
         try:
@@ -274,13 +275,12 @@ def main(argv=None):
         output = options.output.resolve()
         output.parent.mkdir(parents=True, exist_ok=True)
         if options.example is not None:
-            examples = _examples()
-            if options.example not in examples:
-                raise ValueError(
-                    f"unknown example {options.example!r}; run 'sigil examples' to list sketches"
-                )
-            with as_file(examples[options.example]) as source:
-                _render(source, output)
+            with _examples() as examples:
+                if options.example not in examples:
+                    raise ValueError(
+                        f"unknown example {options.example!r}; run 'sigil examples' to list sketches"
+                    )
+                _render(examples[options.example], output)
         else:
             _render(options.source.resolve(), output)
     except (OSError, RuntimeError, ValueError) as error:
