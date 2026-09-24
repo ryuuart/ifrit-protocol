@@ -29,10 +29,11 @@
 // HOW EACH IS SPELLED
 //
 // THE LOOK IS ONE SHEET. The lyric is a role, `lyric`, and the sheet sets
-// it: the CD+G palette, the aliased face, and the black keyline every CD+G
-// caption wears — a `textStroke` under the fill, which is what keeps a
-// caption legible over a picture it does not own. The line to come is the
-// same role in the class `next`, so it differs only in size and colour.
+// it: the CD+G palette as custom properties on the root, the aliased face,
+// and the black keyline every CD+G caption wears — a `textStroke` under the
+// fill, which is what keeps a caption legible over a picture it does not
+// own. The line to come is the same role in the class `next`, so it
+// differs only in size and colour.
 //
 // THE WIPE IS A COLOUR MULTIPLIER ON A CASCADE. The sung line is set ONCE,
 // in the sung colour, and `textFx::tint(pale, sung)` multiplies every glyph
@@ -92,6 +93,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -99,6 +101,7 @@
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
@@ -135,6 +138,12 @@ constexpr float kHeight = 470.0f;
 // the resting blue is a dim slate rather than a pale one — a pale blue
 // against a warm yellow would come back olive, which looks like a bug in
 // the tint rather than a choice about the palette.
+//
+// The sheet reads the colours it sets as custom properties on the root.
+// The ground, the resting colour and the ball are not the sheet's: a
+// gradient's stops and `textFx::tint`'s two ends are colours, not
+// references into it, so the tint's sung end is `kSung` beside the
+// `sung` the lyric is inked in, and the two must stay one value.
 constexpr material::Color kStage = hexColor(0x110033);
 constexpr material::Color kBand = hexColor(0x220055);
 constexpr material::Color kSung = hexColor(0xFFEEAA);  // the saturated colour
@@ -177,37 +186,41 @@ constexpr float kPlayheadLength = 20.0f;  // from the ruler's top, past its foot
 StyleSheet look() {
   return {
       rule(":root")
+          .var("sung", kSung)
+          .var("next", kNext)
+          .var("label", kLabel)
+          .var("faint", kFaint)
+          .var("key", kKey)
           .fontFamily("Avenir Next, Futura, Helvetica Neue, sans-serif")
           .fontWeight(600)
           .letterSpacing(0.2f)
-          .ink(kLabel),
+          .ink(var("label")),
       rule("h1").fontSize(24),
       rule("caption, footer, label").fontSize(kLabelSize),
-      rule("label").fontStyle(FontStyle::Italic).ink(kSung),
+      rule("label").fontStyle(FontStyle::Italic).ink(var("sung")),
       rule("caption").letterSpacing(0.3f),
       rule("footer").width(700),
-      rule("rule").ink(kFaint),
+      rule("rule").ink(var("faint")),
       // The CD+G screen is a grid of 6x12 pixel cells and its type is a
       // bitmap face with no antialiasing at all: `aliased` lights a pixel
       // only where its centre is inside the outline, so the glyph edges
       // land on the grid instead of ramping across it.
       rule("lyric")
-          .font({.size = kLyricSize,
-                 .track = 2.0f,
-                 .aliased = true,
-                 .antiAlias = false})
-          .ink(kSung)
-          .textStroke(5.0f, Fill::color(kKey)),
+          .fontSize(kLyricSize)
+          .letterSpacing(2)
+          .font({.aliased = true, .antiAlias = false})
+          .ink(var("sung"))
+          .textStroke(5.0f, Fill::var("key")),
       // The ball's arc stands above the sung line; the ruler hangs below
       // it and reserves nothing, so the line to come keeps clear of it.
       rule("lyric.sung").marginTop(kHopHeight + 18.0f),
       rule("lyric.next")
           .fontSize(kLyricSize * 0.78f)
-          .ink(kNext)
+          .ink(var("next"))
           .marginTop(kRulerDrop + kRulerDepth + 22.0f),
-      rule(".tick").ink(kFaint),
-      rule(".tick.onset").ink(kLabel),
-      rule(".playhead").ink(kSung),
+      rule(".tick").ink(var("faint")),
+      rule(".tick.onset").ink(var("label")),
+      rule(".playhead").ink(var("sung")),
   };
 }
 
@@ -221,7 +234,7 @@ struct Song {
   std::string next;
 };
 
-Song songFrom(const sigil::data::Json& document) {
+Song songFrom(const sketch::kit::Document& document) {
   Song song;
   for (const sigil::data::Json& word : document["sung"].items()) {
     if (!song.sung.empty()) song.sung += ' ';
@@ -246,9 +259,9 @@ motion::Spread wipeCascade(const Song& song) {
 }
 
 /** THE RULER'S PLACE under a letter: the letter's foot, and the drop below
- *  it. A mark's insets are read in px, pt, pct, pw and ph only, and its
- *  bottom sizes it rather than placing it, so "the foot plus 12 px" has no
- *  inset that says it.
+ *  it. A mark's insets are read in px, pt, pct, pw and ph only, its bottom
+ *  sizes it rather than placing it, and its margin is not read, so "the
+ *  foot plus 12 px" has no inset or margin that says it.
  *  workaround: the mark stands at the foot and a constant translate carries
  *  it down the rest of the way. */
 template <class Node>
@@ -380,11 +393,10 @@ struct KaraokeWipe {
             // The numbers are read off the table rather than typed beside
             // it: a caption that can disagree with the schedule it
             // describes is the one thing worse than no caption.
-            document::footer(
-                "The ball marks the word; the wipe marks progress. " +
-                std::to_string(song.cues.size()) + " cues · " +
-                std::to_string((int)kEachMs) + " ms per letter · " +
-                std::to_string((int)kSwitchMs) + " ms colour change."),
+            document::footer(kit::formatted(
+                "The ball marks the word; the wipe marks progress. %zu cues "
+                "· %.0f ms per letter · %.0f ms colour change.",
+                song.cues.size(), kEachMs, kSwitchMs)),
         });
   }
 
@@ -404,9 +416,8 @@ struct KaraokeWipe {
       cycle = motion::phase(ticker.elapsed(), loop) * (float)loop;
     });
 
-    const auto document = ctx.assets.json(ctx.local("data/airship.json"));
     ctx.composer.render(
-        describe(songFrom(document ? *document : sigil::data::Json{})));
+        describe(songFrom(sketch::kit::Document{ctx, "data/airship.json"})));
   }
 
   /** THE READ-BACK, every frame. `beatsOf` resolves against the layout the
