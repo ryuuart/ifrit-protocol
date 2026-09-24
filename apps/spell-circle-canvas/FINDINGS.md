@@ -481,25 +481,3 @@ rewritten around the check.
 
 A typing case should assert that a function returning a page from inside
 `with kit.provide(...)` type-checks as returning `Element`.
-
-## A written still magnifies the rasters it baked at one pixel per unit
-
-`Sketchbook <entry> --frame out.png --at 1 --scale 2` is not the sweep's
-plate of the same scene at 1 s, although both are the same size: the
-written-still path (`Host::prepareCapture` and then `Host::still`) never
-declares the density its bakes should be taken at, so every raster baked
-during the stepped frames sits at one pixel per canvas unit and is
-magnified into the still, while the sweep pins the plate's density before
-its first frame and bakes on that grid. A protocol session has the same
-gap unless a client pins `session.pinDensity` before the open.
-
-A still written at a scale is evidently meant to be the sweep's plate at
-that density, pixel for pixel, so a sketch iterated through `--frame` at
-2x can be laid beside its registry plate and judged. The written-still
-path should pin the density the way the sweep does before its first
-frame.
-
-A test should assert that `--frame --at 1 --scale 2` of a sample scene
-equals the sweep plate at `--at 1` byte for byte, and, once the residual
-command line is protocol sugar, that it equals `pinDensity(2)`,
-`setPolicy(Advance)`, `step(1)`, `still(2)` in process.
