@@ -11,6 +11,7 @@
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 
@@ -30,8 +31,9 @@ class Pattern;
 /** THE SURFACE. Unfilled when unstated, so a box paints nothing and
  *  only its decorations and children show. What may be passed: an
  *  `material::Color`, a `Fill`, a `motion::Animatable<Fill>`, a
- *  `material::skia::Paint`, or a `SurfacePaint`, which is the one value
- *  all of those convert into and the type a component declares. */
+ *  `material::skia::Paint`, a `material::Material` recipe, or a
+ *  `SurfacePaint`, which is the one value all of those convert into and
+ *  the type a component declares. */
 template <class Derived>
 class PaintVerbs {
  public:
@@ -50,6 +52,11 @@ class PaintVerbs {
    *  lane, so `Padding` is `Element` too. A text unit is refused, said
    *  once, and read as `Element`. */
   Derived& fill(material::skia::Paint m, PaintBox box = PaintBox::Element);
+  /** Fill with a material recipe, which is a surface as a paint is: the
+   *  recipe as its paint, over @p box exactly as that paint would be. */
+  Derived& fill(material::Material recipe, PaintBox box = PaintBox::Element) {
+    return fill(material::skia::Paint::recipe(std::move(recipe)), box);
+  }
   /** A surface value supplied by component properties. Exact-type
    *  deduction keeps ordinary fill and material arguments on their own
    *  overloads. A box other than `Element` places a paint's unit square,

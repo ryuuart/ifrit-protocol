@@ -22,27 +22,6 @@ JUKUGO and KENTEN must not — closes this entry. The library behaviour is
 already asserted by `ComposeAnnotate` and `TextVertical`; what a test
 cannot see is which unit a specimen names, so the plate is the check.
 
-## `Element::fill` refuses the material its own surface value accepts
-
-`compose::SurfacePaint` has an implicit constructor from
-`material::Material` (`core/SurfacePaint.h`), `Element::textFill` and
-`Element::textStroke` take a `SurfacePaint` by value and so accept a
-material, and Python's `Element.fill` accepts one. `Element::fill`'s
-surface overload is a template constrained
-`std::same_as<std::remove_cvref_t<P>, SurfacePaint>`, which exists to
-keep ordinary fills and paints on their own overloads, and that
-exact-type constraint also blocks the conversion: `element.fill(recipe)`
-does not compile, while `element.fill(SurfacePaint{recipe})` and
-`element.textFill(recipe)` both do. The verb's own list of what may be
-passed does not mention a material, and the two values the verb
-deliberately refuses — a `Pattern` and a `pattern::Tile` — say so with
-deleted overloads and a reason.
-
-A material is a surface, so the verb that takes a surface should take
-one. A test should fill an element with a recipe material and assert the
-pixels match the same material passed as a `SurfacePaint`, and that the
-deleted `Pattern` and `Tile` overloads still refuse.
-
 ## `ksp_mapview` describes its map twice for a light that keeps its source
 
 A bright pass is a colour program: `skia::Effect::brightPass` sets a

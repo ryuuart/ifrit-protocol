@@ -25,6 +25,7 @@ of them, or a live binding whose value IS the node's colour.
 ```cpp
 Element& fill(motion::Animatable<Fill> colour);
 Element& fill(material::skia::Paint paint, PaintBox box = PaintBox::Element);
+Element& fill(material::Material recipe, PaintBox box = PaintBox::Element);
 Element& fill(material::Color colour);
 template <typename P>                               // a SurfacePaint
 Element& fill(P&& surface, PaintBox box = PaintBox::Element);
@@ -41,6 +42,7 @@ def fill(self, value: SurfacePaintLike, box: PaintBox = ...) -> Element: ...
 | `Fill` | Nothing, a colour, a shader, or a reference the tree resolves at paint. | [`Fill`](../types/Fill.md) |
 | `motion::Animatable<Fill>` | The same, at rest, in transition, or bound to a live output. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) |
 | `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | [`material::skia::Paint`](../../VALUES.md#the-surface) |
+| `material::Material` | A recipe, painted as `material::skia::Paint::recipe` of it. | any recipe SigilMaterial builds: a field, a mount board, a signed-distance surface |
 | `material::Color` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |
 | `SurfacePaint` | A component's surface property: any of the above, or empty. | [`SurfacePaint`](../types/SurfacePaint.md) |
 | `PaintBox` | The rectangle the paint's unit square is stretched over. | [`PaintBox`](../types/PaintBox.md): `Element`, `Padding`, `Content`, `Canvas` |
