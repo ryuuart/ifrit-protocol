@@ -112,6 +112,13 @@ re-stats what has been loaded so edited files reload without a restart.
 Its publish chapter is native inter-application texture publication and
 subscription.
 
+**[SigilProtocol](doxygen:SigilProtocol)** — the one protocol every
+host speaks: a FlatBuffers definition whose services are its domains,
+and, generated from it, the agent interface a host implements for each
+domain, the C++ and Python clients that ask it, and a reference page per
+domain. A test, a script and an inspector panel are three clients of the
+same commands.
+
 **[SigilMeasure](doxygen:SigilMeasure)** — timing, statistics and check
 reporting: stopwatches, lap timers, the frame timer whose marks feed a
 render loop's lanes, and the report a check writes.
