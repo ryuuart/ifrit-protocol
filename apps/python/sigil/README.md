@@ -679,12 +679,18 @@ environment, open the sketch with a named publication:
 uv run sigil open sketch.py --publish "Live Sketch"
 ```
 
-On macOS, a Syphon client such as Receiver subscribes to `Live Sketch` and
-receives THE SKETCH'S OWN CANVAS: the size the sketch declared, at one texture
+On macOS, a Syphon client subscribes to `Live Sketch` and receives THE
+SKETCH'S OWN CANVAS: the size the sketch declared, at one texture
 pixel per canvas unit, over the ground it declared and with none of the window
 around it. `--publish` without a name publishes under the sketch file's stem.
 Ctrl-P toggles output in the window, and the status line shows the publication
 name. Drawing with either Python or C++ uses this same path.
+
+Seer, the wire and texture reader built beside Sketchbook, is the client to
+check it with: `Seer --list-textures` names what is being offered,
+`Seer --texture "Live Sketch"` opens a window on it, and
+`Seer --texture "Live Sketch" --grab frame.png` writes its newest frame to a
+file.
 
 A ground with alpha below one publishes as it reads, so a sketch meant to be
 composited over another application's scene declares one:

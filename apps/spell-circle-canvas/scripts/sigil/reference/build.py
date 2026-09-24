@@ -19,6 +19,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from sigil import tree
 from sigil.reference import bindings, doxygen_xml, markdown, model, pages
 from sigil.reference import catalogue as catalogue_module
 from sigil.reference import graph as graph_module
@@ -524,17 +525,8 @@ class Examples:
         )
 
     def _sketchbook(self, source: Path, out: Path) -> bool:
-        binary = (
-            self.build.application
-            / "build"
-            / "bin"
-            / "Release"
-            / "Sketchbook.app"
-            / "Contents"
-            / "MacOS"
-            / "Sketchbook"
-        )
-        if not binary.exists():
+        binary = tree.sketchbook("Release", required=False)
+        if binary is None:
             self.failures.append((source.stem, "Sketchbook is not built"))
             return False
         finished = subprocess.run(

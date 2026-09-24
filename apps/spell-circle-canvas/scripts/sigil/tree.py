@@ -58,10 +58,14 @@ def benches_dir(configuration: str) -> Path:
     return bin_dir(configuration) / "benches"
 
 
-def sketchbook(configuration: str) -> Path:
-    """The Sketchbook binary, or a refusal naming the target to build."""
+def sketchbook(configuration: str, required: bool = True) -> Path | None:
+    """The Sketchbook binary. When it is not built, a caller that requires
+    it is refused with the target to build, and one that can carry on
+    without it is answered None."""
     path = bin_dir(configuration) / SKETCHBOOK_IN_BUNDLE
     if not path.exists():
+        if not required:
+            return None
         fail(f"no Sketchbook at {path} — build the Sketchbook target first")
     return path
 

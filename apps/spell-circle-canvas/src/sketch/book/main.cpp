@@ -10,17 +10,25 @@
  *   Sketchbook --workspace <directory>        a saved folder selection
  *   Sketchbook --examples                     the bundled catalogue
  *   Sketchbook --compare <dir-a> <dir-b>       compare two plate sweeps
- *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>]
+ *   Sketchbook --headless [<outdir>] [--gpu] [--sketch <name>]
  *              [--kind <k>]
  *              [--ledger] [--no-promotion | --promotion] [--composites]
  *              [--capture-at <s>]
- *              [--timing-json <path>]          plates, and the timing table
+ *              [--timing-json <path>]          plates, and the timing table;
+ *                                              into sketch_plates/ unless a
+ *                                              directory is named
  *   Sketchbook --video <out.mp4> [--video-frames <n>] [--fps <n>]
  *              [--video-size <WxH>] [--video-bitrate <bits>]
  *              [--sketch <name>] [--kind <k>] [--gpu]
  *                                              the vertical video montage
- *   Sketchbook <file.cpp> [--frame <png>] [--bench] [--gpu]
- *                                              a file, live or measured
+ *   Sketchbook <file.cpp> --frame <png> [--at <s>] [--scale <n>]
+ *              [--frames <count>] [--fps <n>] [--gpu]
+ *              [--deterministic | --no-deterministic]
+ *                                              a file, photographed
+ *   Sketchbook <file.cpp> --bench [--bench-frames <n>]
+ *              [--jitter-dt [<amplitude>]] [--at <s>] [--scale <n>]
+ *              [--fps <n>] [--gpu]
+ *                                              a file, measured
  *   Sketchbook <file.cpp>                      the app, on that file
  *   Sketchbook <stem>/<stem>.cpp               …either way, a sketch that
  *                                              is a directory, by its entry
@@ -32,6 +40,9 @@
  *                                              render missing/stale stills
  *   Sketchbook --publish [<name>] …             the window's frames, offered
  *                                              to other applications
+ *   Sketchbook --shot <png> …                  the whole window, browser and
+ *                                              inspector included, once the
+ *                                              sketch on screen is live
  *   … [--assets <dir>]                         where res:// mounts
  *   … [--thumbnails-dir <dir>]                 the app's own thumbnail store
  *   … --python-executable <path> --python-abi <abi>

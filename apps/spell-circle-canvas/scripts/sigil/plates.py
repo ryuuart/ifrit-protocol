@@ -98,8 +98,8 @@ GPU_TOLERANCE = {
 # composite-count plane prices every pixel at one composite, which is the
 # bound this bar carried before it could count.
 #
-# AND FORTY WHERE THE DIFFERENCE IS CONFINED TO A GRAZING EDGE. A bake is
-# taken under the live matrix with an integer subtracted from its
+# AND SIXTY-FOUR WHERE THE DIFFERENCE IS CONFINED TO A GRAZING EDGE. A bake
+# is taken under the live matrix with an integer subtracted from its
 # translation, so the two matrices map a point through the same numbers at
 # different MAGNITUDES and part by half a float step of the device
 # coordinate — nothing along an edge that meets the grid squarely, and a
@@ -417,11 +417,10 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     judged per pixel against the HELD-OFF plate: one code value where that
     plate is transparent black, two PER COMPOSITE where it holds content
     and the bake therefore composited the node's own coverage twice, and
-    forty where the difference is confined to an antialiased edge BOTH
-    plates draw — the
-    grazing case, where a mark stands half a float step of its device
-    coordinate from its live paint and a supersample bucket flips on the
-    curve that runs nearly tangent to the grid. A scene past any of them is
+    sixty-four where the difference is confined to an antialiased edge BOTH
+    plates draw — the grazing case, where a mark stands half a float step
+    of its device coordinate from its live paint and a supersample bucket
+    flips on the curve that runs nearly tangent to the grid. A scene past any of them is
     a defect to file against the promoter, never a plate to rebase — there
     is no baseline here to rebase into. Both halves are kept, so a scene
     reported MOVED can be opened beside the plate it was meant to
@@ -546,8 +545,9 @@ def main(argv: list) -> int:
         "the same scenes rendered with automatic texture promotion held "
         "off and again with every promotable node eagerly baked, judged "
         "within one code value where the held-off plate is transparent "
-        "black, two where it holds content, and forty where the difference "
-        "is confined to an antialiased edge both plates draw; no baseline",
+        "black, two per composite where it holds content, and sixty-four "
+        "where the difference is confined to an antialiased edge both plates "
+        "draw; no baseline",
     )
     ap.add_argument(
         "--kind",
