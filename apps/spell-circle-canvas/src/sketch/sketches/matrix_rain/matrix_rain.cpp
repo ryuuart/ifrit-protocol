@@ -17,8 +17,16 @@
  * monitors hold them in place and run the brightness down the column,
  * which is what this screen shows.
  *
- * THIS STUDY'S OWN: every colour, size, rate and seed, and the four planes
- * — a dim bed and three falling depths — where the film's screens are one.
+ * THIS STUDY'S OWN: every colour, size, rate and seed; the four planes —
+ * a dim bed and three falling depths, the far one hazed toward cyan as
+ * air hazes a distance — where the film's screens are one; and the TUBE
+ * the screen is: a glow behind the rain where the phosphor is warm, a
+ * refresh band of added light sweeping down it, and glass in front with
+ * its raster lines, a sheen off the upper left and a falloff to the
+ * corners. Someone is reading this monitor, so the operator's TRACE LINE
+ * types across its top in the rain's own grammar — each character struck
+ * in the head's near-white and settling to green — holds, is wiped in the
+ * order it was typed, and types again, a cursor blinking at its end.
  *
  * THE MACHINE, declared once in `setup` and never re-described:
  *   - ONE TEXT PER PLANE in vertical-RL columns, one column a LINE unit,
@@ -46,6 +54,7 @@
  */
 // TAGS: Typography/Effects, Motion/Particles
 
+#include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
@@ -84,7 +93,7 @@ namespace {
 constexpr float kWidth = 1280;
 constexpr float kHeight = 780;
 
-/** The void the screen is drawn on, which the caption's ground fades
+/** The void the tube falls off to, which the words' grounds fade
  *  back into. */
 constexpr material::Color kVoid = {0.004f, 0.012f, 0.006f, 1};
 
@@ -101,7 +110,7 @@ constexpr material::Color kVoid = {0.004f, 0.012f, 0.006f, 1};
 StyleSheet screen() {
   const auto halation = [](float sigma) {
     return weave::Type{.underlays = std::vector<weave::PaintLayer>{
-                           weave::kit::glow(0xC040FF70, sigma, 1.9f)}};
+                           weave::kit::glow(0xFF44FF74, sigma, 1.9f)}};
   };
   return StyleSheet{
       rule("plane")
@@ -111,17 +120,38 @@ StyleSheet screen() {
           .writingMode(weave::WritingMode::kVerticalRL)
           .ink({0.97f, 1.0f, 0.98f, 1}),
       rule("screen > plane").inset(0).overflow(Overflow::Clip),
-      rule(".bed").fontSize(20).ink({0.030f, 0.095f, 0.042f, 1}),
-      rule(".far").fontSize(16).opacity(0.55f),
+      rule(".bed").fontSize(20).ink({0.026f, 0.090f, 0.050f, 1}),
+      rule(".far").fontSize(16).opacity(0.55f).ink({0.62f, 0.94f, 1.0f, 1}),
       rule(".mid").fontSize(23).opacity(0.80f).font(halation(5.5f)),
       rule(".near").fontSize(32).font(halation(9)),
-      rule("caption")
+      rule("caption, eyebrow")
           .fontFamily("Helvetica Neue, Arial, sans-serif")
           .fontWeight(500)
           .fontSize(10.5f)
-          .letterSpacing(2.2f)
-          .ink({0.24f, 0.42f, 0.28f, 1}),
+          .letterSpacing(2.4f)
+          .ink({0.22f, 0.40f, 0.27f, 1}),
+      rule("eyebrow").fontWeight(700).ink({0.34f, 0.62f, 0.40f, 1}),
+      // The operator's line: the monitor's own face, set in the head's
+      // near-white, which its cascade darkens to green as it does the
+      // rain's.
+      rule("code")
+          .fontFamily("Menlo, SF Mono, monospace")
+          .fontSize(12)
+          .letterSpacing(1.1f)
+          .ink({0.93f, 1.0f, 0.95f, 1}),
   };
+}
+
+/** A HALO WHERE THE TYPE STANDS, gone over the dark screen: the heads of
+ *  the near plane carry a halation, but a phosphor tube also warms its
+ *  whole face where it is struck most, so the ground the rain falls on is
+ *  a faint green at the middle falling to the void at the corners. */
+Fill tubeGlow() {
+  return radialGradient({kWidth * 0.5f, kHeight * 0.46f},
+                        std::hypot(kWidth, kHeight) * 0.5f,
+                        {{0.012f, 0.044f, 0.022f, 1}, {0.007f, 0.020f, 0.011f, 1},
+                         kVoid},
+                        {0.0f, 0.55f, 1.0f});
 }
 
 /** The glyphs of a charset, each one character's bytes: a character opens
@@ -178,6 +208,30 @@ TextEffect streak() {
   });
 }
 
+/** THE TRACE LINE over one character's local time: absent, struck in the
+ *  sheet's near-white, settled to the operator's green, held, and wiped
+ *  to nothing — so one looping cascade over the line types it on in
+ *  order, holds it, and erases it in the order it was typed. A character
+ *  rests at local 1 before its beat opens, so the line is blank until its
+ *  first character is struck. */
+TextEffect traced() {
+  constexpr material::Color settled = {0.34f, 0.93f, 0.50f, 1};
+  return textFx::keys({
+      {0.000f, {.alpha = 0.0f}},
+      {0.004f, {}},
+      {0.045f, {.colorMultiplier = settled}},
+      {0.900f, {.colorMultiplier = settled}},
+      {0.925f, {.alpha = 0.0f, .colorMultiplier = settled}},
+      {1.000f, {.alpha = 0.0f}},
+  });
+}
+
+/** The cursor's blink: lit at 0, gone at 1. Its alpha multiplies the
+ *  trace's, so it blinks only once it has been typed. */
+TextEffect blink() {
+  return textFx::keys({{0.0f, {}}, {1.0f, {.alpha = 0.0f}}});
+}
+
 /** The phosphor lift every cell wears: a seeded screen of green, most
  *  cells barely and a few hard (the square of a uniform draw), so no two
  *  cells burn alike. Stable per glyph, so the field caches between churn
@@ -221,6 +275,26 @@ struct Plane {
   float loopMs = 0;
 };
 
+/** The operator's line and its clocks: how far apart its characters are
+ *  struck, how long each lives, the period it types again on, and the
+ *  cursor's blink. */
+struct TraceLine {
+  std::string words;
+  float eachMs = 46;
+  float durationMs = 11800;
+  float loopMs = 15500;
+  float blinkSeconds = 1.06f;
+};
+
+/** The refresh band: how long one pass of it takes, off-screen rest
+ *  included, how tall its light is, and where in its pass it starts. */
+struct Sweep {
+  float seconds = 6.8f;
+  float height = 190;
+  /** How far into its pass the band is when the screen comes up. */
+  float phaseSeconds = 0;
+};
+
 }  // namespace
 
 struct MatrixRain {
@@ -231,7 +305,9 @@ struct MatrixRain {
   std::u32string kanaCodepoints, digitCodepoints;
   Plane bed;
   std::vector<Plane> curtains;
-  std::string caption;
+  TraceLine traceLine;
+  Sweep sweep;
+  std::string credit, motto;
 
   /** A plane read from its entry in the words file, and its text dealt:
    *  as many columns as fit the screen, each ended by a newline after as
@@ -322,10 +398,100 @@ struct MatrixRain {
         plane);
   }
 
+  /** THE OPERATOR'S LINE across the top of the glass. One looping
+   *  cascade strikes the characters in order and wipes them in order; the
+   *  cursor, the line's last character, takes a second track that blinks
+   *  it on its own clock. */
+  Element trace() const {
+    motion::Spread typing{.eachMs = traceLine.eachMs,
+                          .durationMs = traceLine.durationMs};
+    typing.loopMs = traceLine.loopMs;
+    const weave::Selector cursor = weave::selectors::regex(u8"█");
+    return document::code(traceLine.words)
+        .key("trace")
+        .textFx({.effect = traced(),
+                 .stagger = typing,
+                 .progress = motion::bind(&seconds)
+                                 .scale(1000.0f / traceLine.loopMs)
+                                 .wrap(1.0f)})
+        .textFx({.where = cursor,
+                 .effect = blink(),
+                 .progress = motion::bind(&seconds)
+                                 .source(0, traceLine.blinkSeconds)
+                                 .square(0.55f)
+                                 .invert()});
+  }
+
+  /** THE REFRESH BAND: a soft tent of green light ADDED to whatever it
+   *  passes, brightest just behind its leading edge, drawn once and slid
+   *  down the tube. It travels a span longer than the screen, so it
+   *  rests unseen below the foot before it enters again at the top. */
+  Element refresh() const {
+    const float span = (kHeight + sweep.height) * 1.55f;
+    return kit::at(0, -sweep.height, kWidth, sweep.height)
+        .key("refresh")
+        .hitTestable(false)
+        .blendMode(SkBlendMode::kPlus)
+        .fill(linearGradient({0, 0}, {0, sweep.height},
+                             {{0, 0, 0, 0},
+                              {0.012f, 0.046f, 0.020f, 1},
+                              {0.030f, 0.100f, 0.044f, 1},
+                              {0, 0, 0, 0}},
+                             {0.0f, 0.55f, 0.80f, 1.0f}))
+        .translateY(motion::bind(&seconds)
+                        .offset(sweep.phaseSeconds)
+                        .scale(span / sweep.seconds)
+                        .wrap(span));
+  }
+
+  /** THE GLASS over the rain, which never moves: the monitor's falloff
+   *  toward its corners, a sheen off the upper left where the room's
+   *  light lands on the curve of the tube, its raster lines, and two
+   *  grounds of the void rising off the top and bottom edges for the
+   *  words to stand on — the field runs edge to edge and every column
+   *  churns, so a line laid straight onto it would compete with a moving
+   *  glyph behind every letter. */
+  Element glass() const {
+    const auto ground = [](float height, bool fromTop) {
+      const material::Color clear = {kVoid.r, kVoid.g, kVoid.b, 0};
+      const material::Color held = {kVoid.r, kVoid.g, kVoid.b, 0.92f};
+      const material::Color half = {kVoid.r, kVoid.g, kVoid.b, 0.72f};
+      return linearGradient({0, 0}, {0, height},
+                            fromTop ? std::vector{held, half, clear}
+                                    : std::vector{clear, half, held},
+                            fromTop ? std::vector{0.0f, 0.55f, 1.0f}
+                                    : std::vector{0.0f, 0.45f, 1.0f});
+    };
+    return box()
+        .cover()
+        .key("glass")
+        .hitTestable(false)
+        .cache(Cache::Texture)
+        .foreground(styles::scanlines({0, 0, 0, 0.14f}, 3, 1))
+        .children({
+            box().cover().fill(kit::vignette(
+                {kWidth, kHeight}, {0.002f, 0.008f, 0.004f, 0.55f}, 0.35f)),
+            box().cover().fill(linearGradient(
+                {0, 0}, {kWidth * 0.55f, kHeight * 0.75f},
+                {{0.80f, 1.0f, 0.88f, 0.050f}, {0.80f, 1.0f, 0.88f, 0.012f},
+                 {0.80f, 1.0f, 0.88f, 0}},
+                {0.0f, 0.45f, 1.0f})),
+            kit::at(0, 0, kWidth, 58).fill(ground(58, true)),
+            kit::at(0, kHeight - 54, kWidth, 54)
+                .fill(ground(54, false))
+                .row()
+                .justifyContent(Justify::SpaceBetween)
+                .paddingTop(24)
+                .paddingLeft(26)
+                .paddingRight(26)
+                .children({document::eyebrow(credit), document::caption(motto)}),
+        });
+  }
+
   Element describe() const {
     return stack()
         .role("screen")
-        .fill(Fill::color(kVoid))
+        .fill(tubeGlow())
         .applyStyleSheet(screen())
         .children({
             // The bed: the whole screen faintly alive, never bright and
@@ -338,30 +504,9 @@ struct MatrixRain {
             each(curtains, [this](const Plane& plane) {
               return curtain(plane);
             }),
-            // THE GLASS over the rain, which never moves: the monitor's
-            // falloff toward its corners, and the caption on a ground of
-            // the void rising off the bottom edge — the field runs edge to
-            // edge and every column churns, so a line laid straight onto
-            // it would compete with a moving glyph behind every letter.
-            box()
-                .cover()
-                .key("glass")
-                .hitTestable(false)
-                .cache(Cache::Texture)
-                .children({
-                    box().cover().fill(kit::vignette(
-                        {kWidth, kHeight}, {0.002f, 0.008f, 0.004f, 0.55f},
-                        0.35f)),
-                    kit::at(0, kHeight - 52, kWidth, 52)
-                        .fill(linearGradient({0, 0}, {0, 52},
-                                             {{kVoid.r, kVoid.g, kVoid.b, 0},
-                                              {kVoid.r, kVoid.g, kVoid.b, 0.72f},
-                                              {kVoid.r, kVoid.g, kVoid.b, 0.92f}},
-                                             {0.0f, 0.45f, 1.0f}))
-                        .paddingTop(22)
-                        .paddingLeft(26)
-                        .children({document::caption(caption)}),
-                }),
+            refresh(),
+            glass(),
+            kit::at(26, 20, kWidth - 52, 20).children({trace()}),
         });
   }
 
@@ -384,7 +529,17 @@ struct MatrixRain {
                    1, (uint32_t)charsets["digitsOneIn"].number(7))};
     kanaCodepoints = codepointsOf(charsets["kana"]);
     digitCodepoints = codepointsOf(charsets["digits"]);
-    caption = std::string(words["caption"].text());
+    credit = std::string(words["credit"].text());
+    motto = std::string(words["motto"].text());
+    const data::Json& trace = words["trace"];
+    traceLine = {.words = std::string(trace["words"].text()),
+                 .eachMs = (float)trace["eachMs"].number(46),
+                 .durationMs = (float)trace["durationMs"].number(11800),
+                 .loopMs = (float)trace["loopMs"].number(15500),
+                 .blinkSeconds = (float)trace["blinkSeconds"].number(1.06)};
+    sweep = {.seconds = (float)words["sweep"]["seconds"].number(6.8),
+             .height = (float)words["sweep"]["height"].number(190),
+             .phaseSeconds = (float)words["sweep"]["phaseSeconds"].number()};
     if (charset.kana.empty() || charset.digits.empty()) return;
     bed = readPlane(ctx, words["bed"]);
     for (const data::Json& entry : words["curtains"].items())

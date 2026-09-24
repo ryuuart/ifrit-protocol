@@ -1,5 +1,9 @@
 {
-  "caption": "SIMON WHITELEY'S DIGITAL RAIN · FOUR PLANES OF HALF-WIDTH KATAKANA AND DIGITS, MIRRORED PER GLYPH, HELD UPRIGHT · THE LIGHT FALLS, THE TYPE STANDS STILL",
+  "credit": "DIGITAL RAIN · SIMON WHITELEY, ANIMAL LOGIC, 1999",
+  "motto": "THE LIGHT FALLS · THE TYPE STANDS STILL",
+  "trace": {"words": "TRACE ▸ OPERATOR 04 ▸ CARRIER HELD ▸ 02·19·98 13:24:18 ▸ SIGNAL FOUND █",
+            "eachMs": 46, "durationMs": 11800, "loopMs": 15500, "blinkSeconds": 1.1},
+  "sweep": {"seconds": 6.8, "height": 190, "phaseSeconds": 2.2},
   "charsets": {
     "kana": "ｦｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｰ｢｣･ｧｨｩｪｫｬｭｮｯ",
     "digits": "012356789#",
