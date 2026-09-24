@@ -222,4 +222,5 @@ sigil_doc_probes(sketch
   SKIP_HEADERS ${SIGIL_SKETCH_DOC_SKIP_HEADERS}
   EXCLUDE ${SIGIL_SKETCH_DOC_EXCLUDE}
   FLOORS 50,10,10,0,0
-  LIBRARIES SigilSketch SigilIOPublish SigilDataDecode SigilDataScale)
+  LIBRARIES SigilSketch SigilIOPublish SigilDataDecode SigilDataScale
+            SigilSketchSessionAgent)

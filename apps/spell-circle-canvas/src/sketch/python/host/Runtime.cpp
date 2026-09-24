@@ -250,6 +250,7 @@ class PythonSession final : public Session {
     return m_session->canvas();
   }
   float oversample() const override { return m_session->oversample(); }
+  double stillStep() const override { return m_session->stillStep(); }
   Timing timing() const override { return m_session->timing(); }
   std::span<const LaneCost> lanes() const override {
     return m_session->lanes();

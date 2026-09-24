@@ -216,7 +216,9 @@ class CanvasSession final : public Session {
 
   /** One more stepped frame, at the capture's own scale: a bake re-runs
    *  at that scale instead of being upsampled. */
-  void still(SkCanvas& canvas) override { frame(canvas, 1.0 / 60.0); }
+  void still(SkCanvas& canvas) override { frame(canvas, stillStep()); }
+
+  [[nodiscard]] double stillStep() const override { return 1.0 / 60.0; }
 
   [[nodiscard]] float oversample() const override { return 2.0f; }
 

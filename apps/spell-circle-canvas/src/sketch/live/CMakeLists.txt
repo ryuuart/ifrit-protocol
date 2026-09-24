@@ -9,3 +9,7 @@ sigil_test(sketch_test
 sigil_bench(sketch_bench
   SOURCES bench/HostBench.cpp
   LIBRARIES SigilSketch)
+
+# The session and clock domains' agents, a leaf beside the host they
+# answer for.
+add_subdirectory(agent)

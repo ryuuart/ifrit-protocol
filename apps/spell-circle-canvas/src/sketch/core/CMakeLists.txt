@@ -13,3 +13,6 @@ sigil_test(sketch_test
 sigil_bench(sketch_bench
   SOURCES bench/RegistryBench.cpp
   LIBRARIES SigilSketch)
+
+# The registry domain's agent, a leaf beside the core it answers for.
+add_subdirectory(agent)

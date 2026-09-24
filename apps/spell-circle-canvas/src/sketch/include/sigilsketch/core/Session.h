@@ -81,6 +81,13 @@ class Session {
    *  decides. */
   virtual void still(SkCanvas& canvas) = 0;
 
+  /** HOW FAR A STILL MOVES THE SCENE, in seconds: the one frame more a
+   *  runtime that re-renders its still draws to take it, and zero for one
+   *  that presents the frame it just finished. A host that keeps a clock
+   *  beside the session counts it, so the two agree on the time a still
+   *  showed. */
+  [[nodiscard]] virtual double stillStep() const { return 0.0; }
+
   /** How much larger than its declared canvas a still of this sketch is
    *  worth taking. A host clamps it against a pixel ceiling: sketches
    *  differ widely in canvas width, and doubling an already-wide one
