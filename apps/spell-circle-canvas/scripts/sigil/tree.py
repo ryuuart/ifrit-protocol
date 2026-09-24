@@ -73,9 +73,10 @@ def sketchbook(configuration: str, required: bool = True) -> Path | None:
     return path
 
 
-def extension() -> ModuleType:
+def extension(*needs: str) -> ModuleType:
     """The native extension the build links, imported from the build tree
-    under its own module name `_sigil`.
+    under its own module name `_sigil`, holding every dotted name in
+    @p needs.
 
     Its values are what a verb reads where it would otherwise read a
     binary's printed text: the comparison of two plate directories, the
@@ -83,9 +84,27 @@ def extension() -> ModuleType:
     named `sigil`, which is this package's name, so the verbs reach the
     extension beneath it instead. It is loaded from the file the build
     wrote, so an installed copy elsewhere on the path is never the one
-    asked."""
-    if "_sigil" in sys.modules:
-        return sys.modules["_sigil"]
+    asked.
+
+    A verb names what it reads, because the file on disk can be older than
+    the bindings: an extension linked before a binding existed imports
+    cleanly and lacks it, and the verb would otherwise die on the missing
+    attribute instead of saying the extension wants building."""
+    module = sys.modules.get("_sigil") or _load_extension()
+    for need in needs:
+        value = module
+        for part in need.split("."):
+            value = getattr(value, part, None)
+            if value is None:
+                fail(
+                    f"the extension at {module.__file__} has no {need} — it "
+                    f"is older than the bindings; build the sigil_python target"
+                )
+    return module
+
+
+def _load_extension() -> ModuleType:
+    """Imports `_sigil` from the build tree, or fails saying why it cannot."""
     root = build_dir() / "python"
     built = sorted(root.glob("_sigil.*"))
     for suffix in importlib.machinery.EXTENSION_SUFFIXES:

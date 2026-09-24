@@ -222,9 +222,9 @@ def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
 
 def compared(first, second):
     """Every plate in both directories, differenced: name -> its row, for
-    the plates that were compared, and name -> the row's line for the ones
-    that were missing, unreadable or resized. A comparison that could not
-    start at all is one unusable entry under the name `compare`.
+    the plates that were compared, name -> the row's line for the ones
+    that were missing, unreadable or resized, and the refusal of a
+    comparison that could not start at all, empty when it started.
 
     A row carries the mean, p99 and worst channel distance, the worst split
     by what the pixel stands on — transparent black in `first`
@@ -235,17 +235,15 @@ def compared(first, second):
     is the library's; what stays here is the judgement — which distance is
     close enough on this machine — because that is a tolerance and not a
     fact about two files."""
-    sketch = tree.extension().sketch
+    sketch = tree.extension("sketch.compare", "sketch.PlateOutcome").sketch
     comparison = sketch.compare(first, second)
     distances, unusable = {}, {}
-    if comparison.refusal:
-        unusable["compare"] = comparison.refusal
     for plate in comparison.plates:
         if plate.outcome == sketch.PlateOutcome.Compared:
             distances[plate.name] = plate
         else:
             unusable[plate.name] = _unusable(plate)
-    return distances, unusable
+    return distances, unusable, comparison.refusal
 
 
 def _unusable(plate):
@@ -269,7 +267,8 @@ def compare_main(argv: list) -> int:
     ap.add_argument("first", help="the reference plate directory")
     ap.add_argument("second", help="the plate directory compared against it")
     args = ap.parse_args(argv)
-    comparison = tree.extension().sketch.compare(args.first, args.second)
+    sketch = tree.extension("sketch.compare").sketch
+    comparison = sketch.compare(args.first, args.second)
     if comparison.refusal:
         print(comparison.refusal, file=sys.stderr)
     for plate in comparison.plates:
@@ -383,7 +382,11 @@ def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
 
     verdict = 0
     print()
-    distances, unusable = compared(host_dir, device_dir)
+    distances, unusable, refusal = compared(host_dir, device_dir)
+    if refusal:
+        # Nothing was differenced, so every scene below fails for this one
+        # reason rather than for one of its own.
+        print(f"  {refusal}   <-- FINDING")
     for scene in scenes:
         if scene in unusable:
             print(f"  {unusable[scene].upper()} {scene}   <-- FINDING")
@@ -466,7 +469,11 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     verdict = 0
     within = 0
     print()
-    distances, unusable = compared(off_dir, on_dir)
+    distances, unusable, refusal = compared(off_dir, on_dir)
+    if refusal:
+        # Nothing was differenced, so every scene below fails for this one
+        # reason rather than for one of its own.
+        print(f"  {refusal}   <-- FINDING")
     for scene in scenes:
         if scene in unusable:
             print(f"  {unusable[scene].upper()} {scene}   <-- FINDING")

@@ -297,7 +297,11 @@ Python extension the build links (`build/python/_sigil…`, the
 `sigil_python` target), so no verb reads a binary's printed text to learn
 a distance. The extension is loaded from the build tree under its own
 name, because this package shares the public package's name; `sigil.py`
-therefore runs under the interpreter the build found.
+therefore runs under the interpreter the build found. Neither `plates` nor
+its mise task builds that target, and an extension linked before the
+comparison was bound still imports, so the verb names the bindings it
+reads and refuses an extension that lacks one, saying to build
+`sigil_python`, rather than failing on the missing attribute.
 
 **Reaching the moment costs the sketch's own work, not the rasteriser's.**
 A declared moment is reached by stepping a reopened session one frame at
