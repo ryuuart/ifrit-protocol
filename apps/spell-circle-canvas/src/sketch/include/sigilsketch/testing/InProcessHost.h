@@ -102,7 +102,8 @@ class InProcessHost {
 
   /** Waits, turning the host's loop, until @p answered holds. */
   template <class Result>
-  protocol::Answer<Result> wait(std::optional<protocol::Answer<Result>>& answered) {
+  protocol::Answer<Result> wait(
+      std::optional<protocol::Answer<Result>>& answered) {
     turnUntil([&] { return answered.has_value(); });
     if (!answered) return overdue();
     return std::move(*answered);

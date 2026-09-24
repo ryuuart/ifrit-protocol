@@ -160,8 +160,8 @@ void Harness::TearDown() {
 
 std::string Harness::readout() {
   if (!m_host) return "no host stands\n";
-  return m_host->readout() +
-         "state directory: " + m_stateDirectory.string() + "\n";
+  return m_host->readout() + "state directory: " + m_stateDirectory.string() +
+         "\n";
 }
 
 protocol::Answer<protocol::session::values::Summary> Harness::open(

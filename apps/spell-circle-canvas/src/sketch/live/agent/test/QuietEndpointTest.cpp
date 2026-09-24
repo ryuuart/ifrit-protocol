@@ -43,10 +43,9 @@ struct QuietBox {
   }
 };
 
-[[maybe_unused]] const bool kRegistered =
-    sketch::add("quiet_endpoint_box", nullptr, "Test",
-                "a box a quiet endpoint's run photographs",
-                &sketch::kindOf<QuietBox>);
+[[maybe_unused]] const bool kRegistered = sketch::add(
+    "quiet_endpoint_box", nullptr, "Test",
+    "a box a quiet endpoint's run photographs", &sketch::kindOf<QuietBox>);
 
 /** The registry's domain, counting every command it is asked: an
  *  endpoint with no client must never reach it. */
@@ -72,8 +71,8 @@ std::string bytesOf(const std::string& path) {
 /** Six stills a sixtieth of a second apart, with an endpoint mounted and
  *  dispatched before every step where @p mounted says, and nothing else
  *  different. */
-std::string run(const std::filesystem::path& state, bool mounted,
-                int* asked, size_t* clients) {
+std::string run(const std::filesystem::path& state, bool mounted, int* asked,
+                size_t* clients) {
   sketch::testing::InProcessHostOptions options;
   options.stateDirectory = state;
   sketch::testing::InProcessHost host(std::move(options));
@@ -89,7 +88,8 @@ std::string run(const std::filesystem::path& state, bool mounted,
   for (int frame = 0; frame < 6; ++frame) {
     if (mounted) hub.dispatch();
     EXPECT_TRUE(host.step(1.0 / 60.0));
-    const auto still = host.still(1.0, "still-" + std::to_string(frame) + ".png");
+    const auto still =
+        host.still(1.0, "still-" + std::to_string(frame) + ".png");
     EXPECT_TRUE(still);
     if (still) stills += bytesOf(still.result().path);
   }

@@ -95,27 +95,24 @@ class SessionAgent final : public protocol::session::SessionAgent {
   // --- the session domain -------------------------------------------------
 
   void open(const protocol::session::values::OpenParameters& parameters,
-            protocol::Reply<protocol::session::values::Summary> reply)
-      override;
+            protocol::Reply<protocol::session::values::Summary> reply) override;
   protocol::Answer<protocol::values::Empty> pinDevice(
       const protocol::session::values::DeviceParameters& parameters) override;
   protocol::Answer<protocol::values::Empty> pinPromotion(
       const protocol::session::values::PromotionParameters& parameters)
       override;
-  void still(const protocol::session::values::StillParameters& parameters,
-             protocol::Reply<protocol::session::values::StillResult> reply)
-      override;
-  void sequence(
-      const protocol::session::values::SequenceParameters& parameters,
-      protocol::Reply<protocol::session::values::SequenceResult> reply)
-      override;
+  void still(
+      const protocol::session::values::StillParameters& parameters,
+      protocol::Reply<protocol::session::values::StillResult> reply) override;
+  void sequence(const protocol::session::values::SequenceParameters& parameters,
+                protocol::Reply<protocol::session::values::SequenceResult>
+                    reply) override;
   protocol::Answer<protocol::session::values::TimingResult> timing() override;
   protocol::Answer<protocol::session::values::MeasuredResult> measured()
       override;
   void profile(
       const protocol::session::values::ProfileParameters& parameters,
-      protocol::Reply<protocol::session::values::ProfileResult> reply)
-      override;
+      protocol::Reply<protocol::session::values::ProfileResult> reply) override;
   void compositeCounts(
       protocol::Reply<protocol::session::values::CompositeCountsResult> reply)
       override;

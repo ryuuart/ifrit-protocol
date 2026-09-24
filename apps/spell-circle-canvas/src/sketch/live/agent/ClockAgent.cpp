@@ -82,8 +82,7 @@ ClockAgent::ClockAgent(protocol::Dispatcher& dispatcher, SessionAgent& session)
 
 Answer<protocol::values::Empty> ClockAgent::setPolicy(
     const values::SetPolicyParameters& parameters) {
-  m_session.setPolicy(policyOf(parameters.policy),
-                      parameters.budget_seconds);
+  m_session.setPolicy(policyOf(parameters.policy), parameters.budget_seconds);
   return protocol::values::Empty{};
 }
 

@@ -135,11 +135,11 @@
 #include "PipelineStore.h"
 #include "PipelineWarm.h"
 #include "PythonEnvironment.h"
+#include "ServeLane.h"
 #include "SketchActions.h"
 #include "SketchCatalog.h"
 #include "SketchbookView.h"
 #include "Startup.h"
-#include "ServeLane.h"
 #include "SweepLane.h"
 #include "ThumbnailWarm.h"
 #include "VideoLane.h"
@@ -443,8 +443,7 @@ int main(int argc, char* argv[]) {
     SketchCatalog::workspaceRoot = args.workspace;
     const SketchCatalog rows;
     for (const QVariant& row : rows.sketches())
-      std::printf("%s\n",
-                  sketchbook::catalogRowJson(row.toMap()).constData());
+      std::printf("%s\n", sketchbook::catalogRowJson(row.toMap()).constData());
     return 0;
   }
 

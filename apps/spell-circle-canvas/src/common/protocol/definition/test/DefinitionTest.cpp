@@ -51,8 +51,8 @@ const reflection::Service* serviceNamed(const std::string& name) {
 TEST(ProtocolDefinition, TheBytesAreAReflectedSchema) {
   const std::span<const std::byte> bytes = sigil::protocol::definition();
   ASSERT_FALSE(bytes.empty());
-  flatbuffers::Verifier verifier(
-      reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size());
+  flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(bytes.data()),
+                                 bytes.size());
   EXPECT_TRUE(reflection::VerifySchemaBuffer(verifier));
   ASSERT_NE(nullptr, reflected().root_table());
   EXPECT_EQ("sigil.protocol.Error", reflected().root_table()->name()->str());
@@ -108,8 +108,8 @@ TEST(ProtocolDefinition, TheMarksTheParserCannotKnowSurvive) {
   std::set<std::string> asynchronous;
   for (const reflection::Service* service : *reflected().services()) {
     const std::string name = service->name()->str();
-    const bool events = name.size() > 6 &&
-                        name.compare(name.size() - 6, 6, "Events") == 0;
+    const bool events =
+        name.size() > 6 && name.compare(name.size() - 6, 6, "Events") == 0;
     for (const reflection::RPCCall* call : *service->calls()) {
       const std::string method = name + "." + call->name()->str();
       // Every event, and nothing else, streams from the server: the

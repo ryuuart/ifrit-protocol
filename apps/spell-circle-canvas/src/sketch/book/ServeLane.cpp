@@ -58,9 +58,10 @@ int runServe(const Arguments& args, const std::filesystem::path& flagsFile,
     sketch::SessionAgentOptions session;
     session.fonts = &fonts();
     session.sketchesDirectory = SIGIL_SKETCH_DIR;
-    session.assetsDirectory = args.assetsOverride.empty()
-                                  ? std::filesystem::path(SIGIL_SKETCH_ASSET_DIR)
-                                  : args.assetsOverride;
+    session.assetsDirectory =
+        args.assetsOverride.empty()
+            ? std::filesystem::path(SIGIL_SKETCH_ASSET_DIR)
+            : args.assetsOverride;
     session.flagsFile = flagsFile;
     session.pythonLoader = &sketch::python::load;
     sketch::HostAgents agents(dispatcher, std::move(session),

@@ -16,7 +16,6 @@
 #include <sigilsketch/testing/InProcessHost.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
 #include <unistd.h>
 
 #include <cmath>
@@ -419,9 +418,10 @@ std::string renderFile(const std::string& source, const std::string& output,
     protocol::clock::values::PauseParameters pause;
     pause.paused = true;
     protocol::clock::ClockClient(host.caller())
-        .pause(pause, [&held](protocol::Answer<protocol::values::Empty> answer) {
-          held.emplace(std::move(answer));
-        });
+        .pause(pause,
+               [&held](protocol::Answer<protocol::values::Empty> answer) {
+                 held.emplace(std::move(answer));
+               });
     (void)answered(host.wait(held));
     const protocol::session::values::StillResult still =
         answered(host.still(1.0));

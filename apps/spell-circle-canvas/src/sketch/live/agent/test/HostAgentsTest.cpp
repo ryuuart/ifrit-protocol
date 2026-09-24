@@ -56,10 +56,9 @@ struct MarchingBox {
   }
 };
 
-[[maybe_unused]] const bool kRegistered =
-    sigil::sketch::add("agents_marching_box", nullptr, "Test",
-                       "a box that moves every frame",
-                       &sigil::sketch::kindOf<MarchingBox>);
+[[maybe_unused]] const bool kRegistered = sigil::sketch::add(
+    "agents_marching_box", nullptr, "Test", "a box that moves every frame",
+    &sigil::sketch::kindOf<MarchingBox>);
 
 std::string bytesOf(const std::filesystem::path& path) {
   std::ifstream in(path, std::ios::binary);
@@ -80,9 +79,9 @@ struct AgentHost {
     program.stateRoot = scratch.path;
     return program;
   }()};
-  sigil::sketch::HostAgents agents{
-      dispatcher, sigil::sketch::SessionAgentOptions{
-                      .fonts = &sigil::sketch::test::fonts()}};
+  sigil::sketch::HostAgents agents{dispatcher,
+                                   sigil::sketch::SessionAgentOptions{
+                                       .fonts = &sigil::sketch::test::fonts()}};
   protocol::InProcess client{dispatcher};
 
   /** Turns the loop until @p answered holds, or gives up. */
@@ -300,7 +299,8 @@ struct OpenedFor {
                        "a sketch that says what it was opened for",
                        &sigil::sketch::kindOf<OpenedFor>);
 
-TEST(SketchClockAgent, PauseWhileLoadingIsARepeatableRunHeldWhileAnythingArrives) {
+TEST(SketchClockAgent,
+     PauseWhileLoadingIsARepeatableRunHeldWhileAnythingArrives) {
   const ScratchDir scratch("sketch-host-agents-loading");
   protocol::Program program;
   program.stateRoot = scratch.path;

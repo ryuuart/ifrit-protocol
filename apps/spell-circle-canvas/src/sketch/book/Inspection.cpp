@@ -13,11 +13,10 @@
 #include <sigilsketch/core/State.h>
 #include <sigilsketch/core/agent/RegistryAgent.h>
 
+#include <QtCore/QStandardPaths>
 #include <cstdio>
 #include <system_error>
 #include <utility>
-
-#include <QtCore/QStandardPaths>
 
 #include "SketchbookProgram.h"
 
@@ -50,9 +49,9 @@ protocol::Program sketchbookProgram(std::filesystem::path stateRoot) {
 std::filesystem::path inspectionStateRoot() {
   std::filesystem::path root = sketch::stateDirectory();
   if (root.empty())
-    root = QStandardPaths::writableLocation(
-               QStandardPaths::AppLocalDataLocation)
-               .toStdString();
+    root =
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+            .toStdString();
   if (root.empty()) return {};
   std::error_code error;
   std::filesystem::create_directories(root, error);

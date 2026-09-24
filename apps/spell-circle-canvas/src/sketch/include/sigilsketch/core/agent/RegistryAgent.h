@@ -38,8 +38,7 @@ class RegistryAgent final : public protocol::registry::RegistryAgent {
    *  built, and no row carries a canvas: a sketch declares that from
    *  inside its own setup. */
   protocol::Answer<protocol::registry::values::CatalogResult> catalog(
-      const protocol::registry::values::CatalogParameters& parameters)
-      override;
+      const protocol::registry::values::CatalogParameters& parameters) override;
 
  private:
   CatalogSources m_sources;

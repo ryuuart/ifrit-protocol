@@ -235,8 +235,7 @@ void Dispatcher::answer(const std::string& session, std::string_view method,
   const bool toggles = definition.eventful.contains(domain) &&
                        (command == kEnable || command == kDisable);
   const auto found = m_state->handlers.find(method);
-  if (toggles ? std::none_of(m_state->handlers.begin(),
-                             m_state->handlers.end(),
+  if (toggles ? std::none_of(m_state->handlers.begin(), m_state->handlers.end(),
                              [domain](const auto& entry) {
                                return domainOf(entry.first) == domain;
                              })

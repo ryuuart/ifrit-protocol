@@ -17,9 +17,8 @@ HostAgents::HostAgents(protocol::Dispatcher& dispatcher,
     : m_registry(std::move(catalog)),
       m_session(dispatcher, std::move(session)),
       m_clock(dispatcher, m_session) {
-  protocol::registry::wire(dispatcher,
-                           static_cast<protocol::registry::RegistryAgent&>(
-                               m_registry));
+  protocol::registry::wire(
+      dispatcher, static_cast<protocol::registry::RegistryAgent&>(m_registry));
   protocol::session::wire(
       dispatcher, static_cast<protocol::session::SessionAgent&>(m_session));
   protocol::clock::wire(dispatcher,

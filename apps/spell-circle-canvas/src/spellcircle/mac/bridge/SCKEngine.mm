@@ -121,7 +121,8 @@ constexpr uint64_t kInspectionPumpNanoseconds = 30 * NSEC_PER_MSEC;
   _inspection = std::make_unique<spellcircle::ReceiverInspection>(*request, root);
   NSLog(@"[spellcircle] protocol: %s", _inspection->address().c_str());
   if (!_inspection->listening()) return;
-  _inspectionPump = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+  _inspectionPump =
+      dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
   dispatch_source_set_timer(_inspectionPump, DISPATCH_TIME_NOW, kInspectionPumpNanoseconds,
                             kInspectionPumpNanoseconds / 4);
   // Weak, so the timer the engine owns is no reason for the engine to stay

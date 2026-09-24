@@ -5,8 +5,6 @@
 
 #include "sigilsketch/live/agent/SessionAgent.h"
 
-#include <sigilsketch/live/agent/ClockAgent.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
@@ -17,6 +15,7 @@
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
+#include <sigilsketch/live/agent/ClockAgent.h>
 
 #include <algorithm>
 #include <cmath>
@@ -58,13 +57,13 @@ std::filesystem::path entryAt(const std::filesystem::path& asked) {
   if (!std::filesystem::is_directory(asked, error)) return {};
   const std::filesystem::path directory =
       std::filesystem::absolute(asked).lexically_normal();
-  const std::filesystem::path trimmed = directory.filename().empty()
-                                            ? directory.parent_path()
-                                            : directory;
-  const std::filesystem::path entry = sourceOf(
-      trimmed.parent_path(), trimmed.filename().string());
-  return std::filesystem::is_regular_file(entry, error) ? entry
-                                                        : std::filesystem::path{};
+  const std::filesystem::path trimmed =
+      directory.filename().empty() ? directory.parent_path() : directory;
+  const std::filesystem::path entry =
+      sourceOf(trimmed.parent_path(), trimmed.filename().string());
+  return std::filesystem::is_regular_file(entry, error)
+             ? entry
+             : std::filesystem::path{};
 }
 
 /** Whether @p path stands inside @p root, once both are made whole. */
@@ -153,9 +152,9 @@ std::unique_ptr<Host> SessionAgent::build(const std::string& sketch,
 void SessionAgent::open(const values::OpenParameters& parameters,
                         protocol::Reply<values::Summary> reply) {
   if (m_pendingOpen && m_pendingOpen->reply)
-    m_pendingOpen->reply(refusal(ErrorCode_failed,
-                                 "session.open: " + m_pendingOpen->sketch +
-                                     " was replaced by another open"));
+    m_pendingOpen->reply(
+        refusal(ErrorCode_failed, "session.open: " + m_pendingOpen->sketch +
+                                      " was replaced by another open"));
   m_pendingOpen.reset();
   if (m_host) closed();
   m_host.reset();
@@ -308,7 +307,8 @@ bool SessionAgent::drawFrame(double delta, std::string* why) {
 
 bool SessionAgent::step(uint64_t frames, double seconds, std::string* why) {
   if (!m_host || m_pendingOpen || !m_host->live()) {
-    *why = m_pendingOpen ? "the session is still opening" : "no session is open";
+    *why =
+        m_pendingOpen ? "the session is still opening" : "no session is open";
     return false;
   }
   for (uint64_t frame = 0; frame < frames; ++frame)
@@ -381,17 +381,18 @@ void SessionAgent::answerCounts(Session& session) {
     counts.path = file.string();
     counts.width = (uint32_t)plane.width;
     counts.height = (uint32_t)plane.height;
-    counts.maximum = *std::max_element(plane.counts.begin(), plane.counts.end());
+    counts.maximum =
+        *std::max_element(plane.counts.begin(), plane.counts.end());
   }
   for (auto& reply : owed) {
     if (written) {
       reply(counts);
       continue;
     }
-    reply(refusal(ErrorCode_failed,
-                  "session.compositeCounts: " +
-                      (why.empty() ? std::string("the runtime counted no plane")
-                                   : why)));
+    reply(refusal(
+        ErrorCode_failed,
+        "session.compositeCounts: " +
+            (why.empty() ? std::string("the runtime counted no plane") : why)));
   }
 }
 
@@ -399,7 +400,8 @@ std::optional<values::StillResult> SessionAgent::takeStill(
     double density, const std::string& path, std::string* why) {
   Session* session = m_host && !m_pendingOpen ? m_host->session() : nullptr;
   if (!session) {
-    *why = m_pendingOpen ? "the session is still opening" : "no session is open";
+    *why =
+        m_pendingOpen ? "the session is still opening" : "no session is open";
     return std::nullopt;
   }
   if (!std::isfinite(density) || density <= 0) {

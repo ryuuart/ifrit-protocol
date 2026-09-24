@@ -69,9 +69,9 @@ struct Heard {
 
 const values::Entry* named(const values::ListResult& list,
                            std::string_view name) {
-  const auto found =
-      std::find_if(list.sketches.begin(), list.sketches.end(),
-                   [&](const values::Entry& entry) { return entry.name == name; });
+  const auto found = std::find_if(
+      list.sketches.begin(), list.sketches.end(),
+      [&](const values::Entry& entry) { return entry.name == name; });
   return found == list.sketches.end() ? nullptr : &*found;
 }
 

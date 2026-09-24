@@ -30,8 +30,8 @@ InProcessHost::InProcessHost(InProcessHostOptions options)
   std::error_code error;
   std::filesystem::create_directories(m_options.stateDirectory, error);
   if (!m_options.session.fonts) {
-    m_fonts = std::make_unique<weave::FontContext>(
-        weave::ports::systemFontManager());
+    m_fonts =
+        std::make_unique<weave::FontContext>(weave::ports::systemFontManager());
     m_options.session.fonts = m_fonts.get();
   }
   protocol::Program program;

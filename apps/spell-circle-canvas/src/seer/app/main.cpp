@@ -72,9 +72,9 @@ int main(int argc, char* argv[]) {
   // handler.
   std::filesystem::path stateRoot = args.state;
   if (stateRoot.empty())
-    stateRoot = QStandardPaths::writableLocation(
-                    QStandardPaths::AppLocalDataLocation)
-                    .toStdString();
+    stateRoot =
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+            .toStdString();
   std::error_code stateError;
   std::filesystem::create_directories(stateRoot, stateError);
   seer::Inspection inspection(args.inspectPort.value_or(0), stateRoot);

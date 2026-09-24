@@ -46,9 +46,9 @@ struct HarnessMarchingBox {
   }
 };
 
-[[maybe_unused]] const bool kRegistered =
-    sketch::add("harness_marching_box", nullptr, "Test",
-                "a box the harness photographs", &sketch::kindOf<HarnessMarchingBox>);
+[[maybe_unused]] const bool kRegistered = sketch::add(
+    "harness_marching_box", nullptr, "Test", "a box the harness photographs",
+    &sketch::kindOf<HarnessMarchingBox>);
 
 TEST_F(Harness, AStillAfterOneSecondIsTheSweepsPlateOfThatMoment) {
   // The sweep's plate of the scene at one second, at the density the
@@ -103,7 +103,8 @@ class HarnessHooks : public Harness {
     std::FILE* seed = std::fopen((directory / "seed.txt").c_str(), "w");
     if (seed) std::fclose(seed);
   }
-  void SetUpHostOptions(sketch::testing::InProcessHostOptions& options) override {
+  void SetUpHostOptions(
+      sketch::testing::InProcessHostOptions& options) override {
     order.push_back("options");
     options.program = "HookedHarness";
   }
@@ -153,8 +154,9 @@ TEST_F(Harness, DISABLED_FailsAfterAStill) {
 std::string thisBinary() {
   std::array<char, 4096> path{};
   uint32_t size = path.size();
-  return _NSGetExecutablePath(path.data(), &size) == 0 ? std::string(path.data())
-                                                       : std::string();
+  return _NSGetExecutablePath(path.data(), &size) == 0
+             ? std::string(path.data())
+             : std::string();
 }
 
 TEST(HarnessFailure, PrintsTheHostsAccountBeforeTheFailure) {

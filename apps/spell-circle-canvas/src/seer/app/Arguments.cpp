@@ -36,8 +36,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
         }
         args.inspectPort = static_cast<uint16_t>(value);
       }
-    }
-    else if (!flag.empty() && flag.front() != '-')
+    } else if (!flag.empty() && flag.front() != '-')
       args.wires.emplace_back(flag);
     else {
       if (i + 1 == argc || (flag != "--say" && argv[i + 1][0] == '-')) {
@@ -66,8 +65,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
           return std::nullopt;
         }
         args.state = value;
-      }
-      else if (flag == "--grab")
+      } else if (flag == "--grab")
         args.grabPath = value;
       else if (flag == "--frames") {
         int count = 0;

@@ -39,17 +39,15 @@ class ClockAgent final : public protocol::clock::ClockAgent {
   ClockAgent& operator=(const ClockAgent&) = delete;
 
   protocol::Answer<protocol::values::Empty> setPolicy(
-      const protocol::clock::values::SetPolicyParameters& parameters)
-      override;
-  void step(const protocol::clock::values::StepParameters& parameters,
-            protocol::Reply<protocol::clock::values::StepResult> reply)
-      override;
+      const protocol::clock::values::SetPolicyParameters& parameters) override;
+  void step(
+      const protocol::clock::values::StepParameters& parameters,
+      protocol::Reply<protocol::clock::values::StepResult> reply) override;
   protocol::Answer<protocol::clock::values::CurrentResult> current() override;
   protocol::Answer<protocol::values::Empty> pause(
       const protocol::clock::values::PauseParameters& parameters) override;
   protocol::Answer<protocol::values::Empty> setTimeScale(
-      const protocol::clock::values::TimeScaleParameters& parameters)
-      override;
+      const protocol::clock::values::TimeScaleParameters& parameters) override;
 
  private:
   protocol::Dispatcher& m_dispatcher;

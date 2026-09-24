@@ -33,7 +33,8 @@ std::unique_ptr<testing::InProcessHost> openHost(
     const std::optional<std::filesystem::path>& sketches,
     const std::optional<std::filesystem::path>& assets, double patience) {
   if (!std::isfinite(patience) || patience <= 0)
-    throw std::invalid_argument("patience is a finite number of seconds above zero");
+    throw std::invalid_argument(
+        "patience is a finite number of seconds above zero");
   testing::InProcessHostOptions options;
   options.stateDirectory = std::filesystem::absolute(state);
   options.program = "sigil.testing";
@@ -73,12 +74,11 @@ void bindSketchTesting(py::module_& module) {
           "listen",
           [](testing::InProcessHost& host, const std::string& method,
              std::function<void(std::string)> listener) {
-            host.caller().listen(
-                method, [listener = std::move(listener)](
-                            std::string_view parameters) {
-                  const py::gil_scoped_acquire held;
-                  listener(std::string(parameters));
-                });
+            host.caller().listen(method, [listener = std::move(listener)](
+                                             std::string_view parameters) {
+              const py::gil_scoped_acquire held;
+              listener(std::string(parameters));
+            });
           },
           py::arg("method"), py::arg("listener"),
           "Hands every event of @p method, as its table's JSON text, to "
