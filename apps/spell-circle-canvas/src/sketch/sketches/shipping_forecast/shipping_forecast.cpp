@@ -78,7 +78,6 @@ namespace material = sigil::material;
 namespace motion = sigil::motion;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-namespace ch = choreograph;
 using namespace sigil::compose;
 
 namespace {
@@ -134,9 +133,10 @@ StyleSheet sheet() {
           .var("chart", hexColor(0xBFC7D1))
           .fontFamily(grotesque)
           .ink(var("bone")),
-      // The masthead and the line naming each panel. The title card sets
-      // its lines over role defaults that name the theme's face, which
-      // stand over an inherited family, so these three name it again.
+      // The masthead and the line naming each panel.
+      // workaround: the title card sets its lines over role defaults that
+      // name the theme's face, which stand over an inherited family, so
+      // these three name the sheet's family again.
       rule("eyebrow, h1, caption").fontFamily(grotesque),
       rule("eyebrow")
           .fontWeight(600)
@@ -215,8 +215,8 @@ struct ShippingForecast {
   // The two stepped clocks. `cycle` wraps once per bulletin, so every
   // beat is a window of it and the sheet re-performs on the wrap;
   // `seconds` never wraps, for the swell that outlasts a bulletin.
-  ch::Output<float> cycle{0};
-  ch::Output<float> seconds{0};
+  choreograph::Output<float> cycle{0};
+  choreograph::Output<float> seconds{0};
 
   /** A beat on the bulletin's timeline: 0 before it starts, 1 after it
    *  ends, which is what makes a list of these one schedule. */
@@ -230,7 +230,7 @@ struct ShippingForecast {
     return motion::bind(&cycle)
         .source(0, kLoop)
         .trapezoid(0.04f / kLoop, 0.42f / kLoop, 12.6f / kLoop, 14.2f / kLoop)
-        .map(&ch::easeInOutQuad);
+        .map(&choreograph::easeInOutQuad);
   }
 
   // ---------------------------------------------------------------------
