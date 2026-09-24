@@ -41,10 +41,10 @@ that its pixels match the original.
 | Draw · Generative | 5 | 5 | 2 |
 | Draw · Observable reproductions | 15 | 15 | 4 |
 | Draw · Procedural | 8 | 8 | 1 |
-| Kit · API | 77 | 3 | 0 |
+| Kit · API | 77 | 6 | 0 |
 | Kit · Depth | 1 | 1 | 0 |
 | Compose · Typography | 1 | 1 | 1 |
-| Specimen | 14 | 1 | 0 |
+| Specimen | 14 | 2 | 0 |
 | Set | 11 | 0 | 0 |
 | Data | 14 | 0 | 0 |
 | Media | 5 | 1 | 0 |
@@ -62,25 +62,32 @@ that its pixels match the original.
 | Study · Esoteric | 3 | 0 | 0 |
 | Study · Screens | 6 | 0 | 0 |
 | Study · Game UI | 9 | 0 | 0 |
-| **All** | **223** | **44** | **9** |
+| **All** | **223** | **48** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
 
 One surface alone stands between each of these sketches and a translation:
 
-- `sketch::kit::sectionHeader`: `crt_bloom`, `draw_with_scope`, `feed_vitals`
-  and `field_shelf`.
-- `sketch::kit::readout`: `grid_layouts`, `optical_kerning` and
+- `geometry::shapes` silhouette generators: `attribute_ring`, `beethoven`,
+  `mawarikomi` and `svg_silhouette`.
+- `sketch::kit::readout`: `grid_layouts`, `optical_kerning`, `tile map` and
   `warichu_placeholder`.
-- `geometry::shapes` silhouette generators: `beethoven` and `mawarikomi`.
+- `compose::routers` stock routers: `connect_by_lane` and `routers_straight`.
 - `sketch::kit::plot` chart layers: `data_scales` and `ticker_lanes`.
 - Set sketches (`sketch::SetContext`, `describe`): `lantern_room`.
+- `SkSurfaces::Raster` standalone raster surfaces: `encode_write`.
 - `compose::LayeredBrush` stroke layers: `lain_navi`.
 - `compose::kit::aquaGel`, `y2kChrome`, `gloss` finishes: `surface_components`.
 - `compose::kit` typesetting (`bullets`, `nestedRun`, `textColumns`, `rules`):
   `threaded_story`.
+- `geometry::path::PolarFrame` and `path::Grid`: `frame_grid`.
+- `geometry::path` crossings and crossing rules: `crossing_rule`.
+- `geometry::shapes` parametric curve generators: `curve_shelf`.
 - `material::pattern` stock tiles: `gerstner grid`.
+- `material::sdf` shapes and styles: `sdf_star`.
+- `material::skia::PixelBuffer` and `Paint::buffer`: `paint_shelf`.
+- `sketch::kit::bars` over `data::Table`: `data_sources`.
 - `weave::HyphenationOptions::patterns` on a paragraph: `paragraph_sheet`.
 - `weave::kit` kinsoku and hanging stock tables: `cjk_rules`.
 
@@ -91,7 +98,6 @@ needs.
 | Not yet bound | Library | Sketches |
 | --- | --- | ---: |
 | `geometry::shapes` silhouette generators | Geometry | 56 |
-| `sketch::kit::sectionHeader` | Sketch kit | 48 |
 | `motion::Spread` and `motion::Cascade` schedules | Motion | 23 |
 | `SkSurfaces::Raster` standalone raster surfaces | Skia | 21 |
 | `compose::Text::textFx` text tracks | Compose | 21 |
@@ -186,7 +192,7 @@ Python environment.
 | Decorations | `Decoration` over `PathFormat` (stroke fill, alignment, dashes, caps, joins, stamps, trims and animated phases) or `Shadow`; `stroke`, `shadow`, `LayerStyle` and `Element.layerStyle`; overlay, background, foreground and stroke layers; span passes over `spans` selections; `Element.decorationOutline` and `Boundary` | `Slice`, `ContourWalk`, `Wash`, `Border` and the `decorations::` borders and washes; `onEdges` and `inset`; the `brush::` solids, weaves, scatters, patterns, corner art, ribbons and art; `Brush` shaped layer stacks and `brush::restyle`; `LayeredBrush`; `lines::Line`, `Rails`, `Hatch` and `RadialHatch`; the `styles::` inner shadow, outer glow, bevel and emboss, overlays, ripple, brackets, tick rails, scanlines, stipple and dither; `PathFormat::effect`; shadow offsets driven by motion outputs; decoration schemes written in Python |
 | Compose kit | `compose.kit` records `Sheet`, `Panel`, `Board`, `Well`, `WellContent`, `Caption`, `Cells`, `PanelGrid`, `Line` and `Ladder` with every native field, their factories, `centred`, `at`, `disc`, `dot`, `ring` and `figure`, with caption, sheet and panel lines as Python callables; `compose.layouts` `Grid` with tracks, areas and dense flow, `Radial`, `Diagonal`, `BaselineGrid`, `Jittered` and `AlongPath`; the connecting operators `compose.connect.Between` and `ByLane` with their router, gap, wire and bleed | the rows (`section`, `readout`, `table`, `bars`); typesetting (`ruby`, `kenten`, `bullets`, `textColumns`, `rules`, `nestedRun`); `annotate` with `Beside` and `Anchored`; the kinetic `textFx::` presets, `trackMeter` and `restGhost`; `marquee`; legibility (`scrim`, `haloed`, `shaded`, `emboldened` and `drawHaloed`); `vignette` and `grained`; the chrome, gel and gloss styles; `plate`, `console` and `tinted`; `routers::`; `instancing::place::`; the stroke and brush presets; sprites and pixel type; `ornament::` and `flourish::`; the named default leaves |
 | Document kit | Every `compose::document` component and property: `article`, `section`, `list`, `quote`, `heading` and `h1` to `h6`, `paragraph` over a string or rich text, `lead`, `caption`, `label`, `eyebrow`, `footer`, `code`, `item`, `figure` and `rule`; `measure`, `gap`, `list_gap` and `quote_inset`; roles resolved through inherited stylesheets | Nothing |
-| Specimen kit | `sketch.kit` `Palette`, `Register`, `TypeScale`, `Spacing` and a comparable `Theme` with `font`, `style`, `styleSheet` and `voice`; `house_face`, `house_theme`, `study_theme` and `theme`; a checked `Provide`; `stage`, `page`, `well`, `caption`, `cell`, `cells`, `panel_grid` and `comparison` | `specimenTheme`, `Theme::sans` and `Theme::mono`; `stage(SetContext)`; `passage`; `Document`; `Instrument`; the headings `titleCard` and `sectionHeader`; the rows `readout`, `labelRow`, `table` and `bars`; the legends `legend`, `swatchStrip` and `chip`; `meter` and `gauge`; the charts `plot`, `axis`, `rules`, `trace`, `area`, `path`, `marks`, `bands`, `segments` and `label`; `scrollbar`; `backdrop`, `panel` and `frame`; `console`; `ticker` and `timeline`; `Channel` |
+| Specimen kit | `sketch.kit` `Palette`, `Register`, `TypeScale`, `Spacing` and a comparable `Theme` with `font`, `style`, `styleSheet` and `voice`; `house_face`, `house_theme`, `study_theme`, `feature_theme` with `Density`, and `theme`; a checked `Provide`; `stage`, `page`, `well`, `caption`, `cell`, `cells`, `panel_grid` and `comparison`; `section_header` and `section` with `SectionHeader` | `specimenTheme`, `Theme::sans` and `Theme::mono`; `stage(SetContext)`; `passage`; `Document`; `Instrument`; the heading `titleCard`; the rows `readout`, `labelRow`, `table` and `bars`; the legends `legend`, `swatchStrip` and `chip`; `meter` and `gauge`; the charts `plot`, `axis`, `rules`, `trace`, `area`, `path`, `marks`, `bands`, `segments` and `label`; `scrollbar`; `backdrop`, `panel` and `frame`; `console`; `ticker` and `timeline`; `Channel` |
 
 <!-- prose: composition -->
 <!-- /prose -->
@@ -398,62 +404,62 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
-| `attribute_ring` | Facts stated with `attribute`; radial layout by a fact lane with facing; jitter operator after it; comparison kit; section header | `sketch::kit::sectionHeader`; `geometry::shapes` silhouette generators |
-| `blend_options` | Outline blend runs with keys, spacing, spines and orientation; shape generators; comparison kit; section headers | `sketch::kit::sectionHeader`; `geometry::shapes` silhouette generators; `geometry::shapes` parametric curve generators; `geometry::path::blend` shape blends |
-| `blur_falloff` | Image-filter and map-driven blur effects; bound uniform; unit ramps; sequence tile; kit dots; section headers | `sketch::kit::sectionHeader`; `material::pattern` stock tiles; `material::skia::Effect::filter` |
-| `border_weave` | Silhouette-following border modes; double and weighted borders; woven braid brush; crossing rule; shape generators; section headers | `sketch::kit::sectionHeader`; `compose::Border` and `compose::decorations::border` rules; `compose::brush::weave` strand composite; `compose::kit::braid` strands; `geometry::shapes` silhouette generators; `geometry::shapes` corner operators; `geometry::path` crossings and crossing rules |
+| `attribute_ring` | Facts stated with `attribute`; radial layout by a fact lane with facing; jitter operator after it; comparison kit; section header | `geometry::shapes` silhouette generators |
+| `blend_options` | Outline blend runs with keys, spacing, spines and orientation; shape generators; comparison kit; section headers | `geometry::shapes` silhouette generators; `geometry::shapes` parametric curve generators; `geometry::path::blend` shape blends |
+| `blur_falloff` | Image-filter and map-driven blur effects; bound uniform; unit ramps; sequence tile; kit dots; section headers | `material::pattern` stock tiles; `material::skia::Effect::filter` |
+| `border_weave` | Silhouette-following border modes; double and weighted borders; woven braid brush; crossing rule; shape generators; section headers | `compose::Border` and `compose::decorations::border` rules; `compose::brush::weave` strand composite; `compose::kit::braid` strands; `geometry::shapes` silhouette generators; `geometry::shapes` corner operators; `geometry::path` crossings and crossing rules |
 | `bullets_dropcap` | Initial letters; nested opening styles; flow around a shaped ornament; hanging list kit; font fallback; wells | `compose::kit` typesetting (`bullets`, `nestedRun`, `textColumns`, `rules`); `geometry::shapes` silhouette generators |
 | `cascade` | Inherited type, ink transitions, classes and custom properties; lexical environment values; pen and graphics leaves; readout kit | `sketch::kit::readout`; `core::environment::Provide` / `inheritedOr` values |
 | `channel_bind` | OSC connection on the hub; kit channels writing outputs; binding chains; recording mount; readout kit | `sketch::kit::readout`; `sketch::kit::Channel` address follower; `data::Connection` |
 | `cjk_rules` | Vertical Japanese blocks; stock and house kinsoku; hanging punctuation table; mojikumi bracket spacing; tsume | `weave::kit` kinsoku and hanging stock tables |
-| `codec_roundtrip` | PLY encode and decode of meshes and clouds; model merge, bounds and fit; point attributes; billboard splats; mesh painter | `sketch::kit::sectionHeader`; `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec` |
+| `codec_roundtrip` | PLY encode and decode of meshes and clouds; model merge, bounds and fit; point attributes; billboard splats; mesh painter | `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec` |
 | `compute_variant` | Set-kind hosting; wave rail; compute pass cooking a point chain; stamped geometry pass; variant repaint; readback callback | Set sketches (`sketch::SetContext`, `describe`); `geometry::mesh::pop` point-operator chains; `geometry::mesh::curve::Spline3` and frames; `world::kit` rails (`wave`, `winding`, `rail`); `world::computePass` passes and `world::readback` |
-| `connect_by_lane` | Facts read by an arranging operator; wires attached by lane and by hand; stock orthogonal and arc routers; nested scopes; comparison kit | `sketch::kit::sectionHeader`; `compose::routers` stock routers |
-| `contour_poses` | Measured contours; poses by distance with wrap policies; corner detection and windows; shape generator; pen leaves | `sketch::kit::sectionHeader`; `geometry::shapes` silhouette generators; `geometry::path::Contour` corners, poses and offsets |
-| `corner_notched` | Corner treatments as comparable shapes: rounding wrapper, chamfers and notches with corner masks; comparison kit | `sketch::kit::sectionHeader`; `geometry::shapes` silhouette generators; `geometry::shapes` corner operators |
-| `coverage_boundary` | Coverage boundary; outer glow and inner shadow layer styles; alpha cut-out images; shape generators; section headers | `sketch::kit::sectionHeader`; `compose::styles` layer styles (glow, inner shadow, bevel); `SkSurfaces::Raster` standalone raster surfaces; `geometry::shapes` silhouette generators |
-| `crossing_rule` | Crossing discovery; crossing rules (alternate, sequence, pairs, except); crossing patches; canvas clipping; comparison kit | `sketch::kit::sectionHeader`; `geometry::path` crossings and crossing rules |
-| `crt_bloom` | Glow and directional blur effects; additive blend; texture cache; CRT overlay recipe; explicit default face | `sketch::kit::sectionHeader` |
+| `connect_by_lane` | Facts read by an arranging operator; wires attached by lane and by hand; stock orthogonal and arc routers; nested scopes; comparison kit | `compose::routers` stock routers |
+| `contour_poses` | Measured contours; poses by distance with wrap policies; corner detection and windows; shape generator; pen leaves | `geometry::shapes` silhouette generators; `geometry::path::Contour` corners, poses and offsets |
+| `corner_notched` | Corner treatments as comparable shapes: rounding wrapper, chamfers and notches with corner masks; comparison kit | `geometry::shapes` silhouette generators; `geometry::shapes` corner operators |
+| `coverage_boundary` | Coverage boundary; outer glow and inner shadow layer styles; alpha cut-out images; shape generators; section headers | `compose::styles` layer styles (glow, inner shadow, bevel); `SkSurfaces::Raster` standalone raster surfaces; `geometry::shapes` silhouette generators |
+| `crossing_rule` | Crossing discovery; crossing rules (alternate, sequence, pairs, except); crossing patches; canvas clipping; comparison kit | `geometry::path` crossings and crossing rules |
+| `crt_bloom` | Glow and directional blur effects; additive blend; texture cache; CRT overlay recipe; explicit default face | — |
 | `decay_step` | Clock arithmetic (decay, quantize, step, phase); closed-form spring state; plot kit with axes, rules and traces | `sketch::kit::plot` chart layers; `motion::Spring` value and `motion::spring` step |
-| `draw_with_scope` | Facts on cards; keyed and keyless `drawWith` programs reading the settled scope; pen wires and labels; comparison kit | `sketch::kit::sectionHeader` |
+| `draw_with_scope` | Facts on cards; keyed and keyless `drawWith` programs reading the settled scope; pen wires and labels; comparison kit | — |
 | `ember_decode` | Kinetic text track with pass effect and stagger by unit; beat schedule query; authored SkSL recipe; meter kit | `sketch::kit::meter` and `gauge`; `compose::Text::textFx` text tracks; `compose::textFx` text effects (`keys`, `scramble`, `sequence`); `compose::Composer::beatsOf` and `units`; `motion::Spread` and `motion::Cascade` schedules; `material::Recipe` authoring |
-| `encode_write` | Image encode and decode across formats; hub mount, write and image load; offscreen pen drawing; wells | `sketch::kit::sectionHeader`; `SkSurfaces::Raster` standalone raster surfaces |
-| `env_faces` | Environment maps from faces, cube sheets and panoramas; ground replacement; bevel normals; chrome reflection fill | `sketch::kit::sectionHeader`; `SkSurfaces::Raster` standalone raster surfaces; `material::Texture` and `Material::slot`; `material::EnvironmentMap` and kit environments; `material::bevelNormals` normal maps; `material::kit` reflections (`gold`, `chrome`, `glass`) |
-| `env_lanes` | World environment node dials; studio and sunset panoramas; world frames baked to images; PBR surfaces | `sketch::kit::sectionHeader`; `material::EnvironmentMap` and kit environments; `world::Environment` and `Element::environmentMap` |
-| `exact_tangent` | Text on paths with exact tangents; spiral and oval generators; element rasterized to pixels; region crops; border decoration | `sketch::kit::sectionHeader`; `compose::TextureScene` and `SketchContext::textureScene`; `compose::Border` and `compose::decorations::border` rules; `geometry::shapes` silhouette generators; `geometry::shapes` parametric curve generators |
-| `exr_channels` | Float EXR encode; metadata probe; named channel planes; material texture slot readback; availability probe | A declared `available(why)` probe; `sketch::kit::sectionHeader`; `image::encodeImage` float pixmaps (`Format::Exr`); `image::probeImage` and `image::decodeChannels`; `material::Texture` and `Material::slot` |
-| `feed_vitals` | Hub mount and feed; arrival queue, latest bytes and feed vitals; section header kit; pen strip | `sketch::kit::sectionHeader` |
+| `encode_write` | Image encode and decode across formats; hub mount, write and image load; offscreen pen drawing; wells | `SkSurfaces::Raster` standalone raster surfaces |
+| `env_faces` | Environment maps from faces, cube sheets and panoramas; ground replacement; bevel normals; chrome reflection fill | `SkSurfaces::Raster` standalone raster surfaces; `material::Texture` and `Material::slot`; `material::EnvironmentMap` and kit environments; `material::bevelNormals` normal maps; `material::kit` reflections (`gold`, `chrome`, `glass`) |
+| `env_lanes` | World environment node dials; studio and sunset panoramas; world frames baked to images; PBR surfaces | `material::EnvironmentMap` and kit environments; `world::Environment` and `Element::environmentMap` |
+| `exact_tangent` | Text on paths with exact tangents; spiral and oval generators; element rasterized to pixels; region crops; border decoration | `compose::TextureScene` and `SketchContext::textureScene`; `compose::Border` and `compose::decorations::border` rules; `geometry::shapes` silhouette generators; `geometry::shapes` parametric curve generators |
+| `exr_channels` | Float EXR encode; metadata probe; named channel planes; material texture slot readback; availability probe | A declared `available(why)` probe; `image::encodeImage` float pixmaps (`Format::Exr`); `image::probeImage` and `image::decodeChannels`; `material::Texture` and `Material::slot` |
+| `feed_vitals` | Hub mount and feed; arrival queue, latest bytes and feed vitals; section header kit; pen strip | — |
 | `floating_panels` | Compose texture bakes; gauge kit; image panels; textured cylinder and grid meshes; process painter runtime | `sketch::painterRuntime` mesh executor query; `sketch::kit::meter` and `gauge`; `compose::TextureScene` and `SketchContext::textureScene`; `geometry::mesh::render::Runtime` selection |
-| `formation_bands` | Polygon silhouette; width profiles, rail offsets and band regions; wave shaper; comparison kit; canvas path strokes | `sketch::kit::sectionHeader`; `geometry::shapes` silhouette generators; `geometry::shapers` and `path::Shaper`; `geometry::path::Profile` width profiles and bands |
-| `frame_grid` | Polar frames with angle conventions; unit grid with snap; arrange rings and cells; pen graphics; comparison kit | `sketch::kit::sectionHeader`; `geometry::path::PolarFrame` and `path::Grid` |
-| `frame_inputs` | Recipe with frame inputs; uniform block binding; material specialization; material fill with content scale and world transform | `sketch::kit::sectionHeader`; `material::Recipe` authoring; `material::skia::fill` with `FrameData` |
+| `formation_bands` | Polygon silhouette; width profiles, rail offsets and band regions; wave shaper; comparison kit; canvas path strokes | `geometry::shapes` silhouette generators; `geometry::shapers` and `path::Shaper`; `geometry::path::Profile` width profiles and bands |
+| `frame_grid` | Polar frames with angle conventions; unit grid with snap; arrange rings and cells; pen graphics; comparison kit | `geometry::path::PolarFrame` and `path::Grid` |
+| `frame_inputs` | Recipe with frame inputs; uniform block binding; material specialization; material fill with content scale and world transform | `material::Recipe` authoring; `material::skia::fill` with `FrameData` |
 | `fx_scatter_mix` | Per-glyph effect tracks; scatter, mix and tint effects; spread schedules; beat readback meters; comparison kit | `compose::Text::textFx` text tracks; `compose::textFx` text effects (`keys`, `scramble`, `sequence`); `compose::Composer::beatsOf` and `units`; `compose::textFx` kinetic presets (`rise`, `pop`, `typeOn`); `compose::kit::trackMeter` and `restGhost` instruments; `motion::Spread` and `motion::Cascade` schedules |
-| `geo_groups` | Point clouds with named lanes; Houdini geo encode and decode; masked point operators; billboard sprites; comparison kit | `sketch::kit::sectionHeader`; `compose::kit::dotSprite` point stamp; `geometry::mesh::pop` point-operator chains; `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec` |
-| `gif_frames` | Network image load; decoded frames and timed playback; resource and image probes; nearest sampling; cached-resource availability gate; comparison kit | A declared `available(why)` probe; `sketch::kit::sectionHeader`; `image::ImageAsset` frames, repetition and wrap; `io::Hub` typed probes and `registerDecoder` for further types |
+| `geo_groups` | Point clouds with named lanes; Houdini geo encode and decode; masked point operators; billboard sprites; comparison kit | `compose::kit::dotSprite` point stamp; `geometry::mesh::pop` point-operator chains; `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec` |
+| `gif_frames` | Network image load; decoded frames and timed playback; resource and image probes; nearest sampling; cached-resource availability gate; comparison kit | A declared `available(why)` probe; `image::ImageAsset` frames, repetition and wrap; `io::Hub` typed probes and `registerDecoder` for further types |
 | `grid_layouts` | Grid, diagonal and baseline layout schemes; ladder rules; themed mono type; readout rows | `sketch::kit::readout` |
-| `half_float` | Float raster surface; half-float and byte pixel readback; image from pixels; comparison kit | `sketch::kit::sectionHeader`; `SkSurfaces::Raster` standalone raster surfaces; `skia::isFloatImage` / `halfFloatPixels` float readback |
+| `half_float` | Float raster surface; half-float and byte pixel readback; image from pixels; comparison kit | `SkSurfaces::Raster` standalone raster surfaces; `skia::isFloatImage` / `halfFloatPixels` float readback |
 | `hit_slots` | Slots; hit test and bounds queries; wires keyed by the pair they join; star and blob silhouettes; readout rows | `sketch::kit::readout`; `compose::routers` stock routers; `geometry::shapes` silhouette generators |
 | `hub_reload` | Standalone hub mount, text, image and poll; custom decoder; offscreen pen to PNG; readout rows | `sketch::kit::readout`; `SkSurfaces::Raster` standalone raster surfaces; `io::Hub` typed probes and `registerDecoder` for further types |
 | `import_native` | Set hosting; compose texture scene; material texture slots; Scry web view frames; world elements, lights, quads | Set sketches (`sketch::SetContext`, `describe`); A declared `available(why)` probe; `sketch::scry` shared engine, settling and sequences; `compose::TextureScene` and `SketchContext::textureScene`; `material::Texture` and `Material::slot`; `scry::WebEngine` / `WebView` / `WebImage` |
 | `keeps_and_frames` | Rich stories; paragraph keeps; threaded frames; first-baseline and distribution placement; comparison kit | — |
 | `lane_retarget` | Standalone ticker; animated float lanes; slot and family retargeting; chart kit plots; readout rows | `sketch::kit::readout`; `sketch::kit::plot` chart layers; `motion::Lane` retargeting over `AnimatedFloats` |
 | `live_settling` | Offscreen composer frame driving; live Knuth-Plass passages; settling reports; comparison kit; readout rows | `sketch::kit::readout`; `SkSurfaces::Raster` standalone raster surfaces |
-| `material_atlas` | Produced sheet texture; atlas grid, TexturePacker and Aseprite imports; wrapping sequences; texture shader draws | `sketch::kit::sectionHeader`; `SkSurfaces::Raster` standalone raster surfaces; `material::Texture` and `Material::slot`; `material::Atlas` sprite sheets |
-| `material_slots` | Runtime shader child slots and uniforms; nearest image paints; LUT images; material kits; masked material stacks | `sketch::kit::sectionHeader`; `material::kit` grained surfaces (`stone`, `timber`, `latten`, `board`); `material::over` layering and masks; `material::skia::Paint::image` sampling options |
-| `matte_luma` | Track matte gates; checker and run patterns; ramp-baked coverage image; unit gradients; comparison kit | `sketch::kit::sectionHeader`; `SkSurfaces::Raster` standalone raster surfaces; `material::pattern` stock tiles; `material::skia` ramp shaders |
+| `material_atlas` | Produced sheet texture; atlas grid, TexturePacker and Aseprite imports; wrapping sequences; texture shader draws | `SkSurfaces::Raster` standalone raster surfaces; `material::Texture` and `Material::slot`; `material::Atlas` sprite sheets |
+| `material_slots` | Runtime shader child slots and uniforms; nearest image paints; LUT images; material kits; masked material stacks | `material::kit` grained surfaces (`stone`, `timber`, `latten`, `board`); `material::over` layering and masks; `material::skia::Paint::image` sampling options |
+| `matte_luma` | Track matte gates; checker and run patterns; ramp-baked coverage image; unit gradients; comparison kit | `SkSurfaces::Raster` standalone raster surfaces; `material::pattern` stock tiles; `material::skia` ramp shaders |
 | `mesh_generators` | Extrude, revolve, torus, superellipsoid; spline sweep; spline points with frame lanes; instanced quads; lit mesh draws | `geometry::shapes` silhouette generators; `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::curve::Spline3` and frames; `geometry::mesh::pop::sweep` and `geometry::sections` |
 | `mesh_normal_bridge` | Offscreen normal and UV mesh passes; environment reflection recipes; bevel normals; shader coverage compositing; squircle silhouette | `SkCanvas` layers, `drawPaint` and `drawImageRect`; `geometry::shapes` silhouette generators; `material::Texture` and `Material::slot`; `material::EnvironmentMap` and kit environments; `material::bevelNormals` normal maps; `material::kit` reflections (`gold`, `chrome`, `glass`) |
-| `net_policy` | Seeded network cache; per-hub network policies; image load; PNG encode; specimen wells | `sketch::kit::sectionHeader`; `SkSurfaces::Raster` standalone raster surfaces; `io::seedNetworkCache` network cache seeding |
-| `nine slice` | Generated ornament textures; nine-slice decoration with density; direct lattice draw; per-frame redescribe | `sketch::kit::sectionHeader`; `compose::Slice` nine-slice decoration; `compose::kit::ornament` palettes, frames and marks; `skia::draw::drawLattice` nine-slice drawing; `image::ImageAsset` frames, repetition and wrap |
-| `ocio_view` | OCIO transforms baked to LUT materials; produced wedge texture; content slot; material-grounded wells | `sketch::kit::sectionHeader`; `SkSurfaces::Raster` standalone raster surfaces; `material::Texture` and `Material::slot`; `material::ocio` colour management |
+| `net_policy` | Seeded network cache; per-hub network policies; image load; PNG encode; specimen wells | `SkSurfaces::Raster` standalone raster surfaces; `io::seedNetworkCache` network cache seeding |
+| `nine slice` | Generated ornament textures; nine-slice decoration with density; direct lattice draw; per-frame redescribe | `compose::Slice` nine-slice decoration; `compose::kit::ornament` palettes, frames and marks; `skia::draw::drawLattice` nine-slice drawing; `image::ImageAsset` frames, repetition and wrap |
+| `ocio_view` | OCIO transforms baked to LUT materials; produced wedge texture; content slot; material-grounded wells | `SkSurfaces::Raster` standalone raster surfaces; `material::Texture` and `Material::slot`; `material::ocio` colour management |
 | `optical_kerning` | Optical kerning shaping; context measurement; cells, captions and readout rows | `sketch::kit::readout` |
-| `over_under` | Material stacks and blends; constant, map, height and slope masks; material kits; produced texture; shape corners | `sketch::kit::sectionHeader`; `SkSurfaces::Raster` standalone raster surfaces; `geometry::shapes` corner operators; `material::Texture` and `Material::slot`; `material::kit` grained surfaces (`stone`, `timber`, `latten`, `board`); `material::bevelNormals` normal maps; `material::over` layering and masks |
-| `painter_gpu` | Mesh painter with selectable runtime; perspective image panels; element trees baked to textures; specimen furniture | `sketch::painterRuntime` mesh executor query; `sketch::kit::sectionHeader`; `compose::TextureScene` and `SketchContext::textureScene`; `geometry::mesh::render::Runtime` selection |
+| `over_under` | Material stacks and blends; constant, map, height and slope masks; material kits; produced texture; shape corners | `SkSurfaces::Raster` standalone raster surfaces; `geometry::shapes` corner operators; `material::Texture` and `Material::slot`; `material::kit` grained surfaces (`stone`, `timber`, `latten`, `board`); `material::bevelNormals` normal maps; `material::over` layering and masks |
+| `painter_gpu` | Mesh painter with selectable runtime; perspective image panels; element trees baked to textures; specimen furniture | `sketch::painterRuntime` mesh executor query; `compose::TextureScene` and `SketchContext::textureScene`; `geometry::mesh::render::Runtime` selection |
 | `path_booleans` | Silhouette generators; path booleans, offsets, distorts and operation chains; pen shapes; document headings | `geometry::shapes` silhouette generators; `geometry::path::operations` chain and outline effects |
 | `pattern_sequence` | Baked pattern tiles: sequence program, sampling remaps and filter, shared-bake copies; tile paints as well grounds | `material::pattern` stock tiles; `material::pattern::Tile` programs |
-| `pins_and_hulls` | Stamped numerals; pinned callouts with fallbacks; bands along an outline and hulls around classed points; comparison kit | `sketch::kit::sectionHeader`; `geometry::shapes` silhouette generators; the `compose::pin` and `compose::outline` adding operators |
-| `pixfont_dotsprite` | Aliased glyph mask bakes; pixel font blits; dot sprite; tinted image stamps; live pen readout | `sketch::kit::sectionHeader`; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `compose::kit::dotSprite` point stamp |
-| `place_repeat_tiles` | Instance atlas and pools with repeat placer; sliceable picture tiles and windows; star silhouette; gradient fill | `sketch::kit::sectionHeader`; `compose::tiles` sliceable pictures and windows; `compose::instancing::place` placers; `geometry::shapes` silhouette generators |
+| `pins_and_hulls` | Stamped numerals; pinned callouts with fallbacks; bands along an outline and hulls around classed points; comparison kit | `geometry::shapes` silhouette generators; the `compose::pin` and `compose::outline` adding operators |
+| `pixfont_dotsprite` | Aliased glyph mask bakes; pixel font blits; dot sprite; tinted image stamps; live pen readout | `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `compose::kit::dotSprite` point stamp |
+| `place_repeat_tiles` | Instance atlas and pools with repeat placer; sliceable picture tiles and windows; star silhouette; gradient fill | `compose::tiles` sliceable pictures and windows; `compose::instancing::place` placers; `geometry::shapes` silhouette generators |
 | `pop_billboards` | Point operator chains on meshes and polylines; noise and relax; atlas lane; billboard splat sink; sprite bake | `SkSurfaces::Raster` standalone raster surfaces; `geometry::mesh::pop` point-operator chains; `geometry::mesh::Cloud` and `mesh::points` |
 | `pop_deform` | Point chains: feathered region select, masked twist, taper, bend, orient and peak; lane-driven billboard sink; dot sprite | `compose::kit::dotSprite` point stamp; `geometry::mesh::pop` point-operator chains; `geometry::mesh::Cloud` and `mesh::points` |
 | `pop_math` | Point chains: Math, Affine, lane lookup, Select, masked, keep/drop, fill/mix, normal/peak; billboard sink | `geometry::mesh::pop` point-operator chains; `geometry::mesh::Cloud` and `mesh::points` |
@@ -461,19 +467,19 @@ model, arithmetic and data become Python code and are not listed.
 | `pop_prims` | Mesh primitive lanes and vertex bake; primitive-colour mesh style; promoted point Id stamps; OKLab ramp; readouts | `sketch::kit::readout`; `geometry::mesh::pop` point-operator chains |
 | `pop_stamps` | Silhouette motifs baked to atlas; point chains swept into tubes, stamped quads, profile sweeps, windowed ribbon; mesh painter | `compose::TextureScene` and `SketchContext::textureScene`; `geometry::shapes` silhouette generators; `geometry::mesh::pop` point-operator chains; `geometry::mesh::pop::sweep` and `geometry::sections` |
 | `rich_slot_reserve` | Rich text inline slots with keyed children; reserved line bands; measured blocks; house face; specimen furniture | — |
-| `routers_straight` | Wires with stock routers (straight, orthogonal bends, arc); a run of stops with an octilinear router; path formats | `sketch::kit::sectionHeader`; `compose::routers` stock routers |
-| `routes_probe` | Wires with routers; standalone profiling composer; a wire asked for by its pair's key; cache verdict profile rows; pen leaf; readout classes | `sketch::kit::sectionHeader`; `compose::routers` stock routers; `SkSurfaces::Raster` standalone raster surfaces |
-| `sdf_star` | Signed-distance star shapes; layered SDF style (shadow, glow, fill, border); pad reserve; material paint fill | `sketch::kit::sectionHeader`; `material::sdf` shapes and styles |
-| `slang_portable` | Runtime Slang module compile; reflected uniform layout and writer; material recipe Slang sources; diagnostics readouts | `sketch::kit::sectionHeader`; `material::kit` grained surfaces (`stone`, `timber`, `latten`, `board`); `material::Recipe` authoring; `material::slang` module compiler |
+| `routers_straight` | Wires with stock routers (straight, orthogonal bends, arc); a run of stops with an octilinear router; path formats | `compose::routers` stock routers |
+| `routes_probe` | Wires with routers; standalone profiling composer; a wire asked for by its pair's key; cache verdict profile rows; pen leaf; readout classes | `compose::routers` stock routers; `SkSurfaces::Raster` standalone raster surfaces |
+| `sdf_star` | Signed-distance star shapes; layered SDF style (shadow, glow, fill, border); pad reserve; material paint fill | `material::sdf` shapes and styles |
+| `slang_portable` | Runtime Slang module compile; reflected uniform layout and writer; material recipe Slang sources; diagnostics readouts | `material::kit` grained surfaces (`stone`, `timber`, `latten`, `board`); `material::Recipe` authoring; `material::slang` module compiler |
 | `spacing_passes` | Justified Knuth-Plass paragraphs with word, letter and glyph-scale passes; single-word justification; captioned wells; cells | — |
 | `surface_components` | Compose kit sheet, panel grid and wells; material and live fill grounds; gel layer style; update hook | `compose::kit::aquaGel`, `y2kChrome`, `gloss` finishes |
-| `svg_silhouette` | SVG path-data silhouette with stretch or aspect fit; stroked keylined boxes; comparisons | `sketch::kit::sectionHeader`; `geometry::shapes` silhouette generators |
+| `svg_silhouette` | SVG path-data silhouette with stretch or aspect fit; stroked keylined boxes; comparisons | `geometry::shapes` silhouette generators |
 | `ticker_lanes` | Standalone manually stepped ticker; steppables, fixed rate, derivation, timeline ramp; recorded-lane plots | `sketch::kit::plot` chart layers |
-| `tile map` | Memoized chunks over one shared image asset with regions; bound flash opacity; profiling probe composer; readouts | `sketch::kit::sectionHeader`; `sketch::kit::readout` |
-| `usd_roundtrip` | USD stage writer and readers for mesh, instancer, light, camera; point scatter on mesh; mesh painter | A declared `available(why)` probe; `sketch::kit::sectionHeader`; `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec`; `usd::Writer` stage export; `usd::readModel` / `readLights` / `readCameras` import |
+| `tile map` | Memoized chunks over one shared image asset with regions; bound flash opacity; profiling probe composer; readouts | `sketch::kit::readout` |
+| `usd_roundtrip` | USD stage writer and readers for mesh, instancer, light, camera; point scatter on mesh; mesh painter | A declared `available(why)` probe; `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec`; `usd::Writer` stage export; `usd::readModel` / `readLights` / `readCameras` import |
 | `volatility_cost` | Eager profiling probe composer: stats, profile, cache states, refusals, bounds; star silhouettes; bound movers; legend, table, readout | `sketch::kit::readout`; `sketch::kit::table`; `sketch::kit::legend` and `swatchStrip`; `geometry::shapes` silhouette generators |
 | `warichu_placeholder` | Warichu split of a note paragraph; vertical writing; rich text slots; measured advances; readout | `sketch::kit::readout` |
-| `web_script` | Shared web engine views; HTML load, script, scroll and press sequences settled to page state; frame stills | A declared `available(why)` probe; `sketch::scry` shared engine, settling and sequences; `sketch::kit::sectionHeader`; `scry::WebEngine` / `WebView` / `WebImage` |
+| `web_script` | Shared web engine views; HTML load, script, scroll and press sequences settled to page state; frame stills | A declared `available(why)` probe; `sketch::scry` shared engine, settling and sequences; `scry::WebEngine` / `WebView` / `WebImage` |
 | `yarn_marquee` | Winding spline; parallel-transport and hung rail frames; frame sweep with line section; textured two-sided mesh painter | `SkSurfaces::Raster` standalone raster surfaces; `geometry::mesh::curve::Spline3` and frames; `geometry::mesh::pop::sweep` and `geometry::sections`; `world::kit` rails (`wave`, `winding`, `rail`) |
 
 #### Kit · Depth
@@ -493,12 +499,12 @@ model, arithmetic and data become Python code and are not listed.
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
 | `bound_lane` | Bound-lane chain stages and wiggle; motion paths with travel; specimen chart plots and readout; stock silhouettes | `sketch::kit::readout`; `sketch::kit::plot` chart layers; `geometry::shapes` silhouette generators |
-| `curve_shelf` | Stock parametric curve silhouettes; shaped stroked boxes; specimen cells, comparisons and section headers | `sketch::kit::sectionHeader`; `geometry::shapes` parametric curve generators |
-| `field_shelf` | Shader field recipes; slotted child texture; custom canvas drawing; specimen comparisons and section headers | `sketch::kit::sectionHeader` |
+| `curve_shelf` | Stock parametric curve silhouettes; shaped stroked boxes; specimen cells, comparisons and section headers | `geometry::shapes` parametric curve generators |
+| `field_shelf` | Shader field recipes; slotted child texture; custom canvas drawing; specimen comparisons and section headers | — |
 | `gerstner grid` | Anisotropic grid-line tiles; noise field paint; staggered entrance transitions; bound sweep output; re-describe on update; grid arithmetic | `material::pattern` stock tiles |
 | `kinetic_card` | Per-glyph text effect tracks and presets on a cascade; shared phase output; beat meters read from composer; specimen theme | `compose::Text::textFx` text tracks; `compose::Composer::beatsOf` and `units`; `compose::textFx` kinetic presets (`rise`, `pop`, `typeOn`); `compose::kit::trackMeter` and `restGhost` instruments; `motion::Spread` and `motion::Cascade` schedules |
-| `noise_shelf` | Counter, state and lattice mixers; cache key folds; pen program fields; specimen cells, wells and section headers | `sketch::kit::sectionHeader`; `core::noise::hash` / `lattice` positional hashes; `core::hash` FNV-1a words |
-| `paint_shelf` | Radial, conical, sweep and unit gradients; world-space paint; revisioned pixel buffer paint; specimen section headers | `sketch::kit::sectionHeader`; `material::skia::PixelBuffer` and `Paint::buffer` |
+| `noise_shelf` | Counter, state and lattice mixers; cache key folds; pen program fields; specimen cells, wells and section headers | `core::noise::hash` / `lattice` positional hashes; `core::hash` FNV-1a words |
+| `paint_shelf` | Radial, conical, sweep and unit gradients; world-space paint; revisioned pixel buffer paint; specimen section headers | `material::skia::PixelBuffer` and `Paint::buffer` |
 | `paragraph_paints` | Text fill recipes; chrome ramps; shader local matrix; justified Knuth-Plass text with pattern hyphenation; measured passage file | `compose::kit::sunsetChromeType`, `silverChromeType` paints; `weave::HyphenationOptions::patterns` on a paragraph; `SkShader` local matrices and raw image shaders; `material::kit` text paints (`water`, `starNest`, `clouds`); `material::skia::Paint` SkShader interop |
 | `paragraph_sheet` | Paragraph styles: leading kinds, spacing, indents, justification, tab stops, vertical writing; caption kit; panel grids, ladders | `weave::HyphenationOptions::patterns` on a paragraph |
 | `shape_tour` | Stock silhouette generators, parametric curves and corner operators; shaped filled boxes; captions and cell runs | `geometry::shapes` silhouette generators; `geometry::shapes` corner operators; `geometry::shapes` parametric curve generators |
@@ -529,7 +535,7 @@ model, arithmetic and data become Python code and are not listed.
 | --- | --- | --- |
 | `artnet_lights` | Art-Net Connection handlers and sends; recording mount; eased ticker ramps; instrument page; themed pen drawing | `sketch::kit::instrument`; `data::Connection` |
 | `data_scales` | Scale transforms; chart plot kit layers; stylesheet classes; stated default face; caption and panel grid | `sketch::kit::plot` chart layers |
-| `data_sources` | Asset table and database; DuckDB memory query; bars and section header kit; comparison well | `sketch::kit::sectionHeader`; `sketch::kit::bars` over `data::Table` |
+| `data_sources` | Asset table and database; DuckDB memory query; bars and section header kit; comparison well | `sketch::kit::bars` over `data::Table` |
 | `feed_events` | JSON Connection kind handlers; recording mount; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
 | `feed_sky` | Schema-backed Connection; per-sketch FlatBuffers schema; recording mount; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection`; `data::FlatBuffer` roots and `data::schema` |
 | `grpc_watch` | gRPC Connection handlers and broadcast sends; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
