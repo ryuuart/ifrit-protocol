@@ -170,14 +170,16 @@ struct Artefact {
     return out;
   }
 
-  /** @p run set in the bitmap face @p face, one pixel between glyphs, each
-   *  lit pixel in the entry @p entryForRow names for its row. */
-  template <class EntryForRow>
+  /** @p run set in the bitmap face @p face, one pixel between glyphs, in
+   *  the entry @p entry. With an @p outline entry every unlit pixel touching
+   *  a lit one, diagonals included, is drawn in it: the ring that keeps a
+   *  name legible on any ground. */
   kit::Sprite lettering(std::string_view run, std::string_view face,
-                        EntryForRow entryForRow) const {
-    kit::Sprite out;
+                        int entry, int outline = -1) const {
     const auto& glyphs = fonts.find(face)->second;
-    int pen = 0, height = 0;
+    const int margin = outline < 0 ? 0 : 1;
+    std::vector<std::pair<int, int>> lit;
+    int pen = margin, height = 0;
     for (char character : run) {
       const auto glyph = glyphs.find(character);
       if (glyph == glyphs.end()) continue;
@@ -186,11 +188,15 @@ struct Artefact {
       for (size_t row = 0; row < rows.size(); ++row)
         for (size_t column = 0; column < rows[row].size(); ++column)
           if (rows[row][column] == '#')
-            out.px(float(pen + (int)column), (float)row,
-                   colour(entryForRow((int)row)));
+            lit.emplace_back(pen + (int)column, margin + (int)row);
       pen += (int)rows.front().size() + 1;
     }
-    out.grid = {std::max(0, pen - 1), height};
+    kit::Sprite out;
+    out.grid = {pen - 1 + margin, height + 2 * margin};
+    if (outline >= 0)
+      for (const auto& [x, y] : lit)
+        out.rect(float(x - 1), float(y - 1), 3, 3, colour(outline));
+    for (const auto& [x, y] : lit) out.px((float)x, (float)y, colour(entry));
     return out;
   }
 };
@@ -206,8 +212,8 @@ Element stamp(const Artefact& art, const kit::Sprite& sprite,
 
 /** A figure in the 3 x 5 numerals, every lit pixel in one entry. */
 Element numeral(const Artefact& art, int value, float x, float y, int entry) {
-  const kit::Sprite digits = art.lettering(std::to_string(value), "digits",
-                                           [entry](int) { return entry; });
+  const kit::Sprite digits =
+      art.lettering(std::to_string(value), "digits", entry);
   return screen(kit::pixelSprite(digits, {.cell = kPixel}), x, y,
                 (float)digits.grid.width(), (float)digits.grid.height());
 }
@@ -347,13 +353,30 @@ struct XcomBattlescape {
     })});
   }
 
-  /** A hand slot: black, lit on the top and left, shadowed on the bottom
-   *  and right. */
-  Element handSlot(float x) const {
-    return box().inset(0).children(
-        {screen(x, 148, 32, 48).fill(art.colour(block(14, 11))),
-         screen(x, 148, 31, 47).fill(art.colour(block(14, 8))),
-         screen(x + 1, 149, 30, 46).fill(art.colour(block(0, 15)))});
+  /** A stone pillar 48 wide holding a hand slot: the stone lightens in
+   *  steps toward the slot, whose 2-pixel lavender frame is shadowed on the
+   *  top and left and lit on the bottom and right, so it reads as sunk. */
+  Element pillar(float x) const {
+    return box().inset(0).children({
+        screen(x, 144, 48, 56).fill(art.colour(block(5, 8))),
+        screen(x + 2, 144, 44, 56).fill(art.colour(block(5, 5))),
+        screen(x + 4, 145, 40, 54).fill(art.colour(block(5, 3))),
+        screen(x + 6, 146, 36, 52).fill(art.colour(block(14, 6))),
+        screen(x + 6, 146, 34, 50).fill(art.colour(block(14, 11))),
+        screen(x + 8, 148, 32, 48).fill(art.colour(block(0, 15))),
+    });
+  }
+
+  /** A reserve switch: a lit rim on the top and left, a shadow on the
+   *  bottom and right, and its glyph pressed into the face. */
+  Element reserveSwitch(float x, float y, int ramp,
+                        std::string_view glyph) const {
+    return box().inset(0).children({
+        screen(x, y, 28, 11).fill(art.colour(block(ramp, 3))),
+        screen(x + 1, y + 1, 27, 10).fill(art.colour(block(ramp, 8))),
+        screen(x + 1, y + 1, 26, 9).fill(art.colour(block(ramp, 5))),
+        stamp(art, art.sprite(glyph), glyph, x, y),
+    });
   }
 
   Element panel() const {
@@ -364,20 +387,6 @@ struct XcomBattlescape {
         "unit-up",   "unit-down", "map-up",    "map-down", "show-map",
         "kneel",     "inventory", "centre",    "next-unit", "next-stop",
         "layers",    "options",   "end-turn",  "abort"};
-    // The time-unit reserve switches; "none" is the lit one.
-    struct Switch {
-      float x, y, width, height;
-      int entry;
-      bool shot;
-    };
-    static constexpr std::array<Switch, 6> kReserveSwitches{{
-        {49, 177, 10, 23, 35, false},   // zero time units
-        {60, 177, 17, 11, 67, true},    // reserve none
-        {78, 177, 17, 11, 35, true},    // reserve snap
-        {60, 189, 17, 11, 35, true},    // reserve aimed
-        {78, 189, 17, 11, 35, true},    // reserve auto
-        {96, 177, 10, 23, 35, false},   // kneel reserve
-    }};
     // Each gauge's readout: position, value, maximum, and its declared
     // entry; a readout lights one entry past the one it declares.
     struct Stat {
@@ -391,80 +400,59 @@ struct XcomBattlescape {
         {154, 194, 197, 100, 100, 192}, // morale
     }};
 
-    const kit::Sprite metal = art.sprite("metal");
     const kit::Sprite plate = art.sprite("plate");
-    const kit::Sprite shot = art.sprite("reserve-shot");
-    const kit::Sprite name = art.lettering(
-        "Anders Holmgren", "small",
-        [](int row) { return block(8, std::min(row / 2, 4)); });
+    const kit::Sprite name =
+        art.lettering("Anders Holmgren", "small", block(8, 2), block(8, 11));
 
     return box().inset(0).children({
-        // The dithered stone body, an 8 x 8 tile repeated.
-        each(40 * 7,
-             [&](size_t index) {
-               return screen(kit::pixelSprite(metal, {.cell = kPixel}),
-                             float(index % 40) * 8, 144 + float(index / 40) * 8,
-                             8, 8);
-             }),
-        screen(0, 144, 320, 1).fill(art.colour(block(5, 1))),
-        screen(0, 199, 320, 1).fill(art.colour(block(5, 13))),
+        // The button bank stands on dark stone; the soldier's half is black.
+        screen(48, 144, 224, 32).fill(art.colour(block(5, 13))),
+        screen(48, 176, 224, 24).fill(art.colour(block(0, 15))),
+        pillar(0),
+        pillar(272),
         each(kButtons,
              [&](const char* button, size_t index) {
+               const std::string glyph = std::string("button-") + button;
                return screen(stack().children(
                                  {kit::pixelSprite(plate, {.cell = kPixel}),
-                                  stamp(art, art.sprite(std::string("button-") +
-                                                        button),
-                                        std::string("button-") + button, 0,
-                                        0)}),
+                                  stamp(art, art.sprite(glyph), glyph, 0, 0)}),
                              48 + float(index / 2) * 32,
                              144 + float(index % 2) * 16, 32, 16);
              }),
-        each(kReserveSwitches,
-             [&](const Switch& reserve) {
-               return box().inset(0).children(
-                   {screen(reserve.x, reserve.y, reserve.width, reserve.height)
-                        .fill(art.colour(reserve.entry + 4)),
-                    screen(reserve.x + 1, reserve.y + 1, reserve.width - 2,
-                           reserve.height - 2)
-                        .fill(art.colour(reserve.entry)),
-                    reserve.shot
-                        ? screen(kit::pixelSprite(shot, {.cell = kPixel}),
-                                 reserve.x + 3, reserve.y + 3, 11, 5)
-                        : box()});
-             }),
+        // Time-unit reserve: none is chosen and lit green; snap, aimed and
+        // automatic fire wait in red.
+        reserveSwitch(49, 177, 4, "reserve-none"),
+        reserveSwitch(78, 177, 2, "reserve-snap"),
+        reserveSwitch(49, 189, 2, "reserve-aimed"),
+        reserveSwitch(78, 189, 2, "reserve-auto"),
         stamp(art, art.sprite("rank-squaddie"), "rank-squaddie", 107, 177),
-        // The soldier's readouts sit in a black well.
-        screen(132, 175, 188, 25).fill(art.colour(block(0, 15))),
-        screen(131, 175, 1, 25).fill(art.colour(block(5, 12))),
-        screen(kit::pixelSprite(name, {.cell = kPixel}), 135, 176,
+        screen(kit::pixelSprite(name, {.cell = kPixel}), 134, 176,
                (float)name.grid.width(), (float)name.grid.height()),
         recess(134, 185, block(3, 7)),
         recess(152, 185, block(1, 5)),
         recess(134, 193, block(2, 5)),
         recess(152, 193, block(12, 5)),
-        // The lattice behind the gauges, five pixels by two.
-        each(28,
+        // The lattice behind the gauges: a line on every odd row and every
+        // fifth column.
+        each(20,
              [&](size_t column) {
                return screen(176 + float(column) * 5, 185, 1, 15)
-                   .fill(art.colour(137));
+                   .fill(art.colour(block(8, 10)));
              }),
         each(8,
              [&](size_t row) {
-               return screen(176, 185 + float(row) * 2, 136, 1)
-                   .fill(art.colour(137));
+               return screen(170, 185 + float(row) * 2, 102, 1)
+                   .fill(art.colour(block(8, 10)));
              }),
         each(kStats,
              [&](const Stat& stat) {
                return box().inset(0).children(
-                   {gauge(stat.gaugeY, stat.value, stat.maximum,
-                          stat.entry),
+                   {gauge(stat.gaugeY, stat.value, stat.maximum, stat.entry),
                     numeral(art, stat.value, stat.x, stat.y, stat.entry + 1)});
              }),
-        handSlot(8),
-        handSlot(280),
         stamp(art, art.sprite("rifle"), "rifle", 280, 148),
-        numeral(art, 14, 280, 148, 3),     // rounds left in the clip
-        numeral(art, 1, 232, 150, 15),     // the level being shown
+        numeral(art, 14, 280, 148, 3),  // rounds left in the clip
+        numeral(art, 1, 232, 150, 15),  // the level being shown
     });
   }
 
