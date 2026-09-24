@@ -576,3 +576,109 @@ the paragraph setting compares by.
 A test should assert that two calls return the same instance and that
 `hyphens({.patterns = englishHyphenator()})` breaks "specimen" where the
 hand-built table does. Wanted by the three sketches named.
+
+## A connection's vitals have no value of their own, so every Data sketch snapshots and prints them by hand
+
+`data::Connection` answers `generation()`, `dropped()`, `undecodable()`,
+`closed()`, `address()`, `sender()` and `error()` one call at a time, and
+nothing in SigilData or the sketch kit gathers them. So every sketch that
+shows a door's state declares its own comparable struct of those fields,
+a function that fills it from the connection, a "did it change" test that
+decides whether to describe again, and a readout of name–figure rows:
+`feed_sky` (`Vitals`, `vitalsOf`, `Door::read`, `readout`), and a `Reading`
+or equivalent in `phone_sky`, `webrtc_sky`, `osc_desk`, `feed_events`,
+`grpc_watch`, `midi_pads`, `serial_sensor`, `artnet_lights`,
+`channel_bind` and `feed_vitals` — eleven copies of one shape, each
+naming and ordering the rows its own way.
+
+The connection evidently means its own words to be what a reader shows:
+one comparable value taken off a connection (the fields above, equality
+by value) would make the change test `now != shown`, and one sketch-kit
+component over it (a readout of that value in the theme's `caption` and
+`.readout` registers, the error row standing in for the sender where
+there is one; `connectionReadout` is a provisional name, the owner's to
+pick) would take the struct, the fill and the rows out of every sketch
+named.
+
+A test should take the value off a connection before and after a
+recorded arrival and assert that it compares unequal exactly when a
+field moved, and a Harness case should assert the component's rows for
+an open door, a closed one and one whose URI failed to open. Wanted by
+the eleven sketches named.
+
+## An initial letter's own style reaches its shaping and not its paint
+
+`InitialLetter::style` is documented as a partial over the opening's
+style. `layout/InitialLetter.cpp` overlays it into `capStyle` and uses that
+for the cap's size and face, but the positioned run it inserts takes
+`cap.styleIndex = plan.styleIndex` — the opening word's span — and the
+painter resolves a run's paint through `spans[run.styleIndex]`
+(`paint/Paint.cpp`). So a colour, a decoration or a paint layer the
+initial states is dropped and the cap is drawn in the passage's own ink:
+`InitialLetter(style=Type(color=teal))` sets a paper-coloured cap.
+
+The partial is evidently meant to style the cap wholly, as it already does
+its shaping fields: the cap run should carry a style of its own (appended
+to the layout's spans, or resolved by the painter from the plan) so its
+paint is the overlaid one.
+
+A test should set `initialLetter({.lines = 3, .style = {.color = red}})`
+over a white passage and assert that the cap's pixels are red and the
+body's white. Wanted by `python_type_atelier` (its teal cap) and
+`bullets_dropcap` (whose cap asks for the palette's figure colour).
+
+## Python binds no path construction outside `sigil.skia`
+
+`src/common/python/geometry/Shapes.cpp`, `Polylines.cpp` and the path
+operation and profile files register `sigil.geometry.shapes`,
+`sigil.geometry.path.operations`, `.profile`, `.blend`, `.crossing` and
+`sigil.geometry.sections` as empty modules, and `compose.Shape` has no
+builder of its own. A curve a compose signature takes — `TextPath.path`,
+`Element.shape`, `MotionPath` — can therefore be made from Python only with
+`sigil.skia.PathBuilder`, a Skia type the compose vocabulary does not
+spell.
+
+The empty modules evidently stand for `geometry::shapes` and
+`geometry::path` (the Catmull-Rom polyline back to a path, the shape
+generators), which `PARITY.md` lists as unbound. The smallest useful cut is
+a cubic or a smooth curve through points returned as the `Shape` compose
+already takes.
+
+A test should build a curve through three points from `sigil.geometry`
+alone, hand it to `TextPath(path=…)` and assert the run lays out along it.
+Wanted by `python_type_atelier` (its curved baseline), `python_kit_specimen`
+(the same cubic) and `python_live_signals` (its traces).
+
+## SigilWeaveKit's line-edge tables are empty modules in Python
+
+`src/common/python/weave/Tables.cpp` registers `sigil.weave.kit.hanging`
+and `sigil.weave.kit.kinsoku` and binds nothing into them, so
+`weave::kit::hanging::latin()` and the kinsoku sets are unreachable, though
+`HangingTable`, `HangingEdge` and `KinsokuTable` are bound as values and
+`ParagraphBlock(hanging=…)` takes one.
+
+The modules evidently mean to carry the stock tables `kit/LineTables.h`
+ships. A Python passage that wants optical margin alignment today states
+its own few edges.
+
+A test should assert that `ParagraphBlock(hanging=weave.kit.hanging.latin())`
+equals the C++ table entry for entry, and likewise for each kinsoku set.
+Wanted by `python_type_atelier` (its justified story states three edges).
+
+## A text leaf in Python cannot be given a pattern hyphenator
+
+`HyphenationOptions` is bound with `enabled`, `penalty`, `limits`,
+`consecutiveLimit`, `zone` and `lastWordOfBlock`
+(`src/common/python/weave/Type.cpp`) and without `patterns`, so `hyphens(…)`
+on a node or a rule breaks a word only at the soft hyphens typed into it.
+`weave.kit.PatternHyphenator` and `englishHyphenationPatterns()` are bound
+and `layoutParagraph(…, hyphenator=…)` takes one, so the pattern hyphenator
+reaches the paragraph engine directly and never the paragraph lane.
+
+The field is evidently meant to be bound as the C++ one is, holding the
+shared hyphenator.
+
+A test should set `hyphens(HyphenationOptions(patterns=PatternHyphenator("en",
+englishHyphenationPatterns())))` on a narrow justified leaf from Python and
+assert a line ends in a hyphen. Wanted by `python_type_atelier` (its story
+carries typed soft hyphens instead).
