@@ -13,17 +13,21 @@
  */
 // TAGS: Patterns/Tiling
 
+#include <choreograph/Easing.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/kit/Shapers.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -112,8 +116,7 @@ float beaten(float weave) {
   const float scaled = std::max(weave, 0.0f) * kBeats;
   const float inch = std::floor(scaled);
   const float stroke = std::clamp((scaled - inch - kThrow) / (1 - kThrow), 0.0f, 1.0f);
-  const float settle = 1 - (1 - stroke) * (1 - stroke) * (1 - stroke);
-  return (inch + settle) / kBeats;
+  return (inch + choreograph::easeOutCubic(stroke)) / kBeats;
 }
 
 /** Where the shuttle is across the shed: out and back on alternate
@@ -123,7 +126,7 @@ float thrown(float weave) {
   const float scaled = std::clamp(weave, 0.0f, 0.9999f) * kBeats;
   const int inch = (int)scaled;
   const float flight = std::clamp((scaled - (float)inch) / kThrow, 0.0f, 1.0f);
-  const float across = flight * flight * (3 - 2 * flight);
+  const float across = ease::smoothstep(flight);
   return inch % 2 == 0 ? across : 1 - across;
 }
 
@@ -286,6 +289,53 @@ Element titled(Utf8 heading, std::initializer_list<Children> body) {
       .children(body);
 }
 
+/** The fringe: the warp left unwoven past the last pick, knotted four
+ *  ends to a tassel. Each tassel runs from the fell into an overhand knot
+ *  a little wider than the strand below it, then hangs free to a cut end;
+ *  its length and its swing wander from tassel to tassel, as hand-tied
+ *  ones do. The outline starts @p hidden pixels behind the cloth so the
+ *  ends pass under its edge, and its bounds are the box it is drawn in —
+ *  `height` is the longest tassel's reach — because an SVG outline is
+ *  stretched from its bounds onto its box. */
+struct Fringe {
+  std::string outline;
+  float height = 0;
+};
+
+Fringe tassels(int ends, float hidden, float length) {
+  constexpr int kEndsPerTassel = 4;
+  constexpr float kPitch = kEndsPerTassel * kThread;
+  Fringe fringe;
+  for (int tassel = 0; tassel * kEndsPerTassel < ends; ++tassel) {
+    const auto index = (uint32_t)tassel;
+    const float left = (float)tassel * kPitch, right = left + kPitch;
+    const float centre = left + kPitch / 2;
+    const float knot = hidden + 2;
+    const float tip = hidden + length -
+                      3.5f * (sigil::core::noise::hash(11, index) + 1);
+    const float swing = 1.1f * sigil::core::noise::hash(23, index);
+    const float hang = centre + swing;
+    fringe.outline += kit::formatted(
+        "M%g 0 L%g 0 C%g %g %g %g %g %g C%g %g %g %g %g %g "
+        "L%g %g L%g %g L%g %g L%g %g L%g %g L%g %g "
+        "C%g %g %g %g %g %g C%g %g %g %g %g 0 Z ",
+        left, right,
+        // From the fell the four ends gather into the knot…
+        right, knot - 2, centre + 3, knot - 1, centre + 2.2f, knot,
+        // …which swells round the turn of the tie…
+        centre + 3.7f, knot + 1, centre + 3.7f, knot + 3.5f, centre + 2,
+        knot + 4.5f,
+        // …and the strand hangs, flaring a little, to a ragged cut end.
+        hang + 2.7f, tip - 1.6f, hang + 1.3f, tip, hang + 0.3f, tip - 1.1f,
+        hang - 0.9f, tip - 0.2f, hang - 2.7f, tip - 1.4f, centre - 2,
+        knot + 4.5f,
+        centre - 3.7f, knot + 3.5f, centre - 3.7f, knot + 1, centre - 2.2f,
+        knot, centre - 3, knot - 1, left, knot - 2, left);
+    fringe.height = std::max(fringe.height, tip);
+  }
+  return fringe;
+}
+
 /** One check of the card: what it is called, and the check itself, whose
  *  label is the evidence it was judged on. */
 struct Proof {
@@ -311,8 +361,7 @@ struct BlackWatch {
   std::array<Pattern, 9> blends;
   /** One wound card per shade card, a wrap of yarn per shade. */
   std::vector<std::array<Pattern, 3>> wraps;
-  Pattern tassels;
-  material::skia::Paint board, yarn, light, fringeFade, boxwood;
+  material::skia::Paint board, yarn;
 
   choreograph::Output<float> loom{0};
 
@@ -373,34 +422,14 @@ struct BlackWatch {
       std::array<Pattern, 3> wound;
       for (int shade : {K, B, G}) {
         const material::Color dyed = card.shades[(size_t)shade];
-        const auto toward = [&](float amount, float target) {
-          return material::Color{dyed.r + (target - dyed.r) * amount,
-                                  dyed.g + (target - dyed.g) * amount,
-                                  dyed.b + (target - dyed.b) * amount, 1};
-        };
         wound[(size_t)shade] = nearest(patterns::sequence(
-            {{1, toward(0.14f, 1)}, {1.5f, dyed}, {0.5f, toward(0.45f, 0)}}, 0,
-            patterns::Axis::V));
+            {{1, material::mixToward(dyed, {1, 1, 1, 1}, 0.14f, 1)},
+             {1.5f, dyed},
+             {0.5f, material::mixToward(dyed, {0, 0, 0, 1}, 0.45f, 1)}},
+            0, patterns::Axis::V));
       }
       wraps.push_back(std::move(wound));
     }
-    // Light rakes the cloth from the upper left, as it falls on a card
-    // pinned by a window: the nap catches it near and gives it up far.
-    light = material::skia::Paint::radialUnit(
-        {0.12f, 0.02f}, 1.25f,
-        {{0, {1, 1, 1, 0.13f}},
-         {0.4f, {1, 1, 1, 0}},
-         {0.65f, {0, 0, 0, 0}},
-         {1, {0, 0, 0, 0.32f}}});
-    // The warp left unwoven below the last pick is knotted into tassels of
-    // four ends each, and thins out to nothing.
-    tassels = nearest(patterns::sequence(
-        {{3 * kThread, {0, 0, 0, 1}}, {kThread, {0, 0, 0, 0}}}, 0, patterns::Axis::U));
-    fringeFade = material::skia::Paint::linearUnit(
-        {0, 0}, {0, 1}, {{0, {0, 0, 0, 1}}, {0.35f, {0, 0, 0, 0.9f}}, {1, {0, 0, 0, 0}}});
-    boxwood = material::skia::Paint::linearUnit(
-        {0, 0}, {0, 1},
-        {{0, colourOf("#E0B878")}, {0.45f, colourOf("#B98A4E")}, {1, colourOf("#6E4A26")}});
   }
 
   /** Every row's verdict is computed from the two values it reports, so a
@@ -623,7 +652,19 @@ struct BlackWatch {
                         .blendMode(SkBlendMode::kOverlay)
                         .opacity(0.14f)
                         .cache(Cache::Texture),
-                    layer(light).cache(Cache::Texture)});
+                    // Light rakes the cloth from the upper left, as it
+                    // falls on a card pinned by a window: the nap catches
+                    // it near and gives it up far.
+                    box()
+                        .cover()
+                        .fill(radialGradient({0.12f * width, 0.02f * height},
+                                             0.85f * width,
+                                             {{1, 1, 1, 0.13f},
+                                              {1, 1, 1, 0},
+                                              {0, 0, 0, 0},
+                                              {0, 0, 0, 0.32f}},
+                                             {0, 0.4f, 0.65f, 1}))
+                        .cache(Cache::Texture)});
     // The mirror axes flash while the arithmetic proves itself.
     panel.children({each(mirrorPositions(), [this](float position) {
       return box()
@@ -665,7 +706,10 @@ struct BlackWatch {
              .width(58)
              .height(11)
              .shape(shapes::svg("M0 5.5 C9 0 49 0 58 5.5 C49 11 9 11 0 5.5 Z"))
-             .fill(boxwood)
+             .fill(linearGradient({0, 0}, {0, 11},
+                                  {colourOf("#E0B878"), colourOf("#B98A4E"),
+                                   colourOf("#6E4A26")},
+                                  {0, 0.45f, 1}))
              .stroke(stroke(0.8f, Fill::var("ink"), PathFormat::Align::Inner))
              .background(styles::dropShadow(faded(colours.shadow, 0.6f), {1, 3}, 3))
              .children({box()
@@ -685,27 +729,29 @@ struct BlackWatch {
   }
 
   /** The cloth as a mounted sample: the woven panel, the warp running on
-   *  past its last pick into a fringe, and four card corners holding it
-   *  to the board. */
+   *  past its last pick into a knotted fringe, and four card corners
+   *  holding it to the board. */
   Element mountedCloth() const {
     const float width = kEnds * kThread;
-    constexpr float kFringe = 14, kCorner = 26;
-    // The fringe stands behind the panel, so its ragged edge shows only
-    // where the tassels hang free.
-    Element mount = box().column().width(width).paddingBottom(kFringe).children(
-        {box()
-             .left(0)
-             .top(14 + kPicks * kThread - 4)
-             .width(width)
-             .height(kFringe + 4)
-             .shape(shapes::shaped(shapes::chamfered(0),
-                                   shapers::Zigzag{.amplitude = 2.5f, .wavelength = 9}))
-             .fill(warpOnBeam.material())
-             .mask(by::alpha(fringeFade))
-             .mask(parts::all(), by::alpha(tassels.material()))
-             .transformOrigin(pct(0), pct(50))
-             .scaleX(bind(&loom).window(0, kBeamEnd)),
-         clothPanel()});
+    constexpr float kHidden = 4, kHang = 26, kClear = 16, kCorner = 26;
+    const Fringe fringe = tassels(kEnds, kHidden, kHang);
+    // The fringe stands behind the panel, so the knots show just below
+    // its edge and the tassels hang free onto the board, each lifted off
+    // it by its own small shadow.
+    Element mount =
+        box().column().width(width).paddingBottom(kHang + kClear).children(
+            {box()
+                 .left(0)
+                 .top(14 + kPicks * kThread - kHidden)
+                 .width(width)
+                 .height(fringe.height)
+                 .shape(shapes::svg(fringe.outline.c_str()))
+                 .fill(warpOnBeam.material())
+                 .background(styles::dropShadow(faded(colours.shadow, 0.5f),
+                                                {0.6f, 1.4f}, 1.2f))
+                 .transformOrigin(pct(0), pct(50))
+                 .scaleX(bind(&loom).window(0, kBeamEnd)),
+             clothPanel()});
     const std::array<std::pair<SkPoint, float>, 4> corners{
         {{{-5, 9}, 0}, {{width - kCorner + 5, 9}, 90},
          {{width - kCorner + 5, 14 + kPicks * kThread - kCorner + 5}, 180},
@@ -1073,9 +1119,9 @@ struct BlackWatch {
                 {box().column().flexShrink(0).children({settBar(), mountedCloth()}),
                  box().column().width(440).flexShrink(0).gap(34).marginTop(18).children(
                      {draft(), blendTable(), shadeCards()})}),
-            box().row().gap(40).marginTop(12).children(
+            box().row().gap(40).children(
                 {provenance(), verification()}),
-            box().row().gap(40).marginTop(18).children(
+            box().row().gap(40).marginTop(8).children(
                 {comparison(),
                  document::paragraph(doc.passage("douglas"))
                      .styleClass("douglas")
