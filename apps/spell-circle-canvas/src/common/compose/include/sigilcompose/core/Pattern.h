@@ -122,9 +122,10 @@ class Pattern {
     m_boundY = std::move(y);
     return *this;
   }
-  /** How the baked tile samples. Defaults to linear, which is right for
-   *  organic tiles and wrong for anything on a pixel grid — a woven
-   *  cloth, a dither, a bitmap-font sheet all want nearest. */
+  /** How the baked tile samples. Unstated, it is the TILE's own filter —
+   *  nearest for a tile on a pixel grid (a woven cloth, a dither, a grid
+   *  line), linear for an organic one — so a pattern made from a stock
+   *  tile samples as that tile says; a statement here overrides it. */
   Pattern& sampling(SkSamplingOptions options) {
     m_sampling = options;
     return *this;
@@ -169,7 +170,8 @@ class Pattern {
     if (!baked) return {};
     material::skia::Paint m = material::skia::Paint::image(
         std::move(baked), SkTileMode::kRepeat, SkTileMode::kRepeat,
-        m_tile.mapping(), m_sampling);
+        m_tile.mapping(),
+        m_sampling.value_or(SkSamplingOptions(m_tile.filter())));
     if (m_boundX || m_boundY)
       m.offset(m_boundX,
                m_boundY);  // the live pan rides material::skia::Paint's
@@ -184,7 +186,7 @@ class Pattern {
   std::shared_ptr<const Element> m_tree;
   std::optional<motion::Animatable<float>> m_boundX;
   std::optional<motion::Animatable<float>> m_boundY;
-  SkSamplingOptions m_sampling{SkFilterMode::kLinear};
+  std::optional<SkSamplingOptions> m_sampling;
 };
 
 }  // namespace sigil::compose

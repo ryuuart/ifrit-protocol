@@ -574,24 +574,6 @@ alone, hand it to `TextPath(path=…)` and assert the run lays out along it.
 Wanted by `python_type_atelier` (its curved baseline), `python_kit_specimen`
 (the same cubic) and `python_live_signals` (its traces).
 
-## A pattern made from a tile samples linear whatever the tile says
-
-`material::pattern::clothTile` returns a `Tile` whose filter is nearest
-("sampled nearest"), and `compose::Pattern(Tile)` keeps the tile but not
-its filter: `Pattern::bake` samples through its own `m_sampling`, which
-starts linear (`sigilcompose/core/Pattern.h`). So a cloth, a dither or a
-grid line held as a `Pattern` is blurred across every thread edge when the
-still is taken at a density the bake was not made at, unless the caller
-states `.sampling(SkSamplingOptions(SkFilterMode::kNearest))` again.
-
-The tile's own filter is evidently meant to carry through: a `Pattern`
-built from a tile should start at the tile's filter, and `sampling()`
-should override it.
-
-A test should build `Pattern(clothTile(cloth, 2))`, bake its material and
-assert its sampling is nearest; and that `.sampling(linear)` after it
-wins. Wanted by `black_watch`, which restates nearest on every pattern it holds.
-
 ## A table row wider than its room shrinks its own cells, so its columns leave the others'
 
 `compose::kit::table` (`src/common/compose/kit/Rows.cpp`) sets each row as
