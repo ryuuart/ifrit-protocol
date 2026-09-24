@@ -55,7 +55,7 @@ VarNames& varNames() {
  *  conversion is asked for rather than assumed. An `em` against a size
  *  stated in points is otherwise a multiple of the point COUNT. */
 float fontSizePx(const sigil::weave::Type& font) {
-  return font.size ? font.size->absolutePx() : 16.0f;
+  return font.size ? font.size->absolutePx() : sigil::weave::kInitialTypeSizePx;
 }
 
 /** Whether two fonts agree in every field but the colour. */

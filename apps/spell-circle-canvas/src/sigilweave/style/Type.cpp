@@ -10,9 +10,6 @@ namespace sigil::weave {
 
 namespace {
 
-/** The type size a `Type` that states none is set at, and the size every
- *  `rem` is a multiple of when no root is named. */
-constexpr float kInitialSizePx = 16.0f;
 /** What a single-spaced line is taken to be when the face that would answer
  *  is not in reach: about this much of the type size it is set in. */
 constexpr float kAssumedLineHeightFactor = 1.2f;
@@ -74,7 +71,6 @@ float resolvePx(Length length, float againstPx, float rootSizePx,
   }
   return length.value;
 }
-
 
 /** The field @p field of @p total taken from @p base or from the initial
  *  style, which is what a keyword said about it means. Every field of a
@@ -158,7 +154,7 @@ void applyKeyword(Type& total, const Type& base, TypeField field,
  *  there is to multiply. */
 float sizeAgainst(const Type& base) {
   if (base.size && !base.size->relative()) return base.size->absolutePx();
-  return kInitialSizePx;
+  return kInitialTypeSizePx;
 }
 
 }  // namespace
@@ -166,7 +162,7 @@ float sizeAgainst(const Type& base) {
 Type initialType() {
   Type initial;
   initial.face = defaultFace();
-  initial.size = Length(kInitialSizePx);
+  initial.size = Length(kInitialTypeSizePx);
   initial.color = material::Color{0, 0, 0, 1};
   initial.track = Length(0.0f);
   initial.condense = 1.0f;
@@ -249,11 +245,12 @@ TextStyle toTextStyle(const Type& total) {
   TextStyle style;
   style.shaping.typeface = total.face.value_or(nullptr);
   style.shaping.fontSize =
-      total.size ? resolvePx(*total.size, kInitialSizePx, kInitialSizePx, 0.0f)
-                 : kInitialSizePx;
+      total.size
+          ? resolvePx(*total.size, kInitialTypeSizePx, kInitialTypeSizePx, 0.0f)
+          : kInitialTypeSizePx;
   style.shaping.letterSpacing =
       total.track ? resolvePx(*total.track, style.shaping.fontSize,
-                              kInitialSizePx, 0.0f)
+                              kInitialTypeSizePx, 0.0f)
                   : 0.0f;
   style.shaping.scaleX = total.condense.value_or(1.0f);
   style.shaping.aliased = total.aliased.value_or(false);
@@ -267,7 +264,7 @@ TextStyle toTextStyle(const Type& total) {
     setAxis(style.shaping.variations, axis);
   style.shaping.wordSpacing =
       total.wordSpacing ? resolvePx(*total.wordSpacing, style.shaping.fontSize,
-                                    kInitialSizePx, 0.0f)
+                                    kInitialTypeSizePx, 0.0f)
                         : 0.0f;
   if (total.language) style.shaping.languageTag = *total.language;
   if (total.features) style.shaping.fontFeatures = *total.features;
@@ -286,7 +283,7 @@ TextStyle overlay(TextStyle base, const Type& over, float rootSizePx) {
   if (over.face) base.shaping.typeface = *over.face;
   if (over.size) {
     const float against =
-        base.shaping.fontSize > 0 ? base.shaping.fontSize : kInitialSizePx;
+        base.shaping.fontSize > 0 ? base.shaping.fontSize : kInitialTypeSizePx;
     base.shaping.fontSize = resolvePx(*over.size, against, rootSizePx, 0.0f);
   }
   if (over.track)
@@ -302,8 +299,8 @@ TextStyle overlay(TextStyle base, const Type& over, float rootSizePx) {
   for (const FontVariation& axis : over.variations)
     setAxis(base.shaping.variations, axis);
   if (over.wordSpacing)
-    base.shaping.wordSpacing = resolvePx(
-        *over.wordSpacing, base.shaping.fontSize, rootSizePx, 0.0f);
+    base.shaping.wordSpacing =
+        resolvePx(*over.wordSpacing, base.shaping.fontSize, rootSizePx, 0.0f);
   if (over.language) base.shaping.languageTag = *over.language;
   if (over.features) base.shaping.fontFeatures = *over.features;
   if (over.opticalKerning) base.shaping.opticalKerning = *over.opticalKerning;

@@ -170,6 +170,10 @@ struct Type {
  *  re-shaping it asks this first. */
 [[nodiscard]] bool reshapes(const Type& partial);
 
+/** THE INITIAL TYPE SIZE, in pixels: what a `Type` that states no size is
+ *  set at, and what every `rem` multiplies when no root size is named. */
+inline constexpr float kInitialTypeSizePx = 16.0f;
+
 /** THE FACE STATED AS THE FONT CONTEXT'S DEFAULT FAMILY: what a `Type`
  *  says with `.face = defaultFace()`, and what `initialType()` carries. */
 [[nodiscard]] inline sk_sp<SkTypeface> defaultFace() { return nullptr; }
@@ -194,7 +198,8 @@ Type& merge(Type& into, const Type& over);
  *  @p rootSizePx, and `lh` multiplies @p lineHeightPx — or, when that is
  *  0, 1.2 times the base size. */
 [[nodiscard]] Type overlay(const Type& base, const Type& over,
-                           float rootSizePx = 16.0f, float lineHeightPx = 0.0f);
+                           float rootSizePx = kInitialTypeSizePx,
+                           float lineHeightPx = 0.0f);
 
 /** The `TextStyle` a TOTAL `Type` names, each unset field taking its
  *  `initialType` value; a size still stated relatively is resolved
@@ -209,7 +214,7 @@ Type& merge(Type& into, const Type& over);
  *  @silent @p over sets `color8` and no colour: the base's colour is
  *  already a number in the paint. */
 [[nodiscard]] TextStyle overlay(TextStyle base, const Type& over,
-                                float rootSizePx = 16.0f);
+                                float rootSizePx = kInitialTypeSizePx);
 
 /** Type{} → the TextStyle it names, every field it leaves unset taking its
  *  initial value. */

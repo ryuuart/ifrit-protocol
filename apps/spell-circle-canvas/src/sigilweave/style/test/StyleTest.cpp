@@ -307,6 +307,25 @@ TEST(Type, ARelativeSizeResolvesAgainstTheBase) {
   EXPECT_FLOAT_EQ(overlay(built, {.size = em(0.25f)}).shaping.fontSize, 6.0f);
 }
 
+TEST(Type, ATextStyleMeasuresItsRemsAgainstTheRootItIsSetUnder) {
+  // A partial laid over a style that is already total resolves a rem
+  // against the root size of the tree the style is set in, which the
+  // caller names; the style's own size is what an em multiplies, never a
+  // rem.
+  TextStyle built;
+  built.shaping.fontSize = 24.0f;
+  EXPECT_FLOAT_EQ(overlay(built, {.size = 2_rem}, 10.0f).shaping.fontSize,
+                  20.0f)
+      << "the root's size, not the style's own";
+  EXPECT_FLOAT_EQ(
+      overlay(built, {.track = 0.5_rem}, 10.0f).shaping.letterSpacing, 5.0f);
+  EXPECT_FLOAT_EQ(
+      overlay(built, {.wordSpacing = 1_rem}, 10.0f).shaping.wordSpacing, 10.0f);
+  // Where the caller names no root, the initial type size stands for it.
+  EXPECT_FLOAT_EQ(overlay(built, {.size = 2_rem}).shaping.fontSize,
+                  2 * kInitialTypeSizePx);
+}
+
 TEST(Type, APointIsAFixedCountOfPixelsAndNeedsNothingToResolve) {
   // A point carries everything it needs, so it is not relative and the
   // overlay leaves it standing — but every reader that turns a style into

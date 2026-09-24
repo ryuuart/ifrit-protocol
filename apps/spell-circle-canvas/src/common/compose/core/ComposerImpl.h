@@ -15,6 +15,7 @@
 #include <sigilcore/reconcile/Phases.h>
 #include <sigilcore/reconcile/Reconciler.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -116,7 +117,7 @@ struct Composer::Impl {
   // against itself. Set by the cascade pass once the root's font resolves;
   // `remMoved` says this pass moved it, so every length written in rems is
   // rewritten even where nothing about its own node moved.
-  float remPx = 16.0f;
+  float remPx = sigil::weave::kInitialTypeSizePx;
   bool remMoved = false;
   // What the root inherits as its block: nothing stated, so every block
   // under nothing is set in the layout's own answer.

@@ -118,12 +118,14 @@ TEST(ComposeRem, ARunASheetNamesMeasuresItsRemsAgainstTheRoot) {
           .fontSize(10)
           .applyStyleSheet(StyleSheet{rule(".big").fontSize(2_rem)})
           .alignItems(Align::Start)
-          .children({text(sigil::weave::rich().add(std::u8string_view(u8"H"), "big")).key("run"),
-                     text(u8"H")
-                         .span(sigil::weave::selectors::range({0, 1}),
-                               SpanStyle().fontSize(2_rem))
-                         .key("span"),
-                     text(u8"H").fontSize(20).key("plain")}));
+          .children(
+              {text(sigil::weave::rich().add(std::u8string_view(u8"H"), "big"))
+                   .key("run"),
+               text(u8"H")
+                   .span(sigil::weave::selectors::range({0, 1}),
+                         SpanStyle().fontSize(2_rem))
+                   .key("span"),
+               text(u8"H").fontSize(20).key("plain")}));
   host.frame();
   const SkRect plain = letterBox(host, "plain");
   EXPECT_FLOAT_EQ(letterBox(host, "run").width(), plain.width());
