@@ -481,3 +481,30 @@ rewritten around the check.
 
 A typing case should assert that a function returning a page from inside
 `with kit.provide(...)` type-checks as returning `Element`.
+
+## A written still is taken one step before the sweep's plate of the same moment
+
+`Sketchbook <entry> --frame out.png --at 1 --scale 2` and the sweep's
+plate at `--at 1` are the same size and bake on the same grid, because
+the written-still path pins the bake density before its first step. For
+a scene that moves they are still different pictures. The written still
+is `Host::prepareCapture` stepping to the moment and then `Host::still`,
+which calls `Session::repaint` and draws the state the last step left.
+The sweep takes its plate through `Session::still`, as a protocol
+session's moving clock does, and for a canvas session that draws one
+more frame of `stillStep()`, so the plate shows the moment one frame
+later. `SketchWrittenStill` holds the two equal only for a scene that
+draws once and keeps its canvas, where the extra step cannot show. A
+protocol session has the density gap as well unless a client pins
+`session.pinDensity` before the open: `takeStill` sets the bake density
+at the still, after the frames before it baked at the session's own.
+
+Which moment `--frame --at t` means is a decision: the sweep's moment,
+one `stillStep()` past t, with one path through `Session::still`; or
+exactly t, with the sweep's moment restated to match. The update counts
+that `render_file` and `test_capture` assert follow from that choice,
+because moving `--frame` onto `Session::still` runs one more update.
+
+A test should assert that `--frame --at 1 --scale 2` of `cascade` equals
+the sweep plate at `--at 1` byte for byte, and, in process, that
+`pinDensity(2)`, `setPolicy(Advance)`, `step(1)`, `still(2)` equals both.
