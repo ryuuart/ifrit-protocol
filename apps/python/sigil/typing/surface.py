@@ -146,9 +146,11 @@ RENAMES: dict[str, dict[str, str]] = {
     "sigil.compose.layouts": {"repeatTrack": "repeat_track"},
     "sigil.sketch": {"Context": "SketchContext"},
     "sigil.sketch.kit": {
+        "featureTheme": "feature_theme",
         "houseFace": "house_face",
         "houseTheme": "house_theme",
         "panelGrid": "panel_grid",
+        "sectionHeader": "section_header",
         "studyTheme": "study_theme",
     },
 }

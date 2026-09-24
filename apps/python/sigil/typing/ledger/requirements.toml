@@ -456,7 +456,7 @@ python = ["sketch.kit.scrollbar", "sketch.kit.Scrolled"]
 [requirement.kit-section-header]
 native = "`sketch::kit::sectionHeader`"
 library = "Sketch kit"
-python = ["sketch.kit.sectionHeader"]
+python = ["sketch.kit.section_header"]
 
 [requirement.kit-table]
 native = "`sketch::kit::table`"

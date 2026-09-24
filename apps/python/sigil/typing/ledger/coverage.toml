@@ -773,11 +773,13 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`house_face`, `house_theme`, `study_theme` and `theme`"
+bound = "`house_face`, `house_theme`, `study_theme`, `feature_theme` with `Density`, and `theme`"
 python = [
   "sketch.kit.house_face",
   "sketch.kit.house_theme",
   "sketch.kit.study_theme",
+  "sketch.kit.feature_theme",
+  "sketch.kit.Density",
   "sketch.kit.theme",
 ]
 
@@ -823,8 +825,12 @@ native = "`Instrument`"
 python = ["sketch.kit.Instrument"]
 
 [[section.surface.item]]
-native = "the headings `titleCard` and `sectionHeader`"
-python = ["sketch.kit.titleCard", "sketch.kit.sectionHeader"]
+bound = "`section_header` and `section` with `SectionHeader`"
+python = ["sketch.kit.section_header", "sketch.kit.section", "sketch.kit.SectionHeader"]
+
+[[section.surface.item]]
+native = "the heading `titleCard`"
+python = ["sketch.kit.titleCard"]
 
 [[section.surface.item]]
 native = "the rows `readout`, `labelRow`, `table` and `bars`"

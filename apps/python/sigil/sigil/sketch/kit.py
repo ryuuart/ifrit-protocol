@@ -8,6 +8,7 @@ from _sigil.sketch.kit import (
     Cell,
     Comparison,
     ComparisonCase,
+    Density,
     Page,
     Palette,
     PanelGrid,
@@ -16,6 +17,7 @@ from _sigil.sketch.kit import (
     Register,
     Relief,
     Run,
+    SectionHeader,
     Spacing,
     Stage,
     Theme,
@@ -40,6 +42,11 @@ def study_theme():
     return _native.studyTheme()
 
 
+def feature_theme(density=Density.Compact):
+    """Return an editable feature theme with compact or spacious margins."""
+    return _native.featureTheme(density)
+
+
 def house_face(voice, weight=400, italic=False):
     return _native.houseFace(voice, weight, italic)
 
@@ -57,6 +64,16 @@ def stage(ctx, props=None, **properties):
 def page(content, props=None, **properties):
     """Put content on a native page with themed title, subtitle and footer."""
     return _native.page(_specification(Page, props, properties), content)
+
+
+def section_header(props=None, **properties):
+    """Announce a section with a label, a rule and a supporting note."""
+    return _native.sectionHeader(_specification(SectionHeader, props, properties))
+
+
+def section(content, props=None, **properties):
+    """Place a section heading above content at the native theme's gap."""
+    return _native.section(_specification(SectionHeader, props, properties), content)
 
 
 def well(surface=None, props=None, **properties):
@@ -98,6 +115,7 @@ __all__ = [
     "Cell",
     "Comparison",
     "ComparisonCase",
+    "Density",
     "Page",
     "Palette",
     "PanelGrid",
@@ -106,6 +124,7 @@ __all__ = [
     "Register",
     "Relief",
     "Run",
+    "SectionHeader",
     "Spacing",
     "Stage",
     "Theme",
@@ -117,11 +136,14 @@ __all__ = [
     "cell",
     "cells",
     "comparison",
+    "feature_theme",
     "house_face",
     "house_theme",
     "page",
     "panel_grid",
     "provide",
+    "section",
+    "section_header",
     "stage",
     "study_theme",
     "theme",
