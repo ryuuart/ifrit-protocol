@@ -441,3 +441,27 @@ with `Tip::Fibres` until then, which draws through the pen's own verbs.
 A test: one nib stroke of a saturated colour at opacity 1 over a black
 raster, through `compose::pen`; every pixel inside the stroke's width is
 within a small distance of the tool's colour, and none is lighter than it.
+
+## The rewritten studies paint their static art on every frame
+
+The study rewrites of 2026-09-24 (minard_1869, penrose_paving,
+chaucer_astrolabe, dunhuang_star_chart, lain_navi, fallout2_charsheet,
+sigillum_aemeth, ds2_bench, thunder_fulu, rota_convocationis, ksp_mapview)
+state paper grain, stone, wax, brush ribbons and lettering as material
+paints and shapes in the tree with no `Cache::Texture` over them, so a
+plate whose picture does not move between frames is re-rasterised on
+each one. The headless sweep measured minard_1869 at 873 ms of paint per
+frame and sigillum_aemeth at 360 ms, against roughly 60 ms for the
+sketches they replaced; the 60 FPS gate fails all of them, and a sweep
+that renders a few hundred frames per sketch for its statistics takes
+minutes per study.
+
+Each study evidently means to paint its static subtree once and replay
+it, the way `eva_magi_deliberation` keys its ground as one texture, with
+only the motion it is about (a turning rete, a rolling die, strokes
+writing in) outside the bake or as a bound transform over it. The fix is
+one or two `.cache(Cache::Texture).key(...)` boundaries per study over
+the largest static subtree, placed so no blur or blend crosses them; the
+pixels must not move. A test cannot see where a specimen puts its cache,
+so `--bench` on each entry is the check: at or under the gate where the
+original met it.
