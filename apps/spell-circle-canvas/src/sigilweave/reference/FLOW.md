@@ -111,6 +111,18 @@ The block context — `LineRequest::blockIndex` and
 grid, a well cut for one block, a drop cap's notch. A geometry that does
 not care ignores it, which is every geometry the library ships.
 
+A band may be asked for MORE THAN ONCE in one layout pass. The optimizing
+breaker reads past a block's last line before it knows that line is the
+last, so the band the next block opens on is first asked for as a
+continuation of the block before; when the next block opens, that band
+is asked for again under the new block's pitch, air, grid and indents.
+The second request carries the same `LineRequest::index` and may carry
+another `LineRequest::bandStart`, `LineRequest::lineHeight`,
+`LineRequest::ascent`, `LineRequest::blockIndex` and
+`LineRequest::lineInBlock`. Each index is first asked for in ascending
+order without gaps, but the requests themselves are not: the index goes
+back and repeats.
+
 ## FlowGeometry
 
 Supplies the intervals available to each successive line.
@@ -125,6 +137,11 @@ band lies past its end); an empty interval list with a true return means
 and a line height is sugar for a caller with no block model: bands
 stacked at index times line height, which is where a passage of one pitch
 puts them.
+
+An answer must be a FUNCTION OF THE REQUEST alone. Because a band may be
+asked for twice, a geometry that counts its calls, advances a cursor per
+call or remembers the last band it answered is wrong under the optimizing
+breaker; a geometry that needs a band's place reads it from the request.
 
 `FlowGeometry::uniformIntervals` is true when every line yields one
 interval of the same width — TeX's model, which `BlockFlow` and its

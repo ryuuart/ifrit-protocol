@@ -179,6 +179,12 @@ private:
 };
 ```
 
+Answer from the request alone. One layout pass may ask for the same band
+more than once — the optimizing breaker reads past a block's last line and
+the next block asks for that band again under its own setting — so a
+geometry that counts its calls or advances state per call is wrong; the
+sample above reads `request.index` and nothing it kept.
+
 Ready-made geometries cover the common cases: `BlockFlow`,
 `ExclusionFlow`, `VerticalBlockFlow`, `LineSetFlow` and `PathFlow`. What
 each one is, what a `LineRequest` carries, what a contour interval means,
