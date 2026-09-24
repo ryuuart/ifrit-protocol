@@ -64,11 +64,8 @@ constexpr float kPanel = 360;
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
-  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = 40;
   look.spacing.marginTop = 40;
   look.spacing.captionGap = 5;
@@ -212,41 +209,38 @@ struct GeoGroups {
                  .alignItems(Align::Start)
                  .gap(20)
                  .children(
-                     {box().column().gap(10).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "01  WRITE", .note = ""}),
-                           document::caption(
-                               "A tinted point grid and its ring group "
-                               "are encoded as Houdini JSON.")
-                               .width(360)}),
-                      box().column().gap(10).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "02  READ", .note = ""}),
-                           document::caption(
-                               "The importer restores the group as a "
-                               "named scalar lane of zeros and ones.")
-                               .width(360)}),
-                      box().column().gap(10).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "03  SELECT", .note = ""}),
-                           document::caption("The same lane masks an operator "
-                                             "directly, or after inversion.")
-                               .width(360)})}),
-             sketch::kit::sectionHeader(
-                 {.label = "THE RESTORED CLOUD", .note = caption}),
-             sketch::kit::comparison(
-                 {.cases = {panel("UNCHANGED GROUP", "pop::on(part.asCloud())",
-                                  "Cd from the file; group \"ring\" scaled up",
-                                  splat(saved)),
-                            panel("MOVE ITS COMPLEMENT",
-                                  "peak(60).masked(\"outside\")",
-                                  "the inverted group; the ring stays put",
-                                  splat(peaked)),
-                            panel("TURN THE GROUP",
-                                  "twist(70).masked(\"ring\")",
-                                  "only the group turns", splat(twisted))},
-                  .measure = 1120,
-                  .gap = 20})})));
+                     {sketch::kit::section(
+                          {.label = "01  WRITE", .note = ""},
+                          document::caption(
+                              "A tinted point grid and its ring group "
+                              "are encoded as Houdini JSON.")
+                              .width(360)),
+                      sketch::kit::section(
+                          {.label = "02  READ", .note = ""},
+                          document::caption(
+                              "The importer restores the group as a "
+                              "named scalar lane of zeros and ones.")
+                              .width(360)),
+                      sketch::kit::section(
+                          {.label = "03  SELECT", .note = ""},
+                          document::caption("The same lane masks an operator "
+                                            "directly, or after inversion.")
+                              .width(360))}),
+             sketch::kit::section(
+                 {.label = "THE RESTORED CLOUD", .note = caption},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {panel("UNCHANGED GROUP", "pop::on(part.asCloud())",
+                                 "Cd from the file; group \"ring\" scaled up",
+                                 splat(saved)),
+                           panel("MOVE ITS COMPLEMENT",
+                                 "peak(60).masked(\"outside\")",
+                                 "the inverted group; the ring stays put",
+                                 splat(peaked)),
+                           panel("TURN THE GROUP", "twist(70).masked(\"ring\")",
+                                 "only the group turns", splat(twisted))},
+                      .measure = 1120,
+                      .gap = 20}))})));
   }
 };
 

@@ -43,14 +43,6 @@ constexpr float kPicture = 182;
 constexpr int kBars = 12;      // the table's length, and a constant in the body
 constexpr float kGain = 0.9f;  // every bar's height multiplier
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
-  look.type.captionLabel = {.size = 11, .mono = true};
-  return look;
-}
-
 /** The ABI: a float, a colour and a table. Packed floats with float
  *  alignment, which is what lets the struct's memory image BE the
  *  upload. */
@@ -168,7 +160,8 @@ sketch::kit::ComparisonCase example(const char* title, const char* control,
 
 struct FrameInputs {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

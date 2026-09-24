@@ -98,7 +98,8 @@ struct WarichuPlaceholder {
   Note latin, japanese;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 825}, .captureAt = 0.05});
     const auto& sheet = sketch::kit::theme();
     latin.measure(ctx, kNote,

@@ -60,13 +60,6 @@ constexpr float kFocus = 44;       // the conical's hot spot displacement, px
 constexpr float kWindowFrom = 45;  // the sweep window that does not fill a turn
 constexpr float kWindowTo = 315;
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
-  return look;
-}
-
 SkPoint middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
 
 /** The one ramp every radial cell runs, so what differs between them is
@@ -107,7 +100,8 @@ sketch::kit::ComparisonCase swatch(const char* caseTitle, const char* call,
 
 struct PaintShelf {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -144,16 +138,9 @@ struct PaintShelf {
     // TWO NODES, ONE DESCRIPTION — which is the whole of what worldSpace
     // is read by.
     const auto pair = [&](bool world) {
-      return box()
-          .row()
-          .padding(34, 18)
-          .gap(16)
-          .children({each(2, [&](int) {
-            return box()
-                .flexGrow(1)
-                .alignSelf(Align::Stretch)
-                .fill(field(world));
-          })});
+      return box().row().padding(34, 18).gap(16).children({each(2, [&](int) {
+        return box().flexGrow(1).alignSelf(Align::Stretch).fill(field(world));
+      })});
     };
 
     ctx.composer.render(sketch::kit::page(
@@ -163,98 +150,95 @@ struct PaintShelf {
          .footer = "The examples keep the colour stops fixed while changing "
                    "the coordinate or source contract."},
         box().column().gap(26).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "MOVE THE FOCUS, KEEP THE EDGE",
                   .note =
-                      "Read the outer circle as well as the bright centre."}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {swatch(
-                           "RADIAL REFERENCE",
-                           "Paint::radial(centre, 92, ember)",
-                           "The hot spot and the outer circle share a centre.",
-                           paint::Paint::radial(middle(), 92, ember())),
-                       swatch(
-                           "CONICAL · LEFT",
-                           "conical(focus, 0, centre, 92, ember)",
-                           "Move the focus while keeping the outer circle "
-                           "fixed.",
-                           paint::Paint::conical({middle().fX - kFocus,
-                                                  middle().fY - kFocus * 0.6f},
-                                                 0, middle(), 92, ember())),
-                       swatch(
-                           "CONICAL · RIGHT",
-                           "…"
-                           "with the focus moved "
-                           "across",
-                           "Move the focus across the same fixed circle.",
-                           paint::Paint::conical({middle().fX + 1.3f * kFocus,
-                                                  middle().fY + 0.8f * kFocus},
-                                                 0, middle(), 92, ember()))},
-                  .measure = 1020,
-                  .gap = 18}),
+                      "Read the outer circle as well as the bright centre."},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {swatch("RADIAL REFERENCE",
+                                  "Paint::radial(centre, 92, ember)",
+                                  "The hot spot and the outer circle share a "
+                                  "centre.",
+                                  paint::Paint::radial(middle(), 92, ember())),
+                           swatch(
+                               "CONICAL · LEFT",
+                               "conical(focus, 0, centre, 92, ember)",
+                               "Move the focus while keeping the outer circle "
+                               "fixed.",
+                               paint::Paint::conical(
+                                   {middle().fX - kFocus,
+                                    middle().fY - kFocus * 0.6f},
+                                   0, middle(), 92, ember())),
+                           swatch(
+                               "CONICAL · RIGHT",
+                               "…"
+                               "with the focus moved "
+                               "across",
+                               "Move the focus across the same fixed circle.",
+                               paint::Paint::conical(
+                                   {middle().fX + 1.3f * kFocus,
+                                    middle().fY + 0.8f * kFocus},
+                                   0, middle(), 92, ember()))},
+                      .measure = 1020,
+                      .gap = 18})),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(18)
                  .children(
-                     {box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "AN ANGULAR WINDOW", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {swatch("FULL TURN",
-                                                 "Paint::sweep(centre, wheel)",
-                                                 "The colour ramp completes a "
-                                                 "full turn.",
-                                                 paint::Paint::sweep(middle(),
-                                                                     wheel())),
-                                          swatch(
-                                              "CLAMPED WINDOW",
-                                              "sweep(centre, wheel, 45, 315)",
-                                              "Angles outside 45°–315° clamp "
-                                              "to the nearest stop.",
-                                              paint::Paint::sweep(
-                                                  middle(), wheel(),
-                                                  kWindowFrom, kWindowTo))},
-                                .measure = 674,
-                                .gap = 18})}),
-                      box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "PUBLISHED PIXELS", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {swatch(
-                                    "RASTER BUFFER", "Paint::buffer(pixels)",
-                                    "Caller-owned pixels, published by "
-                                    "commit().",
-                                    paint::Paint::buffer(pixels,
-                                                         SkTileMode::kRepeat,
-                                                         SkTileMode::kRepeat))},
-                                .measure = 328,
-                                .gap = 18})})}),
+                     {sketch::kit::section(
+                          {.label = "AN ANGULAR WINDOW", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {swatch("FULL TURN",
+                                                "Paint::sweep(centre, wheel)",
+                                                "The colour ramp completes a "
+                                                "full turn.",
+                                                paint::Paint::sweep(middle(),
+                                                                    wheel())),
+                                         swatch("CLAMPED WINDOW",
+                                                "sweep(centre, wheel, 45, 315)",
+                                                "Angles outside 45°–315° clamp "
+                                                "to the nearest stop.",
+                                                paint::Paint::sweep(
+                                                    middle(), wheel(),
+                                                    kWindowFrom, kWindowTo))},
+                               .measure = 674,
+                               .gap = 18})),
+                      sketch::kit::section(
+                          {.label = "PUBLISHED PIXELS", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {swatch(
+                                   "RASTER BUFFER", "Paint::buffer(pixels)",
+                                   "Caller-owned pixels, published by "
+                                   "commit().",
+                                   paint::Paint::buffer(pixels,
+                                                        SkTileMode::kRepeat,
+                                                        SkTileMode::kRepeat))},
+                               .measure = 328,
+                               .gap = 18}))}),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(18)
                  .children(
-                     {box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "WHO OWNS THE COORDINATES?",
-                                .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {cell("EACH NODE",
-                                               "linearUnit(…"
-                                               ").worldSpace(false)",
-                                               "Each node repeats the whole "
-                                               "ramp in its own box.",
-                                               pair(false)),
-                                          cell("THE ROOT",
-                                               "linearUnit(…"
-                                               ").worldSpace(true)",
-                                               "Both nodes sample one field "
-                                               "anchored to the page.",
-                                               pair(true))},
-                                .measure = 674,
-                                .gap = 18})}),
+                     {sketch::kit::section(
+                          {.label = "WHO OWNS THE COORDINATES?", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {cell("EACH NODE",
+                                              "linearUnit(…"
+                                              ").worldSpace(false)",
+                                              "Each node repeats the whole "
+                                              "ramp in its own box.",
+                                              pair(false)),
+                                         cell("THE ROOT",
+                                              "linearUnit(…"
+                                              ").worldSpace(true)",
+                                              "Both nodes sample one field "
+                                              "anchored to the page.",
+                                              pair(true))},
+                               .measure = 674,
+                               .gap = 18})),
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "ONE PAINT, TWO BOXES", .note = ""}),

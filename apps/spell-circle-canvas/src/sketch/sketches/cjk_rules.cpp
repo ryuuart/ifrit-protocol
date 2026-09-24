@@ -80,7 +80,8 @@ Element tracking(bool tightened) {
 
 struct CjkRules {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 810}, .captureAt = 0.05});
     weave::KinsokuTable house = weave::kit::kinsoku::japanese();
     house.notLineStart += u"組";

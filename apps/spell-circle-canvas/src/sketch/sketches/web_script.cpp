@@ -54,8 +54,8 @@ constexpr material::Color kCellGround{0.12f, 0.12f, 0.14f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.type.captionLabel = {.size = 11, .track = 0.4f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.captionGap = 6;
   return look;
 }
@@ -241,36 +241,37 @@ struct WebScript {
                             "the synthetic click.")},
                   .measure = 1280,
                   .gap = 24}),
-             sketch::kit::sectionHeader(
+             sketch::kit::section(
                  {.label = "ANSWERS FROM THE PAGE",
-                  .note = "Observed state, not a timer guess"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {{.title = "LOAD / PAINT",
-                        .figure = text(kit::formatted(
-                                           "loaded: %s\npainted: %s",
-                                           pages[0]->loaded() ? "yes" : "no",
-                                           pages[0]->painted() ? "yes" : "no"))
-                                      .styleClass("readout")
-                                      .width(302)},
-                       {.title = "SCRIPT RESULT",
-                        .figure = text(pages[1]->reply())
-                                      .styleClass("readout")
-                                      .width(302)},
-                       {.title = "CONFIRMED SCROLL",
-                        .figure =
-                            text(pages[2]->arrived() ? "220 px"
-                                                     : "Awaiting confirmation")
-                                .styleClass("readout")
-                                .width(302)},
-                       {.title = "CONFIRMED BUTTON CLASS",
-                        .figure =
-                            text(pages[3]->arrived() ? "hit"
-                                                     : "Awaiting confirmation")
-                                .styleClass("readout")
-                                .width(302)}},
-                  .measure = 1280,
-                  .gap = 24})})));
+                  .note = "Observed state, not a timer guess"},
+                 sketch::kit::comparison(
+                     {.cases = {{.title = "LOAD / PAINT",
+                                 .figure = text(kit::formatted(
+                                                    "loaded: %s\npainted: %s",
+                                                    pages[0]->loaded() ? "yes"
+                                                                       : "no",
+                                                    pages[0]->painted() ? "yes"
+                                                                        : "no"))
+                                               .styleClass("readout")
+                                               .width(302)},
+                                {.title = "SCRIPT RESULT",
+                                 .figure = text(pages[1]->reply())
+                                               .styleClass("readout")
+                                               .width(302)},
+                                {.title = "CONFIRMED SCROLL",
+                                 .figure = text(pages[2]->arrived()
+                                                    ? "220 px"
+                                                    : "Awaiting confirmation")
+                                               .styleClass("readout")
+                                               .width(302)},
+                                {.title = "CONFIRMED BUTTON CLASS",
+                                 .figure = text(pages[3]->arrived()
+                                                    ? "hit"
+                                                    : "Awaiting confirmation")
+                                               .styleClass("readout")
+                                               .width(302)}},
+                      .measure = 1280,
+                      .gap = 24}))})));
   }
 
   std::shared_ptr<scry::WebView> open(scry::WebEngine& web) const {

@@ -121,7 +121,8 @@ Element adoption() {
   Element builtFirst = box().column().gap(12).children(
       {text("Built before its parent"), text("Adopted into this tree")});
   Element fixed = [] {
-    sketch::kit::Theme local = sketch::kit::studyTheme();
+    sketch::kit::Theme local =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     local.palette.figure = kWarm;
     const sketch::kit::Provide look(local);
     return box().width(38).height(38).fill(
@@ -217,7 +218,8 @@ struct Cascade {
   bool cooled = false;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 1150}, .captureAt = kCapture});
     trail = trailCell();
     ctx.composer.render(sheet());
@@ -226,7 +228,8 @@ struct Cascade {
   void update(double elapsed, sketch::SketchContext& ctx) {
     if (cooled || elapsed < kSwitchAt) return;
     cooled = true;
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     ctx.composer.render(sheet());
   }
 

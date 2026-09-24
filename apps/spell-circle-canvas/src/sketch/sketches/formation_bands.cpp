@@ -68,8 +68,8 @@ constexpr material::Color kBandEdge{0.95f, 0.62f, 0.30f, 1};
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.type.captionLabel = {.size = 12, .track = 1.2f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.captionGap = 8;
   return look;
 }
@@ -164,53 +164,53 @@ struct FormationBands {
                  .alignItems(Align::Start)
                  .gap(18)
                  .children(
-                     {box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "SOURCE CONTOUR",
-                                .note = "Every offset starts on this rail"}),
-                           sketch::kit::comparison(
-                               {.cases = {railCell("ZERO OFFSET",
-                                                   "profile::self()",
-                                                   "The warm outline is the "
-                                                   "origin of every offset.",
-                                                   path::profile::self())},
-                                .measure = 328,
-                                .gap = 18})}),
-                      box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "OFFSET PROFILES",
-                                .note = "A rail is one displaced outline"}),
-                           sketch::kit::comparison(
-                               {.cases = {railCell(
-                                              "CONSTANT", "profile::offset(15)",
-                                              "A constant 15 px offset follows "
-                                              "the outside of the hexagon.",
-                                              path::profile::offset(kRail)),
-                                          railCell("VARYING", "wave(11, 54)",
-                                                   "A wave varies the offset "
-                                                   "by up to 11 px.",
-                                                   wave)},
-                                .measure = 674,
-                                .gap = 18})})}),
-             sketch::kit::sectionHeader(
+                     {sketch::kit::section(
+                          {.label = "SOURCE CONTOUR",
+                           .note = "Every offset starts on this rail"},
+                          sketch::kit::comparison(
+                              {.cases = {railCell("ZERO OFFSET",
+                                                  "profile::self()",
+                                                  "The warm outline is the "
+                                                  "origin of every offset.",
+                                                  path::profile::self())},
+                               .measure = 328,
+                               .gap = 18})),
+                      sketch::kit::section(
+                          {.label = "OFFSET PROFILES",
+                           .note = "A rail is one displaced outline"},
+                          sketch::kit::comparison(
+                              {.cases = {railCell(
+                                             "CONSTANT", "profile::offset(15)",
+                                             "A constant 15 px offset follows "
+                                             "the outside of the hexagon.",
+                                             path::profile::offset(kRail)),
+                                         railCell("VARYING", "wave(11, 54)",
+                                                  "A wave varies the offset "
+                                                  "by up to 11 px.",
+                                                  wave)},
+                               .measure = 674,
+                               .gap = 18}))}),
+             sketch::kit::section(
                  {.label = "TURN THE PROFILE INTO A REGION",
                   .note = "Width: 15 px · blue: source spine · "
-                          "amber: filled band"}),
-             sketch::kit::comparison(
-                 {.cases = {bandCell("BOTH SIDES", "Formation::Center",
-                                     "The full width is split equally across "
-                                     "the source spine.",
-                                     width, path::Formation::Center),
-                            bandCell("OUTSIDE ONLY", "Formation::Outer",
-                                     "The blue spine is the inner rail. The "
-                                     "entire region sits outside.",
-                                     width, path::Formation::Outer),
-                            bandCell("INSIDE ONLY", "Formation::Inner",
-                                     "The blue spine is the outer rail. The "
-                                     "entire region sits inside.",
-                                     width, path::Formation::Inner)},
-                  .measure = 1020,
-                  .gap = 18})})));
+                          "amber: filled band"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {
+                              bandCell("BOTH SIDES", "Formation::Center",
+                                       "The full width is split equally across "
+                                       "the source spine.",
+                                       width, path::Formation::Center),
+                              bandCell("OUTSIDE ONLY", "Formation::Outer",
+                                       "The blue spine is the inner rail. The "
+                                       "entire region sits outside.",
+                                       width, path::Formation::Outer),
+                              bandCell("INSIDE ONLY", "Formation::Inner",
+                                       "The blue spine is the outer rail. The "
+                                       "entire region sits inside.",
+                                       width, path::Formation::Inner)},
+                      .measure = 1020,
+                      .gap = 18}))})));
   }
 };
 

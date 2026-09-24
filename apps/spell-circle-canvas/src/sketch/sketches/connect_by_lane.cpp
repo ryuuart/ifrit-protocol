@@ -73,8 +73,8 @@ struct Tiers {
     for (auto& [tier, cards] : rows) {
       const float step = arrangement.box.width() / (float)(cards.size() + 1);
       for (size_t i = 0; i < cards.size(); ++i)
-        cards[i]->centreAt({step * (float)(i + 1),
-                            rowHeight / 2 + (float)tier * rowHeight});
+        cards[i]->centreAt(
+            {step * (float)(i + 1), rowHeight / 2 + (float)tier * rowHeight});
     }
   }
 };
@@ -136,7 +136,8 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 
 struct ConnectByLane {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "Wired by a fact",
@@ -145,56 +146,55 @@ struct ConnectByLane {
          .footer = "An arranging operator runs during layout; an adding one "
                    "runs after it and attaches what it builds beside the "
                    "cards, behind them when its zIndex says so."},
-        box().column().gap(22).children(
-            {sketch::kit::sectionHeader(
-                 {.label = "01  THE SAME CARDS, THREE OPERATOR LISTS",
-                  .note = "Read off the cards · stated by hand · closed at "
-                          "a nested panel"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("BY THE LANE",
-                            "Tiers{}, ByLane{.lane = \"calls\"}.zIndex(-1)",
-                            "One wire per call each card states, routed "
-                            "orthogonally, behind the cards.",
-                            panel({Tiers{},
-                                   Operator(connect::ByLane{
-                                                .lane = "calls",
-                                                .router = routers::orthogonal(
-                                                    routers::Bend::MidX, 8),
-                                                .gap = 4,
-                                                .wire = wire()})
-                                       .zIndex(-1)})),
-                       cell("STATED BY HAND", "Tiers{}, Between{\"gateway\", \"store\"}",
-                            "The calls are ignored; one pairing is stated in "
-                            "the operator and bowed as an arc.",
-                            panel({Tiers{},
-                                   connect::Between{.from = "gateway",
-                                                    .to = "store",
-                                                    .router = routers::arc(0.3f),
-                                                    .gap = 4,
-                                                    .wire = wire()}})),
-                       cell("A CLOSED SCOPE",
-                            "Between{\"gateway\", \"district\"}",
-                            "The district wires itself; the trunk from outside "
-                            "lands on the district, never on a card in it.",
-                            sketch::kit::well({.width = kCell,
-                                               .height = kPicture})
-                                .children(
-                                    {box()
-                                         .inset(0)
-                                         .operators({connect::Between{
-                                             .from = "gateway",
-                                             .to = "district",
-                                             .router = routers::orthogonal(
-                                                 routers::Bend::VFirst, 8),
-                                             .gap = 6,
-                                             .wire = wire()}})
-                                         .children(
-                                             {card(kServices[0]).left(20).top(
-                                                  20),
-                                              district()})}))},
-                  .measure = 1020,
-                  .gap = 18})})));
+        sketch::kit::section(
+            {.label = "01  THE SAME CARDS, THREE OPERATOR LISTS",
+             .note = "Read off the cards · stated by hand · closed at "
+                     "a nested panel"},
+            sketch::kit::comparison(
+                {.cases =
+                     {cell("BY THE LANE",
+                           "Tiers{}, ByLane{.lane = \"calls\"}.zIndex(-1)",
+                           "One wire per call each card states, routed "
+                           "orthogonally, behind the cards.",
+                           panel({Tiers{},
+                                  Operator(connect::ByLane{
+                                               .lane = "calls",
+                                               .router = routers::orthogonal(
+                                                   routers::Bend::MidX, 8),
+                                               .gap = 4,
+                                               .wire = wire()})
+                                      .zIndex(-1)})),
+                      cell("STATED BY HAND",
+                           "Tiers{}, Between{\"gateway\", \"store\"}",
+                           "The calls are ignored; one pairing is stated in "
+                           "the operator and bowed as an arc.",
+                           panel({Tiers{},
+                                  connect::Between{.from = "gateway",
+                                                   .to = "store",
+                                                   .router = routers::arc(0.3f),
+                                                   .gap = 4,
+                                                   .wire = wire()}})),
+                      cell("A CLOSED SCOPE",
+                           "Between{\"gateway\", \"district\"}",
+                           "The district wires itself; the trunk from outside "
+                           "lands on the district, never on a card in it.",
+                           sketch::kit::well(
+                               {.width = kCell, .height = kPicture})
+                               .children({box()
+                                              .inset(0)
+                                              .operators({connect::Between{
+                                                  .from = "gateway",
+                                                  .to = "district",
+                                                  .router = routers::orthogonal(
+                                                      routers::Bend::VFirst, 8),
+                                                  .gap = 6,
+                                                  .wire = wire()}})
+                                              .children({card(kServices[0])
+                                                             .left(20)
+                                                             .top(20),
+                                                         district()})}))},
+                 .measure = 1020,
+                 .gap = 18}))));
   }
 };
 

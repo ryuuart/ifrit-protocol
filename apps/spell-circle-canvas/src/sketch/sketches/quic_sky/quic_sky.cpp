@@ -174,7 +174,8 @@ struct QuicSky {
   Vitals shown;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
+    const sketch::kit::Provide sheet(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
 
@@ -215,7 +216,8 @@ struct QuicSky {
   bool arrived() const { return !sky.latest().null(); }
 
   void describe(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
+    const sketch::kit::Provide sheet(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // A paint program runs after the describe scope has closed, where the
     // theme in force is no longer this page's, so the one colour the
     // placeholder is drawn in is read here and carried in by value.

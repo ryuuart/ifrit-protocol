@@ -105,7 +105,8 @@ Element hangingList() {
 
 struct BulletsDropCap {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 790}, .captureAt = 0.05});
     const weave::Type openingVoice =
         serif(kBodySize, sketch::kit::theme().palette.figure, 0.35f);

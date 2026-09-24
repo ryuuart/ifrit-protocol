@@ -105,11 +105,8 @@ constexpr material::Color kTick{1.0f, 0.72f, 0.36f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.031f, 0.031f, 0.051f, 1};
-  look.palette.ink = {0.925f, 0.957f, 0.996f, 1};
-  look.palette.rule = {0.17f, 0.18f, 0.24f, 1};
-  look.type.captionLabel = {.size = 13, .track = 0.5f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = 40;
   look.spacing.marginTop = 32;
   return look;

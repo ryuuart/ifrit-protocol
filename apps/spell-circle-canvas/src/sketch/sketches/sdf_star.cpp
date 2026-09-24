@@ -86,19 +86,12 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
           .note = note};
 }
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
-  look.palette.cellGround = {0.085f, 0.09f, 0.105f, 1};
-  return look;
-}
-
 }  // namespace
 
 struct SdfStar {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -125,58 +118,60 @@ struct SdfStar {
          .footer = "Padding protects the effect inside the box. Increasing it "
                    "reduces the visible interior at a fixed extent."},
         box().column().gap(24).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "THE SILHOUETTE",
                   .note = "Pointiness 2 → 3.4 → 5 · then change the number of "
-                          "arms"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell(
-                           "SHALLOW", "sdf::star(6, 2)",
-                           "Six arms; the shallow end of the pointiness range.",
-                           sdf::star(kPoints, 2), plain()),
-                       cell("DEEPER", "sdf::star(6, 3.4)",
-                            "Keep the point count; deepen the notches.",
-                            sdf::star(kPoints, 3.4f), plain()),
-                       cell("DEEPEST", "sdf::star(6, 5)",
-                            "The notches approach the point-count limit.",
-                            sdf::star(kPoints, 5), plain()),
-                       cell("TWELVE POINTS", "sdf::star(12, 3)",
-                            "Twelve arms with pointiness held at three.",
-                            sdf::star(12, 3), plain())},
-                  .measure = 1020,
-                  .gap = 20}),
-             sketch::kit::sectionHeader(
+                          "arms"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("SHALLOW", "sdf::star(6, 2)",
+                                "Six arms; the shallow end of the pointiness "
+                                "range.",
+                                sdf::star(kPoints, 2), plain()),
+                           cell("DEEPER", "sdf::star(6, 3.4)",
+                                "Keep the point count; deepen the notches.",
+                                sdf::star(kPoints, 3.4f), plain()),
+                           cell("DEEPEST", "sdf::star(6, 5)",
+                                "The notches approach the point-count limit.",
+                                sdf::star(kPoints, 5), plain()),
+                           cell("TWELVE POINTS", "sdf::star(12, 3)",
+                                "Twelve arms with pointiness held at three.",
+                                sdf::star(12, 3), plain())},
+                      .measure = 1020,
+                      .gap = 20})),
+             sketch::kit::section(
                  {.label = "FOUR WAYS TO DRESS ONE DISTANCE",
-                  .note = "All four below use six points and pointiness 2.6."}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("GLOW · 14 PX",
-                            "…"
-                            ".glowRadius = 14",
-                            "An exponential halo around the distance field.",
-                            sdf::star(kPoints, kPointiness), glowing),
-                       cell("GLOW · 22.4 PX",
-                            "…"
-                            ".glowRadius = 22",
-                            "A wider falloff also reserves more space inside "
-                            "the box.",
-                            sdf::star(kPoints, kPointiness), wide),
-                       cell("DROP SHADOW",
-                            "…"
-                            ".shadowOffset, "
-                            ".shadowBlur",
-                            "Offset and blur reserve room behind the "
-                            "silhouette.",
-                            sdf::star(kPoints, kPointiness), dropped),
-                       cell("BORDER · 9 PX",
-                            "…"
-                            ".borderWidth = 9",
-                            "The centred border uses space inside and outside "
-                            "the edge.",
-                            sdf::star(kPoints, kPointiness), heavy)},
-                  .measure = 1020,
-                  .gap = 20}),
+                  .note = "All four below use six points and pointiness 2.6."},
+                 sketch::kit::comparison(
+                     {.cases = {cell("GLOW · 14 PX",
+                                     "…"
+                                     ".glowRadius = 14",
+                                     "An exponential halo around the distance "
+                                     "field.",
+                                     sdf::star(kPoints, kPointiness), glowing),
+                                cell("GLOW · 22.4 PX",
+                                     "…"
+                                     ".glowRadius = 22",
+                                     "A wider falloff also reserves more space "
+                                     "inside "
+                                     "the box.",
+                                     sdf::star(kPoints, kPointiness), wide),
+                                cell("DROP SHADOW",
+                                     "…"
+                                     ".shadowOffset, "
+                                     ".shadowBlur",
+                                     "Offset and blur reserve room behind the "
+                                     "silhouette.",
+                                     sdf::star(kPoints, kPointiness), dropped),
+                                cell("BORDER · 9 PX",
+                                     "…"
+                                     ".borderWidth = 9",
+                                     "The centred border uses space inside and "
+                                     "outside "
+                                     "the edge.",
+                                     sdf::star(kPoints, kPointiness), heavy)},
+                      .measure = 1020,
+                      .gap = 20})),
              sketch::kit::sectionHeader(
                  {.label = "LAYOUT RESERVE IS VISIBLE", .note = ""}),
              document::caption(

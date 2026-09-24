@@ -112,7 +112,8 @@ struct ParagraphPaints {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 960}, .captureAt = 0.05});
     prose = sketch::kit::passage(ctx, "data/paragraph_paints.txt");
     const float fullDepth =

@@ -104,7 +104,8 @@ struct FxScatterMix {
   bool instrumented = false;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     instrumented = false;
     ctx.composer.render(describe(ctx));
@@ -119,7 +120,8 @@ struct FxScatterMix {
   }
 
   Element describe(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     const material::Color ink = sketch::kit::theme().palette.figure;
 
     Element page = sketch::kit::page(

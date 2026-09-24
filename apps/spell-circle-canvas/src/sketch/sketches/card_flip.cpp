@@ -96,17 +96,6 @@ constexpr Face kFaces[6] = {
     {{0.85f, 0.85f, 0.80f, 1}, "K", 0, 180, 0, 0, -1},
 };
 
-/** The house sheet in this one's restrained palette: paper, ink and one
- *  accent per panel. Every line on the sheet is set from it. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
-  look.palette.ground = kGround;
-  look.palette.cellGround = kPanel;
-  look.palette.ink = kInk;
-  look.palette.ash = kAsh;
-  return look;
-}
-
 /** A panel: a dark plate with its subject standing in the middle of it,
  *  a caption in the corner, and the view every child of the plate is seen
  *  through. It takes an equal share of the row it stands in, so nothing
@@ -131,7 +120,7 @@ struct CardFlip {
   choreograph::Output<float> flip{0}, spinX{0}, spinY{0}, sway{0};
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(sketch::kit::featureTheme());
     // MID-TURN. At 2.2 s the card is past its quarter turn and the back
     // has just taken over, the cube shows three faces at an oblique, and
     // the plate is near the end of its sway.
@@ -187,8 +176,8 @@ struct CardFlip {
   Element cube() const {
     constexpr float edge = 180, half = edge * 0.5f;
     const auto face = [](const Face& one) {
-      return kit::at(kit::centred(text(one.name).font({.size = 64})), 0, 0,
-                     edge, edge)
+      return kit::at(kit::centred(text(one.name).font({.size = 64}).ink(kInk)),
+                     0, 0, edge, edge)
           .fill(Fill::color(one.fill))
           .foreground(stroke(1.0f, Fill::color(kEdge)))
           .rotateX(one.turnX)
@@ -219,6 +208,7 @@ struct CardFlip {
         .height(250)
         .borderRadius({8})
         .fill(Fill::color(kPaper))
+        .ink(kInk)
         .padding(22)
         .column()
         .gap(10)
@@ -231,29 +221,16 @@ struct CardFlip {
   }
 
   Element describe() const {
-    constexpr float gap = 20, top = 76;
-    const sketch::kit::Theme& look = sketch::kit::theme();
-    return stack()
-        .fill(Fill::color(look.palette.ground))
-        // The sheet's face and ink, inherited by every line: the captions
-        // and the title name their ash, the card its paper.
-        .font({.face = look.type.sans})
-        .ink(look.palette.ink)
-        .children(
-            {document::h1("A node is a plane")
-                 .font({.size = 32, .color = kPaper})
-                 .absolute()
-                 .left(gap)
-                 .top(14),
-             box()
-                 .absolute()
-                 .inset(top, gap, gap, gap)
-                 .row()
-                 .gap(gap)
-                 .children({panel("Card / hidden backfaces", card()),
-                            panel("Cube / six faces sorted by depth", cube()),
-                            panel("Paragraph / projected as it is drawn",
-                                  plate())})});
+    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
+    return sketch::kit::page(
+        {.title = "A node is a plane",
+         .subtitle = "Backfaces, depth ordering and projected typography",
+         .footer = "Every face stays a Compose element while its transform "
+                   "moves in three dimensions."},
+        box().row().gap(20).flexGrow(1).children(
+            {panel("Card / hidden backfaces", card()),
+             panel("Cube / six faces sorted by depth", cube()),
+             panel("Paragraph / projected as it is drawn", plate())}));
   }
 };
 

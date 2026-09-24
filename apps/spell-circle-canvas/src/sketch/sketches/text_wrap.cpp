@@ -24,6 +24,7 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/LineSetting.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -51,25 +52,17 @@ constexpr const char8_t* kPassage =
 
 const material::Color kPaper{0.965f, 0.957f, 0.937f, 1};
 const material::Color kInk{0.114f, 0.106f, 0.098f, 1};
-const material::Color kFaint{0.40f, 0.38f, 0.35f, 1};
 const material::Color kMeasureTint{0.78f, 0.30f, 0.20f, 0.08f};
-const material::Color kMark{0.78f, 0.30f, 0.20f, 1};
 
 sk_sp<SkTypeface> serif() {
   return weave::ports::face(
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
 }
-sk_sp<SkTypeface> mono() {
-  return weave::ports::face({"SF Mono", "Menlo", "Courier New"});
-}
 
-/// The sheet's look: paper and its ink, with a generous margin.
+/// The feature sheet leaves the passages at their authored measure.
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look;
-  look.palette = {.ground = kPaper, .ink = kInk, .ash = kFaint, .rule = kFaint};
-  look.type.title = {.size = 30};
-  look.type.subtitle = {.size = 14};
-  look.type.footer = {.size = 12};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = 48;
   look.spacing.marginTop = 44;
   look.spacing.marginBottom = 28;
@@ -78,20 +71,21 @@ sketch::kit::Theme sheetTheme() {
 
 /// One specimen: the call that set it, over the passage in its measure.
 Element specimen(const char* call, Text passage) {
+  Element paper = sketch::kit::well(
+      {.ground = Fill::color(kPaper), .padding = 10},
+      box().children({std::move(passage)
+                          .font({.face = serif(), .size = 14, .track = 0.2f})
+                          .ink(kInk)
+                          .width(kMeasure)
+                          .fill(Fill::color(kMeasureTint))}));
   return box().column().gap(8).children(
-      {text(call).font({.face = mono(), .size = 11}).ink(kMark),
-       std::move(passage)
-           .font({.face = serif(), .size = 14})
-           .ink(kInk)
-           .width(kMeasure)
-           .fill(Fill::color(kMeasureTint))});
+      {document::code(call), std::move(paper)});
 }
 
 /// A row of specimens under the name of the longhand they vary.
 Element row(const char* name, std::vector<Element> specimens) {
-  return box().column().gap(14).children(
-      {text(name).font({.face = mono(), .size = 13, .track = 1.2f}).ink(kFaint),
-       box().row().gap(40).children(std::move(specimens))});
+  return sketch::kit::section(
+      {.label = name}, box().row().gap(20).children(std::move(specimens)));
 }
 
 }  // namespace
@@ -132,6 +126,7 @@ struct TextWrapSpecimen {
   }
 
   Element describe() {
+    const sketch::kit::Provide look(sheetTheme());
     return sketch::kit::page(
         {.title = u8"How the lines are set",
          .subtitle = u8"One passage, one measure: the breaker, then where a "

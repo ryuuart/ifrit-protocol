@@ -66,8 +66,8 @@ constexpr material::Color kTable{0.95f, 0.44f, 0.32f, 0.80f};
 constexpr material::Color kOptical{0.40f, 0.76f, 0.98f, 0.80f};
 
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.type.captionLabel = {.size = 11, .track = 0.8f, .mono = true};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.rowGap = 8;
   look.captionWhere = kit::Caption::Where::Above;
   return look;

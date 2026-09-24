@@ -14,6 +14,7 @@
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkRect.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/video/Video.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -21,6 +22,7 @@
 #include <sigilio/source/Source.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilvideo/decode/Decode.h>
 #include <sigilvideo/decode/Playback.h>
@@ -109,6 +111,8 @@ struct VideoCompose {
   }
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
                              .captureAt = 4.25,
                              .background = material::Color{0, 0, 0, 1}});
@@ -158,17 +162,25 @@ struct VideoCompose {
     };
     const auto cells = std::views::iota(0, kCells);
 
-    const weave::TextStyle title = weave::textStyle(
-        {.size = 27, .color = material::Color{1, 1, 1, 0.96f}, .track = 5.5f});
     ctx.composer.render(stack().width(kWidth).height(kHeight).children(
         {// A sky under every cell, and an effect source over it.
          each(cells, [&](int cell) { return leafAt(cell & 1, cell, false); }),
          each(cells,
               [&](int cell) { return leafAt(2 + cell % 3, cell, true); }),
-         text(u8"100 / COMPOSE VIDEO", title).at({42, 42}),
+         sketch::kit::well(
+             {.width = kWidth - 84, .padding = 18},
+             sketch::kit::titleCard(
+                 {.title = {"One hundred video leaves"},
+                  .subtitle =
+                      {"Shared playback · additive effects · native alpha"}}))
+             .applyStyleSheet(sketch::kit::theme().styleSheet())
+             .at({42, 42}),
          // The cover the scene waits behind until every source has
          // a frame.
-         kit::centred(text(u8"BUFFERING / 005 SOURCES", title))
+         kit::centred(document::label("BUFFERING / 005 SOURCES")
+                          .font(sketch::kit::theme().font(
+                              sketch::kit::theme().type.captionLabel))
+                          .ink(sketch::kit::theme().palette.ink))
              .cover()
              .fill(Fill::color({0, 0, 0, 1}))
              .opacity(&loading)}));

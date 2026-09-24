@@ -49,8 +49,8 @@ constexpr material::Color kCellGround{0.12f, 0.12f, 0.14f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.type.captionLabel = {.size = 11, .track = 0.4f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.captionGap = 6;
   return look;
 }
@@ -103,12 +103,13 @@ sk_sp<SkData> writeExr() {
  *  GROUND — a comparable image paint, which prunes on the image it names,
  *  where a canvas call can be compared to nothing. */
 Element plane(const sk_sp<SkImage>& picture, float width = 237) {
-  return sketch::kit::well(
-      {.width = width,
-       .height = 200,
-       .ground = Fill::color(kCellGround),
-       .content = sketch::kit::Well::Content{}},
-      sigil::compose::image(picture, mskia::Fit::Contain).width(180).height(180));
+  return sketch::kit::well({.width = width,
+                            .height = 200,
+                            .ground = Fill::color(kCellGround),
+                            .content = sketch::kit::Well::Content{}},
+                           sigil::compose::image(picture, mskia::Fit::Contain)
+                               .width(180)
+                               .height(180));
 }
 
 }  // namespace

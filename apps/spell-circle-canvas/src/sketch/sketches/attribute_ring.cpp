@@ -62,8 +62,7 @@ Element dial(std::vector<Operator> operators) {
                      .inset(0)
                      .shape(shapes::circle())
                      .foreground(sigil::compose::stroke(
-                         1.0f,
-                         Fill::color(sketch::kit::theme().palette.rule)))
+                         1.0f, Fill::color(sketch::kit::theme().palette.rule)))
                      .operators(std::move(operators))
                      .children(numerals)});
 }
@@ -80,7 +79,8 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 
 struct AttributeRing {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "Placed by a fact",
@@ -88,35 +88,35 @@ struct AttributeRing {
                      "hours missing. Only the operator changes.",
          .footer = "A child states attribute(\"hour\", n). The ring told the "
                    "lane reads it; the ring told nothing places by index."},
-        box().column().gap(22).children(
-            {sketch::kit::sectionHeader(
-                 {.label = "01  THE SAME CHILDREN, THREE OPERATOR LISTS",
-                  .note = "By index · by the hour lane · by the lane, "
-                          "facing and nudged"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("BY INDEX", "Radial{}",
-                            "Each numeral stands where it was written: "
-                            "twelve first, then three, then nine.",
-                            dial({layouts::Radial{.radiusFraction = 0.78f}})),
-                       cell("BY THE LANE", "Radial{.lane = \"hour\", .divisions = 12}",
-                            "Each numeral stands at its own hour, and the "
-                            "missing hours leave gaps.",
-                            dial({layouts::Radial{.radiusFraction = 0.78f,
-                                                  .lane = "hour",
-                                                  .divisions = 12}})),
-                       cell("FACING, THEN NUDGED",
-                            "Radial{.lane, .facing = true}, Jitter{}",
-                            "The ring turns each numeral along its radius; "
-                            "the jitter after it moves what the ring placed.",
-                            dial({layouts::Radial{.radiusFraction = 0.78f,
-                                                  .lane = "hour",
-                                                  .divisions = 12,
-                                                  .facing = true},
-                                  layouts::Jitter{.seed = 3,
-                                                  .amount = kJitter}}))},
-                  .measure = 1020,
-                  .gap = 18})})));
+        sketch::kit::section(
+            {.label = "01  THE SAME CHILDREN, THREE OPERATOR LISTS",
+             .note = "By index · by the hour lane · by the lane, "
+                     "facing and nudged"},
+            sketch::kit::comparison(
+                {.cases =
+                     {cell("BY INDEX", "Radial{}",
+                           "Each numeral stands where it was written: "
+                           "twelve first, then three, then nine.",
+                           dial({layouts::Radial{.radiusFraction = 0.78f}})),
+                      cell("BY THE LANE",
+                           "Radial{.lane = \"hour\", .divisions = 12}",
+                           "Each numeral stands at its own hour, and the "
+                           "missing hours leave gaps.",
+                           dial({layouts::Radial{.radiusFraction = 0.78f,
+                                                 .lane = "hour",
+                                                 .divisions = 12}})),
+                      cell("FACING, THEN NUDGED",
+                           "Radial{.lane, .facing = true}, Jitter{}",
+                           "The ring turns each numeral along its radius; "
+                           "the jitter after it moves what the ring placed.",
+                           dial({layouts::Radial{.radiusFraction = 0.78f,
+                                                 .lane = "hour",
+                                                 .divisions = 12,
+                                                 .facing = true},
+                                 layouts::Jitter{.seed = 3,
+                                                 .amount = kJitter}}))},
+                 .measure = 1020,
+                 .gap = 18}))));
   }
 };
 

@@ -47,8 +47,8 @@ namespace {
 constexpr SkSize kCanvas = {1100, 620};
 constexpr float kCell = 328;
 constexpr float kPicture = 300;
-constexpr std::array<int, 4> kChosen = {1, 2, 3, 4};    // the hull's hours
-constexpr std::array<int, 2> kCallouts = {3, 9};        // the pinned hours
+constexpr std::array<int, 4> kChosen = {1, 2, 3, 4};  // the hull's hours
+constexpr std::array<int, 2> kCallouts = {3, 9};      // the pinned hours
 
 /** One hour: a point stating its hour, and what else it asks for. */
 Element hour(int number) {
@@ -61,42 +61,44 @@ Element hour(int number) {
     point.attribute(
         "callout",
         pin::Request{
-            .element = box()
-                           .borderRadius({4})
-                           .fill(Fill::color(sketch::kit::theme().palette.cellGround))
-                           .foreground(stroke(
-                               1.0f, Fill::color(sketch::kit::theme().palette.rule)))
-                           .padding({2, 6})
-                           .justifyContent(Justify::Center)
-                           .children({text(std::to_string(number) + " o'clock")}),
+            .element =
+                box()
+                    .borderRadius({4})
+                    .fill(Fill::color(sketch::kit::theme().palette.cellGround))
+                    .foreground(stroke(
+                        1.0f, Fill::color(sketch::kit::theme().palette.rule)))
+                    .padding({2, 6})
+                    .justifyContent(Justify::Center)
+                    .children({text(std::to_string(number) + " o'clock")}),
             .size = {84, 22},
-            .where = {.on = {1, 0.5f},
-                      .at = {0, 0.5f},
-                      .offset = {14, 0},
-                      .fallbacks = {{.on = {0, 0.5f},
-                                     .at = {1, 0.5f},
-                                     .offset = {-14, 0}}}}});
+            .where = {
+                .on = {1, 0.5f},
+                .at = {0, 0.5f},
+                .offset = {14, 0},
+                .fallbacks = {
+                    {.on = {0, 0.5f}, .at = {1, 0.5f}, .offset = {-14, 0}}}}});
   return point;
 }
 
 Operator numerals() {
-  return stamp::ByLane{.lane = "hour",
-                       .key = "numerals",
-                       .make = [](const Scope::Node& at) {
-                         return text(std::to_string(*at.attribute<int>("hour")))
-                             .centerAt({0, 0});
-                       }};
+  return stamp::ByLane{
+      .lane = "hour", .key = "numerals", .make = [](const Scope::Node& at) {
+        return text(std::to_string(*at.attribute<int>("hour")))
+            .centerAt({0, 0});
+      }};
 }
 
 Operator ring() {
-  return layouts::Radial{.radiusFraction = 0.72f, .lane = "hour", .divisions = 12};
+  return layouts::Radial{
+      .radiusFraction = 0.72f, .lane = "hour", .divisions = 12};
 }
 
 Operator dialBand() {
-  return outline::Around{.key = "dial",
-                         .across = across(6),
-                         .formation = sigil::geometry::path::Formation::Inner,
-                         .fill = Fill::color(sketch::kit::theme().palette.rule)};
+  return outline::Around{
+      .key = "dial",
+      .across = across(6),
+      .formation = sigil::geometry::path::Formation::Inner,
+      .fill = Fill::color(sketch::kit::theme().palette.rule)};
 }
 
 Operator chosenHull() {
@@ -118,13 +120,12 @@ Element dial(std::vector<Operator> operators, bool banded = false) {
   Element around = box().inset(0);
   if (banded) around.operators({dialBand()});
   return sketch::kit::well({.width = kCell, .height = kPicture})
-      .children({around.children(
-          {box()
-               .key("dial")
-               .inset(24)
-               .shape(shapes::circle())
-               .operators(std::move(operators))
-               .children(hours)})});
+      .children({around.children({box()
+                                      .key("dial")
+                                      .inset(24)
+                                      .shape(shapes::circle())
+                                      .operators(std::move(operators))
+                                      .children(hours)})});
 }
 
 sketch::kit::ComparisonCase cell(const char* title, const char* call,
@@ -139,7 +140,8 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 
 struct PinsAndHulls {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "Built on the skeleton",
@@ -148,33 +150,32 @@ struct PinsAndHulls {
          .footer = "stamp::ByLane makes one element per node; pin::ByLane "
                    "hangs a request where it fits; outline::Around bands one "
                    "edge; outline::Hull encloses a class."},
-        box().column().gap(22).children(
-            {sketch::kit::sectionHeader(
-                 {.label = "01  THE SAME POINTS, THREE OPERATOR LISTS",
-                  .note = "Stamped and pinned · banded and hulled · all four"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("STAMPED AND PINNED",
-                            "Radial{lane}, stamp::ByLane, pin::ByLane",
-                            "A numeral on every point; the callouts hang to "
-                            "the right, and three o'clock, which would leave "
-                            "the dial, takes its fallback.",
-                            dial({ring(), numerals(),
-                                  pin::ByLane{.lane = "callout"}})),
-                       cell("BANDED AND HULLED",
-                            "Around{\"dial\"}, Hull{.styleClass = \"chosen\"}",
-                            "A band inside the dial's own edge, applied by the "
-                            "box around the dial; a hull, grown 18 px, round "
-                            "the four chosen hours.",
-                            dial({ring(), numerals(), chosenHull()}, true)),
-                       cell("ALL FOUR", "two lists",
-                            "Placed, stamped, pinned and hulled by the dial's "
-                            "list; banded by the box around it.",
-                            dial({ring(), numerals(), chosenHull(),
-                                  pin::ByLane{.lane = "callout"}},
-                                 true))},
-                  .measure = 1020,
-                  .gap = 18})})));
+        sketch::kit::section(
+            {.label = "01  THE SAME POINTS, THREE OPERATOR LISTS",
+             .note = "Stamped and pinned · banded and hulled · all four"},
+            sketch::kit::comparison(
+                {.cases =
+                     {cell("STAMPED AND PINNED",
+                           "Radial{lane}, stamp::ByLane, pin::ByLane",
+                           "A numeral on every point; the callouts hang to "
+                           "the right, and three o'clock, which would leave "
+                           "the dial, takes its fallback.",
+                           dial({ring(), numerals(),
+                                 pin::ByLane{.lane = "callout"}})),
+                      cell("BANDED AND HULLED",
+                           "Around{\"dial\"}, Hull{.styleClass = \"chosen\"}",
+                           "A band inside the dial's own edge, applied by the "
+                           "box around the dial; a hull, grown 18 px, round "
+                           "the four chosen hours.",
+                           dial({ring(), numerals(), chosenHull()}, true)),
+                      cell("ALL FOUR", "two lists",
+                           "Placed, stamped, pinned and hulled by the dial's "
+                           "list; banded by the box around it.",
+                           dial({ring(), numerals(), chosenHull(),
+                                 pin::ByLane{.lane = "callout"}},
+                                true))},
+                 .measure = 1020,
+                 .gap = 18}))));
   }
 };
 

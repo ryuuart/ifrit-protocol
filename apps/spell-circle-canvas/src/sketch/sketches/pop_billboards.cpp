@@ -65,9 +65,8 @@ constexpr int kIterations = 12;  // the strongest smoothing on the sheet
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
-  look.type.captionLabel = {.size = 12, .track = 1.2f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.captionGap = 8;
   return look;
 }

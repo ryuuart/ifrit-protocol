@@ -88,7 +88,8 @@ struct DataSources {
   }
 
   Element describe() {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     const auto result = [](Element chart) {
       return sketch::kit::well({.width = kCell, .height = 290, .padding = 14})
           .children({std::move(chart)});

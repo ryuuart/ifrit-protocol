@@ -109,7 +109,8 @@ struct PopPrims {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
               .captureAt = 1.0,

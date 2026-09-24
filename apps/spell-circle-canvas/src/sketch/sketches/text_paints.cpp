@@ -65,7 +65,8 @@ Element swatch(paint::Paint fill, bool overlay = false) {
 
 struct TextPaints {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 940}, .captureAt = 0.05});
     const SkRect unit = SkRect::MakeWH(1, 1);
     Element hero =

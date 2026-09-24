@@ -15,7 +15,7 @@ struct StrokeAtlasSketch {
 
     // ---- masthead --------------------------------------------------------
     plate.children(
-        {romanBold("THE STROKE ATLAS", 26, kInk, 6.0f).at({56, 34}),
+        {romanBold("The stroke atlas", 30, kInk, -0.4f).at({56, 34}),
          roman("Lines, borders and corners / compare the construction, then "
                "read its caption.",
                11.5f, kInk)
@@ -391,12 +391,13 @@ struct StrokeAtlasSketch {
                         {.across = -3, .width = 1.6f, .fill = ink()}}),
           0.5f);
       addStyle("Double border / dotted inset", frameRect(8),
-               decorations::doubleBorder(decorations::border(1.6f, ink()),
-                                         Border{.width = 1.2f,
-                                                .fill = ink(),
-                                                .inset = 7.0f,
-                                                .dash = {0.01f, 5.0f},
-                                                .cap = sigil::geometry::path::Cap::Round}),
+               decorations::doubleBorder(
+                   decorations::border(1.6f, ink()),
+                   Border{.width = 1.2f,
+                          .fill = ink(),
+                          .inset = 7.0f,
+                          .dash = {0.01f, 5.0f},
+                          .cap = sigil::geometry::path::Cap::Round}),
                -0.9f);
 
       const size_t perRow = 7;

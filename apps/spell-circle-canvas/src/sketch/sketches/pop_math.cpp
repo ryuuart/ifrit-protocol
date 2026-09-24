@@ -59,14 +59,6 @@ constexpr int kMotes = 4200;      // points every cell starts from
 constexpr float kFactor = 0.55f;  // the Mix weight
 constexpr float kFeather = 0.6f;  // the fraction of Select's extent that fades
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
-  look.type.captionLabel = {.size = 11.5f, .track = 0.8f};
-  return look;
-}
-
 camera::Camera stage() {
   camera::Camera view;
   view.eye = {0, 120, 330};
@@ -121,7 +113,8 @@ Element cloudFigure(const char* key, gm::Cloud cloud) {
 
 struct PopMath {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -153,11 +146,11 @@ struct PopMath {
                        {.title = "STRETCH",
                         .control = "P.y × 2.4",
                         .figure = cloudFigure(
-                            "stretch", base()
-                                           .operation(pop::Math{
-                                               pop::Attribute::P,
-                                               {1, 2.4f, 1, 1}})
-                                           .cloud()),
+                            "stretch",
+                            base()
+                                .operation(pop::Math{
+                                    pop::Attribute::P, {1, 2.4f, 1, 1}})
+                                .cloud()),
                         .note = "Multiply one component. The colour lane stays "
                                 "intact."},
                        {.title = "SHEAR + ROTATE",
@@ -195,9 +188,9 @@ struct PopMath {
                             "masked",
                             selected()
                                 .masked("core")
-                                .operation(pop::Math{
-                                    pop::Attribute::P, {1, 1, 1, 1},
-                                    {0, 58, 0, 0}})
+                                .operation(pop::Math{pop::Attribute::P,
+                                                     {1, 1, 1, 1},
+                                                     {0, 58, 0, 0}})
                                 .cloud()),
                         .note = "A soft selection blends the displacement into "
                                 "untouched points."},

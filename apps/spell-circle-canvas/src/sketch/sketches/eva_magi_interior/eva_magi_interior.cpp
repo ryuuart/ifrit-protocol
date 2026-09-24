@@ -1,16 +1,16 @@
-// MAGI's cognitive architecture: concentric memory registers, branching neural
-// pathways and a protected personality core. The diagnostic inset exposes the
-// same advancing infection as a live cell field; the voting screen is separate.
-// TAGS: Interfaces/Film, Geometry/Diagrams
+// MAGI-01's Danang Type-B protection display. Three radial registers stand
+// inside concentric defense rings; four fixed panels read the moving field.
+// TAGS: Interfaces/Film, Typography/Paths, Drawing/Primitives
 
-#include <include/core/SkPathBuilder.h>
-#include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Paint.h>
-#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/kit/Crt.h>
+#include <sigilmaterial/skia/Bloom.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -18,323 +18,235 @@
 
 #include <array>
 #include <cmath>
-#include <numbers>
 #include <string>
 
 #include "EvangelionUi.h"
-#include "Infection.h"
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace mskia = sigil::material::skia;
+namespace shapes = sigil::geometry::shapes;
+namespace motion = sigil::motion;
 namespace weave = sigil::weave;
-namespace ch = choreograph;
 using namespace sigil::compose;
+using sigil::draw::Pen;
+using sigil::material::skia::Paint;
 
 namespace {
-const material::Color kGround = hexColor(0x060505);
-const material::Color kOrange = hexColor(0xF39B39);
-const material::Color kDim = hexColor(0x704021);
-const material::Color kRed = hexColor(0xEB3C30);
-const material::Color kMint = hexColor(0x72D9B0);
-const material::Color kGold = hexColor(0xE5CD69);
-constexpr SkPoint kCentre{488, 589};
-constexpr float kMemoryWidth = 348;
-constexpr float kMemoryHeight = 142;
-
-SkPoint polar(float radius, float degrees) {
-  const float angle = degrees * std::numbers::pi_v<float> / 180.0f;
-  return {kCentre.fX + radius * std::cos(angle),
-          kCentre.fY + radius * std::sin(angle)};
-}
-
-Element trace(SkPath path, material::Color ink, float width = 1.5f) {
-  return box()
-      .inset(0)
-      .shape(heldPath(std::move(path)))
-      .fill(Fill::none())
-      .stroke(PathFormat{.width = width, .strokeFill = Fill::color(ink)});
-}
-
-Element segment(SkPoint a, SkPoint b, material::Color ink, float width = 1.5f) {
-  return trace(SkPathBuilder().moveTo(a).lineTo(b).detach(), ink, width);
-}
-
-Element ring(float radius, material::Color ink, float width = 1.5f) {
-  return trace(
-      SkPathBuilder().addCircle(kCentre.fX, kCentre.fY, radius).detach(), ink,
-      width);
-}
-
-Element arc(float radius, float start, float sweep, material::Color ink,
-            float width) {
-  const SkRect bounds = SkRect::MakeXYWH(
-      kCentre.fX - radius, kCentre.fY - radius, radius * 2, radius * 2);
-  return trace(SkPathBuilder().arcTo(bounds, start, sweep, true).detach(), ink,
-               width);
-}
+constexpr float kWidth = 1428, kHeight = 800;
+constexpr SkPoint kCentre{712, 400};
+const material::Color kGround = hexColor(0x020704);
+const material::Color kOrange = hexColor(0xFF951F);
+const material::Color kGreen = hexColor(0x77E9A3);
+const material::Color kDarkGreen = hexColor(0x407C42);
 
 struct EvaMagiInterior {
   weave::FontContext* fonts = nullptr;
-  sk_sp<SkRuntimeEffect> infection = magi::infectionEffect();
-  magi::Arrivals arrivals;
-  ch::Output<float> front{-1};
-  ch::Output<float> rotation{0};
-  double clock = 0;
-  int statusTick = -1;
+  choreograph::Output<float> turn{0};
+  int second = -1;
 
-  // Display text is fitted by its measured cap height and placed by its ink
-  // top, so changing a fallback face does not change the spacing between rows.
-  Element label(Utf8 content, SkPoint ink, float cap, material::Color color,
-                float measure = 0) const {
-    auto face = evangelion::condensedBold();
+  Text label(Utf8 words, SkPoint origin, float capHeight, float measure,
+             material::Color ink = kOrange) const {
+    const auto face = evangelion::condensedBold();
     const auto probe =
         metrics(weave::textStyle({.face = face, .size = 100}), *fonts);
-    weave::Type type{.face = face, .size = cap * 100 / probe.capHeight};
-    if (measure > 0) {
-      const float width =
-          intrinsicSize(text(content).font(type), *fonts).width();
-      if (width > measure) type.condense = measure / width;
-    }
+    weave::Type type{.face = face, .size = capHeight * 100 / probe.capHeight};
+    const float width = intrinsicSize(text(words).font(type), *fonts).width();
+    if (measure > 0 && width > 0) type.condense = measure / width;
     const float slack = metrics(weave::textStyle(type), *fonts).capSlack();
-    return text(content).font(type).ink(color).at({ink.fX, ink.fY - slack});
+    return text(words).font(type).ink(ink).at({origin.fX, origin.fY - slack});
   }
 
-  Element frame() const {
-    SkPathBuilder rim;
-    rim.moveTo(48, 44)
-        .lineTo(1314, 44)
-        .lineTo(1392, 122)
-        .lineTo(1392, 1006)
-        .lineTo(48, 1006)
-        .close();
-    Element g = box().inset(0).children(
-        {trace(rim.detach(), kOrange, 3),
-         label("MAGI SYSTEM", {82, 82}, 58, kOrange, 650),
-         label("V2.3762.123b  /  COGNITIVE ARCHITECTURE", {86, 158}, 20,
-               kOrange, 750),
-         text(u8"内部構造", evangelion::minchoDisplay(67, kOrange, 1.08f))
-             .centerAt({1160, 114}),
-         label("INTERNAL DIAGNOSTIC / 03", {1032, 173}, 15, kGold, 314),
-         segment({80, 207}, {1358, 207}, kOrange, 3),
-         segment({80, 216}, {1358, 216}, kDim),
-         segment({924, 248}, {924, 960}, kDim),
-         label("PERSONALITY SIMULATION SYSTEM", {86, 246}, 19, kGold, 740),
-         label("NEURAL TOPOLOGY / CONCEPTUAL DIAGRAM", {86, 275}, 13, kOrange,
-               630),
-         label("NERV / CENTRAL DOGMA", {84, 972}, 16, kOrange),
-         label("MEMORY PROTECTION : ACTIVE", {968, 972}, 16, kMint, 360)});
-    for (int i = 0; i < 6; ++i)
-      g.children({segment({1280.0f + i * 12, 63}, {1350.0f + i * 6, 133},
-                          kOrange, 3)});
-    return g;
+  Element rings() const {
+    return pen(
+               "protection.rings",
+               [](Pen& p) {
+                 p.noFill();
+                 p.strokeWeight(4);
+                 p.stroke(Paint::linear({0, 40}, {0, 760},
+                                        {{0, kDarkGreen},
+                                         {0.55f, hexColor(0x8D9954)},
+                                         {1, hexColor(0xAF402D)}}));
+                 for (int i = 0; i < 12; ++i) p.circle(kCentre, 88 + i * 56.0f);
+               },
+               Cache::Texture)
+        .opacity(0.5f);
   }
 
-  Element architecture() const {
-    Element g = box().inset(0);
-    for (float radius : {136.0f, 146.0f, 222.0f, 229.0f, 279.0f, 324.0f})
-      g.children({ring(radius, radius == 229 ? kOrange : kDim,
-                       radius == 229 ? 2.0f : 1.0f)});
-    g.children({arc(338, -90, 117, kMint, 4), arc(338, 30, 117, kRed, 4),
-                arc(338, 150, 117, kGold, 4)});
-
-    // Each sector contains eight register blocks. Their branching pathways
-    // terminate at the inner bus; they do not pass through the personality
-    // core.
-    for (int i = 0; i < 24; ++i) {
-      const float angle = i * 15.0f - 82.5f;
-      const material::Color color = i < 8 ? kMint : (i < 16 ? kRed : kGold);
-      const SkPoint soma = polar(302, angle);
-      SkPathBuilder hexagon;
-      for (int corner = 0; corner < 6; ++corner) {
-        const float a = (angle + corner * 60) * std::numbers::pi_v<float> / 180;
-        const SkPoint p{soma.fX + 13 * std::cos(a), soma.fY + 13 * std::sin(a)};
-        if (corner == 0)
-          hexagon.moveTo(p);
-        else
-          hexagon.lineTo(p);
-      }
-      hexagon.close();
-      g.children({trace(hexagon.detach(), color, 1.8f)});
-      SkPathBuilder dendrites;
-      for (int branch = -2; branch <= 2; ++branch) {
-        const SkPoint elbow = polar(258, angle + branch * 1.7f);
-        const SkPoint inner = polar(234, angle + branch * 2.8f);
-        dendrites.moveTo(soma).lineTo(elbow).lineTo(inner);
-      }
-      g.children({trace(dendrites.detach(), color, 1.1f)});
-      g.children({segment(polar(318, angle), polar(328, angle), color, 2)});
+  Element codeField() {
+    Element group = box().inset(0);
+    std::string code;
+    for (int i = 0; i < 45; ++i) code += i % 3 == 0 ? "110 " : "001 ";
+    for (int band = 0; band < 13; ++band) {
+      const float r = 383 + band * 29.0f;
+      group.children({text(code)
+                          .font({.face = evangelion::condensedRegular(),
+                                 .size = 34,
+                                 .color = kGreen,
+                                 .track = 1.3f,
+                                 .condense = 0.70f})
+                          .width(r * 2)
+                          .height(r * 2)
+                          .centerAt(kCentre)
+                          .textOnPath({.path = shapes::circle(),
+                                       .at = motion::bind(&turn).target(
+                                           band * 0.037f,
+                                           band * 0.037f + (band % 2 ? -1 : 1)),
+                                       .align = TextPath::Align::Start,
+                                       .autoFlip = false})});
     }
-    for (int i = 0; i < 120; ++i) {
-      const float angle = i * 3.0f;
-      g.children(
-          {segment(polar(i % 5 == 0 ? 206 : 212, angle), polar(218, angle),
-                   i % 5 == 0 ? kOrange : kDim, i % 5 == 0 ? 2 : 1)});
-    }
-    // Address routes follow an orthogonal backplane inside the annular bus.
-    for (int i = 0; i < 12; ++i) {
-      const float angle = i * 30.0f + 15;
-      const SkPoint a = polar(198, angle);
-      const SkPoint b = polar(153, angle);
-      SkPathBuilder route;
-      route.moveTo(a).lineTo(a.fX, b.fY).lineTo(b);
-      g.children(
-          {trace(route.detach(), i >= 3 && i < 7 ? kRed : kOrange, 1.4f)});
-      g.children({trace(SkPathBuilder().addCircle(a.fX, a.fY, 4).detach(),
-                        kGold, 1.2f)});
-    }
-    // The glass-covered core carries a bilateral branching network. Mirrored
-    // paths share the central trunk while their branch lengths remain unequal.
-    const SkRect core = SkRect::MakeXYWH(390, 478, 196, 216);
-    g.children(
-        {box()
-             .rect(core)
-             .shape(evangelion::panel({.cut = {22, 22},
-                                       .cutMask = evangelion::CutTopLeft |
-                                                  evangelion::CutBottomRight}))
-             .fill(Fill::color(hexColor(0x06130F)))
-             .foreground(decorations::border(2, Fill::color(kMint)))});
-    SkPathBuilder brain;
-    brain.moveTo(488, 628).lineTo(488, 509);
-    for (int side : {-1, 1}) {
-      for (int level = 0; level < 7; ++level) {
-        const float y = 524.0f + level * 13;
-        const float reach = 31.0f + 24 * std::sin((level + 1) * 0.42f);
-        brain.moveTo(488, y + 14)
-            .lineTo(488 + side * reach, y)
-            .lineTo(488 + side * (reach + 12), y + 4);
-        brain.moveTo(488 + side * reach * 0.55f, y + 6)
-            .lineTo(488 + side * reach * 0.72f, y - 7);
-      }
-    }
-    g.children({trace(brain.detach(), kMint, 1.9f),
-                label("CASPER", {426, 643}, 25, kMint, 126),
-                label("PERSONALITY CORE / 03", {410, 675}, 11, kMint, 158),
-                label("01", {470, 942}, 26, kRed),
-                label("02", {134, 442}, 26, kGold),
-                label("03", {808, 442}, 26, kMint),
-                label("02 / BALTHASAR", {112, 966}, 15, kGold, 240),
-                label("03 / CASPER", {660, 966}, 15, kMint, 220)});
-    return g;
+    group.children({pen(
+        "protection.channels",
+        [](Pen& p) {
+          p.noStroke();
+          p.fill(kGround);
+          p.rect(0, 361, 357, 74);
+          p.rect(1067, 361, kWidth - 1067, 74);
+          p.noFill();
+          p.stroke(hexColor(0x9AA654));
+          p.strokeWeight(5);
+          for (float y : {370.0f, 391.0f, 413.0f, 431.0f}) {
+            p.line(0, y, 324, y);
+            p.line(1100, y, kWidth, y);
+            p.bezier(324, y, 353, y, 353, y - 15, 344, y - 15);
+            p.bezier(1100, y, 1069, y, 1069, y - 15, 1078, y - 15);
+          }
+        },
+        Cache::Texture)});
+    return group;
   }
 
-  Element scanner() const {
-    return box()
-        .rect(SkRect::MakeXYWH(kCentre.fX - 185, kCentre.fY - 185, 370, 370))
-        .rotate(&rotation)
-        .transformOrigin(pct(50), pct(50))
-        .children(
-            {trace(SkPathBuilder()
-                       .arcTo(SkRect::MakeXYWH(0, 0, 370, 370), -60, 78, true)
-                       .detach(),
-                   kGold, 4)});
+  Element registerArm(float angle, const char* name) const {
+    const std::array<const char*, 4> names{"CELEBRUM", "CELEBELLUM", "CALLOSUM",
+                                           "OBLONGATE"};
+    Element arm = box()
+                      .inset(0)
+                      .transformOrigin(pct(100 * kCentre.fX / kWidth), pct(50))
+                      .rotate(angle);
+    arm.children({pen(
+        "protection.register",
+        [](Pen& p) {
+          p.fill(kGround);
+          p.stroke(kOrange);
+          p.strokeWeight(3);
+          p.quad(786, 343, 1015, 343, 941, 470, 712, 470);
+          p.line(811, 343, 737, 470);
+          for (int i = 1; i < 4; ++i) {
+            const float y = 343 + i * 31.75f, shift = i * 18.5f;
+            p.line(811 - shift, y, 1015 - shift, y);
+          }
+        },
+        Cache::Texture)});
+    for (int i = 0; i < 4; ++i)
+      arm.children(
+          {label(names[i], {824 - i * 18.5f, 349 + i * 31.75f}, 20, 166)});
+    arm.children({label(name, {0, 0}, 16, 120)
+                      .width(120)
+                      .height(21)
+                      .centerAt({764, 404})
+                      .rotate(-60)});
+    return arm;
   }
 
-  Element diagnostic() const {
-    Element g = box().inset(0).children(
-        {text(u8"侵入警報", evangelion::minchoDisplay(66, kRed, 1.0f))
-             .centerAt({1151, 282}),
-         label("FOREIGN PATTERN DETECTED", {968, 333}, 18, kRed, 348),
-         segment({968, 365}, {1358, 365}, kRed, 2),
-         label("THREE-IN-ONE / SYSTEM STATUS", {968, 390}, 15, kOrange, 348),
-         label("CODE : 132", {968, 649}, 30, kOrange),
-         label("SOURCE : EXTERNAL NEURAL BUS", {968, 696}, 14, kOrange, 348),
-         label("BALTHASAR / MEMORY SECTOR 02", {968, 743}, 16, kGold, 348)});
-    const auto paint =
-        mskia::Paint::sksl(infection)
-            .slot("uArrival", mskia::Paint::shader(arrivals.field))
-            .uniform("uCells", std::array<float, 2>{(float)arrivals.columns,
-                                                    (float)arrivals.rows})
-            .uniform("uPour", kRed)
-            .uniform("uKey", hexColor(0x050606))
-            .uniform("uFront", &front);
-    g.children(
-        {box()
-             .rect(SkRect::MakeXYWH(968, 778, kMemoryWidth, kMemoryHeight))
-             .overflow(Overflow::Clip)
-             .fill(Fill::color(hexColor(0x183128)))
-             .foreground(decorations::border(1.5f, Fill::color(kOrange)))
-             .children({box().inset(0).fill(paint)})});
-    for (int i = 0; i < 20; ++i)
-      g.children({segment({968, 778.0f + i * 7}, {1316, 778.0f + i * 7},
-                          hexColor(0x05130D), 1)});
-    g.children({label("LIVE CELL MAP / ORTHOGONAL PROPAGATION", {968, 937}, 11,
-                      kOrange, 348)});
-    return g;
+  Element core() const {
+    return box().inset(0).children(
+        {registerArm(0, "MELCHIOR-2"), registerArm(-120, "MELCHIOR-1"),
+         registerArm(120, "MELCHIOR-3"),
+         pen(
+             "protection.hub",
+             [](Pen& p) {
+               p.fill(kGround);
+               p.stroke(kOrange);
+               p.strokeWeight(3);
+               p.triangle(637, 343, 786, 343, 712, 470);
+             },
+             Cache::Texture),
+         label("MAGI", {666, 358}, 32, 93), label("01", {683, 395}, 33, 57)});
   }
 
-  float fraction() const {
-    const float phase = (float)std::fmod(clock, 18.0) / 12.0f;
-    return std::clamp(phase, 0.0f, 1.0f);
-  }
-
-  Element status() const {
-    Element g = box().inset(0);
-    const float progress = fraction();
-    const std::array<const char*, 3> names{"MELCHIOR / 01", "BALTHASAR / 02",
-                                           "CASPER / 03"};
-    const std::array<const char*, 3> states{"INVADED", "ISOLATING",
-                                            "PROTECTED"};
-    const std::array<material::Color, 3> colors{kRed, kGold, kMint};
-    for (int i = 0; i < 3; ++i) {
-      const float y = 432.0f + i * 67;
-      const float coverage = i == 0 ? 1 : (i == 1 ? progress : 0);
-      g.children({label(names[i], {968, y}, 20, colors[i], 198),
-                  label(states[i], {1201, y + 2}, 13, colors[i], 151),
-                  box()
-                      .rect(SkRect::MakeXYWH(968, y + 32, 348, 5))
-                      .fill(Fill::color(kDim))});
-      if (coverage > 0)
-        g.children({box()
-                        .rect(SkRect::MakeXYWH(968, y + 32, coverage * 348, 5))
-                        .fill(Fill::color(colors[i]))});
+  Element panel(float x, float y, float width, Utf8 heading, Utf8 reading,
+                bool timer) const {
+    Element plate = box()
+                        .rect(SkRect::MakeXYWH(x, y, width, 112))
+                        .fill(kGround)
+                        .borderRadius({8})
+                        .stroke(stroke(4, Paint::solid(kOrange)));
+    if (timer) {
+      plate.children({box().rect({8, 39, width - 8, 42}).fill(kOrange),
+                      label(heading, {10, 9}, 24, width - 20),
+                      label(reading, {15, 52}, 47, width - 100),
+                      label("sec.", {width - 77, 77}, 23, 63)});
+    } else {
+      plate.children({label(heading, {9, 12}, 50, width - 18),
+                      box().rect({6, 72, width - 6, 75}).fill(kOrange),
+                      label(reading, {width * 0.33f, 82}, 21, width * 0.62f)});
     }
-    return g;
+    return box().inset(0).children(
+        {std::move(plate),
+         box()
+             .rect(SkRect::MakeXYWH(x - 31, y - 2, 17, 116))
+             .fill(kOrange)
+             .borderRadius({9}),
+         box()
+             .rect(SkRect::MakeXYWH(x + width + 15, y - 2, 17, 116))
+             .fill(kOrange)
+             .borderRadius({9})});
+  }
+
+  Element timers(int elapsed) const {
+    const int remaining = 223238 - elapsed;
+    return box().inset(0).children(
+        {panel(1014, 12, 365, "TIME REMAINING TO COLLAPSE",
+               kit::formatted("%03d,%03d", remaining / 1000, remaining % 1000),
+               true),
+         panel(1014, 667, 365, "TIME SINCE SCREEN RAISED",
+               kit::formatted("%03d,%03d", elapsed / 1000, elapsed % 1000),
+               true)});
   }
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(ctx, {.size = {1440, 1052},
-                             .captureAt = 4.5,
+    fonts = ctx.fonts;
+    sketch::kit::stage(ctx, {.size = {kWidth, kHeight},
+                             .captureAt = 9,
                              .background = kGround,
                              .nonlinearPicture = true});
-    fonts = ctx.fonts;
-    const SkRect memory = SkRect::MakeWH(kMemoryWidth, kMemoryHeight);
-    arrivals = magi::arrivalTable(memory, 3.5f, {0, 14},
-                                  SkPathBuilder().addRect(memory).detach());
-    clock = 0;
-    statusTick = -1;
-    ctx.ticker.add([this](double dt) {
-      clock += dt;
-      front = magi::frontFor(arrivals, fraction());
-      rotation = (float)std::fmod(clock * 7, 360.0);
-    });
-    ctx.composer.render(box().inset(0).children(
+    auto tube = material::kit::crt(SkRect::MakeWH(kWidth, kHeight));
+    tube.set("uBloom", 0.22f);
+    const auto phosphor = material::skia::bloom({.sigma = 1.6f,
+                                                .strength = 0.24f,
+                                                .spread = 2.2f,
+                                                .tail = 0.12f,
+                                                .threshold = 0.12f,
+                                                .knee = 0.18f,
+                                                .softness = 0.3f,
+                                                .whitening = 0.06f,
+                                                .dilation = 0.35f,
+                                                .deepening = 1.5f});
+    ctx.composer.render(box().inset(0).fill(kGround).children(
         {box()
              .inset(0)
-             .children({frame().cache(Cache::Texture),
-                        box()
-                            .inset(0)
-                            .transformOrigin(pct(100.0f * (kCentre.fX / 1440)),
-                                             pct(100.0f * (kCentre.fY / 1052)))
-                            .scale(0.86f)
-                            .translateY(20)
-                            .children({architecture().cache(Cache::Texture),
-                                       scanner()}),
-                        diagnostic(), slot("status")})
-             .fill(mskia::Paint::solid(kGround))
-             .filter(evangelion::crt(1440, 1052))}));
-    ctx.composer.renderSlot("status", status());
+             .overflow(Overflow::Clip)
+             .children({codeField(), rings(), core(),
+                        panel(59, 12, 365, "DANANG TYPE-B DEFENSE SCREEN",
+                              "on MAGI-01 ORIGINAL", false),
+                        panel(59, 667, 365, "PROTECT NO.666",
+                              "on MAGI-01 ORIGINAL", false),
+                        slot("timers")})
+             .filter(phosphor.then(
+                 material::skia::Effect::recipe(tube, 82.0f)))}));
+    second = 0;
+    ctx.composer.renderSlot("timers", timers(second));
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) {
-    const int tick = (int)(elapsed * 8);
-    if (tick == statusTick) return;
-    statusTick = tick;
-    ctx.composer.renderSlot("status", status());
+    turn = static_cast<float>(std::fmod(elapsed * 0.006, 1.0));
+    const int now = static_cast<int>(elapsed) % 223238;
+    if (now == second) return;
+    second = now;
+    ctx.composer.renderSlot("timers", timers(second));
   }
 };
 }  // namespace
 
-SIGIL_SKETCH(EvaMagiInterior, "Study · Film",
-             "MAGI cognitive architecture: neural registers, a protected "
-             "personality core and live infection diagnostics")
+SIGIL_SKETCH(
+    EvaMagiInterior, "Study · Film",
+    "The End of Evangelion — MAGI-01 Danang Type-B defense, Protect No.666")

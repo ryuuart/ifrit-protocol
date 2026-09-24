@@ -63,13 +63,6 @@ constexpr int kCols = 4, kRows = 2;  // the grid the sheet is cut on
 constexpr int kCellSide = 64;        // one cell's pixels
 constexpr size_t kPlayhead = 6;      // the frame index the wrap cell reads
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
-  return look;
-}
-
 /** The sheet: eight cells, each a numbered wedge sweeping a little
  *  further round, so a sequence read in the wrong order is obvious.
  *
@@ -187,7 +180,8 @@ struct MaterialAtlas {
   material::Texture sheet = buildSheet();
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -219,49 +213,55 @@ struct MaterialAtlas {
          .footer = "Each frame is an ordinary texture region. Sequence lookup "
                    "wraps the index for the caller."},
         box().column().gap(28).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "01  CUT BY POSITION",
-                  .note = "One sheet feeds a continuous, row-major sequence."}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("THE SOURCE SHEET", "the sheet, whole",
-                            "Eight wedges progress by 45° in a four-by-two "
-                            "sheet.",
-                            [sheet = sheet](SkCanvas& canvas) {
-                              put(canvas, sheet,
-                                  SkRect::MakeXYWH(10, (kPicture - 154) * 0.5f,
-                                                   308, 154),
-                                  {kCols * kCellSide, kRows * kCellSide});
-                            }),
-                       cell("FIRST FOUR FRAMES", "Atlas::grid(sheet, 4, 2)",
-                            "Row-major indices 0–3.", strip(grid, "all", 4, 0)),
-                       cell("NEXT FOUR FRAMES", "… the second row of it",
-                            "Continue the same sequence at index 4.",
-                            strip(grid, "all", 4, 4))},
-                  .measure = 1020,
-                  .gap = 18}),
-             sketch::kit::sectionHeader(
+                  .note = "One sheet feeds a continuous, row-major sequence."},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("THE SOURCE SHEET", "the sheet, whole",
+                                "Eight wedges progress by 45° in a four-by-two "
+                                "sheet.",
+                                [sheet = sheet](SkCanvas& canvas) {
+                                  put(canvas, sheet,
+                                      SkRect::MakeXYWH(10,
+                                                       (kPicture - 154) * 0.5f,
+                                                       308, 154),
+                                      {kCols * kCellSide, kRows * kCellSide});
+                                }),
+                           cell("FIRST FOUR FRAMES", "Atlas::grid(sheet, 4, 2)",
+                                "Row-major indices 0–3.",
+                                strip(grid, "all", 4, 0)),
+                           cell("NEXT FOUR FRAMES", "… the second row of it",
+                                "Continue the same sequence at index 4.",
+                                strip(grid, "all", 4, 4))},
+                      .measure = 1020,
+                      .gap = 18})),
+             sketch::kit::section(
                  {.label = "02  READ THE AUTHORING METADATA",
                   .note = "Names and tags group the same pixels; playback "
-                          "wraps."}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("NAME STEM → WALK",
-                            "Atlas::fromTexturePacker(sheet, json)",
-                            "TexturePacker derives walk from the numbered name "
-                            "stem.",
-                            packed ? strip(*packed, "walk", 4, 0) : nothing),
-                       cell("FRAME TAG → SHUT",
-                            "Atlas::fromAseprite(sheet, json)",
-                            "Aseprite derives shut from its frame tag.",
-                            tagged ? strip(*tagged, "shut", 4, 0) : nothing),
-                       cell("WRAPPING PLAYHEAD",
-                            "frame(\"walk\", 6) · wrapping",
-                            "Playhead 6 wraps a four-frame run to 2, 3, 0, 1.",
-                            packed ? strip(*packed, "walk", 4, kPlayhead)
-                                   : nothing)},
-                  .measure = 1020,
-                  .gap = 18})})));
+                          "wraps."},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("NAME STEM → WALK",
+                                "Atlas::fromTexturePacker(sheet, json)",
+                                "TexturePacker derives walk from the numbered "
+                                "name "
+                                "stem.",
+                                packed ? strip(*packed, "walk", 4, 0)
+                                       : nothing),
+                           cell("FRAME TAG → SHUT",
+                                "Atlas::fromAseprite(sheet, json)",
+                                "Aseprite derives shut from its frame tag.",
+                                tagged ? strip(*tagged, "shut", 4, 0)
+                                       : nothing),
+                           cell("WRAPPING PLAYHEAD",
+                                "frame(\"walk\", 6) · wrapping",
+                                "Playhead 6 wraps a four-frame run to 2, 3, 0, "
+                                "1.",
+                                packed ? strip(*packed, "walk", 4, kPlayhead)
+                                       : nothing)},
+                      .measure = 1020,
+                      .gap = 18}))})));
   }
 };
 

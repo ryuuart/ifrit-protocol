@@ -69,7 +69,8 @@ constexpr int kCells = 6;             // the lattice cell, in samples
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.captionWhere = kit::Caption::Where::Below;
   look.spacing.captionGap = 8;
   look.spacing.captionNoteGap = 3;
@@ -126,95 +127,94 @@ struct NoiseShelf {
          .footer = "The constants define reproducible output. They are part of "
                    "the algorithm, rather than visual tuning controls."},
         box().column().gap(30).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "COUNTER AND STATE",
-                  .note =
-                      "Same seed · four pixels per sample · equal windows"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {{.title = "HASH / COUNTER",
-                        .control = "noise::hash(seed, i)",
-                        .figure = sketch::kit::cell(
-                            kSpecimen, "", "",
-                            field("hash",
-                                  [columns](int x, int y) {
-                                    return noise::hash(
-                                        kSeed, (uint32_t)(y * columns + x));
-                                  })),
-                        .note = "A 64-bit avalanche reduced to a unit float."},
-                       {.title = "MIX64 / STREAM",
-                        .control = "Mix64Stream(seed).unit()",
-                        .figure = sketch::kit::cell(
-                            kSpecimen, "", "",
-                            field("mix64",
-                                  [columns](int x, int y) {
-                                    noise::Mix64Stream stream(
-                                        kSeed + (uint64_t)(y * columns + x));
-                                    return stream.unit();
-                                  })),
-                        .note = "A stream state initialized from each sample "
+                  .note = "Same seed · four pixels per sample · equal windows"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {{.title = "HASH / COUNTER",
+                            .control = "noise::hash(seed, i)",
+                            .figure = sketch::kit::cell(
+                                kSpecimen, "", "",
+                                field("hash",
+                                      [columns](int x, int y) {
+                                        return noise::hash(
+                                            kSeed, (uint32_t)(y * columns + x));
+                                      })),
+                            .note =
+                                "A 64-bit avalanche reduced to a unit float."},
+                           {.title = "MIX64 / STREAM",
+                            .control = "Mix64Stream(seed).unit()",
+                            .figure = sketch::kit::cell(
+                                kSpecimen, "", "",
+                                field("mix64",
+                                      [columns](int x, int y) {
+                                        noise::Mix64Stream stream(
+                                            kSeed +
+                                            (uint64_t)(y * columns + x));
+                                        return stream.unit();
+                                      })),
+                            .note =
+                                "A stream state initialized from each sample "
                                 "index."},
-                       {.title = "PCG / WORD",
-                        .control = "noise::pcgUnit(x)",
-                        .figure = sketch::kit::cell(
-                            kSpecimen, "", "",
-                            field("pcg",
-                                  [columns](int x, int y) {
-                                    return noise::pcgUnit(
-                                        kSeed + (uint32_t)(y * columns + x));
-                                  })),
-                        .note =
-                            "A PCG word, shared by CPU and device operators."},
-                       {.title = "XORSHIFT / STATE",
-                        .control = "xorshiftUnitNext(state)",
-                        .figure = sketch::kit::cell(
-                            kSpecimen, "", "",
-                            field("xorshift",
-                                  [columns](int x, int y) {
-                                    uint32_t state =
-                                        kSeed +
-                                        (uint32_t)(y * columns + x) * 7u;
-                                    noise::xorshiftUnitNext(state);
-                                    return noise::xorshiftUnitNext(state);
-                                  })),
-                        .note = "Two state advances per sample."}},
-                  .measure = 1020,
-                  .gap = 20}),
+                           {.title = "PCG / WORD",
+                            .control = "noise::pcgUnit(x)",
+                            .figure = sketch::kit::cell(
+                                kSpecimen, "", "",
+                                field("pcg",
+                                      [columns](int x, int y) {
+                                        return noise::pcgUnit(
+                                            kSeed +
+                                            (uint32_t)(y * columns + x));
+                                      })),
+                            .note = "A PCG word, shared by CPU and device "
+                                    "operators."},
+                           {.title = "XORSHIFT / STATE",
+                            .control = "xorshiftUnitNext(state)",
+                            .figure = sketch::kit::cell(
+                                kSpecimen, "", "",
+                                field("xorshift",
+                                      [columns](int x, int y) {
+                                        uint32_t state =
+                                            kSeed +
+                                            (uint32_t)(y * columns + x) * 7u;
+                                        noise::xorshiftUnitNext(state);
+                                        return noise::xorshiftUnitNext(state);
+                                      })),
+                            .note = "Two state advances per sample."}},
+                      .measure = 1020,
+                      .gap = 20})),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(20)
                  .children(
-                     {box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "A POSITION INSTEAD", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {{.title = "LATTICE / POSITION",
-                                           .control = "lattice(seed, x, y, 0)",
-                                           .figure = sketch::kit::cell(
-                                               kSpecimen, "", "",
-                                               field("lattice",
-                                                     [](int x, int y) {
-                                                       const uint32_t h =
-                                                           noise::lattice(
-                                                               kSeed,
-                                                               x / kCells,
-                                                               y / kCells, 0);
-                                                       return (float)(h >> 8u) *
-                                                              (1.0f /
-                                                               16777216.0f);
-                                                     })),
-                                           .note = "One draw per lattice cell; "
-                                                   "neighbouring samples share "
-                                                   "a value."}},
-                                .measure = 240})}),
-                      box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "A KEY IS A DIFFERENT OUTPUT",
-                                .note =
-                                    "The fold addresses a cache; it is read as "
-                                    "a word, rather than plotted as a field."}),
-                           keys()})})})));
+                     {sketch::kit::section(
+                          {.label = "A POSITION INSTEAD", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {{.title = "LATTICE / POSITION",
+                                          .control = "lattice(seed, x, y, 0)",
+                                          .figure = sketch::kit::cell(
+                                              kSpecimen, "", "",
+                                              field("lattice",
+                                                    [](int x, int y) {
+                                                      const uint32_t h =
+                                                          noise::lattice(
+                                                              kSeed, x / kCells,
+                                                              y / kCells, 0);
+                                                      return (float)(h >> 8u) *
+                                                             (1.0f /
+                                                              16777216.0f);
+                                                    })),
+                                          .note = "One draw per lattice cell; "
+                                                  "neighbouring samples share "
+                                                  "a value."}},
+                               .measure = 240})),
+                      sketch::kit::section(
+                          {.label = "A KEY IS A DIFFERENT OUTPUT",
+                           .note = "The fold addresses a cache; it is read as "
+                                   "a word, rather than plotted as a field."},
+                          keys())})})));
   }
 
   /** THE KEY, not a field: the fold a cache address is built out of, over

@@ -90,7 +90,8 @@ sk_sp<SkImage> hdrSource() {
 
 struct HalfFloat {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // both readbacks have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

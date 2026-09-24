@@ -59,13 +59,6 @@ constexpr float kNotchDepth = 18;  // …and its depth
 constexpr material::Color kPlate{0.20f, 0.22f, 0.27f, 1};
 constexpr material::Color kEdge{0.92f, 0.84f, 0.66f, 1};
 
-/** The specimen sheet, in this one's caption voice. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.type.captionLabel = {.size = 11, .mono = true};
-  return look;
-}
-
 /** One specimen: the cut plate filled and keylined inside a cell, so the
  *  treatment reads both as a silhouette and as an edge. */
 sketch::kit::ComparisonCase cell(const char* title, const char* call,
@@ -88,7 +81,8 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 struct CornerNotched {
   void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
@@ -98,26 +92,27 @@ struct CornerNotched {
          .footer = "Rounding wraps an existing outline; chamfers and notches "
                    "construct a new one."},
         box().column().gap(24).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "01  CHANGE THE OUTLINE",
-                  .note = "One source · three operations"}),
-             sketch::kit::comparison(
-                 {.cases = {cell("REFERENCE", "parallelogram(0)",
-                                 "The same rectangle starts every comparison.",
-                                 shapes::parallelogram(0)),
-                            cell("ROUND", "rounded(outline, 22)",
-                                 "The outline stays comparable; each sharp "
-                                 "turn receives a radius.",
-                                 shapes::rounded(shapes::parallelogram(0),
-                                                 kRadius)),
-                            cell("CHAMFER", "chamfered(30)",
-                                 "A straight cut replaces each corner.",
-                                 shapes::chamfered(kCut)),
-                            cell("NOTCH", "notched(38, 18)",
-                                 "Each corner loses a rectangular bite.",
-                                 shapes::notched(kNotchWidth, kNotchDepth))},
-                  .measure = 1020,
-                  .gap = 20}),
+                  .note = "One source · three operations"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("REFERENCE", "parallelogram(0)",
+                                "The same rectangle starts every comparison.",
+                                shapes::parallelogram(0)),
+                           cell("ROUND", "rounded(outline, 22)",
+                                "The outline stays comparable; each sharp "
+                                "turn receives a radius.",
+                                shapes::rounded(shapes::parallelogram(0),
+                                                kRadius)),
+                           cell("CHAMFER", "chamfered(30)",
+                                "A straight cut replaces each corner.",
+                                shapes::chamfered(kCut)),
+                           cell("NOTCH", "notched(38, 18)",
+                                "Each corner loses a rectangular bite.",
+                                shapes::notched(kNotchWidth, kNotchDepth))},
+                      .measure = 1020,
+                      .gap = 20})),
              box()
                  .row()
                  .alignItems(Align::Start)

@@ -70,16 +70,8 @@ constexpr mat::Color kEdge{1, 1, 1, 0.22f};
 
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
-  look.palette.ground = {0.05f, 0.05f, 0.07f, 1};
-  look.palette.ink = {0.88f, 0.90f, 0.94f, 1};
-  look.palette.ash = {0.56f, 0.58f, 0.65f, 1};
-  look.palette.rule = {0.18f, 0.19f, 0.23f, 1};
-  look.type.title = {.size = 32};
-  look.type.subtitle = {.size = 14};
-  look.type.footer = {.size = 10, .track = 0.3f};
-  look.type.captionLabel = {.size = 11, .track = 0.5f};
-  look.type.captionNote = {.size = 11};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.captionWhere = kit::Caption::Where::Below;
   look.spacing.marginX = 30;
   look.spacing.marginTop = 26;

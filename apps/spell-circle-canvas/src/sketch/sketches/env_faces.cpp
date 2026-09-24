@@ -67,14 +67,6 @@ constexpr material::Color kGroundColour{0.14f, 0.12f, 0.10f, 1};
 
 constexpr material::Color kGround{0.06f, 0.06f, 0.075f, 1};
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
-  look.palette.cellGround = {0.085f, 0.09f, 0.105f, 1};
-  return look;
-}
-
 /** One cube face: a flat ground under a bar and a disc, in the face's own
  *  colour, so the resample and the unpack can be told apart by eye. */
 sk_sp<SkImage> face(material::Color tint, float bar) {
@@ -179,7 +171,8 @@ sketch::kit::ComparisonCase reflector(
 
 struct EnvFaces {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -204,68 +197,69 @@ struct EnvFaces {
          .footer = "The reflection pairs preserve the same disc, normal map "
                    "and view; only the panorama changes."},
         box().column().gap(24).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "PANORAMAS",
                   .note = "Source conditions read across; their reflections "
-                          "read directly below."}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {panorama("STUDIO", "kit::studioEnvironment(384)",
-                                "Procedural studio: sky, floor bounce and "
-                                "three softboxes.",
-                                studio),
-                       panorama(
-                           "SIX FACES", "fromFaces(six)",
-                           "Six directional faces resampled into one panorama.",
-                           resampled),
-                       panorama(
-                           "GROUND REPLACEMENT", "resampled.withGround(warm)",
-                           "The lower hemisphere is replaced before filtering.",
-                           grounded)},
-                  .measure = 1020,
-                  .gap = 18}),
-             sketch::kit::sectionHeader(
-                 {.label = "THE SAME BEVEL", .note = ""}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {reflector("SOFTBOXES", "kit::chrome(bevel, studio)",
-                                 "A bevel normal and the studio panorama shade "
-                                 "this disc.",
-                                 studio),
-                       reflector(
-                           "DIRECTIONAL COLOUR",
-                           "kit::chrome(bevel, fromFaces)",
-                           "The same bevel reflects the coloured cube faces.",
-                           resampled),
-                       reflector(
-                           "WARM LOWER HEMISPHERE",
-                           "kit::chrome(bevel, withGround)",
-                           "The warm lower hemisphere is visible in the rim.",
-                           grounded)},
-                  .measure = 1020,
-                  .gap = 18}),
+                          "read directly below."},
+                 sketch::kit::comparison(
+                     {.cases = {panorama(
+                                    "STUDIO", "kit::studioEnvironment(384)",
+                                    "Procedural studio: sky, floor bounce and "
+                                    "three softboxes.",
+                                    studio),
+                                panorama("SIX FACES", "fromFaces(six)",
+                                         "Six directional faces resampled into "
+                                         "one panorama.",
+                                         resampled),
+                                panorama("GROUND REPLACEMENT",
+                                         "resampled.withGround(warm)",
+                                         "The lower hemisphere is replaced "
+                                         "before filtering.",
+                                         grounded)},
+                      .measure = 1020,
+                      .gap = 18})),
+             sketch::kit::section(
+                 {.label = "THE SAME BEVEL", .note = ""},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {reflector(
+                               "SOFTBOXES", "kit::chrome(bevel, studio)",
+                               "A bevel normal and the studio panorama shade "
+                               "this disc.",
+                               studio),
+                           reflector("DIRECTIONAL COLOUR",
+                                     "kit::chrome(bevel, fromFaces)",
+                                     "The same bevel reflects the coloured "
+                                     "cube faces.",
+                                     resampled),
+                           reflector("WARM LOWER HEMISPHERE",
+                                     "kit::chrome(bevel, withGround)",
+                                     "The warm lower hemisphere is visible in "
+                                     "the rim.",
+                                     grounded)},
+                      .measure = 1020,
+                      .gap = 18})),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(18)
                  .children(
-                     {box().column().gap(18).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "IMPORT AND FILTER", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {panorama("ALTERNATE PACKING",
-                                                   "fromCubeMap(6:1 row)",
-                                                   "The same six faces "
-                                                   "unpacked from a 6:1 strip.",
-                                                   unpacked),
-                                          reflector("ROUGHNESS 0.45",
-                                                    "…"
-                                                    " at roughness 0.45",
-                                                    "Roughness selects a "
-                                                    "wider, wrap-aware blur.",
-                                                    resampled, 0.45f)},
-                                .measure = 674,
-                                .gap = 18})}),
+                     {sketch::kit::section(
+                          {.label = "IMPORT AND FILTER", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {panorama("ALTERNATE PACKING",
+                                                  "fromCubeMap(6:1 row)",
+                                                  "The same six faces "
+                                                  "unpacked from a 6:1 strip.",
+                                                  unpacked),
+                                         reflector("ROUGHNESS 0.45",
+                                                   "…"
+                                                   " at roughness 0.45",
+                                                   "Roughness selects a "
+                                                   "wider, wrap-aware blur.",
+                                                   resampled, 0.45f)},
+                               .measure = 674,
+                               .gap = 18})),
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "ONE INTERNAL FORM", .note = ""}),

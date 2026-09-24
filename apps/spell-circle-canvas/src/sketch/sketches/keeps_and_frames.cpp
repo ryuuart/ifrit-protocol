@@ -103,7 +103,8 @@ Element seating(const char* key, weave::FrameOptions::FirstBaseline first,
 
 struct KeepsAndFrames {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 1180}, .captureAt = 0.05});
     using Seat = weave::FrameOptions::FirstBaseline;
     using Spend = weave::FrameOptions::Distribute;

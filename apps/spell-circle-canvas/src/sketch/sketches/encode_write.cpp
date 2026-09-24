@@ -86,7 +86,8 @@ sketch::kit::ComparisonCase encoded(const char* title, const char* control,
 
 struct EncodeWrite {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // every encode has already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

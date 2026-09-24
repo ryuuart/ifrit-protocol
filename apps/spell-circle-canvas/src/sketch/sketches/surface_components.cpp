@@ -15,12 +15,14 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -38,15 +40,11 @@ struct Card {
   SurfacePaint ground;
 };
 
-/** The one ink every line on the sheet is set in; the sheet's own lines
- *  differ from a card's in size alone. */
-constexpr material::Color kInk{0.94f, 0.95f, 0.98f, 1};
-
 Element card(const Card& properties, Element content) {
   return kit::well(
       {.height = 204, .ground = properties.ground},
       box().column().padding(18).gap(12).borderRadius({12}).children(
-          {text(properties.title), std::move(content).flexGrow(1)}));
+          {document::label(properties.title), std::move(content).flexGrow(1)}));
 }
 
 Element gel(float height) {
@@ -64,42 +62,36 @@ struct SurfaceComponents {
   int sizeStep = -1;
 
   Element describe(float height) {
+    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     const SurfacePaint slate = Fill::color({0.10f, 0.13f, 0.18f, 1});
     const SurfacePaint ramp = material::skia::Paint::linearUnit(
         {0, 0}, {1, 1},
         {{0, {0.28f, 0.10f, 0.38f, 1}}, {1, {0.07f, 0.28f, 0.35f, 1}}});
-    // The sheet's three lines differ from a card's in size alone, so each
-    // class is a size over the root's ink and face.
-    return kit::sheet(
-               {.title = "Components for VFX",
-                .subtitle = "Props + children",
-                .footer = "One card · three paints · responsive styles · "
-                          "a shared grid",
-                .marginX = 28,
-                .marginTop = 24,
-                .ground = Fill::color({0.035f, 0.045f, 0.07f, 1})},
-               kit::panelGrid(
-                   {.cells = {card({u8"Solid", slate},
-                                   text(u8"A plain surface prop.")),
-                              card({u8"Material", ramp},
-                                   text(u8"The same prop accepts a recipe.")),
-                              card({u8"Live fill", &ink},
-                                   text(u8"The binding updates in place.")),
-                              card({u8"Gel · fixed size", slate}, gel(36)),
-                              card({u8"Gel · resizing", slate}, gel(height))},
-                    .columns = 3,
-                    .gap = 18,
-                    .rowGap = 18}))
-        .applyStyleSheet(sigil::compose::StyleSheet{
-            sigil::compose::rule("h1").font({.size = 30}),
-            sigil::compose::rule("lead").font({.size = 17}),
-            sigil::compose::rule("footer").font({.size = 14})})
-        .font({.size = 16})
-        .ink(kInk);
+    return sketch::kit::page(
+        {
+            .title = "Components for VFX",
+            .subtitle = "Props + children",
+            .footer = "One card · three paints · responsive styles · "
+                      "a shared grid",
+        },
+        sketch::kit::panelGrid(
+            {.cells = {card({u8"Solid", slate},
+                            document::caption("A plain surface prop.")),
+                       card({u8"Material", ramp},
+                            document::caption(
+                                "The same prop accepts a recipe.")),
+                       card({u8"Live fill", &ink},
+                            document::caption("The binding updates in place.")),
+                       card({u8"Gel · fixed size", slate}, gel(36)),
+                       card({u8"Gel · resizing", slate}, gel(height))},
+             .columns = 3,
+             .gap = 18,
+             .rowGap = 18}));
   }
 
   void setup(sketch::SketchContext& ctx) {
-    ctx.canvas({.size = {1020, 620}, .captureSeconds = 2.5});
+    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
+    sketch::kit::stage(ctx, {.size = {1020, 620}, .captureAt = 2.5});
     ctx.composer.render(describe(80));
   }
 

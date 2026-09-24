@@ -81,8 +81,6 @@ constexpr float kBodyH = 100;
 constexpr double kPeriod = 3.0;
 
 constexpr material::Color kGround{0.043f, 0.043f, 0.058f, 1};
-constexpr material::Color kBone{0.930f, 0.920f, 0.890f, 1};
-constexpr material::Color kFaint{0.540f, 0.540f, 0.590f, 0.28f};
 constexpr material::Color kAccent{0.980f, 0.360f, 0.250f, 1};
 /// Where `textFx::tint` wipes FROM. The specimen is set in kAccent, its
 /// DESTINATION, and the effect multiplies down to this — so every channel
@@ -119,15 +117,10 @@ sk_sp<SkTypeface> graded() {
   return sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
 }
 
-/** This card's look: bone on near-black, every line set in the font
- *  context's own face, and one voice for every cell — the call over the
- *  specimen, what it deviates under it. */
+/** The feature sheet with room for the animated type specimens. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = kGround;
-  look.palette.ink = kBone;
-  look.palette.rule = kFaint;
-  look.type.captionLabel = {.size = 12, .track = 0.8f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = kMargin;
   look.spacing.marginTop = kMargin - 12;
   look.spacing.marginBottom = 30;

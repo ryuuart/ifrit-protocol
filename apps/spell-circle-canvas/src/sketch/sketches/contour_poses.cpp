@@ -71,8 +71,8 @@ constexpr material::Color kCool{0.44f, 0.70f, 0.95f, 1};
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.type.captionLabel = {.size = 12, .track = 1.2f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.captionGap = 8;
   return look;
 }
@@ -145,151 +145,165 @@ struct ContourPoses {
          .footer = "The ring marks the seam. Every view queries the same "
                    "measured path."},
         box().column().gap(20).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "01  DISTANCE ALONG THE OUTLINE",
-                  .note = "One measurement shared by every view"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("THE MEASURED CONTOUR", "Contour::of(path)",
-                            kit::formatted(
-                                "%zu contour · closed %s "
-                                "· totalLength %.1f px "
-                                "· seam ringed",
-                                contours.size(),
-                                path::closedThroughout(run) ? "yes" : "no",
-                                (double)total),
-                            [figure, contours](Pen& pen) {
-                              const std::span<const path::Contour> run{
-                                  contours};
-                              inked(pen, kFigure, 2.0f);
-                              pen.shape(figure);
-                              const path::Pose head =
-                                  path::poseAlong(run, 0.0f);
-                              const glm::vec2 tip =
-                                  head.position + head.tangent * 22.0f;
-                              inked(pen, kWarm, 1.6f);
-                              pen.circle(head.position.x, head.position.y, 10);
-                              pen.line(head.position.x, head.position.y, tip.x,
-                                       tip.y);
-                            }),
-                       cell("LOCAL COORDINATES", "poseAlong(d).normal",
-                            "Twenty-four equal stations. Every tick follows "
-                            "the local normal.",
-                            [figure, contours, total](Pen& pen) {
-                              const std::span<const path::Contour> run{
-                                  contours};
-                              ghost(pen, figure);
-                              for (int i = 0; i < kStations; ++i) {
-                                const float d = arrange::along(
-                                    0.0f, total, (size_t)i, (size_t)kStations,
-                                    arrange::Turn::Closed);
-                                const path::Pose p = path::poseAlong(run, d);
-                                const glm::vec2 from =
-                                    p.position - p.normal * 4.0f;
-                                const glm::vec2 to =
-                                    p.position + p.normal * 13.0f;
-                                inked(pen, kFigure, 1.8f);
-                                pen.line(from.x, from.y, to.x, to.y);
-                                filled(pen, kWarm);
-                                pen.circle(p.position.x, p.position.y, 3.6f);
-                              }
-                            }),
-                       cell("OUTSIDE THE RANGE",
-                            "Clamp / Around · −0.2 to 1.2 turns",
-                            "Warm clamps at the ends. Cool wraps across the "
-                            "seam.",
-                            [figure, contours, total](Pen& pen) {
-                              const std::span<const path::Contour> run{
-                                  contours};
-                              ghost(pen, figure);
-                              // Each policy's twelve stations
-                              // joined in order: where a chain
-                              // stalls, several distances have
-                              // resolved to one place.
-                              SkPathBuilder parked, round;
-                              for (int i = 0; i < 12; ++i) {
-                                const float f = -0.2f + 1.4f * (float)i / 11.0f;
-                                const path::Pose clamped = path::poseAlong(
-                                    run, f * total, path::Wrap::Clamp);
-                                const path::Pose around = path::poseAlong(
-                                    run, f * total, path::Wrap::Around);
-                                const glm::vec2 out =
-                                    clamped.position + clamped.normal * 11.0f;
-                                const glm::vec2 in =
-                                    around.position - around.normal * 11.0f;
-                                const SkPoint outAt{out.x, out.y};
-                                const SkPoint inAt{in.x, in.y};
-                                (i ? parked.lineTo(outAt)
-                                   : parked.moveTo(outAt));
-                                (i ? round.lineTo(inAt) : round.moveTo(inAt));
-                                filled(pen, kWarm);
-                                pen.circle(out.x, out.y, 7.2f);
-                                filled(pen, kCool);
-                                pen.circle(in.x, in.y, 7.2f);
-                              }
-                              inked(pen, kWarm, 1.0f);
-                              pen.shape(parked.detach());
-                              inked(pen, kCool, 1.0f);
-                              pen.shape(round.detach());
-                            })},
-                  .measure = 1020,
-                  .gap = 18}),
-             sketch::kit::sectionHeader(
+                  .note = "One measurement shared by every view"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("THE MEASURED CONTOUR", "Contour::of(path)",
+                                kit::formatted(
+                                    "%zu contour · closed %s "
+                                    "· totalLength %.1f px "
+                                    "· seam ringed",
+                                    contours.size(),
+                                    path::closedThroughout(run) ? "yes" : "no",
+                                    (double)total),
+                                [figure, contours](Pen& pen) {
+                                  const std::span<const path::Contour> run{
+                                      contours};
+                                  inked(pen, kFigure, 2.0f);
+                                  pen.shape(figure);
+                                  const path::Pose head =
+                                      path::poseAlong(run, 0.0f);
+                                  const glm::vec2 tip =
+                                      head.position + head.tangent * 22.0f;
+                                  inked(pen, kWarm, 1.6f);
+                                  pen.circle(head.position.x, head.position.y,
+                                             10);
+                                  pen.line(head.position.x, head.position.y,
+                                           tip.x, tip.y);
+                                }),
+                           cell("LOCAL COORDINATES", "poseAlong(d).normal",
+                                "Twenty-four equal stations. Every tick "
+                                "follows "
+                                "the local normal.",
+                                [figure, contours, total](Pen& pen) {
+                                  const std::span<const path::Contour> run{
+                                      contours};
+                                  ghost(pen, figure);
+                                  for (int i = 0; i < kStations; ++i) {
+                                    const float d =
+                                        arrange::along(0.0f, total, (size_t)i,
+                                                       (size_t)kStations,
+                                                       arrange::Turn::Closed);
+                                    const path::Pose p =
+                                        path::poseAlong(run, d);
+                                    const glm::vec2 from =
+                                        p.position - p.normal * 4.0f;
+                                    const glm::vec2 to =
+                                        p.position + p.normal * 13.0f;
+                                    inked(pen, kFigure, 1.8f);
+                                    pen.line(from.x, from.y, to.x, to.y);
+                                    filled(pen, kWarm);
+                                    pen.circle(p.position.x, p.position.y,
+                                               3.6f);
+                                  }
+                                }),
+                           cell("OUTSIDE THE RANGE",
+                                "Clamp / Around · −0.2 to 1.2 turns",
+                                "Warm clamps at the ends. Cool wraps across "
+                                "the "
+                                "seam.",
+                                [figure, contours, total](Pen& pen) {
+                                  const std::span<const path::Contour> run{
+                                      contours};
+                                  ghost(pen, figure);
+                                  // Each policy's twelve stations
+                                  // joined in order: where a chain
+                                  // stalls, several distances have
+                                  // resolved to one place.
+                                  SkPathBuilder parked, round;
+                                  for (int i = 0; i < 12; ++i) {
+                                    const float f =
+                                        -0.2f + 1.4f * (float)i / 11.0f;
+                                    const path::Pose clamped = path::poseAlong(
+                                        run, f * total, path::Wrap::Clamp);
+                                    const path::Pose around = path::poseAlong(
+                                        run, f * total, path::Wrap::Around);
+                                    const glm::vec2 out =
+                                        clamped.position +
+                                        clamped.normal * 11.0f;
+                                    const glm::vec2 in =
+                                        around.position - around.normal * 11.0f;
+                                    const SkPoint outAt{out.x, out.y};
+                                    const SkPoint inAt{in.x, in.y};
+                                    (i ? parked.lineTo(outAt)
+                                       : parked.moveTo(outAt));
+                                    (i ? round.lineTo(inAt)
+                                       : round.moveTo(inAt));
+                                    filled(pen, kWarm);
+                                    pen.circle(out.x, out.y, 7.2f);
+                                    filled(pen, kCool);
+                                    pen.circle(in.x, in.y, 7.2f);
+                                  }
+                                  inked(pen, kWarm, 1.0f);
+                                  pen.shape(parked.detach());
+                                  inked(pen, kCool, 1.0f);
+                                  pen.shape(round.detach());
+                                })},
+                      .measure = 1020,
+                      .gap = 18})),
+             sketch::kit::section(
                  {.label = "02  SELECT AROUND A TURN",
                   .note = "Cool: incoming / retained span · warm: outgoing / "
-                          "corner window"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("FIND THE CORNERS", "Contour::corners(30°)",
-                            kit::formatted("%zu corners · "
-                                           "sharpest turn "
-                                           "%.0f° · each "
-                                           "drawn "
-                                           "as its in tangent "
-                                           "and its out "
-                                           "tangent",
-                                           corners.size(), (double)sharpest),
-                            [figure, corners, contours](Pen& pen) {
-                              const std::span<const path::Contour> run{
-                                  contours};
-                              ghost(pen, figure);
-                              for (const path::Contour::Corner& c : corners) {
-                                const path::Pose p =
-                                    path::poseAlong(run, c.distance);
-                                const glm::vec2 from =
-                                    p.position - c.in * 18.0f;
-                                const glm::vec2 to = p.position + c.out * 18.0f;
-                                inked(pen, kCool, 1.6f);
-                                pen.line(from.x, from.y, p.position.x,
-                                         p.position.y);
-                                inked(pen, kWarm, 1.6f);
-                                pen.line(p.position.x, p.position.y, to.x,
-                                         to.y);
-                                inked(pen, kFigure, 1.4f);
-                                pen.circle(p.position.x, p.position.y, 6.4f);
-                              }
-                            }),
-                       cell("KEEP THEIR WINDOWS",
-                            "cornerWindows(26, true, 30°)",
-                            "Keep the outline within 26 px of a detected turn.",
-                            [figure](Pen& pen) {
-                              ghost(pen, figure);
-                              inked(pen, kWarm, 3.0f);
-                              pen.shape(path::cornerWindows(figure, kWindow,
-                                                            true, kCornerDeg));
-                            }),
-                       cell("KEEP THE COMPLEMENT",
-                            "cornerWindows(26, false, 30°)",
-                            "Keep the complementary stretches between the "
-                            "turns.",
-                            [figure](Pen& pen) {
-                              ghost(pen, figure);
-                              inked(pen, kCool, 3.0f);
-                              pen.shape(path::cornerWindows(figure, kWindow,
-                                                            false, kCornerDeg));
-                            })},
-                  .measure = 1020,
-                  .gap = 18})})));
+                          "corner window"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("FIND THE CORNERS", "Contour::corners(30°)",
+                                kit::formatted("%zu corners · "
+                                               "sharpest turn "
+                                               "%.0f° · each "
+                                               "drawn "
+                                               "as its in tangent "
+                                               "and its out "
+                                               "tangent",
+                                               corners.size(),
+                                               (double)sharpest),
+                                [figure, corners, contours](Pen& pen) {
+                                  const std::span<const path::Contour> run{
+                                      contours};
+                                  ghost(pen, figure);
+                                  for (const path::Contour::Corner& c :
+                                       corners) {
+                                    const path::Pose p =
+                                        path::poseAlong(run, c.distance);
+                                    const glm::vec2 from =
+                                        p.position - c.in * 18.0f;
+                                    const glm::vec2 to =
+                                        p.position + c.out * 18.0f;
+                                    inked(pen, kCool, 1.6f);
+                                    pen.line(from.x, from.y, p.position.x,
+                                             p.position.y);
+                                    inked(pen, kWarm, 1.6f);
+                                    pen.line(p.position.x, p.position.y, to.x,
+                                             to.y);
+                                    inked(pen, kFigure, 1.4f);
+                                    pen.circle(p.position.x, p.position.y,
+                                               6.4f);
+                                  }
+                                }),
+                           cell("KEEP THEIR WINDOWS",
+                                "cornerWindows(26, true, 30°)",
+                                "Keep the outline within 26 px of a detected "
+                                "turn.",
+                                [figure](Pen& pen) {
+                                  ghost(pen, figure);
+                                  inked(pen, kWarm, 3.0f);
+                                  pen.shape(path::cornerWindows(
+                                      figure, kWindow, true, kCornerDeg));
+                                }),
+                           cell("KEEP THE COMPLEMENT",
+                                "cornerWindows(26, false, 30°)",
+                                "Keep the complementary stretches between the "
+                                "turns.",
+                                [figure](Pen& pen) {
+                                  ghost(pen, figure);
+                                  inked(pen, kCool, 3.0f);
+                                  pen.shape(path::cornerWindows(
+                                      figure, kWindow, false, kCornerDeg));
+                                })},
+                      .measure = 1020,
+                      .gap = 18}))})));
   }
 };
 

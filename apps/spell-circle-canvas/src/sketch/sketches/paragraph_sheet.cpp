@@ -34,7 +34,7 @@
 //                 across it.
 //   kMeasure    — the measure every horizontal panel is set to; narrow it
 //                 and the justification panel earns its letter spacing.
-//   kInk/kPaper — the sheet's two inks.
+//   kInk/kPaper — the specimen panels' ink and paper.
 
 // TAGS: Typography/Paragraph
 
@@ -105,15 +105,10 @@ weave::Type label(float size = 9.0f, float track = 1.6f,
   return {.face = grotesque(), .size = size, .color = colour, .track = track};
 }
 
-/// THIS SHEET'S LOOK: paper and its ink, set in the grotesque, with the
-/// page's own generous margin.
+/// The feature sheet keeps the type specimens at their authored measure.
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look;
-  look.palette = {.ground = kPaper, .ink = kInk, .ash = kFaint, .rule = kFaint};
-  look.type.sans = grotesque();
-  look.type.title = {.size = 32};
-  look.type.subtitle = {.size = 15};
-  look.type.footer = {.size = 12};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = kMargin;
   look.spacing.marginTop = kMargin;
   look.spacing.marginBottom = kMargin * 0.5f;
@@ -122,8 +117,8 @@ sketch::kit::Theme sheetTheme() {
 
 /// THE SHEET'S TWO CLASSES beside the theme's registers: `body`, the story
 /// in the serif under an English tag, and `figures`, the table in the mono.
-/// Both are set in the page's ink and, under a page whose running text is
-/// tracked, at no tracking; a leaf says only the size it differs by.
+/// Both inherit their paper panel's ink and use no tracking; a leaf says
+/// only the size it differs by.
 sigil::compose::StyleSheet classes() {
   sigil::compose::StyleSheet sheet =
       sheetTheme().styleSheet() +
@@ -410,13 +405,16 @@ struct ParagraphSheet {
   /// One column of panels, ruled apart the way the sheet rules its
   /// header off from its content.
   Element panels(std::vector<Element> run) {
-    return kit::cells({.cells = std::move(run),
-                       .column = true,
-                       .gap = 16,
-                       .divider = Fill::color(s::kFaint)});
+    return sketch::kit::well({.ground = Fill::color(s::kPaper), .padding = 10},
+                             kit::cells({.cells = std::move(run),
+                                         .column = true,
+                                         .gap = 16,
+                                         .divider = Fill::color(s::kFaint)}))
+        .ink(s::kInk);
   }
 
   Element describe() {
+    const sketch::kit::Provide look(s::sheetTheme());
     return sketch::kit::page(
                {.title = u8"How a paragraph holds together",
                 .subtitle =

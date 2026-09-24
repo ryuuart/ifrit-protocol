@@ -209,7 +209,8 @@ struct PhoneSky {
   Reading shown;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
+    const sketch::kit::Provide sheet(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
     ticker = &ctx.ticker;
@@ -350,7 +351,8 @@ struct PhoneSky {
   }
 
   void describe(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
+    const sketch::kit::Provide sheet(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     std::vector<compose::Element> parts;
     parts.push_back(compose::pen("phone_sky.sky", [this](Pen& pen) {
                       bands(pen);

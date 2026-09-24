@@ -67,13 +67,6 @@ constexpr material::Color kFigure{0.88f, 0.82f, 0.66f, 1};
 constexpr material::Color kWarm{0.96f, 0.62f, 0.30f, 1};
 constexpr material::Color kCool{0.44f, 0.72f, 0.96f, 1};
 
-/** The specimen sheet, in this one's caption voice. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.type.captionLabel = {.size = 11, .mono = true};
-  return look;
-}
-
 SkPoint middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
 
 /** THE PEN A LINE OF THIS SHEET IS DRAWN WITH: a colour, a width, and no
@@ -139,7 +132,8 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 struct FrameGrid {
   void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const path::Grid unit{.scale = kUnits, .origin = {30, 26}};
@@ -163,133 +157,147 @@ struct FrameGrid {
          .footer = "The same numeric input becomes a different position only "
                    "when its coordinate convention changes."},
         box().column().gap(22).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "01  CHOOSE A COORDINATE FRAME",
-                  .note = "Light: 0° · amber: 126°"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("NORTH / CLOCKWISE", "zero = North · sense = CW",
-                            "Zero points north; angles increase clockwise. "
-                            "Both readings use 0° and 126°.",
-                            [](draw::Pen& p) {
-                              const path::PolarFrame frame{.centre = middle(),
-                                                      .radius = kRadius};
-                              dial(p, frame);
-                              ticks(p, frame);
-                              reading(p, frame, 0, kFigure);
-                              reading(p, frame, 126, kWarm);
-                            }),
-                       cell("EAST / COUNTERCLOCKWISE",
-                            "zero = East · sense = CCW",
-                            "The same readings with zero pointing east and "
-                            "angles increasing counterclockwise.",
-                            [](draw::Pen& p) {
-                              const path::PolarFrame frame{
-                                  .centre = middle(),
-                                  .radius = kRadius,
-                                  .zero = path::Zero::East,
-                                  .sense = path::Sense::CCW};
-                              dial(p, frame);
-                              ticks(p, frame);
-                              reading(p, frame, 0, kFigure);
-                              reading(p, frame, 126, kWarm);
-                            }),
-                       cell("FRAMES WITHIN FRAMES", "scaled / turned / about",
-                            "Scale, rotate and relocate a frame while "
-                            "retaining its angle convention.",
-                            [](draw::Pen& p) {
-                              const path::PolarFrame frame{.centre = middle(),
-                                                      .radius = kRadius};
-                              dial(p, frame);
-                              const path::PolarFrame inner = frame.scaled(0.62f);
-                              dial(p, inner);
-                              reading(p, inner, 126, kFigure);
-                              reading(p, frame.turned(15), 126, kWarm);
-                              const path::PolarFrame satellite =
-                                  frame.scaled(0.3f).about(frame.at(30, 0.66f));
-                              dial(p, satellite);
-                              reading(p, satellite, 126, kCool);
-                            })},
-                  .measure = 1020,
-                  .gap = 18}),
-             sketch::kit::sectionHeader(
+                  .note = "Light: 0° · amber: 126°"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("NORTH / CLOCKWISE",
+                                "zero = North · sense = CW",
+                                "Zero points north; angles increase clockwise. "
+                                "Both readings use 0° and 126°.",
+                                [](draw::Pen& p) {
+                                  const path::PolarFrame frame{
+                                      .centre = middle(), .radius = kRadius};
+                                  dial(p, frame);
+                                  ticks(p, frame);
+                                  reading(p, frame, 0, kFigure);
+                                  reading(p, frame, 126, kWarm);
+                                }),
+                           cell("EAST / COUNTERCLOCKWISE",
+                                "zero = East · sense = CCW",
+                                "The same readings with zero pointing east and "
+                                "angles increasing counterclockwise.",
+                                [](draw::Pen& p) {
+                                  const path::PolarFrame frame{
+                                      .centre = middle(),
+                                      .radius = kRadius,
+                                      .zero = path::Zero::East,
+                                      .sense = path::Sense::CCW};
+                                  dial(p, frame);
+                                  ticks(p, frame);
+                                  reading(p, frame, 0, kFigure);
+                                  reading(p, frame, 126, kWarm);
+                                }),
+                           cell("FRAMES WITHIN FRAMES",
+                                "scaled / turned / about",
+                                "Scale, rotate and relocate a frame while "
+                                "retaining its angle convention.",
+                                [](draw::Pen& p) {
+                                  const path::PolarFrame frame{
+                                      .centre = middle(), .radius = kRadius};
+                                  dial(p, frame);
+                                  const path::PolarFrame inner =
+                                      frame.scaled(0.62f);
+                                  dial(p, inner);
+                                  reading(p, inner, 126, kFigure);
+                                  reading(p, frame.turned(15), 126, kWarm);
+                                  const path::PolarFrame satellite =
+                                      frame.scaled(0.3f).about(
+                                          frame.at(30, 0.66f));
+                                  dial(p, satellite);
+                                  reading(p, satellite, 126, kCool);
+                                })},
+                      .measure = 1020,
+                      .gap = 18})),
+             sketch::kit::section(
                  {.label = "02  PLACE IN THAT SPACE",
-                  .note = "Arrangement answers positions; it does not draw"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("OPEN OR CLOSED RUN",
-                            "onRing \u00b7 7 stations over 270\u00b0",
-                            kit::formatted(
-                                "seven items over 270° "
-                                "· Turn::Open steps "
-                                "%.1f° and lands on both "
-                                "ends; Turn::Closed steps "
-                                "%.1f° and stops short",
-                                (double)arrange::step(270,
-                                                      7, arrange::Turn::Open),
-                                (double)arrange::step(
-                                    270,
-                                    7, arrange::Turn::Closed)),
-                            [](draw::Pen& p) {
-                              const SkPoint c = middle();
-                              constexpr float kStart =
-                                  -2.3561945f;  // 135 deg from +x
-                              constexpr float kSweep = 4.712389f;
-                              const auto ring = [&](float r, arrange::Turn turn,
-                                                    material::Color colour) {
-                                pen(p, kFaint, 1.0f);
-                                p.arc(c.fX, c.fY, 2 * r, 2 * r, -135, 135,
-                                      draw::OPEN);
-                                p.noStroke();
-                                p.fill(colour);
-                                for (size_t i = 0; i < 7; ++i) {
-                                  const SkPoint at = arrange::onRing(
-                                      i, 7, c, {r, r}, kStart, kSweep, turn);
-                                  p.circle(at.fX, at.fY, 10.0f);
-                                }
-                              };
-                              ring(94, arrange::Turn::Open, kWarm);
-                              ring(56, arrange::Turn::Closed, kCool);
-                            }),
-                       cell("MODULES AND SPANS",
-                            "moduleSize / cellAt / cellRect",
-                            "A two-by-two span includes the internal gutters "
-                            "of the four-by-three grid.",
-                            [](draw::Pen& p) {
-                              const SkSize container{kCell - 40, kPicture - 40};
-                              const SkSize gap{10, 10};
-                              const SkSize module =
-                                  arrange::moduleSize(container, 4, 3, gap);
-                              const SkPoint origin{20, 20};
-                              const auto cellBox = [&](SkRect r) {
-                                p.rect(r.x(), r.y(), r.width(), r.height());
-                              };
-                              pen(p, kFaint, 1.0f);
-                              for (size_t i = 0; i < 12; ++i)
-                                cellBox(arrange::cellRect(arrange::cellAt(i, 4),
-                                                          module, gap, origin));
-                              pen(p, kWarm, 1.8f);
-                              cellBox(arrange::cellRect({1, 1}, module, gap,
-                                                        origin, 2, 2));
-                            }),
-                       cell("CONTINUOUS OR SNAPPED", "scale = 7 · snap = 0 / 7",
-                            "Cool preserves the curve. Warm rounds positions "
-                            "to a 7 px lattice.",
-                            [unit, snapped, figure](draw::Pen& p) {
-                              const auto trace = [&](const path::Grid& grid,
-                                                     material::Color colour,
-                                                     float dy) {
-                                pen(p, colour, 1.8f);
-                                p.beginShape();
-                                for (const SkPoint& at : grid.map(figure))
-                                  p.vertex(at.fX, at.fY + dy);
-                                p.endShape();
-                              };
-                              trace(unit, kCool, 0);
-                              trace(snapped, kWarm, 88);
-                            })},
-                  .measure = 1020,
-                  .gap = 18})})));
+                  .note = "Arrangement answers positions; it does not draw"},
+                 sketch::kit::comparison(
+                     {.cases = {cell("OPEN OR CLOSED RUN",
+                                     "onRing \u00b7 7 stations over 270\u00b0",
+                                     kit::formatted(
+                                         "seven items over 270° "
+                                         "· Turn::Open steps "
+                                         "%.1f° and lands on both "
+                                         "ends; Turn::Closed steps "
+                                         "%.1f° and stops short",
+                                         (double)arrange::step(
+                                             270, 7, arrange::Turn::Open),
+                                         (double)arrange::step(
+                                             270, 7, arrange::Turn::Closed)),
+                                     [](draw::Pen& p) {
+                                       const SkPoint c = middle();
+                                       constexpr float kStart =
+                                           -2.3561945f;  // 135 deg from +x
+                                       constexpr float kSweep = 4.712389f;
+                                       const auto ring =
+                                           [&](float r, arrange::Turn turn,
+                                               material::Color colour) {
+                                             pen(p, kFaint, 1.0f);
+                                             p.arc(c.fX, c.fY, 2 * r, 2 * r,
+                                                   -135, 135, draw::OPEN);
+                                             p.noStroke();
+                                             p.fill(colour);
+                                             for (size_t i = 0; i < 7; ++i) {
+                                               const SkPoint at =
+                                                   arrange::onRing(
+                                                       i, 7, c, {r, r}, kStart,
+                                                       kSweep, turn);
+                                               p.circle(at.fX, at.fY, 10.0f);
+                                             }
+                                           };
+                                       ring(94, arrange::Turn::Open, kWarm);
+                                       ring(56, arrange::Turn::Closed, kCool);
+                                     }),
+                                cell("MODULES AND SPANS",
+                                     "moduleSize / cellAt / cellRect",
+                                     "A two-by-two span includes the internal "
+                                     "gutters "
+                                     "of the four-by-three grid.",
+                                     [](draw::Pen& p) {
+                                       const SkSize container{kCell - 40,
+                                                              kPicture - 40};
+                                       const SkSize gap{10, 10};
+                                       const SkSize module =
+                                           arrange::moduleSize(container, 4, 3,
+                                                               gap);
+                                       const SkPoint origin{20, 20};
+                                       const auto cellBox = [&](SkRect r) {
+                                         p.rect(r.x(), r.y(), r.width(),
+                                                r.height());
+                                       };
+                                       pen(p, kFaint, 1.0f);
+                                       for (size_t i = 0; i < 12; ++i)
+                                         cellBox(arrange::cellRect(
+                                             arrange::cellAt(i, 4), module, gap,
+                                             origin));
+                                       pen(p, kWarm, 1.8f);
+                                       cellBox(arrange::cellRect(
+                                           {1, 1}, module, gap, origin, 2, 2));
+                                     }),
+                                cell("CONTINUOUS OR SNAPPED",
+                                     "scale = 7 · snap = 0 / 7",
+                                     "Cool preserves the curve. Warm rounds "
+                                     "positions "
+                                     "to a 7 px lattice.",
+                                     [unit, snapped, figure](draw::Pen& p) {
+                                       const auto trace =
+                                           [&](const path::Grid& grid,
+                                               material::Color colour,
+                                               float dy) {
+                                             pen(p, colour, 1.8f);
+                                             p.beginShape();
+                                             for (const SkPoint& at :
+                                                  grid.map(figure))
+                                               p.vertex(at.fX, at.fY + dy);
+                                             p.endShape();
+                                           };
+                                       trace(unit, kCool, 0);
+                                       trace(snapped, kWarm, 88);
+                                     })},
+                      .measure = 1020,
+                      .gap = 18}))})));
   }
 };
 

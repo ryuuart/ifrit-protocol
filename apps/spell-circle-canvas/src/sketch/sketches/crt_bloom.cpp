@@ -82,11 +82,8 @@ constexpr material::Color kHalo{0.165f, 0.498f, 0.588f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.02f, 0.03f, 0.05f, 1};
-  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.rule = {0.16f, 0.20f, 0.26f, 1};
-  look.type.captionLabel = {.size = 13, .track = 0.4f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = 40;
   look.spacing.marginTop = 40;
   return look;
@@ -164,43 +161,42 @@ struct CrtBloom {
          .footer = "Read the letter interiors as well as the spread: the "
                    "compositing operation changes their brightness."},
         box().column().gap(24).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "THE CONTROL",
                   .note = "Identical word · 62 px type · 14 px spread · 6 px "
-                          "scanlines"}),
-             sketch::kit::comparison(
-                 {.cases = {{.title = "HALO UNDER THE CORE",
-                             .control = "Effect::glow(halo, 14)",
-                             .figure = std::move(primitive),
-                             .note = "One node. The blurred coverage sits "
-                                     "beneath the sharp letters."},
-                            {.title = "HALO ADDED TO THE CORE",
-                             .control = "directionalBlur(14) + kPlus",
-                             .figure = std::move(built),
-                             .note = "Two layers. Their light adds where they "
+                          "scanlines"},
+                 sketch::kit::comparison(
+                     {.cases = {{.title = "HALO UNDER THE CORE",
+                                 .control = "Effect::glow(halo, 14)",
+                                 .figure = std::move(primitive),
+                                 .note = "One node. The blurred coverage sits "
+                                         "beneath the sharp letters."},
+                                {.title = "HALO ADDED TO THE CORE",
+                                 .control = "directionalBlur(14) + kPlus",
+                                 .figure = std::move(built),
+                                 .note =
+                                     "Two layers. Their light adds where they "
                                      "overlap, lifting the bright core."}},
-                  .measure = 920,
-                  .gap = 40}),
+                      .measure = 920,
+                      .gap = 40})),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(40)
-                 .children({box().column().gap(12).children(
-                                {sketch::kit::sectionHeader(
-                                     {.label = "SOURCE OVER", .note = ""}),
-                                 document::caption(
-                                     "The sharp glyph covers the halo. This "
-                                     "is a centred shadow, with its outline "
-                                     "always tied to the source.")
-                                     .width(440)}),
-                            box().column().gap(12).children(
-                                {sketch::kit::sectionHeader(
-                                     {.label = "ADDITIVE LIGHT", .note = ""}),
-                                 document::caption(
-                                     "The halo contributes to the glyph as "
-                                     "well as its surroundings. The static "
-                                     "blurred layer is retained as a texture.")
-                                     .width(440)})})})));
+                 .children({sketch::kit::section(
+                                {.label = "SOURCE OVER", .note = ""},
+                                document::caption(
+                                    "The sharp glyph covers the halo. This "
+                                    "is a centred shadow, with its outline "
+                                    "always tied to the source.")
+                                    .width(440)),
+                            sketch::kit::section(
+                                {.label = "ADDITIVE LIGHT", .note = ""},
+                                document::caption(
+                                    "The halo contributes to the glyph as "
+                                    "well as its surroundings. The static "
+                                    "blurred layer is retained as a texture.")
+                                    .width(440))})})));
   }
 };
 

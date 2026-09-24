@@ -48,13 +48,9 @@ def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
 @sketch(size=(900, 360), capture_at=1.1)
 class HelloCompose:
     def setup(self, ctx: SketchContext) -> None:
-        look = kit.house_theme()
-        look.palette.ground = "#f4f0e6"
-        look.palette.ink = "#273d41"
-        look.palette.ash = "#627471"
-        look.palette.rule = "#c8cec4"
-        look.type.title.size = 38
+        look = kit.feature_theme(kit.Density.Spacious)
         with kit.provide(look):
+            kit.stage(ctx, size=(900, 360), capture_at=1.1)
             ctx.render(
                 kit.page(
                     (

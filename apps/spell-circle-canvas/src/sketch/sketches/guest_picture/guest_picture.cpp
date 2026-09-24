@@ -110,6 +110,7 @@ struct GuestPicture {
   std::string drawnIn;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
     guest = std::make_shared<sketch::Guest>(ctx, kPublication, kApplication);
@@ -137,6 +138,7 @@ struct GuestPicture {
   }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     std::vector<compose::Element> body;
     body.push_back(picture());
     if (!showing) body.push_back(waiting(ctx.deterministic));
@@ -182,7 +184,7 @@ struct GuestPicture {
    *  nothing is publishing under, and the one line that would start
    *  somebody publishing under it. */
   compose::Element waiting(bool deterministic) {
-    const sketch::kit::Theme& look = sketch::kit::theme();
+    const sketch::kit::Theme& look = sketch::kit::featureTheme();
     return compose::kit::centred()
         .cover()
         .column()

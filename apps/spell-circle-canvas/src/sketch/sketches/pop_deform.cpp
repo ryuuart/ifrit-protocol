@@ -62,16 +62,6 @@ constexpr float kPeak = 70.0f;
 constexpr float kPanel = 220.0f;
 constexpr float kHeight = 300.0f;  // the column: y in [-150, 150]
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
-  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.captionLabel = {.size = 12, .track = 0.4f};
-  return look;
-}
-
 const material::Color kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** A thin vertical loop: points scatter along it with a radial spread,
@@ -143,7 +133,8 @@ geometry::mesh::pop::Builder base() {
 
 struct PopDeform {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1240, 890}});
     // Every cloud is cooked once in setup; nothing here reads the clock.
     ctx.captureAt(0.05);

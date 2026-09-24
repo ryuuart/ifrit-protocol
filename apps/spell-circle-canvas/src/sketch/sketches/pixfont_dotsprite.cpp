@@ -39,13 +39,14 @@ constexpr SkSize kCanvas = {1100, 840};
 constexpr float kCell = 324;
 constexpr float kPicture = 190;
 
-constexpr float kBakeSizes[3] = {9, 12, 16};      // the sweep in the first cell
-constexpr float kScale = 3;                       // integer, always
+constexpr float kBakeSizes[3] = {9, 12, 16};  // the sweep in the first cell
+constexpr float kScale = 3;                   // integer, always
 constexpr material::Color kOn{0.62f, 0.98f, 0.72f, 1};  // what a mask is tinted
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.palette.cellGround = {0.055f, 0.065f, 0.06f, 1};
   return look;
 }
@@ -102,15 +103,17 @@ struct PixFontDotSprite {
              "Aliased shaping already produces binary coverage. Font size "
              "chooses the pixels; threshold cannot recover a closed counter."},
         box().column().gap(26).children(
-            {sketch::kit::sectionHeader({.label = "01  FROM OUTLINE TO MASK"}),
-             sketch::kit::comparison(
-                 {.cases = {sizeSweep(), presented(), shadowed()},
-                  .measure = 1020,
-                  .gap = 24}),
-             sketch::kit::sectionHeader({.label = "02  REUSE THE BAKE"}),
-             sketch::kit::comparison({.cases = {readout(), stamp()},
-                                      .measure = 1020,
-                                      .gap = 28})})));
+            {sketch::kit::section(
+                 {.label = "01  FROM OUTLINE TO MASK"},
+                 sketch::kit::comparison(
+                     {.cases = {sizeSweep(), presented(), shadowed()},
+                      .measure = 1020,
+                      .gap = 24})),
+             sketch::kit::section(
+                 {.label = "02  REUSE THE BAKE"},
+                 sketch::kit::comparison({.cases = {readout(), stamp()},
+                                          .measure = 1020,
+                                          .gap = 28}))})));
   }
 
   /** Trap 2: the size is the control. One run baked at three sizes and

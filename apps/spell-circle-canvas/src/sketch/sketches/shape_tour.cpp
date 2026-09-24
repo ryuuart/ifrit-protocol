@@ -66,22 +66,13 @@ constexpr float kSmall = 44;  // …and the small one, from the same value
 constexpr float kCell = 168;  // one cell's width
 constexpr float kBed = 118;   // the drawn strip's height
 
-constexpr material::Color kBedTone{0.902f, 0.890f, 0.863f, 1};
-constexpr material::Color kBody{0.827f, 0.318f, 0.220f, 1};
-constexpr material::Color kLine{0.129f, 0.298f, 0.451f, 1};
+constexpr material::Color kBody{0.90f, 0.55f, 0.37f, 1};
+constexpr material::Color kLine{0.56f, 0.76f, 0.88f, 1};
 
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
-  look.palette.ground = {0.945f, 0.937f, 0.918f, 1};
-  look.palette.ink = {0.114f, 0.106f, 0.098f, 1};
-  look.palette.ash = {0.376f, 0.365f, 0.345f, 1};
-  look.palette.rule = {0.749f, 0.733f, 0.706f, 1};
-  look.type.title = {.size = 32};
-  look.type.subtitle = {.size = 15};
-  look.type.footer = {.size = 10, .track = 0.2f};
-  look.type.captionLabel = {.size = 11, .track = 0.4f};
-  look.type.captionNote = {.size = 11.5f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.captionWhere = kit::Caption::Where::Below;
   look.spacing.marginX = 30;
   look.spacing.marginTop = 22;
@@ -110,7 +101,7 @@ Element cell(Outline outline, const char* call, const char* note,
       box()
           .width(kCell)
           .height(kBed)
-          .fill(Fill::color(kBedTone))
+          .fill(Fill::color(sketch::kit::theme().palette.cellGround))
           .children({figure(kLarge, 8), figure(kSmall, kLarge + 22)}));
 }
 

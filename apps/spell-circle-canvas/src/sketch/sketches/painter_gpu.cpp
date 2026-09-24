@@ -42,13 +42,6 @@ constexpr float kCurve = 300;
 
 constexpr material::Color kCellGround{0.035f, 0.038f, 0.055f, 1};
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
-  return look;
-}
-
 /** What a card carries: a header pill, a stack of rules and a bar row.
  *  An element tree like any other — the only thing 3D about it is where
  *  it ends up. */
@@ -147,7 +140,8 @@ struct PainterGpu {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

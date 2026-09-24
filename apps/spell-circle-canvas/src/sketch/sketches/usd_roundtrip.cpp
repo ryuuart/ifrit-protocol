@@ -54,9 +54,8 @@ constexpr material::Color kBrass{0.76f, 0.58f, 0.28f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.07f, 0.075f, 0.085f, 1};
-  look.type.captionLabel = {.size = 12, .track = 1.2f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.captionGap = 8;
   return look;
 }

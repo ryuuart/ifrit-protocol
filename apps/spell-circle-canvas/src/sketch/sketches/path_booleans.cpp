@@ -154,7 +154,8 @@ struct PathBooleans {
         ctx, {.size = {1240, 980},
               .captureAt = 1.0,
               .background = material::Color{0.063f, 0.063f, 0.078f, 1}});
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     Element labels = box().inset(0);
     const auto label = [&](const char* name, float x, float y, float width) {
       labels.children(

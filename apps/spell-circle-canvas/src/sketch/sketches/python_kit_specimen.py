@@ -16,31 +16,6 @@ WIDTH, HEIGHT = 352, 214
 TEAL, RUST, GOLD = "#356c69", "#bd704c", "#bd994f"
 
 
-def sheet_theme():
-    look = kit.house_theme()
-    look.palette.ground = "#f4f0e6"
-    look.palette.cellGround = "#e8e3d7"
-    look.palette.ink = "#30372f"
-    look.palette.ash = "#72766c"
-    look.palette.rule = "#c6c6b5"
-    look.palette.figure = TEAL
-    look.type.title.size = 30
-    look.type.title.track = -0.5
-    look.type.subtitle.size = 12
-    look.type.subtitle.track = 0.4
-    look.type.captionLabel.size = 11
-    look.type.captionNote.size = 11
-    look.type.captionNote.track = 0
-    look.spacing.marginX = 48
-    look.spacing.marginTop = 38
-    look.spacing.marginBottom = 28
-    look.spacing.subtitleGap = 10
-    look.spacing.contentGap = 28
-    look.spacing.captionGap = 10
-    look.spacing.cellGap = 24
-    return look
-
-
 def board(*children):
     return marks.board(*children, size=(WIDTH, HEIGHT))
 
@@ -152,7 +127,10 @@ def captured_palette(properties):
         row()
         .gap(10)
         .children(
-            [(box().width(72).height(84).fill(color).borderRadius(3)) for color in colors]
+            [
+                (box().width(72).height(84).fill(color).borderRadius(3))
+                for color in colors
+            ]
         )
     )
     return (
@@ -171,7 +149,9 @@ def captured_palette(properties):
 
 
 def specimen(picture, index, label, note):
-    surface = kit.well(width=WIDTH, height=HEIGHT, corners=6).children(picture)
+    surface = kit.well(
+        width=WIDTH, height=HEIGHT, corners=6, ground="#e8e3d7"
+    ).children(picture)
     return kit.caption(
         surface, measure=WIDTH, label=f"{index:02} / {label}", note=note
     ).opacity(entrance(0, 1, duration=0.45, delay=index * 0.05))
@@ -180,7 +160,7 @@ def specimen(picture, index, label, note):
 @sketch(size=(1200, 760), capture_at=1.1)
 class OrderSpecimen:
     def setup(self, ctx: SketchContext) -> None:
-        look = sheet_theme()
+        look = kit.feature_theme(kit.Density.Spacious)
         with kit.provide(look):
             kit.stage(ctx, size=(1200, 760), capture_at=1.1)
             inset = look.copy()
@@ -233,7 +213,7 @@ class OrderSpecimen:
             sheet = kit.page(
                 kit.cells(first, second, column=True, gap=30),
                 title="Six ways to place a thought",
-                subtitle="FORM STUDIES   /   Native arrangement · inherited theme · ordinary Python",
-                footer="SIGIL / COMPOSITION LABORATORY                                                  One renderer. Six native arrangements.",
+                subtitle="Native arrangement · inherited theme · ordinary Python",
+                footer="Six native arrangements / one inherited feature sheet",
             )
         ctx.render(sheet)

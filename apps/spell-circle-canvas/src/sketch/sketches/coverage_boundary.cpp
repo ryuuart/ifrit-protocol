@@ -133,7 +133,8 @@ struct CoverageBoundary {
   const CutOuts cut;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -151,67 +152,67 @@ struct CoverageBoundary {
          .footer = "Coverage is a raster-derived outline. An empty trace falls "
                    "back to the node’s own shape."},
         box().column().gap(28).children(
-            {sketch::kit::sectionHeader(
-                 {.label = "ONE IMAGE · TWO OUTLINES", .note = ""}),
-             sketch::kit::comparison(
-                 {.cases = {cell("SOURCE", "image(cutOut)",
-                                 "An opaque star with a transparent hole.",
-                                 art(cut)),
-                            cell("THE BOX",
-                                 "…"
-                                 ".layerStyle(halo)",
-                                 "Automatic outline: the image rectangle "
-                                 "receives the layer style.",
-                                 art(cut).layerStyle(halo())),
-                            cell("THE DRAWN SILHOUETTE",
-                                 "…"
-                                 ".decorationOutline(Coverage)"
-                                 ".layerStyle(halo)",
-                                 "Coverage outline: the visible star and its "
-                                 "hole receive the same layer style.",
-                                 art(cut)
-                                     .decorationOutline(Boundary::Coverage)
-                                     .layerStyle(halo()))},
-                  .measure = 1020,
-                  .gap = 18}),
+            {sketch::kit::section(
+                 {.label = "ONE IMAGE · TWO OUTLINES", .note = ""},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("SOURCE", "image(cutOut)",
+                                "An opaque star with a transparent hole.",
+                                art(cut)),
+                           cell("THE BOX",
+                                "…"
+                                ".layerStyle(halo)",
+                                "Automatic outline: the image rectangle "
+                                "receives the layer style.",
+                                art(cut).layerStyle(halo())),
+                           cell("THE DRAWN SILHOUETTE",
+                                "…"
+                                ".decorationOutline(Coverage)"
+                                ".layerStyle(halo)",
+                                "Coverage outline: the visible star and its "
+                                "hole receive the same layer style.",
+                                art(cut)
+                                    .decorationOutline(Boundary::Coverage)
+                                    .layerStyle(halo()))},
+                      .measure = 1020,
+                      .gap = 18})),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(18)
                  .children(
-                     {box().column().gap(18).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "WHEN THE OUTLINE IS NOT GIVEN",
-                                .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {cell("BELOW THE THRESHOLD",
-                                               "the same cut-out at 30% alpha",
-                                               "At 30% alpha no pixel reaches "
-                                               "the tracing threshold; the box "
-                                               "is the fallback.",
-                                               art(cut, kWash)
-                                                   .decorationOutline(
-                                                       Boundary::Coverage)
-                                                   .layerStyle(halo())),
-                                          cell(
-                                              "CHILDREN AS ONE OUTLINE",
-                                              "children only · "
-                                              "decorationOutline(Coverage)",
-                                              "Three children make one "
-                                              "silhouette after drawing. No "
-                                              "explicit path describes it.",
-                                              box()
-                                                  .width(kArt)
-                                                  .height(kArt)
+                     {sketch::kit::section(
+                          {.label = "WHEN THE OUTLINE IS NOT GIVEN",
+                           .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {cell("BELOW THE THRESHOLD",
+                                              "the same cut-out at 30% alpha",
+                                              "At 30% alpha no pixel reaches "
+                                              "the tracing threshold; the box "
+                                              "is the fallback.",
+                                              art(cut, kWash)
                                                   .decorationOutline(
                                                       Boundary::Coverage)
-                                                  .layerStyle(halo())
-                                                  .children({disc({37, 53}, 31),
-                                                             disc({79, 39}, 35),
-                                                             disc({68, 98},
-                                                                  38)}))},
-                                .measure = 674,
-                                .gap = 18})}),
+                                                  .layerStyle(halo())),
+                                         cell(
+                                             "CHILDREN AS ONE OUTLINE",
+                                             "children only · "
+                                             "decorationOutline(Coverage)",
+                                             "Three children make one "
+                                             "silhouette after drawing. No "
+                                             "explicit path describes it.",
+                                             box()
+                                                 .width(kArt)
+                                                 .height(kArt)
+                                                 .decorationOutline(
+                                                     Boundary::Coverage)
+                                                 .layerStyle(halo())
+                                                 .children({disc({37, 53}, 31),
+                                                            disc({79, 39}, 35),
+                                                            disc({68, 98},
+                                                                 38)}))},
+                               .measure = 674,
+                               .gap = 18})),
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "WHAT IS TRACED", .note = ""}),

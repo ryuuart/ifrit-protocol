@@ -46,21 +46,14 @@ constexpr float kPanelW = 250, kPanelH = 96;
 constexpr float kFrameDensity = 2.0f;
 
 constexpr material::Color kInk{0.86f, 0.88f, 0.94f, 1};
-constexpr material::Color kAsh{0.60f, 0.64f, 0.73f, 1};
-constexpr material::Color kRule{0.22f, 0.23f, 0.30f, 1};
 constexpr material::Color kQuest{0.169f, 0.110f, 0.043f, 1};
 
 /** THIS SHEET'S LOOK, and its one voice: the call over the panel, what
  *  it did under it. The page's ground is a shade off the canvas's, which
  *  is black, so the margin around the sheet reads as a border. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette = {.ground = {0.055f, 0.055f, 0.075f, 1},
-                  .ink = kInk,
-                  .ash = kAsh,
-                  .rule = kRule};
-  look.type.title = {.size = 26, .track = 3};
-  look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = 40;
   look.spacing.marginTop = 34;
   look.spacing.marginBottom = 22;

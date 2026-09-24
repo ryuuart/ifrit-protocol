@@ -180,7 +180,8 @@ struct ChannelBind {
   Shown shown;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx,
         {.size = kCanvas, .captureAt = kCaptureAt, .background = kBackdrop});
@@ -249,7 +250,8 @@ struct ChannelBind {
   }
 
   void describe(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     ctx.composer.render(sketch::kit::page(
         {.title = "A number arrives. A property moves.",
          .subtitle = "Three OSC faders, three bound properties · input 0–127 "

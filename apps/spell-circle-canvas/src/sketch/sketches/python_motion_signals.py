@@ -5,24 +5,23 @@ Python assembles the components once and advances the source on the scene ticker
 TAGS: Motion/Animation, Drawing/Generative, Typography/Interface
 """
 
-from sigil.compose import box, column, row, text
+from sigil.compose import box, column, text
 from sigil.compose import document as doc
 from sigil.motion import Output, Transition, animate, bind, ease, from_, through
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import SketchContext, kit, sketch
 
 WIDTH = 860
 TRACK = 610
-INK = "#d9e3df"
-MUTED = "#849894"
 
 
 def signal_row(number, title, detail, signal, accent):
+    look = kit.theme()
     marks = [
         (
             box()
             .width(1)
             .height(22 if index % 2 == 0 else 12)
-            .fill("#334945")
+            .fill(look.palette.rule)
             .absolute()
             .left(index * TRACK / 10)
             .top(11)
@@ -35,7 +34,15 @@ def signal_row(number, title, detail, signal, accent):
         .height(48)
         .children(
             *marks,
-            (box().width(TRACK).height(1).fill("#435851").absolute().left(0).top(22)),
+            (
+                box()
+                .width(TRACK)
+                .height(1)
+                .fill(look.palette.rule)
+                .absolute()
+                .left(0)
+                .top(22)
+            ),
             (
                 box()
                 .width(30)
@@ -51,22 +58,20 @@ def signal_row(number, title, detail, signal, accent):
         )
     )
     return (
-        row()
+        kit.well(padding=16, paddingY=20, corners=6)
+        .row()
         .gap(18)
         .alignItems("center")
-        .padding(horizontal=16, vertical=20)
         .width(WIDTH)
-        .fill("#162621" if number % 2 else "#13221e")
-        .borderRadius(12)
         .children(
             (
                 column()
                 .gap(5)
                 .width(168)
                 .children(
-                    text(f"0{number}", size=12, color=accent),
-                    doc.h2(title).fontSize(17).ink(INK),
-                    doc.caption(detail).fontSize(11).ink(MUTED),
+                    text(f"0{number}").styleClass("control").ink(accent),
+                    doc.label(title),
+                    doc.caption(detail),
                 )
             ),
             track,
@@ -74,7 +79,7 @@ def signal_row(number, title, detail, signal, accent):
     )
 
 
-@sketch(size=(960, 800), background="#0b1713", capture_at=1.1)
+@sketch(size=(960, 800), capture_at=1.1)
 class MotionSignals:
     def setup(self, ctx: SketchContext) -> None:
         seconds = Output(0)
@@ -82,92 +87,60 @@ class MotionSignals:
         folded = Output(0)
         ctx.ticker.derive(folded, bind(seconds).scale(0.2).wrap(1))
         cycle = bind(seconds).source(0, 5)
-        rows = [
-            signal_row(
-                1, "TRAVERSE", "source → triangle", cycle.copy().pingPong(), "#b7dd93"
-            ),
-            signal_row(
-                2, "BREATHE", "source → cosine", cycle.copy().cosine(), "#77d6bc"
-            ),
-            signal_row(
-                3,
-                "POSTERIZE",
-                "triangle → 8 levels",
-                cycle.copy().pingPong().quantize(8),
-                "#85c5e4",
-            ),
-            signal_row(
-                4,
-                "OVERSHOOT",
-                "triangle → outBack",
-                cycle.copy().pingPong().map(ease.outBack()),
-                "#baa2e0",
-            ),
-            signal_row(
-                5,
-                "GATE",
-                "fold → rise / hold / fall",
-                bind(folded).trapezoid(0, 0.2, 0.7, 1),
-                "#eab881",
-            ),
-            signal_row(
-                6,
-                "DRIFT",
-                "triangle + seeded wiggle",
-                cycle.copy().pingPong().wiggle(0.08, 4, 23),
-                "#e78e87",
-            ),
-        ]
-        entrance = animate(
-            through([(0, 32), (0.45, -5), (0.75, 0)]), ease=ease.outCubic
-        )
-        header = (
-            row()
-            .justifyContent("space_between")
-            .alignItems("center")
-            .width(WIDTH)
-            .children(
-                (
-                    column()
+        with kit.provide(kit.feature_theme(kit.Density.Spacious)):
+            kit.stage(ctx, size=(960, 800), capture_at=1.1)
+            rows = [
+                signal_row(
+                    1,
+                    "TRAVERSE",
+                    "source → triangle",
+                    cycle.copy().pingPong(),
+                    "#b7dd93",
+                ),
+                signal_row(
+                    2, "BREATHE", "source → cosine", cycle.copy().cosine(), "#77d6bc"
+                ),
+                signal_row(
+                    3,
+                    "POSTERIZE",
+                    "triangle → 8 levels",
+                    cycle.copy().pingPong().quantize(8),
+                    "#85c5e4",
+                ),
+                signal_row(
+                    4,
+                    "OVERSHOOT",
+                    "triangle → outBack",
+                    cycle.copy().pingPong().map(ease.outBack()),
+                    "#baa2e0",
+                ),
+                signal_row(
+                    5,
+                    "GATE",
+                    "fold → rise / hold / fall",
+                    bind(folded).trapezoid(0, 0.2, 0.7, 1),
+                    "#eab881",
+                ),
+                signal_row(
+                    6,
+                    "DRIFT",
+                    "triangle + seeded wiggle",
+                    cycle.copy().pingPong().wiggle(0.08, 4, 23),
+                    "#e78e87",
+                ),
+            ]
+            entrance = animate(
+                through([(0, 32), (0.45, -5), (0.75, 0)]), ease=ease.outCubic
+            )
+            ctx.render(
+                kit.page(
+                    column(*rows)
                     .gap(9)
-                    .children(
-                        doc.eyebrow("MOTION / SIGNAL DESK").fontSize(12).ink("#96bd9e"),
-                        doc.h1("One clock. Six interpretations.").fontSize(31).ink(INK),
-                    )
-                ),
-                (
-                    box()
-                    .padding(12)
-                    .borderRadius(8)
-                    .fill("#1b3124")
-                    .children(
-                        doc.label("NATIVE\nCLOCK").fontSize(13).ink("#b7dd93"),
-                    )
-                ),
+                    .width(WIDTH)
+                    .translateY(entrance)
+                    .opacity(animate(from_(0).to(1), Transition(0.5, ease.outQuad))),
+                    title="One clock. Six interpretations.",
+                    subtitle="Shared native output / binding chains / keyframe entrance",
+                    footer="Output → bind → property · period 5.0 s · retained components",
+                )
             )
-        )
-        footer = (
-            row()
-            .width(WIDTH)
-            .justifyContent("space_between")
-            .children(
-                doc.footer("RETAINED COMPONENTS").fontSize(11).ink(MUTED),
-                doc.footer("OUTPUT → BIND → PROPERTY").fontSize(11).ink("#a8bcae"),
-                doc.footer("PERIOD  5.0 s").fontSize(11).ink(MUTED),
-            )
-        )
-        ctx.render(
-            column()
-            .width(WIDTH)
-            .gap(25)
-            .absolute()
-            .left(50)
-            .top(45)
-            .translateY(entrance)
-            .opacity(animate(from_(0).to(1), Transition(0.5, ease.outQuad)))
-            .children(
-                header,
-                column().gap(9).width(WIDTH).children(rows),
-                footer,
-            )
-        )

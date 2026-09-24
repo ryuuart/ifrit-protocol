@@ -70,11 +70,8 @@ constexpr double kRackHz = 0.18;    // panel 4's breathing rate
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
-  look.palette.ink = {0.92f, 0.94f, 0.98f, 1};
-  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.captionLabel = {.size = 13, .track = 0.4f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = 40;
   look.spacing.marginTop = 40;
   look.spacing.captionGap = 6;

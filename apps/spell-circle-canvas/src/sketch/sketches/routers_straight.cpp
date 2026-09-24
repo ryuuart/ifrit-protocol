@@ -108,7 +108,8 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 
 struct RoutersStraight {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -128,55 +129,60 @@ struct RoutersStraight {
                    "rectangles. A wire along a run consumes every stop in "
                    "it."},
         box().column().gap(22).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "01  A CONNECTOR BETWEEN TWO RECTANGLES",
-                  .note = "Identical endpoints · three ways to cross the gap"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("DIRECT", "straight() · gap = 4",
-                            "A direct chord joins the same two endpoint "
-                            "rectangles.",
-                            "st", wire("st", routers::straight())),
-                       cell("ORTHOGONAL", "orthogonal(MidX)",
-                            "Split the horizontal distance with a vertical run "
-                            "in the middle.",
-                            "mx",
-                            wire("mx",
-                                 routers::orthogonal(routers::Bend::MidX))),
-                       cell("CURVED", "arc(0.26)",
-                            "Bow the chord by 26 per cent of its own length.",
-                            "ar", wire("ar", routers::arc(kBulge)))},
-                  .measure = 1020,
-                  .gap = 18}),
-             sketch::kit::sectionHeader(
+                  .note = "Identical endpoints · three ways to cross the gap"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("DIRECT", "straight() · gap = 4",
+                                "A direct chord joins the same two endpoint "
+                                "rectangles.",
+                                "st", wire("st", routers::straight())),
+                           cell("ORTHOGONAL", "orthogonal(MidX)",
+                                "Split the horizontal distance with a vertical "
+                                "run "
+                                "in the middle.",
+                                "mx",
+                                wire("mx",
+                                     routers::orthogonal(routers::Bend::MidX))),
+                           cell("CURVED", "arc(0.26)",
+                                "Bow the chord by 26 per cent of its own "
+                                "length.",
+                                "ar", wire("ar", routers::arc(kBulge)))},
+                      .measure = 1020,
+                      .gap = 18})),
+             sketch::kit::section(
                  {.label = "02  CONTROL THE TURN",
-                  .note = "A corner belongs to the route, not the node"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("ROUND AN L", "orthogonal(HFirst, 12)",
-                            "Travel horizontally first; round the corner at "
-                            "the target column.",
-                            "hf",
-                            wire("hf", routers::orthogonal(
-                                           routers::Bend::HFirst, kRadius))),
-                       cell("CHAMFER AN L", "orthogonal(VFirst, 0, 14)",
-                            "Travel vertically first; cut the corner at 45°.",
-                            "vf",
-                            wire("vf",
-                                 routers::orthogonal(routers::Bend::VFirst, 0,
-                                                     kChamfer))),
-                       cell("FOLLOW AN ANCHOR RUN",
-                            "Along{…, octilinear(8)}",
-                            "A run of stops is followed with a 45° leg and "
-                            "a straight remainder.",
-                            "oc",
-                            Operator(connect::Along{
-                                .stops = {Anchor{"oc-a", {0.5f, 0.5f}, 4},
-                                          Anchor{"oc-b", {0.5f, 0.5f}, 4}},
-                                .router = routers::octilinear(8),
-                                .wire = wireMark()}))},
-                  .measure = 1020,
-                  .gap = 18})})));
+                  .note = "A corner belongs to the route, not the node"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("ROUND AN L", "orthogonal(HFirst, 12)",
+                                "Travel horizontally first; round the corner "
+                                "at "
+                                "the target column.",
+                                "hf",
+                                wire("hf",
+                                     routers::orthogonal(routers::Bend::HFirst,
+                                                         kRadius))),
+                           cell("CHAMFER AN L", "orthogonal(VFirst, 0, 14)",
+                                "Travel vertically first; cut the corner at "
+                                "45°.",
+                                "vf",
+                                wire("vf",
+                                     routers::orthogonal(routers::Bend::VFirst,
+                                                         0, kChamfer))),
+                           cell("FOLLOW AN ANCHOR RUN",
+                                "Along{…, octilinear(8)}",
+                                "A run of stops is followed with a 45° leg and "
+                                "a straight remainder.",
+                                "oc",
+                                Operator(connect::Along{
+                                    .stops = {Anchor{"oc-a", {0.5f, 0.5f}, 4},
+                                              Anchor{"oc-b", {0.5f, 0.5f}, 4}},
+                                    .router = routers::octilinear(8),
+                                    .wire = wireMark()}))},
+                      .measure = 1020,
+                      .gap = 18}))})));
   }
 };
 

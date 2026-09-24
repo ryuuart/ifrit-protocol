@@ -22,34 +22,12 @@ using namespace sigil::compose;
 namespace {
 constexpr float kWidth = 336;
 constexpr float kHeight = 158;
-constexpr material::Color kInk{0.30f, 0.83f, 0.78f, 1};
 
 struct Mapping {
   const char* title;
   const char* note;
   data::Scale scale;
 };
-
-/** THE SHEET EVERY CELL IS DRESSED BY: the ladder behind the curve, the
- *  tick numbers as figures rather than remarks — untracked, in the font
- *  context's own family — and the mapping itself in one accent, whether it
- *  is drawn as a curve, as a band or as a point. */
-sigil::compose::StyleSheet scaleSheet() {
-  sigil::compose::StyleSheet dressed =
-      sketch::kit::houseTheme().styleSheet() +
-      sigil::compose::StyleSheet{
-          sigil::compose::rule(".plotRule")
-              .font({.color = material::Color{0.20f, 0.25f, 0.29f, 1}}),
-          sigil::compose::rule(".plotTick")
-              .font({.face = sigil::weave::defaultFace(),
-                     .size = 11,
-                     .color = material::Color{0.64f, 0.70f, 0.76f, 1},
-                     .track = 0}),
-          sigil::compose::rule(".plotTrace").font({.color = kInk}),
-          sigil::compose::rule(".plotBar").font({.color = kInk}),
-          sigil::compose::rule(".plotMark").font({.color = kInk})};
-  return dressed;
-}
 
 /** ONE DATUM PER CATEGORY at @p y — the height a band grows to, or the
  *  position a widthless entry is drawn at. */
@@ -107,7 +85,7 @@ Element mapping(const Mapping& properties) {
       box()
           .width(kWidth)
           .height(kHeight)
-          .fill(Fill::color({0.07f, 0.09f, 0.12f, 1}))
+          .fill(Fill::color(sketch::kit::theme().palette.cellGround))
           .children({kit::at(
               sketch::kit::plot(properties.title, frame, std::move(layers)), 24,
               16, kWidth - 48, kHeight - 44)});
@@ -117,6 +95,7 @@ Element mapping(const Mapping& properties) {
 
 struct DataScales {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide look(sketch::kit::featureTheme());
     using enum data::Transform;
     const std::array<Mapping, 11> examples{{
         {"Linear",
@@ -156,16 +135,14 @@ struct DataScales {
          {.transform = Point, .steps = 5, .outerPadding = 0.5}},
     }};
     sketch::kit::stage(ctx, {.size = {1100, 980}, .captureAt = 0.05});
-    ctx.composer.render(
-        sketch::kit::page(
-            {.title = u8"DATA INTO MOTION AND MARKS",
-             .subtitle = u8"One mapping value · eleven transforms · reusable "
-                         u8"properties",
-             .footer = u8"Curves: input along the bottom, normalized output "
-                       u8"upward. Category labels are indices."},
-            kit::panelGrid(
-                {.cells = each(examples, mapping), .columns = 3, .gap = 16}))
-            .applyStyleSheet(scaleSheet()));
+    ctx.composer.render(sketch::kit::page(
+        {.title = u8"DATA INTO MOTION AND MARKS",
+         .subtitle = u8"One mapping value · eleven transforms · reusable "
+                     u8"properties",
+         .footer = u8"Curves: input along the bottom, normalized output "
+                   u8"upward. Category labels are indices."},
+        kit::panelGrid(
+            {.cells = each(examples, mapping), .columns = 3, .gap = 16})));
   }
 };
 }  // namespace

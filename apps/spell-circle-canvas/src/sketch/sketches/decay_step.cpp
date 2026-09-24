@@ -121,7 +121,8 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> curves,
 
 struct DecayStep {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // the plots are functions of time, not of the clock
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();

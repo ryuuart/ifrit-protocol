@@ -137,7 +137,8 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
 
 struct OverUnder {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -159,98 +160,96 @@ struct OverUnder {
                  .alignItems(Align::Start)
                  .gap(20)
                  .children(
-                     {box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "THE TWO SURFACES", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases =
-                                    {cell("BASE · STONE", "kit::stone(…)",
-                                          "Stone supplies the base.", stone()),
-                                     cell("TOP · BRASS", "kit::latten(…)",
-                                          "Brass supplies the top.", brass())},
-                                .measure = 500,
-                                .gap = 20})}),
-                      box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "HOW MUCH TOP IS VISIBLE?",
-                                .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases =
-                                    {cell("A CONSTANT",
-                                          "over(…, maskConstant(0.35))",
-                                          "Uniform 35% brass across the plate.",
-                                          material::over(
-                                              stone(), brass(),
-                                              material::maskConstant(0.35f))),
-                                     cell("A SAMPLED RAMP",
-                                          "over(…, maskMap(ramp))",
-                                          "The diagonal ramp sets local "
-                                          "coverage.",
-                                          mixed)},
-                                .measure = 500,
-                                .gap = 20})})}),
-             sketch::kit::sectionHeader(
+                     {sketch::kit::section(
+                          {.label = "THE TWO SURFACES", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases =
+                                   {cell("BASE · STONE", "kit::stone(…)",
+                                         "Stone supplies the base.", stone()),
+                                    cell("TOP · BRASS", "kit::latten(…)",
+                                         "Brass supplies the top.", brass())},
+                               .measure = 500,
+                               .gap = 20})),
+                      sketch::kit::section(
+                          {.label = "HOW MUCH TOP IS VISIBLE?", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases =
+                                   {cell("A CONSTANT",
+                                         "over(…, maskConstant(0.35))",
+                                         "Uniform 35% brass across the plate.",
+                                         material::over(
+                                             stone(), brass(),
+                                             material::maskConstant(0.35f))),
+                                    cell("A SAMPLED RAMP",
+                                         "over(…, maskMap(ramp))",
+                                         "The diagonal ramp sets local "
+                                         "coverage.",
+                                         mixed)},
+                               .measure = 500,
+                               .gap = 20}))}),
+             sketch::kit::section(
                  {.label = "READ AND REMAP THE MASK",
                   .note = "The surface pair stays fixed. Only the "
-                          "interpretation of the source changes."}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("INVERT", "invert(maskMap(ramp))",
-                            "Flip the same ramp’s answer.",
-                            material::over(
-                                stone(), brass(),
-                                material::invertMask(
-                                    material::maskMap(placedRamp())))),
-                       cell("FIT A RANGE", "fit(maskMap(ramp), 0.32, 0.70)",
-                            "Only the input range 0.32–0.70 spans the "
-                            "transition.",
-                            material::over(stone(), brass(),
-                                           material::fitMask(
-                                               material::maskMap(placedRamp()),
-                                               kLow, kHigh))),
-                       cell("READ AS HEIGHT", "maskHeight(ramp, 0.32, 0.70)",
-                            "Read the ramp as height, without decoding a "
-                            "tangent normal.",
-                            material::over(
-                                stone(), brass(),
-                                material::maskHeight(placedRamp(), kLow,
-                                                     kHigh, {0, 1, 0}))),
-                       cell("READ A NORMAL",
-                            "maskSlope(bevelNormals(plate, 26))",
-                            "The bevel normal decides which shoulder faces up.",
-                            material::over(stone(), brass(),
-                                           material::maskSlope(
-                                               material::bevelNormals(plate(),
-                                                                      kBevel),
-                                               {0, -1, 0}, 0.05f, 0.55f)))},
-                  .measure = 1020,
-                  .gap = 20}),
+                          "interpretation of the source changes."},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("INVERT", "invert(maskMap(ramp))",
+                                "Flip the same ramp’s answer.",
+                                material::over(
+                                    stone(), brass(),
+                                    material::invertMask(
+                                        material::maskMap(placedRamp())))),
+                           cell("FIT A RANGE", "fit(maskMap(ramp), 0.32, 0.70)",
+                                "Only the input range 0.32–0.70 spans the "
+                                "transition.",
+                                material::over(
+                                    stone(), brass(),
+                                    material::fitMask(
+                                        material::maskMap(placedRamp()), kLow,
+                                        kHigh))),
+                           cell("READ AS HEIGHT",
+                                "maskHeight(ramp, 0.32, 0.70)",
+                                "Read the ramp as height, without decoding a "
+                                "tangent normal.",
+                                material::over(stone(), brass(),
+                                               material::maskHeight(
+                                                   placedRamp(), kLow, kHigh,
+                                                   {0, 1, 0}))),
+                           cell("READ A NORMAL",
+                                "maskSlope(bevelNormals(plate, 26))",
+                                "The bevel normal decides which shoulder faces "
+                                "up.",
+                                material::over(stone(), brass(),
+                                               material::maskSlope(
+                                                   material::bevelNormals(
+                                                       plate(), kBevel),
+                                                   {0, -1, 0}, 0.05f, 0.55f)))},
+                      .measure = 1020,
+                      .gap = 20})),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(20)
                  .children(
-                     {box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "CHANGE THE COMPOSITING LAW",
-                                .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {cell("ADDITIVE BLEND",
-                                               "over(…, Blend::Add)",
-                                               "Add brass rather than mixing "
-                                               "towards it.",
-                                               material::over(
-                                                   stone(), brass(),
-                                                   material::maskMap(
-                                                       placedRamp()),
-                                                   material::Blend::Add)),
-                                          cell("A STACK OVER A STACK",
-                                               "over(over(…), …, Multiply)",
-                                               "Multiply another masked layer "
-                                               "over the existing stack.",
-                                               twice)},
-                                .measure = 500,
-                                .gap = 20})}),
+                     {sketch::kit::section(
+                          {.label = "CHANGE THE COMPOSITING LAW", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {cell("ADDITIVE BLEND",
+                                              "over(…, Blend::Add)",
+                                              "Add brass rather than mixing "
+                                              "towards it.",
+                                              material::over(
+                                                  stone(), brass(),
+                                                  material::maskMap(
+                                                      placedRamp()),
+                                                  material::Blend::Add)),
+                                         cell("A STACK OVER A STACK",
+                                              "over(over(…), …, Multiply)",
+                                              "Multiply another masked layer "
+                                              "over the existing stack.",
+                                              twice)},
+                               .measure = 500,
+                               .gap = 20})),
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "ONE VALUE, THREE CHILDREN",

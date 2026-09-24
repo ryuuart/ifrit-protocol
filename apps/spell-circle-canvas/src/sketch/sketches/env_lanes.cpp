@@ -71,7 +71,8 @@ constexpr material::Color kCellGround{0.06f, 0.065f, 0.08f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.palette.cellGround = {0.06f, 0.065f, 0.08f, 1};
   return look;
 }
@@ -171,42 +172,45 @@ struct EnvLanes {
          .footer = "Every image is a separate world frame. The mesh, camera "
                    "and surface parameters remain fixed."},
         box().column().gap(26).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "SURFACE RESPONSE",
-                  .note = "Reference · brightness · reflection softness"}),
-             sketch::kit::comparison(
-                 {.cases = {cell("THE REFERENCE", "studio() · exposure 1",
-                                 "Near-mirror metal on a matte slab, lit only "
-                                 "by the studio.",
-                                 bake(base)),
-                            cell("ONE STOP BRIGHTER", "exposure = 2",
-                                 "Double the radiance before the tone curve.",
-                                 bake(brighter)),
-                            cell("ROUGHER EVERYWHERE", "roughnessBias = 0.45",
-                                 "A bias softens every reflection without "
-                                 "editing the materials.",
-                                 bake(softened))},
-                  .measure = 1020,
-                  .gap = 18}),
-             sketch::kit::sectionHeader(
+                  .note = "Reference · brightness · reflection softness"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("THE REFERENCE", "studio() · exposure 1",
+                                "Near-mirror metal on a matte slab, lit only "
+                                "by the studio.",
+                                bake(base)),
+                           cell("ONE STOP BRIGHTER", "exposure = 2",
+                                "Double the radiance before the tone curve.",
+                                bake(brighter)),
+                           cell("ROUGHER EVERYWHERE", "roughnessBias = 0.45",
+                                "A bias softens every reflection without "
+                                "editing the materials.",
+                                bake(softened))},
+                      .measure = 1020,
+                      .gap = 18})),
+             sketch::kit::section(
                  {.label = "THE ENVIRONMENT AROUND IT",
                   .note = "Separate the light contribution, the next sky, and "
-                          "the visible backdrop."}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("DIFFUSE / SPECULAR", "diffuse .15 specular 2",
-                            "A stronger reflection over a reduced diffuse "
-                            "bounce.",
-                            bake(mirrored)),
-                       cell("CROSSFADE TO SUNSET", "crossfade 0.75 to sunset",
-                            "The next panorama contributes 75% of the "
-                            "illumination.",
-                            bake(mixed)),
-                       cell("SHOW THE SKY", "backdrop 1.0 blur 0.35",
-                            "The backdrop becomes visible, with its own blur.",
-                            bake(shown))},
-                  .measure = 1020,
-                  .gap = 18})})));
+                          "the visible backdrop."},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("DIFFUSE / SPECULAR", "diffuse .15 specular 2",
+                                "A stronger reflection over a reduced diffuse "
+                                "bounce.",
+                                bake(mirrored)),
+                           cell("CROSSFADE TO SUNSET",
+                                "crossfade 0.75 to sunset",
+                                "The next panorama contributes 75% of the "
+                                "illumination.",
+                                bake(mixed)),
+                           cell("SHOW THE SKY", "backdrop 1.0 blur 0.35",
+                                "The backdrop becomes visible, with its own "
+                                "blur.",
+                                bake(shown))},
+                      .measure = 1020,
+                      .gap = 18}))})));
   }
 };
 

@@ -92,7 +92,8 @@ sk_sp<SkData> chart(int bars, material::Color ink) {
 
 struct HubReload {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // both readings have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();
@@ -155,31 +156,16 @@ struct HubReload {
                    (picture ? image(picture) : box()).width(180).height(120))});
         };
     Element resourceIndex = box().column().gap(18).width(330).children(
-        {box()
-             .height(96)
-             .column()
-             .gap(10)
-             .padding(16, 0)
-             .children({document::label("TEXT"),
-                        text("notes.txt").styleClass("readout"),
-                        document::caption("hub.text(uri)")}),
-         box()
-             .height(130)
-             .column()
-             .gap(10)
-             .padding(16, 0)
-             .children({document::label("CALLER-DEFINED TYPE"),
-                        text("cloud.pts").styleClass("readout"),
-                        document::caption(
-                            "registerDecoder<Cloud>\nload<Cloud>(uri)")}),
-         box()
-             .height(130)
-             .column()
-             .gap(10)
-             .padding(16, 0)
-             .children({document::label("IMAGE"),
-                        text("chart.png").styleClass("readout"),
-                        document::caption("hub.image(uri)")})});
+        {box().height(96).column().gap(10).padding(16, 0).children(
+             {document::label("TEXT"), text("notes.txt").styleClass("readout"),
+              document::caption("hub.text(uri)")}),
+         box().height(130).column().gap(10).padding(16, 0).children(
+             {document::label("CALLER-DEFINED TYPE"),
+              text("cloud.pts").styleClass("readout"),
+              document::caption("registerDecoder<Cloud>\nload<Cloud>(uri)")}),
+         box().height(130).column().gap(10).padding(16, 0).children(
+             {document::label("IMAGE"), text("chart.png").styleClass("readout"),
+              document::caption("hub.image(uri)")})});
     ctx.composer.render(sketch::kit::page(
         {.title = "A file changes. A held value does not.",
          .subtitle = "Mounted files are replaced, poll() invalidates their "

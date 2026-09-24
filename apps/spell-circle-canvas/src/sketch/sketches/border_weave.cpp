@@ -93,8 +93,10 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
                                  const char* note, Element body) {
   return {.title = title,
           .control = call,
-          .figure = sketch::kit::cell(kSpecimen, "", "",
-                                      std::move(body).absolute().inset((kPicture - kPlaque) / 2, (kCell - kPlaque) / 2)),
+          .figure = sketch::kit::cell(
+              kSpecimen, "", "",
+              std::move(body).absolute().inset((kPicture - kPlaque) / 2,
+                                               (kCell - kPlaque) / 2)),
           .note = note};
 }
 
@@ -102,7 +104,8 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 
 struct BorderWeave {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& sheet = sketch::kit::theme();
@@ -120,76 +123,74 @@ struct BorderWeave {
          .footer = "The decoration follows the silhouette; a chamfer or "
                    "another outline does not require a new layout."},
         box().column().gap(24).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "01  FOLLOW THE SILHOUETTE",
-                  .note = "The same inset and weight in each mode"}),
-             sketch::kit::comparison(
-                 {.cases = {cell("CONTINUOUS", "width = 1.8 · inset = 7",
-                                 "A continuous rule follows every chamfer.",
-                                 plaque().foreground(decorations::border(
-                                     kWidth, Fill::color(sheet.palette.figure),
-                                     kInset))),
-                            cell("CORNERS ONLY", "mode = Bracket · arm = 18",
-                                 "Keep the first and last 18 px around each "
-                                 "detected turn.",
-                                 plaque().foreground(bracket)),
-                            cell("BETWEEN CORNERS", "mode = Gapped · arm = 18",
-                                 "Remove those same corner intervals.",
-                                 plaque().foreground(Border{
-                                     .width = kWidth,
-                                     .fill = Fill::color(sheet.palette.figure),
-                                     .inset = kInset,
-                                     .mode = Border::Mode::Gapped,
-                                     .corner = kArm})),
-                            cell("TWO RULES", "weightedCorners + border",
-                                 "Weight the turns, then add a second inset "
-                                 "rule.",
-                                 plaque().layerStyle(decorations::doubleBorder(
-                                     decorations::weightedCorners(
-                                         kWidth, kWidth * 3,
-                                         Fill::color(sheet.palette.figure),
-                                         kArm, kInset),
-                                     decorations::border(
-                                         0.9f, Fill::color(kCool), 14))))},
-                  .measure = 1020,
-                  .gap = 20}),
+                  .note = "The same inset and weight in each mode"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("CONTINUOUS", "width = 1.8 · inset = 7",
+                                "A continuous rule follows every chamfer.",
+                                plaque().foreground(decorations::border(
+                                    kWidth, Fill::color(sheet.palette.figure),
+                                    kInset))),
+                           cell("CORNERS ONLY", "mode = Bracket · arm = 18",
+                                "Keep the first and last 18 px around each "
+                                "detected turn.",
+                                plaque().foreground(bracket)),
+                           cell("BETWEEN CORNERS", "mode = Gapped · arm = 18",
+                                "Remove those same corner intervals.",
+                                plaque().foreground(Border{
+                                    .width = kWidth,
+                                    .fill = Fill::color(sheet.palette.figure),
+                                    .inset = kInset,
+                                    .mode = Border::Mode::Gapped,
+                                    .corner = kArm})),
+                           cell("TWO RULES", "weightedCorners + border",
+                                "Weight the turns, then add a second inset "
+                                "rule.",
+                                plaque().layerStyle(decorations::doubleBorder(
+                                    decorations::weightedCorners(
+                                        kWidth, kWidth * 3,
+                                        Fill::color(sheet.palette.figure), kArm,
+                                        kInset),
+                                    decorations::border(
+                                        0.9f, Fill::color(kCool), 14))))},
+                      .measure = 1020,
+                      .gap = 20})),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(24)
                  .children(
-                     {box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "02  STRANDS MUST CROSS", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {cell(
-                                    "WOVEN BORDER",
-                                    "braid(3, 5, 34) · alternate",
-                                    "Three phased waves trade sides; "
-                                    "alternating crossings make the braid.",
-                                    plaque().stroke(Decoration(brush::weave(
-                                        kit::braid(
-                                            kStrands, kAmplitude, kWavelength,
-                                            Decoration(brush::solid(
-                                                2.0f,
-                                                Fill::color(
-                                                    sheet.palette.figure)))),
-                                        crossing::alternate()))))},
-                                .measure = 240,
-                                .gap = 18})}),
-                      box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "03  A CURVE WITHOUT CORNERS",
-                                .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {cell(
-                                    "THE CIRCLE COUNTEREXAMPLE",
-                                    "Bracket · circular outline",
-                                    "No tangent break means no detected "
-                                    "corner, so brackets disappear.",
-                                    plaque(true).foreground(bracket))},
-                                .measure = 240,
-                                .gap = 18})}),
+                     {sketch::kit::section(
+                          {.label = "02  STRANDS MUST CROSS", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {cell(
+                                   "WOVEN BORDER",
+                                   "braid(3, 5, 34) · alternate",
+                                   "Three phased waves trade sides; "
+                                   "alternating crossings make the braid.",
+                                   plaque().stroke(Decoration(brush::weave(
+                                       kit::braid(
+                                           kStrands, kAmplitude, kWavelength,
+                                           Decoration(brush::solid(
+                                               2.0f,
+                                               Fill::color(
+                                                   sheet.palette.figure)))),
+                                       crossing::alternate()))))},
+                               .measure = 240,
+                               .gap = 18})),
+                      sketch::kit::section(
+                          {.label = "03  A CURVE WITHOUT CORNERS", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {cell(
+                                   "THE CIRCLE COUNTEREXAMPLE",
+                                   "Bracket · circular outline",
+                                   "No tangent break means no detected "
+                                   "corner, so brackets disappear.",
+                                   plaque(true).foreground(bracket))},
+                               .measure = 240,
+                               .gap = 18})),
                       box().column().gap(16).children(
                           {sketch::kit::sectionHeader(
                                {.label = "READING THE EDGE", .note = ""}),

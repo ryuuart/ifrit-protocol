@@ -32,15 +32,7 @@ using namespace sigil::compose;
 namespace {
 
 sketch::kit::Theme sheetTheme() {
-  auto look = sketch::kit::houseTheme();
-  look.palette.ground = hexColor(0xf6f2e9);
-  look.palette.ink = hexColor(0x253b40);
-  look.palette.ash = hexColor(0x63777a);
-  look.palette.rule = hexColor(0xd5dcd5);
-  look.type.title = {.size = 42};
-  look.type.subtitle = {.size = 16};
-  look.type.footer = {.size = 12};
-  look.type.captionNote = {.size = 14};
+  auto look = sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = 48;
   look.spacing.marginTop = 42;
   look.spacing.marginBottom = 32;
@@ -57,6 +49,7 @@ Element card(Utf8 step, Utf8 title, Utf8 note, material::Color color) {
       .padding(24)
       .borderRadius({18})
       .fill(Fill::color(color))
+      .ink(hexColor(0x253b40))
       .children({document::eyebrow(std::move(step)),
                  text(std::move(title)).font({.size = 28}),
                  text(std::move(note))});
@@ -113,7 +106,7 @@ struct HelloSketch {
                            .fill(Fill::color(hexColor(0x253b40)))
                            .overflow(Overflow::Clip),
                        text("Draw every frame with the pen.")
-                           .ink(hexColor(0x63777a))}),
+                           .ink(sketch::kit::theme().palette.ash)}),
                   box().column().width(240).gap(12).children(
                       {text("A value that changes.").font({.size = 20}),
                        kit::centred()
@@ -121,13 +114,14 @@ struct HelloSketch {
                            .gap(8)
                            .height(174)
                            .borderRadius({18})
-                           .fill(Fill::color(hexColor(0xe5e9df)))
+                           .fill(Fill::color(
+                               sketch::kit::theme().palette.cellGround))
                            .children({text(std::to_string(score))
                                           .font({.size = 64})
                                           .key("score"),
                                       document::eyebrow("and counting")}),
                        text("Update only when data changes.")
-                           .ink(hexColor(0x63777a))})})}));
+                           .ink(sketch::kit::theme().palette.ash)})})}));
   }
 
   void setup(sketch::SketchContext& ctx) {

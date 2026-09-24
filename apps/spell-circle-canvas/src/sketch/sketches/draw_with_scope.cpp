@@ -5,7 +5,7 @@
  * The cards are the ones `connect_by_lane` wires: each states its tier
  * and its calls, and here a third fact, `load`, the traffic a call
  * carries. No stock operator draws a wire whose weight is a fact, so a
- * program does — `drawWith(drawTraffic)` attaches one pen over the panel
+ * program does — `drawWith(drawTraffic())` attaches one pen over the panel
  * and hands it the scope: every card's key, facts and bounds, settled.
  * The program reads `calls` and `load` off each card and draws each wire
  * with SigilDraw's own verbs, weighted by the load and labelled at its
@@ -28,6 +28,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <cmath>
 #include <map>
 #include <string>
 #include <utility>
@@ -74,8 +75,8 @@ struct Tiers {
     for (auto& [tier, cards] : rows) {
       const float step = arrangement.box.width() / (float)(cards.size() + 1);
       for (size_t i = 0; i < cards.size(); ++i)
-        cards[i]->centreAt({step * (float)(i + 1),
-                            rowHeight / 2 + (float)tier * rowHeight});
+        cards[i]->centreAt(
+            {step * (float)(i + 1), rowHeight / 2 + (float)tier * rowHeight});
     }
   }
 };
@@ -96,42 +97,52 @@ Element card(const Service& service) {
       .children({text(service.name)});
 }
 
-/** THE PROGRAM: a wire per call, as wide as the load, labelled midway. */
-void drawTraffic(sigil::draw::Pen& pen, const Scope& scope) {
+/** A wire per call, as wide as the load, labelled midway. The program
+ *  captures its ink while the feature theme is in scope. */
+ScopeProgram drawTraffic() {
   const material::Color ink = sketch::kit::theme().palette.figure;
-  pen.noFill();
-  for (const Scope::Node* node : scope.having("calls")) {
-    const float load = node->number("load").value_or(1.0f);
-    const auto calls = node->attribute<std::vector<std::string>>("calls");
-    if (!calls) continue;
-    for (const std::string& name : *calls) {
-      const Scope::Node* target = scope.find(name);
-      if (!target) continue;
-      const SkPoint from = node->bounds.center();
-      const SkPoint to = target->bounds.center();
-      pen.stroke(ink);
-      pen.strokeWeight(std::max(1.0f, load * kWeight));
-      pen.line(from, to);
-      pen.noStroke();
-      pen.fill(ink);
-      pen.textSize(10);
-      pen.text(std::to_string((int)load), (from.x() + to.x()) / 2 + 6,
-               (from.y() + to.y()) / 2 - 4);
-      pen.noFill();
+  return [ink](sigil::draw::Pen& pen, const Scope& scope) {
+    pen.noFill();
+    for (const Scope::Node* node : scope.having("calls")) {
+      const float load = node->number("load").value_or(1.0f);
+      const auto calls = node->attribute<std::vector<std::string>>("calls");
+      if (!calls) continue;
+      for (const std::string& name : *calls) {
+        const Scope::Node* target = scope.find(name);
+        if (!target) continue;
+        const SkPoint from = node->bounds.center();
+        const SkPoint to = target->bounds.center();
+        pen.stroke(ink);
+        pen.strokeWeight(std::max(1.0f, load * kWeight));
+        pen.line(from, to);
+        pen.noStroke();
+        pen.fill(ink);
+        pen.textSize(10);
+        const float dx = to.x() - from.x();
+        const float dy = to.y() - from.y();
+        const float length = std::max(1.0f, std::hypot(dx, dy));
+        pen.text(std::to_string((int)load),
+                 (from.x() + to.x()) / 2 + dy / length * 12,
+                 (from.y() + to.y()) / 2 - dx / length * 12);
+        pen.noFill();
+      }
     }
-  }
+  };
 }
 
 /** THE SAME FACTS, ANOTHER READING: the load as a bar under each card. */
-void drawLoadBars(sigil::draw::Pen& pen, const Scope& scope) {
-  pen.noStroke();
-  pen.fill(sketch::kit::theme().palette.figure);
-  for (const Scope::Node& node : scope.nodes()) {
-    const float load = node.number("load").value_or(0.0f);
-    if (load <= 0) continue;
-    pen.rect(node.bounds.left(), node.bounds.bottom() + 4,
-             node.bounds.width() * (load / 6.0f), 3);
-  }
+ScopeProgram drawLoadBars() {
+  const material::Color ink = sketch::kit::theme().palette.figure;
+  return [ink](sigil::draw::Pen& pen, const Scope& scope) {
+    pen.noStroke();
+    pen.fill(ink);
+    for (const Scope::Node& node : scope.nodes()) {
+      const float load = node.number("load").value_or(0.0f);
+      if (load <= 0) continue;
+      pen.rect(node.bounds.left(), node.bounds.bottom() + 4,
+               node.bounds.width() * (load / 6.0f), 3);
+    }
+  };
 }
 
 Element panel(std::vector<Operator> operators) {
@@ -154,7 +165,8 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 
 struct DrawWithScope {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "Drawn from the facts",
@@ -163,30 +175,30 @@ struct DrawWithScope {
          .footer = "drawWith attaches one pen over the scope; keyed, the pen "
                    "prunes while the cards hold still. Its output is pixels: "
                    "nothing downstream reads it."},
-        box().column().gap(22).children(
-            {sketch::kit::sectionHeader(
-                 {.label = "01  THE SAME CARDS, THREE PROGRAMS",
-                  .note = "Weighted wires · the same, keyed · the load as a "
-                          "bar"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("WEIGHTED WIRES", "drawWith(drawTraffic).zIndex(-1)",
-                            "Each wire as wide as the load its card states, "
-                            "labelled at its midpoint, behind the cards.",
-                            panel({Tiers{},
-                                   drawWith(drawTraffic).zIndex(-1)})),
-                       cell("THE SAME, KEYED",
-                            "drawWith(\"traffic\", drawTraffic)",
-                            "The key vouches for the program, so the pen it "
-                            "attaches prunes while the scope holds still.",
-                            panel({Tiers{},
-                                   drawWith("traffic", drawTraffic).zIndex(-1)})),
-                       cell("ANOTHER READING", "drawWith(drawLoadBars)",
-                            "The same load fact read as a bar under each card "
-                            "rather than as a wire.",
-                            panel({Tiers{}, drawWith(drawLoadBars)}))},
-                  .measure = 1020,
-                  .gap = 18})})));
+        sketch::kit::section(
+            {.label = "01  THE SAME CARDS, THREE PROGRAMS",
+             .note = "Weighted wires · the same, keyed · the load as a "
+                     "bar"},
+            sketch::kit::comparison(
+                {.cases =
+                     {cell(
+                          "WEIGHTED WIRES",
+                          "drawWith(drawTraffic()).zIndex(-1)",
+                          "Each wire as wide as the load its card states, "
+                          "labelled at its midpoint, behind the cards.",
+                          panel({Tiers{}, drawWith(drawTraffic()).zIndex(-1)})),
+                      cell("THE SAME, KEYED",
+                           "drawWith(\"traffic\", drawTraffic())",
+                           "The key vouches for the program, so the pen it "
+                           "attaches prunes while the scope holds still.",
+                           panel({Tiers{}, drawWith("traffic", drawTraffic())
+                                               .zIndex(-1)})),
+                      cell("ANOTHER READING", "drawWith(drawLoadBars())",
+                           "The same load fact read as a bar under each card "
+                           "rather than as a wire.",
+                           panel({Tiers{}, drawWith(drawLoadBars())}))},
+                 .measure = 1020,
+                 .gap = 18}))));
   }
 };
 

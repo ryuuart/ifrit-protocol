@@ -129,7 +129,8 @@ struct LaneRetarget {
   Trace plain, slots, family, reshaped;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // the four flights have already been run
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

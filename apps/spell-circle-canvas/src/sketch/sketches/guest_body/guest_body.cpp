@@ -116,6 +116,7 @@ constexpr glm::vec3 kEye{0.0f, 54.0f, 400.0f};
  *  colour, because a plate of this set should say what it is waiting
  *  for. */
 Element waiting() {
+  const sketch::kit::Provide presentation(sketch::kit::featureTheme());
   const sketch::kit::Theme& look = sketch::kit::theme();
   return stack()
       .width((float)kCard.width())

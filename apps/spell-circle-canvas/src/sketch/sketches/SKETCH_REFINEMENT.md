@@ -1,15 +1,17 @@
 # Sketch presentation audit
 
-The catalogue has three presentation needs. Comparison sheets use the shared
-SketchKit page, captions and wells. Reference studies preserve the typography,
+The catalogue has three presentation needs. Feature demonstrations use the shared
+SketchKit feature theme, page, sections, comparisons, captions and wells. Reference studies preserve the typography,
 colour, arrangement and proportions of their source. Drawing and 3D sketches
 keep the image itself as the subject; a page is not required around every image.
 
-This inventory covers **236 managed entries**. The untracked `spell_circle`
-project is user-owned and excluded. Each entry below has an explicit disposition;
-retaining a visual treatment is not a claim that the sketch was redesigned.
+The earlier review inventory below records **236 managed entries**. The
+untracked `spell_circle` project was excluded as user-owned. Its per-entry
+dispositions and image evidence describe that review, not validation of the
+feature presentation refresh appended below. Retaining a visual treatment is
+not a claim that the sketch was redesigned.
 
-## Rewritten studies
+## Earlier feature review
 
 Seventy-one API and data studies use compositions built around their subjects.
 The examples preserve their library operations and report actual results:
@@ -54,9 +56,9 @@ bounded preview beside a readable source panel. Reference reconstructions,
 composed Python examples, full-frame drawings and 3D studies retain their own
 visual vocabulary. Retention is not a claim of redesign.
 
-## Review coverage
+## Earlier review coverage
 
-The seventy-one rewritten C++ studies have fresh headless GPU plates reviewed
+The seventy-one rewritten C++ studies had headless GPU plates reviewed
 at full size for clipping, caption alignment, comparison origins and footer
 clearance. Both new Python studies were rendered through Sketchbook and the
 standalone package. The table distinguishes these reviews from existing plates
@@ -72,7 +74,7 @@ stacked-panel spacing leaves its final example clear of the footer, and Sigillum
 margin spacing keeps all four legend rows above its console. This coverage verifies
 the semantic migration and does not reclassify retained studies as redesigned.
 
-Current rewrite artifacts are kept under `/private/tmp/sketch-polish-plates/`.
+Earlier rewrite artifacts were kept under `/private/tmp/sketch-polish-plates/`.
 The broader catalogue review artifacts are under
 `/private/tmp/sketch-design-plates/`. Document integration plates are under
 `/private/tmp/document-plates/` and `/private/tmp/document-python-plates/`.
@@ -96,7 +98,7 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | Retain · focused specimen | 25 |
 | Retain · reference study | 41 |
 
-## Per-entry disposition
+## Earlier per-entry disposition
 
 | Sketch | Disposition | Visual evidence |
 |---|---|---|
@@ -336,3 +338,35 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `matrix_rain` | Retain · reference study | Cached preview |
 | `rota_convocationis` | Retain · reference study | Cached preview |
 | `shipping_forecast` | Retain · reference study | Reviewed GPU plate |
+
+## Feature presentation refresh
+
+The current refresh updates 113 native and 12 Python feature demonstrations.
+Reference reconstructions and authored catalog treatments are outside its
+scope. Fifteen native entries retain their presentation: thirteen full-frame
+Set scenes, the Gerstner grid reconstruction and the `ui_particles` artwork.
+
+Feature sheets bind `featureTheme()` explicitly. Compact and spacious densities
+share slate grounds, ivory type and pale gold readings while retaining the
+space each composition needs. The shared `section()` component controls the
+heading-to-content gap; comparison controls use a theme register and class,
+and each figure keeps its authored dimensions. The page and its furniture use
+Compose document roles so local sheets can style their content consistently.
+
+The Release build and matching Python extension passed. Focused verification
+passed 125 native kit/document tests, 16 Python kit tests, the sketch
+documentation stem guard and the Python declaration, package and parity checks.
+The scoped source check is clean. The `surface_components` window check passed
+at 1200 × 900.
+
+All 113 native feature GPU captures and twelve Python CPU captures succeeded.
+Contact sheets and selected full-size plates were visually reviewed. Python
+imports and all twelve Python image reviews passed. A fresh
+`eva_magi_deliberation` reference capture matches its pre-refresh pixels exactly.
+This evidence covers focused checks and fresh captures; the earlier image
+evidence above describes the earlier review only.
+
+Native results and images are under `/private/tmp/feature-refresh-native/`,
+with the capture results in `results.json`. Python results and the reviewed
+contact sheet are under `/private/tmp/feature-refresh-python/`, in `renders.json`
+and `contact.png`.

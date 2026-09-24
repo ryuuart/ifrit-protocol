@@ -53,6 +53,7 @@
 #include <sigilscry/engine/WebImage.h>
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/scry/Settling.h>
 #include <sigilsketch/scry/SharedEngine.h>
@@ -250,17 +251,15 @@ struct WebPanelSketch {
   }
 
   [[nodiscard]] Element scene() const {
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     return stack()
-        .fill(linearGradient(
-            {0, 0}, {0, 660},
-            {hexColor(0x140e26), hexColor(0x241033), hexColor(0x0d1424)}))
+        .fill(Fill::color(sketch::kit::theme().palette.ground))
+        .applyStyleSheet(sketch::kit::theme().styleSheet())
         // The scene's one ink, stated once; the dim lines say so.
         .ink(kInk)
         .children(
-            {document::h1(u8"A page as a leaf")
-                 .font({.size = 28})
-                 .left(40)
-                 .top(32),
+            {document::h1(u8"A page as a leaf").left(40).top(32),
              // The page at its own pixel size: the view is created at exactly
              // the box it is laid into, so nothing resamples.
              box()
@@ -290,7 +289,7 @@ struct WebPanelSketch {
                      ? u8"the page is still arriving — the window draws "
                        u8"the view's own latest and never waits"
                      : u8"the page background is transparent — the scene's "
-                       u8"gradient is what shows between its cards")
+                       u8"ground is what shows between its cards")
                  .font({.size = 12, .color = kDim})
                  .left(40)
                  .top(590)

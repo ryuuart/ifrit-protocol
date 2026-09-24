@@ -193,6 +193,8 @@ struct ShapeworksLab {
   sk_sp<SkImage> marqueeStrip;
 
   Element describe() {
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // OUTLINE — a chain of path operators wearing a material. Both were
     // cooked in setup and both are static, so the panel states a bake:
     // an outline recipe and a normal map are the description's cost, not
@@ -290,48 +292,51 @@ struct ShapeworksLab {
             .cache(Cache::None);
 
     return stack()
-        .ink(hexColor(0xece8f4))
+        .applyStyleSheet(sketch::kit::theme().styleSheet())
+        .ink(sketch::kit::theme().palette.ink)
         .children(
             {std::move(outlineLab), std::move(materialLab), std::move(flight),
              document::h1("Geometry wearing a material")
-                 .font({.size = 32})
+
                  .at({30, 26}),
              document::paragraph(
                  "An outline, a surface and a moving curve meet on one canvas.")
-                 .font({.size = 16, .color = hexColor(0xbcb4d0)})
+                 .role("lead")
                  .at({30, 72}),
              document::h2("01 / A cooked outline")
-                 .font({.size = 17})
+
                  .at({30, 500}),
              document::paragraph(
                  "Pucker, roughen and offset a star; shade its bevel in gold.")
-                 .font({.size = 14, .color = hexColor(0xbcb4d0)})
+                 .role("caption")
                  .width(550)
                  .at({30, 527}),
              document::h2("02 / Gold, chrome and glass")
-                 .font({.size = 17})
+
                  .at({30, 884}),
              document::paragraph("The surface reads the normal map; glass also "
                                  "reads the checker behind it.")
-                 .font({.size = 14, .color = hexColor(0xbcb4d0)})
+                 .role("caption")
                  .width(540)
                  .at({30, 913}),
              document::h2("03 / One curve, four treatments")
-                 .font({.size = 17})
+
                  .at({640, 884}),
              document::paragraph(
                  "A swept tube, a projected outline, a scrolling ribbon and "
                  "scattered light share the same path.")
-                 .font({.size = 14, .color = hexColor(0xbcb4d0)})
+                 .role("caption")
                  .width(550)
                  .at({640, 913})});
   }
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(
-        ctx, {.size = {1280, 990},
-              .captureAt = 2.6,
-              .background = material::Color{0.05f, 0.048f, 0.088f, 1}});
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
+    sketch::kit::stage(ctx,
+                       {.size = {1280, 990},
+                        .captureAt = 2.6,
+                        .background = sketch::kit::theme().palette.ground});
 
     studio = material::kit::studioEnvironment();
 

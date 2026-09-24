@@ -141,7 +141,8 @@ constexpr Run kRuns[] = {
 
 struct LiveSettling {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // the swell has already been run, on its own composer
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

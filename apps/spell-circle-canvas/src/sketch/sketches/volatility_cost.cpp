@@ -117,21 +117,12 @@ constexpr float kFieldWidth = 620.0f;
 constexpr float kFieldHeight = 560.0f;
 constexpr float kCellsWidth = 620.0f;
 
-constexpr material::Color kInk{0.92f, 0.94f, 0.98f, 1};
-constexpr material::Color kDim{0.56f, 0.61f, 0.72f, 1};
 constexpr material::Color kAccent{0.95f, 0.35f, 0.18f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
-  look.palette.ink = kInk;
-  look.palette.ash = kDim;
-  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  // The readout's own register: every reading is one size, the name in
-  // the quiet ink and the figure in the bright one.
-  look.palette.figure = look.palette.ink;
-  look.type.captionLabel = {.size = 11};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.labelGap = 8;
   look.spacing.rowGap = 5;
   look.spacing.swatchSide = 9;

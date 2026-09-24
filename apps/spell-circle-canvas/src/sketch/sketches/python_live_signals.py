@@ -20,12 +20,11 @@ from sigil.compose import document as doc
 from sigil.data import decodeJson
 from sigil.draw import CENTER, LEFT, RIGHT, Pen
 from sigil.io import Arrival, Feed, FeedPolicy
-from sigil.sketch import SketchContext, sketch
+from sigil.material import Color
+from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import Path, PathBuilder
 
 PORT = 27021
-PAPER, INK, MUTED = "#edf0e7", "#263f41", "#6b7e79"
-PANEL, RULE = "#143238", "#d0d9cd"
 MINT, GOLD = "#87cfb5", "#e2bb74"
 TRACE_WIDTH, TRACE_HEIGHT = 606, 198
 
@@ -97,15 +96,12 @@ def trace(values: list[float]) -> Path:
 
 def metric(label: str, value: str, detail: str, accent: str) -> Element:
     return (
-        column()
+        kit.well(padding=21, corners=6)
+        .column()
         .gap(10)
-        .padding(21)
         .height(142)
         .flexGrow(1)
         .flexBasis(0)
-        .fill("#f8f9f2")
-        .borderRadius(12)
-        .ink(MUTED)
         .children(
             (
                 row()
@@ -113,18 +109,21 @@ def metric(label: str, value: str, detail: str, accent: str) -> Element:
                 .alignItems("center")
                 .children(
                     (box().width(6).height(6).borderRadius(3).fill(accent)),
-                    doc.label(label).fontSize(11),
+                    doc.label(label),
                 )
             ),
-            text(value, size=43, color=INK),
-            doc.caption(detail).fontSize(11).ink(MUTED),
+            text(value).styleClass("readout").fontSize(43),
+            doc.caption(detail),
         )
     )
 
 
-@sketch(size=(1100, 720), background=PAPER, capture_at=4.0)
+@sketch(size=(1100, 720), capture_at=4.0)
 class LiveSignals:
     def setup(self, ctx: SketchContext) -> None:
+        self.look = kit.feature_theme(kit.Density.Spacious)
+        with kit.provide(self.look):
+            kit.stage(ctx, size=(1100, 720), capture_at=4.0)
         self.replay = ctx.deterministic
         self.samples: deque[Signal] = deque(
             (reference(index) for index in range(180)), maxlen=180
@@ -204,90 +203,68 @@ class LiveSignals:
         self.pressure_path = trace([sample.pressure for sample in self.samples])
         self.flow_path = trace([sample.flow for sample in self.samples])
 
-    def state(self, elapsed: float) -> tuple[str, str, str]:
+    def state(self, elapsed: float) -> tuple[str, str | Color, str]:
         if self.feed.error():
-            return "UNAVAILABLE", "#ad624e", self.feed.error()
+            return "UNAVAILABLE", "#d09476", self.feed.error()
         if self.problem:
-            return "CHECK INPUT", "#ad624e", self.problem
+            return "CHECK INPUT", "#d09476", self.problem
         if self.replay:
             return (
                 "REPLAY",
-                "#537d83",
+                "#92b4e4",
                 "Synthetic recording. No socket is open; no reply is sent.",
             )
         if self.feed.closed():
             return (
                 "CLOSED",
-                MUTED,
+                self.look.palette.ash,
                 "The feed is closed. Save the sketch to open a fresh session.",
             )
         if not self.feed.opened():
-            return "OPENING", MUTED, "The native transport is opening the listener."
+            return (
+                "OPENING",
+                self.look.palette.ash,
+                "The native transport is opening the listener.",
+            )
         if not self.received:
             return (
                 "WAITING",
-                "#ad8545",
+                GOLD,
                 f"Listening on UDP {PORT}. Reference traces are shown until data arrives.",
             )
         if elapsed - self.last_arrival > 2:
             return (
                 "QUIET",
-                "#ad8545",
+                GOLD,
                 "No recent arrivals. The last received samples remain visible.",
             )
         return (
             "LIVE",
-            "#448875",
+            MINT,
             f"Receiving from {self.peer}. Every valid arrival gets a JSON acknowledgment.",
         )
 
     def describe(self, elapsed: float) -> Element:
+        with kit.provide(self.look):
+            return kit.page(
+                self.content(elapsed),
+                title="Signals, received.",
+                subtitle="Two channels, one JSON message, and a reply to every sender",
+                footer=f"UDP {PORT} · sigil.examples.tools.send_live_signals · --export reply.json",
+            )
+
+    def content(self, elapsed: float) -> Element:
         status, accent, detail = self.state(elapsed)
         latest = self.samples[-1]
         return (
             column()
             .width(1004)
             .gap(16)
-            .absolute()
-            .left(48)
-            .top(34)
             .children(
-                (
-                    row()
-                    .width(1004)
-                    .justifyContent("space_between")
-                    .children(
-                        doc.eyebrow("FIELD INSTRUMENTS / 03").fontSize(11).ink(MUTED),
-                        doc.label("JSON IN · JSON OUT").fontSize(11).ink(MUTED),
-                    )
-                ),
-                (
-                    row()
-                    .width(1004)
-                    .justifyContent("space_between")
-                    .alignItems("center")
-                    .children(
-                        doc.h1("Signals, received.").fontSize(48).ink(INK),
-                        (
-                            row()
-                            .gap(9)
-                            .padding(horizontal=10, vertical=15)
-                            .fill("#f8f9f2")
-                            .borderRadius(18)
-                            .children(
-                                (box().width(7).height(7).borderRadius(4).fill(accent)),
-                                doc.label(status).fontSize(12).ink(accent),
-                            )
-                        ),
-                    )
-                ),
-                (
-                    doc.lead(
-                        "Two channels, one small message, and a way back to the sender."
-                    )
-                    .fontSize(16)
-                    .ink(MUTED)
-                ),
+                row(
+                    doc.label("JSON IN · JSON OUT"),
+                    doc.label(status).ink(accent),
+                ).justifyContent("space_between"),
                 (
                     row()
                     .gap(16)
@@ -297,19 +274,19 @@ class LiveSignals:
                             "PRESSURE",
                             f"{latest.pressure:.0%}" if self.received else "—",
                             "Normalized input / 0–1",
-                            "#448875",
+                            MINT,
                         ),
                         metric(
                             "FLOW",
                             f"{latest.flow:.0%}" if self.received else "—",
                             "Normalized input / 0–1",
-                            "#ad8545",
+                            GOLD,
                         ),
                         metric(
                             "ARRIVALS / REPLIES",
                             f"{self.received:03} / {self.replies:03}",
                             f"{self.rejected} invalid · {self.feed.dropped()} queue drops",
-                            "#537d83",
+                            "#92b4e4",
                         ),
                     )
                 ),
@@ -320,11 +297,9 @@ class LiveSignals:
                     .alignItems("stretch")
                     .children(
                         (
-                            column()
+                            kit.well(padding=24, corners=6)
+                            .column()
                             .gap(14)
-                            .padding(24)
-                            .fill(PANEL)
-                            .borderRadius(14)
                             .width(654)
                             .children(
                                 (
@@ -332,9 +307,7 @@ class LiveSignals:
                                     .width(606)
                                     .justifyContent("space_between")
                                     .children(
-                                        doc.h2("RECENT ARRIVALS")
-                                        .fontSize(11)
-                                        .ink("#d3e6dd"),
+                                        doc.label("RECENT ARRIVALS"),
                                         (
                                             row()
                                             .gap(8)
@@ -347,7 +320,7 @@ class LiveSignals:
                                                 text(
                                                     "/",
                                                     size=10,
-                                                    color="#9bbab4",
+                                                    color=self.look.palette.ash,
                                                 ),
                                                 text(
                                                     "FLOW",
@@ -369,34 +342,37 @@ class LiveSignals:
                                         if self.received
                                         else "REFERENCE SIGNAL · awaiting your data",
                                         size=10,
-                                        color="#9bbab4",
+                                        color=self.look.palette.ash,
                                     )
                                 ),
                             )
                         ),
                         (
-                            column()
+                            kit.well(padding=24, corners=6)
+                            .column()
                             .gap(16)
-                            .padding(24)
-                            .fill("#e2e8dc")
-                            .borderRadius(14)
                             .width(334)
                             .children(
-                                doc.h2("A small contract.").fontSize(24).ink(INK),
+                                doc.h2("A small contract."),
                                 (
                                     doc.code(
                                         '{\n  "sequence": 1,\n  "pressure": 0.62,\n  "flow": 0.35\n}'
                                     )
                                     .fontSize(16)
-                                    .ink("#527a72")
+                                    .ink(self.look.palette.figure)
                                 ),
-                                (box().width(286).height(1).fill(RULE)),
+                                (
+                                    box()
+                                    .width(286)
+                                    .height(1)
+                                    .fill(self.look.palette.rule)
+                                ),
                                 (
                                     doc.paragraph(
                                         "The reply echoes sequence, counts accepted samples and returns mean pressure."
                                     )
                                     .fontSize(13)
-                                    .ink(MUTED)
+                                    .ink(self.look.palette.ash)
                                 ),
                             )
                         ),
@@ -412,14 +388,9 @@ class LiveSignals:
                             column()
                             .gap(7)
                             .children(
-                                doc.caption(detail).fontSize(13).ink(INK),
-                                (
-                                    doc.footer(
-                                        f"udp://:{PORT}  ·  sender: sigil.examples.tools.send_live_signals  ·  --export reply.json"
-                                    )
-                                    .fontSize(10)
-                                    .ink(MUTED)
-                                ),
+                                doc.caption(detail)
+                                .fontSize(13)
+                                .ink(self.look.palette.ink),
                             )
                         ),
                     )
@@ -428,8 +399,8 @@ class LiveSignals:
         )
 
     def plot(self, pen: Pen) -> None:
-        pen.background(PANEL)
-        pen.stroke("#29464a")
+        pen.background(self.look.palette.cellGround)
+        pen.stroke(self.look.palette.rule)
         pen.strokeWeight(1)
         for value in (0, 0.25, 0.5, 0.75, 1):
             y = 22 + (1 - value) * (TRACE_HEIGHT - 58)
@@ -443,7 +414,8 @@ class LiveSignals:
             pen.strokeWeight(2.5)
             pen.shape(path)
         pen.noStroke()
-        pen.fill("#9bbab4")
+        pen.fill(self.look.palette.ash)
+        pen.textFont(self.look.font(self.look.type.control))
         pen.textSize(9)
         pen.textAlign(LEFT, CENTER)
         pen.text("OLDER", 18, TRACE_HEIGHT - 9)

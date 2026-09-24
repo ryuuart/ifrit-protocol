@@ -57,13 +57,6 @@ constexpr float kPicture = 190;
 constexpr float kPhase = 17;  // how far the sett slides along +x, px
 constexpr float kPan = 21;    // the mapping's pan, px
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
-  return look;
-}
-
 /** The sett: four runs whose widths sum to the period. */
 std::vector<std::pair<float, Color>> sett() {
   return {{26, {0.13f, 0.20f, 0.24f, 1}},
@@ -109,7 +102,8 @@ struct PatternSequence {
   pattern::Tile squares = squaresTile();
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

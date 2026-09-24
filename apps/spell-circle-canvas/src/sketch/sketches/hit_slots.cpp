@@ -96,26 +96,13 @@ constexpr double kStationGap = 1.05;
 constexpr material::Color kWire{0.42f, 0.46f, 0.62f, 0.55f};
 constexpr material::Color kLit{1.0f, 0.71f, 0.42f, 1};
 
-/** The house sheet warmed to this one's own ink, so every line on it is
- *  set from the theme rather than from a colour restated beside it. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
-  look.palette.ink = {0.94f, 0.88f, 0.69f, 1};
-  look.palette.ash = {0.58f, 0.60f, 0.70f, 1};
-  return look;
-}
-
 std::string targetKey(int i) { return "target-" + std::to_string(i); }
 /** A wire is keyed by the pair it joins, so its key is a question the
  *  sketch can ask without keeping a second name for it. */
-std::string wireKey(int i) {
-  return targetKey(i) + "->" + targetKey(i + 1);
-}
+std::string wireKey(int i) { return targetKey(i) + "->" + targetKey(i + 1); }
 /** Which side each wire arcs to — the parity of its index. Stated once,
  *  because the lit copy in the answer slot routes by the same rule. */
-Router wireRouter(int i) {
-  return routers::arc(i % 2 == 0 ? 0.22f : -0.22f);
-}
+Router wireRouter(int i) { return routers::arc(i % 2 == 0 ? 0.22f : -0.22f); }
 constexpr float kWireGap = 6.0f;
 
 /** Where the probe is at scene time @p seconds: a Lissajous figure, so
@@ -146,6 +133,7 @@ struct HitSlots {
    *  keyed wires threading them, plus the two slots the churn happens
    *  in. Described once. */
   Element describe() const {
+    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     // ONE TARGET PER STATION, standing where the probe will be at that
     // station: a hit test only says something when there is something
     // under the point, so every crossing is placed rather than hoped for.
@@ -168,9 +156,8 @@ struct HitSlots {
     const auto stations = std::views::iota(0, kTargets);
 
     return stack()
-        .fill(linearGradient(
-            {0, 0}, {0, kCanvas.height()},
-            {{0.07f, 0.06f, 0.13f, 1}, {0.16f, 0.09f, 0.20f, 1}}, {0.0f, 1.0f}))
+        .fill(Fill::color(sketch::kit::theme().palette.ground))
+        .applyStyleSheet(sketch::kit::theme().styleSheet())
         // The wires are operators of the scene: each is routed from where
         // its own two targets settled, and keyed by the pair it joins, so
         // the answer slot can ask for one by name.
@@ -178,12 +165,12 @@ struct HitSlots {
           std::vector<Operator> wires;
           for (int i = 0; i + 1 < kTargets; ++i)
             wires.push_back(
-                Operator(connect::Between{.from = targetKey(i),
-                                          .to = targetKey(i + 1),
-                                          .router = wireRouter(i),
-                                          .gap = kWireGap,
-                                          .wire = stroke(
-                                              1.6f, Fill::color(kWire))})
+                Operator(
+                    connect::Between{.from = targetKey(i),
+                                     .to = targetKey(i + 1),
+                                     .router = wireRouter(i),
+                                     .gap = kWireGap,
+                                     .wire = stroke(1.6f, Fill::color(kWire))})
                     .zIndex(1));
           return wires;
         }())
@@ -259,7 +246,7 @@ struct HitSlots {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(sketch::kit::featureTheme());
     sketch::kit::stage(
         ctx,
         {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
@@ -280,7 +267,7 @@ struct HitSlots {
     // outside the scope setup opened has no theme bound: the look must be
     // in scope wherever the tree is built, not only where it is first
     // built.
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(sketch::kit::featureTheme());
     Composer& composer = ctx.composer;
     probe = walk(elapsed);
     // Per frame: the marker moved, so its content is different.
@@ -303,8 +290,7 @@ struct HitSlots {
       const std::optional<SkRect> from = composer.bounds(targetKey(i));
       const std::optional<SkRect> to = composer.bounds(targetKey(i + 1));
       if (from && to)
-        litWires.push_back(
-            routeBetween(wireRouter(i), *from, *to, kWireGap));
+        litWires.push_back(routeBetween(wireRouter(i), *from, *to, kWireGap));
     }
     composer.renderSlot("answer", answer());
   }

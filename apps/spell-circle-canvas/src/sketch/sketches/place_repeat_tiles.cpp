@@ -90,7 +90,8 @@ struct PlaceRepeatTiles {
   sk_sp<SkPicture> strip;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -139,28 +140,27 @@ struct PlaceRepeatTiles {
          .footer = "Translation and rotation advance linearly; repeated scale "
                    "multiplies. Mirroring belongs to the tile consumer."},
         box().column().gap(24).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "01  COPY A MOTIF",
                   .note = "A pool stores a transform and opacity for each "
-                          "instance"}),
-             sketch::kit::comparison(
-                 {.cases = {chain("TRANSLATE"), turned("ROTATE AND SHRINK"),
-                            ramped("FADE")},
-                  .measure = 1020,
-                  .gap = 18}),
+                          "instance"},
+                 sketch::kit::comparison(
+                     {.cases = {chain("TRANSLATE"), turned("ROTATE AND SHRINK"),
+                                ramped("FADE")},
+                      .measure = 1020,
+                      .gap = 18})),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(18)
                  .children(
-                     {box().column().gap(18).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "02  SLICE ONE PICTURE", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {sliced("FORWARD", false),
-                                          sliced("MIRRORED", true)},
-                                .measure = 674,
-                                .gap = 18})}),
+                     {sketch::kit::section(
+                          {.label = "02  SLICE ONE PICTURE", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {sliced("FORWARD", false),
+                                         sliced("MIRRORED", true)},
+                               .measure = 674,
+                               .gap = 18})),
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "TWO KINDS OF REPETITION",

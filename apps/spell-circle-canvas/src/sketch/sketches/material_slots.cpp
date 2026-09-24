@@ -84,11 +84,8 @@ constexpr float kPanel = 188.0f;
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
-  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = 40;
   look.spacing.marginTop = 40;
   look.spacing.captionGap = 6;
@@ -290,31 +287,31 @@ struct MaterialChild {
          .footer = "The live palette is data: describing an equal tree prunes "
                    "it, while changing the table updates its consumer."},
         box().column().gap(32).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "LOOK UP A COLOUR",
                   .note = "The chart stores indices. The strip below each "
-                          "result is its palette."}),
-             sketch::kit::comparison(
-                 {.cases = {panel(
-                                "GREY", tables, "slot(\"uPalette\", grey)",
-                                "Indices 0\u201315, read through a grey ramp.",
-                                tables.luts[Grey], 0.0f, "grey"),
-                            panel("FIRE", tables, "slot(\"uPalette\", fire)",
-                                  "The same indices through the fire table.",
-                                  tables.luts[Fire], 0.0f, "fire"),
-                            panel("ICE", tables, "slot(\"uPalette\", ice)",
-                                  "The same indices through the ice table.",
-                                  tables.luts[Ice], 0.0f, "ice"),
-                            panel("SHADE +6", tables, "uniform(\"uShade\", 6)",
-                                  "Add six to the index; clamp at entry 15.",
-                                  tables.luts[Ice], kShade, "shade"),
-                            panel("LIVE TABLE", tables,
-                                  "the LUT swapped by update()",
-                                  "The table changes every 0.8 seconds.",
-                                  tables.luts[(size_t)live % TableCount], 0.0f,
-                                  "live")},
-                  .measure = 1020,
-                  .gap = 20}),
+                          "result is its palette."},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {panel("GREY", tables, "slot(\"uPalette\", grey)",
+                                 "Indices 0\u201315, read through a grey ramp.",
+                                 tables.luts[Grey], 0.0f, "grey"),
+                           panel("FIRE", tables, "slot(\"uPalette\", fire)",
+                                 "The same indices through the fire table.",
+                                 tables.luts[Fire], 0.0f, "fire"),
+                           panel("ICE", tables, "slot(\"uPalette\", ice)",
+                                 "The same indices through the ice table.",
+                                 tables.luts[Ice], 0.0f, "ice"),
+                           panel("SHADE +6", tables, "uniform(\"uShade\", 6)",
+                                 "Add six to the index; clamp at entry 15.",
+                                 tables.luts[Ice], kShade, "shade"),
+                           panel("LIVE TABLE", tables,
+                                 "the LUT swapped by update()",
+                                 "The table changes every 0.8 seconds.",
+                                 tables.luts[(size_t)live % TableCount], 0.0f,
+                                 "live")},
+                      .measure = 1020,
+                      .gap = 20})),
              box().column().gap(18).children(
                  {box()
                       .row()

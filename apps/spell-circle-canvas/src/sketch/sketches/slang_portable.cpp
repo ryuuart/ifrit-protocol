@@ -64,13 +64,6 @@ constexpr bool kLit = false;  // defines SIGIL_LIT in the session
 constexpr material::Color kFigure{0.60f, 0.88f, 0.72f, 1};
 constexpr material::Color kFault{0.96f, 0.52f, 0.46f, 1};
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.cellGround = {0.10f, 0.105f, 0.125f, 1};
-  return look;
-}
-
 /** THE MODULE: imports resolved in memory, one uniform buffer holding a
  *  matrix, a vector and an array, one sampled slot, and the two stages
  *  that read them. */
@@ -147,7 +140,8 @@ sketch::kit::ComparisonCase readout(const char* caseTitle, const char* call,
 
 struct SlangPortable {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -284,30 +278,29 @@ struct SlangPortable {
                  .alignItems(Align::Start)
                  .gap(20)
                  .children(
-                     {box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "MATERIAL BODIES", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {readout(
-                                    "COMPILE THROUGH A SCAFFOLD",
-                                    "the kit's bodies through a "
-                                    "scaffold",
-                                    "The material recipes compile through the "
-                                    "renderer scaffold.",
-                                    surfaces, kFigure, 100)},
-                                .measure = 500,
-                                .gap = 20})}),
+                     {sketch::kit::section(
+                          {.label = "MATERIAL BODIES", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {readout(
+                                   "COMPILE THROUGH A SCAFFOLD",
+                                   "the kit's bodies through a "
+                                   "scaffold",
+                                   "The material recipes compile through the "
+                                   "renderer scaffold.",
+                                   surfaces, kFigure, 100)},
+                               .measure = 500,
+                               .gap = 20})),
                       box().column().gap(18).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "DIAGNOSTICS", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {readout(
-                                    "MISSING ENTRY POINT",
-                                    "a missing entry point",
-                                    "The requested entry point is absent.",
-                                    missingWhy, kFault, 112)},
-                                .measure = 500,
-                                .gap = 20}),
+                          {sketch::kit::section(
+                               {.label = "DIAGNOSTICS", .note = ""},
+                               sketch::kit::comparison(
+                                   {.cases = {readout(
+                                        "MISSING ENTRY POINT",
+                                        "a missing entry point",
+                                        "The requested entry point is absent.",
+                                        missingWhy, kFault, 112)},
+                                    .measure = 500,
+                                    .gap = 20})),
                            sketch::kit::comparison(
                                {.cases = {readout(
                                     "INVALID SOURCE",

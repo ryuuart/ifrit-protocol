@@ -65,10 +65,10 @@ constexpr material::Color kPin{0.92f, 0.36f, 0.30f, 1};
  *  from here — which they do, because the theme is bound before
  *  `stage()` runs. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   // Behind one cell's specimen, a shade off the sheet's own ground.
   look.palette.cellGround = {0.11f, 0.11f, 0.13f, 1};
-  look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
   return look;
 }
 
@@ -188,62 +188,65 @@ struct CrossingRuleSheet {
          .footer = "A cyclic dominance relation cannot be expressed by "
                    "painting whole strands in one global order."},
         box().column().gap(24).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "SEVEN STRANDS · SEVEN CROSSINGS",
-                  .note = "An odd cycle exposes the alternating seam"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell("ALTERNATE", "hept.alternate", heptagram(),
-                            path::crossing::alternate(), -1, "alternate()",
-                            "Seven crossings cannot close an alternating "
-                            "cycle; one seam repeats."),
-                       cell("REPEAT A SEQUENCE", "hept.sequence", heptagram(),
-                            path::crossing::sequence({path::Order::Over,
-                                                      path::Order::Over,
-                                                      path::Order::Under}),
-                            -1, "sequence(Over, Over, Under)",
-                            "Repeat over, over, under by the crossing "
-                            "ordinal."),
-                       cell("STRAND DOMINANCE", "hept.pairs", heptagram(),
-                            sevenCycle(), -1, "pairs(i, i + 1)",
-                            "Each strand dominates the next around a cycle."),
-                       cell("PIN ONE CROSSING", "hept.except", heptagram(),
-                            path::crossing::alternate().except(
-                                0, path::Order::Under),
-                            0, "alternate().except(0, Under)",
-                            "The ring marks the crossing whose decision was "
-                            "overridden.")},
-                  .measure = 1020,
-                  .gap = 20}),
-             sketch::kit::sectionHeader(
+                  .note = "An odd cycle exposes the alternating seam"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("ALTERNATE", "hept.alternate", heptagram(),
+                                path::crossing::alternate(), -1, "alternate()",
+                                "Seven crossings cannot close an alternating "
+                                "cycle; one seam repeats."),
+                           cell("REPEAT A SEQUENCE", "hept.sequence",
+                                heptagram(),
+                                path::crossing::sequence({path::Order::Over,
+                                                          path::Order::Over,
+                                                          path::Order::Under}),
+                                -1, "sequence(Over, Over, Under)",
+                                "Repeat over, over, under by the crossing "
+                                "ordinal."),
+                           cell("STRAND DOMINANCE", "hept.pairs", heptagram(),
+                                sevenCycle(), -1, "pairs(i, i + 1)",
+                                "Each strand dominates the next around a "
+                                "cycle."),
+                           cell("PIN ONE CROSSING", "hept.except", heptagram(),
+                                path::crossing::alternate().except(
+                                    0, path::Order::Under),
+                                0, "alternate().except(0, Under)",
+                                "The ring marks the crossing whose decision "
+                                "was "
+                                "overridden.")},
+                      .measure = 1020,
+                      .gap = 20})),
+             sketch::kit::section(
                  {.label = "THREE RINGS · SIX CROSSINGS",
-                  .note = "The geometry stays fixed; only the policy changes"}),
-             sketch::kit::comparison(
-                 {.cases = {cell("ALTERNATE", "ring.alternate", rings(),
-                                 path::crossing::alternate(), -1, "alternate()",
-                                 "Alternating six crossing ordinals does not "
-                                 "produce a cyclic weave."),
-                            cell("REPEAT A SEQUENCE", "ring.sequence", rings(),
-                                 path::crossing::sequence({path::Order::Over,
-                                                           path::Order::Under,
-                                                           path::Order::Under}),
-                                 -1, "sequence(Over, Under, Under)",
-                                 "Repeat over, under, under across the six "
-                                 "crossings."),
-                            cell(
-                                "STRAND DOMINANCE", "ring.pairs", rings(),
+                  .note = "The geometry stays fixed; only the policy changes"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("ALTERNATE", "ring.alternate", rings(),
+                                path::crossing::alternate(), -1, "alternate()",
+                                "Alternating six crossing ordinals does not "
+                                "produce a cyclic weave."),
+                           cell("REPEAT A SEQUENCE", "ring.sequence", rings(),
+                                path::crossing::sequence({path::Order::Over,
+                                                          path::Order::Under,
+                                                          path::Order::Under}),
+                                -1, "sequence(Over, Under, Under)",
+                                "Repeat over, under, under across the six "
+                                "crossings."),
+                           cell("STRAND DOMINANCE", "ring.pairs", rings(),
                                 path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}}),
                                 -1, "pairs(0→1, 1→2, 2→0)",
                                 "Every ring passes over one neighbour and "
                                 "under the other."),
-                            cell("PIN ONE CROSSING", "ring.except", rings(),
-                                 path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}})
-                                     .except(3, path::Order::Under),
-                                 3, "pairs(...).except(3, Under)",
-                                 "The ring marks the corrected crossing in the "
-                                 "cyclic weave.")},
-                  .measure = 1020,
-                  .gap = 20})})));
+                           cell("PIN ONE CROSSING", "ring.except", rings(),
+                                path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}})
+                                    .except(3, path::Order::Under),
+                                3, "pairs(...).except(3, Under)",
+                                "The ring marks the corrected crossing in the "
+                                "cyclic weave.")},
+                      .measure = 1020,
+                      .gap = 20}))})));
   }
 };
 

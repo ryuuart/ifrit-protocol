@@ -180,8 +180,7 @@ Element tangentDetail(weave::FontContext& fonts) {
                     origin.y() + (crop.y() - overview.y()) * scale,
                     crop.width() * scale, crop.height() * scale))
                 .foreground(decorations::border(1, Fill::color(marker)))}),
-       document::label("EDGE DETAIL \u00b7 8\u00d7 RASTER")
-           .padding(0, 10),
+       document::label("EDGE DETAIL \u00b7 8\u00d7 RASTER").padding(0, 10),
        image(pixels, mskia::Fit::Stretch)
            .imageRegion(crop)
            .imageRendering(SkSamplingOptions(SkFilterMode::kNearest))
@@ -200,7 +199,8 @@ struct ExactTangent {
   void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     const material::Color figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(
@@ -216,78 +216,84 @@ struct ExactTangent {
                 .gap(18)
                 .children(
                     {box().column().gap(22).children(
-                         {sketch::kit::sectionHeader(
+                         {sketch::kit::section(
                               {.label = "LABEL SIZE",
-                               .note = "One spiral, the same text"}),
-                          sketch::kit::comparison(
-                              {.cases =
-                                   {{.title = "SNAPPED",
-                                     .control =
-                                         "15 px \u00b7 exactTangent = false",
-                                     .figure = sketch::kit::cell(
-                                         kSpecimen, "", "",
-                                         run("a tight spiral carries its whole "
-                                             "run",
-                                             kLabelSize, figure, false)),
-                                     .note = "The default rotation ladder at "
+                               .note = "One spiral, the same text"},
+                              sketch::kit::comparison(
+                                  {.cases =
+                                       {{.title = "SNAPPED",
+                                         .control = "15 px \u00b7 exactTangent "
+                                                    "= false",
+                                         .figure = sketch::kit::cell(
+                                             kSpecimen, "", "",
+                                             run("a tight spiral carries its "
+                                                 "whole "
+                                                 "run",
+                                                 kLabelSize, figure, false)),
+                                         .note =
+                                             "The default rotation ladder at "
                                              "label size."},
-                                    {.title = "EXACT",
-                                     .control =
-                                         "15 px \u00b7 exactTangent = true",
-                                     .figure = sketch::kit::cell(
-                                         kSpecimen, "", "",
-                                         run("a tight spiral carries its whole "
-                                             "run",
-                                             kLabelSize, figure, true)),
-                                     .note = "The same line with continuous "
+                                        {.title = "EXACT",
+                                         .control =
+                                             "15 px \u00b7 exactTangent = true",
+                                         .figure = sketch::kit::cell(
+                                             kSpecimen, "", "",
+                                             run("a tight spiral carries its "
+                                                 "whole "
+                                                 "run",
+                                                 kLabelSize, figure, true)),
+                                         .note =
+                                             "The same line with continuous "
                                              "tangents."}},
-                               .measure = 674,
-                               .gap = 18}),
-                          sketch::kit::sectionHeader(
+                                   .measure = 674,
+                                   .gap = 18})),
+                          sketch::kit::section(
                               {.label = "DISPLAY SIZE",
-                               .note = "One oval, the same letters"}),
-                          sketch::kit::comparison(
-                              {.cases =
-                                   {{.title = "SNAPPED",
-                                     .control =
-                                         "74 px \u00b7 exactTangent = false",
-                                     .figure = sketch::kit::cell(
-                                         kSpecimen, "", "",
-                                         arcRun("Ravello", kDisplaySize, figure,
-                                                false)),
-                                     .note = "The default at display size."},
-                                    {.title = "EXACT",
-                                     .control =
-                                         "74 px \u00b7 exactTangent = true",
-                                     .figure = sketch::kit::cell(
-                                         kSpecimen, "", "",
-                                         arcRun("Ravello", kDisplaySize, figure,
-                                                true)),
-                                     .note = "The same letters on exact "
-                                             "tangents."}},
-                               .measure = 674,
-                               .gap = 18})}),
+                               .note = "One oval, the same letters"},
+                              sketch::kit::comparison(
+                                  {.cases =
+                                       {{.title = "SNAPPED",
+                                         .control = "74 px \u00b7 exactTangent "
+                                                    "= false",
+                                         .figure = sketch::kit::cell(
+                                             kSpecimen, "", "",
+                                             arcRun("Ravello", kDisplaySize,
+                                                    figure, false)),
+                                         .note =
+                                             "The default at display size."},
+                                        {.title = "EXACT",
+                                         .control =
+                                             "74 px \u00b7 exactTangent = true",
+                                         .figure = sketch::kit::cell(
+                                             kSpecimen, "", "",
+                                             arcRun("Ravello", kDisplaySize,
+                                                    figure, true)),
+                                         .note = "The same letters on exact "
+                                                 "tangents."}},
+                                   .measure = 674,
+                                   .gap = 18}))}),
                      box().column().gap(22).children(
-                         {sketch::kit::sectionHeader(
+                         {sketch::kit::section(
                               {.label = "MAGNIFIED DIFFERENCE",
                                .note =
-                                   "One raster, enlarged without reshaping"}),
-                          sketch::kit::comparison(
-                              {.cases =
-                                   {{.title = "SUPERIMPOSED",
-                                     .control = "260 px \u00b7 shared coverage "
-                                                "in grey",
-                                     .figure = sketch::kit::cell(
-                                         sketch::kit::Cell{
-                                             .plate = {.width = kCell,
-                                                       .height = 420}},
-                                         "", "", tangentDetail(*ctx.fonts)),
-                                     .note =
-                                         "Warm: extra snapped coverage. Cool: "
-                                         "extra exact coverage. Grey: "
-                                         "shared."}},
-                               .measure = 328,
-                               .gap = 18}),
+                                   "One raster, enlarged without reshaping"},
+                              sketch::kit::comparison(
+                                  {.cases =
+                                       {{.title = "SUPERIMPOSED",
+                                         .control =
+                                             "260 px \u00b7 shared coverage "
+                                             "in grey",
+                                         .figure = sketch::kit::cell(
+                                             sketch::kit::Cell{
+                                                 .plate = {.width = kCell,
+                                                           .height = 420}},
+                                             "", "", tangentDetail(*ctx.fonts)),
+                                         .note = "Warm: extra snapped "
+                                                 "coverage. Cool: "
+                                                 "extra exact coverage. Grey: "
+                                                 "shared."}},
+                                   .measure = 328,
+                                   .gap = 18})),
                           document::caption(
                               "The rotation ladder is bounded between 64 and "
                               "2048 steps. Its spacing follows rendered type "

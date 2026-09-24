@@ -11,7 +11,7 @@ from math import cos, pi, sin
 from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
 from sigil.material import pattern
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import SketchContext, kit, sketch
 
 camera = mesh.camera
 render = mesh.render
@@ -36,9 +36,12 @@ def surface(color, *, gloss=0.8):
     return style
 
 
-@sketch(size=(1400, 900), background="#101a25", capture_at=0.5)
+@sketch(size=(1400, 900), capture_at=0.5)
 class MeshObservatory:
     def setup(self, ctx: SketchContext) -> None:
+        self.look = kit.feature_theme(kit.Density.Spacious)
+        with kit.provide(self.look):
+            kit.stage(ctx, size=(1400, 900), capture_at=0.5)
         self.knot = mesh.grid(180, 22, knot)
         self.vase = mesh.revolve(
             [
@@ -69,7 +72,7 @@ class MeshObservatory:
 
     def draw(self, pen: Pen) -> None:
         t = pen.millis() / 1000
-        pen.background("#101a25")
+        pen.background(self.look.palette.ground)
         pen.push()
         pen.translate(280, 70)
         pen.fill(self.grid)
@@ -105,22 +108,22 @@ class MeshObservatory:
 
         pen.noStroke()
         pen.textAlign(LEFT, TOP)
-        pen.fill("#7d9bae")
-        pen.textSize(13)
+        pen.fill(self.look.palette.ash)
+        pen.textFont(self.look.font(self.look.type.eyebrow))
         pen.text("FORM LABORATORY     /     003", 52, 42)
-        pen.fill("#edf0e9")
-        pen.textSize(42)
+        pen.fill(self.look.palette.ink)
+        pen.textFont(self.look.font(self.look.type.title))
         pen.text("A surface\nfrom a function.", 52, 100)
-        pen.fill("#9bb0bb")
-        pen.textSize(15)
+        pen.fill(self.look.palette.ash)
+        pen.textFont(self.look.font(self.look.type.subtitle))
         pen.text(
             "Python describes the shape.\nThe native painter gives it light.", 55, 218
         )
-        pen.fill("#65c9c3")
-        pen.textSize(13)
+        pen.fill(self.look.palette.figure)
+        pen.textFont(self.look.font(self.look.type.captionLabel))
         pen.text("PARAMETRIC KNOT", 55, 315)
-        pen.fill("#a8bac5")
-        pen.textSize(14)
+        pen.fill(self.look.palette.ash)
+        pen.textFont(self.look.font(self.look.type.control))
         pen.text(
             f"{self.knot.vertexCount():,} vertices\n{self.knot.triangleCount():,} triangles\n3 directional lights\n1 native mesh type",
             55,
@@ -135,20 +138,20 @@ class MeshObservatory:
             p = self.view.project(position, (pen.width, pen.height))
             if p:
                 pen.fill(color)
-                pen.textSize(12)
+                pen.textFont(self.look.font(self.look.type.captionLabel))
                 pen.text(label, p.x - 70, p.y + 30)
 
-        pen.stroke("#334855")
+        pen.stroke(self.look.palette.rule)
         pen.strokeWeight(1)
         pen.line(52, 810, 1348, 810)
         pen.noStroke()
-        pen.fill("#afc1cc")
-        pen.textSize(14)
+        pen.fill(self.look.palette.ash)
+        pen.textFont(self.look.font(self.look.type.footer))
         pen.text(
             "mesh.grid(180, 22, knot)   ·   mesh.revolve(profile)   ·   mesh.platonic(solid)",
             52,
             835,
         )
-        pen.fill("#688591")
-        pen.textSize(12)
+        pen.fill(self.look.palette.ash)
+        pen.textFont(self.look.font(self.look.type.control))
         pen.text("NATIVE GEOMETRY / CPU MESH RENDERER / HEADLESS", 958, 840)

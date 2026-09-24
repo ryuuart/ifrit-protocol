@@ -8,11 +8,8 @@ from math import sin
 from sigil.compose import box, column, row, text
 from sigil.compose import document as doc
 from sigil.motion import entrance
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import SketchContext, kit, sketch
 
-INK = "#e8eef2"
-MUTED = "#8da1b6"
-PANEL = "#1b2938"
 READINGS = [
     dict(
         label="RESONANCE",
@@ -39,13 +36,12 @@ READINGS = [
 
 
 def metric(label, value, detail, accent, level, index):
+    look = kit.theme()
     return (
-        column()
-        .padding(23)
+        kit.well(padding=23, corners=6)
+        .column()
         .gap(15)
         .flexGrow(1)
-        .borderRadius(16)
-        .fill(PANEL)
         .key(label)
         .opacity(entrance(0, 1, duration=0.6, delay=index * 0.1))
         .translateY(entrance(12, 0, duration=0.6, delay=index * 0.1))
@@ -56,14 +52,14 @@ def metric(label, value, detail, accent, level, index):
                 .alignItems("center")
                 .children(
                     (box().width(7).height(7).borderRadius(4).fill(accent)),
-                    doc.label(label).fontSize(12).ink(MUTED),
+                    doc.label(label),
                 )
             ),
-            text(value, size=46, color=INK),
+            text(value).styleClass("readout").fontSize(46),
             (
                 box()
                 .height(3)
-                .fill("#324153")
+                .fill(look.palette.rule)
                 .children(
                     (
                         box()
@@ -74,7 +70,7 @@ def metric(label, value, detail, accent, level, index):
                     ),
                 )
             ),
-            doc.caption(detail).fontSize(12).ink(MUTED),
+            doc.caption(detail),
         )
     )
 
@@ -85,11 +81,9 @@ def signal_panel():
         for i in range(48)
     ]
     return (
-        column()
-        .padding(25)
+        kit.well(padding=25, corners=6)
+        .column()
         .gap(22)
-        .borderRadius(16)
-        .fill(PANEL)
         .children(
             (
                 row()
@@ -100,13 +94,11 @@ def signal_panel():
                         column()
                         .gap(6)
                         .children(
-                            doc.h2("Signal envelope").fontSize(22).ink(INK),
-                            doc.caption("A composed view of 48 observations")
-                            .fontSize(12)
-                            .ink(MUTED),
+                            doc.h2("Signal envelope"),
+                            doc.caption("A composed view of 48 observations"),
                         )
                     ),
-                    text("NORMALIZED  /  0—1", size=11, color=MUTED),
+                    text("NORMALIZED  /  0—1").styleClass("control"),
                 )
             ),
             (
@@ -135,75 +127,31 @@ def signal_panel():
                 row()
                 .justifyContent("space_between")
                 .children(
-                    text("00:00", size=11, color=MUTED),
-                    text("00:24", size=11, color=MUTED),
-                    text("00:48", size=11, color=MUTED),
+                    text("00:00").styleClass("control"),
+                    text("00:24").styleClass("control"),
+                    text("00:48").styleClass("control"),
                 )
             ),
         )
     )
 
 
-@sketch(size=(1100, 740), background="#111b27", capture_at=2.0)
+@sketch(size=(1100, 660), capture_at=2.0)
 class Dashboard:
     def setup(self, ctx: SketchContext) -> None:
-        ctx.render(
-            column()
-            .padding(44)
-            .gap(24)
-            .absolute()
-            .inset(0)
-            .children(
-                (
-                    row()
-                    .justifyContent("space_between")
-                    .alignItems("center")
-                    .children(
-                        (
-                            column()
-                            .gap(10)
-                            .children(
-                                doc.eyebrow("FIELD NOTES    /    002")
-                                .fontSize(12)
-                                .ink(MUTED),
-                                doc.h1("A quiet instrument").fontSize(36).ink(INK),
-                            )
-                        ),
-                        (
-                            row()
-                            .padding(horizontal=14, vertical=10)
-                            .gap(8)
-                            .borderRadius(14)
-                            .fill("#203d3b")
-                            .alignItems("center")
-                            .children(
-                                (box().width(6).height(6).borderRadius(3).fill("#8bd0bd")),
-                                doc.label("OBSERVING").fontSize(11).ink("#8bd0bd"),
-                            )
-                        ),
-                    )
-                ),
-                (box().height(1).fill("#2b3b4c")),
-                (
-                    row()
-                    .gap(18)
-                    .children(
-                        [
+        with kit.provide(kit.feature_theme(kit.Density.Spacious)):
+            kit.stage(ctx, size=(1100, 660), capture_at=2.0)
+            ctx.render(
+                kit.page(
+                    column(
+                        row(
                             metric(**reading, index=i)
                             for i, reading in enumerate(READINGS)
-                        ]
-                    )
-                ),
-                signal_panel(),
-                (
-                    row()
-                    .justifyContent("space_between")
-                    .children(
-                        doc.footer("Three readings. One continuous field.")
-                        .fontSize(12)
-                        .ink(MUTED),
-                        doc.footer("OBSERVATION 002").fontSize(11).ink(MUTED),
-                    )
-                ),
+                        ).gap(18),
+                        signal_panel(),
+                    ).gap(24),
+                    title="A quiet instrument",
+                    subtitle="Retained components / three readings and a continuous signal envelope",
+                    footer="Observation 002 · ordinary Python descriptions · native entrance motion",
+                )
             )
-        )

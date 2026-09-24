@@ -176,10 +176,12 @@ struct MeshNormalBridge {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(
-        ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
-              .captureAt = 1.0,
-              .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 1.0,
+                        .background = sketch::kit::theme().palette.ground});
     studio = material::kit::studioEnvironment();
     sunset = material::kit::sunsetEnvironment();
     blob = mesh::superellipsoid({150, 138, 90}, 2.6f, 64, 48);
@@ -192,26 +194,29 @@ struct MeshNormalBridge {
           .absolute()
           .inset(kCanvas.height() - 92, 0, 0, x)
           .children(
-              {document::h2(call).font({.size = 18}), document::paragraph(note)
-                                                          .font({.size = 13})
-                                                          .ink(kDim)
-                                                          .width(370)});
+              {document::label(call), document::caption(note).width(370)});
     };
     ctx.composer.render(
         // Every line is set in the bright ink unless it says otherwise;
         // the quiet notes name the dim one.
         stack()
-            .ink(kInk)
+            .applyStyleSheet(sketch::kit::theme().styleSheet())
+            .ink(sketch::kit::theme().palette.ink)
             // Keyed on the sink's own name: everything `draw` reads is
             // cooked above, in this setup, and nothing after it moves.
             .children(
                 {custom("mesh.normal.bridge",
                         [this](SkCanvas& canvas) { draw(canvas); })
                      .inset(0),
-                 document::h1("Normal maps: two sources, one recipe")
-                     .font({.size = 30})
-                     .left(30)
-                     .top(20),
+                 sketch::kit::page(
+                     {.title = "Normal maps: two sources, one recipe",
+                      .subtitle = "Compare mesh normals with the bevel of a "
+                                  "flat silhouette.",
+                      .footer =
+                          "Both encode device-space normals as rgb = n·0.5 + "
+                          "0.5; the recipe accepts either source.",
+                      .ground = Fill::none()},
+                     box()),
                  caption("A mesh in chrome",
                          "The superellipsoid supplies its surface normals. A "
                          "sunset environment supplies the reflection.",
@@ -223,14 +228,7 @@ struct MeshNormalBridge {
                  caption("A flat outline in chrome",
                          "A bevel supplies the normals, using the same chrome "
                          "recipe and sunset as the first body.",
-                         894),
-                 document::caption("Both encode device-space normals as "
-                                   "rgb = n·0.5 + 0.5, and a recipe cannot "
-                                   "tell which one it was handed")
-                     .font({.size = 12})
-                     .ink(kDim)
-                     .left(30)
-                     .bottom(16)}));
+                         894)}));
   }
 };
 

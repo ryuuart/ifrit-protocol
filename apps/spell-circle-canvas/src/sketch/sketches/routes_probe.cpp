@@ -82,7 +82,8 @@ struct RoutesProbe {
   std::vector<Verdict> verdicts;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // the readouts are taken before the sheet is built
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -129,7 +130,8 @@ struct RoutesProbe {
     return kit::at(x, y, kNode, 34)
         .key(key)
         .fill(Fill::color(sheet.palette.cellGround))
-        .children({text(key).styleClass("readout").absolute().inset(9, 0, 0, 9)});
+        .children(
+            {text(key).styleClass("readout").absolute().inset(9, 0, 0, 9)});
   }
 
   Element diagram() const {
@@ -206,7 +208,8 @@ struct RoutesProbe {
   }
 
   Element sheetFor() const {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     Element costs = box().column().gap(12).width(560).children(
         {each(verdicts, [](const Verdict& row) {
           return sketch::kit::well({.width = 560, .padding = 16})

@@ -134,7 +134,8 @@ Element setting(Utf8 label, Utf8 control, Utf8 note, Element specimen) {
 
 struct SpacingPasses {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // Every value is the stock one with a single field moved, so a cell

@@ -89,7 +89,8 @@ Element decision(const char* policy, const char* state, const char* route,
 
 struct NetPolicy {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // every ask has already been answered
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

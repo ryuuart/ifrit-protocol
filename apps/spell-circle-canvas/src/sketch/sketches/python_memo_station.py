@@ -10,17 +10,15 @@ from sigil.compose import (
     Overflow,
     StyleSheet,
     box,
-    column,
     memo,
     pct,
     row,
     rule,
-    stroke,
     text,
 )
 from sigil.compose import document as doc
 from sigil.motion import Transition, animate, ease, from_
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import SketchContext, kit, sketch
 from sigil.weave import Type
 
 
@@ -32,24 +30,23 @@ class Reading:
 
 
 def instrument(reading):
+    look = kit.theme()
     marks = (
         row()
         .gap(3)
         .alignItems("end")
         .children(
             [
-                (box().width(3).height(5 if index % 5 else 10).fill("#425751"))
+                (box().width(3).height(5 if index % 5 else 10).fill(look.palette.rule))
                 for index in range(36)
             ]
         )
     )
     return (
-        column()
+        kit.well(padding=30, corners=6, keyline=look.palette.rule)
+        .column()
         .width(272)
         .gap(20)
-        .padding(30)
-        .fill("#10241e")
-        .borderRadius(15)
         .opacity(animate(from_(0).to(1), Transition(0.4, ease.outQuad)))
         .children(
             doc.label(reading.label),
@@ -58,15 +55,15 @@ def instrument(reading):
                 .gap(12)
                 .alignItems("baseline")
                 .children(
-                    (text(f"{reading.value:02d}").styleClass("reading")),
-                    (text("/ 100").styleClass("unit")),
+                    (text(f"{reading.value:02d}").styleClass("readout")),
+                    (text("/ 100").styleClass("control")),
                 )
             ),
             (
                 box()
                 .width(212)
                 .height(6)
-                .fill("#253e36")
+                .fill(look.palette.rule)
                 .borderRadius(3)
                 .overflow(Overflow.Clip)
                 .children(
@@ -76,21 +73,19 @@ def instrument(reading):
             marks,
             doc.label("SIGNAL LOCKED").ink(reading.accent),
         )
-    ).stroke(stroke(1, "#2b463d"))
+    )
 
 
-@sketch(size=(960, 580), background="#071811", capture_at=2.4)
+@sketch(size=(960, 480), capture_at=2.4)
 class MemoStation:
     def setup(self, ctx: SketchContext) -> None:
         self.last = None
+        self.look = kit.feature_theme(kit.Density.Spacious)
+        with kit.provide(self.look):
+            kit.stage(ctx, size=(960, 480), capture_at=2.4)
         self.sheet = StyleSheet(
             [
-                rule("h1").font(Type(size=42, weight=600)),
-                rule("label, .label").font(Type(size=11, track=1.3, color="#789f8e")),
-                rule("eyebrow").font(Type(size=11, track=1.3, color="#789f8e")),
-                rule("footer").font(Type(size=11, track=1.3, color="#789f8e")),
-                rule(".reading").font(Type(size=66, track=-2)),
-                rule(".unit").font(Type(size=13, color="#789f8e")),
+                rule(".readout").font(Type(size=66, track=-2)),
             ]
         )
 
@@ -105,41 +100,14 @@ class MemoStation:
             Reading("02 / COHERENCE", 94, "#79d9b1"),
             Reading("03 / AMPLITUDE", 40 + round(14 * sin(tick * 0.3)), "#e6bd7b"),
         )
-        ctx.render(
-            column()
-            .gap(28)
-            .width(864)
-            .absolute()
-            .left(48)
-            .top(46)
-            .ink("#e0ede5")
-            .applyStyleSheet(self.sheet)
-            .children(
-                (
-                    row()
-                    .width(864)
-                    .justifyContent("space_between")
-                    .children(
-                        doc.eyebrow("STATION / 04"),
-                        doc.label("LIVE READINGS"),
-                    )
-                ),
-                doc.h1("A quiet signal, held in place."),
-                (
-                    row()
+        with kit.provide(self.look):
+            ctx.render(
+                kit.page(
+                    row(memo(value, instrument).key(value.label) for value in values)
                     .gap(24)
-                    .children(
-                        [(memo(value, instrument).key(value.label)) for value in values]
-                    )
-                ),
-                (
-                    row()
-                    .width(864)
-                    .justifyContent("space_between")
-                    .children(
-                        doc.footer("SENSOR ARRAY"),
-                        doc.footer("NATIVE COMPOSITION / PYTHON MODELS"),
-                    )
-                ),
+                    .applyStyleSheet(self.sheet),
+                    title="A quiet signal, held in place",
+                    subtitle="Station 04 / immutable readings govern retained memo descriptions",
+                    footer="Native composition · Python models · sensor array",
+                )
             )
-        )

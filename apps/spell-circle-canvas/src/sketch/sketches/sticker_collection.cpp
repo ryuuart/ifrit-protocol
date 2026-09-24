@@ -26,6 +26,7 @@
 #include <sigilio/source/Source.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilvideo/decode/Decode.h>
 #include <sigilweave/style/Type.h>
@@ -149,6 +150,8 @@ struct StickerCollection {
   }
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kWidth, kHeight),
                         .captureAt = 2.35,
@@ -191,18 +194,13 @@ struct StickerCollection {
 
     ctx.composer.render(stack().width(kWidth).height(kHeight).children(
         {std::move(stage),
-         box()
-             .rect(SkRect::MakeXYWH(40, 38, 1000, 112))
-             .fill(Fill::color({0.07f, 0.07f, 0.08f, 0.96f}))
-             .padding(22)
-             .column()
-             .gap(10)
-             .ink(SkColors::kWhite)
-             .children(
-                 {document::h1("Moving pictures, transparent edges")
-                      .font({.size = 31}),
-                  document::caption("GIF · WEBP · AVIF SEQUENCES · ALPHA WEBM")
-                      .font({.size = 17})})}));
+         sketch::kit::well(
+             {.width = 1000, .height = 112, .padding = 22},
+             sketch::kit::titleCard(
+                 {.title = {"Moving pictures, transparent edges"},
+                  .subtitle = {"GIF · WebP · AVIF sequences · alpha WebM"}}))
+             .applyStyleSheet(sketch::kit::theme().styleSheet())
+             .at({40, 38})}));
   }
 };
 

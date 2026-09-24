@@ -53,9 +53,9 @@ constexpr float kWeight = 1.5f;  // every curve drawn at one width
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.captionWhere = kit::Caption::Where::Below;
-  look.type.captionLabel = {.size = 11.5f, .mono = true};
   look.spacing.captionGap = 8;
   look.spacing.captionNoteGap = 3;
   return look;
@@ -94,95 +94,93 @@ struct CurveShelf {
          .footer = "The same stroke and the same display extent keep the "
                    "differences in geometry visible."},
         box().column().gap(24).children(
-            {sketch::kit::sectionHeader(
+            {sketch::kit::section(
                  {.label = "01  COUPLE OSCILLATORS",
-                  .note = "Frequency and phase describe the path"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {cell(
-                           "SUM TWO ORBITS", "parametric(\"epicycle\", f)",
-                           "the KEYED escape hatch — your callable, comparable "
-                           "by name",
-                           shapes::parametric(
-                               "epicycle",
-                               [](float t) {
-                                 return SkPoint{0.62f * std::cos(t) +
-                                                    0.34f * std::cos(7 * t),
-                                                0.62f * std::sin(t) +
-                                                    0.34f * std::sin(7 * t)};
-                               },
-                               0.0f, 6.2831853f, 1400)),
-                       cell("FREQUENCY 3 : 2", "lissajous(3, 2, 90)",
-                            "x = sin(a·t + δ), y = sin(b·t)",
-                            shapes::lissajous(3, 2, 90)),
-                       cell("FREQUENCY 5 : 4", "lissajous(5, 4, 45)",
-                            "the ratio picks the family, δ the phase",
-                            shapes::lissajous(5, 4, 45)),
-                       cell("ADD DAMPING", "harmonograph(3,2,0,.06,5)",
-                            "amplitudes DECAY, so a real pendulum figure "
-                            "spirals "
-                            "in",
-                            shapes::harmonograph(3, 2, 0, 0.06f, 5, 9), 32)},
-                  .measure = 1020,
-                  .gap = 20}),
+                  .note = "Frequency and phase describe the path"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("SUM TWO ORBITS", "parametric(\"epicycle\", f)",
+                                "the KEYED escape hatch — your callable, "
+                                "comparable "
+                                "by name",
+                                shapes::parametric(
+                                    "epicycle",
+                                    [](float t) {
+                                      return SkPoint{
+                                          0.62f * std::cos(t) +
+                                              0.34f * std::cos(7 * t),
+                                          0.62f * std::sin(t) +
+                                              0.34f * std::sin(7 * t)};
+                                    },
+                                    0.0f, 6.2831853f, 1400)),
+                           cell("FREQUENCY 3 : 2", "lissajous(3, 2, 90)",
+                                "x = sin(a·t + δ), y = sin(b·t)",
+                                shapes::lissajous(3, 2, 90)),
+                           cell("FREQUENCY 5 : 4", "lissajous(5, 4, 45)",
+                                "the ratio picks the family, δ the phase",
+                                shapes::lissajous(5, 4, 45)),
+                           cell("ADD DAMPING", "harmonograph(3,2,0,.06,5)",
+                                "amplitudes DECAY, so a real pendulum figure "
+                                "spirals "
+                                "in",
+                                shapes::harmonograph(3, 2, 0, 0.06f, 5, 9),
+                                32)},
+                      .measure = 1020,
+                      .gap = 20})),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(20)
                  .children(
-                     {box().column().gap(18).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "02  COUNT THE PETALS", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases =
-                                    {cell("ODD FREQUENCY", "rose(5)",
-                                          "r = cos(k·θ) · odd k gives k petals",
-                                          shapes::rose(5)),
-                                     cell("EVEN FREQUENCY", "rose(4)",
-                                          "…and EVEN k gives 2k, which is the "
-                                          "rule about this "
-                                          "family",
-                                          shapes::rose(4))},
-                                .measure = 500,
-                                .gap = 20})}),
-                      box().column().gap(18).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "03  GROW THE RADIUS", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases = {cell("EVEN SPACING", "spiral(4)",
-                                               "Archimedean — even spacing: a "
-                                               "clock spring",
-                                               shapes::spiral(4)),
-                                          cell("CONSTANT ANGLE",
-                                               "spiral(4, true, 0.34)",
-                                               "logarithmic — a constant "
-                                               "angle: a nautilus",
-                                               shapes::spiral(4, true, 0.34f))},
-                                .measure = 500,
-                                .gap = 20})})}),
+                     {sketch::kit::section(
+                          {.label = "02  COUNT THE PETALS", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases =
+                                   {cell("ODD FREQUENCY", "rose(5)",
+                                         "r = cos(k·θ) · odd k gives k petals",
+                                         shapes::rose(5)),
+                                    cell("EVEN FREQUENCY", "rose(4)",
+                                         "…and EVEN k gives 2k, which is the "
+                                         "rule about this "
+                                         "family",
+                                         shapes::rose(4))},
+                               .measure = 500,
+                               .gap = 20})),
+                      sketch::kit::section(
+                          {.label = "03  GROW THE RADIUS", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases = {cell("EVEN SPACING", "spiral(4)",
+                                              "Archimedean — even spacing: a "
+                                              "clock spring",
+                                              shapes::spiral(4)),
+                                         cell("CONSTANT ANGLE",
+                                              "spiral(4, true, 0.34)",
+                                              "logarithmic — a constant "
+                                              "angle: a nautilus",
+                                              shapes::spiral(4, true, 0.34f))},
+                               .measure = 500,
+                               .gap = 20}))}),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(20)
                  .children(
-                     {box().column().gap(18).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "04  ROLL A CIRCLE", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases =
-                                    {cell("OUTSIDE",
-                                          "trochoid(5, 3, 5, false, 3)",
-                                          "an EPItrochoid: the rolling circle "
-                                          "runs outside the "
-                                          "fixed one",
-                                          shapes::trochoid(5, 3, 5, false, 3)),
-                                     cell("INSIDE",
-                                          "trochoid(5, 3, 5, true, 3)",
-                                          "…and the same three numbers with it "
-                                          "running inside",
-                                          shapes::trochoid(5, 3, 5, true, 3))},
-                                .measure = 500,
-                                .gap = 20})}),
+                     {sketch::kit::section(
+                          {.label = "04  ROLL A CIRCLE", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases =
+                                   {cell("OUTSIDE",
+                                         "trochoid(5, 3, 5, false, 3)",
+                                         "an EPItrochoid: the rolling circle "
+                                         "runs outside the "
+                                         "fixed one",
+                                         shapes::trochoid(5, 3, 5, false, 3)),
+                                    cell("INSIDE", "trochoid(5, 3, 5, true, 3)",
+                                         "…and the same three numbers with it "
+                                         "running inside",
+                                         shapes::trochoid(5, 3, 5, true, 3))},
+                               .measure = 500,
+                               .gap = 20})),
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "ONE UNIT FRAME", .note = ""}),

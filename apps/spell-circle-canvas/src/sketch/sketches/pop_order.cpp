@@ -61,16 +61,6 @@ constexpr glm::vec3 kOrderAxis{0, 0, 1};  // the sort key: dot(P, axis)
 constexpr bool kDescending = false;       // false = ascending = farthest first
 constexpr float kPanel = 498.0f;
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
-  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.captionLabel = {.size = 13, .track = 0.4f};
-  return look;
-}
-
 /** A CROWN: a closed ring in the XZ plane with a threefold vertical wave.
  *  One property is doing the work here — the near and far arcs OVERLAP on
  *  screen, which is the only condition under which draw order is visible
@@ -141,7 +131,8 @@ struct PopOrder {
   mesh::Cloud unsorted, sorted;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // Both clouds are cooked in setup; nothing reads the clock.
     sketch::kit::stage(ctx, {.size = {1100, 690}, .captureAt = 0.05});
 

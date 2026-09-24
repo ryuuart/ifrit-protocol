@@ -115,7 +115,8 @@ Element panel(bool editorial) {
 
 struct DocumentStyles {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 1010}, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "One document, two voices",

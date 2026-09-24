@@ -265,7 +265,8 @@ struct ArtNetLights {
   Reading shown;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
+    const sketch::kit::Provide sheet(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
     ticker = &ctx.ticker;
@@ -430,7 +431,8 @@ struct ArtNetLights {
   }
 
   void describe(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
+    const sketch::kit::Provide sheet(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // A paint program runs after the describe scope has closed, where
     // the theme in force is no longer this page's, so the colours the
     // dimmer row is drawn in are read here and carried in by value.

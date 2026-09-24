@@ -90,18 +90,6 @@ constexpr double kPeriod = 6.0;  // seconds per lap of `phase`
 constexpr float kLook = 0.02f;   // lookAhead: the auto-orient chord
 constexpr float kLaps = 2.0f;    // track 4's .target(0, kLaps)
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
-  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  // A TRACE IS A MEASURED FIGURE, so the curve every plot draws is the
-  // palette's figure colour and no plot names one.
-  look.palette.figure = {0.36f, 0.82f, 0.72f, 1};
-  return look;
-}
-
 const material::Color kDim{0.55f, 0.60f, 0.70f, 1};
 const material::Color kFrame{0.20f, 0.24f, 0.32f, 1};
 const material::Color kRail{0.85f, 0.30f, 0.36f, 0.75f};
@@ -242,7 +230,8 @@ struct BoundLane {
   choreograph::Output<float> phase{0};
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1280, 1030}, .captureAt = 6.0});
 
     // `seconds` is the SCHEDULE the shake is phased off. It ramps forever

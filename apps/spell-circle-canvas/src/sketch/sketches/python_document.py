@@ -7,7 +7,7 @@ from sigil.compose import Element, StyleSheet, row, rule
 from sigil.compose import document as doc
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import Typeface
-from sigil.weave import ParagraphBlock, Leading, Type
+from sigil.weave import Leading, ParagraphBlock, Type
 
 
 def passage() -> Element:
@@ -64,9 +64,9 @@ def voice(
 @sketch(size=(1100, 800), capture_at=0.05)
 class DocumentStudy:
     def setup(self, ctx: SketchContext) -> None:
-        look = kit.study_theme()
-        look.type.title.size = 34
+        look = kit.feature_theme(kit.Density.Spacious)
         with kit.provide(look):
+            kit.stage(ctx, size=(1100, 800), capture_at=0.05)
             first, second = passage(), passage()
             paper = first.fill("#f6f1e7").applyStyleSheet(
                 voice(

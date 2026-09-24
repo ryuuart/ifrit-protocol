@@ -202,7 +202,8 @@ struct GrpcWatch {
   Reading shown;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
+    const sketch::kit::Provide sheet(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
     ticker = &ctx.ticker;
@@ -339,7 +340,8 @@ struct GrpcWatch {
   }
 
   void describe(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
+    const sketch::kit::Provide sheet(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     std::vector<compose::Element> parts;
     parts.push_back(compose::pen("grpc_watch.sky", [this](Pen& pen) {
                       bands(pen);

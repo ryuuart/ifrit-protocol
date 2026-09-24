@@ -4,8 +4,8 @@ TAGS: Typography/Paragraphs, Typography/Lettering, Runtime/Python
 """
 
 from sigil.compose import (
-    SpanStyle,
     Element,
+    SpanStyle,
     StyleSheet,
     TextPath,
     box,
@@ -21,11 +21,11 @@ from sigil.compose import selectors as selected
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import PathBuilder
 from sigil.weave import (
-    ParagraphBlock,
     Decoration,
     InitialLetter,
     KeepOptions,
     Leading,
+    ParagraphBlock,
     ParagraphStyle,
     RichText,
     Story,
@@ -35,7 +35,7 @@ from sigil.weave import (
 )
 
 WIDTH, GUTTER, MEASURE = 328, 18, 1020
-PAPER, INK, MUTED = "#edf0e8", "#172b33", "#667b80"
+PAPER, INK = "#edf0e8", "#172b33"
 TEAL, ORANGE, GUIDE = "#8ccbbb", "#e5a36c", "#355057"
 
 ARTICLE = (
@@ -76,9 +76,7 @@ def run_figure(mode: int) -> Element:
         highlight = Decoration(kind=Decoration.Kind.Highlight, color="#31584f")
         line.span(
             selected.style("signal"),
-            SpanStyle().font(
-                Type(color=TEAL, weight=700, decorations=(highlight,))
-            ),
+            SpanStyle().font(Type(color=TEAL, weight=700, decorations=(highlight,))),
         )
     return specimen(column(line).justifyContent("center"), 194)
 
@@ -97,8 +95,8 @@ def curved_figure() -> Element:
     )
     key = (
         row(
-            doc.label("PATH").fontSize(10).ink(MUTED),
-            doc.caption("one cubic / exact tangent").fontSize(10).ink(MUTED),
+            doc.label("PATH"),
+            doc.caption("one cubic / exact tangent"),
         )
         .gap(14)
         .absolute()
@@ -117,10 +115,7 @@ def case(title: str, control: str, figure: Element, note: str) -> kit.Comparison
 @sketch(size=(1100, 900), capture_at=0.05)
 class TypeAtelier:
     def setup(self, ctx: SketchContext) -> None:
-        look = kit.study_theme()
-        look.type.title.size = 34
-        look.type.title.track = -0.5
-        look.type.captionNote.track = 0
+        look = kit.feature_theme(kit.Density.Spacious)
         book = kit.house_face(kit.Voice.Book)
         body_type = Type(face=book, size=17, track=0, color=PAPER)
         article = Story(rich(textStyle(body_type)).add(ARTICLE)).paragraphs(
@@ -134,7 +129,12 @@ class TypeAtelier:
                 ParagraphStyle(leading=Leading.absolute(24)),
             )
         )
-        first = frame(article).key("opening").textThreadTo("continuation").textThreadBalance()
+        first = (
+            frame(article)
+            .key("opening")
+            .textThreadTo("continuation")
+            .textThreadBalance()
+        )
         second = frame(article).key("continuation")
         sheet = StyleSheet([rule(".signal").font(Type(color=PAPER))])
         with kit.provide(look):

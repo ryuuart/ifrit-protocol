@@ -29,13 +29,6 @@ constexpr SkSize kCanvas = {1100, 860};
 constexpr float kCell = 324;
 constexpr float kPicture = 208;
 
-/** The specimen sheet, in this one's caption voice. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.type.captionLabel = {.size = 11, .mono = true};
-  return look;
-}
-
 /** The traced outline: a lightning bolt, whose own bounds are taller
  *  than they are wide, so a wide box has to do something about it. */
 constexpr const char* kBolt = "M62 4 L18 78 H44 L30 148 L86 62 H56 Z";
@@ -94,7 +87,8 @@ Element fitRow(bool preserveAspect) {
 struct SvgSilhouette {
   void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(

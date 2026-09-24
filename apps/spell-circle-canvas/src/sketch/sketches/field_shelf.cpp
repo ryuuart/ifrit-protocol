@@ -65,13 +65,6 @@ constexpr float kSeed = 4;          // the seed every generated field offsets by
 
 constexpr material::Color kScreen{0.72f, 0.80f, 0.62f, 1};
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
-  return look;
-}
-
 SkPath whole() {
   return SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
 }
@@ -149,7 +142,8 @@ sketch::kit::ComparisonCase aged(const char* caseTitle, const char* call,
 
 struct FieldShelf {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -164,91 +158,90 @@ struct FieldShelf {
                  .alignItems(Align::Start)
                  .gap(20)
                  .children(
-                     {box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "HALFTONE",
-                                .note = "Change the lattice, keep the vertical "
-                                        "swell."}),
-                           sketch::kit::comparison(
-                               {.cases =
-                                    {plain(
-                                         "RADIUS RAMP",
-                                         "halftoneRamp(9, 0.5, 4, ink)",
-                                         "The dot radius grows down the page.",
-                                         field::halftoneRamp(
-                                             kSpacing, 0.5f, 4.0f,
-                                             {0.94f, 0.90f, 0.80f, 1})),
-                                     plain("ROTATED LATTICE",
-                                           "halftoneRamp(…, 30, 0.25, 0.75)",
-                                           "Turn the lattice; keep the ramp "
-                                           "vertical and narrow its range.",
-                                           field::halftoneRamp(
-                                               kSpacing, 0.5f,
-                                               4.0f, {0.94f, 0.90f, 0.80f, 1},
-                                               30, 0.25f, 0.75f))},
-                                .measure = 500,
-                                .gap = 20})}),
-                      box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "RIPPLE",
-                                .note = "Change which coordinate moves."}),
-                           sketch::kit::comparison(
-                               {.cases = {plain(
-                                              "VERTICAL DISPLACEMENT",
-                                              "ripple(7, 96) over a ruled grid",
-                                              "A sine in x displaces the grid "
-                                              "vertically.",
-                                              rippled(7, 96, false)),
-                                          plain("HORIZONTAL DISPLACEMENT",
-                                                "ripple(9, 70, vertical)",
-                                                "A sine in y displaces the "
-                                                "grid horizontally.",
-                                                rippled(9, 70, true))},
-                                .measure = 500,
-                                .gap = 20})})}),
-             sketch::kit::sectionHeader(
+                     {sketch::kit::section(
+                          {.label = "HALFTONE",
+                           .note = "Change the lattice, keep the vertical "
+                                   "swell."},
+                          sketch::kit::comparison(
+                              {.cases =
+                                   {plain("RADIUS RAMP",
+                                          "halftoneRamp(9, 0.5, 4, ink)",
+                                          "The dot radius grows down the page.",
+                                          field::halftoneRamp(
+                                              kSpacing, 0.5f, 4.0f,
+                                              {0.94f, 0.90f, 0.80f, 1})),
+                                    plain("ROTATED LATTICE",
+                                          "halftoneRamp(…, 30, 0.25, 0.75)",
+                                          "Turn the lattice; keep the ramp "
+                                          "vertical and narrow its range.",
+                                          field::halftoneRamp(
+                                              kSpacing, 0.5f,
+                                              4.0f, {0.94f, 0.90f, 0.80f, 1},
+                                              30, 0.25f, 0.75f))},
+                               .measure = 500,
+                               .gap = 20})),
+                      sketch::kit::section(
+                          {.label = "RIPPLE",
+                           .note = "Change which coordinate moves."},
+                          sketch::kit::comparison(
+                              {.cases = {plain(
+                                             "VERTICAL DISPLACEMENT",
+                                             "ripple(7, 96) over a ruled grid",
+                                             "A sine in x displaces the grid "
+                                             "vertically.",
+                                             rippled(7, 96, false)),
+                                         plain("HORIZONTAL DISPLACEMENT",
+                                               "ripple(9, 70, vertical)",
+                                               "A sine in y displaces the "
+                                               "grid horizontally.",
+                                               rippled(9, 70, true))},
+                               .measure = 500,
+                               .gap = 20}))}),
+             sketch::kit::section(
                  {.label = "NOISE IS NOT GRAIN",
                   .note = "Compare channel structure first; then change the "
-                          "character of each field."}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {plain("PERLIN · RGB", "noise(0.035, 4, 4)",
-                             "Independent colour channels suit displacement.",
-                             field::noise(kNoiseHz, 4, kSeed)),
-                       plain("TURBULENCE · RGB", "noise(0.035, 4, 4, true)",
-                             "Absolute-value turbulence folds the field into "
-                             "veins.",
-                             field::noise(kNoiseHz, 4, kSeed, true)),
-                       plain("GRAIN · MONO", "grain(0.035, 4, 4, 1)",
-                             "A single luminance channel suits surface grain.",
-                             field::grain(kNoiseHz, 4, kSeed)),
-                       plain("FIBRE · MONO", "grain(0.02, 4, 4, 1.6, 7)",
-                             "Stretch the field into long fibres.",
-                             field::grain(0.02f, 4, kSeed, 1.6f, 7))},
-                  .measure = 1020,
-                  .gap = 20}),
+                          "character of each field."},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {plain(
+                               "PERLIN · RGB", "noise(0.035, 4, 4)",
+                               "Independent colour channels suit displacement.",
+                               field::noise(kNoiseHz, 4, kSeed)),
+                           plain(
+                               "TURBULENCE · RGB", "noise(0.035, 4, 4, true)",
+                               "Absolute-value turbulence folds the field into "
+                               "veins.",
+                               field::noise(kNoiseHz, 4, kSeed, true)),
+                           plain("GRAIN · MONO", "grain(0.035, 4, 4, 1)",
+                                 "A single luminance channel suits surface "
+                                 "grain.",
+                                 field::grain(kNoiseHz, 4, kSeed)),
+                           plain("FIBRE · MONO", "grain(0.02, 4, 4, 1.6, 7)",
+                                 "Stretch the field into long fibres.",
+                                 field::grain(0.02f, 4, kSeed, 1.6f, 7))},
+                      .measure = 1020,
+                      .gap = 20})),
              box()
                  .row()
                  .alignItems(Align::Start)
                  .gap(20)
                  .children(
-                     {box().column().gap(16).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "A SCREEN OVERLAY", .note = ""}),
-                           sketch::kit::comparison(
-                               {.cases =
-                                    {aged("STOCK TUBE", "crtOverlay()",
-                                          "Alpha scanlines darken the green "
-                                          "ground.",
-                                          field::crtOverlay()),
-                                     aged("COARSER TUBE",
-                                          "crtOverlay(8, 0.16, 1.1, 1.9, 0.7)",
-                                          "Coarser lines and a stronger corner "
-                                          "falloff.",
-                                          field::crtOverlay(8, 0.16f, 1.1f,
-                                                            1.9f, 0.7f))},
-                                .measure = 500,
-                                .gap = 20})}),
+                     {sketch::kit::section(
+                          {.label = "A SCREEN OVERLAY", .note = ""},
+                          sketch::kit::comparison(
+                              {.cases =
+                                   {aged("STOCK TUBE", "crtOverlay()",
+                                         "Alpha scanlines darken the green "
+                                         "ground.",
+                                         field::crtOverlay()),
+                                    aged("COARSER TUBE",
+                                         "crtOverlay(8, 0.16, 1.1, 1.9, 0.7)",
+                                         "Coarser lines and a stronger corner "
+                                         "falloff.",
+                                         field::crtOverlay(8, 0.16f, 1.1f, 1.9f,
+                                                           0.7f))},
+                               .measure = 500,
+                               .gap = 20})),
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "WHAT A FIELD DOES", .note = ""}),

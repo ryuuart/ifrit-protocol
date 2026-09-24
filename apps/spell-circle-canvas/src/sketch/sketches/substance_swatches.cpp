@@ -70,13 +70,8 @@ constexpr material::Color kDim = hexColor(0xb4a894);
 /** The archive's own look: warm ink on a cooled ground, and the card's
  *  two lines under its picture rather than around it. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
-  look.palette.ink = kInk;
-  look.palette.ash = kDim;
-  look.type.title = {.size = 28};
-  look.type.subtitle = {.size = 12};
-  look.type.captionLabel = {.size = 14};
-  look.type.captionNote = {.size = 11.5f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.captionWhere = kit::Caption::Where::Below;
   look.spacing.captionGap = 7;
   look.spacing.captionNoteGap = 7;
@@ -155,7 +150,7 @@ struct SubstanceSwatchesSketch {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    ctx.background(hexColor(0x140f0a));
+    ctx.background(sketch::kit::featureTheme().palette.ground);
     ctx.captureAt(0.5);
 
     std::string error;
@@ -220,9 +215,8 @@ struct SubstanceSwatchesSketch {
             .applyStyleSheet(sketch::kit::theme().styleSheet())
             .children({sketch::kit::backdrop(
                            {.over = ctx.size,
-                            .ground = linearGradient(
-                                {0, 0}, {0, ctx.size.height()},
-                                {hexColor(0x1a120b), hexColor(0x0f0d10)})}),
+                            .ground = Fill::color(
+                                sketch::kit::theme().palette.ground)}),
                        sketch::kit::titleCard(
                            {.title = {u8"A procedural archive, cooked"},
                             .subtitle = {caption}})

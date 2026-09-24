@@ -93,11 +93,8 @@ constexpr material::Color kCellGround{0.085f, 0.085f, 0.105f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.055f, 0.055f, 0.075f, 1};
-  look.palette.ink = {0.90f, 0.91f, 0.94f, 1};
-  look.palette.rule = {0.19f, 0.20f, 0.24f, 1};
-  look.type.captionLabel = {.size = 12, .track = 0.6f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = 40;
   look.spacing.marginTop = 40;
   look.spacing.marginBottom = 18;
@@ -302,25 +299,26 @@ struct BlendOptions {
                  "Left: colour difference chooses the number of steps. Right: "
                  "42 steps between open paths form a ribbon.",
                  derivedCount)),
-             sketch::kit::sectionHeader(
+             sketch::kit::section(
                  {.label = "05  PUT THE RUN ON A SPINE",
                   .note =
-                      "Same spiral · 30 px spacing · one orientation change"}),
-             sketch::kit::comparison(
-                 {.cases = {band("UPRIGHT TO THE PAGE", "spine.page",
-                                 kSpineCell, kSpine,
-                                 "Spacing::Distance{30} · spine = spiral(2.2) "
-                                 "· AlignToPage",
-                                 "Even distance along the spine; every mark "
-                                 "remains upright.",
-                                 spineUpright),
-                            band("FOLLOW THE TANGENT", "spine.path", kSpineCell,
-                                 kSpine, "the same run · AlignToPath",
-                                 "The same spine and spacing; each mark turns "
-                                 "with the tangent.",
-                                 spineTurned)},
-                  .measure = 1120,
-                  .gap = 18})})));
+                      "Same spiral · 30 px spacing · one orientation change"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {band("UPRIGHT TO THE PAGE", "spine.page", kSpineCell,
+                                kSpine,
+                                "Spacing::Distance{30} · spine = spiral(2.2) "
+                                "· AlignToPage",
+                                "Even distance along the spine; every mark "
+                                "remains upright.",
+                                spineUpright),
+                           band("FOLLOW THE TANGENT", "spine.path", kSpineCell,
+                                kSpine, "the same run · AlignToPath",
+                                "The same spine and spacing; each mark turns "
+                                "with the tangent.",
+                                spineTurned)},
+                      .measure = 1120,
+                      .gap = 18}))})));
   }
 };
 

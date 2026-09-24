@@ -49,13 +49,13 @@ namespace {
 // ---------------------------------------------------------------------------
 // the plate's ink
 
-constexpr material::Color kPaper = {0.918f, 0.902f, 0.859f, 1};  // #EAE6DB
-constexpr material::Color kInk = {0.114f, 0.106f, 0.098f, 1};    // #1D1B19
-constexpr material::Color kInkSoft = {0.114f, 0.106f, 0.098f, 0.55f};
-constexpr material::Color kCaptionInk = {0.25f, 0.24f, 0.22f, 1};
-constexpr material::Color kRed = {0.663f, 0.157f, 0.125f, 1};    // #A92820
-constexpr material::Color kBlue = {0.157f, 0.278f, 0.435f, 1};   // #28476F
-constexpr material::Color kGreen = {0.243f, 0.373f, 0.243f, 1};  // #3E5F3E
+const material::Color kPaper = sketch::kit::featureTheme().palette.ground;
+const material::Color kInk = sketch::kit::featureTheme().palette.ink;
+const material::Color kInkSoft = material::withAlpha(kInk, 0.55f);
+const material::Color kCaptionInk = sketch::kit::featureTheme().palette.ash;
+constexpr material::Color kRed = {0.90f, 0.55f, 0.37f, 1};
+constexpr material::Color kBlue = {0.56f, 0.76f, 0.88f, 1};
+constexpr material::Color kGreen = {0.54f, 0.75f, 0.59f, 1};
 
 Fill ink() { return Fill::color(kInk); }
 Fill red() { return Fill::color(kRed); }
@@ -74,15 +74,14 @@ Fill soft() { return Fill::color(kInkSoft); }
 sk_sp<SkTypeface> monoFace() {
   return sketch::kit::houseFace(sketch::kit::Voice::Terminal);
 }
-sk_sp<SkTypeface> romanFace() {
-  return weave::ports::face({"Palatino", "Georgia"});
-}
+sk_sp<SkTypeface> romanFace() { return sketch::kit::featureTheme().type.sans; }
 sk_sp<SkTypeface> romanBoldFace() {
-  return weave::ports::face({"Palatino", "Georgia"}, SkFontStyle::kBold_Weight);
+  return sketch::kit::houseFace(sketch::kit::Voice::Interface,
+                                SkFontStyle::kBold_Weight);
 }
 
 /** THE PLATE'S THREE VOICES, as classes: the call is the terminal face,
- *  tracked a tenth; the roman and its bold are the book face. A leaf
+ *  tracked a tenth; the prose and headings use the interface face. A leaf
  *  states its size and colour over the class; the sheet is bound around
  *  the description, since a class is read where the leaf is written. */
 sigil::compose::StyleSheet voices() {
@@ -395,8 +394,7 @@ std::vector<Style> stackStyles() {
       {"brush::presets::rope(state=2, scale=0.5)",
        brush::presets::rope(2, 0.5f)},
       {"brush::presets::pulse(...)  trim a window and march it",
-       brush::presets::pulse({0.66f, 0.16f, 0.13f, 0.45f},
-                             {0.15f, 0.13f, 0.11f, 0.9f}, 0.6f)},
+       brush::presets::pulse(kRed, material::withAlpha(kRed, 0.28f), 0.6f)},
   };
 }
 

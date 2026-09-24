@@ -28,6 +28,7 @@
 #include <sigilio/source/Source.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilvideo/decode/Decode.h>
 #include <sigilvideo/decode/Playback.h>
@@ -150,6 +151,8 @@ struct VideoCompositing {
   }
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
                              .captureAt = 4.25,
                              .background = material::Color{0, 0, 0, 1}});
@@ -207,13 +210,15 @@ struct VideoCompositing {
             .cover()
             .cache(Cache::None);
 
-    const weave::TextStyle title = weave::textStyle(
-        {.size = 34, .color = material::Color{1, 1, 1, 0.96f}, .track = 8.0f});
     ctx.composer.render(stack().width(kWidth).height(kHeight).children(
         {std::move(stage),
-         text(u8"SKY / SIGNAL", title)
-             .absolute()
-             .inset(88, 72, 1720, 72)}));
+         sketch::kit::well({.width = kWidth - 144, .padding = 22},
+                           sketch::kit::titleCard(
+                               {.title = {"Layers of moving light"},
+                                .subtitle = {"Cached footage · additive "
+                                             "blending · alpha compositing"}}))
+             .applyStyleSheet(sketch::kit::theme().styleSheet())
+             .at({72, 72})}));
   }
 };
 

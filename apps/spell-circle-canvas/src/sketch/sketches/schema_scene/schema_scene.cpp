@@ -98,7 +98,8 @@ struct SchemaScene {
   std::shared_ptr<const io::Bytes> taken;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx,
                        {.size = {1280, 720},
                         .captureAt = 2.0,

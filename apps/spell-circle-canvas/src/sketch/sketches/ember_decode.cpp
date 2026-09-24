@@ -217,6 +217,8 @@ struct EmberDecode {
   float wordsTotalMs = 1;
 
   Element describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     const sk_sp<SkTypeface> face =
         weave::ports::face({"Helvetica Neue", "Arial", "Inter"}, 700);
     // The letters are set WHITE: the pass reads the layer's coverage and
@@ -245,54 +247,62 @@ struct EmberDecode {
           .at({beat.rect.left(), beat.rect.bottom() + 6});
     };
 
-    return box()
-        .column()
-        .padding(44)
-        .gap(20)
-        .fill(mskia::Paint::solid(kPlate))
-        // The faint remark is the sheet's own voice: every line is set in it
-        // unless it says otherwise.
-        .font({.size = 14.0f, .color = kFaint})
-        .children(
-            {document::eyebrow("TEXT AS A SAMPLER / ONE PASS, MANY CLOCKS")
-                 .font({.size = 14, .color = kFaint, .track = 1.2f}),
-             text(u8"EMBER DECODE")
-                 .font(burnt(78, 5.0f))
-                 .key("burn-display")
-                 .textFx({.effect = textFx::pass(burn),
-                          .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                          .unit = weave::Unit::Cluster,
-                          .progress = &display}),
-             document::paragraph("Each letter has its own clock. The bars read "
-                                 "back the same schedule that drives the burn.")
-                 .width(680),
-             box().height(6),
-             text(u8"ONE PASS PER WORD PHASE")
-                 .font(burnt(27, 3.0f))
-                 .key("burn-words")
-                 .textFx({.effect = textFx::pass(burn),
-                          .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                          .unit = weave::Unit::Word,
-                          .progress = &words}),
-             document::paragraph("Each word is a unit here. The shader stays "
-                                 "the same; its schedule changes.")
-                 .width(680),
-             box().flexGrow(1),
-             document::caption("A single pass reads unit bounds and progress "
-                               "from uniform arrays.")
-                 .font({.size = 13})
-                 .width(760),
-             // Last in the block, so the bars paint over the lines.
-             stack().key("meter").inset(0).hitTestable(false).children(
-                 {each(beats, readBack)})});
+    Element content =
+        box()
+            .column()
+            .gap(20)
+            // The faint remark is the sheet's own voice: every line is set in
+            // it unless it says otherwise.
+            .font(sketch::kit::theme().font(
+                sketch::kit::theme().type.captionNote))
+            .children({
+                text(u8"EMBER DECODE")
+                    .font(burnt(78, 5.0f))
+                    .key("burn-display")
+                    .textFx(
+                        {.effect = textFx::pass(burn),
+                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                         .unit = weave::Unit::Cluster,
+                         .progress = &display}),
+                document::paragraph(
+                    "Each letter has its own clock. The bars read "
+                    "back the same schedule that drives the burn.")
+                    .width(680),
+                box().height(6),
+                text(u8"ONE PASS PER WORD PHASE")
+                    .font(burnt(27, 3.0f))
+                    .key("burn-words")
+                    .textFx(
+                        {.effect = textFx::pass(burn),
+                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                         .unit = weave::Unit::Word,
+                         .progress = &words}),
+                document::paragraph(
+                    "Each word is a unit here. The shader stays "
+                    "the same; its schedule changes.")
+                    .width(680),
+            });
+    return stack().children(
+        {sketch::kit::page(
+             {.title = "Text as a sampler",
+              .subtitle = "One material pass · a separate clock for each "
+                          "letter or word",
+              .footer =
+                  "The bars read back the schedule that drives the burn."},
+             std::move(content)),
+         stack().key("meter").inset(0).hitTestable(false).children(
+             {each(beats, readBack)})});
   }
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = SkSize::Make(kW, kH),
               .captureAt = 2.4,
-              .background =
-                  kPlate});  // mid-decode: resolved, burning and unlit at once
+              .background = sketch::kit::theme()
+                                .palette.ground});  // mid-decode: resolved,
+                                                    // burning and unlit at once
     ctx.composer.render(describe(ctx));
   }
 

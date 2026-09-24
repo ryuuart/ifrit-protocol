@@ -87,18 +87,13 @@ const std::array<Band, 8> kBands{{
     {{0.5f, 0.5f, 0.5f, 1}, "grey .5"},
 }};
 
-constexpr mat::Color kInk{0.90f, 0.93f, 0.97f, 1};
 constexpr mat::Color kDim{0.55f, 0.60f, 0.70f, 1};
 constexpr mat::Color kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::studyTheme();
-  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
-  look.palette.ink = kInk;
-  look.palette.ash = kDim;
-  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.captionLabel = {.size = 13, .track = 0.4f};
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.spacing.marginX = 40;
   look.spacing.marginTop = 40;
   look.spacing.captionGap = 6;
@@ -272,26 +267,26 @@ struct MatteLuma {
                                "means the content is hidden, rather than "
                                "painted black.")
                                .width(360)})}),
-             sketch::kit::sectionHeader(
+             sketch::kit::section(
                  {.label = "KEEP / REMOVE",
-                  .note = "Alpha pair on the left · luma pair on the right"}),
-             sketch::kit::comparison(
-                 {.cases =
-                      {captioned("ALPHA · KEEP", "by::alpha(coverage)",
-                                 "The grey half remains fully visible.",
-                                 gated(by::alpha(coverage))),
-                       captioned("ALPHA · REMOVE", "by::alphaOut(coverage)",
-                                 "The grey half disappears.",
-                                 gated(by::alphaOut(coverage))),
-                       captioned("LUMA · KEEP", "by::luma(coverage)",
-                                 "Brightness reduces both halves.",
-                                 gated(by::luma(coverage))),
-                       captioned(
-                           "LUMA · REMOVE", "by::lumaOut(coverage)",
-                           "The brightness complement reveals both halves.",
-                           gated(by::lumaOut(coverage)))},
-                  .measure = 1020,
-                  .gap = 20}),
+                  .note = "Alpha pair on the left · luma pair on the right"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {captioned("ALPHA · KEEP", "by::alpha(coverage)",
+                                     "The grey half remains fully visible.",
+                                     gated(by::alpha(coverage))),
+                           captioned("ALPHA · REMOVE", "by::alphaOut(coverage)",
+                                     "The grey half disappears.",
+                                     gated(by::alphaOut(coverage))),
+                           captioned("LUMA · KEEP", "by::luma(coverage)",
+                                     "Brightness reduces both halves.",
+                                     gated(by::luma(coverage))),
+                           captioned(
+                               "LUMA · REMOVE", "by::lumaOut(coverage)",
+                               "The brightness complement reveals both halves.",
+                               gated(by::lumaOut(coverage)))},
+                      .measure = 1020,
+                      .gap = 20})),
              sketch::kit::sectionHeader(
                  {.label = "THE COLOUR WEIGHTS",
                   .note = "The coloured bands and their grey twins must "
